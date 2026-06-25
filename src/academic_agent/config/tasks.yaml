@@ -1,3 +1,14 @@
+# ============================================================
+# ORIGINAL DEMO: research_task + reporting_task (2 tasks)
+#
+# MODIFIED: Replaced with 4 tasks covering the full
+#   commercialization assessment pipeline:
+#   academic_research_task  → patent_analysis_task
+#   → market_intelligence_task → commercialization_report_task
+#
+#   Input variable changed from {topic} to {research_topic}.
+# ============================================================
+
 academic_research_task:
   description: >
     Conduct a comprehensive literature review on {research_topic}. Use the

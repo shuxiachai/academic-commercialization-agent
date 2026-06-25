@@ -1,21 +1,29 @@
 #!/usr/bin/env python
+# ============================================================
+# ORIGINAL DEMO: inputs used {"topic": "AI Agents"}
+#
+# MODIFIED:
+#   - Input key renamed to "research_topic"
+#   - Added save_report() call to persist output with a unique
+#     run ID under outputs/<run_id>/commercialization_report.md
+# ============================================================
 import sys
 import warnings
 
 from academic_agent.crew import AcademicAgent
-from academic_agent.run_output import save_report
+from academic_agent.run_output import save_report  # ADDED
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
 
 def run():
     inputs = {
-        "research_topic": "CRISPR gene editing applications in agriculture",
+        "research_topic": "CRISPR gene editing applications in agriculture",  # MODIFIED: was "topic"
     }
 
     try:
         result = AcademicAgent().crew().kickoff(inputs=inputs)
-        run_id, report_path = save_report(result.raw)
+        run_id, report_path = save_report(result.raw)  # ADDED
         print(f"Run {run_id} completed. Report saved to {report_path}")
     except Exception as exc:
         raise RuntimeError(f"An error occurred while running the crew: {exc}") from exc
