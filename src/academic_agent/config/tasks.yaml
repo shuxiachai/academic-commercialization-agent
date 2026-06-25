@@ -1,0 +1,117 @@
+academic_research_task:
+  description: >
+    Conduct a comprehensive literature review on {research_topic}. Use the
+    available research tools to collect traceable academic and institutional
+    sources. Assess technology maturity, identify significant breakthroughs,
+    leading institutions, and unresolved technical barriers.
+
+    Evidence rules:
+    - Use source IDs A1, A2, A3, and so on.
+    - Every finding must cite at least one source_id.
+    - Every source must include a real URL or DOI obtained from tool results.
+    - URLs must be directly reachable public HTTP(S) pages; do not use
+      localhost, private-network addresses, placeholder domains, or broken URLs.
+    - DOI values must use canonical 10.xxxx/suffix form.
+    - Use ISO dates that are not in the future and do not list the same source
+      more than once under different IDs.
+    - Never invent titles, URLs, authors, dates, DOI values, or statistics.
+    - Classify each claim as observed_fact, estimate, or analyst_inference.
+    - Estimates and inferences must state their limitations.
+    - If reliable evidence is unavailable, record that in limitations instead
+      of manufacturing a precise answer.
+  expected_output: >
+    An EvidenceReport containing at least three findings and three sources,
+    including technology maturity, major research breakthroughs, relevant
+    institutions, commercialization implications, search queries, and explicit
+    limitations. Academic source IDs must begin with A.
+  agent: academic_researcher
+
+patent_analysis_task:
+  description: >
+    Perform a preliminary public-source patent landscape scan for
+    {research_topic}. Identify relevant patent records, applicants, technical
+    coverage, and possible underexplored areas. Clearly distinguish a public
+    landscape scan from a legal freedom-to-operate opinion.
+
+    Evidence rules:
+    - Use source IDs P1, P2, P3, and so on.
+    - Prefer direct patent-record URLs from Google Patents, WIPO, Espacenet, or
+      an official patent office.
+    - URLs must be directly reachable public pages. DOI values and dates must
+      be valid, and duplicate records must be consolidated.
+    - Every finding must cite at least one source_id.
+    - Never invent patent numbers, family counts, legal status, filing dates,
+      coverage percentages, or patent holders.
+    - Treat white-space conclusions as analyst_inference unless directly
+      established by a reproducible search, and state search limitations.
+    - Do not claim legal clearance or freedom to operate.
+  expected_output: >
+    An EvidenceReport containing at least three findings and three sources,
+    covering major patent records or applicants, observed coverage areas,
+    cautiously framed white-space hypotheses, search queries, commercialization
+    implications, and limitations. Patent source IDs must begin with P.
+  agent: patent_analyst
+
+market_intelligence_task:
+  description: >
+    Research the commercial landscape for {research_topic}. Identify companies,
+    disclosed products or programs, target industries, use cases, funding or
+    development signals, and underserved opportunities using traceable sources.
+
+    Evidence rules:
+    - Use source IDs M1, M2, M3, and so on.
+    - Every finding must cite at least one source_id.
+    - Prefer company disclosures, government data, standards bodies, and
+      reputable market research or news.
+    - URLs must be directly reachable public pages. DOI values and dates must
+      be valid, and duplicate records must be consolidated.
+    - Never invent market sizes, funding amounts, customers, product stages, or
+      forecasts.
+    - Label forecasts and opportunity assessments as estimates or
+      analyst_inference and state their limitations.
+    - Record insufficient public evidence instead of filling gaps with guesses.
+  expected_output: >
+    An EvidenceReport containing at least three findings and three sources,
+    covering commercial players, target industries or use cases, competitive
+    signals, opportunity hypotheses, search queries, and limitations. Market
+    source IDs must begin with M.
+  agent: market_intelligence_analyst
+
+commercialization_report_task:
+  description: >
+    Write a comprehensive commercialization assessment for {research_topic}
+    using only the three validated EvidenceReport task outputs in context.
+
+    Citation rules:
+    - Cite every factual, numerical, patent, company, market, and maturity claim
+      with its supplied source ID, such as [A1], [P2], or [M3].
+    - Put the citation on the same line as every numerical claim.
+    - Do not introduce facts, numbers, sources, URLs, or patent records that are
+      absent from the validated task outputs.
+    - Preserve the distinction between observed facts, estimates, and analyst
+      inferences.
+    - If evidence is weak or conflicting, say so explicitly.
+    - Patent white-space discussion is preliminary research, not legal advice
+      or a freedom-to-operate opinion.
+    - End with a References section containing every cited source exactly once,
+      with source ID, title, publisher, publication date when available,
+      validated URL or DOI, access date, and source type.
+  expected_output: >
+    A Markdown report with:
+
+    # Academic Commercialization Assessment: {research_topic}
+
+    ## Executive Summary
+    ## 1. Technology Overview & Maturity
+    ## 2. Patent Landscape & White Spaces
+    ## 3. Target Industries & Use Cases
+    ## 4. Competitive Landscape
+    ## 5. Commercialization Opportunities & Recommendations
+    ## Evidence Limitations
+    ## References
+
+    Every material claim must carry an inline [source_id] citation. The
+    References section must resolve all cited IDs and contain no uncited,
+    invented, duplicated, or externally added sources. Formatted as Markdown
+    without code blocks.
+  agent: commercialization_report_writer
