@@ -2,13 +2,17 @@
 
 from datetime import date, timedelta
 from unittest import TestCase
+from unittest.mock import patch
 
+from crewai import TaskOutput
 from pydantic import ValidationError
 
 from academic_agent.evidence import (
     EvidenceFinding,
     EvidenceReport,
     EvidenceSource,
+    parse_citation_ids,
+    validate_academic_evidence,
     validate_evidence_report,
     validate_final_report,
     validate_source_reachability,
@@ -107,6 +111,34 @@ class EvidenceValidationTests(TestCase):
         errors = validate_evidence_report(report, "A")
         self.assertTrue(any("same URL" in error for error in errors))
 
+    def test_non_http_url_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            EvidenceSource(
+                source_id="A1",
+                title="Unsafe URL source",
+                url="javascript:alert(1)",
+                publisher="Publisher",
+                accessed_date=date.today(),
+                source_type="academic_paper",
+                evidence_summary="This evidence summary is sufficiently descriptive.",
+            )
+
+    def test_reachability_failure_blocks_task_guardrail(self) -> None:
+        report = make_report()
+        output = TaskOutput(
+            description="test",
+            raw=report.model_dump_json(),
+            pydantic=report,
+            agent="test",
+        )
+        with patch(
+            "academic_agent.evidence.validate_source_reachability",
+            return_value=["A1 is unreachable"],
+        ):
+            success, message = validate_academic_evidence(output)
+        self.assertFalse(success)
+        self.assertIn("unreachable", message)
+
     def test_unreachable_sources_are_rejected(self) -> None:
         errors = validate_source_reachability(
             make_report(),
@@ -172,3 +204,32 @@ Only public evidence was reviewed.
         )
         errors = validate_final_report(report, self.allowed)
         self.assertTrue(any("Numeric claim" in error for error in errors))
+
+    def test_unknown_grouped_citation_fails(self) -> None:
+        report = self.valid_report.replace(
+            "The available evidence indicates an emerging technology [A1].",
+            "The available evidence indicates an emerging technology [A1] [P999, P998].",
+        )
+        errors = validate_final_report(report, self.allowed)
+        self.assertTrue(any("unknown source IDs" in error for error in errors))
+
+    def test_substantive_non_numeric_claim_requires_citation(self) -> None:
+        report = self.valid_report.replace(
+            "The competitive assessment remains evidence-bounded [A1].",
+            "This technology is commercially dominant throughout the global market.",
+        )
+        errors = validate_final_report(report, self.allowed)
+        self.assertTrue(any("Substantive claim" in error for error in errors))
+
+    def test_grouped_and_range_citations_are_parsed(self) -> None:
+        source_ids, errors = parse_citation_ids("Evidence [A1-A3] and [P2, M4].")
+        self.assertEqual(source_ids, ["A1", "A2", "A3", "P2", "M4"])
+        self.assertEqual(errors, [])
+
+    def test_malformed_citation_is_rejected(self) -> None:
+        report = self.valid_report.replace(
+            "The available evidence indicates an emerging technology [A1].",
+            "The available evidence indicates an emerging technology [A1 and A2].",
+        )
+        errors = validate_final_report(report, self.allowed)
+        self.assertTrue(any("Malformed citation" in error for error in errors))

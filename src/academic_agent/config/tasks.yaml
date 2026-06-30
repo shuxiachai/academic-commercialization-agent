@@ -96,7 +96,11 @@ commercialization_report_task:
     Citation rules:
     - Cite every factual, numerical, patent, company, market, and maturity claim
       with its supplied source ID, such as [A1], [P2], or [M3].
-    - Put the citation on the same line as every numerical claim.
+    - Put citations on the same line as every substantive paragraph, bullet,
+      table data row, and numerical claim. Evidence Limitations and the patent
+      legal disclaimer are the only exceptions.
+    - Accepted citation forms are [A1], [A1][P2], [P1, P3], and same-prefix
+      ranges such as [A1-A4]. Never cite an ID absent from the validated inputs.
     - Do not introduce facts, numbers, sources, URLs, or patent records that are
       absent from the validated task outputs.
     - Preserve the distinction between observed facts, estimates, and analyst

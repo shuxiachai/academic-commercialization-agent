@@ -11,7 +11,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from crewai import TaskOutput
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 
 SourceType = Literal[
@@ -30,7 +30,12 @@ UrlChecker = Callable[[str], tuple[bool, str]]
 
 _DOI_PATTERN = re.compile(r"^10\.\d{4,9}/\S+$", re.IGNORECASE)
 _SOURCE_ID_PATTERN = re.compile(r"^[APM]\d+$")
-_CITATION_PATTERN = re.compile(r"\[((?:A|P|M)\d+)\]")
+_BRACKET_PATTERN = re.compile(r"\[([^\[\]]+)\]")
+_SOURCE_TOKEN_PATTERN = re.compile(r"^[APM]\d+$")
+_SOURCE_RANGE_PATTERN = re.compile(
+    r"^([APM])(\d+)\s*[-–—]\s*(?:([APM])\s*)?(\d+)$"
+)
+_REFERENCE_ENTRY_PATTERN = re.compile(r"(?m)^\s*\[([APM]\d+)\]\s+")
 _NUMERIC_CLAIM_PATTERN = re.compile(
     r"(?<!\[)\b(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)"
     r"(?:\s?(?:%|x|×|USD|AUD|EUR|million|billion|trillion|M|B))?\b",
@@ -72,8 +77,8 @@ def normalize_doi(value: str | None) -> str | None:
     return normalized.rstrip(".,;")
 
 
-def canonicalize_url(value: str) -> str:
-    parsed = urlsplit(value.strip())
+def canonicalize_url(value: str | HttpUrl) -> str:
+    parsed = urlsplit(str(value).strip())
     scheme = parsed.scheme.lower()
     host = (parsed.hostname or "").lower()
     port = parsed.port
@@ -93,7 +98,7 @@ class EvidenceSource(BaseModel):
         description="Task-unique source identifier such as A1, P1, or M1.",
     )
     title: str = Field(min_length=5)
-    url: str | None = None
+    url: HttpUrl | None = None
     doi: str | None = None
     publisher: str = Field(min_length=2)
     published_date: date | None = None
@@ -262,7 +267,7 @@ def validate_evidence_report(
             )
 
         if source.url is not None:
-            canonical_url = canonicalize_url(source.url)
+            canonical_url = canonicalize_url(str(source.url))
             previous = seen_urls.get(canonical_url)
             if previous:
                 errors.append(
@@ -325,7 +330,7 @@ def validate_source_reachability(
     for source in report.sources:
         locators: list[str] = []
         if source.url is not None:
-            locators.append(source.url)
+            locators.append(str(source.url))
         if source.doi:
             locators.append(f"https://doi.org/{source.doi}")
 
@@ -355,16 +360,10 @@ def _evidence_guardrail(
         )
 
     errors = validate_evidence_report(output.pydantic, expected_prefix)
+    if not errors:
+        errors.extend(validate_source_reachability(output.pydantic))
     if errors:
         return False, "Evidence validation failed:\n- " + "\n- ".join(errors)
-
-    # URL reachability is advisory: network failures (SSL, 403, timeouts) should
-    # not block the task. Append any warnings to the report's limitations instead.
-    reachability_warnings = validate_source_reachability(output.pydantic)
-    if reachability_warnings:
-        output.pydantic.limitations.extend(
-            [f"[URL check] {w}" for w in reachability_warnings]
-        )
 
     return True, output
 
@@ -393,6 +392,60 @@ def collect_context_sources(context_tasks: Sequence[Any]) -> dict[str, EvidenceS
     return sources
 
 
+def parse_citation_ids(text: str) -> tuple[list[str], list[str]]:
+    """Parse individual, grouped, and same-prefix range citations."""
+
+    source_ids: list[str] = []
+    errors: list[str] = []
+    for content in _BRACKET_PATTERN.findall(text):
+        if not re.search(r"[APM]\d+", content):
+            continue
+        for part in re.split(r"\s*[,;]\s*", content.strip()):
+            if _SOURCE_TOKEN_PATTERN.fullmatch(part):
+                source_ids.append(part)
+                continue
+
+            range_match = _SOURCE_RANGE_PATTERN.fullmatch(part)
+            if range_match:
+                prefix, start_text, end_prefix, end_text = range_match.groups()
+                start = int(start_text)
+                end = int(end_text)
+                if end_prefix and end_prefix != prefix:
+                    errors.append(f"Cross-prefix citation range is invalid: [{part}].")
+                elif end < start or end - start > 50:
+                    errors.append(f"Citation range is invalid or too large: [{part}].")
+                else:
+                    source_ids.extend(
+                        f"{prefix}{number}" for number in range(start, end + 1)
+                    )
+                continue
+
+            errors.append(f"Malformed citation block: [{content}].")
+            break
+
+    return source_ids, errors
+
+
+def _is_substantive_claim_line(
+    lines: list[str],
+    line_index: int,
+    in_limitations: bool,
+) -> bool:
+    stripped = lines[line_index].strip()
+    if in_limitations or not stripped or stripped.startswith("#"):
+        return False
+    if re.fullmatch(r"[-|:\s]+", stripped):
+        return False
+    if "not legal advice" in stripped.lower() or "freedom-to-operate" in stripped.lower():
+        return False
+    if stripped.startswith("|") and line_index + 1 < len(lines):
+        if re.fullmatch(r"[\s|:-]+", lines[line_index + 1].strip()):
+            return False
+    without_citations = _BRACKET_PATTERN.sub("", stripped)
+    words = re.findall(r"[A-Za-z][A-Za-z'-]+", without_citations)
+    return len(words) >= 5
+
+
 def validate_final_report(
     markdown: str,
     allowed_sources: dict[str, EvidenceSource],
@@ -409,10 +462,21 @@ def validate_final_report(
         return errors
 
     body, references = markdown.split(reference_marker, maxsplit=1)
-    body_ids = set(_CITATION_PATTERN.findall(body))
-    reference_ids_list = _CITATION_PATTERN.findall(references)
+    body_ids_list, citation_errors = parse_citation_ids(body)
+    errors.extend(citation_errors)
+    body_ids = set(body_ids_list)
+    reference_ids_list = _REFERENCE_ENTRY_PATTERN.findall(references)
     reference_ids = set(reference_ids_list)
     allowed_ids = set(allowed_sources)
+
+    all_reference_ids, reference_citation_errors = parse_citation_ids(references)
+    errors.extend(reference_citation_errors)
+    unexpected_reference_format = set(all_reference_ids) - reference_ids
+    if unexpected_reference_format:
+        errors.append(
+            "Each References entry must start with one canonical [source_id]: "
+            f"{', '.join(sorted(unexpected_reference_format))}."
+        )
 
     if not body_ids:
         errors.append("The report body contains no source citations.")
@@ -463,7 +527,7 @@ def validate_final_report(
         line = matching_lines[0]
         locators = []
         if source.url is not None:
-            locators.append(source.url)
+            locators.append(str(source.url))
         if source.doi:
             locators.extend([source.doi, f"https://doi.org/{source.doi}"])
         if locators and not any(locator in line for locator in locators):
@@ -471,19 +535,26 @@ def validate_final_report(
                 f"Reference [{source_id}] does not include its validated URL or DOI."
             )
 
-    for line_number, line in enumerate(body.splitlines(), start=1):
+    body_lines = body.splitlines()
+    in_limitations = False
+    for line_index, line in enumerate(body_lines):
+        line_number = line_index + 1
         stripped = line.strip()
-        if (
-            not stripped
-            or stripped.startswith("#")
-            or re.fullmatch(r"[-|:\s]+", stripped)
-        ):
+        if stripped.startswith("## "):
+            in_limitations = stripped == "## Evidence Limitations"
+        if not stripped or stripped.startswith("#") or re.fullmatch(r"[-|:\s]+", stripped):
             continue
-        if _NUMERIC_CLAIM_PATTERN.search(stripped) and not _CITATION_PATTERN.search(
-            stripped
-        ):
+
+        line_ids, line_citation_errors = parse_citation_ids(stripped)
+        if line_citation_errors:
+            continue
+        if _NUMERIC_CLAIM_PATTERN.search(stripped) and not line_ids:
             errors.append(
                 f"Numeric claim on report line {line_number} has no inline citation."
+            )
+        elif _is_substantive_claim_line(body_lines, line_index, in_limitations) and not line_ids:
+            errors.append(
+                f"Substantive claim on report line {line_number} has no inline citation."
             )
 
     lowered = markdown.lower()

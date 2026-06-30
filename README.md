@@ -18,7 +18,7 @@
 | 输入变量 | topic + current_year | research_topic |
 | 输出格式 | 自由文本报告 | 带 [A1][P2][M3] 行内引用 + References 区块的 Markdown 报告 |
 | 输出管理 | 固定文件名（覆盖） | 每次运行生成唯一 ID，存入 outputs/ 目录 |
-| 数据质量保障 | 无 | 引用校验 + URL 可达性验证 + guardrail 自动重试 |
+| 数据质量保障 | 无 | 结构化证据 + 引用完整性校验 + URL 可达性检查 + 自动重试 |
 
 ---
 
@@ -27,20 +27,20 @@
 ```
 Agent 1: Academic Literature Analyst（学术前沿分析师）
          工具：ArxivPaperTool + SerperDevTool
-         输出：自由文本分析报告，含技术成熟度、研究突破、引用来源（A1/A2/…）
+         输出：结构化 EvidenceReport，含技术成熟度、研究突破、引用来源（A1/A2/…）
 
 Agent 2: Patent Landscape Analyst（专利图谱分析师）
          工具：SerperDevTool
-         输出：自由文本分析报告，含专利持有人、空白领域（P1/P2/…）
+         输出：结构化 EvidenceReport，含专利持有人、空白领域（P1/P2/…）
 
 Agent 3: Market & Competitive Intelligence Analyst（市场情报分析师）
          工具：SerperDevTool
-         输出：自由文本分析报告，含商业玩家、目标行业、市场机会（M1/M2/…）
+         输出：结构化 EvidenceReport，含商业玩家、目标行业、市场机会（M1/M2/…）
 
 Agent 4: Technology Commercialization Report Writer（报告撰写师）
          工具：无（以前三个 Agent 输出作为上下文）
          输出：Markdown 报告，含行内引用标注 [A1][P2][M3] 和 References 区块
-         校验：guardrail 验证报告包含所有必需章节，不通过则自动重试（最多 2 次）
+         校验：章节、引用、References、数字引用和专利免责声明，不通过则自动重试（最多 2 次）
 ```
 
 ---
@@ -57,26 +57,26 @@ Step 1  接收输入
 Step 2  Agent 1 执行 — 学术文献分析
         调用 ArxivPaperTool 检索最新论文
         调用 SerperDevTool 补充学术资源
-        输出文本分析报告（技术成熟度 / 研究突破 / 关键机构），每条结论带 A1/A2/… 引用
+        输出结构化 EvidenceReport，每条结论关联 A1/A2/… 来源
 
         ↓
 
 Step 3  Agent 2 执行 — 专利图谱分析
         调用 SerperDevTool 检索 Google Patents / WIPO / Espacenet
-        输出文本分析报告（专利持有人 / 专利空白），每条结论带 P1/P2/… 引用
+        输出结构化 EvidenceReport，每条结论关联 P1/P2/… 来源
 
         ↓
 
 Step 4  Agent 3 执行 — 市场情报分析
         调用 SerperDevTool 检索商业化动态、融资信号、公司披露
-        输出文本分析报告（商业玩家 / 目标行业 / 竞争格局），每条结论带 M1/M2/… 引用
+        输出结构化 EvidenceReport，每条结论关联 M1/M2/… 来源
 
         ↓
 
 Step 5  Agent 4 执行 — 综合报告撰写
-        以前三步分析内容为唯一来源，禁止引入新信息
+        以前三步结构化证据为唯一来源，禁止引入新信息
         每个数字型结论必须带行内引用标注，如 [A1][P2][M3]
-        → guardrail 校验：7 个必需章节必须存在，不通过则自动重试（最多 2 次）
+        → guardrail 校验：章节、正文引用、References、数字引用和免责声明
         报告保存至 outputs/<run_id>/commercialization_report.md
 ```
 
@@ -105,7 +105,7 @@ Step 5  Agent 4 执行 — 综合报告撰写
 ### 1. 安装依赖
 
 ```bash
-pip install "crewai[tools]" gradio
+uv sync
 ```
 
 ### 2. 配置环境变量
@@ -114,9 +114,9 @@ pip install "crewai[tools]" gradio
 
 ```
 OPENAI_API_KEY=your_api_key
-OPENAI_API_BASE=https://api.deepseek.com     # 或其他 OpenAI 兼容接口
+OPENAI_API_BASE=https://api.deepseek.com
 OPENAI_MODEL_NAME=deepseek-chat
-SERPER_API_KEY=your_serper_key               # 从 serper.dev 免费获取
+SERPER_API_KEY=your_serper_key
 ```
 
 ### 3. 运行
@@ -124,7 +124,7 @@ SERPER_API_KEY=your_serper_key               # 从 serper.dev 免费获取
 **方式一：Gradio 网页界面（推荐）**
 
 ```bash
-python app.py
+uv run python app.py
 ```
 
 浏览器自动打开 `http://localhost:7860`，在输入框填写研究方向，点击 Run Analysis，页面实时显示运行进度，完成后报告直接渲染在页面上。
@@ -132,7 +132,7 @@ python app.py
 **方式二：命令行**
 
 ```bash
-crewai run
+uv run crewai run
 ```
 
 研究主题在 `src/academic_agent/main.py` 中修改 `research_topic` 字段。
@@ -147,6 +147,8 @@ outputs/
     └── commercialization_report.md
 ```
 
+注意：修复证据链之前生成的历史报告不应视为已通过引用完整性验证。
+
 ---
 
 ## 项目文件结构
@@ -154,17 +156,17 @@ outputs/
 ```
 academic_agent/
 ├── src/academic_agent/
-│   ├── crew.py              # Crew 定义（Agent + Task 编排）【已修改】
-│   ├── main.py              # 命令行入口，设置输入参数【已修改】
-│   ├── evidence.py          # 证据数据模型 + guardrail 校验逻辑【新增】
-│   ├── run_output.py        # 运行 ID 生成 + 报告持久化管理【新增】
+│   ├── crew.py              # Crew 定义与证据管线接线
+│   ├── main.py              # 命令行入口
+│   ├── evidence.py          # 证据模型与 guardrail 校验
+│   ├── run_output.py        # 运行 ID 与报告持久化
 │   └── config/
-│       ├── agents.yaml      # Agent 角色配置【已修改】
-│       └── tasks.yaml       # Task 描述与期望输出【已修改】
-├── app.py                   # Gradio 网页界面【新增】
-├── outputs/                 # 每次运行的报告存档目录（自动生成）
+│       ├── agents.yaml      # Agent 角色配置
+│       └── tasks.yaml       # Task 需求与引用规则
+├── tests/                   # 单元测试与 Crew 接线测试
+├── app.py                   # Gradio 网页界面
+├── outputs/                 # 每次运行的报告存档目录
 ├── .env                     # API Key 配置（不提交 Git）
-├── .gitignore
 ├── pyproject.toml           # 项目依赖
 └── README.md
 ```
@@ -175,7 +177,9 @@ academic_agent/
 
 - **框架**：CrewAI 1.14.x
 - **LLM**：DeepSeek-V3（通过 DeepSeek API 或 OpenAI 兼容接口）
-- **搜索工具**：SerperDevTool（Google 搜索）、ArxivPaperTool（学术论文检索）
-- **数据校验**：Pydantic v2 + 自定义 guardrail（报告章节完整性验证，自动重试）
+- **搜索工具**：SerperDevTool、ArxivPaperTool
+- **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性和报告结构验证）
 - **网页界面**：Gradio 6.x
 - **Python**：3.10+
+
+URL/DOI 无效或不可达、引用编号错误、References 不一致和报告结构错误都会阻止任务并触发重试。
