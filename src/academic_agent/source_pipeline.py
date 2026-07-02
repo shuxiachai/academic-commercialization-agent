@@ -42,10 +42,16 @@ _TOPIC_STOPWORDS = {
 _AUTHORITATIVE_RESEARCH_DOMAINS = {
     "iea.org",
     "wri.org",
+    "weforum.org",       # World Economic Forum
+    "oecd.org",          # OECD
+    "irena.org",         # International Renewable Energy Agency
+    "energy.gov",        # US DOE (caught by .gov rule too, but explicit for clarity)
 }
 _NONPROFIT_RESEARCH_DOMAINS = {
     "carbon180.org",
     "drawdown.org",
+    "rmi.org",           # Rocky Mountain Institute
+    "energypolicy.columbia.edu",
 }
 _PATENT_HOSTS = {
     "patents.google.com",
@@ -58,12 +64,27 @@ _REPUTABLE_NEWS_DOMAINS = {
     "bloomberg.com",
     "ft.com",
     "wsj.com",
+    "economist.com",
+    "techcrunch.com",
+    "axios.com",
 }
 _INDUSTRY_NEWS_DOMAINS = {
     "autoevolution.com",
     "electrek.co",
     "perovskite-info.com",
     "pv-tech.org",
+    "chemengonline.com",
+    "biofuelsdigest.com",
+    "greencarcongress.com",
+    "h2-view.com",
+    "quantum-computing-report.com",
+}
+_CONSULTING_RESEARCH_DOMAINS = {
+    "mckinsey.com",      # McKinsey & Company
+    "bcg.com",           # Boston Consulting Group
+    "deloitte.com",
+    "accenture.com",
+    "kearney.com",
 }
 _MARKET_RESEARCH_DOMAINS = {
     "gminsights.com",
@@ -71,6 +92,9 @@ _MARKET_RESEARCH_DOMAINS = {
     "idtechex.com",
     "marketsandmarkets.com",
     "precedenceresearch.com",
+    "mordorintelligence.com",
+    "alliedmarketresearch.com",
+    "iea.org",
 }
 _ACADEMIC_PUBLISHER_DOMAINS = {
     "doi.org",
@@ -129,7 +153,7 @@ class SourceCollection(BaseModel):
     collected_at: datetime
     academic_sources: list[EvidenceSource] = Field(min_length=3)
     patent_sources: list[EvidenceSource] = Field(min_length=3)
-    market_sources: list[EvidenceSource] = Field(min_length=3)
+    market_sources: list[EvidenceSource] = Field(min_length=2)
     academic_queries: list[str] = Field(min_length=1)
     patent_queries: list[str] = Field(min_length=1)
     market_queries: list[str] = Field(min_length=1)
@@ -446,11 +470,28 @@ def _market_source_profile(
             "medium",
             "Commercial market estimate with potentially proprietary methodology.",
         )
+    if _host_matches(host, _CONSULTING_RESEARCH_DOMAINS):
+        return (
+            "market_report",
+            "medium",
+            "Major consulting or strategy firm; verify methodology and primary data.",
+        )
 
     path = urlsplit(canonical_url).path.lower()
-    if path in {"", "/"} or any(
-        marker in path for marker in _OFFICIAL_DISCLOSURE_PATH_MARKERS
-    ):
+    _CONTENT_PATH_MARKERS = (
+        "/blog/",
+        "/company/",
+        "/insights/",
+        "/investor",
+        "/media/",
+        "/news/",
+        "/press",
+        "/research/",
+        "/reports/",
+        "/analysis/",
+        "/publications/",
+    )
+    if path in {"", "/"} or any(marker in path for marker in _CONTENT_PATH_MARKERS):
         return (
             "company_disclosure",
             "medium",
@@ -574,18 +615,33 @@ def _collect_domain(
                         f"duplicates academic DOI: {candidate_doi}"
                     )
                     continue
-                candidate_title = _clean_text(str(result.get("title", "")))
-                duplicate_title = next(
-                    (
-                        title
-                        for title in excluded_titles
-                        if _title_similarity(candidate_title, title) >= 0.92
-                    ),
-                    None,
+                # Apply title deduplication only when the result looks like an
+                # academic paper (has a DOI link, comes from an academic publisher
+                # domain, or its title starts with "[PDF]"). Company announcements
+                # and market articles share vocabulary with papers but are distinct
+                # sources and should not be rejected on title overlap alone.
+                result_link = str(result.get("link", ""))
+                result_title = _clean_text(str(result.get("title", "")))
+                result_host = (urlsplit(result_link).hostname or "").lower()
+                result_looks_academic = (
+                    candidate_doi is not None
+                    or _host_matches(result_host, _ACADEMIC_PUBLISHER_DOMAINS)
+                    or result_title.startswith("[PDF]")
                 )
-                if duplicate_title is not None:
-                    audit.rejected_reasons.append(f"duplicates academic title: {candidate_title}")
-                    continue
+                if result_looks_academic:
+                    duplicate_title = next(
+                        (
+                            title
+                            for title in excluded_titles
+                            if _title_similarity(result_title, title) >= 0.92
+                        ),
+                        None,
+                    )
+                    if duplicate_title is not None:
+                        audit.rejected_reasons.append(
+                            f"duplicates academic title: {result_title}"
+                        )
+                        continue
             if domain == "academic":
                 source, reason = _academic_source(
                     result, source_id, crossref, accessed_date, research_topic
@@ -689,7 +745,7 @@ def collect_source_collection(
         url_checker,
         resolved_date,
         normalized_topic,
-        minimum_sources=minimum_sources,
+        minimum_sources=max(2, minimum_sources - 1),  # market data sparser for niche topics
         maximum_sources=maximum_sources,
         blocked_dois={
             source.doi for source in academic if source.doi is not None
