@@ -564,9 +564,13 @@ def _queries(topic: str) -> dict[Domain, list[str]]:
             f"{topic} patent applicant",
         ],
         "market": [
+            # Broad commercialization signals
             f"{topic} company commercial deployment",
             f"{topic} government standards pilot",
             f"{topic} manufacturing commercialization",
+            # Commercial maturity signals: who is selling, market size, investment
+            f"{topic} product manufacturer revenue commercial sales 2024",
+            f"{topic} market size billion company investment startup",
         ],
     }
 
