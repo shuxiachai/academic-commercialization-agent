@@ -1,5 +1,6 @@
 """Offline tests for evidence contracts and report guardrails."""
 
+import json
 from datetime import date, timedelta
 from unittest import TestCase
 from unittest.mock import patch
@@ -11,6 +12,7 @@ from academic_agent.evidence import (
     EvidenceFinding,
     EvidenceReport,
     EvidenceSource,
+    make_evidence_guardrail,
     parse_citation_ids,
     validate_academic_evidence,
     validate_evidence_report,
@@ -66,6 +68,43 @@ def make_report(prefix: str = "A") -> EvidenceReport:
 class EvidenceValidationTests(TestCase):
     def test_valid_report_passes(self) -> None:
         self.assertEqual(validate_evidence_report(make_report(), "A"), [])
+
+    def test_report_model_dump_is_json_serializable(self) -> None:
+        payload = make_report().model_dump()
+
+        json.dumps(payload)
+        self.assertIsInstance(payload["sources"][0]["url"], str)
+        self.assertIsInstance(payload["sources"][0]["published_date"], str)
+        self.assertIsInstance(payload["sources"][0]["accessed_date"], str)
+
+    def test_raw_json_is_validated_locally(self) -> None:
+        report = make_report()
+        output = TaskOutput(
+            description="test",
+            raw=report.model_dump_json(),
+            agent="test",
+        )
+        with patch(
+            "academic_agent.evidence.validate_source_reachability",
+            return_value=[],
+        ):
+            success, validated = validate_academic_evidence(output)
+
+        self.assertTrue(success)
+        self.assertIs(validated, output)
+        self.assertIsInstance(output.pydantic, EvidenceReport)
+
+    def test_non_json_output_is_rejected_without_llm_conversion(self) -> None:
+        output = TaskOutput(
+            description="test",
+            raw="A free-form Markdown report",
+            agent="test",
+        )
+
+        success, message = validate_academic_evidence(output)
+
+        self.assertFalse(success)
+        self.assertIn("exactly one valid JSON object", message)
 
     def test_unknown_source_reference_fails(self) -> None:
         report = make_report()
@@ -145,6 +184,61 @@ class EvidenceValidationTests(TestCase):
             url_checker=lambda url: (False, "offline test failure"),
         )
         self.assertEqual(len(errors), 3)
+
+    def test_bound_guardrail_uses_immutable_validated_sources(self) -> None:
+        report = make_report()
+        analysis = {
+            "scope_summary": report.scope_summary,
+            "findings": [
+                finding.model_dump(mode="json") for finding in report.findings
+            ],
+            "limitations": report.limitations,
+        }
+        output = TaskOutput(
+            description="test",
+            raw=json.dumps(analysis),
+            agent="test",
+        )
+        guardrail = make_evidence_guardrail(
+            "A",
+            report.topic,
+            report.sources,
+            report.search_queries,
+        )
+
+        success, validated = guardrail(output)
+
+        self.assertTrue(success)
+        self.assertIs(validated, output)
+        self.assertEqual(output.pydantic.sources, report.sources)
+        self.assertEqual(output.pydantic.search_queries, report.search_queries)
+
+    def test_bound_guardrail_rejects_unknown_source_id(self) -> None:
+        report = make_report()
+        report.findings[0].source_ids = ["A99"]
+        analysis = {
+            "scope_summary": report.scope_summary,
+            "findings": [
+                finding.model_dump(mode="json") for finding in report.findings
+            ],
+            "limitations": report.limitations,
+        }
+        output = TaskOutput(
+            description="test",
+            raw=json.dumps(analysis),
+            agent="test",
+        )
+        guardrail = make_evidence_guardrail(
+            "A",
+            report.topic,
+            report.sources,
+            report.search_queries,
+        )
+
+        success, message = guardrail(output)
+
+        self.assertFalse(success)
+        self.assertIn("unknown sources", message)
 
 
 class FinalReportValidationTests(TestCase):
@@ -233,3 +327,125 @@ Only public evidence was reviewed.
         )
         errors = validate_final_report(report, self.allowed)
         self.assertTrue(any("Malformed citation" in error for error in errors))
+    def _report_with_extra_source(
+        self,
+        source: EvidenceSource,
+        claim: str,
+    ) -> tuple[str, dict[str, EvidenceSource]]:
+        report = self.valid_report.replace(
+            "One target industry was identified from the evidence [A1].",
+            "One target industry was identified from the evidence [A1].\n" + claim,
+        )
+        reference = (
+            f"[{source.source_id}] {source.title}. {source.publisher}. {source.url}\n"
+        )
+        report = report.replace("## References\n", "## References\n" + reference)
+        return report, {**self.allowed, source.source_id: source}
+
+    def test_fleet_claim_requires_fleet_support_in_cited_summary(self) -> None:
+        market_source = EvidenceSource(
+            source_id="M1",
+            title="General battery market report",
+            url="https://example.edu/market-report",
+            publisher="Example University",
+            accessed_date=date.today(),
+            source_type="market_report",
+            evidence_summary="The report discusses battery safety and energy density.",
+        )
+        report, allowed = self._report_with_extra_source(
+            market_source,
+            "Truck, bus, and fleet users benefit most from the technology [M1].",
+        )
+
+        errors = validate_final_report(report, allowed)
+
+        self.assertTrue(any("Unsupported use-case claim" in error for error in errors))
+
+    def test_fleet_claim_passes_when_cited_summary_mentions_application(self) -> None:
+        market_source = EvidenceSource(
+            source_id="M1",
+            title="Commercial fleet battery deployment",
+            url="https://example.edu/fleet-report",
+            publisher="Example University",
+            accessed_date=date.today(),
+            source_type="market_report",
+            evidence_summary="Commercial truck and bus fleets are evaluated for deployment.",
+        )
+        report, allowed = self._report_with_extra_source(
+            market_source,
+            "Truck and bus fleets are evaluated applications [M1].",
+        )
+
+        errors = validate_final_report(report, allowed)
+
+        self.assertFalse(any("Unsupported use-case claim" in error for error in errors))
+
+    def test_patent_freedom_to_operate_overclaim_is_rejected(self) -> None:
+        report = self.valid_report.replace(
+            "This preliminary patent scan is not legal advice or a freedom-to-operate opinion.",
+            (
+                "This preliminary patent scan is not legal advice or a freedom-to-operate opinion.\n"
+                "The identified white space creates freedom-to-operate opportunities [A1]."
+            ),
+        )
+
+        errors = validate_final_report(report, self.allowed)
+
+        self.assertTrue(any("Patent legal overclaim" in error for error in errors))
+
+    def test_broad_no_government_claim_contradicts_government_source(self) -> None:
+        government_source = EvidenceSource(
+            source_id="M1",
+            title="Government technology assessment",
+            url="https://energy.gov/example-assessment",
+            publisher="Department of Energy",
+            accessed_date=date.today(),
+            source_type="government",
+            evidence_summary="The government assessment reviews the technology evidence.",
+        )
+        report, allowed = self._report_with_extra_source(
+            government_source,
+            "A government assessment reviews available evidence [M1].",
+        )
+        report = report.replace(
+            "Only public evidence was reviewed.",
+            "Only public evidence was reviewed.\n- No government or independent verification exists.",
+        )
+
+        errors = validate_final_report(report, allowed)
+
+        self.assertTrue(any("Source contradiction" in error for error in errors))
+    def test_descriptive_limitation_label_is_not_a_citation(self) -> None:
+        report = self.valid_report.replace(
+            "Only public evidence was reviewed.",
+            "Only public evidence was reviewed [Market Source Limitations].",
+        )
+
+        errors = validate_final_report(report, self.allowed)
+
+        self.assertTrue(
+            any("Noncanonical citation label" in error for error in errors)
+        )
+    def test_quality_warning_numbers_are_not_revalidated_as_claims(self) -> None:
+        report = self.valid_report.replace(
+            "Only public evidence was reviewed.",
+            (
+                "Only public evidence was reviewed.\n\n"
+                "### Automated Quality-Control Warnings\n\n"
+                "- Numeric claim on report line 19 has no inline citation."
+            ),
+        )
+
+        errors = validate_final_report(report, self.allowed)
+
+        self.assertFalse(any(error.startswith("Numeric claim") for error in errors))
+
+    def test_numbered_bold_recommendation_heading_is_not_numeric_claim(self) -> None:
+        report = self.valid_report.replace(
+            "Proceed with staged validation before investment [A1].",
+            "**1. Proceed with staged validation**\nProceed carefully [A1].",
+        )
+
+        errors = validate_final_report(report, self.allowed)
+
+        self.assertFalse(any(error.startswith("Numeric claim") for error in errors))

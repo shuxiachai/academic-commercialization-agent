@@ -7,3 +7,4 @@ outputs/
 commercialization_report.md
 dist/
 *.egg-info/
+*.log

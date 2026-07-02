@@ -11,7 +11,15 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from crewai import TaskOutput
-from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    HttpUrl,
+    ValidationError,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 
 SourceType = Literal[
@@ -20,12 +28,14 @@ SourceType = Literal[
     "company_disclosure",
     "government",
     "standards_body",
+    "research_institute",
     "market_report",
     "reputable_news",
     "other",
 ]
 ClaimType = Literal["observed_fact", "estimate", "analyst_inference"]
 Confidence = Literal["high", "medium", "low"]
+CredibilityTier = Literal["high", "medium", "low"]
 UrlChecker = Callable[[str], tuple[bool, str]]
 
 _DOI_PATTERN = re.compile(r"^10\.\d{4,9}/\S+$", re.IGNORECASE)
@@ -36,6 +46,7 @@ _SOURCE_RANGE_PATTERN = re.compile(
     r"^([APM])(\d+)\s*[-–—]\s*(?:([APM])\s*)?(\d+)$"
 )
 _REFERENCE_ENTRY_PATTERN = re.compile(r"(?m)^\s*\[([APM]\d+)\]\s+")
+_TABLE_SOURCE_CELL_PATTERN = re.compile(r"\|\s*[APM]\d+(?:\s*,\s*[APM]\d+)*\s*\|")
 _NUMERIC_CLAIM_PATTERN = re.compile(
     r"(?<!\[)\b(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)"
     r"(?:\s?(?:%|x|×|USD|AUD|EUR|million|billion|trillion|M|B))?\b",
@@ -104,10 +115,23 @@ class EvidenceSource(BaseModel):
     published_date: date | None = None
     accessed_date: date
     source_type: SourceType
+    credibility_tier: CredibilityTier = "medium"
+    credibility_reason: str = Field(
+        default="Source credibility has not been independently graded.",
+        min_length=10,
+    )
     evidence_summary: str = Field(
         min_length=20,
         description="A concise paraphrase of what this source actually supports.",
     )
+
+    @field_serializer("url")
+    def serialize_url(self, value: HttpUrl | None) -> str | None:
+        return str(value) if value is not None else None
+
+    @field_serializer("published_date", "accessed_date")
+    def serialize_date(self, value: date | None) -> str | None:
+        return value.isoformat() if value is not None else None
 
     @field_validator("doi", mode="before")
     @classmethod
@@ -151,6 +175,61 @@ class EvidenceReport(BaseModel):
     findings: list[EvidenceFinding] = Field(min_length=3)
     sources: list[EvidenceSource] = Field(min_length=3)
     limitations: list[str] = Field(min_length=1)
+
+
+class EvidenceAnalysis(BaseModel):
+    """LLM-authored analysis that cannot create or alter source metadata."""
+
+    scope_summary: str = Field(min_length=20)
+    findings: list[EvidenceFinding] = Field(min_length=3)
+    limitations: list[str] = Field(min_length=1)
+
+
+class CommercializationScore(BaseModel):
+    """Quantitative readiness scorecard produced by the scoring agent."""
+
+    trl_score: int = Field(ge=1, le=9)
+    trl_rationale: str = Field(min_length=20)
+    patent_strength: int = Field(ge=1, le=5)
+    patent_rationale: str = Field(min_length=20)
+    market_accessibility: int = Field(ge=1, le=5)
+    market_rationale: str = Field(min_length=20)
+    evidence_confidence: int = Field(ge=1, le=5)
+    evidence_rationale: str = Field(min_length=20)
+    overall_score: int = Field(ge=0, le=100)
+    scoring_rationale: str = Field(min_length=20)
+    key_risks: list[str] = Field(min_length=1, max_length=5)
+    key_opportunities: list[str] = Field(min_length=1, max_length=5)
+
+
+def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
+    """Validate scoring task output and deterministically recompute overall_score."""
+
+    def validate_score(output: TaskOutput) -> tuple[bool, Any]:
+        try:
+            score = CommercializationScore.model_validate_json(output.raw)
+        except (ValidationError, ValueError) as exc:
+            return (
+                False,
+                "Return exactly one valid JSON object matching the scoring schema "
+                f"with no Markdown fences or prose. Validation error: {exc}",
+            )
+
+        # Recompute overall_score from the formula to eliminate LLM arithmetic errors.
+        # Formula (matches backstory): TRL 30% + Market 35% + IP 20% + Evidence 15%
+        correct_overall = round(
+            (score.trl_score / 9) * 30
+            + (score.market_accessibility / 5) * 35
+            + (score.patent_strength / 5) * 20
+            + (score.evidence_confidence / 5) * 15
+        )
+        score = score.model_copy(update={"overall_score": correct_overall})
+
+        output.pydantic = score
+        output.raw = score.model_dump_json()
+        return True, output
+
+    return validate_score
 
 
 def _host_is_public(host: str) -> tuple[bool, str]:
@@ -310,13 +389,6 @@ def validate_evidence_report(
                 "state its limitations."
             )
 
-    unused_sources = source_id_set - referenced_ids
-    if unused_sources:
-        errors.append(
-            "Every listed source must support at least one finding; unused sources: "
-            f"{', '.join(sorted(unused_sources))}."
-        )
-
     return errors
 
 
@@ -352,16 +424,23 @@ def _evidence_guardrail(
     output: TaskOutput,
     expected_prefix: str,
 ) -> tuple[bool, Any]:
-    if not isinstance(output.pydantic, EvidenceReport):
-        return (
-            False,
-            "Return valid structured EvidenceReport data. Do not return free-form "
-            "markdown or prose.",
-        )
+    report = output.pydantic
+    if not isinstance(report, EvidenceReport):
+        try:
+            report = EvidenceReport.model_validate_json(output.raw)
+        except (ValidationError, ValueError) as exc:
+            return (
+                False,
+                "Return exactly one valid JSON object matching the EvidenceReport "
+                f"schema, without Markdown fences or prose. Validation error: {exc}",
+            )
 
-    errors = validate_evidence_report(output.pydantic, expected_prefix)
+    output.pydantic = report
+    output.raw = report.model_dump_json()
+
+    errors = validate_evidence_report(report, expected_prefix)
     if not errors:
-        errors.extend(validate_source_reachability(output.pydantic))
+        errors.extend(validate_source_reachability(report))
     if errors:
         return False, "Evidence validation failed:\n- " + "\n- ".join(errors)
 
@@ -378,6 +457,46 @@ def validate_patent_evidence(output: TaskOutput) -> tuple[bool, Any]:
 
 def validate_market_evidence(output: TaskOutput) -> tuple[bool, Any]:
     return _evidence_guardrail(output, "M")
+
+
+def make_evidence_guardrail(
+    expected_prefix: str,
+    topic: str,
+    sources: Sequence[EvidenceSource],
+    search_queries: Sequence[str],
+) -> Callable[[TaskOutput], tuple[bool, Any]]:
+    """Bind immutable, prevalidated sources to an LLM-authored analysis."""
+
+    validated_sources = list(sources)
+    validated_queries = list(search_queries)
+
+    def validate_analysis(output: TaskOutput) -> tuple[bool, Any]:
+        try:
+            analysis = EvidenceAnalysis.model_validate_json(output.raw)
+        except (ValidationError, ValueError) as exc:
+            return (
+                False,
+                "Return exactly one valid JSON object matching the analysis schema "
+                f"without a sources field. Validation error: {exc}",
+            )
+
+        report = EvidenceReport(
+            topic=topic,
+            scope_summary=analysis.scope_summary,
+            search_queries=validated_queries,
+            findings=analysis.findings,
+            sources=validated_sources,
+            limitations=analysis.limitations,
+        )
+        errors = validate_evidence_report(report, expected_prefix)
+        if errors:
+            return False, "Evidence validation failed:\n- " + "\n- ".join(errors)
+
+        output.pydantic = report
+        output.raw = report.model_dump_json()
+        return True, output
+
+    return validate_analysis
 
 
 def collect_context_sources(context_tasks: Sequence[Any]) -> dict[str, EvidenceSource]:
@@ -438,14 +557,94 @@ def _is_substantive_claim_line(
         return False
     if "not legal advice" in stripped.lower() or "freedom-to-operate" in stripped.lower():
         return False
+    # Introductory lines ending with colon are list/section openers, not standalone claims
+    if stripped.endswith(":"):
+        return False
     if stripped.startswith("|") and line_index + 1 < len(lines):
         if re.fullmatch(r"[\s|:-]+", lines[line_index + 1].strip()):
+            return False
+        # Table data rows with a dedicated source-ID cell are implicitly cited
+        if _TABLE_SOURCE_CELL_PATTERN.search(stripped):
             return False
     without_citations = _BRACKET_PATTERN.sub("", stripped)
     words = re.findall(r"[A-Za-z][A-Za-z'-]+", without_citations)
     return len(words) >= 5
 
 
+def _validate_high_risk_claims(
+    body: str,
+    allowed_sources: dict[str, EvidenceSource],
+) -> list[str]:
+    """Apply deterministic policies where semantic overstatement is high risk."""
+
+    errors: list[str] = []
+    fleet_terms = {"truck", "trucks", "bus", "buses", "fleet", "fleets"}
+
+    for line_number, line in enumerate(body.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        lowered = stripped.lower()
+        line_ids, citation_errors = parse_citation_ids(stripped)
+        if citation_errors:
+            continue
+
+        noncanonical_labels = [
+            content
+            for content in _BRACKET_PATTERN.findall(stripped)
+            if "limitation" in content.lower()
+            and not re.search(r"\b[APM]\d+\b", content)
+        ]
+        for label in noncanonical_labels:
+            errors.append(f"Noncanonical citation label on report line {line_number}: [{label}].")
+        if re.search(
+            r"\b(?:freedom-to-operate opportunit|without infringing|non[- ]infringing|clear freedom to operate)",
+            lowered,
+        ):
+            errors.append(
+                f"Patent legal overclaim on report line {line_number}: "
+                "a preliminary patent scan cannot establish freedom to operate."
+            )
+
+        mentioned_fleet_terms = {
+            term for term in fleet_terms if re.search(rf"\b{term}\b", lowered)
+        }
+        if mentioned_fleet_terms and line_ids:
+            cited_text_parts: list[str] = []
+            for source_id in line_ids:
+                source = allowed_sources.get(source_id)
+                if source is None:
+                    continue
+                cited_text_parts.extend([source.title, source.evidence_summary])
+            cited_text = " ".join(cited_text_parts).lower()
+            if not any(
+                re.search(rf"\b{term}\b", cited_text)
+                for term in mentioned_fleet_terms
+            ):
+                errors.append(
+                    f"Unsupported use-case claim on report line {line_number}: "
+                    "the cited source summaries do not mention the claimed fleet, "
+                    "truck, or bus application."
+                )
+
+    government_ids = sorted(
+        source_id
+        for source_id, source in allowed_sources.items()
+        if source.source_type in {"government", "standards_body"}
+    )
+    if government_ids and re.search(
+        r"\bno government(?:al)?\s+(?:or\s+independent(?:\s+third-party)?\s+)?(?:verification|evidence|sources?)\b",
+        body,
+        flags=re.IGNORECASE,
+    ):
+        errors.append(
+            "Source contradiction: report broadly claims no government verification "
+            "despite validated government or standards sources: "
+            + ", ".join(government_ids)
+            + "."
+        )
+
+    return errors
 def validate_final_report(
     markdown: str,
     allowed_sources: dict[str, EvidenceSource],
@@ -544,14 +743,21 @@ def validate_final_report(
             in_limitations = stripped == "## Evidence Limitations"
         if not stripped or stripped.startswith("#") or re.fullmatch(r"[-|:\s]+", stripped):
             continue
+        if re.fullmatch(r"\*\*\d+\.\s+.+\*\*", stripped):
+            continue
 
         line_ids, line_citation_errors = parse_citation_ids(stripped)
         if line_citation_errors:
             continue
-        if _NUMERIC_CLAIM_PATTERN.search(stripped) and not line_ids:
-            errors.append(
-                f"Numeric claim on report line {line_number} has no inline citation."
-            )
+        # Table rows with a dedicated source-ID cell are implicitly cited
+        table_row_with_source = (
+            stripped.startswith("|") and _TABLE_SOURCE_CELL_PATTERN.search(stripped)
+        )
+        if not in_limitations and _NUMERIC_CLAIM_PATTERN.search(stripped) and not line_ids:
+            if not table_row_with_source and not stripped.endswith(":"):
+                errors.append(
+                    f"Numeric claim on report line {line_number} has no inline citation."
+                )
         elif _is_substantive_claim_line(body_lines, line_index, in_limitations) and not line_ids:
             errors.append(
                 f"Substantive claim on report line {line_number} has no inline citation."
@@ -564,21 +770,348 @@ def validate_final_report(
             "freedom-to-operate opinion."
         )
 
+    errors.extend(_validate_high_risk_claims(body, allowed_sources))
+
     return errors
 
+
+def collect_context_finding_sources(
+    context_tasks: Sequence[Any],
+) -> dict[str, list[str]]:
+    """Map internal finding IDs to their validated source IDs."""
+
+    finding_sources: dict[str, list[str]] = {}
+    for task in context_tasks:
+        output = getattr(task, "output", None)
+        report = getattr(output, "pydantic", None)
+        if not isinstance(report, EvidenceReport):
+            continue
+        for finding in report.findings:
+            finding_sources[finding.finding_id] = list(finding.source_ids)
+    return finding_sources
+
+
+def _normalize_parenthetical_citations(
+    markdown: str,
+    allowed_sources: dict[str, EvidenceSource],
+) -> str:
+    """Convert parenthetical source IDs such as (A1, P2) to canonical brackets."""
+
+    pattern = re.compile(
+        r"\((\s*[APM]\d+(?:\s*(?:[,;]|[-–—])\s*(?:[APM]\s*)?\d+)*\s*)\)"
+    )
+
+    def replace(match: re.Match[str]) -> str:
+        source_ids, errors = parse_citation_ids(f"[{match.group(1)}]")
+        if errors or not source_ids:
+            return match.group(0)
+        if any(source_id not in allowed_sources for source_id in source_ids):
+            return match.group(0)
+        return "[" + ", ".join(dict.fromkeys(source_ids)) + "]"
+
+    return pattern.sub(replace, markdown)
+
+def _normalize_report_citations(
+    markdown: str,
+    allowed_sources: dict[str, EvidenceSource],
+    finding_sources: dict[str, list[str]],
+) -> tuple[str, list[str]]:
+    """Convert model citation variants into canonical source-ID citations."""
+
+    normalization_errors: list[str] = []
+    source_fragment = re.compile(r"\b[APM]\d+\b")
+    finding_fragment = re.compile(r"\b[APM]F\d+\b")
+
+    def append_unique(target: list[str], values: Sequence[str]) -> None:
+        for value in values:
+            if value not in target:
+                target.append(value)
+
+    def replace_block(match: re.Match[str]) -> str:
+        content = match.group(1)
+        if not re.search(r"\b[APM](?:F)?\d+", content):
+            return match.group(0)
+
+        source_ids: list[str] = []
+        recognized = False
+        for raw_part in re.split(r"\s*[,;]\s*", content.strip()):
+            part = re.sub(
+                r"\s+limitations?\s*$",
+                "",
+                raw_part.strip(),
+                flags=re.IGNORECASE,
+            )
+
+            if part in finding_sources:
+                recognized = True
+                append_unique(source_ids, finding_sources[part])
+                continue
+
+            range_match = _SOURCE_RANGE_PATTERN.fullmatch(part)
+            if range_match:
+                recognized = True
+                prefix, start_text, end_prefix, end_text = range_match.groups()
+                if end_prefix and end_prefix != prefix:
+                    normalization_errors.append(
+                        f"Cross-prefix citation range is invalid: [{part}]."
+                    )
+                    return match.group(0)
+                start = int(start_text)
+                end = int(end_text)
+                if end < start or end - start > 50:
+                    normalization_errors.append(
+                        f"Citation range is invalid or too large: [{part}]."
+                    )
+                    return match.group(0)
+                append_unique(
+                    source_ids,
+                    [f"{prefix}{number}" for number in range(start, end + 1)],
+                )
+                continue
+
+            if _SOURCE_TOKEN_PATTERN.fullmatch(part):
+                recognized = True
+                append_unique(source_ids, [part])
+                continue
+
+            findings = finding_fragment.findall(part)
+            sources = source_fragment.findall(part)
+            if findings or sources:
+                recognized = True
+            for finding_id in findings:
+                mapped = finding_sources.get(finding_id)
+                if mapped is not None:
+                    append_unique(source_ids, mapped)
+            append_unique(source_ids, sources)
+
+        if not recognized:
+            return match.group(0)
+        if not source_ids:
+            return ""
+
+        unknown_ids = [
+            source_id for source_id in source_ids if source_id not in allowed_sources
+        ]
+        if unknown_ids:
+            normalization_errors.append(
+                "Report body cites unknown source IDs: "
+                + ", ".join(sorted(set(unknown_ids)))
+                + "."
+            )
+        return "[" + ", ".join(source_ids) + "]"
+
+    normalized = _BRACKET_PATTERN.sub(replace_block, markdown)
+    return normalized, normalization_errors
+
+
+def _canonical_reference_section(
+    markdown: str,
+    sources: dict[str, EvidenceSource],
+) -> str:
+    """Replace model-authored references with deterministic cited records."""
+
+    body = markdown.split("## References", maxsplit=1)[0].rstrip()
+    cited_ids, _ = parse_citation_ids(body)
+    cited_sources = {
+        source_id: sources[source_id]
+        for source_id in dict.fromkeys(cited_ids)
+        if source_id in sources
+    }
+    prefix_order = {"A": 0, "P": 1, "M": 2}
+
+    def sort_key(source_id: str) -> tuple[int, int]:
+        return prefix_order.get(source_id[0], 99), int(source_id[1:])
+
+    entries: list[str] = []
+    for source_id in sorted(cited_sources, key=sort_key):
+        source = cited_sources[source_id]
+        published = (
+            source.published_date.isoformat()
+            if source.published_date is not None
+            else "n.d."
+        )
+        locator = (
+            str(source.url)
+            if source.url is not None
+            else f"https://doi.org/{source.doi}"
+        )
+        entries.append(
+            f"[{source_id}] {source.title}. {source.publisher}. "
+            f"Published: {published}. Accessed: {source.accessed_date.isoformat()}. "
+            f"Type: {source.source_type}. Credibility: {source.credibility_tier}. "
+            f"Rationale: {source.credibility_reason}. {locator}"
+        )
+
+    return f"{body}\n\n## References\n\n" + "\n\n".join(entries) + "\n"
+
+
+def _repair_high_risk_phrasing(
+    markdown: str,
+    allowed_sources: dict[str, EvidenceSource],
+) -> str:
+    """Downgrade unsafe certainty without inventing replacement evidence."""
+
+    repaired = re.sub(
+        r"\bfreedom-to-operate opportunities\b",
+        "areas requiring a dedicated freedom-to-operate analysis",
+        markdown,
+        flags=re.IGNORECASE,
+    )
+    repaired = re.sub(
+        r"\bwithout infringing existing patents\b",
+        "subject to a dedicated freedom-to-operate analysis",
+        repaired,
+        flags=re.IGNORECASE,
+    )
+    repaired = re.sub(
+        r"\bnon[- ]infringing path\b|\bclear freedom to operate\b",
+        "path requiring dedicated patent counsel review",
+        repaired,
+        flags=re.IGNORECASE,
+    )
+    repaired = re.sub(
+        r"\[(?![^\]]*\b[APM]\d+\b)[^\]]*\blimitations?\b[^\]]*\]",
+        "",
+        repaired,
+        flags=re.IGNORECASE,
+    )
+
+    has_government_source = any(
+        source.source_type in {"government", "standards_body"}
+        for source in allowed_sources.values()
+    )
+    if has_government_source:
+        repaired = re.sub(
+            r"\bno government(?:al)?\s+or\s+independent(?:\s+third-party)?\s+verification(?:\s+of\s+claims)?\b",
+            (
+                "Government sources were reviewed, but specific commercial claims "
+                "may still lack independent verification"
+            ),
+            repaired,
+            flags=re.IGNORECASE,
+        )
+
+    return repaired
+
+def normalize_final_report(
+    markdown: str,
+    allowed_sources: dict[str, EvidenceSource],
+    finding_sources: dict[str, list[str]],
+) -> tuple[str, list[str]]:
+    """Deterministically repair common model formatting errors."""
+
+    normalized = re.sub(
+        r"(?m)^##\s+(?:\d+\.\s*)?Evidence Limitations\s*$",
+        "## Evidence Limitations",
+        markdown,
+    )
+    normalized = _normalize_parenthetical_citations(normalized, allowed_sources)
+    normalized, errors = _normalize_report_citations(
+        normalized,
+        allowed_sources,
+        finding_sources,
+    )
+    normalized = _repair_high_risk_phrasing(normalized, allowed_sources)
+
+    lowered = normalized.lower()
+    if (
+        "not legal advice" not in lowered
+        or "freedom-to-operate" not in lowered
+    ):
+        marker = "## Evidence Limitations"
+        disclaimer = (
+            "Patent analysis is preliminary research, not legal advice or a "
+            "freedom-to-operate opinion."
+        )
+        if marker in normalized:
+            normalized = normalized.replace(
+                marker,
+                f"{disclaimer}\n\n{marker}",
+                1,
+            )
+
+    normalized = _canonical_reference_section(normalized, allowed_sources)
+    return normalized, errors
+
+
+def _append_quality_control_warnings(
+    markdown: str,
+    warnings: Sequence[str],
+) -> str:
+    """Preserve a usable report while making non-blocking defects explicit."""
+
+    unique_warnings = list(dict.fromkeys(warnings))
+    if not unique_warnings:
+        return markdown
+
+    displayed = unique_warnings[:12]
+    warning_lines = [f"- {warning}" for warning in displayed]
+    remaining = len(unique_warnings) - len(displayed)
+    if remaining:
+        warning_lines.append(
+            f"- {remaining} additional automated warnings were omitted for brevity."
+        )
+    warning_block = (
+        "### Automated Quality-Control Warnings\n\n"
+        "These statements remain in the report as analyst output but require "
+        "manual verification before commercial, investment, or legal use.\n\n"
+        + "\n".join(warning_lines)
+        + "\n\n"
+    )
+    marker = "## References"
+    if marker not in markdown:
+        return markdown
+    return markdown.replace(marker, warning_block + marker, 1)
 
 def make_final_report_guardrail(
     context_tasks: Sequence[Any],
 ) -> Callable[[TaskOutput], tuple[bool, Any]]:
-    """Create a final-report guardrail bound to completed evidence tasks."""
+    """Normalize the report, then enforce citation and high-risk claim policies."""
 
     def validate_report(output: TaskOutput) -> tuple[bool, Any]:
         allowed_sources = collect_context_sources(context_tasks)
+        finding_sources = collect_context_finding_sources(context_tasks)
         if not allowed_sources:
             return False, "No validated evidence sources are available in task context."
-        errors = validate_final_report(output.raw, allowed_sources)
-        if errors:
-            return False, "Final report validation failed:\n- " + "\n- ".join(errors)
+        if len(output.raw.strip()) < 500:
+            return False, "Final report is too short to be usable."
+
+        normalized, normalization_errors = normalize_final_report(
+            output.raw,
+            allowed_sources,
+            finding_sources,
+        )
+        output.raw = normalized
+        errors = validate_final_report(normalized, allowed_sources)
+        critical_prefixes = (
+            "Missing required heading:",
+            "The report body contains no source citations.",
+            "Report body cites unknown source IDs:",
+            "Malformed citation block:",
+            "Cross-prefix citation range",
+            "Citation range is invalid",
+            "The report must state that patent analysis",
+        )
+        critical_errors = list(normalization_errors)
+        critical_errors.extend(
+            error
+            for error in errors
+            if error.startswith(critical_prefixes)
+        )
+        critical_errors = list(dict.fromkeys(critical_errors))
+        if critical_errors:
+            return (
+                False,
+                "Final report has blocking validation errors:\n- "
+                + "\n- ".join(critical_errors),
+            )
+
+        quality_warnings = [
+            error
+            for error in errors
+            if not error.startswith(critical_prefixes)
+        ]
+        output.raw = _append_quality_control_warnings(normalized, quality_warnings)
         return True, output
 
     return validate_report

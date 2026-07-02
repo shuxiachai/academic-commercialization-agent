@@ -1,93 +1,141 @@
 # ============================================================
 # ORIGINAL DEMO: research_task + reporting_task (2 tasks)
+#   原始 Demo：仅含 research_task + reporting_task 两个 Task
 #
-# MODIFIED: Replaced with 4 tasks covering the full
-#   commercialization assessment pipeline:
-#   academic_research_task  → patent_analysis_task
-#   → market_intelligence_task → commercialization_report_task
+# MODIFIED: Replaced with 6 tasks covering the full pipeline
+#   改造为 6 个 Task，覆盖完整商业化评估流程：
+#   Task 1: academic_research_task        — 学术文献分析
+#   Task 2: patent_analysis_task          — 专利图谱分析
+#   Task 3: market_intelligence_task      — 市场情报分析
+#   Task 4: commercialization_report_task — 综合报告撰写
+#   Task 5: report_review_task            — 质量审查 (ADDED)
+#   Task 6: commercialization_scoring_task — 量化评分 (ADDED)
 #
-#   Input variable changed from {topic} to {research_topic}.
+#   执行顺序 / Execution order: Task 1 → 2 → 3 → 4 → 5 → 6
+#   输入变量 / Input variable: {research_topic}
+#   Task 4 以 Task 1/2/3 输出为上下文 / Task 4 uses 1/2/3 as context
+#   Task 5 以 Task 4 输出为上下文 / Task 5 uses Task 4 as context
+#   Task 6 以 Task 1/2/3 输出为上下文 / Task 6 uses 1/2/3 as context (independent of report)
 # ============================================================
 
+# ----------------------------------------------------------
+# Task 1 — 学术文献分析 / Academic Literature Analysis
+# 输入：预验证的学术来源 JSON（{academic_sources_json}）
+# Input: pre-validated academic sources JSON
+# 输出：结构化 JSON，包含技术成熟度、研究突破、关键机构
+# Output: structured JSON with TRL, breakthroughs, key institutions
+# ----------------------------------------------------------
 academic_research_task:
   description: >
-    Conduct a comprehensive literature review on {research_topic}. Use the
-    available research tools to collect traceable academic and institutional
-    sources. Assess technology maturity, identify significant breakthroughs,
-    leading institutions, and unresolved technical barriers.
+    Analyze the immutable, code-validated academic source registry for
+    {research_topic}. Assess maturity, breakthroughs, institutions, and
+    unresolved technical barriers.
+
+    Validated source registry: {academic_sources_json}
+    Queries executed by code: {academic_search_queries_json}
 
     Evidence rules:
     - Use source IDs A1, A2, A3, and so on.
-    - Every finding must cite at least one source_id.
-    - Every source must include a real URL or DOI obtained from tool results.
-    - URLs must be directly reachable public HTTP(S) pages; do not use
-      localhost, private-network addresses, placeholder domains, or broken URLs.
-    - DOI values must use canonical 10.xxxx/suffix form.
-    - Use ISO dates that are not in the future and do not list the same source
-      more than once under different IDs.
-    - Never invent titles, URLs, authors, dates, DOI values, or statistics.
+    - Every finding must cite at least one source_id from the registry.
+    - Do not output or modify source titles, URLs, DOI values, publishers, or dates.
+    - Never introduce facts or statistics absent from the registry summaries.
     - Classify each claim as observed_fact, estimate, or analyst_inference.
     - Estimates and inferences must state their limitations.
-    - If reliable evidence is unavailable, record that in limitations instead
-      of manufacturing a precise answer.
   expected_output: >
-    An EvidenceReport containing at least three findings and three sources,
-    including technology maturity, major research breakthroughs, relevant
-    institutions, commercialization implications, search queries, and explicit
-    limitations. Academic source IDs must begin with A.
+    Return only one valid JSON object with no Markdown fences or prose:
+    {"scope_summary":"...",
+    "findings":[{"finding_id":"AF1","category":"...","claim":"...",
+    "claim_type":"observed_fact","source_ids":["A1"],"confidence":"high",
+    "commercial_implication":"...","limitations":null}],
+    "limitations":["..."]}.
+    Include at least three findings. Academic source IDs must begin with A.
   agent: academic_researcher
 
+# ----------------------------------------------------------
+# Task 2 — 专利图谱分析 / Patent Landscape Analysis
+# 输入：预验证的专利来源 JSON（{patent_sources_json}）
+# Input: pre-validated patent sources JSON
+# 输出：结构化 JSON，包含专利持有人、覆盖范围、潜在白空间
+# Output: structured JSON with holders, coverage, white-space hypotheses
+# 注意：白空间结论为初步分析推断，不构成法律意见
+# Note: White-space findings are analyst inferences, not legal opinions
+# ----------------------------------------------------------
 patent_analysis_task:
   description: >
-    Perform a preliminary public-source patent landscape scan for
-    {research_topic}. Identify relevant patent records, applicants, technical
-    coverage, and possible underexplored areas. Clearly distinguish a public
-    landscape scan from a legal freedom-to-operate opinion.
+    Analyze the immutable, code-validated patent source registry for
+    {research_topic}. Identify applicants, technical coverage, and cautiously
+    framed underexplored areas. This is not a legal freedom-to-operate opinion.
+
+    Validated source registry: {patent_sources_json}
+    Queries executed by code: {patent_search_queries_json}
 
     Evidence rules:
     - Use source IDs P1, P2, P3, and so on.
-    - Prefer direct patent-record URLs from Google Patents, WIPO, Espacenet, or
-      an official patent office.
-    - URLs must be directly reachable public pages. DOI values and dates must
-      be valid, and duplicate records must be consolidated.
-    - Every finding must cite at least one source_id.
-    - Never invent patent numbers, family counts, legal status, filing dates,
-      coverage percentages, or patent holders.
-    - Treat white-space conclusions as analyst_inference unless directly
-      established by a reproducible search, and state search limitations.
+    - Every finding must cite at least one source_id from the registry.
+    - Do not output or modify patent titles, URLs, applicants, or dates.
+    - Never invent patent numbers, family counts, legal status, or coverage.
+    - Treat white-space conclusions as analyst_inference and state limitations.
     - Do not claim legal clearance or freedom to operate.
   expected_output: >
-    An EvidenceReport containing at least three findings and three sources,
-    covering major patent records or applicants, observed coverage areas,
-    cautiously framed white-space hypotheses, search queries, commercialization
-    implications, and limitations. Patent source IDs must begin with P.
+    Return only one valid JSON object with no Markdown fences or prose:
+    {"scope_summary":"...",
+    "findings":[{"finding_id":"PF1","category":"...","claim":"...",
+    "claim_type":"observed_fact","source_ids":["P1"],"confidence":"high",
+    "commercial_implication":"...","limitations":null}],
+    "limitations":["..."]}.
+    Include at least three findings. Patent source IDs must begin with P.
   agent: patent_analyst
 
+# ----------------------------------------------------------
+# Task 3 — 市场情报分析 / Market Intelligence Analysis
+# 输入：预验证的市场来源 JSON（{market_sources_json}）
+# Input: pre-validated market sources JSON
+# 输出：结构化 JSON，包含商业玩家、目标行业、竞争信号、机会假设
+# Output: structured JSON with players, industries, signals, opportunities
+# 注意：市场预测数据标注为 estimate，可信度不超过 medium
+# Note: Market forecasts labeled as estimates with max medium confidence
+# ----------------------------------------------------------
 market_intelligence_task:
   description: >
-    Research the commercial landscape for {research_topic}. Identify companies,
-    disclosed products or programs, target industries, use cases, funding or
-    development signals, and underserved opportunities using traceable sources.
+    Analyze the immutable, code-validated market source registry for
+    {research_topic}. Identify companies, disclosed programs, target industries,
+    use cases, development signals, and underserved opportunities.
+
+    Validated source registry: {market_sources_json}
+    Queries executed by code: {market_search_queries_json}
 
     Evidence rules:
     - Use source IDs M1, M2, M3, and so on.
-    - Every finding must cite at least one source_id.
-    - Prefer company disclosures, government data, standards bodies, and
-      reputable market research or news.
-    - URLs must be directly reachable public pages. DOI values and dates must
-      be valid, and duplicate records must be consolidated.
-    - Never invent market sizes, funding amounts, customers, product stages, or
-      forecasts.
-    - Label forecasts and opportunity assessments as estimates or
-      analyst_inference and state their limitations.
-    - Record insufficient public evidence instead of filling gaps with guesses.
+    - Every finding must cite at least one source_id from the registry.
+    - Do not output or modify source titles, URLs, companies, or dates.
+    - Never invent market sizes, funding amounts, customers, or forecasts.
+    - Label forecasts and opportunities as estimates or analyst_inference.
+    - Record insufficient evidence instead of filling gaps with guesses.
+    - Calibrate confidence using credibility_tier and credibility_reason.
+    - Company disclosures support only attributed first-party claims and are
+      not independent confirmation of performance or market adoption.
+    - Treat all market_report forecasts and market sizes as estimates with
+      no higher than medium confidence and state methodology limitations.
+    - Do not use low-credibility sources for material commercial conclusions.
   expected_output: >
-    An EvidenceReport containing at least three findings and three sources,
-    covering commercial players, target industries or use cases, competitive
-    signals, opportunity hypotheses, search queries, and limitations. Market
-    source IDs must begin with M.
+    Return only one valid JSON object with no Markdown fences or prose:
+    {"scope_summary":"...",
+    "findings":[{"finding_id":"MF1","category":"...","claim":"...",
+    "claim_type":"observed_fact","source_ids":["M1"],"confidence":"high",
+    "commercial_implication":"...","limitations":null}],
+    "limitations":["..."]}.
+    Include at least three findings. Market source IDs must begin with M.
   agent: market_intelligence_analyst
 
+# ----------------------------------------------------------
+# Task 4 — 综合报告撰写 / Commercialization Report Writing
+# 输入：Task 1/2/3 的结构化 JSON 输出（作为上下文传入）
+# Input: structured JSON outputs from Tasks 1/2/3 (passed as context)
+# 输出：完整 Markdown 报告，含 7 个必需章节和 References 区块
+# Output: full Markdown report with 7 required sections + References
+# Guardrail：检查章节完整性和引用一致性，失败最多重试 1 次
+# Guardrail: checks section completeness and citation consistency; 1 retry
+# ----------------------------------------------------------
 commercialization_report_task:
   description: >
     Write a comprehensive commercialization assessment for {research_topic}
@@ -96,6 +144,8 @@ commercialization_report_task:
     Citation rules:
     - Cite every factual, numerical, patent, company, market, and maturity claim
       with its supplied source ID, such as [A1], [P2], or [M3].
+    - AF, PF, and MF finding IDs are internal analysis identifiers, not citations.
+      Never emit finding IDs or words such as "limitations" inside citation brackets.
     - Put citations on the same line as every substantive paragraph, bullet,
       table data row, and numerical claim. Evidence Limitations and the patent
       legal disclaimer are the only exceptions.
@@ -103,14 +153,33 @@ commercialization_report_task:
       ranges such as [A1-A4]. Never cite an ID absent from the validated inputs.
     - Do not introduce facts, numbers, sources, URLs, or patent records that are
       absent from the validated task outputs.
+    - Do not infer customer segments, carbon-credit markets, pricing, offtake
+      demand, or commercial dominance unless a cited source summary states it.
+    - Label source-free strategic recommendations as analyst inferences and
+      state the evidence gap explicitly.
     - Preserve the distinction between observed facts, estimates, and analyst
       inferences.
+    - State medium-credibility claims as attributed or provisional, not as
+      independently verified facts.
+    - Market sizes and forecasts from market_report sources are estimates.
+    - Do not treat multiple URLs repeating the same underlying record as
+      independent corroboration.
     - If evidence is weak or conflicting, say so explicitly.
     - Patent white-space discussion is preliminary research, not legal advice
       or a freedom-to-operate opinion.
     - End with a References section containing every cited source exactly once,
+    - Never describe inferred patent white space as a freedom-to-operate
+      opportunity, non-infringing path, or proof that infringement is absent.
+    - Mention trucks, buses, or fleet applications only when at least one cited
+      source title or evidence summary explicitly mentions that application.
+    - Do not broadly claim that government verification or evidence is absent
+      when a government or standards source exists in the validated context.
+    - Do not use descriptive labels such as [Market Source Limitations] as
+      citations; bracketed citations may contain source IDs only.
       with source ID, title, publisher, publication date when available,
       validated URL or DOI, access date, and source type.
+    - Every References entry must begin with a bracketed source ID, for example
+      [A1], followed by the validated metadata.
   expected_output: >
     A Markdown report with:
 
@@ -130,3 +199,81 @@ commercialization_report_task:
     invented, duplicated, or externally added sources. Formatted as Markdown
     without code blocks.
   agent: commercialization_report_writer
+
+# ----------------------------------------------------------
+# Task 5 — 质量审查 / Report Quality Review  [ADDED]
+# 输入：Task 4 的草稿报告（作为上下文传入）
+# Input: Task 4 draft report (passed as context)
+# 输出：修正后的最终报告 + ## Reviewer Notes 修改清单
+# Output: corrected final report + ## Reviewer Notes change log
+# 检查四类问题 / Checks four issue types:
+#   1. 引用完整性 / Citation integrity
+#   2. 悬空数字 / Unsupported numerical claims
+#   3. 过度乐观语言 / Overconfident language
+#   4. 专利法律免责措辞 / Patent legal disclaimer framing
+# ----------------------------------------------------------
+report_review_task:
+  description: >
+    You will receive a draft commercialization assessment report for
+    {research_topic} as context. Apply your four review rules exactly as
+    described in your backstory.
+
+    Do not add new factual content. Do not restructure sections. Do not
+    change the tone or depth of analysis. Only fix the four categories of
+    errors: citation mismatches, unsupported numerical claims, overconfident
+    language, and incorrect patent legal framing.
+
+    After completing corrections, append a ## Reviewer Notes section that
+    lists every correction made. If the draft was already clean, write
+    "No corrections required." in that section.
+  expected_output: >
+    The complete corrected Markdown report, preserving all original section
+    headings and structure, with corrections applied inline. The report must
+    end with a ## Reviewer Notes section. Formatted as Markdown without
+    code blocks.
+  agent: report_reviewer
+
+# ----------------------------------------------------------
+# Task 6 — 量化评分 / Commercialization Readiness Scoring  [ADDED]
+# 输入：Task 1/2/3 的结构化 JSON 证据报告（作为上下文传入）
+# Input: structured JSON evidence from Tasks 1/2/3 (passed as context)
+# 输出：结构化 JSON 评分卡（四维度分数 + 综合分 + 风险/机会列表）
+# Output: structured JSON scorecard (four scores + overall + risks/opportunities)
+# 独立于报告撰写流程，直接从原始证据 JSON 评分。
+# Scores directly from raw evidence JSON, independent of the written report.
+# ----------------------------------------------------------
+commercialization_scoring_task:
+  description: >
+    Score the commercialization readiness of {research_topic} using only the
+    structured evidence JSON outputs from the academic, patent, and market tasks
+    in context. Apply each of the four scoring dimensions exactly as defined in
+    your backstory rubrics.
+
+    Scoring rules:
+    - Use only evidence present in the context JSON. Do not reference external
+      knowledge or invent data not present in the findings.
+    - If evidence for a dimension is absent or very thin, score conservatively
+      (1 or 2) and state the evidence gap clearly in the rationale.
+    - Compute overall_score using the exact formula from your backstory:
+      round( (trl_score/9)*30 + (market_accessibility/5)*35 +
+             (patent_strength/5)*20 + (evidence_confidence/5)*15 )
+    - Provide 2 to 5 key_risks and 2 to 5 key_opportunities grounded in the
+      evidence findings. Do not invent risks or opportunities not supported by
+      the context.
+    - Each rationale field must be a complete sentence explaining which specific
+      findings or source types drove the score.
+  expected_output: >
+    Return only one valid JSON object with no Markdown fences or prose:
+    {"trl_score": 4,
+     "trl_rationale": "...",
+     "patent_strength": 3,
+     "patent_rationale": "...",
+     "market_accessibility": 2,
+     "market_rationale": "...",
+     "evidence_confidence": 4,
+     "evidence_rationale": "...",
+     "overall_score": 56,
+     "scoring_rationale": "...",
+     "key_risks": ["...", "..."],
+     "key_opportunities": ["...", "..."]}
+  agent: commercialization_scorer

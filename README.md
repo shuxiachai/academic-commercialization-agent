@@ -2,7 +2,7 @@
 
 基于 [CrewAI](https://github.com/crewAIInc/crewAI) 框架开发的学术成果商业化评估智能体系统。
 
-输入一个研究方向或论文主题，系统将自动调度多个专职 AI Agent，从学术文献、专利图谱、市场竞争三个维度完成分析，最终生成一份带可验证引用的结构化商业化评估报告。
+输入一个研究方向或论文主题，系统将自动调度多个专职 AI Agent，从学术文献、专利图谱、市场竞争三个维度完成分析，最终生成一份带可验证引用的结构化商业化评估报告和量化评分卡。
 
 ---
 
@@ -12,13 +12,14 @@
 
 | | 原始 Demo | 本项目 |
 |---|---|---|
-| Agent 数量 | 2（researcher + reporting_analyst） | 4（专职分工） |
-| Task 数量 | 2（research_task + reporting_task） | 4（顺序执行 + guardrail 验证） |
+| Agent 数量 | 2（researcher + reporting_analyst） | 6（专职分工） |
+| Task 数量 | 2（research_task + reporting_task） | 6（顺序执行 + guardrail 验证） |
 | 工具 | 无 | ArxivPaperTool + SerperDevTool |
 | 输入变量 | topic + current_year | research_topic |
-| 输出格式 | 自由文本报告 | 带 [A1][P2][M3] 行内引用 + References 区块的 Markdown 报告 |
+| 来源收集 | 无 | 运行前确定性预检索（Serper + Crossref），URL 可达性验证 |
+| 输出格式 | 自由文本报告 | 带 [A1][P2][M3] 行内引用 + References 区块的 Markdown 报告 + JSON 评分卡 |
 | 输出管理 | 固定文件名（覆盖） | 每次运行生成唯一 ID，存入 outputs/ 目录 |
-| 数据质量保障 | 无 | 结构化证据 + 引用完整性校验 + URL 可达性检查 + 自动重试 |
+| 数据质量保障 | 无 | 结构化证据 + 引用完整性校验 + 来源最低字数过滤 + 自动重试 |
 
 ---
 
@@ -27,20 +28,29 @@
 ```
 Agent 1: Academic Literature Analyst（学术前沿分析师）
          工具：ArxivPaperTool + SerperDevTool
-         输出：结构化 EvidenceReport，含技术成熟度、研究突破、引用来源（A1/A2/…）
+         输出：结构化 EvidenceReport JSON，含技术成熟度、研究突破、引用来源（A1/A2/…）
 
 Agent 2: Patent Landscape Analyst（专利图谱分析师）
          工具：SerperDevTool
-         输出：结构化 EvidenceReport，含专利持有人、空白领域（P1/P2/…）
+         输出：结构化 EvidenceReport JSON，含专利持有人、空白领域（P1/P2/…）
 
 Agent 3: Market & Competitive Intelligence Analyst（市场情报分析师）
          工具：SerperDevTool
-         输出：结构化 EvidenceReport，含商业玩家、目标行业、市场机会（M1/M2/…）
+         输出：结构化 EvidenceReport JSON，含商业玩家、目标行业、市场机会（M1/M2/…）
 
 Agent 4: Technology Commercialization Report Writer（报告撰写师）
          工具：无（以前三个 Agent 输出作为上下文）
-         输出：Markdown 报告，含行内引用标注 [A1][P2][M3] 和 References 区块
-         校验：章节、引用、References、数字引用和专利免责声明，不通过则自动重试（最多 2 次）
+         输出：Markdown 报告草稿，含行内引用标注 [A1][P2][M3] 和 References 区块
+         校验：章节、正文引用、References 和数字引用完整性，不通过则自动重试（最多 2 次）
+
+Agent 5: Report Reviewer（质量审查员）
+         工具：无（以 Agent 4 草稿作为输入）
+         输出：修正后的最终报告，末尾附 Reviewer Notes 列出所有修改
+
+Agent 6: Commercialization Readiness Scorer（量化评分员）
+         工具：无（以 Task 1/2/3 结构化证据为输入，独立于报告流程）
+         输出：CommercializationScore JSON 评分卡，含 TRL / 专利 / 市场 / 证据置信度四维评分
+         校验：JSON 格式验证 + 加权公式自动修正 overall_score，不通过则自动重试（最多 2 次）
 ```
 
 ---
@@ -48,36 +58,52 @@ Agent 4: Technology Commercialization Report Writer（报告撰写师）
 ## 执行流程
 
 ```
-Step 1  接收输入
-        用户在 Gradio 界面或 main.py 中设置 research_topic
-        系统生成唯一运行编号（run_id），格式：20260625T120000Z-a1b2c3d4e5
+Step 0  来源收集与验证（运行前，确定性）
+        通过 Serper API 检索学术 / 专利 / 市场三类来源
+        通过 Crossref API 验证学术文献 DOI 和元数据
+        过滤不可达 URL、薄证据摘要、重复来源
+        输出 validated_sources.json 并传入 Crew
 
         ↓
 
-Step 2  Agent 1 执行 — 学术文献分析
-        调用 ArxivPaperTool 检索最新论文
-        调用 SerperDevTool 补充学术资源
-        输出结构化 EvidenceReport，每条结论关联 A1/A2/… 来源
+Step 1  Agent 1 执行 — 学术文献分析
+        仅分析 Step 0 预验证的学术来源（A1/A2/…）
+        输出结构化 EvidenceReport JSON（guardrail 校验来源引用）
 
         ↓
 
-Step 3  Agent 2 执行 — 专利图谱分析
-        调用 SerperDevTool 检索 Google Patents / WIPO / Espacenet
-        输出结构化 EvidenceReport，每条结论关联 P1/P2/… 来源
+Step 2  Agent 2 执行 — 专利图谱分析
+        仅分析来自官方专利库的来源（P1/P2/…）
+        输出结构化 EvidenceReport JSON（guardrail 校验来源引用）
 
         ↓
 
-Step 4  Agent 3 执行 — 市场情报分析
-        调用 SerperDevTool 检索商业化动态、融资信号、公司披露
-        输出结构化 EvidenceReport，每条结论关联 M1/M2/… 来源
+Step 3  Agent 3 执行 — 市场情报分析
+        仅分析经域名白名单过滤的市场来源（M1/M2/…）
+        输出结构化 EvidenceReport JSON（guardrail 校验来源引用）
 
         ↓
 
-Step 5  Agent 4 执行 — 综合报告撰写
-        以前三步结构化证据为唯一来源，禁止引入新信息
-        每个数字型结论必须带行内引用标注，如 [A1][P2][M3]
-        → guardrail 校验：章节、正文引用、References、数字引用和免责声明
-        报告保存至 outputs/<run_id>/commercialization_report.md
+Step 4  Agent 4 执行 — 综合报告撰写
+        以 Step 1/2/3 结构化证据为唯一来源，禁止引入新信息
+        每个数字型结论必须带行内引用标注
+        → guardrail 校验报告结构与引用一致性，最多重试 2 次
+        报告草稿传入 Step 5
+
+        ↓
+
+Step 5  Agent 5 执行 — 质量审查
+        对 Step 4 草稿执行 final inspection：引用完整性、悬空数字、
+        过度乐观语言、专利法律免责
+        输出修正后的最终报告，保存至 outputs/<run_id>/commercialization_report.md
+
+        ↓（并行于 Step 4，但顺序执行）
+
+Step 6  Agent 6 执行 — 量化评分
+        直接读取 Step 1/2/3 原始证据 JSON，独立评分
+        输出 CommercializationScore JSON，保存至 outputs/<run_id>/commercialization_scores.json
+        加权公式：overall = (TRL/9)×30 + (市场/5)×35 + (专利/5)×20 + (置信度/5)×15
+        guardrail 自动修正算数误差
 ```
 
 ---
@@ -96,7 +122,10 @@ Step 5  Agent 4 执行 — 综合报告撰写
 ## 5. Commercialization Opportunities & Recommendations
 ## Evidence Limitations
 ## References
+## Reviewer Notes（审查员修改说明）
 ```
+
+评分卡（`commercialization_scores.json`）额外包含：TRL 评分、专利强度、市场可及性、证据置信度、综合评分、关键风险和机遇列表。
 
 ---
 
@@ -113,9 +142,10 @@ uv sync
 在项目根目录创建 `.env` 文件：
 
 ```
-OPENAI_API_KEY=your_api_key
-OPENAI_API_BASE=https://api.deepseek.com
-OPENAI_MODEL_NAME=deepseek-chat
+DEEPSEEK_API_KEY=your_api_key
+DEEPSEEK_API_BASE=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-chat
+# Legacy OPENAI_API_KEY/API_BASE/MODEL_NAME names are also supported.
 SERPER_API_KEY=your_serper_key
 ```
 
@@ -127,7 +157,7 @@ SERPER_API_KEY=your_serper_key
 uv run python app.py
 ```
 
-浏览器自动打开 `http://localhost:7860`，在输入框填写研究方向，点击 Run Analysis，页面实时显示运行进度，完成后报告直接渲染在页面上。
+浏览器自动打开 `http://localhost:7860`，在输入框填写研究方向，点击 Run Analysis，页面实时显示运行进度，完成后报告和评分卡直接渲染在页面上，支持下载 `.md` 文件。
 
 **方式二：命令行**
 
@@ -135,7 +165,7 @@ uv run python app.py
 uv run crewai run
 ```
 
-研究主题在 `src/academic_agent/main.py` 中修改 `research_topic` 字段。
+研究主题在 `src/academic_agent/main.py` 中修改 `_DEFAULT_TOPIC` 字段。
 
 ### 4. 查看报告
 
@@ -144,10 +174,10 @@ uv run crewai run
 ```
 outputs/
 └── 20260625T120000Z-a1b2c3d4e5/
-    └── commercialization_report.md
+    ├── commercialization_report.md
+    ├── commercialization_scores.json
+    └── validated_sources.json
 ```
-
-注意：修复证据链之前生成的历史报告不应视为已通过引用完整性验证。
 
 ---
 
@@ -156,16 +186,17 @@ outputs/
 ```
 academic_agent/
 ├── src/academic_agent/
-│   ├── crew.py              # Crew 定义与证据管线接线
+│   ├── crew.py              # Crew 定义（6 个 Agent / Task 接线）
 │   ├── main.py              # 命令行入口
-│   ├── evidence.py          # 证据模型与 guardrail 校验
+│   ├── evidence.py          # 证据模型、guardrail 校验、CommercializationScore 模型
+│   ├── source_pipeline.py   # 运行前确定性来源收集与验证（Serper + Crossref）
+│   ├── llm_config.py        # DeepSeek LLM 配置（普通模式 / JSON 模式）
 │   ├── run_output.py        # 运行 ID 与报告持久化
 │   └── config/
-│       ├── agents.yaml      # Agent 角色配置
-│       └── tasks.yaml       # Task 需求与引用规则
+│       ├── agents.yaml      # Agent 角色配置（6 个）
+│       └── tasks.yaml       # Task 需求与引用规则（6 个）
 ├── tests/                   # 单元测试与 Crew 接线测试
-├── app.py                   # Gradio 网页界面
-├── outputs/                 # 每次运行的报告存档目录
+├── app.py                   # Gradio 网页界面（实时进度 + 评分卡渲染 + 报告下载）
 ├── .env                     # API Key 配置（不提交 Git）
 ├── pyproject.toml           # 项目依赖
 └── README.md
@@ -178,8 +209,9 @@ academic_agent/
 - **框架**：CrewAI 1.14.x
 - **LLM**：DeepSeek-V3（通过 DeepSeek API 或 OpenAI 兼容接口）
 - **搜索工具**：SerperDevTool、ArxivPaperTool
-- **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性和报告结构验证）
+- **学术元数据**：Crossref API（DOI 验证与摘要检索）
+- **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、评分算法验证）
 - **网页界面**：Gradio 6.x
 - **Python**：3.10+
 
-URL/DOI 无效或不可达、引用编号错误、References 不一致和报告结构错误都会阻止任务并触发重试。
+URL/DOI 无效或不可达、引用编号错误、References 不一致、报告结构错误和评分 JSON 格式错误都会阻止任务并触发重试。

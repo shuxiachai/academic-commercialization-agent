@@ -21,7 +21,43 @@ def save_report(
 ) -> tuple[str, Path]:
     resolved_run_id = run_id or create_run_id()
     run_directory = output_root / resolved_run_id
-    run_directory.mkdir(parents=True, exist_ok=False)
+    run_directory.mkdir(parents=True, exist_ok=True)
     report_path = run_directory / "commercialization_report.md"
     report_path.write_text(report, encoding="utf-8")
     return resolved_run_id, report_path
+
+
+def save_error(
+    error_details: str,
+    run_id: str,
+    output_root: Path = DEFAULT_OUTPUT_ROOT,
+) -> Path:
+    run_directory = output_root / run_id
+    run_directory.mkdir(parents=True, exist_ok=True)
+    error_path = run_directory / "error.log"
+    error_path.write_text(error_details, encoding="utf-8")
+    return error_path
+
+
+def save_source_collection(
+    collection_json: str,
+    run_id: str,
+    output_root: Path = DEFAULT_OUTPUT_ROOT,
+) -> Path:
+    run_directory = output_root / run_id
+    run_directory.mkdir(parents=True, exist_ok=True)
+    source_path = run_directory / "validated_sources.json"
+    source_path.write_text(collection_json, encoding="utf-8")
+    return source_path
+
+
+def save_scores(
+    scores_json: str,
+    run_id: str,
+    output_root: Path = DEFAULT_OUTPUT_ROOT,
+) -> Path:
+    run_directory = output_root / run_id
+    run_directory.mkdir(parents=True, exist_ok=True)
+    scores_path = run_directory / "commercialization_scores.json"
+    scores_path.write_text(scores_json, encoding="utf-8")
+    return scores_path
