@@ -39,6 +39,10 @@ _TOPIC_STOPWORDS = {
     "test",
     "topic",
 }
+# Prepositions that mark the end of the core noun phrase in a topic string.
+_TOPIC_PREPOSITIONS = frozenset({
+    "for", "in", "of", "with", "using", "via", "through", "by", "on", "at",
+})
 _AUTHORITATIVE_RESEARCH_DOMAINS = {
     "iea.org",
     "wri.org",
@@ -95,6 +99,14 @@ _MARKET_RESEARCH_DOMAINS = {
     "mordorintelligence.com",
     "alliedmarketresearch.com",
     "iea.org",
+    "inkwoodresearch.com",
+    "fortunebusinessinsights.com",
+    "transparencymarketresearch.com",
+    "researchandmarkets.com",
+    "technavio.com",
+    "statista.com",
+    "reportlinker.com",
+    "businessresearchinsights.com",
 }
 _ACADEMIC_PUBLISHER_DOMAINS = {
     "doi.org",
@@ -122,6 +134,12 @@ _BLOCKED_MARKET_DOMAINS = {
     "x.com",
     "youtu.be",
     "youtube.com",
+    # Low-quality aggregator / curated-list sites that lack primary data
+    "wewillcure.com",
+    "biospace.com",
+    "drugdiscoverytrends.com",
+    "pharmiweb.com",
+    "drugdiscoverynews.com",
 }
 _OFFICIAL_DISCLOSURE_PATH_MARKERS = (
     "/blog/",
@@ -133,7 +151,7 @@ _OFFICIAL_DISCLOSURE_PATH_MARKERS = (
 )
 # Sources whose evidence_summary is shorter than this are rejected as too thin
 # to provide meaningful content for LLM analysis.
-_MIN_EVIDENCE_SUMMARY_CHARS = 80
+_MIN_EVIDENCE_SUMMARY_CHARS = 150
 
 
 class SourceCollectionError(RuntimeError):
@@ -247,6 +265,96 @@ class SerperClient:
         if not isinstance(payload, dict):
             raise SourceCollectionError("Serper returned a non-object response.")
         return payload
+
+
+class OpenAlexClient:
+    """Client for the OpenAlex Works API (free, no key required)."""
+
+    _BASE = "https://api.openalex.org/works"
+    _SELECT = ",".join([
+        "id", "title", "doi", "publication_date",
+        "primary_location", "cited_by_count", "abstract_inverted_index",
+    ])
+
+    def __init__(self, *, timeout: int = 20, retries: int = 2) -> None:
+        self.timeout = timeout
+        self.retries = retries
+        mailto = os.getenv("OPENALEX_MAILTO") or os.getenv("CROSSREF_MAILTO")
+        ua = "AcademicAgentSourceCollector/1.0"
+        self.headers = {"User-Agent": f"{ua} (mailto:{mailto})" if mailto else ua}
+
+    def search(self, topic: str, rows: int = 15) -> list[dict[str, Any]]:
+        # Use the core noun phrase (before prepositions) with title.search.
+        # Full topic string is too broad: "solid-state batteries for grid energy
+        # storage" would also match solid-state transformer + energy storage papers.
+        core = _topic_core_phrase(topic)
+        params = urlencode({
+            "filter": f"title.search:{core}",
+            "sort": "cited_by_count:desc",
+            "per-page": min(rows, 50),
+            "select": self._SELECT,
+        })
+        url = f"{self._BASE}?{params}"
+        request = Request(url, headers=self.headers)
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                return payload.get("results") or []
+            except HTTPError as exc:
+                if exc.code == 429:
+                    time.sleep(2 ** attempt)
+                    continue
+                return []
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError):
+                if attempt >= self.retries:
+                    return []
+                time.sleep(0.75 * (attempt + 1))
+        return []
+
+
+class SemanticScholarClient:
+    """Client for the Semantic Scholar Academic Graph API.
+
+    Free to use without a key (1 req/s). Optional API key raises limits to
+    10 req/s — set SEMANTIC_SCHOLAR_API_KEY in the environment to activate.
+    """
+
+    _SEARCH_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
+    _FIELDS = "title,abstract,year,citationCount,externalIds,publicationVenue,publicationDate"
+
+    def __init__(self, *, timeout: int = 15, retries: int = 2) -> None:
+        self.timeout = timeout
+        self.retries = retries
+        key = os.getenv("SEMANTIC_SCHOLAR_API_KEY")
+        self.headers: dict[str, str] = {"User-Agent": "AcademicAgentSourceCollector/1.0"}
+        if key:
+            self.headers["x-api-key"] = key
+
+    def search(self, topic: str, rows: int = 15) -> list[dict[str, Any]]:
+        params = urlencode({
+            "query": topic,
+            "limit": min(rows, 100),
+            "fields": self._FIELDS,
+        })
+        request = Request(f"{self._SEARCH_URL}?{params}", headers=self.headers)
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                return payload.get("data") or []
+            except HTTPError as exc:
+                if exc.code == 429:
+                    retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                    wait = float(retry_after) if retry_after else (5 * 2 ** attempt)
+                    time.sleep(min(wait, 60))
+                    continue
+                return []
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError):
+                if attempt >= self.retries:
+                    return []
+                time.sleep(0.75 * (attempt + 1))
+        return []
 
 
 class CrossrefClient:
@@ -402,6 +510,163 @@ def _resolve_crossref_item(
     return None, f"no Crossref metadata matched title {title!r}{detail}"
 
 
+
+
+def _topic_core_phrase(topic: str) -> str:
+    """Return the core noun phrase of a topic (stop at the first preposition).
+
+    'solid-state batteries for grid energy storage' → 'solid-state batteries'
+    'CRISPR gene editing applications in agriculture' → 'CRISPR gene editing applications'
+    'perovskite solar cells' → 'perovskite solar cells'
+
+    Using only the core phrase in OpenAlex title.search avoids false matches
+    from secondary words like 'energy' or 'storage' that appear in unrelated fields.
+    """
+    words = topic.split()
+    core: list[str] = []
+    for word in words:
+        if word.lower() in _TOPIC_PREPOSITIONS:
+            break
+        core.append(word)
+    return " ".join(core[:6]) if core else topic
+
+
+def _openalex_abstract(work: dict[str, Any]) -> str:
+    """Reconstruct abstract from OpenAlex inverted-index format."""
+    inverted = work.get("abstract_inverted_index")
+    if not isinstance(inverted, dict) or not inverted:
+        return ""
+    positions: dict[int, str] = {}
+    for word, pos_list in inverted.items():
+        if isinstance(pos_list, list):
+            for pos in pos_list:
+                positions[int(pos)] = word
+    return " ".join(positions[i] for i in sorted(positions))
+
+
+def _academic_source_from_openalex(
+    work: dict[str, Any],
+    source_id: str,
+    accessed_date: date,
+    research_topic: str,
+) -> tuple[EvidenceSource | None, str]:
+    title = _clean_text(str(work.get("title") or ""))
+    doi_raw = str(work.get("doi") or "").lower().strip()
+    # OpenAlex returns DOIs as full URLs: "https://doi.org/10.xxxx/..."
+    if doi_raw.startswith("https://doi.org/"):
+        doi = doi_raw[len("https://doi.org/"):]
+    elif doi_raw.startswith("http://doi.org/"):
+        doi = doi_raw[len("http://doi.org/"):]
+    else:
+        doi = doi_raw
+
+    if not title:
+        return None, "OpenAlex work has no title"
+    if not doi:
+        return None, f"OpenAlex work has no DOI: {title!r}"
+    if not _title_matches_topic(title, research_topic):
+        return None, f"OpenAlex title not relevant to topic: {title!r}"
+
+    abstract = _openalex_abstract(work)
+    if len(abstract) < 40:
+        return None, f"OpenAlex abstract too thin ({len(abstract)} chars): {title!r}"
+
+    primary = work.get("primary_location") or {}
+    source_meta = primary.get("source") or {}
+    publisher = _clean_text(str(source_meta.get("display_name") or ""))
+    if not publisher:
+        publisher = "OpenAlex"
+
+    pub_date_str = str(work.get("publication_date") or "")
+    published: date | None = None
+    try:
+        if pub_date_str:
+            published = date.fromisoformat(pub_date_str[:10])
+            if published > accessed_date:
+                return None, f"OpenAlex publication date in future: {pub_date_str}"
+    except ValueError:
+        pass
+
+    cited = int(work.get("cited_by_count") or 0)
+    return (
+        EvidenceSource(
+            source_id=source_id,
+            title=title,
+            url=f"https://doi.org/{doi}",
+            doi=doi,
+            publisher=publisher,
+            published_date=published,
+            accessed_date=accessed_date,
+            source_type="academic_paper",
+            credibility_tier="high",
+            credibility_reason=(
+                f"OpenAlex record: DOI verified, peer-reviewed journal, "
+                f"{cited:,} citations."
+            ),
+            evidence_summary=abstract[:1500],
+        ),
+        "",
+    )
+
+
+def _academic_source_from_s2(
+    paper: dict[str, Any],
+    source_id: str,
+    accessed_date: date,
+    research_topic: str,
+) -> tuple[EvidenceSource | None, str]:
+    title = _clean_text(str(paper.get("title") or ""))
+    abstract = _clean_text(str(paper.get("abstract") or ""))
+    external_ids = paper.get("externalIds") or {}
+    doi = str(external_ids.get("DOI") or "").lower().strip()
+
+    if not title:
+        return None, "Semantic Scholar paper has no title"
+    if not doi:
+        return None, f"S2 paper has no DOI: {title!r}"
+    if not _title_matches_topic(title, research_topic):
+        return None, f"S2 title not relevant to topic: {title!r}"
+    if len(abstract) < 40:
+        return None, f"S2 abstract too thin ({len(abstract)} chars): {title!r}"
+
+    venue = paper.get("publicationVenue") or {}
+    publisher = _clean_text(str(venue.get("name") or ""))
+    if not publisher:
+        publisher = "Semantic Scholar"
+
+    pub_date_str = str(paper.get("publicationDate") or "")
+    pub_year = paper.get("year")
+    published: date | None = None
+    try:
+        if pub_date_str:
+            published = date.fromisoformat(pub_date_str[:10])
+        elif pub_year:
+            published = date(int(pub_year), 1, 1)
+        if published and published > accessed_date:
+            return None, f"S2 publication date in future: {pub_date_str or pub_year}"
+    except (ValueError, TypeError):
+        pass
+
+    cited = int(paper.get("citationCount") or 0)
+    return (
+        EvidenceSource(
+            source_id=source_id,
+            title=title,
+            url=f"https://doi.org/{doi}",
+            doi=doi,
+            publisher=publisher,
+            published_date=published,
+            accessed_date=accessed_date,
+            source_type="academic_paper",
+            credibility_tier="high",
+            credibility_reason=(
+                f"Semantic Scholar record: DOI verified, peer-reviewed journal, "
+                f"{cited:,} citations."
+            ),
+            evidence_summary=abstract[:1500],
+        ),
+        "",
+    )
 
 
 def _publisher_for_host(host: str) -> str:
@@ -698,11 +963,82 @@ def _collect_domain(
     return accepted, audits
 
 
+def _collect_academic_primary(
+    topic: str,
+    openalex: OpenAlexClient,
+    s2: SemanticScholarClient,
+    accessed_date: date,
+    *,
+    maximum_sources: int,
+) -> tuple[list[EvidenceSource], list[SearchAudit]]:
+    """Collect academic sources: OpenAlex primary, Semantic Scholar supplement."""
+    # ── Step 1: OpenAlex ──────────────────────────────────────────────────
+    works = openalex.search(topic, rows=max(20, maximum_sources * 3))
+    oa_audit = SearchAudit(domain="academic", query=f"[OpenAlex] {topic}", result_count=len(works))
+    accepted: list[EvidenceSource] = []
+    seen_dois: set[str] = set()
+
+    for work in works:
+        if len(accepted) >= maximum_sources:
+            break
+        source_id = f"A{len(accepted) + 1}"
+        source, reason = _academic_source_from_openalex(work, source_id, accessed_date, topic)
+        if source is None:
+            oa_audit.rejected_reasons.append(reason)
+            continue
+        doi_key = (source.doi or "").lower()
+        if doi_key and doi_key in seen_dois:
+            oa_audit.rejected_reasons.append(f"duplicate DOI: {doi_key}")
+            continue
+        if doi_key:
+            seen_dois.add(doi_key)
+        accepted.append(source)
+        oa_audit.accepted_source_ids.append(source_id)
+
+    audits: list[SearchAudit] = [oa_audit]
+
+    # ── Step 2: Semantic Scholar supplement (when OpenAlex falls short) ───
+    if len(accepted) < maximum_sources:
+        s2_papers = s2.search(topic, rows=max(20, maximum_sources * 3))
+        s2_audit = SearchAudit(
+            domain="academic",
+            query=f"[SemanticScholar] {topic}",
+            result_count=len(s2_papers),
+        )
+        for paper in s2_papers:
+            if len(accepted) >= maximum_sources:
+                break
+            source_id = f"A{len(accepted) + 1}"
+            source, reason = _academic_source_from_s2(paper, source_id, accessed_date, topic)
+            if source is None:
+                s2_audit.rejected_reasons.append(reason)
+                continue
+            doi_key = (source.doi or "").lower()
+            if doi_key and doi_key in seen_dois:
+                s2_audit.rejected_reasons.append(f"duplicate DOI: {doi_key}")
+                continue
+            if doi_key:
+                seen_dois.add(doi_key)
+            accepted.append(source)
+            s2_audit.accepted_source_ids.append(source_id)
+        audits.append(s2_audit)
+
+    return accepted, audits
+
+
+def _renumber(sources: list[EvidenceSource], prefix: str) -> None:
+    """Reassign sequential source IDs in-place after merging from multiple providers."""
+    for i, src in enumerate(sources, start=1):
+        src.source_id = f"{prefix}{i}"
+
+
 def collect_source_collection(
     topic: str,
     *,
     searcher: SearchFunction | None = None,
     crossref: CrossrefClient | None = None,
+    openalex: OpenAlexClient | None = None,
+    s2: SemanticScholarClient | None = None,
     url_checker: UrlChecker = check_public_url,
     minimum_sources: int = 3,
     maximum_sources: int = 6,
@@ -716,46 +1052,74 @@ def collect_source_collection(
 
     resolved_searcher = searcher or SerperClient().search
     resolved_crossref = crossref or CrossrefClient()
+    resolved_openalex = openalex or OpenAlexClient()
+    resolved_s2 = s2 or SemanticScholarClient()
     resolved_date = accessed_date or date.today()
     query_map = _queries(normalized_topic)
+    all_audits: list[SearchAudit] = []
 
-    academic, academic_audit = _collect_domain(
-        "academic",
-        query_map["academic"],
-        resolved_searcher,
-        resolved_crossref,
-        url_checker,
-        resolved_date,
-        normalized_topic,
-        minimum_sources=minimum_sources,
+    # ── Academic: OpenAlex primary, S2 supplement, Serper+Crossref fallback
+    academic, oa_audits = _collect_academic_primary(
+        normalized_topic, resolved_openalex, resolved_s2, resolved_date,
         maximum_sources=maximum_sources,
     )
-    patents, patent_audit = _collect_domain(
+    all_audits.extend(oa_audits)
+
+    if len(academic) < minimum_sources:
+        needed = maximum_sources - len(academic)
+        existing_dois = {src.doi for src in academic if src.doi}
+        try:
+            fallback, fb_audits = _collect_domain(
+                "academic",
+                query_map["academic"],
+                resolved_searcher, resolved_crossref, url_checker,
+                resolved_date, normalized_topic,
+                minimum_sources=0,
+                maximum_sources=needed,
+            )
+            all_audits.extend(fb_audits)
+            for src in fallback:
+                if src.doi and src.doi.lower() in existing_dois:
+                    continue
+                if src.doi:
+                    existing_dois.add(src.doi.lower())
+                academic.append(src)
+                if len(academic) >= maximum_sources:
+                    break
+        except SourceCollectionError:
+            pass
+
+    if len(academic) < minimum_sources:
+        raise SourceCollectionError(
+            f"academic retrieval produced {len(academic)} validated sources "
+            f"(OpenAlex + Serper+Crossref combined); "
+            f"at least {minimum_sources} are required."
+        )
+    _renumber(academic, "A")
+
+    # ── Patents: Serper ───────────────────────────────────────────────────
+    patents, patent_audits = _collect_domain(
         "patent",
         query_map["patent"],
-        resolved_searcher,
-        resolved_crossref,
-        url_checker,
-        resolved_date,
-        normalized_topic,
+        resolved_searcher, resolved_crossref, url_checker,
+        resolved_date, normalized_topic,
         minimum_sources=minimum_sources,
         maximum_sources=maximum_sources,
     )
-    market, market_audit = _collect_domain(
+    all_audits.extend(patent_audits)
+
+    # ── Market: Serper (unchanged) ─────────────────────────────────────────
+    market, market_audits = _collect_domain(
         "market",
         query_map["market"],
-        resolved_searcher,
-        resolved_crossref,
-        url_checker,
-        resolved_date,
-        normalized_topic,
-        minimum_sources=max(2, minimum_sources - 1),  # market data sparser for niche topics
+        resolved_searcher, resolved_crossref, url_checker,
+        resolved_date, normalized_topic,
+        minimum_sources=max(2, minimum_sources - 1),
         maximum_sources=maximum_sources,
-        blocked_dois={
-            source.doi for source in academic if source.doi is not None
-        },
-        blocked_titles={source.title for source in academic},
+        blocked_dois={src.doi for src in academic if src.doi is not None},
+        blocked_titles={src.title for src in academic},
     )
+    all_audits.extend(market_audits)
 
     return SourceCollection(
         topic=normalized_topic,
@@ -766,7 +1130,7 @@ def collect_source_collection(
         academic_queries=query_map["academic"],
         patent_queries=query_map["patent"],
         market_queries=query_map["market"],
-        audit=academic_audit + patent_audit + market_audit,
+        audit=all_audits,
     )
 
 
