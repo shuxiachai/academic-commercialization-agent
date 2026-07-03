@@ -14,9 +14,9 @@
 |---|---|---|
 | Agent 数量 | 2（researcher + reporting_analyst） | 6（专职分工） |
 | Task 数量 | 2（research_task + reporting_task） | 6（顺序执行 + guardrail 验证） |
-| 工具 | 无 | ArxivPaperTool + SerperDevTool |
+| 工具 | 无 | OpenAlex + Semantic Scholar + SerperDevTool + Crossref |
 | 输入变量 | topic + current_year | research_topic |
-| 来源收集 | 无 | 运行前确定性预检索（Serper + Crossref），URL 可达性验证 |
+| 来源收集 | 无 | 运行前确定性预检索，URL 可达性验证 |
 | 输出格式 | 自由文本报告 | 带 [A1][P2][M3] 行内引用 + References 区块的 Markdown 报告 + JSON 评分卡 |
 | 输出管理 | 固定文件名（覆盖） | 每次运行生成唯一 ID，存入 outputs/ 目录 |
 | 数据质量保障 | 无 | 结构化证据 + 引用完整性校验 + 来源最低字数过滤 + 自动重试 |
@@ -27,15 +27,15 @@
 
 ```
 Agent 1: Academic Literature Analyst（学术前沿分析师）
-         工具：ArxivPaperTool + SerperDevTool
+         来源：Step 0 预验证的 OpenAlex / Semantic Scholar 学术论文
          输出：结构化 EvidenceReport JSON，含技术成熟度、研究突破、引用来源（A1/A2/…）
 
 Agent 2: Patent Landscape Analyst（专利图谱分析师）
-         工具：SerperDevTool
+         来源：Google Patents / WIPO 专利记录（经 Serper 检索 + URL 验证）
          输出：结构化 EvidenceReport JSON，含专利持有人、空白领域（P1/P2/…）
 
 Agent 3: Market & Competitive Intelligence Analyst（市场情报分析师）
-         工具：SerperDevTool
+         来源：域名白名单过滤的市场报告（Serper 检索）
          输出：结构化 EvidenceReport JSON，含商业玩家、目标行业、市场机会（M1/M2/…）
 
 Agent 4: Technology Commercialization Report Writer（报告撰写师）
@@ -59,9 +59,12 @@ Agent 6: Commercialization Readiness Scorer（量化评分员）
 
 ```
 Step 0  来源收集与验证（运行前，确定性）
-        通过 Serper API 检索学术 / 专利 / 市场三类来源
-        通过 Crossref API 验证学术文献 DOI 和元数据
-        过滤不可达 URL、薄证据摘要、重复来源
+        学术：OpenAlex Works API（filter=title.search，按引用数降序）
+              → Semantic Scholar 补充（当 OpenAlex 不足最大来源数时触发）
+              → 按 DOI 去重，摘要 <150 字符的记录自动剔除
+        专利：Serper 检索 Google Patents / WIPO，验证 URL 可达性
+        市场：Serper 检索 + 域名白名单过滤（30+ 认可机构），剔除低质量站点
+        元数据：Crossref API 补充 DOI、期刊名、发表日期
         输出 validated_sources.json 并传入 Crew
 
         ↓
@@ -147,6 +150,10 @@ DEEPSEEK_API_BASE=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 # Legacy OPENAI_API_KEY/API_BASE/MODEL_NAME names are also supported.
 SERPER_API_KEY=your_serper_key
+
+# 可选：Semantic Scholar API Key（提升速率限制，无 Key 也可运行）
+# 申请地址：https://www.semanticscholar.org/product/api
+SEMANTIC_SCHOLAR_API_KEY=your_s2_key
 ```
 
 ### 3. 运行
@@ -157,7 +164,13 @@ SERPER_API_KEY=your_serper_key
 uv run python app.py
 ```
 
-浏览器自动打开 `http://localhost:7860`，在输入框填写研究方向，点击 Run Analysis，页面实时显示运行进度，完成后报告和评分卡直接渲染在页面上，支持下载 `.md` 文件。
+浏览器打开 `http://localhost:7860`，在输入框填写研究方向，点击 Run Analysis。
+
+界面功能：
+- **实时进度**：6 个 Agent 流水线阶段 + 已用时间
+- **评分卡**：综合分（0–100）+ TRL / 市场 / 专利 / 证据四维条形图
+- **报告**：Markdown 全文渲染 + `.md` 下载按钮
+- **History 标签页**：浏览所有历史运行，输入 Run ID 一键加载历史报告和评分
 
 **方式二：命令行**
 
@@ -189,14 +202,14 @@ academic_agent/
 │   ├── crew.py              # Crew 定义（6 个 Agent / Task 接线）
 │   ├── main.py              # 命令行入口
 │   ├── evidence.py          # 证据模型、guardrail 校验、CommercializationScore 模型
-│   ├── source_pipeline.py   # 运行前确定性来源收集与验证（Serper + Crossref）
+│   ├── source_pipeline.py   # 运行前确定性来源收集与验证
 │   ├── llm_config.py        # DeepSeek LLM 配置（普通模式 / JSON 模式）
 │   ├── run_output.py        # 运行 ID 与报告持久化
 │   └── config/
 │       ├── agents.yaml      # Agent 角色配置（6 个）
 │       └── tasks.yaml       # Task 需求与引用规则（6 个）
 ├── tests/                   # 单元测试与 Crew 接线测试
-├── app.py                   # Gradio 网页界面（实时进度 + 评分卡渲染 + 报告下载）
+├── app.py                   # Gradio 网页界面
 ├── .env                     # API Key 配置（不提交 Git）
 ├── pyproject.toml           # 项目依赖
 └── README.md
@@ -208,7 +221,8 @@ academic_agent/
 
 - **框架**：CrewAI 1.14.x
 - **LLM**：DeepSeek-V3（通过 DeepSeek API 或 OpenAI 兼容接口）
-- **搜索工具**：SerperDevTool、ArxivPaperTool
+- **学术来源**：OpenAlex Works API（主力）+ Semantic Scholar Academic Graph API（补充）
+- **专利 / 市场搜索**：SerperDevTool
 - **学术元数据**：Crossref API（DOI 验证与摘要检索）
 - **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、评分算法验证）
 - **网页界面**：Gradio 6.x
