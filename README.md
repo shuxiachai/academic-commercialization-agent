@@ -105,7 +105,7 @@ Step 5  Agent 5 执行 — 质量审查
 Step 6  Agent 6 执行 — 量化评分
         直接读取 Step 1/2/3 原始证据 JSON，独立评分
         输出 CommercializationScore JSON，保存至 outputs/<run_id>/commercialization_scores.json
-        加权公式：overall = (TRL/9)×30 + (市场/5)×35 + (专利/5)×20 + (置信度/5)×15
+        加权公式：overall = (TRL/9)×30 + (专利/5)×30 + (市场/5)×25 + (置信度/5)×15
         guardrail 自动修正算数误差
 ```
 
@@ -167,10 +167,10 @@ uv run python app.py
 浏览器打开 `http://localhost:7860`，在输入框填写研究方向，点击 Run Analysis。
 
 界面功能：
-- **实时进度**：6 个 Agent 流水线阶段 + 已用时间
-- **评分卡**：综合分（0–100）+ TRL / 市场 / 专利 / 证据四维条形图
-- **报告**：Markdown 全文渲染 + `.md` 下载按钮
-- **History 标签页**：浏览所有历史运行，输入 Run ID 一键加载历史报告和评分
+- **实时进度**：6 个 Agent 流水线阶段 + 已用时间（mm:ss）
+- **评分卡**：综合分（0–100）+ TRL / 专利 / 市场 / 证据四维条形图（动态颜色）
+- **报告**：Markdown 全文渲染 + `.md` / `.pdf` 双格式下载按钮
+- **History 标签页**：浏览所有历史运行（含本地时间戳），输入 Run ID 一键加载历史报告和评分
 
 **方式二：命令行**
 
@@ -188,6 +188,7 @@ uv run crewai run
 outputs/
 └── 20260625T120000Z-a1b2c3d4e5/
     ├── commercialization_report.md
+    ├── commercialization_report.pdf
     ├── commercialization_scores.json
     └── validated_sources.json
 ```
@@ -226,6 +227,7 @@ academic_agent/
 - **学术元数据**：Crossref API（DOI 验证与摘要检索）
 - **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、评分算法验证）
 - **网页界面**：Gradio 6.x
+- **PDF 导出**：xhtml2pdf + reportlab（原生 CJK 字体注册，支持中文报告）
 - **Python**：3.10+
 
 URL/DOI 无效或不可达、引用编号错误、References 不一致、报告结构错误和评分 JSON 格式错误都会阻止任务并触发重试。
