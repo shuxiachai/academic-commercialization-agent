@@ -57,12 +57,12 @@ def test_evidence_pipeline_is_connected(monkeypatch) -> None:
     assert report_task.markdown is True
     assert len(report_task.context or []) == 3
 
-    # Task 4: quality reviewer — markdown mode, guardrail, context = Task 3 only
+    # Task 4: quality reviewer — markdown mode, guardrail, context = Task 3 + Tasks 0-2
     reviewer_task = crew.tasks[4]
     assert reviewer_task.guardrail is not None
     assert reviewer_task.guardrail_max_retries == 1
     assert reviewer_task.markdown is True
-    assert len(reviewer_task.context or []) == 1
+    assert len(reviewer_task.context or []) == 4  # report + academic + patent + market
 
     # Task 5: scoring — JSON-mode LLM, guardrail, max 2 retries, context = Tasks 0-2
     scorer_task = crew.tasks[5]
@@ -81,7 +81,8 @@ def test_final_context_reuses_the_research_tasks(monkeypatch) -> None:
     scorer_context = crew.tasks[5].context or []
     assert all(crew.tasks[index] is scorer_context[index] for index in range(3))
 
-    # Reviewer (Task 4) context must point to the report task (Task 3)
+    # Reviewer (Task 4) context: [0]=report task, [1-3]=evidence Tasks 0-2
     reviewer_context = crew.tasks[4].context or []
-    assert len(reviewer_context) == 1
-    assert crew.tasks[3] is reviewer_context[0]
+    assert len(reviewer_context) == 4
+    assert crew.tasks[3] is reviewer_context[0]   # report draft is first
+    assert all(crew.tasks[i] is reviewer_context[i + 1] for i in range(3))  # Tasks 0-2 follow

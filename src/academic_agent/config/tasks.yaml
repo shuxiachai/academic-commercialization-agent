@@ -215,13 +215,14 @@ commercialization_report_task:
 report_review_task:
   description: >
     You will receive a draft commercialization assessment report for
-    {research_topic} as context. Apply your four review rules exactly as
-    described in your backstory.
+    {research_topic} as context, together with the structured evidence JSON
+    outputs from the academic, patent, and market analysis tasks.
+    Apply all five review rules exactly as described in your backstory.
 
     Do not add new factual content. Do not restructure sections. Do not
-    change the tone or depth of analysis. Only fix the four categories of
+    change the tone or depth of analysis. Only fix the five categories of
     errors: citation mismatches, unsupported numerical claims, overconfident
-    language, and incorrect patent legal framing.
+    language, incorrect patent legal framing, and evidence inconsistencies.
 
     Output rules — strictly enforced:
     - Apply every correction silently in the report text itself.

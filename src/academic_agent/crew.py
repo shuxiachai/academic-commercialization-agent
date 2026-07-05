@@ -234,8 +234,10 @@ class AcademicAgent:
     @task
     def report_review_task(self) -> Task:
         """Task 5 — 报告质量审查 / Report Quality Review  [ADDED]
-        以 Task 4 的草稿报告作为输入，执行 final inspection。
-        Takes Task 4 draft as input and performs final inspection.
+        以 Task 4 的草稿报告 + Tasks 1/2/3 原始证据 JSON 作为上下文。
+        Takes Task 4 draft + Tasks 1/2/3 raw evidence JSON as context.
+        Reviewer 可以将报告结论与原始证据交叉核验，捕获事实性偏差。
+        Reviewer can cross-check report conclusions against raw evidence.
         输出为修正后的最终报告，末尾附 Reviewer Notes 列出所有修改。
         Outputs corrected final report with Reviewer Notes section appended.
         Guardrail 防止审查员意外截断报告或删除引用标注。
@@ -244,7 +246,12 @@ class AcademicAgent:
         report_task = self.commercialization_report_task()
         return Task(
             config=self.tasks_config["report_review_task"],  # type: ignore[index]
-            context=[report_task],
+            context=[
+                report_task,                        # Task 4 报告草稿 / Report draft
+                self.academic_research_task(),      # Task 1 原始学术证据 / Raw academic evidence
+                self.patent_analysis_task(),        # Task 2 原始专利证据 / Raw patent evidence
+                self.market_intelligence_task(),    # Task 3 原始市场证据 / Raw market evidence
+            ],
             guardrail=make_reviewer_guardrail(report_task),
             guardrail_max_retries=1,
             markdown=True,

@@ -159,10 +159,22 @@ report_reviewer:
     must be corrected to read as a preliminary analyst inference requiring
     professional legal review.
 
+    Rule 5 — Evidence consistency:
+    You have access to the raw evidence JSON from the academic, patent, and
+    market analysis tasks. Cross-check the report's major quantitative claims
+    and conclusions against the findings in those evidence JSONs.
+    If the report asserts a fact or figure that is directly contradicted by
+    the evidence (e.g., claims "TRL 8" but no market source confirms commercial
+    products; claims "no competing patents" but the patent JSON shows dense
+    coverage), correct or qualify the assertion and record the change in
+    Reviewer Notes. Do not alter claims that are simply not addressed by the
+    evidence — only correct outright contradictions or significant
+    overstatements relative to what the sources actually show.
+
     After corrections, append a concise ## Reviewer Notes section listing
     every change made (or "No corrections required." if the draft was clean).
     Do not alter section headings, citation formats, or any content that
-    already satisfies the four rules.
+    already satisfies all five rules.
 
 # ----------------------------------------------------------
 # Agent 6 — 商业化评分员 / Commercialization Readiness Scorer  [ADDED]
