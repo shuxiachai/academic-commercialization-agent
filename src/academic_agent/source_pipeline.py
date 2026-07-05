@@ -83,6 +83,11 @@ _INDUSTRY_NEWS_DOMAINS = {
     "greencarcongress.com",
     "h2-view.com",
     "quantum-computing-report.com",
+    # Oncology / biotech trade press
+    "onclive.com",
+    "cellandgene.com",
+    "fiercebiotech.com",
+    "fiercepharma.com",
 }
 _CONSULTING_RESEARCH_DOMAINS = {
     "mckinsey.com",      # McKinsey & Company
@@ -649,6 +654,28 @@ def _topic_core_phrase(topic: str) -> str:
     return " ".join(core[:6]) if core else topic
 
 
+def _topic_tail_words(topic: str, *, min_len: int = 5) -> set[str]:
+    """Return substantive words from the tail part of a topic (after first preposition).
+
+    'CAR-T cell therapy for solid tumors' → {'solid', 'tumors'}
+    'solid-state batteries for electric vehicles' → {'electric', 'vehicles'}
+    'perovskite solar cells' → set()  (no preposition)
+
+    Used to tighten domain-specific filters when a topic has a 'for X' structure
+    so that broad-category sources (e.g. generic 'CAR-T market' reports) are
+    rejected when the research question is specifically about a sub-indication.
+    """
+    words = topic.split()
+    for i, word in enumerate(words):
+        if word.lower() in _TOPIC_PREPOSITIONS:
+            tail = " ".join(words[i + 1:])
+            return {
+                w for w in _WORD_PATTERN.findall(tail.lower())
+                if len(w) >= min_len and w not in _TOPIC_STOPWORDS
+            }
+    return set()
+
+
 def _openalex_abstract(work: dict[str, Any]) -> str:
     """Reconstruct abstract from OpenAlex inverted-index format."""
     inverted = work.get("abstract_inverted_index")
@@ -1032,19 +1059,27 @@ def _queries(topic: str) -> dict[Domain, list[str]]:
 
 
 def _market_summary_relevant(summary: str, topic: str) -> bool:
-    """Return False when a market source summary contains no core topic keyword.
+    """Return False when a market source summary contains no relevant topic keyword.
 
-    Filters out broad-category reports (e.g. "perovskite solar cells market")
-    when the research topic is a specific sub-technology (e.g. "perovskite-
-    silicon tandem solar cells").  Uses words of length >= 6 from the core
-    phrase so short generic words don't cause false rejections.
+    For topics with a 'for X' structure (e.g. 'CAR-T cell therapy for solid
+    tumors'), the tail words ('solid', 'tumors') are used as the filter so that
+    broad-category reports (e.g. a generic 'CAR-T therapy market' report that
+    never mentions 'solid' or 'tumors') are rejected.  This prevents a high-
+    citation core term like 'therapy' from acting as a permissive catch-all.
+
+    For topics without a preposition (e.g. 'perovskite-silicon tandem solar
+    cells'), falls back to core words of length >= 6 — the previous behaviour.
     """
-    core = _topic_core_phrase(topic)
-    core_words = {w for w in _WORD_PATTERN.findall(core.lower()) if len(w) >= 6}
-    if not core_words:
-        return True  # Core phrase too short to be selective — pass through
+    tail_words = _topic_tail_words(topic, min_len=5)
+    if tail_words:
+        filter_words = tail_words
+    else:
+        core = _topic_core_phrase(topic)
+        filter_words = {w for w in _WORD_PATTERN.findall(core.lower()) if len(w) >= 6}
+    if not filter_words:
+        return True
     summary_words = set(_WORD_PATTERN.findall(summary.lower()))
-    return bool(core_words & summary_words)
+    return bool(filter_words & summary_words)
 
 
 def _collect_domain(
