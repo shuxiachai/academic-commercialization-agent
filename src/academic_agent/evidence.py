@@ -216,11 +216,11 @@ def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
             )
 
         # Recompute overall_score from the formula to eliminate LLM arithmetic errors.
-        # Formula (matches backstory): TRL 30% + Market 35% + IP 20% + Evidence 15%
+        # Formula (matches backstory): TRL 30% + IP 30% + Market 25% + Evidence 15%
         correct_overall = round(
             (score.trl_score / 9) * 30
-            + (score.market_accessibility / 5) * 35
-            + (score.patent_strength / 5) * 20
+            + (score.patent_strength / 5) * 30
+            + (score.market_accessibility / 5) * 25
             + (score.evidence_confidence / 5) * 15
         )
         score = score.model_copy(update={"overall_score": correct_overall})
@@ -1106,12 +1106,6 @@ def make_final_report_guardrail(
                 + "\n- ".join(critical_errors),
             )
 
-        quality_warnings = [
-            error
-            for error in errors
-            if not error.startswith(critical_prefixes)
-        ]
-        output.raw = _append_quality_control_warnings(normalized, quality_warnings)
         return True, output
 
     return validate_report
