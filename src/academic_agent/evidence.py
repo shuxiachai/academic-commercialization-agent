@@ -238,13 +238,22 @@ def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
 
         # Recompute overall_score from the formula to eliminate LLM arithmetic errors.
         # Formula (matches backstory): TRL 30% + IP 30% + Market 25% + Evidence 15%
-        correct_overall = round(
-            (score.trl_score / 9) * 30
-            + (score.patent_strength / 5) * 30
-            + (score.market_accessibility / 5) * 25
-            + (score.evidence_confidence / 5) * 15
+        trl_c = (score.trl_score / 9) * 30
+        pat_c = (score.patent_strength / 5) * 30
+        mkt_c = (score.market_accessibility / 5) * 25
+        evi_c = (score.evidence_confidence / 5) * 15
+        correct_overall = round(trl_c + pat_c + mkt_c + evi_c)
+        formula_note = (
+            f" [Verified: ({score.trl_score}/9)×30={trl_c:.2f}"
+            f" + ({score.patent_strength}/5)×30={pat_c:.2f}"
+            f" + ({score.market_accessibility}/5)×25={mkt_c:.2f}"
+            f" + ({score.evidence_confidence}/5)×15={evi_c:.2f}"
+            f" → overall_score={correct_overall}]"
         )
-        score = score.model_copy(update={"overall_score": correct_overall})
+        score = score.model_copy(update={
+            "overall_score": correct_overall,
+            "scoring_rationale": score.scoring_rationale + formula_note,
+        })
 
         output.pydantic = score
         output.raw = score.model_dump_json()

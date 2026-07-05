@@ -45,6 +45,7 @@ _TOPIC_PREPOSITIONS = frozenset({
 })
 _AUTHORITATIVE_RESEARCH_DOMAINS = {
     "iea.org",
+    "iaea.org",          # International Atomic Energy Agency (UN)
     "wri.org",
     "weforum.org",       # World Economic Forum
     "oecd.org",          # OECD
@@ -56,6 +57,16 @@ _NONPROFIT_RESEARCH_DOMAINS = {
     "drawdown.org",
     "rmi.org",           # Rocky Mountain Institute
     "energypolicy.columbia.edu",
+}
+_THINK_TANK_DOMAINS = {
+    "itif.org",          # Information Technology and Innovation Foundation
+    "brookings.edu",     # Brookings Institution
+    "rand.org",          # RAND Corporation
+    "pewresearch.org",   # Pew Research Center
+    "wilsoncenter.org",  # Wilson Center
+    "csis.org",          # Center for Strategic and International Studies
+    "chathamhouse.org",  # Chatham House
+    "piie.com",          # Peterson Institute for International Economics
 }
 _PATENT_HOSTS = {
     "patents.google.com",
@@ -815,6 +826,18 @@ def _academic_source_from_openalex(
         pass
 
     cited = int(work.get("cited_by_count") or 0)
+    days_since_pub = (accessed_date - published).days if published else None
+    if cited == 0 and days_since_pub is not None and days_since_pub <= 90:
+        credibility_reason = (
+            "OpenAlex record: DOI verified, peer-reviewed journal. "
+            f"Newly published ({days_since_pub}d ago); 0 citations is expected, "
+            "not a quality signal."
+        )
+    else:
+        credibility_reason = (
+            f"OpenAlex record: DOI verified, peer-reviewed journal, "
+            f"{cited:,} citations."
+        )
     return (
         EvidenceSource(
             source_id=source_id,
@@ -826,10 +849,7 @@ def _academic_source_from_openalex(
             accessed_date=accessed_date,
             source_type="academic_paper",
             credibility_tier="high",
-            credibility_reason=(
-                f"OpenAlex record: DOI verified, peer-reviewed journal, "
-                f"{cited:,} citations."
-            ),
+            credibility_reason=credibility_reason,
             evidence_summary=abstract[:1500],
         ),
         "",
@@ -929,6 +949,12 @@ def _market_source_profile(
             "medium",
             "Specialist nonprofit research or advocacy organization; verify primary claims.",
         )
+    if _host_matches(host, _THINK_TANK_DOMAINS):
+        return (
+            "research_institute",
+            "medium",
+            "Independent policy research institution or think tank; verify primary data sources.",
+        )
     if host.endswith(".gov") or ".gov." in host or host in {
         "europa.eu",
         "ec.europa.eu",
@@ -937,6 +963,13 @@ def _market_source_profile(
             "government",
             "high",
             "Official government source; authoritative within its stated scope.",
+        )
+    if host.endswith(".edu") or ".edu." in host:
+        return (
+            "research_institute",
+            "medium",
+            "University or academic institution; credible for research outputs, "
+            "verify for commercial claims.",
         )
     if any(marker in host for marker in ("iso.org", "iec.ch", "standards.")):
         return (
