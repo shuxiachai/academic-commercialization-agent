@@ -20,6 +20,8 @@
 | 输出格式 | 自由文本报告 | 带 [A1][P2][M3] 行内引用 + References 区块的 Markdown 报告 + JSON 评分卡 |
 | 输出管理 | 固定文件名（覆盖） | 每次运行生成唯一 ID，存入 outputs/ 目录 |
 | 数据质量保障 | 无 | 结构化证据 + 引用完整性校验 + 来源最低字数过滤 + 自动重试 |
+| 评分确定性 | — | JSON 模式 Agent 全部 temperature=0，同一话题多次运行结果稳定 |
+| 评分可追溯性 | — | 每个评分维度标注来源 ID（trl_source_ids / patent_source_ids 等） |
 
 ---
 
@@ -61,7 +63,7 @@ Agent 6: Commercialization Readiness Scorer（量化评分员）
 Step 0  来源收集与验证（运行前，确定性）
         学术：OpenAlex Works API（filter=title.search，按引用数降序）
               → Semantic Scholar 补充（当 OpenAlex 不足最大来源数时触发）
-              → 按 DOI 去重，摘要 <150 字符的记录自动剔除
+              → 按 DOI 去重，摘要 <100 字符的记录自动剔除
         专利：Serper 检索 Google Patents / WIPO，验证 URL 可达性
         市场：Serper 检索 + 域名白名单过滤（30+ 认可机构），剔除低质量站点
         元数据：Crossref API 补充 DOI、期刊名、发表日期
@@ -168,7 +170,7 @@ uv run python app.py
 
 界面功能：
 - **实时进度**：6 个 Agent 流水线阶段 + 已用时间（mm:ss）
-- **评分卡**：综合分（0–100）+ TRL / 专利 / 市场 / 证据四维条形图（动态颜色）
+- **评分卡**：综合分（0–100）+ TRL / 专利 / 市场 / 证据四维条形图（动态颜色）；每个维度下方展示支撑该评分的来源 ID 标签（如 `A2` `M1`），可追溯至验证过的原始来源
 - **报告**：Markdown 全文渲染 + `.md` / `.pdf` 双格式下载按钮
 - **History 标签页**：浏览所有历史运行（含本地时间戳），输入 Run ID 一键加载历史报告和评分
 
@@ -195,22 +197,66 @@ outputs/
 
 ---
 
+## 基准测试
+
+`benchmark.py` 包含 10 个预设话题，覆盖不同行业和预期 TRL 范围，用于验证系统的评分准确性和一致性。
+
+```bash
+# 运行全部 10 个话题（按顺序，已成功的自动跳过）
+uv run python benchmark.py
+
+# 单独重跑某个话题（先手动删除对应目录）
+uv run python benchmark.py --only 3
+
+# 生成摘要表格并输出 CSV
+uv run python benchmark_check.py
+```
+
+基准话题（2026 年版）：
+
+| # | 话题 | 预期 TRL | 行业 |
+|---|------|---------|------|
+| 01 | CAR-T cell therapy for solid tumors | 6–8 | Biotech |
+| 02 | mRNA vaccines for non-infectious disease | 6–8 | Pharma |
+| 03 | CRISPR base editing for monogenic disorders | 4–6 | Biotech |
+| 04 | Perovskite solar cells for building-integrated PV | 5–7 | CleanTech |
+| 05 | Solid-state batteries for EV | 5–7 | Energy |
+| 06 | Green hydrogen via proton exchange membrane electrolysis | 5–7 | Energy |
+| 07 | Cultivated meat for food manufacturing | 4–6 | FoodTech |
+| 08 | Quantum key distribution for enterprise networks | 4–6 | Cybersecurity |
+| 09 | Biodegradable microplastic alternatives for packaging | 5–7 | Materials |
+| 10 | Room temperature superconductors | 1–3 | Materials |
+
+`benchmark_check.py` 生成 `outputs/benchmark/benchmark_summary.csv`，自动校验：
+- 10/10 运行成功率
+- TRL 评分是否落在预期范围（pass / flag）
+- 加权公式正确性（`overall = (TRL/9)×30 + (专利/5)×30 + (市场/5)×25 + (置信度/5)×15`）
+- 报告章节完整性
+- 悬空数字行数（幻觉风险指标）
+
+---
+
 ## 项目文件结构
 
 ```
 academic_agent/
 ├── src/academic_agent/
 │   ├── crew.py              # Crew 定义（6 个 Agent / Task 接线）
-│   ├── main.py              # 命令行入口
+│   ├── main.py              # 命令行入口（支持 --topic 参数）
 │   ├── evidence.py          # 证据模型、guardrail 校验、CommercializationScore 模型
 │   ├── source_pipeline.py   # 运行前确定性来源收集与验证
-│   ├── llm_config.py        # DeepSeek LLM 配置（普通模式 / JSON 模式）
-│   ├── run_output.py        # 运行 ID 与报告持久化
+│   ├── llm_config.py        # DeepSeek LLM 配置（普通模式 / JSON 模式 / temperature）
+│   ├── run_output.py        # 运行 ID、报告与评分 JSON 持久化
 │   └── config/
 │       ├── agents.yaml      # Agent 角色配置（6 个）
 │       └── tasks.yaml       # Task 需求与引用规则（6 个）
 ├── tests/                   # 单元测试与 Crew 接线测试
-├── app.py                   # Gradio 网页界面
+├── app.py                   # Gradio 网页界面（含评分卡来源 ID chips）
+├── benchmark.py             # 10 话题基准测试运行器
+├── benchmark_check.py       # 基准结果分析器（生成 CSV + 终端表格）
+├── outputs/
+│   ├── <run_id>/            # 每次正常运行的输出目录
+│   └── benchmark/           # benchmark.py 输出目录（含 benchmark_summary.csv）
 ├── .env                     # API Key 配置（不提交 Git）
 ├── pyproject.toml           # 项目依赖
 └── README.md
@@ -231,3 +277,17 @@ academic_agent/
 - **Python**：3.10+
 
 URL/DOI 无效或不可达、引用编号错误、References 不一致、报告结构错误和评分 JSON 格式错误都会阻止任务并触发重试。
+
+---
+
+## 评分维度说明
+
+| 维度 | 字段 | 满分 | 权重 | 说明 |
+|------|------|------|------|------|
+| 技术成熟度 | `trl_score` | 9 | 30% | NASA TRL 1–9，以市场部署证据为主信号 |
+| IP 景观可导航性 | `patent_strength` | 5 | 30% | 1=高度竞争，5=几乎无专利保护 |
+| 市场可及性 | `market_accessibility` | 5 | 25% | 1=无商业活动，5=成熟市场有收入数据 |
+| 证据置信度 | `evidence_confidence` | 5 | 15% | 多维来源交叉验证程度 |
+| **综合分** | `overall_score` | **100** | — | `round((TRL/9)×30 + (专利/5)×30 + (市场/5)×25 + (置信度/5)×15)` |
+
+每个维度评分同时记录支撑来源 ID（`trl_source_ids` / `patent_source_ids` / `market_source_ids` / `evidence_source_ids`），可在 Gradio 评分卡中直接查看并追溯至原始文献。

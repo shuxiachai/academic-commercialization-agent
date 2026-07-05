@@ -40,3 +40,13 @@ class RunOutputTests(TestCase):
 
             self.assertEqual(path, root / "run-123" / "validated_sources.json")
             self.assertEqual(path.read_text(encoding="utf-8"), '{"sources":[]}')
+
+    def test_scores_uses_run_directory(self) -> None:
+        from academic_agent.run_output import save_scores
+
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            path = save_scores('{"overall_score":65}', "run-123", output_root=root)
+
+            self.assertEqual(path, root / "run-123" / "commercialization_scores.json")
+            self.assertEqual(path.read_text(encoding="utf-8"), '{"overall_score":65}')

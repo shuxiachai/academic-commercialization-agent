@@ -63,8 +63,21 @@ def _metric_color(pct: int) -> str:
         return "#dc2626"
 
 
-def _kpi_tile(label: str, value, max_val: int, subtitle: str, pct: int) -> str:
+def _source_id_chips(ids: list) -> str:
+    if not ids:
+        return ""
+    chips = "".join(
+        f'<span style="display:inline-block;background:#222222;border:1px solid #333333;'
+        f'color:#9a9a9a;font-size:9px;font-family:ui-monospace,monospace;font-weight:600;'
+        f'padding:1px 5px;border-radius:4px;margin:1px 1px 0;">{html.escape(str(sid))}</span>'
+        for sid in ids
+    )
+    return f'<div style="margin-top:6px;line-height:1.8;">{chips}</div>'
+
+
+def _kpi_tile(label: str, value, max_val: int, subtitle: str, pct: int, source_ids: list | None = None) -> str:
     accent = _metric_color(pct)
+    chips = _source_id_chips(source_ids or [])
     return (
         f'<div style="background:#1a1a1a;border:1px solid #2d2d2d;'
         f'border-top:3px solid {accent};border-radius:8px;'
@@ -73,6 +86,7 @@ def _kpi_tile(label: str, value, max_val: int, subtitle: str, pct: int) -> str:
         f'<div style="font-size:11px;color:#777777;margin-bottom:6px;">/ {max_val}</div>'
         f'<div style="font-size:12px;color:#d4d4d4;font-weight:700;letter-spacing:0.02em;">{label}</div>'
         f'<div style="font-size:11px;color:#777777;margin-top:2px;">{subtitle}</div>'
+        f'{chips}'
         f'</div>'
     )
 
@@ -115,6 +129,10 @@ def _render_score_html(scores_json: str, topic: str) -> str:
     scoring_rationale = s.get("scoring_rationale", "")
     risks = s.get("key_risks", [])
     opps = s.get("key_opportunities", [])
+    trl_ids  = s.get("trl_source_ids", [])
+    pat_ids  = s.get("patent_source_ids", [])
+    mkt_ids  = s.get("market_source_ids", [])
+    evi_ids  = s.get("evidence_source_ids", [])
 
     color, badge = _score_color(overall)
     trl_pct = round(trl / 9 * 100)
@@ -179,10 +197,10 @@ def _render_score_html(scores_json: str, topic: str) -> str:
 
         # KPI tiles
         f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">'
-        f'{_kpi_tile("TRL", trl, 9, "Tech Readiness", trl_pct)}'
-        f'{_kpi_tile("IP", pat, 5, "Patent Landscape", pat_pct)}'
-        f'{_kpi_tile("Market", mkt, 5, "Accessibility", mkt_pct)}'
-        f'{_kpi_tile("Evidence", evi, 5, "Confidence", evi_pct)}'
+        f'{_kpi_tile("TRL", trl, 9, "Tech Readiness", trl_pct, trl_ids)}'
+        f'{_kpi_tile("IP", pat, 5, "Patent Landscape", pat_pct, pat_ids)}'
+        f'{_kpi_tile("Market", mkt, 5, "Accessibility", mkt_pct, mkt_ids)}'
+        f'{_kpi_tile("Evidence", evi, 5, "Confidence", evi_pct, evi_ids)}'
         f'</div>'
 
         # Bars

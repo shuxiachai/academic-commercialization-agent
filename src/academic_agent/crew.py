@@ -72,9 +72,9 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["academic_researcher"],  # type: ignore[index]
-            llm=create_deepseek_llm(json_mode=True),  # JSON 输出模式 / JSON output mode
+            llm=create_deepseek_llm(json_mode=True, temperature=0.0),
             verbose=True,
-            inject_date=True,  # 自动注入当前日期，避免模型产生时间幻觉 / Prevents date hallucinations
+            inject_date=True,
         )
 
     @agent
@@ -85,7 +85,7 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["patent_analyst"],  # type: ignore[index]
-            llm=create_deepseek_llm(json_mode=True),  # JSON 输出模式 / JSON output mode
+            llm=create_deepseek_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
         )
@@ -100,7 +100,7 @@ class AcademicAgent:
             config=self.agents_config[
                 "market_intelligence_analyst"
             ],  # type: ignore[index]
-            llm=create_deepseek_llm(json_mode=True),  # JSON 输出模式 / JSON output mode
+            llm=create_deepseek_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
         )
@@ -145,7 +145,7 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["commercialization_scorer"],  # type: ignore[index]
-            llm=create_deepseek_llm(json_mode=True),  # JSON 输出模式 / JSON output mode
+            llm=create_deepseek_llm(json_mode=True, temperature=0.0),
             verbose=True,
         )
 

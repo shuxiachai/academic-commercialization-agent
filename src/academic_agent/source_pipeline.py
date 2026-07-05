@@ -94,6 +94,13 @@ _INDUSTRY_NEWS_DOMAINS = {
     "curetoday.com",
     "medpagetoday.com",
     "pharmavoice.com",
+    # General engineering / science news
+    "interestingengineering.com",
+    # Alternative protein / cultivated meat industry
+    "gfi.org",
+    "agfundernews.com",
+    "foodnavigator.com",
+    "fooddive.com",
 }
 _CONSULTING_RESEARCH_DOMAINS = {
     "mckinsey.com",      # McKinsey & Company
@@ -172,7 +179,9 @@ _OFFICIAL_DISCLOSURE_PATH_MARKERS = (
 )
 # Sources whose evidence_summary is shorter than this are rejected as too thin
 # to provide meaningful content for LLM analysis.
-_MIN_EVIDENCE_SUMMARY_CHARS = 150
+# Set to 100: real Serper snippets are typically 100-160 chars; 150 was too
+# aggressive and caused legitimate market sources to be rejected.
+_MIN_EVIDENCE_SUMMARY_CHARS = 100
 
 
 class SourceCollectionError(RuntimeError):
@@ -1069,19 +1078,26 @@ def _market_summary_relevant(summary: str, topic: str) -> bool:
 
     For topics with a 'for X' structure (e.g. 'CAR-T cell therapy for solid
     tumors'), the tail words ('solid', 'tumors') are used as the filter so that
-    broad-category reports (e.g. a generic 'CAR-T therapy market' report that
-    never mentions 'solid' or 'tumors') are rejected.  This prevents a high-
-    citation core term like 'therapy' from acting as a permissive catch-all.
+    broad-category reports are rejected when the research question is specifically
+    about a sub-indication.
 
-    For topics without a preposition (e.g. 'perovskite-silicon tandem solar
-    cells'), falls back to core words of length >= 6 — the previous behaviour.
+    A summary passes if ANY word from either the tail OR the core phrase appears
+    in it. This prevents over-rejection when industry uses synonyms (e.g.
+    'cultured meat' / 'lab-grown meat' for a 'cultivated meat' topic) — the
+    core word 'meat' still matches even if tail words ('food', 'industry') don't.
+
+    For topics without a preposition, falls back to core words of length >= 6.
     """
-    tail_words = _topic_tail_words(topic, min_len=5)
+    core = _topic_core_phrase(topic)
+    core_words = {w for w in _WORD_PATTERN.findall(core.lower()) if len(w) >= 4}
+    tail_words = _topic_tail_words(topic, min_len=4)
+
     if tail_words:
-        filter_words = tail_words
+        # Pass if ANY tail word OR ANY core word appears in the summary.
+        filter_words = tail_words | core_words
     else:
-        core = _topic_core_phrase(topic)
-        filter_words = {w for w in _WORD_PATTERN.findall(core.lower()) if len(w) >= 6}
+        filter_words = {w for w in core_words if len(w) >= 6}
+
     if not filter_words:
         return True
     summary_words = set(_WORD_PATTERN.findall(summary.lower()))

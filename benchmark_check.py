@@ -71,7 +71,8 @@ def _formula_correct(scores: dict) -> bool:
     mkt = scores.get("market_accessibility", 0)
     evi = scores.get("evidence_confidence", 0)
     overall = scores.get("overall_score", -1)
-    expected = round((trl / 9) * 30 + (mkt / 5) * 35 + (pat / 5) * 20 + (evi / 5) * 15)
+    # Weights: TRL 30%, Patent 30%, Market 25%, Evidence 15%
+    expected = round((trl / 9) * 30 + (pat / 5) * 30 + (mkt / 5) * 25 + (evi / 5) * 15)
     return overall == expected
 
 
@@ -84,14 +85,20 @@ def analyse_run(run_dir: Path) -> dict | None:
     except Exception:
         return None
 
+    exp_range = meta.get("expected_trl_range", [])
+    exp_str = f"{exp_range[0]}-{exp_range[1]}" if len(exp_range) == 2 else ""
+
     row: dict = {
         "case_num":              meta.get("num", "?"),
         "topic":                 meta.get("topic", "?"),
+        "industry":              meta.get("industry", ""),
         "status":                meta.get("status", "?"),
         "elapsed_s":             meta.get("elapsed_seconds", ""),
         # Scores
         "overall_score":         "",
         "trl_score":             "",
+        "expected_trl":          exp_str,
+        "trl_calibration":       meta.get("trl_calibration", ""),
         "patent_strength":       "",
         "market_accessibility":  "",
         "evidence_confidence":   "",
@@ -123,6 +130,10 @@ def analyse_run(run_dir: Path) -> dict | None:
             row["market_accessibility"] = scores.get("market_accessibility", "")
             row["evidence_confidence"]  = scores.get("evidence_confidence", "")
             row["formula_correct"]      = _formula_correct(scores)
+            # TRL calibration: cross-check against expected range from meta
+            if not row["trl_calibration"] and exp_str and isinstance(row["trl_score"], int):
+                lo, hi = (int(x) for x in exp_str.split("-"))
+                row["trl_calibration"] = "pass" if lo <= row["trl_score"] <= hi else "flag"
         except Exception:
             row["error"] = "scores JSON parse error"
 
@@ -159,8 +170,9 @@ def analyse_run(run_dir: Path) -> dict | None:
 
 def _print_table(rows: list[dict]) -> None:
     header = (
-        f"{'#':>2}  {'Topic':<45}  {'Status':<14}  "
-        f"{'Score':>5}  {'TRL':>3}  {'Pat':>3}  {'Mkt':>3}  "
+        f"{'#':>2}  {'Topic':<42}  {'Status':<14}  "
+        f"{'Score':>5}  {'TRL':>3}  {'Exp':>5}  {'Cal':>4}  "
+        f"{'Pat':>3}  {'Mkt':>3}  "
         f"{'Src A/P/M':<9}  {'§OK':>3}  {'Uncited':>7}  {'Words':>5}  {'t(s)':>5}"
     )
     print("\n" + "─" * len(header))
@@ -169,17 +181,22 @@ def _print_table(rows: list[dict]) -> None:
     for r in rows:
         if r.get("status") != "success":
             print(
-                f"{r['case_num']:>2}  {r['topic'][:45]:<45}  "
-                f"{r['status']:<14}  {'—':>5}  {'—':>3}  {'—':>3}  {'—':>3}  "
+                f"{r['case_num']:>2}  {r['topic'][:42]:<42}  "
+                f"{r['status']:<14}  {'—':>5}  {'—':>3}  {'—':>5}  {'—':>4}  "
+                f"{'—':>3}  {'—':>3}  "
                 f"{'—':<9}  {'—':>3}  {'—':>7}  {'—':>5}  {str(r.get('elapsed_s','')):>5}"
             )
             continue
         src = f"{r['academic_sources']}/{r['patent_sources']}/{r['market_sources']}"
+        cal = r.get("trl_calibration", "?")
+        cal_icon = "✓" if cal == "pass" else ("⚠" if cal == "flag" else "?")
         print(
-            f"{r['case_num']:>2}  {r['topic'][:45]:<45}  "
+            f"{r['case_num']:>2}  {r['topic'][:42]:<42}  "
             f"{'success':<14}  "
             f"{str(r['overall_score']):>5}  "
             f"{str(r['trl_score']):>3}  "
+            f"{str(r['expected_trl']):>5}  "
+            f"{cal_icon:>4}  "
             f"{str(r['patent_strength']):>3}  "
             f"{str(r['market_accessibility']):>3}  "
             f"{src:<9}  "
@@ -215,9 +232,9 @@ def main() -> None:
     _print_table(rows)
 
     fieldnames = [
-        "case_num", "topic", "status", "elapsed_s",
-        "overall_score", "trl_score", "patent_strength",
-        "market_accessibility", "evidence_confidence", "formula_correct",
+        "case_num", "topic", "industry", "status", "elapsed_s",
+        "overall_score", "trl_score", "expected_trl", "trl_calibration",
+        "patent_strength", "market_accessibility", "evidence_confidence", "formula_correct",
         "academic_sources", "patent_sources", "market_sources",
         "sections_complete", "missing_sections",
         "numeric_uncited_lines", "report_words", "error",
@@ -228,9 +245,13 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(rows)
 
-    success = sum(1 for r in rows if r.get("status") == "success")
-    print(f"\nResults : {success}/{len(rows)} succeeded")
-    print(f"CSV     : {OUTPUT_CSV}")
+    success  = sum(1 for r in rows if r.get("status") == "success")
+    trl_pass = sum(1 for r in rows if r.get("trl_calibration") == "pass")
+    trl_flag = sum(1 for r in rows if r.get("trl_calibration") == "flag")
+
+    print(f"\nResults       : {success}/{len(rows)} succeeded")
+    print(f"TRL calibrated: {trl_pass} pass / {trl_flag} flag (outside expected range)")
+    print(f"CSV           : {OUTPUT_CSV}")
     print()
     print("Next step: open the CSV in Excel and add a 'human_notes' column")
     print("for manual spot-checks (URL accuracy, TRL plausibility, hallucination).")

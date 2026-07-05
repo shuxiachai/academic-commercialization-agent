@@ -31,17 +31,26 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from academic_agent.crew import AcademicAgent
 from academic_agent.source_pipeline import SourceCollectionError, collect_source_collection
 
+# Each entry: (case_number, topic_string, (expected_trl_min, expected_trl_max), industry)
+# expected_trl_range is saved in meta.json so benchmark_check.py can flag calibration issues.
+#
+# Selection rationale:
+#   Cases 01-02: high TRL (7-9) — system should give strong scores; false negatives here are bad
+#   Cases 03-05: mid TRL (5-7) — approaching commercial but not fully deployed
+#   Cases 06-07: lower-mid TRL (4-6) — partial commercial signal, harder to judge
+#   Cases 08-09: low TRL (3-4) — high hype, minimal commercial signal; false positives are bad
+#   Case 10:     very low TRL (1-2) — hallucination stress test; should score near-minimum
 TOPICS = [
-    ("01", "Lithium-ion batteries for electric vehicles"),
-    ("02", "Solid-state batteries for grid energy storage"),
-    ("03", "Perovskite solar cells for building-integrated photovoltaics"),
-    ("04", "Solid-state hydrogen storage for fuel cell vehicles"),
-    ("05", "CRISPR gene editing applications in agriculture"),
-    ("06", "Room-temperature superconductors"),
-    ("07", "Biodegradable plastics from algae"),
-    ("08", "AI-powered drug discovery using machine learning"),
-    ("09", "Direct air capture of CO2 for carbon removal"),
-    ("10", "Quantum computing for pharmaceutical molecular simulation"),
+    ("01", "CAR-T cell therapy for blood cancers",                    (7, 9), "Biomed"),
+    ("02", "mRNA vaccines for cancer immunotherapy",                   (6, 8), "Biomed"),
+    ("03", "solid-state batteries for electric vehicles",              (5, 7), "Energy"),
+    ("04", "perovskite solar cells for utility-scale power generation",(4, 6), "Clean Energy"),
+    ("05", "CRISPR gene editing for genetic diseases",                 (6, 8), "Biomed"),
+    ("06", "carbon capture and storage for industrial emissions",      (5, 7), "Climate"),
+    ("07", "cultivated meat for food industry",                        (4, 6), "Food"),
+    ("08", "quantum computing for drug discovery",                     (2, 4), "Computing"),
+    ("09", "graphene-based flexible electronics",                      (3, 5), "Materials"),
+    ("10", "room temperature ambient pressure superconductors",        (1, 2), "Materials"),
 ]
 
 BENCHMARK_ROOT = Path(__file__).parent / "outputs" / "benchmark"
@@ -56,6 +65,12 @@ def _run_dir(num: str, topic: str) -> Path:
     return BENCHMARK_ROOT / f"{num}-{_slug(topic)}"
 
 
+def _trl_flag(trl, trl_range: tuple) -> str:
+    if not isinstance(trl, int):
+        return "?"
+    return "pass" if trl_range[0] <= trl <= trl_range[1] else "flag"
+
+
 def _already_succeeded(run_dir: Path) -> bool:
     meta_path = run_dir / "meta.json"
     if not meta_path.exists():
@@ -67,12 +82,13 @@ def _already_succeeded(run_dir: Path) -> bool:
         return False
 
 
-def run_topic(num: str, topic: str) -> dict:
+def run_topic(num: str, topic: str, trl_range: tuple, industry: str) -> dict:
     run_dir = _run_dir(num, topic)
     run_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\n{'=' * 62}")
-    print(f"  [{num}/10]  {topic}")
+    print(f"  [{num}/10]  {topic}  [{industry}]")
+    print(f"  Expected TRL: {trl_range[0]}–{trl_range[1]}")
     print(f"{'=' * 62}")
 
     if _already_succeeded(run_dir):
@@ -81,7 +97,14 @@ def run_topic(num: str, topic: str) -> dict:
         meta["skipped"] = True
         return meta
 
-    meta: dict = {"num": num, "topic": topic, "run_dir": str(run_dir), "status": "running"}
+    meta: dict = {
+        "num": num,
+        "topic": topic,
+        "industry": industry,
+        "expected_trl_range": list(trl_range),
+        "run_dir": str(run_dir),
+        "status": "running",
+    }
     start = time.time()
 
     try:
@@ -116,9 +139,15 @@ def run_topic(num: str, topic: str) -> dict:
                 scores_raw, encoding="utf-8"
             )
             scores = json.loads(scores_raw)
+            trl = scores.get("trl_score")
+            overall = scores.get("overall_score")
+            flag = _trl_flag(trl, trl_range)
+            meta["trl_score"] = trl
+            meta["trl_calibration"] = flag
+            icon = "✓" if flag == "pass" else "⚠"
             print(
-                f"     Score: overall={scores.get('overall_score')}  "
-                f"TRL={scores.get('trl_score')}/9  "
+                f"     Score: overall={overall}  "
+                f"TRL={trl}/9 [{icon} {flag}, expected {trl_range[0]}–{trl_range[1]}]  "
                 f"market={scores.get('market_accessibility')}/5"
             )
 
@@ -165,8 +194,8 @@ def main() -> None:
     skip_set = {n.strip() for n in args.skip.split(",")} if args.skip else set()
 
     selected = [
-        (num, topic)
-        for num, topic in TOPICS
+        (num, topic, trl_range, industry)
+        for num, topic, trl_range, industry in TOPICS
         if (only_set is None or num in only_set) and num not in skip_set
     ]
 
@@ -175,8 +204,8 @@ def main() -> None:
     print(f"Topics to run  : {len(selected)}")
 
     results = []
-    for i, (num, topic) in enumerate(selected):
-        meta = run_topic(num, topic)
+    for i, (num, topic, trl_range, industry) in enumerate(selected):
+        meta = run_topic(num, topic, trl_range, industry)
         results.append(meta)
         if i < len(selected) - 1 and not meta.get("skipped"):
             print(f"  → Pausing {_INTER_RUN_PAUSE}s before next topic...")

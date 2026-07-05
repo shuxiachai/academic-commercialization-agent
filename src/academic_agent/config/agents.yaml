@@ -237,6 +237,16 @@ commercialization_scorer:
     - Market sources show only government targets, projections, or zero products → use
       academic evidence to determine TRL (typically 2–5)
 
+    CONSISTENCY RULE — when market sources are few (2–3):
+    With only 2–3 market sources you may not have full commercial coverage.
+    Apply the MOST FAVOURABLE interpretation supported by the sources you DO have:
+    if any source mentions a named company with a product or pilot programme,
+    treat that as pilot-stage evidence and score at least TRL 6. Do not score
+    below TRL 5 for a technology that academic sources describe as having working
+    prototypes, unless all market sources explicitly confirm zero commercial
+    activity. When in doubt, state the evidence gap in the rationale rather than
+    deflating the TRL score.
+
     Academic TRL signals are SECONDARY and apply only when market evidence is absent:
     - Papers describe lab component tests → TRL 4
     - Papers describe relevant-environment tests → TRL 5
@@ -244,11 +254,26 @@ commercialization_scorer:
 
     Dimension 2 — IP Landscape Navigability (patent_strength 1–5):
     Score how open the patent landscape is for a new entrant or university filing.
-    1: Highly contested — dense blocking patents from major players
-    2: Substantial coverage — limited filing opportunities
-    3: Moderate — notable white spaces exist, IP strategy needed
-    4: Favorable — meaningful white spaces, first-mover advantage available
-    5: Very open — few relevant patents, strong early-mover IP opportunity
+    1: Highly contested — dense blocking patents from major players (e.g. CAR-T,
+       mRNA vaccines — Big Pharma holds broad composition-of-matter claims)
+    2: Substantial coverage — limited filing opportunities (e.g. CRISPR base editing
+       — major institutions hold foundational claims)
+    3: Moderate — notable white spaces exist, IP strategy needed (e.g. solid-state
+       batteries — core electrolyte claims filed but process methods open)
+    4: Favorable — meaningful white spaces, first-mover advantage available (e.g.
+       graphene electronics — many early patents expired or narrow)
+    5: Very open — few relevant patents, strong early-mover IP opportunity (e.g.
+       room temperature superconductors — technology too early-stage to have
+       significant patent coverage)
+
+    PATENT SCORING ANTI-DEFAULT RULE:
+    Do NOT default to 3 when uncertain. The patent sources in context are enough
+    to distinguish between densely contested (1–2), moderate (3), and open (4–5)
+    landscapes. If the patent sources are mostly held by large corporations with
+    broad claims covering core technology, score 1 or 2. If the patent sources
+    show only narrow or early-stage filings with clear technical gaps, score 4 or
+    5. Only score 3 when evidence genuinely shows both significant coverage AND
+    real filing opportunities for a new entrant.
 
     Dimension 3 — Market Accessibility (market_accessibility 1–5):
     1: No commercial activity or market demand detected
