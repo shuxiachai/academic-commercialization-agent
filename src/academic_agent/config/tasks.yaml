@@ -223,6 +223,15 @@ report_review_task:
     errors: citation mismatches, unsupported numerical claims, overconfident
     language, and incorrect patent legal framing.
 
+    Output rules — strictly enforced:
+    - Apply every correction silently in the report text itself.
+    - Do NOT insert any inline annotations, labels, brackets, or reviewer
+      markers of any kind inside the report body — no "[Reviewer: ...]",
+      no "[hedged]", no "[corrected]", no "[removed]", nothing.
+    - If you are uncertain whether to remove a claim, soften the language
+      (e.g., "will" → "may") without leaving any marker behind.
+    - Record ONLY in the ## Reviewer Notes section what you changed and why.
+
     After completing corrections, append a ## Reviewer Notes section that
     lists every correction made. If the draft was already clean, write
     "No corrections required." in that section.
@@ -255,8 +264,8 @@ commercialization_scoring_task:
     - If evidence for a dimension is absent or very thin, score conservatively
       (1 or 2) and state the evidence gap clearly in the rationale.
     - Compute overall_score using the exact formula from your backstory:
-      round( (trl_score/9)*30 + (market_accessibility/5)*35 +
-             (patent_strength/5)*20 + (evidence_confidence/5)*15 )
+      round( (trl_score/9)*30 + (patent_strength/5)*30 +
+             (market_accessibility/5)*25 + (evidence_confidence/5)*15 )
     - Provide 2 to 5 key_risks and 2 to 5 key_opportunities grounded in the
       evidence findings. Do not invent risks or opportunities not supported by
       the context.

@@ -1115,3 +1115,74 @@ def make_final_report_guardrail(
         return True, output
 
     return validate_report
+
+
+_REVIEWER_REQUIRED_HEADINGS = ("## executive summary", "## references")
+
+
+def make_reviewer_guardrail(
+    report_task: Any,
+) -> Callable[[TaskOutput], tuple[bool, Any]]:
+    """Light guardrail for Task 5: prevent regression from Task 4's validated output.
+
+    Checks three things only — structural completeness is already guaranteed by
+    Task 4's guardrail; this one just ensures the reviewer didn't accidentally
+    break what was already correct:
+
+    1. Length: reviewed report >= 500 chars AND >= 80 % of Task 4 length.
+    2. Required headings (Executive Summary, References) still present.
+    3. No inline citation IDs ([A*] [P*] [M*]) from Task 4 were removed.
+    """
+
+    def validate_review(output: TaskOutput) -> tuple[bool, Any]:
+        task4_out = getattr(report_task, "output", None)
+        task4_text: str = task4_out.raw if task4_out else ""
+        task4_len = len(task4_text.strip())
+
+        reviewed = output.raw.strip()
+        reviewed_len = len(reviewed)
+
+        errors: list[str] = []
+
+        # 1. Length regression
+        if reviewed_len < 500:
+            errors.append(
+                f"Report is too short ({reviewed_len} chars). "
+                "Return the complete corrected report, not a summary."
+            )
+        elif task4_len > 0 and reviewed_len < int(task4_len * 0.8):
+            pct = reviewed_len / task4_len
+            errors.append(
+                f"Report shrank too much ({reviewed_len} chars vs {task4_len} in draft, "
+                f"{pct:.0%} retained). Apply corrections in place; do not omit sections."
+            )
+
+        # 2. Required headings
+        reviewed_lower = reviewed.lower()
+        for heading in _REVIEWER_REQUIRED_HEADINGS:
+            if heading not in reviewed_lower:
+                errors.append(
+                    f"Required section '{heading.lstrip('# ').title()}' is missing. "
+                    "Do not remove any sections from the report."
+                )
+
+        # 3. Citation ID regression
+        if task4_text:
+            task4_ids = set(re.findall(r"\[([APM]\d+)\]", task4_text))
+            reviewed_ids = set(re.findall(r"\[([APM]\d+)\]", reviewed))
+            missing = task4_ids - reviewed_ids
+            if missing:
+                errors.append(
+                    f"Inline citation IDs removed by reviewer: {sorted(missing)}. "
+                    "All citations from the draft must be preserved."
+                )
+
+        if errors:
+            return (
+                False,
+                "Reviewer output has blocking issues:\n- " + "\n- ".join(errors),
+            )
+
+        return True, output
+
+    return validate_review

@@ -76,6 +76,7 @@ _INDUSTRY_NEWS_DOMAINS = {
     "autoevolution.com",
     "electrek.co",
     "perovskite-info.com",
+    "pv-magazine.com",
     "pv-tech.org",
     "chemengonline.com",
     "biofuelsdigest.com",
@@ -107,6 +108,10 @@ _MARKET_RESEARCH_DOMAINS = {
     "statista.com",
     "reportlinker.com",
     "businessresearchinsights.com",
+    "factmr.com",
+    "strategicmarketresearch.com",
+    "coherentmarketinsights.com",
+    "market.us",
 }
 _ACADEMIC_PUBLISHER_DOMAINS = {
     "doi.org",
@@ -120,6 +125,11 @@ _ACADEMIC_PUBLISHER_DOMAINS = {
     "science.org",
     "sciencedirect.com",
     "springer.com",
+}
+_PRESS_RELEASE_DOMAINS = {
+    "businesswire.com",
+    "prnewswire.com",
+    "globenewswire.com",
 }
 _BLOCKED_MARKET_DOMAINS = {
     "facebook.com",
@@ -273,7 +283,7 @@ class OpenAlexClient:
     _BASE = "https://api.openalex.org/works"
     _SELECT = ",".join([
         "id", "title", "doi", "publication_date",
-        "primary_location", "cited_by_count", "abstract_inverted_index",
+        "primary_location", "cited_by_count", "abstract_inverted_index", "topics",
     ])
 
     def __init__(self, *, timeout: int = 20, retries: int = 2) -> None:
@@ -312,6 +322,33 @@ class OpenAlexClient:
                 time.sleep(0.75 * (attempt + 1))
         return []
 
+    def search_recent(self, topic: str, since_year: int = 2023, rows: int = 15) -> list[dict[str, Any]]:
+        """Search OpenAlex for papers published since_year or later, sorted by date desc."""
+        core = _topic_core_phrase(topic)
+        params = urlencode({
+            "filter": f"title.search:{core},publication_year:>{since_year - 1}",
+            "sort": "publication_date:desc",
+            "per-page": min(rows, 50),
+            "select": self._SELECT,
+        })
+        url = f"{self._BASE}?{params}"
+        request = Request(url, headers=self.headers)
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                return payload.get("results") or []
+            except HTTPError as exc:
+                if exc.code == 429:
+                    time.sleep(2 ** attempt)
+                    continue
+                return []
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError):
+                if attempt >= self.retries:
+                    return []
+                time.sleep(0.75 * (attempt + 1))
+        return []
+
 
 class SemanticScholarClient:
     """Client for the Semantic Scholar Academic Graph API.
@@ -320,6 +357,7 @@ class SemanticScholarClient:
     10 req/s — set SEMANTIC_SCHOLAR_API_KEY in the environment to activate.
     """
 
+    _BASE_URL = "https://api.semanticscholar.org/graph/v1/paper"
     _SEARCH_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
     _FIELDS = "title,abstract,year,citationCount,externalIds,publicationVenue,publicationDate"
 
@@ -330,6 +368,17 @@ class SemanticScholarClient:
         self.headers: dict[str, str] = {"User-Agent": "AcademicAgentSourceCollector/1.0"}
         if key:
             self.headers["x-api-key"] = key
+
+    def get_abstract_by_doi(self, doi: str) -> str:
+        """Fetch abstract text for a paper by DOI from S2. Returns '' on failure."""
+        url = f"{self._BASE_URL}/DOI:{quote(doi, safe='')}?fields=abstract"
+        request = Request(url, headers=self.headers)
+        try:
+            with urlopen(request, timeout=self.timeout) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+            return str(payload.get("abstract") or "")
+        except Exception:
+            return ""
 
     def search(self, topic: str, rows: int = 15) -> list[dict[str, Any]]:
         params = urlencode({
@@ -510,6 +559,75 @@ def _resolve_crossref_item(
     return None, f"no Crossref metadata matched title {title!r}{detail}"
 
 
+def _academic_source(
+    result: dict[str, Any],
+    source_id: str,
+    crossref: CrossrefClient,
+    accessed_date: date,
+    research_topic: str,
+) -> tuple[EvidenceSource | None, str]:
+    item, reason = _resolve_crossref_item(result, crossref)
+    if item is None:
+        return None, reason
+    doi = str(item.get("DOI", "")).lower().strip()
+    title = _crossref_title(item)
+    publisher = _clean_text(str(item.get("publisher", "")))
+    if not doi or not title or not publisher:
+        return None, "Crossref record lacks DOI, title, or publisher"
+    if not _title_matches_topic(title, research_topic):
+        return None, f"Crossref title is not relevant to research topic: {title!r}"
+
+    result_dois = {
+        candidate
+        for candidate in (
+            _extract_doi(str(result.get("link", ""))),
+            _extract_doi(str(result.get("snippet", ""))),
+        )
+        if candidate is not None
+    }
+    conflicting_dois = sorted(candidate for candidate in result_dois if candidate != doi)
+    if conflicting_dois:
+        return None, (
+            "search result snippet or URL cites a different DOI: "
+            + ", ".join(conflicting_dois)
+        )
+
+    abstract = item.get("abstract")
+    crossref_abstract = _clean_text(abstract) if isinstance(abstract, str) else ""
+    snippet = str(result.get("snippet", ""))
+    if (
+        len(crossref_abstract) < 20
+        and re.search(r"(?:https?://)?doi\.org", snippet, flags=re.IGNORECASE)
+        and _extract_doi(snippet) is None
+    ):
+        return None, "search snippet contains a truncated or unverifiable DOI reference"
+    if len(crossref_abstract) >= 20:
+        evidence_summary = crossref_abstract[:1500]
+        summary_basis = "Crossref abstract"
+    else:
+        evidence_summary = _safe_summary(snippet, title)
+        summary_basis = "DOI-consistent search snippet"
+    published = _published_date(item)
+    if published and published > accessed_date:
+        return None, "Crossref publication date is in the future"
+    return (
+        EvidenceSource(
+            source_id=source_id,
+            title=title,
+            url=f"https://doi.org/{doi}",
+            doi=doi,
+            publisher=publisher,
+            published_date=published,
+            accessed_date=accessed_date,
+            source_type="academic_paper",
+            credibility_tier="high",
+            credibility_reason=(
+                f"DOI, title, and topic matched; evidence summary uses {summary_basis}."
+            ),
+            evidence_summary=evidence_summary,
+        ),
+        "",
+    )
 
 
 def _topic_core_phrase(topic: str) -> str:
@@ -544,11 +662,73 @@ def _openalex_abstract(work: dict[str, Any]) -> str:
     return " ".join(positions[i] for i in sorted(positions))
 
 
+def _openalex_topic_relevant(work: dict[str, Any], research_topic: str) -> bool | None:
+    """Check if a paper's OpenAlex topic labels match the research topic.
+
+    Returns:
+        True  — at least one high-confidence topic label overlaps the core phrase
+        False — topic labels present but none match (paper is off-topic)
+        None  — no topic data; caller should fall back to title-based check
+    """
+    raw_topics = work.get("topics") or []
+    confident_labels = [
+        t["display_name"]
+        for t in raw_topics
+        if isinstance(t, dict) and t.get("display_name")
+        and float(t.get("score", 0)) >= 0.5
+    ]
+    if not confident_labels:
+        return None
+
+    core = _topic_core_phrase(research_topic)
+    core_words = _WORD_PATTERN.findall(core.lower())
+    core_bigrams = {
+        f"{core_words[i]} {core_words[i + 1]}"
+        for i in range(len(core_words) - 1)
+    }
+    # Fall back to meaningful single tokens when core is only one word
+    core_tokens = {w for w in core_words if len(w) >= 4}
+
+    for label in confident_labels:
+        label_words = _WORD_PATTERN.findall(label.lower())
+        if core_bigrams:
+            label_bigrams = {
+                f"{label_words[i]} {label_words[i + 1]}"
+                for i in range(len(label_words) - 1)
+            }
+            if core_bigrams & label_bigrams:
+                return True
+        elif core_tokens & set(label_words):
+            return True
+
+    # Bigram pass missed — OpenAlex may use different term order or phrasing.
+    # Use all core words of length >= 8 as anchors (OR logic). This recovers
+    # multi-word biomedical topics where several medium-length words are each
+    # more informative than the single longest: e.g. "neoantigen"(10) +
+    # "vaccines"(8) together cover more synonymous topic phrasings than either
+    # alone.  The len >= 8 threshold keeps short generic words like "lithium"(7)
+    # out of the anchor set, preserving the solid-state / SEI-paper boundary
+    # ("batteries"(9) is still the only anchor, absent from SEI topic labels).
+    if core_words:
+        anchor_tokens = {w for w in core_words if len(w) >= 8}
+        if not anchor_tokens:          # all core words are short — use the longest
+            anchor_tokens = {max(core_words, key=len)}
+        all_label_words: set[str] = set()
+        for label in confident_labels:
+            all_label_words.update(_WORD_PATTERN.findall(label.lower()))
+        if anchor_tokens & all_label_words:
+            return True
+
+    return False
+
+
 def _academic_source_from_openalex(
     work: dict[str, Any],
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    s2_client: SemanticScholarClient | None = None,
 ) -> tuple[EvidenceSource | None, str]:
     title = _clean_text(str(work.get("title") or ""))
     doi_raw = str(work.get("doi") or "").lower().strip()
@@ -564,12 +744,17 @@ def _academic_source_from_openalex(
         return None, "OpenAlex work has no title"
     if not doi:
         return None, f"OpenAlex work has no DOI: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    topic_match = _openalex_topic_relevant(work, research_topic)
+    if topic_match is False:
+        return None, f"OpenAlex topics indicate off-topic paper: {title!r}"
+    if topic_match is None and not _title_matches_topic(title, research_topic):
         return None, f"OpenAlex title not relevant to topic: {title!r}"
 
     abstract = _openalex_abstract(work)
+    if len(abstract) < 40 and s2_client is not None and topic_match is not False:
+        abstract = s2_client.get_abstract_by_doi(doi)
     if len(abstract) < 40:
-        return None, f"OpenAlex abstract too thin ({len(abstract)} chars): {title!r}"
+        return None, f"abstract too thin ({len(abstract)} chars): {title!r}"
 
     primary = work.get("primary_location") or {}
     source_meta = primary.get("source") or {}
@@ -741,6 +926,12 @@ def _market_source_profile(
             "medium",
             "Major consulting or strategy firm; verify methodology and primary data.",
         )
+    if _host_matches(host, _PRESS_RELEASE_DOMAINS):
+        return (
+            "company_disclosure",
+            "medium",
+            "Press release wire service; primary for attributed company announcements.",
+        )
 
     path = urlsplit(canonical_url).path.lower()
     _CONTENT_PATH_MARKERS = (
@@ -840,6 +1031,22 @@ def _queries(topic: str) -> dict[Domain, list[str]]:
     }
 
 
+def _market_summary_relevant(summary: str, topic: str) -> bool:
+    """Return False when a market source summary contains no core topic keyword.
+
+    Filters out broad-category reports (e.g. "perovskite solar cells market")
+    when the research topic is a specific sub-technology (e.g. "perovskite-
+    silicon tandem solar cells").  Uses words of length >= 6 from the core
+    phrase so short generic words don't cause false rejections.
+    """
+    core = _topic_core_phrase(topic)
+    core_words = {w for w in _WORD_PATTERN.findall(core.lower()) if len(w) >= 6}
+    if not core_words:
+        return True  # Core phrase too short to be selective — pass through
+    summary_words = set(_WORD_PATTERN.findall(summary.lower()))
+    return bool(core_words & summary_words)
+
+
 def _collect_domain(
     domain: Domain,
     queries: list[str],
@@ -928,6 +1135,13 @@ def _collect_domain(
                     f"({len(source.evidence_summary)} chars): {source.title!r}"
                 )
                 continue
+            if domain == "market" and not _market_summary_relevant(
+                source.evidence_summary, research_topic
+            ):
+                audit.rejected_reasons.append(
+                    f"market summary lacks core topic keywords: {source.title!r}"
+                )
+                continue
             locator = source.doi or str(source.url)
             if locator.lower() in seen_locators:
                 audit.rejected_reasons.append(f"duplicate source: {locator}")
@@ -971,35 +1185,78 @@ def _collect_academic_primary(
     *,
     maximum_sources: int,
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
-    """Collect academic sources: OpenAlex primary, Semantic Scholar supplement."""
-    # ── Step 1: OpenAlex ──────────────────────────────────────────────────
-    works = openalex.search(topic, rows=max(20, maximum_sources * 3))
-    oa_audit = SearchAudit(domain="academic", query=f"[OpenAlex] {topic}", result_count=len(works))
+    """Collect academic sources: dual-track (recent 2023+ + high-citation) from OpenAlex, S2 supplement."""
+    fetch_rows = max(20, maximum_sources * 4)
+    recent_slots = (maximum_sources + 1) // 2  # ceil(max/2) slots reserved for recent papers
+
+    # ── Track A: recent papers (2023+), sorted by publication date desc ──────
+    recent_works = openalex.search_recent(topic, since_year=date.today().year - 3, rows=fetch_rows)
+    recent_audit = SearchAudit(
+        domain="academic",
+        query=f"[OpenAlex-Recent 2023+] {topic}",
+        result_count=len(recent_works),
+    )
+
+    # ── Track B: high-citation papers, sorted by citation count desc ─────────
+    cited_works = openalex.search(topic, rows=fetch_rows)
+    cited_audit = SearchAudit(
+        domain="academic",
+        query=f"[OpenAlex-Cited] {topic}",
+        result_count=len(cited_works),
+    )
+
     accepted: list[EvidenceSource] = []
     seen_dois: set[str] = set()
+    # Word-normalised title dedup catches same-paper published in multiple journal
+    # editions under different DOIs (e.g. Angewandte Chemie ange/anie parallel issues).
+    seen_title_keys: set[str] = set()
+    audits: list[SearchAudit] = [recent_audit, cited_audit]
 
-    for work in works:
+    def _title_key(title: str) -> str:
+        return " ".join(_WORD_PATTERN.findall(title.lower()))
+
+    def _try_add(source: EvidenceSource, audit: SearchAudit) -> bool:
+        """Deduplicate by DOI and by normalised title. Returns True if accepted."""
+        doi_key = (source.doi or "").lower()
+        if doi_key and doi_key in seen_dois:
+            audit.rejected_reasons.append(f"duplicate DOI: {doi_key}")
+            return False
+        tkey = _title_key(source.title)
+        if tkey and tkey in seen_title_keys:
+            audit.rejected_reasons.append(f"duplicate title (parallel edition): {source.title}")
+            return False
+        if doi_key:
+            seen_dois.add(doi_key)
+        seen_title_keys.add(tkey)
+        accepted.append(source)
+        audit.accepted_source_ids.append(source.source_id)
+        return True
+
+    # Fill recent slots first
+    for work in recent_works:
+        if len(accepted) >= recent_slots:
+            break
+        source_id = f"A{len(accepted) + 1}"
+        source, reason = _academic_source_from_openalex(work, source_id, accessed_date, topic, s2_client=s2)
+        if source is None:
+            recent_audit.rejected_reasons.append(reason)
+            continue
+        _try_add(source, recent_audit)
+
+    # Fill remaining slots from high-citation track, skipping already-seen DOIs/titles
+    for work in cited_works:
         if len(accepted) >= maximum_sources:
             break
         source_id = f"A{len(accepted) + 1}"
-        source, reason = _academic_source_from_openalex(work, source_id, accessed_date, topic)
+        source, reason = _academic_source_from_openalex(work, source_id, accessed_date, topic, s2_client=s2)
         if source is None:
-            oa_audit.rejected_reasons.append(reason)
+            cited_audit.rejected_reasons.append(reason)
             continue
-        doi_key = (source.doi or "").lower()
-        if doi_key and doi_key in seen_dois:
-            oa_audit.rejected_reasons.append(f"duplicate DOI: {doi_key}")
-            continue
-        if doi_key:
-            seen_dois.add(doi_key)
-        accepted.append(source)
-        oa_audit.accepted_source_ids.append(source_id)
+        _try_add(source, cited_audit)
 
-    audits: list[SearchAudit] = [oa_audit]
-
-    # ── Step 2: Semantic Scholar supplement (when OpenAlex falls short) ───
+    # ── Semantic Scholar supplement (when OpenAlex tracks fall short) ─────────
     if len(accepted) < maximum_sources:
-        s2_papers = s2.search(topic, rows=max(20, maximum_sources * 3))
+        s2_papers = s2.search(topic, rows=fetch_rows)
         s2_audit = SearchAudit(
             domain="academic",
             query=f"[SemanticScholar] {topic}",
@@ -1013,14 +1270,7 @@ def _collect_academic_primary(
             if source is None:
                 s2_audit.rejected_reasons.append(reason)
                 continue
-            doi_key = (source.doi or "").lower()
-            if doi_key and doi_key in seen_dois:
-                s2_audit.rejected_reasons.append(f"duplicate DOI: {doi_key}")
-                continue
-            if doi_key:
-                seen_dois.add(doi_key)
-            accepted.append(source)
-            s2_audit.accepted_source_ids.append(source_id)
+            _try_add(source, s2_audit)
         audits.append(s2_audit)
 
     return accepted, audits
@@ -1131,75 +1381,4 @@ def collect_source_collection(
         patent_queries=query_map["patent"],
         market_queries=query_map["market"],
         audit=all_audits,
-    )
-
-
-def _academic_source(
-    result: dict[str, Any],
-    source_id: str,
-    crossref: CrossrefClient,
-    accessed_date: date,
-    research_topic: str,
-) -> tuple[EvidenceSource | None, str]:
-    item, reason = _resolve_crossref_item(result, crossref)
-    if item is None:
-        return None, reason
-    doi = str(item.get("DOI", "")).lower().strip()
-    title = _crossref_title(item)
-    publisher = _clean_text(str(item.get("publisher", "")))
-    if not doi or not title or not publisher:
-        return None, "Crossref record lacks DOI, title, or publisher"
-    if not _title_matches_topic(title, research_topic):
-        return None, f"Crossref title is not relevant to research topic: {title!r}"
-
-    result_dois = {
-        candidate
-        for candidate in (
-            _extract_doi(str(result.get("link", ""))),
-            _extract_doi(str(result.get("snippet", ""))),
-        )
-        if candidate is not None
-    }
-    conflicting_dois = sorted(candidate for candidate in result_dois if candidate != doi)
-    if conflicting_dois:
-        return None, (
-            "search result snippet or URL cites a different DOI: "
-            + ", ".join(conflicting_dois)
-        )
-
-    abstract = item.get("abstract")
-    crossref_abstract = _clean_text(abstract) if isinstance(abstract, str) else ""
-    snippet = str(result.get("snippet", ""))
-    if (
-        len(crossref_abstract) < 20
-        and re.search(r"(?:https?://)?doi\.org", snippet, flags=re.IGNORECASE)
-        and _extract_doi(snippet) is None
-    ):
-        return None, "search snippet contains a truncated or unverifiable DOI reference"
-    if len(crossref_abstract) >= 20:
-        evidence_summary = crossref_abstract[:1500]
-        summary_basis = "Crossref abstract"
-    else:
-        evidence_summary = _safe_summary(snippet, title)
-        summary_basis = "DOI-consistent search snippet"
-    published = _published_date(item)
-    if published and published > accessed_date:
-        return None, "Crossref publication date is in the future"
-    return (
-        EvidenceSource(
-            source_id=source_id,
-            title=title,
-            url=f"https://doi.org/{doi}",
-            doi=doi,
-            publisher=publisher,
-            published_date=published,
-            accessed_date=accessed_date,
-            source_type="academic_paper",
-            credibility_tier="high",
-            credibility_reason=(
-                f"DOI, title, and topic matched; evidence summary uses {summary_basis}."
-            ),
-            evidence_summary=evidence_summary,
-        ),
-        "",
     )

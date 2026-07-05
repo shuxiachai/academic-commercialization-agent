@@ -30,6 +30,7 @@ from crewai.project import CrewBase, agent, crew, task
 from academic_agent.evidence import (
     make_evidence_guardrail,
     make_final_report_guardrail,
+    make_reviewer_guardrail,
     make_scoring_guardrail,
 )
 from academic_agent.llm_config import create_deepseek_llm
@@ -59,8 +60,8 @@ class AcademicAgent:
 
     # ----------------------------------------------------------
     # AGENTS
-    # 五个专职 Agent，角色和目标定义在 config/agents.yaml 中
-    # Five specialized agents; roles/goals defined in agents.yaml
+    # 六个专职 Agent，角色和目标定义在 config/agents.yaml 中
+    # Six specialized agents; roles/goals defined in agents.yaml
     # ----------------------------------------------------------
 
     @agent
@@ -150,8 +151,8 @@ class AcademicAgent:
 
     # ----------------------------------------------------------
     # TASKS
-    # 五个顺序执行的任务，详细描述在 config/tasks.yaml 中
-    # Five sequential tasks; descriptions defined in tasks.yaml
+    # 六个顺序执行的任务，详细描述在 config/tasks.yaml 中
+    # Six sequential tasks; descriptions defined in tasks.yaml
     # ----------------------------------------------------------
 
     @task
@@ -237,10 +238,15 @@ class AcademicAgent:
         Takes Task 4 draft as input and performs final inspection.
         输出为修正后的最终报告，末尾附 Reviewer Notes 列出所有修改。
         Outputs corrected final report with Reviewer Notes section appended.
+        Guardrail 防止审查员意外截断报告或删除引用标注。
+        Guardrail prevents accidental truncation or citation removal.
         """
+        report_task = self.commercialization_report_task()
         return Task(
             config=self.tasks_config["report_review_task"],  # type: ignore[index]
-            context=[self.commercialization_report_task()],  # Task 4 草稿作为上下文 / Task 4 draft as context
+            context=[report_task],
+            guardrail=make_reviewer_guardrail(report_task),
+            guardrail_max_retries=1,
             markdown=True,
         )
 

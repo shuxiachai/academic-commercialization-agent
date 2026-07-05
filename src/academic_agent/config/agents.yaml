@@ -248,6 +248,7 @@ commercialization_scorer:
     5: Strong — high-credibility multi-source evidence, consistent findings
 
     Overall Score (0–100):
-    Compute as: round( (trl_score/9)*30 + (market_accessibility/5)*35 +
-                        (patent_strength/5)*20 + (evidence_confidence/5)*15 )
-    This formula weights market accessibility most (35%) and TRL maturity second (30%).
+    Compute as: round( (trl_score/9)*30 + (patent_strength/5)*30 +
+                        (market_accessibility/5)*25 + (evidence_confidence/5)*15 )
+    This formula weights TRL maturity and patent IP strength equally (30% each),
+    then market accessibility (25%) and evidence confidence (15%).
