@@ -39,7 +39,9 @@ def test_evidence_pipeline_is_connected(monkeypatch) -> None:
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
     crew = AcademicAgent(_make_collection()).crew()
 
-    assert len(crew.tasks) == 4
+    assert len(crew.tasks) == 6
+
+    # Tasks 0-2: evidence tasks — JSON-mode LLM + evidence guardrail, max 2 retries
     for task in crew.tasks[:3]:
         assert task.output_pydantic is None
         assert task.output_json is None
@@ -48,16 +50,38 @@ def test_evidence_pipeline_is_connected(monkeypatch) -> None:
         assert task.guardrail is not None
         assert task.guardrail_max_retries == 2
 
-    final_task = crew.tasks[-1]
-    assert final_task.guardrail is not None
-    assert final_task.guardrail_max_retries == 1
-    assert len(final_task.context or []) == 3
-    assert final_task.markdown is True
+    # Task 3: report writing — markdown mode, guardrail, context = Tasks 0-2
+    report_task = crew.tasks[3]
+    assert report_task.guardrail is not None
+    assert report_task.guardrail_max_retries == 1
+    assert report_task.markdown is True
+    assert len(report_task.context or []) == 3
+
+    # Task 4: quality reviewer — markdown mode, guardrail, context = Task 3 only
+    reviewer_task = crew.tasks[4]
+    assert reviewer_task.guardrail is not None
+    assert reviewer_task.guardrail_max_retries == 1
+    assert reviewer_task.markdown is True
+    assert len(reviewer_task.context or []) == 1
+
+    # Task 5: scoring — JSON-mode LLM, guardrail, max 2 retries, context = Tasks 0-2
+    scorer_task = crew.tasks[5]
+    assert scorer_task.agent is not None
+    assert scorer_task.agent.llm.response_format == {"type": "json_object"}
+    assert scorer_task.guardrail is not None
+    assert scorer_task.guardrail_max_retries == 2
+    assert len(scorer_task.context or []) == 3
 
 
 def test_final_context_reuses_the_research_tasks(monkeypatch) -> None:
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
     crew = AcademicAgent(_make_collection()).crew()
-    context = crew.tasks[-1].context or []
 
-    assert all(crew.tasks[index] is context[index] for index in range(3))
+    # Scorer (Task 5) context must reuse the same task objects as Tasks 0-2
+    scorer_context = crew.tasks[5].context or []
+    assert all(crew.tasks[index] is scorer_context[index] for index in range(3))
+
+    # Reviewer (Task 4) context must point to the report task (Task 3)
+    reviewer_context = crew.tasks[4].context or []
+    assert len(reviewer_context) == 1
+    assert crew.tasks[3] is reviewer_context[0]

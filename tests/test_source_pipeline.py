@@ -11,10 +11,51 @@ from academic_agent.source_pipeline import (
 )
 
 
+class _NullOpenAlex:
+    """Stub that returns no results, forcing the Serper+Crossref fallback path."""
+
+    def search(self, *args, **kwargs) -> list:  # type: ignore[override]
+        return []
+
+    def search_recent(self, *args, **kwargs) -> list:  # type: ignore[override]
+        return []
+
+
+class _NullS2:
+    """Stub that returns no results from Semantic Scholar."""
+
+    def search(self, *args, **kwargs) -> list:  # type: ignore[override]
+        return []
+
+    def get_abstract_by_doi(self, doi: str) -> str:
+        return ""
+
+
+_LONG_ACADEMIC_ABSTRACT = (
+    "This peer-reviewed study presents experimental findings on the research topic, "
+    "covering the methodology, quantitative results, and implications for commercial "
+    "deployment. The work demonstrates significant progress toward practical application "
+    "and discusses open challenges in technology transfer."
+)
+
+_LONG_PATENT_SNIPPET = (
+    "Official patent database record for the claimed invention, verified against the "
+    "national registry. Includes independent and dependent claims, priority date, "
+    "applicant details, and international classification codes."
+)
+
+_LONG_MARKET_SNIPPET = (
+    "Independent editorial market report covering commercialization progress and deployment "
+    "data, revenue figures, confirmed customer contracts, and competitive dynamics in the "
+    "sector. Published by a verified news organization with dedicated industry coverage."
+)
+
+
 def _crossref_record(index: int) -> dict:
     return {
         "DOI": f"10.1234/test-{index}",
         "title": [f"Validated academic result {index}"],
+        "abstract": _LONG_ACADEMIC_ABSTRACT,
         "publisher": "Test Journal Publisher",
         "published": {"date-parts": [[2025, 1, index]]},
     }
@@ -52,7 +93,7 @@ def fake_search(query: str) -> dict:
                 {
                     "title": f"Primary patent record {index}",
                     "link": f"https://patents.google.com/patent/US1000000{index}",
-                    "snippet": "Official patent database result with applicant details.",
+                    "snippet": _LONG_PATENT_SNIPPET,
                 }
                 for index in range(1, 4)
             ]
@@ -63,7 +104,7 @@ def fake_search(query: str) -> dict:
                 {
                     "title": f"Validated academic result {index}",
                     "link": f"https://doi.org/10.1234/test-{index}",
-                    "snippet": "Peer-reviewed result with sufficient supporting context.",
+                    "snippet": "Peer-reviewed result with supporting context.",
                 }
                 for index in range(1, 4)
             ]
@@ -73,7 +114,7 @@ def fake_search(query: str) -> dict:
             {
                 "title": f"Commercial deployment disclosure {index}",
                 "link": f"https://www.reuters.com/technology/test-{index}",
-                "snippet": "Commercial deployment evidence reported with useful context.",
+                "snippet": _LONG_MARKET_SNIPPET,
             }
             for index in range(1, 4)
         ]
@@ -86,6 +127,8 @@ class SourcePipelineTests(TestCase):
             "Test commercialization topic",
             searcher=fake_search,
             crossref=MatchingCrossref(),
+            openalex=_NullOpenAlex(),
+            s2=_NullS2(),
             url_checker=lambda url: (True, ""),
             minimum_sources=3,
             maximum_sources=3,
@@ -120,6 +163,8 @@ class SourcePipelineTests(TestCase):
                 "Test commercialization topic",
                 searcher=fake_search,
                 crossref=MismatchingCrossref(),
+                openalex=_NullOpenAlex(),
+                s2=_NullS2(),
                 url_checker=lambda url: (True, ""),
                 minimum_sources=3,
                 maximum_sources=3,
@@ -160,7 +205,7 @@ class SourcePipelineTests(TestCase):
             ),
             (
                 "https://energy.gov/news/example",
-                "government",
+                "research_institute",  # energy.gov hits _AUTHORITATIVE_RESEARCH_DOMAINS before the .gov rule
                 "high",
             ),
             (
@@ -230,10 +275,7 @@ class SourcePipelineTests(TestCase):
                                 "https://www.reuters.com/technology/"
                                 f"independent-{index}"
                             ),
-                            "snippet": (
-                                "Independent editorial market reporting with "
-                                "sufficient context."
-                            ),
+                            "snippet": _LONG_MARKET_SNIPPET,
                         }
                         for index in range(1, 4)
                     ],
@@ -244,6 +286,8 @@ class SourcePipelineTests(TestCase):
             "Test commercialization topic",
             searcher=search_with_duplicate_market_result,
             crossref=MatchingCrossref(),
+            openalex=_NullOpenAlex(),
+            s2=_NullS2(),
             url_checker=lambda url: (True, ""),
             minimum_sources=3,
             maximum_sources=3,
@@ -296,7 +340,7 @@ class SourcePipelineTests(TestCase):
                         {
                             "title": title,
                             "link": f"https://patents.google.com/patent/{patent_id}",
-                            "snippet": "Official patent registry summary with sufficient detail.",
+                            "snippet": _LONG_PATENT_SNIPPET,
                         }
                         for title, patent_id in records
                     ]
@@ -307,6 +351,8 @@ class SourcePipelineTests(TestCase):
             "Test commercialization topic",
             searcher=search_with_duplicate_patent_family,
             crossref=MatchingCrossref(),
+            openalex=_NullOpenAlex(),
+            s2=_NullS2(),
             url_checker=lambda url: (True, ""),
             minimum_sources=3,
             maximum_sources=3,
@@ -479,7 +525,7 @@ class SourcePipelineTests(TestCase):
                         {
                             "title": f"Independent market evidence {index}",
                             "link": f"https://www.reuters.com/technology/market-{index}",
-                            "snippet": "Independent commercial reporting with useful context.",
+                            "snippet": _LONG_MARKET_SNIPPET,
                         }
                         for index in range(1, 4)
                     ],
@@ -490,6 +536,8 @@ class SourcePipelineTests(TestCase):
             "Test commercialization topic",
             searcher=search_with_title_duplicate,
             crossref=MatchingCrossref(),
+            openalex=_NullOpenAlex(),
+            s2=_NullS2(),
             url_checker=lambda url: (True, ""),
             minimum_sources=3,
             maximum_sources=3,

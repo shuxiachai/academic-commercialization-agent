@@ -389,6 +389,13 @@ def validate_evidence_report(
                 "state its limitations."
             )
 
+    unreferenced_ids = source_id_set - referenced_ids
+    if unreferenced_ids:
+        errors.append(
+            f"unused sources (referenced by no finding): "
+            f"{', '.join(sorted(unreferenced_ids))}."
+        )
+
     return errors
 
 

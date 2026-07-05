@@ -225,7 +225,9 @@ def test_final_guardrail_blocks_unusable_short_report() -> None:
     assert success is False
     assert "too short" in message.lower()
 
-def test_final_guardrail_reports_substantive_claim_without_citation() -> None:
+def test_final_guardrail_passes_substantive_claim_without_citation() -> None:
+    # Non-critical issues (substantive uncited claims) no longer cause guardrail
+    # failure or inject QC warnings — the Reviewer agent (Task 5) handles them.
     markdown = _final_markdown().replace(
         "The competitive assessment is bounded by public evidence [M1].",
         "The technology is commercially dominant across the global market.",
@@ -234,11 +236,12 @@ def test_final_guardrail_reports_substantive_claim_without_citation() -> None:
     success, validated = _guardrail_result(markdown)
 
     assert success is True
-    assert "### Automated Quality-Control Warnings" in validated.raw
-    assert "Substantive claim on report line" in validated.raw
+    assert "### Automated Quality-Control Warnings" not in validated.raw
 
 
-def test_final_guardrail_reports_unsupported_fleet_claim() -> None:
+def test_final_guardrail_passes_fleet_claim_with_citation() -> None:
+    # A fleet claim with a citation passes the final-report guardrail cleanly.
+    # The Reviewer agent (Task 5) audits deeper semantic issues.
     markdown = _final_markdown().replace(
         "The target use case is grounded in market evidence [M1].",
         "Truck and bus fleets benefit most from the technology [M1].",
@@ -247,7 +250,7 @@ def test_final_guardrail_reports_unsupported_fleet_claim() -> None:
     success, validated = _guardrail_result(markdown)
 
     assert success is True
-    assert "Unsupported use-case claim" in validated.raw
+    assert "### Automated Quality-Control Warnings" not in validated.raw
 
 
 def test_final_guardrail_repairs_patent_legal_overclaim() -> None:

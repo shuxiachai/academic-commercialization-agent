@@ -85,9 +85,15 @@ _INDUSTRY_NEWS_DOMAINS = {
     "quantum-computing-report.com",
     # Oncology / biotech trade press
     "onclive.com",
+    "targetedonc.com",
+    "cancernetwork.com",
     "cellandgene.com",
     "fiercebiotech.com",
     "fiercepharma.com",
+    "healio.com",
+    "curetoday.com",
+    "medpagetoday.com",
+    "pharmavoice.com",
 }
 _CONSULTING_RESEARCH_DOMAINS = {
     "mckinsey.com",      # McKinsey & Company

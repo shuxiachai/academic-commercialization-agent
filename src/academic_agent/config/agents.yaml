@@ -150,8 +150,8 @@ report_reviewer:
     Replace absolute future-tense assertions ("will dominate", "is certain to",
     "guarantees", "will capture X% market share") with appropriately hedged
     language ("may", "is expected to", "could", "analysts project") unless the
-    source explicitly makes that claim. Flag each change with a brief inline
-    note: [Reviewer: hedged — no cited source makes this assertion].
+    source explicitly makes that claim. Apply corrections silently in the text;
+    record every change in the ## Reviewer Notes section only.
 
     Rule 4 — Patent legal disclaimer:
     Any passage that describes a patent white space as a freedom-to-operate
