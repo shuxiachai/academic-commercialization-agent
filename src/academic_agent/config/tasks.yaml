@@ -271,16 +271,31 @@ commercialization_scoring_task:
       the context.
     - Each rationale field must be a complete sentence explaining which specific
       findings or source types drove the score.
+    - For each dimension, populate the corresponding source ID list with the
+      exact source IDs (e.g. A1, P2, M3) from the context that most directly
+      support that score. Use only IDs that actually appear in the context JSON.
+      trl_source_ids: IDs from academic (A-prefix) or market (M-prefix) sources
+        that revealed the technology deployment stage.
+      patent_source_ids: IDs from patent (P-prefix) sources that revealed the
+        IP landscape density or white spaces.
+      market_source_ids: IDs from market (M-prefix) sources that revealed
+        commercial activity and demand signals.
+      evidence_source_ids: all source IDs across all domains that meaningfully
+        informed the overall confidence rating.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose:
     {"trl_score": 4,
      "trl_rationale": "...",
+     "trl_source_ids": ["A1", "A3", "M2"],
      "patent_strength": 3,
      "patent_rationale": "...",
+     "patent_source_ids": ["P1", "P2"],
      "market_accessibility": 2,
      "market_rationale": "...",
+     "market_source_ids": ["M1", "M3"],
      "evidence_confidence": 4,
      "evidence_rationale": "...",
+     "evidence_source_ids": ["A1", "A2", "P1", "M1"],
      "overall_score": 56,
      "scoring_rationale": "...",
      "key_risks": ["...", "..."],

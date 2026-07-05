@@ -190,12 +190,16 @@ class CommercializationScore(BaseModel):
 
     trl_score: int = Field(ge=1, le=9)
     trl_rationale: str = Field(min_length=20)
+    trl_source_ids: list[str] = Field(min_length=1, description="Source IDs (A/M prefix) that drove the TRL assessment")
     patent_strength: int = Field(ge=1, le=5)
     patent_rationale: str = Field(min_length=20)
+    patent_source_ids: list[str] = Field(min_length=1, description="Source IDs (P prefix) that drove the patent strength score")
     market_accessibility: int = Field(ge=1, le=5)
     market_rationale: str = Field(min_length=20)
+    market_source_ids: list[str] = Field(min_length=1, description="Source IDs (M prefix) that drove the market accessibility score")
     evidence_confidence: int = Field(ge=1, le=5)
     evidence_rationale: str = Field(min_length=20)
+    evidence_source_ids: list[str] = Field(min_length=1, description="All source IDs informing the overall evidence confidence score")
     overall_score: int = Field(ge=0, le=100)
     scoring_rationale: str = Field(min_length=20)
     key_risks: list[str] = Field(min_length=1, max_length=5)
@@ -214,6 +218,23 @@ def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
                 "Return exactly one valid JSON object matching the scoring schema "
                 f"with no Markdown fences or prose. Validation error: {exc}",
             )
+
+        # Validate source ID format: each must match the letter+digit pattern (A1, P2, M3…)
+        id_errors: list[str] = []
+        for field, ids in (
+            ("trl_source_ids", score.trl_source_ids),
+            ("patent_source_ids", score.patent_source_ids),
+            ("market_source_ids", score.market_source_ids),
+            ("evidence_source_ids", score.evidence_source_ids),
+        ):
+            bad = [sid for sid in ids if not _SOURCE_ID_PATTERN.fullmatch(sid)]
+            if bad:
+                id_errors.append(
+                    f"{field} contains invalid source IDs: {bad}. "
+                    "Use IDs exactly as they appear in the context (e.g. A1, P2, M3)."
+                )
+        if id_errors:
+            return False, " ".join(id_errors)
 
         # Recompute overall_score from the formula to eliminate LLM arithmetic errors.
         # Formula (matches backstory): TRL 30% + IP 30% + Market 25% + Evidence 15%
