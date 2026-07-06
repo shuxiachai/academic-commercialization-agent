@@ -107,6 +107,10 @@ _INDUSTRY_NEWS_DOMAINS = {
     "pharmavoice.com",
     # General engineering / science news
     "interestingengineering.com",
+    # Energy / utility industry trade press
+    "utilitydive.com",
+    "greentechmedia.com",
+    "energymonitor.ai",
     # Alternative protein / cultivated meat industry
     "gfi.org",
     "agfundernews.com",

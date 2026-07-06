@@ -780,7 +780,11 @@ def validate_final_report(
             in_limitations = stripped == "## Evidence Limitations"
         if not stripped or stripped.startswith("#") or re.fullmatch(r"[-|:\s]+", stripped):
             continue
-        if re.fullmatch(r"\*\*\d+\.\s+.+\*\*", stripped):
+        # Bold headers: "**1. Title**" or "**Opportunity 1: Title**"
+        if re.fullmatch(r"\*\*(?:\w+\s+)?\d+[.:]\s*.+\*\*", stripped):
+            continue
+        # Numbered list items ("1. …") — ordinal markers, not numeric claims
+        if re.match(r"^\d+\.\s", stripped):
             continue
 
         line_ids, line_citation_errors = parse_citation_ids(stripped)

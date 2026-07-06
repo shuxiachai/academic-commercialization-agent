@@ -50,15 +50,35 @@ def _count_numeric_uncited(report: str) -> int:
 
     This is a proxy for hallucination risk: a claim with a number that has
     no [A1]/[P2]/[M3] citation cannot be traced back to a verified source.
+
+    Exclusions to reduce false positives:
+    - Lines in/after ## References (includes Reviewer Notes)
+    - Lines in ## Evidence Limitations (analyst-qualified statements)
+    - Numbered list-item markers ("1. ", "2. " at line start)
+    - Bold section-internal headers ("**Opportunity 1: …**")
     """
+    # Everything from ## References onward (Reviewer Notes lives there) is excluded.
+    body = report.split("## References")[0] if "## References" in report else report
+
     count = 0
-    for line in report.splitlines():
+    in_limitations = False
+    for line in body.splitlines():
         s = line.strip()
         if not s:
             continue
+        if s.startswith("## "):
+            in_limitations = (s == "## Evidence Limitations")
+        if in_limitations:
+            continue
         if any(s.startswith(p) for p in _SKIP_LINE_PREFIXES):
             continue
-        if s.endswith(":"):  # intro / section-header lines
+        if s.endswith(":"):
+            continue
+        # Numbered list items ("1. …") — ordinal markers, not numeric claims
+        if re.match(r"^\d+\.\s", s):
+            continue
+        # Bold internal headers like "**Opportunity 1: Title**"
+        if re.fullmatch(r"\*\*(?:\w+\s+)?\d+[.:]\s*.+\*\*", s):
             continue
         if _NUMERIC_CLAIM_PATTERN.search(s) and not _CITATION_PATTERN.search(s):
             count += 1
