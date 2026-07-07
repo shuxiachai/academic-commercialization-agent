@@ -780,8 +780,12 @@ def validate_final_report(
             in_limitations = stripped == "## Evidence Limitations"
         if not stripped or stripped.startswith("#") or re.fullmatch(r"[-|:\s]+", stripped):
             continue
-        # Bold headers: "**1. Title**" or "**Opportunity 1: Title**"
-        if re.fullmatch(r"\*\*(?:\w+\s+)?\d+[.:]\s*.+\*\*", stripped):
+        # Markdown unordered list items ("- …" or "* …")
+        if re.match(r"^[-*]\s", stripped):
+            continue
+        # Bold headers: "**1. Title**", "**Use Case 1: Title**",
+        # "**Recommendation 1 (High Priority): Title**"
+        if re.fullmatch(r"\*\*(?:(?:\w+\s+){1,3})?\d+(?:\s*\([^)]+\))?[.:]\s*.+\*\*", stripped):
             continue
         # Numbered list items ("1. …") — ordinal markers, not numeric claims
         if re.match(r"^\d+\.\s", stripped):

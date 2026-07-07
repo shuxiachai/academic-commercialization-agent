@@ -19,6 +19,10 @@ import re
 import sys
 from pathlib import Path
 
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from academic_agent.evidence import (
@@ -29,8 +33,8 @@ from academic_agent.evidence import (
 BENCHMARK_ROOT = Path(__file__).parent / "outputs" / "benchmark"
 OUTPUT_CSV = BENCHMARK_ROOT / "benchmark_summary.csv"
 
-# Matches any [A1], [P2], [M3] citation bracket in a line
-_CITATION_PATTERN = re.compile(r"\[[APM]\d+\]")
+# Matches citation brackets: [A1], [P2], [M3], or comma-separated [A4, A5]
+_CITATION_PATTERN = re.compile(r"\[[APM]\d+(?:\s*,\s*[APM]\d+)*\]")
 
 # Lines we should not flag as "uncited numeric claims"
 _SKIP_LINE_PREFIXES = ("#", "|", ">", "```", "---", "===")
@@ -77,8 +81,12 @@ def _count_numeric_uncited(report: str) -> int:
         # Numbered list items ("1. …") — ordinal markers, not numeric claims
         if re.match(r"^\d+\.\s", s):
             continue
-        # Bold internal headers like "**Opportunity 1: Title**"
-        if re.fullmatch(r"\*\*(?:\w+\s+)?\d+[.:]\s*.+\*\*", s):
+        # Markdown unordered list items ("- …" or "* …")
+        if re.match(r"^[-*]\s", s):
+            continue
+        # Bold internal headers: "**1. Title**", "**Use Case 1: Title**",
+        # "**Recommendation 1 (High Priority): Title**"
+        if re.fullmatch(r"\*\*(?:(?:\w+\s+){1,3})?\d+(?:\s*\([^)]+\))?[.:]\s*.+\*\*", s):
             continue
         if _NUMERIC_CLAIM_PATTERN.search(s) and not _CITATION_PATTERN.search(s):
             count += 1

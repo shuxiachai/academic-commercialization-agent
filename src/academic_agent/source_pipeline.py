@@ -802,13 +802,18 @@ def _academic_source_from_openalex(
     if not doi:
         return None, f"OpenAlex work has no DOI: {title!r}"
     topic_match = _openalex_topic_relevant(work, research_topic)
-    if topic_match is False:
+    # topic_match is False means OpenAlex labels are present but none overlap —
+    # this happens when papers are tagged with broad field labels (e.g.
+    # "Electrochemical Energy Storage") rather than the specific technology term.
+    # Fall through to the title check before hard-rejecting, the same way we
+    # handle the topic_match is None (no label data) case.
+    if topic_match is False and not _title_matches_topic(title, research_topic):
         return None, f"OpenAlex topics indicate off-topic paper: {title!r}"
     if topic_match is None and not _title_matches_topic(title, research_topic):
         return None, f"OpenAlex title not relevant to topic: {title!r}"
 
     abstract = _openalex_abstract(work)
-    if len(abstract) < 40 and s2_client is not None and topic_match is not False:
+    if len(abstract) < 40 and s2_client is not None:
         abstract = s2_client.get_abstract_by_doi(doi)
     if len(abstract) < 40:
         return None, f"abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1159,12 +1164,18 @@ def _collect_domain(
     accepted: list[EvidenceSource] = []
     audits: list[SearchAudit] = []
     seen_patent_titles: set[str] = set()
+    seen_academic_title_keys: set[str] = set()
     seen_locators: set[str] = set()
     excluded_dois = {
         doi.lower()
         for doi in (blocked_dois or set())
     }
     excluded_titles = {title for title in (blocked_titles or set()) if title.strip()}
+    # Pre-normalised keys of already-accepted titles (from OpenAlex pass or
+    # prior queries) — used for academic title dedup across search batches.
+    excluded_title_keys: set[str] = {
+        " ".join(_WORD_PATTERN.findall(t.lower())) for t in excluded_titles
+    }
 
     for query in queries:
         response = searcher(query)
@@ -1241,6 +1252,14 @@ def _collect_domain(
                 audit.rejected_reasons.append(f"duplicate source: {locator}")
                 continue
             seen_locators.add(locator.lower())
+            if domain == "academic":
+                title_key = " ".join(_WORD_PATTERN.findall(source.title.lower()))
+                if title_key in seen_academic_title_keys or title_key in excluded_title_keys:
+                    audit.rejected_reasons.append(
+                        f"duplicate academic title: {source.title}"
+                    )
+                    continue
+                seen_academic_title_keys.add(title_key)
             if domain == "patent":
                 patent_title_key = " ".join(_WORD_PATTERN.findall(source.title.lower()))
                 if patent_title_key in seen_patent_titles:
@@ -1420,6 +1439,8 @@ def collect_source_collection(
                 resolved_date, normalized_topic,
                 minimum_sources=0,
                 maximum_sources=needed,
+                blocked_dois=existing_dois,
+                blocked_titles={src.title for src in academic},
             )
             all_audits.extend(fb_audits)
             for src in fallback:
