@@ -40,8 +40,10 @@ _TOPIC_STOPWORDS = {
     "topic",
 }
 # Prepositions that mark the end of the core noun phrase in a topic string.
+# "of" is intentionally excluded: "large-scale manufacturing OF perovskite solar cells"
+# — "of" links the activity to the technology, so the technology words must be kept.
 _TOPIC_PREPOSITIONS = frozenset({
-    "for", "in", "of", "with", "using", "via", "through", "by", "on", "at",
+    "for", "in", "with", "using", "via", "through", "by", "on", "at",
 })
 _AUTHORITATIVE_RESEARCH_DOMAINS = {
     "iea.org",
@@ -566,7 +568,10 @@ def _title_matches_topic(title: str, topic: str) -> bool:
     if not topic_tokens:
         return True
     title_tokens = set(_WORD_PATTERN.findall(title.lower()))
-    return bool(topic_tokens & title_tokens)
+    overlap = topic_tokens & title_tokens
+    # Require ≥2 matching tokens so a single generic word like "manufacturing"
+    # or "storage" alone cannot qualify an off-topic paper.
+    return len(overlap) >= 2
 
 def _published_date(item: dict[str, Any]) -> date | None:
     for key in ("published-print", "published-online", "published", "issued"):
@@ -819,15 +824,16 @@ def _academic_source_from_openalex(
     if not doi:
         return None, f"OpenAlex work has no DOI: {title!r}"
     topic_match = _openalex_topic_relevant(work, research_topic)
-    # topic_match is False means OpenAlex labels are present but none overlap —
-    # this happens when papers are tagged with broad field labels (e.g.
-    # "Electrochemical Energy Storage") rather than the specific technology term.
-    # Fall through to the title check before hard-rejecting, the same way we
-    # handle the topic_match is None (no label data) case.
-    if topic_match is False and not _title_matches_topic(title, research_topic):
-        return None, f"OpenAlex topics indicate off-topic paper: {title!r}"
-    if topic_match is None and not _title_matches_topic(title, research_topic):
-        return None, f"OpenAlex title not relevant to topic: {title!r}"
+    # Always require a title match regardless of OpenAlex topic classification.
+    # topic_match=True only means OpenAlex field labels overlap (e.g. "Manufacturing"),
+    # which is too broad — a generic manufacturing paper should not pass title check.
+    if not _title_matches_topic(title, research_topic):
+        if topic_match is True:
+            return None, f"OpenAlex topic matched broadly but title is off-topic: {title!r}"
+        elif topic_match is False:
+            return None, f"OpenAlex topics indicate off-topic paper: {title!r}"
+        else:
+            return None, f"OpenAlex title not relevant to topic: {title!r}"
 
     abstract = _openalex_abstract(work)
     if len(abstract) < 40 and s2_client is not None:

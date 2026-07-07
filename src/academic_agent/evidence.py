@@ -690,7 +690,12 @@ def validate_final_report(
 ) -> list[str]:
     """Validate citation integrity in the final Markdown report."""
 
-    headings_to_check = required_headings or _REQUIRED_REPORT_HEADINGS
+    # _canonical_reference_section always writes "## References" in English,
+    # so swap the localized References heading for the canonical English form.
+    if required_headings:
+        headings_to_check = required_headings[:-1] + ("## References",)
+    else:
+        headings_to_check = _REQUIRED_REPORT_HEADINGS
     errors: list[str] = []
     for heading in headings_to_check:
         if heading not in markdown:
@@ -955,10 +960,21 @@ def _normalize_report_citations(
 def _canonical_reference_section(
     markdown: str,
     sources: dict[str, EvidenceSource],
+    localized_ref_heading: str | None = None,
 ) -> str:
     """Replace model-authored references with deterministic cited records."""
 
-    body = markdown.split("## References", maxsplit=1)[0].rstrip()
+    # Strip the model's reference section (localized heading first, then English fallback)
+    split_markers = []
+    if localized_ref_heading and localized_ref_heading != "## References":
+        split_markers.append(localized_ref_heading)
+    split_markers.append("## References")
+    body = markdown
+    for marker in split_markers:
+        if marker in body:
+            body = body.split(marker, maxsplit=1)[0]
+            break
+    body = body.rstrip()
     cited_ids, _ = parse_citation_ids(body)
     cited_sources = {
         source_id: sources[source_id]
@@ -1090,7 +1106,12 @@ def normalize_final_report(
                 )
                 break
 
-    normalized = _canonical_reference_section(normalized, allowed_sources)
+    localized_ref = (
+        required_headings[-1]
+        if required_headings and len(required_headings) >= 1
+        else None
+    )
+    normalized = _canonical_reference_section(normalized, allowed_sources, localized_ref)
     return normalized, errors
 
 
@@ -1221,18 +1242,22 @@ def make_reviewer_guardrail(
 
         # 2. Required headings (use localized equivalents when provided)
         # localized_headings order: [title, exec_summary, ..., evidence_limits, references]
+        # References is always written in English by _canonical_reference_section,
+        # so check both the localized form and the English "## references".
         if localized_headings and len(localized_headings) >= 2:
-            reviewer_headings = (
-                localized_headings[1].lower(),   # executive summary equivalent
-                localized_headings[-1].lower(),  # references equivalent
-            )
+            exec_summary_heading = localized_headings[1].lower()
+            localized_ref = localized_headings[-1].lower()
+            reviewer_headings_pairs = [
+                (exec_summary_heading,),
+                (localized_ref, "## references"),  # accept either form
+            ]
         else:
-            reviewer_headings = _REVIEWER_REQUIRED_HEADINGS
+            reviewer_headings_pairs = [(h,) for h in _REVIEWER_REQUIRED_HEADINGS]
         reviewed_lower = reviewed.lower()
-        for heading in reviewer_headings:
-            if heading not in reviewed_lower:
+        for candidates in reviewer_headings_pairs:
+            if not any(c in reviewed_lower for c in candidates):
                 errors.append(
-                    f"Required section '{heading.lstrip('# ')}' is missing. "
+                    f"Required section '{candidates[0].lstrip('# ')}' is missing. "
                     "Do not remove any sections from the report."
                 )
 
