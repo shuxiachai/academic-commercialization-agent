@@ -138,8 +138,18 @@ market_intelligence_task:
 # ----------------------------------------------------------
 commercialization_report_task:
   description: >
-    Write a comprehensive commercialization assessment for {research_topic}
+    Write a comprehensive commercialization assessment for {display_topic}
     using only the three validated EvidenceReport task outputs in context.
+
+    LANGUAGE REQUIREMENT: Write the ENTIRE report in {output_language}.
+    All section headings, body text, analysis, and commentary must be in
+    {output_language}. Source titles in the References section may remain
+    in their original language, but all surrounding text must be in
+    {output_language}. Use the required section headings provided below
+    (already translated to {output_language}) exactly as given.
+
+    Required section headings (use these exactly):
+    {localized_headings}
 
     Citation rules:
     - Cite every factual, numerical, patent, company, market, and maturity claim
@@ -181,23 +191,15 @@ commercialization_report_task:
     - Every References entry must begin with a bracketed source ID, for example
       [A1], followed by the validated metadata.
   expected_output: >
-    A Markdown report with:
+    A Markdown report written entirely in {output_language}, with the following
+    sections in the exact order shown (headings already translated):
 
-    # Academic Commercialization Assessment: {research_topic}
-
-    ## Executive Summary
-    ## 1. Technology Overview & Maturity
-    ## 2. Patent Landscape & White Spaces
-    ## 3. Target Industries & Use Cases
-    ## 4. Competitive Landscape
-    ## 5. Commercialization Opportunities & Recommendations
-    ## Evidence Limitations
-    ## References
+    {localized_headings}
 
     Every material claim must carry an inline [source_id] citation. The
     References section must resolve all cited IDs and contain no uncited,
     invented, duplicated, or externally added sources. Formatted as Markdown
-    without code blocks.
+    without code blocks. All body text must be in {output_language}.
   agent: commercialization_report_writer
 
 # ----------------------------------------------------------
@@ -215,9 +217,14 @@ commercialization_report_task:
 report_review_task:
   description: >
     You will receive a draft commercialization assessment report for
-    {research_topic} as context, together with the structured evidence JSON
+    {display_topic} as context, together with the structured evidence JSON
     outputs from the academic, patent, and market analysis tasks.
     Apply all five review rules exactly as described in your backstory.
+
+    LANGUAGE REQUIREMENT: The report is written in {output_language}.
+    Your corrections and the final output must remain entirely in {output_language}.
+    Do NOT translate the report. Do NOT switch the language. The ## Reviewer Notes
+    section must also be written in {output_language}.
 
     Do not add new factual content. Do not restructure sections. Do not
     change the tone or depth of analysis. Only fix the five categories of

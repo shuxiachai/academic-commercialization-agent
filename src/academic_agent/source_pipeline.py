@@ -212,7 +212,10 @@ class SearchAudit(BaseModel):
 
 
 class SourceCollection(BaseModel):
-    topic: str
+    topic: str                          # English topic used for search APIs
+    display_topic: str = ""             # Original topic in user's language (for report title)
+    output_language: str = "English"    # Human-readable language name passed to LLM
+    localized_headings: list[str] = Field(default_factory=list)  # Translated section headings
     collected_at: datetime
     academic_sources: list[EvidenceSource] = Field(min_length=3)
     patent_sources: list[EvidenceSource] = Field(min_length=3)
@@ -245,6 +248,8 @@ class SourceCollection(BaseModel):
             raise ValueError(f"Unsupported source prefix: {prefix}") from exc
 
     def crew_inputs(self) -> dict[str, str]:
+        from academic_agent.evidence import _REQUIRED_REPORT_HEADINGS
+
         def dump_sources(sources: list[EvidenceSource]) -> str:
             return json.dumps(
                 [source.model_dump(mode="json") for source in sources],
@@ -252,11 +257,15 @@ class SourceCollection(BaseModel):
                 separators=(",", ":"),
             )
 
+        headings = self.localized_headings or list(_REQUIRED_REPORT_HEADINGS)
         return {
-            "research_topic": self.topic,
+            "research_topic":  self.topic,
+            "display_topic":   self.display_topic or self.topic,
+            "output_language": self.output_language,
+            "localized_headings": "\n".join(headings),
             "academic_sources_json": dump_sources(self.academic_sources),
-            "patent_sources_json": dump_sources(self.patent_sources),
-            "market_sources_json": dump_sources(self.market_sources),
+            "patent_sources_json":   dump_sources(self.patent_sources),
+            "market_sources_json":   dump_sources(self.market_sources),
             "academic_search_queries_json": json.dumps(
                 self.academic_queries, ensure_ascii=False
             ),
@@ -276,17 +285,25 @@ class SerperClient:
         *,
         n_results: int = 10,
         timeout: int = 20,
+        gl: str = "us",
+        hl: str = "en",
     ) -> None:
         self.api_key = api_key or os.getenv("SERPER_API_KEY")
         if not self.api_key:
             raise SourceCollectionError("SERPER_API_KEY is required for source retrieval.")
         self.n_results = n_results
         self.timeout = timeout
+        self.gl = gl
+        self.hl = hl
 
     def search(self, query: str) -> dict[str, Any]:
+        payload: dict[str, Any] = {"q": query, "num": self.n_results}
+        if self.gl != "us" or self.hl != "en":
+            payload["gl"] = self.gl
+            payload["hl"] = self.hl
         request = Request(
             "https://google.serper.dev/search",
-            data=json.dumps({"q": query, "num": self.n_results}).encode("utf-8"),
+            data=json.dumps(payload).encode("utf-8"),
             headers={
                 "X-API-KEY": self.api_key,
                 "Content-Type": "application/json",
@@ -973,6 +990,31 @@ def _market_source_profile(
             "high",
             "Official government source; authoritative within its stated scope.",
         )
+    # Country-specific government TLD patterns (non-.gov forms used internationally)
+    _GOV_SUFFIXES = (
+        ".gouv.fr",  # French government
+        ".bund.de",  # German federal
+        ".go.jp",    # Japanese government
+        ".go.kr",    # South Korean government
+        ".go.id",    # Indonesian government
+        ".govt.nz",  # New Zealand government
+        ".gob.es",   # Spanish government
+        ".gob.mx",   # Mexican government
+        ".gob.ar",   # Argentine government
+        ".gov.au",   # Australian government
+        ".gov.uk",   # UK government
+        ".gov.cn",   # Chinese government
+        ".gov.in",   # Indian government
+        ".gov.br",   # Brazilian government
+        ".gov.sg",   # Singapore government
+        ".gov.za",   # South African government
+    )
+    if any(host.endswith(s) for s in _GOV_SUFFIXES):
+        return (
+            "government",
+            "high",
+            "Official government source; authoritative within its stated scope.",
+        )
     if host.endswith(".edu") or ".edu." in host:
         return (
             "research_institute",
@@ -1091,27 +1133,40 @@ def _web_source(
     )
 
 
-def _queries(topic: str) -> dict[Domain, list[str]]:
+def _queries(
+    topic: str,
+    *,
+    native_topic: str | None = None,
+    patent_cc: str = "",
+) -> dict[Domain, list[str]]:
+    patent: list[str] = [
+        f"{topic} site:patents.google.com/patent",
+        f"{topic} site:patentscope.wipo.int",
+        f"{topic} patent applicant",
+    ]
+    if patent_cc:
+        # Prioritise country-specific patents when input language implies a country.
+        patent.insert(0, f"{topic} {patent_cc} site:patents.google.com/patent")
+
+    market: list[str] = [
+        f"{topic} company commercial deployment",
+        f"{topic} government standards pilot",
+        f"{topic} manufacturing commercialization",
+        f"{topic} product manufacturer revenue commercial sales 2024",
+        f"{topic} market size billion company investment startup",
+    ]
+    if native_topic and native_topic != topic:
+        # One native-language query so the native Serper pass has a base query.
+        market.append(native_topic)
+
     return {
         "academic": [
             f"{topic} peer reviewed DOI",
             f"{topic} review journal",
             f"{topic} efficiency stability commercialization",
         ],
-        "patent": [
-            f"{topic} site:patents.google.com/patent",
-            f"{topic} site:patentscope.wipo.int",
-            f"{topic} patent applicant",
-        ],
-        "market": [
-            # Broad commercialization signals
-            f"{topic} company commercial deployment",
-            f"{topic} government standards pilot",
-            f"{topic} manufacturing commercialization",
-            # Commercial maturity signals: who is selling, market size, investment
-            f"{topic} product manufacturer revenue commercial sales 2024",
-            f"{topic} market size billion company investment startup",
-        ],
+        "patent": patent,
+        "market": market,
     }
 
 
@@ -1407,21 +1462,58 @@ def collect_source_collection(
     maximum_sources: int = 6,
     accessed_date: date | None = None,
 ) -> SourceCollection:
-    normalized_topic = " ".join(topic.split())
+    # ── Language detection & translation ─────────────────────────────────────
+    from academic_agent.language import (
+        detect_language, get_lang_info,
+        translate_to_english, translate_headings,
+    )
+    from academic_agent.evidence import _REQUIRED_REPORT_HEADINGS
+
+    lang_code  = detect_language(topic)
+    lang_info  = get_lang_info(lang_code)
+    is_native  = not lang_code.startswith("en")
+
+    if is_native:
+        english_topic = translate_to_english(topic)
+        native_topic  = topic
+    else:
+        english_topic = topic
+        native_topic  = None
+
+    normalized_topic = " ".join(english_topic.split())
     if len(normalized_topic) < 3:
         raise SourceCollectionError("Research topic must contain at least 3 characters.")
     if minimum_sources < 1 or maximum_sources < minimum_sources:
         raise ValueError("Source count bounds are invalid.")
 
-    resolved_searcher = searcher or SerperClient().search
+    # Translate report headings once so guardrails and the LLM use the same strings.
+    if is_native:
+        localized_headings = list(
+            translate_headings(_REQUIRED_REPORT_HEADINGS, lang_info["name"])
+        )
+    else:
+        localized_headings = []
+
+    patent_cc  = lang_info.get("patent_cc", "")
+    query_map  = _queries(normalized_topic, native_topic=native_topic, patent_cc=patent_cc)
+
     resolved_crossref = crossref or CrossrefClient()
     resolved_openalex = openalex or OpenAlexClient()
-    resolved_s2 = s2 or SemanticScholarClient()
-    resolved_date = accessed_date or date.today()
-    query_map = _queries(normalized_topic)
+    resolved_s2       = s2 or SemanticScholarClient()
+    resolved_date     = accessed_date or date.today()
     all_audits: list[SearchAudit] = []
 
-    # ── Academic: OpenAlex primary, S2 supplement, Serper+Crossref fallback
+    # Default (English) Serper client
+    default_serper   = SerperClient()
+    resolved_searcher = searcher or default_serper.search
+
+    # Native-language Serper client (only instantiated when needed)
+    if is_native and searcher is None:
+        native_serper = SerperClient(gl=lang_info["gl"], hl=lang_info["hl"])
+    else:
+        native_serper = None
+
+    # ── Academic: OpenAlex primary, S2 supplement, Serper+Crossref fallback ──
     academic, oa_audits = _collect_academic_primary(
         normalized_topic, resolved_openalex, resolved_s2, resolved_date,
         maximum_sources=maximum_sources,
@@ -1462,7 +1554,7 @@ def collect_source_collection(
         )
     _renumber(academic, "A")
 
-    # ── Patents: Serper ───────────────────────────────────────────────────
+    # ── Patents: Serper ───────────────────────────────────────────────────────
     patents, patent_audits = _collect_domain(
         "patent",
         query_map["patent"],
@@ -1473,7 +1565,7 @@ def collect_source_collection(
     )
     all_audits.extend(patent_audits)
 
-    # ── Market: Serper (unchanged) ─────────────────────────────────────────
+    # ── Market: English Serper + native-language Serper supplement ────────────
     market, market_audits = _collect_domain(
         "market",
         query_map["market"],
@@ -1486,8 +1578,32 @@ def collect_source_collection(
     )
     all_audits.extend(market_audits)
 
+    # Supplement market with native-language search when input is non-English.
+    if native_serper is not None and native_topic and len(market) < maximum_sources:
+        try:
+            native_market, native_market_audits = _collect_domain(
+                "market",
+                [native_topic],          # topic in user's language as the query
+                native_serper.search, resolved_crossref, url_checker,
+                resolved_date, normalized_topic,
+                minimum_sources=0,
+                maximum_sources=maximum_sources - len(market),
+                blocked_dois={src.doi for src in academic if src.doi is not None},
+                blocked_titles={src.title for src in academic}
+                              | {src.title for src in market},
+            )
+            all_audits.extend(native_market_audits)
+            market.extend(native_market)
+        except SourceCollectionError:
+            pass
+
+    _renumber(market, "M")
+
     return SourceCollection(
         topic=normalized_topic,
+        display_topic=native_topic or normalized_topic,
+        output_language=lang_info["name"],
+        localized_headings=localized_headings,
         collected_at=datetime.now(timezone.utc),
         academic_sources=academic,
         patent_sources=patents,

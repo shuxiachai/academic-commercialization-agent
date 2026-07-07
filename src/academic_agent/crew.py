@@ -221,12 +221,20 @@ class AcademicAgent:
             self.patent_analysis_task(),       # Task 2 输出作为上下文 / Task 2 output as context
             self.market_intelligence_task(),   # Task 3 输出作为上下文 / Task 3 output as context
         ]
+        localized = (
+            tuple(self.source_collection.localized_headings)
+            if self.source_collection.localized_headings
+            else None
+        )
         return Task(
             config=self.tasks_config[
                 "commercialization_report_task"
             ],  # type: ignore[index]
             context=context_tasks,
-            guardrail=make_final_report_guardrail(context_tasks),  # 引用完整性校验 / Citation integrity check
+            guardrail=make_final_report_guardrail(
+                context_tasks,
+                required_headings=localized,
+            ),
             guardrail_max_retries=1,
             markdown=True,
         )
@@ -252,7 +260,14 @@ class AcademicAgent:
                 self.patent_analysis_task(),        # Task 2 原始专利证据 / Raw patent evidence
                 self.market_intelligence_task(),    # Task 3 原始市场证据 / Raw market evidence
             ],
-            guardrail=make_reviewer_guardrail(report_task),
+            guardrail=make_reviewer_guardrail(
+                report_task,
+                localized_headings=(
+                    tuple(self.source_collection.localized_headings)
+                    if self.source_collection.localized_headings
+                    else None
+                ),
+            ),
             guardrail_max_retries=1,
             markdown=True,
         )

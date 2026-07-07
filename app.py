@@ -556,6 +556,7 @@ def run_analysis(research_topic: str):
         "error": None,
         "error_path": None,
         "current_stage": _STAGE_INITIAL,
+        "output_language": None,
     }
     completed_tasks = [0]
 
@@ -569,6 +570,7 @@ def run_analysis(research_topic: str):
         try:
             result_holder["current_stage"] = _STAGE_INITIAL
             source_collection = collect_source_collection(research_topic.strip())
+            result_holder["output_language"] = source_collection.output_language
             save_source_collection(source_collection.model_dump_json(indent=2), run_id=run_id)
             result_holder["current_stage"] = TASK_STAGE_LABELS[0]
 
@@ -638,7 +640,14 @@ def run_analysis(research_topic: str):
         report = result_holder["result"] or "Report generation failed. Please retry."
         path = result_holder["path"]
         scores_json = result_holder["scores"]
-        score_html = _render_score_html(scores_json, research_topic.strip()) if scores_json else ""
+        output_language = result_holder.get("output_language") or "English"
+        lang_badge = (
+            f'<div style="font-family:system-ui;margin-bottom:10px;">'
+            f'<span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;'
+            f'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">'
+            f'🌐 Report language: {html.escape(output_language)}</span></div>'
+        ) if output_language != "English" else ""
+        score_html = (lang_badge + _render_score_html(scores_json, research_topic.strip())) if scores_json else lang_badge
         footer = f"\n\n---\n\nRun ID: `{run_id}`  \nSaved to: `{path}`"
         md_update = gr.update(value=str(path), visible=True) if path else gr.update(visible=False)
         pdf_path = _generate_pdf(report, path.parent) if path else None
@@ -751,6 +760,7 @@ _HEADER_HTML = """
     Enter a research topic to launch <strong style="color:#e5e5e5;">6 specialized AI agents</strong>
     that assess commercialization readiness — producing a scored report with verified citations.
     Expected run time: <strong style="color:#e5e5e5;">5–8 minutes</strong>.
+    Input any language — the report is generated in the same language.
   </p>
   <div style="display:flex;gap:6px;flex-wrap:wrap;">
     <span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;font-size:11px;
@@ -783,7 +793,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
             with gr.Row(equal_height=False):
                 topic_input = gr.Textbox(
                     label="Research Topic",
-                    placeholder="e.g., perovskite solar cells for building-integrated photovoltaics",
+                    placeholder="e.g., perovskite solar cells for building-integrated photovoltaics  |  例如：钠离子电池在电网储能中的商业化",
                     lines=2,
                     scale=10,
                 )

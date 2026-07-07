@@ -685,11 +685,14 @@ def _validate_high_risk_claims(
 def validate_final_report(
     markdown: str,
     allowed_sources: dict[str, EvidenceSource],
+    *,
+    required_headings: tuple[str, ...] | None = None,
 ) -> list[str]:
     """Validate citation integrity in the final Markdown report."""
 
+    headings_to_check = required_headings or _REQUIRED_REPORT_HEADINGS
     errors: list[str] = []
-    for heading in _REQUIRED_REPORT_HEADINGS:
+    for heading in headings_to_check:
         if heading not in markdown:
             errors.append(f"Missing required heading: {heading}")
 
@@ -1110,6 +1113,8 @@ def _append_quality_control_warnings(
 
 def make_final_report_guardrail(
     context_tasks: Sequence[Any],
+    *,
+    required_headings: tuple[str, ...] | None = None,
 ) -> Callable[[TaskOutput], tuple[bool, Any]]:
     """Normalize the report, then enforce citation and high-risk claim policies."""
 
@@ -1127,7 +1132,10 @@ def make_final_report_guardrail(
             finding_sources,
         )
         output.raw = normalized
-        errors = validate_final_report(normalized, allowed_sources)
+        errors = validate_final_report(
+            normalized, allowed_sources,
+            required_headings=required_headings,
+        )
         critical_prefixes = (
             "Missing required heading:",
             "The report body contains no source citations.",
@@ -1161,6 +1169,8 @@ _REVIEWER_REQUIRED_HEADINGS = ("## executive summary", "## references")
 
 def make_reviewer_guardrail(
     report_task: Any,
+    *,
+    localized_headings: tuple[str, ...] | None = None,
 ) -> Callable[[TaskOutput], tuple[bool, Any]]:
     """Light guardrail for Task 5: prevent regression from Task 4's validated output.
 
@@ -1196,12 +1206,20 @@ def make_reviewer_guardrail(
                 f"{pct:.0%} retained). Apply corrections in place; do not omit sections."
             )
 
-        # 2. Required headings
+        # 2. Required headings (use localized equivalents when provided)
+        # localized_headings order: [title, exec_summary, ..., evidence_limits, references]
+        if localized_headings and len(localized_headings) >= 2:
+            reviewer_headings = (
+                localized_headings[1].lower(),   # executive summary equivalent
+                localized_headings[-1].lower(),  # references equivalent
+            )
+        else:
+            reviewer_headings = _REVIEWER_REQUIRED_HEADINGS
         reviewed_lower = reviewed.lower()
-        for heading in _REVIEWER_REQUIRED_HEADINGS:
+        for heading in reviewer_headings:
             if heading not in reviewed_lower:
                 errors.append(
-                    f"Required section '{heading.lstrip('# ').title()}' is missing. "
+                    f"Required section '{heading.lstrip('# ')}' is missing. "
                     "Do not remove any sections from the report."
                 )
 
