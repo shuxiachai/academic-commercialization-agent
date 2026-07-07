@@ -1045,9 +1045,11 @@ def normalize_final_report(
     markdown: str,
     allowed_sources: dict[str, EvidenceSource],
     finding_sources: dict[str, list[str]],
+    required_headings: tuple[str, ...] | None = None,
 ) -> tuple[str, list[str]]:
     """Deterministically repair common model formatting errors."""
 
+    # Normalise the Evidence Limitations heading (English form only)
     normalized = re.sub(
         r"(?m)^##\s+(?:\d+\.\s*)?Evidence Limitations\s*$",
         "## Evidence Limitations",
@@ -1066,17 +1068,27 @@ def normalize_final_report(
         "not legal advice" not in lowered
         or "freedom-to-operate" not in lowered
     ):
-        marker = "## Evidence Limitations"
         disclaimer = (
             "Patent analysis is preliminary research, not legal advice or a "
             "freedom-to-operate opinion."
         )
-        if marker in normalized:
-            normalized = normalized.replace(
-                marker,
-                f"{disclaimer}\n\n{marker}",
-                1,
-            )
+        # Try the localized Evidence Limitations heading first, then English fallback
+        localized_ev_lim = (
+            required_headings[-2] if required_headings and len(required_headings) >= 2
+            else None
+        )
+        markers = []
+        if localized_ev_lim and localized_ev_lim != "## Evidence Limitations":
+            markers.append(localized_ev_lim)
+        markers.append("## Evidence Limitations")
+        for marker in markers:
+            if marker in normalized:
+                normalized = normalized.replace(
+                    marker,
+                    f"{disclaimer}\n\n{marker}",
+                    1,
+                )
+                break
 
     normalized = _canonical_reference_section(normalized, allowed_sources)
     return normalized, errors
@@ -1130,6 +1142,7 @@ def make_final_report_guardrail(
             output.raw,
             allowed_sources,
             finding_sources,
+            required_headings=required_headings,
         )
         output.raw = normalized
         errors = validate_final_report(
