@@ -23,6 +23,8 @@ dependencies = [
     { name = "gradio" },
     { name = "langdetect" },
     { name = "markdown" },
+    { name = "pydantic" },
+    { name = "reportlab" },
     { name = "xhtml2pdf" },
 ]
 
@@ -37,6 +39,8 @@ requires-dist = [
     { name = "gradio", specifier = ">=6.19.0" },
     { name = "langdetect", specifier = ">=1.0.9" },
     { name = "markdown", specifier = ">=3.6" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "reportlab", specifier = ">=4.0" },
     { name = "xhtml2pdf", specifier = ">=0.2.16" },
 ]
 

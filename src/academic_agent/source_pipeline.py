@@ -200,6 +200,28 @@ _OFFICIAL_DISCLOSURE_PATH_MARKERS = (
 # aggressive and caused legitimate market sources to be rejected.
 _MIN_EVIDENCE_SUMMARY_CHARS = 100
 
+# Country-specific government TLD patterns (non-.gov forms used internationally).
+# Defined at module level to avoid recreating the tuple on every call to
+# _market_source_profile(), which is invoked once per candidate URL.
+_GOV_SUFFIXES = (
+    ".gouv.fr",  # French government
+    ".bund.de",  # German federal
+    ".go.jp",    # Japanese government
+    ".go.kr",    # South Korean government
+    ".go.id",    # Indonesian government
+    ".govt.nz",  # New Zealand government
+    ".gob.es",   # Spanish government
+    ".gob.mx",   # Mexican government
+    ".gob.ar",   # Argentine government
+    ".gov.au",   # Australian government
+    ".gov.uk",   # UK government
+    ".gov.cn",   # Chinese government
+    ".gov.in",   # Indian government
+    ".gov.br",   # Brazilian government
+    ".gov.sg",   # Singapore government
+    ".gov.za",   # South African government
+)
+
 
 class SourceCollectionError(RuntimeError):
     """Raised when a truthful minimum source set cannot be assembled."""
@@ -1003,25 +1025,6 @@ def _market_source_profile(
             "high",
             "Official government source; authoritative within its stated scope.",
         )
-    # Country-specific government TLD patterns (non-.gov forms used internationally)
-    _GOV_SUFFIXES = (
-        ".gouv.fr",  # French government
-        ".bund.de",  # German federal
-        ".go.jp",    # Japanese government
-        ".go.kr",    # South Korean government
-        ".go.id",    # Indonesian government
-        ".govt.nz",  # New Zealand government
-        ".gob.es",   # Spanish government
-        ".gob.mx",   # Mexican government
-        ".gob.ar",   # Argentine government
-        ".gov.au",   # Australian government
-        ".gov.uk",   # UK government
-        ".gov.cn",   # Chinese government
-        ".gov.in",   # Indian government
-        ".gov.br",   # Brazilian government
-        ".gov.sg",   # Singapore government
-        ".gov.za",   # South African government
-    )
     if any(host.endswith(s) for s in _GOV_SUFFIXES):
         return (
             "government",

@@ -75,6 +75,31 @@ _REQUIRED_REPORT_HEADINGS = (
 )
 
 
+# Localized patent disclaimer text and the phrases used to verify its presence.
+# All variants keep "freedom-to-operate" in Latin so _is_substantive_claim_line()
+# can detect and skip it without language-specific logic.
+_PATENT_DISCLAIMERS: dict[str, dict] = {
+    "English":             {"text": "Patent analysis is preliminary research, not legal advice or a freedom-to-operate opinion.",                                                                                          "check": ("not legal advice",                  "freedom-to-operate")},
+    "Simplified Chinese":  {"text": "专利分析为初步研究，不构成法律意见或自由实施（Freedom-to-Operate）意见。",                                                                                                            "check": ("不构成法律意见",                     "freedom-to-operate")},
+    "Traditional Chinese": {"text": "專利分析為初步研究，不構成法律意見或自由實施（Freedom-to-Operate）意見。",                                                                                                            "check": ("不構成法律意見",                     "freedom-to-operate")},
+    "Japanese":            {"text": "特許分析は予備的調査であり、法的意見または自由実施（Freedom-to-Operate）意見ではありません。",                                                                                        "check": ("法的意見ではありません",              "freedom-to-operate")},
+    "Korean":              {"text": "특허 분석은 예비 조사이며, 법적 의견 또는 자유 실시(Freedom-to-Operate) 의견이 아닙니다.",                                                                                            "check": ("법적 의견이 아닙니다",               "freedom-to-operate")},
+    "German":              {"text": "Die Patentanalyse ist eine vorläufige Recherche und stellt keine Rechtsberatung oder Freedom-to-Operate-Stellungnahme dar.",                                                         "check": ("keine rechtsberatung",               "freedom-to-operate")},
+    "French":              {"text": "L'analyse de brevets est une recherche préliminaire et ne constitue pas un avis juridique ou une opinion Freedom-to-Operate.",                                                       "check": ("pas un avis juridique",              "freedom-to-operate")},
+    "Spanish":             {"text": "El análisis de patentes es una investigación preliminar y no constituye asesoramiento legal ni una opinión Freedom-to-Operate.",                                                     "check": ("no constituye asesoramiento legal",  "freedom-to-operate")},
+    "Italian":             {"text": "L'analisi dei brevetti è una ricerca preliminare e non costituisce una consulenza legale o un parere Freedom-to-Operate.",                                                           "check": ("non costituisce una consulenza",     "freedom-to-operate")},
+    "Portuguese":          {"text": "A análise de patentes é uma pesquisa preliminar e não constitui aconselhamento jurídico ou parecer Freedom-to-Operate.",                                                            "check": ("não constitui aconselhamento",       "freedom-to-operate")},
+    "Russian":             {"text": "Анализ патентов является предварительным исследованием и не является юридической консультацией или заключением Freedom-to-Operate.",                                               "check": ("не является юридической",           "freedom-to-operate")},
+    "Arabic":              {"text": "تحليل براءات الاختراع بحث أولي وليس رأياً قانونياً أو رأياً بشأن حرية العمل (Freedom-to-Operate).",                                                                             "check": ("وليس رأياً قانونياً",               "freedom-to-operate")},
+}
+
+
+def _patent_disclaimer(output_language: str) -> tuple[str, tuple[str, str]]:
+    """Return (disclaimer_text, (check_phrase1, check_phrase2)) for the given language."""
+    entry = _PATENT_DISCLAIMERS.get(output_language, _PATENT_DISCLAIMERS["English"])
+    return str(entry["text"]), tuple(entry["check"])  # type: ignore[return-value]
+
+
 def normalize_doi(value: str | None) -> str | None:
     if value is None:
         return None
@@ -191,6 +216,9 @@ class CommercializationScore(BaseModel):
     trl_score: int = Field(ge=1, le=9)
     trl_rationale: str = Field(min_length=20)
     trl_source_ids: list[str] = Field(min_length=1, description="Source IDs (A/M prefix) that drove the TRL assessment")
+    mrl_score: int = Field(ge=1, le=10)
+    mrl_rationale: str = Field(min_length=20)
+    mrl_source_ids: list[str] = Field(min_length=1, description="Source IDs (A/M prefix) that drove the MRL assessment")
     patent_strength: int = Field(ge=1, le=5)
     patent_rationale: str = Field(min_length=20)
     patent_source_ids: list[str] = Field(min_length=1, description="Source IDs (P prefix) that drove the patent strength score")
@@ -237,17 +265,19 @@ def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
             return False, " ".join(id_errors)
 
         # Recompute overall_score from the formula to eliminate LLM arithmetic errors.
-        # Formula (matches backstory): TRL 30% + IP 30% + Market 25% + Evidence 15%
-        trl_c = (score.trl_score / 9) * 30
-        pat_c = (score.patent_strength / 5) * 30
-        mkt_c = (score.market_accessibility / 5) * 25
-        evi_c = (score.evidence_confidence / 5) * 15
-        correct_overall = round(trl_c + pat_c + mkt_c + evi_c)
+        # Formula: Market 35% + TRL 20% + MRL 15% + Patent 20% + Evidence 10%
+        mkt_c = (score.market_accessibility / 5) * 35
+        trl_c = (score.trl_score / 9) * 20
+        mrl_c = (score.mrl_score / 10) * 15
+        pat_c = (score.patent_strength / 5) * 20
+        evi_c = (score.evidence_confidence / 5) * 10
+        correct_overall = round(mkt_c + trl_c + mrl_c + pat_c + evi_c)
         formula_note = (
-            f" [Verified: ({score.trl_score}/9)×30={trl_c:.2f}"
-            f" + ({score.patent_strength}/5)×30={pat_c:.2f}"
-            f" + ({score.market_accessibility}/5)×25={mkt_c:.2f}"
-            f" + ({score.evidence_confidence}/5)×15={evi_c:.2f}"
+            f" [Verified: ({score.market_accessibility}/5)×35={mkt_c:.2f}"
+            f" + ({score.trl_score}/9)×20={trl_c:.2f}"
+            f" + ({score.mrl_score}/10)×15={mrl_c:.2f}"
+            f" + ({score.patent_strength}/5)×20={pat_c:.2f}"
+            f" + ({score.evidence_confidence}/5)×10={evi_c:.2f}"
             f" → overall_score={correct_overall}]"
         )
         score = score.model_copy(update={
@@ -687,6 +717,7 @@ def validate_final_report(
     allowed_sources: dict[str, EvidenceSource],
     *,
     required_headings: tuple[str, ...] | None = None,
+    output_language: str = "English",
 ) -> list[str]:
     """Validate citation integrity in the final Markdown report."""
 
@@ -817,7 +848,8 @@ def validate_final_report(
             )
 
     lowered = markdown.lower()
-    if "not legal advice" not in lowered or "freedom-to-operate" not in lowered:
+    _, check_phrases = _patent_disclaimer(output_language)
+    if not all(phrase.lower() in lowered for phrase in check_phrases):
         errors.append(
             "The report must state that patent analysis is not legal advice or a "
             "freedom-to-operate opinion."
@@ -957,10 +989,20 @@ def _normalize_report_citations(
     return normalized, normalization_errors
 
 
+_REF_LEGEND: dict[str, str] = {
+    "Simplified Chinese":  "*文献编码说明：**A** = 学术论文 · **P** = 专利 · **M** = 市场/行业来源*",
+    "Traditional Chinese": "*文獻編碼說明：**A** = 學術論文 · **P** = 專利 · **M** = 市場/產業來源*",
+    "Japanese":            "*引用コード：**A** = 学術論文 · **P** = 特許 · **M** = 市場/業界情報*",
+    "Korean":              "*참고문헌 코드：**A** = 학술 논문 · **P** = 특허 · **M** = 시장/업계 자료*",
+}
+_REF_LEGEND_EN = "*Reference codes: **A** = Academic paper · **P** = Patent · **M** = Market/industry source*"
+
+
 def _canonical_reference_section(
     markdown: str,
     sources: dict[str, EvidenceSource],
     localized_ref_heading: str | None = None,
+    output_language: str = "English",
 ) -> str:
     """Replace model-authored references with deterministic cited records."""
 
@@ -1006,7 +1048,8 @@ def _canonical_reference_section(
             f"Rationale: {source.credibility_reason}. {locator}"
         )
 
-    return f"{body}\n\n## References\n\n" + "\n\n".join(entries) + "\n"
+    legend = _REF_LEGEND.get(output_language, _REF_LEGEND_EN)
+    return f"{body}\n\n## References\n\n{legend}\n\n" + "\n\n".join(entries) + "\n"
 
 
 def _repair_high_risk_phrasing(
@@ -1062,6 +1105,7 @@ def normalize_final_report(
     allowed_sources: dict[str, EvidenceSource],
     finding_sources: dict[str, list[str]],
     required_headings: tuple[str, ...] | None = None,
+    output_language: str = "English",
 ) -> tuple[str, list[str]]:
     """Deterministically repair common model formatting errors."""
 
@@ -1079,15 +1123,9 @@ def normalize_final_report(
     )
     normalized = _repair_high_risk_phrasing(normalized, allowed_sources)
 
+    disclaimer_text, check_phrases = _patent_disclaimer(output_language)
     lowered = normalized.lower()
-    if (
-        "not legal advice" not in lowered
-        or "freedom-to-operate" not in lowered
-    ):
-        disclaimer = (
-            "Patent analysis is preliminary research, not legal advice or a "
-            "freedom-to-operate opinion."
-        )
+    if not all(phrase.lower() in lowered for phrase in check_phrases):
         # Try the localized Evidence Limitations heading first, then English fallback
         localized_ev_lim = (
             required_headings[-2] if required_headings and len(required_headings) >= 2
@@ -1101,7 +1139,7 @@ def normalize_final_report(
             if marker in normalized:
                 normalized = normalized.replace(
                     marker,
-                    f"{disclaimer}\n\n{marker}",
+                    f"{disclaimer_text}\n\n{marker}",
                     1,
                 )
                 break
@@ -1111,7 +1149,7 @@ def normalize_final_report(
         if required_headings and len(required_headings) >= 1
         else None
     )
-    normalized = _canonical_reference_section(normalized, allowed_sources, localized_ref)
+    normalized = _canonical_reference_section(normalized, allowed_sources, localized_ref, output_language)
     return normalized, errors
 
 
@@ -1148,6 +1186,7 @@ def make_final_report_guardrail(
     context_tasks: Sequence[Any],
     *,
     required_headings: tuple[str, ...] | None = None,
+    output_language: str = "English",
 ) -> Callable[[TaskOutput], tuple[bool, Any]]:
     """Normalize the report, then enforce citation and high-risk claim policies."""
 
@@ -1164,11 +1203,13 @@ def make_final_report_guardrail(
             allowed_sources,
             finding_sources,
             required_headings=required_headings,
+            output_language=output_language,
         )
         output.raw = normalized
         errors = validate_final_report(
             normalized, allowed_sources,
             required_headings=required_headings,
+            output_language=output_language,
         )
         critical_prefixes = (
             "Missing required heading:",
@@ -1205,6 +1246,7 @@ def make_reviewer_guardrail(
     report_task: Any,
     *,
     localized_headings: tuple[str, ...] | None = None,
+    output_language: str = "English",
 ) -> Callable[[TaskOutput], tuple[bool, Any]]:
     """Light guardrail for Task 5: prevent regression from Task 4's validated output.
 
@@ -1278,15 +1320,10 @@ def make_reviewer_guardrail(
                 "Reviewer output has blocking issues:\n- " + "\n- ".join(errors),
             )
 
-        # Re-insert patent disclaimer if the reviewer removed it.
-        # The reviewer (writing in native language) may translate or drop the
-        # English-only disclaimer that normalize_final_report() inserted in Task 4.
-        _disclaimer = (
-            "Patent analysis is preliminary research, not legal advice or a "
-            "freedom-to-operate opinion."
-        )
+        # Re-insert patent disclaimer if the reviewer removed or re-translated it.
+        _disclaimer, _check_phrases = _patent_disclaimer(output_language)
         reviewed_lower_check = output.raw.lower()
-        if "not legal advice" not in reviewed_lower_check or "freedom-to-operate" not in reviewed_lower_check:
+        if not all(phrase.lower() in reviewed_lower_check for phrase in _check_phrases):
             # Find insertion point: localized Evidence Limitations heading or English fallback
             ev_lim_candidates = []
             if localized_headings and len(localized_headings) >= 2:

@@ -9,6 +9,8 @@ dependencies = [
     "gradio>=6.19.0",
     "langdetect>=1.0.9",
     "markdown>=3.6",
+    "pydantic>=2.0",
+    "reportlab>=4.0",
     "xhtml2pdf>=0.2.16",
 ]
 

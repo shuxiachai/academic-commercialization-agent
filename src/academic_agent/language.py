@@ -28,10 +28,41 @@ LANGUAGE_REGISTRY: dict[str, dict] = {
 }
 
 
+def _detect_cjk_script(text: str) -> str | None:
+    """Detect East-Asian script from Unicode code-point ranges.
+
+    langdetect confuses Chinese and Korean on short strings that contain Latin
+    letters (e.g. "PEM电解槽" → mis-detected as 'ko').  Checking character
+    blocks is unambiguous:
+      • Hangul syllables / jamo  → Korean
+      • Hiragana / Katakana      → Japanese  (may also contain CJK kanji)
+      • CJK unified ideographs only → Simplified Chinese
+    Returns a langdetect-compatible code or None when script is ambiguous.
+    """
+    has_hangul    = any('가' <= c <= '힯' or 'ᄀ' <= c <= 'ᇿ' for c in text)
+    has_hiragana  = any('぀' <= c <= 'ゟ' for c in text)
+    has_katakana  = any('゠' <= c <= 'ヿ' for c in text)
+    has_cjk       = any('一' <= c <= '鿿' or '㐀' <= c <= '䶿' for c in text)
+
+    if has_hangul:
+        return "ko"
+    if has_hiragana or has_katakana:
+        return "ja"
+    if has_cjk:
+        return "zh-cn"
+    return None
+
+
 def detect_language(text: str) -> str:
     """Return a langdetect language code (e.g. 'zh-cn', 'ja', 'en').
-    Falls back to 'en' if langdetect is unavailable or detection fails.
+
+    CJK scripts are identified by Unicode block before calling langdetect,
+    which is unreliable for short strings mixing CJK and Latin characters.
+    Falls back to 'en' if detection fails entirely.
     """
+    script = _detect_cjk_script(text)
+    if script is not None:
+        return script
     try:
         from langdetect import detect
         return detect(text)
@@ -84,9 +115,14 @@ def _llm_call(prompt: str, *, system: str, max_tokens: int = 400) -> str:
         },
         method="POST",
     )
-    with urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read())
-    return data["choices"][0]["message"]["content"].strip()
+    try:
+        with urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read())
+        return data["choices"][0]["message"]["content"].strip()
+    except Exception as exc:
+        import warnings
+        warnings.warn(f"language._llm_call failed ({type(exc).__name__}: {exc}); falling back to original text")
+        return ""
 
 
 def translate_to_english(text: str) -> str:
@@ -94,8 +130,9 @@ def translate_to_english(text: str) -> str:
 
     Used to convert a native-language research topic into an English topic
     suitable for academic and patent search APIs.
+    Falls back to the original text if the LLM call fails.
     """
-    return _llm_call(
+    result = _llm_call(
         f"Translate the following text to English. "
         f"Return ONLY the translation, no explanation or extra text:\n\n{text}",
         system=(
@@ -104,6 +141,7 @@ def translate_to_english(text: str) -> str:
         ),
         max_tokens=200,
     )
+    return result if result else text
 
 
 def translate_headings(

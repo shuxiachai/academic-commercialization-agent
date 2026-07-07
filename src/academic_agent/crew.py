@@ -234,6 +234,7 @@ class AcademicAgent:
             guardrail=make_final_report_guardrail(
                 context_tasks,
                 required_headings=localized,
+                output_language=self.source_collection.output_language,
             ),
             guardrail_max_retries=1,
             markdown=True,
@@ -267,6 +268,7 @@ class AcademicAgent:
                     if self.source_collection.localized_headings
                     else None
                 ),
+                output_language=self.source_collection.output_language,
             ),
             guardrail_max_retries=1,
             markdown=True,

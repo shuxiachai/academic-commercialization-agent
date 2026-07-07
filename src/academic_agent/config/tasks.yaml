@@ -263,8 +263,14 @@ commercialization_scoring_task:
   description: >
     Score the commercialization readiness of {research_topic} using only the
     structured evidence JSON outputs from the academic, patent, and market tasks
-    in context. Apply each of the four scoring dimensions exactly as defined in
+    in context. Apply each of the five scoring dimensions exactly as defined in
     your backstory rubrics.
+
+    LANGUAGE REQUIREMENT: All free-text fields — trl_rationale, mrl_rationale,
+    patent_rationale, market_rationale, evidence_rationale, scoring_rationale,
+    key_risks, and key_opportunities — must be written in {output_language}.
+    JSON field names (keys) must remain in English. Only the string values are
+    in {output_language}.
 
     Scoring rules:
     - Use only evidence present in the context JSON. Do not reference external
@@ -272,8 +278,9 @@ commercialization_scoring_task:
     - If evidence for a dimension is absent or very thin, score conservatively
       (1 or 2) and state the evidence gap clearly in the rationale.
     - Compute overall_score using the exact formula from your backstory:
-      round( (trl_score/9)*30 + (patent_strength/5)*30 +
-             (market_accessibility/5)*25 + (evidence_confidence/5)*15 )
+      round( (market_accessibility/5)*35 + (trl_score/9)*20 +
+             (mrl_score/10)*15 + (patent_strength/5)*20 +
+             (evidence_confidence/5)*10 )
     - Provide 2 to 5 key_risks and 2 to 5 key_opportunities grounded in the
       evidence findings. Do not invent risks or opportunities not supported by
       the context.
@@ -284,6 +291,8 @@ commercialization_scoring_task:
       support that score. Use only IDs that actually appear in the context JSON.
       trl_source_ids: IDs from academic (A-prefix) or market (M-prefix) sources
         that revealed the technology deployment stage.
+      mrl_source_ids: IDs from academic (A-prefix) or market (M-prefix) sources
+        that revealed manufacturing process maturity and production scale evidence.
       patent_source_ids: IDs from patent (P-prefix) sources that revealed the
         IP landscape density or white spaces.
       market_source_ids: IDs from market (M-prefix) sources that revealed
@@ -295,16 +304,19 @@ commercialization_scoring_task:
     {"trl_score": 4,
      "trl_rationale": "...",
      "trl_source_ids": ["A1", "A3", "M2"],
+     "mrl_score": 3,
+     "mrl_rationale": "...",
+     "mrl_source_ids": ["A2", "M1"],
      "patent_strength": 3,
      "patent_rationale": "...",
      "patent_source_ids": ["P1", "P2"],
      "market_accessibility": 2,
      "market_rationale": "...",
      "market_source_ids": ["M1", "M3"],
-     "evidence_confidence": 4,
+     "evidence_confidence": 3,
      "evidence_rationale": "...",
      "evidence_source_ids": ["A1", "A2", "P1", "M1"],
-     "overall_score": 56,
+     "overall_score": 49,
      "scoring_rationale": "...",
      "key_risks": ["...", "..."],
      "key_opportunities": ["...", "..."]}

@@ -43,13 +43,13 @@ SPINNER = ["|", "/", "-", "\\"]
 
 def _score_color(overall: int) -> tuple[str, str]:
     if overall >= 80:
-        return "#16a34a", "Strong"
+        return "#16a34a", "EXCELLENT"
     elif overall >= 60:
-        return "#2563eb", "Good"
+        return "#2563eb", "GOOD"
     elif overall >= 40:
-        return "#d97706", "Moderate"
+        return "#d97706", "MODERATE"
     else:
-        return "#dc2626", "Early Stage"
+        return "#dc2626", "WEAK"
 
 
 def _metric_color(pct: int) -> str:
@@ -115,13 +115,166 @@ def _bullet_item(text: str, color: str) -> str:
     )
 
 
-def _render_score_html(scores_json: str, topic: str) -> str:
+_SCORECARD_I18N: dict[str, dict[str, str]] = {
+    "English": {
+        "formula": "Scoring Formula", "out_of": "out of 100",
+        "EXCELLENT": "Excellent", "GOOD": "Good", "MODERATE": "Moderate", "WEAK": "Early Stage",
+        "risks": "Key Risks", "opps": "Key Opportunities",
+        "trl_sub": "Tech Readiness", "mrl_sub": "Mfg Readiness",
+        "ip_sub": "Patent Landscape", "mkt_sub": "Accessibility", "evi_sub": "Confidence",
+        "bar_trl": "Technology Readiness", "bar_mrl": "Manufacturing Readiness",
+        "bar_ip": "IP Landscape", "bar_mkt": "Market Accessibility", "bar_evi": "Evidence Confidence",
+        "dl_md": "Download Report (.md)", "dl_pdf": "Download Report (.pdf)",
+        "progress": "Analysis in progress",
+    },
+    "Simplified Chinese": {
+        "formula": "评分公式", "out_of": "满分 100",
+        "EXCELLENT": "优秀", "GOOD": "良好", "MODERATE": "中等", "WEAK": "较弱",
+        "risks": "主要风险", "opps": "主要机遇",
+        "trl_sub": "技术成熟度", "mrl_sub": "制造成熟度",
+        "ip_sub": "专利格局", "mkt_sub": "市场可及性", "evi_sub": "证据置信度",
+        "bar_trl": "技术就绪度", "bar_mrl": "制造就绪度",
+        "bar_ip": "专利格局", "bar_mkt": "市场可及性", "bar_evi": "证据置信度",
+        "dl_md": "下载报告 (.md)", "dl_pdf": "下载报告 (.pdf)",
+        "progress": "分析进行中",
+    },
+    "Traditional Chinese": {
+        "formula": "評分公式", "out_of": "滿分 100",
+        "EXCELLENT": "優秀", "GOOD": "良好", "MODERATE": "中等", "WEAK": "較弱",
+        "risks": "主要風險", "opps": "主要機遇",
+        "trl_sub": "技術成熟度", "mrl_sub": "製造成熟度",
+        "ip_sub": "專利格局", "mkt_sub": "市場可及性", "evi_sub": "證據置信度",
+        "bar_trl": "技術就緒度", "bar_mrl": "製造就緒度",
+        "bar_ip": "專利格局", "bar_mkt": "市場可及性", "bar_evi": "證據置信度",
+        "dl_md": "下載報告 (.md)", "dl_pdf": "下載報告 (.pdf)",
+        "progress": "分析進行中",
+    },
+    "Japanese": {
+        "formula": "スコア計算式", "out_of": "100点満点",
+        "EXCELLENT": "優秀", "GOOD": "良好", "MODERATE": "普通", "WEAK": "弱い",
+        "risks": "主なリスク", "opps": "主な機会",
+        "trl_sub": "技術成熟度", "mrl_sub": "製造成熟度",
+        "ip_sub": "特許状況", "mkt_sub": "市場参入性", "evi_sub": "証拠の信頼性",
+        "bar_trl": "技術準備レベル", "bar_mrl": "製造準備レベル",
+        "bar_ip": "知財状況", "bar_mkt": "市場アクセス", "bar_evi": "証拠の信頼性",
+        "dl_md": "レポートをダウンロード (.md)", "dl_pdf": "レポートをダウンロード (.pdf)",
+        "progress": "分析中",
+    },
+    "Korean": {
+        "formula": "점수 공식", "out_of": "100점 만점",
+        "EXCELLENT": "우수", "GOOD": "양호", "MODERATE": "보통", "WEAK": "미흡",
+        "risks": "주요 리스크", "opps": "주요 기회",
+        "trl_sub": "기술 성숙도", "mrl_sub": "제조 성숙도",
+        "ip_sub": "특허 현황", "mkt_sub": "시장 접근성", "evi_sub": "증거 신뢰도",
+        "bar_trl": "기술 준비 수준", "bar_mrl": "제조 준비 수준",
+        "bar_ip": "지식재산 현황", "bar_mkt": "시장 접근성", "bar_evi": "증거 신뢰도",
+        "dl_md": "보고서 다운로드 (.md)", "dl_pdf": "보고서 다운로드 (.pdf)",
+        "progress": "분석 중",
+    },
+    "German": {
+        "formula": "Bewertungsformel", "out_of": "von 100",
+        "EXCELLENT": "AUSGEZEICHNET", "GOOD": "GUT", "MODERATE": "MÄSSIG", "WEAK": "SCHWACH",
+        "risks": "Hauptrisiken", "opps": "Hauptchancen",
+        "trl_sub": "Tech-Reife", "mrl_sub": "Fertigungs-Reife",
+        "ip_sub": "Patentlandschaft", "mkt_sub": "Marktzugang", "evi_sub": "Belege",
+        "bar_trl": "Technologiereife", "bar_mrl": "Fertigungsreife",
+        "bar_ip": "IP-Landschaft", "bar_mkt": "Marktzugänglichkeit", "bar_evi": "Beweissicherheit",
+        "dl_md": "Bericht herunterladen (.md)", "dl_pdf": "Bericht herunterladen (.pdf)",
+        "progress": "Analyse läuft",
+    },
+    "French": {
+        "formula": "Formule de score", "out_of": "sur 100",
+        "EXCELLENT": "EXCELLENT", "GOOD": "BON", "MODERATE": "MODÉRÉ", "WEAK": "FAIBLE",
+        "risks": "Risques clés", "opps": "Opportunités clés",
+        "trl_sub": "Maturité tech.", "mrl_sub": "Maturité fab.",
+        "ip_sub": "Brevets", "mkt_sub": "Accessibilité", "evi_sub": "Confiance",
+        "bar_trl": "Maturité technologique", "bar_mrl": "Maturité de fabrication",
+        "bar_ip": "Paysage PI", "bar_mkt": "Accessibilité marché", "bar_evi": "Confiance preuves",
+        "dl_md": "Télécharger le rapport (.md)", "dl_pdf": "Télécharger le rapport (.pdf)",
+        "progress": "Analyse en cours",
+    },
+    "Spanish": {
+        "formula": "Fórmula de puntuación", "out_of": "de 100",
+        "EXCELLENT": "EXCELENTE", "GOOD": "BUENO", "MODERATE": "MODERADO", "WEAK": "DÉBIL",
+        "risks": "Riesgos clave", "opps": "Oportunidades clave",
+        "trl_sub": "Madurez tech.", "mrl_sub": "Madurez fab.",
+        "ip_sub": "Patentes", "mkt_sub": "Accesibilidad", "evi_sub": "Confianza",
+        "bar_trl": "Madurez tecnológica", "bar_mrl": "Madurez de fabricación",
+        "bar_ip": "Panorama PI", "bar_mkt": "Accesibilidad mercado", "bar_evi": "Confianza evidencias",
+        "dl_md": "Descargar informe (.md)", "dl_pdf": "Descargar informe (.pdf)",
+        "progress": "Análisis en curso",
+    },
+    "Italian": {
+        "formula": "Formula di punteggio", "out_of": "su 100",
+        "EXCELLENT": "ECCELLENTE", "GOOD": "BUONO", "MODERATE": "MODERATO", "WEAK": "DEBOLE",
+        "risks": "Rischi chiave", "opps": "Opportunità chiave",
+        "trl_sub": "Maturità tech.", "mrl_sub": "Maturità prod.",
+        "ip_sub": "Brevetti", "mkt_sub": "Accessibilità", "evi_sub": "Attendibilità",
+        "bar_trl": "Maturità tecnologica", "bar_mrl": "Maturità produttiva",
+        "bar_ip": "Panorama brevetti", "bar_mkt": "Accessibilità mercato", "bar_evi": "Attendibilità prove",
+        "dl_md": "Scarica il rapporto (.md)", "dl_pdf": "Scarica il rapporto (.pdf)",
+        "progress": "Analisi in corso",
+    },
+    "Portuguese": {
+        "formula": "Fórmula de pontuação", "out_of": "de 100",
+        "EXCELLENT": "EXCELENTE", "GOOD": "BOM", "MODERATE": "MODERADO", "WEAK": "FRACO",
+        "risks": "Principais riscos", "opps": "Principais oportunidades",
+        "trl_sub": "Maturidade tech.", "mrl_sub": "Maturidade fab.",
+        "ip_sub": "Patentes", "mkt_sub": "Acessibilidade", "evi_sub": "Confiança",
+        "bar_trl": "Maturidade tecnológica", "bar_mrl": "Maturidade de fabricação",
+        "bar_ip": "Panorama PI", "bar_mkt": "Acessibilidade mercado", "bar_evi": "Confiança evidências",
+        "dl_md": "Baixar relatório (.md)", "dl_pdf": "Baixar relatório (.pdf)",
+        "progress": "Análise em andamento",
+    },
+    "Russian": {
+        "formula": "Формула оценки", "out_of": "из 100",
+        "EXCELLENT": "ОТЛИЧНО", "GOOD": "ХОРОШО", "MODERATE": "УМЕРЕННО", "WEAK": "СЛАБО",
+        "risks": "Ключевые риски", "opps": "Ключевые возможности",
+        "trl_sub": "Зрелость технол.", "mrl_sub": "Зрелость произв.",
+        "ip_sub": "Патентный ландшафт", "mkt_sub": "Доступность рынка", "evi_sub": "Достоверность",
+        "bar_trl": "Технологическая готовность", "bar_mrl": "Производственная готовность",
+        "bar_ip": "Патентный ландшафт", "bar_mkt": "Доступность рынка", "bar_evi": "Достоверность данных",
+        "dl_md": "Скачать отчёт (.md)", "dl_pdf": "Скачать отчёт (.pdf)",
+        "progress": "Анализ выполняется",
+    },
+    "Arabic": {
+        "formula": "صيغة التقييم", "out_of": "من 100",
+        "EXCELLENT": "ممتاز", "GOOD": "جيد", "MODERATE": "متوسط", "WEAK": "ضعيف",
+        "risks": "المخاطر الرئيسية", "opps": "الفرص الرئيسية",
+        "trl_sub": "نضج التقنية", "mrl_sub": "نضج التصنيع",
+        "ip_sub": "المشهد البراءاتي", "mkt_sub": "إمكانية الوصول", "evi_sub": "موثوقية الأدلة",
+        "bar_trl": "جاهزية التقنية", "bar_mrl": "جاهزية التصنيع",
+        "bar_ip": "المشهد البراءاتي", "bar_mkt": "إمكانية الوصول للسوق", "bar_evi": "موثوقية الأدلة",
+        "dl_md": "تنزيل التقرير (.md)", "dl_pdf": "تنزيل التقرير (.pdf)",
+        "progress": "جارٍ التحليل",
+    },
+}
+
+
+def _scorecard_strings(output_language: str) -> dict[str, str]:
+    return _SCORECARD_I18N.get(output_language, _SCORECARD_I18N["English"])
+
+
+def _read_output_language(run_dir) -> str:
+    """Read output_language from the saved validated_sources.json for a run."""
+    try:
+        sources_path = run_dir / "validated_sources.json"
+        if sources_path.exists():
+            data = json.loads(sources_path.read_text(encoding="utf-8"))
+            return data.get("output_language") or "English"
+    except Exception:
+        pass
+    return "English"
+
+
+def _render_score_html(scores_json: str, topic: str, output_language: str = "English") -> str:
     try:
         s = json.loads(scores_json)
     except (json.JSONDecodeError, TypeError):
         return ""
 
     trl = s.get("trl_score") or 0
+    mrl = s.get("mrl_score") or 0
     pat = s.get("patent_strength") or 0
     mkt = s.get("market_accessibility") or 0
     evi = s.get("evidence_confidence") or 0
@@ -130,12 +283,16 @@ def _render_score_html(scores_json: str, topic: str) -> str:
     risks = s.get("key_risks", [])
     opps = s.get("key_opportunities", [])
     trl_ids  = s.get("trl_source_ids", [])
+    mrl_ids  = s.get("mrl_source_ids", [])
     pat_ids  = s.get("patent_source_ids", [])
     mkt_ids  = s.get("market_source_ids", [])
     evi_ids  = s.get("evidence_source_ids", [])
 
-    color, badge = _score_color(overall)
+    color, badge_en = _score_color(overall)
+    t = _scorecard_strings(output_language)
+    badge = t.get(badge_en, badge_en)
     trl_pct = round(trl / 9 * 100)
+    mrl_pct = round(mrl / 10 * 100)
     pat_pct = round(pat / 5 * 100)
     mkt_pct = round(mkt / 5 * 100)
     evi_pct = round(evi / 5 * 100)
@@ -148,7 +305,7 @@ def _render_score_html(scores_json: str, topic: str) -> str:
         f'border-radius:8px;padding:16px;">'
         f'<div style="font-size:12px;font-weight:700;color:#fca5a5;'
         f'letter-spacing:0.05em;text-transform:uppercase;margin-bottom:10px;">'
-        f'&#x26A0; Key Risks</div>'
+        f'&#x26A0; {html.escape(t["risks"])}</div>'
         f'{risks_block}'
         f'</div>'
     ) if risks else ""
@@ -158,7 +315,7 @@ def _render_score_html(scores_json: str, topic: str) -> str:
         f'border-radius:8px;padding:16px;">'
         f'<div style="font-size:12px;font-weight:700;color:#86efac;'
         f'letter-spacing:0.05em;text-transform:uppercase;margin-bottom:10px;">'
-        f'&#x2726; Key Opportunities</div>'
+        f'&#x2726; {html.escape(t["opps"])}</div>'
         f'{opps_block}'
         f'</div>'
     ) if opps else ""
@@ -179,7 +336,7 @@ def _render_score_html(scores_json: str, topic: str) -> str:
         f'<div style="display:flex;align-items:stretch;gap:24px;margin-bottom:24px;">'
         f'<div style="text-align:center;min-width:100px;">'
         f'<div style="font-size:72px;font-weight:800;color:{color};line-height:0.9;">{overall}</div>'
-        f'<div style="font-size:11px;color:#777777;margin-top:6px;">out of 100</div>'
+        f'<div style="font-size:11px;color:#777777;margin-top:6px;">{html.escape(t["out_of"])}</div>'
         f'<div style="display:inline-block;margin-top:10px;padding:4px 14px;'
         f'border-radius:20px;background:{color};color:#ffffff;'
         f'font-size:12px;font-weight:700;letter-spacing:0.04em;">{badge}</div>'
@@ -187,7 +344,8 @@ def _render_score_html(scores_json: str, topic: str) -> str:
         f'<div style="flex:1;border-left:1px solid #2d2d2d;padding-left:20px;'
         f'display:flex;flex-direction:column;justify-content:center;">'
         f'<div style="font-size:10px;font-weight:700;color:#777777;'
-        f'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Scoring Formula</div>'
+        f'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">'
+        f'{html.escape(t["formula"])}</div>'
         f'<div style="font-size:12px;color:#d4d4d4;background:#141414;'
         f'border:1px solid #2d2d2d;border-radius:6px;padding:10px 14px;'
         f'font-family:ui-monospace,monospace;line-height:1.6;">'
@@ -196,20 +354,22 @@ def _render_score_html(scores_json: str, topic: str) -> str:
         f'</div>'
 
         # KPI tiles
-        f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">'
-        f'{_kpi_tile("TRL", trl, 9, "Tech Readiness", trl_pct, trl_ids)}'
-        f'{_kpi_tile("IP", pat, 5, "Patent Landscape", pat_pct, pat_ids)}'
-        f'{_kpi_tile("Market", mkt, 5, "Accessibility", mkt_pct, mkt_ids)}'
-        f'{_kpi_tile("Evidence", evi, 5, "Confidence", evi_pct, evi_ids)}'
+        f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;">'
+        f'{_kpi_tile("TRL", trl, 9, t["trl_sub"], trl_pct, trl_ids)}'
+        f'{_kpi_tile("MRL", mrl, 10, t["mrl_sub"], mrl_pct, mrl_ids)}'
+        f'{_kpi_tile("IP", pat, 5, t["ip_sub"], pat_pct, pat_ids)}'
+        f'{_kpi_tile("Market", mkt, 5, t["mkt_sub"], mkt_pct, mkt_ids)}'
+        f'{_kpi_tile("Evidence", evi, 5, t["evi_sub"], evi_pct, evi_ids)}'
         f'</div>'
 
         # Bars
         f'<div style="background:#141414;border:1px solid #2d2d2d;border-radius:8px;padding:18px 20px;">'
-        f'{_bar_row("Technology Readiness", trl, 9, trl_pct)}'
-        f'{_bar_row("IP Landscape", pat, 5, pat_pct)}'
-        f'{_bar_row("Market Accessibility", mkt, 5, mkt_pct)}'
+        f'{_bar_row(t["bar_trl"], trl, 9, trl_pct)}'
+        f'{_bar_row(t["bar_mrl"], mrl, 10, mrl_pct)}'
+        f'{_bar_row(t["bar_ip"], pat, 5, pat_pct)}'
+        f'{_bar_row(t["bar_mkt"], mkt, 5, mkt_pct)}'
         f'<div style="margin-bottom:0;">'
-        f'{_bar_row("Evidence Confidence", evi, 5, evi_pct)}'
+        f'{_bar_row(t["bar_evi"], evi, 5, evi_pct)}'
         f'</div>'
         f'</div>'
 
@@ -222,7 +382,8 @@ def _render_score_html(scores_json: str, topic: str) -> str:
 # Progress display
 # ---------------------------------------------------------------------------
 
-def _render_progress_html(stage: str, elapsed: int, run_id: str, spin: str) -> str:
+def _render_progress_html(stage: str, elapsed: int, run_id: str, spin: str, output_language: str = "English") -> str:
+    t = _scorecard_strings(output_language)
     all_stages = [_STAGE_INITIAL] + TASK_STAGE_LABELS
     try:
         current_idx = all_stages.index(stage)
@@ -255,7 +416,7 @@ def _render_progress_html(stage: str, elapsed: int, run_id: str, spin: str) -> s
         f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">'
         f'<div style="width:8px;height:8px;border-radius:50%;background:#3b82f6;'
         f'box-shadow:0 0 0 3px #1e3a5f;flex-shrink:0;"></div>'
-        f'<span style="font-size:13px;font-weight:600;color:#f5f5f5;">Analysis in progress</span>'
+        f'<span style="font-size:13px;font-weight:600;color:#f5f5f5;">{t["progress"]}</span>'
         f'<span style="margin-left:auto;font-size:12px;color:#777777;'
         f'font-variant-numeric:tabular-nums;">{elapsed_str}</span>'
         f'</div>'
@@ -326,8 +487,9 @@ def _load_run(run_id: str) -> tuple[str, str]:
             report_path = run_dir / "commercialization_report.md"
             if report_path.exists():
                 topic = _extract_topic_from_report(report_path)
+            output_lang = _read_output_language(run_dir)
             score_html = _render_score_html(
-                scores_path.read_text(encoding="utf-8"), topic
+                scores_path.read_text(encoding="utf-8"), topic, output_lang
             )
         except Exception:
             pass
@@ -369,7 +531,7 @@ def _render_history_html() -> str:
         if report_path.exists():
             topic = _extract_topic_from_report(report_path)
 
-        overall = trl = pat = mkt = evi = "—"
+        overall = trl = mrl = pat = mkt = evi = "—"
         overall_color = "#0b0b0b"
         scores_path = run_dir / "commercialization_scores.json"
         if scores_path.exists():
@@ -377,6 +539,7 @@ def _render_history_html() -> str:
                 sc = json.loads(scores_path.read_text(encoding="utf-8"))
                 overall = sc.get("overall_score", "—")
                 trl = sc.get("trl_score", "—")
+                mrl = sc.get("mrl_score", "—")
                 pat = sc.get("patent_strength", "—")
                 mkt = sc.get("market_accessibility", "—")
                 evi = sc.get("evidence_confidence", "—")
@@ -420,6 +583,8 @@ def _render_history_html() -> str:
             f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
             f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{trl}/9" if isinstance(trl, int) else "—"}</td>'
             f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
+            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{mrl}/10" if isinstance(mrl, int) else "—"}</td>'
+            f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
             f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{pat}/5" if isinstance(pat, int) else "—"}</td>'
             f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
             f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{mkt}/5" if isinstance(mkt, int) else "—"}</td>'
@@ -444,6 +609,8 @@ def _render_history_html() -> str:
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">TRL</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">MRL</th>'
+        f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Patent</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Market</th>'
@@ -459,6 +626,29 @@ def _render_history_html() -> str:
     )
 
 
+def _cleanup_old_runs(keep_n: int = 20) -> str:
+    """Delete all but the latest keep_n run directories, leaving benchmark/ untouched."""
+    output_root = DEFAULT_OUTPUT_ROOT
+    if not output_root.exists():
+        return "No output directory found."
+    run_dirs = sorted(
+        (d for d in output_root.iterdir() if d.is_dir() and d.name != "benchmark"),
+        reverse=True,
+    )
+    to_delete = run_dirs[keep_n:]
+    if not to_delete:
+        return f"Nothing to clean — {len(run_dirs)} run(s) present, limit is {keep_n}."
+    import shutil
+    deleted = 0
+    for d in to_delete:
+        try:
+            shutil.rmtree(d)
+            deleted += 1
+        except Exception:
+            pass
+    return f"Deleted {deleted} old run(s). {min(len(run_dirs), keep_n)} remain."
+
+
 def _history_empty(msg: str) -> str:
     return (
         f'<p style="font-family:system-ui;font-size:13px;color:#777777;padding:12px;">'
@@ -470,76 +660,300 @@ def _history_empty(msg: str) -> str:
 # PDF export
 # ---------------------------------------------------------------------------
 
-# (path, reportlab-name, is_ttc)
-_CJK_FONT_CANDIDATES = [
-    (r"C:\Windows\Fonts\simhei.ttf", "SimHei",         False),
-    (r"C:\Windows\Fonts\msyh.ttc",   "MicrosoftYaHei", True),
-    (r"C:\Windows\Fonts\simsun.ttc", "SimSun",         True),
-]
+# Reportlab built-in CID fonts — no font file needed, cross-platform.
+# xhtml2pdf resolves these via pdfmetrics after registerFont() is called.
+_CID_FONT_MAP: dict[str, str] = {
+    "Simplified Chinese":  "STSong-Light",
+    "Traditional Chinese": "MSung-Light",
+    "Japanese":            "HeiseiKakuGo-W5",
+    "Korean":              "HYGoThic-Medium",
+}
 
 
-def _register_cjk_font() -> str:
-    """Register the first available CJK font directly with reportlab.
+def _register_cid_font(output_language: str) -> str:
+    """Register a CID font for the given language and return its name.
 
-    Bypasses xhtml2pdf's @font-face / URL loading (which fails on Windows
-    paths) by using reportlab's native TTFont API. Returns the registered
-    font name, or '' when no CJK font is found.
+    Returns '' for non-CJK languages (Latin fonts are built into reportlab).
+    CID fonts are embedded in reportlab — no external font file required.
     """
+    font_name = _CID_FONT_MAP.get(output_language, "")
+    if not font_name:
+        return ""
     try:
         from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
-        for path_str, name, is_ttc in _CJK_FONT_CANDIDATES:
-            p = Path(path_str)
-            if not p.exists():
-                continue
-            try:
-                kwargs = {"subfontIndex": 0} if is_ttc else {}
-                pdfmetrics.registerFont(TTFont(name, str(p), **kwargs))
-                return name
-            except Exception:
-                continue
-    except ImportError:
-        pass
-    return ""
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        pdfmetrics.registerFont(UnicodeCIDFont(font_name))
+        return font_name
+    except Exception:
+        return ""
 
 
-def _generate_pdf(report_md: str, run_dir: Path) -> Path | None:
-    """Convert markdown report to PDF alongside the .md file. Returns path or None."""
+def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English") -> Path | None:
+    """Convert markdown report to PDF using reportlab Platypus for full CJK table support."""
     try:
         import markdown as md_lib
-        from xhtml2pdf import pisa
+        from html.parser import HTMLParser
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.units import cm
+        from reportlab.lib import colors
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer,
+            Table, TableStyle, HRFlowable,
+        )
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
-        cjk_font = _register_cjk_font()
-        font_family = f"'{cjk_font}', Helvetica, Arial, sans-serif" if cjk_font else "Helvetica, Arial, sans-serif"
+        # Font selection: prefer embedded TTFont (viewer-independent) over CID font.
+        # CID fonts like STSong-Light are NOT embedded in the PDF and only render
+        # in Adobe Acrobat; Chrome/Edge will show empty glyphs.
+        _CJK_TTF_CANDIDATES: dict[str, list[str]] = {
+            "Simplified Chinese": [
+                "C:/Windows/Fonts/msyh.ttc",   # Microsoft YaHei
+                "C:/Windows/Fonts/simhei.ttf",  # SimHei
+                "C:/Windows/Fonts/simsun.ttc",  # SimSun
+            ],
+            "Traditional Chinese": [
+                "C:/Windows/Fonts/msjh.ttc",    # Microsoft JhengHei
+                "C:/Windows/Fonts/mingliu.ttc",
+            ],
+            "Japanese": [
+                "C:/Windows/Fonts/YuGothM.ttc",
+                "C:/Windows/Fonts/meiryo.ttc",
+                "C:/Windows/Fonts/msgothic.ttc",
+            ],
+            "Korean": [
+                "C:/Windows/Fonts/malgun.ttf",
+                "C:/Windows/Fonts/gulim.ttc",
+            ],
+        }
+
+        fn = "Helvetica"
+        for font_path in _CJK_TTF_CANDIDATES.get(output_language, []):
+            if Path(font_path).is_file():
+                try:
+                    from reportlab.pdfbase.ttfonts import TTFont
+                    _reg_name = "EmbeddedCJK"
+                    pdfmetrics.registerFont(TTFont(_reg_name, font_path))
+                    fn = _reg_name
+                    break
+                except Exception:
+                    continue
+        if fn == "Helvetica":
+            # Fall back to CID font (renders in Acrobat; text still extractable elsewhere)
+            cid_name = _CID_FONT_MAP.get(output_language, "")
+            if cid_name:
+                try:
+                    pdfmetrics.registerFont(UnicodeCIDFont(cid_name))
+                    fn = cid_name
+                except Exception:
+                    pass
+
+        # Palette
+        BLUE  = colors.HexColor("#2563eb")
+        DARK  = colors.HexColor("#1a1a1a")
+        H1C   = colors.HexColor("#111827")
+        H2C   = colors.HexColor("#1e293b")
+        H3C   = colors.HexColor("#374151")
+        TH_BG = colors.HexColor("#f8fafc")
+        GRID  = colors.HexColor("#d1d5db")
+
+        def _s(name, size, mult=1.55, col=DARK, sb=0, sa=5, li=0):
+            return ParagraphStyle(name, fontName=fn, fontSize=size,
+                                  leading=size * mult, textColor=col,
+                                  spaceBefore=sb, spaceAfter=sa, leftIndent=li)
+
+        sH1   = _s("H1",   14, col=H1C, sb=0,  sa=8)
+        sH2   = _s("H2",   12, col=H2C, sb=12, sa=4)
+        sH3   = _s("H3",   10.5, col=H3C, sb=9, sa=4)
+        sBody = _s("Body", 10,  sb=0,  sa=4)
+        sLI   = _s("LI",   10,  sb=0,  sa=2, li=8)
+        sTH   = _s("TH",   8.5, sb=0,  sa=0)
+        sTD   = _s("TD",   8.5, sb=0,  sa=0)
+        sMono = _s("Mono", 8,   sb=0,  sa=3)
+
+        # Unicode characters that Microsoft YaHei (and most CJK fonts) lack glyphs for.
+        # Subscript/superscript digits → plain digits; non-standard hyphens → hyphen-minus.
+        _UNICODE_FIX = str.maketrans(
+            "₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹‐‑‒―−",
+            "01234567890123456789-----",
+        )
+
+        class _HtmlToStory(HTMLParser):
+            """Parse markdown-generated HTML into a reportlab Platypus story.
+
+            Uses a single _write() routing method so inline markup tags
+            (strong/em/code) always land in the buffer that owns their context
+            (block paragraph, list item, or table cell).
+            """
+
+            _SEMANTIC = {"h1","h2","h3","p","li","td","th","pre"}
+
+            def __init__(self):
+                super().__init__()
+                self.story: list = []
+                self._stk: list[str] = []
+                self._block_buf: str = ""       # h1 / h2 / h3 / p
+                self._li_buf: str = ""          # li
+                self._cell_buf: str = ""        # td / th
+                self._tbl: list = []
+                self._row: list = []
+                self._cell_is_th: bool = False
+                self._row_is_hdr: bool = False
+
+            # -- buffer routing -------------------------------------------
+
+            def _ctx(self) -> str:
+                """Innermost semantic block tag on the stack."""
+                for t in reversed(self._stk):
+                    if t in self._SEMANTIC:
+                        return t
+                return ""
+
+            def _write(self, text: str) -> None:
+                text = text.translate(_UNICODE_FIX)
+                ctx = self._ctx()
+                if ctx == "li":
+                    self._li_buf += text
+                elif ctx in ("td", "th"):
+                    self._cell_buf += text
+                else:
+                    self._block_buf += text
+
+            def _flush_block(self, style):
+                t = self._block_buf.strip()
+                if t:
+                    self.story.append(Paragraph(t, style))
+                self._block_buf = ""
+
+            # -- parser callbacks -----------------------------------------
+
+            def handle_starttag(self, tag, attrs):
+                self._stk.append(tag)
+                if tag in ("h1", "h2", "h3", "p"):
+                    self._block_buf = ""
+                elif tag == "li":
+                    self._li_buf = ""
+                elif tag == "table":
+                    self._tbl = []
+                elif tag == "tr":
+                    self._row = []
+                    self._row_is_hdr = False
+                elif tag in ("td", "th"):
+                    self._cell_buf = ""
+                    self._cell_is_th = (tag == "th")
+                    if tag == "th":
+                        self._row_is_hdr = True
+                elif tag in ("strong", "b"):
+                    self._write("<b>")
+                elif tag in ("em", "i"):
+                    self._write("<i>")
+                elif tag == "code":
+                    self._write("<font face='Courier' size='8'>")
+                elif tag == "br":
+                    self._write("<br/>")
+
+            def handle_endtag(self, tag):
+                if self._stk and self._stk[-1] == tag:
+                    self._stk.pop()
+
+                if tag == "h1":
+                    self._flush_block(sH1)
+                    self.story.append(
+                        HRFlowable(width="100%", thickness=1.5,
+                                   color=BLUE, spaceAfter=6))
+                elif tag == "h2":
+                    self._flush_block(sH2)
+                    self.story.append(
+                        HRFlowable(width="100%", thickness=0.5,
+                                   color=GRID, spaceAfter=4))
+                elif tag == "h3":
+                    self._flush_block(sH3)
+                elif tag == "p":
+                    self._flush_block(sBody)
+                elif tag == "li":
+                    t = self._li_buf.strip()
+                    if t:
+                        self.story.append(Paragraph("• " + t, sLI))
+                elif tag in ("strong", "b"):
+                    self._write("</b>")
+                elif tag in ("em", "i"):
+                    self._write("</i>")
+                elif tag == "code":
+                    self._write("</font>")
+                elif tag in ("td", "th"):
+                    self._row.append(
+                        (self._cell_buf.strip(), self._cell_is_th))
+                elif tag == "tr":
+                    if self._row:
+                        self._tbl.append((self._row, self._row_is_hdr))
+                elif tag == "table":
+                    self._build_table()
+                    self.story.append(Spacer(1, 4))
+
+            def handle_data(self, data: str) -> None:
+                top = self._stk[-1] if self._stk else ""
+                # Skip whitespace-only text between structural table tags
+                if top in ("table", "tbody", "thead", "tr", "ul", "ol"):
+                    return
+                # Escape & < > so reportlab's XML parser doesn't mis-read them
+                # as entity/tag markup. Inline <b>/<i> tags added by
+                # handle_starttag are written directly and must NOT be escaped.
+                import html as _html
+                self._write(_html.escape(data))
+
+            def _build_table(self):
+                if not self._tbl:
+                    return
+                n_cols = max(len(row) for row, _ in self._tbl)
+                avail = 16.5 * cm
+                col_w = [avail / n_cols] * n_cols
+
+                cells = []
+                style_cmds = [
+                    ("GRID",           (0, 0), (-1, -1), 0.5, GRID),
+                    ("VALIGN",         (0, 0), (-1, -1), "TOP"),
+                    ("TOPPADDING",     (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING",  (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING",    (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING",   (0, 0), (-1, -1), 6),
+                    ("FONTNAME",       (0, 0), (-1, -1), fn),
+                    ("FONTSIZE",       (0, 0), (-1, -1), 8.5),
+                ]
+
+                for r_idx, (row, is_hdr) in enumerate(self._tbl):
+                    p_row = []
+                    for c_idx in range(n_cols):
+                        if c_idx < len(row):
+                            text, is_th = row[c_idx]
+                        else:
+                            text, is_th = "", False
+                        st = sTH if (is_hdr or is_th) else sTD
+                        p_row.append(Paragraph(text, st))
+                    cells.append(p_row)
+                    if is_hdr:
+                        style_cmds.append(
+                            ("BACKGROUND", (0, r_idx), (-1, r_idx), TH_BG))
+
+                tbl = Table(cells, colWidths=col_w, repeatRows=1)
+                tbl.setStyle(TableStyle(style_cmds))
+                self.story.append(Spacer(1, 4))
+                self.story.append(tbl)
+
         html_body = md_lib.markdown(report_md, extensions=["tables", "fenced_code"])
-        styled = f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><style>
-@page {{ margin: 2cm; }}
-body {{ font-family: {font_family}; font-size: 10pt;
-        line-height: 1.55; color: #1a1a1a; }}
-h1 {{ font-size: 15pt; color: #111827; border-bottom: 1.5pt solid #2563eb;
-      padding-bottom: 4pt; margin-top: 0; }}
-h2 {{ font-size: 12pt; color: #1e293b; border-bottom: 0.5pt solid #d1d5db;
-      margin-top: 14pt; padding-bottom: 2pt; }}
-h3 {{ font-size: 10.5pt; color: #374151; margin-top: 10pt; }}
-p  {{ margin: 5pt 0; }}
-table {{ width: 100%; border-collapse: collapse; font-size: 8.5pt; margin: 6pt 0; }}
-th {{ background: #f8fafc; font-weight: bold; padding: 4pt 6pt;
-      border: 0.5pt solid #d1d5db; text-align: left; }}
-td {{ padding: 3pt 6pt; border: 0.5pt solid #d1d5db; vertical-align: top; }}
-code {{ background: #f3f4f6; padding: 1pt 3pt; font-size: 8pt; }}
-pre  {{ background: #f3f4f6; padding: 7pt; font-size: 8pt;
-        border-left: 3pt solid #2563eb; margin: 6pt 0; }}
-ul, ol {{ margin: 4pt 0; padding-left: 14pt; }}
-li {{ margin-bottom: 2pt; }}
-strong {{ font-weight: bold; }}
-em {{ font-style: italic; }}
-</style></head><body>{html_body}</body></html>"""
+        parser = _HtmlToStory()
+        parser.feed(html_body)
+        story = parser.story
 
         pdf_path = run_dir / "commercialization_report.pdf"
-        with open(pdf_path, "wb") as f:
-            result = pisa.CreatePDF(styled, dest=f, encoding="utf-8")
-        return None if result.err else pdf_path
+        doc = SimpleDocTemplate(
+            str(pdf_path), pagesize=A4,
+            rightMargin=2 * cm, leftMargin=2 * cm,
+            topMargin=2 * cm,   bottomMargin=2 * cm,
+        )
+        doc.build(story)
+        return pdf_path
+
     except Exception:
         return None
 
@@ -619,8 +1033,9 @@ def run_analysis(research_topic: str):
         elapsed = int(time.time() - start)
         stage = result_holder["current_stage"]
         spin = SPINNER[tick % len(SPINNER)]
+        lang = result_holder.get("output_language") or "English"
         yield (
-            _render_progress_html(stage, elapsed, run_id, spin),
+            _render_progress_html(stage, elapsed, run_id, spin, lang),
             "",
             "",
             gr.update(visible=False),
@@ -654,11 +1069,12 @@ def run_analysis(research_topic: str):
             f'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">'
             f'🌐 Report language: {html.escape(output_language)}</span></div>'
         ) if output_language != "English" else ""
-        score_html = (lang_badge + _render_score_html(scores_json, research_topic.strip())) if scores_json else lang_badge
-        footer = f"\n\n---\n\nRun ID: `{run_id}`  \nSaved to: `{path}`"
-        md_update = gr.update(value=str(path), visible=True) if path else gr.update(visible=False)
-        pdf_path = _generate_pdf(report, path.parent) if path else None
-        pdf_update = gr.update(value=str(pdf_path), visible=True) if pdf_path else gr.update(visible=False)
+        score_html = (lang_badge + _render_score_html(scores_json, research_topic.strip(), output_language)) if scores_json else lang_badge
+        footer = ""
+        t = _scorecard_strings(output_language)
+        md_update = gr.update(value=str(path), visible=True, label=t["dl_md"]) if path else gr.update(visible=False)
+        pdf_path = _generate_pdf(report, path.parent, output_language) if path else None
+        pdf_update = gr.update(value=str(pdf_path), visible=True, label=t["dl_pdf"]) if pdf_path else gr.update(visible=False)
         yield "", score_html, report + footer, md_update, pdf_update
 
 
@@ -836,9 +1252,20 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
             with gr.Row():
                 gr.HTML('<p style="font-size:13px;color:#9a9a9a;margin:6px 0;">Past runs — paste a Run ID below to reload any report</p>')
                 refresh_btn = gr.Button("↻  Refresh", variant="secondary", scale=0, min_width=110)
+                cleanup_btn = gr.Button("🗑  Keep Latest 20", variant="secondary", scale=0, min_width=150)
 
+            cleanup_status = gr.HTML(value="")
             history_output = gr.HTML(value=_render_history_html())
+
+            def _do_cleanup():
+                msg = _cleanup_old_runs(keep_n=20)
+                status_html = (
+                    f'<p style="font-size:12px;color:#9a9a9a;margin:4px 0 8px;">{html.escape(msg)}</p>'
+                )
+                return status_html, _render_history_html()
+
             refresh_btn.click(fn=_render_history_html, outputs=history_output)
+            cleanup_btn.click(fn=_do_cleanup, outputs=[cleanup_status, history_output])
 
             with gr.Row():
                 run_id_input = gr.Textbox(
