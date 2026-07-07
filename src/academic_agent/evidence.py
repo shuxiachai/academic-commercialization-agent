@@ -1278,6 +1278,26 @@ def make_reviewer_guardrail(
                 "Reviewer output has blocking issues:\n- " + "\n- ".join(errors),
             )
 
+        # Re-insert patent disclaimer if the reviewer removed it.
+        # The reviewer (writing in native language) may translate or drop the
+        # English-only disclaimer that normalize_final_report() inserted in Task 4.
+        _disclaimer = (
+            "Patent analysis is preliminary research, not legal advice or a "
+            "freedom-to-operate opinion."
+        )
+        reviewed_lower_check = output.raw.lower()
+        if "not legal advice" not in reviewed_lower_check or "freedom-to-operate" not in reviewed_lower_check:
+            # Find insertion point: localized Evidence Limitations heading or English fallback
+            ev_lim_candidates = []
+            if localized_headings and len(localized_headings) >= 2:
+                ev_lim_candidates.append(localized_headings[-2])  # localized form
+            ev_lim_candidates.append("## Evidence Limitations")
+            raw = output.raw
+            for marker in ev_lim_candidates:
+                if marker in raw:
+                    output.raw = raw.replace(marker, f"{_disclaimer}\n\n{marker}", 1)
+                    break
+
         return True, output
 
     return validate_review

@@ -1166,6 +1166,7 @@ def _queries(
         f"{topic} government standards pilot",
         f"{topic} manufacturing commercialization",
         f"{topic} product manufacturer revenue commercial sales 2024",
+        f"{topic} startup funding FDA cleared CE marked clinical commercial",
         f"{topic} market size billion company investment startup",
     ]
     if native_topic and native_topic != topic:
