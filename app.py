@@ -282,7 +282,12 @@ def _parse_run_timestamp(run_id: str) -> str:
         return run_id[:16]
 
 
-_REPORT_TITLE_PREFIX = "academic commercialization assessment:"
+_REPORT_TITLE_PREFIXES = (
+    "academic commercialization assessment:",
+    # Common localized prefixes — strip the heading label, keep the topic
+    "学术商业化评估：", "学术商业化评估:", "学术商业化评估",
+    "commercialization assessment:",
+)
 
 def _extract_topic_from_report(report_path: Path) -> str:
     try:
@@ -291,9 +296,11 @@ def _extract_topic_from_report(report_path: Path) -> str:
             stripped = line.strip()
             if stripped.startswith("#") and len(stripped) > 2:
                 title = stripped.lstrip("#").strip()
-                if title.lower().startswith(_REPORT_TITLE_PREFIX):
-                    title = title[len(_REPORT_TITLE_PREFIX):].strip()
-                return title[:90]
+                for prefix in _REPORT_TITLE_PREFIXES:
+                    if title.lower().startswith(prefix.lower()):
+                        title = title[len(prefix):].strip()
+                        break
+                return title[:90] if title else "—"
     except Exception:
         pass
     return "—"

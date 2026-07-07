@@ -259,10 +259,17 @@ class SourceCollection(BaseModel):
                 separators=(",", ":"),
             )
 
-        headings = self.localized_headings or list(_REQUIRED_REPORT_HEADINGS)
+        raw_headings = self.localized_headings or list(_REQUIRED_REPORT_HEADINGS)
+        display = self.display_topic or self.topic
+        # Append the display topic to the title heading so the LLM writes the
+        # full title "# 学术商业化评估：用于骨组织工程的生物3D打印支架" instead of
+        # just the bare translated prefix "# 学术商业化评估："
+        headings = list(raw_headings)
+        if headings and not headings[0].rstrip().endswith(display):
+            headings[0] = headings[0].rstrip() + display
         return {
             "research_topic":  self.topic,
-            "display_topic":   self.display_topic or self.topic,
+            "display_topic":   display,
             "output_language": self.output_language,
             "localized_headings": "\n".join(headings),
             "academic_sources_json": dump_sources(self.academic_sources),
