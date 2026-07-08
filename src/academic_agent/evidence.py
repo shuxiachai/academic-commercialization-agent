@@ -3,6 +3,7 @@
 import ipaddress
 import re
 import socket
+import threading
 from datetime import date
 from functools import lru_cache
 from typing import Any, Callable, Literal, Sequence
@@ -74,6 +75,10 @@ _REQUIRED_REPORT_HEADINGS = (
     "## References",
 )
 
+
+# Thread-local storage: normalize_final_report writes extracted Reviewer Notes here
+# so app.py can persist them to a separate file without changing function signatures.
+_tls = threading.local()
 
 # Localized patent disclaimer text and the phrases used to verify its presence.
 # All variants keep "freedom-to-operate" in Latin so _is_substantive_claim_line()
@@ -1176,6 +1181,15 @@ def normalize_final_report(
                 # Absolute last resort: prepend to body so _canonical_reference_section
                 # retains it (it only strips from the References heading onward).
                 normalized = disclaimer_text + "\n\n" + normalized.lstrip()
+
+    # Extract ## Reviewer Notes section and store it in thread-local storage so
+    # the caller (app.py) can save it separately without changing this function's signature.
+    m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", normalized)
+    if m_rev:
+        _tls.reviewer_notes = normalized[m_rev.start():].strip()
+        normalized = normalized[: m_rev.start()].rstrip()
+    else:
+        _tls.reviewer_notes = ""
 
     localized_ref = (
         required_headings[-1]

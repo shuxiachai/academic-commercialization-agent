@@ -15,11 +15,13 @@ for stream in (sys.stdout, sys.stderr):
 import gradio as gr
 
 from academic_agent.crew import AcademicAgent
+from academic_agent.evidence import _tls as _evidence_tls
 from academic_agent.run_output import (
     DEFAULT_OUTPUT_ROOT,
     create_run_id,
     save_error,
     save_report,
+    save_reviewer_notes,
     save_scores,
     save_source_collection,
 )
@@ -1011,6 +1013,10 @@ def run_analysis(research_topic: str):
             _, report_path = save_report(report_raw, run_id=run_id)
             result_holder["result"] = report_raw
             result_holder["path"] = report_path
+
+            reviewer_notes = getattr(_evidence_tls, "reviewer_notes", "")
+            if reviewer_notes:
+                save_reviewer_notes(reviewer_notes, run_id=run_id)
 
             if scores_raw:
                 save_scores(scores_raw, run_id=run_id)

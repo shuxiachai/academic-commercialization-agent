@@ -61,3 +61,15 @@ def save_scores(
     scores_path = run_directory / "commercialization_scores.json"
     scores_path.write_text(scores_json, encoding="utf-8")
     return scores_path
+
+
+def save_reviewer_notes(
+    notes: str,
+    run_id: str,
+    output_root: Path = DEFAULT_OUTPUT_ROOT,
+) -> Path:
+    run_directory = output_root / run_id
+    run_directory.mkdir(parents=True, exist_ok=True)
+    notes_path = run_directory / "reviewer_notes.md"
+    notes_path.write_text(notes, encoding="utf-8")
+    return notes_path
