@@ -1,5 +1,6 @@
 import html
 import json
+import re
 import sys
 import threading
 import time
@@ -15,7 +16,6 @@ for stream in (sys.stdout, sys.stderr):
 import gradio as gr
 
 from academic_agent.crew import AcademicAgent
-from academic_agent.evidence import _tls as _evidence_tls
 from academic_agent.run_output import (
     DEFAULT_OUTPUT_ROOT,
     create_run_id,
@@ -1010,13 +1010,17 @@ def run_analysis(research_topic: str):
                 report_raw = result.raw
                 scores_raw = None
 
+            # Strip ## Reviewer Notes from the final report and save separately.
+            # Agent 5 (reviewer) appends this section after its guardrail runs,
+            # so normalize_final_report never sees it — we must handle it here.
+            m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", report_raw)
+            if m_rev:
+                save_reviewer_notes(report_raw[m_rev.start():].strip(), run_id=run_id)
+                report_raw = report_raw[: m_rev.start()].rstrip()
+
             _, report_path = save_report(report_raw, run_id=run_id)
             result_holder["result"] = report_raw
             result_holder["path"] = report_path
-
-            reviewer_notes = getattr(_evidence_tls, "reviewer_notes", "")
-            if reviewer_notes:
-                save_reviewer_notes(reviewer_notes, run_id=run_id)
 
             if scores_raw:
                 save_scores(scores_raw, run_id=run_id)
