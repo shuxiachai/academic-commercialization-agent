@@ -47,7 +47,7 @@ Agent 4: Technology Commercialization Report Writer（报告撰写师）
 
 Agent 5: Report Reviewer（质量审查员）
          工具：无（以 Agent 4 草稿作为输入）
-         输出：修正后的最终报告，末尾附 Reviewer Notes 列出所有修改
+         输出：修正后的最终报告；审查员注记（Reviewer Notes）自动分离，单独保存至 reviewer_notes.md
 
 Agent 6: Commercialization Readiness Scorer（量化评分员）
          工具：无（以 Task 1/2/3 结构化证据为输入，独立于报告流程）
@@ -127,8 +127,11 @@ Step 6  Agent 6 执行 — 量化评分
 ## 5. Commercialization Opportunities & Recommendations
 ## Evidence Limitations
 ## References
-## Reviewer Notes（审查员修改说明）
+    *Reference codes: A = Academic paper · P = Patent · M = Market/industry source*
+    [A1] ... [P1] ... [M1] ...
 ```
+
+> **多语言支持**：系统根据研究主题自动检测输出语言（支持中文简体/繁体、日文、韩文、德文、法文等 12 种语言）。各语言版本的报告结构、章节标题、引用图例（A/P/M 说明行）及专利免责声明均自动本地化。
 
 评分卡（`commercialization_scores.json`）额外包含：TRL 评分、专利强度、市场可及性、证据置信度、综合评分、关键风险和机遇列表。
 
@@ -189,10 +192,11 @@ uv run crewai run
 ```
 outputs/
 └── 20260625T120000Z-a1b2c3d4e5/
-    ├── commercialization_report.md
-    ├── commercialization_report.pdf
-    ├── commercialization_scores.json
-    └── validated_sources.json
+    ├── commercialization_report.md   # 最终报告（Markdown）
+    ├── commercialization_report.pdf  # 最终报告（PDF，支持 CJK 字体）
+    ├── commercialization_scores.json # 量化评分卡
+    ├── validated_sources.json        # 预验证来源清单
+    └── reviewer_notes.md             # 审查员修改记录（与正文分离，供追溯）
 ```
 
 ---
@@ -273,7 +277,7 @@ academic_agent/
 - **学术元数据**：Crossref API（DOI 验证与摘要检索）
 - **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、评分算法验证）
 - **网页界面**：Gradio 6.x
-- **PDF 导出**：xhtml2pdf + reportlab（原生 CJK 字体注册，支持中文报告）
+- **PDF 导出**：xhtml2pdf + reportlab（原生 CJK 字体注册，支持中文简繁体、日文、韩文等多语言报告）
 - **Python**：3.10+
 
 URL/DOI 无效或不可达、引用编号错误、References 不一致、报告结构错误和评分 JSON 格式错误都会阻止任务并触发重试。
