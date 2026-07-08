@@ -1126,15 +1126,27 @@ def normalize_final_report(
     disclaimer_text, check_phrases = _patent_disclaimer(output_language)
     lowered = normalized.lower()
     if not all(phrase.lower() in lowered for phrase in check_phrases):
-        # Try the localized Evidence Limitations heading first, then English fallback
+        # Try the localized Evidence Limitations heading first, then English fallback,
+        # then ## References as a last resort so insertion never silently fails.
         localized_ev_lim = (
             required_headings[-2] if required_headings and len(required_headings) >= 2
             else None
         )
+        # Normalize localized heading: LLMs sometimes add a section number prefix
+        # (e.g. "## 5. 証拠の限界") that won't match the stored "## 証拠の限界".
+        if localized_ev_lim:
+            heading_body = re.escape(localized_ev_lim.lstrip("# ").strip())
+            normalized = re.sub(
+                r"(?m)^##\s+(?:\d+\.\s*)?" + heading_body + r"\s*$",
+                localized_ev_lim,
+                normalized,
+            )
         markers = []
         if localized_ev_lim and localized_ev_lim != "## Evidence Limitations":
             markers.append(localized_ev_lim)
         markers.append("## Evidence Limitations")
+        markers.append("## References")  # last-resort: always present
+        inserted = False
         for marker in markers:
             if marker in normalized:
                 normalized = normalized.replace(
@@ -1142,7 +1154,11 @@ def normalize_final_report(
                     f"{disclaimer_text}\n\n{marker}",
                     1,
                 )
+                inserted = True
                 break
+        if not inserted:
+            # Ultimate fallback: append disclaimer so validation never fails
+            normalized = normalized.rstrip() + f"\n\n{disclaimer_text}\n"
 
     localized_ref = (
         required_headings[-1]
