@@ -82,8 +82,8 @@ _PATENT_DISCLAIMERS: dict[str, dict] = {
     "English":             {"text": "Patent analysis is preliminary research, not legal advice or a freedom-to-operate opinion.",                                                                                          "check": ("not legal advice",                  "freedom-to-operate")},
     "Simplified Chinese":  {"text": "专利分析为初步研究，不构成法律意见或自由实施（Freedom-to-Operate）意见。",                                                                                                            "check": ("不构成法律意见",                     "freedom-to-operate")},
     "Traditional Chinese": {"text": "專利分析為初步研究，不構成法律意見或自由實施（Freedom-to-Operate）意見。",                                                                                                            "check": ("不構成法律意見",                     "freedom-to-operate")},
-    "Japanese":            {"text": "特許分析は予備的調査であり、法的意見または自由実施（Freedom-to-Operate）意見ではありません。",                                                                                        "check": ("法的意見ではありません",              "freedom-to-operate")},
-    "Korean":              {"text": "특허 분석은 예비 조사이며, 법적 의견 또는 자유 실시(Freedom-to-Operate) 의견이 아닙니다.",                                                                                            "check": ("법적 의견이 아닙니다",               "freedom-to-operate")},
+    "Japanese":            {"text": "特許分析は予備的調査であり、法的意見ではありません。自由実施権（Freedom-to-Operate）の意見でもありません。",                                                                      "check": ("法的意見ではありません",              "freedom-to-operate")},
+    "Korean":              {"text": "특허 분석은 예비 조사이며, 법적 의견이 아닙니다. 자유 실시(Freedom-to-Operate) 의견도 아닙니다.",                                                                                      "check": ("법적 의견이 아닙니다",               "freedom-to-operate")},
     "German":              {"text": "Die Patentanalyse ist eine vorläufige Recherche und stellt keine Rechtsberatung oder Freedom-to-Operate-Stellungnahme dar.",                                                         "check": ("keine rechtsberatung",               "freedom-to-operate")},
     "French":              {"text": "L'analyse de brevets est une recherche préliminaire et ne constitue pas un avis juridique ou une opinion Freedom-to-Operate.",                                                       "check": ("pas un avis juridique",              "freedom-to-operate")},
     "Spanish":             {"text": "El análisis de patentes es una investigación preliminar y no constituye asesoramiento legal ni una opinión Freedom-to-Operate.",                                                     "check": ("no constituye asesoramiento legal",  "freedom-to-operate")},
@@ -1238,6 +1238,7 @@ def make_final_report_guardrail(
             required_headings=required_headings,
             output_language=output_language,
         )
+
         output.raw = normalized
         errors = validate_final_report(
             normalized, allowed_sources,
