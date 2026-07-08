@@ -1126,10 +1126,15 @@ def normalize_final_report(
     disclaimer_text, check_phrases = _patent_disclaimer(output_language)
     lowered = normalized.lower()
     if not all(phrase.lower() in lowered for phrase in check_phrases):
-        # Try the localized Evidence Limitations heading first, then English fallback,
-        # then ## References as a last resort so insertion never silently fails.
         localized_ev_lim = (
             required_headings[-2] if required_headings and len(required_headings) >= 2
+            else None
+        )
+        # localized_ref_hdg is the translated "## References" heading (e.g. "## 参考文献").
+        # Inserting before it keeps the disclaimer inside the body that
+        # _canonical_reference_section retains after splitting at this marker.
+        localized_ref_hdg = (
+            required_headings[-1] if required_headings and len(required_headings) >= 1
             else None
         )
         # Normalize localized heading: LLMs sometimes add a section number prefix
@@ -1145,7 +1150,9 @@ def normalize_final_report(
         if localized_ev_lim and localized_ev_lim != "## Evidence Limitations":
             markers.append(localized_ev_lim)
         markers.append("## Evidence Limitations")
-        markers.append("## References")  # last-resort: always present
+        if localized_ref_hdg and localized_ref_hdg not in markers:
+            markers.append(localized_ref_hdg)   # e.g. "## 参考文献" for Japanese
+        markers.append("## References")
         inserted = False
         for marker in markers:
             if marker in normalized:
@@ -1157,8 +1164,18 @@ def normalize_final_report(
                 inserted = True
                 break
         if not inserted:
-            # Ultimate fallback: append disclaimer so validation never fails
-            normalized = normalized.rstrip() + f"\n\n{disclaimer_text}\n"
+            # Ultimate fallback: find the references section by detecting a ## heading
+            # immediately followed by citation entries [A/P/M n], insert before it.
+            m = re.search(r"(?m)^##[^\n]+\n+\[(?:A|P|M)\d", normalized)
+            if m:
+                pos = m.start()
+                normalized = (
+                    normalized[:pos] + disclaimer_text + "\n\n" + normalized[pos:]
+                )
+            else:
+                # Absolute last resort: prepend to body so _canonical_reference_section
+                # retains it (it only strips from the References heading onward).
+                normalized = disclaimer_text + "\n\n" + normalized.lstrip()
 
     localized_ref = (
         required_headings[-1]
