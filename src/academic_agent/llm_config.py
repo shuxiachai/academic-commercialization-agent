@@ -69,7 +69,7 @@ def create_llm(*, json_mode: bool = False, temperature: float | None = None) -> 
 
     elif provider == "openai":
         kwargs["provider"] = "openai"
-        kwargs["model"] = os.getenv("OPENAI_MODEL", "gpt-4o")
+        kwargs["model"] = os.getenv("OPENAI_MODEL") or "gpt-4o"
         kwargs["api_key"] = os.getenv("OPENAI_API_KEY")
         base = os.getenv("OPENAI_API_BASE")
         if base:
@@ -77,7 +77,7 @@ def create_llm(*, json_mode: bool = False, temperature: float | None = None) -> 
 
     elif provider == "anthropic":
         kwargs["provider"] = "anthropic"
-        kwargs["model"] = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
+        kwargs["model"] = os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5"
         kwargs["api_key"] = os.getenv("ANTHROPIC_API_KEY")
 
     else:

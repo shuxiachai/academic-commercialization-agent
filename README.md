@@ -1,5 +1,7 @@
 # Academic Commercialization Assessment Agent
 
+[![Tests](https://github.com/shuxiachai/academic-commercialization-agent/actions/workflows/test.yml/badge.svg)](https://github.com/shuxiachai/academic-commercialization-agent/actions/workflows/test.yml)
+
 [English](#english) | [中文](#chinese)
 
 ---
