@@ -280,9 +280,17 @@ def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
             f" + ({score.evidence_confidence}/5)×10={evi_c:.2f}"
             f" → overall_score={correct_overall}]"
         )
+        # If the LLM stated a wrong overall_score, prepend a correction notice so
+        # the rationale text doesn't contradict the corrected numeric field.
+        rationale = score.scoring_rationale
+        if correct_overall != score.overall_score:
+            rationale = (
+                f"[Auto-corrected: LLM stated overall_score={score.overall_score}, "
+                f"formula gives {correct_overall}] "
+            ) + rationale
         score = score.model_copy(update={
             "overall_score": correct_overall,
-            "scoring_rationale": score.scoring_rationale + formula_note,
+            "scoring_rationale": rationale + formula_note,
         })
 
         output.pydantic = score
