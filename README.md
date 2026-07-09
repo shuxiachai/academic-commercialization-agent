@@ -232,12 +232,12 @@ academic_agent/
 │   ├── main.py              # CLI entry point (supports --topic argument)
 │   ├── evidence.py          # Evidence models, guardrail validators, CommercializationScore
 │   ├── source_pipeline.py   # Pre-run deterministic source collection & validation
-│   ├── llm_config.py        # DeepSeek LLM config (standard / JSON mode / temperature)
+│   ├── llm_config.py        # Multi-LLM config (DeepSeek / OpenAI / Anthropic; auto-detection, JSON mode, temperature)
 │   ├── run_output.py        # Run ID, report & scorecard persistence
 │   └── config/
 │       ├── agents.yaml      # Agent role definitions (6 agents)
 │       └── tasks.yaml       # Task requirements & citation rules (6 tasks)
-├── tests/                   # Unit tests and crew wiring tests (79 tests)
+├── tests/                   # Unit tests and crew wiring tests (103 tests)
 ├── app.py                   # Gradio web UI (scorecard with source ID chips)
 ├── benchmark.py             # 10-topic benchmark runner
 ├── benchmark_check.py       # Benchmark result analyzer (CSV + terminal table)
@@ -261,7 +261,7 @@ academic_agent/
 - **Data validation**: Pydantic v2 + custom guardrails (source structure, citation integrity, report structure, scoring formula)
 - **Web UI**: Gradio 6.x
 - **PDF export**: xhtml2pdf + reportlab (native CJK font registration for Chinese, Japanese, Korean)
-- **Python**: 3.10+
+- **Python**: 3.11+
 
 Invalid or unreachable URLs/DOIs, mismatched citation IDs, References inconsistencies, malformed report sections, and scoring JSON format errors all block the task and trigger automatic retries.
 
@@ -513,12 +513,12 @@ academic_agent/
 │   ├── main.py              # 命令行入口（支持 --topic 参数）
 │   ├── evidence.py          # 证据模型、guardrail 校验、CommercializationScore 模型
 │   ├── source_pipeline.py   # 运行前确定性来源收集与验证
-│   ├── llm_config.py        # DeepSeek LLM 配置（普通模式 / JSON 模式 / temperature）
+│   ├── llm_config.py        # 多 LLM 配置（DeepSeek / OpenAI / Anthropic；自动检测、JSON 模式、temperature）
 │   ├── run_output.py        # 运行 ID、报告与评分 JSON 持久化
 │   └── config/
 │       ├── agents.yaml      # Agent 角色配置（6 个）
 │       └── tasks.yaml       # Task 需求与引用规则（6 个）
-├── tests/                   # 单元测试与 Crew 接线测试（79 个）
+├── tests/                   # 单元测试与 Crew 接线测试（103 个）
 ├── app.py                   # Gradio 网页界面（含评分卡来源 ID chips）
 ├── benchmark.py             # 10 话题基准测试运行器
 ├── benchmark_check.py       # 基准结果分析器（生成 CSV + 终端表格）
