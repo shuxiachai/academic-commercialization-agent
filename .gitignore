@@ -5,6 +5,7 @@ __pycache__/
 .DS_Store
 outputs/
 commercialization_report.md
+!examples/**/commercialization_report.md
 dist/
 *.egg-info/
 *.log
