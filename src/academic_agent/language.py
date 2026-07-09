@@ -65,9 +65,15 @@ def detect_language(text: str) -> str:
         return script
     try:
         from langdetect import detect
-        return detect(text)
+        result = detect(text)
+        # langdetect may return bare "zh" — normalise to zh-cn as default
+        if result == "zh":
+            result = "zh-cn"
+        return result
     except Exception:
-        return "en"
+        # If text has CJK characters and langdetect failed, default to zh-cn
+        has_cjk = any('一' <= c <= '鿿' or '㐀' <= c <= '䶿' for c in text)
+        return "zh-cn" if has_cjk else "en"
 
 
 def get_lang_info(lang_code: str) -> dict:

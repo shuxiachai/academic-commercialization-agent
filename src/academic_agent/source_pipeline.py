@@ -1016,7 +1016,7 @@ def _market_source_profile(
             "medium",
             "Independent policy research institution or think tank; verify primary data sources.",
         )
-    if host.endswith(".gov") or ".gov." in host or host in {
+    if host.endswith(".gov") or re.search(r"\.gov\.[a-z]{2}$", host) or host in {
         "europa.eu",
         "ec.europa.eu",
     }:
@@ -1031,7 +1031,7 @@ def _market_source_profile(
             "high",
             "Official government source; authoritative within its stated scope.",
         )
-    if host.endswith(".edu") or ".edu." in host:
+    if host.endswith(".edu") or re.search(r"\.edu\.[a-z]{2}$", host):
         return (
             "research_institute",
             "medium",
@@ -1306,10 +1306,17 @@ def _collect_domain(
             if source is None:
                 audit.rejected_reasons.append(reason)
                 continue
-            if len(source.evidence_summary) < _MIN_EVIDENCE_SUMMARY_CHARS:
+            _es = source.evidence_summary
+            _cjk_count = sum(
+                1 for c in _es if '一' <= c <= '鿿'
+                or '぀' <= c <= 'ヿ'
+                or '가' <= c <= '힯'
+            )
+            _min_chars = 40 if _cjk_count >= 15 else _MIN_EVIDENCE_SUMMARY_CHARS
+            if len(_es) < _min_chars:
                 audit.rejected_reasons.append(
                     f"evidence summary too thin "
-                    f"({len(source.evidence_summary)} chars): {source.title!r}"
+                    f"({len(_es)} chars): {source.title!r}"
                 )
                 continue
             if domain == "market" and not _market_summary_relevant(

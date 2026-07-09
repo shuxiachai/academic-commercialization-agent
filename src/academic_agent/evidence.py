@@ -251,6 +251,7 @@ def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
         id_errors: list[str] = []
         for field, ids in (
             ("trl_source_ids", score.trl_source_ids),
+            ("mrl_source_ids", score.mrl_source_ids),
             ("patent_source_ids", score.patent_source_ids),
             ("market_source_ids", score.market_source_ids),
             ("evidence_source_ids", score.evidence_source_ids),
@@ -643,7 +644,8 @@ def _is_substantive_claim_line(
             return False
     without_citations = _BRACKET_PATTERN.sub("", stripped)
     words = re.findall(r"[A-Za-z][A-Za-z'-]+", without_citations)
-    return len(words) >= 5
+    cjk_chars = len(re.findall(r"[一-鿿぀-ヿ가-힯]", without_citations))
+    return len(words) >= 5 or cjk_chars >= 10
 
 
 def _validate_high_risk_claims(
@@ -818,13 +820,22 @@ def validate_final_report(
                 f"Reference [{source_id}] does not include its validated URL or DOI."
             )
 
+    localized_ev_lim = (
+        required_headings[-2]
+        if required_headings and len(required_headings) >= 2
+        else None
+    )
+    _ev_lim_headings = {"## Evidence Limitations"}
+    if localized_ev_lim:
+        _ev_lim_headings.add(localized_ev_lim)
+
     body_lines = body.splitlines()
     in_limitations = False
     for line_index, line in enumerate(body_lines):
         line_number = line_index + 1
         stripped = line.strip()
         if stripped.startswith("## "):
-            in_limitations = stripped == "## Evidence Limitations"
+            in_limitations = stripped in _ev_lim_headings
         if not stripped or stripped.startswith("#") or re.fullmatch(r"[-|:\s]+", stripped):
             continue
         # Markdown unordered list items ("- …" or "* …")
@@ -1345,10 +1356,17 @@ def make_reviewer_guardrail(
                     "Do not remove any sections from the report."
                 )
 
-        # 3. Citation ID regression
+        # 3. Citation ID regression — only count IDs inside square brackets to
+        # avoid false matches with non-citation tokens like "P2/P3型" or "A1规格".
+        def _bracket_ids(text: str) -> set[str]:
+            ids: set[str] = set()
+            for group in re.findall(r"\[([^\]]+)\]", text):
+                ids.update(re.findall(r"[APM]\d+", group))
+            return ids
+
         if task4_text:
-            task4_ids = set(re.findall(r"\[([APM]\d+)\]", task4_text))
-            reviewed_ids = set(re.findall(r"\[([APM]\d+)\]", reviewed))
+            task4_ids = _bracket_ids(task4_text)
+            reviewed_ids = _bracket_ids(reviewed)
             missing = task4_ids - reviewed_ids
             if missing:
                 errors.append(

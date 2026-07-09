@@ -777,8 +777,8 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
         # Unicode characters that Microsoft YaHei (and most CJK fonts) lack glyphs for.
         # Subscript/superscript digits → plain digits; non-standard hyphens → hyphen-minus.
         _UNICODE_FIX = str.maketrans(
-            "₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹‐‑‒―−",
-            "01234567890123456789-----",
+            "₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹‐‑‒―−–—",
+            "01234567890123456789-------",
         )
 
         class _HtmlToStory(HTMLParser):
@@ -796,7 +796,7 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
                 self.story: list = []
                 self._stk: list[str] = []
                 self._block_buf: str = ""       # h1 / h2 / h3 / p
-                self._li_buf: str = ""          # li
+                self._li_stk: list[str] = []    # li (stack for nested lists)
                 self._cell_buf: str = ""        # td / th
                 self._tbl: list = []
                 self._row: list = []
@@ -816,7 +816,8 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
                 text = text.translate(_UNICODE_FIX)
                 ctx = self._ctx()
                 if ctx == "li":
-                    self._li_buf += text
+                    if self._li_stk:
+                        self._li_stk[-1] += text
                 elif ctx in ("td", "th"):
                     self._cell_buf += text
                 else:
@@ -835,7 +836,7 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
                 if tag in ("h1", "h2", "h3", "p"):
                     self._block_buf = ""
                 elif tag == "li":
-                    self._li_buf = ""
+                    self._li_stk.append("")
                 elif tag == "table":
                     self._tbl = []
                 elif tag == "tr":
@@ -874,7 +875,7 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
                 elif tag == "p":
                     self._flush_block(sBody)
                 elif tag == "li":
-                    t = self._li_buf.strip()
+                    t = (self._li_stk.pop() if self._li_stk else "").strip()
                     if t:
                         self.story.append(Paragraph("• " + t, sLI))
                 elif tag in ("strong", "b"):
@@ -883,6 +884,8 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
                     self._write("</i>")
                 elif tag == "code":
                     self._write("</font>")
+                elif tag == "pre":
+                    self._flush_block(sMono)
                 elif tag in ("td", "th"):
                     self._row.append(
                         (self._cell_buf.strip(), self._cell_is_th))
@@ -1013,7 +1016,7 @@ def run_analysis(research_topic: str):
             # Strip ## Reviewer Notes from the final report and save separately.
             # Agent 5 (reviewer) appends this section after its guardrail runs,
             # so normalize_final_report never sees it — we must handle it here.
-            m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", report_raw)
+            m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", report_raw, re.IGNORECASE)
             if m_rev:
                 save_reviewer_notes(report_raw[m_rev.start():].strip(), run_id=run_id)
                 report_raw = report_raw[: m_rev.start()].rstrip()
