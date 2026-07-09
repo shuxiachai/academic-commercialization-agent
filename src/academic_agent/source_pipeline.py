@@ -1527,9 +1527,12 @@ def collect_source_collection(
     resolved_date     = accessed_date or date.today()
     all_audits: list[SearchAudit] = []
 
-    # Default (English) Serper client
-    default_serper   = SerperClient()
-    resolved_searcher = searcher or default_serper.search
+    # Default (English) Serper client — only instantiated when no searcher is injected
+    if searcher is None:
+        default_serper    = SerperClient()
+        resolved_searcher = default_serper.search
+    else:
+        resolved_searcher = searcher
 
     # Native-language Serper client (only instantiated when needed)
     if is_native and searcher is None:
