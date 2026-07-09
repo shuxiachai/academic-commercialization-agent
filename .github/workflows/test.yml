@@ -16,16 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
+      - name: Install uv and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
-
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --python ${{ matrix.python-version }}
 
       - name: Run tests
-        run: uv run pytest tests/ -v --tb=short
+        run: uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short
