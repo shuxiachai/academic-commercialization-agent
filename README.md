@@ -122,17 +122,26 @@ Copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
-Required keys:
+LLM — pick **one** of:
+
+| Variable | Provider | Default model |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | DeepSeek ([get key](https://platform.deepseek.com/api-keys)) | `deepseek-chat` |
+| `ANTHROPIC_API_KEY` | Anthropic Claude ([get key](https://console.anthropic.com/)) | `claude-sonnet-5` |
+| `OPENAI_API_KEY` | OpenAI ([get key](https://platform.openai.com/api-keys)) | `gpt-4o` |
+
+Also required:
 
 | Variable | Where to get it |
 |---|---|
-| `DEEPSEEK_API_KEY` | [platform.deepseek.com/api-keys](https://platform.deepseek.com/api-keys) |
 | `SERPER_API_KEY` | [serper.dev/api-key](https://serper.dev/api-key) (free tier: 2 500 queries/month) |
 
 Optional:
 
 | Variable | Purpose |
 |---|---|
+| `LLM_PROVIDER` | Override auto-detection: `deepseek` / `anthropic` / `openai` |
+| `MAX_RPM` | API requests per minute (default `6`; raise to `20`+ for OpenAI/Anthropic) |
 | `SEMANTIC_SCHOLAR_API_KEY` | Raises S2 rate limit from 1 req/s → 10 req/s; system works without it |
 
 #### 3. Run
@@ -243,7 +252,7 @@ academic_agent/
 ### Tech stack
 
 - **Framework**: CrewAI 1.14.x
-- **LLM**: DeepSeek-V3 (via DeepSeek API or OpenAI-compatible endpoint)
+- **LLM**: DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — auto-detected from API key, or set `LLM_PROVIDER` explicitly
 - **Academic sources**: OpenAlex Works API (primary) + Semantic Scholar Academic Graph API (supplement)
 - **Patent / market search**: SerperDevTool
 - **Academic metadata**: Crossref API (DOI verification and abstract retrieval)
@@ -394,17 +403,26 @@ uv sync
 cp .env.example .env
 ```
 
-必填项：
+LLM — 三选一填入：
+
+| 变量 | Provider | 默认模型 |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | DeepSeek（[申请](https://platform.deepseek.com/api-keys)） | `deepseek-chat` |
+| `ANTHROPIC_API_KEY` | Anthropic Claude（[申请](https://console.anthropic.com/)） | `claude-sonnet-5` |
+| `OPENAI_API_KEY` | OpenAI（[申请](https://platform.openai.com/api-keys)） | `gpt-4o` |
+
+必填：
 
 | 变量 | 申请地址 |
 |---|---|
-| `DEEPSEEK_API_KEY` | [platform.deepseek.com/api-keys](https://platform.deepseek.com/api-keys) |
 | `SERPER_API_KEY` | [serper.dev/api-key](https://serper.dev/api-key)（免费额度：2500 次/月） |
 
 可选项：
 
 | 变量 | 用途 |
 |---|---|
+| `LLM_PROVIDER` | 手动指定 provider：`deepseek` / `anthropic` / `openai` |
+| `MAX_RPM` | API 每分钟请求数（默认 `6`；使用 OpenAI/Anthropic 可调高至 `20`+） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 将 S2 速率限制从 1 req/s 提升至 10 req/s；不填也可正常运行 |
 
 #### 3. 运行
@@ -515,7 +533,7 @@ academic_agent/
 ### 技术栈
 
 - **框架**：CrewAI 1.14.x
-- **LLM**：DeepSeek-V3（通过 DeepSeek API 或 OpenAI 兼容接口）
+- **LLM**：DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — 自动从 API Key 检测，或通过 `LLM_PROVIDER` 显式指定
 - **学术来源**：OpenAlex Works API（主力）+ Semantic Scholar Academic Graph API（补充）
 - **专利 / 市场搜索**：SerperDevTool
 - **学术元数据**：Crossref API（DOI 验证与摘要检索）

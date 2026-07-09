@@ -20,6 +20,7 @@
 #     显式上下文传递 + API 限速（max_rpm=6）
 # ============================================================
 
+import os
 from collections.abc import Callable
 from typing import Any
 
@@ -33,7 +34,7 @@ from academic_agent.evidence import (
     make_reviewer_guardrail,
     make_scoring_guardrail,
 )
-from academic_agent.llm_config import create_deepseek_llm
+from academic_agent.llm_config import create_llm
 from academic_agent.source_pipeline import SourceCollection
 
 
@@ -72,7 +73,7 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["academic_researcher"],  # type: ignore[index]
-            llm=create_deepseek_llm(json_mode=True, temperature=0.0),
+            llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
         )
@@ -85,7 +86,7 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["patent_analyst"],  # type: ignore[index]
-            llm=create_deepseek_llm(json_mode=True, temperature=0.0),
+            llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
         )
@@ -100,7 +101,7 @@ class AcademicAgent:
             config=self.agents_config[
                 "market_intelligence_analyst"
             ],  # type: ignore[index]
-            llm=create_deepseek_llm(json_mode=True, temperature=0.0),
+            llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
         )
@@ -115,7 +116,7 @@ class AcademicAgent:
             config=self.agents_config[
                 "commercialization_report_writer"
             ],  # type: ignore[index]
-            llm=create_deepseek_llm(),  # 自由文本模式 / Free-text mode
+            llm=create_llm(),  # 自由文本模式 / Free-text mode
             verbose=True,
         )
 
@@ -131,7 +132,7 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["report_reviewer"],  # type: ignore[index]
-            llm=create_deepseek_llm(),  # 自由文本模式 / Free-text mode
+            llm=create_llm(),  # 自由文本模式 / Free-text mode
             verbose=True,
         )
 
@@ -145,7 +146,7 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["commercialization_scorer"],  # type: ignore[index]
-            llm=create_deepseek_llm(json_mode=True, temperature=0.0),
+            llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
         )
 
@@ -311,6 +312,6 @@ class AcademicAgent:
             tasks=self.tasks,             # 自动收集所有 @task 方法 / Auto-collects all @task methods
             process=Process.sequential,   # 顺序执行：Task 1 → 2 → 3 → 4 → 5 → 6
             verbose=True,
-            max_rpm=6,                    # API 限速，避免触发 DeepSeek 频率限制 / Rate limit for DeepSeek API
+            max_rpm=int(os.getenv("MAX_RPM", "6")),  # Default 6 suits DeepSeek free tier; raise for OpenAI/Anthropic
             task_callback=self.task_callback,  # 前端实时进度回调 / Real-time frontend progress callback
         )
