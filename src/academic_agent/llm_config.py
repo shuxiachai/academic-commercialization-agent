@@ -26,6 +26,11 @@ def _detect_provider() -> str:
     if os.getenv("ANTHROPIC_API_KEY"):
         return "anthropic"
     if os.getenv("OPENAI_API_KEY"):
+        # Legacy setup: OPENAI_API_KEY pointing at DeepSeek via OPENAI_API_BASE
+        base = os.getenv("OPENAI_API_BASE", "")
+        model = os.getenv("OPENAI_MODEL_NAME", "")
+        if "deepseek" in base.lower() or "deepseek" in model.lower():
+            return "deepseek"
         return "openai"
     raise RuntimeError(
         "No LLM API key found. Set one of:\n"
