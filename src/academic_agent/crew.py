@@ -48,6 +48,7 @@ class AcademicAgent:
         self,
         source_collection: SourceCollection,
         task_callback: Callable[[Any], None] | None = None,
+        step_callback: Callable[[Any], None] | None = None,
     ) -> None:
         # 接收由 source_pipeline 预收集并验证的来源数据集
         # Receives pre-validated source collection from source_pipeline
@@ -55,6 +56,9 @@ class AcademicAgent:
         # 可选回调：每个 Task 完成时触发，用于前端实时进度追踪
         # Optional callback: fires on each Task completion for frontend progress
         self.task_callback = task_callback
+        # 可选回调：每个 Agent 动作步骤完成时触发，用于实时日志展示
+        # Optional callback: fires after each agent step for live log display
+        self.step_callback = step_callback
 
     agents: list[BaseAgent]
     tasks: list[Task]
@@ -314,4 +318,5 @@ class AcademicAgent:
             verbose=True,
             max_rpm=int(os.getenv("MAX_RPM", "6")),  # Default 6 suits DeepSeek free tier; raise for OpenAI/Anthropic
             task_callback=self.task_callback,  # 前端实时进度回调 / Real-time frontend progress callback
+            step_callback=self.step_callback,  # 实时 Agent 步骤日志 / Real-time agent step log
         )

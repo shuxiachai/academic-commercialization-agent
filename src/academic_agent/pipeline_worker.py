@@ -3,9 +3,8 @@
 Invoked as:
     python -m academic_agent.pipeline_worker <run_id> <topic>
 
-Writes status.json to the run directory so the parent process can poll
-for progress without shared memory. Results are saved to the run directory
-via the standard run_output helpers.
+Writes status.json for stage progress and steps.jsonl for the live agent
+log, both polled by the parent process (app.py) without shared memory.
 """
 import argparse
 import json
@@ -34,6 +33,8 @@ def main() -> None:
     parser.add_argument("topic")
     args = parser.parse_args()
 
+    from crewai.agents.crew_agent_executor import AgentAction, AgentFinish
+
     from academic_agent.crew import AcademicAgent
     from academic_agent.run_output import (
         DEFAULT_OUTPUT_ROOT,
@@ -48,6 +49,7 @@ def main() -> None:
     run_dir = DEFAULT_OUTPUT_ROOT / args.run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     status_path = run_dir / "status.json"
+    steps_path  = run_dir / "steps.jsonl"
 
     def write_status(
         stage: str,
@@ -88,9 +90,30 @@ def main() -> None:
             )
             write_status(stage, output_language=source_collection.output_language)
 
+        def on_step(step_output: AgentAction | AgentFinish) -> None:
+            try:
+                entry: dict = {"agent_idx": completed_tasks[0]}
+                if isinstance(step_output, AgentAction):
+                    entry["type"] = "action"
+                    entry["thought"] = (step_output.thought or "").strip()
+                    entry["tool"] = step_output.tool or ""
+                    entry["tool_input"] = str(step_output.tool_input or "")[:300]
+                    entry["result"] = str(step_output.result or "")[:400]
+                elif isinstance(step_output, AgentFinish):
+                    entry["type"] = "finish"
+                    entry["thought"] = (step_output.thought or "").strip()
+                else:
+                    entry["type"] = "unknown"
+                    entry["text"] = str(step_output)[:200]
+                with open(steps_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+
         result = AcademicAgent(
             source_collection,
             task_callback=on_task_complete,
+            step_callback=on_step,
         ).crew().kickoff(inputs=source_collection.crew_inputs())
 
         tasks_output = getattr(result, "tasks_output", None) or []

@@ -31,6 +31,97 @@ TASK_STAGE_LABELS = [
 _STAGE_INITIAL = "Source Collection & Validation"
 SPINNER = ["|", "/", "-", "\\"]
 
+_AGENT_SHORT_NAMES = ["Academic", "Patent", "Market", "Writer", "Reviewer", "Scorer"]
+_AGENT_COLORS      = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899", "#06b6d4"]
+
+# ---------------------------------------------------------------------------
+# Live agent log renderer
+# ---------------------------------------------------------------------------
+
+def _render_live_log_html(steps_path: Path) -> str:
+    try:
+        raw = steps_path.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+    if not raw:
+        return ""
+
+    entries_html = ""
+    for line in raw.splitlines()[-60:]:
+        try:
+            s = json.loads(line)
+        except Exception:
+            continue
+        idx   = min(int(s.get("agent_idx", 0)), len(_AGENT_SHORT_NAMES) - 1)
+        name  = _AGENT_SHORT_NAMES[idx]
+        color = _AGENT_COLORS[idx]
+
+        def badge(n: str, c: str) -> str:
+            return (
+                f'<span style="background:{c}22;color:{c};font-size:10px;font-weight:700;'
+                f'padding:2px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0;">'
+                f'{html.escape(n)}</span>'
+            )
+
+        def row(icon: str, text: str, color: str = "#9a9a9a") -> str:
+            return (
+                f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px;">'
+                f'{badge(name, color_ref)}'
+                f'<span style="font-size:12px;color:{color};">{icon} {html.escape(text)}</span>'
+                f'</div>'
+            )
+
+        color_ref = color
+
+        if s.get("type") == "action":
+            thought = (s.get("thought") or "").strip()
+            tool    = s.get("tool") or ""
+            t_input = str(s.get("tool_input") or "")[:120]
+            result  = str(s.get("result") or "").strip()[:180]
+
+            if thought:
+                short = thought[:140] + ("…" if len(thought) > 140 else "")
+                entries_html += row("💭", short)
+            if tool:
+                entries_html += (
+                    f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px;">'
+                    f'{badge(name, color)}'
+                    f'<span style="font-size:12px;color:#e5e5e5;">🔍 '
+                    f'<code style="background:#1a1a1a;padding:1px 5px;border-radius:3px;font-size:11px;">'
+                    f'{html.escape(tool)}</code> '
+                    f'<span style="color:#555555;">{html.escape(t_input)}</span></span>'
+                    f'</div>'
+                )
+            if result:
+                short = result[:180] + ("…" if len(str(s.get("result") or "")) > 180 else "")
+                entries_html += (
+                    f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
+                    f'{badge(name, color)}'
+                    f'<span style="font-size:11px;color:#4b5563;">↳ {html.escape(short)}</span>'
+                    f'</div>'
+                )
+        elif s.get("type") == "finish":
+            entries_html += (
+                f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
+                f'{badge(name, color)}'
+                f'<span style="font-size:12px;color:#16a34a;">✓ Task complete</span>'
+                f'</div>'
+            )
+
+    if not entries_html:
+        return ""
+
+    return (
+        f'<div style="font-family:ui-monospace,\'Cascadia Code\',monospace;'
+        f'background:#0a0a0a;border:1px solid #2d2d2d;border-radius:8px;'
+        f'padding:12px 14px;max-height:280px;overflow-y:auto;margin-top:10px;">'
+        f'<div style="font-size:10px;font-weight:700;color:#444444;letter-spacing:0.08em;'
+        f'text-transform:uppercase;margin-bottom:10px;">Live Agent Log</div>'
+        f'{entries_html}'
+        f'</div>'
+    )
+
+
 # ---------------------------------------------------------------------------
 # Score card helpers
 # ---------------------------------------------------------------------------
@@ -999,13 +1090,14 @@ def run_analysis(research_topic: str):
     the finally clause before the generator exits.
     """
     if not research_topic.strip():
-        yield "", "", "Please enter a research topic.", None, None, gr.update(), gr.update()
+        yield "", "", "Please enter a research topic.", None, None, gr.update(), gr.update(), ""
         return
 
     run_id = create_run_id()
     run_dir = DEFAULT_OUTPUT_ROOT / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     status_path = run_dir / "status.json"
+    steps_path  = run_dir / "steps.jsonl"
 
     proc = subprocess.Popen(
         [sys.executable, "-m", "academic_agent.pipeline_worker", run_id, research_topic.strip()],
@@ -1035,6 +1127,7 @@ def run_analysis(research_topic: str):
                 gr.update(visible=False),
                 gr.update(interactive=False),
                 gr.update(visible=True),
+                _render_live_log_html(steps_path),
             )
             time.sleep(0.8)
             tick += 1
@@ -1056,7 +1149,7 @@ def run_analysis(research_topic: str):
     # If the process was cancelled (GeneratorExit path doesn't reach here),
     # or exited before marking done, return silently.
     if not status.get("done"):
-        yield "", "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False)
+        yield "", "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False), ""
         return
 
     if status.get("error"):
@@ -1070,7 +1163,7 @@ def run_analysis(research_topic: str):
             f'Run ID: <code>{html.escape(run_id)}</code></div>'
             f'</div>'
         )
-        yield error_html, "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False)
+        yield error_html, "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False), ""
         return
 
     report_path = run_dir / "commercialization_report.md"
@@ -1090,7 +1183,7 @@ def run_analysis(research_topic: str):
     md_update = gr.update(value=str(report_path), visible=True, label=t["dl_md"]) if report_path.exists() else gr.update(visible=False)
     pdf_path_obj = _generate_pdf(report, run_dir, output_language)
     pdf_update = gr.update(value=str(pdf_path_obj), visible=True, label=t["dl_pdf"]) if pdf_path_obj else gr.update(visible=False)
-    yield "", score_html, report, md_update, pdf_update, gr.update(interactive=True), gr.update(visible=False)
+    yield "", score_html, report, md_update, pdf_update, gr.update(interactive=True), gr.update(visible=False), ""
 
 
 # ---------------------------------------------------------------------------
@@ -1260,6 +1353,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                 )
 
             progress_output = gr.HTML()
+            log_output      = gr.HTML()
             score_output    = gr.HTML()
             report_output   = gr.Markdown(elem_classes=["report-md"])
             with gr.Row():
@@ -1270,7 +1364,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                 fn=run_analysis,
                 inputs=topic_input,
                 outputs=[progress_output, score_output, report_output, download_md, download_pdf,
-                         submit_btn, cancel_btn],
+                         submit_btn, cancel_btn, log_output],
             )
             cancel_btn.click(
                 fn=lambda: (
@@ -1281,9 +1375,10 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                     gr.update(value=None, visible=False),
                     gr.update(interactive=True),
                     gr.update(visible=False),
+                    "",
                 ),
                 outputs=[progress_output, score_output, report_output,
-                         download_md, download_pdf, submit_btn, cancel_btn],
+                         download_md, download_pdf, submit_btn, cancel_btn, log_output],
                 cancels=[submit_event],
             )
             clear_btn.click(
