@@ -999,9 +999,9 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
 # ---------------------------------------------------------------------------
 
 def run_analysis(research_topic: str):
-    """Generator that yields (progress_html, score_html, report_md, md_path, pdf_path)."""
+    """Generator that yields (progress_html, score_html, report_md, md_path, pdf_path, submit_btn, cancel_btn)."""
     if not research_topic.strip():
-        yield "", "", "Please enter a research topic.", None, None
+        yield "", "", "Please enter a research topic.", None, None, gr.update(), gr.update()
         return
 
     run_id = create_run_id()
@@ -1084,6 +1084,8 @@ def run_analysis(research_topic: str):
             "",
             gr.update(visible=False),
             gr.update(visible=False),
+            gr.update(interactive=False),
+            gr.update(visible=True),
         )
         time.sleep(0.8)
         tick += 1
@@ -1101,7 +1103,7 @@ def run_analysis(research_topic: str):
             f'Run ID: <code>{html.escape(run_id)}</code></div>'
             f'</div>'
         )
-        yield error_html, "", "", gr.update(visible=False), gr.update(visible=False)
+        yield error_html, "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False)
     else:
         report = result_holder["result"] or "Report generation failed. Please retry."
         path = result_holder["path"]
@@ -1119,7 +1121,7 @@ def run_analysis(research_topic: str):
         md_update = gr.update(value=str(path), visible=True, label=t["dl_md"]) if path else gr.update(visible=False)
         pdf_path = _generate_pdf(report, path.parent, output_language) if path else None
         pdf_update = gr.update(value=str(pdf_path), visible=True, label=t["dl_pdf"]) if pdf_path else gr.update(visible=False)
-        yield "", score_html, report + footer, md_update, pdf_update
+        yield "", score_html, report + footer, md_update, pdf_update, gr.update(interactive=True), gr.update(visible=False)
 
 
 # ---------------------------------------------------------------------------
@@ -1204,6 +1206,18 @@ html, html.dark, .dark, :root {
     border-color: #7f1d1d !important;
 }
 
+/* ── Cancel button ── */
+.cancel-btn button {
+    background: #2d1515 !important;
+    color: #f87171 !important;
+    border-color: #7f1d1d !important;
+}
+.cancel-btn button:hover {
+    background: #3f1f1f !important;
+    color: #fca5a5 !important;
+    border-color: #dc2626 !important;
+}
+
 /* ── Report markdown ── */
 .report-md h2 { margin-top: 1.6em; padding-bottom: 0.3em; border-bottom: 1px solid #2d2d2d; }
 .report-md h3 { margin-top: 1.2em; }
@@ -1269,7 +1283,12 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                     elem_classes=["clear-icon-btn"],
                 )
 
-            submit_btn = gr.Button("▶  Run Analysis", variant="primary")
+            with gr.Row():
+                submit_btn = gr.Button("▶  Run Analysis", variant="primary", scale=3)
+                cancel_btn = gr.Button(
+                    "⏹  Cancel", variant="secondary", scale=1,
+                    visible=False, elem_classes=["cancel-btn"],
+                )
 
             progress_output = gr.HTML()
             score_output    = gr.HTML()
@@ -1278,10 +1297,16 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                 download_md  = gr.File(label="Download Report (.md)", visible=False, scale=1)
                 download_pdf = gr.File(label="Download Report (.pdf)", visible=False, scale=1)
 
-            submit_btn.click(
+            submit_event = submit_btn.click(
                 fn=run_analysis,
                 inputs=topic_input,
-                outputs=[progress_output, score_output, report_output, download_md, download_pdf],
+                outputs=[progress_output, score_output, report_output, download_md, download_pdf,
+                         submit_btn, cancel_btn],
+            )
+            cancel_btn.click(
+                fn=lambda: ("", gr.update(interactive=True), gr.update(visible=False)),
+                outputs=[progress_output, submit_btn, cancel_btn],
+                cancels=[submit_event],
             )
             clear_btn.click(
                 fn=lambda: ("", "", "", "",
