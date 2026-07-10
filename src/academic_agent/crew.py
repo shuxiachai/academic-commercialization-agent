@@ -80,6 +80,7 @@ class AcademicAgent:
             llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
+            step_callback=self.step_callback,
         )
 
     @agent
@@ -93,6 +94,7 @@ class AcademicAgent:
             llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
+            step_callback=self.step_callback,
         )
 
     @agent
@@ -108,6 +110,7 @@ class AcademicAgent:
             llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
+            step_callback=self.step_callback,
         )
 
     @agent
@@ -122,6 +125,7 @@ class AcademicAgent:
             ],  # type: ignore[index]
             llm=create_llm(),  # 自由文本模式 / Free-text mode
             verbose=True,
+            step_callback=self.step_callback,
         )
 
     @agent
@@ -138,6 +142,7 @@ class AcademicAgent:
             config=self.agents_config["report_reviewer"],  # type: ignore[index]
             llm=create_llm(),  # 自由文本模式 / Free-text mode
             verbose=True,
+            step_callback=self.step_callback,
         )
 
     @agent
@@ -152,6 +157,7 @@ class AcademicAgent:
             config=self.agents_config["commercialization_scorer"],  # type: ignore[index]
             llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
+            step_callback=self.step_callback,
         )
 
     # ----------------------------------------------------------
@@ -318,5 +324,4 @@ class AcademicAgent:
             verbose=True,
             max_rpm=int(os.getenv("MAX_RPM", "6")),  # Default 6 suits DeepSeek free tier; raise for OpenAI/Anthropic
             task_callback=self.task_callback,  # 前端实时进度回调 / Real-time frontend progress callback
-            step_callback=self.step_callback,  # 实时 Agent 步骤日志 / Real-time agent step log
         )
