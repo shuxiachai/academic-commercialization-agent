@@ -80,7 +80,6 @@ class AcademicAgent:
             llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
-            step_callback=self.step_callback,
         )
 
     @agent
@@ -94,7 +93,6 @@ class AcademicAgent:
             llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
-            step_callback=self.step_callback,
         )
 
     @agent
@@ -110,7 +108,6 @@ class AcademicAgent:
             llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
             inject_date=True,
-            step_callback=self.step_callback,
         )
 
     @agent
@@ -125,7 +122,6 @@ class AcademicAgent:
             ],  # type: ignore[index]
             llm=create_llm(),  # 自由文本模式 / Free-text mode
             verbose=True,
-            step_callback=self.step_callback,
         )
 
     @agent
@@ -142,7 +138,6 @@ class AcademicAgent:
             config=self.agents_config["report_reviewer"],  # type: ignore[index]
             llm=create_llm(),  # 自由文本模式 / Free-text mode
             verbose=True,
-            step_callback=self.step_callback,
         )
 
     @agent
@@ -157,7 +152,6 @@ class AcademicAgent:
             config=self.agents_config["commercialization_scorer"],  # type: ignore[index]
             llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
-            step_callback=self.step_callback,
         )
 
     # ----------------------------------------------------------

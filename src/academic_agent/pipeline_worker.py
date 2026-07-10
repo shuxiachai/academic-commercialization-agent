@@ -33,7 +33,12 @@ def main() -> None:
     parser.add_argument("topic")
     args = parser.parse_args()
 
-    from crewai.agents.crew_agent_executor import AgentAction, AgentFinish
+    from crewai.events.event_bus import crewai_event_bus
+    from crewai.events.types.agent_events import AgentExecutionCompletedEvent
+    from crewai.events.types.tool_usage_events import (
+        ToolUsageFinishedEvent,
+        ToolUsageStartedEvent,
+    )
 
     from academic_agent.crew import AcademicAgent
     from academic_agent.run_output import (
@@ -90,31 +95,60 @@ def main() -> None:
             )
             write_status(stage, output_language=source_collection.output_language)
 
-        def on_step(step_output: AgentAction | AgentFinish) -> None:
+        def _write_step(entry: dict) -> None:
             try:
-                entry: dict = {"agent_idx": completed_tasks[0]}
-                if isinstance(step_output, AgentAction):
-                    entry["type"] = "action"
-                    entry["thought"] = (step_output.thought or "").strip()
-                    entry["tool"] = step_output.tool or ""
-                    entry["tool_input"] = str(step_output.tool_input or "")[:300]
-                    entry["result"] = str(step_output.result or "")[:400]
-                elif isinstance(step_output, AgentFinish):
-                    entry["type"] = "finish"
-                    entry["thought"] = (step_output.thought or "").strip()
-                else:
-                    entry["type"] = "unknown"
-                    entry["text"] = str(step_output)[:200]
                 with open(steps_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(entry, ensure_ascii=False) + "\n")
             except Exception:
                 pass
 
-        result = AcademicAgent(
+        crew_obj = AcademicAgent(
             source_collection,
             task_callback=on_task_complete,
-            step_callback=on_step,
-        ).crew().kickoff(inputs=source_collection.crew_inputs())
+        ).crew()
+
+        # Build role → agent index mapping for event handlers.
+        # CrewAI 1.14.7 uses AgentExecutor (event-bus-based) by default;
+        # step_callback is only invoked by the deprecated CrewAgentExecutor.
+        agent_role_to_idx: dict[str, int] = {
+            a.role: i for i, a in enumerate(crew_obj.agents)
+        }
+
+        with crewai_event_bus.scoped_handlers():
+
+            @crewai_event_bus.on(ToolUsageStartedEvent)
+            def on_tool_started(source, event: ToolUsageStartedEvent) -> None:
+                idx = agent_role_to_idx.get(event.agent_role or "", completed_tasks[0])
+                _write_step({
+                    "agent_idx": idx,
+                    "type": "action",
+                    "thought": "",
+                    "tool": event.tool_name or "",
+                    "tool_input": str(event.tool_args or "")[:300],
+                    "result": "",
+                })
+
+            @crewai_event_bus.on(ToolUsageFinishedEvent)
+            def on_tool_finished(source, event: ToolUsageFinishedEvent) -> None:
+                idx = agent_role_to_idx.get(event.agent_role or "", completed_tasks[0])
+                _write_step({
+                    "agent_idx": idx,
+                    "type": "result",
+                    "tool": event.tool_name or "",
+                    "result": str(event.output or "").strip()[:400],
+                })
+
+            @crewai_event_bus.on(AgentExecutionCompletedEvent)
+            def on_agent_done(source, event: AgentExecutionCompletedEvent) -> None:
+                role = getattr(event.agent, "role", "") if event.agent else ""
+                idx = agent_role_to_idx.get(role, completed_tasks[0])
+                _write_step({
+                    "agent_idx": idx,
+                    "type": "finish",
+                    "thought": "",
+                })
+
+            result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
 
         tasks_output = getattr(result, "tasks_output", None) or []
         if len(tasks_output) >= 2:

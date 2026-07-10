@@ -100,6 +100,26 @@ def _render_live_log_html(steps_path: Path) -> str:
                     f'<span style="font-size:11px;color:#4b5563;">↳ {html.escape(short)}</span>'
                     f'</div>'
                 )
+        elif s.get("type") == "result":
+            tool   = s.get("tool") or ""
+            result = str(s.get("result") or "").strip()
+            if tool:
+                entries_html += (
+                    f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px;">'
+                    f'{badge(name, color)}'
+                    f'<span style="font-size:12px;color:#e5e5e5;">🔍 '
+                    f'<code style="background:#1a1a1a;padding:1px 5px;border-radius:3px;font-size:11px;">'
+                    f'{html.escape(tool)}</code></span>'
+                    f'</div>'
+                )
+            if result:
+                short = result[:200] + ("…" if len(result) > 200 else "")
+                entries_html += (
+                    f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
+                    f'{badge(name, color)}'
+                    f'<span style="font-size:11px;color:#4b5563;">↳ {html.escape(short)}</span>'
+                    f'</div>'
+                )
         elif s.get("type") == "finish":
             entries_html += (
                 f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
