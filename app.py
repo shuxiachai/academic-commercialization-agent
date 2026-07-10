@@ -1304,8 +1304,17 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                          submit_btn, cancel_btn],
             )
             cancel_btn.click(
-                fn=lambda: ("", gr.update(interactive=True), gr.update(visible=False)),
-                outputs=[progress_output, submit_btn, cancel_btn],
+                fn=lambda: (
+                    "",
+                    "",
+                    "",
+                    gr.update(value=None, visible=False),
+                    gr.update(value=None, visible=False),
+                    gr.update(interactive=True),
+                    gr.update(visible=False),
+                ),
+                outputs=[progress_output, score_output, report_output,
+                         download_md, download_pdf, submit_btn, cancel_btn],
                 cancels=[submit_event],
             )
             clear_btn.click(
