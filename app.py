@@ -1,10 +1,9 @@
 import html
 import json
 import re
+import subprocess
 import sys
-import threading
 import time
-import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -15,17 +14,10 @@ for stream in (sys.stdout, sys.stderr):
 
 import gradio as gr
 
-from academic_agent.crew import AcademicAgent
 from academic_agent.run_output import (
     DEFAULT_OUTPUT_ROOT,
     create_run_id,
-    save_error,
-    save_report,
-    save_reviewer_notes,
-    save_scores,
-    save_source_collection,
 )
-from academic_agent.source_pipeline import collect_source_collection
 
 
 TASK_STAGE_LABELS = [
@@ -999,129 +991,106 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
 # ---------------------------------------------------------------------------
 
 def run_analysis(research_topic: str):
-    """Generator that yields (progress_html, score_html, report_md, md_path, pdf_path, submit_btn, cancel_btn)."""
+    """Generator that yields (progress_html, score_html, report_md, md_path, pdf_path, submit_btn, cancel_btn).
+
+    The pipeline runs in a subprocess so that clicking Cancel immediately
+    terminates it via proc.terminate() in the try/finally block — even if
+    CrewAI is mid-task. GeneratorExit (thrown by Gradio on cancel) triggers
+    the finally clause before the generator exits.
+    """
     if not research_topic.strip():
         yield "", "", "Please enter a research topic.", None, None, gr.update(), gr.update()
         return
 
     run_id = create_run_id()
-    result_holder: dict = {
-        "result": None,
-        "path": None,
-        "scores": None,
-        "done": False,
-        "error": None,
-        "error_path": None,
-        "current_stage": _STAGE_INITIAL,
-        "output_language": None,
-    }
-    completed_tasks = [0]
+    run_dir = DEFAULT_OUTPUT_ROOT / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    status_path = run_dir / "status.json"
 
-    def on_task_complete(_task_output) -> None:
-        completed_tasks[0] += 1
-        idx = completed_tasks[0]
-        if idx < len(TASK_STAGE_LABELS):
-            result_holder["current_stage"] = TASK_STAGE_LABELS[idx]
-
-    def _run() -> None:
-        try:
-            result_holder["current_stage"] = _STAGE_INITIAL
-            source_collection = collect_source_collection(research_topic.strip())
-            result_holder["output_language"] = source_collection.output_language
-            save_source_collection(source_collection.model_dump_json(indent=2), run_id=run_id)
-            result_holder["current_stage"] = TASK_STAGE_LABELS[0]
-
-            result = AcademicAgent(
-                source_collection,
-                task_callback=on_task_complete,
-            ).crew().kickoff(inputs=source_collection.crew_inputs())
-
-            tasks_output = getattr(result, "tasks_output", None) or []
-            if len(tasks_output) >= 2:
-                report_raw = tasks_output[-2].raw
-                scores_raw = tasks_output[-1].raw
-            else:
-                report_raw = result.raw
-                scores_raw = None
-
-            # Strip ## Reviewer Notes from the final report and save separately.
-            # Agent 5 (reviewer) appends this section after its guardrail runs,
-            # so normalize_final_report never sees it — we must handle it here.
-            m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", report_raw, re.IGNORECASE)
-            if m_rev:
-                save_reviewer_notes(report_raw[m_rev.start():].strip(), run_id=run_id)
-                report_raw = report_raw[: m_rev.start()].rstrip()
-
-            _, report_path = save_report(report_raw, run_id=run_id)
-            result_holder["result"] = report_raw
-            result_holder["path"] = report_path
-
-            if scores_raw:
-                save_scores(scores_raw, run_id=run_id)
-                result_holder["scores"] = scores_raw
-
-        except Exception as exc:
-            error_details = traceback.format_exc()
-            error_path = save_error(error_details, run_id=run_id)
-            print(error_details, file=sys.stderr, flush=True)
-            result_holder["error"] = str(exc)
-            result_holder["error_path"] = error_path
-        finally:
-            result_holder["done"] = True
-
-    threading.Thread(target=_run, daemon=True).start()
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "academic_agent.pipeline_worker", run_id, research_topic.strip()],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
     start = time.time()
     tick = 0
-    while not result_holder["done"]:
-        elapsed = int(time.time() - start)
-        stage = result_holder["current_stage"]
-        spin = SPINNER[tick % len(SPINNER)]
-        lang = result_holder.get("output_language") or "English"
-        yield (
-            _render_progress_html(stage, elapsed, run_id, spin, lang),
-            "",
-            "",
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(interactive=False),
-            gr.update(visible=True),
-        )
-        time.sleep(0.8)
-        tick += 1
+    try:
+        while proc.poll() is None:
+            elapsed = int(time.time() - start)
+            stage = _STAGE_INITIAL
+            output_language = "English"
+            try:
+                status = json.loads(status_path.read_text(encoding="utf-8"))
+                stage = status.get("stage", _STAGE_INITIAL)
+                output_language = status.get("output_language") or "English"
+            except Exception:
+                pass
+            spin = SPINNER[tick % len(SPINNER)]
+            yield (
+                _render_progress_html(stage, elapsed, run_id, spin, output_language),
+                "",
+                "",
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(interactive=False),
+                gr.update(visible=True),
+            )
+            time.sleep(0.8)
+            tick += 1
+    finally:
+        # Runs on normal completion AND on GeneratorExit (Gradio cancel).
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
 
-    if result_holder["error"]:
-        err = result_holder["error"]
-        first_line = next((ln.strip() for ln in err.splitlines() if ln.strip()), err)
+    # Read final status written by the worker.
+    try:
+        status = json.loads(status_path.read_text(encoding="utf-8"))
+    except Exception:
+        status = {"done": False, "error": None, "output_language": "English"}
+
+    # If the process was cancelled (GeneratorExit path doesn't reach here),
+    # or exited before marking done, return silently.
+    if not status.get("done"):
+        yield "", "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False)
+        return
+
+    if status.get("error"):
         error_html = (
             f'<div style="font-family:system-ui;background:#2d1515;border:1px solid #7f1d1d;'
             f'border-radius:8px;padding:16px 20px;">'
             f'<div style="font-size:14px;font-weight:600;color:#f87171;margin-bottom:8px;">'
             f'✗ Analysis Failed</div>'
-            f'<div style="font-size:13px;color:#9a9a9a;">{html.escape(first_line)}</div>'
+            f'<div style="font-size:13px;color:#9a9a9a;">{html.escape(status["error"])}</div>'
             f'<div style="font-size:12px;color:#777777;margin-top:8px;">'
             f'Run ID: <code>{html.escape(run_id)}</code></div>'
             f'</div>'
         )
         yield error_html, "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False)
-    else:
-        report = result_holder["result"] or "Report generation failed. Please retry."
-        path = result_holder["path"]
-        scores_json = result_holder["scores"]
-        output_language = result_holder.get("output_language") or "English"
-        lang_badge = (
-            f'<div style="font-family:system-ui;margin-bottom:10px;">'
-            f'<span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;'
-            f'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">'
-            f'🌐 Report language: {html.escape(output_language)}</span></div>'
-        ) if output_language != "English" else ""
-        score_html = (lang_badge + _render_score_html(scores_json, research_topic.strip(), output_language)) if scores_json else lang_badge
-        footer = ""
-        t = _scorecard_strings(output_language)
-        md_update = gr.update(value=str(path), visible=True, label=t["dl_md"]) if path else gr.update(visible=False)
-        pdf_path = _generate_pdf(report, path.parent, output_language) if path else None
-        pdf_update = gr.update(value=str(pdf_path), visible=True, label=t["dl_pdf"]) if pdf_path else gr.update(visible=False)
-        yield "", score_html, report + footer, md_update, pdf_update, gr.update(interactive=True), gr.update(visible=False)
+        return
+
+    report_path = run_dir / "commercialization_report.md"
+    scores_path = run_dir / "commercialization_scores.json"
+    report = report_path.read_text(encoding="utf-8") if report_path.exists() else "Report generation failed. Please retry."
+    scores_json = scores_path.read_text(encoding="utf-8") if scores_path.exists() else None
+    output_language = status.get("output_language") or "English"
+
+    lang_badge = (
+        f'<div style="font-family:system-ui;margin-bottom:10px;">'
+        f'<span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;'
+        f'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">'
+        f'🌐 Report language: {html.escape(output_language)}</span></div>'
+    ) if output_language != "English" else ""
+    score_html = (lang_badge + _render_score_html(scores_json, research_topic.strip(), output_language)) if scores_json else lang_badge
+    t = _scorecard_strings(output_language)
+    md_update = gr.update(value=str(report_path), visible=True, label=t["dl_md"]) if report_path.exists() else gr.update(visible=False)
+    pdf_path_obj = _generate_pdf(report, run_dir, output_language)
+    pdf_update = gr.update(value=str(pdf_path_obj), visible=True, label=t["dl_pdf"]) if pdf_path_obj else gr.update(visible=False)
+    yield "", score_html, report, md_update, pdf_update, gr.update(interactive=True), gr.update(visible=False)
 
 
 # ---------------------------------------------------------------------------
