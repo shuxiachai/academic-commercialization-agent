@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Command-line entry points for the commercialization assessment crew."""
 
+import argparse
 import sys
 import warnings
 
@@ -13,14 +14,18 @@ warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 _DEFAULT_TOPIC = "CRISPR gene editing applications in agriculture"
 
 
-def _build_collection():
-    return collect_source_collection(_DEFAULT_TOPIC)
-
-
 def run():
+    parser = argparse.ArgumentParser(description="Academic commercialization assessment")
+    parser.add_argument(
+        "--topic",
+        default=_DEFAULT_TOPIC,
+        help="Research topic to analyse (default: %(default)s)",
+    )
+    args, _ = parser.parse_known_args()
+
     try:
         run_id = create_run_id()
-        source_collection = _build_collection()
+        source_collection = collect_source_collection(args.topic)
         save_source_collection(source_collection.model_dump_json(indent=2), run_id)
         result = AcademicAgent(source_collection).crew().kickoff(
             inputs=source_collection.crew_inputs()

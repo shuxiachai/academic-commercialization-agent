@@ -229,7 +229,7 @@ uv run python benchmark_check.py
 academic_agent/
 ├── src/academic_agent/
 │   ├── crew.py              # Crew definition (6 agents / tasks wired together)
-│   ├── main.py              # CLI entry point (supports --topic argument)
+│   ├── main.py              # CLI entry point (--topic "your topic" flag)
 │   ├── evidence.py          # Evidence models, guardrail validators, CommercializationScore
 │   ├── source_pipeline.py   # Pre-run deterministic source collection & validation
 │   ├── llm_config.py        # Multi-LLM config (DeepSeek / OpenAI / Anthropic; auto-detection, JSON mode, temperature)

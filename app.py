@@ -711,22 +711,53 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
         # in Adobe Acrobat; Chrome/Edge will show empty glyphs.
         _CJK_TTF_CANDIDATES: dict[str, list[str]] = {
             "Simplified Chinese": [
-                "C:/Windows/Fonts/msyh.ttc",   # Microsoft YaHei
-                "C:/Windows/Fonts/simhei.ttf",  # SimHei
-                "C:/Windows/Fonts/simsun.ttc",  # SimSun
+                # Windows
+                "C:/Windows/Fonts/msyh.ttc",
+                "C:/Windows/Fonts/simhei.ttf",
+                "C:/Windows/Fonts/simsun.ttc",
+                # Linux (Ubuntu / Debian / Fedora / Alpine)
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+                # macOS
+                "/System/Library/Fonts/PingFang.ttc",
+                "/System/Library/Fonts/STHeiti Light.ttc",
             ],
             "Traditional Chinese": [
-                "C:/Windows/Fonts/msjh.ttc",    # Microsoft JhengHei
+                # Windows
+                "C:/Windows/Fonts/msjh.ttc",
                 "C:/Windows/Fonts/mingliu.ttc",
+                # Linux
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+                # macOS
+                "/System/Library/Fonts/PingFang.ttc",
             ],
             "Japanese": [
+                # Windows
                 "C:/Windows/Fonts/YuGothM.ttc",
                 "C:/Windows/Fonts/meiryo.ttc",
                 "C:/Windows/Fonts/msgothic.ttc",
+                # Linux
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+                # macOS
+                "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+                "/Library/Fonts/Osaka.ttf",
             ],
             "Korean": [
+                # Windows
                 "C:/Windows/Fonts/malgun.ttf",
                 "C:/Windows/Fonts/gulim.ttc",
+                # Linux
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+                # macOS
+                "/System/Library/Fonts/AppleSDGothicNeo.ttc",
             ],
         }
 
