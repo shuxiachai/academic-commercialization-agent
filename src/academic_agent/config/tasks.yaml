@@ -272,15 +272,22 @@ commercialization_scoring_task:
     JSON field names (keys) must remain in English. Only the string values are
     in {output_language}.
 
+    Active weight profile: {weight_profile}
+    Use these weights — not the industrial defaults — when computing overall_score.
+
     Scoring rules:
     - Use only evidence present in the context JSON. Do not reference external
       knowledge or invent data not present in the findings.
     - If evidence for a dimension is absent or very thin, score conservatively
       (1 or 2) and state the evidence gap clearly in the rationale.
-    - Compute overall_score using the exact formula from your backstory:
-      round( (market_accessibility/5)*35 + (trl_score/9)*20 +
-             (mrl_score/10)*15 + (patent_strength/5)*20 +
-             (evidence_confidence/5)*10 )
+    - Write ALL five dimension scores as INTEGERS on a ×10 scale:
+        trl_score 10–90, mrl_score 10–100, patent/market/evidence 10–50.
+      The system divides by 10; you write integers. Write 73 for TRL 7.3.
+      Avoid multiples of 10 unless the evidence perfectly matches an anchor.
+    - Compute overall_score using the raw integers (system divides by 10 internally):
+      round( (market_accessibility/10/5)*W_market + (trl_score/10/9)*W_trl +
+             (mrl_score/10/10)*W_mrl + (patent_strength/10/5)*W_patent +
+             (evidence_confidence/10/5)*W_evidence, 1 )
     - Provide 2 to 5 key_risks and 2 to 5 key_opportunities grounded in the
       evidence findings. Do not invent risks or opportunities not supported by
       the context.
@@ -301,22 +308,22 @@ commercialization_scoring_task:
         informed the overall confidence rating.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose:
-    {"trl_score": 4,
+    {"trl_score": 43,
      "trl_rationale": "...",
      "trl_source_ids": ["A1", "A3", "M2"],
-     "mrl_score": 3,
+     "mrl_score": 32,
      "mrl_rationale": "...",
      "mrl_source_ids": ["A2", "M1"],
-     "patent_strength": 3,
+     "patent_strength": 26,
      "patent_rationale": "...",
      "patent_source_ids": ["P1", "P2"],
-     "market_accessibility": 2,
+     "market_accessibility": 24,
      "market_rationale": "...",
      "market_source_ids": ["M1", "M3"],
-     "evidence_confidence": 3,
+     "evidence_confidence": 37,
      "evidence_rationale": "...",
      "evidence_source_ids": ["A1", "A2", "P1", "M1"],
-     "overall_score": 49,
+     "overall_score": 46.2,
      "scoring_rationale": "...",
      "key_risks": ["...", "..."],
      "key_opportunities": ["...", "..."]}

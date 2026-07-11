@@ -14,10 +14,38 @@ from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, Field
 
-from academic_agent.evidence import EvidenceSource, check_public_url
+from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
 
 
 Domain = Literal["academic", "patent", "market"]
+
+# ── Weight profile detection ──────────────────────────────────────────────────
+# Substring markers are matched against the lower-cased English topic.
+# Biomedical is checked first (more specific); industrial is the default.
+_BIOMEDICAL_MARKERS: tuple[str, ...] = (
+    "drug ", "therapy", "vaccine", "clinical trial", "pharmaceutical",
+    "diagnostic", "implant", "surgical", "gene editing", "cell therapy",
+    "gene therapy", "medical device", "antibody", "in vitro", "in vivo",
+    "oncology", "cancer treatment", "immunotherapy",
+)
+_MATERIAL_MARKERS: tuple[str, ...] = (
+    "catalyst", "catalysis", "polymer", "thin film", "nanoparticle",
+    "nanomaterial", "graphene", "ceramic ", "composite material",
+    "deposition", "crystal structure", "synthesis route",
+    "perovskite", "solar cell", "photovoltaic", "semiconductor",
+    "electrode", "electrolyte", "superconductor", "alloy", "coating",
+    "metamaterial", "2d material", "carbon nanotube",
+)
+
+
+def _detect_weight_profile(topic: str) -> str:
+    """Return the scoring weight profile name for an English topic string."""
+    t = topic.lower()
+    if any(m in t for m in _BIOMEDICAL_MARKERS):
+        return "biomedical"
+    if any(m in t for m in _MATERIAL_MARKERS):
+        return "material_science"
+    return "industrial"
 SearchFunction = Callable[[str], dict[str, Any]]
 UrlChecker = Callable[[str], tuple[bool, str]]
 
@@ -74,6 +102,8 @@ _PATENT_HOSTS = {
     "patents.google.com",
     "patentscope.wipo.int",
     "worldwide.espacenet.com",
+    "patents.justia.com",      # large US patent full-text database
+    "lens.org",                # free open patent aggregator (>120 M records)
 }
 _REPUTABLE_NEWS_DOMAINS = {
     "reuters.com",
@@ -240,9 +270,10 @@ class SourceCollection(BaseModel):
     display_topic: str = ""             # Original topic in user's language (for report title)
     output_language: str = "English"    # Human-readable language name passed to LLM
     localized_headings: list[str] = Field(default_factory=list)  # Translated section headings
+    weight_profile: str = "industrial"  # Scoring weight profile: industrial | biomedical | material_science
     collected_at: datetime
     academic_sources: list[EvidenceSource] = Field(min_length=3)
-    patent_sources: list[EvidenceSource] = Field(min_length=3)
+    patent_sources: list[EvidenceSource] = Field(min_length=1)
     market_sources: list[EvidenceSource] = Field(min_length=2)
     academic_queries: list[str] = Field(min_length=1)
     patent_queries: list[str] = Field(min_length=1)
@@ -289,11 +320,18 @@ class SourceCollection(BaseModel):
         headings = list(raw_headings)
         if headings and not headings[0].rstrip().endswith(display):
             headings[0] = headings[0].rstrip() + display
+        w = _WEIGHT_PROFILES.get(self.weight_profile, _WEIGHT_PROFILES["industrial"])
+        weight_profile_str = (
+            f"{self.weight_profile} "
+            f"(Market {w['market']}% + TRL {w['trl']}% + MRL {w['mrl']}% "
+            f"+ Patent {w['patent']}% + Evidence {w['evidence']}%)"
+        )
         return {
             "research_topic":  self.topic,
             "display_topic":   display,
             "output_language": self.output_language,
             "localized_headings": "\n".join(headings),
+            "weight_profile":  weight_profile_str,
             "academic_sources_json": dump_sources(self.academic_sources),
             "patent_sources_json":   dump_sources(self.patent_sources),
             "market_sources_json":   dump_sources(self.market_sources),
@@ -404,6 +442,17 @@ class OpenAlexClient:
                     return []
                 time.sleep(0.75 * (attempt + 1))
         return []
+
+    def fetch_citation_by_doi(self, doi: str) -> int | None:
+        """Return cited_by_count for a single paper by DOI. Returns None on failure."""
+        url = f"{self._BASE}/https://doi.org/{doi}?select=cited_by_count"
+        request = Request(url, headers=self.headers)
+        try:
+            with urlopen(request, timeout=self.timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            return int(data.get("cited_by_count") or 0)
+        except Exception:
+            return None
 
     def search_recent(self, topic: str, since_year: int = 2023, rows: int = 15) -> list[dict[str, Any]]:
         """Search OpenAlex for papers published since_year or later, sorted by date desc."""
@@ -912,6 +961,7 @@ def _academic_source_from_openalex(
             credibility_tier="high",
             credibility_reason=credibility_reason,
             evidence_summary=abstract[:1500],
+            citation_count=cited,
         ),
         "",
     )
@@ -972,6 +1022,7 @@ def _academic_source_from_s2(
                 f"{cited:,} citations."
             ),
             evidence_summary=abstract[:1500],
+            citation_count=cited,
         ),
         "",
     )
@@ -1098,6 +1149,39 @@ def _market_source_profile(
     return None
 
 
+def _parse_patent_year(url: str, snippet: str = "") -> int | None:
+    """Extract approximate publication year from a patent URL or Serper snippet.
+
+    Reliable formats (from patent number in URL path):
+      WO{YYYY}...   — PCT/WIPO (always 4-digit year after WO)
+      EP{YYYY}{6+}  — European Patent Office (year-based numbering)
+      KR{YYYY}...   — Korean patent (year-based numbering)
+    Fallback: first plausible 4-digit year (1990–current) in the snippet text.
+    """
+    current_year = date.today().year
+    path = urlsplit(url).path
+    m = re.search(r"/patent/([A-Z]{2}\d[\w]*)/", path, re.IGNORECASE)
+    if m:
+        pnum = m.group(1).upper()
+        for pattern in (
+            r"^WO(\d{4})",              # WO2024149278A1 → 2024
+            r"^EP(\d{4})\d{5,}",        # EP1234567A1 (year-based numbering)
+            r"^KR(\d{4})\d+",           # KR20240123456 → 2024
+            r"^US(20\d{2})\d{7}[A-Z]",  # US20240194939A1 → 2024 (application numbers)
+        ):
+            pm = re.match(pattern, pnum)
+            if pm:
+                year = int(pm.group(1))
+                if 1990 <= year <= current_year + 1:
+                    return year
+    # Fallback: find first 4-digit year token in snippet
+    for m2 in re.finditer(r"\b(20[0-2]\d|199\d)\b", snippet):
+        year = int(m2.group(1))
+        if 1990 <= year <= current_year + 1:
+            return year
+    return None
+
+
 def _web_source(
     result: dict[str, Any],
     source_id: str,
@@ -1121,7 +1205,11 @@ def _web_source(
             return None, f"non-primary patent host: {host}"
         source_type = "patent"
         credibility_tier = "high"
+        patent_year = _parse_patent_year(canonical, snippet)
         credibility_reason = (
+            f"Official patent registry record; publication year: {patent_year}; "
+            "legal scope still requires claim review."
+            if patent_year else
             "Official patent registry record; legal scope still requires claim review."
         )
     else:
@@ -1133,12 +1221,16 @@ def _web_source(
     reachable, reason = url_checker(canonical)
     if not reachable:
         return None, f"unreachable URL {canonical}: {reason}"
+    published_date: date | None = None
+    if domain == "patent" and patent_year:
+        published_date = date(patent_year, 1, 1)
     return (
         EvidenceSource(
             source_id=source_id,
             title=title,
             url=canonical,
             publisher=_publisher_for_host(host),
+            published_date=published_date,
             accessed_date=accessed_date,
             source_type=source_type,
             credibility_tier=credibility_tier,
@@ -1155,10 +1247,17 @@ def _queries(
     native_topic: str | None = None,
     patent_cc: str = "",
 ) -> dict[Domain, list[str]]:
+    # Short-form topic for patent search: strip parenthetical qualifiers and
+    # take the first 4 words so site:-restricted queries match patent titles.
+    _pat_clean = re.sub(r"\s*\([^)]*\)", "", topic).strip()
+    _pat_short = " ".join(_pat_clean.split()[:4])
     patent: list[str] = [
         f"{topic} site:patents.google.com/patent",
         f"{topic} site:patentscope.wipo.int",
-        f"{topic} patent applicant",
+        f"{topic} site:worldwide.espacenet.com",
+        f"{topic} site:patents.justia.com",
+        f"{_pat_short} site:patents.google.com/patent",
+        f"{_pat_short} site:patentscope.wipo.int",
     ]
     if patent_cc:
         # Prioritise country-specific patents when input language implies a country.
@@ -1505,6 +1604,7 @@ def collect_source_collection(
         native_topic  = None
 
     normalized_topic = " ".join(english_topic.split())
+    weight_profile = _detect_weight_profile(normalized_topic)
     if len(normalized_topic) < 3:
         raise SourceCollectionError("Research topic must contain at least 3 characters.")
     if minimum_sources < 1 or maximum_sources < minimum_sources:
@@ -1573,6 +1673,15 @@ def collect_source_collection(
         except SourceCollectionError:
             pass
 
+    # Backfill citation_count for Crossref-sourced papers (citation_count=None).
+    # OpenAlex DOI lookup is free, fast (~150 ms/call), and caps at one call per
+    # missing paper so it never meaningfully delays the pipeline.
+    for src in academic:
+        if src.citation_count is None and src.doi:
+            cited = resolved_openalex.fetch_citation_by_doi(src.doi)
+            if cited is not None:
+                src.citation_count = cited
+
     if len(academic) < minimum_sources:
         raise SourceCollectionError(
             f"academic retrieval produced {len(academic)} validated sources "
@@ -1587,7 +1696,7 @@ def collect_source_collection(
         query_map["patent"],
         resolved_searcher, resolved_crossref, url_checker,
         resolved_date, normalized_topic,
-        minimum_sources=minimum_sources,
+        minimum_sources=1,
         maximum_sources=maximum_sources,
     )
     all_audits.extend(patent_audits)
@@ -1631,6 +1740,7 @@ def collect_source_collection(
         display_topic=native_topic or normalized_topic,
         output_language=lang_info["name"],
         localized_headings=localized_headings,
+        weight_profile=weight_profile,
         collected_at=datetime.now(timezone.utc),
         academic_sources=academic,
         patent_sources=patents,

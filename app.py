@@ -440,7 +440,7 @@ def _render_score_html(scores_json: str, topic: str, output_language: str = "Eng
         # Hero row
         f'<div style="display:flex;align-items:stretch;gap:24px;margin-bottom:24px;">'
         f'<div style="text-align:center;min-width:100px;">'
-        f'<div style="font-size:72px;font-weight:800;color:{color};line-height:0.9;">{overall}</div>'
+        f'<div style="font-size:72px;font-weight:800;color:{color};line-height:0.9;">{overall:.1f}</div>'
         f'<div style="font-size:11px;color:#777777;margin-top:6px;">{html.escape(t["out_of"])}</div>'
         f'<div style="display:inline-block;margin-top:10px;padding:4px 14px;'
         f'border-radius:20px;background:{color};color:#ffffff;'
@@ -648,7 +648,7 @@ def _render_history_html() -> str:
                 pat = sc.get("patent_strength", "—")
                 mkt = sc.get("market_accessibility", "—")
                 evi = sc.get("evidence_confidence", "—")
-                if isinstance(overall, int):
+                if isinstance(overall, (int, float)):
                     overall_color, _ = _score_color(overall)
             except Exception:
                 pass
@@ -661,12 +661,13 @@ def _render_history_html() -> str:
         else:
             status_cell = '<span style="color:#9a9a9a;font-size:13px;">—</span>'
 
-        if isinstance(overall, int):
+        if isinstance(overall, (int, float)):
             _, badge_label = _score_color(overall)
+            overall_display = f"{overall:.1f}"
             score_cell = (
                 f'<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">'
                 f'<span style="font-size:16px;font-weight:800;color:{overall_color};'
-                f'font-variant-numeric:tabular-nums;">{overall}</span>'
+                f'font-variant-numeric:tabular-nums;">{overall_display}</span>'
                 f'<span style="font-size:10px;font-weight:700;color:{overall_color};'
                 f'background:{overall_color}18;border-radius:10px;padding:1px 7px;'
                 f'letter-spacing:0.04em;text-transform:uppercase;">{badge_label}</span>'

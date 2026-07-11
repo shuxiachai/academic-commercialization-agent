@@ -21,6 +21,20 @@ from pydantic import (
     model_validator,
 )
 
+# Scoring weight profiles — weights must sum to 100.
+# Keys: market, trl, patent, mrl, evidence
+_WEIGHT_PROFILES: dict[str, dict[str, float]] = {
+    "industrial": {
+        "market": 35.0, "trl": 20.0, "patent": 20.0, "mrl": 15.0, "evidence": 10.0,
+    },
+    "biomedical": {
+        "market": 25.0, "trl": 20.0, "patent": 15.0, "mrl": 30.0, "evidence": 10.0,
+    },
+    "material_science": {
+        "market": 20.0, "trl": 30.0, "patent": 20.0, "mrl": 20.0, "evidence": 10.0,
+    },
+}
+
 
 SourceType = Literal[
     "academic_paper",
@@ -149,6 +163,10 @@ class EvidenceSource(BaseModel):
         min_length=20,
         description="A concise paraphrase of what this source actually supports.",
     )
+    citation_count: int | None = Field(
+        default=None,
+        description="Number of times this source has been cited (OpenAlex cited_by_count or S2 citationCount).",
+    )
 
     @field_serializer("url")
     def serialize_url(self, value: HttpUrl | None) -> str | None:
@@ -213,29 +231,37 @@ class EvidenceAnalysis(BaseModel):
 class CommercializationScore(BaseModel):
     """Quantitative readiness scorecard produced by the scoring agent."""
 
-    trl_score: int = Field(ge=1, le=9)
+    # Raw scores written by LLM on a ×10 integer scale.
+    # Guardrail divides by 10 before computing the formula and before saving,
+    # so the output JSON always contains the normalized float (e.g. 7.3 not 73).
+    trl_score: int = Field(ge=10, le=90)   # 10–90 integer → 1.0–9.0 after ÷10
     trl_rationale: str = Field(min_length=20)
     trl_source_ids: list[str] = Field(min_length=1, description="Source IDs (A/M prefix) that drove the TRL assessment")
-    mrl_score: int = Field(ge=1, le=10)
+    mrl_score: int = Field(ge=10, le=100)  # 10–100 integer → 1.0–10.0 after ÷10
     mrl_rationale: str = Field(min_length=20)
     mrl_source_ids: list[str] = Field(min_length=1, description="Source IDs (A/M prefix) that drove the MRL assessment")
-    patent_strength: int = Field(ge=1, le=5)
+    patent_strength: int = Field(ge=10, le=50)   # 10–50 integer → 1.0–5.0 after ÷10
     patent_rationale: str = Field(min_length=20)
     patent_source_ids: list[str] = Field(min_length=1, description="Source IDs (P prefix) that drove the patent strength score")
-    market_accessibility: int = Field(ge=1, le=5)
+    market_accessibility: int = Field(ge=10, le=50)  # 10–50 integer → 1.0–5.0 after ÷10
     market_rationale: str = Field(min_length=20)
     market_source_ids: list[str] = Field(min_length=1, description="Source IDs (M prefix) that drove the market accessibility score")
-    evidence_confidence: int = Field(ge=1, le=5)
+    evidence_confidence: int = Field(ge=10, le=50)   # 10–50 integer → 1.0–5.0 after ÷10
     evidence_rationale: str = Field(min_length=20)
     evidence_source_ids: list[str] = Field(min_length=1, description="All source IDs informing the overall evidence confidence score")
-    overall_score: int = Field(ge=0, le=100)
+    overall_score: float = Field(ge=0.0, le=100.0)
     scoring_rationale: str = Field(min_length=20)
     key_risks: list[str] = Field(min_length=1, max_length=5)
     key_opportunities: list[str] = Field(min_length=1, max_length=5)
 
 
-def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
-    """Validate scoring task output and deterministically recompute overall_score."""
+def make_scoring_guardrail(weight_profile: str = "industrial") -> Callable[[TaskOutput], tuple[bool, Any]]:
+    """Validate scoring task output and deterministically recompute overall_score.
+
+    Uses the weight profile selected during source collection so that biomedical
+    and material-science topics are scored with domain-appropriate weights.
+    """
+    weights = _WEIGHT_PROFILES.get(weight_profile, _WEIGHT_PROFILES["industrial"])
 
     def validate_score(output: TaskOutput) -> tuple[bool, Any]:
         try:
@@ -247,7 +273,6 @@ def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
                 f"with no Markdown fences or prose. Validation error: {exc}",
             )
 
-        # Validate source ID format: each must match the letter+digit pattern (A1, P2, M3…)
         id_errors: list[str] = []
         for field, ids in (
             ("trl_source_ids", score.trl_source_ids),
@@ -265,37 +290,50 @@ def make_scoring_guardrail() -> Callable[[TaskOutput], tuple[bool, Any]]:
         if id_errors:
             return False, " ".join(id_errors)
 
-        # Recompute overall_score from the formula to eliminate LLM arithmetic errors.
-        # Formula: Market 35% + TRL 20% + MRL 15% + Patent 20% + Evidence 10%
-        mkt_c = (score.market_accessibility / 5) * 35
-        trl_c = (score.trl_score / 9) * 20
-        mrl_c = (score.mrl_score / 10) * 15
-        pat_c = (score.patent_strength / 5) * 20
-        evi_c = (score.evidence_confidence / 5) * 10
-        correct_overall = round(mkt_c + trl_c + mrl_c + pat_c + evi_c)
+        # Normalize raw ×10 integer scores to their actual scales.
+        trl = score.trl_score / 10        # 10–90  → 1.0–9.0
+        mrl = score.mrl_score / 10        # 10–100 → 1.0–10.0
+        pat = score.patent_strength / 10  # 10–50  → 1.0–5.0
+        mkt = score.market_accessibility / 10
+        evi = score.evidence_confidence / 10
+
+        # Deterministically recompute overall_score using the active weight profile.
+        mkt_c = (mkt / 5) * weights["market"]
+        trl_c = (trl / 9) * weights["trl"]
+        mrl_c = (mrl / 10) * weights["mrl"]
+        pat_c = (pat / 5) * weights["patent"]
+        evi_c = (evi / 5) * weights["evidence"]
+        correct_overall = round(mkt_c + trl_c + mrl_c + pat_c + evi_c, 1)
         formula_note = (
-            f" [Verified: ({score.market_accessibility}/5)×35={mkt_c:.2f}"
-            f" + ({score.trl_score}/9)×20={trl_c:.2f}"
-            f" + ({score.mrl_score}/10)×15={mrl_c:.2f}"
-            f" + ({score.patent_strength}/5)×20={pat_c:.2f}"
-            f" + ({score.evidence_confidence}/5)×10={evi_c:.2f}"
+            f" [Verified ({weight_profile}): "
+            f"({mkt}/5)×{weights['market']}={mkt_c:.2f}"
+            f" + ({trl}/9)×{weights['trl']}={trl_c:.2f}"
+            f" + ({mrl}/10)×{weights['mrl']}={mrl_c:.2f}"
+            f" + ({pat}/5)×{weights['patent']}={pat_c:.2f}"
+            f" + ({evi}/5)×{weights['evidence']}={evi_c:.2f}"
             f" → overall_score={correct_overall}]"
         )
-        # If the LLM stated a wrong overall_score, prepend a correction notice so
-        # the rationale text doesn't contradict the corrected numeric field.
         rationale = score.scoring_rationale
         if correct_overall != score.overall_score:
             rationale = (
                 f"[Auto-corrected: LLM stated overall_score={score.overall_score}, "
                 f"formula gives {correct_overall}] "
             ) + rationale
-        score = score.model_copy(update={
+
+        # Rebuild output with normalized float scores (not the raw ×10 integers).
+        import json as _json
+        out_dict = score.model_dump()
+        out_dict.update({
+            "trl_score": trl,
+            "mrl_score": mrl,
+            "patent_strength": pat,
+            "market_accessibility": mkt,
+            "evidence_confidence": evi,
             "overall_score": correct_overall,
             "scoring_rationale": rationale + formula_note,
         })
-
-        output.pydantic = score
-        output.raw = score.model_dump_json()
+        output.pydantic = None
+        output.raw = _json.dumps(out_dict)
         return True, output
 
     return validate_score

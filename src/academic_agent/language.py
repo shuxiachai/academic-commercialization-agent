@@ -56,24 +56,17 @@ def _detect_cjk_script(text: str) -> str | None:
 def detect_language(text: str) -> str:
     """Return a langdetect language code (e.g. 'zh-cn', 'ja', 'en').
 
-    CJK scripts are identified by Unicode block before calling langdetect,
-    which is unreliable for short strings mixing CJK and Latin characters.
-    Falls back to 'en' if detection fails entirely.
+    CJK scripts are identified by Unicode block first — langdetect is
+    unreliable for short technical strings that mix CJK with Latin characters.
+    For all non-CJK (Latin-script) text we always return 'en': langdetect
+    regularly misidentifies English technical terms as Italian, Spanish, or
+    French (e.g. "commercialization", "vaccine", "sodium") with high false
+    confidence, making it unsafe for this use case.
     """
     script = _detect_cjk_script(text)
     if script is not None:
         return script
-    try:
-        from langdetect import detect
-        result = detect(text)
-        # langdetect may return bare "zh" — normalise to zh-cn as default
-        if result == "zh":
-            result = "zh-cn"
-        return result
-    except Exception:
-        # If text has CJK characters and langdetect failed, default to zh-cn
-        has_cjk = any('一' <= c <= '鿿' or '㐀' <= c <= '䶿' for c in text)
-        return "zh-cn" if has_cjk else "en"
+    return "en"
 
 
 def get_lang_info(lang_code: str) -> dict:

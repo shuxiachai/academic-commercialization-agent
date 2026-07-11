@@ -214,16 +214,31 @@ commercialization_scorer:
 
     Scoring rubrics:
 
-    Dimension 1 — Technology Readiness Level (TRL 1–9, NASA scale):
-    1: Basic principles observed
-    2: Technology concept formulated
-    3: Proof-of-concept demonstrated analytically
-    4: Component validated in laboratory
-    5: Component validated in relevant environment
-    6: System prototype demonstrated in relevant environment
-    7: System prototype demonstrated in operational environment
-    8: System complete and qualified
-    9: System proven in operational environment
+    SCORING FORMAT RULE — applies to all five dimensions:
+    Write each dimension score as an INTEGER on a ×10 scale:
+      trl_score         10–90   (10 = TRL 1.0,  90 = TRL 9.0)
+      mrl_score         10–100  (10 = MRL 1.0, 100 = MRL 10.0)
+      patent_strength   10–50   (10 = 1.0,  50 = 5.0)
+      market_accessibility 10–50
+      evidence_confidence  10–50
+    The system divides by 10 automatically; you write integers only.
+    Example: to express TRL 7.3, write trl_score: 73.
+    Use the full integer range — write 73 not 70 when evidence sits
+    closer to TRL 7 than to TRL 8. Avoid rounding to multiples of 5 or 10
+    unless the evidence perfectly matches an anchor level.
+
+    Dimension 1 — Technology Readiness Level (write trl_score 10–90):
+    10: Basic principles observed (TRL 1)
+    20: Technology concept formulated (TRL 2)
+    30: Proof-of-concept demonstrated analytically (TRL 3)
+    40: Component validated in laboratory (TRL 4)
+    50: Component validated in relevant environment (TRL 5)
+    60: System prototype demonstrated in relevant environment (TRL 6)
+    70: System prototype demonstrated in operational environment (TRL 7)
+    80: System complete and qualified (TRL 8)
+    90: System proven in operational environment (TRL 9)
+    Intermediate values reflect partial progress, e.g. 73 = mostly TRL 7,
+    approaching TRL 8; 67 = solidly past TRL 6 but not yet TRL 7.
 
     CRITICAL TRL CALIBRATION RULE — read before scoring:
     TRL reflects the actual deployment stage of the technology, NOT what aspect
@@ -254,20 +269,22 @@ commercialization_scorer:
     - Papers describe relevant-environment tests → TRL 5
     - Papers describe full system prototype → TRL 6
 
-    Dimension 2 — Manufacturing Readiness Level (MRL 1–10, DoD scale):
+    Dimension 2 — Manufacturing Readiness Level (write mrl_score 10–100):
     TRL measures whether the technology works. MRL measures whether it can be
     manufactured at scale. These are independent — a TRL 8 technology can be MRL 3
     if no scalable production process exists. Score MRL from manufacturing evidence:
-    1: Basic manufacturing implications identified; no production process exists
-    2: Manufacturing concepts identified; feasibility studies only
-    3: Manufacturing proof-of-concept; lab-scale process demonstrated in papers
-    4: Lab-scale production demonstrated; yield and cost data emerging
-    5: Pilot-scale process demonstrated in a relevant environment; process defined
-    6: Prototype production line demonstrated; initial yield and throughput data
-    7: Production-representative process demonstrated; supply chain identified
-    8: Pilot production line operational; low-rate production validated
-    9: Low-rate production proven; full-rate ramp-up in progress
-    10: Full-rate commercial mass production demonstrated
+    10: Basic manufacturing implications identified; no production process exists (MRL 1)
+    20: Manufacturing concepts identified; feasibility studies only (MRL 2)
+    30: Manufacturing proof-of-concept; lab-scale process demonstrated in papers (MRL 3)
+    40: Lab-scale production demonstrated; yield and cost data emerging (MRL 4)
+    50: Pilot-scale process demonstrated in a relevant environment; process defined (MRL 5)
+    60: Prototype production line demonstrated; initial yield and throughput data (MRL 6)
+    70: Production-representative process demonstrated; supply chain identified (MRL 7)
+    80: Pilot production line operational; low-rate production validated (MRL 8)
+    90: Low-rate production proven; full-rate ramp-up in progress (MRL 9)
+    100: Full-rate commercial mass production demonstrated (MRL 10)
+    Intermediate values reflect partial progress, e.g. 73 = mostly MRL 7 with
+    partial supply chain; 85 = low-rate production with ramp-up constraints.
 
     MRL CALIBRATION SIGNALS from evidence:
     - Academic papers describe only synthesis routes or lab device fabrication
@@ -286,19 +303,21 @@ commercialization_scorer:
     Only score MRL 8–10 when market evidence explicitly confirms operational
     production lines or mass-market availability from multiple suppliers.
 
-    Dimension 3 — IP Landscape Navigability (patent_strength 1–5):
+    Dimension 3 — IP Landscape Navigability (write patent_strength 10–50):
     Score how open the patent landscape is for a new entrant or university filing.
-    1: Highly contested — dense blocking patents from major players (e.g. CAR-T,
-       mRNA vaccines — Big Pharma holds broad composition-of-matter claims)
-    2: Substantial coverage — limited filing opportunities (e.g. CRISPR base editing
-       — major institutions hold foundational claims)
-    3: Moderate — notable white spaces exist, IP strategy needed (e.g. solid-state
-       batteries — core electrolyte claims filed but process methods open)
-    4: Favorable — meaningful white spaces, first-mover advantage available (e.g.
-       graphene electronics — many early patents expired or narrow)
-    5: Very open — few relevant patents, strong early-mover IP opportunity (e.g.
-       room temperature superconductors — technology too early-stage to have
-       significant patent coverage)
+    10: Highly contested — dense blocking patents from major players (e.g. CAR-T,
+        mRNA vaccines — Big Pharma holds broad composition-of-matter claims)
+    20: Substantial coverage — limited filing opportunities (e.g. CRISPR base editing
+        — major institutions hold foundational claims)
+    30: Moderate — notable white spaces exist, IP strategy needed (e.g. solid-state
+        batteries — core electrolyte claims filed but process methods open)
+    40: Favorable — meaningful white spaces, first-mover advantage available (e.g.
+        graphene electronics — many early patents expired or narrow)
+    50: Very open — few relevant patents, strong early-mover IP opportunity (e.g.
+        room temperature superconductors — technology too early-stage to have
+        significant patent coverage)
+    Intermediate values, e.g. 23 = dense landscape but a few narrow gaps visible;
+    37 = moderate coverage but more open than typical, with identifiable white spaces.
 
     PATENT SCORING ANTI-DEFAULT RULE:
     Do NOT default to 3 when uncertain. The patent sources in context are enough
@@ -309,12 +328,30 @@ commercialization_scorer:
     5. Only score 3 when evidence genuinely shows both significant coverage AND
     real filing opportunities for a new entrant.
 
-    Dimension 4 — Market Accessibility (market_accessibility 1–5):
-    1: No commercial activity or market demand detected
-    2: Early R&D stage only — no commercial products found
-    3: Pilot deployments or single early-stage company — nascent demand
-    4: Active market — multiple companies with products, clear revenue signals
-    5: Established market — many competitors, reported revenues, clear pricing
+    PATENT FILING YEAR TREND SIGNALS (from published_date field in patent sources):
+    When published_date is present for one or more patent sources, use filing year
+    distribution as an additional signal for patent_strength. Years are approximate
+    (WO/EP patents are parsed directly; CN/US may use snippet-derived year).
+    - All patents filed before 2015 and no recent filings → landscape may be
+      softening; early patents near expiry; filing opportunity may be opening (→ +1)
+    - Mix of pre-2018 and post-2022 patents → active ongoing competition; core
+      claims may be solidifying (→ stay or −1)
+    - Majority of patents filed after 2021 → field is rapidly filling; window is
+      closing for broad claims; score defensively (→ −1 on patent_strength)
+    - All patents from 2023–present → very early IP race; first-mover advantage
+      still possible; treat as open landscape (→ +1)
+    If published_date is null for all patent sources, rely solely on title and
+    snippet content to assess density; do not penalise for missing dates.
+
+    Dimension 4 — Market Accessibility (write market_accessibility 10–50):
+    10: No commercial activity or market demand detected
+    20: Early R&D stage only — no commercial products found
+    30: Pilot deployments or single early-stage company — nascent demand
+    40: Active market — multiple companies with products, clear revenue signals
+    50: Established market — many competitors, reported revenues, clear pricing
+    Intermediate values, e.g. 34 = one company with a product but very nascent;
+    43 = multiple products but market size still small; 47 = near-established
+    market with most signals present but pricing not yet fully transparent.
 
     MARKET ACCESSIBILITY CALIBRATION RULE:
     If market sources explicitly name multiple companies with commercial products
@@ -322,25 +359,105 @@ commercialization_scorer:
     2 simply because academic papers discuss ongoing research challenges.
     Ongoing research on a commercially deployed technology is normal.
 
-    Dimension 5 — Evidence Confidence (evidence_confidence 1–5):
-    1: Almost no verifiable evidence; findings rest on a single thin source
-    2: Weak — only one domain covered (e.g. patents only) or significant contradictions
-    3: Moderate — two domains covered with credible sources; some gaps
-    4: Good — all three domains (academic, patent, market) covered with credible
-       sources; minor gaps or dated references
-    5: Strong — all three domains covered with high-credibility, recent, consistent
-       multi-source evidence; no material gaps
+    Dimension 5 — Evidence Confidence (write evidence_confidence 10–50):
+    10: Almost no verifiable evidence; findings rest on a single thin source
+    20: Weak — only one domain covered (e.g. patents only) or significant contradictions
+    30: Moderate — two domains covered with credible sources; some gaps
+    40: Good — all three domains (academic, patent, market) covered with credible
+        sources; minor gaps or dated references
+    50: Strong — all three domains covered with high-credibility, recent, consistent
+        multi-source evidence; no material gaps
+    Intermediate values, e.g. 33 = two domains present but one has weak sources;
+    42 = three domains covered but market sources are all company disclosures.
 
     EVIDENCE CONFIDENCE ANTI-DEFAULT RULE:
     Do NOT default to 4. Score 5 only when all three source domains have multiple
     high-credibility sources with recent dates and no contradictions. Score 3 when
     one domain is weak or missing. Score 1–2 when evidence is sparse across domains.
 
-    Overall Score (0–100):
-    Compute as: round( (market_accessibility/5)*35 + (trl_score/9)*20 +
-                        (mrl_score/10)*15 + (patent_strength/5)*20 +
-                        (evidence_confidence/5)*10 )
-    Weights: Market 35% + TRL 20% + MRL 15% + Patent 20% + Evidence 10% = 100%.
-    Market has the highest weight because it is the most direct signal of
-    commercialization readiness. Evidence is a meta-dimension (scoring confidence),
-    not a commercialization driver, so it carries the lowest weight.
+    Citation Count Signals (from citation_count field in academic sources):
+    Use citation counts as a SECONDARY calibration signal for TRL and evidence_confidence.
+    They do NOT override market evidence, but help when market data is thin.
+    - citation_count = 0 and published < 1 year ago → very new, no consensus yet; normal for recent papers
+    - citation_count 1–50 → limited academic uptake; supports TRL ≤ 5 unless market evidence says otherwise
+    - citation_count 50–200 → moderate consensus; consistent with TRL 5–6
+    - citation_count 200–500 → significant consensus; supports TRL 6–7
+    - citation_count > 500 → foundational work, technology well-understood; supports TRL ≥ 7
+    If multiple academic sources each have > 200 citations, raise evidence_confidence by 1 level.
+    If all academic sources have < 20 citations, note the thin citation base in evidence_rationale.
+
+    Overall Score (0–100, one decimal place):
+    The active weight profile is injected into your task description as {weight_profile}.
+    Read it before computing — do NOT use the industrial defaults if a different
+    profile is active.
+
+    Formula — use the RAW integers you wrote (the system divides by 10 internally):
+    overall_score = round(
+        (market_accessibility/10/5) * W_market +
+        (trl_score/10/9)            * W_trl    +
+        (mrl_score/10/10)           * W_mrl    +
+        (patent_strength/10/5)      * W_patent  +
+        (evidence_confidence/10/5)  * W_evidence,
+        1   ← one decimal place
+    )
+    Example with industrial weights and trl=73, mrl=75, patent=23, market=43, evidence=40:
+    (43/10/5)*35 + (73/10/9)*20 + (75/10/10)*15 + (23/10/5)*20 + (40/10/5)*10
+    = 30.1 + 16.2 + 11.25 + 9.2 + 8.0 = 74.75 → overall_score 74.8
+
+    Available weight profiles and their W_ values:
+
+    INDUSTRIAL (default — general deep-tech, energy, electronics, manufacturing):
+      W_market=35  W_trl=20  W_patent=20  W_mrl=15  W_evidence=10
+      Rationale: market is the strongest commercialisation signal;
+      evidence is a meta-dimension carrying the lowest weight.
+
+    BIOMEDICAL (drug, therapy, vaccine, diagnostic, medical device, clinical):
+      W_market=25  W_trl=20  W_patent=15  W_mrl=30  W_evidence=10
+      Rationale: FDA/CE manufacturing compliance (MRL) is the gate-keeping
+      factor for medical commercialisation; patents are narrower in scope
+      relative to regulatory moats, so patent weight drops.
+
+    MATERIAL_SCIENCE (catalyst, polymer, nanoparticle, thin film, ceramic,
+                      graphene, deposition, synthesis route):
+      W_market=20  W_trl=30  W_patent=20  W_mrl=20  W_evidence=10
+      Rationale: material markets lag technology by many years; TRL is the
+      most informative leading indicator; all other dimensions share weight
+      equally.
+
+    CALIBRATION BENCHMARKS — anchor your scores against these before submitting:
+    These are canonical reference points. Your scores should be consistent with
+    where the topic falls relative to these benchmarks.
+
+    1. LFP lithium-iron-phosphate batteries (as of 2024)
+       Status: mass-produced globally by CATL, BYD, and dozens of suppliers
+       TRL=9, MRL=10, patent_strength=2, market_accessibility=5, evidence_confidence=5
+       → overall ≈ 88
+       Use as upper anchor: a topic scoring above 85 must have similarly widespread
+       commercial deployment with multiple large-volume manufacturers.
+
+    2. Solid-state lithium batteries (as of 2024)
+       Status: Toyota/QuantumScape/Solid Power have prototypes; no mass-market product
+       TRL=6, MRL=5, patent_strength=2, market_accessibility=3, evidence_confidence=4
+       → overall ≈ 58
+       Use as mid-anchor: a topic with pilot programmes but no commercial product
+       should score in the 50–65 range.
+
+    3. Perovskite solar cells (as of 2024)
+       Status: lab efficiency records broken, pilot lines starting, no commercial product
+       TRL=5, MRL=3, patent_strength=3, market_accessibility=2, evidence_confidence=4
+       → overall ≈ 48
+       Use as early-stage anchor: topics still primarily in academic/lab phase with
+       no commercial product should score below 55.
+
+    4. mRNA vaccines (as of 2024)
+       Status: multiple approved products (Pfizer/Moderna), manufacturing at scale
+       TRL=9, MRL=9, patent_strength=1, market_accessibility=5, evidence_confidence=5
+       → overall ≈ 83
+       Note: high overall despite patent_strength=1 because market and TRL are maximal.
+
+    BENCHMARK CONSISTENCY CHECK — before finalising your scores:
+    Compare the topic to these four anchors. If a topic has no commercial product yet,
+    its overall score should not exceed ~65 (between benchmark 2 and 3).
+    If a topic has one or two early commercial products with limited volume, it should
+    fall in the 60–72 range (near benchmark 2). Only topics with multiple commercial
+    manufacturers and reported revenue should exceed 75.

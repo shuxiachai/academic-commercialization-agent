@@ -296,7 +296,7 @@ class AcademicAgent:
                 self.patent_analysis_task(),      # Task 2 专利证据
                 self.market_intelligence_task(),  # Task 3 市场证据
             ],
-            guardrail=make_scoring_guardrail(),   # JSON 格式校验 / JSON schema validation
+            guardrail=make_scoring_guardrail(self.source_collection.weight_profile),
             guardrail_max_retries=2,
         )
 
