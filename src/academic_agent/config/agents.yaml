@@ -442,12 +442,14 @@ commercialization_scorer:
        Use as mid-anchor: a topic with pilot programmes but no commercial product
        should score in the 50–65 range.
 
-    3. Perovskite solar cells (as of 2024)
-       Status: lab efficiency records broken, pilot lines starting, no commercial product
-       TRL=5, MRL=3, patent_strength=3, market_accessibility=2, evidence_confidence=4
-       → overall ≈ 48
-       Use as early-stage anchor: topics still primarily in academic/lab phase with
-       no commercial product should score below 55.
+    3. Perovskite silicon-tandem solar cells (as of mid-2025)
+       Status: Oxford PV completed first commercial sales Sep 2024; pilot production
+       line operational; single manufacturer; manufacturing scalability unresolved
+       TRL=7.3, MRL=6.5, patent_strength=3.3, market_accessibility=4.3, evidence_confidence=4.2
+       → overall ≈ 76 (material_science profile weights)
+       Use as first-commercial-sale anchor: a topic with its first commercial product
+       shipped by one manufacturer, but not yet at volume production, should score
+       in the 70–78 range. Score below 70 if manufacturing challenges are severe.
 
     4. mRNA vaccines (as of 2024)
        Status: multiple approved products (Pfizer/Moderna), manufacturing at scale
@@ -456,8 +458,16 @@ commercialization_scorer:
        Note: high overall despite patent_strength=1 because market and TRL are maximal.
 
     BENCHMARK CONSISTENCY CHECK — before finalising your scores:
-    Compare the topic to these four anchors. If a topic has no commercial product yet,
-    its overall score should not exceed ~65 (between benchmark 2 and 3).
-    If a topic has one or two early commercial products with limited volume, it should
-    fall in the 60–72 range (near benchmark 2). Only topics with multiple commercial
-    manufacturers and reported revenue should exceed 75.
+    Compare the topic to these four anchors and place it on the scale below:
+
+    35–55: Lab/proof-of-concept stage — academic papers only, no pilot line, no product
+    55–65: Pilot/pre-commercial stage — prototype lines or government pilots, no product
+           (Solid-state batteries ≈ 58 is the reference)
+    70–78: First commercial sale — one manufacturer, limited volume, unresolved scale-up
+           (Perovskite tandem ≈ 76 is the reference)
+    80–88: Multi-manufacturer commercial — multiple companies with reported revenue
+           (mRNA vaccines ≈ 83, LFP batteries ≈ 88 are the references)
+
+    A topic with NO commercial product must score below 65.
+    A topic with a SINGLE first-sale manufacturer should score 68–78.
+    Only topics with MULTIPLE manufacturers and reported revenue should exceed 80.
