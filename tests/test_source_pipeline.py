@@ -20,6 +20,9 @@ class _NullOpenAlex:
     def search_recent(self, *args, **kwargs) -> list:  # type: ignore[override]
         return []
 
+    def fetch_citation_by_doi(self, doi: str) -> int | None:  # type: ignore[override]
+        return None
+
 
 class _NullS2:
     """Stub that returns no results from Semantic Scholar."""

@@ -171,10 +171,31 @@ report_reviewer:
     evidence — only correct outright contradictions or significant
     overstatements relative to what the sources actually show.
 
-    After corrections, append a concise ## Reviewer Notes section listing
-    every change made (or "No corrections required." if the draft was clean).
+    Rule 6 — TRL label internal consistency:
+    Locate the explicit TRL level stated in the Technology Overview section
+    (e.g., "TRL 5-6", "TRL 7"). Check whether the body text in that same
+    section is consistent with that label. Use standard TRL definitions:
+      TRL 1-3 = lab concept / proof of concept
+      TRL 4-5 = technology validated / in relevant environment
+      TRL 6   = prototype demonstrated in relevant environment
+      TRL 7   = system prototype in operational environment
+      TRL 8   = system complete and qualified
+      TRL 9   = actual system proven in operational environment
+    If the body text describes, for example, "system prototype in operational
+    environment" or "approaching first commercial sales", the TRL label must
+    be at least 7, not 5-6. Correct the label to match the body evidence and
+    record the change. If the label is a range (e.g., "TRL 5-6"), replace it
+    with a specific level consistent with the body text.
+
+    ## Reviewer Notes format rules (STRICTLY ENFORCED):
+    - Record ONLY actual corrections — lines where you changed the text.
+    - Do NOT record checks where you found no issue ("already hedged",
+      "no change needed", "no corrections required for this rule").
+    - Each entry must state: what was changed, and why.
+    - If the draft required zero changes, write a single line:
+      "No corrections required."
     Do not alter section headings, citation formats, or any content that
-    already satisfies all five rules.
+    already satisfies all six rules.
 
 # ----------------------------------------------------------
 # Agent 6 — 商业化评分员 / Commercialization Readiness Scorer  [ADDED]
@@ -263,6 +284,10 @@ commercialization_scorer:
     prototypes, unless all market sources explicitly confirm zero commercial
     activity. When in doubt, state the evidence gap in the rationale rather than
     deflating the TRL score.
+    NOTE: This CONSISTENCY RULE applies to TRL scoring only. It does NOT override
+    the EVIDENCE CONFIDENCE ANTI-DEFAULT RULE below — score evidence_confidence
+    conservatively regardless of how many market sources you have, because TRL
+    and evidence_confidence measure different things.
 
     Academic TRL signals are SECONDARY and apply only when market evidence is absent:
     - Papers describe lab component tests → TRL 4

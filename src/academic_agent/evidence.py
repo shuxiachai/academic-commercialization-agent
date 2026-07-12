@@ -34,6 +34,9 @@ _WEIGHT_PROFILES: dict[str, dict[str, float]] = {
         "market": 20.0, "trl": 30.0, "patent": 20.0, "mrl": 20.0, "evidence": 10.0,
     },
 }
+assert all(
+    abs(sum(w.values()) - 100) < 0.01 for w in _WEIGHT_PROFILES.values()
+), "All weight profiles must sum to 100"
 
 
 SourceType = Literal[
@@ -62,7 +65,9 @@ _SOURCE_RANGE_PATTERN = re.compile(
 _REFERENCE_ENTRY_PATTERN = re.compile(r"(?m)^\s*\[([APM]\d+)\]\s+")
 _TABLE_SOURCE_CELL_PATTERN = re.compile(r"\|\s*[APM]\d+(?:\s*,\s*[APM]\d+)*\s*\|")
 _NUMERIC_CLAIM_PATTERN = re.compile(
-    r"(?<!\[)\b(?:\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)"
+    r"(?<!\[)\b"
+    r"(?:\d{1,3}(?:,\d{3})+"                          # thousands-separated: 1,000  10,000
+    r"|(?!(?:1[89]\d{2}|20\d{2}|21\d{2})\b)\d+(?:\.\d+)?)"  # integers/decimals, excluding years
     r"(?:\s?(?:%|x|×|USD|AUD|EUR|million|billion|trillion|M|B))?\b",
     re.IGNORECASE,
 )
@@ -255,11 +260,17 @@ class CommercializationScore(BaseModel):
     key_opportunities: list[str] = Field(min_length=1, max_length=5)
 
 
-def make_scoring_guardrail(weight_profile: str = "industrial") -> Callable[[TaskOutput], tuple[bool, Any]]:
+def make_scoring_guardrail(
+    weight_profile: str = "industrial",
+    *,
+    known_source_ids: frozenset[str] | None = None,
+) -> Callable[[TaskOutput], tuple[bool, Any]]:
     """Validate scoring task output and deterministically recompute overall_score.
 
     Uses the weight profile selected during source collection so that biomedical
     and material-science topics are scored with domain-appropriate weights.
+    When known_source_ids is provided, cited IDs are checked to exist in the
+    source collection — preventing hallucinated source references.
     """
     weights = _WEIGHT_PROFILES.get(weight_profile, _WEIGHT_PROFILES["industrial"])
 
@@ -281,12 +292,19 @@ def make_scoring_guardrail(weight_profile: str = "industrial") -> Callable[[Task
             ("market_source_ids", score.market_source_ids),
             ("evidence_source_ids", score.evidence_source_ids),
         ):
-            bad = [sid for sid in ids if not _SOURCE_ID_PATTERN.fullmatch(sid)]
-            if bad:
+            bad_format = [sid for sid in ids if not _SOURCE_ID_PATTERN.fullmatch(sid)]
+            if bad_format:
                 id_errors.append(
-                    f"{field} contains invalid source IDs: {bad}. "
+                    f"{field} contains invalid source IDs: {bad_format}. "
                     "Use IDs exactly as they appear in the context (e.g. A1, P2, M3)."
                 )
+            elif known_source_ids is not None:
+                phantom = [sid for sid in ids if sid not in known_source_ids]
+                if phantom:
+                    id_errors.append(
+                        f"{field} references source IDs not present in the context: {phantom}. "
+                        f"Valid IDs are: {sorted(known_source_ids)}."
+                    )
         if id_errors:
             return False, " ".join(id_errors)
 

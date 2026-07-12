@@ -2,7 +2,18 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal, TypedDict
 from uuid import uuid4
+
+
+class StepEntry(TypedDict, total=False):
+    """Schema for a single line in steps.jsonl written by pipeline_worker."""
+    agent_idx: int
+    type: Literal["action", "result", "finish"]
+    thought: str
+    tool: str
+    tool_input: str
+    result: str
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

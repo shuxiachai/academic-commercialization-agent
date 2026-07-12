@@ -219,7 +219,7 @@ report_review_task:
     You will receive a draft commercialization assessment report for
     {display_topic} as context, together with the structured evidence JSON
     outputs from the academic, patent, and market analysis tasks.
-    Apply all five review rules exactly as described in your backstory.
+    Apply all six review rules exactly as described in your backstory.
 
     LANGUAGE REQUIREMENT: The report is written in {output_language}.
     Your corrections and the final output must remain entirely in {output_language}.
@@ -227,9 +227,10 @@ report_review_task:
     section must also be written in {output_language}.
 
     Do not add new factual content. Do not restructure sections. Do not
-    change the tone or depth of analysis. Only fix the five categories of
+    change the tone or depth of analysis. Only fix the six categories of
     errors: citation mismatches, unsupported numerical claims, overconfident
-    language, incorrect patent legal framing, and evidence inconsistencies.
+    language, incorrect patent legal framing, evidence inconsistencies, and
+    TRL label mismatches (Rule 6).
 
     Output rules — strictly enforced:
     - Apply every correction silently in the report text itself.
@@ -238,11 +239,9 @@ report_review_task:
       no "[hedged]", no "[corrected]", no "[removed]", nothing.
     - If you are uncertain whether to remove a claim, soften the language
       (e.g., "will" → "may") without leaving any marker behind.
-    - Record ONLY in the ## Reviewer Notes section what you changed and why.
-
-    After completing corrections, append a ## Reviewer Notes section that
-    lists every correction made. If the draft was already clean, write
-    "No corrections required." in that section.
+    - In ## Reviewer Notes: record ONLY actual changes. Do NOT record checks
+      where you found no issue. If the draft was fully clean, write only:
+      "No corrections required."
   expected_output: >
     The complete corrected Markdown report, preserving all original section
     headings and structure, with corrections applied inline. The report must
@@ -305,20 +304,23 @@ commercialization_scoring_task:
       evidence_source_ids: all source IDs across all domains that meaningfully
         informed the overall confidence rating.
   expected_output: >
-    Return only one valid JSON object with no Markdown fences or prose:
-    {"trl_score": 43,
+    Return only one valid JSON object with no Markdown fences or prose.
+    All five dimension scores are INTEGERS on a ×10 scale (trl 10–90,
+    mrl 10–100, patent/market/evidence 10–50). Set overall_score to 0.
+    Example structure (use actual evidence-driven integers, not these placeholders):
+    {"trl_score": <INTEGER 10-90>,
      "trl_rationale": "...",
-     "trl_source_ids": ["A1", "A3", "M2"],
-     "mrl_score": 32,
+     "trl_source_ids": ["A1", "M2"],
+     "mrl_score": <INTEGER 10-100>,
      "mrl_rationale": "...",
      "mrl_source_ids": ["A2", "M1"],
-     "patent_strength": 26,
+     "patent_strength": <INTEGER 10-50>,
      "patent_rationale": "...",
      "patent_source_ids": ["P1", "P2"],
-     "market_accessibility": 24,
+     "market_accessibility": <INTEGER 10-50>,
      "market_rationale": "...",
      "market_source_ids": ["M1", "M3"],
-     "evidence_confidence": 37,
+     "evidence_confidence": <INTEGER 10-50>,
      "evidence_rationale": "...",
      "evidence_source_ids": ["A1", "A2", "P1", "M1"],
      "overall_score": 0,

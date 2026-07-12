@@ -296,7 +296,17 @@ class AcademicAgent:
                 self.patent_analysis_task(),      # Task 2 专利证据
                 self.market_intelligence_task(),  # Task 3 市场证据
             ],
-            guardrail=make_scoring_guardrail(self.source_collection.weight_profile),
+            guardrail=make_scoring_guardrail(
+                self.source_collection.weight_profile,
+                known_source_ids=frozenset(
+                    s.source_id
+                    for s in (
+                        self.source_collection.academic_sources
+                        + self.source_collection.patent_sources
+                        + self.source_collection.market_sources
+                    )
+                ),
+            ),
             guardrail_max_retries=2,
         )
 

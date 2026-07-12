@@ -3,6 +3,7 @@ import json
 import re
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -414,13 +415,14 @@ def _radar_svg(trl: float, mrl: float, pat: float, mkt: float, evi: float, color
     )
     parts.append(f'<polygon points="{dpts}" fill="{color}" fill-opacity="0.18" stroke="{color}" stroke-width="1.5"/>')
 
-    # Dots
-    for i, v in enumerate(vals):
-        x, y = pt(angles[i], r * max(v, 0.02))
-        parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.5" fill="{color}"/>')
-
-    # Labels + raw values
-    for i, (lbl, raw, a) in enumerate(zip(labels, raws, angles)):
+    # Dots + labels + raw values (merged to share title tooltip on dots)
+    for i, (v, lbl, raw, a) in enumerate(zip(vals, labels, raws, angles)):
+        x, y = pt(a, r * max(v, 0.02))
+        parts.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}" style="cursor:pointer;">'
+            f'<title>{lbl}: {raw}</title>'
+            f'</circle>'
+        )
         lx, ly = pt(a, r + 18)
         anchor = "middle"
         if lx < cx - 8:
@@ -449,6 +451,39 @@ _PROFILE_LABELS: dict[str, str] = {
     "biomedical":      "Biomedical",
     "material_science": "Material Science",
 }
+
+
+def _render_source_warning_html(run_dir: Path) -> str:
+    """Return a warning banner if any domain has fewer sources than recommended."""
+    try:
+        data = json.loads((run_dir / "validated_sources.json").read_text(encoding="utf-8"))
+        ac = len(data.get("academic_sources", []))
+        pa = len(data.get("patent_sources", []))
+        mk = len(data.get("market_sources", []))
+        warnings: list[str] = []
+        if ac < 3:
+            warnings.append(f"⚠ Academic: only {ac} source{'s' if ac != 1 else ''} (recommended ≥3)")
+        if pa < 2:
+            warnings.append(f"⚠ Patent: only {pa} source{'s' if pa != 1 else ''} (recommended ≥2)")
+        if mk < 2:
+            warnings.append(f"⚠ Market: only {mk} source{'s' if mk != 1 else ''} (recommended ≥2)")
+        if not warnings:
+            return ""
+        items_html = "".join(
+            f'<div style="margin-bottom:3px;">{html.escape(w)}</div>' for w in warnings
+        )
+        return (
+            f'<div style="background:#1c1400;border:1px solid #713f12;border-radius:8px;'
+            f'padding:10px 16px;margin-bottom:14px;font-size:12px;color:#fbbf24;'
+            f'font-family:system-ui;">'
+            f'<div style="font-weight:700;margin-bottom:4px;">Source Coverage Warning</div>'
+            f'{items_html}'
+            f'<div style="font-size:11px;color:#b45309;margin-top:4px;">'
+            f'Analysis quality in flagged domains may be limited.</div>'
+            f'</div>'
+        )
+    except Exception:
+        return ""
 
 
 def _render_reviewer_notes_html(run_dir: Path) -> str:
@@ -507,7 +542,11 @@ def _render_score_html(
     mkt = s.get("market_accessibility") or 0
     evi = s.get("evidence_confidence") or 0
     overall = s.get("overall_score") or 0
-    scoring_rationale = s.get("scoring_rationale", "")
+    scoring_rationale_raw = s.get("scoring_rationale", "")
+    # Strip debug prefix written by evidence.py auto-correction; show separately.
+    _autocorrect_match = re.match(r"^\[Auto-corrected:[^\]]+\]\s*", scoring_rationale_raw)
+    scoring_rationale = scoring_rationale_raw[_autocorrect_match.end():] if _autocorrect_match else scoring_rationale_raw
+    autocorrect_note = _autocorrect_match.group(0).strip("[] ") if _autocorrect_match else ""
     risks = s.get("key_risks", [])
     opps = s.get("key_opportunities", [])
     trl_ids  = s.get("trl_source_ids", [])
@@ -590,7 +629,12 @@ def _render_score_html(
         f'display:flex;flex-direction:column;justify-content:center;">'
         f'<div style="font-size:10px;font-weight:700;color:#777777;'
         f'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">'
-        f'{html.escape(t["formula"])}</div>'
+        f'{html.escape(t["formula"])}'
+        + (f'<span style="margin-left:8px;font-size:9px;font-weight:600;'
+           f'background:#292912;border:1px solid #52520a;color:#a3a30a;'
+           f'padding:1px 6px;border-radius:4px;text-transform:none;letter-spacing:0;">'
+           f'auto-corrected</span>' if autocorrect_note else "") +
+        f'</div>'
         f'<div style="font-size:12px;color:#d4d4d4;background:#141414;'
         f'border:1px solid #2d2d2d;border-radius:6px;padding:10px 14px;'
         f'font-family:ui-monospace,monospace;line-height:1.6;">'
@@ -627,13 +671,10 @@ def _render_score_html(
 # Progress display
 # ---------------------------------------------------------------------------
 
-_PARALLEL_SUBTAGS = (
-    ('<span style="font-size:10px;background:#1e3a5f;color:#60a5fa;'
-     'padding:2px 8px;border-radius:10px;white-space:nowrap;">Academic</span>'),
-    ('<span style="font-size:10px;background:#2e1065;color:#c4b5fd;'
-     'padding:2px 8px;border-radius:10px;white-space:nowrap;">Patent</span>'),
-    ('<span style="font-size:10px;background:#052e16;color:#4ade80;'
-     'padding:2px 8px;border-radius:10px;white-space:nowrap;">Market</span>'),
+_PHASE1_AGENTS = (
+    ("Agent 1 — Academic Literature Analysis", "#3b82f6", "#1e3a5f"),
+    ("Agent 2 — Patent Landscape Analysis",    "#8b5cf6", "#2e1065"),
+    ("Agent 3 — Market Intelligence Analysis", "#10b981", "#052e16"),
 )
 
 
@@ -664,7 +705,14 @@ def _progress_dot(state: str, spin: str) -> str:
     )
 
 
-def _render_progress_html(stage: str, elapsed: int, run_id: str, spin: str, output_language: str = "English") -> str:
+def _render_progress_html(
+    stage: str,
+    elapsed: int,
+    run_id: str,
+    spin: str,
+    output_language: str = "English",
+    source_counts: dict | None = None,
+) -> str:
     t = _scorecard_strings(output_language)
     all_stages = [_STAGE_INITIAL] + TASK_STAGE_LABELS
     try:
@@ -676,6 +724,8 @@ def _render_progress_html(stage: str, elapsed: int, run_id: str, spin: str, outp
     n = len(all_stages) - 1
     pct = round(current_idx / n * 100) if n > 0 else 0
 
+    is_phase1 = TASK_STAGE_LABELS[0] if TASK_STAGE_LABELS else ""
+
     items = []
     for i, label in enumerate(all_stages):
         if i < current_idx:
@@ -685,24 +735,71 @@ def _render_progress_html(stage: str, elapsed: int, run_id: str, spin: str, outp
         else:
             state, text_style = "future", "font-size:13px;color:#374151;"
 
+        # Phase 1: expand into 3 individual agent rows when active or done
+        if label == is_phase1 and state in ("active", "done"):
+            # Detect which parallel agents have already sent a "finish" event
+            phase1_done: set[int] = set()
+            if state == "active":
+                try:
+                    _raw = (DEFAULT_OUTPUT_ROOT / run_id / "steps.jsonl").read_text(encoding="utf-8")
+                    for _ln in _raw.splitlines():
+                        try:
+                            _e = json.loads(_ln)
+                            if _e.get("type") == "finish":
+                                _idx = int(_e.get("agent_idx", -1))
+                                if 0 <= _idx <= 2:
+                                    phase1_done.add(_idx)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            # Source counts summary line (shown once Phase 1 starts)
+            if source_counts:
+                ac = source_counts.get("academic", 0)
+                pa = source_counts.get("patent", 0)
+                mk = source_counts.get("market", 0)
+                ac_c = "#f59e0b" if ac < 3 else "#6b7280"
+                pa_c = "#f59e0b" if pa < 2 else "#6b7280"
+                mk_c = "#f59e0b" if mk < 2 else "#6b7280"
+                items.append(
+                    f'<div style="margin-bottom:10px;padding-left:28px;">'
+                    f'<span style="font-size:11px;color:#4b5563;">Sources: </span>'
+                    f'<span style="font-size:11px;color:{ac_c};">{ac} academic</span>'
+                    f'<span style="font-size:11px;color:#374151;"> · </span>'
+                    f'<span style="font-size:11px;color:{pa_c};">{pa} patent</span>'
+                    f'<span style="font-size:11px;color:#374151;"> · </span>'
+                    f'<span style="font-size:11px;color:{mk_c};">{mk} market</span>'
+                    f'</div>'
+                )
+
+            for j, (agent_name, color, bg) in enumerate(_PHASE1_AGENTS):
+                agent_done = state == "done" or j in phase1_done
+                if agent_done:
+                    dot = _progress_dot("done", spin)
+                    row_style = "font-size:12px;color:#4b5563;"
+                else:
+                    dot = (
+                        f'<div style="width:18px;height:18px;border-radius:50%;background:{bg};'
+                        f'border:2px solid {color};display:flex;align-items:center;'
+                        f'justify-content:center;flex-shrink:0;font-size:9px;color:{color};'
+                        f'font-family:monospace;font-weight:700;line-height:1;">{spin}</div>'
+                    )
+                    row_style = f"font-size:12px;color:{color};font-weight:600;"
+                items.append(
+                    f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+                    f'{dot}'
+                    f'<div style="{row_style}">{html.escape(agent_name)}</div>'
+                    f'</div>'
+                )
+            continue
+
         dot = _progress_dot(state, spin)
-
-        # Phase 1 parallel sub-tags shown while active
-        sub = ""
-        is_parallel_stage = (label == TASK_STAGE_LABELS[0] if TASK_STAGE_LABELS else False)
-        if state == "active" and is_parallel_stage:
-            sub = (
-                f'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">'
-                + "".join(_PARALLEL_SUBTAGS)
-                + "</div>"
-            )
-
         items.append(
             f'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;">'
             f'{dot}'
             f'<div style="padding-top:1px;">'
             f'<div style="{text_style}">{html.escape(label)}</div>'
-            f'{sub}'
             f'</div>'
             f'</div>'
         )
@@ -789,6 +886,20 @@ def _extract_topic_from_report(report_path: Path) -> str:
     return "—"
 
 
+def _read_run_topic(run_dir: Path) -> str:
+    """Read topic from status.json (supports all languages); fall back to report parsing."""
+    try:
+        data = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+        if t := data.get("topic"):
+            return str(t)[:90]
+    except Exception:
+        pass
+    report_path = run_dir / "commercialization_report.md"
+    if report_path.exists():
+        return _extract_topic_from_report(report_path)
+    return "—"
+
+
 def _load_run(run_id: str) -> tuple[str, str]:
     """Load score card + report for a past run by its run ID."""
     run_id = run_id.strip()
@@ -805,14 +916,14 @@ def _load_run(run_id: str) -> tuple[str, str]:
     scores_path = run_dir / "commercialization_scores.json"
     if scores_path.exists():
         try:
-            topic = "—"
-            report_path = run_dir / "commercialization_report.md"
-            if report_path.exists():
-                topic = _extract_topic_from_report(report_path)
+            topic = _read_run_topic(run_dir)
             output_lang = _read_output_language(run_dir)
             wp = _read_weight_profile(run_dir)
-            score_html = _render_score_html(
-                scores_path.read_text(encoding="utf-8"), topic, output_lang, wp
+            score_html = (
+                _render_source_warning_html(run_dir)
+                + _render_score_html(
+                    scores_path.read_text(encoding="utf-8"), topic, output_lang, wp
+                )
             )
         except Exception:
             pass
@@ -850,10 +961,7 @@ def _render_history_html() -> str:
         run_id = run_dir.name
         timestamp = _parse_run_timestamp(run_id)
 
-        topic = "—"
-        report_path = run_dir / "commercialization_report.md"
-        if report_path.exists():
-            topic = _extract_topic_from_report(report_path)
+        topic = _read_run_topic(run_dir)
 
         overall = trl = mrl = pat = mkt = evi = "—"
         overall_color = "#0b0b0b"
@@ -895,38 +1003,48 @@ def _render_history_html() -> str:
         else:
             score_cell = f'<span style="color:#9a9a9a;">—</span>'
 
+        run_id_short = run_id[:26]
         rows_html += (
-            f'<tr style="border-bottom:1px solid #1a1a1a;" '
+            f'<tr style="border-bottom:1px solid #1a1a1a;cursor:pointer;" '
+            f'title="Click to copy Run ID" '
+            f'onclick="(function(){{var el=document.querySelector(\'textarea[data-testid=\\"run_id_input\\"]\');'
+            f'if(!el)el=document.querySelector(\'input[placeholder*=\\"20\\"]\');'
+            f'if(el){{el.value=\'{html.escape(run_id)}\';'
+            f'el.dispatchEvent(new Event(\'input\',{{bubbles:true}}));}}}})();" '
             f'onmouseover="this.style.background=\'#222222\'" '
             f'onmouseout="this.style.background=\'\'">'
             f'<td style="padding:10px 14px;color:#777777;font-size:12px;'
             f'font-variant-numeric:tabular-nums;white-space:nowrap;">{html.escape(timestamp)}</td>'
-            f'<td style="padding:10px 14px;max-width:320px;overflow:hidden;'
+            f'<td style="padding:10px 14px;max-width:300px;overflow:hidden;'
             f'text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#e5e5e5;'
             f'font-weight:500;">{html.escape(topic)}</td>'
             f'<td style="padding:10px 14px;text-align:center;">{score_cell}</td>'
             f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
-            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{trl}/9" if isinstance(trl, int) else "—"}</td>'
+            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{trl}/9" if isinstance(trl, (int, float)) else "—"}</td>'
             f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
-            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{mrl}/10" if isinstance(mrl, int) else "—"}</td>'
+            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{mrl}/10" if isinstance(mrl, (int, float)) else "—"}</td>'
             f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
-            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{pat}/5" if isinstance(pat, int) else "—"}</td>'
+            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{pat}/5" if isinstance(pat, (int, float)) else "—"}</td>'
             f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
-            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{mkt}/5" if isinstance(mkt, int) else "—"}</td>'
+            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{mkt}/5" if isinstance(mkt, (int, float)) else "—"}</td>'
             f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
-            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{evi}/5" if isinstance(evi, int) else "—"}</td>'
+            f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{evi}/5" if isinstance(evi, (int, float)) else "—"}</td>'
             f'<td style="padding:10px 14px;text-align:center;">{status_cell}</td>'
+            f'<td style="padding:10px 14px;font-family:ui-monospace,monospace;font-size:10px;'
+            f'color:#3f3f46;white-space:nowrap;">{html.escape(run_id_short)}</td>'
             f'</tr>'
         )
 
     return (
         f'<div style="font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;'
         f'overflow-x:auto;border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;">'
+        f'<div style="font-size:11px;color:#4b5563;padding:8px 14px;background:#0f0f0f;'
+        f'border-bottom:1px solid #1a1a1a;">Click any row to fill the Run ID field below</div>'
         f'<table style="width:100%;border-collapse:collapse;font-size:13px;">'
         f'<thead>'
         f'<tr style="background:#141414;border-bottom:1px solid #2d2d2d;">'
         f'<th style="text-align:left;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;">Time (Local)</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;">Time</th>'
         f'<th style="text-align:left;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Topic</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
@@ -943,6 +1061,8 @@ def _render_history_html() -> str:
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Evidence</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Status</th>'
+        f'<th style="text-align:left;padding:11px 14px;color:#777777;font-weight:700;'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Run ID</th>'
         f'</tr>'
         f'</thead>'
         f'<tbody>{rows_html}</tbody>'
@@ -1352,15 +1472,17 @@ def run_analysis(research_topic: str):
             elapsed = int(time.time() - start)
             stage = _STAGE_INITIAL
             output_language = "English"
+            source_counts: dict | None = None
             try:
-                status = json.loads(status_path.read_text(encoding="utf-8"))
-                stage = status.get("stage", _STAGE_INITIAL)
-                output_language = status.get("output_language") or "English"
+                _status = json.loads(status_path.read_text(encoding="utf-8"))
+                stage = _status.get("stage", _STAGE_INITIAL)
+                output_language = _status.get("output_language") or "English"
+                source_counts = _status.get("source_counts")
             except Exception:
                 pass
             spin = SPINNER[tick % len(SPINNER)]
             yield (
-                _render_progress_html(stage, elapsed, run_id, spin, output_language),
+                _render_progress_html(stage, elapsed, run_id, spin, output_language, source_counts),
                 "",
                 "",
                 gr.update(visible=False),
@@ -1419,11 +1541,22 @@ def run_analysis(research_topic: str):
         f'🌐 Report language: {html.escape(output_language)}</span></div>'
     ) if output_language != "English" else ""
     wp = _read_weight_profile(run_dir)
-    score_html = (lang_badge + _render_score_html(scores_json, research_topic.strip(), output_language, wp)) if scores_json else lang_badge
+    score_html = (lang_badge + _render_source_warning_html(run_dir) + _render_score_html(scores_json, research_topic.strip(), output_language, wp)) if scores_json else lang_badge
     score_html += _render_reviewer_notes_html(run_dir)
     t = _scorecard_strings(output_language)
     md_update = gr.update(value=str(report_path), visible=True, label=t["dl_md"]) if report_path.exists() else gr.update(visible=False)
-    pdf_path_obj = _generate_pdf(report, run_dir, output_language)
+
+    # Yield results immediately; PDF is generated in background to avoid blocking.
+    yield "", score_html, report, md_update, gr.update(visible=False), gr.update(interactive=False), gr.update(visible=False), ""
+
+    _pdf_result: list[Path | None] = [None]
+    def _bg_pdf() -> None:
+        _pdf_result[0] = _generate_pdf(report, run_dir, output_language)
+    _pdf_thread = threading.Thread(target=_bg_pdf, daemon=True)
+    _pdf_thread.start()
+    _pdf_thread.join(timeout=45)
+
+    pdf_path_obj = _pdf_result[0]
     pdf_update = gr.update(value=str(pdf_path_obj), visible=True, label=t["dl_pdf"]) if pdf_path_obj else gr.update(visible=False)
     yield "", score_html, report, md_update, pdf_update, gr.update(interactive=True), gr.update(visible=False), ""
 

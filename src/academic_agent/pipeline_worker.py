@@ -33,7 +33,10 @@ def main() -> None:
     args = parser.parse_args()
 
     from crewai.events.event_bus import crewai_event_bus
-    from crewai.events.types.agent_events import AgentExecutionCompletedEvent
+    from crewai.events.types.agent_events import (
+        AgentExecutionCompletedEvent,
+        AgentExecutionStartedEvent,
+    )
     from crewai.events.types.tool_usage_events import (
         ToolUsageFinishedEvent,
         ToolUsageStartedEvent,
@@ -42,6 +45,7 @@ def main() -> None:
     from academic_agent.crew import AcademicAgent
     from academic_agent.run_output import (
         DEFAULT_OUTPUT_ROOT,
+        StepEntry,
         save_error,
         save_report,
         save_reviewer_notes,
@@ -61,31 +65,51 @@ def main() -> None:
         done: bool = False,
         error: str | None = None,
         output_language: str | None = None,
+        source_counts: dict | None = None,
+        topic: str | None = None,
     ) -> None:
         try:
-            status_path.write_text(
-                json.dumps({
-                    "stage": stage,
-                    "done": done,
-                    "error": error,
-                    "output_language": output_language,
-                }),
-                encoding="utf-8",
-            )
+            # Preserve sticky fields (topic, source_counts) set by earlier calls.
+            try:
+                existing = json.loads(status_path.read_text(encoding="utf-8"))
+            except Exception:
+                existing = {}
+            data: dict = {
+                "stage": stage,
+                "done": done,
+                "error": error,
+                "output_language": output_language,
+            }
+            for sticky in ("topic", "source_counts"):
+                if existing.get(sticky) is not None:
+                    data[sticky] = existing[sticky]
+            if source_counts is not None:
+                data["source_counts"] = source_counts
+            if topic is not None:
+                data["topic"] = topic
+            status_path.write_text(json.dumps(data), encoding="utf-8")
         except Exception:
             pass
 
-    write_status(_STAGE_INITIAL)
+    write_status(_STAGE_INITIAL, topic=args.topic)
 
     try:
         source_collection = collect_source_collection(args.topic)
         save_source_collection(source_collection.model_dump_json(indent=2), run_id=args.run_id)
-        write_status(_PARALLEL_STAGE, output_language=source_collection.output_language)
+        write_status(
+            _PARALLEL_STAGE,
+            source_counts={
+                "academic": len(source_collection.academic_sources),
+                "patent":   len(source_collection.patent_sources),
+                "market":   len(source_collection.market_sources),
+            },
+            output_language=source_collection.output_language,
+        )
 
         parallel_done   = [0]   # counts completions of the 3 async evidence tasks
         sequential_done = [0]   # counts completions of tasks 4/5/6
 
-        def _write_step(entry: dict) -> None:
+        def _write_step(entry: StepEntry) -> None:
             try:
                 with open(steps_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -149,14 +173,17 @@ def main() -> None:
                     "result": str(event.output or "").strip()[:400],
                 })
 
-            @crewai_event_bus.on(AgentExecutionCompletedEvent)
-            def on_agent_done(source, event: AgentExecutionCompletedEvent) -> None:
+            @crewai_event_bus.on(AgentExecutionStartedEvent)
+            def on_agent_started(source, event: AgentExecutionStartedEvent) -> None:
                 role = getattr(event.agent, "role", "") if event.agent else ""
                 idx = agent_role_to_idx.get(role, parallel_done[0] + sequential_done[0])
                 _write_step({
                     "agent_idx": idx,
-                    "type": "finish",
+                    "type": "action",
                     "thought": "",
+                    "tool": "reasoning",
+                    "tool_input": "",
+                    "result": "",
                 })
 
             result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
@@ -185,8 +212,7 @@ def main() -> None:
         error_details = traceback.format_exc()
         save_error(error_details, run_id=args.run_id)
         print(error_details, file=sys.stderr, flush=True)
-        first_line = next((ln.strip() for ln in str(exc).splitlines() if ln.strip()), str(exc))
-        write_status("Error", done=True, error=first_line)
+        write_status("Error", done=True, error=str(exc)[:400])
         sys.exit(1)
 
 

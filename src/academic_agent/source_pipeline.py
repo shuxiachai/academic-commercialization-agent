@@ -366,13 +366,13 @@ class SerperClient:
         self.hl = hl
 
     def search(self, query: str) -> dict[str, Any]:
-        payload: dict[str, Any] = {"q": query, "num": self.n_results}
+        body: dict[str, Any] = {"q": query, "num": self.n_results}
         if self.gl != "us" or self.hl != "en":
-            payload["gl"] = self.gl
-            payload["hl"] = self.hl
+            body["gl"] = self.gl
+            body["hl"] = self.hl
         request = Request(
             "https://google.serper.dev/search",
-            data=json.dumps(payload).encode("utf-8"),
+            data=json.dumps(body).encode("utf-8"),
             headers={
                 "X-API-KEY": self.api_key,
                 "Content-Type": "application/json",
@@ -380,22 +380,28 @@ class SerperClient:
             },
             method="POST",
         )
-        try:
-            with urlopen(request, timeout=self.timeout) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-        except (
-            HTTPError,
-            URLError,
-            TimeoutError,
-            OSError,
-            json.JSONDecodeError,
-        ) as exc:
-            raise SourceCollectionError(
-                f"Serper search failed for {query!r}: {exc}"
-            ) from exc
-        if not isinstance(payload, dict):
-            raise SourceCollectionError("Serper returned a non-object response.")
-        return payload
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                with urlopen(request, timeout=self.timeout) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise SourceCollectionError("Serper returned a non-object response.")
+                return payload
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+                last_exc = exc
+                time.sleep(2 ** attempt)
+            except HTTPError as exc:
+                if exc.code in {429, 500, 502, 503, 504}:
+                    last_exc = exc
+                    time.sleep(2 ** attempt)
+                else:
+                    raise SourceCollectionError(
+                        f"Serper search failed for {query!r}: {exc}"
+                    ) from exc
+        raise SourceCollectionError(
+            f"Serper search failed for {query!r} after 3 attempts: {last_exc}"
+        ) from last_exc
 
 
 class OpenAlexClient:
@@ -1207,15 +1213,31 @@ def _normalise_text(text: str) -> str:
     return re.sub(r"[-_]", " ", text.lower())
 
 
+_COMPARISON_TITLE_MARKERS: frozenset[str] = frozenset({
+    "compared with", "comparison of", " versus ", " vs. ", " vs ",
+    "in comparison", "as compared to", "relative to",
+})
+
+
 def _relevance_score(source: "EvidenceSource", keywords: frozenset[str], bigrams: frozenset[str]) -> int:
-    """Score relevance: 1 pt per keyword hit + 2 pts per bigram hit."""
+    """Score relevance: 1 pt per keyword hit + 2 pts per bigram hit.
+
+    Papers whose title has no topic keywords AND contains comparison markers
+    are penalised by 2 pts — they are typically off-topic comparison papers.
+    """
     if not keywords:
         return 1
-    text = _normalise_text(source.title + " " + source.evidence_summary)
-    return (
-        sum(1 for kw in keywords if kw in text)
-        + sum(2 for bg in bigrams if bg in text)
+    title_text = _normalise_text(source.title)
+    body_text  = title_text + " " + _normalise_text(source.evidence_summary)
+    score = (
+        sum(1 for kw in keywords if kw in body_text)
+        + sum(2 for bg in bigrams if bg in body_text)
     )
+    title_kw = sum(1 for kw in keywords if kw in title_text)
+    title_bg = sum(1 for bg in bigrams if bg in title_text)
+    if title_kw == 0 and title_bg == 0 and any(m in title_text for m in _COMPARISON_TITLE_MARKERS):
+        score = max(0, score - 2)
+    return score
 
 
 def _filter_by_relevance(
@@ -1272,7 +1294,11 @@ def _web_source(
             return None, f"market host is blocked or not approved: {host}"
         source_type, credibility_tier, credibility_reason = profile
 
-    reachable, reason = url_checker(canonical)
+    # Skip reachability check for known official patent registries — always up.
+    if domain == "patent" and host in _PATENT_HOSTS:
+        reachable, reason = True, ""
+    else:
+        reachable, reason = url_checker(canonical)
     if not reachable:
         return None, f"unreachable URL {canonical}: {reason}"
     published_date: date | None = None
@@ -1728,17 +1754,27 @@ def collect_source_collection(
                 academic.append(src)
                 if len(academic) >= maximum_sources:
                     break
-        except SourceCollectionError:
-            pass
+        except SourceCollectionError as _fb_err:
+            all_audits.append(SearchAudit(
+                domain="academic",
+                query="[Serper-Fallback]",
+                result_count=0,
+                rejected_reasons=[str(_fb_err)],
+            ))
 
     # Backfill citation_count for Crossref-sourced papers (citation_count=None).
-    # OpenAlex DOI lookup is free, fast (~150 ms/call), and caps at one call per
-    # missing paper so it never meaningfully delays the pipeline.
-    for src in academic:
-        if src.citation_count is None and src.doi:
-            cited = resolved_openalex.fetch_citation_by_doi(src.doi)
+    # Run concurrently — OpenAlex DOI lookup is free, ~150 ms each.
+    _needs_citation = [src for src in academic if src.citation_count is None and src.doi]
+    if _needs_citation:
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _fetch_citation(src: EvidenceSource) -> None:
+            cited = resolved_openalex.fetch_citation_by_doi(src.doi)  # type: ignore[arg-type]
             if cited is not None:
                 src.citation_count = cited
+
+        with ThreadPoolExecutor(max_workers=4) as _pool:
+            list(_pool.map(_fetch_citation, _needs_citation))
 
     if len(academic) < minimum_sources:
         raise SourceCollectionError(
