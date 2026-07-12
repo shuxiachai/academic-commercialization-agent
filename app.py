@@ -21,9 +21,7 @@ from academic_agent.run_output import (
 
 
 TASK_STAGE_LABELS = [
-    "Agent 1 — Academic Literature Analysis",
-    "Agent 2 — Patent Landscape Analysis",
-    "Agent 3 — Market Intelligence Analysis",
+    "Phase 1 — Evidence Collection (Academic · Patent · Market)",
     "Agent 4 — Report Writing",
     "Agent 5 — Quality Review & Citation Check",
     "Agent 6 — Commercialization Scoring",

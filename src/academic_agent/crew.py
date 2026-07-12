@@ -163,42 +163,41 @@ class AcademicAgent:
     @task
     def academic_research_task(self) -> Task:
         """Task 1 — 学术文献分析 / Academic Literature Analysis
-        Guardrail 验证 Agent 输出的 JSON 是否引用了合法的 A 前缀来源。
-        Guardrail checks that JSON output only references valid A-prefix source IDs.
+        async_execution=True: runs in parallel with Tasks 2 and 3.
         """
         return Task(
             config=self.tasks_config["academic_research_task"],  # type: ignore[index]
             guardrail=make_evidence_guardrail(
-                "A",                                              # 来源 ID 前缀 / Source ID prefix
+                "A",
                 self.source_collection.topic,
-                self.source_collection.sources_for_prefix("A"),  # 预验证的学术来源 / Pre-validated academic sources
+                self.source_collection.sources_for_prefix("A"),
                 self.source_collection.queries_for_prefix("A"),
             ),
-            guardrail_max_retries=2,  # 校验失败最多重试 2 次 / Max 2 retries on guardrail failure
+            guardrail_max_retries=2,
+            async_execution=True,
         )
 
     @task
     def patent_analysis_task(self) -> Task:
         """Task 2 — 专利图谱分析 / Patent Landscape Analysis
-        Guardrail 验证 Agent 输出只引用 P 前缀的官方专利来源。
-        Guardrail checks that output only references valid P-prefix patent sources.
+        async_execution=True: runs in parallel with Tasks 1 and 3.
         """
         return Task(
             config=self.tasks_config["patent_analysis_task"],  # type: ignore[index]
             guardrail=make_evidence_guardrail(
                 "P",
                 self.source_collection.topic,
-                self.source_collection.sources_for_prefix("P"),  # 预验证的专利来源 / Pre-validated patent sources
+                self.source_collection.sources_for_prefix("P"),
                 self.source_collection.queries_for_prefix("P"),
             ),
             guardrail_max_retries=2,
+            async_execution=True,
         )
 
     @task
     def market_intelligence_task(self) -> Task:
         """Task 3 — 市场情报分析 / Market Intelligence Analysis
-        Guardrail 验证 Agent 输出只引用 M 前缀的市场来源。
-        Guardrail checks that output only references valid M-prefix market sources.
+        async_execution=True: runs in parallel with Tasks 1 and 2.
         """
         return Task(
             config=self.tasks_config[
@@ -207,10 +206,11 @@ class AcademicAgent:
             guardrail=make_evidence_guardrail(
                 "M",
                 self.source_collection.topic,
-                self.source_collection.sources_for_prefix("M"),  # 预验证的市场来源 / Pre-validated market sources
+                self.source_collection.sources_for_prefix("M"),
                 self.source_collection.queries_for_prefix("M"),
             ),
             guardrail_max_retries=2,
+            async_execution=True,
         )
 
     @task

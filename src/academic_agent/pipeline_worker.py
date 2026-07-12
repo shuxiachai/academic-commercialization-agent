@@ -16,11 +16,10 @@ for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
         stream.reconfigure(encoding="utf-8", errors="backslashreplace")
 
-_STAGE_INITIAL = "Source Collection & Validation"
-_TASK_STAGE_LABELS = [
-    "Agent 1 — Academic Literature Analysis",
-    "Agent 2 — Patent Landscape Analysis",
-    "Agent 3 — Market Intelligence Analysis",
+_STAGE_INITIAL    = "Source Collection & Validation"
+_PARALLEL_COUNT   = 3
+_PARALLEL_STAGE   = "Phase 1 — Evidence Collection (Academic · Patent · Market)"
+_SEQUENTIAL_STAGES = [
     "Agent 4 — Report Writing",
     "Agent 5 — Quality Review & Citation Check",
     "Agent 6 — Commercialization Scoring",
@@ -81,18 +80,27 @@ def main() -> None:
     try:
         source_collection = collect_source_collection(args.topic)
         save_source_collection(source_collection.model_dump_json(indent=2), run_id=args.run_id)
-        write_status(_TASK_STAGE_LABELS[0], output_language=source_collection.output_language)
+        write_status(_PARALLEL_STAGE, output_language=source_collection.output_language)
 
-        completed_tasks = [0]
+        parallel_done   = [0]   # counts completions of the 3 async evidence tasks
+        sequential_done = [0]   # counts completions of tasks 4/5/6
 
         def on_task_complete(_task_output) -> None:
-            completed_tasks[0] += 1
-            idx = completed_tasks[0]
-            stage = (
-                _TASK_STAGE_LABELS[idx]
-                if idx < len(_TASK_STAGE_LABELS)
-                else _TASK_STAGE_LABELS[-1]
-            )
+            if parallel_done[0] < _PARALLEL_COUNT:
+                parallel_done[0] += 1
+                stage = (
+                    _SEQUENTIAL_STAGES[0]   # all evidence done → report writing next
+                    if parallel_done[0] == _PARALLEL_COUNT
+                    else _PARALLEL_STAGE    # still collecting
+                )
+            else:
+                sequential_done[0] += 1
+                idx = sequential_done[0]
+                stage = (
+                    _SEQUENTIAL_STAGES[idx]
+                    if idx < len(_SEQUENTIAL_STAGES)
+                    else _SEQUENTIAL_STAGES[-1]
+                )
             write_status(stage, output_language=source_collection.output_language)
 
         def _write_step(entry: dict) -> None:
@@ -118,7 +126,7 @@ def main() -> None:
 
             @crewai_event_bus.on(ToolUsageStartedEvent)
             def on_tool_started(source, event: ToolUsageStartedEvent) -> None:
-                idx = agent_role_to_idx.get(event.agent_role or "", completed_tasks[0])
+                idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0])
                 _write_step({
                     "agent_idx": idx,
                     "type": "action",
@@ -130,7 +138,7 @@ def main() -> None:
 
             @crewai_event_bus.on(ToolUsageFinishedEvent)
             def on_tool_finished(source, event: ToolUsageFinishedEvent) -> None:
-                idx = agent_role_to_idx.get(event.agent_role or "", completed_tasks[0])
+                idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0])
                 _write_step({
                     "agent_idx": idx,
                     "type": "result",
@@ -141,7 +149,7 @@ def main() -> None:
             @crewai_event_bus.on(AgentExecutionCompletedEvent)
             def on_agent_done(source, event: AgentExecutionCompletedEvent) -> None:
                 role = getattr(event.agent, "role", "") if event.agent else ""
-                idx = agent_role_to_idx.get(role, completed_tasks[0])
+                idx = agent_role_to_idx.get(role, parallel_done[0])
                 _write_step({
                     "agent_idx": idx,
                     "type": "finish",
