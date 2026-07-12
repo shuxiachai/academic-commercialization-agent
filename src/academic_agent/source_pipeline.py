@@ -1224,12 +1224,16 @@ def _filter_by_relevance(
     min_score: int = 1,
     min_keep: int = 2,
 ) -> list["EvidenceSource"]:
-    """Remove low-relevance sources; always keep at least min_keep."""
+    """Filter low-relevance sources and sort survivors by relevance score descending."""
     keywords = _topic_keywords(topic)
     bigrams  = _topic_bigrams(topic)
-    scored   = [(s, _relevance_score(s, keywords, bigrams)) for s in sources]
-    kept     = [s for s, sc in scored if sc >= min_score]
-    return kept if len(kept) >= min_keep else sources
+    scored   = sorted(
+        [(s, _relevance_score(s, keywords, bigrams)) for s in sources],
+        key=lambda x: x[1],
+        reverse=True,
+    )
+    kept = [s for s, sc in scored if sc >= min_score]
+    return kept if len(kept) >= min_keep else [s for s, _ in scored]
 
 
 def _web_source(

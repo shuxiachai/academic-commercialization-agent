@@ -451,6 +451,45 @@ _PROFILE_LABELS: dict[str, str] = {
 }
 
 
+def _render_reviewer_notes_html(run_dir: Path) -> str:
+    """Return a collapsible HTML block with Agent 5's reviewer notes, or '' if absent."""
+    notes_path = run_dir / "reviewer_notes.md"
+    if not notes_path.exists():
+        return ""
+    try:
+        raw = notes_path.read_text(encoding="utf-8").strip()
+        if not raw:
+            return ""
+        # Strip the heading line if present
+        raw = re.sub(r"(?im)^##\s+Reviewer Notes\s*\n?", "", raw).strip()
+        # Minimal markdown → HTML: bold, numbered list items, paragraphs
+        lines_html: list[str] = []
+        for line in raw.splitlines():
+            line = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", line)
+            if re.match(r"^\d+\.", line):
+                lines_html.append(
+                    f'<div style="margin-bottom:8px;padding-left:4px;">{line}</div>'
+                )
+            elif line.strip() == "":
+                lines_html.append('<div style="margin-bottom:6px;"></div>')
+            else:
+                lines_html.append(
+                    f'<div style="margin-bottom:4px;color:#a3a3a3;">{line}</div>'
+                )
+        return (
+            '<details style="margin-top:16px;border:1px solid #2d2d2d;border-radius:8px;'
+            'background:#141414;padding:14px 18px;font-family:system-ui,sans-serif;">'
+            '<summary style="cursor:pointer;font-size:11px;font-weight:700;color:#6b7280;'
+            'text-transform:uppercase;letter-spacing:0.07em;user-select:none;">'
+            '&#x270E; Agent 5 — Reviewer Notes</summary>'
+            '<div style="margin-top:12px;font-size:12px;color:#d4d4d4;line-height:1.7;">'
+            + "".join(lines_html)
+            + "</div></details>"
+        )
+    except Exception:
+        return ""
+
+
 def _render_score_html(
     scores_json: str,
     topic: str,
@@ -789,6 +828,7 @@ def _load_run(run_id: str) -> tuple[str, str]:
     if not score_html and not report_md:
         return "", f"> No report found for run `{html.escape(run_id)}`."
 
+    score_html += _render_reviewer_notes_html(run_dir)
     return score_html, report_md
 
 
@@ -1380,6 +1420,7 @@ def run_analysis(research_topic: str):
     ) if output_language != "English" else ""
     wp = _read_weight_profile(run_dir)
     score_html = (lang_badge + _render_score_html(scores_json, research_topic.strip(), output_language, wp)) if scores_json else lang_badge
+    score_html += _render_reviewer_notes_html(run_dir)
     t = _scorecard_strings(output_language)
     md_update = gr.update(value=str(report_path), visible=True, label=t["dl_md"]) if report_path.exists() else gr.update(visible=False)
     pdf_path_obj = _generate_pdf(report, run_dir, output_language)
@@ -1503,7 +1544,7 @@ _HEADER_HTML = """
   <p style="font-size:13px;color:#9a9a9a;line-height:1.6;max-width:660px;margin:0 0 12px;">
     Enter a research topic to launch <strong style="color:#e5e5e5;">6 specialized AI agents</strong>
     that assess commercialization readiness — producing a scored report with verified citations.
-    Expected run time: <strong style="color:#e5e5e5;">5–8 minutes</strong>.
+    Agents 1–3 run in parallel; expected run time: <strong style="color:#e5e5e5;">4–6 minutes</strong>.
     Input any language — the report is generated in the same language.
   </p>
   <div style="display:flex;gap:6px;flex-wrap:wrap;">
