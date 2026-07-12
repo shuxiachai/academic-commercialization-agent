@@ -85,30 +85,33 @@ def main() -> None:
         parallel_done   = [0]   # counts completions of the 3 async evidence tasks
         sequential_done = [0]   # counts completions of tasks 4/5/6
 
-        def on_task_complete(_task_output) -> None:
-            if parallel_done[0] < _PARALLEL_COUNT:
-                parallel_done[0] += 1
-                stage = (
-                    _SEQUENTIAL_STAGES[0]   # all evidence done → report writing next
-                    if parallel_done[0] == _PARALLEL_COUNT
-                    else _PARALLEL_STAGE    # still collecting
-                )
-            else:
-                sequential_done[0] += 1
-                idx = sequential_done[0]
-                stage = (
-                    _SEQUENTIAL_STAGES[idx]
-                    if idx < len(_SEQUENTIAL_STAGES)
-                    else _SEQUENTIAL_STAGES[-1]
-                )
-            write_status(stage, output_language=source_collection.output_language)
-
         def _write_step(entry: dict) -> None:
             try:
                 with open(steps_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(entry, ensure_ascii=False) + "\n")
             except Exception:
                 pass
+
+        def on_task_complete(_task_output) -> None:
+            if parallel_done[0] < _PARALLEL_COUNT:
+                parallel_done[0] += 1
+                agent_idx = parallel_done[0] - 1   # 0 = Academic, 1 = Patent, 2 = Market
+                stage = (
+                    _SEQUENTIAL_STAGES[0]
+                    if parallel_done[0] == _PARALLEL_COUNT
+                    else _PARALLEL_STAGE
+                )
+            else:
+                sequential_done[0] += 1
+                agent_idx = _PARALLEL_COUNT + sequential_done[0] - 1  # 3, 4, 5
+                seq_idx = sequential_done[0]
+                stage = (
+                    _SEQUENTIAL_STAGES[seq_idx]
+                    if seq_idx < len(_SEQUENTIAL_STAGES)
+                    else _SEQUENTIAL_STAGES[-1]
+                )
+            _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
+            write_status(stage, output_language=source_collection.output_language)
 
         crew_obj = AcademicAgent(
             source_collection,
@@ -126,7 +129,7 @@ def main() -> None:
 
             @crewai_event_bus.on(ToolUsageStartedEvent)
             def on_tool_started(source, event: ToolUsageStartedEvent) -> None:
-                idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0])
+                idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0] + sequential_done[0])
                 _write_step({
                     "agent_idx": idx,
                     "type": "action",
@@ -138,7 +141,7 @@ def main() -> None:
 
             @crewai_event_bus.on(ToolUsageFinishedEvent)
             def on_tool_finished(source, event: ToolUsageFinishedEvent) -> None:
-                idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0])
+                idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0] + sequential_done[0])
                 _write_step({
                     "agent_idx": idx,
                     "type": "result",
@@ -149,7 +152,7 @@ def main() -> None:
             @crewai_event_bus.on(AgentExecutionCompletedEvent)
             def on_agent_done(source, event: AgentExecutionCompletedEvent) -> None:
                 role = getattr(event.agent, "role", "") if event.agent else ""
-                idx = agent_role_to_idx.get(role, parallel_done[0])
+                idx = agent_role_to_idx.get(role, parallel_done[0] + sequential_done[0])
                 _write_step({
                     "agent_idx": idx,
                     "type": "finish",

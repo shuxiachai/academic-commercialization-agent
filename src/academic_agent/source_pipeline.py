@@ -1196,24 +1196,40 @@ def _topic_keywords(topic: str) -> frozenset[str]:
     return frozenset(w for w in words if w not in _STOP_WORDS)
 
 
-def _relevance_score(source: "EvidenceSource", keywords: frozenset[str]) -> int:
-    """Count keyword hits in source title + evidence_summary."""
+def _topic_bigrams(topic: str) -> frozenset[str]:
+    """Extract consecutive 2-word phrases from topic keywords (after stop-word removal)."""
+    words = [w for w in re.findall(r"[a-z]{3,}", topic.lower()) if w not in _STOP_WORDS]
+    return frozenset(f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1))
+
+
+def _normalise_text(text: str) -> str:
+    """Lowercase and replace hyphens/underscores with spaces for consistent matching."""
+    return re.sub(r"[-_]", " ", text.lower())
+
+
+def _relevance_score(source: "EvidenceSource", keywords: frozenset[str], bigrams: frozenset[str]) -> int:
+    """Score relevance: 1 pt per keyword hit + 2 pts per bigram hit."""
     if not keywords:
         return 1
-    text = (source.title + " " + source.evidence_summary).lower()
-    return sum(1 for kw in keywords if kw in text)
+    text = _normalise_text(source.title + " " + source.evidence_summary)
+    return (
+        sum(1 for kw in keywords if kw in text)
+        + sum(2 for bg in bigrams if bg in text)
+    )
 
 
 def _filter_by_relevance(
     sources: list["EvidenceSource"],
     topic: str,
     min_score: int = 1,
+    min_keep: int = 2,
 ) -> list["EvidenceSource"]:
-    """Remove sources with no keyword overlap with the topic; always keep ≥2."""
+    """Remove low-relevance sources; always keep at least min_keep."""
     keywords = _topic_keywords(topic)
-    scored = [(s, _relevance_score(s, keywords)) for s in sources]
-    kept = [s for s, sc in scored if sc >= min_score]
-    return kept if len(kept) >= 2 else sources
+    bigrams  = _topic_bigrams(topic)
+    scored   = [(s, _relevance_score(s, keywords, bigrams)) for s in sources]
+    kept     = [s for s, sc in scored if sc >= min_score]
+    return kept if len(kept) >= min_keep else sources
 
 
 def _web_source(
@@ -1726,7 +1742,6 @@ def collect_source_collection(
             f"(OpenAlex + Serper+Crossref combined); "
             f"at least {minimum_sources} are required."
         )
-    _renumber(academic, "A")
 
     # ── Patents: Serper ───────────────────────────────────────────────────────
     patents, patent_audits = _collect_domain(
@@ -1771,8 +1786,10 @@ def collect_source_collection(
         except SourceCollectionError:
             pass
 
-    patents  = _filter_by_relevance(patents, normalized_topic)
-    market   = _filter_by_relevance(market, normalized_topic)
+    academic = _filter_by_relevance(academic, normalized_topic, min_score=2, min_keep=3)
+    patents  = _filter_by_relevance(patents,  normalized_topic, min_score=1, min_keep=1)
+    market   = _filter_by_relevance(market,   normalized_topic, min_score=2, min_keep=2)
+    _renumber(academic, "A")
     _renumber(patents, "P")
     _renumber(market, "M")
 
