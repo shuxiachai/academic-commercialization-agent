@@ -588,6 +588,43 @@ def _render_score_html(
 # Progress display
 # ---------------------------------------------------------------------------
 
+_PARALLEL_SUBTAGS = (
+    ('<span style="font-size:10px;background:#1e3a5f;color:#60a5fa;'
+     'padding:2px 8px;border-radius:10px;white-space:nowrap;">Academic</span>'),
+    ('<span style="font-size:10px;background:#2e1065;color:#c4b5fd;'
+     'padding:2px 8px;border-radius:10px;white-space:nowrap;">Patent</span>'),
+    ('<span style="font-size:10px;background:#052e16;color:#4ade80;'
+     'padding:2px 8px;border-radius:10px;white-space:nowrap;">Market</span>'),
+)
+
+
+def _progress_dot(state: str, spin: str) -> str:
+    """Return a styled indicator dot for a progress step."""
+    if state == "done":
+        # Green filled circle with SVG checkmark
+        return (
+            '<div style="width:18px;height:18px;border-radius:50%;background:#16a34a;'
+            'display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+            '<svg width="10" height="10" viewBox="0 0 10 10">'
+            '<polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" stroke-width="1.8" '
+            'fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'
+        )
+    if state == "active":
+        # Blue ring with rotating ASCII spinner inside
+        return (
+            '<div style="width:18px;height:18px;border-radius:50%;background:#1e3a5f;'
+            'border:2px solid #3b82f6;display:flex;align-items:center;justify-content:center;'
+            'flex-shrink:0;font-size:9px;color:#60a5fa;font-family:monospace;'
+            'font-weight:700;line-height:1;">'
+            f'{spin}</div>'
+        )
+    # Future: hollow gray ring
+    return (
+        '<div style="width:18px;height:18px;border-radius:50%;'
+        'border:2px solid #374151;flex-shrink:0;"></div>'
+    )
+
+
 def _render_progress_html(stage: str, elapsed: int, run_id: str, spin: str, output_language: str = "English") -> str:
     t = _scorecard_strings(output_language)
     all_stages = [_STAGE_INITIAL] + TASK_STAGE_LABELS
@@ -596,39 +633,79 @@ def _render_progress_html(stage: str, elapsed: int, run_id: str, spin: str, outp
     except ValueError:
         current_idx = 0
 
+    # Progress bar percentage: 0% at start, 100% when last stage is active
+    n = len(all_stages) - 1
+    pct = round(current_idx / n * 100) if n > 0 else 0
+
     items = []
     for i, label in enumerate(all_stages):
         if i < current_idx:
-            icon, fg, weight, opacity = "✓", "#16a34a", "700", "0.75"
+            state, text_style = "done", "font-size:13px;color:#4b5563;"
         elif i == current_idx:
-            icon, fg, weight, opacity = spin, "#2563eb", "700", "1"
+            state, text_style = "active", "font-size:13px;color:#f5f5f5;font-weight:600;"
         else:
-            icon, fg, weight, opacity = "○", "#9ca3af", "400", "0.4"
+            state, text_style = "future", "font-size:13px;color:#374151;"
+
+        dot = _progress_dot(state, spin)
+
+        # Phase 1 parallel sub-tags shown while active
+        sub = ""
+        is_parallel_stage = (label == TASK_STAGE_LABELS[0] if TASK_STAGE_LABELS else False)
+        if state == "active" and is_parallel_stage:
+            sub = (
+                f'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">'
+                + "".join(_PARALLEL_SUBTAGS)
+                + "</div>"
+            )
+
         items.append(
-            f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;opacity:{opacity};">'
-            f'<span style="width:20px;text-align:center;color:{fg};font-weight:{weight};'
-            f'font-size:13px;flex-shrink:0;">{icon}</span>'
-            f'<span style="font-size:13px;color:#e5e5e5;font-weight:{"600" if i == current_idx else "400"};">'
-            f'{html.escape(label)}</span>'
+            f'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;">'
+            f'{dot}'
+            f'<div style="padding-top:1px;">'
+            f'<div style="{text_style}">{html.escape(label)}</div>'
+            f'{sub}'
+            f'</div>'
             f'</div>'
         )
 
+    # Connector lines between steps (thin vertical line on left column)
+    # Achieved by wrapping steps in a relative container with a left border
+    steps_html = (
+        f'<div style="padding-left:9px;border-left:2px solid #27272a;margin-left:0;">'
+        + "".join(items)
+        + "</div>"
+    )
+
     mins, secs = divmod(elapsed, 60)
     elapsed_str = f"{mins}m {secs:02d}s" if mins else f"{secs}s"
+
     return (
         f'<div style="font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;'
         f'background:#1a1a1a;border:1px solid #2d2d2d;border-left:4px solid #3b82f6;'
         f'border-radius:10px;padding:20px 24px;">'
-        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">'
+
+        # Header row
+        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
         f'<div style="width:8px;height:8px;border-radius:50%;background:#3b82f6;'
         f'box-shadow:0 0 0 3px #1e3a5f;flex-shrink:0;"></div>'
         f'<span style="font-size:13px;font-weight:600;color:#f5f5f5;">{t["progress"]}</span>'
-        f'<span style="margin-left:auto;font-size:12px;color:#777777;'
+        f'<span style="margin-left:auto;font-size:12px;color:#6b7280;'
         f'font-variant-numeric:tabular-nums;">{elapsed_str}</span>'
         f'</div>'
-        f'{"".join(items)}'
-        f'<div style="margin-top:14px;padding-top:12px;border-top:1px solid #2d2d2d;">'
-        f'<span style="font-size:11px;color:#555555;font-family:ui-monospace,monospace;">'
+
+        # Progress bar
+        f'<div style="background:#27272a;border-radius:4px;height:4px;margin-bottom:20px;overflow:hidden;">'
+        f'<div style="height:100%;width:{pct}%;'
+        f'background:linear-gradient(90deg,#3b82f6 0%,#6366f1 100%);'
+        f'border-radius:4px;transition:width 0.5s ease;min-width:{4 if pct > 0 else 0}px;"></div>'
+        f'</div>'
+
+        # Step list
+        f'{steps_html}'
+
+        # Footer
+        f'<div style="margin-top:8px;padding-top:12px;border-top:1px solid #202020;">'
+        f'<span style="font-size:11px;color:#3f3f46;font-family:ui-monospace,monospace;">'
         f'Run ID: {html.escape(run_id)}</span>'
         f'</div>'
         f'</div>'
