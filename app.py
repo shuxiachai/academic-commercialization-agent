@@ -372,7 +372,93 @@ def _read_output_language(run_dir) -> str:
     return "English"
 
 
-def _render_score_html(scores_json: str, topic: str, output_language: str = "English") -> str:
+def _read_weight_profile(run_dir) -> str:
+    """Read weight_profile from validated_sources.json for a run."""
+    try:
+        sources_path = run_dir / "validated_sources.json"
+        if sources_path.exists():
+            data = json.loads(sources_path.read_text(encoding="utf-8"))
+            return data.get("weight_profile") or "industrial"
+    except Exception:
+        pass
+    return "industrial"
+
+
+def _radar_svg(trl: float, mrl: float, pat: float, mkt: float, evi: float, color: str = "#6366f1") -> str:
+    """Generate an inline SVG pentagon radar chart for the five scoring dimensions."""
+    import math
+    cx, cy, r = 100, 100, 68
+    vals   = [trl / 9, mrl / 10, pat / 5, mkt / 5, evi / 5]
+    labels = ["TRL", "MRL", "Patent", "Market", "Evidence"]
+    raws   = [f"{trl:.1f}/9", f"{mrl:.1f}/10", f"{pat:.1f}/5", f"{mkt:.1f}/5", f"{evi:.1f}/5"]
+    angles = [-math.pi / 2 + i * 2 * math.pi / 5 for i in range(5)]
+
+    def pt(a: float, radius: float) -> tuple[float, float]:
+        return cx + radius * math.cos(a), cy + radius * math.sin(a)
+
+    parts: list[str] = []
+
+    # Grid rings (25 / 50 / 75 / 100 %)
+    for frac in (0.25, 0.5, 0.75, 1.0):
+        pts = " ".join(f"{pt(a, r * frac)[0]:.1f},{pt(a, r * frac)[1]:.1f}" for a in angles)
+        lw = "1" if frac == 1.0 else "0.6"
+        parts.append(f'<polygon points="{pts}" fill="none" stroke="#3a3a3a" stroke-width="{lw}"/>')
+
+    # Spokes
+    for a in angles:
+        x, y = pt(a, r)
+        parts.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="#3a3a3a" stroke-width="0.6"/>')
+
+    # Data polygon
+    dpts = " ".join(
+        f"{pt(angles[i], r * max(v, 0.02))[0]:.1f},{pt(angles[i], r * max(v, 0.02))[1]:.1f}"
+        for i, v in enumerate(vals)
+    )
+    parts.append(f'<polygon points="{dpts}" fill="{color}" fill-opacity="0.18" stroke="{color}" stroke-width="1.5"/>')
+
+    # Dots
+    for i, v in enumerate(vals):
+        x, y = pt(angles[i], r * max(v, 0.02))
+        parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.5" fill="{color}"/>')
+
+    # Labels + raw values
+    for i, (lbl, raw, a) in enumerate(zip(labels, raws, angles)):
+        lx, ly = pt(a, r + 18)
+        anchor = "middle"
+        if lx < cx - 8:
+            anchor = "end"
+        elif lx > cx + 8:
+            anchor = "start"
+        parts.append(
+            f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}" '
+            f'fill="#888888" font-size="9" font-family="system-ui,sans-serif">{lbl}</text>'
+        )
+        parts.append(
+            f'<text x="{lx:.1f}" y="{ly + 11:.1f}" text-anchor="{anchor}" '
+            f'fill="{color}" font-size="8" font-family="ui-monospace,monospace">{raw}</text>'
+        )
+
+    return (
+        '<svg viewBox="0 0 200 200" width="190" height="190" '
+        'xmlns="http://www.w3.org/2000/svg" style="overflow:visible;display:block;">'
+        + "".join(parts)
+        + "</svg>"
+    )
+
+
+_PROFILE_LABELS: dict[str, str] = {
+    "industrial":      "Industrial",
+    "biomedical":      "Biomedical",
+    "material_science": "Material Science",
+}
+
+
+def _render_score_html(
+    scores_json: str,
+    topic: str,
+    output_language: str = "English",
+    weight_profile: str = "industrial",
+) -> str:
     try:
         s = json.loads(scores_json)
     except (json.JSONDecodeError, TypeError):
@@ -401,6 +487,9 @@ def _render_score_html(scores_json: str, topic: str, output_language: str = "Eng
     pat_pct = round(pat / 5 * 100)
     mkt_pct = round(mkt / 5 * 100)
     evi_pct = round(evi / 5 * 100)
+
+    profile_label = _PROFILE_LABELS.get(weight_profile, weight_profile.replace("_", " ").title())
+    radar_svg = _radar_svg(trl, mrl, pat, mkt, evi, color)
 
     risks_block = "".join(_bullet_item(str(r), "#dc2626") for r in risks)
     opps_block  = "".join(_bullet_item(str(o), "#16a34a") for o in opps)
@@ -437,15 +526,29 @@ def _render_score_html(scores_json: str, topic: str, output_language: str = "Eng
         f'border-left:4px solid {color};border-radius:10px;'
         f'padding:24px;margin-bottom:16px;">'
 
-        # Hero row
+        # Hero row: score + badges | radar chart | rationale
         f'<div style="display:flex;align-items:stretch;gap:24px;margin-bottom:24px;">'
-        f'<div style="text-align:center;min-width:100px;">'
+
+        # Left: score number + readiness badge + profile badge
+        f'<div style="text-align:center;min-width:108px;">'
         f'<div style="font-size:72px;font-weight:800;color:{color};line-height:0.9;">{overall:.1f}</div>'
         f'<div style="font-size:11px;color:#777777;margin-top:6px;">{html.escape(t["out_of"])}</div>'
         f'<div style="display:inline-block;margin-top:10px;padding:4px 14px;'
         f'border-radius:20px;background:{color};color:#ffffff;'
         f'font-size:12px;font-weight:700;letter-spacing:0.04em;">{badge}</div>'
+        f'<div style="display:inline-block;margin-top:8px;padding:3px 10px;'
+        f'border-radius:20px;border:1px solid #3d3d3d;background:#242424;color:#aaaaaa;'
+        f'font-size:10px;font-weight:600;letter-spacing:0.05em;white-space:nowrap;">'
+        f'{html.escape(profile_label)}</div>'
         f'</div>'
+
+        # Middle: radar chart
+        f'<div style="display:flex;align-items:center;justify-content:center;'
+        f'padding:0 4px;">'
+        f'{radar_svg}'
+        f'</div>'
+
+        # Right: scoring rationale
         f'<div style="flex:1;border-left:1px solid #2d2d2d;padding-left:20px;'
         f'display:flex;flex-direction:column;justify-content:center;">'
         f'<div style="font-size:10px;font-weight:700;color:#777777;'
@@ -593,8 +696,9 @@ def _load_run(run_id: str) -> tuple[str, str]:
             if report_path.exists():
                 topic = _extract_topic_from_report(report_path)
             output_lang = _read_output_language(run_dir)
+            wp = _read_weight_profile(run_dir)
             score_html = _render_score_html(
-                scores_path.read_text(encoding="utf-8"), topic, output_lang
+                scores_path.read_text(encoding="utf-8"), topic, output_lang, wp
             )
         except Exception:
             pass
@@ -1199,7 +1303,8 @@ def run_analysis(research_topic: str):
         f'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">'
         f'🌐 Report language: {html.escape(output_language)}</span></div>'
     ) if output_language != "English" else ""
-    score_html = (lang_badge + _render_score_html(scores_json, research_topic.strip(), output_language)) if scores_json else lang_badge
+    wp = _read_weight_profile(run_dir)
+    score_html = (lang_badge + _render_score_html(scores_json, research_topic.strip(), output_language, wp)) if scores_json else lang_badge
     t = _scorecard_strings(output_language)
     md_update = gr.update(value=str(report_path), visible=True, label=t["dl_md"]) if report_path.exists() else gr.update(visible=False)
     pdf_path_obj = _generate_pdf(report, run_dir, output_language)

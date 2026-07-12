@@ -1182,6 +1182,40 @@ def _parse_patent_year(url: str, snippet: str = "") -> int | None:
     return None
 
 
+_STOP_WORDS: frozenset[str] = frozenset({
+    "a", "an", "and", "are", "as", "at", "be", "been", "by", "for",
+    "from", "has", "have", "in", "is", "it", "its", "of", "on", "or",
+    "that", "the", "their", "there", "these", "they", "this", "to",
+    "was", "were", "which", "with",
+})
+
+
+def _topic_keywords(topic: str) -> frozenset[str]:
+    """Extract meaningful lowercase words from a topic string."""
+    words = re.findall(r"[a-z]{3,}", topic.lower())
+    return frozenset(w for w in words if w not in _STOP_WORDS)
+
+
+def _relevance_score(source: "EvidenceSource", keywords: frozenset[str]) -> int:
+    """Count keyword hits in source title + evidence_summary."""
+    if not keywords:
+        return 1
+    text = (source.title + " " + source.evidence_summary).lower()
+    return sum(1 for kw in keywords if kw in text)
+
+
+def _filter_by_relevance(
+    sources: list["EvidenceSource"],
+    topic: str,
+    min_score: int = 1,
+) -> list["EvidenceSource"]:
+    """Remove sources with no keyword overlap with the topic; always keep ≥2."""
+    keywords = _topic_keywords(topic)
+    scored = [(s, _relevance_score(s, keywords)) for s in sources]
+    kept = [s for s, sc in scored if sc >= min_score]
+    return kept if len(kept) >= 2 else sources
+
+
 def _web_source(
     result: dict[str, Any],
     source_id: str,
@@ -1224,6 +1258,10 @@ def _web_source(
     published_date: date | None = None
     if domain == "patent" and patent_year:
         published_date = date(patent_year, 1, 1)
+    elif domain == "market":
+        market_year = _parse_patent_year("", snippet)
+        if market_year:
+            published_date = date(market_year, 1, 1)
     return (
         EvidenceSource(
             source_id=source_id,
@@ -1733,6 +1771,9 @@ def collect_source_collection(
         except SourceCollectionError:
             pass
 
+    patents  = _filter_by_relevance(patents, normalized_topic)
+    market   = _filter_by_relevance(market, normalized_topic)
+    _renumber(patents, "P")
     _renumber(market, "M")
 
     return SourceCollection(

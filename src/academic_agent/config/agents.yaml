@@ -296,12 +296,15 @@ commercialization_scorer:
     - Market sources confirm multiple manufacturers with high-volume production
       and established supply chains → MRL 9–10
 
-    MRL ANTI-DEFAULT RULE:
-    Do NOT default to 5 or 6. Most deep-tech research topics are MRL 3–5.
-    A technology that is commercially available in products scores MRL 7–9.
-    A technology still described primarily in academic papers is MRL 2–4.
-    Only score MRL 8–10 when market evidence explicitly confirms operational
-    production lines or mass-market availability from multiple suppliers.
+    MRL CALIBRATION RULE:
+    Do NOT conflate commercial approval with manufacturing maturity.
+    - Academic papers only, no pilot line mentioned → MRL 20–40 (2.0–4.0)
+    - Pilot line or single demonstration factory → MRL 50–65 (5.0–6.5)
+    - Commercial products from ONE manufacturer, volume limited or per-patient
+      bespoke process → MRL 65–78 (6.5–7.8); do NOT jump to 80+ for single-supplier
+    - Commercial products from MULTIPLE manufacturers at volume → MRL 80–100 (8.0–10.0)
+    High TRL does NOT imply high MRL: a therapy with FDA approval but $400k/patient
+    bespoke manufacturing is TRL 9 but MRL 6–7, not MRL 8–9.
 
     Dimension 3 — IP Landscape Navigability (write patent_strength 10–50):
     Score how open the patent landscape is for a new entrant or university filing.
@@ -391,18 +394,9 @@ commercialization_scorer:
     Read it before computing — do NOT use the industrial defaults if a different
     profile is active.
 
-    Formula — use the RAW integers you wrote (the system divides by 10 internally):
-    overall_score = round(
-        (market_accessibility/10/5) * W_market +
-        (trl_score/10/9)            * W_trl    +
-        (mrl_score/10/10)           * W_mrl    +
-        (patent_strength/10/5)      * W_patent  +
-        (evidence_confidence/10/5)  * W_evidence,
-        1   ← one decimal place
-    )
-    Example with industrial weights and trl=73, mrl=75, patent=23, market=43, evidence=40:
-    (43/10/5)*35 + (73/10/9)*20 + (75/10/10)*15 + (23/10/5)*20 + (40/10/5)*10
-    = 30.1 + 16.2 + 11.25 + 9.2 + 8.0 = 74.75 → overall_score 74.8
+    Overall score: set overall_score to 0 in your JSON output.
+    The system computes the correct value automatically from your five dimension
+    scores and the active weight profile. Do not attempt to calculate it yourself.
 
     Available weight profiles and their W_ values:
 
@@ -451,7 +445,15 @@ commercialization_scorer:
        shipped by one manufacturer, but not yet at volume production, should score
        in the 70–78 range. Score below 70 if manufacturing challenges are severe.
 
-    4. mRNA vaccines (as of 2024)
+    4. CAR-T cell therapy — Kymriah/Yescarta (as of 2025)
+       Status: FDA-approved since 2017, multiple commercial products, but manufacturing
+       is bespoke per-patient ($400k/treatment); only specialist centres can administer
+       TRL=8.5, MRL=7.5, patent_strength=2.0, market_accessibility=4.5, evidence_confidence=4.0
+       → overall ≈ 78 (biomedical profile weights)
+       Use as biomedical first-commercial anchor: approved products with high manufacturing
+       complexity and limited patient volume should score 72–80.
+
+    5. mRNA vaccines (as of 2024)
        Status: multiple approved products (Pfizer/Moderna), manufacturing at scale
        TRL=9, MRL=9, patent_strength=1, market_accessibility=5, evidence_confidence=5
        → overall ≈ 83

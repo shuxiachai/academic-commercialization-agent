@@ -284,10 +284,8 @@ commercialization_scoring_task:
         trl_score 10–90, mrl_score 10–100, patent/market/evidence 10–50.
       The system divides by 10; you write integers. Write 73 for TRL 7.3.
       Avoid multiples of 10 unless the evidence perfectly matches an anchor.
-    - Compute overall_score using the raw integers (system divides by 10 internally):
-      round( (market_accessibility/10/5)*W_market + (trl_score/10/9)*W_trl +
-             (mrl_score/10/10)*W_mrl + (patent_strength/10/5)*W_patent +
-             (evidence_confidence/10/5)*W_evidence, 1 )
+    - Set overall_score to 0. The system computes the correct value automatically
+      from your dimension scores and the active weight profile — do not calculate it.
     - Provide 2 to 5 key_risks and 2 to 5 key_opportunities grounded in the
       evidence findings. Do not invent risks or opportunities not supported by
       the context.
@@ -323,7 +321,7 @@ commercialization_scoring_task:
      "evidence_confidence": 37,
      "evidence_rationale": "...",
      "evidence_source_ids": ["A1", "A2", "P1", "M1"],
-     "overall_score": 46.2,
+     "overall_score": 0,
      "scoring_rationale": "...",
      "key_risks": ["...", "..."],
      "key_opportunities": ["...", "..."]}
