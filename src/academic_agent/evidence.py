@@ -197,7 +197,9 @@ class EvidenceSource(BaseModel):
         if self.accessed_date > today:
             raise ValueError("Accessed date cannot be in the future.")
         if self.published_date is not None and self.published_date > today:
-            raise ValueError("Published date cannot be in the future.")
+            # Silently clear rather than crash — market snippets often contain
+            # forecast years (e.g. "by 2030") that get parsed as publish dates.
+            self.published_date = None
         return self
 
 

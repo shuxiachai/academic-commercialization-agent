@@ -1180,10 +1180,11 @@ def _parse_patent_year(url: str, snippet: str = "") -> int | None:
                 year = int(pm.group(1))
                 if 1990 <= year <= current_year + 1:
                     return year
-    # Fallback: find first 4-digit year token in snippet
+    # Fallback: find first 4-digit year token in snippet that is not a future
+    # forecast year (market snippets commonly include "by 2030" projections).
     for m2 in re.finditer(r"\b(20[0-2]\d|199\d)\b", snippet):
         year = int(m2.group(1))
-        if 1990 <= year <= current_year + 1:
+        if 1990 <= year <= current_year:
             return year
     return None
 
