@@ -5,7 +5,7 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 
@@ -78,6 +78,9 @@ def _render_live_log_html(steps_path: Path) -> str:
             t_input = str(s.get("tool_input") or "")[:120]
             result  = str(s.get("result") or "").strip()[:180]
 
+            if not thought and not tool and not result:
+                # Pre-seeded "started" entry — no tool or thought yet
+                entries_html += row("⚙", "Analyzing sources…")
             if thought:
                 short = thought[:140] + ("…" if len(thought) > 140 else "")
                 entries_html += row("💭", short)
@@ -453,6 +456,14 @@ _PROFILE_LABELS: dict[str, str] = {
 }
 
 
+def _date_is_before(date_str: str, cutoff: date) -> bool:
+    """Return True if date_str (ISO 8601) parses to a date before cutoff."""
+    try:
+        return date.fromisoformat(str(date_str)[:10]) < cutoff
+    except (ValueError, TypeError):
+        return False
+
+
 def _render_source_warning_html(run_dir: Path) -> str:
     """Return a warning banner if any domain has fewer sources than recommended."""
     try:
@@ -467,6 +478,20 @@ def _render_source_warning_html(run_dir: Path) -> str:
             warnings.append(f"⚠ Patent: only {pa} source{'s' if pa != 1 else ''} (recommended ≥2)")
         if mk < 2:
             warnings.append(f"⚠ Market: only {mk} source{'s' if mk != 1 else ''} (recommended ≥2)")
+        # Staleness check: flag if ≥50% of market sources are older than 3 years or undated
+        market_sources = data.get("market_sources", [])
+        if market_sources:
+            cutoff = date.today().replace(year=date.today().year - 3)
+            stale = sum(
+                1 for ms in market_sources
+                if not ms.get("published_date")
+                or _date_is_before(ms["published_date"], cutoff)
+            )
+            if stale >= max(1, len(market_sources) // 2):
+                warnings.append(
+                    f"⚠ Market: {stale}/{len(market_sources)} sources are undated or "
+                    f"older than 3 years — market intelligence may be outdated"
+                )
         if not warnings:
             return ""
         items_html = "".join(
@@ -543,8 +568,8 @@ def _render_score_html(
     evi = s.get("evidence_confidence") or 0
     overall = s.get("overall_score") or 0
     scoring_rationale_raw = s.get("scoring_rationale", "")
-    # New runs: auto_corrected is a dedicated boolean field in the JSON.
-    # Old runs: fall back to regex stripping the legacy prefix.
+
+    # auto_corrected: new runs have dedicated boolean; old runs have legacy prefix.
     if s.get("auto_corrected") is True:
         autocorrect_note = True
         scoring_rationale = scoring_rationale_raw
@@ -552,6 +577,14 @@ def _render_score_html(
         _autocorrect_match = re.match(r"^\[Auto-corrected:[^\]]+\]\s*", scoring_rationale_raw)
         autocorrect_note = bool(_autocorrect_match)
         scoring_rationale = scoring_rationale_raw[_autocorrect_match.end():] if _autocorrect_match else scoring_rationale_raw
+
+    # score_formula: new runs have dedicated field; old runs embedded it as "[Verified ...]".
+    score_formula = s.get("score_formula", "")
+    if not score_formula:
+        _vf = re.search(r"\s*\[Verified \([^)]+\):[^\]]+\]", scoring_rationale)
+        if _vf:
+            score_formula = _vf.group(0).strip()[1:-1]  # strip outer [ ]
+            scoring_rationale = scoring_rationale[: _vf.start()].rstrip()
     risks = s.get("key_risks", [])
     opps = s.get("key_opportunities", [])
     trl_ids  = s.get("trl_source_ids", [])
@@ -640,6 +673,10 @@ def _render_score_html(
            f'padding:1px 6px;border-radius:4px;text-transform:none;letter-spacing:0;">'
            f'auto-corrected</span>' if autocorrect_note else "") +
         f'</div>'
+        + (f'<div style="font-size:10px;color:#555555;font-family:ui-monospace,monospace;'
+           f'margin-bottom:6px;padding:3px 8px;background:#111111;border-radius:4px;'
+           f'overflow-x:auto;white-space:nowrap;">'
+           f'{html.escape(score_formula)}</div>' if score_formula else "") +
         f'<div style="font-size:12px;color:#d4d4d4;background:#141414;'
         f'border:1px solid #2d2d2d;border-radius:6px;padding:10px 14px;'
         f'font-family:ui-monospace,monospace;line-height:1.6;">'
@@ -1011,6 +1048,7 @@ def _render_history_html() -> str:
         run_id_short = run_id[:26]
         rows_html += (
             f'<tr style="border-bottom:1px solid #1a1a1a;cursor:pointer;" '
+            f'data-topic="{html.escape(topic)}" '
             f'title="Click to copy Run ID" '
             f'onclick="(function(){{var el=document.querySelector(\'textarea[data-testid=\\"run_id_input\\"]\');'
             f'if(!el)el=document.querySelector(\'input[placeholder*=\\"20\\"]\');'
@@ -1040,11 +1078,27 @@ def _render_history_html() -> str:
             f'</tr>'
         )
 
+    _hist_filter_js = (
+        "(function(inp){var q=inp.value.toLowerCase();"
+        "document.querySelectorAll('#hist-tbody tr').forEach(function(r){"
+        "var t=r.getAttribute('data-topic')||'';"
+        "r.style.display=t.toLowerCase().includes(q)?'':'none';"
+        "});}).call(this)"
+    )
     return (
         f'<div style="font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;'
-        f'overflow-x:auto;border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;">'
-        f'<div style="font-size:11px;color:#4b5563;padding:8px 14px;background:#0f0f0f;'
-        f'border-bottom:1px solid #1a1a1a;">Click any row to fill the Run ID field below</div>'
+        f'border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;">'
+        f'<div style="padding:8px 14px 6px;background:#0f0f0f;border-bottom:1px solid #1a1a1a;'
+        f'display:flex;align-items:center;gap:12px;">'
+        f'<input type="text" placeholder="Filter by topic…" '
+        f'oninput="{_hist_filter_js}" '
+        f'style="flex:1;max-width:340px;background:#1a1a1a;border:1px solid #3d3d3d;'
+        f'border-radius:6px;padding:4px 10px;font-size:12px;color:#e5e5e5;'
+        f'font-family:system-ui;outline:none;" />'
+        f'<span style="font-size:11px;color:#4b5563;white-space:nowrap;">'
+        f'Click any row to fill the Run ID field below</span>'
+        f'</div>'
+        f'<div style="overflow-x:auto;">'
         f'<table style="width:100%;border-collapse:collapse;font-size:13px;">'
         f'<thead>'
         f'<tr style="background:#141414;border-bottom:1px solid #2d2d2d;">'
@@ -1070,8 +1124,9 @@ def _render_history_html() -> str:
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Run ID</th>'
         f'</tr>'
         f'</thead>'
-        f'<tbody>{rows_html}</tbody>'
+        f'<tbody id="hist-tbody">{rows_html}</tbody>'
         f'</table>'
+        f'</div>'
         f'</div>'
     )
 

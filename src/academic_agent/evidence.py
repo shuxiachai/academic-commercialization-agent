@@ -324,14 +324,15 @@ def make_scoring_guardrail(
         pat_c = (pat / 5) * weights["patent"]
         evi_c = (evi / 5) * weights["evidence"]
         correct_overall = round(mkt_c + trl_c + mrl_c + pat_c + evi_c, 1)
-        formula_note = (
-            f" [Verified ({weight_profile}): "
+        # Store the calculation as a dedicated field so scoring_rationale stays
+        # as clean natural-language text and is not polluted with debug formulas.
+        score_formula = (
             f"({mkt}/5)×{weights['market']}={mkt_c:.2f}"
             f" + ({trl}/9)×{weights['trl']}={trl_c:.2f}"
             f" + ({mrl}/10)×{weights['mrl']}={mrl_c:.2f}"
             f" + ({pat}/5)×{weights['patent']}={pat_c:.2f}"
             f" + ({evi}/5)×{weights['evidence']}={evi_c:.2f}"
-            f" → overall_score={correct_overall}]"
+            f" = {correct_overall}  [{weight_profile}]"
         )
         rationale = score.scoring_rationale
         auto_corrected = correct_overall != score.overall_score
@@ -346,7 +347,8 @@ def make_scoring_guardrail(
             "market_accessibility": mkt,
             "evidence_confidence": evi,
             "overall_score": correct_overall,
-            "scoring_rationale": rationale + formula_note,
+            "scoring_rationale": rationale,
+            "score_formula": score_formula,
             "auto_corrected": auto_corrected,
         })
         output.pydantic = None

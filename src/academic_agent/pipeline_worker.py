@@ -104,11 +104,17 @@ def main() -> None:
 
         parallel_done   = [0]   # counts completions of the 3 async evidence tasks
         sequential_done = [0]   # counts completions of tasks 4/5/6
+        _steps_fh: list = []    # holds the open steps.jsonl handle during kickoff
 
         def _write_step(entry: StepEntry) -> None:
             try:
-                with open(steps_path, "a", encoding="utf-8") as f:
-                    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                line = json.dumps(entry, ensure_ascii=False) + "\n"
+                if _steps_fh:
+                    _steps_fh[0].write(line)
+                    _steps_fh[0].flush()
+                else:
+                    with open(steps_path, "a", encoding="utf-8") as _f:
+                        _f.write(line)
             except Exception:
                 pass
 
@@ -159,38 +165,44 @@ def main() -> None:
             a.role: i for i, a in enumerate(crew_obj.agents)
         }
 
-        with crewai_event_bus.scoped_handlers():
+        _sf = open(steps_path, "a", encoding="utf-8")
+        _steps_fh.append(_sf)
+        try:
+            with crewai_event_bus.scoped_handlers():
 
-            @crewai_event_bus.on(ToolUsageStartedEvent)
-            def on_tool_started(source, event: ToolUsageStartedEvent) -> None:
-                idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0] + sequential_done[0])
-                _write_step({
-                    "agent_idx": idx,
-                    "type": "action",
-                    "thought": "",
-                    "tool": event.tool_name or "",
-                    "tool_input": str(event.tool_args or "")[:300],
-                    "result": "",
-                })
+                @crewai_event_bus.on(ToolUsageStartedEvent)
+                def on_tool_started(source, event: ToolUsageStartedEvent) -> None:
+                    idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0] + sequential_done[0])
+                    _write_step({
+                        "agent_idx": idx,
+                        "type": "action",
+                        "thought": "",
+                        "tool": event.tool_name or "",
+                        "tool_input": str(event.tool_args or "")[:300],
+                        "result": "",
+                    })
 
-            @crewai_event_bus.on(ToolUsageFinishedEvent)
-            def on_tool_finished(source, event: ToolUsageFinishedEvent) -> None:
-                idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0] + sequential_done[0])
-                _write_step({
-                    "agent_idx": idx,
-                    "type": "result",
-                    "tool": event.tool_name or "",
-                    "result": str(event.output or "").strip()[:400],
-                })
+                @crewai_event_bus.on(ToolUsageFinishedEvent)
+                def on_tool_finished(source, event: ToolUsageFinishedEvent) -> None:
+                    idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0] + sequential_done[0])
+                    _write_step({
+                        "agent_idx": idx,
+                        "type": "result",
+                        "tool": event.tool_name or "",
+                        "result": str(event.output or "").strip()[:400],
+                    })
 
-            # Pre-seed "started" action entries for all three parallel agents so
-            # Phase 1 shows live activity even when AgentExecutionStartedEvent
-            # does not fire consistently across threads.
-            for _i in range(_PARALLEL_COUNT):
-                _write_step({"agent_idx": _i, "type": "action", "thought": "",
-                             "tool": "reasoning", "tool_input": "", "result": ""})
+                # Pre-seed "started" action entries for all three parallel agents so
+                # Phase 1 shows live activity even when agent events do not fire
+                # consistently across threads. Empty tool signals "analyzing" state.
+                for _i in range(_PARALLEL_COUNT):
+                    _write_step({"agent_idx": _i, "type": "action", "thought": "",
+                                 "tool": "", "tool_input": "", "result": ""})
 
-            result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
+                result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
+        finally:
+            _steps_fh.clear()
+            _sf.close()
 
         tasks_output = getattr(result, "tasks_output", None) or []
         if len(tasks_output) >= 2:

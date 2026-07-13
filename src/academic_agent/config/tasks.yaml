@@ -309,6 +309,12 @@ commercialization_scoring_task:
       dimension. For example, if you mention M4 in key_opportunities, M4 must
       appear in market_source_ids. Inconsistency between narrative citations and
       source_ids lists is an error.
+    - TRL calibration from report context: If the context includes a reviewed
+      report with an explicit TRL label in its Technology Overview section
+      (e.g. "TRL 4", "TRL 5"), treat that as a calibration signal. Do not
+      deviate from the report's TRL by more than one level without citing
+      specific evidence in the raw evidence JSON that justifies the discrepancy;
+      explain any deviation explicitly in trl_rationale.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose.
     All five dimension scores are INTEGERS on a ×10 scale (trl 10–90,

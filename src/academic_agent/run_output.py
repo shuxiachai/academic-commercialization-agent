@@ -6,10 +6,14 @@ from typing import Literal, TypedDict
 from uuid import uuid4
 
 
-class StepEntry(TypedDict, total=False):
-    """Schema for a single line in steps.jsonl written by pipeline_worker."""
+class _StepEntryRequired(TypedDict):
+    """Required fields that every steps.jsonl entry must carry."""
     agent_idx: int
     type: Literal["action", "result", "finish"]
+
+
+class StepEntry(_StepEntryRequired, total=False):
+    """Schema for a single line in steps.jsonl written by pipeline_worker."""
     thought: str
     tool: str
     tool_input: str

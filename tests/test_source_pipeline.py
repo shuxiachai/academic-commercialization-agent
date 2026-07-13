@@ -6,6 +6,7 @@ from unittest import TestCase
 from academic_agent.source_pipeline import (
     SourceCollectionError,
     _academic_source,
+    _detect_weight_profile,
     _web_source,
     collect_source_collection,
 )
@@ -585,3 +586,35 @@ class SourcePipelineTests(TestCase):
 
         self.assertIsNone(source)
         self.assertIn("truncated or unverifiable DOI", reason)
+
+
+class WeightProfileDetectionTests(TestCase):
+    """Verify that _detect_weight_profile maps topics to the correct weight profile."""
+
+    def test_biomedical_drug_therapy(self):
+        self.assertEqual(_detect_weight_profile("mRNA vaccine delivery mechanisms"), "biomedical")
+        self.assertEqual(_detect_weight_profile("CAR-T cell therapy manufacturing"), "biomedical")
+        self.assertEqual(_detect_weight_profile("antibody drug conjugate"), "biomedical")
+
+    def test_biomedical_bioprocess(self):
+        # Food biotech / cellular agriculture markers added for cultivated-meat topics
+        self.assertEqual(_detect_weight_profile("cultivated meat bioreactor scale-up"), "biomedical")
+        self.assertEqual(_detect_weight_profile("bioreactor scale for cell culture"), "biomedical")
+        self.assertEqual(_detect_weight_profile("cellular agriculture protein production"), "biomedical")
+        self.assertEqual(_detect_weight_profile("tissue engineering scaffold"), "biomedical")
+        self.assertEqual(_detect_weight_profile("stem cell expansion process"), "biomedical")
+
+    def test_material_science(self):
+        self.assertEqual(_detect_weight_profile("perovskite solar cell efficiency"), "material_science")
+        self.assertEqual(_detect_weight_profile("solid-state electrolyte for lithium battery"), "material_science")
+        self.assertEqual(_detect_weight_profile("graphene deposition thin film"), "material_science")
+        self.assertEqual(_detect_weight_profile("catalyst synthesis route"), "material_science")
+
+    def test_industrial_default(self):
+        self.assertEqual(_detect_weight_profile("quantum computing hardware"), "industrial")
+        self.assertEqual(_detect_weight_profile("autonomous vehicle sensor fusion"), "industrial")
+        self.assertEqual(_detect_weight_profile("carbon capture utilization storage"), "industrial")
+
+    def test_case_insensitive(self):
+        self.assertEqual(_detect_weight_profile("Cultivated Meat Bioreactor"), "biomedical")
+        self.assertEqual(_detect_weight_profile("PEROVSKITE SOLAR CELL"), "material_science")
