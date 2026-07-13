@@ -9,7 +9,7 @@ from datetime import date, datetime, timezone
 from difflib import SequenceMatcher
 from typing import Any, Callable, Literal
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, unquote, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, Field
@@ -39,6 +39,11 @@ _MATERIAL_MARKERS: tuple[str, ...] = (
     "perovskite", "solar cell", "photovoltaic", "semiconductor",
     "electrode", "electrolyte", "superconductor", "alloy", "coating",
     "metamaterial", "2d material", "carbon nanotube",
+    # Battery / energy-storage materials — compound stems so generic "battery"
+    # in e.g. "battery management system" does not trigger material_science.
+    "solid-state batter", "lithium-ion batter", "lithium metal batter",
+    "sodium-ion batter", "sodium batter", "all-solid-state",
+    "fuel cell", "flow batter", "redox flow",
 )
 
 
@@ -143,10 +148,15 @@ _INDUSTRY_NEWS_DOMAINS = {
     "pharmavoice.com",
     # General engineering / science news
     "interestingengineering.com",
-    # Energy / utility industry trade press
+    # Energy / utility / hydrogen / industrial trade press
     "utilitydive.com",
     "greentechmedia.com",
     "energymonitor.ai",
+    "hydrogeninsight.com",
+    "rechargenews.com",
+    "powermag.com",
+    "chemicalprocessing.com",
+    "offshore-technology.com",
     # Alternative protein / cultivated meat industry
     "gfi.org",
     "agfundernews.com",
@@ -168,7 +178,11 @@ _MARKET_RESEARCH_DOMAINS = {
     "precedenceresearch.com",
     "mordorintelligence.com",
     "alliedmarketresearch.com",
-    "iea.org",
+    "bloombergnef.com",
+    "bnef.com",
+    "woodmac.com",
+    "rystadenergy.com",
+    "spglobal.com",
     "inkwoodresearch.com",
     "fortunebusinessinsights.com",
     "transparencymarketresearch.com",
@@ -181,6 +195,14 @@ _MARKET_RESEARCH_DOMAINS = {
     "strategicmarketresearch.com",
     "coherentmarketinsights.com",
     "market.us",
+    "databridgemarketresearch.com",
+    "vantagemarketresearch.com",
+    "polarismarketresearch.com",
+    "astuteanalytica.com",
+    "futuremarketinsights.com",
+    "verifiedmarketresearch.com",
+    "marketresearchfuture.com",
+    "researchnester.com",
 }
 _ACADEMIC_PUBLISHER_DOMAINS = {
     "doi.org",
@@ -220,19 +242,39 @@ _BLOCKED_MARKET_DOMAINS = {
     "pharmiweb.com",
     "drugdiscoverynews.com",
 }
-_OFFICIAL_DISCLOSURE_PATH_MARKERS = (
+_CONTENT_PATH_MARKERS = (
     "/blog/",
     "/company/",
+    "/insights/",
     "/investor",
     "/media/",
     "/news/",
     "/press",
+    "/research/",
+    "/reports/",
+    "/analysis/",
+    "/publications/",
 )
 # Sources whose evidence_summary is shorter than this are rejected as too thin
 # to provide meaningful content for LLM analysis.
 # Set to 100: real Serper snippets are typically 100-160 chars; 150 was too
 # aggressive and caused legitimate market sources to be rejected.
+# URL query-string parameters that carry no content identity — strip before dedup.
+_TRACKING_PARAMS: frozenset[str] = frozenset({
+    "srsltid",                                          # Google Search redirect token
+    "utm_source", "utm_medium", "utm_campaign",
+    "utm_term", "utm_content", "utm_id",
+    "gclid", "fbclid", "_ga",                          # ad-click / analytics IDs
+    "ref", "referrer", "source",
+    "mc_cid", "mc_eid",                                 # Mailchimp
+})
 _MIN_EVIDENCE_SUMMARY_CHARS = 100
+# Market domain: accept at most this many government/research_institute sources before
+# deferring extras so commercial sources have a chance to fill remaining slots.
+_MARKET_INSTITUTIONAL_SOFT_CAP = 3
+# Market domain: accept at most this many market_report sources before deferring
+# extras, so company_disclosure / reputable_news sources have a chance to fill slots.
+_MARKET_REPORT_SOFT_CAP = 4
 
 # Country-specific government TLD patterns (non-.gov forms used internationally).
 # Defined at module level to avoid recreating the tuple on every call to
@@ -612,9 +654,16 @@ def _safe_summary(snippet: str, title: str) -> str:
 
 def _canonical_url(value: str) -> str:
     parsed = urlsplit(value.strip())
-    path = parsed.path.rstrip("/") or "/"
+    path = unquote(parsed.path).rstrip("/.,;)>]") or "/"
+    # Strip tracking/session parameters that don't identify content (e.g. srsltid,
+    # utm_*, gclid) so the same page with different tracking tokens deduplicates.
+    if parsed.query:
+        kept = [(k, v) for k, v in parse_qsl(parsed.query) if k.lower() not in _TRACKING_PARAMS]
+        clean_query = urlencode(kept) if kept else ""
+    else:
+        clean_query = ""
     return urlunsplit(
-        (parsed.scheme.lower(), parsed.netloc.lower(), path, parsed.query, "")
+        (parsed.scheme.lower(), parsed.netloc.lower(), path, clean_query, "")
     )
 
 
@@ -659,7 +708,39 @@ def _title_matches_topic(title: str, topic: str) -> bool:
     overlap = topic_tokens & title_tokens
     # Require ≥2 matching tokens so a single generic word like "manufacturing"
     # or "storage" alone cannot qualify an off-topic paper.
-    return len(overlap) >= 2
+    if len(overlap) < 2:
+        return False
+    # For specific multi-word topics (≥4 content tokens), guard against
+    # coincidental matches where two unrelated compound phrases in the title
+    # each contribute one word that happens to appear in the topic.
+    # Example failure: "solid electrolyte interphase" + "state of understanding"
+    # both contribute to matching the topic "solid-state batteries" via the
+    # isolated words "solid" and "state", even though "solid-state" as a
+    # compound is absent from the title.
+    #
+    # Strategy: identify consecutive topic-word pairs where BOTH words are in
+    # the overlap set (meaning they exist in the topic AND the title).  These
+    # are pairs that must be semantically linked — if they are adjacent in the
+    # topic they should also appear adjacent in the title.  If no such
+    # adjacent pair exists in the topic (e.g. "direct [air] capture"), skip
+    # the adjacency check entirely and accept the match.
+    if len(topic_tokens) >= 4:
+        topic_word_list = _WORD_PATTERN.findall(topic.lower())
+        title_word_list = _WORD_PATTERN.findall(title.lower())
+        title_bigrams = {
+            (title_word_list[i], title_word_list[i + 1])
+            for i in range(len(title_word_list) - 1)
+        }
+        adjacent_matched_in_topic = [
+            (topic_word_list[i], topic_word_list[i + 1])
+            for i in range(len(topic_word_list) - 1)
+            if topic_word_list[i] in overlap and topic_word_list[i + 1] in overlap
+        ]
+        if adjacent_matched_in_topic and not any(
+            pair in title_bigrams for pair in adjacent_matched_in_topic
+        ):
+            return False
+    return True
 
 def _published_date(item: dict[str, Any]) -> date | None:
     for key in ("published-print", "published-online", "published", "issued"):
@@ -1150,19 +1231,6 @@ def _market_source_profile(
         )
 
     path = urlsplit(canonical_url).path.lower()
-    _CONTENT_PATH_MARKERS = (
-        "/blog/",
-        "/company/",
-        "/insights/",
-        "/investor",
-        "/media/",
-        "/news/",
-        "/press",
-        "/research/",
-        "/reports/",
-        "/analysis/",
-        "/publications/",
-    )
     if path in {"", "/"} or any(marker in path for marker in _CONTENT_PATH_MARKERS):
         return (
             "company_disclosure",
@@ -1366,12 +1434,12 @@ def _queries(
         patent.insert(0, f"{topic} {patent_cc} site:patents.google.com/patent")
 
     market: list[str] = [
-        f"{topic} company commercial deployment",
-        f"{topic} government standards pilot",
-        f"{topic} manufacturing commercialization",
-        f"{topic} product manufacturer revenue commercial sales 2024",
-        f"{topic} startup funding FDA cleared CE marked clinical commercial",
-        f"{topic} market size billion company investment startup",
+        f"{topic} product manufacturer revenue commercial sales 2024 2025",
+        f"{topic} company commercial deployment industry news",
+        f"{topic} market report investment company startup 2024",
+        f"{topic} commercial scale production manufacturer press release",
+        f"{topic} manufacturing commercialization company",
+        f"{topic} government standards policy commercialization",
     ]
     if native_topic and native_topic != topic:
         # One native-language query so the native Serper pass has a base query.
@@ -1404,7 +1472,10 @@ def _market_summary_relevant(summary: str, topic: str) -> bool:
     For topics without a preposition, falls back to core words of length >= 6.
     """
     core = _topic_core_phrase(topic)
-    core_words = {w for w in _WORD_PATTERN.findall(core.lower()) if len(w) >= 4}
+    core_words = {
+        w for w in _WORD_PATTERN.findall(core.lower())
+        if len(w) >= 4 and w not in _TOPIC_STOPWORDS
+    }
     tail_words = _topic_tail_words(topic, min_len=4)
 
     if tail_words:
@@ -1439,6 +1510,12 @@ def _collect_domain(
     seen_patent_titles: set[str] = set()
     seen_academic_title_keys: set[str] = set()
     seen_locators: set[str] = set()
+    # Market domain: defer low-priority sources (institutional OR excess market_report)
+    # so that company_disclosure / reputable_news sources have a chance to fill slots.
+    _deferred: list[EvidenceSource] = []
+    _institutional_accepted = 0
+    _market_report_accepted = 0
+    _INSTITUTIONAL_TYPES = frozenset(("research_institute", "government"))
     excluded_dois = {
         doi.lower()
         for doi in (blocked_dois or set())
@@ -1449,6 +1526,8 @@ def _collect_domain(
     excluded_title_keys: set[str] = {
         " ".join(_WORD_PATTERN.findall(t.lower())) for t in excluded_titles
     }
+    _pat_kws = _topic_keywords(research_topic) if domain == "patent" else frozenset()
+    _pat_bgs = _topic_bigrams(research_topic) if domain == "patent" else frozenset()
 
     for query in queries:
         response = searcher(query)
@@ -1458,7 +1537,10 @@ def _collect_domain(
         for result in results[:8]:
             if len(accepted) >= maximum_sources:
                 break
-            source_id = f"{prefix}{len(accepted) + 1}"
+            # Use a stable placeholder; the real ID is assigned only when the
+            # source is confirmed accepted so deferred sources never get the
+            # same ID as an accepted source during interim processing.
+            _tmp_src_id = f"{prefix}0"
             if domain == "market":
                 candidate_doi = _extract_doi(
                     unquote(str(result.get("link", ""))),
@@ -1498,11 +1580,11 @@ def _collect_domain(
                         continue
             if domain == "academic":
                 source, reason = _academic_source(
-                    result, source_id, crossref, accessed_date, research_topic
+                    result, _tmp_src_id, crossref, accessed_date, research_topic
                 )
             else:
                 source, reason = _web_source(
-                    result, source_id, domain, accessed_date, url_checker
+                    result, _tmp_src_id, domain, accessed_date, url_checker
                 )
             if source is None:
                 audit.rejected_reasons.append(reason)
@@ -1527,6 +1609,18 @@ def _collect_domain(
                     f"market summary lacks core topic keywords: {source.title!r}"
                 )
                 continue
+            if domain == "patent" and _pat_kws:
+                _title_norm = _normalise_text(source.title)
+                _tscore = (
+                    sum(1 for kw in _pat_kws if kw in _title_norm)
+                    + sum(2 for bg in _pat_bgs if bg in _title_norm)
+                )
+                if _tscore < 2:
+                    audit.rejected_reasons.append(
+                        f"patent title not relevant to topic"
+                        f" (score {_tscore}): {source.title!r}"
+                    )
+                    continue
             locator = source.doi or str(source.url)
             if locator.lower() in seen_locators:
                 audit.rejected_reasons.append(f"duplicate source: {locator}")
@@ -1548,11 +1642,38 @@ def _collect_domain(
                     )
                     continue
                 seen_patent_titles.add(patent_title_key)
+            if domain == "market":
+                if source.source_type in _INSTITUTIONAL_TYPES:
+                    if _institutional_accepted >= _MARKET_INSTITUTIONAL_SOFT_CAP:
+                        _deferred.append(source)
+                        audit.rejected_reasons.append(
+                            f"deferred (institutional cap): {source.title!r}"
+                        )
+                        continue
+                    _institutional_accepted += 1
+                elif source.source_type == "market_report":
+                    if _market_report_accepted >= _MARKET_REPORT_SOFT_CAP:
+                        _deferred.append(source)
+                        audit.rejected_reasons.append(
+                            f"deferred (market-report cap): {source.title!r}"
+                        )
+                        continue
+                    _market_report_accepted += 1
+            source.source_id = f"{prefix}{len(accepted) + 1}"
             accepted.append(source)
             audit.accepted_source_ids.append(source.source_id)
         audits.append(audit)
         if len(accepted) >= maximum_sources:
             break
+
+    # Fill remaining market slots from deferred sources (institutional or excess
+    # market_report) when higher-priority types didn't fill those slots.
+    if domain == "market" and _deferred:
+        for _deferred_src in _deferred:
+            if len(accepted) >= maximum_sources:
+                break
+            _deferred_src.source_id = f"M{len(accepted) + 1}"
+            accepted.append(_deferred_src)
 
     if len(accepted) < minimum_sources:
         rejected = list(
@@ -1838,6 +1959,52 @@ def collect_source_collection(
         blocked_titles={src.title for src in academic},
     )
     all_audits.extend(market_audits)
+
+    # ── Company-news coverage guard ───────────────────────────────────────────
+    # Market reports are easy to collect but don't show real commercial activity.
+    # If no company_disclosure or reputable_news source was collected (meaning all
+    # sources are market-forecast reports), run a targeted pass with news-signal
+    # queries designed to surface press releases and trade-press articles about
+    # specific companies.
+    _COMPANY_NEWS_TYPES = frozenset(("company_disclosure", "reputable_news"))
+    _company_news_count = sum(1 for s in market if s.source_type in _COMPANY_NEWS_TYPES)
+    if _company_news_count < 1:
+        # Trigger regardless of whether market slots are full: if all slots are
+        # market_report sources, replace the last one so company news is represented.
+        _company_news_queries = [
+            f"{normalized_topic} company commercial product launch news 2025",
+            f"{normalized_topic} manufacturer production deployment announcement press release 2024 2025",
+        ]
+        try:
+            _cn_sources, _cn_audits = _collect_domain(
+                "market",
+                _company_news_queries,
+                resolved_searcher, resolved_crossref, url_checker,
+                resolved_date, normalized_topic,
+                minimum_sources=0,
+                maximum_sources=max(2, maximum_sources - len(market)),
+                blocked_dois={src.doi for src in academic if src.doi is not None},
+                blocked_titles={src.title for src in academic}
+                              | {src.title for src in market},
+            )
+            all_audits.extend(_cn_audits)
+            for _cn in _cn_sources:
+                if _cn.source_type not in _COMPANY_NEWS_TYPES:
+                    continue
+                if len(market) < maximum_sources:
+                    market.append(_cn)
+                else:
+                    # Slots are full — swap out the last market_report source so at
+                    # least one company/trade-press source is present.
+                    for _i in range(len(market) - 1, -1, -1):
+                        if market[_i].source_type == "market_report":
+                            market[_i] = _cn
+                            break
+                    else:
+                        continue  # no market_report to replace; skip
+                break  # one company-news source secured is enough
+        except SourceCollectionError:
+            pass
 
     # Supplement market with native-language search when input is non-English.
     if native_serper is not None and native_topic and len(market) < maximum_sources:

@@ -28,21 +28,34 @@ LANGUAGE_REGISTRY: dict[str, dict] = {
 }
 
 
-def _detect_cjk_script(text: str) -> str | None:
-    """Detect East-Asian script from Unicode code-point ranges.
+def _detect_script(text: str) -> str | None:
+    """Detect script family from Unicode code-point ranges.
 
-    langdetect confuses Chinese and Korean on short strings that contain Latin
-    letters (e.g. "PEM电解槽" → mis-detected as 'ko').  Checking character
-    blocks is unambiguous:
-      • Hangul syllables / jamo  → Korean
-      • Hiragana / Katakana      → Japanese  (may also contain CJK kanji)
-      • CJK unified ideographs only → Simplified Chinese
-    Returns a langdetect-compatible code or None when script is ambiguous.
+    langdetect is unreliable for short technical strings, so we identify
+    non-Latin scripts by their Unicode blocks instead:
+      • Hangul syllables / jamo      → Korean
+      • Hiragana / Katakana          → Japanese
+      • CJK unified ideographs only  → Simplified Chinese
+      • Arabic / extended Arabic     → Arabic
+      • Cyrillic / supplementary     → Russian
+    Latin-script languages (German, French, Spanish, etc.) remain undistinguished
+    from English because langdetect misidentifies English technical terms as
+    Romance languages with high false confidence.
+    Returns a langdetect-compatible code or None when the script is Latin.
     """
-    has_hangul    = any('가' <= c <= '힯' or 'ᄀ' <= c <= 'ᇿ' for c in text)
-    has_hiragana  = any('぀' <= c <= 'ゟ' for c in text)
-    has_katakana  = any('゠' <= c <= 'ヿ' for c in text)
-    has_cjk       = any('一' <= c <= '鿿' or '㐀' <= c <= '䶿' for c in text)
+    has_hangul   = any('가' <= c <= '힯' or 'ᄀ' <= c <= 'ᇿ' for c in text)
+    has_hiragana = any('぀' <= c <= 'ゟ' for c in text)
+    has_katakana = any('゠' <= c <= 'ヿ' for c in text)
+    has_cjk      = any('一' <= c <= '鿿' or '㐀' <= c <= '䶿' for c in text)
+    has_arabic   = any(
+        '؀' <= c <= 'ۿ'   # Arabic
+        or 'ݐ' <= c <= 'ݿ'  # Arabic Supplement
+        or 'ࢠ' <= c <= 'ࣿ'  # Arabic Extended-A
+        or 'ﭐ' <= c <= '﷿'  # Arabic Presentation Forms-A
+        or 'ﹰ' <= c <= '﻿'  # Arabic Presentation Forms-B
+        for c in text
+    )
+    has_cyrillic = any('Ѐ' <= c <= 'ӿ' or 'Ԁ' <= c <= 'ԯ' for c in text)
 
     if has_hangul:
         return "ko"
@@ -50,20 +63,23 @@ def _detect_cjk_script(text: str) -> str | None:
         return "ja"
     if has_cjk:
         return "zh-cn"
+    if has_arabic:
+        return "ar"
+    if has_cyrillic:
+        return "ru"
     return None
 
 
 def detect_language(text: str) -> str:
-    """Return a langdetect language code (e.g. 'zh-cn', 'ja', 'en').
+    """Return a language code for the given text (e.g. 'zh-cn', 'ja', 'ar', 'ru', 'en').
 
-    CJK scripts are identified by Unicode block first — langdetect is
-    unreliable for short technical strings that mix CJK with Latin characters.
-    For all non-CJK (Latin-script) text we always return 'en': langdetect
-    regularly misidentifies English technical terms as Italian, Spanish, or
-    French (e.g. "commercialization", "vaccine", "sodium") with high false
-    confidence, making it unsafe for this use case.
+    Non-Latin scripts are identified by Unicode block ranges, which are
+    unambiguous even for short technical strings.  Latin-script languages
+    (German, French, Spanish, Italian, Portuguese) are not distinguished
+    from English because langdetect regularly misidentifies English technical
+    terms as Romance languages with high false confidence.
     """
-    script = _detect_cjk_script(text)
+    script = _detect_script(text)
     if script is not None:
         return script
     return "en"

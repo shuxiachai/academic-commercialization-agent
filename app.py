@@ -37,113 +37,53 @@ _AGENT_COLORS      = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899", "#0
 # Live agent log renderer
 # ---------------------------------------------------------------------------
 
-def _render_live_log_html(steps_path: Path) -> str:
+def _render_source_preview_html(run_dir: Path) -> str:
+    """Show collected source titles once validated_sources.json is available."""
+    src_path = run_dir / "validated_sources.json"
+    if not src_path.exists():
+        return ""
     try:
-        raw = steps_path.read_text(encoding="utf-8").strip()
+        data = json.loads(src_path.read_text(encoding="utf-8"))
     except Exception:
         return ""
-    if not raw:
-        return ""
 
-    entries_html = ""
-    for line in raw.splitlines()[-60:]:
-        try:
-            s = json.loads(line)
-        except Exception:
+    sections = [
+        ("academic_sources",  "A", "#3b82f6", "Academic"),
+        ("patent_sources",    "P", "#8b5cf6", "Patent"),
+        ("market_sources",    "M", "#10b981", "Market"),
+    ]
+
+    rows_html = ""
+    for key, prefix, color, label in sections:
+        sources = data.get(key, [])
+        if not sources:
             continue
-        idx   = min(int(s.get("agent_idx", 0)), len(_AGENT_SHORT_NAMES) - 1)
-        name  = _AGENT_SHORT_NAMES[idx]
-        color = _AGENT_COLORS[idx]
-
-        def badge(n: str, c: str) -> str:
-            return (
-                f'<span style="background:{c}22;color:{c};font-size:10px;font-weight:700;'
-                f'padding:2px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0;">'
-                f'{html.escape(n)}</span>'
-            )
-
-        def row(icon: str, text: str, color: str = "#9a9a9a") -> str:
-            return (
-                f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px;">'
-                f'{badge(name, color_ref)}'
-                f'<span style="font-size:12px;color:{color};">{icon} {html.escape(text)}</span>'
+        rows_html += (
+            f'<div style="font-size:10px;font-weight:700;color:{color};letter-spacing:0.06em;'
+            f'text-transform:uppercase;margin:10px 0 4px;">{html.escape(label)} ({len(sources)})</div>'
+        )
+        for i, src in enumerate(sources, 1):
+            sid = f"{prefix}{i}"
+            title = str(src.get("title") or "—")[:100]
+            rows_html += (
+                f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:3px;">'
+                f'<span style="font-size:10px;font-weight:700;color:{color}88;'
+                f'font-family:ui-monospace,monospace;flex-shrink:0;width:22px;">{sid}</span>'
+                f'<span style="font-size:11px;color:#9a9a9a;line-height:1.4;">'
+                f'{html.escape(title)}{"…" if len(str(src.get("title") or "")) > 100 else ""}</span>'
                 f'</div>'
             )
 
-        color_ref = color
-
-        if s.get("type") == "action":
-            thought = (s.get("thought") or "").strip()
-            tool    = s.get("tool") or ""
-            t_input = str(s.get("tool_input") or "")[:120]
-            result  = str(s.get("result") or "").strip()[:180]
-
-            if not thought and not tool and not result:
-                # Pre-seeded "started" entry — no tool or thought yet
-                entries_html += row("⚙", "Analyzing sources…")
-            if thought:
-                short = thought[:140] + ("…" if len(thought) > 140 else "")
-                entries_html += row("💭", short)
-            if tool:
-                entries_html += (
-                    f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px;">'
-                    f'{badge(name, color)}'
-                    f'<span style="font-size:12px;color:#e5e5e5;">🔍 '
-                    f'<code style="background:#1a1a1a;padding:1px 5px;border-radius:3px;font-size:11px;">'
-                    f'{html.escape(tool)}</code> '
-                    f'<span style="color:#555555;">{html.escape(t_input)}</span></span>'
-                    f'</div>'
-                )
-            if result:
-                short = result[:180] + ("…" if len(str(s.get("result") or "")) > 180 else "")
-                entries_html += (
-                    f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
-                    f'{badge(name, color)}'
-                    f'<span style="font-size:11px;color:#4b5563;">↳ {html.escape(short)}</span>'
-                    f'</div>'
-                )
-        elif s.get("type") == "result":
-            tool   = s.get("tool") or ""
-            result = str(s.get("result") or "").strip()
-            if tool:
-                entries_html += (
-                    f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px;">'
-                    f'{badge(name, color)}'
-                    f'<span style="font-size:12px;color:#e5e5e5;">🔍 '
-                    f'<code style="background:#1a1a1a;padding:1px 5px;border-radius:3px;font-size:11px;">'
-                    f'{html.escape(tool)}</code></span>'
-                    f'</div>'
-                )
-            if result:
-                short = result[:200] + ("…" if len(result) > 200 else "")
-                entries_html += (
-                    f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
-                    f'{badge(name, color)}'
-                    f'<span style="font-size:11px;color:#4b5563;">↳ {html.escape(short)}</span>'
-                    f'</div>'
-                )
-        elif s.get("type") == "finish":
-            entries_html += (
-                f'<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
-                f'{badge(name, color)}'
-                f'<span style="font-size:12px;color:#16a34a;">✓ Task complete</span>'
-                f'</div>'
-            )
-
-    if not entries_html:
+    if not rows_html:
         return ""
 
     return (
-        '<style>'
-        '@keyframes _logSlide{from{opacity:.4;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}'
-        '</style>'
-        f'<div style="font-family:ui-monospace,\'Cascadia Code\',monospace;'
-        f'background:#0a0a0a;border:1px solid #2d2d2d;border-radius:8px;'
-        f'padding:12px 14px;max-height:280px;overflow-y:auto;margin-top:10px;'
-        f'animation:_logSlide 0.3s ease-out both;">'
+        f'<div style="font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;'
+        f'background:#0a0a0a;border:1px solid #1a1a1a;border-radius:8px;'
+        f'padding:12px 14px;max-height:280px;overflow-y:auto;margin-top:10px;">'
         f'<div style="font-size:10px;font-weight:700;color:#444444;letter-spacing:0.08em;'
-        f'text-transform:uppercase;margin-bottom:10px;">Live Agent Log</div>'
-        f'{entries_html}'
+        f'text-transform:uppercase;margin-bottom:6px;">Collected Sources</div>'
+        f'{rows_html}'
         f'</div>'
     )
 
@@ -180,7 +120,10 @@ def _source_id_chips(ids: list) -> str:
     chips = "".join(
         f'<span style="display:inline-block;background:#222222;border:1px solid #333333;'
         f'color:#9a9a9a;font-size:9px;font-family:ui-monospace,monospace;font-weight:600;'
-        f'padding:1px 5px;border-radius:4px;margin:1px 1px 0;">{html.escape(str(sid))}</span>'
+        f'padding:1px 5px;border-radius:4px;margin:1px 1px 0;cursor:pointer;" '
+        f'onclick="_acadShowSrc(\'{html.escape(str(sid))}\')" '
+        f'title="Click to view source details">'
+        f'{html.escape(str(sid))}</span>'
         for sid in ids
     )
     return f'<div style="margin-top:6px;line-height:1.8;">{chips}</div>'
@@ -237,6 +180,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "IP Landscape", "bar_mkt": "Market Accessibility", "bar_evi": "Evidence Confidence",
         "dl_md": "Download Report (.md)", "dl_pdf": "Download Report (.pdf)",
         "progress": "Analysis in progress",
+        "err_failed": "✗ Analysis Failed", "err_run": "Run ID",
     },
     "Simplified Chinese": {
         "formula": "评分公式", "out_of": "满分 100",
@@ -248,6 +192,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "专利格局", "bar_mkt": "市场可及性", "bar_evi": "证据置信度",
         "dl_md": "下载报告 (.md)", "dl_pdf": "下载报告 (.pdf)",
         "progress": "分析进行中",
+        "err_failed": "✗ 分析失败", "err_run": "运行 ID",
     },
     "Traditional Chinese": {
         "formula": "評分公式", "out_of": "滿分 100",
@@ -259,6 +204,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "專利格局", "bar_mkt": "市場可及性", "bar_evi": "證據置信度",
         "dl_md": "下載報告 (.md)", "dl_pdf": "下載報告 (.pdf)",
         "progress": "分析進行中",
+        "err_failed": "✗ 分析失敗", "err_run": "執行 ID",
     },
     "Japanese": {
         "formula": "スコア計算式", "out_of": "100点満点",
@@ -270,6 +216,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "知財状況", "bar_mkt": "市場アクセス", "bar_evi": "証拠の信頼性",
         "dl_md": "レポートをダウンロード (.md)", "dl_pdf": "レポートをダウンロード (.pdf)",
         "progress": "分析中",
+        "err_failed": "✗ 分析に失敗しました", "err_run": "実行 ID",
     },
     "Korean": {
         "formula": "점수 공식", "out_of": "100점 만점",
@@ -281,6 +228,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "지식재산 현황", "bar_mkt": "시장 접근성", "bar_evi": "증거 신뢰도",
         "dl_md": "보고서 다운로드 (.md)", "dl_pdf": "보고서 다운로드 (.pdf)",
         "progress": "분석 중",
+        "err_failed": "✗ 분석 실패", "err_run": "실행 ID",
     },
     "German": {
         "formula": "Bewertungsformel", "out_of": "von 100",
@@ -292,6 +240,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "IP-Landschaft", "bar_mkt": "Marktzugänglichkeit", "bar_evi": "Beweissicherheit",
         "dl_md": "Bericht herunterladen (.md)", "dl_pdf": "Bericht herunterladen (.pdf)",
         "progress": "Analyse läuft",
+        "err_failed": "✗ Analyse fehlgeschlagen", "err_run": "Ausführungs-ID",
     },
     "French": {
         "formula": "Formule de score", "out_of": "sur 100",
@@ -303,6 +252,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "Paysage PI", "bar_mkt": "Accessibilité marché", "bar_evi": "Confiance preuves",
         "dl_md": "Télécharger le rapport (.md)", "dl_pdf": "Télécharger le rapport (.pdf)",
         "progress": "Analyse en cours",
+        "err_failed": "✗ Échec de l'analyse", "err_run": "ID d'exécution",
     },
     "Spanish": {
         "formula": "Fórmula de puntuación", "out_of": "de 100",
@@ -314,6 +264,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "Panorama PI", "bar_mkt": "Accesibilidad mercado", "bar_evi": "Confianza evidencias",
         "dl_md": "Descargar informe (.md)", "dl_pdf": "Descargar informe (.pdf)",
         "progress": "Análisis en curso",
+        "err_failed": "✗ Análisis fallido", "err_run": "ID de ejecución",
     },
     "Italian": {
         "formula": "Formula di punteggio", "out_of": "su 100",
@@ -325,6 +276,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "Panorama brevetti", "bar_mkt": "Accessibilità mercato", "bar_evi": "Attendibilità prove",
         "dl_md": "Scarica il rapporto (.md)", "dl_pdf": "Scarica il rapporto (.pdf)",
         "progress": "Analisi in corso",
+        "err_failed": "✗ Analisi non riuscita", "err_run": "ID esecuzione",
     },
     "Portuguese": {
         "formula": "Fórmula de pontuação", "out_of": "de 100",
@@ -336,6 +288,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "Panorama PI", "bar_mkt": "Acessibilidade mercado", "bar_evi": "Confiança evidências",
         "dl_md": "Baixar relatório (.md)", "dl_pdf": "Baixar relatório (.pdf)",
         "progress": "Análise em andamento",
+        "err_failed": "✗ Análise falhou", "err_run": "ID da execução",
     },
     "Russian": {
         "formula": "Формула оценки", "out_of": "из 100",
@@ -347,6 +300,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "Патентный ландшафт", "bar_mkt": "Доступность рынка", "bar_evi": "Достоверность данных",
         "dl_md": "Скачать отчёт (.md)", "dl_pdf": "Скачать отчёт (.pdf)",
         "progress": "Анализ выполняется",
+        "err_failed": "✗ Ошибка анализа", "err_run": "ID запуска",
     },
     "Arabic": {
         "formula": "صيغة التقييم", "out_of": "من 100",
@@ -358,12 +312,141 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "bar_ip": "المشهد البراءاتي", "bar_mkt": "إمكانية الوصول للسوق", "bar_evi": "موثوقية الأدلة",
         "dl_md": "تنزيل التقرير (.md)", "dl_pdf": "تنزيل التقرير (.pdf)",
         "progress": "جارٍ التحليل",
+        "err_failed": "✗ فشل التحليل", "err_run": "معرّف التشغيل",
     },
 }
 
 
 def _scorecard_strings(output_language: str) -> dict[str, str]:
     return _SCORECARD_I18N.get(output_language, _SCORECARD_I18N["English"])
+
+
+_WARNING_I18N: dict[str, dict[str, str]] = {
+    "English": {
+        "title": "Source Coverage Warning",
+        "footer": "Analysis quality in flagged domains may be limited.",
+        "ac_few": "⚠ Academic: only {n} source{pl} (recommended ≥3)",
+        "pa_few": "⚠ Patent: only {n} source{pl} (recommended ≥2)",
+        "mk_few": "⚠ Market: only {n} source{pl} (recommended ≥2)",
+        "mk_stale": "⚠ Market: {stale}/{total} sources are undated or older than 3 years — market intelligence may be outdated",
+        "pat_old": "⚠ Patents: {n}/{total} patent{pl} filed 15+ years ago may have expired — verify legal status before relying on landscape analysis",
+        "ac_old": "⚠ Academic: oldest source from {year} (\"{title}\") — findings in fast-moving fields may not reflect current state of the art",
+    },
+    "Simplified Chinese": {
+        "title": "来源覆盖警告",
+        "footer": "被标记领域的分析质量可能受限。",
+        "ac_few": "⚠ 学术来源：仅 {n} 篇（建议 ≥3 篇）",
+        "pa_few": "⚠ 专利来源：仅 {n} 项（建议 ≥2 项）",
+        "mk_few": "⚠ 市场来源：仅 {n} 篇（建议 ≥2 篇）",
+        "mk_stale": "⚠ 市场：{stale}/{total} 条来源无日期或超过 3 年 — 市场情报可能已过时",
+        "pat_old": "⚠ 专利：{n}/{total} 项专利申请距今超过 15 年，可能已到期 — 使用前请核实法律状态",
+        "ac_old": "⚠ 学术：最早来源为 {year} 年（\"{title}\"）— 在快速发展的领域，结论可能已不反映最新进展",
+    },
+    "Traditional Chinese": {
+        "title": "來源覆蓋警告",
+        "footer": "被標記領域的分析質量可能受限。",
+        "ac_few": "⚠ 學術來源：僅 {n} 篇（建議 ≥3 篇）",
+        "pa_few": "⚠ 專利來源：僅 {n} 項（建議 ≥2 項）",
+        "mk_few": "⚠ 市場來源：僅 {n} 篇（建議 ≥2 篇）",
+        "mk_stale": "⚠ 市場：{stale}/{total} 條來源無日期或超過 3 年 — 市場情報可能已過時",
+        "pat_old": "⚠ 專利：{n}/{total} 項專利申請距今超過 15 年，可能已到期 — 使用前請核實法律狀態",
+        "ac_old": "⚠ 學術：最早來源為 {year} 年（\"{title}\"）— 在快速發展的領域，結論可能已不反映最新進展",
+    },
+    "Japanese": {
+        "title": "ソースカバレッジ警告",
+        "footer": "フラグが立てられたドメインでは分析品質が制限される場合があります。",
+        "ac_few": "⚠ 学術：{n} 件のみ（推奨 ≥3 件）",
+        "pa_few": "⚠ 特許：{n} 件のみ（推奨 ≥2 件）",
+        "mk_few": "⚠ 市場：{n} 件のみ（推奨 ≥2 件）",
+        "mk_stale": "⚠ 市場：{stale}/{total} 件が未日付または3年以上経過 — 市場情報が古い可能性があります",
+        "pat_old": "⚠ 特許：{n}/{total} 件が出願から15年以上経過し、失効している可能性があります",
+        "ac_old": "⚠ 学術：最も古いソースは {year} 年（\"{title}\"）— 急速に発展する分野では最新動向を反映していない可能性があります",
+    },
+    "Korean": {
+        "title": "출처 커버리지 경고",
+        "footer": "표시된 도메인에서는 분석 품질이 제한될 수 있습니다.",
+        "ac_few": "⚠ 학술: {n}개만 (권장 ≥3개)",
+        "pa_few": "⚠ 특허: {n}개만 (권장 ≥2개)",
+        "mk_few": "⚠ 시장: {n}개만 (권장 ≥2개)",
+        "mk_stale": "⚠ 시장: {stale}/{total}개 출처가 날짜 없음 또는 3년 이상 경과 — 시장 정보가 오래되었을 수 있음",
+        "pat_old": "⚠ 특허: {n}/{total}개 특허가 출원 후 15년 이상 경과하여 만료되었을 수 있음",
+        "ac_old": "⚠ 학술: 가장 오래된 출처는 {year}년 (\"{title}\") — 빠르게 발전하는 분야에서는 최신 동향을 반영하지 않을 수 있음",
+    },
+    "German": {
+        "title": "Quellabdeckungswarnung",
+        "footer": "Die Analysequalität in markierten Domänen kann eingeschränkt sein.",
+        "ac_few": "⚠ Akademisch: nur {n} Quelle(n) (empfohlen ≥3)",
+        "pa_few": "⚠ Patent: nur {n} Quelle(n) (empfohlen ≥2)",
+        "mk_few": "⚠ Markt: nur {n} Quelle(n) (empfohlen ≥2)",
+        "mk_stale": "⚠ Markt: {stale}/{total} Quellen sind undatiert oder älter als 3 Jahre — Marktinformationen möglicherweise veraltet",
+        "pat_old": "⚠ Patente: {n}/{total} Patent(e) vor mehr als 15 Jahren angemeldet — rechtlichen Status vor Verwendung prüfen",
+        "ac_old": "⚠ Akademisch: älteste Quelle aus {year} (\"{title}\") — Erkenntnisse spiegeln möglicherweise nicht den aktuellen Stand der Technik wider",
+    },
+    "French": {
+        "title": "Avertissement sur la couverture des sources",
+        "footer": "La qualité de l'analyse dans les domaines signalés peut être limitée.",
+        "ac_few": "⚠ Académique : seulement {n} source(s) (recommandé ≥3)",
+        "pa_few": "⚠ Brevets : seulement {n} source(s) (recommandé ≥2)",
+        "mk_few": "⚠ Marché : seulement {n} source(s) (recommandé ≥2)",
+        "mk_stale": "⚠ Marché : {stale}/{total} sources non datées ou datant de plus de 3 ans — données de marché potentiellement obsolètes",
+        "pat_old": "⚠ Brevets : {n}/{total} brevet(s) déposé(s) il y a plus de 15 ans peuvent être expirés — vérifier le statut légal",
+        "ac_old": "⚠ Académique : la source la plus ancienne date de {year} (\"{title}\") — les conclusions peuvent ne pas refléter l'état de l'art actuel",
+    },
+    "Spanish": {
+        "title": "Advertencia de cobertura de fuentes",
+        "footer": "La calidad del análisis en los dominios marcados puede ser limitada.",
+        "ac_few": "⚠ Académico: solo {n} fuente(s) (recomendado ≥3)",
+        "pa_few": "⚠ Patentes: solo {n} fuente(s) (recomendado ≥2)",
+        "mk_few": "⚠ Mercado: solo {n} fuente(s) (recomendado ≥2)",
+        "mk_stale": "⚠ Mercado: {stale}/{total} fuentes sin fecha o con más de 3 años — inteligencia de mercado posiblemente desactualizada",
+        "pat_old": "⚠ Patentes: {n}/{total} patente(s) presentada(s) hace más de 15 años pueden haber expirado — verificar estado legal",
+        "ac_old": "⚠ Académico: la fuente más antigua es de {year} (\"{title}\") — los hallazgos pueden no reflejar el estado actual del arte",
+    },
+    "Italian": {
+        "title": "Avviso sulla copertura delle fonti",
+        "footer": "La qualità dell'analisi nei domini segnalati potrebbe essere limitata.",
+        "ac_few": "⚠ Accademico: solo {n} fonte/i (consigliato ≥3)",
+        "pa_few": "⚠ Brevetti: solo {n} fonte/i (consigliato ≥2)",
+        "mk_few": "⚠ Mercato: solo {n} fonte/i (consigliato ≥2)",
+        "mk_stale": "⚠ Mercato: {stale}/{total} fonti non datate o più vecchie di 3 anni — dati di mercato potenzialmente obsoleti",
+        "pat_old": "⚠ Brevetti: {n}/{total} brevetto/i depositato/i oltre 15 anni fa potrebbero essere scaduti — verificare lo stato legale",
+        "ac_old": "⚠ Accademico: la fonte più antica è del {year} (\"{title}\") — i risultati potrebbero non riflettere lo stato dell'arte attuale",
+    },
+    "Portuguese": {
+        "title": "Aviso de cobertura de fontes",
+        "footer": "A qualidade da análise nos domínios sinalizados pode ser limitada.",
+        "ac_few": "⚠ Académico: apenas {n} fonte(s) (recomendado ≥3)",
+        "pa_few": "⚠ Patentes: apenas {n} fonte(s) (recomendado ≥2)",
+        "mk_few": "⚠ Mercado: apenas {n} fonte(s) (recomendado ≥2)",
+        "mk_stale": "⚠ Mercado: {stale}/{total} fontes sem data ou com mais de 3 anos — inteligência de mercado possivelmente desatualizada",
+        "pat_old": "⚠ Patentes: {n}/{total} patente(s) registrada(s) há mais de 15 anos pode(m) ter expirado — verificar estado legal",
+        "ac_old": "⚠ Académico: a fonte mais antiga é de {year} (\"{title}\") — os resultados podem não refletir o estado atual da arte",
+    },
+    "Russian": {
+        "title": "Предупреждение о покрытии источников",
+        "footer": "Качество анализа в отмеченных доменах может быть ограничено.",
+        "ac_few": "⚠ Академические: только {n} источник(ов) (рекомендуется ≥3)",
+        "pa_few": "⚠ Патенты: только {n} источник(ов) (рекомендуется ≥2)",
+        "mk_few": "⚠ Рыночные: только {n} источник(ов) (рекомендуется ≥2)",
+        "mk_stale": "⚠ Рынок: {stale}/{total} источников без даты или старше 3 лет — рыночные данные могут быть устаревшими",
+        "pat_old": "⚠ Патенты: {n}/{total} патент(ов) поданы более 15 лет назад и могут быть недействительными",
+        "ac_old": "⚠ Академические: самый старый источник — {year} г. (\"{title}\") — выводы могут не отражать современное состояние области",
+    },
+    "Arabic": {
+        "title": "تحذير تغطية المصادر",
+        "footer": "قد تكون جودة التحليل في النطاقات المُشار إليها محدودة.",
+        "ac_few": "⚠ أكاديمي: {n} مصدر(مصادر) فقط (يُوصى بـ ≥3)",
+        "pa_few": "⚠ براءات الاختراع: {n} مصدر(مصادر) فقط (يُوصى بـ ≥2)",
+        "mk_few": "⚠ السوق: {n} مصدر(مصادر) فقط (يُوصى بـ ≥2)",
+        "mk_stale": "⚠ السوق: {stale}/{total} مصادر بلا تاريخ أو أقدم من 3 سنوات — قد تكون معلومات السوق قديمة",
+        "pat_old": "⚠ براءات: {n}/{total} براءة(براءات) مُقدَّمة منذ أكثر من 15 عامًا قد تكون منتهية الصلاحية",
+        "ac_old": "⚠ أكاديمي: أقدم مصدر من عام {year} (\"{title}\") — قد لا تعكس النتائج الحالة الراهنة للمجال",
+    },
+}
+
+
+def _warning_strings(output_language: str) -> dict[str, str]:
+    return _WARNING_I18N.get(output_language, _WARNING_I18N["English"])
 
 
 def _read_output_language(run_dir) -> str:
@@ -468,20 +551,21 @@ def _date_is_before(date_str: str, cutoff: date) -> bool:
         return False
 
 
-def _render_source_warning_html(run_dir: Path) -> str:
+def _render_source_warning_html(run_dir: Path, output_language: str = "English") -> str:
     """Return a warning banner if any domain has fewer sources than recommended."""
     try:
+        w = _warning_strings(output_language)
         data = json.loads((run_dir / "validated_sources.json").read_text(encoding="utf-8"))
         ac = len(data.get("academic_sources", []))
         pa = len(data.get("patent_sources", []))
         mk = len(data.get("market_sources", []))
         warnings: list[str] = []
         if ac < 3:
-            warnings.append(f"⚠ Academic: only {ac} source{'s' if ac != 1 else ''} (recommended ≥3)")
+            warnings.append(w["ac_few"].format(n=ac, pl="s" if ac != 1 else ""))
         if pa < 2:
-            warnings.append(f"⚠ Patent: only {pa} source{'s' if pa != 1 else ''} (recommended ≥2)")
+            warnings.append(w["pa_few"].format(n=pa, pl="s" if pa != 1 else ""))
         if mk < 2:
-            warnings.append(f"⚠ Market: only {mk} source{'s' if mk != 1 else ''} (recommended ≥2)")
+            warnings.append(w["mk_few"].format(n=mk, pl="s" if mk != 1 else ""))
         # Staleness check: flag if ≥50% of market sources are older than 3 years or undated.
         # High-credibility institutional sources (government, research institutes) are
         # exempt from the "undated = stale" treatment — their content ages more slowly
@@ -499,8 +583,7 @@ def _render_source_warning_html(run_dir: Path) -> str:
             )
             if stale >= max(1, len(market_sources) // 2):
                 warnings.append(
-                    f"⚠ Market: {stale}/{len(market_sources)} sources are undated or "
-                    f"older than 3 years — market intelligence may be outdated"
+                    w["mk_stale"].format(stale=stale, total=len(market_sources))
                 )
         # Patent age check: flag patents filed 15+ years ago that may have expired.
         # Standard utility patent protection is 20 years from filing; at 15 years,
@@ -515,9 +598,10 @@ def _render_source_warning_html(run_dir: Path) -> str:
             )
             if old_patents > 0:
                 warnings.append(
-                    f"⚠ Patents: {old_patents}/{len(patent_sources)} patent"
-                    f"{'s' if old_patents != 1 else ''} filed 15+ years ago "
-                    f"may have expired — verify legal status before relying on landscape analysis"
+                    w["pat_old"].format(
+                        n=old_patents, total=len(patent_sources),
+                        pl="s" if old_patents != 1 else "",
+                    )
                 )
 
         # Academic age check: warn when the oldest source is 5+ years old, since
@@ -537,8 +621,7 @@ def _render_source_warning_html(run_dir: Path) -> str:
                 oldest_year = str(oldest_date)[:4]
                 short_title = oldest_title[:60] + ("…" if len(oldest_title) > 60 else "")
                 warnings.append(
-                    f"⚠ Academic: oldest source from {oldest_year} (\"{short_title}\") "
-                    f"— findings in fast-moving fields may not reflect current state of the art"
+                    w["ac_old"].format(year=oldest_year, title=short_title)
                 )
 
         if not warnings:
@@ -550,10 +633,10 @@ def _render_source_warning_html(run_dir: Path) -> str:
             f'<div style="background:#1c1400;border:1px solid #713f12;border-radius:8px;'
             f'padding:10px 16px;margin-bottom:14px;font-size:12px;color:#fbbf24;'
             f'font-family:system-ui;">'
-            f'<div style="font-weight:700;margin-bottom:4px;">Source Coverage Warning</div>'
+            f'<div style="font-weight:700;margin-bottom:4px;">{html.escape(w["title"])}</div>'
             f'{items_html}'
             f'<div style="font-size:11px;color:#b45309;margin-top:4px;">'
-            f'Analysis quality in flagged domains may be limited.</div>'
+            f'{html.escape(w["footer"])}</div>'
             f'</div>'
         )
     except Exception:
@@ -599,11 +682,69 @@ def _render_reviewer_notes_html(run_dir: Path) -> str:
         return ""
 
 
+def _build_sources_index(run_dir: Path) -> dict:
+    """Build {source_id → source_dict} from validated_sources.json."""
+    try:
+        data = json.loads((run_dir / "validated_sources.json").read_text(encoding="utf-8"))
+        idx: dict = {}
+        for prefix, key in [("A", "academic_sources"), ("P", "patent_sources"), ("M", "market_sources")]:
+            for i, src in enumerate(data.get(key, []), 1):
+                idx[f"{prefix}{i}"] = src
+        return idx
+    except Exception:
+        return {}
+
+
+def _src_detail_panel_html(sources_index: dict) -> str:
+    """Hidden source-detail drawer + script that powers chip-click interactions."""
+    if not sources_index:
+        return ""
+    src_json = json.dumps(sources_index, ensure_ascii=False, default=str)
+    js = (
+        "(function(){"
+        "var idx=" + src_json + ";"
+        "window._acadSrcIdx=Object.assign(window._acadSrcIdx||{},idx);"
+        "window._acadShowSrc=function(id){"
+        "var s=(window._acadSrcIdx||{})[id];"
+        "var panel=document.getElementById('_acadSrcPanel');"
+        "var content=document.getElementById('_acadSrcContent');"
+        "if(!s||!panel||!content)return;"
+        "function esc(x){return String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}"
+        "var h='<div style=\"font-size:12px;color:#e5e5e5;font-weight:600;margin-bottom:8px;line-height:1.4;\">'+esc(s.title||'—')+'</div>';"
+        "h+='<div style=\"display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#777777;margin-bottom:8px;\">';"
+        "h+='<span style=\"font-weight:700;color:#9a9a9a;\">'+id+'</span>';"
+        "if(s.source_type)h+='<span>'+esc(s.source_type)+'</span>';"
+        "if(s.published_date)h+='<span>'+esc((s.published_date||'').slice(0,10))+'</span>';"
+        "if(s.credibility_tier)h+='<span>✓ '+esc(s.credibility_tier)+'</span>';"
+        "if(s.citation_count!=null)h+='<span>'+s.citation_count+' citations</span>';"
+        "h+='</div>';"
+        "if(s.url)h+='<div style=\"margin-bottom:8px;\"><a href=\"'+esc(s.url)+'\" target=\"_blank\" style=\"font-size:11px;color:#60a5fa;word-break:break-all;\">'+esc(s.url)+'</a></div>';"
+        "if(s.evidence_summary)h+='<div style=\"font-size:11px;color:#9a9a9a;line-height:1.6;padding:8px;background:#0a0a0a;border-radius:6px;\">'+esc((s.evidence_summary||'').slice(0,350))+'…</div>';"
+        "content.innerHTML=h;"
+        "panel.style.display='block';"
+        "};"
+        "})();"
+    )
+    return (
+        '<div id="_acadSrcPanel" style="display:none;margin-top:12px;'
+        'background:#141414;border:1px solid #2d2d2d;border-radius:8px;'
+        'padding:14px 16px;position:relative;">'
+        '<button onclick="document.getElementById(\'_acadSrcPanel\').style.display=\'none\';" '
+        'style="position:absolute;top:8px;right:10px;background:none;border:none;'
+        'color:#555555;font-size:16px;cursor:pointer;line-height:1;padding:0;" '
+        'title="Close">✕</button>'
+        '<div id="_acadSrcContent"></div>'
+        '</div>'
+        f'<script>{js}</script>'
+    )
+
+
 def _render_score_html(
     scores_json: str,
     topic: str,
     output_language: str = "English",
     weight_profile: str = "industrial",
+    sources_index: dict | None = None,
 ) -> str:
     try:
         s = json.loads(scores_json)
@@ -734,7 +875,7 @@ def _render_score_html(
         f'</div>'
 
         # KPI tiles
-        f'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;">'
+        f'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;margin-bottom:20px;">'
         f'{_kpi_tile("TRL", trl, 9, t["trl_sub"], trl_pct, trl_ids)}'
         f'{_kpi_tile("MRL", mrl, 10, t["mrl_sub"], mrl_pct, mrl_ids)}'
         f'{_kpi_tile("IP", pat, 5, t["ip_sub"], pat_pct, pat_ids)}'
@@ -909,6 +1050,14 @@ def _render_progress_html(
     mins, secs = divmod(elapsed, 60)
     elapsed_str = f"{mins}m {secs:02d}s" if mins else f"{secs}s"
 
+    remaining_str = ""
+    if 0 < pct < 100 and elapsed >= 5:
+        total_est = elapsed / pct * 100
+        remaining = int(total_est - elapsed)
+        if remaining > 0:
+            r_mins, r_secs = divmod(remaining, 60)
+            remaining_str = f" · ~{r_mins}m {r_secs:02d}s left" if r_mins else f" · ~{r_secs}s left"
+
     return (
         # Keyframe definitions (scoped by unique names; browser dedupes across redraws)
         '<style>'
@@ -928,7 +1077,8 @@ def _render_progress_html(
         f'box-shadow:0 0 0 3px #1e3a5f;flex-shrink:0;animation:_bluePulse 2s ease infinite;"></div>'
         f'<span style="font-size:13px;font-weight:600;color:#f5f5f5;">{t["progress"]}</span>'
         f'<span style="margin-left:auto;font-size:12px;color:#6b7280;'
-        f'font-variant-numeric:tabular-nums;">{elapsed_str}</span>'
+        f'font-variant-numeric:tabular-nums;">{elapsed_str}'
+        f'<span style="color:#4b5563;">{html.escape(remaining_str)}</span></span>'
         f'</div>'
 
         # Progress bar (width transition already present)
@@ -962,6 +1112,29 @@ def _parse_run_timestamp(run_id: str) -> str:
         return dt.astimezone().strftime("%Y-%m-%d %H:%M")
     except Exception:
         return run_id[:16]
+
+
+def _run_duration(run_dir: Path) -> str:
+    """Return human-readable run duration (e.g. '2m 34s') from run_id start to status.json mtime."""
+    try:
+        run_id = run_dir.name
+        ts = run_id.split("-")[0]
+        start_dt = datetime.strptime(ts, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        status_path = run_dir / "status.json"
+        if not status_path.exists():
+            return "—"
+        import os as _os
+        end_ts = _os.path.getmtime(status_path)
+        from datetime import timezone as _tz
+        end_dt = datetime.fromtimestamp(end_ts, tz=_tz.utc)
+        secs = int((end_dt - start_dt).total_seconds())
+        if secs < 0:
+            return "—"
+        if secs < 60:
+            return f"{secs}s"
+        return f"{secs // 60}m {secs % 60:02d}s"
+    except Exception:
+        return "—"
 
 
 _REPORT_TITLE_PREFIXES = (
@@ -1014,6 +1187,7 @@ def _load_run(run_id: str) -> tuple[str, str]:
     if not run_dir.is_dir():
         return "", f"> Run `{html.escape(run_id)}` not found in outputs/."
 
+    sources_index = _build_sources_index(run_dir)
     score_html = ""
     scores_path = run_dir / "commercialization_scores.json"
     if scores_path.exists():
@@ -1022,9 +1196,10 @@ def _load_run(run_id: str) -> tuple[str, str]:
             output_lang = _read_output_language(run_dir)
             wp = _read_weight_profile(run_dir)
             score_html = (
-                _render_source_warning_html(run_dir)
+                _render_source_warning_html(run_dir, output_lang)
                 + _render_score_html(
-                    scores_path.read_text(encoding="utf-8"), topic, output_lang, wp
+                    scores_path.read_text(encoding="utf-8"), topic, output_lang, wp,
+                    sources_index=sources_index,
                 )
             )
         except Exception:
@@ -1042,6 +1217,7 @@ def _load_run(run_id: str) -> tuple[str, str]:
         return "", f"> No report found for run `{html.escape(run_id)}`."
 
     score_html += _render_reviewer_notes_html(run_dir)
+    score_html += _src_detail_panel_html(sources_index)
     return score_html, report_md
 
 
@@ -1064,6 +1240,7 @@ def _render_history_html() -> str:
         timestamp = _parse_run_timestamp(run_id)
 
         topic = _read_run_topic(run_dir)
+        duration = _run_duration(run_dir)
 
         overall = trl = mrl = pat = mkt = evi = "—"
         overall_color = "#0b0b0b"
@@ -1120,7 +1297,9 @@ def _render_history_html() -> str:
             f'font-variant-numeric:tabular-nums;white-space:nowrap;">{html.escape(timestamp)}</td>'
             f'<td style="padding:10px 14px;max-width:300px;overflow:hidden;'
             f'text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#e5e5e5;'
-            f'font-weight:500;">{html.escape(topic)}</td>'
+            f'font-weight:500;" title="{html.escape(topic)}">{html.escape(topic)}</td>'
+            f'<td style="padding:10px 14px;text-align:center;font-size:12px;'
+            f'color:#777777;font-variant-numeric:tabular-nums;white-space:nowrap;">{html.escape(duration)}</td>'
             f'<td style="padding:10px 14px;text-align:center;">{score_cell}</td>'
             f'<td style="padding:10px 14px;text-align:center;font-size:13px;'
             f'color:#9a9a9a;font-variant-numeric:tabular-nums;">{f"{trl}/9" if isinstance(trl, (int, float)) else "—"}</td>'
@@ -1166,6 +1345,8 @@ def _render_history_html() -> str:
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;">Time</th>'
         f'<th style="text-align:left;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Topic</th>'
+        f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;">Duration</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Score</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
@@ -1561,7 +1742,7 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
 # Main analysis runner
 # ---------------------------------------------------------------------------
 
-def run_analysis(research_topic: str):
+def run_analysis(research_topic: str, language: str = "Auto (detect from topic)"):
     """Generator that yields (progress_html, score_html, report_md, md_path, pdf_path, submit_btn, cancel_btn).
 
     The pipeline runs in a subprocess so that clicking Cancel immediately
@@ -1577,13 +1758,11 @@ def run_analysis(research_topic: str):
     run_dir = DEFAULT_OUTPUT_ROOT / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     status_path = run_dir / "status.json"
-    steps_path  = run_dir / "steps.jsonl"
 
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "academic_agent.pipeline_worker", run_id, research_topic.strip()],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    cmd = [sys.executable, "-m", "academic_agent.pipeline_worker", run_id, research_topic.strip()]
+    if language and language != "Auto (detect from topic)":
+        cmd += ["--language", language]
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     start = time.time()
     tick = 0
@@ -1609,7 +1788,7 @@ def run_analysis(research_topic: str):
                 gr.update(visible=False),
                 gr.update(interactive=False),
                 gr.update(visible=True),
-                _render_live_log_html(steps_path),
+                _render_source_preview_html(run_dir),
             )
             time.sleep(0.8)
             tick += 1
@@ -1635,14 +1814,15 @@ def run_analysis(research_topic: str):
         return
 
     if status.get("error"):
+        _et = _scorecard_strings(output_language)
         error_html = (
             f'<div style="font-family:system-ui;background:#2d1515;border:1px solid #7f1d1d;'
             f'border-radius:8px;padding:16px 20px;">'
             f'<div style="font-size:14px;font-weight:600;color:#f87171;margin-bottom:8px;">'
-            f'✗ Analysis Failed</div>'
+            f'{html.escape(_et.get("err_failed", "✗ Analysis Failed"))}</div>'
             f'<div style="font-size:13px;color:#9a9a9a;">{html.escape(status["error"])}</div>'
             f'<div style="font-size:12px;color:#777777;margin-top:8px;">'
-            f'Run ID: <code>{html.escape(run_id)}</code></div>'
+            f'{html.escape(_et.get("err_run", "Run ID"))}: <code>{html.escape(run_id)}</code></div>'
             f'</div>'
         )
         yield error_html, "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False), ""
@@ -1661,8 +1841,10 @@ def run_analysis(research_topic: str):
         f'🌐 Report language: {html.escape(output_language)}</span></div>'
     ) if output_language != "English" else ""
     wp = _read_weight_profile(run_dir)
-    score_html = (lang_badge + _render_source_warning_html(run_dir) + _render_score_html(scores_json, research_topic.strip(), output_language, wp)) if scores_json else lang_badge
+    sources_index = _build_sources_index(run_dir)
+    score_html = (lang_badge + _render_source_warning_html(run_dir, output_language) + _render_score_html(scores_json, research_topic.strip(), output_language, wp, sources_index=sources_index)) if scores_json else lang_badge
     score_html += _render_reviewer_notes_html(run_dir)
+    score_html += _src_detail_panel_html(sources_index)
     t = _scorecard_strings(output_language)
     md_update = gr.update(value=str(report_path), visible=True, label=t["dl_md"]) if report_path.exists() else gr.update(visible=False)
 
@@ -1797,7 +1979,7 @@ _HEADER_HTML = """
   <p style="font-size:13px;color:#9a9a9a;line-height:1.6;max-width:660px;margin:0 0 12px;">
     Enter a research topic to launch <strong style="color:#e5e5e5;">6 specialized AI agents</strong>
     that assess commercialization readiness — producing a scored report with verified citations.
-    Agents 1–3 run in parallel; expected run time: <strong style="color:#e5e5e5;">4–6 minutes</strong>.
+    Agents 1–3 run in parallel; expected run time: <strong style="color:#e5e5e5;">2–3 minutes</strong>.
     Input any language — the report is generated in the same language.
   </p>
   <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -1825,7 +2007,7 @@ _theme = gr.themes.Default(
 with gr.Blocks(title="Academic Commercialization Assessment") as demo:
     gr.HTML(_HEADER_HTML)
 
-    with gr.Tabs():
+    with gr.Tabs() as tabs:
         # ── Analysis tab ──────────────────────────────────────────────────
         with gr.Tab("Analysis"):
             with gr.Row(equal_height=False):
@@ -1840,7 +2022,18 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                     elem_classes=["clear-icon-btn"],
                 )
 
-            with gr.Row():
+            with gr.Row(equal_height=True):
+                language_dd = gr.Dropdown(
+                    label="Report Language",
+                    choices=[
+                        "Auto (detect from topic)",
+                        "English", "Chinese", "Japanese", "Korean",
+                        "French", "German", "Spanish", "Portuguese",
+                        "Arabic", "Russian", "Hindi",
+                    ],
+                    value="Auto (detect from topic)",
+                    scale=2,
+                )
                 submit_btn = gr.Button("▶  Run Analysis", variant="primary", scale=3)
                 cancel_btn = gr.Button(
                     "⏹  Cancel", variant="secondary", scale=1,
@@ -1857,7 +2050,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
 
             submit_event = submit_btn.click(
                 fn=run_analysis,
-                inputs=topic_input,
+                inputs=[topic_input, language_dd],
                 outputs=[progress_output, score_output, report_output, download_md, download_pdf,
                          submit_btn, cancel_btn, log_output],
             )
@@ -1885,7 +2078,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
             )
 
         # ── History tab ───────────────────────────────────────────────────
-        with gr.Tab("History"):
+        with gr.Tab("History") as history_tab:
             with gr.Row():
                 gr.HTML('<p style="font-size:13px;color:#9a9a9a;margin:6px 0;">Past runs — paste a Run ID below to reload any report</p>')
                 refresh_btn = gr.Button("↻  Refresh", variant="secondary", scale=0, min_width=110)
@@ -1903,6 +2096,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
 
             refresh_btn.click(fn=_render_history_html, outputs=history_output)
             cleanup_btn.click(fn=_do_cleanup, outputs=[cleanup_status, history_output])
+            history_tab.select(fn=_render_history_html, outputs=history_output)
 
             with gr.Row():
                 run_id_input = gr.Textbox(

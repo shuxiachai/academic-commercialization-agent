@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 .DS_Store
+start.bat
 outputs/
 commercialization_report.md
 !examples/**/commercialization_report.md
