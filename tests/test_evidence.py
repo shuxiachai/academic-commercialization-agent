@@ -131,18 +131,20 @@ class EvidenceValidationTests(TestCase):
                 evidence_summary="This evidence summary is sufficiently descriptive.",
             )
 
-    def test_future_dates_are_rejected(self) -> None:
-        with self.assertRaises(ValidationError):
-            EvidenceSource(
-                source_id="A1",
-                title="Future source",
-                url="https://research.test-domain.org/future",
-                publisher="Publisher",
-                published_date=date.today() + timedelta(days=1),
-                accessed_date=date.today(),
-                source_type="academic_paper",
-                evidence_summary="This evidence summary is sufficiently descriptive.",
-            )
+    def test_future_dates_are_silently_cleared(self) -> None:
+        # Future published_date is silently nullified (not rejected) so that
+        # market snippets with forecast years do not crash the pipeline.
+        src = EvidenceSource(
+            source_id="A1",
+            title="Future source",
+            url="https://research.test-domain.org/future",
+            publisher="Publisher",
+            published_date=date.today() + timedelta(days=1),
+            accessed_date=date.today(),
+            source_type="academic_paper",
+            evidence_summary="This evidence summary is sufficiently descriptive.",
+        )
+        self.assertIsNone(src.published_date)
 
     def test_duplicate_urls_are_rejected(self) -> None:
         report = make_report()

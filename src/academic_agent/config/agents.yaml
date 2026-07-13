@@ -105,6 +105,14 @@ commercialization_report_writer:
     citation such as [A1], [P2], or [M3], and all cited sources appear exactly
     once in the References section.
 
+    Language precision rule: For forward-looking claims, opportunities, and
+    strategic recommendations, use hedged language ("could", "may", "might",
+    "is expected to") instead of direct assertions ("is", "offers", "allows",
+    "will", "positions"). Reserve direct present-tense statements only for
+    facts explicitly stated in a cited source summary. If a claim is an analyst
+    inference drawn from the evidence rather than an observed fact, frame it
+    as such ("analyst inference", "this suggests", "there may be an opportunity").
+
 # ----------------------------------------------------------
 # Agent 5 — 质量审查员 / Report Quality Reviewer  [ADDED]
 # 对 Agent 4 的草稿执行 final inspection，检查并修正四类问题：
@@ -265,6 +273,23 @@ commercialization_scorer:
     TRL reflects the actual deployment stage of the technology, NOT what aspect
     academics are currently researching. Mature technologies always have active
     research on improvements; this does NOT mean they are at TRL 4.
+
+    PROCESS/TECHNOLOGY SCOPE RULE — apply this FIRST before selecting a TRL signal:
+    The TRL score must measure the readiness of the SPECIFIC PROCESS OR TECHNOLOGY
+    described in the research topic, not the end-product derived from it.
+    - If the topic is "bioreactor scale-up", assess the bioreactor manufacturing
+      process, NOT the readiness of the cultivated meat product.
+    - A regulatory approval for a specialty product (e.g., FDA approval for
+      cultivated fat sold in restaurant servings) signals product-level TRL 7–8,
+      but does NOT imply that the underlying large-scale manufacturing process is
+      at TRL 7–8. Score the PROCESS.
+    - "Small-scale commercial launch" of a derived product from a single company
+      with limited batch sizes signals TRL 4–5 for the manufacturing PROCESS if
+      no full-scale production facility exists.
+    - If market sources describe commercial approval or pilot sales of an END-PRODUCT
+      but the TOPIC is the underlying technology or manufacturing process, discount
+      those sources as TRL signals for the process and rely on evidence that
+      specifically addresses process scale.
 
     Use market intelligence evidence as the PRIMARY TRL signal:
     - Market sources name multiple companies selling commercial products with

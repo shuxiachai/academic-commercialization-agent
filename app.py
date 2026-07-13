@@ -543,10 +543,15 @@ def _render_score_html(
     evi = s.get("evidence_confidence") or 0
     overall = s.get("overall_score") or 0
     scoring_rationale_raw = s.get("scoring_rationale", "")
-    # Strip debug prefix written by evidence.py auto-correction; show separately.
-    _autocorrect_match = re.match(r"^\[Auto-corrected:[^\]]+\]\s*", scoring_rationale_raw)
-    scoring_rationale = scoring_rationale_raw[_autocorrect_match.end():] if _autocorrect_match else scoring_rationale_raw
-    autocorrect_note = _autocorrect_match.group(0).strip("[] ") if _autocorrect_match else ""
+    # New runs: auto_corrected is a dedicated boolean field in the JSON.
+    # Old runs: fall back to regex stripping the legacy prefix.
+    if s.get("auto_corrected") is True:
+        autocorrect_note = True
+        scoring_rationale = scoring_rationale_raw
+    else:
+        _autocorrect_match = re.match(r"^\[Auto-corrected:[^\]]+\]\s*", scoring_rationale_raw)
+        autocorrect_note = bool(_autocorrect_match)
+        scoring_rationale = scoring_rationale_raw[_autocorrect_match.end():] if _autocorrect_match else scoring_rationale_raw
     risks = s.get("key_risks", [])
     opps = s.get("key_opportunities", [])
     trl_ids  = s.get("trl_source_ids", [])

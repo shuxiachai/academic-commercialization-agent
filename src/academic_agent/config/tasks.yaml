@@ -303,6 +303,12 @@ commercialization_scoring_task:
         commercial activity and demand signals.
       evidence_source_ids: all source IDs across all domains that meaningfully
         informed the overall confidence rating.
+    - Source ID consistency rule: Any source ID (A-, P-, or M-prefix) that you
+      cite inside key_opportunities, key_risks, or scoring_rationale free-text
+      fields MUST also appear in the corresponding source_ids list for that
+      dimension. For example, if you mention M4 in key_opportunities, M4 must
+      appear in market_source_ids. Inconsistency between narrative citations and
+      source_ids lists is an error.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose.
     All five dimension scores are INTEGERS on a ×10 scale (trl 10–90,

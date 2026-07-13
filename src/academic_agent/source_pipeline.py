@@ -27,6 +27,10 @@ _BIOMEDICAL_MARKERS: tuple[str, ...] = (
     "diagnostic", "implant", "surgical", "gene editing", "cell therapy",
     "gene therapy", "medical device", "antibody", "in vitro", "in vivo",
     "oncology", "cancer treatment", "immunotherapy",
+    # Bioprocess / cellular agriculture — manufacturing maturity is the key gate
+    "cultivated meat", "cultured meat", "cell-based meat", "cellular agriculture",
+    "tissue engineering", "stem cell", "bioprocessing", "bioreactor scale",
+    "fermentation scale", "cell culture scale",
 )
 _MATERIAL_MARKERS: tuple[str, ...] = (
     "catalyst", "catalysis", "polymer", "thin film", "nanoparticle",

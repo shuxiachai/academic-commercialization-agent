@@ -33,10 +33,6 @@ def main() -> None:
     args = parser.parse_args()
 
     from crewai.events.event_bus import crewai_event_bus
-    from crewai.events.types.agent_events import (
-        AgentExecutionCompletedEvent,
-        AgentExecutionStartedEvent,
-    )
     from crewai.events.types.tool_usage_events import (
         ToolUsageFinishedEvent,
         ToolUsageStartedEvent,
@@ -116,6 +112,8 @@ def main() -> None:
             except Exception:
                 pass
 
+        _total_agents = _PARALLEL_COUNT + len(_SEQUENTIAL_STAGES)
+
         def on_task_complete(_task_output) -> None:
             if parallel_done[0] < _PARALLEL_COUNT:
                 parallel_done[0] += 1
@@ -125,6 +123,12 @@ def main() -> None:
                     if parallel_done[0] == _PARALLEL_COUNT
                     else _PARALLEL_STAGE
                 )
+                _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
+                # All parallel tasks done — signal writer starting
+                if parallel_done[0] == _PARALLEL_COUNT:
+                    _write_step({"agent_idx": _PARALLEL_COUNT, "type": "action",
+                                 "thought": "", "tool": "reasoning",
+                                 "tool_input": "", "result": ""})
             else:
                 sequential_done[0] += 1
                 agent_idx = _PARALLEL_COUNT + sequential_done[0] - 1  # 3, 4, 5
@@ -134,7 +138,13 @@ def main() -> None:
                     if seq_idx < len(_SEQUENTIAL_STAGES)
                     else _SEQUENTIAL_STAGES[-1]
                 )
-            _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
+                _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
+                # Signal the next sequential agent starting, if any remain
+                next_idx = agent_idx + 1
+                if next_idx < _total_agents:
+                    _write_step({"agent_idx": next_idx, "type": "action",
+                                 "thought": "", "tool": "reasoning",
+                                 "tool_input": "", "result": ""})
             write_status(stage, output_language=source_collection.output_language)
 
         crew_obj = AcademicAgent(
@@ -173,18 +183,12 @@ def main() -> None:
                     "result": str(event.output or "").strip()[:400],
                 })
 
-            @crewai_event_bus.on(AgentExecutionStartedEvent)
-            def on_agent_started(source, event: AgentExecutionStartedEvent) -> None:
-                role = getattr(event.agent, "role", "") if event.agent else ""
-                idx = agent_role_to_idx.get(role, parallel_done[0] + sequential_done[0])
-                _write_step({
-                    "agent_idx": idx,
-                    "type": "action",
-                    "thought": "",
-                    "tool": "reasoning",
-                    "tool_input": "",
-                    "result": "",
-                })
+            # Pre-seed "started" action entries for all three parallel agents so
+            # Phase 1 shows live activity even when AgentExecutionStartedEvent
+            # does not fire consistently across threads.
+            for _i in range(_PARALLEL_COUNT):
+                _write_step({"agent_idx": _i, "type": "action", "thought": "",
+                             "tool": "reasoning", "tool_input": "", "result": ""})
 
             result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
 

@@ -334,11 +334,7 @@ def make_scoring_guardrail(
             f" → overall_score={correct_overall}]"
         )
         rationale = score.scoring_rationale
-        if correct_overall != score.overall_score:
-            rationale = (
-                f"[Auto-corrected: LLM stated overall_score={score.overall_score}, "
-                f"formula gives {correct_overall}] "
-            ) + rationale
+        auto_corrected = correct_overall != score.overall_score
 
         # Rebuild output with normalized float scores (not the raw ×10 integers).
         import json as _json
@@ -351,6 +347,7 @@ def make_scoring_guardrail(
             "evidence_confidence": evi,
             "overall_score": correct_overall,
             "scoring_rationale": rationale + formula_note,
+            "auto_corrected": auto_corrected,
         })
         output.pydantic = None
         output.raw = _json.dumps(out_dict)
