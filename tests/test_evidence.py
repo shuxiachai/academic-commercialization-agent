@@ -30,7 +30,7 @@ def make_source(source_id: str) -> EvidenceSource:
         published_date=date(2026, 1, 10),
         accessed_date=date.today(),
         source_type="academic_paper",
-        evidence_summary="This source directly supports the corresponding finding.",
+        evidence_summary="This source directly supports the corresponding finding with relevant experimental data.",
     )
 
 
@@ -128,7 +128,7 @@ class EvidenceValidationTests(TestCase):
                 publisher="Publisher",
                 accessed_date=date.today(),
                 source_type="academic_paper",
-                evidence_summary="This evidence summary is sufficiently descriptive.",
+                evidence_summary="This evidence summary is sufficiently descriptive for analysis purposes.",
             )
 
     def test_future_dates_are_silently_cleared(self) -> None:
@@ -142,7 +142,7 @@ class EvidenceValidationTests(TestCase):
             published_date=date.today() + timedelta(days=1),
             accessed_date=date.today(),
             source_type="academic_paper",
-            evidence_summary="This evidence summary is sufficiently descriptive.",
+            evidence_summary="This evidence summary is sufficiently descriptive for analysis purposes.",
         )
         self.assertIsNone(src.published_date)
 
@@ -161,7 +161,7 @@ class EvidenceValidationTests(TestCase):
                 publisher="Publisher",
                 accessed_date=date.today(),
                 source_type="academic_paper",
-                evidence_summary="This evidence summary is sufficiently descriptive.",
+                evidence_summary="This evidence summary is sufficiently descriptive for analysis purposes.",
             )
 
     def test_reachability_failure_blocks_task_guardrail(self) -> None:
@@ -352,7 +352,7 @@ Only public evidence was reviewed.
             publisher="Example University",
             accessed_date=date.today(),
             source_type="market_report",
-            evidence_summary="The report discusses battery safety and energy density.",
+            evidence_summary="The report discusses battery safety, energy density, and manufacturing cycle performance.",
         )
         report, allowed = self._report_with_extra_source(
             market_source,
@@ -371,7 +371,7 @@ Only public evidence was reviewed.
             publisher="Example University",
             accessed_date=date.today(),
             source_type="market_report",
-            evidence_summary="Commercial truck and bus fleets are evaluated for deployment.",
+            evidence_summary="Commercial truck and bus fleets are evaluated for large-scale EV deployment.",
         )
         report, allowed = self._report_with_extra_source(
             market_source,
@@ -403,7 +403,7 @@ Only public evidence was reviewed.
             publisher="Department of Energy",
             accessed_date=date.today(),
             source_type="government",
-            evidence_summary="The government assessment reviews the technology evidence.",
+            evidence_summary="The government assessment reviews the technology evidence and policy implications.",
         )
         report, allowed = self._report_with_extra_source(
             government_source,

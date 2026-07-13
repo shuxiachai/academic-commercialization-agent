@@ -18,7 +18,7 @@ def _make_collection() -> SourceCollection:
                 published_date=date(2025, 1, index),
                 accessed_date=date.today(),
                 source_type=source_type,
-                evidence_summary="Prevalidated evidence supplied by deterministic code.",
+                evidence_summary="Prevalidated evidence supplied by deterministic pipeline code for this test.",
             )
             for index in range(1, 4)
         ]

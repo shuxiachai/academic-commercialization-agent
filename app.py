@@ -134,9 +134,13 @@ def _render_live_log_html(steps_path: Path) -> str:
         return ""
 
     return (
+        '<style>'
+        '@keyframes _logSlide{from{opacity:.4;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}'
+        '</style>'
         f'<div style="font-family:ui-monospace,\'Cascadia Code\',monospace;'
         f'background:#0a0a0a;border:1px solid #2d2d2d;border-radius:8px;'
-        f'padding:12px 14px;max-height:280px;overflow-y:auto;margin-top:10px;">'
+        f'padding:12px 14px;max-height:280px;overflow-y:auto;margin-top:10px;'
+        f'animation:_logSlide 0.3s ease-out both;">'
         f'<div style="font-size:10px;font-weight:700;color:#444444;letter-spacing:0.08em;'
         f'text-transform:uppercase;margin-bottom:10px;">Live Agent Log</div>'
         f'{entries_html}'
@@ -478,20 +482,65 @@ def _render_source_warning_html(run_dir: Path) -> str:
             warnings.append(f"⚠ Patent: only {pa} source{'s' if pa != 1 else ''} (recommended ≥2)")
         if mk < 2:
             warnings.append(f"⚠ Market: only {mk} source{'s' if mk != 1 else ''} (recommended ≥2)")
-        # Staleness check: flag if ≥50% of market sources are older than 3 years or undated
+        # Staleness check: flag if ≥50% of market sources are older than 3 years or undated.
+        # High-credibility institutional sources (government, research institutes) are
+        # exempt from the "undated = stale" treatment — their content ages more slowly
+        # and their omission of a date rarely signals outdated intelligence.
         market_sources = data.get("market_sources", [])
         if market_sources:
             cutoff = date.today().replace(year=date.today().year - 3)
             stale = sum(
                 1 for ms in market_sources
-                if not ms.get("published_date")
-                or _date_is_before(ms["published_date"], cutoff)
+                if ms.get("credibility_tier") != "high"
+                and (
+                    not ms.get("published_date")
+                    or _date_is_before(ms["published_date"], cutoff)
+                )
             )
             if stale >= max(1, len(market_sources) // 2):
                 warnings.append(
                     f"⚠ Market: {stale}/{len(market_sources)} sources are undated or "
                     f"older than 3 years — market intelligence may be outdated"
                 )
+        # Patent age check: flag patents filed 15+ years ago that may have expired.
+        # Standard utility patent protection is 20 years from filing; at 15 years,
+        # the remaining term is short enough that the landscape analysis may be
+        # materially different once those patents lapse.
+        patent_sources = data.get("patent_sources", [])
+        if patent_sources:
+            pat_age_cutoff = date.today().replace(year=date.today().year - 15)
+            old_patents = sum(
+                1 for p in patent_sources
+                if p.get("published_date") and _date_is_before(p["published_date"], pat_age_cutoff)
+            )
+            if old_patents > 0:
+                warnings.append(
+                    f"⚠ Patents: {old_patents}/{len(patent_sources)} patent"
+                    f"{'s' if old_patents != 1 else ''} filed 15+ years ago "
+                    f"may have expired — verify legal status before relying on landscape analysis"
+                )
+
+        # Academic age check: warn when the oldest source is 5+ years old, since
+        # fast-moving fields (materials, biotech) can diverge significantly from
+        # a 2019 paper's conclusions.  Only surfaces the single oldest outlier
+        # rather than a percentage so the warning stays specific and actionable.
+        academic_sources = data.get("academic_sources", [])
+        if academic_sources:
+            ac_age_cutoff = date.today().replace(year=date.today().year - 5)
+            old_ac = [
+                (s["published_date"], s.get("title", ""))
+                for s in academic_sources
+                if s.get("published_date") and _date_is_before(s["published_date"], ac_age_cutoff)
+            ]
+            if old_ac:
+                oldest_date, oldest_title = min(old_ac, key=lambda x: x[0])
+                oldest_year = str(oldest_date)[:4]
+                short_title = oldest_title[:60] + ("…" if len(oldest_title) > 60 else "")
+                warnings.append(
+                    f"⚠ Academic: oldest source from {oldest_year} (\"{short_title}\") "
+                    f"— findings in fast-moving fields may not reflect current state of the art"
+                )
+
         if not warnings:
             return ""
         items_html = "".join(
@@ -723,10 +772,11 @@ _PHASE1_AGENTS = (
 def _progress_dot(state: str, spin: str) -> str:
     """Return a styled indicator dot for a progress step."""
     if state == "done":
-        # Green filled circle with SVG checkmark
+        # Green filled circle with SVG checkmark; pop-in animation on first render
         return (
             '<div style="width:18px;height:18px;border-radius:50%;background:#16a34a;'
-            'display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+            'display:flex;align-items:center;justify-content:center;flex-shrink:0;'
+            'animation:_dotPop 0.22s ease-out both;">'
             '<svg width="10" height="10" viewBox="0 0 10 10">'
             '<polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#fff" stroke-width="1.8" '
             'fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'
@@ -805,7 +855,8 @@ def _render_progress_html(
                 pa_c = "#f59e0b" if pa < 2 else "#6b7280"
                 mk_c = "#f59e0b" if mk < 2 else "#6b7280"
                 items.append(
-                    f'<div style="margin-bottom:10px;padding-left:28px;">'
+                    f'<div style="margin-bottom:10px;padding-left:28px;'
+                    f'animation:_agFade 0.2s ease-out both;">'
                     f'<span style="font-size:11px;color:#4b5563;">Sources: </span>'
                     f'<span style="font-size:11px;color:{ac_c};">{ac} academic</span>'
                     f'<span style="font-size:11px;color:#374151;"> · </span>'
@@ -829,7 +880,8 @@ def _render_progress_html(
                     )
                     row_style = f"font-size:12px;color:{color};font-weight:600;"
                 items.append(
-                    f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+                    f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;'
+                    f'animation:_agFade 0.22s ease-out both;animation-delay:{j * 65}ms;">'
                     f'{dot}'
                     f'<div style="{row_style}">{html.escape(agent_name)}</div>'
                     f'</div>'
@@ -858,6 +910,14 @@ def _render_progress_html(
     elapsed_str = f"{mins}m {secs:02d}s" if mins else f"{secs}s"
 
     return (
+        # Keyframe definitions (scoped by unique names; browser dedupes across redraws)
+        '<style>'
+        '@keyframes _agFade{from{opacity:.55;transform:translateX(-5px)}to{opacity:1;transform:translateX(0)}}'
+        '@keyframes _dotPop{0%{transform:scale(.55);opacity:0}65%{transform:scale(1.18)}100%{transform:scale(1);opacity:1}}'
+        '@keyframes _logSlide{from{opacity:.4;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}'
+        '@keyframes _bluePulse{0%,100%{box-shadow:0 0 0 3px #1e3a5f}50%{box-shadow:0 0 0 6px #1e3a5f66}}'
+        '</style>'
+
         f'<div style="font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;'
         f'background:#1a1a1a;border:1px solid #2d2d2d;border-left:4px solid #3b82f6;'
         f'border-radius:10px;padding:20px 24px;">'
@@ -865,13 +925,13 @@ def _render_progress_html(
         # Header row
         f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
         f'<div style="width:8px;height:8px;border-radius:50%;background:#3b82f6;'
-        f'box-shadow:0 0 0 3px #1e3a5f;flex-shrink:0;"></div>'
+        f'box-shadow:0 0 0 3px #1e3a5f;flex-shrink:0;animation:_bluePulse 2s ease infinite;"></div>'
         f'<span style="font-size:13px;font-weight:600;color:#f5f5f5;">{t["progress"]}</span>'
         f'<span style="margin-left:auto;font-size:12px;color:#6b7280;'
         f'font-variant-numeric:tabular-nums;">{elapsed_str}</span>'
         f'</div>'
 
-        # Progress bar
+        # Progress bar (width transition already present)
         f'<div style="background:#27272a;border-radius:4px;height:4px;margin-bottom:20px;overflow:hidden;">'
         f'<div style="height:100%;width:{pct}%;'
         f'background:linear-gradient(90deg,#3b82f6 0%,#6366f1 100%);'

@@ -924,9 +924,9 @@ def _academic_source_from_openalex(
             return None, f"OpenAlex title not relevant to topic: {title!r}"
 
     abstract = _openalex_abstract(work)
-    if len(abstract) < 40 and s2_client is not None:
+    if len(abstract) < 60 and s2_client is not None:
         abstract = s2_client.get_abstract_by_doi(doi)
-    if len(abstract) < 40:
+    if len(abstract) < 60:
         return None, f"abstract too thin ({len(abstract)} chars): {title!r}"
 
     primary = work.get("primary_location") or {}
@@ -947,13 +947,24 @@ def _academic_source_from_openalex(
 
     cited = int(work.get("cited_by_count") or 0)
     days_since_pub = (accessed_date - published).days if published else None
-    if cited == 0 and days_since_pub is not None and days_since_pub <= 90:
+    # Sparse abstract (60–119 chars) → downgrade to medium credibility so agents
+    # treat this source conservatively.  Full abstracts keep "high".
+    summary_sparse = len(abstract) < 120
+    if summary_sparse:
+        credibility_tier: str = "medium"
+        credibility_reason = (
+            f"OpenAlex record: DOI verified, peer-reviewed journal, "
+            f"{cited:,} citations. Brief evidence summary — detailed findings may be limited."
+        )
+    elif cited == 0 and days_since_pub is not None and days_since_pub <= 90:
+        credibility_tier = "high"
         credibility_reason = (
             "OpenAlex record: DOI verified, peer-reviewed journal. "
             f"Newly published ({days_since_pub}d ago); 0 citations is expected, "
             "not a quality signal."
         )
     else:
+        credibility_tier = "high"
         credibility_reason = (
             f"OpenAlex record: DOI verified, peer-reviewed journal, "
             f"{cited:,} citations."
@@ -968,7 +979,7 @@ def _academic_source_from_openalex(
             published_date=published,
             accessed_date=accessed_date,
             source_type="academic_paper",
-            credibility_tier="high",
+            credibility_tier=credibility_tier,
             credibility_reason=credibility_reason,
             evidence_summary=abstract[:1500],
             citation_count=cited,
@@ -994,7 +1005,7 @@ def _academic_source_from_s2(
         return None, f"S2 paper has no DOI: {title!r}"
     if not _title_matches_topic(title, research_topic):
         return None, f"S2 title not relevant to topic: {title!r}"
-    if len(abstract) < 40:
+    if len(abstract) < 60:
         return None, f"S2 abstract too thin ({len(abstract)} chars): {title!r}"
 
     venue = paper.get("publicationVenue") or {}
@@ -1016,6 +1027,7 @@ def _academic_source_from_s2(
         pass
 
     cited = int(paper.get("citationCount") or 0)
+    summary_sparse = len(abstract) < 120
     return (
         EvidenceSource(
             source_id=source_id,
@@ -1026,10 +1038,11 @@ def _academic_source_from_s2(
             published_date=published,
             accessed_date=accessed_date,
             source_type="academic_paper",
-            credibility_tier="high",
+            credibility_tier="medium" if summary_sparse else "high",
             credibility_reason=(
                 f"Semantic Scholar record: DOI verified, peer-reviewed journal, "
                 f"{cited:,} citations."
+                + (" Brief evidence summary — detailed findings may be limited." if summary_sparse else "")
             ),
             evidence_summary=abstract[:1500],
             citation_count=cited,
@@ -1623,8 +1636,22 @@ def _collect_academic_primary(
             continue
         _try_add(source, recent_audit)
 
-    # Fill remaining slots from high-citation track, skipping already-seen DOIs/titles
+    # Fill remaining slots from high-citation track, skipping already-seen DOIs/titles.
+    # Two-pass strategy: prefer papers published within the last 7 years; only fall
+    # back to older high-citation papers when there are not enough recent ones.
+    # This avoids filler papers from 2015–2018 crowding out newer work when the
+    # recent-papers track yielded fewer than recent_slots results.
+    _CITED_AGE_CUTOFF = date.today().replace(year=date.today().year - 7)
+    cited_preferred: list[dict] = []
+    cited_fallback: list[dict] = []
     for work in cited_works:
+        pub = _published_date(work)
+        if pub is None or pub >= _CITED_AGE_CUTOFF:
+            cited_preferred.append(work)
+        else:
+            cited_fallback.append(work)
+
+    for work in cited_preferred + cited_fallback:
         if len(accepted) >= maximum_sources:
             break
         source_id = f"A{len(accepted) + 1}"

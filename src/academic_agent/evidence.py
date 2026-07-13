@@ -165,7 +165,7 @@ class EvidenceSource(BaseModel):
         min_length=10,
     )
     evidence_summary: str = Field(
-        min_length=20,
+        min_length=60,
         description="A concise paraphrase of what this source actually supports.",
     )
     citation_count: int | None = Field(
@@ -262,6 +262,24 @@ class CommercializationScore(BaseModel):
     key_opportunities: list[str] = Field(min_length=1, max_length=5)
 
 
+_BARE_BENCHMARK_RE = re.compile(
+    r"\b(benchmark)\s+(?=\(?\s*TRL\b)",
+    re.IGNORECASE,
+)
+
+
+def _tag_bare_benchmark_refs(rationale: str) -> str:
+    """Replace bare 'benchmark (TRL …)' with 'calibration anchor (TRL …)'.
+
+    The scorer's backstory embeds canonical calibration anchors (LFP, solid-state
+    batteries, etc.).  When the LLM writes "consistent with the … benchmark (TRL X)"
+    without labelling its source, readers cannot tell whether the number comes from
+    an evidence source or from the internal rubric.  This function normalises the
+    phrasing to 'calibration anchor' so the distinction is unambiguous.
+    """
+    return _BARE_BENCHMARK_RE.sub("calibration anchor ", rationale)
+
+
 def make_scoring_guardrail(
     weight_profile: str = "industrial",
     *,
@@ -334,7 +352,7 @@ def make_scoring_guardrail(
             f" + ({evi}/5)×{weights['evidence']}={evi_c:.2f}"
             f" = {correct_overall}  [{weight_profile}]"
         )
-        rationale = score.scoring_rationale
+        rationale = _tag_bare_benchmark_refs(score.scoring_rationale)
         auto_corrected = correct_overall != score.overall_score
 
         # Rebuild output with normalized float scores (not the raw ×10 integers).

@@ -509,6 +509,17 @@ commercialization_scorer:
        → overall ≈ 83
        Note: high overall despite patent_strength=1 because market and TRL are maximal.
 
+    CALIBRATION ANCHOR ATTRIBUTION RULE:
+    When scoring_rationale references a calibration benchmark by name
+    (e.g., "solid-state batteries", "LFP batteries", "CAR-T"), always
+    label it explicitly as a "calibration anchor" so readers can distinguish
+    it from A-, P-, or M-prefixed source citations.
+    Write: "calibration anchor for [topic] (TRL X, MRL Y)"
+    NOT: "benchmark (TRL X, MRL Y)" or "the [topic] benchmark (TRL X)".
+    Example: "This is consistent with the calibration anchor for solid-state
+    lithium batteries (TRL 6, MRL 5), which represents the mid-anchor for
+    pilot-stage technologies with no commercial product."
+
     BENCHMARK CONSISTENCY CHECK — before finalising your scores:
     Compare the topic to these four anchors and place it on the scale below:
 

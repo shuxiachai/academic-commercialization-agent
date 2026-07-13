@@ -76,6 +76,11 @@ patent_analysis_task:
     - Never invent patent numbers, family counts, legal status, or coverage.
     - Treat white-space conclusions as analyst_inference and state limitations.
     - Do not claim legal clearance or freedom to operate.
+    - Patent age note: If a patent source has a published_date that is 10 or
+      more years ago, note in the relevant finding that its legal status
+      (granted, expired, or abandoned) has not been confirmed and may affect
+      the landscape analysis. Expired patents represent cleared freedom-to-operate
+      in their claimed scope, which changes the commercial implication.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose:
     {"scope_summary":"...",
@@ -315,6 +320,14 @@ commercialization_scoring_task:
       deviate from the report's TRL by more than one level without citing
       specific evidence in the raw evidence JSON that justifies the discrepancy;
       explain any deviation explicitly in trl_rationale.
+    - Calibration anchor attribution rule: If scoring_rationale references
+      a calibration benchmark by name (e.g., "solid-state batteries", "LFP
+      batteries"), label it as "calibration anchor" — NOT bare "benchmark".
+      Write "calibration anchor for [topic] (TRL X, MRL Y)" so readers can
+      distinguish internal rubric references from A-/P-/M-prefixed source
+      citations. Never invent TRL/MRL benchmark numbers that are not present
+      in the scoring rubric's CALIBRATION BENCHMARKS section or in the
+      provided evidence JSON.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose.
     All five dimension scores are INTEGERS on a ×10 scale (trl 10–90,

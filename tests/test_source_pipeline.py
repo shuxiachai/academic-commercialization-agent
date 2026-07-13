@@ -483,7 +483,7 @@ class SourcePipelineTests(TestCase):
                     {
                         "title": f"Authoritative direct air capture assessment {index}",
                         "link": f"https://{host}/reports/direct-air-capture",
-                        "snippet": "Independent research assessment with sufficient context.",
+                        "snippet": "Independent research assessment with sufficient context for validated direct air capture evidence.",
                     },
                     f"M{index}",
                     "market",
