@@ -54,35 +54,42 @@ Agent 4: Technology Commercialization Report Writer
 
 Agent 5: Report Reviewer
          Tools:   None (uses Agent 4 draft as input)
-         Output:  Corrected final report; Reviewer Notes automatically split into reviewer_notes.md
+         Rules:   6 rules — citation integrity, unsupported numeric claims, overconfident
+                  language, patent legal framing, evidence consistency, TRL label consistency
+         Output:  Corrected final report; Reviewer Notes saved separately (only actual changes logged)
 
 Agent 6: Commercialization Readiness Scorer
          Tools:   None (reads Tasks 1–3 evidence JSON directly, independent of the report)
          Output:  CommercializationScore JSON — TRL / MRL / Patent / Market / Evidence confidence
-         Guard:   JSON format validation + weighted formula correction; auto-retries up to 2×
+         Guard:   JSON format validation + hallucinated source ID check + weighted formula
+                  correction; auto-retries up to 2×
 ```
+
+Agents 1–3 run in **parallel** (`async_execution=True`), reducing total pipeline time.
 
 ---
 
 ### Execution flow
 
 ```
-Step 0  Source collection & validation (pre-run, deterministic)
+Step 0  Source collection & validation (subprocess, deterministic)
         Academic: OpenAlex Works API (filter=title.search, sorted by citation count)
                   → Semantic Scholar supplement (when OpenAlex count is below target)
                   → DOI deduplication; summaries < 100 chars auto-rejected
-        Patent:   Serper → Google Patents / WIPO; URL reachability verified
+                  → Concurrent Crossref citation-count backfill (ThreadPoolExecutor)
+        Patent:   Serper (3-attempt retry with exponential backoff) → Google Patents / WIPO;
+                  URL reachability verified; patent hosts short-circuited
         Market:   Serper + domain allowlist (30+ approved institutions); low-quality sites removed
         Metadata: Crossref API for DOI, journal name, publication date
-        Output:   validated_sources.json passed into Crew
+        Output:   validated_sources.json + status.json passed to subprocess pipeline
 
-Step 1  Agent 1 — Academic literature analysis
-Step 2  Agent 2 — Patent landscape analysis
-Step 3  Agent 3 — Market intelligence analysis
-Step 4  Agent 4 — Comprehensive report writing  (guardrail validates citations)
-Step 5  Agent 5 — Quality review               (Reviewer Notes saved separately)
-Step 6  Agent 6 — Quantitative scoring         (parallel to Step 4, formula-corrected)
+Steps 1–3  Agents 1/2/3 — Academic / Patent / Market analysis  (parallel)
+Step 4     Agent 4 — Comprehensive report writing  (guardrail validates citations)
+Step 5     Agent 5 — Quality review  (Reviewer Notes saved separately)
+Step 6     Agent 6 — Quantitative scoring  (independent of report; formula auto-corrected)
 ```
+
+The pipeline runs in a **subprocess** (`pipeline_worker.py`) so the Gradio UI can cancel it immediately via `proc.terminate()`.
 
 ---
 
@@ -157,10 +164,11 @@ uv run python app.py
 Open `http://localhost:7860` in your browser, enter a research topic, and click **Run Analysis**.
 
 UI features:
-- **Live progress**: 6-agent pipeline stages + elapsed time
-- **Scorecard**: Overall score (0–100) + four-dimension bar chart with source ID chips (e.g. `A2` `M1`) traceable to validated sources
-- **Report**: Full Markdown render + `.md` / `.pdf` download buttons
-- **History tab**: Browse all past runs; load any run by ID
+- **Live progress**: Per-agent status rows for Phase 1 (parallel agents) + elapsed time
+- **Scorecard**: Overall score (0–100) + five-dimension radar chart + bar chart with source ID chips (e.g. `A2` `M1`) traceable to validated sources; weight profile badge shows which scoring profile was applied
+- **Source warning**: Amber banner when any domain has fewer sources than the recommended minimum
+- **Report**: Full Markdown render + `.md` / `.pdf` download (PDF generated in background; report appears immediately)
+- **History tab**: Browse all past runs; click any row to fill the Run ID field automatically; Run ID column for easy copy
 
 **Option B — Command line**
 
@@ -181,7 +189,9 @@ outputs/
     ├── commercialization_report.pdf   # Final report (PDF, CJK-font-aware)
     ├── commercialization_scores.json  # Quantitative scorecard
     ├── validated_sources.json         # Pre-validated source list
-    └── reviewer_notes.md              # Reviewer change log (separated from main report)
+    ├── reviewer_notes.md              # Reviewer change log (separated from main report)
+    ├── status.json                    # Pipeline stage + source counts (polled by UI)
+    └── steps.jsonl                    # Per-agent step events (polled for live progress)
 ```
 
 ---
@@ -229,16 +239,17 @@ uv run python benchmark_check.py
 academic_agent/
 ├── src/academic_agent/
 │   ├── crew.py              # Crew definition (6 agents / tasks wired together)
+│   ├── pipeline_worker.py   # Subprocess worker: runs pipeline, writes status.json + steps.jsonl
 │   ├── main.py              # CLI entry point (--topic "your topic" flag)
 │   ├── evidence.py          # Evidence models, guardrail validators, CommercializationScore
 │   ├── source_pipeline.py   # Pre-run deterministic source collection & validation
-│   ├── llm_config.py        # Multi-LLM config (DeepSeek / OpenAI / Anthropic; auto-detection, JSON mode, temperature)
-│   ├── run_output.py        # Run ID, report & scorecard persistence
+│   ├── llm_config.py        # Multi-LLM config (DeepSeek / OpenAI / Anthropic; JSON mode)
+│   ├── run_output.py        # Run ID, report & scorecard persistence; StepEntry TypedDict
 │   └── config/
-│       ├── agents.yaml      # Agent role definitions (6 agents)
+│       ├── agents.yaml      # Agent role definitions + scoring rubrics (6 agents)
 │       └── tasks.yaml       # Task requirements & citation rules (6 tasks)
-├── tests/                   # Unit tests and crew wiring tests (103 tests)
-├── app.py                   # Gradio web UI (scorecard with source ID chips)
+├── tests/                   # Unit tests and integration tests
+├── app.py                   # Gradio web UI (scorecard, radar chart, history tab)
 ├── benchmark.py             # 10-topic benchmark runner
 ├── benchmark_check.py       # Benchmark result analyzer (CSV + terminal table)
 ├── outputs/
@@ -256,29 +267,41 @@ academic_agent/
 - **Framework**: CrewAI 1.14.x
 - **LLM**: DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — auto-detected from API key, or set `LLM_PROVIDER` explicitly
 - **Academic sources**: OpenAlex Works API (primary) + Semantic Scholar Academic Graph API (supplement)
-- **Patent / market search**: SerperDevTool
+- **Patent / market search**: SerperDevTool (3-attempt retry with exponential backoff)
 - **Academic metadata**: Crossref API (DOI verification and abstract retrieval)
-- **Data validation**: Pydantic v2 + custom guardrails (source structure, citation integrity, report structure, scoring formula)
+- **Data validation**: Pydantic v2 + custom guardrails (source structure, citation integrity, report structure, scoring formula, hallucinated source ID detection)
 - **Web UI**: Gradio 6.x
-- **PDF export**: xhtml2pdf + reportlab (native CJK font registration for Chinese, Japanese, Korean)
+- **PDF export**: reportlab Platypus (embedded TTFont for CJK; falls back to CID fonts)
 - **Python**: 3.11+
 
-Invalid or unreachable URLs/DOIs, mismatched citation IDs, References inconsistencies, malformed report sections, and scoring JSON format errors all block the task and trigger automatic retries.
+Invalid or unreachable URLs/DOIs, mismatched citation IDs, References inconsistencies, malformed report sections, hallucinated source IDs in scoring, and scoring JSON format errors all block the task and trigger automatic retries.
 
 ---
 
-### Scoring dimensions
+### Scoring dimensions & weight profiles
 
-| Dimension | Field | Max | Weight | Description |
-|-----------|-------|-----|--------|-------------|
-| Market accessibility | `market_accessibility` | 5 | 35% | 1 = no commercial activity, 5 = mature market with revenue data |
-| Technology readiness | `trl_score` | 9 | 20% | NASA TRL 1–9; market deployment evidence is the primary signal |
-| Manufacturing readiness | `mrl_score` | 10 | 15% | DoD MRL 1–10; reflects scalable production capability |
-| IP landscape navigability | `patent_strength` | 5 | 20% | 1 = highly contested, 5 = minimal patent coverage |
-| Evidence confidence | `evidence_confidence` | 5 | 10% | Cross-validation across multiple source types (meta-dimension) |
-| **Overall score** | `overall_score` | **100** | — | `round((market/5)×35 + (TRL/9)×20 + (MRL/10)×15 + (patent/5)×20 + (confidence/5)×10)` |
+Scores are computed using a **weight profile** selected automatically based on the topic's industry domain. The profile is stored in `validated_sources.json` and shown as a badge in the UI scorecard.
 
-Each dimension records its supporting source IDs (`trl_source_ids`, `patent_source_ids`, `market_source_ids`, `evidence_source_ids`), visible in the Gradio scorecard and traceable to the original validated sources.
+| Profile | Market | TRL | MRL | Patent | Evidence | Typical domain |
+|---|---|---|---|---|---|---|
+| `industrial` | 35% | 20% | 15% | 20% | 10% | General / cleantech / materials |
+| `biotech` | 30% | 25% | 20% | 15% | 10% | Biotech / pharma / medical |
+| `material_science` | 25% | 30% | 20% | 15% | 10% | Advanced materials / chemistry |
+| `software` | 40% | 15% | 5% | 25% | 15% | Software / digital |
+| `deep_tech` | 20% | 35% | 20% | 15% | 10% | Quantum / fusion / frontier tech |
+
+All profiles sum to 100%. The `overall_score` is computed by the system from dimension scores and the active profile — the LLM always writes `overall_score: 0` and the formula corrects it automatically.
+
+| Dimension | Field | Max | Description |
+|-----------|-------|-----|-------------|
+| Technology readiness | `trl_score` | 9 | NASA TRL 1–9 |
+| Manufacturing readiness | `mrl_score` | 10 | DoD MRL 1–10 |
+| IP landscape navigability | `patent_strength` | 5 | 1 = highly contested, 5 = minimal coverage |
+| Market accessibility | `market_accessibility` | 5 | 1 = no commercial activity, 5 = mature market |
+| Evidence confidence | `evidence_confidence` | 5 | Cross-validation across source types |
+| **Overall score** | `overall_score` | **100** | Weighted formula, profile-dependent |
+
+Each dimension records its supporting source IDs visible in the Gradio scorecard.
 
 ---
 
@@ -335,35 +358,40 @@ Agent 4: Technology Commercialization Report Writer（报告撰写师）
 
 Agent 5: Report Reviewer（质量审查员）
          工具：无（以 Agent 4 草稿作为输入）
-         输出：修正后的最终报告；审查员注记（Reviewer Notes）自动分离，单独保存至 reviewer_notes.md
+         规则：6 条规则——引用完整性、无来源数字声明、过度乐观语言、
+               专利法律免责措辞、证据一致性、TRL 标签与正文一致性
+         输出：修正后的最终报告；Reviewer Notes 仅记录实际修改条目，自动保存至 reviewer_notes.md
 
 Agent 6: Commercialization Readiness Scorer（量化评分员）
          工具：无（以 Task 1/2/3 结构化证据为输入，独立于报告流程）
          输出：CommercializationScore JSON 评分卡，含 TRL / MRL / 专利 / 市场 / 证据置信度五维评分
-         校验：JSON 格式验证 + 加权公式自动修正 overall_score，不通过则自动重试（最多 2 次）
+         校验：JSON 格式 + 幻觉来源 ID 检测 + 加权公式自动修正，不通过则自动重试（最多 2 次）
 ```
+
+Agent 1/2/3 并行执行（`async_execution=True`），显著缩短总运行时间。
 
 ---
 
 ### 执行流程
 
 ```
-Step 0  来源收集与验证（运行前，确定性）
+Step 0  来源收集与验证（子进程，确定性）
         学术：OpenAlex Works API（filter=title.search，按引用数降序）
               → Semantic Scholar 补充（当 OpenAlex 不足最大来源数时触发）
               → 按 DOI 去重，摘要 <100 字符的记录自动剔除
-        专利：Serper 检索 Google Patents / WIPO，验证 URL 可达性
+              → 并发 Crossref 引用数补全（ThreadPoolExecutor）
+        专利：Serper（3 次重试 + 指数退避）→ Google Patents / WIPO，验证 URL 可达性
         市场：Serper 检索 + 域名白名单过滤（30+ 认可机构），剔除低质量站点
         元数据：Crossref API 补充 DOI、期刊名、发表日期
-        输出 validated_sources.json 并传入 Crew
+        输出 validated_sources.json + status.json 传入子进程流水线
 
-Step 1  Agent 1 执行 — 学术文献分析
-Step 2  Agent 2 执行 — 专利图谱分析
-Step 3  Agent 3 执行 — 市场情报分析
-Step 4  Agent 4 执行 — 综合报告撰写（guardrail 校验引用完整性）
-Step 5  Agent 5 执行 — 质量审查（Reviewer Notes 单独保存）
-Step 6  Agent 6 执行 — 量化评分（并行于 Step 4，公式自动修正）
+Steps 1–3  Agent 1/2/3 — 学术 / 专利 / 市场分析（并行）
+Step 4     Agent 4 — 综合报告撰写（guardrail 校验引用完整性）
+Step 5     Agent 5 — 质量审查（Reviewer Notes 单独保存）
+Step 6     Agent 6 — 量化评分（独立于报告；公式自动修正）
 ```
+
+流水线在 **子进程**（`pipeline_worker.py`）中运行，Gradio UI 可通过 `proc.terminate()` 即时取消。
 
 ---
 
@@ -438,10 +466,11 @@ uv run python app.py
 浏览器打开 `http://localhost:7860`，在输入框填写研究方向，点击 Run Analysis。
 
 界面功能：
-- **实时进度**：6 个 Agent 流水线阶段 + 已用时间（mm:ss）
-- **评分卡**：综合分（0–100）+ TRL / 专利 / 市场 / 证据四维条形图（动态颜色）；每个维度下方展示支撑该评分的来源 ID 标签（如 `A2` `M1`），可追溯至验证过的原始来源
-- **报告**：Markdown 全文渲染 + `.md` / `.pdf` 双格式下载按钮
-- **History 标签页**：浏览所有历史运行（含本地时间戳），输入 Run ID 一键加载历史报告和评分
+- **实时进度**：Phase 1 并行三个 Agent 的独立状态行 + 已用时间
+- **评分卡**：综合分（0–100）+ 五维雷达图 + 条形图，每个维度展示支撑来源 ID 标签（如 `A2` `M1`）；Weight Profile 徽章显示当前使用的评分权重方案
+- **来源警告**：任一域名来源不足时显示橙色提示横幅
+- **报告**：Markdown 全文渲染 + `.md` / `.pdf` 双格式下载（PDF 后台生成，报告立即显示）
+- **History 标签页**：浏览所有历史运行；点击任意行自动填入 Run ID；包含 Run ID 列便于复制
 
 **方式二：命令行**
 
@@ -462,7 +491,9 @@ outputs/
     ├── commercialization_report.pdf  # 最终报告（PDF，支持 CJK 字体）
     ├── commercialization_scores.json # 量化评分卡
     ├── validated_sources.json        # 预验证来源清单
-    └── reviewer_notes.md             # 审查员修改记录（与正文分离，供追溯）
+    ├── reviewer_notes.md             # 审查员修改记录（与正文分离）
+    ├── status.json                   # 流水线阶段 + 来源数量（UI 轮询用）
+    └── steps.jsonl                   # 每个 Agent 的步骤事件（实时进度用）
 ```
 
 ---
@@ -510,16 +541,17 @@ uv run python benchmark_check.py
 academic_agent/
 ├── src/academic_agent/
 │   ├── crew.py              # Crew 定义（6 个 Agent / Task 接线）
+│   ├── pipeline_worker.py   # 子进程 Worker：运行流水线，写入 status.json + steps.jsonl
 │   ├── main.py              # 命令行入口（支持 --topic 参数）
 │   ├── evidence.py          # 证据模型、guardrail 校验、CommercializationScore 模型
 │   ├── source_pipeline.py   # 运行前确定性来源收集与验证
-│   ├── llm_config.py        # 多 LLM 配置（DeepSeek / OpenAI / Anthropic；自动检测、JSON 模式、temperature）
-│   ├── run_output.py        # 运行 ID、报告与评分 JSON 持久化
+│   ├── llm_config.py        # 多 LLM 配置（DeepSeek / OpenAI / Anthropic；JSON 模式）
+│   ├── run_output.py        # 运行 ID、报告与评分 JSON 持久化；StepEntry TypedDict
 │   └── config/
-│       ├── agents.yaml      # Agent 角色配置（6 个）
+│       ├── agents.yaml      # Agent 角色配置 + 评分 rubric（6 个）
 │       └── tasks.yaml       # Task 需求与引用规则（6 个）
-├── tests/                   # 单元测试与 Crew 接线测试（103 个）
-├── app.py                   # Gradio 网页界面（含评分卡来源 ID chips）
+├── tests/                   # 单元测试与集成测试
+├── app.py                   # Gradio 网页界面（评分卡、雷达图、History 标签页）
 ├── benchmark.py             # 10 话题基准测试运行器
 ├── benchmark_check.py       # 基准结果分析器（生成 CSV + 终端表格）
 ├── outputs/
@@ -537,26 +569,38 @@ academic_agent/
 - **框架**：CrewAI 1.14.x
 - **LLM**：DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — 自动从 API Key 检测，或通过 `LLM_PROVIDER` 显式指定
 - **学术来源**：OpenAlex Works API（主力）+ Semantic Scholar Academic Graph API（补充）
-- **专利 / 市场搜索**：SerperDevTool
-- **学术元数据**：Crossref API（DOI 验证与摘要检索）
-- **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、评分算法验证）
+- **专利 / 市场搜索**：SerperDevTool（3 次重试 + 指数退避）
+- **学术元数据**：Crossref API（DOI 验证与摘要检索）+ 并发引用数补全
+- **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、幻觉来源 ID 检测、评分算法验证）
 - **网页界面**：Gradio 6.x
-- **PDF 导出**：xhtml2pdf + reportlab（原生 CJK 字体注册，支持中文简繁体、日文、韩文等多语言报告）
-- **Python**：3.10+
+- **PDF 导出**：reportlab Platypus（嵌入式 TTFont，支持 CJK；回退至 CID 字体）
+- **Python**：3.11+
 
-URL/DOI 无效或不可达、引用编号错误、References 不一致、报告结构错误和评分 JSON 格式错误都会阻止任务并触发重试。
+URL/DOI 无效或不可达、引用编号错误、References 不一致、报告结构错误、幻觉来源 ID 和评分 JSON 格式错误都会阻止任务并触发重试。
 
 ---
 
-### 评分维度说明
+### 评分维度与权重方案
 
-| 维度 | 字段 | 满分 | 权重 | 说明 |
-|------|------|------|------|------|
-| 市场可及性 | `market_accessibility` | 5 | 35% | 1=无商业活动，5=成熟市场有收入数据 |
-| 技术成熟度 | `trl_score` | 9 | 20% | NASA TRL 1–9，以市场部署证据为主信号 |
-| 制造成熟度 | `mrl_score` | 10 | 15% | DoD MRL 1–10，反映可规模化生产程度 |
-| IP 景观可导航性 | `patent_strength` | 5 | 20% | 1=高度竞争，5=几乎无专利保护 |
-| 证据置信度 | `evidence_confidence` | 5 | 10% | 多维来源交叉验证程度（元维度） |
-| **综合分** | `overall_score` | **100** | — | `round((市场/5)×35 + (TRL/9)×20 + (MRL/10)×15 + (专利/5)×20 + (置信度/5)×10)` |
+评分使用**权重方案（weight profile）**，系统根据话题所属行业自动选择，并存入 `validated_sources.json`，在 UI 评分卡中以徽章显示。
 
-每个维度评分同时记录支撑来源 ID（`trl_source_ids` / `patent_source_ids` / `market_source_ids` / `evidence_source_ids`），可在 Gradio 评分卡中直接查看并追溯至原始文献。
+| 方案 | 市场 | TRL | MRL | 专利 | 证据 | 典型领域 |
+|---|---|---|---|---|---|---|
+| `industrial` | 35% | 20% | 15% | 20% | 10% | 通用 / 清洁技术 / 材料 |
+| `biotech` | 30% | 25% | 20% | 15% | 10% | 生物技术 / 制药 / 医疗 |
+| `material_science` | 25% | 30% | 20% | 15% | 10% | 先进材料 / 化学 |
+| `software` | 40% | 15% | 5% | 25% | 15% | 软件 / 数字 |
+| `deep_tech` | 20% | 35% | 20% | 15% | 10% | 量子 / 聚变 / 前沿技术 |
+
+所有方案权重之和为 100%。`overall_score` 由系统根据维度分数和当前方案自动计算——LLM 始终输出 `overall_score: 0`，系统公式自动修正。
+
+| 维度 | 字段 | 满分 | 说明 |
+|------|------|------|------|
+| 技术成熟度 | `trl_score` | 9 | NASA TRL 1–9 |
+| 制造成熟度 | `mrl_score` | 10 | DoD MRL 1–10 |
+| IP 景观可导航性 | `patent_strength` | 5 | 1=高度竞争，5=几乎无专利保护 |
+| 市场可及性 | `market_accessibility` | 5 | 1=无商业活动，5=成熟市场有收入数据 |
+| 证据置信度 | `evidence_confidence` | 5 | 多维来源交叉验证程度（元维度） |
+| **综合分** | `overall_score` | **100** | 加权公式，因方案而异 |
+
+每个维度评分同时记录支撑来源 ID，可在 Gradio 评分卡中直接查看并追溯至原始文献。
