@@ -114,6 +114,32 @@ def _metric_color(pct: int) -> str:
         return "#dc2626"
 
 
+_CHIP_ONCLICK = (
+    "(function(id){"
+    "var d=document.getElementById('_acadSrcData');"
+    "if(!d)return;"
+    "var idx;try{idx=JSON.parse(d.textContent);}catch(e){return;}"
+    "var s=idx[id]||{};"
+    "var panel=document.getElementById('_acadSrcPanel');"
+    "var content=document.getElementById('_acadSrcContent');"
+    "if(!panel||!content)return;"
+    "function esc(x){return String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}"
+    "var h='<div style=\"font-size:12px;color:#e5e5e5;font-weight:600;margin-bottom:8px;\">'+esc(s.title||'—')+'</div>';"
+    "h+='<div style=\"display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#777777;margin-bottom:8px;\">';"
+    "h+='<span style=\"font-weight:700;color:#9a9a9a;\">'+id+'</span>';"
+    "if(s.source_type)h+='<span>'+esc(s.source_type)+'</span>';"
+    "if(s.published_date)h+='<span>'+esc(String(s.published_date||'').slice(0,10))+'</span>';"
+    "if(s.credibility_tier)h+='<span>✓ '+esc(s.credibility_tier)+'</span>';"
+    "if(s.citation_count!=null)h+='<span>'+s.citation_count+' citations</span>';"
+    "h+='</div>';"
+    "if(s.url)h+='<div style=\"margin-bottom:8px;\"><a href=\"'+esc(s.url)+'\" target=\"_blank\" style=\"font-size:11px;color:#60a5fa;word-break:break-all;\">'+esc(s.url)+'</a></div>';"
+    "if(s.evidence_summary)h+='<div style=\"font-size:11px;color:#9a9a9a;line-height:1.6;padding:8px;background:#0a0a0a;border-radius:6px;\">'+esc(String(s.evidence_summary||'').slice(0,350))+'</div>';"
+    "content.innerHTML=h;"
+    "panel.style.display='block';"
+    "})('{ID}')"
+)
+
+
 def _source_id_chips(ids: list) -> str:
     if not ids:
         return ""
@@ -121,7 +147,7 @@ def _source_id_chips(ids: list) -> str:
         f'<span style="display:inline-block;background:#222222;border:1px solid #333333;'
         f'color:#9a9a9a;font-size:9px;font-family:ui-monospace,monospace;font-weight:600;'
         f'padding:1px 5px;border-radius:4px;margin:1px 1px 0;cursor:pointer;" '
-        f'onclick="_acadShowSrc(\'{html.escape(str(sid))}\')" '
+        f'onclick="{_CHIP_ONCLICK.replace("{ID}", html.escape(str(sid)))}" '
         f'title="Click to view source details">'
         f'{html.escape(str(sid))}</span>'
         for sid in ids
@@ -696,36 +722,12 @@ def _build_sources_index(run_dir: Path) -> dict:
 
 
 def _src_detail_panel_html(sources_index: dict) -> str:
-    """Hidden source-detail drawer + script that powers chip-click interactions."""
+    """Hidden source-detail drawer; data stored in a <div> so onclick works after innerHTML update."""
     if not sources_index:
         return ""
-    src_json = json.dumps(sources_index, ensure_ascii=False, default=str)
-    js = (
-        "(function(){"
-        "var idx=" + src_json + ";"
-        "window._acadSrcIdx=Object.assign(window._acadSrcIdx||{},idx);"
-        "window._acadShowSrc=function(id){"
-        "var s=(window._acadSrcIdx||{})[id];"
-        "var panel=document.getElementById('_acadSrcPanel');"
-        "var content=document.getElementById('_acadSrcContent');"
-        "if(!s||!panel||!content)return;"
-        "function esc(x){return String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}"
-        "var h='<div style=\"font-size:12px;color:#e5e5e5;font-weight:600;margin-bottom:8px;line-height:1.4;\">'+esc(s.title||'—')+'</div>';"
-        "h+='<div style=\"display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#777777;margin-bottom:8px;\">';"
-        "h+='<span style=\"font-weight:700;color:#9a9a9a;\">'+id+'</span>';"
-        "if(s.source_type)h+='<span>'+esc(s.source_type)+'</span>';"
-        "if(s.published_date)h+='<span>'+esc((s.published_date||'').slice(0,10))+'</span>';"
-        "if(s.credibility_tier)h+='<span>✓ '+esc(s.credibility_tier)+'</span>';"
-        "if(s.citation_count!=null)h+='<span>'+s.citation_count+' citations</span>';"
-        "h+='</div>';"
-        "if(s.url)h+='<div style=\"margin-bottom:8px;\"><a href=\"'+esc(s.url)+'\" target=\"_blank\" style=\"font-size:11px;color:#60a5fa;word-break:break-all;\">'+esc(s.url)+'</a></div>';"
-        "if(s.evidence_summary)h+='<div style=\"font-size:11px;color:#9a9a9a;line-height:1.6;padding:8px;background:#0a0a0a;border-radius:6px;\">'+esc((s.evidence_summary||'').slice(0,350))+'…</div>';"
-        "content.innerHTML=h;"
-        "panel.style.display='block';"
-        "};"
-        "})();"
-    )
+    src_json = html.escape(json.dumps(sources_index, ensure_ascii=False, default=str))
     return (
+        f'<div id="_acadSrcData" style="display:none">{src_json}</div>'
         '<div id="_acadSrcPanel" style="display:none;margin-top:12px;'
         'background:#141414;border:1px solid #2d2d2d;border-radius:8px;'
         'padding:14px 16px;position:relative;">'
@@ -735,7 +737,6 @@ def _src_detail_panel_html(sources_index: dict) -> str:
         'title="Close">✕</button>'
         '<div id="_acadSrcContent"></div>'
         '</div>'
-        f'<script>{js}</script>'
     )
 
 
