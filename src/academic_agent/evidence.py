@@ -33,6 +33,16 @@ _WEIGHT_PROFILES: dict[str, dict[str, float]] = {
     "material_science": {
         "market": 20.0, "trl": 30.0, "patent": 20.0, "mrl": 20.0, "evidence": 10.0,
     },
+    "clean_tech": {
+        # Renewable energy / grid storage / hydrogen — policy tailwinds make market
+        # signals strong; TRL matters as energy systems have long deployment cycles.
+        "market": 25.0, "trl": 30.0, "patent": 15.0, "mrl": 20.0, "evidence": 10.0,
+    },
+    "software_ai": {
+        # Software/AI — deploys fast so market traction dominates; MRL near-trivial
+        # (distribution cost zero); patent moats weak vs. trade-secret advantages.
+        "market": 40.0, "trl": 30.0, "patent": 10.0, "mrl": 10.0, "evidence": 10.0,
+    },
 }
 assert all(
     abs(sum(w.values()) - 100) < 0.01 for w in _WEIGHT_PROFILES.values()
@@ -280,10 +290,49 @@ def _tag_bare_benchmark_refs(rationale: str) -> str:
     return _BARE_BENCHMARK_RE.sub("calibration anchor ", rationale)
 
 
+def _extract_market_size_billions(market_task: Any) -> list[float]:
+    """Extract market-size numerical values (normalised to billions USD) from a completed market task."""
+    output = getattr(market_task, "output", None)
+    if output is None:
+        return []
+    report = getattr(output, "pydantic", None)
+    if not isinstance(report, EvidenceReport):
+        try:
+            report = EvidenceReport.model_validate_json(getattr(output, "raw", ""))
+        except Exception:
+            return []
+
+    bn_pat = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(?:bn|billion)", re.IGNORECASE)
+    mn_pat = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(?:mn|million)", re.IGNORECASE)
+    values: list[float] = []
+
+    def _parse(text: str) -> None:
+        for m in bn_pat.findall(text):
+            try:
+                values.append(float(m.replace(",", "")))
+            except ValueError:
+                pass
+        for m in mn_pat.findall(text):
+            try:
+                values.append(float(m.replace(",", "")) / 1000)
+            except ValueError:
+                pass
+
+    for finding in report.findings:
+        _parse(finding.claim)
+        if finding.limitations:
+            _parse(finding.limitations)
+    for source in report.sources:
+        _parse(source.evidence_summary)
+
+    return [v for v in values if v > 0]
+
+
 def make_scoring_guardrail(
     weight_profile: str = "industrial",
     *,
     known_source_ids: frozenset[str] | None = None,
+    market_task: Any = None,
 ) -> Callable[[TaskOutput], tuple[bool, Any]]:
     """Validate scoring task output and deterministically recompute overall_score.
 
@@ -335,6 +384,19 @@ def make_scoring_guardrail(
         mkt = score.market_accessibility / 10
         evi = score.evidence_confidence / 10
 
+        # Market size variance check: if estimates spread >5× cap market score at 3.5.
+        market_uncertainty: str | None = None
+        if market_task is not None:
+            sizes = _extract_market_size_billions(market_task)
+            if len(sizes) >= 2:
+                min_s, max_s = min(sizes), max(sizes)
+                if min_s > 0 and max_s / min_s > 5:
+                    ratio = max_s / min_s
+                    market_uncertainty = (
+                        f"high ({ratio:.0f}× spread: {min_s:.2g}–{max_s:.2g} bn USD)"
+                    )
+                    mkt = min(mkt, 3.5)
+
         # Deterministically recompute overall_score using the active weight profile.
         mkt_c = (mkt / 5) * weights["market"]
         trl_c = (trl / 9) * weights["trl"]
@@ -368,6 +430,7 @@ def make_scoring_guardrail(
             "scoring_rationale": rationale,
             "score_formula": score_formula,
             "auto_corrected": auto_corrected,
+            "market_uncertainty": market_uncertainty,
         })
         output.pydantic = None
         output.raw = _json.dumps(out_dict)

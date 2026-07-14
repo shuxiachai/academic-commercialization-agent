@@ -122,6 +122,21 @@ market_intelligence_task:
     - Treat all market_report forecasts and market sizes as estimates with
       no higher than medium confidence and state methodology limitations.
     - Do not use low-credibility sources for material commercial conclusions.
+
+    Proxy signal rules — look for these even when no commercial product exists:
+    - VC / private-equity funding: named investors, disclosed round size, date.
+    - Government procurement contracts (distinguish from R&D grants — procurement
+      means a buyer paying for a delivered product or service, not for research).
+    - Named Fortune-500 corporate R&D programs or internal investment commitments.
+    - Startup formations in the field (founding date, disclosed funding stage).
+    - Partnership or offtake agreements between technology developers and end-users.
+    - Policy mandates or regulations that create mandatory demand (e.g., emission
+      standards, renewable portfolio standards, procurement targets).
+    If any proxy signals are found in the sources, record them as distinct findings
+    with category "market_formation_signal" and claim_type "observed_fact" or
+    "estimate" as appropriate. If market size estimates from multiple sources differ
+    by more than 5×, create a finding that explicitly documents the range and
+    states the high uncertainty.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose:
     {"scope_summary":"...",

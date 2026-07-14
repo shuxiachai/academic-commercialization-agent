@@ -31,6 +31,7 @@ def main() -> None:
     parser.add_argument("run_id")
     parser.add_argument("topic")
     parser.add_argument("--language", default="", help="Force output language (overrides auto-detect)")
+    parser.add_argument("--weight-profile", default="", help="Force scoring weight profile (overrides auto-detect)")
     args = parser.parse_args()
 
     from crewai.events.event_bus import crewai_event_bus
@@ -94,6 +95,8 @@ def main() -> None:
         source_collection = collect_source_collection(args.topic)
         if args.language and args.language != "Auto (detect from topic)":
             source_collection.output_language = args.language
+        if args.weight_profile and args.weight_profile != "Auto (detect from topic)":
+            source_collection.weight_profile = args.weight_profile
         save_source_collection(source_collection.model_dump_json(indent=2), run_id=args.run_id)
         write_status(
             _PARALLEL_STAGE,

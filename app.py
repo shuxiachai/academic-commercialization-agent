@@ -1743,7 +1743,11 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
 # Main analysis runner
 # ---------------------------------------------------------------------------
 
-def run_analysis(research_topic: str, language: str = "Auto (detect from topic)"):
+def run_analysis(
+    research_topic: str,
+    language: str = "Auto (detect from topic)",
+    weight_profile: str = "Auto (detect from topic)",
+):
     """Generator that yields (progress_html, score_html, report_md, md_path, pdf_path, submit_btn, cancel_btn).
 
     The pipeline runs in a subprocess so that clicking Cancel immediately
@@ -1763,6 +1767,8 @@ def run_analysis(research_topic: str, language: str = "Auto (detect from topic)"
     cmd = [sys.executable, "-m", "academic_agent.pipeline_worker", run_id, research_topic.strip()]
     if language and language != "Auto (detect from topic)":
         cmd += ["--language", language]
+    if weight_profile and weight_profile != "Auto (detect from topic)":
+        cmd += ["--weight-profile", weight_profile]
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     start = time.time()
@@ -2035,6 +2041,19 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                     value="Auto (detect from topic)",
                     scale=2,
                 )
+                profile_dd = gr.Dropdown(
+                    label="Industry Profile",
+                    choices=[
+                        "Auto (detect from topic)",
+                        "industrial",
+                        "material_science",
+                        "biomedical",
+                        "clean_tech",
+                        "software_ai",
+                    ],
+                    value="Auto (detect from topic)",
+                    scale=2,
+                )
                 submit_btn = gr.Button("▶  Run Analysis", variant="primary", scale=3)
                 cancel_btn = gr.Button(
                     "⏹  Cancel", variant="secondary", scale=1,
@@ -2051,7 +2070,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
 
             submit_event = submit_btn.click(
                 fn=run_analysis,
-                inputs=[topic_input, language_dd],
+                inputs=[topic_input, language_dd, profile_dd],
                 outputs=[progress_output, score_output, report_output, download_md, download_pdf,
                          submit_btn, cancel_btn, log_output],
             )

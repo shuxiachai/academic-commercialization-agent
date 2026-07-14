@@ -306,6 +306,7 @@ class AcademicAgent:
                         + self.source_collection.market_sources
                     )
                 ),
+                market_task=self.market_intelligence_task(),
             ),
             guardrail_max_retries=2,
         )

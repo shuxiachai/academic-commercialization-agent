@@ -397,20 +397,38 @@ commercialization_scorer:
     snippet content to assess density; do not penalise for missing dates.
 
     Dimension 4 — Market Accessibility (write market_accessibility 10–50):
-    10: No commercial activity or market demand detected
-    20: Early R&D stage only — no commercial products found
-    30: Pilot deployments or single early-stage company — nascent demand
-    40: Active market — multiple companies with products, clear revenue signals
-    50: Established market — many competitors, reported revenues, clear pricing
-    Intermediate values, e.g. 34 = one company with a product but very nascent;
-    43 = multiple products but market size still small; 47 = near-established
-    market with most signals present but pricing not yet fully transparent.
+    Use the highest tier that the evidence supports. Proxy signals count even
+    when no commercial product exists — they indicate credible market formation.
+
+    10: No commercial activity or demand signals at all — purely academic topic
+    15: Awareness only — market forecast reports exist but no funding or corporate
+        investment signals found in sources
+    20: Government or grant-funded R&D only — public funding confirmed, no private
+        commercial investment found
+    25: Active private investment — VC funding rounds, named corporate R&D programs,
+        or startup formations confirmed by at least one source
+    30: Pilot deployments or a single early-stage company with disclosed revenue
+        or product — nascent but real commercial demand
+    35: Multiple corporate or startup pilots, or announced partnerships with end-users
+        that define commercial timelines; product launch imminent
+    40: Active market — multiple companies with commercial products, revenue signals
+        or market size estimates from credible sources
+    50: Established market — many competitors with reported revenues, public pricing,
+        and independent market-size data from multiple sources
+
+    Intermediate values: 27 = one confirmed VC round but no product yet; 33 = one
+    product but market size very small; 42 = multiple products but dominant player
+    not yet identified; 47 = near-established, most signals present.
 
     MARKET ACCESSIBILITY CALIBRATION RULE:
     If market sources explicitly name multiple companies with commercial products
     and report revenues, unit sales, or market size, score 4 or 5 — do not score
     2 simply because academic papers discuss ongoing research challenges.
     Ongoing research on a commercially deployed technology is normal.
+
+    PROXY SIGNAL RULE: Do NOT score 10 or 15 if any source confirms VC funding,
+    a government procurement contract (not a research grant), or a named Fortune-500
+    corporate R&D investment — those signals justify at least 25.
 
     Dimension 5 — Evidence Confidence (write evidence_confidence 10–50):
     10: Almost no verifiable evidence; findings rest on a single thin source
@@ -462,11 +480,23 @@ commercialization_scorer:
       relative to regulatory moats, so patent weight drops.
 
     MATERIAL_SCIENCE (catalyst, polymer, nanoparticle, thin film, ceramic,
-                      graphene, deposition, synthesis route):
+                      graphene, deposition, synthesis route, electrolyte):
       W_market=20  W_trl=30  W_patent=20  W_mrl=20  W_evidence=10
       Rationale: material markets lag technology by many years; TRL is the
       most informative leading indicator; all other dimensions share weight
       equally.
+
+    CLEAN_TECH (renewable energy, wind, green hydrogen, carbon capture,
+                grid storage, electrolysis, EV charging):
+      W_market=25  W_trl=30  W_patent=15  W_mrl=20  W_evidence=10
+      Rationale: policy tailwinds create strong market pull; TRL is the key
+      deployment gate; patents matter less than in pharma or materials.
+
+    SOFTWARE_AI (machine learning, LLM, SaaS, NLP, computer vision,
+                 generative AI, recommendation system):
+      W_market=40  W_trl=30  W_patent=10  W_mrl=10  W_evidence=10
+      Rationale: software deploys instantly so market traction dominates;
+      MRL is trivial; patent moats are weak vs. trade-secret advantages.
 
     CALIBRATION BENCHMARKS — anchor your scores against these before submitting:
     These are canonical reference points. Your scores should be consistent with

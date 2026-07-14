@@ -45,6 +45,23 @@ _MATERIAL_MARKERS: tuple[str, ...] = (
     "sodium-ion batter", "sodium batter", "all-solid-state",
     "fuel cell", "flow batter", "redox flow",
 )
+_CLEAN_TECH_MARKERS: tuple[str, ...] = (
+    "renewable energy", "wind turbine", "offshore wind", "onshore wind",
+    "green hydrogen", "hydrogen production", "hydrogen storage",
+    "carbon capture", "carbon sequestration", "direct air capture",
+    "grid storage", "grid-scale storage", "energy storage system",
+    "smart grid", "microgrid", "power-to-gas", "electrolysis",
+    "geothermal", "tidal energy", "wave energy",
+    "electric vehicle charging", "ev charging", "vehicle-to-grid",
+)
+_SOFTWARE_AI_MARKERS: tuple[str, ...] = (
+    "machine learning", "deep learning", "neural network",
+    "large language model", "llm ", "generative ai", "foundation model",
+    "natural language processing", "nlp ", "computer vision",
+    "reinforcement learning", "transformer model",
+    "recommendation system", "saas platform", "api platform",
+    "software as a service", "cloud platform",
+)
 
 
 def _detect_weight_profile(topic: str) -> str:
@@ -54,6 +71,10 @@ def _detect_weight_profile(topic: str) -> str:
         return "biomedical"
     if any(m in t for m in _MATERIAL_MARKERS):
         return "material_science"
+    if any(m in t for m in _CLEAN_TECH_MARKERS):
+        return "clean_tech"
+    if any(m in t for m in _SOFTWARE_AI_MARKERS):
+        return "software_ai"
     return "industrial"
 SearchFunction = Callable[[str], dict[str, Any]]
 UrlChecker = Callable[[str], tuple[bool, str]]
