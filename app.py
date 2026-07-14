@@ -147,7 +147,7 @@ def _source_id_chips(ids: list) -> str:
         f'<span style="display:inline-block;background:#222222;border:1px solid #333333;'
         f'color:#9a9a9a;font-size:9px;font-family:ui-monospace,monospace;font-weight:600;'
         f'padding:1px 5px;border-radius:4px;margin:1px 1px 0;cursor:pointer;" '
-        f'onclick="{_CHIP_ONCLICK.replace("{ID}", html.escape(str(sid)))}" '
+        f'onclick="{html.escape(_CHIP_ONCLICK.replace("{ID}", str(sid)))}" '
         f'title="Click to view source details">'
         f'{html.escape(str(sid))}</span>'
         for sid in ids
