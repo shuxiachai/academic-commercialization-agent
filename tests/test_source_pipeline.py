@@ -95,7 +95,7 @@ def fake_search(query: str) -> dict:
         return {
             "organic": [
                 {
-                    "title": f"Primary patent record {index}",
+                    "title": f"Test commercialization patent record {index}",
                     "link": f"https://patents.google.com/patent/US1000000{index}",
                     "snippet": _LONG_PATENT_SNIPPET,
                 }
@@ -334,10 +334,10 @@ class SourcePipelineTests(TestCase):
         def search_with_duplicate_patent_family(query: str) -> dict:
             if "site:patents" in query or "patent applicant" in query:
                 records = (
-                    ("Solid-State Li-S Batteries and Methods of Making Same", "US1"),
-                    ("solid-state li-s batteries and methods of making same", "WO1"),
-                    ("Distinct solid electrolyte separator", "US2"),
-                    ("Distinct scalable battery manufacturing process", "US3"),
+                    ("Test Commercialization Patent Family Method One", "US1"),
+                    ("test commercialization patent family method one", "WO1"),
+                    ("Distinct Test Commercialization Electrolyte Method", "US2"),
+                    ("Distinct Test Commercialization Manufacturing Process", "US3"),
                 )
                 return {
                     "organic": [
@@ -370,7 +370,7 @@ class SourcePipelineTests(TestCase):
         self.assertEqual(len(normalized_titles), 3)
         self.assertEqual(
             normalized_titles.count(
-                "solid-state li-s batteries and methods of making same"
+                "test commercialization patent family method one"
             ),
             1,
         )
