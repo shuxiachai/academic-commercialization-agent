@@ -113,20 +113,14 @@ commercialization_report_writer:
     inference drawn from the evidence rather than an observed fact, frame it
     as such ("analyst inference", "this suggests", "there may be an opportunity").
 
-    TRL labelling rule: In the Technology Overview section, always state the
-    TRL as a single specific level (e.g. "TRL 2", "TRL 5") — never as a range
-    like "TRL 1-2" or "TRL 4-5". Use the same scale anchors as the Scorer:
-      TRL 1 = basic principles observed
-      TRL 2 = technology concept formulated, no experimental validation
-      TRL 3 = experimental proof of concept
-      TRL 4 = component validated in laboratory
-      TRL 5 = component validated in relevant environment
-      TRL 6 = system prototype demonstrated in relevant environment
-      TRL 7 = system prototype in operational environment
-      TRL 8 = system complete and qualified
-      TRL 9 = actual system proven in operational environment
-    If the evidence spans two stages, pick the lower one and note the boundary
-    explicitly (e.g. "TRL 2, approaching TRL 3"). Do not invent ranges.
+    Technology maturity rule: In the Technology Overview section, describe the
+    technology's development stage using qualitative, evidence-based language —
+    do NOT write a TRL number or range anywhere in the report body. Examples:
+      "proof-of-concept stage with no clinical validation yet"
+      "laboratory-validated component, not yet demonstrated at system level"
+      "prototype demonstrated in operational conditions with limited deployment"
+    Quantitative TRL scoring is performed exclusively by the Scorer agent to
+    prevent inconsistency between the narrative report and the scorecard.
 
 # ----------------------------------------------------------
 # Agent 5 — 质量审查员 / Report Quality Reviewer  [ADDED]
@@ -194,25 +188,20 @@ report_reviewer:
     evidence — only correct outright contradictions or significant
     overstatements relative to what the sources actually show.
 
-    Rule 6 — TRL label internal consistency:
-    Locate the explicit TRL level stated in the Technology Overview section.
-    Check two things:
-    (a) The label must be a SINGLE specific level, not a range.
-        If you find "TRL 1-2", "TRL 4-5", or any range, replace it with a
-        single level consistent with the body text (the lower level when evidence
-        spans two stages, e.g. "TRL 2, approaching TRL 3").
-    (b) The label must be consistent with the body text. Use standard anchors:
-          TRL 1 = basic principles observed
-          TRL 2 = technology concept formulated, no experimental validation
-          TRL 3 = experimental proof of concept
-          TRL 4 = component validated in laboratory
-          TRL 5 = component validated in relevant environment
-          TRL 6 = system prototype demonstrated in relevant environment
-          TRL 7 = system prototype in operational environment
-          TRL 8 = system complete and qualified
-          TRL 9 = actual system proven in operational environment
-    If body text describes a working prototype in an operational environment,
-    the label must be TRL 7, not TRL 5 or TRL 6. Record any correction made.
+    Rule 6 — No TRL number in narrative:
+    Quantitative TRL scoring belongs exclusively to the Scorer; the Writer must
+    describe technology maturity qualitatively only. Scan the entire report for
+    any occurrence of the pattern "TRL" followed by a digit or range
+    (e.g. "TRL 2", "TRL 4.3", "TRL 2–3", "TRL 2, approaching TRL 3").
+    (a) If found anywhere in the report body, remove the TRL label entirely and
+        replace it with the qualitative development-stage description that is (or
+        should be) present in the surrounding text. For example:
+          "the technology is at TRL 3" → "the technology has reached proof-of-concept stage"
+          "TRL 2, approaching TRL 3" → "at concept-formulation stage, moving toward proof-of-concept"
+        Do not leave the pattern "TRL N" anywhere in the report.
+    (b) Ensure the replacement qualitative description is factual and
+        evidence-backed, not speculative or promotional.
+    Record each TRL label removed and the replacement text used.
 
     ## Reviewer Notes format rules (STRICTLY ENFORCED):
     - Record ONLY actual corrections — lines where you changed the text.

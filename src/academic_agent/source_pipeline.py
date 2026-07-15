@@ -1302,6 +1302,21 @@ _STOP_WORDS: frozenset[str] = frozenset({
     "was", "were", "which", "with",
 })
 
+# High-frequency technology/method terms that appear across ALL domains and
+# therefore cannot identify the application domain of a paper.  Used by
+# _topic_domain_keywords to strip generic words before extracting domain signal.
+_GENERIC_TECH_TERMS: frozenset[str] = frozenset({
+    "large", "small", "lightweight", "language", "model", "models",
+    "system", "systems", "method", "methods", "approach", "approaches",
+    "application", "applications", "analysis", "based", "using",
+    "deep", "learning", "neural", "network", "artificial", "intelligence",
+    "machine", "detection", "classification", "generation", "evaluation",
+    "performance", "review", "survey", "assessment", "management",
+    "framework", "technique", "techniques", "result", "results",
+    "research", "study", "novel", "efficient", "effective", "advanced",
+    "improved", "new", "proposed", "automated", "automatic", "general",
+})
+
 
 def _topic_keywords(topic: str) -> frozenset[str]:
     """Extract meaningful lowercase words from a topic string."""
@@ -1315,6 +1330,33 @@ def _topic_bigrams(topic: str) -> frozenset[str]:
     return frozenset(f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1))
 
 
+def _topic_domain_keywords(topic: str) -> frozenset[str]:
+    """Extract the application-domain portion of a topic after a splitting preposition.
+
+    For topics like "large language models in clinical medicine", this returns
+    the domain part keywords ({"clinical", "medicine"}) stripped of generic tech
+    terms.  These are used as a hard inclusion filter: academic papers must
+    mention at least one domain keyword in their title or summary, otherwise
+    they are treated as off-domain and excluded.
+
+    For topics without a splitting preposition (e.g. "solid state batteries"),
+    returns an empty frozenset so no domain check is applied.
+    """
+    lower = topic.lower()
+    for prep in (" in ", " for ", " applied to ", " used in "):
+        idx = lower.find(prep)
+        if idx > 0:
+            domain_part = lower[idx + len(prep):]
+            words = re.findall(r"[a-z]{4,}", domain_part)
+            domain_kw = frozenset(
+                w for w in words
+                if w not in _STOP_WORDS and w not in _GENERIC_TECH_TERMS
+            )
+            if domain_kw:
+                return domain_kw
+    return frozenset()
+
+
 def _normalise_text(text: str) -> str:
     """Lowercase and replace hyphens/underscores with spaces for consistent matching."""
     return re.sub(r"[-_]", " ", text.lower())
@@ -1326,16 +1368,33 @@ _COMPARISON_TITLE_MARKERS: frozenset[str] = frozenset({
 })
 
 
-def _relevance_score(source: "EvidenceSource", keywords: frozenset[str], bigrams: frozenset[str]) -> int:
+def _relevance_score(
+    source: "EvidenceSource",
+    keywords: frozenset[str],
+    bigrams: frozenset[str],
+    domain_keywords: frozenset[str] = frozenset(),
+) -> int:
     """Score relevance: 1 pt per keyword hit + 2 pts per bigram hit.
 
     Papers whose title has no topic keywords AND contains comparison markers
     are penalised by 2 pts — they are typically off-topic comparison papers.
+
+    When domain_keywords is provided (non-empty), a source that contains none
+    of those keywords in its title or summary is given score -1 (hard exclusion)
+    to prevent cross-domain papers from slipping through on generic tech terms
+    alone (e.g. an SQL-injection paper scoring high on "large language models"
+    when the topic is "large language models in clinical medicine").
     """
     if not keywords:
         return 1
     title_text = _normalise_text(source.title)
     body_text  = title_text + " " + _normalise_text(source.evidence_summary)
+
+    # Hard domain filter: exclude papers that share the technology keywords but
+    # belong to a completely different application domain.
+    if domain_keywords and not any(dk in body_text for dk in domain_keywords):
+        return -1
+
     score = (
         sum(1 for kw in keywords if kw in body_text)
         + sum(2 for bg in bigrams if bg in body_text)
@@ -1353,16 +1412,23 @@ def _filter_by_relevance(
     min_score: int = 1,
     min_keep: int = 2,
 ) -> list["EvidenceSource"]:
-    """Filter low-relevance sources and sort survivors by relevance score descending."""
+    """Filter low-relevance sources and sort survivors by relevance score descending.
+
+    Sources with score -1 (domain mismatch) are always excluded, even when the
+    fallback min_keep logic would otherwise include them.  The fallback returns
+    the top-scoring qualified sources rather than the entire collection.
+    """
     keywords = _topic_keywords(topic)
     bigrams  = _topic_bigrams(topic)
+    domain_keywords = _topic_domain_keywords(topic)
     scored   = sorted(
-        [(s, _relevance_score(s, keywords, bigrams)) for s in sources],
+        [(s, _relevance_score(s, keywords, bigrams, domain_keywords)) for s in sources],
         key=lambda x: x[1],
         reverse=True,
     )
-    kept = [s for s, sc in scored if sc >= min_score]
-    return kept if len(kept) >= min_keep else [s for s, _ in scored]
+    qualified = [(s, sc) for s, sc in scored if sc >= 0]
+    kept = [s for s, sc in qualified if sc >= min_score]
+    return kept if len(kept) >= min_keep else [s for s, _ in qualified]
 
 
 def _web_source(

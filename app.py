@@ -1745,16 +1745,53 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
 # Main analysis runner
 # ---------------------------------------------------------------------------
 
+def _is_cjk_text(text: str) -> bool:
+    """Return True if >25% of characters are CJK (simplified/traditional Chinese)."""
+    if not text:
+        return False
+    cjk = sum(1 for c in text if "一" <= c <= "鿿")
+    return cjk / len(text) > 0.25
+
+
+_CARD_LABELS_ZH = {
+    "title":       "标题",
+    "contribution":"核心贡献",
+    "domain":      "应用领域",
+    "doi":         "DOI / 链接",
+    "metrics":     "关键指标（每行一项）",
+    "topic":       "🔍 此主题驱动管线搜索 — 可编辑以聚焦或拓宽范围",
+    "divider":     "分析主题",
+    "clear_btn":   "✕  清空论文",
+    "run_btn":     "▶  基于此论文运行分析",
+}
+_CARD_LABELS_EN = {
+    "title":       "Title",
+    "contribution":"Core Contribution",
+    "domain":      "Application Domain",
+    "doi":         "DOI / URL",
+    "metrics":     "Key Metrics (one per line)",
+    "topic":       "🔍 This drives the pipeline search — edit to focus or broaden",
+    "divider":     "Analysis Topic",
+    "clear_btn":   "✕  Clear Paper",
+    "run_btn":     "▶  Run Analysis with this Paper",
+}
+
+def _paper_divider_html(label: str) -> str:
+    return f'<div class="paper-divider"><span>{label}</span></div>'
+
+
 def extract_paper_from_pdf(pdf_file) -> tuple:
     """Extract PaperContribution from uploaded PDF.
-    Returns 10 values: title, contribution, domain, metrics_str, topic, doi_url,
-    paper_json, card_visible, status_msg, submit_btn_update.
+    Returns 13 values: title, contribution, domain, metrics_str, topic, doi_url,
+    paper_json, card_visible, status_msg, submit_btn_update,
+    clear_paper_btn_update, paper_run_btn_update, paper_divider_html_update.
     """
     _no_change = gr.update()
+    _fail_trail = (_no_change, _no_change, _no_change)
     if pdf_file is None:
         return ("", "", "", "", "", "", "", gr.update(visible=False),
                 '<p style="color:#f59e0b;font-size:13px;margin:6px 0">⚠ Please upload a PDF file first.</p>',
-                _no_change)
+                _no_change, *_fail_trail)
 
     try:
         from academic_agent.pdf_extractor import extract_paper_contribution
@@ -1762,23 +1799,29 @@ def extract_paper_from_pdf(pdf_file) -> tuple:
     except Exception as exc:
         return ("", "", "", "", "", "", "", gr.update(visible=False),
                 f'<p style="color:#f87171;font-size:13px;margin:6px 0">✗ Extraction failed: {html.escape(str(exc))}</p>',
-                _no_change)
+                _no_change, *_fail_trail)
 
     metrics_str = "\n".join(pc.key_metrics)
     doi_url = pc.url or (f"https://doi.org/{pc.doi}" if pc.doi and not pc.doi.startswith("10.0000/uploaded-") else "")
     paper_json = pc.model_dump_json()
 
+    is_zh = _is_cjk_text(pc.title + " " + pc.core_contribution)
+    lbl = _CARD_LABELS_ZH if is_zh else _CARD_LABELS_EN
+
     return (
-        pc.title,
-        pc.core_contribution,
-        pc.application_domain,
-        metrics_str,
-        pc.commercialization_topic,
-        doi_url,
+        gr.update(value=pc.title,                    label=lbl["title"]),
+        gr.update(value=pc.core_contribution,        label=lbl["contribution"]),
+        gr.update(value=pc.application_domain,       label=lbl["domain"]),
+        gr.update(value=metrics_str,                 label=lbl["metrics"]),
+        gr.update(value=pc.commercialization_topic,  label=lbl["topic"]),
+        gr.update(value=doi_url,                     label=lbl["doi"]),
         paper_json,
         gr.update(visible=True),
-        "",                          # clear status bar — paper card appearing is enough feedback
-        gr.update(visible=False),    # hide the normal Run Analysis button
+        "",                                          # clear status bar
+        gr.update(visible=False),                    # hide submit_btn
+        gr.update(value=lbl["clear_btn"]),           # clear_paper_btn text
+        gr.update(value=lbl["run_btn"]),             # paper_run_btn text
+        gr.update(value=_paper_divider_html(lbl["divider"])),
     )
 
 
@@ -2087,6 +2130,38 @@ details > .padding {
     max-height: none !important;
 }
 
+/* ── Remove Gradio's viewport-locked inner scrollbar ── */
+/* Gradio 6.x fill_height=True (default) locks the app to 100vh and adds
+   overflow:auto at several levels. fill_height=False is set in Python;
+   these rules act as belt-and-suspenders for any remaining containers.  */
+html, body {
+    height: auto !important;
+    overflow-y: auto !important;
+}
+.gradio-container,
+.gradio-container > .main,
+.gradio-container > .main > .wrap,
+.gradio-container > .main > .contain,
+.gradio-container .tabs,
+.gradio-container .tabitem,
+.gradio-container [role="tabpanel"],
+.gradio-container .gap,
+.gradio-container .col {
+    height: auto !important;
+    min-height: unset !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex-shrink: 0 !important;
+}
+/* Details/accordion inner wrapper — Gradio 6.x nests extra divs */
+details > div > div,
+details > .padding,
+details > .padding > div {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+}
+
 /* ── PDF paper card ── */
 .paper-card-wrap {
     border: 1px solid #2a3a5a !important;
@@ -2175,7 +2250,7 @@ _theme = gr.themes.Default(
     button_primary_text_color="#ffffff",
 )
 
-with gr.Blocks(title="Academic Commercialization Assessment") as demo:
+with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False) as demo:
     gr.HTML(_HEADER_HTML)
 
     with gr.Tabs() as tabs:
@@ -2217,7 +2292,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                     paper_metrics_box = gr.Textbox(label="Key Metrics (one per line)", interactive=True, lines=2)
 
                     # ── Analysis topic (highlighted) ──────────────────────────
-                    gr.HTML('<div class="paper-divider"><span>Analysis Topic</span></div>')
+                    paper_divider_html = gr.HTML(_paper_divider_html(_CARD_LABELS_EN["divider"]))
                     paper_topic_box = gr.Textbox(
                         label="🔍 This drives the pipeline search — edit to focus or broaden",
                         interactive=True,
@@ -2237,25 +2312,33 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
 
             with gr.Row(equal_height=True):
                 language_dd = gr.Dropdown(
-                    label="Report Language",
+                    label="报告语言",
                     choices=[
-                        "Auto (detect from topic)",
-                        "English", "Chinese", "Japanese", "Korean",
-                        "French", "German", "Spanish", "Portuguese",
-                        "Arabic", "Russian", "Hindi",
+                        ("自动检测（从主题判断）", "Auto (detect from topic)"),
+                        ("English",              "English"),
+                        ("简体中文",              "Chinese"),
+                        ("日本語",               "Japanese"),
+                        ("한국어",               "Korean"),
+                        ("Français",             "French"),
+                        ("Deutsch",              "German"),
+                        ("Español",              "Spanish"),
+                        ("Português",            "Portuguese"),
+                        ("العربية",              "Arabic"),
+                        ("Русский",              "Russian"),
+                        ("हिन्दी",              "Hindi"),
                     ],
                     value="Auto (detect from topic)",
                     scale=2,
                 )
                 profile_dd = gr.Dropdown(
-                    label="Industry Profile",
+                    label="行业类型",
                     choices=[
-                        "Auto (detect from topic)",
-                        "industrial",
-                        "material_science",
-                        "biomedical",
-                        "clean_tech",
-                        "software_ai",
+                        ("自动检测（从主题判断）",  "Auto (detect from topic)"),
+                        ("工业制造",              "industrial"),
+                        ("材料科学",              "material_science"),
+                        ("生物医药",              "biomedical"),
+                        ("清洁技术",              "clean_tech"),
+                        ("软件 / AI",             "software_ai"),
                     ],
                     value="Auto (detect from topic)",
                     scale=2,
@@ -2281,22 +2364,36 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                     paper_title_box, paper_contribution_box, paper_domain_box,
                     paper_metrics_box, paper_topic_box, paper_doi_box,
                     paper_json_state, paper_card, extract_status, submit_btn,
+                    clear_paper_btn, paper_run_btn, paper_divider_html,
                 ],
             )
 
+            def _clear_paper():
+                en = _CARD_LABELS_EN
+                return (
+                    gr.update(value="", label=en["title"]),
+                    gr.update(value="", label=en["contribution"]),
+                    gr.update(value="", label=en["domain"]),
+                    gr.update(value="", label=en["metrics"]),
+                    gr.update(value="", label=en["topic"]),
+                    gr.update(value="", label=en["doi"]),
+                    "",
+                    gr.update(value=None),
+                    gr.update(visible=False),
+                    "",
+                    gr.update(visible=True),
+                    gr.update(value=en["clear_btn"]),
+                    gr.update(value=en["run_btn"]),
+                    gr.update(value=_paper_divider_html(en["divider"])),
+                )
+
             clear_paper_btn.click(
-                fn=lambda: (
-                    "", "", "", "", "", "",   # clear all paper fields
-                    "",                       # clear paper_json_state
-                    gr.update(value=None),    # reset pdf_upload
-                    gr.update(visible=False), # hide paper_card
-                    "",                       # clear extract_status
-                    gr.update(visible=True),  # restore submit_btn
-                ),
+                fn=_clear_paper,
                 outputs=[
                     paper_title_box, paper_contribution_box, paper_domain_box,
                     paper_metrics_box, paper_topic_box, paper_doi_box,
                     paper_json_state, pdf_upload, paper_card, extract_status, submit_btn,
+                    clear_paper_btn, paper_run_btn, paper_divider_html,
                 ],
             )
 

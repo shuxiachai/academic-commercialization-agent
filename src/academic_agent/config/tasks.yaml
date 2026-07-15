@@ -250,7 +250,7 @@ report_review_task:
     change the tone or depth of analysis. Only fix the six categories of
     errors: citation mismatches, unsupported numerical claims, overconfident
     language, incorrect patent legal framing, evidence inconsistencies, and
-    TRL label mismatches (Rule 6).
+    TRL number removal from narrative (Rule 6).
 
     Output rules — strictly enforced:
     - Apply every correction silently in the report text itself.

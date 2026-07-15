@@ -614,12 +614,11 @@ def validate_evidence_report(
                 "state its limitations."
             )
 
-    unreferenced_ids = source_id_set - referenced_ids
-    if unreferenced_ids:
-        errors.append(
-            f"unused sources (referenced by no finding): "
-            f"{', '.join(sorted(unreferenced_ids))}."
-        )
+    # NOTE: we intentionally do NOT fail on unreferenced sources.
+    # Agents may collect candidate sources and select the most relevant ones;
+    # forcing every collected source to appear in a finding produces fabricated
+    # citations.  The important integrity check is the reverse: every source ID
+    # that *is* referenced must exist (enforced above at the unknown_ids check).
 
     return errors
 
