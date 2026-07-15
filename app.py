@@ -2086,6 +2086,55 @@ html, html.dark, .dark, :root {
 .report-md table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
 .report-md th { background: #141414; font-weight: 700; padding: 8px 12px; border: 1px solid #2d2d2d; text-align: left; }
 .report-md td { padding: 7px 12px; border: 1px solid #2d2d2d; }
+
+/* ── PDF paper card ── */
+.paper-card-wrap {
+    border: 1px solid #2a3a5a !important;
+    border-left: 3px solid #3b82f6 !important;
+    border-radius: 8px !important;
+    margin-top: 6px !important;
+    background: #0c1628 !important;
+}
+.paper-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #60a5fa;
+}
+.paper-divider::before, .paper-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #1e3a5a;
+}
+/* Highlight the analysis topic textbox */
+.paper-topic-box textarea {
+    background: rgba(37, 99, 235, 0.08) !important;
+    border: 1.5px solid #3b82f6 !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    color: #e0eaff !important;
+}
+.paper-topic-box label span {
+    color: #60a5fa !important;
+    font-weight: 600 !important;
+}
+/* Clear paper button: subtle red on hover */
+.clear-paper-btn button {
+    color: #9a9a9a !important;
+    border-color: #2d2d2d !important;
+    background: transparent !important;
+}
+.clear-paper-btn button:hover {
+    color: #f87171 !important;
+    border-color: #7f1d1d !important;
+    background: #2d1515 !important;
+}
 """
 
 _HEADER_HTML = """
@@ -2146,27 +2195,45 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
 
             with gr.Accordion("📄 Upload Paper PDF (optional)", open=False):
                 gr.HTML(
-                    '<p style="font-size:12px;color:#9a9a9a;margin:4px 0 10px;">Upload a PDF to analyse a specific paper — the pipeline will use it as the primary source (A1) and search for supporting evidence around its contribution.</p>'
+                    '<p style="font-size:12px;color:#6b7280;margin:2px 0 12px;">'
+                    'Upload a PDF to anchor the analysis on a specific paper — it becomes the '
+                    'primary source <strong style="color:#9a9a9a">(A1)</strong> and the pipeline '
+                    'searches for supporting evidence around its contribution.'
+                    '</p>'
                 )
                 with gr.Row(equal_height=True):
-                    pdf_upload   = gr.File(label="Upload PDF", file_types=[".pdf"], scale=4)
-                    extract_btn  = gr.Button("Extract Contribution", variant="secondary", scale=1)
-                extract_status = gr.HTML(value="")
+                    pdf_upload  = gr.File(label="Upload PDF", file_types=[".pdf"], scale=4)
+                    extract_btn = gr.Button("Extract Contribution", variant="secondary", scale=1)
+                extract_status   = gr.HTML(value="")
                 paper_json_state = gr.State("")
 
-                with gr.Group(visible=False) as paper_card:
+                with gr.Group(visible=False, elem_classes=["paper-card-wrap"]) as paper_card:
+                    # ── Paper metadata ────────────────────────────────────────
                     paper_title_box        = gr.Textbox(label="Title", interactive=True, lines=1)
                     paper_contribution_box = gr.Textbox(label="Core Contribution", interactive=True, lines=3)
-                    paper_domain_box       = gr.Textbox(label="Application Domain", interactive=True, lines=1)
-                    paper_metrics_box      = gr.Textbox(label="Key Metrics (one per line)", interactive=True, lines=3)
-                    paper_topic_box        = gr.Textbox(
-                        label="Commercialization Topic (will be used as the analysis topic)",
-                        interactive=True, lines=2,
-                    )
-                    paper_doi_box          = gr.Textbox(label="DOI or URL (leave blank if unknown)", interactive=True, lines=1)
                     with gr.Row(equal_height=True):
-                        clear_paper_btn = gr.Button("✕  Clear Paper", variant="secondary", scale=1)
-                        paper_run_btn   = gr.Button("▶  Run Analysis with this Paper", variant="primary", scale=3)
+                        paper_domain_box = gr.Textbox(label="Application Domain", interactive=True, lines=1, scale=3)
+                        paper_doi_box    = gr.Textbox(label="DOI / URL", interactive=True, lines=1, scale=2)
+                    paper_metrics_box = gr.Textbox(label="Key Metrics (one per line)", interactive=True, lines=2)
+
+                    # ── Analysis topic (highlighted) ──────────────────────────
+                    gr.HTML('<div class="paper-divider"><span>Analysis Topic</span></div>')
+                    paper_topic_box = gr.Textbox(
+                        label="🔍 This drives the pipeline search — edit to focus or broaden",
+                        interactive=True,
+                        lines=2,
+                        elem_classes=["paper-topic-box"],
+                    )
+
+                    # ── Action buttons ────────────────────────────────────────
+                    with gr.Row(equal_height=True):
+                        clear_paper_btn = gr.Button(
+                            "✕  Clear Paper", variant="secondary", scale=1,
+                            elem_classes=["clear-paper-btn"],
+                        )
+                        paper_run_btn = gr.Button(
+                            "▶  Run Analysis with this Paper", variant="primary", scale=3,
+                        )
 
             with gr.Row(equal_height=True):
                 language_dd = gr.Dropdown(
