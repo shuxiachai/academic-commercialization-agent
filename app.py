@@ -1768,13 +1768,6 @@ def extract_paper_from_pdf(pdf_file) -> tuple:
     doi_url = pc.url or (f"https://doi.org/{pc.doi}" if pc.doi and not pc.doi.startswith("10.0000/uploaded-") else "")
     paper_json = pc.model_dump_json()
 
-    status_html = (
-        '<p style="color:#4ade80;font-size:13px;margin:6px 0">'
-        '✓ Extraction complete — review the fields below, then click '
-        '<strong>▶ Run Analysis with this Paper</strong>. '
-        'To go back to topic mode, click <strong>✕ Clear Paper</strong>.'
-        '</p>'
-    )
     return (
         pc.title,
         pc.core_contribution,
@@ -1784,8 +1777,8 @@ def extract_paper_from_pdf(pdf_file) -> tuple:
         doi_url,
         paper_json,
         gr.update(visible=True),
-        status_html,
-        gr.update(visible=False),   # hide the normal Run Analysis button
+        "",                          # clear status bar — paper card appearing is enough feedback
+        gr.update(visible=False),    # hide the normal Run Analysis button
     )
 
 
@@ -2087,6 +2080,13 @@ html, html.dark, .dark, :root {
 .report-md th { background: #141414; font-weight: 700; padding: 8px 12px; border: 1px solid #2d2d2d; text-align: left; }
 .report-md td { padding: 7px 12px; border: 1px solid #2d2d2d; }
 
+/* ── Prevent Gradio accordion from creating an inner scroll container ── */
+details > div,
+details > .padding {
+    overflow: visible !important;
+    max-height: none !important;
+}
+
 /* ── PDF paper card ── */
 .paper-card-wrap {
     border: 1px solid #2a3a5a !important;
@@ -2193,7 +2193,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                     elem_classes=["clear-icon-btn"],
                 )
 
-            with gr.Accordion("📄 Upload Paper PDF (optional)", open=False):
+            with gr.Accordion("📄 Upload Paper PDF (optional)", open=False) as pdf_accordion:
                 gr.HTML(
                     '<p style="font-size:12px;color:#6b7280;margin:2px 0 12px;">'
                     'Upload a PDF to anchor the analysis on a specific paper — it becomes the '
@@ -2298,6 +2298,13 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                     paper_metrics_box, paper_topic_box, paper_doi_box,
                     paper_json_state, pdf_upload, paper_card, extract_status, submit_btn,
                 ],
+            )
+
+            # Collapse the accordion first so progress display is immediately visible.
+            paper_run_btn.click(
+                fn=lambda: gr.update(open=False),
+                inputs=[],
+                outputs=[pdf_accordion],
             )
 
             paper_run_event = paper_run_btn.click(
