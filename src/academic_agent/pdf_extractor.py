@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 from datetime import date
 from pathlib import Path
@@ -67,54 +66,12 @@ def _find_doi(text: str) -> str | None:
 
 
 def _call_llm_json(prompt: str) -> dict[str, Any]:
-    """Call the active LLM provider and return parsed JSON."""
-    import litellm
-    from academic_agent.llm_config import _detect_provider
+    """Call the active LLM via crewai.LLM and return parsed JSON."""
+    from academic_agent.llm_config import create_llm
 
-    provider = _detect_provider()
-    kwargs: dict[str, Any] = {
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.0,
-    }
-
-    if provider == "deepseek":
-        raw_model = (
-            os.getenv("DEEPSEEK_MODEL")
-            or os.getenv("OPENAI_MODEL_NAME")
-            or "deepseek-chat"
-        )
-        model = raw_model if raw_model.startswith("deepseek/") else f"deepseek/{raw_model}"
-        kwargs["model"] = model
-        kwargs["api_key"] = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
-        kwargs["base_url"] = (
-            os.getenv("DEEPSEEK_API_BASE")
-            or os.getenv("OPENAI_API_BASE")
-            or "https://api.deepseek.com"
-        )
-        kwargs["response_format"] = {"type": "json_object"}
-
-    elif provider == "openai":
-        raw_model = os.getenv("OPENAI_MODEL") or "gpt-4o"
-        kwargs["model"] = raw_model if raw_model.startswith("openai/") else f"openai/{raw_model}"
-        kwargs["api_key"] = os.getenv("OPENAI_API_KEY")
-        base = os.getenv("OPENAI_API_BASE")
-        if base:
-            kwargs["base_url"] = base
-        kwargs["response_format"] = {"type": "json_object"}
-
-    elif provider == "anthropic":
-        raw_model = os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5"
-        kwargs["model"] = (
-            raw_model if raw_model.startswith("anthropic/") else f"anthropic/{raw_model}"
-        )
-        kwargs["api_key"] = os.getenv("ANTHROPIC_API_KEY")
-
-    else:
-        raise RuntimeError(f"Unknown LLM provider: {provider!r}")
-
-    response = litellm.completion(**kwargs)
-    content = (response.choices[0].message.content or "{}").strip()
-    # Strip markdown fences if the model wraps output
+    llm = create_llm(json_mode=True, temperature=0.0)
+    raw = llm.call([{"role": "user", "content": prompt}])
+    content = (raw or "{}").strip()
     content = re.sub(r"^```(?:json)?\s*", "", content)
     content = re.sub(r"\s*```$", "", content)
     return json.loads(content)
