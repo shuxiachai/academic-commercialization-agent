@@ -39,7 +39,7 @@ _AGENT_COLORS      = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899", "#0
 # Live agent log renderer
 # ---------------------------------------------------------------------------
 
-def _render_source_preview_html(run_dir: Path) -> str:
+def _render_source_preview_html(run_dir: Path, ui_lang: str = "English") -> str:
     """Show collected source titles once validated_sources.json is available."""
     src_path = run_dir / "validated_sources.json"
     if not src_path.exists():
@@ -49,10 +49,11 @@ def _render_source_preview_html(run_dir: Path) -> str:
     except Exception:
         return ""
 
+    u = _ui(ui_lang)
     sections = [
-        ("academic_sources",  "A", "#3b82f6", "Academic"),
-        ("patent_sources",    "P", "#8b5cf6", "Patent"),
-        ("market_sources",    "M", "#10b981", "Market"),
+        ("academic_sources",  "A", "#3b82f6", u["src_academic"]),
+        ("patent_sources",    "P", "#8b5cf6", u["src_patent"]),
+        ("market_sources",    "M", "#10b981", u["src_market"]),
     ]
 
     rows_html = ""
@@ -84,7 +85,7 @@ def _render_source_preview_html(run_dir: Path) -> str:
         f'background:#0a0a0a;border:1px solid #1a1a1a;border-radius:8px;'
         f'padding:12px 14px;max-height:280px;overflow-y:auto;margin-top:10px;">'
         f'<div style="font-size:10px;font-weight:700;color:#444444;letter-spacing:0.08em;'
-        f'text-transform:uppercase;margin-bottom:6px;">Collected Sources</div>'
+        f'text-transform:uppercase;margin-bottom:6px;">{html.escape(u["src_header"])}</div>'
         f'{rows_html}'
         f'</div>'
     )
@@ -346,7 +347,813 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
 
 
 def _scorecard_strings(output_language: str) -> dict[str, str]:
-    return _SCORECARD_I18N.get(output_language, _SCORECARD_I18N["English"])
+    d = dict(_SCORECARD_I18N.get(output_language, _SCORECARD_I18N["English"]))
+    # Tile label translations for "Market" and "Evidence" (TRL/MRL/IP stay as acronyms)
+    _kpi = {
+        "Simplified Chinese":  ("市场", "证据"),
+        "Traditional Chinese": ("市場", "證據"),
+        "Japanese":            ("市場", "証拠"),
+        "Korean":              ("시장", "증거"),
+        "German":              ("Markt", "Belege"),
+        "French":              ("Marché", "Preuves"),
+        "Spanish":             ("Mercado", "Evidencia"),
+        "Italian":             ("Mercato", "Prove"),
+        "Portuguese":          ("Mercado", "Evidências"),
+        "Russian":             ("Рынок", "Доказательства"),
+        "Arabic":              ("السوق", "الأدلة"),
+    }
+    km, ke = _kpi.get(output_language, ("Market", "Evidence"))
+    d.setdefault("kpi_market", km)
+    d.setdefault("kpi_evidence", ke)
+    return d
+
+
+# ---------------------------------------------------------------------------
+# UI shell i18n — controls buttons, labels, headers, progress, history
+# Keys here use the dropdown *value* (e.g. "Chinese", not "Simplified Chinese")
+# so language_dd.value can be used directly without a mapping step.
+# ---------------------------------------------------------------------------
+
+_UI_I18N: dict[str, dict[str, str]] = {
+
+    # ── English ─────────────────────────────────────────────────────────────
+    "English": {
+        "header_title": "Academic Commercialization Assessment",
+        "header_desc": (
+            "Enter a research topic to launch <strong style='color:#e5e5e5;'>6 specialized AI agents</strong>"
+            " that assess commercialization readiness — producing a scored report with verified citations."
+            " Agents 1–3 run in parallel; expected run time: <strong style='color:#e5e5e5;'>2–3 minutes</strong>."
+            " Input any language — the report is generated in the same language."
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 6 AI Agents",
+        "chip_metrics":   "📊 TRL · IP · Market · Evidence",
+        "chip_citations": "✓ Verified Citations",
+        "topic_label":        "Research Topic",
+        "topic_placeholder":  "e.g., perovskite solar cells for building-integrated photovoltaics  |  例如：钠离子电池在电网储能中的商业化",
+        "lang_label":         "Report Language",
+        "profile_label":      "Industry Profile",
+        "run_btn":            "▶  Run Analysis",
+        "cancel_btn":         "⏹  Cancel",
+        "pdf_accordion_label": "📄 Upload Paper PDF (optional)",
+        "pdf_desc": (
+            "Upload a PDF to anchor the analysis on a specific paper — it becomes the"
+            " primary source <strong style='color:#9a9a9a;'>(A1)</strong> and the pipeline"
+            " searches for supporting evidence around its contribution."
+        ),
+        "upload_label": "Upload PDF",
+        "extract_btn":  "Extract Contribution",
+        "paper_title_label":        "Title",
+        "paper_contribution_label": "Core Contribution",
+        "paper_domain_label":       "Application Domain",
+        "paper_doi_label":          "DOI / URL",
+        "paper_metrics_label":      "Key Metrics (one per line)",
+        "paper_topic_label":  "🔍 This drives the pipeline search — edit to focus or broaden",
+        "paper_divider":      "Analysis Topic",
+        "clear_paper_btn":    "✕  Clear Paper",
+        "paper_run_btn":      "▶  Run Analysis with this Paper",
+        "stage_init":     "Source Collection & Validation",
+        "stage_evidence": "Phase 1 — Evidence Collection (Academic · Patent · Market)",
+        "stage_writing":  "Agent 4 — Report Writing",
+        "stage_review":   "Agent 5 — Quality Review & Citation Check",
+        "stage_scoring":  "Agent 6 — Commercialization Scoring",
+        "agent_academic": "Agent 1 — Academic Literature Analysis",
+        "agent_patent":   "Agent 2 — Patent Landscape Analysis",
+        "agent_market":   "Agent 3 — Market Intelligence Analysis",
+        "sources_prefix": "Sources: ",
+        "src_header":   "Collected Sources",
+        "src_academic": "Academic",
+        "src_patent":   "Patent",
+        "src_market":   "Market",
+        "src_evidence": "Evidence",
+        "hist_desc":     "Past runs — paste a Run ID below to reload any report",
+        "hist_refresh":  "↻  Refresh",
+        "hist_cleanup":  "🗑  Keep Latest 20",
+        "hist_filter":   "Filter by topic…",
+        "hist_hint":     "Click any row to fill the Run ID field below",
+        "hist_col_time":     "Time",
+        "hist_col_topic":    "Topic",
+        "hist_col_duration": "Duration",
+        "hist_col_score":    "Score",
+        "hist_col_status":   "Status",
+        "hist_col_runid":    "Run ID",
+        "run_id_label":  "Run ID",
+        "load_btn":      "Load",
+        "lang_badge_prefix": "Report language: ",
+    },
+
+    # ── Simplified Chinese ───────────────────────────────────────────────────
+    "Chinese": {
+        "header_title": "学术成果商业化评估",
+        "header_desc": (
+            "输入研究主题，启动 <strong style='color:#e5e5e5;'>6 个专业 AI 智能体</strong>"
+            "评估商业化可行性，生成带有核实引用的评分报告。"
+            "智能体 1–3 并行运行，预计耗时 <strong style='color:#e5e5e5;'>2–3 分钟</strong>。"
+            "支持任意语言输入，报告语言与输入一致。"
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 6 个 AI 智能体",
+        "chip_metrics":   "📊 TRL · IP · 市场 · 证据",
+        "chip_citations": "✓ 核实引用",
+        "topic_label":        "研究主题",
+        "topic_placeholder":  "例如：钠离子电池在电网储能中的商业化  |  e.g., perovskite solar cells",
+        "lang_label":         "报告语言",
+        "profile_label":      "行业类型",
+        "run_btn":            "▶  运行分析",
+        "cancel_btn":         "⏹  取消",
+        "pdf_accordion_label": "📄 上传论文 PDF（可选）",
+        "pdf_desc": (
+            "上传 PDF 可将分析锚定在特定论文上——该论文成为主要来源"
+            "<strong style='color:#9a9a9a;'>（A1）</strong>，管线围绕其贡献搜索支撑证据。"
+        ),
+        "upload_label": "上传 PDF",
+        "extract_btn":  "提取核心贡献",
+        "paper_title_label":        "标题",
+        "paper_contribution_label": "核心贡献",
+        "paper_domain_label":       "应用领域",
+        "paper_doi_label":          "DOI / 链接",
+        "paper_metrics_label":      "关键指标（每行一项）",
+        "paper_topic_label":  "🔍 此主题驱动管线搜索 — 可编辑以聚焦或拓宽范围",
+        "paper_divider":      "分析主题",
+        "clear_paper_btn":    "✕  清空论文",
+        "paper_run_btn":      "▶  基于此论文运行分析",
+        "stage_init":     "来源收集与验证",
+        "stage_evidence": "阶段一 — 证据收集（学术 · 专利 · 市场）",
+        "stage_writing":  "智能体 4 — 报告撰写",
+        "stage_review":   "智能体 5 — 质量审查与引用核实",
+        "stage_scoring":  "智能体 6 — 商业化评分",
+        "agent_academic": "智能体 1 — 学术文献分析",
+        "agent_patent":   "智能体 2 — 专利格局分析",
+        "agent_market":   "智能体 3 — 市场情报分析",
+        "sources_prefix": "来源：",
+        "src_header":   "已收集来源",
+        "src_academic": "学术",
+        "src_patent":   "专利",
+        "src_market":   "市场",
+        "src_evidence": "证据",
+        "hist_desc":     "历史运行记录 — 在下方粘贴运行 ID 可重新加载任意报告",
+        "hist_refresh":  "↻  刷新",
+        "hist_cleanup":  "🗑  保留最新 20 条",
+        "hist_filter":   "按主题筛选…",
+        "hist_hint":     "点击任意行自动填充下方运行 ID",
+        "hist_col_time":     "时间",
+        "hist_col_topic":    "主题",
+        "hist_col_duration": "耗时",
+        "hist_col_score":    "评分",
+        "hist_col_status":   "状态",
+        "hist_col_runid":    "运行 ID",
+        "run_id_label":  "运行 ID",
+        "load_btn":      "加载",
+        "lang_badge_prefix": "报告语言：",
+    },
+
+    # ── Japanese ─────────────────────────────────────────────────────────────
+    "Japanese": {
+        "header_title": "学術商業化評価システム",
+        "header_desc": (
+            "研究トピックを入力して、商業化の準備状況を評価する"
+            "<strong style='color:#e5e5e5;'>6 つの専門 AI エージェント</strong>を起動します。"
+            "検証済み引用を含むスコアレポートを生成します。エージェント 1–3 は並列実行、"
+            "所要時間は <strong style='color:#e5e5e5;'>2–3 分</strong>。"
+            "任意の言語で入力可能 — レポートは同じ言語で生成されます。"
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 AI エージェント × 6",
+        "chip_metrics":   "📊 TRL · IP · 市場 · 証拠",
+        "chip_citations": "✓ 検証済み引用",
+        "topic_label":        "研究トピック",
+        "topic_placeholder":  "例：ペロブスカイト太陽電池の建物一体型光発電への応用",
+        "lang_label":         "レポート言語",
+        "profile_label":      "業界プロファイル",
+        "run_btn":            "▶  分析を実行",
+        "cancel_btn":         "⏹  キャンセル",
+        "pdf_accordion_label": "📄 論文 PDF のアップロード（任意）",
+        "pdf_desc": (
+            "PDF をアップロードすることで特定の論文に分析を固定できます。"
+            "その論文が主要ソース <strong style='color:#9a9a9a;'>（A1）</strong> となり、"
+            "パイプラインはその貢献の周辺で裏付け証拠を検索します。"
+        ),
+        "upload_label": "PDF をアップロード",
+        "extract_btn":  "貢献内容を抽出",
+        "paper_title_label":        "タイトル",
+        "paper_contribution_label": "主要貢献",
+        "paper_domain_label":       "応用分野",
+        "paper_doi_label":          "DOI / URL",
+        "paper_metrics_label":      "主要指標（1 行 1 項目）",
+        "paper_topic_label":  "🔍 このトピックがパイプライン検索を駆動します — 編集して焦点を絞ることができます",
+        "paper_divider":      "分析トピック",
+        "clear_paper_btn":    "✕  論文をクリア",
+        "paper_run_btn":      "▶  この論文で分析を実行",
+        "stage_init":     "ソース収集と検証",
+        "stage_evidence": "フェーズ 1 — 証拠収集（学術 · 特許 · 市場）",
+        "stage_writing":  "エージェント 4 — レポート作成",
+        "stage_review":   "エージェント 5 — 品質レビューと引用確認",
+        "stage_scoring":  "エージェント 6 — 商業化スコアリング",
+        "agent_academic": "エージェント 1 — 学術文献分析",
+        "agent_patent":   "エージェント 2 — 特許状況分析",
+        "agent_market":   "エージェント 3 — 市場情報分析",
+        "sources_prefix": "ソース：",
+        "src_header":   "収集済みソース",
+        "src_academic": "学術",
+        "src_patent":   "特許",
+        "src_market":   "市場",
+        "src_evidence": "証拠",
+        "hist_desc":     "過去の実行 — 下のフィールドに実行 ID を貼り付けてレポートを再読み込み",
+        "hist_refresh":  "↻  更新",
+        "hist_cleanup":  "🗑  最新 20 件を保持",
+        "hist_filter":   "トピックでフィルタ…",
+        "hist_hint":     "任意の行をクリックして下の実行 ID フィールドに入力",
+        "hist_col_time":     "時刻",
+        "hist_col_topic":    "トピック",
+        "hist_col_duration": "所要時間",
+        "hist_col_score":    "スコア",
+        "hist_col_status":   "ステータス",
+        "hist_col_runid":    "実行 ID",
+        "run_id_label":  "実行 ID",
+        "load_btn":      "読み込む",
+        "lang_badge_prefix": "レポート言語：",
+    },
+
+    # ── Korean ───────────────────────────────────────────────────────────────
+    "Korean": {
+        "header_title": "학술 상업화 평가 시스템",
+        "header_desc": (
+            "연구 주제를 입력하여 상업화 준비도를 평가하는"
+            " <strong style='color:#e5e5e5;'>6개의 전문 AI 에이전트</strong>를 실행합니다."
+            " 검증된 인용이 포함된 점수 보고서를 생성합니다."
+            " 에이전트 1–3은 병렬 실행, 예상 소요 시간:"
+            " <strong style='color:#e5e5e5;'>2–3분</strong>."
+            " 어떤 언어로도 입력 가능 — 보고서는 같은 언어로 생성됩니다."
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 AI 에이전트 6개",
+        "chip_metrics":   "📊 TRL · IP · 시장 · 증거",
+        "chip_citations": "✓ 검증된 인용",
+        "topic_label":        "연구 주제",
+        "topic_placeholder":  "예: 페로브스카이트 태양전지의 건물 일체형 광전지 응용",
+        "lang_label":         "보고서 언어",
+        "profile_label":      "산업 프로파일",
+        "run_btn":            "▶  분석 실행",
+        "cancel_btn":         "⏹  취소",
+        "pdf_accordion_label": "📄 논문 PDF 업로드 (선택사항)",
+        "pdf_desc": (
+            "PDF를 업로드하면 특정 논문에 분석을 고정할 수 있습니다."
+            " 해당 논문이 주요 소스 <strong style='color:#9a9a9a;'>(A1)</strong>가 되고"
+            " 파이프라인은 그 기여 주변에서 지원 증거를 검색합니다."
+        ),
+        "upload_label": "PDF 업로드",
+        "extract_btn":  "기여 내용 추출",
+        "paper_title_label":        "제목",
+        "paper_contribution_label": "핵심 기여",
+        "paper_domain_label":       "응용 분야",
+        "paper_doi_label":          "DOI / URL",
+        "paper_metrics_label":      "주요 지표 (한 줄에 하나씩)",
+        "paper_topic_label":  "🔍 이 주제가 파이프라인 검색을 구동합니다 — 편집하여 초점 조정 가능",
+        "paper_divider":      "분석 주제",
+        "clear_paper_btn":    "✕  논문 지우기",
+        "paper_run_btn":      "▶  이 논문으로 분석 실행",
+        "stage_init":     "소스 수집 및 검증",
+        "stage_evidence": "단계 1 — 증거 수집 (학술 · 특허 · 시장)",
+        "stage_writing":  "에이전트 4 — 보고서 작성",
+        "stage_review":   "에이전트 5 — 품질 검토 및 인용 확인",
+        "stage_scoring":  "에이전트 6 — 상업화 점수 산정",
+        "agent_academic": "에이전트 1 — 학술 문헌 분석",
+        "agent_patent":   "에이전트 2 — 특허 현황 분석",
+        "agent_market":   "에이전트 3 — 시장 정보 분석",
+        "sources_prefix": "출처: ",
+        "src_header":   "수집된 출처",
+        "src_academic": "학술",
+        "src_patent":   "특허",
+        "src_market":   "시장",
+        "src_evidence": "증거",
+        "hist_desc":     "이전 실행 — 아래에 실행 ID를 붙여넣어 보고서를 다시 로드",
+        "hist_refresh":  "↻  새로고침",
+        "hist_cleanup":  "🗑  최신 20개 유지",
+        "hist_filter":   "주제로 필터링…",
+        "hist_hint":     "행을 클릭하면 아래 실행 ID 필드에 자동 입력됩니다",
+        "hist_col_time":     "시간",
+        "hist_col_topic":    "주제",
+        "hist_col_duration": "소요 시간",
+        "hist_col_score":    "점수",
+        "hist_col_status":   "상태",
+        "hist_col_runid":    "실행 ID",
+        "run_id_label":  "실행 ID",
+        "load_btn":      "불러오기",
+        "lang_badge_prefix": "보고서 언어: ",
+    },
+
+    # ── French ───────────────────────────────────────────────────────────────
+    "French": {
+        "header_title": "Évaluation de la Commercialisation Académique",
+        "header_desc": (
+            "Saisissez un sujet de recherche pour lancer"
+            " <strong style='color:#e5e5e5;'>6 agents IA spécialisés</strong>"
+            " qui évaluent la maturité commerciale — produisant un rapport noté avec des citations vérifiées."
+            " Les agents 1–3 s'exécutent en parallèle ; durée prévue :"
+            " <strong style='color:#e5e5e5;'>2–3 minutes</strong>."
+            " Saisie dans n'importe quelle langue — le rapport est généré dans la même langue."
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 6 agents IA",
+        "chip_metrics":   "📊 TRL · PI · Marché · Preuves",
+        "chip_citations": "✓ Citations vérifiées",
+        "topic_label":        "Sujet de recherche",
+        "topic_placeholder":  "ex. : cellules solaires pérovskites pour la photovoltaïque intégrée au bâtiment",
+        "lang_label":         "Langue du rapport",
+        "profile_label":      "Profil industriel",
+        "run_btn":            "▶  Lancer l'analyse",
+        "cancel_btn":         "⏹  Annuler",
+        "pdf_accordion_label": "📄 Importer un PDF (facultatif)",
+        "pdf_desc": (
+            "Importez un PDF pour ancrer l'analyse sur un article spécifique —"
+            " il devient la source principale <strong style='color:#9a9a9a;'>(A1)</strong>"
+            " et le pipeline recherche des preuves autour de sa contribution."
+        ),
+        "upload_label": "Importer un PDF",
+        "extract_btn":  "Extraire la contribution",
+        "paper_title_label":        "Titre",
+        "paper_contribution_label": "Contribution principale",
+        "paper_domain_label":       "Domaine d'application",
+        "paper_doi_label":          "DOI / URL",
+        "paper_metrics_label":      "Indicateurs clés (un par ligne)",
+        "paper_topic_label":  "🔍 Ce sujet guide la recherche du pipeline — modifiez pour affiner ou élargir",
+        "paper_divider":      "Sujet d'analyse",
+        "clear_paper_btn":    "✕  Supprimer l'article",
+        "paper_run_btn":      "▶  Analyser avec cet article",
+        "stage_init":     "Collecte et validation des sources",
+        "stage_evidence": "Phase 1 — Collecte de preuves (Académique · Brevets · Marché)",
+        "stage_writing":  "Agent 4 — Rédaction du rapport",
+        "stage_review":   "Agent 5 — Révision qualité et vérification des citations",
+        "stage_scoring":  "Agent 6 — Notation de la commercialisation",
+        "agent_academic": "Agent 1 — Analyse de la littérature académique",
+        "agent_patent":   "Agent 2 — Analyse du paysage de brevets",
+        "agent_market":   "Agent 3 — Analyse du renseignement de marché",
+        "sources_prefix": "Sources : ",
+        "src_header":   "Sources collectées",
+        "src_academic": "Académique",
+        "src_patent":   "Brevet",
+        "src_market":   "Marché",
+        "src_evidence": "Preuves",
+        "hist_desc":     "Exécutions passées — collez un ID d'exécution ci-dessous pour recharger un rapport",
+        "hist_refresh":  "↻  Actualiser",
+        "hist_cleanup":  "🗑  Garder les 20 dernières",
+        "hist_filter":   "Filtrer par sujet…",
+        "hist_hint":     "Cliquez sur une ligne pour remplir le champ ID ci-dessous",
+        "hist_col_time":     "Heure",
+        "hist_col_topic":    "Sujet",
+        "hist_col_duration": "Durée",
+        "hist_col_score":    "Score",
+        "hist_col_status":   "Statut",
+        "hist_col_runid":    "ID d'exécution",
+        "run_id_label":  "ID d'exécution",
+        "load_btn":      "Charger",
+        "lang_badge_prefix": "Langue du rapport : ",
+    },
+
+    # ── German ───────────────────────────────────────────────────────────────
+    "German": {
+        "header_title": "Akademische Kommerzialisierungsbewertung",
+        "header_desc": (
+            "Geben Sie ein Forschungsthema ein, um"
+            " <strong style='color:#e5e5e5;'>6 spezialisierte KI-Agenten</strong>"
+            " zu starten, die die Kommerzialisierungsbereitschaft bewerten."
+            " Erwartete Laufzeit: <strong style='color:#e5e5e5;'>2–3 Minuten</strong>."
+            " Eingabe in beliebiger Sprache — Bericht wird in derselben Sprache erstellt."
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 6 KI-Agenten",
+        "chip_metrics":   "📊 TRL · IP · Markt · Belege",
+        "chip_citations": "✓ Geprüfte Zitate",
+        "topic_label":        "Forschungsthema",
+        "topic_placeholder":  "z. B.: Perowskit-Solarzellen für gebäudeintegrierte Photovoltaik",
+        "lang_label":         "Berichtssprache",
+        "profile_label":      "Branchenprofil",
+        "run_btn":            "▶  Analyse starten",
+        "cancel_btn":         "⏹  Abbrechen",
+        "pdf_accordion_label": "📄 PDF hochladen (optional)",
+        "pdf_desc": (
+            "Laden Sie ein PDF hoch, um die Analyse auf ein bestimmtes Paper zu fixieren —"
+            " es wird zur Hauptquelle <strong style='color:#9a9a9a;'>(A1)</strong>"
+            " und die Pipeline sucht nach unterstützenden Belegen."
+        ),
+        "upload_label": "PDF hochladen",
+        "extract_btn":  "Beitrag extrahieren",
+        "paper_title_label":        "Titel",
+        "paper_contribution_label": "Hauptbeitrag",
+        "paper_domain_label":       "Anwendungsgebiet",
+        "paper_doi_label":          "DOI / URL",
+        "paper_metrics_label":      "Schlüsselkennzahlen (eine pro Zeile)",
+        "paper_topic_label":  "🔍 Dieses Thema steuert die Pipeline-Suche — bearbeiten zum Eingrenzen oder Erweitern",
+        "paper_divider":      "Analysethema",
+        "clear_paper_btn":    "✕  Paper entfernen",
+        "paper_run_btn":      "▶  Analyse mit diesem Paper starten",
+        "stage_init":     "Quellensammlung und -validierung",
+        "stage_evidence": "Phase 1 — Beweiserhebung (Akademisch · Patent · Markt)",
+        "stage_writing":  "Agent 4 — Berichtserstellung",
+        "stage_review":   "Agent 5 — Qualitätsprüfung und Zitationscheck",
+        "stage_scoring":  "Agent 6 — Kommerzialisierungsbewertung",
+        "agent_academic": "Agent 1 — Analyse der Fachliteratur",
+        "agent_patent":   "Agent 2 — Patentlandschaftsanalyse",
+        "agent_market":   "Agent 3 — Marktanalyse",
+        "sources_prefix": "Quellen: ",
+        "src_header":   "Gesammelte Quellen",
+        "src_academic": "Akademisch",
+        "src_patent":   "Patent",
+        "src_market":   "Markt",
+        "src_evidence": "Belege",
+        "hist_desc":     "Frühere Analysen — Ausführungs-ID unten einfügen, um einen Bericht neu zu laden",
+        "hist_refresh":  "↻  Aktualisieren",
+        "hist_cleanup":  "🗑  Neueste 20 behalten",
+        "hist_filter":   "Nach Thema filtern…",
+        "hist_hint":     "Zeile anklicken, um die Ausführungs-ID unten automatisch auszufüllen",
+        "hist_col_time":     "Zeit",
+        "hist_col_topic":    "Thema",
+        "hist_col_duration": "Dauer",
+        "hist_col_score":    "Bewertung",
+        "hist_col_status":   "Status",
+        "hist_col_runid":    "Ausführungs-ID",
+        "run_id_label":  "Ausführungs-ID",
+        "load_btn":      "Laden",
+        "lang_badge_prefix": "Berichtssprache: ",
+    },
+
+    # ── Spanish ──────────────────────────────────────────────────────────────
+    "Spanish": {
+        "header_title": "Evaluación de Comercialización Académica",
+        "header_desc": (
+            "Introduzca un tema de investigación para lanzar"
+            " <strong style='color:#e5e5e5;'>6 agentes de IA especializados</strong>"
+            " que evalúan la preparación para la comercialización."
+            " Tiempo estimado: <strong style='color:#e5e5e5;'>2–3 minutos</strong>."
+            " Ingrese en cualquier idioma — el informe se genera en el mismo idioma."
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 6 agentes de IA",
+        "chip_metrics":   "📊 TRL · PI · Mercado · Evidencia",
+        "chip_citations": "✓ Citas verificadas",
+        "topic_label":        "Tema de investigación",
+        "topic_placeholder":  "ej.: células solares de perovskita para fotovoltaica integrada en edificios",
+        "lang_label":         "Idioma del informe",
+        "profile_label":      "Perfil industrial",
+        "run_btn":            "▶  Ejecutar análisis",
+        "cancel_btn":         "⏹  Cancelar",
+        "pdf_accordion_label": "📄 Subir PDF del artículo (opcional)",
+        "pdf_desc": (
+            "Suba un PDF para anclar el análisis en un artículo específico —"
+            " se convierte en la fuente principal <strong style='color:#9a9a9a;'>(A1)</strong>"
+            " y el pipeline busca evidencia de apoyo alrededor de su contribución."
+        ),
+        "upload_label": "Subir PDF",
+        "extract_btn":  "Extraer contribución",
+        "paper_title_label":        "Título",
+        "paper_contribution_label": "Contribución principal",
+        "paper_domain_label":       "Dominio de aplicación",
+        "paper_doi_label":          "DOI / URL",
+        "paper_metrics_label":      "Métricas clave (una por línea)",
+        "paper_topic_label":  "🔍 Este tema guía la búsqueda del pipeline — edite para enfocar o ampliar",
+        "paper_divider":      "Tema de análisis",
+        "clear_paper_btn":    "✕  Borrar artículo",
+        "paper_run_btn":      "▶  Analizar con este artículo",
+        "stage_init":     "Recopilación y validación de fuentes",
+        "stage_evidence": "Fase 1 — Recopilación de evidencia (Académica · Patentes · Mercado)",
+        "stage_writing":  "Agente 4 — Redacción del informe",
+        "stage_review":   "Agente 5 — Revisión de calidad y citas",
+        "stage_scoring":  "Agente 6 — Puntuación de comercialización",
+        "agent_academic": "Agente 1 — Análisis de literatura académica",
+        "agent_patent":   "Agente 2 — Análisis del panorama de patentes",
+        "agent_market":   "Agente 3 — Análisis de inteligencia de mercado",
+        "sources_prefix": "Fuentes: ",
+        "src_header":   "Fuentes recopiladas",
+        "src_academic": "Académica",
+        "src_patent":   "Patente",
+        "src_market":   "Mercado",
+        "src_evidence": "Evidencia",
+        "hist_desc":     "Ejecuciones anteriores — pegue un ID de ejecución abajo para recargar un informe",
+        "hist_refresh":  "↻  Actualizar",
+        "hist_cleanup":  "🗑  Mantener últimas 20",
+        "hist_filter":   "Filtrar por tema…",
+        "hist_hint":     "Haga clic en cualquier fila para rellenar el campo ID de ejecución",
+        "hist_col_time":     "Hora",
+        "hist_col_topic":    "Tema",
+        "hist_col_duration": "Duración",
+        "hist_col_score":    "Puntuación",
+        "hist_col_status":   "Estado",
+        "hist_col_runid":    "ID de ejecución",
+        "run_id_label":  "ID de ejecución",
+        "load_btn":      "Cargar",
+        "lang_badge_prefix": "Idioma del informe: ",
+    },
+
+    # ── Portuguese ───────────────────────────────────────────────────────────
+    "Portuguese": {
+        "header_title": "Avaliação de Comercialização Académica",
+        "header_desc": (
+            "Insira um tema de pesquisa para lançar"
+            " <strong style='color:#e5e5e5;'>6 agentes de IA especializados</strong>"
+            " que avaliam a prontidão para comercialização."
+            " Tempo estimado: <strong style='color:#e5e5e5;'>2–3 minutos</strong>."
+            " Entrada em qualquer idioma — o relatório é gerado no mesmo idioma."
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 6 agentes de IA",
+        "chip_metrics":   "📊 TRL · PI · Mercado · Evidências",
+        "chip_citations": "✓ Citações verificadas",
+        "topic_label":        "Tema de pesquisa",
+        "topic_placeholder":  "ex.: células solares de perovskita para fotovoltaica integrada em edifícios",
+        "lang_label":         "Idioma do relatório",
+        "profile_label":      "Perfil industrial",
+        "run_btn":            "▶  Executar análise",
+        "cancel_btn":         "⏹  Cancelar",
+        "pdf_accordion_label": "📄 Carregar PDF do artigo (opcional)",
+        "pdf_desc": (
+            "Carregue um PDF para ancorar a análise num artigo específico —"
+            " torna-se a fonte principal <strong style='color:#9a9a9a;'>(A1)</strong>"
+            " e o pipeline procura evidências de suporte em torno da sua contribuição."
+        ),
+        "upload_label": "Carregar PDF",
+        "extract_btn":  "Extrair contribuição",
+        "paper_title_label":        "Título",
+        "paper_contribution_label": "Contribuição principal",
+        "paper_domain_label":       "Domínio de aplicação",
+        "paper_doi_label":          "DOI / URL",
+        "paper_metrics_label":      "Métricas-chave (uma por linha)",
+        "paper_topic_label":  "🔍 Este tema guia a pesquisa do pipeline — edite para focar ou ampliar",
+        "paper_divider":      "Tema de análise",
+        "clear_paper_btn":    "✕  Limpar artigo",
+        "paper_run_btn":      "▶  Analisar com este artigo",
+        "stage_init":     "Recolha e validação de fontes",
+        "stage_evidence": "Fase 1 — Recolha de evidências (Académica · Patentes · Mercado)",
+        "stage_writing":  "Agente 4 — Redação do relatório",
+        "stage_review":   "Agente 5 — Revisão de qualidade e citações",
+        "stage_scoring":  "Agente 6 — Pontuação de comercialização",
+        "agent_academic": "Agente 1 — Análise de literatura académica",
+        "agent_patent":   "Agente 2 — Análise do panorama de patentes",
+        "agent_market":   "Agente 3 — Análise de inteligência de mercado",
+        "sources_prefix": "Fontes: ",
+        "src_header":   "Fontes recolhidas",
+        "src_academic": "Académica",
+        "src_patent":   "Patente",
+        "src_market":   "Mercado",
+        "src_evidence": "Evidências",
+        "hist_desc":     "Execuções anteriores — cole um ID de execução abaixo para recarregar um relatório",
+        "hist_refresh":  "↻  Atualizar",
+        "hist_cleanup":  "🗑  Manter últimas 20",
+        "hist_filter":   "Filtrar por tema…",
+        "hist_hint":     "Clique em qualquer linha para preencher o campo ID de execução",
+        "hist_col_time":     "Hora",
+        "hist_col_topic":    "Tema",
+        "hist_col_duration": "Duração",
+        "hist_col_score":    "Pontuação",
+        "hist_col_status":   "Estado",
+        "hist_col_runid":    "ID de execução",
+        "run_id_label":  "ID de execução",
+        "load_btn":      "Carregar",
+        "lang_badge_prefix": "Idioma do relatório: ",
+    },
+
+    # ── Arabic ───────────────────────────────────────────────────────────────
+    "Arabic": {
+        "header_title": "تقييم التسويق الأكاديمي",
+        "header_desc": (
+            "أدخل موضوع بحثيًا لتشغيل"
+            " <strong style='color:#e5e5e5;'>6 وكلاء ذكاء اصطناعي متخصصين</strong>"
+            " يقيّمون الجاهزية التجارية — مع تقرير مُقيَّم ومراجع موثّقة."
+            " الوكلاء 1–3 يعملون بالتوازي؛ الوقت المتوقع:"
+            " <strong style='color:#e5e5e5;'>2–3 دقائق</strong>."
+            " أدخل بأي لغة — يُنشأ التقرير بنفس اللغة."
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 6 وكلاء ذكاء اصطناعي",
+        "chip_metrics":   "📊 TRL · PI · السوق · الأدلة",
+        "chip_citations": "✓ مراجع موثّقة",
+        "topic_label":        "موضوع البحث",
+        "topic_placeholder":  "مثال: خلايا شمسية بيروفسكيت للطاقة الكهروضوئية المتكاملة في المباني",
+        "lang_label":         "لغة التقرير",
+        "profile_label":      "الملف الصناعي",
+        "run_btn":            "▶  تشغيل التحليل",
+        "cancel_btn":         "⏹  إلغاء",
+        "pdf_accordion_label": "📄 تحميل ملف PDF للورقة (اختياري)",
+        "pdf_desc": (
+            "قم بتحميل ملف PDF لتثبيت التحليل على ورقة بحثية محددة —"
+            " ستصبح المصدر الرئيسي <strong style='color:#9a9a9a;'>(A1)</strong>"
+            " ويبحث النظام عن أدلة داعمة حول مساهمتها."
+        ),
+        "upload_label": "تحميل PDF",
+        "extract_btn":  "استخراج المساهمة",
+        "paper_title_label":        "العنوان",
+        "paper_contribution_label": "المساهمة الرئيسية",
+        "paper_domain_label":       "مجال التطبيق",
+        "paper_doi_label":          "DOI / الرابط",
+        "paper_metrics_label":      "المقاييس الرئيسية (سطر واحد لكل مقياس)",
+        "paper_topic_label":  "🔍 هذا الموضوع يقود بحث النظام — يمكن تعديله للتركيز أو التوسيع",
+        "paper_divider":      "موضوع التحليل",
+        "clear_paper_btn":    "✕  مسح الورقة",
+        "paper_run_btn":      "▶  تشغيل التحليل مع هذه الورقة",
+        "stage_init":     "جمع المصادر والتحقق منها",
+        "stage_evidence": "المرحلة 1 — جمع الأدلة (أكاديمية · براءات اختراع · سوق)",
+        "stage_writing":  "الوكيل 4 — كتابة التقرير",
+        "stage_review":   "الوكيل 5 — مراجعة الجودة والاستشهادات",
+        "stage_scoring":  "الوكيل 6 — تقييم التسويق",
+        "agent_academic": "الوكيل 1 — تحليل الأدبيات الأكاديمية",
+        "agent_patent":   "الوكيل 2 — تحليل مشهد براءات الاختراع",
+        "agent_market":   "الوكيل 3 — تحليل معلومات السوق",
+        "sources_prefix": "المصادر: ",
+        "src_header":   "المصادر المجمّعة",
+        "src_academic": "أكاديمي",
+        "src_patent":   "براءة اختراع",
+        "src_market":   "سوق",
+        "src_evidence": "أدلة",
+        "hist_desc":     "عمليات التشغيل السابقة — الصق معرّف التشغيل أدناه لإعادة تحميل أي تقرير",
+        "hist_refresh":  "↻  تحديث",
+        "hist_cleanup":  "🗑  الاحتفاظ بآخر 20",
+        "hist_filter":   "تصفية حسب الموضوع…",
+        "hist_hint":     "انقر على أي صف لملء حقل معرّف التشغيل أدناه",
+        "hist_col_time":     "الوقت",
+        "hist_col_topic":    "الموضوع",
+        "hist_col_duration": "المدة",
+        "hist_col_score":    "النتيجة",
+        "hist_col_status":   "الحالة",
+        "hist_col_runid":    "معرّف التشغيل",
+        "run_id_label":  "معرّف التشغيل",
+        "load_btn":      "تحميل",
+        "lang_badge_prefix": "لغة التقرير: ",
+    },
+
+    # ── Russian ──────────────────────────────────────────────────────────────
+    "Russian": {
+        "header_title": "Оценка Коммерциализации Исследований",
+        "header_desc": (
+            "Введите тему исследования, чтобы запустить"
+            " <strong style='color:#e5e5e5;'>6 специализированных ИИ-агентов</strong>,"
+            " оценивающих готовность к коммерциализации."
+            " Ожидаемое время выполнения: <strong style='color:#e5e5e5;'>2–3 минуты</strong>."
+            " Ввод на любом языке — отчёт создаётся на том же языке."
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 6 ИИ-агентов",
+        "chip_metrics":   "📊 TRL · ИС · Рынок · Доказательства",
+        "chip_citations": "✓ Проверенные ссылки",
+        "topic_label":        "Тема исследования",
+        "topic_placeholder":  "напр.: перовскитные солнечные элементы для интегрированной в здания фотовольтаики",
+        "lang_label":         "Язык отчёта",
+        "profile_label":      "Отраслевой профиль",
+        "run_btn":            "▶  Запустить анализ",
+        "cancel_btn":         "⏹  Отмена",
+        "pdf_accordion_label": "📄 Загрузить PDF статьи (необязательно)",
+        "pdf_desc": (
+            "Загрузите PDF, чтобы зафиксировать анализ на конкретной статье —"
+            " она становится основным источником <strong style='color:#9a9a9a;'>(A1)</strong>,"
+            " а пайплайн ищет подтверждающие данные вокруг её вклада."
+        ),
+        "upload_label": "Загрузить PDF",
+        "extract_btn":  "Извлечь вклад",
+        "paper_title_label":        "Заголовок",
+        "paper_contribution_label": "Основной вклад",
+        "paper_domain_label":       "Область применения",
+        "paper_doi_label":          "DOI / URL",
+        "paper_metrics_label":      "Ключевые метрики (по одной на строку)",
+        "paper_topic_label":  "🔍 Эта тема управляет поиском пайплайна — редактируйте для уточнения или расширения",
+        "paper_divider":      "Тема анализа",
+        "clear_paper_btn":    "✕  Очистить статью",
+        "paper_run_btn":      "▶  Запустить анализ с этой статьёй",
+        "stage_init":     "Сбор и валидация источников",
+        "stage_evidence": "Фаза 1 — Сбор данных (Академические · Патенты · Рынок)",
+        "stage_writing":  "Агент 4 — Написание отчёта",
+        "stage_review":   "Агент 5 — Контроль качества и проверка ссылок",
+        "stage_scoring":  "Агент 6 — Оценка коммерциализации",
+        "agent_academic": "Агент 1 — Анализ академической литературы",
+        "agent_patent":   "Агент 2 — Анализ патентного ландшафта",
+        "agent_market":   "Агент 3 — Анализ рыночной информации",
+        "sources_prefix": "Источники: ",
+        "src_header":   "Собранные источники",
+        "src_academic": "Академические",
+        "src_patent":   "Патент",
+        "src_market":   "Рынок",
+        "src_evidence": "Доказательства",
+        "hist_desc":     "Прошлые запуски — вставьте ID запуска ниже для перезагрузки отчёта",
+        "hist_refresh":  "↻  Обновить",
+        "hist_cleanup":  "🗑  Оставить последние 20",
+        "hist_filter":   "Фильтр по теме…",
+        "hist_hint":     "Нажмите на строку, чтобы заполнить поле ID запуска",
+        "hist_col_time":     "Время",
+        "hist_col_topic":    "Тема",
+        "hist_col_duration": "Длительность",
+        "hist_col_score":    "Оценка",
+        "hist_col_status":   "Статус",
+        "hist_col_runid":    "ID запуска",
+        "run_id_label":  "ID запуска",
+        "load_btn":      "Загрузить",
+        "lang_badge_prefix": "Язык отчёта: ",
+    },
+
+    # ── Hindi ────────────────────────────────────────────────────────────────
+    "Hindi": {
+        "header_title": "शैक्षणिक व्यावसायीकरण मूल्यांकन",
+        "header_desc": (
+            "व्यावसायीकरण तैयारी का मूल्यांकन करने के लिए एक शोध विषय दर्ज करें और"
+            " <strong style='color:#e5e5e5;'>6 विशेष AI एजेंट</strong> लॉन्च करें।"
+            " अपेक्षित समय: <strong style='color:#e5e5e5;'>2–3 मिनट</strong>।"
+            " किसी भी भाषा में इनपुट करें — रिपोर्ट उसी भाषा में बनाई जाती है।"
+        ),
+        "chip_sources":   "📚 OpenAlex · Semantic Scholar",
+        "chip_agents":    "🔬 6 AI एजेंट",
+        "chip_metrics":   "📊 TRL · IP · बाज़ार · साक्ष्य",
+        "chip_citations": "✓ सत्यापित उद्धरण",
+        "topic_label":        "शोध विषय",
+        "topic_placeholder":  "उदा.: पेरोव्सकाइट सौर सेल का भवन-एकीकृत फोटोवोल्टिक में उपयोग",
+        "lang_label":         "रिपोर्ट भाषा",
+        "profile_label":      "उद्योग प्रोफाइल",
+        "run_btn":            "▶  विश्लेषण चलाएं",
+        "cancel_btn":         "⏹  रद्द करें",
+        "pdf_accordion_label": "📄 PDF अपलोड करें (वैकल्पिक)",
+        "pdf_desc": (
+            "किसी विशिष्ट पेपर पर विश्लेषण केंद्रित करने के लिए PDF अपलोड करें —"
+            " यह प्राथमिक स्रोत <strong style='color:#9a9a9a;'>(A1)</strong> बन जाता है"
+            " और पाइपलाइन उसके योगदान के आसपास साक्ष्य खोजती है।"
+        ),
+        "upload_label": "PDF अपलोड करें",
+        "extract_btn":  "योगदान निकालें",
+        "paper_title_label":        "शीर्षक",
+        "paper_contribution_label": "मुख्य योगदान",
+        "paper_domain_label":       "अनुप्रयोग क्षेत्र",
+        "paper_doi_label":          "DOI / URL",
+        "paper_metrics_label":      "मुख्य मेट्रिक्स (प्रति पंक्ति एक)",
+        "paper_topic_label":  "🔍 यह विषय पाइपलाइन खोज को चलाता है — फ़ोकस करने या विस्तार के लिए संपादित करें",
+        "paper_divider":      "विश्लेषण विषय",
+        "clear_paper_btn":    "✕  पेपर साफ़ करें",
+        "paper_run_btn":      "▶  इस पेपर से विश्लेषण चलाएं",
+        "stage_init":     "स्रोत संग्रह और सत्यापन",
+        "stage_evidence": "चरण 1 — साक्ष्य संग्रह (शैक्षणिक · पेटेंट · बाज़ार)",
+        "stage_writing":  "एजेंट 4 — रिपोर्ट लेखन",
+        "stage_review":   "एजेंट 5 — गुणवत्ता समीक्षा और उद्धरण जांच",
+        "stage_scoring":  "एजेंट 6 — व्यावसायीकरण स्कोरिंग",
+        "agent_academic": "एजेंट 1 — शैक्षणिक साहित्य विश्लेषण",
+        "agent_patent":   "एजेंट 2 — पेटेंट परिदृश्य विश्लेषण",
+        "agent_market":   "एजेंट 3 — बाज़ार सूचना विश्लेषण",
+        "sources_prefix": "स्रोत: ",
+        "src_header":   "एकत्रित स्रोत",
+        "src_academic": "शैक्षणिक",
+        "src_patent":   "पेटेंट",
+        "src_market":   "बाज़ार",
+        "src_evidence": "साक्ष्य",
+        "hist_desc":     "पिछले विश्लेषण — किसी रिपोर्ट को पुनः लोड करने के लिए रन ID नीचे पेस्ट करें",
+        "hist_refresh":  "↻  ताज़ा करें",
+        "hist_cleanup":  "🗑  नवीनतम 20 रखें",
+        "hist_filter":   "विषय से फ़िल्टर करें…",
+        "hist_hint":     "नीचे रन ID भरने के लिए किसी भी पंक्ति पर क्लिक करें",
+        "hist_col_time":     "समय",
+        "hist_col_topic":    "विषय",
+        "hist_col_duration": "अवधि",
+        "hist_col_score":    "अंक",
+        "hist_col_status":   "स्थिति",
+        "hist_col_runid":    "रन ID",
+        "run_id_label":  "रन ID",
+        "load_btn":      "लोड करें",
+        "lang_badge_prefix": "रिपोर्ट भाषा: ",
+    },
+}
+
+
+def _ui(language: str) -> dict[str, str]:
+    """Return UI string dict for the given report-language dropdown value."""
+    key = language if language != "Auto (detect from topic)" else "English"
+    return _UI_I18N.get(key, _UI_I18N["English"])
+
+
+def _header_html(t: dict) -> str:
+    return (
+        '<div style="font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;'
+        'padding:24px 0 18px; border-bottom:1px solid #2d2d2d; margin-bottom:8px;">'
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">'
+        f'<h1 style="font-size:21px;font-weight:800;color:#f5f5f5;letter-spacing:-0.3px;margin:0;">'
+        f'{html.escape(t["header_title"])}'
+        '</h1>'
+        '<span style="background:#1e3a5f;color:#60a5fa;font-size:10px;font-weight:800;'
+        'padding:3px 9px;border-radius:10px;letter-spacing:0.06em;text-transform:uppercase;">BETA</span>'
+        '</div>'
+        f'<p style="font-size:13px;color:#9a9a9a;line-height:1.6;max-width:660px;margin:0 0 12px;">'
+        f'{t["header_desc"]}'
+        '</p>'
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+        f'<span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;font-size:11px;'
+        f'font-weight:600;padding:3px 10px;border-radius:20px;">{html.escape(t["chip_sources"])}</span>'
+        f'<span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;font-size:11px;'
+        f'font-weight:600;padding:3px 10px;border-radius:20px;">{html.escape(t["chip_agents"])}</span>'
+        f'<span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;font-size:11px;'
+        f'font-weight:600;padding:3px 10px;border-radius:20px;">{html.escape(t["chip_metrics"])}</span>'
+        f'<span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;font-size:11px;'
+        f'font-weight:600;padding:3px 10px;border-radius:20px;">{html.escape(t["chip_citations"])}</span>'
+        '</div>'
+        '</div>'
+    )
+
+
+def _pdf_desc_html(t: dict) -> str:
+    return (
+        f'<p style="font-size:12px;color:#6b7280;margin:2px 0 12px;">'
+        f'{t["pdf_desc"]}'
+        '</p>'
+    )
 
 
 _WARNING_I18N: dict[str, dict[str, str]] = {
@@ -568,6 +1375,8 @@ _PROFILE_LABELS: dict[str, str] = {
     "industrial":      "Industrial",
     "biomedical":      "Biomedical",
     "material_science": "Material Science",
+    "clean_tech":      "Clean Tech",
+    "software_ai":     "Software / AI",
 }
 
 
@@ -882,8 +1691,8 @@ def _render_score_html(
         f'{_kpi_tile("TRL", trl, 9, t["trl_sub"], trl_pct, trl_ids)}'
         f'{_kpi_tile("MRL", mrl, 10, t["mrl_sub"], mrl_pct, mrl_ids)}'
         f'{_kpi_tile("IP", pat, 5, t["ip_sub"], pat_pct, pat_ids)}'
-        f'{_kpi_tile("Market", mkt, 5, t["mkt_sub"], mkt_pct, mkt_ids)}'
-        f'{_kpi_tile("Evidence", evi, 5, t["evi_sub"], evi_pct, evi_ids)}'
+        f'{_kpi_tile(t["kpi_market"], mkt, 5, t["mkt_sub"], mkt_pct, mkt_ids)}'
+        f'{_kpi_tile(t["kpi_evidence"], evi, 5, t["evi_sub"], evi_pct, evi_ids)}'
         f'</div>'
 
         # Bars
@@ -950,7 +1759,15 @@ def _render_progress_html(
     source_counts: dict | None = None,
 ) -> str:
     t = _scorecard_strings(output_language)
+    u = _ui(output_language)
     all_stages = [_STAGE_INITIAL] + TASK_STAGE_LABELS
+    _stage_en_keys = ["stage_init", "stage_evidence", "stage_writing", "stage_review", "stage_scoring"]
+    _stage_display = {en: u.get(key, en) for en, key in zip(all_stages, _stage_en_keys)}
+    _phase1_labels = [
+        u.get("agent_academic", _PHASE1_AGENTS[0][0]),
+        u.get("agent_patent",   _PHASE1_AGENTS[1][0]),
+        u.get("agent_market",   _PHASE1_AGENTS[2][0]),
+    ]
     try:
         current_idx = all_stages.index(stage)
     except ValueError:
@@ -1001,7 +1818,7 @@ def _render_progress_html(
                 items.append(
                     f'<div style="margin-bottom:10px;padding-left:28px;'
                     f'animation:_agFade 0.2s ease-out both;">'
-                    f'<span style="font-size:11px;color:#4b5563;">Sources: </span>'
+                    f'<span style="font-size:11px;color:#4b5563;">{html.escape(u.get("sources_prefix", "Sources: "))}</span>'
                     f'<span style="font-size:11px;color:{ac_c};">{ac} academic</span>'
                     f'<span style="font-size:11px;color:#374151;"> · </span>'
                     f'<span style="font-size:11px;color:{pa_c};">{pa} patent</span>'
@@ -1027,7 +1844,7 @@ def _render_progress_html(
                     f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;'
                     f'animation:_agFade 0.22s ease-out both;animation-delay:{j * 65}ms;">'
                     f'{dot}'
-                    f'<div style="{row_style}">{html.escape(agent_name)}</div>'
+                    f'<div style="{row_style}">{html.escape(_phase1_labels[j])}</div>'
                     f'</div>'
                 )
             continue
@@ -1037,7 +1854,7 @@ def _render_progress_html(
             f'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;">'
             f'{dot}'
             f'<div style="padding-top:1px;">'
-            f'<div style="{text_style}">{html.escape(label)}</div>'
+            f'<div style="{text_style}">{html.escape(_stage_display.get(label, label))}</div>'
             f'</div>'
             f'</div>'
         )
@@ -1224,8 +2041,9 @@ def _load_run(run_id: str) -> tuple[str, str]:
     return score_html, report_md
 
 
-def _render_history_html() -> str:
+def _render_history_html(ui_lang: str = "English") -> str:
     """Build an HTML table of past analysis runs."""
+    u = _ui(ui_lang)
     output_root = DEFAULT_OUTPUT_ROOT
     if not output_root.exists():
         return _history_empty("No output directory found.")
@@ -1332,26 +2150,26 @@ def _render_history_html() -> str:
         f'border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;">'
         f'<div style="padding:8px 14px 6px;background:#0f0f0f;border-bottom:1px solid #1a1a1a;'
         f'display:flex;align-items:center;gap:12px;">'
-        f'<input type="text" placeholder="Filter by topic…" '
+        f'<input type="text" placeholder="{html.escape(u["hist_filter"])}" '
         f'oninput="{_hist_filter_js}" '
         f'style="flex:1;max-width:340px;background:#1a1a1a;border:1px solid #3d3d3d;'
         f'border-radius:6px;padding:4px 10px;font-size:12px;color:#e5e5e5;'
         f'font-family:system-ui;outline:none;" />'
         f'<span style="font-size:11px;color:#4b5563;white-space:nowrap;">'
-        f'Click any row to fill the Run ID field below</span>'
+        f'{html.escape(u["hist_hint"])}</span>'
         f'</div>'
         f'<div style="overflow-x:auto;">'
         f'<table style="width:100%;border-collapse:collapse;font-size:13px;">'
         f'<thead>'
         f'<tr style="background:#141414;border-bottom:1px solid #2d2d2d;">'
         f'<th style="text-align:left;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;">Time</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;">{html.escape(u["hist_col_time"])}</th>'
         f'<th style="text-align:left;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Topic</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">{html.escape(u["hist_col_topic"])}</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;">Duration</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;">{html.escape(u["hist_col_duration"])}</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Score</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">{html.escape(u["hist_col_score"])}</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">TRL</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
@@ -1359,13 +2177,13 @@ def _render_history_html() -> str:
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Patent</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Market</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">{html.escape(u["src_market"])}</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Evidence</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">{html.escape(u.get("src_evidence", "Evidence"))}</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Status</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">{html.escape(u["hist_col_status"])}</th>'
         f'<th style="text-align:left;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Run ID</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">{html.escape(u["hist_col_runid"])}</th>'
         f'</tr>'
         f'</thead>'
         f'<tbody id="hist-tbody">{rows_html}</tbody>'
@@ -1946,7 +2764,7 @@ def run_analysis(
                 gr.update(visible=False),
                 gr.update(interactive=False),
                 gr.update(visible=True),
-                _render_source_preview_html(run_dir),
+                _render_source_preview_html(run_dir, ui_lang=language),
             )
             time.sleep(0.8)
             tick += 1
@@ -2212,6 +3030,107 @@ details > .padding > div {
 }
 """
 
+_PROFILE_CHOICES: dict[str, list[tuple[str, str]]] = {
+    "Chinese": [
+        ("自动检测（从主题判断）", "Auto (detect from topic)"),
+        ("工业制造",            "industrial"),
+        ("材料科学",            "material_science"),
+        ("生物医药",            "biomedical"),
+        ("清洁技术",            "clean_tech"),
+        ("软件 / AI",          "software_ai"),
+    ],
+    "Japanese": [
+        ("自動検出（トピックから）", "Auto (detect from topic)"),
+        ("産業製造",              "industrial"),
+        ("材料科学",              "material_science"),
+        ("生物医学",              "biomedical"),
+        ("クリーンテック",         "clean_tech"),
+        ("ソフトウェア / AI",      "software_ai"),
+    ],
+    "Korean": [
+        ("자동 감지 (주제에서)", "Auto (detect from topic)"),
+        ("산업 제조",          "industrial"),
+        ("재료 과학",          "material_science"),
+        ("생물의학",           "biomedical"),
+        ("클린테크",           "clean_tech"),
+        ("소프트웨어 / AI",    "software_ai"),
+    ],
+    "Arabic": [
+        ("كشف تلقائي (من الموضوع)", "Auto (detect from topic)"),
+        ("التصنيع الصناعي",         "industrial"),
+        ("علم المواد",              "material_science"),
+        ("الطب الحيوي",            "biomedical"),
+        ("التقنيات النظيفة",        "clean_tech"),
+        ("البرمجيات / الذكاء الاصطناعي", "software_ai"),
+    ],
+    "Russian": [
+        ("Авто (из темы)",   "Auto (detect from topic)"),
+        ("Промышленность",   "industrial"),
+        ("Материаловедение", "material_science"),
+        ("Биомедицина",      "biomedical"),
+        ("Чистые технологии","clean_tech"),
+        ("ПО / ИИ",          "software_ai"),
+    ],
+    "Hindi": [
+        ("स्वत: पहचान (विषय से)", "Auto (detect from topic)"),
+        ("औद्योगिक",              "industrial"),
+        ("सामग्री विज्ञान",        "material_science"),
+        ("जैव चिकित्सा",           "biomedical"),
+        ("स्वच्छ प्रौद्योगिकी",    "clean_tech"),
+        ("सॉफ्टवेयर / AI",         "software_ai"),
+    ],
+}
+
+_PROFILE_CHOICES_DEFAULT = [
+    ("Auto (detect from topic)", "Auto (detect from topic)"),
+    ("Industrial",      "industrial"),
+    ("Material Science","material_science"),
+    ("Biomedical",      "biomedical"),
+    ("Clean Tech",      "clean_tech"),
+    ("Software / AI",   "software_ai"),
+]
+
+
+def _profile_choices(lang: str) -> list[tuple[str, str]]:
+    return _PROFILE_CHOICES.get(lang, _PROFILE_CHOICES_DEFAULT)
+
+
+def _on_lang_change(lang: str):
+    """Return gr.update() for every UI shell component when the language dropdown changes."""
+    t = _ui(lang)
+    hist_html = _render_history_html(ui_lang=lang)
+    divider_label = t.get("paper_divider", "Analysis Topic")
+    return (
+        gr.update(value=_header_html(t)),
+        gr.update(label=t["topic_label"], placeholder=t["topic_placeholder"]),
+        gr.update(label=t["lang_label"]),
+        gr.update(label=t["profile_label"], choices=_profile_choices(lang)),
+        gr.update(value=t["run_btn"]),
+        gr.update(value=t["cancel_btn"]),
+        gr.update(label=t["pdf_accordion_label"]),
+        gr.update(value=_pdf_desc_html(t)),
+        gr.update(label=t["upload_label"]),
+        gr.update(value=t["extract_btn"]),
+        gr.update(label=t["paper_title_label"]),
+        gr.update(label=t["paper_contribution_label"]),
+        gr.update(label=t["paper_domain_label"]),
+        gr.update(label=t["paper_doi_label"]),
+        gr.update(label=t["paper_metrics_label"]),
+        gr.update(label=t["paper_topic_label"]),
+        gr.update(value=_paper_divider_html(divider_label)),
+        gr.update(value=t["clear_paper_btn"]),
+        gr.update(value=t["paper_run_btn"]),
+        gr.update(value=f'<p style="font-size:13px;color:#9a9a9a;margin:6px 0;">'
+                        f'{html.escape(t["hist_desc"])}</p>'),
+        gr.update(value=t["hist_refresh"]),
+        gr.update(value=t["hist_cleanup"]),
+        gr.update(value=hist_html),
+        gr.update(label=t["run_id_label"]),
+        gr.update(value=t["load_btn"]),
+        lang,
+    )
+
+
 _HEADER_HTML = """
 <div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
   padding:24px 0 18px; border-bottom:1px solid #2d2d2d; margin-bottom:8px;">
@@ -2251,7 +3170,8 @@ _theme = gr.themes.Default(
 )
 
 with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False) as demo:
-    gr.HTML(_HEADER_HTML)
+    ui_lang_state = gr.State("English")
+    header_html_comp = gr.HTML(_header_html(_ui("English")))
 
     with gr.Tabs() as tabs:
         # ── Analysis tab ──────────────────────────────────────────────────
@@ -2269,13 +3189,7 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
                 )
 
             with gr.Accordion("📄 Upload Paper PDF (optional)", open=False) as pdf_accordion:
-                gr.HTML(
-                    '<p style="font-size:12px;color:#6b7280;margin:2px 0 12px;">'
-                    'Upload a PDF to anchor the analysis on a specific paper — it becomes the '
-                    'primary source <strong style="color:#9a9a9a">(A1)</strong> and the pipeline '
-                    'searches for supporting evidence around its contribution.'
-                    '</p>'
-                )
+                pdf_desc_comp = gr.HTML(_pdf_desc_html(_ui("English")))
                 with gr.Row(equal_height=True):
                     pdf_upload  = gr.File(label="Upload PDF", file_types=[".pdf"], scale=4)
                     extract_btn = gr.Button("Extract Contribution", variant="secondary", scale=1)
@@ -2312,34 +3226,27 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
 
             with gr.Row(equal_height=True):
                 language_dd = gr.Dropdown(
-                    label="报告语言",
+                    label="Report Language",
                     choices=[
-                        ("自动检测（从主题判断）", "Auto (detect from topic)"),
-                        ("English",              "English"),
-                        ("简体中文",              "Chinese"),
-                        ("日本語",               "Japanese"),
-                        ("한국어",               "Korean"),
-                        ("Français",             "French"),
-                        ("Deutsch",              "German"),
-                        ("Español",              "Spanish"),
-                        ("Português",            "Portuguese"),
-                        ("العربية",              "Arabic"),
-                        ("Русский",              "Russian"),
-                        ("हिन्दी",              "Hindi"),
+                        ("Auto (detect from topic)", "Auto (detect from topic)"),
+                        ("English",   "English"),
+                        ("简体中文",   "Chinese"),
+                        ("日本語",    "Japanese"),
+                        ("한국어",    "Korean"),
+                        ("Français",  "French"),
+                        ("Deutsch",   "German"),
+                        ("Español",   "Spanish"),
+                        ("Português", "Portuguese"),
+                        ("العربية",   "Arabic"),
+                        ("Русский",   "Russian"),
+                        ("हिन्दी",   "Hindi"),
                     ],
                     value="Auto (detect from topic)",
                     scale=2,
                 )
                 profile_dd = gr.Dropdown(
-                    label="行业类型",
-                    choices=[
-                        ("自动检测（从主题判断）",  "Auto (detect from topic)"),
-                        ("工业制造",              "industrial"),
-                        ("材料科学",              "material_science"),
-                        ("生物医药",              "biomedical"),
-                        ("清洁技术",              "clean_tech"),
-                        ("软件 / AI",             "software_ai"),
-                    ],
+                    label="Industry Profile",
+                    choices=_PROFILE_CHOICES_DEFAULT,
                     value="Auto (detect from topic)",
                     scale=2,
                 )
@@ -2447,23 +3354,26 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
         # ── History tab ───────────────────────────────────────────────────
         with gr.Tab("History") as history_tab:
             with gr.Row():
-                gr.HTML('<p style="font-size:13px;color:#9a9a9a;margin:6px 0;">Past runs — paste a Run ID below to reload any report</p>')
+                hist_desc_html = gr.HTML(
+                    '<p style="font-size:13px;color:#9a9a9a;margin:6px 0;">'
+                    'Past runs — paste a Run ID below to reload any report</p>'
+                )
                 refresh_btn = gr.Button("↻  Refresh", variant="secondary", scale=0, min_width=110)
                 cleanup_btn = gr.Button("🗑  Keep Latest 20", variant="secondary", scale=0, min_width=150)
 
             cleanup_status = gr.HTML(value="")
             history_output = gr.HTML(value=_render_history_html())
 
-            def _do_cleanup():
+            def _do_cleanup(ui_lang: str = "English"):
                 msg = _cleanup_old_runs(keep_n=20)
                 status_html = (
                     f'<p style="font-size:12px;color:#9a9a9a;margin:4px 0 8px;">{html.escape(msg)}</p>'
                 )
-                return status_html, _render_history_html()
+                return status_html, _render_history_html(ui_lang)
 
-            refresh_btn.click(fn=_render_history_html, outputs=history_output)
-            cleanup_btn.click(fn=_do_cleanup, outputs=[cleanup_status, history_output])
-            history_tab.select(fn=_render_history_html, outputs=history_output)
+            refresh_btn.click(fn=_render_history_html, inputs=[ui_lang_state], outputs=history_output)
+            cleanup_btn.click(fn=_do_cleanup, inputs=[ui_lang_state], outputs=[cleanup_status, history_output])
+            history_tab.select(fn=_render_history_html, inputs=[ui_lang_state], outputs=history_output)
 
             with gr.Row():
                 run_id_input = gr.Textbox(
@@ -2475,6 +3385,40 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
             loaded_score  = gr.HTML()
             loaded_report = gr.Markdown(elem_classes=["report-md"])
             load_btn.click(fn=_load_run, inputs=run_id_input, outputs=[loaded_score, loaded_report])
+
+    # Wire UI language switching — runs on every Report Language dropdown change
+    language_dd.change(
+        fn=_on_lang_change,
+        inputs=[language_dd],
+        outputs=[
+            header_html_comp,
+            topic_input,
+            language_dd,
+            profile_dd,
+            submit_btn,
+            cancel_btn,
+            pdf_accordion,
+            pdf_desc_comp,
+            pdf_upload,
+            extract_btn,
+            paper_title_box,
+            paper_contribution_box,
+            paper_domain_box,
+            paper_doi_box,
+            paper_metrics_box,
+            paper_topic_box,
+            paper_divider_html,
+            clear_paper_btn,
+            paper_run_btn,
+            hist_desc_html,
+            refresh_btn,
+            cleanup_btn,
+            history_output,
+            run_id_input,
+            load_btn,
+            ui_lang_state,
+        ],
+    )
 
 
 if __name__ == "__main__":
