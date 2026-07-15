@@ -12,7 +12,9 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-_DOI_RE = re.compile(r"\b(10\.\d{4,9}/[^\s,;<>\"')\]]+)", re.IGNORECASE)
+_DOI_RE    = re.compile(r"\b(10\.\d{4,9}/[^\s,;<>\"')\]]+)", re.IGNORECASE)
+_ARXIV_RE  = re.compile(r"arXiv[:\s]+(\d{4}\.\d{4,5})(?:v\d+)?", re.IGNORECASE)
+_ARXIV_URL_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})", re.IGNORECASE)
 
 
 class PaperContribution(BaseModel):
@@ -65,6 +67,15 @@ def _find_doi(text: str) -> str | None:
     return None
 
 
+def _find_arxiv_url(text: str) -> str | None:
+    for pattern in (_ARXIV_RE, _ARXIV_URL_RE):
+        m = pattern.search(text)
+        if m:
+            arxiv_id = m.group(1)
+            return f"https://arxiv.org/abs/{arxiv_id}"
+    return None
+
+
 def _call_llm_json(prompt: str) -> dict[str, Any]:
     """Call the active LLM via crewai.LLM and return parsed JSON."""
     from academic_agent.llm_config import create_llm
@@ -80,7 +91,8 @@ def _call_llm_json(prompt: str) -> dict[str, Any]:
 def extract_paper_contribution(pdf_path: str | Path) -> PaperContribution:
     """Extract structured contribution metadata from an academic PDF using LLM."""
     text = extract_pdf_text(pdf_path)
-    doi_found = _find_doi(text)
+    doi_found   = _find_doi(text)
+    arxiv_url   = _find_arxiv_url(text)
 
     prompt = f"""You are analyzing an academic paper for its commercialization potential.
 Task: extract the SPECIFIC technical innovation of THIS paper — not background, not prior work.
@@ -111,8 +123,11 @@ Rules:
 
     data = _call_llm_json(prompt)
 
+    # Priority: LLM-found DOI > regex DOI > arXiv URL > placeholder DOI
     if doi_found and not data.get("doi"):
         data["doi"] = doi_found
+    if arxiv_url and not data.get("doi") and not data.get("url"):
+        data["url"] = arxiv_url
 
     # Fallback placeholder DOI so EvidenceSource passes model validation
     if not data.get("doi") and not data.get("url"):

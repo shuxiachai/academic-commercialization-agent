@@ -95,14 +95,25 @@ def main() -> None:
 
     try:
         paper_seed = None
+        extra_market_queries = None
         if args.paper_json:
             import pathlib
             _pj = pathlib.Path(args.paper_json)
             if _pj.exists():
                 _pc_data = json.loads(_pj.read_text(encoding="utf-8"))
                 paper_seed = paper_to_evidence_source(PaperContribution(**_pc_data))
+                _domain = _pc_data.get("application_domain", "").strip()
+                if _domain:
+                    extra_market_queries = [
+                        f"{_domain} commercial product company revenue manufacturer 2024 2025",
+                        f"{_domain} startup investment funding market leader industry",
+                    ]
 
-        source_collection = collect_source_collection(args.topic, paper_seed=paper_seed)
+        source_collection = collect_source_collection(
+            args.topic,
+            paper_seed=paper_seed,
+            extra_market_queries=extra_market_queries,
+        )
         if args.language and args.language != "Auto (detect from topic)":
             source_collection.output_language = args.language
         if args.weight_profile and args.weight_profile != "Auto (detect from topic)":

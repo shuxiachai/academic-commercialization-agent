@@ -328,6 +328,23 @@ def _extract_market_size_billions(market_task: Any) -> list[float]:
     return [v for v in values if v > 0]
 
 
+def _trl_label(trl: float) -> str:
+    """Map a TRL float (1.0–9.0) to a single-level standard label."""
+    _LABELS = {
+        1: "TRL 1 (basic principles observed)",
+        2: "TRL 2 (technology concept formulated)",
+        3: "TRL 3 (experimental proof of concept)",
+        4: "TRL 4 (component validated in laboratory)",
+        5: "TRL 5 (component validated in relevant environment)",
+        6: "TRL 6 (system prototype demonstrated in relevant environment)",
+        7: "TRL 7 (system prototype in operational environment)",
+        8: "TRL 8 (system complete and qualified)",
+        9: "TRL 9 (actual system proven in operational environment)",
+    }
+    stage = min(9, max(1, round(trl)))
+    return _LABELS[stage]
+
+
 def make_scoring_guardrail(
     weight_profile: str = "industrial",
     *,
@@ -422,6 +439,7 @@ def make_scoring_guardrail(
         out_dict = score.model_dump()
         out_dict.update({
             "trl_score": trl,
+            "trl_label": _trl_label(trl),
             "mrl_score": mrl,
             "patent_strength": pat,
             "market_accessibility": mkt,

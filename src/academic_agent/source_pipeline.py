@@ -1843,6 +1843,7 @@ def collect_source_collection(
     maximum_sources: int = 6,
     accessed_date: date | None = None,
     paper_seed: "EvidenceSource | None" = None,  # noqa: F821
+    extra_market_queries: list[str] | None = None,
 ) -> SourceCollection:
     # ── Language detection & translation ─────────────────────────────────────
     from academic_agent.language import (
@@ -1879,6 +1880,9 @@ def collect_source_collection(
 
     patent_cc  = lang_info.get("patent_cc", "")
     query_map  = _queries(normalized_topic, native_topic=native_topic, patent_cc=patent_cc)
+    if extra_market_queries:
+        # Prepend broader domain queries so they run before the topic-specific ones.
+        query_map["market"] = list(extra_market_queries) + query_map["market"]
 
     resolved_crossref = crossref or CrossrefClient()
     resolved_openalex = openalex or OpenAlexClient()
