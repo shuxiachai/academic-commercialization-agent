@@ -1746,20 +1746,35 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
 # ---------------------------------------------------------------------------
 
 def extract_paper_from_pdf(pdf_file) -> tuple:
-    """Extract PaperContribution from uploaded PDF. Returns (title, contribution, domain, metrics_str, topic, doi_url, paper_json, card_visible, status_msg)."""
+    """Extract PaperContribution from uploaded PDF.
+    Returns 10 values: title, contribution, domain, metrics_str, topic, doi_url,
+    paper_json, card_visible, status_msg, submit_btn_update.
+    """
+    _no_change = gr.update()
     if pdf_file is None:
-        return ("", "", "", "", "", "", "", gr.update(visible=False), "⚠ Please upload a PDF file first.")
+        return ("", "", "", "", "", "", "", gr.update(visible=False),
+                '<p style="color:#f59e0b;font-size:13px;margin:6px 0">⚠ Please upload a PDF file first.</p>',
+                _no_change)
 
     try:
         from academic_agent.pdf_extractor import extract_paper_contribution
         pc = extract_paper_contribution(pdf_file)
     except Exception as exc:
-        return ("", "", "", "", "", "", "", gr.update(visible=False), f"✗ Extraction failed: {exc}")
+        return ("", "", "", "", "", "", "", gr.update(visible=False),
+                f'<p style="color:#f87171;font-size:13px;margin:6px 0">✗ Extraction failed: {html.escape(str(exc))}</p>',
+                _no_change)
 
     metrics_str = "\n".join(pc.key_metrics)
     doi_url = pc.url or (f"https://doi.org/{pc.doi}" if pc.doi and not pc.doi.startswith("10.0000/uploaded-") else "")
     paper_json = pc.model_dump_json()
 
+    status_html = (
+        '<p style="color:#4ade80;font-size:13px;margin:6px 0">'
+        '✓ Extraction complete — review the fields below, then click '
+        '<strong>▶ Run Analysis with this Paper</strong>. '
+        'To go back to topic mode, click <strong>✕ Clear Paper</strong>.'
+        '</p>'
+    )
     return (
         pc.title,
         pc.core_contribution,
@@ -1769,7 +1784,8 @@ def extract_paper_from_pdf(pdf_file) -> tuple:
         doi_url,
         paper_json,
         gr.update(visible=True),
-        "✓ Extraction complete — review and edit the fields below, then click Run.",
+        status_html,
+        gr.update(visible=False),   # hide the normal Run Analysis button
     )
 
 
@@ -2139,16 +2155,18 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                 paper_json_state = gr.State("")
 
                 with gr.Group(visible=False) as paper_card:
-                    paper_title_box       = gr.Textbox(label="Title", interactive=True, lines=1)
+                    paper_title_box        = gr.Textbox(label="Title", interactive=True, lines=1)
                     paper_contribution_box = gr.Textbox(label="Core Contribution", interactive=True, lines=3)
-                    paper_domain_box      = gr.Textbox(label="Application Domain", interactive=True, lines=1)
-                    paper_metrics_box     = gr.Textbox(label="Key Metrics (one per line)", interactive=True, lines=3)
-                    paper_topic_box       = gr.Textbox(
+                    paper_domain_box       = gr.Textbox(label="Application Domain", interactive=True, lines=1)
+                    paper_metrics_box      = gr.Textbox(label="Key Metrics (one per line)", interactive=True, lines=3)
+                    paper_topic_box        = gr.Textbox(
                         label="Commercialization Topic (will be used as the analysis topic)",
                         interactive=True, lines=2,
                     )
-                    paper_doi_box         = gr.Textbox(label="DOI or URL (leave blank if unknown)", interactive=True, lines=1)
-                    paper_run_btn         = gr.Button("▶  Run Analysis with this Paper", variant="primary")
+                    paper_doi_box          = gr.Textbox(label="DOI or URL (leave blank if unknown)", interactive=True, lines=1)
+                    with gr.Row(equal_height=True):
+                        clear_paper_btn = gr.Button("✕  Clear Paper", variant="secondary", scale=1)
+                        paper_run_btn   = gr.Button("▶  Run Analysis with this Paper", variant="primary", scale=3)
 
             with gr.Row(equal_height=True):
                 language_dd = gr.Dropdown(
@@ -2195,7 +2213,23 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                 outputs=[
                     paper_title_box, paper_contribution_box, paper_domain_box,
                     paper_metrics_box, paper_topic_box, paper_doi_box,
-                    paper_json_state, paper_card, extract_status,
+                    paper_json_state, paper_card, extract_status, submit_btn,
+                ],
+            )
+
+            clear_paper_btn.click(
+                fn=lambda: (
+                    "", "", "", "", "", "",   # clear all paper fields
+                    "",                       # clear paper_json_state
+                    gr.update(value=None),    # reset pdf_upload
+                    gr.update(visible=False), # hide paper_card
+                    "",                       # clear extract_status
+                    gr.update(visible=True),  # restore submit_btn
+                ),
+                outputs=[
+                    paper_title_box, paper_contribution_box, paper_domain_box,
+                    paper_metrics_box, paper_topic_box, paper_doi_box,
+                    paper_json_state, pdf_upload, paper_card, extract_status, submit_btn,
                 ],
             )
 
