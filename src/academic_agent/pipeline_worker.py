@@ -32,6 +32,7 @@ def main() -> None:
     parser.add_argument("topic")
     parser.add_argument("--language", default="", help="Force output language (overrides auto-detect)")
     parser.add_argument("--weight-profile", default="", help="Force scoring weight profile (overrides auto-detect)")
+    parser.add_argument("--paper-json", default="", help="Path to JSON file containing PaperContribution data")
     args = parser.parse_args()
 
     from crewai.events.event_bus import crewai_event_bus
@@ -50,6 +51,7 @@ def main() -> None:
         save_scores,
         save_source_collection,
     )
+    from academic_agent.pdf_extractor import PaperContribution, paper_to_evidence_source
     from academic_agent.source_pipeline import collect_source_collection
 
     run_dir = DEFAULT_OUTPUT_ROOT / args.run_id
@@ -92,7 +94,15 @@ def main() -> None:
     write_status(_STAGE_INITIAL, topic=args.topic)
 
     try:
-        source_collection = collect_source_collection(args.topic)
+        paper_seed = None
+        if args.paper_json:
+            import pathlib
+            _pj = pathlib.Path(args.paper_json)
+            if _pj.exists():
+                _pc_data = json.loads(_pj.read_text(encoding="utf-8"))
+                paper_seed = paper_to_evidence_source(PaperContribution(**_pc_data))
+
+        source_collection = collect_source_collection(args.topic, paper_seed=paper_seed)
         if args.language and args.language != "Auto (detect from topic)":
             source_collection.output_language = args.language
         if args.weight_profile and args.weight_profile != "Auto (detect from topic)":

@@ -1842,6 +1842,7 @@ def collect_source_collection(
     minimum_sources: int = 3,
     maximum_sources: int = 6,
     accessed_date: date | None = None,
+    paper_seed: "EvidenceSource | None" = None,  # noqa: F821
 ) -> SourceCollection:
     # ── Language detection & translation ─────────────────────────────────────
     from academic_agent.language import (
@@ -2049,6 +2050,8 @@ def collect_source_collection(
     academic = _filter_by_relevance(academic, normalized_topic, min_score=2, min_keep=3)
     patents  = _filter_by_relevance(patents,  normalized_topic, min_score=1, min_keep=1)
     market   = _filter_by_relevance(market,   normalized_topic, min_score=2, min_keep=2)
+    if paper_seed is not None:
+        academic = [paper_seed] + academic
     _renumber(academic, "A")
     _renumber(patents, "P")
     _renumber(market, "M")

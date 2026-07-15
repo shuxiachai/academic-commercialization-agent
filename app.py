@@ -1,8 +1,10 @@
 import html
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from datetime import date, datetime, timezone
@@ -1743,10 +1745,105 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
 # Main analysis runner
 # ---------------------------------------------------------------------------
 
+def extract_paper_from_pdf(pdf_file) -> tuple:
+    """Extract PaperContribution from uploaded PDF. Returns (title, contribution, domain, metrics_str, topic, doi_url, paper_json, card_visible, status_msg)."""
+    if pdf_file is None:
+        return ("", "", "", "", "", "", "", gr.update(visible=False), "⚠ Please upload a PDF file first.")
+
+    try:
+        from academic_agent.pdf_extractor import extract_paper_contribution
+        pc = extract_paper_contribution(pdf_file)
+    except Exception as exc:
+        return ("", "", "", "", "", "", "", gr.update(visible=False), f"✗ Extraction failed: {exc}")
+
+    metrics_str = "\n".join(pc.key_metrics)
+    doi_url = pc.url or (f"https://doi.org/{pc.doi}" if pc.doi and not pc.doi.startswith("10.0000/uploaded-") else "")
+    paper_json = pc.model_dump_json()
+
+    return (
+        pc.title,
+        pc.core_contribution,
+        pc.application_domain,
+        metrics_str,
+        pc.commercialization_topic,
+        doi_url,
+        paper_json,
+        gr.update(visible=True),
+        "✓ Extraction complete — review and edit the fields below, then click Run.",
+    )
+
+
+def run_analysis_from_paper(
+    paper_title: str,
+    paper_contribution: str,
+    paper_domain: str,
+    paper_metrics_str: str,
+    paper_topic: str,
+    paper_doi_url: str,
+    paper_json_state: str,
+    language: str,
+    weight_profile: str,
+):
+    """Run the full pipeline seeded with the uploaded paper as source A1."""
+    if not paper_topic.strip():
+        yield "", "", "Please enter a commercialization topic.", None, None, gr.update(), gr.update(), ""
+        return
+
+    # Reconstruct PaperContribution from UI fields (user may have edited them)
+    pc_data: dict = {}
+    if paper_json_state:
+        try:
+            pc_data = json.loads(paper_json_state)
+        except Exception:
+            pass
+
+    metrics = [m.strip() for m in paper_metrics_str.splitlines() if m.strip()]
+    pc_data.update({
+        "title": paper_title.strip() or pc_data.get("title", "Uploaded Paper"),
+        "core_contribution": paper_contribution.strip() or pc_data.get("core_contribution", ""),
+        "application_domain": paper_domain.strip() or pc_data.get("application_domain", ""),
+        "key_metrics": metrics or pc_data.get("key_metrics", []),
+        "commercialization_topic": paper_topic.strip(),
+        "delta_from_prior": pc_data.get("delta_from_prior", paper_contribution.strip()),
+        "search_keywords": pc_data.get("search_keywords", paper_topic.strip().split()[:5]),
+        "abstract_excerpt": pc_data.get("abstract_excerpt", ""),
+        "authors": pc_data.get("authors", ""),
+    })
+
+    # Handle DOI / URL field
+    doi_url = paper_doi_url.strip()
+    if doi_url.startswith("http"):
+        pc_data["url"] = doi_url
+        pc_data["doi"] = None
+    elif doi_url:
+        pc_data["doi"] = doi_url
+        pc_data["url"] = None
+    else:
+        # Keep whatever the extractor found; add placeholder if nothing
+        if not pc_data.get("doi") and not pc_data.get("url"):
+            import hashlib
+            h = hashlib.md5(pc_data["title"].encode()).hexdigest()[:10]
+            pc_data["doi"] = f"10.0000/uploaded-{h}"
+
+    # Write to a session-scoped temp file; cleaned up after the generator exits
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".json")
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            json.dump(pc_data, f, ensure_ascii=False)
+
+        yield from run_analysis(paper_topic.strip(), language, weight_profile, tmp_path)
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
 def run_analysis(
     research_topic: str,
     language: str = "Auto (detect from topic)",
     weight_profile: str = "Auto (detect from topic)",
+    paper_json_path: str = "",
 ):
     """Generator that yields (progress_html, score_html, report_md, md_path, pdf_path, submit_btn, cancel_btn).
 
@@ -1769,6 +1866,8 @@ def run_analysis(
         cmd += ["--language", language]
     if weight_profile and weight_profile != "Auto (detect from topic)":
         cmd += ["--weight-profile", weight_profile]
+    if paper_json_path and Path(paper_json_path).exists():
+        cmd += ["--paper-json", paper_json_path]
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     start = time.time()
@@ -2029,6 +2128,28 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                     elem_classes=["clear-icon-btn"],
                 )
 
+            with gr.Accordion("📄 Upload Paper PDF (optional)", open=False):
+                gr.HTML(
+                    '<p style="font-size:12px;color:#9a9a9a;margin:4px 0 10px;">Upload a PDF to analyse a specific paper — the pipeline will use it as the primary source (A1) and search for supporting evidence around its contribution.</p>'
+                )
+                with gr.Row(equal_height=True):
+                    pdf_upload   = gr.File(label="Upload PDF", file_types=[".pdf"], scale=4)
+                    extract_btn  = gr.Button("Extract Contribution", variant="secondary", scale=1)
+                extract_status = gr.HTML(value="")
+                paper_json_state = gr.State("")
+
+                with gr.Group(visible=False) as paper_card:
+                    paper_title_box       = gr.Textbox(label="Title", interactive=True, lines=1)
+                    paper_contribution_box = gr.Textbox(label="Core Contribution", interactive=True, lines=3)
+                    paper_domain_box      = gr.Textbox(label="Application Domain", interactive=True, lines=1)
+                    paper_metrics_box     = gr.Textbox(label="Key Metrics (one per line)", interactive=True, lines=3)
+                    paper_topic_box       = gr.Textbox(
+                        label="Commercialization Topic (will be used as the analysis topic)",
+                        interactive=True, lines=2,
+                    )
+                    paper_doi_box         = gr.Textbox(label="DOI or URL (leave blank if unknown)", interactive=True, lines=1)
+                    paper_run_btn         = gr.Button("▶  Run Analysis with this Paper", variant="primary")
+
             with gr.Row(equal_height=True):
                 language_dd = gr.Dropdown(
                     label="Report Language",
@@ -2068,6 +2189,27 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                 download_md  = gr.File(label="Download Report (.md)", visible=False, scale=1)
                 download_pdf = gr.File(label="Download Report (.pdf)", visible=False, scale=1)
 
+            extract_btn.click(
+                fn=extract_paper_from_pdf,
+                inputs=[pdf_upload],
+                outputs=[
+                    paper_title_box, paper_contribution_box, paper_domain_box,
+                    paper_metrics_box, paper_topic_box, paper_doi_box,
+                    paper_json_state, paper_card, extract_status,
+                ],
+            )
+
+            paper_run_event = paper_run_btn.click(
+                fn=run_analysis_from_paper,
+                inputs=[
+                    paper_title_box, paper_contribution_box, paper_domain_box,
+                    paper_metrics_box, paper_topic_box, paper_doi_box,
+                    paper_json_state, language_dd, profile_dd,
+                ],
+                outputs=[progress_output, score_output, report_output, download_md, download_pdf,
+                         submit_btn, cancel_btn, log_output],
+            )
+
             submit_event = submit_btn.click(
                 fn=run_analysis,
                 inputs=[topic_input, language_dd, profile_dd],
@@ -2087,7 +2229,7 @@ with gr.Blocks(title="Academic Commercialization Assessment") as demo:
                 ),
                 outputs=[progress_output, score_output, report_output,
                          download_md, download_pdf, submit_btn, cancel_btn, log_output],
-                cancels=[submit_event],
+                cancels=[submit_event, paper_run_event],
             )
             clear_btn.click(
                 fn=lambda: ("", "", "", "",
