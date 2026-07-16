@@ -529,6 +529,14 @@ def check_public_url(value: str) -> tuple[bool, str]:
         if not safe:
             return False, reason
 
+        # Reject URLs with spaces or non-ASCII characters before attempting HTTP.
+        try:
+            current.encode("ascii")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            return False, "URL contains non-ASCII characters"
+        if " " in current:
+            return False, "URL contains spaces"
+
         request = Request(current, method="HEAD", headers=headers)
         try:
             with opener.open(request, timeout=8) as response:
@@ -554,11 +562,13 @@ def check_public_url(value: str) -> tuple[bool, str]:
                     )
                     with opener.open(get_request, timeout=8) as response:
                         return (200 <= response.status < 400, "")
-                except (HTTPError, URLError, TimeoutError) as get_exc:
+                except (HTTPError, URLError, TimeoutError, Exception) as get_exc:
                     return False, f"GET fallback failed: {get_exc}"
             return False, f"HTTP status {exc.code}"
         except (URLError, TimeoutError, OSError) as exc:
             return False, f"request failed: {exc}"
+        except Exception as exc:
+            return False, f"URL check error: {type(exc).__name__}: {exc}"
 
     return False, "too many redirects"
 
