@@ -368,6 +368,7 @@ def make_scoring_guardrail(
     *,
     known_source_ids: frozenset[str] | None = None,
     market_task: Any = None,
+    all_sources: list[Any] | None = None,
 ) -> Callable[[TaskOutput], tuple[bool, Any]]:
     """Validate scoring task output and deterministically recompute overall_score.
 
@@ -411,6 +412,17 @@ def make_scoring_guardrail(
                     )
         if id_errors:
             return False, " ".join(id_errors)
+
+        # A1: Deterministic floor for evidence_confidence based on credibility_tier
+        # distribution.  Prevents LLM from assigning unrealistically low confidence
+        # when the source pool is actually solid.
+        # Floor formula: 10 (all-low) → 30 (all-high).  Max floor is 30 so the
+        # LLM can still go lower if it has domain reasons (conflicting findings etc.).
+        if all_sources:
+            _high = sum(1 for s in all_sources if getattr(s, "credibility_tier", "") == "high")
+            _floor = round(10 + (_high / len(all_sources)) * 20)
+            if score.evidence_confidence < _floor:
+                score.evidence_confidence = _floor
 
         # Normalize raw ×10 integer scores to their actual scales.
         trl = score.trl_score / 10        # 10–90  → 1.0–9.0

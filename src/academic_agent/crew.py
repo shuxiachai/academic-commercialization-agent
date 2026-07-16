@@ -307,6 +307,11 @@ class AcademicAgent:
                     )
                 ),
                 market_task=self.market_intelligence_task(),
+                all_sources=(
+                    self.source_collection.academic_sources
+                    + self.source_collection.patent_sources
+                    + self.source_collection.market_sources
+                ),
             ),
             guardrail_max_retries=2,
         )

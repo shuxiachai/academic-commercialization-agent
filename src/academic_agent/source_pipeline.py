@@ -2818,6 +2818,25 @@ def collect_source_collection(
             list(_pool.map(_fetch_citation_doi,   _needs_citation_doi))
             list(_pool.map(_fetch_citation_arxiv, _needs_citation_arxiv))
 
+    # Re-evaluate credibility_tier after backfill.
+    # A2: sources initially downgraded for "0 citations" → upgrade if citations now found.
+    # A3: arXiv preprints with >= 10 backfilled citations → upgrade to "high".
+    for _src in academic:
+        if _src.credibility_tier != "medium" or not _src.citation_count:
+            continue
+        _is_arxiv = _src.url and "arxiv.org/abs/" in str(_src.url)
+        _reason = _src.credibility_reason or ""
+        if _is_arxiv and _src.citation_count >= 10:
+            _src.credibility_tier = "high"
+            _src.credibility_reason = (
+                f"High-impact preprint: {_src.citation_count} citations (backfilled via S2)"
+            )
+        elif "0 citation" in _reason and _src.citation_count > 0:
+            _src.credibility_tier = "high"
+            _src.credibility_reason = (
+                f"Upgraded after backfill: {_src.citation_count} citations"
+            )
+
     if len(academic) < minimum_sources:
         raise SourceCollectionError(
             f"academic retrieval produced {len(academic)} validated sources "
