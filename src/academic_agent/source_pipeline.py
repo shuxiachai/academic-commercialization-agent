@@ -144,8 +144,7 @@ _PREDATORY_PUBLISHER_FRAGMENTS: frozenset[str] = frozenset({
     "omics international",
     "scientific research publishing",
     "scirp",
-    "hindawi"      ,               # acquired many low-quality journals post-2021
-    "mdpi",                        # borderline; flagged for volume / speed issues
+    "hindawi",                     # acquired many low-quality journals post-2021
     "science publishing group",
     "american journal of",         # many predatory clones use this prefix
     "international journal of innovation",
@@ -171,11 +170,52 @@ _PREDATORY_PUBLISHER_FRAGMENTS: frozenset[str] = frozenset({
     "innovationinfo",
 })
 
+# Legitimate journals whose names contain a predatory fragment — checked first
+# to prevent false positives (e.g. "american journal of medicine" starts with
+# the "american journal of" predatory-clone prefix).
+_PREDATORY_PUBLISHER_WHITELIST: frozenset[str] = frozenset({
+    "american journal of medicine",
+    "american journal of epidemiology",
+    "american journal of public health",
+    "american journal of respiratory",
+    "american journal of clinical",
+    "american journal of obstetrics",
+    "american journal of surgery",
+    "american journal of cardiology",
+    "american journal of psychiatry",
+    "american journal of roentgenology",
+    "american journal of gastroenterology",
+    "american journal of kidney",
+    "american journal of hematology",
+    "american journal of sports medicine",
+    "american journal of neuroradiology",
+    "american journal of human genetics",
+    "american journal of botany",
+    "american journal of physics",
+    "american journal of mathematics",
+    "american journal of nursing",
+    "american journal of law",
+})
+
+# Borderline publishers: flagged for volume/speed issues but operate many
+# legitimate peer-reviewed journals — downgrade to "medium" rather than "low".
+_BORDERLINE_PUBLISHER_FRAGMENTS: frozenset[str] = frozenset({
+    "mdpi",   # some high-quality SCI-indexed titles (Viruses, Molecules, etc.)
+})
+
 
 def _is_predatory_publisher(publisher: str) -> bool:
-    """Return True if the publisher name matches a known predatory fragment."""
+    """Return True if the publisher name is definitively predatory (→ low tier)."""
     lowered = publisher.lower()
+    if any(safe in lowered for safe in _PREDATORY_PUBLISHER_WHITELIST):
+        return False
     return any(frag in lowered for frag in _PREDATORY_PUBLISHER_FRAGMENTS)
+
+
+def _is_borderline_publisher(publisher: str) -> bool:
+    """Return True for borderline publishers that warrant medium (not low) tier."""
+    lowered = publisher.lower()
+    return any(frag in lowered for frag in _BORDERLINE_PUBLISHER_FRAGMENTS)
 
 
 _REPUTABLE_NEWS_DOMAINS = {
@@ -1355,6 +1395,12 @@ def _academic_source(
             f"Publisher '{publisher}' appears on predatory/low-quality journal lists. "
             "Findings should not be cited without independent corroboration."
         )
+    elif _is_borderline_publisher(publisher):
+        credibility_tier = "medium"
+        credibility_reason = (
+            f"Publisher '{publisher}' operates legitimate journals but is flagged for "
+            "volume/speed issues; verify the specific journal's impact factor."
+        )
     return (
         EvidenceSource(
             source_id=source_id,
@@ -1576,12 +1622,18 @@ def _academic_source_from_openalex(
             f"OpenAlex record: DOI verified, peer-reviewed journal, "
             f"{cited:,} citations."
         )
-    # Predatory-publisher override: downgrade to "low" regardless of citation count.
+    # Publisher quality override: downgrade regardless of citation count.
     if _is_predatory_publisher(publisher):
         credibility_tier = "low"
         credibility_reason = (
             f"Publisher '{publisher}' appears on predatory/low-quality journal lists. "
             "Findings should not be cited without independent corroboration."
+        )
+    elif _is_borderline_publisher(publisher):
+        credibility_tier = "medium"
+        credibility_reason = (
+            f"Publisher '{publisher}' operates legitimate journals but is flagged for "
+            "volume/speed issues; verify the specific journal's impact factor."
         )
     return (
         EvidenceSource(
@@ -2208,6 +2260,20 @@ def _web_source(
         market_year = _parse_patent_year("", snippet)
         if market_year:
             published_date = date(market_year, 1, 1)
+
+    # B2: Staleness penalty for commercial market reports.
+    # Market size estimates older than 3 years have low reliability.
+    if (domain == "market"
+            and source_type == "market_report"
+            and published_date is not None
+            and (accessed_date.year - published_date.year) > 3):
+        credibility_tier = "low"
+        credibility_reason = (
+            f"Stale market data (published {published_date.year}): "
+            "commercial market estimates >3 years old have low reliability. "
+            + credibility_reason
+        )
+
     return (
         EvidenceSource(
             source_id=source_id,
@@ -2220,6 +2286,7 @@ def _web_source(
             credibility_tier=credibility_tier,
             credibility_reason=credibility_reason,
             evidence_summary=_safe_summary(snippet, title),
+            summary_source="search_snippet" if domain == "market" else None,
         ),
         "",
     )

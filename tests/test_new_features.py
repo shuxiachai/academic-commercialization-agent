@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 
 from academic_agent.source_pipeline import (
     _academic_source_from_arxiv,
+    _is_borderline_publisher,
     _is_predatory_publisher,
     _patent_source_from_uspto,
     ArxivClient,
@@ -140,7 +141,6 @@ class PredatoryPublisherTests(TestCase):
             "OMICS International Publishing",
             "Science Publishing Group",
             "Hindawi Publishing Corporation",
-            "MDPI Open Access Journal",
             "Gavin Publishers Inc",
             "Lupine Publishers LLC",
         ]
@@ -168,6 +168,31 @@ class PredatoryPublisherTests(TestCase):
                     _is_predatory_publisher(publisher),
                     f"Expected '{publisher}' NOT to be flagged as predatory",
                 )
+
+    def test_whitelist_prevents_false_positive(self) -> None:
+        """Legitimate 'American Journal of X' titles must not be flagged."""
+        cases = [
+            "American Journal of Medicine",
+            "American Journal of Epidemiology",
+            "American Journal of Public Health",
+            "American Journal of Cardiology",
+        ]
+        for publisher in cases:
+            with self.subTest(publisher=publisher):
+                self.assertFalse(
+                    _is_predatory_publisher(publisher),
+                    f"Whitelist should prevent '{publisher}' from being flagged",
+                )
+
+    def test_borderline_publishers_detected(self) -> None:
+        """MDPI should be detected as borderline (medium, not low)."""
+        self.assertTrue(_is_borderline_publisher("MDPI Open Access Journal"))
+        self.assertTrue(_is_borderline_publisher("mdpi"))
+        self.assertFalse(_is_borderline_publisher("Nature Publishing Group"))
+
+    def test_borderline_not_in_predatory(self) -> None:
+        """MDPI must NOT be flagged as definitively predatory."""
+        self.assertFalse(_is_predatory_publisher("MDPI Open Access Journal"))
 
     def test_empty_publisher_not_flagged(self) -> None:
         self.assertFalse(_is_predatory_publisher(""))

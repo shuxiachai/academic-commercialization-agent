@@ -178,6 +178,14 @@ class EvidenceSource(BaseModel):
         min_length=1,
         description="A concise paraphrase of what this source actually supports.",
     )
+    summary_source: Literal["abstract", "search_snippet"] | None = Field(
+        default=None,
+        description=(
+            "Origin of evidence_summary. 'abstract' = full database abstract; "
+            "'search_snippet' = search-engine snippet (shorter, possibly truncated). "
+            "Null means origin is unspecified."
+        ),
+    )
 
     @field_validator("evidence_summary")
     @classmethod
