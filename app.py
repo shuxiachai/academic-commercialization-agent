@@ -440,6 +440,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "Run ID",
         "load_btn":      "Load",
         "lang_badge_prefix": "Report language: ",
+        "tab_analysis":  "Analysis",
+        "tab_history":   "History",
     },
 
     # ── Simplified Chinese ───────────────────────────────────────────────────
@@ -505,6 +507,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "运行 ID",
         "load_btn":      "加载",
         "lang_badge_prefix": "报告语言：",
+        "tab_analysis":  "分析",
+        "tab_history":   "历史",
     },
 
     # ── Japanese ─────────────────────────────────────────────────────────────
@@ -572,6 +576,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "実行 ID",
         "load_btn":      "読み込む",
         "lang_badge_prefix": "レポート言語：",
+        "tab_analysis":  "分析",
+        "tab_history":   "履歴",
     },
 
     # ── Korean ───────────────────────────────────────────────────────────────
@@ -640,6 +646,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "실행 ID",
         "load_btn":      "불러오기",
         "lang_badge_prefix": "보고서 언어: ",
+        "tab_analysis":  "분석",
+        "tab_history":   "기록",
     },
 
     # ── French ───────────────────────────────────────────────────────────────
@@ -708,6 +716,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "ID d'exécution",
         "load_btn":      "Charger",
         "lang_badge_prefix": "Langue du rapport : ",
+        "tab_analysis":  "Analyse",
+        "tab_history":   "Historique",
     },
 
     # ── German ───────────────────────────────────────────────────────────────
@@ -775,6 +785,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "Ausführungs-ID",
         "load_btn":      "Laden",
         "lang_badge_prefix": "Berichtssprache: ",
+        "tab_analysis":  "Analyse",
+        "tab_history":   "Verlauf",
     },
 
     # ── Spanish ──────────────────────────────────────────────────────────────
@@ -842,6 +854,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "ID de ejecución",
         "load_btn":      "Cargar",
         "lang_badge_prefix": "Idioma del informe: ",
+        "tab_analysis":  "Análisis",
+        "tab_history":   "Historial",
     },
 
     # ── Portuguese ───────────────────────────────────────────────────────────
@@ -909,6 +923,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "ID de execução",
         "load_btn":      "Carregar",
         "lang_badge_prefix": "Idioma do relatório: ",
+        "tab_analysis":  "Análise",
+        "tab_history":   "Histórico",
     },
 
     # ── Arabic ───────────────────────────────────────────────────────────────
@@ -977,6 +993,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "معرّف التشغيل",
         "load_btn":      "تحميل",
         "lang_badge_prefix": "لغة التقرير: ",
+        "tab_analysis":  "التحليل",
+        "tab_history":   "السجل",
     },
 
     # ── Russian ──────────────────────────────────────────────────────────────
@@ -1044,6 +1062,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "ID запуска",
         "load_btn":      "Загрузить",
         "lang_badge_prefix": "Язык отчёта: ",
+        "tab_analysis":  "Анализ",
+        "tab_history":   "История",
     },
 
     # ── Hindi ────────────────────────────────────────────────────────────────
@@ -1110,6 +1130,8 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "run_id_label":  "रन ID",
         "load_btn":      "लोड करें",
         "lang_badge_prefix": "रिपोर्ट भाषा: ",
+        "tab_analysis":  "विश्लेषण",
+        "tab_history":   "इतिहास",
     },
 }
 
@@ -2598,7 +2620,7 @@ def _paper_divider_html(label: str) -> str:
     return f'<div class="paper-divider"><span>{label}</span></div>'
 
 
-def extract_paper_from_pdf(pdf_file) -> tuple:
+def extract_paper_from_pdf(pdf_file, ui_lang: str = "English") -> tuple:
     """Extract PaperContribution from uploaded PDF.
     Returns 13 values: title, contribution, domain, metrics_str, topic, doi_url,
     paper_json, card_visible, status_msg, submit_btn_update,
@@ -2623,23 +2645,27 @@ def extract_paper_from_pdf(pdf_file) -> tuple:
     doi_url = pc.url or (f"https://doi.org/{pc.doi}" if pc.doi and not pc.doi.startswith("10.0000/uploaded-") else "")
     paper_json = pc.model_dump_json()
 
-    is_zh = _is_cjk_text(pc.title + " " + pc.core_contribution)
-    lbl = _CARD_LABELS_ZH if is_zh else _CARD_LABELS_EN
+    # Determine label language: explicit UI choice wins; "Auto" falls back to content detection
+    if ui_lang in ("Auto (detect from topic)", "English"):
+        effective_lang = "Chinese" if _is_cjk_text(pc.title + " " + pc.core_contribution) else "English"
+    else:
+        effective_lang = ui_lang
+    t = _ui(effective_lang)
 
     return (
-        gr.update(value=pc.title,                    label=lbl["title"]),
-        gr.update(value=pc.core_contribution,        label=lbl["contribution"]),
-        gr.update(value=pc.application_domain,       label=lbl["domain"]),
-        gr.update(value=metrics_str,                 label=lbl["metrics"]),
-        gr.update(value=pc.commercialization_topic,  label=lbl["topic"]),
-        gr.update(value=doi_url,                     label=lbl["doi"]),
+        gr.update(value=pc.title,                    label=t["paper_title_label"]),
+        gr.update(value=pc.core_contribution,        label=t["paper_contribution_label"]),
+        gr.update(value=pc.application_domain,       label=t["paper_domain_label"]),
+        gr.update(value=metrics_str,                 label=t["paper_metrics_label"]),
+        gr.update(value=pc.commercialization_topic,  label=t["paper_topic_label"]),
+        gr.update(value=doi_url,                     label=t["paper_doi_label"]),
         paper_json,
         gr.update(visible=True),
         "",                                          # clear status bar
         gr.update(visible=False),                    # hide submit_btn
-        gr.update(value=lbl["clear_btn"]),           # clear_paper_btn text
-        gr.update(value=lbl["run_btn"]),             # paper_run_btn text
-        gr.update(value=_paper_divider_html(lbl["divider"])),
+        gr.update(value=t["clear_paper_btn"]),       # clear_paper_btn text
+        gr.update(value=t["paper_run_btn"]),         # paper_run_btn text
+        gr.update(value=_paper_divider_html(t["paper_divider"])),
     )
 
 
@@ -3099,7 +3125,6 @@ def _on_lang_change(lang: str):
     """Return gr.update() for every UI shell component when the language dropdown changes."""
     t = _ui(lang)
     hist_html = _render_history_html(ui_lang=lang)
-    divider_label = t.get("paper_divider", "Analysis Topic")
     return (
         gr.update(value=_header_html(t)),
         gr.update(label=t["topic_label"], placeholder=t["topic_placeholder"]),
@@ -3117,7 +3142,7 @@ def _on_lang_change(lang: str):
         gr.update(label=t["paper_doi_label"]),
         gr.update(label=t["paper_metrics_label"]),
         gr.update(label=t["paper_topic_label"]),
-        gr.update(value=_paper_divider_html(divider_label)),
+        gr.update(value=_paper_divider_html(t["paper_divider"])),
         gr.update(value=t["clear_paper_btn"]),
         gr.update(value=t["paper_run_btn"]),
         gr.update(value=f'<p style="font-size:13px;color:#9a9a9a;margin:6px 0;">'
@@ -3127,6 +3152,8 @@ def _on_lang_change(lang: str):
         gr.update(value=hist_html),
         gr.update(label=t["run_id_label"]),
         gr.update(value=t["load_btn"]),
+        gr.update(label=t["tab_analysis"]),
+        gr.update(label=t["tab_history"]),
         lang,
     )
 
@@ -3175,7 +3202,7 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
 
     with gr.Tabs() as tabs:
         # ── Analysis tab ──────────────────────────────────────────────────
-        with gr.Tab("Analysis"):
+        with gr.Tab("Analysis") as analysis_tab:
             with gr.Row(equal_height=False):
                 topic_input = gr.Textbox(
                     label="Research Topic",
@@ -3266,7 +3293,7 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
 
             extract_btn.click(
                 fn=extract_paper_from_pdf,
-                inputs=[pdf_upload],
+                inputs=[pdf_upload, ui_lang_state],
                 outputs=[
                     paper_title_box, paper_contribution_box, paper_domain_box,
                     paper_metrics_box, paper_topic_box, paper_doi_box,
@@ -3275,27 +3302,28 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
                 ],
             )
 
-            def _clear_paper():
-                en = _CARD_LABELS_EN
+            def _clear_paper(ui_lang: str = "English"):
+                t = _ui(ui_lang)
                 return (
-                    gr.update(value="", label=en["title"]),
-                    gr.update(value="", label=en["contribution"]),
-                    gr.update(value="", label=en["domain"]),
-                    gr.update(value="", label=en["metrics"]),
-                    gr.update(value="", label=en["topic"]),
-                    gr.update(value="", label=en["doi"]),
+                    gr.update(value="", label=t["paper_title_label"]),
+                    gr.update(value="", label=t["paper_contribution_label"]),
+                    gr.update(value="", label=t["paper_domain_label"]),
+                    gr.update(value="", label=t["paper_metrics_label"]),
+                    gr.update(value="", label=t["paper_topic_label"]),
+                    gr.update(value="", label=t["paper_doi_label"]),
                     "",
                     gr.update(value=None),
                     gr.update(visible=False),
                     "",
                     gr.update(visible=True),
-                    gr.update(value=en["clear_btn"]),
-                    gr.update(value=en["run_btn"]),
-                    gr.update(value=_paper_divider_html(en["divider"])),
+                    gr.update(value=t["clear_paper_btn"]),
+                    gr.update(value=t["paper_run_btn"]),
+                    gr.update(value=_paper_divider_html(t["paper_divider"])),
                 )
 
             clear_paper_btn.click(
                 fn=_clear_paper,
+                inputs=[ui_lang_state],
                 outputs=[
                     paper_title_box, paper_contribution_box, paper_domain_box,
                     paper_metrics_box, paper_topic_box, paper_doi_box,
@@ -3416,6 +3444,8 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
             history_output,
             run_id_input,
             load_btn,
+            analysis_tab,
+            history_tab,
             ui_lang_state,
         ],
     )
