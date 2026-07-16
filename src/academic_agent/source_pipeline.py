@@ -340,8 +340,8 @@ class SourceCollection(BaseModel):
     weight_profile: str = "industrial"  # Scoring weight profile: industrial | biomedical | material_science
     collected_at: datetime
     academic_sources: list[EvidenceSource] = Field(min_length=3)
-    patent_sources: list[EvidenceSource] = Field(min_length=1)
-    market_sources: list[EvidenceSource] = Field(min_length=2)
+    patent_sources: list[EvidenceSource] = Field(default_factory=list)
+    market_sources: list[EvidenceSource] = Field(default_factory=list)
     academic_queries: list[str] = Field(min_length=1)
     patent_queries: list[str] = Field(min_length=1)
     market_queries: list[str] = Field(min_length=1)
@@ -602,6 +602,205 @@ class SemanticScholarClient:
                     retry_after = exc.headers.get("Retry-After") if exc.headers else None
                     wait = float(retry_after) if retry_after else (5 * 2 ** attempt)
                     time.sleep(min(wait, 60))
+                    continue
+                return []
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError):
+                if attempt >= self.retries:
+                    return []
+                time.sleep(0.75 * (attempt + 1))
+        return []
+
+
+_PM_MONTH = {
+    "jan": "01", "feb": "02", "mar": "03", "apr": "04",
+    "may": "05", "jun": "06", "jul": "07", "aug": "08",
+    "sep": "09", "oct": "10", "nov": "11", "dec": "12",
+}
+
+
+class PubMedClient:
+    """Client for NCBI PubMed E-utilities. Free, no key required.
+    Set NCBI_API_KEY to raise rate limit from 3 to 10 req/s.
+    """
+
+    _ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+    _EFETCH  = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+
+    def __init__(self, *, timeout: int = 25, retries: int = 2) -> None:
+        self.timeout = timeout
+        self.retries = retries
+        self._api_key = os.getenv("NCBI_API_KEY") or ""
+        self._ua = "AcademicAgentSourceCollector/1.0"
+
+    def _get(self, url: str) -> bytes:
+        req = Request(url, headers={"User-Agent": self._ua})
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(req, timeout=self.timeout) as resp:
+                    return resp.read()
+            except HTTPError as exc:
+                if exc.code == 429:
+                    time.sleep(3 * (attempt + 1))
+                    continue
+                return b""
+            except (URLError, TimeoutError, OSError):
+                if attempt >= self.retries:
+                    return b""
+                time.sleep(0.75 * (attempt + 1))
+        return b""
+
+    def search(self, topic: str, rows: int = 15) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {
+            "db": "pubmed",
+            "term": topic,
+            "retmax": min(rows, 100),
+            "retmode": "json",
+            "sort": "relevance",
+        }
+        if self._api_key:
+            params["api_key"] = self._api_key
+        raw = self._get(f"{self._ESEARCH}?{urlencode(params)}")
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+        ids = data.get("esearchresult", {}).get("idlist", [])
+        if not ids:
+            return []
+
+        fetch_params: dict[str, Any] = {
+            "db": "pubmed",
+            "id": ",".join(ids),
+            "rettype": "xml",
+            "retmode": "xml",
+        }
+        if self._api_key:
+            fetch_params["api_key"] = self._api_key
+        xml_bytes = self._get(f"{self._EFETCH}?{urlencode(fetch_params)}")
+        return self._parse_xml(xml_bytes) if xml_bytes else []
+
+    def _parse_xml(self, xml_bytes: bytes) -> list[dict[str, Any]]:
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(xml_bytes)
+        except ET.ParseError:
+            return []
+        results = []
+        for article in root.findall(".//PubmedArticle"):
+            try:
+                rec = self._parse_article(article)
+                if rec:
+                    results.append(rec)
+            except Exception:
+                continue
+        return results
+
+    def _parse_article(self, article: Any) -> dict[str, Any] | None:
+        import xml.etree.ElementTree as ET
+        medline = article.find("MedlineCitation")
+        if medline is None:
+            return None
+        art = medline.find("Article")
+        if art is None:
+            return None
+
+        title_el = art.find("ArticleTitle")
+        title = ET.tostring(title_el, encoding="unicode", method="text").strip() if title_el is not None else ""
+        if not title:
+            return None
+
+        abstract_parts = [
+            ET.tostring(t, encoding="unicode", method="text").strip()
+            for t in art.findall(".//AbstractText")
+        ]
+        abstract = " ".join(p for p in abstract_parts if p)
+
+        doi = ""
+        for id_el in art.findall(".//ELocationID"):
+            if id_el.get("EIdType") == "doi":
+                doi = (id_el.text or "").strip().lower()
+                break
+        if not doi:
+            for id_el in (medline.findall(".//ArticleId") + article.findall(".//ArticleId")):
+                if id_el.get("IdType") == "doi":
+                    doi = (id_el.text or "").strip().lower()
+                    break
+
+        pmid_el = medline.find("PMID")
+        pmid = (pmid_el.text or "").strip() if pmid_el is not None else ""
+
+        journal_el = art.find(".//Journal/Title") or art.find(".//Journal/ISOAbbreviation")
+        journal = (journal_el.text or "PubMed").strip() if journal_el is not None else "PubMed"
+
+        pub_date = ""
+        for date_el in art.findall(".//PubDate"):
+            year_el = date_el.find("Year")
+            month_el = date_el.find("Month")
+            if year_el is not None and year_el.text:
+                yr = year_el.text.strip()
+                mo_raw = (month_el.text or "").strip() if month_el is not None else ""
+                mo = _PM_MONTH.get(mo_raw[:3].lower(), mo_raw[:2].zfill(2) if mo_raw.isdigit() else "01")
+                pub_date = f"{yr}-{mo}-01"
+                break
+
+        return {"title": title, "abstract": abstract, "doi": doi, "pmid": pmid, "journal": journal, "pub_date": pub_date}
+
+
+class LensPatentClient:
+    """Client for the Lens.org Patent Search API (free after registration).
+    Set LENS_API_KEY to enable; if absent the client silently returns no results.
+    Sign up at https://www.lens.org/lens/user/subscriptions
+    """
+
+    _URL = "https://api.lens.org/patent/search"
+
+    def __init__(self, api_key: str | None = None, *, timeout: int = 25, retries: int = 2) -> None:
+        self.api_key = api_key or os.getenv("LENS_API_KEY") or ""
+        self.timeout = timeout
+        self.retries = retries
+
+    def search(self, topic: str, rows: int = 10) -> list[dict[str, Any]]:
+        if not self.api_key:
+            return []
+        body = {
+            "query": {
+                "bool": {
+                    "should": [
+                        {"match": {"title": {"query": topic, "boost": 2}}},
+                        {"match": {"abstract": topic}},
+                        {"match": {"claims": topic}},
+                    ]
+                }
+            },
+            "size": min(rows, 50),
+            "include": [
+                "lens_id", "title", "abstract", "applicant",
+                "publication_date", "publication_number", "jurisdiction",
+            ],
+            "sort": [{"_score": "desc"}],
+        }
+        request = Request(
+            self._URL,
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "AcademicAgentSourceCollector/1.0",
+            },
+            method="POST",
+        )
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                return payload.get("data") or []
+            except HTTPError as exc:
+                if exc.code in {401, 403}:
+                    return []
+                if exc.code == 429:
+                    time.sleep(5 * (attempt + 1))
                     continue
                 return []
             except (URLError, TimeoutError, OSError, json.JSONDecodeError):
@@ -1148,6 +1347,151 @@ def _academic_source_from_s2(
             ),
             evidence_summary=abstract[:1500],
             citation_count=cited,
+        ),
+        "",
+    )
+
+
+def _academic_source_from_pubmed(
+    record: dict[str, Any],
+    source_id: str,
+    accessed_date: date,
+    research_topic: str,
+) -> tuple["EvidenceSource | None", str]:
+    title    = _clean_text(record.get("title") or "")
+    abstract = _clean_text(record.get("abstract") or "")
+    doi      = str(record.get("doi") or "").lower().strip()
+    pmid     = str(record.get("pmid") or "").strip()
+    journal  = str(record.get("journal") or "PubMed").strip()
+    pub_date_str = str(record.get("pub_date") or "")
+
+    if not title:
+        return None, "PubMed record has no title"
+    if not (doi or pmid):
+        return None, f"PubMed record has no DOI or PMID: {title!r}"
+    if not _title_matches_topic(title, research_topic):
+        return None, f"PubMed title not relevant to topic: {title!r}"
+    if len(abstract) < 60:
+        return None, f"PubMed abstract too thin ({len(abstract)} chars): {title!r}"
+
+    published: date | None = None
+    try:
+        if pub_date_str:
+            published = date.fromisoformat(pub_date_str[:10])
+            if published > accessed_date:
+                return None, f"PubMed publication date in future: {pub_date_str}"
+    except ValueError:
+        pass
+
+    url = f"https://doi.org/{doi}" if doi else f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+    summary_sparse = len(abstract) < 120
+    return (
+        EvidenceSource(
+            source_id=source_id,
+            title=title,
+            url=url,
+            doi=doi or None,
+            publisher=journal,
+            published_date=published,
+            accessed_date=accessed_date,
+            source_type="academic_paper",
+            credibility_tier="medium" if summary_sparse else "high",
+            credibility_reason=(
+                f"PubMed indexed: peer-reviewed biomedical journal ({journal})."
+                + (" Brief evidence summary." if summary_sparse else "")
+            ),
+            evidence_summary=abstract[:1500],
+            citation_count=None,
+        ),
+        "",
+    )
+
+
+def _patent_source_from_lens(
+    record: dict[str, Any],
+    source_id: str,
+    accessed_date: date,
+    research_topic: str,
+) -> tuple["EvidenceSource | None", str]:
+    # title is [{text, lang}, ...] or a plain string
+    title_data = record.get("title") or []
+    title = ""
+    if isinstance(title_data, list):
+        for t in title_data:
+            if isinstance(t, dict) and t.get("lang", "").upper() == "EN":
+                title = _clean_text(t.get("text") or "")
+                break
+        if not title and title_data:
+            first = title_data[0]
+            title = _clean_text(first.get("text") or "" if isinstance(first, dict) else str(first))
+    else:
+        title = _clean_text(str(title_data))
+
+    if not title:
+        return None, "Lens patent has no title"
+
+    abstract_data = record.get("abstract") or []
+    abstract = ""
+    if isinstance(abstract_data, list):
+        for a in abstract_data:
+            if isinstance(a, dict) and a.get("lang", "").upper() == "EN":
+                abstract = _clean_text(a.get("text") or "")
+                break
+        if not abstract and abstract_data:
+            first = abstract_data[0]
+            abstract = _clean_text(first.get("text") or "" if isinstance(first, dict) else str(first))
+    else:
+        abstract = _clean_text(str(abstract_data))
+
+    lens_id  = str(record.get("lens_id") or "").strip()
+    pub_num  = str(record.get("publication_number") or "").strip()
+
+    if not lens_id:
+        return None, f"Lens patent has no lens_id: {title!r}"
+    if not _title_matches_topic(title, research_topic):
+        return None, f"Lens patent title not relevant to topic: {title!r}"
+
+    applicant_data = record.get("applicant") or []
+    applicants: list[str] = []
+    if isinstance(applicant_data, list):
+        for a in applicant_data:
+            if isinstance(a, dict):
+                name = (a.get("name") or "").strip()
+                if name:
+                    applicants.append(name)
+    publisher = "; ".join(applicants[:3]) if applicants else "Patent Applicant"
+
+    pub_date_str = str(record.get("publication_date") or "").strip()
+    published: date | None = None
+    try:
+        if pub_date_str:
+            published = date.fromisoformat(pub_date_str[:10])
+    except ValueError:
+        pass
+
+    evidence = abstract or f"Patent {pub_num or lens_id}: {title}."
+    if len(evidence) < 20:
+        evidence = f"Patent record: {title}."
+
+    pub_year = published.year if published else "unknown"
+    return (
+        EvidenceSource(
+            source_id=source_id,
+            title=title,
+            url=f"https://lens.org/lens/patent/{lens_id}",
+            doi=None,
+            publisher=publisher,
+            published_date=published,
+            accessed_date=accessed_date,
+            source_type="patent",
+            credibility_tier="high",
+            credibility_reason=(
+                f"Lens.org patent record: {pub_num or lens_id}; "
+                f"applicants: {publisher}; year: {pub_year}. "
+                "Legal scope requires full claim review."
+            ),
+            evidence_summary=evidence[:1500],
+            citation_count=None,
         ),
         "",
     )
@@ -1888,6 +2232,26 @@ def _collect_academic_primary(
             _try_add(source, s2_audit)
         audits.append(s2_audit)
 
+    # ── PubMed supplement (biomedical / clinical topics) ──────────────────────
+    if len(accepted) < maximum_sources:
+        pubmed = PubMedClient()
+        pm_papers = pubmed.search(topic, rows=fetch_rows)
+        pm_audit = SearchAudit(
+            domain="academic",
+            query=f"[PubMed] {topic}",
+            result_count=len(pm_papers),
+        )
+        for paper in pm_papers:
+            if len(accepted) >= maximum_sources:
+                break
+            source_id = f"A{len(accepted) + 1}"
+            source, reason = _academic_source_from_pubmed(paper, source_id, accessed_date, topic)
+            if source is None:
+                pm_audit.rejected_reasons.append(reason)
+                continue
+            _try_add(source, pm_audit)
+        audits.append(pm_audit)
+
     return accepted, audits
 
 
@@ -2028,15 +2392,57 @@ def collect_source_collection(
             f"at least {minimum_sources} are required."
         )
 
-    # ── Patents: Serper ───────────────────────────────────────────────────────
-    patents, patent_audits = _collect_domain(
-        "patent",
-        query_map["patent"],
-        resolved_searcher, resolved_crossref, url_checker,
-        resolved_date, normalized_topic,
-        minimum_sources=1,
-        maximum_sources=maximum_sources,
-    )
+    # ── Patents: Lens.org primary → Serper fallback ───────────────────────────
+    patents: list[EvidenceSource] = []
+    patent_audits: list[SearchAudit] = []
+    lens_client = LensPatentClient()
+    if lens_client.api_key:
+        seen_lens_ids: set[str] = set()
+        seen_patent_titles: set[str] = set()
+        for pq in query_map["patent"]:
+            if len(patents) >= maximum_sources:
+                break
+            lens_results = lens_client.search(pq, rows=maximum_sources * 3)
+            lens_audit = SearchAudit(
+                domain="patent",
+                query=f"[Lens.org] {pq}",
+                result_count=len(lens_results),
+            )
+            for rec in lens_results:
+                if len(patents) >= maximum_sources:
+                    break
+                lid = str(rec.get("lens_id") or "").strip()
+                if lid in seen_lens_ids:
+                    lens_audit.rejected_reasons.append(f"duplicate lens_id: {lid}")
+                    continue
+                source_id = f"P{len(patents) + 1}"
+                source, reason = _patent_source_from_lens(rec, source_id, resolved_date, normalized_topic)
+                if source is None:
+                    lens_audit.rejected_reasons.append(reason)
+                    continue
+                tkey = " ".join(_WORD_PATTERN.findall(source.title.lower()))
+                if tkey in seen_patent_titles:
+                    lens_audit.rejected_reasons.append(f"duplicate patent title: {source.title}")
+                    continue
+                seen_lens_ids.add(lid)
+                seen_patent_titles.add(tkey)
+                patents.append(source)
+                lens_audit.accepted_source_ids.append(source_id)
+            patent_audits.append(lens_audit)
+
+    if len(patents) < 1:
+        # Lens returned nothing (no key or no results) — fall back to Serper
+        serper_patents, serper_patent_audits = _collect_domain(
+            "patent",
+            query_map["patent"],
+            resolved_searcher, resolved_crossref, url_checker,
+            resolved_date, normalized_topic,
+            minimum_sources=0,
+            maximum_sources=maximum_sources,
+        )
+        patent_audits.extend(serper_patent_audits)
+        patents.extend(serper_patents)
+
     all_audits.extend(patent_audits)
 
     # ── Market: English Serper + native-language Serper supplement ────────────
