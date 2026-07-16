@@ -135,6 +135,49 @@ _PATENT_HOSTS = {
     "patents.justia.com",      # large US patent full-text database
     "lens.org",                # free open patent aggregator (>120 M records)
 }
+# Publishers/journal-name fragments known to appear on Beall's predatory list or
+# widely flagged by the academic community.  Matched case-insensitively as
+# substrings of the publisher field returned by search APIs.
+_PREDATORY_PUBLISHER_FRAGMENTS: frozenset[str] = frozenset({
+    "fringe global",
+    "omics publishing",
+    "omics international",
+    "scientific research publishing",
+    "scirp",
+    "hindawi"      ,               # acquired many low-quality journals post-2021
+    "mdpi",                        # borderline; flagged for volume / speed issues
+    "science publishing group",
+    "american journal of",         # many predatory clones use this prefix
+    "international journal of innovation",
+    "global journal of",
+    "world journal of",
+    "european journal of scientific research",
+    "ijsrp",
+    "iiste",
+    "academe research journals",
+    "sciencepg",
+    "openscience",
+    "gavin publishers",
+    "lupine publishers",
+    "peertechz",
+    "crimson publishers",
+    "scholars.direct",
+    "annex publishers",
+    "austin publishing group",
+    "symbiosis online publishing",
+    "juniper publishers",
+    "remedy publications",
+    "pulsus group",
+    "innovationinfo",
+})
+
+
+def _is_predatory_publisher(publisher: str) -> bool:
+    """Return True if the publisher name matches a known predatory fragment."""
+    lowered = publisher.lower()
+    return any(frag in lowered for frag in _PREDATORY_PUBLISHER_FRAGMENTS)
+
+
 _REPUTABLE_NEWS_DOMAINS = {
     "reuters.com",
     "apnews.com",
@@ -341,6 +384,7 @@ class SourceCollection(BaseModel):
     collected_at: datetime
     academic_sources: list[EvidenceSource] = Field(min_length=3)
     patent_sources: list[EvidenceSource] = Field(default_factory=list)
+    patent_assignees: list[str] = Field(default_factory=list)  # Deduplicated company/org names from patents
     market_sources: list[EvidenceSource] = Field(default_factory=list)
     academic_queries: list[str] = Field(min_length=1)
     patent_queries: list[str] = Field(min_length=1)
@@ -401,6 +445,7 @@ class SourceCollection(BaseModel):
             "weight_profile":  weight_profile_str,
             "academic_sources_json": dump_sources(self.academic_sources),
             "patent_sources_json":   dump_sources(self.patent_sources),
+            "patent_assignees_json": json.dumps(self.patent_assignees, ensure_ascii=False),
             "market_sources_json":   dump_sources(self.market_sources),
             "academic_search_queries_json": json.dumps(
                 self.academic_queries, ensure_ascii=False
@@ -748,6 +793,91 @@ class PubMedClient:
         return {"title": title, "abstract": abstract, "doi": doi, "pmid": pmid, "journal": journal, "pub_date": pub_date}
 
 
+class ArxivClient:
+    """Client for the arXiv e-print API. Free, no key required.
+    Covers CS / AI / physics / biology / economics preprints.
+    API docs: https://info.arxiv.org/help/api/index.html
+    """
+
+    _URL = "https://export.arxiv.org/api/query"
+    _UA  = "AcademicAgentSourceCollector/1.0"
+    _ATOM   = "http://www.w3.org/2005/Atom"
+    _ARXIV_NS = "http://arxiv.org/schemas/atom"
+
+    def __init__(self, *, timeout: int = 30, retries: int = 2) -> None:
+        self.timeout = timeout
+        self.retries = retries
+
+    def search(self, topic: str, rows: int = 10) -> list[dict[str, Any]]:
+        params = urlencode({
+            "search_query": f"all:{topic}",
+            "max_results": min(rows, 50),
+            "sortBy": "relevance",
+            "sortOrder": "descending",
+        })
+        request = Request(f"{self._URL}?{params}", headers={"User-Agent": self._UA})
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as resp:
+                    return self._parse_feed(resp.read())
+            except HTTPError as exc:
+                if exc.code == 429:
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                return []
+            except (URLError, TimeoutError, OSError):
+                if attempt >= self.retries:
+                    return []
+                time.sleep(1.5 * (attempt + 1))
+        return []
+
+    def _parse_feed(self, xml_bytes: bytes) -> list[dict[str, Any]]:
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(xml_bytes)
+        except ET.ParseError:
+            return []
+        results: list[dict[str, Any]] = []
+        ns, ans = self._ATOM, self._ARXIV_NS
+        for entry in root.findall(f"{{{ns}}}entry"):
+            try:
+                title_el = entry.find(f"{{{ns}}}title")
+                title = (title_el.text or "").strip().replace("\n", " ") if title_el is not None else ""
+                if not title:
+                    continue
+
+                summary_el = entry.find(f"{{{ns}}}summary")
+                abstract = (summary_el.text or "").strip().replace("\n", " ") if summary_el is not None else ""
+
+                id_el = entry.find(f"{{{ns}}}id")
+                arxiv_url = (id_el.text or "").strip() if id_el is not None else ""
+                m = re.search(r"arxiv\.org/abs/(\d{4}\.\d{4,5})", arxiv_url, re.IGNORECASE)
+                if m:
+                    arxiv_url = f"https://arxiv.org/abs/{m.group(1)}"
+
+                doi_el = entry.find(f"{{{ans}}}doi")
+                doi = (doi_el.text or "").strip() if doi_el is not None else ""
+
+                pub_el = entry.find(f"{{{ns}}}published")
+                pub_date = pub_el.text.strip()[:10] if pub_el is not None and pub_el.text else ""
+
+                authors = [
+                    (a.find(f"{{{ns}}}name").text or "").strip()
+                    for a in entry.findall(f"{{{ns}}}author")
+                    if a.find(f"{{{ns}}}name") is not None
+                ]
+                author_str = ", ".join(authors[:3]) + (" et al." if len(authors) > 3 else "")
+
+                results.append({
+                    "title": title, "abstract": abstract,
+                    "arxiv_url": arxiv_url, "doi": doi,
+                    "pub_date": pub_date, "authors": author_str,
+                })
+            except Exception:
+                continue
+        return results
+
+
 class LensPatentClient:
     """Client for the Lens.org Patent Search API (free after registration).
     Set LENS_API_KEY to enable; if absent the client silently returns no results.
@@ -755,22 +885,32 @@ class LensPatentClient:
     """
 
     _URL = "https://api.lens.org/patent/search"
+    # Cap query at 8 keywords so a long topic phrase does not over-constrain
+    # Lens's full-text match (same heuristic as USPTO client).
+    _MAX_QUERY_WORDS = 8
 
     def __init__(self, api_key: str | None = None, *, timeout: int = 25, retries: int = 2) -> None:
         self.api_key = api_key or os.getenv("LENS_API_KEY") or ""
         self.timeout = timeout
         self.retries = retries
 
+    @staticmethod
+    def _keywords(topic: str, max_words: int) -> str:
+        _STOPWORDS = frozenset({"for", "with", "and", "the", "of", "in", "to", "a", "an"})
+        words = [w for w in topic.split() if w.lower() not in _STOPWORDS]
+        return " ".join(words[:max_words])
+
     def search(self, topic: str, rows: int = 10) -> list[dict[str, Any]]:
         if not self.api_key:
             return []
+        kw = self._keywords(topic, self._MAX_QUERY_WORDS)
         body = {
             "query": {
                 "bool": {
                     "should": [
-                        {"match": {"title": {"query": topic, "boost": 2}}},
-                        {"match": {"abstract": topic}},
-                        {"match": {"claims": topic}},
+                        {"match": {"title": {"query": kw, "boost": 2}}},
+                        {"match": {"abstract": kw}},
+                        {"match": {"claims": kw}},
                     ]
                 }
             },
@@ -795,9 +935,26 @@ class LensPatentClient:
             try:
                 with urlopen(request, timeout=self.timeout) as resp:
                     payload = json.loads(resp.read().decode("utf-8"))
+                if not payload.get("data"):
+                    import warnings
+                    warnings.warn(
+                        f"Lens.org returned 0 results for keywords {kw!r} "
+                        f"(total={payload.get('total', '?')}); "
+                        f"response keys: {list(payload.keys())}"
+                    )
                 return payload.get("data") or []
             except HTTPError as exc:
                 if exc.code in {401, 403}:
+                    import warnings
+                    body_text = ""
+                    try:
+                        body_text = exc.read().decode("utf-8", errors="replace")[:300]
+                    except Exception:
+                        pass
+                    warnings.warn(
+                        f"Lens.org API returned HTTP {exc.code} "
+                        f"(check LENS_API_KEY and trial plan scope): {body_text}"
+                    )
                     return []
                 if exc.code == 429:
                     time.sleep(5 * (attempt + 1))
@@ -808,6 +965,127 @@ class LensPatentClient:
                     return []
                 time.sleep(0.75 * (attempt + 1))
         return []
+
+
+class USPTOPatentClient:
+    """Client for the PatentsView API (USPTO). Free, no key required.
+    Covers all US granted patents and pre-grant publications.
+    API docs: https://api.patentsview.org/
+    """
+
+    _URL = "https://api.patentsview.org/patents/query"
+    _UA  = "AcademicAgentSourceCollector/1.0"
+    # PatentsView _text_any only accepts a single field per clause; use _or to
+    # cover both title and abstract.  Also cap the keyword string at 8 words so
+    # a long topic phrase does not over-constrain the full-text match.
+    _MAX_QUERY_WORDS = 8
+
+    def __init__(self, *, timeout: int = 25, retries: int = 2) -> None:
+        self.timeout = timeout
+        self.retries = retries
+
+    @staticmethod
+    def _keywords(topic: str, max_words: int) -> str:
+        """Return the first `max_words` content words from the topic string."""
+        _STOPWORDS = frozenset({"for", "with", "and", "the", "of", "in", "to", "a", "an"})
+        words = [w for w in topic.split() if w.lower() not in _STOPWORDS]
+        return " ".join(words[:max_words])
+
+    def search(self, topic: str, rows: int = 10) -> list[dict[str, Any]]:
+        kw = self._keywords(topic, self._MAX_QUERY_WORDS)
+        body = {
+            "q": {
+                "_or": [
+                    {"_text_any": {"patent_title": kw}},
+                    {"_text_any": {"patent_abstract": kw}},
+                ]
+            },
+            "f": ["patent_number", "patent_title", "patent_abstract",
+                  "patent_date", "assignee_organization", "app_date"],
+            "o": {"per_page": min(rows, 25)},
+        }
+        request = Request(
+            self._URL,
+            data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json", "User-Agent": self._UA},
+            method="POST",
+        )
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as resp:
+                    raw = resp.read()
+                    payload = json.loads(raw.decode("utf-8"))
+                count = payload.get("total_patent_count", "?")
+                if not payload.get("patents"):
+                    import warnings
+                    warnings.warn(
+                        f"USPTO PatentsView returned 0 patents for keywords {kw!r} "
+                        f"(total_patent_count={count}); "
+                        f"response keys: {list(payload.keys())}"
+                    )
+                return payload.get("patents") or []
+            except HTTPError as exc:
+                import warnings
+                body_text = ""
+                try:
+                    body_text = exc.read().decode("utf-8", errors="replace")[:400]
+                except Exception:
+                    pass
+                warnings.warn(
+                    f"USPTO PatentsView HTTP {exc.code} for keywords {kw!r}: {body_text}"
+                )
+                if exc.code == 429:
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                return []
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+                if attempt >= self.retries:
+                    import warnings
+                    warnings.warn(f"USPTO PatentsView error ({type(exc).__name__}): {exc}")
+                    return []
+                time.sleep(1.0 * (attempt + 1))
+        return []
+
+
+def _patent_source_from_uspto(
+    record: dict[str, Any],
+    source_id: str,
+    accessed_date: date,
+) -> "EvidenceSource | None":
+    title   = _clean_text(str(record.get("patent_title") or ""))
+    abstract = _clean_text(str(record.get("patent_abstract") or ""))
+    number  = str(record.get("patent_number") or "").strip()
+    pub_date_str = str(record.get("patent_date") or "")
+    assignees = record.get("assignee_organization") or []
+    assignee  = ", ".join(
+        str(a.get("assignee_organization") or "") for a in assignees if a.get("assignee_organization")
+    ) or "USPTO"
+
+    if not title or not number:
+        return None
+
+    published: date | None = None
+    try:
+        if pub_date_str:
+            published = date.fromisoformat(pub_date_str[:10])
+    except ValueError:
+        pass
+
+    url = f"https://patents.google.com/patent/US{number}"
+    return EvidenceSource(
+        source_id=source_id,
+        title=title,
+        url=url,
+        doi=None,
+        publisher=assignee,
+        published_date=published,
+        accessed_date=accessed_date,
+        source_type="patent",
+        credibility_tier="high",
+        credibility_reason=f"USPTO granted patent US{number}; assignee: {assignee}.",
+        evidence_summary=(abstract[:1500] if abstract else f"US Patent {number}: {title}"),
+        citation_count=None,
+    )
 
 
 class CrossrefClient:
@@ -1056,6 +1334,27 @@ def _academic_source(
     published = _published_date(item)
     if published and published > accessed_date:
         return None, "Crossref publication date is in the future"
+    cited = int(item.get("is-referenced-by-count") or 0)
+    days_since_pub = (accessed_date - published).days if published else None
+    if cited == 0 and (days_since_pub is None or days_since_pub > 90):
+        credibility_tier = "medium"
+        age_note = f"{days_since_pub}d since publication" if days_since_pub else "publication date unknown"
+        credibility_reason = (
+            f"DOI, title, and topic matched; evidence summary uses {summary_basis}. "
+            f"0 citations after {age_note} — treat findings conservatively; "
+            "independent corroboration recommended."
+        )
+    else:
+        credibility_tier = "high"
+        credibility_reason = (
+            f"DOI, title, and topic matched; evidence summary uses {summary_basis}."
+        )
+    if _is_predatory_publisher(publisher):
+        credibility_tier = "low"
+        credibility_reason = (
+            f"Publisher '{publisher}' appears on predatory/low-quality journal lists. "
+            "Findings should not be cited without independent corroboration."
+        )
     return (
         EvidenceSource(
             source_id=source_id,
@@ -1066,11 +1365,10 @@ def _academic_source(
             published_date=published,
             accessed_date=accessed_date,
             source_type="academic_paper",
-            credibility_tier="high",
-            credibility_reason=(
-                f"DOI, title, and topic matched; evidence summary uses {summary_basis}."
-            ),
+            credibility_tier=credibility_tier,
+            credibility_reason=credibility_reason,
             evidence_summary=evidence_summary,
+            citation_count=cited if cited > 0 else None,
         ),
         "",
     )
@@ -1264,11 +1562,26 @@ def _academic_source_from_openalex(
             f"Newly published ({days_since_pub}d ago); 0 citations is expected, "
             "not a quality signal."
         )
+    elif cited == 0 and (days_since_pub is None or days_since_pub > 90):
+        credibility_tier = "medium"
+        age_note = f"{days_since_pub}d since publication" if days_since_pub else "publication date unknown"
+        credibility_reason = (
+            f"OpenAlex record: DOI verified, peer-reviewed journal. "
+            f"0 citations after {age_note} — treat findings conservatively; "
+            "independent corroboration recommended."
+        )
     else:
         credibility_tier = "high"
         credibility_reason = (
             f"OpenAlex record: DOI verified, peer-reviewed journal, "
             f"{cited:,} citations."
+        )
+    # Predatory-publisher override: downgrade to "low" regardless of citation count.
+    if _is_predatory_publisher(publisher):
+        credibility_tier = "low"
+        credibility_reason = (
+            f"Publisher '{publisher}' appears on predatory/low-quality journal lists. "
+            "Findings should not be cited without independent corroboration."
         )
     return (
         EvidenceSource(
@@ -1347,6 +1660,76 @@ def _academic_source_from_s2(
             ),
             evidence_summary=abstract[:1500],
             citation_count=cited,
+        ),
+        "",
+    )
+
+
+def _academic_source_from_arxiv(
+    record: dict[str, Any],
+    source_id: str,
+    accessed_date: date,
+    research_topic: str,
+) -> tuple["EvidenceSource | None", str]:
+    title    = _clean_text(record.get("title") or "")
+    abstract = _clean_text(record.get("abstract") or "")
+    arxiv_url = str(record.get("arxiv_url") or "").strip()
+    doi       = str(record.get("doi") or "").strip()
+    pub_date_str = str(record.get("pub_date") or "")
+    authors   = str(record.get("authors") or "arXiv")
+
+    if not title:
+        return None, "arXiv record has no title"
+    if not arxiv_url and not doi:
+        return None, f"arXiv record has no URL: {title!r}"
+    if not _title_matches_topic(title, research_topic):
+        return None, f"arXiv title not relevant to topic: {title!r}"
+    if len(abstract) < 60:
+        return None, f"arXiv abstract too thin ({len(abstract)} chars): {title!r}"
+
+    published: date | None = None
+    try:
+        if pub_date_str:
+            published = date.fromisoformat(pub_date_str[:10])
+            if published > accessed_date:
+                return None, f"arXiv publication date in future: {pub_date_str}"
+    except ValueError:
+        pass
+
+    # Papers with a published DOI are peer-reviewed; preprints only get medium.
+    if doi:
+        url = f"https://doi.org/{doi}"
+        credibility_tier = "high"
+        credibility_reason = (
+            f"arXiv preprint with peer-reviewed DOI ({doi})."
+        )
+    else:
+        url = arxiv_url
+        credibility_tier = "medium"
+        credibility_reason = (
+            "arXiv preprint — not yet peer-reviewed; "
+            "corroborate with published literature before citing as definitive."
+        )
+
+    summary_sparse = len(abstract) < 120
+    if summary_sparse:
+        credibility_tier = "medium"
+        credibility_reason += " Brief abstract."
+
+    return (
+        EvidenceSource(
+            source_id=source_id,
+            title=title,
+            url=url,
+            doi=doi or None,
+            publisher=authors,
+            published_date=published,
+            accessed_date=accessed_date,
+            source_type="academic_paper",
+            credibility_tier=credibility_tier,
+            credibility_reason=credibility_reason,
+            evidence_summary=abstract[:1500],
+            citation_count=None,
         ),
         "",
     )
@@ -2161,15 +2544,23 @@ def _collect_academic_primary(
         return " ".join(_WORD_PATTERN.findall(title.lower()))
 
     def _try_add(source: EvidenceSource, audit: SearchAudit) -> bool:
-        """Deduplicate by DOI and by normalised title. Returns True if accepted."""
+        """Deduplicate by DOI, exact title key, and fuzzy title similarity."""
         doi_key = (source.doi or "").lower()
         if doi_key and doi_key in seen_dois:
             audit.rejected_reasons.append(f"duplicate DOI: {doi_key}")
             return False
         tkey = _title_key(source.title)
         if tkey and tkey in seen_title_keys:
-            audit.rejected_reasons.append(f"duplicate title (parallel edition): {source.title}")
+            audit.rejected_reasons.append(f"duplicate title: {source.title}")
             return False
+        # Fuzzy check: catch same paper with slightly different titles
+        # (e.g. preprint vs published version, or truncated conference title).
+        for existing in accepted:
+            if _title_similarity(source.title, existing.title) >= 0.88:
+                audit.rejected_reasons.append(
+                    f"near-duplicate of '{existing.title}': {source.title}"
+                )
+                return False
         if doi_key:
             seen_dois.add(doi_key)
         seen_title_keys.add(tkey)
@@ -2251,6 +2642,26 @@ def _collect_academic_primary(
                 continue
             _try_add(source, pm_audit)
         audits.append(pm_audit)
+
+    # ── arXiv supplement (CS / AI / physics / bio preprints) ──────────────────
+    if len(accepted) < maximum_sources:
+        arxiv = ArxivClient()
+        ax_papers = arxiv.search(topic, rows=fetch_rows)
+        ax_audit = SearchAudit(
+            domain="academic",
+            query=f"[arXiv] {topic}",
+            result_count=len(ax_papers),
+        )
+        for paper in ax_papers:
+            if len(accepted) >= maximum_sources:
+                break
+            source_id = f"A{len(accepted) + 1}"
+            source, reason = _academic_source_from_arxiv(paper, source_id, accessed_date, topic)
+            if source is None:
+                ax_audit.rejected_reasons.append(reason)
+                continue
+            _try_add(source, ax_audit)
+        audits.append(ax_audit)
 
     return accepted, audits
 
@@ -2371,19 +2782,41 @@ def collect_source_collection(
                 rejected_reasons=[str(_fb_err)],
             ))
 
-    # Backfill citation_count for Crossref-sourced papers (citation_count=None).
-    # Run concurrently — OpenAlex DOI lookup is free, ~150 ms each.
-    _needs_citation = [src for src in academic if src.citation_count is None and src.doi]
-    if _needs_citation:
+    # Backfill citation_count for any source still missing it.
+    # DOI sources → OpenAlex.  arXiv-only sources (no DOI) → Semantic Scholar arXiv lookup.
+    # Run concurrently — both APIs are free, ~150 ms each.
+    _needs_citation_doi    = [src for src in academic if src.citation_count is None and src.doi]
+    _needs_citation_arxiv  = [
+        src for src in academic
+        if src.citation_count is None and not src.doi
+        and src.url and "arxiv.org/abs/" in str(src.url)
+    ]
+
+    def _fetch_citation_doi(src: EvidenceSource) -> None:
+        cited = resolved_openalex.fetch_citation_by_doi(src.doi)  # type: ignore[arg-type]
+        if cited is not None:
+            src.citation_count = cited
+
+    def _fetch_citation_arxiv(src: EvidenceSource) -> None:
+        arxiv_id = str(src.url or "").split("arxiv.org/abs/")[-1].strip("/")
+        if not arxiv_id:
+            return
+        s2_url = f"https://api.semanticscholar.org/graph/v1/paper/arXiv:{arxiv_id}?fields=citationCount"
+        try:
+            req = Request(s2_url, headers={"User-Agent": "AcademicAgentSourceCollector/1.0"})
+            with urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read())
+            count = data.get("citationCount")
+            if count is not None:
+                src.citation_count = int(count)
+        except Exception:
+            pass
+
+    if _needs_citation_doi or _needs_citation_arxiv:
         from concurrent.futures import ThreadPoolExecutor
-
-        def _fetch_citation(src: EvidenceSource) -> None:
-            cited = resolved_openalex.fetch_citation_by_doi(src.doi)  # type: ignore[arg-type]
-            if cited is not None:
-                src.citation_count = cited
-
         with ThreadPoolExecutor(max_workers=4) as _pool:
-            list(_pool.map(_fetch_citation, _needs_citation))
+            list(_pool.map(_fetch_citation_doi,   _needs_citation_doi))
+            list(_pool.map(_fetch_citation_arxiv, _needs_citation_arxiv))
 
     if len(academic) < minimum_sources:
         raise SourceCollectionError(
@@ -2399,39 +2832,77 @@ def collect_source_collection(
     if lens_client.api_key:
         seen_lens_ids: set[str] = set()
         seen_patent_titles: set[str] = set()
-        for pq in query_map["patent"]:
+        # Lens uses a structured JSON query — pass the clean topic, not Serper
+        # site:-qualified strings which return 0 results from the Lens API.
+        lens_results = lens_client.search(normalized_topic, rows=maximum_sources * 3)
+        lens_audit = SearchAudit(
+            domain="patent",
+            query=f"[Lens.org] {normalized_topic}",
+            result_count=len(lens_results),
+        )
+        for rec in lens_results:
             if len(patents) >= maximum_sources:
                 break
-            lens_results = lens_client.search(pq, rows=maximum_sources * 3)
-            lens_audit = SearchAudit(
-                domain="patent",
-                query=f"[Lens.org] {pq}",
-                result_count=len(lens_results),
-            )
-            for rec in lens_results:
-                if len(patents) >= maximum_sources:
-                    break
-                lid = str(rec.get("lens_id") or "").strip()
-                if lid in seen_lens_ids:
-                    lens_audit.rejected_reasons.append(f"duplicate lens_id: {lid}")
-                    continue
-                source_id = f"P{len(patents) + 1}"
-                source, reason = _patent_source_from_lens(rec, source_id, resolved_date, normalized_topic)
-                if source is None:
-                    lens_audit.rejected_reasons.append(reason)
-                    continue
-                tkey = " ".join(_WORD_PATTERN.findall(source.title.lower()))
-                if tkey in seen_patent_titles:
-                    lens_audit.rejected_reasons.append(f"duplicate patent title: {source.title}")
-                    continue
-                seen_lens_ids.add(lid)
-                seen_patent_titles.add(tkey)
-                patents.append(source)
-                lens_audit.accepted_source_ids.append(source_id)
-            patent_audits.append(lens_audit)
+            lid = str(rec.get("lens_id") or "").strip()
+            if lid in seen_lens_ids:
+                lens_audit.rejected_reasons.append(f"duplicate lens_id: {lid}")
+                continue
+            source_id = f"P{len(patents) + 1}"
+            source, reason = _patent_source_from_lens(rec, source_id, resolved_date, normalized_topic)
+            if source is None:
+                lens_audit.rejected_reasons.append(reason)
+                continue
+            tkey = " ".join(_WORD_PATTERN.findall(source.title.lower()))
+            if tkey in seen_patent_titles:
+                lens_audit.rejected_reasons.append(f"duplicate patent title: {source.title}")
+                continue
+            seen_lens_ids.add(lid)
+            seen_patent_titles.add(tkey)
+            patents.append(source)
+            lens_audit.accepted_source_ids.append(source_id)
+        patent_audits.append(lens_audit)
+
+    # ── USPTO PatentsView supplement ──────────────────────────────────────────
+    if len(patents) < maximum_sources:
+        uspto = USPTOPatentClient()
+        seen_patent_nums: set[str] = {
+            str(p.url or "").split("US")[-1] for p in patents if p.url
+        }
+        seen_patent_titles_us: set[str] = {
+            " ".join(_WORD_PATTERN.findall(p.title.lower())) for p in patents
+        }
+        # USPTO uses a full-text JSON query — pass the clean topic once, not
+        # Serper site:-qualified strings which make no sense to the PatentsView API.
+        us_results = uspto.search(normalized_topic, rows=maximum_sources * 2)
+        us_audit = SearchAudit(
+            domain="patent",
+            query=f"[USPTO] {normalized_topic}",
+            result_count=len(us_results),
+        )
+        for rec in us_results:
+            if len(patents) >= maximum_sources:
+                break
+            num = str(rec.get("patent_number") or "").strip()
+            if num in seen_patent_nums:
+                us_audit.rejected_reasons.append(f"duplicate patent: US{num}")
+                continue
+            source_id = f"P{len(patents) + 1}"
+            source = _patent_source_from_uspto(rec, source_id, resolved_date)
+            if source is None:
+                us_audit.rejected_reasons.append(f"invalid USPTO record: {num}")
+                continue
+            tkey = " ".join(_WORD_PATTERN.findall(source.title.lower()))
+            if tkey in seen_patent_titles_us:
+                us_audit.rejected_reasons.append(f"duplicate title: {source.title}")
+                continue
+            seen_patent_nums.add(num)
+            seen_patent_titles_us.add(tkey)
+            patents.append(source)
+            us_audit.accepted_source_ids.append(source_id)
+        patent_audits.append(us_audit)
 
     if len(patents) < 1:
-        # Lens returned nothing (no key or no results) — fall back to Serper
+        # Lens + USPTO both returned nothing — fall back to Serper
         serper_patents, serper_patent_audits = _collect_domain(
             "patent",
             query_map["patent"],
@@ -2532,6 +3003,21 @@ def collect_source_collection(
     _renumber(patents, "P")
     _renumber(market, "M")
 
+    # Extract unique competitor/assignee names from patent sources.
+    _GENERIC_ASSIGNEES = frozenset({
+        "uspto", "lens.org", "serper", "google", "wipo", "epo",
+        "patentsview", "justia", "espacenet", "unknown", "",
+    })
+    seen_assignees: set[str] = set()
+    patent_assignees: list[str] = []
+    for ps in patents:
+        raw = (ps.publisher or "").strip()
+        for name in raw.split(","):
+            name = name.strip()
+            if name and name.lower() not in _GENERIC_ASSIGNEES and name not in seen_assignees:
+                seen_assignees.add(name)
+                patent_assignees.append(name)
+
     return SourceCollection(
         topic=normalized_topic,
         display_topic=native_topic or normalized_topic,
@@ -2541,6 +3027,7 @@ def collect_source_collection(
         collected_at=datetime.now(timezone.utc),
         academic_sources=academic,
         patent_sources=patents,
+        patent_assignees=patent_assignees,
         market_sources=market,
         academic_queries=query_map["academic"],
         patent_queries=query_map["patent"],

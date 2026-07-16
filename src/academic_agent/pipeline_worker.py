@@ -115,7 +115,35 @@ def main() -> None:
             extra_market_queries=extra_market_queries,
         )
         if args.language and args.language != "Auto (detect from topic)":
-            source_collection.output_language = args.language
+            # Map UI dropdown values to canonical API language names.
+            _UI_TO_API_LANG: dict[str, str] = {"Chinese": "Simplified Chinese"}
+            canonical_lang = _UI_TO_API_LANG.get(args.language, args.language)
+            source_collection.output_language = canonical_lang
+            # When the topic was English but the user forced a non-English output
+            # language, localized_headings will be empty — generate them now so
+            # the report guardrail validates Chinese/etc. headings correctly.
+            if canonical_lang != "English" and not source_collection.localized_headings:
+                from academic_agent.language import translate_headings, translate_to_language
+                from academic_agent.evidence import _REQUIRED_REPORT_HEADINGS
+                source_collection.localized_headings = list(
+                    translate_headings(_REQUIRED_REPORT_HEADINGS, canonical_lang)
+                )
+                # Translate the report title topic so the heading is fully in the
+                # target language (e.g. English PDF topics stay English otherwise).
+                if source_collection.display_topic:
+                    translated_topic = translate_to_language(
+                        source_collection.display_topic, canonical_lang
+                    )
+                    if translated_topic and translated_topic != source_collection.display_topic:
+                        source_collection.display_topic = translated_topic
+            elif canonical_lang != "English":
+                from academic_agent.language import translate_to_language
+                if source_collection.display_topic:
+                    translated_topic = translate_to_language(
+                        source_collection.display_topic, canonical_lang
+                    )
+                    if translated_topic and translated_topic != source_collection.display_topic:
+                        source_collection.display_topic = translated_topic
         if args.weight_profile and args.weight_profile != "Auto (detect from topic)":
             source_collection.weight_profile = args.weight_profile
         save_source_collection(source_collection.model_dump_json(indent=2), run_id=args.run_id)

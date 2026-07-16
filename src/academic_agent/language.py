@@ -140,6 +140,23 @@ def _llm_call(prompt: str, *, system: str, max_tokens: int = 400) -> str:
         return ""
 
 
+def translate_to_language(text: str, target_language_name: str) -> str:
+    """Translate text to the given target language.
+
+    Falls back to the original text if the LLM call fails.
+    """
+    result = _llm_call(
+        f"Translate the following text to {target_language_name}. "
+        f"Return ONLY the translation, no explanation or extra text:\n\n{text}",
+        system=(
+            "You are a professional scientific translator. "
+            f"Output only the requested {target_language_name} translation."
+        ),
+        max_tokens=300,
+    )
+    return result if result else text
+
+
 def translate_to_english(text: str) -> str:
     """Translate an arbitrary-language string to English.
 

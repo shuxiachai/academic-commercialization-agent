@@ -67,6 +67,7 @@ patent_analysis_task:
     framed underexplored areas. This is not a legal freedom-to-operate opinion.
 
     Validated source registry: {patent_sources_json}
+    Known patent assignees / competitors extracted from sources: {patent_assignees_json}
     Queries executed by code: {patent_search_queries_json}
 
     Evidence rules:
