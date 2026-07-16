@@ -250,8 +250,8 @@ class EvidenceReport(BaseModel):
     topic: str = Field(min_length=3)
     scope_summary: str = Field(min_length=20)
     search_queries: list[str] = Field(min_length=1)
-    findings: list[EvidenceFinding] = Field(min_length=3)
-    sources: list[EvidenceSource] = Field(min_length=2)
+    findings: list[EvidenceFinding] = Field(min_length=1)
+    sources: list[EvidenceSource] = Field(default_factory=list)
     limitations: list[str] = Field(min_length=1)
 
 
