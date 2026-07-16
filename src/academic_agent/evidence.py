@@ -175,9 +175,27 @@ class EvidenceSource(BaseModel):
         min_length=10,
     )
     evidence_summary: str = Field(
-        min_length=60,
+        min_length=1,
         description="A concise paraphrase of what this source actually supports.",
     )
+
+    @field_validator("evidence_summary")
+    @classmethod
+    def _evidence_summary_length(cls, v: str) -> str:
+        # CJK scripts carry ~3× information density of Latin; apply a lower floor.
+        cjk = sum(
+            1 for c in v
+            if "一" <= c <= "鿿"   # CJK Unified Ideographs
+            or "぀" <= c <= "ヿ"   # Hiragana / Katakana
+            or "가" <= c <= "힣"   # Hangul syllables
+        )
+        min_len = 20 if cjk / max(len(v), 1) > 0.25 else 60
+        if len(v) < min_len:
+            raise ValueError(
+                f"evidence_summary must be at least {min_len} characters "
+                f"(got {len(v)})"
+            )
+        return v
     citation_count: int | None = Field(
         default=None,
         description="Number of times this source has been cited (OpenAlex cited_by_count or S2 citationCount).",
