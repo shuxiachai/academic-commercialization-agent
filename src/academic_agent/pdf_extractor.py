@@ -88,14 +88,76 @@ def _call_llm_json(prompt: str) -> dict[str, Any]:
     return json.loads(content)
 
 
+def _detect_paper_language(text: str) -> str:
+    """Return a BCP-47-style language tag for the dominant script in the first 2000 chars."""
+    sample = text[:2000]
+    n = max(len(sample), 1)
+    zh = sum(1 for c in sample if "一" <= c <= "鿿")
+    ja = sum(1 for c in sample if "぀" <= c <= "ヿ")
+    ko = sum(1 for c in sample if "가" <= c <= "힣")
+    ar = sum(1 for c in sample if "؀" <= c <= "ۿ")
+    ru = sum(1 for c in sample if "Ѐ" <= c <= "ӿ")
+    if zh / n > 0.12:
+        return "zh"
+    if ja / n > 0.08:
+        return "ja"
+    if ko / n > 0.08:
+        return "ko"
+    if ar / n > 0.08:
+        return "ar"
+    if ru / n > 0.08:
+        return "ru"
+    return "en"
+
+
+_LANG_INSTRUCTIONS: dict[str, str] = {
+    "zh": (
+        "IMPORTANT — This paper is written in Chinese (中文). "
+        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
+        "in Chinese to match the paper. "
+        "commercialization_topic and search_keywords must remain in English for database search compatibility."
+    ),
+    "ja": (
+        "IMPORTANT — This paper is written in Japanese (日本語). "
+        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
+        "in Japanese to match the paper. "
+        "commercialization_topic and search_keywords must remain in English."
+    ),
+    "ko": (
+        "IMPORTANT — This paper is written in Korean (한국어). "
+        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
+        "in Korean to match the paper. "
+        "commercialization_topic and search_keywords must remain in English."
+    ),
+    "ar": (
+        "IMPORTANT — This paper is written in Arabic (العربية). "
+        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
+        "in Arabic to match the paper. "
+        "commercialization_topic and search_keywords must remain in English."
+    ),
+    "ru": (
+        "IMPORTANT — This paper is written in Russian (Русский). "
+        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
+        "in Russian to match the paper. "
+        "commercialization_topic and search_keywords must remain in English."
+    ),
+    "en": "Output all fields in English.",
+}
+
+
 def extract_paper_contribution(pdf_path: str | Path) -> PaperContribution:
     """Extract structured contribution metadata from an academic PDF using LLM."""
     text = extract_pdf_text(pdf_path)
     doi_found   = _find_doi(text)
     arxiv_url   = _find_arxiv_url(text)
 
+    paper_lang  = _detect_paper_language(text)
+    lang_instr  = _LANG_INSTRUCTIONS[paper_lang]
+
     prompt = f"""You are analyzing an academic paper for its commercialization potential.
 Task: extract the SPECIFIC technical innovation of THIS paper — not background, not prior work.
+
+{lang_instr}
 
 Paper text (key pages):
 ---
@@ -107,11 +169,11 @@ Return a JSON object with exactly these keys:
   "title": "full paper title",
   "authors": "first author et al.",
   "core_contribution": "2-3 sentences describing what is specifically new in this paper",
-  "application_domain": "target industry or application (e.g. 'energy storage', 'cancer diagnostics', 'autonomous vehicles')",
+  "application_domain": "target industry or application",
   "key_metrics": ["specific metric 1 with value", "comparison vs prior work 2"],
   "delta_from_prior": "1-2 sentences: what makes this different from existing solutions",
-  "commercialization_topic": "focused topic for commercialization search, e.g. 'sulfide solid electrolyte with 25 mS/cm ionic conductivity for lithium metal EV batteries'",
-  "search_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+  "commercialization_topic": "focused English topic for commercialization search, e.g. 'sulfide solid electrolyte with 25 mS/cm ionic conductivity for lithium metal EV batteries'",
+  "search_keywords": ["english_keyword1", "english_keyword2", "english_keyword3", "english_keyword4", "english_keyword5"],
   "abstract_excerpt": "first 250 characters of the abstract"
 }}
 
