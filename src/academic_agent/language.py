@@ -85,7 +85,7 @@ def detect_language(text: str) -> str:
     return "en"
 
 
-def get_lang_info(lang_code: str) -> dict:
+def get_lang_info(lang_code: str) -> dict[str, str]:
     """Return the registry entry for a language code.
 
     Exact matches (including 'zh-tw') are returned directly.

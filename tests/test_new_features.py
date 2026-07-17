@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 from academic_agent.source_pipeline import (
     _academic_source_from_arxiv,
     _academic_source_from_openalex,
+    _filter_by_relevance,
     _is_borderline_publisher,
     _is_predatory_publisher,
     _market_summary_relevant,
@@ -1287,3 +1288,68 @@ class LensPatentParserTests(TestCase):
         src, err = self._parse(record)
         self.assertIsNone(src)
         self.assertIn("no lens_id", err)
+
+
+# ---------------------------------------------------------------------------
+# Fix-1: _filter_by_relevance(skip_domain_filter=True) — market domain guard
+# ---------------------------------------------------------------------------
+
+class FilterByRelevanceSkipDomainTests(TestCase):
+    """Regression tests for the market domain_filter bypass.
+
+    Topics with a 'for X' structure (e.g. 'perovskite solar cell for photovoltaic
+    applications') cause _topic_domain_keywords() to extract domain tokens such as
+    'photovoltaic'.  Market reports that use the industry shorthand 'PV' instead
+    of 'photovoltaic' receive score=-1 (hard domain exclusion) and are incorrectly
+    filtered out.  skip_domain_filter=True bypasses this check.
+    """
+
+    # "for photovoltaic applications" → domain_keywords = {"photovoltaic"}
+    _TOPIC = "perovskite solar cell for photovoltaic applications"
+
+    def _make_source(self, title: str, summary: str = "") -> EvidenceSource:
+        from datetime import date
+        return EvidenceSource(
+            source_id="M1",
+            title=title,
+            url="https://example.com",
+            publisher="Test Publisher",
+            published_date=None,
+            accessed_date=date.today(),
+            source_type="market_report",
+            credibility_tier="medium",
+            credibility_reason="Commercial market estimate with proprietary methodology.",
+            evidence_summary=summary,
+            summary_source=None,
+            citation_count=None,
+        )
+
+    def test_pv_source_rejected_without_skip(self):
+        # "PV" is 2 chars, not extracted as keyword → no "photovoltaic" in body
+        # → domain hard-exclusion fires → score=-1 → excluded even by min_keep fallback
+        src = self._make_source(
+            "Global PV Solar Cell Market Size and Forecast 2024",
+            "The PV solar market is projected to reach $100B by 2030 driven by rising installations.",
+        )
+        result = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=1)
+        self.assertEqual(result, [])
+
+    def test_pv_source_passes_with_skip(self):
+        # With domain filter bypassed: "solar"(+1) + "cell"(+1) + "solar cell" bigram(+2) = 4 ≥ 2
+        src = self._make_source(
+            "Global PV Solar Cell Market Size and Forecast 2024",
+            "The PV solar market is projected to reach $100B by 2030 driven by rising installations.",
+        )
+        result = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=1,
+                                       skip_domain_filter=True)
+        self.assertIn(src, result)
+
+    def test_unrelated_source_still_filtered_with_skip(self):
+        # Even with skip, sources with score < min_score are excluded
+        src = self._make_source(
+            "Global Automotive Engine Lubricant Market 2024",
+            "Engine oil and lubricant demand growing with automotive industry expansion.",
+        )
+        result = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=0,
+                                       skip_domain_filter=True)
+        self.assertEqual(result, [])

@@ -117,6 +117,10 @@ _NONPROFIT_RESEARCH_DOMAINS = {
     "drawdown.org",
     "rmi.org",           # Rocky Mountain Institute
     "energypolicy.columbia.edu",
+    # Solar / clean-energy industry associations — publish authoritative market data
+    "seia.org",              # Solar Energy Industries Association (US)
+    "solarpowereurope.org",  # SolarPower Europe
+    "solarenergyuk.net",     # Solar Energy UK
 }
 _THINK_TANK_DOMAINS = {
     "itif.org",          # Information Technology and Innovation Foundation
@@ -373,6 +377,13 @@ _TRACKING_PARAMS: frozenset[str] = frozenset({
     "mc_cid", "mc_eid",                                 # Mailchimp
 })
 _MIN_EVIDENCE_SUMMARY_CHARS = 100
+# Minimum number of characters for an abstract/patent body to be considered non-trivial.
+_ABSTRACT_MIN_CHARS: int = 20
+# Maximum characters kept from abstracts/patent bodies passed to the LLM.
+_ABSTRACT_MAX_CHARS: int = 1500
+# Papers published within this many days are treated as "recently published" when
+# they have zero citations (citation-count lag is expected for brand-new papers).
+_ZERO_CITATION_RECENCY_DAYS: int = 90
 # Market domain: accept at most this many government/research_institute sources before
 # deferring extras so commercial sources have a chance to fill remaining slots.
 _MARKET_INSTITUTIONAL_SOFT_CAP = 3
@@ -1078,6 +1089,11 @@ _TITLE_NEAR_DUP_THRESHOLD: float = 0.88
 # Minimum word-overlap ratio required before running the (slower) SequenceMatcher.
 # Titles below this overlap ratio can never reach _TITLE_NEAR_DUP_THRESHOLD.
 _TITLE_PREFILTER_OVERLAP: float = 0.4
+# Threshold for matching an incoming title against explicitly blocked titles.
+# Higher than _TITLE_NEAR_DUP_THRESHOLD: blocked titles are specifically excluded
+# for a reason, so a higher confidence is required before treating a near-identical
+# title as the same work.
+_TITLE_BLOCKED_MATCH_THRESHOLD: float = 0.92
 
 # ── Shared patent-search utilities ───────────────────────────────────────────
 
@@ -1308,7 +1324,7 @@ def _patent_source_from_uspto(
         source_type="patent",
         credibility_tier="high",
         credibility_reason=f"USPTO granted patent US{number}; assignee: {assignee}.",
-        evidence_summary=(abstract[:1500] if abstract else f"US Patent {number}: {title}"),
+        evidence_summary=(abstract[:_ABSTRACT_MAX_CHARS] if abstract else f"US Patent {number}: {title}"),
         citation_count=None,
     )
 
@@ -1370,8 +1386,8 @@ def _clean_text(value: str) -> str:
 
 def _safe_summary(snippet: str, title: str) -> str:
     cleaned = _clean_text(snippet)
-    if len(cleaned) >= 20:
-        return cleaned[:1500]
+    if len(cleaned) >= _ABSTRACT_MIN_CHARS:
+        return cleaned[:_ABSTRACT_MAX_CHARS]
     return f"Verified search result for the source titled {title}."
 
 
@@ -1545,13 +1561,13 @@ def _academic_source(
     crossref_abstract = _clean_text(abstract) if isinstance(abstract, str) else ""
     snippet = str(result.get("snippet", ""))
     if (
-        len(crossref_abstract) < 20
+        len(crossref_abstract) < _ABSTRACT_MIN_CHARS
         and re.search(r"(?:https?://)?doi\.org", snippet, flags=re.IGNORECASE)
         and _extract_doi(snippet) is None
     ):
         return None, "search snippet contains a truncated or unverifiable DOI reference"
-    if len(crossref_abstract) >= 20:
-        evidence_summary = crossref_abstract[:1500]
+    if len(crossref_abstract) >= _ABSTRACT_MIN_CHARS:
+        evidence_summary = crossref_abstract[:_ABSTRACT_MAX_CHARS]
         summary_basis = "Crossref abstract"
     else:
         evidence_summary = _safe_summary(snippet, title)
@@ -1561,7 +1577,7 @@ def _academic_source(
         return None, "Crossref publication date is in the future"
     cited = int(item.get("is-referenced-by-count") or 0)
     days_since_pub = (accessed_date - published).days if published else None
-    if cited == 0 and (days_since_pub is None or days_since_pub > 90):
+    if cited == 0 and (days_since_pub is None or days_since_pub > _ZERO_CITATION_RECENCY_DAYS):
         credibility_tier = "medium"
         age_note = f"{days_since_pub}d since publication" if days_since_pub else "publication date unknown"
         credibility_reason = (
@@ -1794,14 +1810,14 @@ def _academic_source_from_openalex(
             f"OpenAlex record: DOI verified, peer-reviewed journal, "
             f"{cited:,} citations. Brief evidence summary — detailed findings may be limited."
         )
-    elif cited == 0 and days_since_pub is not None and days_since_pub <= 90:
+    elif cited == 0 and days_since_pub is not None and days_since_pub <= _ZERO_CITATION_RECENCY_DAYS:
         credibility_tier = "high"
         credibility_reason = (
             "OpenAlex record: DOI verified, peer-reviewed journal. "
             f"Newly published ({days_since_pub}d ago); 0 citations is expected, "
             "not a quality signal."
         )
-    elif cited == 0 and (days_since_pub is None or days_since_pub > 90):
+    elif cited == 0 and (days_since_pub is None or days_since_pub > _ZERO_CITATION_RECENCY_DAYS):
         credibility_tier = "medium"
         age_note = f"{days_since_pub}d since publication" if days_since_pub else "publication date unknown"
         credibility_reason = (
@@ -1840,7 +1856,7 @@ def _academic_source_from_openalex(
             source_type="academic_paper",
             credibility_tier=credibility_tier,
             credibility_reason=credibility_reason,
-            evidence_summary=abstract[:1500],
+            evidence_summary=abstract[:_ABSTRACT_MAX_CHARS],
             summary_source="abstract",
             citation_count=cited,
         ),
@@ -1904,7 +1920,7 @@ def _academic_source_from_s2(
                 f"{cited:,} citations."
                 + (" Brief evidence summary — detailed findings may be limited." if summary_sparse else "")
             ),
-            evidence_summary=abstract[:1500],
+            evidence_summary=abstract[:_ABSTRACT_MAX_CHARS],
             summary_source="abstract",
             citation_count=cited,
         ),
@@ -1975,7 +1991,7 @@ def _academic_source_from_arxiv(
             source_type="academic_paper",
             credibility_tier=credibility_tier,
             credibility_reason=credibility_reason,
-            evidence_summary=abstract[:1500],
+            evidence_summary=abstract[:_ABSTRACT_MAX_CHARS],
             summary_source="abstract",
             citation_count=None,
         ),
@@ -2031,7 +2047,7 @@ def _academic_source_from_pubmed(
                 f"PubMed indexed: peer-reviewed biomedical journal ({journal})."
                 + (" Brief evidence summary." if summary_sparse else "")
             ),
-            evidence_summary=abstract[:1500],
+            evidence_summary=abstract[:_ABSTRACT_MAX_CHARS],
             summary_source="abstract",
             citation_count=None,
         ),
@@ -2111,7 +2127,7 @@ def _patent_source_from_lens(
         pass
 
     evidence = abstract or f"Patent {pub_num or lens_id}: {title}."
-    if len(evidence) < 20:
+    if len(evidence) < _ABSTRACT_MIN_CHARS:
         evidence = f"Patent record: {title}."
 
     pub_year = published.year if published else "unknown"
@@ -2131,7 +2147,7 @@ def _patent_source_from_lens(
                 f"applicants: {publisher}; year: {pub_year}. "
                 "Legal scope requires full claim review."
             ),
-            evidence_summary=evidence[:1500],
+            evidence_summary=evidence[:_ABSTRACT_MAX_CHARS],
             citation_count=None,
         ),
         "",
@@ -2396,16 +2412,23 @@ def _filter_by_relevance(
     topic: str,
     min_score: int = 1,
     min_keep: int = 2,
+    *,
+    skip_domain_filter: bool = False,
 ) -> list["EvidenceSource"]:
     """Filter low-relevance sources and sort survivors by relevance score descending.
 
     Sources with score -1 (domain mismatch) are always excluded, even when the
     fallback min_keep logic would otherwise include them.  The fallback returns
     the top-scoring qualified sources rather than the entire collection.
+
+    skip_domain_filter: when True, the hard domain-keyword exclusion (score=-1) is
+    bypassed.  Use for market sources, which commonly use industry shorthand such as
+    "PV" instead of "photovoltaic" — terms that the domain filter would incorrectly
+    reject despite the source being clearly on-topic.
     """
     keywords = _topic_keywords(topic)
     bigrams  = _topic_bigrams(topic)
-    domain_keywords = _topic_domain_keywords(topic)
+    domain_keywords = frozenset() if skip_domain_filter else _topic_domain_keywords(topic)
     scored   = sorted(
         [(s, _relevance_score(s, keywords, bigrams, domain_keywords)) for s in sources],
         key=lambda x: x[1],
@@ -2692,7 +2715,7 @@ def _collect_domain(
                         (
                             title
                             for title in excluded_titles
-                            if _title_similarity(result_title, title) >= 0.92
+                            if _title_similarity(result_title, title) >= _TITLE_BLOCKED_MATCH_THRESHOLD
                         ),
                         None,
                     )
@@ -3350,20 +3373,22 @@ def collect_source_collection(
             us_audit.accepted_source_ids.append(source_id)
         patent_audits.append(us_audit)
 
-    if len(patents) < maximum_sources:
-        # Serper supplements whenever Lens+USPTO haven't filled all patent slots.
-        # blocked_titles prevents re-accepting patents already found by Lens/USPTO.
-        serper_patents, serper_patent_audits = _collect_domain(
-            "patent",
-            query_map["patent"],
-            resolved_searcher, resolved_crossref, url_checker,
-            resolved_date, normalized_topic,
-            minimum_sources=0,
-            maximum_sources=maximum_sources - len(patents),
-            blocked_titles={p.title for p in patents},
-        )
-        patent_audits.extend(serper_patent_audits)
-        patents.extend(serper_patents)
+    # Always run a targeted Google Patents / WIPO Serper search as a geographic
+    # supplement: Lens.org skews toward Chinese and Asian patents, while the
+    # site:-qualified Serper queries surface US, EP, and WO records not always
+    # represented in the Lens index.  Cap at 3 extra slots so total stays bounded.
+    _GP_SUPPLEMENT_SLOTS = 3
+    serper_patents, serper_patent_audits = _collect_domain(
+        "patent",
+        query_map["patent"],
+        resolved_searcher, resolved_crossref, url_checker,
+        resolved_date, normalized_topic,
+        minimum_sources=0,
+        maximum_sources=_GP_SUPPLEMENT_SLOTS,
+        blocked_titles={p.title for p in patents},
+    )
+    patent_audits.extend(serper_patent_audits)
+    patents.extend(serper_patents)
 
     all_audits.extend(patent_audits)
 
@@ -3454,7 +3479,8 @@ def collect_source_collection(
     _record_relevance_filter(_patents_before, patents, "patent", all_audits, min_score=1)
 
     _market_before = list(market)
-    market   = _filter_by_relevance(market,   normalized_topic, min_score=2, min_keep=2)
+    market   = _filter_by_relevance(market,   normalized_topic, min_score=2, min_keep=2,
+                                    skip_domain_filter=True)
     _record_relevance_filter(_market_before, market, "market", all_audits, min_score=2)
     if paper_seed is not None:
         academic = [paper_seed] + academic
