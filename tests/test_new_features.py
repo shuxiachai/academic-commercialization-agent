@@ -19,10 +19,14 @@ from unittest.mock import MagicMock, patch
 
 from academic_agent.source_pipeline import (
     _academic_source_from_arxiv,
+    _academic_source_from_openalex,
     _is_borderline_publisher,
     _is_predatory_publisher,
     _patent_source_from_uspto,
+    _record_relevance_filter,
+    SearchAudit,
     ArxivClient,
+    EvidenceSource,
     LensPatentClient,
     USPTOPatentClient,
     collect_source_collection,
@@ -62,6 +66,15 @@ class _NullOpenAlex:
 
     def fetch_citation_by_doi(self, doi: str) -> int | None:
         return None
+
+    def search_by_topic(self, topic_id: str, rows: int = 10) -> list:
+        return []
+
+    def fetch_referenced_works(self, doi: str, top_n: int = 25) -> list:
+        return []
+
+    def fetch_works_by_ids(self, openalex_ids: list, rows: int = 15) -> list:
+        return []
 
 
 class _NullS2:
@@ -806,3 +819,116 @@ class PatentApiKeywordTests(TestCase):
         fields = [list(c.get("_text_any", {}).keys())[0] for c in clauses if "_text_any" in c]
         self.assertIn("patent_title", fields)
         self.assertIn("patent_abstract", fields)
+
+
+# ---------------------------------------------------------------------------
+# 11. OpenAlex peer-review artifact filter
+# ---------------------------------------------------------------------------
+
+def _make_oa_work(title: str, abstract: str = "", doi: str = "10.1234/test") -> dict:
+    """Build a minimal OpenAlex work dict for testing."""
+    inv: dict = {}
+    if abstract:
+        for i, word in enumerate(abstract.split()):
+            inv.setdefault(word, []).append(i)
+    return {
+        "title": title,
+        "doi": f"https://doi.org/{doi}",
+        "abstract_inverted_index": inv,
+        "primary_location": {"source": {"display_name": "Nature"}},
+        "publication_date": "2024-01-01",
+        "cited_by_count": 10,
+        "topics": [{"id": "T1", "display_name": "Nanomedicine", "score": 0.9}],
+    }
+
+
+_LONG_OA_ABSTRACT = (
+    "This study investigates nanomaterial-based targeted drug delivery for tumor "
+    "treatment. The results demonstrate significant efficacy improvements. "
+    "Experimental validation confirms the proposed mechanism. " * 3
+)
+
+
+class OpenAlexPeerReviewFilterTests(TestCase):
+    """_academic_source_from_openalex must reject peer-review meta-documents."""
+
+    _ACCESSED = date(2026, 7, 17)
+    _TOPIC = "nanomaterials tumor treatment drug delivery"
+
+    def _convert(self, work: dict):
+        return _academic_source_from_openalex(work, "A1", self._ACCESSED, self._TOPIC)
+
+    def test_review_for_title_rejected(self) -> None:
+        src, reason = self._convert(_make_oa_work('Review for "Nanomaterial drug delivery study"'))
+        self.assertIsNone(src)
+        self.assertIn("peer-review artifact", reason)
+
+    def test_decision_letter_title_rejected(self) -> None:
+        src, reason = self._convert(_make_oa_work("Decision letter for \"Nanomaterial study\""))
+        self.assertIsNone(src)
+        self.assertIn("peer-review artifact", reason)
+
+    def test_author_response_title_rejected(self) -> None:
+        src, reason = self._convert(_make_oa_work("Author response for \"Nanomaterial study\""))
+        self.assertIsNone(src)
+        self.assertIn("peer-review artifact", reason)
+
+    def test_normal_paper_passes(self) -> None:
+        src, reason = self._convert(_make_oa_work(
+            "Nanomaterials for tumor treatment and drug delivery",
+            abstract=_LONG_OA_ABSTRACT,
+        ))
+        self.assertIsNotNone(src)
+        self.assertEqual(reason, "")
+
+    def test_summary_source_is_abstract_for_openalex_source(self) -> None:
+        src, _ = self._convert(_make_oa_work(
+            "Nanomaterials for tumor treatment and drug delivery",
+            abstract=_LONG_OA_ABSTRACT,
+        ))
+        self.assertIsNotNone(src)
+        self.assertEqual(src.summary_source, "abstract")
+
+
+# ---------------------------------------------------------------------------
+# 12. _record_relevance_filter audit tracking
+# ---------------------------------------------------------------------------
+
+class RelevanceFilterAuditTests(TestCase):
+    """_record_relevance_filter must add audit entries for silently removed sources."""
+
+    def _make_source(self, sid: str, title: str) -> EvidenceSource:
+        return EvidenceSource(
+            source_id=sid,
+            title=title,
+            url="https://example.com",
+            publisher="Test Publisher",
+            accessed_date=date(2026, 7, 17),
+            source_type="academic_paper",
+            credibility_tier="high",
+            credibility_reason="Peer-reviewed journal, DOI verified.",
+            evidence_summary=_LONG_ABSTRACT,
+        )
+
+    def test_adds_audit_entry_for_removed_sources(self) -> None:
+        before = [self._make_source("A1", "kept paper"), self._make_source("A2", "removed paper")]
+        after  = [self._make_source("A1", "kept paper")]
+        audits: list[SearchAudit] = []
+        _record_relevance_filter(before, after, "academic", audits, min_score=2)
+        self.assertEqual(len(audits), 1)
+        self.assertEqual(audits[0].query, "[Relevance-Filter]")
+        self.assertTrue(any("A2" in r for r in audits[0].rejected_reasons))
+
+    def test_no_audit_entry_when_nothing_removed(self) -> None:
+        sources = [self._make_source("A1", "kept paper")]
+        audits: list[SearchAudit] = []
+        _record_relevance_filter(sources, sources, "academic", audits, min_score=2)
+        self.assertEqual(len(audits), 0)
+
+    def test_multiple_removals_all_recorded(self) -> None:
+        before = [self._make_source(f"A{i}", f"paper {i}") for i in range(1, 5)]
+        after  = [before[0]]  # only keep A1
+        audits: list[SearchAudit] = []
+        _record_relevance_filter(before, after, "patent", audits, min_score=1)
+        self.assertEqual(len(audits), 1)
+        self.assertEqual(len(audits[0].rejected_reasons), 3)  # A2, A3, A4 removed

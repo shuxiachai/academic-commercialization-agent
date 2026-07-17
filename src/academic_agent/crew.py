@@ -333,5 +333,6 @@ class AcademicAgent:
             process=Process.sequential,   # 顺序执行：Task 1 → 2 → 3 → 4 → 5 → 6
             verbose=True,
             max_rpm=int(os.getenv("MAX_RPM", "6")),  # Default 6 suits DeepSeek free tier; raise for OpenAI/Anthropic
-            task_callback=self.task_callback,  # 前端实时进度回调 / Real-time frontend progress callback
+            task_callback=self.task_callback,   # 前端实时进度回调 / Real-time frontend progress callback
+            step_callback=self.step_callback,   # 实时步骤日志回调 / Real-time step log callback
         )

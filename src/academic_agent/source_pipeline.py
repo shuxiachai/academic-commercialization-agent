@@ -1708,6 +1708,14 @@ def _academic_source_from_openalex(
 
     if not title:
         return None, "OpenAlex work has no title"
+    # OpenAlex indexes peer review meta-documents (review reports, decision letters,
+    # author responses) as separate works.  These are not papers and have no abstract.
+    _PEER_REVIEW_PREFIXES = (
+        "Review for ", "Decision letter for ", "Author response for ",
+        "Review of ", "Peer review of ",
+    )
+    if any(title.startswith(pfx) for pfx in _PEER_REVIEW_PREFIXES):
+        return None, f"OpenAlex peer-review artifact (not a paper): {title!r}"
     if not doi:
         return None, f"OpenAlex work has no DOI: {title!r}"
     topic_match = _openalex_topic_relevant(work, research_topic)
@@ -1802,6 +1810,7 @@ def _academic_source_from_openalex(
             credibility_tier=credibility_tier,
             credibility_reason=credibility_reason,
             evidence_summary=abstract[:1500],
+            summary_source="abstract",
             citation_count=cited,
         ),
         "",
@@ -1865,6 +1874,7 @@ def _academic_source_from_s2(
                 + (" Brief evidence summary — detailed findings may be limited." if summary_sparse else "")
             ),
             evidence_summary=abstract[:1500],
+            summary_source="abstract",
             citation_count=cited,
         ),
         "",
@@ -1935,6 +1945,7 @@ def _academic_source_from_arxiv(
             credibility_tier=credibility_tier,
             credibility_reason=credibility_reason,
             evidence_summary=abstract[:1500],
+            summary_source="abstract",
             citation_count=None,
         ),
         "",
@@ -1990,6 +2001,7 @@ def _academic_source_from_pubmed(
                 + (" Brief evidence summary." if summary_sparse else "")
             ),
             evidence_summary=abstract[:1500],
+            summary_source="abstract",
             citation_count=None,
         ),
         "",
@@ -2364,6 +2376,34 @@ def _filter_by_relevance(
     return kept if len(kept) >= min_keep else [s for s, _ in qualified]
 
 
+def _record_relevance_filter(
+    before: list["EvidenceSource"],
+    after: list["EvidenceSource"],
+    domain: str,
+    audits: list["SearchAudit"],
+    min_score: int,
+) -> None:
+    """Add a post-filter audit entry when _filter_by_relevance silently removes sources.
+
+    Without this, sources that passed _collect_domain but were later dropped appear
+    in audit.accepted_source_ids without a corresponding entry in the final source list,
+    creating a misleading discrepancy.
+    """
+    after_ids = {s.source_id for s in after}
+    removed = [s for s in before if s.source_id not in after_ids]
+    if not removed:
+        return
+    audits.append(SearchAudit(
+        domain=domain,
+        query="[Relevance-Filter]",
+        result_count=0,
+        rejected_reasons=[
+            f"score<{min_score} — removed {s.source_id}: '{s.title}'"
+            for s in removed
+        ],
+    ))
+
+
 def _web_source(
     result: dict[str, Any],
     source_id: str,
@@ -2545,7 +2585,12 @@ def _collect_domain(
     prefix = {"academic": "A", "patent": "P", "market": "M"}[domain]
     accepted: list[EvidenceSource] = []
     audits: list[SearchAudit] = []
-    seen_patent_titles: set[str] = set()
+    # Pre-populate patent title dedup from blocked_titles so that Serper
+    # supplement runs (after Lens/USPTO) don't re-accept the same patents.
+    seen_patent_titles: set[str] = (
+        {" ".join(_WORD_PATTERN.findall(t.lower())) for t in (blocked_titles or set())}
+        if domain == "patent" else set()
+    )
     seen_academic_title_keys: set[str] = set()
     seen_locators: set[str] = set()
     # Market domain: defer low-priority sources (institutional OR excess market_report)
@@ -2706,12 +2751,21 @@ def _collect_domain(
 
     # Fill remaining market slots from deferred sources (institutional or excess
     # market_report) when higher-priority types didn't fill those slots.
+    _promoted_deferred: list[EvidenceSource] = []
     if domain == "market" and _deferred:
         for _deferred_src in _deferred:
             if len(accepted) >= maximum_sources:
                 break
             _deferred_src.source_id = f"M{len(accepted) + 1}"
             accepted.append(_deferred_src)
+            _promoted_deferred.append(_deferred_src)
+    if _promoted_deferred:
+        audits.append(SearchAudit(
+            domain="market",
+            query="[Deferred-Promotion]",
+            result_count=len(_promoted_deferred),
+            accepted_source_ids=[s.source_id for s in _promoted_deferred],
+        ))
 
     if len(accepted) < minimum_sources:
         rejected = list(
@@ -3231,15 +3285,17 @@ def collect_source_collection(
             us_audit.accepted_source_ids.append(source_id)
         patent_audits.append(us_audit)
 
-    if len(patents) < 1:
-        # Lens + USPTO both returned nothing — fall back to Serper
+    if len(patents) < maximum_sources:
+        # Serper supplements whenever Lens+USPTO haven't filled all patent slots.
+        # blocked_titles prevents re-accepting patents already found by Lens/USPTO.
         serper_patents, serper_patent_audits = _collect_domain(
             "patent",
             query_map["patent"],
             resolved_searcher, resolved_crossref, url_checker,
             resolved_date, normalized_topic,
             minimum_sources=0,
-            maximum_sources=maximum_sources,
+            maximum_sources=maximum_sources - len(patents),
+            blocked_titles={p.title for p in patents},
         )
         patent_audits.extend(serper_patent_audits)
         patents.extend(serper_patents)
@@ -3324,9 +3380,17 @@ def collect_source_collection(
         except SourceCollectionError:
             pass
 
+    _academic_before = list(academic)
     academic = _filter_by_relevance(academic, normalized_topic, min_score=2, min_keep=3)
+    _record_relevance_filter(_academic_before, academic, "academic", all_audits, min_score=2)
+
+    _patents_before = list(patents)
     patents  = _filter_by_relevance(patents,  normalized_topic, min_score=1, min_keep=1)
+    _record_relevance_filter(_patents_before, patents, "patent", all_audits, min_score=1)
+
+    _market_before = list(market)
     market   = _filter_by_relevance(market,   normalized_topic, min_score=2, min_keep=2)
+    _record_relevance_filter(_market_before, market, "market", all_audits, min_score=2)
     if paper_seed is not None:
         academic = [paper_seed] + academic
     _renumber(academic, "A")
