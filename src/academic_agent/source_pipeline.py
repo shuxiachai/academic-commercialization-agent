@@ -2398,7 +2398,7 @@ def _record_relevance_filter(
         query="[Relevance-Filter]",
         result_count=0,
         rejected_reasons=[
-            f"score<{min_score} — removed {s.source_id}: '{s.title}'"
+            f"score<{min_score} — removed '{s.title}'"
             for s in removed
         ],
     ))
@@ -2704,6 +2704,20 @@ def _collect_domain(
                         f" (score {_tscore}): {source.title!r}"
                     )
                     continue
+                # Reject patents targeting the opposite electrode when the topic
+                # is electrode-specific (e.g. "anode" topic → reject cathode patents).
+                if "anode" in _pat_kws and "cathode" not in _pat_kws:
+                    if "cathode" in _title_norm and "anode" not in _title_norm:
+                        audit.rejected_reasons.append(
+                            f"patent targets cathode, topic focuses on anode: {source.title!r}"
+                        )
+                        continue
+                elif "cathode" in _pat_kws and "anode" not in _pat_kws:
+                    if "anode" in _title_norm and "cathode" not in _title_norm:
+                        audit.rejected_reasons.append(
+                            f"patent targets anode, topic focuses on cathode: {source.title!r}"
+                        )
+                        continue
             locator = source.doi or str(source.url)
             if locator.lower() in seen_locators:
                 audit.rejected_reasons.append(f"duplicate source: {locator}")

@@ -917,7 +917,8 @@ class RelevanceFilterAuditTests(TestCase):
         _record_relevance_filter(before, after, "academic", audits, min_score=2)
         self.assertEqual(len(audits), 1)
         self.assertEqual(audits[0].query, "[Relevance-Filter]")
-        self.assertTrue(any("A2" in r for r in audits[0].rejected_reasons))
+        # Format is now title-only (no stale pre-renumber ID)
+        self.assertTrue(any("removed paper" in r for r in audits[0].rejected_reasons))
 
     def test_no_audit_entry_when_nothing_removed(self) -> None:
         sources = [self._make_source("A1", "kept paper")]
@@ -932,3 +933,157 @@ class RelevanceFilterAuditTests(TestCase):
         _record_relevance_filter(before, after, "patent", audits, min_score=1)
         self.assertEqual(len(audits), 1)
         self.assertEqual(len(audits[0].rejected_reasons), 3)  # A2, A3, A4 removed
+
+
+# ---------------------------------------------------------------------------
+# 13. Patent electrode-direction filter (cathode vs. anode)
+# ---------------------------------------------------------------------------
+
+class PatentElectrodeDirectionFilterTests(TestCase):
+    """Patents targeting the wrong electrode must be rejected when the topic
+    is electrode-specific (anode-focused topic → cathode patents rejected)."""
+
+    _ANODE_TOPIC = "hard carbon anode for sodium batteries"
+
+    # Custom Crossref whose titles contain "anode sodium" so _title_matches_topic
+    # finds ≥2 non-stopword overlaps with _ANODE_TOPIC ("anode", "sodium").
+    class _AnodicCrossref:
+        def lookup_doi(self, doi: str) -> dict | None:
+            try:
+                index = int(doi.rsplit("-", 1)[1])
+            except (IndexError, ValueError):
+                return None
+            return {
+                "DOI": doi,
+                "title": [f"Hard carbon anode for sodium battery study number {index}"],
+                "abstract": _LONG_ABSTRACT,
+                "publisher": "Reputable Journal Publisher",
+                "published": {"date-parts": [[2024, 6, index]]},
+                "is-referenced-by-count": 10,
+            }
+
+        def search_title(self, title: str) -> list[dict]:
+            return []
+
+    def _search_with_cathode_patent(self, query: str) -> dict:
+        if "site:patents" in query or "patent applicant" in query:
+            return {
+                "organic": [
+                    {
+                        # Title includes "hard carbon" + "sodium" (score ≥ 2) so it
+                        # passes _tscore check and reaches the electrode-direction filter.
+                        "title": "Hard carbon cathode for sodium batteries",
+                        "link": "https://patents.google.com/patent/US99990001",
+                        "snippet": (
+                            "Hard carbon cathode active material for sodium-ion battery. "
+                            "Improved cycle stability and rate performance."
+                        ),
+                    },
+                    {
+                        "title": "Hard carbon anode for sodium storage in batteries",
+                        "link": "https://patents.google.com/patent/US99990002",
+                        "snippet": (
+                            "Anode material for sodium-ion secondary batteries with "
+                            "improved first coulombic efficiency and cycle stability."
+                        ),
+                    },
+                ]
+            }
+        # Academic Serper results for the fallback — DOIs use the "test-N" pattern
+        if any(kw in query for kw in (" DOI", "review journal", "efficiency stability",
+                                       "systematic review", "scholar.google")):
+            return {
+                "organic": [
+                    {
+                        "title": f"Hard carbon anode for sodium battery study number {i}",
+                        "link": f"https://doi.org/10.1234/test-{i}",
+                        "snippet": "Peer-reviewed result with supporting context.",
+                    }
+                    for i in range(1, 4)
+                ]
+            }
+        # Market results — snippet must contain topic keywords to pass _market_summary_relevant
+        return {
+            "organic": [
+                {
+                    "title": f"Hard carbon anode sodium battery market report {i}",
+                    "link": f"https://www.reuters.com/technology/hard-carbon-anode-{i}",
+                    "snippet": (
+                        f"Hard carbon anode materials for sodium batteries: "
+                        f"commercialization trends, revenue data, and industry dynamics. "
+                        f"Report {i} covers supply chain and manufacturing outlook."
+                    ),
+                }
+                for i in range(1, 4)
+            ]
+        }
+
+    def test_cathode_patent_rejected_for_anode_topic(self) -> None:
+        with patch(
+            "academic_agent.source_pipeline.LensPatentClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.USPTOPatentClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.PubMedClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.ArxivClient.search",
+            return_value=[],
+        ):
+            collection = collect_source_collection(
+                self._ANODE_TOPIC,
+                searcher=self._search_with_cathode_patent,
+                crossref=self._AnodicCrossref(),
+                openalex=_NullOpenAlex(),
+                s2=_NullS2(),
+                url_checker=lambda url: (True, ""),
+                minimum_sources=1,
+                maximum_sources=6,
+                accessed_date=date(2026, 7, 17),
+            )
+
+        patent_titles = [p.title.lower() for p in collection.patent_sources]
+        # Cathode patent must have been rejected
+        self.assertFalse(
+            any("cathode" in t for t in patent_titles),
+            f"Cathode patent should be rejected for anode topic, got: {patent_titles}",
+        )
+        # Anode patent must be accepted
+        self.assertTrue(
+            any("anode" in t for t in patent_titles),
+            f"Anode patent should be accepted, got: {patent_titles}",
+        )
+
+    def test_cathode_rejection_recorded_in_audit(self) -> None:
+        with patch(
+            "academic_agent.source_pipeline.LensPatentClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.USPTOPatentClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.PubMedClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.ArxivClient.search",
+            return_value=[],
+        ):
+            collection = collect_source_collection(
+                self._ANODE_TOPIC,
+                searcher=self._search_with_cathode_patent,
+                crossref=self._AnodicCrossref(),
+                openalex=_NullOpenAlex(),
+                s2=_NullS2(),
+                url_checker=lambda url: (True, ""),
+                minimum_sources=1,
+                maximum_sources=6,
+                accessed_date=date(2026, 7, 17),
+            )
+
+        all_rejected = [r for audit in collection.audit for r in audit.rejected_reasons]
+        self.assertTrue(
+            any("cathode" in r and "anode" in r for r in all_rejected),
+            f"Expected cathode-vs-anode rejection reason in audit, got: {all_rejected}",
+        )

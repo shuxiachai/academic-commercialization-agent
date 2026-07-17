@@ -104,6 +104,12 @@ def main() -> None:
                 paper_seed = paper_to_evidence_source(PaperContribution(**_pc_data))
                 _domain = _pc_data.get("application_domain", "").strip()
                 if _domain:
+                    # Non-ASCII domain (e.g. Chinese) produces queries whose
+                    # results are rejected by the English keyword relevance filter.
+                    # Translate to English so Serper results are filterable.
+                    if any(ord(c) > 127 for c in _domain):
+                        from academic_agent.language import translate_to_english
+                        _domain = translate_to_english(_domain) or _domain
                     extra_market_queries = [
                         f"{_domain} commercial product company revenue manufacturer 2024 2025",
                         f"{_domain} startup investment funding market leader industry",
