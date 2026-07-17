@@ -31,15 +31,14 @@ def create_run_id() -> str:
 
 def save_report(
     report: str,
-    run_id: str | None = None,
+    run_id: str,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
 ) -> tuple[str, Path]:
-    resolved_run_id = run_id or create_run_id()
-    run_directory = output_root / resolved_run_id
+    run_directory = output_root / run_id
     run_directory.mkdir(parents=True, exist_ok=True)
     report_path = run_directory / "commercialization_report.md"
     report_path.write_text(report, encoding="utf-8")
-    return resolved_run_id, report_path
+    return run_id, report_path
 
 
 def save_error(

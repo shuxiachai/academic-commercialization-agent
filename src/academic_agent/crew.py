@@ -329,12 +329,19 @@ class AcademicAgent:
         """Create the academic commercialization assessment crew.
         创建学术成果商业化评估 Crew，顺序执行 6 个 Task。
         """
+        _max_rpm_str = os.getenv("MAX_RPM", "6")
+        try:
+            _max_rpm = int(_max_rpm_str)
+        except ValueError:
+            raise ValueError(
+                f"MAX_RPM environment variable must be an integer, got {_max_rpm_str!r}"
+            ) from None
         return Crew(
             agents=self.agents,           # 自动收集所有 @agent 方法 / Auto-collects all @agent methods
             tasks=self.tasks,             # 自动收集所有 @task 方法 / Auto-collects all @task methods
             process=Process.sequential,   # 顺序执行：Task 1 → 2 → 3 → 4 → 5 → 6
             verbose=True,
-            max_rpm=int(os.getenv("MAX_RPM", "6")),  # Default 6 suits DeepSeek free tier; raise for OpenAI/Anthropic
+            max_rpm=_max_rpm,
             task_callback=self.task_callback,   # 前端实时进度回调 / Real-time frontend progress callback
             step_callback=self.step_callback,   # 实时步骤日志回调 / Real-time step log callback
         )

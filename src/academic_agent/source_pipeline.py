@@ -2680,7 +2680,7 @@ def _collect_domain(
         organic = response.get("organic", [])
         results = [item for item in organic if isinstance(item, dict)]
         audit = SearchAudit(domain=domain, query=query, result_count=len(results))
-        for result in results[:8]:
+        for result in results:
             if len(accepted) >= maximum_sources:
                 break
             # Use a stable placeholder; the real ID is assigned only when the
@@ -3256,7 +3256,11 @@ def collect_source_collection(
             return
         s2_url = f"https://api.semanticscholar.org/graph/v1/paper/arXiv:{arxiv_id}?fields=citationCount"
         try:
-            req = Request(s2_url, headers={"User-Agent": "AcademicAgentSourceCollector/1.0"})
+            _s2_key = os.getenv("SEMANTIC_SCHOLAR_API_KEY", "")
+            _s2_headers = {"User-Agent": "AcademicAgentSourceCollector/1.0"}
+            if _s2_key:
+                _s2_headers["x-api-key"] = _s2_key
+            req = Request(s2_url, headers=_s2_headers)
             with urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
             count = data.get("citationCount")

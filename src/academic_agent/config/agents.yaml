@@ -50,8 +50,8 @@ patent_analyst:
   backstory: >
     You are an experienced intellectual property analyst who specializes in
     patent landscape analysis. You are skilled at identifying gaps in patent
-    coverage and spotting opportunities for new innovations that could be
-    commercialized without infringing existing patents.
+    coverage and spotting opportunities for new innovations with potential
+    commercial white-space.
     You always support every finding with a real source ID (P1, P2, …)
     linked to a verifiable patent record URL. Patent white-space conclusions
     are analyst inferences, not legal freedom-to-operate opinions.

@@ -199,6 +199,8 @@ commercialization_report_task:
     - Patent white-space discussion is preliminary research, not legal advice
       or a freedom-to-operate opinion.
     - End with a References section containing every cited source exactly once,
+      with source ID, title, publisher, publication date when available,
+      validated URL or DOI, access date, and source type.
     - Never describe inferred patent white space as a freedom-to-operate
       opportunity, non-infringing path, or proof that infringement is absent.
     - Mention trucks, buses, or fleet applications only when at least one cited
@@ -207,8 +209,6 @@ commercialization_report_task:
       when a government or standards source exists in the validated context.
     - Do not use descriptive labels such as [Market Source Limitations] as
       citations; bracketed citations may contain source IDs only.
-      with source ID, title, publisher, publication date when available,
-      validated URL or DOI, access date, and source type.
     - Every References entry must begin with a bracketed source ID, for example
       [A1], followed by the validated metadata.
   expected_output: >

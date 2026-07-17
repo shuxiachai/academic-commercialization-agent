@@ -285,7 +285,7 @@ def main() -> None:
             report_raw = result.raw
             scores_raw = None
 
-        m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", report_raw, re.IGNORECASE)
+        m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", report_raw, re.IGNORECASE) if report_raw else None
         if m_rev:
             save_reviewer_notes(report_raw[m_rev.start():].strip(), run_id=args.run_id)
             report_raw = report_raw[: m_rev.start()].rstrip()
@@ -299,7 +299,10 @@ def main() -> None:
 
     except Exception as exc:
         error_details = traceback.format_exc()
-        save_error(error_details, run_id=args.run_id)
+        try:
+            save_error(error_details, run_id=args.run_id)
+        except Exception as _save_err:
+            print(f"[worker] save_error failed: {_save_err}", file=sys.stderr)
         print(error_details, file=sys.stderr, flush=True)
         write_status("Error", done=True, error=str(exc)[:400])
         sys.exit(1)

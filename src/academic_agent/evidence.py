@@ -68,7 +68,7 @@ UrlChecker = Callable[[str], tuple[bool, str]]
 _DOI_PATTERN = re.compile(r"^10\.\d{4,9}/\S+$", re.IGNORECASE)
 _SOURCE_ID_PATTERN = re.compile(r"^[APM]\d+$")
 _BRACKET_PATTERN = re.compile(r"\[([^\[\]]+)\]")
-_SOURCE_TOKEN_PATTERN = re.compile(r"^[APM]\d+$")
+
 _SOURCE_RANGE_PATTERN = re.compile(
     r"^([APM])(\d+)\s*[-–—]\s*(?:([APM])\s*)?(\d+)$"
 )
@@ -714,15 +714,14 @@ def _evidence_guardrail(
                 f"schema, without Markdown fences or prose. Validation error: {exc}",
             )
 
-    output.pydantic = report
-    output.raw = report.model_dump_json()
-
     errors = validate_evidence_report(report, expected_prefix)
     if not errors:
         errors.extend(validate_source_reachability(report))
     if errors:
         return False, "Evidence validation failed:\n- " + "\n- ".join(errors)
 
+    output.pydantic = report
+    output.raw = report.model_dump_json()
     return True, output
 
 
@@ -799,7 +798,7 @@ def parse_citation_ids(text: str) -> tuple[list[str], list[str]]:
         if not re.search(r"[APM]\d+", content):
             continue
         for part in re.split(r"\s*[,;]\s*", content.strip()):
-            if _SOURCE_TOKEN_PATTERN.fullmatch(part):
+            if _SOURCE_ID_PATTERN.fullmatch(part):
                 source_ids.append(part)
                 continue
 
@@ -1176,7 +1175,7 @@ def _normalize_report_citations(
                 )
                 continue
 
-            if _SOURCE_TOKEN_PATTERN.fullmatch(part):
+            if _SOURCE_ID_PATTERN.fullmatch(part):
                 recognized = True
                 append_unique(source_ids, [part])
                 continue

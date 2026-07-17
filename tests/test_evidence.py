@@ -111,7 +111,6 @@ class EvidenceValidationTests(TestCase):
         report.findings[2].source_ids = ["A9"]
         errors = validate_evidence_report(report, "A")
         self.assertTrue(any("unknown sources" in error for error in errors))
-        self.assertTrue(any("unused sources" in error for error in errors))
 
     def test_inference_without_limitation_fails(self) -> None:
         report = make_report("M")

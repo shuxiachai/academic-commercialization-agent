@@ -42,19 +42,19 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
             "pypdfium2 is required. Install with: pip install pypdfium2"
         )
 
-    doc = pdfium.PdfDocument(str(pdf_path))
-    n = len(doc)
-    key_pages = list(dict.fromkeys(
-        list(range(min(3, n))) + list(range(max(0, n - 2), n))
-    ))
+    with pdfium.PdfDocument(str(pdf_path)) as doc:
+        n = len(doc)
+        key_pages = list(dict.fromkeys(
+            list(range(min(3, n))) + list(range(max(0, n - 2), n))
+        ))
 
-    parts: list[str] = []
-    for i in key_pages:
-        page = doc[i]
-        tp = page.get_textpage()
-        text = tp.get_text_range().strip()
-        if text:
-            parts.append(f"[Page {i + 1}]\n{text}")
+        parts: list[str] = []
+        for i in key_pages:
+            page = doc[i]
+            tp = page.get_textpage()
+            text = tp.get_text_range().strip()
+            if text:
+                parts.append(f"[Page {i + 1}]\n{text}")
 
     combined = "\n\n".join(parts)
     return combined[:max_chars]
@@ -85,7 +85,12 @@ def _call_llm_json(prompt: str) -> dict[str, Any]:
     content = (raw or "{}").strip()
     content = re.sub(r"^```(?:json)?\s*", "", content)
     content = re.sub(r"\s*```$", "", content)
-    return json.loads(content)
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"LLM returned non-JSON content: {exc}\nContent: {content[:200]}"
+        ) from exc
 
 
 def _detect_paper_language(text: str) -> str:

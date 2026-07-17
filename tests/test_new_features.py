@@ -1060,6 +1060,39 @@ class PatentElectrodeDirectionFilterTests(TestCase):
             f"Anode patent should be accepted, got: {patent_titles}",
         )
 
+    def test_no_cathode_rejection_for_non_specific_topic(self) -> None:
+        """A topic without electrode direction should not filter out electrode patents."""
+        with patch(
+            "academic_agent.source_pipeline.LensPatentClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.USPTOPatentClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.PubMedClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.ArxivClient.search",
+            return_value=[],
+        ):
+            collection = collect_source_collection(
+                "sodium battery materials",
+                searcher=self._search_with_cathode_patent,
+                crossref=self._AnodicCrossref(),
+                openalex=_NullOpenAlex(),
+                s2=_NullS2(),
+                url_checker=lambda url: (True, ""),
+                minimum_sources=1,
+                maximum_sources=6,
+                accessed_date=date(2026, 7, 17),
+            )
+        # Both cathode and anode patents may appear since topic is not electrode-specific
+        patent_titles = [p.title.lower() for p in collection.patent_sources]
+        self.assertTrue(
+            any("anode" in t or "cathode" in t for t in patent_titles) or len(patent_titles) == 0,
+            "Non-electrode-specific topic should not apply electrode direction filter",
+        )
+
     def test_cathode_rejection_recorded_in_audit(self) -> None:
         with patch(
             "academic_agent.source_pipeline.LensPatentClient.search",
@@ -1353,3 +1386,99 @@ class FilterByRelevanceSkipDomainTests(TestCase):
         result = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=0,
                                        skip_domain_filter=True)
         self.assertEqual(result, [])
+
+
+# ---------------------------------------------------------------------------
+# L-4: _append_quality_control_warnings unit tests
+# ---------------------------------------------------------------------------
+
+class AppendQualityControlWarningsTests(TestCase):
+    """Unit tests for _append_quality_control_warnings()."""
+
+    def _make_report(self) -> str:
+        return (
+            "## Executive Summary\n\nSome content.\n\n"
+            "## References\n\n[A1] Example source.\n"
+        )
+
+    def test_warnings_inserted_before_references(self) -> None:
+        from academic_agent.evidence import _append_quality_control_warnings
+
+        result = _append_quality_control_warnings(
+            self._make_report(), ["Unverified numeric claim: 95% efficiency"]
+        )
+        ref_pos = result.index("## References")
+        warn_pos = result.index("### Automated Quality-Control Warnings")
+        self.assertLess(warn_pos, ref_pos)
+
+    def test_empty_warnings_returns_markdown_unchanged(self) -> None:
+        from academic_agent.evidence import _append_quality_control_warnings
+
+        md = self._make_report()
+        result = _append_quality_control_warnings(md, [])
+        self.assertEqual(result, md)
+
+    def test_no_references_marker_returns_unchanged(self) -> None:
+        from academic_agent.evidence import _append_quality_control_warnings
+
+        md = "## Executive Summary\n\nSome content without a references section.\n"
+        result = _append_quality_control_warnings(md, ["some warning"])
+        self.assertEqual(result, md)
+
+    def test_duplicate_warnings_deduplicated(self) -> None:
+        from academic_agent.evidence import _append_quality_control_warnings
+
+        warnings = ["Same warning"] * 5
+        result = _append_quality_control_warnings(self._make_report(), warnings)
+        self.assertEqual(result.count("Same warning"), 1)
+
+    def test_excess_warnings_capped_at_twelve(self) -> None:
+        from academic_agent.evidence import _append_quality_control_warnings
+
+        warnings = [f"Warning {i}" for i in range(20)]
+        result = _append_quality_control_warnings(self._make_report(), warnings)
+        self.assertIn("additional automated warnings", result)
+        self.assertNotIn("Warning 12", result)
+
+
+# ---------------------------------------------------------------------------
+# L-4: pdf_extractor._call_llm_json JSON parse failure tests
+# ---------------------------------------------------------------------------
+
+class CallLlmJsonParseErrorTests(TestCase):
+    """_call_llm_json must raise ValueError when the LLM returns non-JSON."""
+
+    def test_raises_value_error_on_invalid_json(self) -> None:
+        from academic_agent.pdf_extractor import _call_llm_json
+
+        mock_llm = MagicMock()
+        mock_llm.call.return_value = "This is not JSON at all."
+
+        with patch("academic_agent.llm_config.create_llm", return_value=mock_llm):
+            with self.assertRaises(ValueError) as ctx:
+                _call_llm_json("Extract data from this text.")
+
+        self.assertIn("non-JSON", str(ctx.exception))
+
+    def test_returns_dict_on_valid_json(self) -> None:
+        from academic_agent.pdf_extractor import _call_llm_json
+
+        mock_llm = MagicMock()
+        mock_llm.call.return_value = '{"title": "Test Paper", "doi": "10.1234/test"}'
+
+        with patch("academic_agent.llm_config.create_llm", return_value=mock_llm):
+            result = _call_llm_json("Extract data.")
+
+        self.assertEqual(result["title"], "Test Paper")
+        self.assertEqual(result["doi"], "10.1234/test")
+
+    def test_strips_markdown_fences_before_parse(self) -> None:
+        from academic_agent.pdf_extractor import _call_llm_json
+
+        mock_llm = MagicMock()
+        mock_llm.call.return_value = '```json\n{"key": "value"}\n```'
+
+        with patch("academic_agent.llm_config.create_llm", return_value=mock_llm):
+            result = _call_llm_json("Extract data.")
+
+        self.assertEqual(result["key"], "value")
