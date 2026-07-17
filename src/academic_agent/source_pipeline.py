@@ -390,6 +390,9 @@ _MARKET_INSTITUTIONAL_SOFT_CAP = 3
 # Market domain: accept at most this many market_report sources before deferring
 # extras, so company_disclosure / reputable_news sources have a chance to fill slots.
 _MARKET_REPORT_SOFT_CAP = 4
+# Maximum Serper results processed per query; limits first-query slot exhaustion
+# so subsequent queries in the same domain have a chance to contribute sources.
+_SERPER_MAX_RESULTS_PER_QUERY = 8
 
 # Country-specific government TLD patterns (non-.gov forms used internationally).
 # Defined at module level to avoid recreating the tuple on every call to
@@ -1183,9 +1186,8 @@ class LensPatentClient:
             method="POST",
         )
         for attempt in range(self.retries + 1):
-            payload = None
             try:
-                payload = _http_fetch_json(request, retries=0, timeout=self.timeout)
+                payload = _http_fetch_json(request, retries=self.retries, timeout=self.timeout)
             except HTTPError as exc:
                 if exc.code in {400, 401, 403}:
                     import warnings
@@ -1208,9 +1210,6 @@ class LensPatentClient:
                     continue
                 return []
             if payload is None:
-                if attempt < self.retries:
-                    time.sleep(0.75 * (attempt + 1))
-                    continue
                 return []
             if not payload.get("data"):
                 import warnings
@@ -2676,11 +2675,13 @@ def _collect_domain(
     _pat_bgs = _topic_bigrams(research_topic) if domain == "patent" else frozenset()
 
     for query in queries:
+        if len(accepted) >= maximum_sources:
+            break
         response = searcher(query)
         organic = response.get("organic", [])
         results = [item for item in organic if isinstance(item, dict)]
         audit = SearchAudit(domain=domain, query=query, result_count=len(results))
-        for result in results:
+        for result in results[:_SERPER_MAX_RESULTS_PER_QUERY]:
             if len(accepted) >= maximum_sources:
                 break
             # Use a stable placeholder; the real ID is assigned only when the

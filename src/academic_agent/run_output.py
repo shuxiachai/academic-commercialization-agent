@@ -34,6 +34,8 @@ def save_report(
     run_id: str,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
 ) -> tuple[str, Path]:
+    if not run_id:
+        raise ValueError(f"run_id must be a non-empty string, got {run_id!r}")
     run_directory = output_root / run_id
     run_directory.mkdir(parents=True, exist_ok=True)
     report_path = run_directory / "commercialization_report.md"
@@ -46,6 +48,8 @@ def save_error(
     run_id: str,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
 ) -> Path:
+    if not run_id:
+        raise ValueError(f"run_id must be a non-empty string, got {run_id!r}")
     run_directory = output_root / run_id
     run_directory.mkdir(parents=True, exist_ok=True)
     error_path = run_directory / "error.log"
@@ -58,6 +62,8 @@ def save_source_collection(
     run_id: str,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
 ) -> Path:
+    if not run_id:
+        raise ValueError(f"run_id must be a non-empty string, got {run_id!r}")
     run_directory = output_root / run_id
     run_directory.mkdir(parents=True, exist_ok=True)
     source_path = run_directory / "validated_sources.json"
@@ -70,6 +76,8 @@ def save_scores(
     run_id: str,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
 ) -> Path:
+    if not run_id:
+        raise ValueError(f"run_id must be a non-empty string, got {run_id!r}")
     run_directory = output_root / run_id
     run_directory.mkdir(parents=True, exist_ok=True)
     scores_path = run_directory / "commercialization_scores.json"
@@ -82,6 +90,8 @@ def save_reviewer_notes(
     run_id: str,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
 ) -> Path:
+    if not run_id:
+        raise ValueError(f"run_id must be a non-empty string, got {run_id!r}")
     run_directory = output_root / run_id
     run_directory.mkdir(parents=True, exist_ok=True)
     notes_path = run_directory / "reviewer_notes.md"

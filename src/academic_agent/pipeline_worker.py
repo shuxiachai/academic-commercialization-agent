@@ -8,8 +8,10 @@ log, both polled by the parent process (app.py) without shared memory.
 """
 import argparse
 import json
+import os
 import re
 import sys
+import threading
 import traceback
 
 for stream in (sys.stdout, sys.stderr):
@@ -34,6 +36,13 @@ def main() -> None:
     parser.add_argument("--weight-profile", default="", help="Force scoring weight profile (overrides auto-detect)")
     parser.add_argument("--paper-json", default="", help="Path to JSON file containing PaperContribution data")
     args = parser.parse_args()
+
+    _max_rpm_env = os.getenv("MAX_RPM", "6")
+    try:
+        int(_max_rpm_env)
+    except ValueError:
+        print(f"[worker] MAX_RPM must be an integer, got {_max_rpm_env!r}", file=sys.stderr)
+        sys.exit(1)
 
     from crewai.events.event_bus import crewai_event_bus
     from crewai.events.types.tool_usage_events import (
@@ -166,53 +175,52 @@ def main() -> None:
 
         parallel_done   = [0]   # counts completions of the 3 async evidence tasks
         sequential_done = [0]   # counts completions of tasks 4/5/6
-        _steps_fh: list = []    # holds the open steps.jsonl handle during kickoff
+        _steps_fh = None        # open steps.jsonl handle during kickoff (set before kickoff)
 
         def _write_step(entry: StepEntry) -> None:
             try:
-                line = json.dumps(entry, ensure_ascii=False) + "\n"
-                if _steps_fh:
-                    _steps_fh[0].write(line)
-                    _steps_fh[0].flush()
-                else:
-                    with open(steps_path, "a", encoding="utf-8") as _f:
-                        _f.write(line)
+                if _steps_fh is not None:
+                    line = json.dumps(entry, ensure_ascii=False) + "\n"
+                    _steps_fh.write(line)
+                    _steps_fh.flush()
             except Exception as _e:
                 print(f"[worker] _write_step failed: {_e}", file=sys.stderr)
 
         _total_agents = _PARALLEL_COUNT + len(_SEQUENTIAL_STAGES)
+        _task_lock = threading.Lock()
 
         def on_task_complete(_task_output) -> None:
-            if parallel_done[0] < _PARALLEL_COUNT:
-                parallel_done[0] += 1
-                agent_idx = parallel_done[0] - 1   # 0 = Academic, 1 = Patent, 2 = Market
-                stage = (
-                    _SEQUENTIAL_STAGES[0]
-                    if parallel_done[0] == _PARALLEL_COUNT
-                    else _PARALLEL_STAGE
-                )
-                _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
-                # All parallel tasks done — signal writer starting
-                if parallel_done[0] == _PARALLEL_COUNT:
-                    _write_step({"agent_idx": _PARALLEL_COUNT, "type": "action",
-                                 "thought": "", "tool": "reasoning",
-                                 "tool_input": "", "result": ""})
-            else:
-                sequential_done[0] += 1
-                agent_idx = _PARALLEL_COUNT + sequential_done[0] - 1  # 3, 4, 5
-                seq_idx = sequential_done[0]
-                stage = (
-                    _SEQUENTIAL_STAGES[seq_idx]
-                    if seq_idx < len(_SEQUENTIAL_STAGES)
-                    else _SEQUENTIAL_STAGES[-1]
-                )
-                _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
-                # Signal the next sequential agent starting, if any remain
-                next_idx = agent_idx + 1
-                if next_idx < _total_agents:
-                    _write_step({"agent_idx": next_idx, "type": "action",
-                                 "thought": "", "tool": "reasoning",
-                                 "tool_input": "", "result": ""})
+            with _task_lock:
+                if parallel_done[0] < _PARALLEL_COUNT:
+                    parallel_done[0] += 1
+                    agent_idx = parallel_done[0] - 1   # 0 = Academic, 1 = Patent, 2 = Market
+                    stage = (
+                        _SEQUENTIAL_STAGES[0]
+                        if parallel_done[0] == _PARALLEL_COUNT
+                        else _PARALLEL_STAGE
+                    )
+                    _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
+                    # All parallel tasks done — signal writer starting
+                    if parallel_done[0] == _PARALLEL_COUNT:
+                        _write_step({"agent_idx": _PARALLEL_COUNT, "type": "action",
+                                     "thought": "", "tool": "reasoning",
+                                     "tool_input": "", "result": ""})
+                else:
+                    sequential_done[0] += 1
+                    agent_idx = _PARALLEL_COUNT + sequential_done[0] - 1  # 3, 4, 5
+                    seq_idx = sequential_done[0]
+                    stage = (
+                        _SEQUENTIAL_STAGES[seq_idx]
+                        if seq_idx < len(_SEQUENTIAL_STAGES)
+                        else _SEQUENTIAL_STAGES[-1]
+                    )
+                    _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
+                    # Signal the next sequential agent starting, if any remain
+                    next_idx = agent_idx + 1
+                    if next_idx < _total_agents:
+                        _write_step({"agent_idx": next_idx, "type": "action",
+                                     "thought": "", "tool": "reasoning",
+                                     "tool_input": "", "result": ""})
             write_status(stage, output_language=source_collection.output_language)
 
         crew_obj = AcademicAgent(
@@ -228,7 +236,7 @@ def main() -> None:
         }
 
         _sf = open(steps_path, "a", encoding="utf-8")
-        _steps_fh.append(_sf)
+        _steps_fh = _sf
         try:
             with crewai_event_bus.scoped_handlers():
 
@@ -263,7 +271,7 @@ def main() -> None:
 
                 result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
         finally:
-            _steps_fh.clear()
+            _steps_fh = None
             _sf.close()
 
         # Crew has 6 tasks (0-indexed): academic(0) patent(1) market(2)
@@ -279,8 +287,8 @@ def main() -> None:
             report_raw = tasks_output[_IDX_REVIEW].raw
             scores_raw = None
         elif len(tasks_output) >= 2:
-            report_raw = tasks_output[-2].raw
-            scores_raw = tasks_output[-1].raw
+            report_raw = tasks_output[-1].raw
+            scores_raw = None
         else:
             report_raw = result.raw
             scores_raw = None
@@ -290,7 +298,8 @@ def main() -> None:
             save_reviewer_notes(report_raw[m_rev.start():].strip(), run_id=args.run_id)
             report_raw = report_raw[: m_rev.start()].rstrip()
 
-        save_report(report_raw, run_id=args.run_id)
+        if report_raw is not None:
+            save_report(report_raw, run_id=args.run_id)
 
         if scores_raw:
             save_scores(scores_raw, run_id=args.run_id)

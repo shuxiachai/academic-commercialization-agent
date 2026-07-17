@@ -77,7 +77,7 @@ def create_llm(*, json_mode: bool = False, temperature: float | None = None) -> 
 
     elif provider == "anthropic":
         kwargs["provider"] = "anthropic"
-        kwargs["model"] = os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-4-5"
+        kwargs["model"] = os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5"
         kwargs["api_key"] = os.getenv("ANTHROPIC_API_KEY")
 
     else:
