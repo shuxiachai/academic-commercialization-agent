@@ -1109,10 +1109,7 @@ class LensPatentClient:
                 }
             },
             "size": min(rows, 50),
-            "include": [
-                "lens_id", "title", "abstract", "applicant",
-                "publication_date", "publication_number", "jurisdiction",
-            ],
+            "include": ["lens_id", "biblio", "abstract", "jurisdiction"],
             "sort": [{"_score": "desc"}],
         }
         request = Request(
@@ -1138,16 +1135,20 @@ class LensPatentClient:
                     )
                 return payload.get("data") or []
             except HTTPError as exc:
-                if exc.code in {401, 403}:
+                if exc.code in {400, 401, 403}:
                     import warnings
                     body_text = ""
                     try:
                         body_text = exc.read().decode("utf-8", errors="replace")[:300]
                     except Exception:
                         pass
+                    hint = (
+                        "check LENS_API_KEY and trial plan scope"
+                        if exc.code in {401, 403}
+                        else "bad request — likely an invalid 'include' field name"
+                    )
                     warnings.warn(
-                        f"Lens.org API returned HTTP {exc.code} "
-                        f"(check LENS_API_KEY and trial plan scope): {body_text}"
+                        f"Lens.org API returned HTTP {exc.code} ({hint}): {body_text}"
                     )
                     return []
                 if exc.code == 429:
@@ -2014,8 +2015,11 @@ def _patent_source_from_lens(
     accessed_date: date,
     research_topic: str,
 ) -> tuple["EvidenceSource | None", str]:
-    # title is [{text, lang}, ...] or a plain string
-    title_data = record.get("title") or []
+    biblio  = record.get("biblio") or {}
+    pub_ref = biblio.get("publication_reference") or {}
+
+    # title is [{text, lang}, ...] inside biblio.invention_title
+    title_data = biblio.get("invention_title") or []
     title = ""
     if isinstance(title_data, list):
         for t in title_data:
@@ -2044,25 +2048,31 @@ def _patent_source_from_lens(
     else:
         abstract = _clean_text(str(abstract_data))
 
-    lens_id  = str(record.get("lens_id") or "").strip()
-    pub_num  = str(record.get("publication_number") or "").strip()
+    lens_id     = str(record.get("lens_id") or "").strip()
+    doc_num     = str(pub_ref.get("doc_number") or "").strip()
+    jurisdiction = str(pub_ref.get("jurisdiction") or record.get("jurisdiction") or "").strip()
+    kind        = str(pub_ref.get("kind") or "").strip()
+    pub_num     = f"{jurisdiction}{doc_num}{kind}" if doc_num else ""
 
     if not lens_id:
         return None, f"Lens patent has no lens_id: {title!r}"
     if not _title_matches_topic(title, research_topic):
         return None, f"Lens patent title not relevant to topic: {title!r}"
 
-    applicant_data = record.get("applicant") or []
+    parties = biblio.get("parties") or {}
+    applicant_list = parties.get("applicants") or []
     applicants: list[str] = []
-    if isinstance(applicant_data, list):
-        for a in applicant_data:
+    if isinstance(applicant_list, list):
+        for a in applicant_list:
             if isinstance(a, dict):
-                name = (a.get("name") or "").strip()
+                name = ((a.get("extracted_name") or {}).get("value") or "").strip()
+                if not name:
+                    name = (a.get("name") or "").strip()
                 if name:
                     applicants.append(name)
     publisher = "; ".join(applicants[:3]) if applicants else "Patent Applicant"
 
-    pub_date_str = str(record.get("publication_date") or "").strip()
+    pub_date_str = str(pub_ref.get("date") or "").strip()
     published: date | None = None
     try:
         if pub_date_str:
