@@ -22,6 +22,9 @@ from academic_agent.source_pipeline import (
     _academic_source_from_openalex,
     _is_borderline_publisher,
     _is_predatory_publisher,
+    _market_summary_relevant,
+    _patent_keywords,
+    _patent_source_from_lens,
     _patent_source_from_uspto,
     _record_relevance_filter,
     SearchAudit,
@@ -778,7 +781,7 @@ class PatentApiKeywordTests(TestCase):
     )
 
     def test_uspto_keywords_strips_stopwords_and_caps_length(self) -> None:
-        kw = USPTOPatentClient._keywords(self._LONG_TOPIC, 8)
+        kw = _patent_keywords(self._LONG_TOPIC, 8)
         words = kw.split()
         self.assertLessEqual(len(words), 8)
         # Stopwords must not appear as standalone tokens
@@ -789,14 +792,14 @@ class PatentApiKeywordTests(TestCase):
         self.assertIn("language", words)
 
     def test_lens_keywords_same_behaviour(self) -> None:
-        kw = LensPatentClient._keywords(self._LONG_TOPIC, 8)
+        kw = _patent_keywords(self._LONG_TOPIC, 8)
         words = kw.split()
         self.assertLessEqual(len(words), 8)
         self.assertIn("large", words)
 
     def test_short_topic_not_truncated(self) -> None:
         short = "perovskite solar cell"
-        kw = USPTOPatentClient._keywords(short, 8)
+        kw = _patent_keywords(short, 8)
         self.assertEqual(kw, short)
 
     def test_uspto_query_body_uses_or_structure(self) -> None:
@@ -1087,3 +1090,200 @@ class PatentElectrodeDirectionFilterTests(TestCase):
             any("cathode" in r and "anode" in r for r in all_rejected),
             f"Expected cathode-vs-anode rejection reason in audit, got: {all_rejected}",
         )
+
+
+# ---------------------------------------------------------------------------
+# H-4: _market_summary_relevant() — zero test coverage before this PR
+# ---------------------------------------------------------------------------
+
+class MarketSummaryRelevantTests(TestCase):
+    """Unit tests for _market_summary_relevant()."""
+
+    def test_core_word_in_summary_passes(self):
+        self.assertTrue(
+            _market_summary_relevant(
+                "The sodium battery market is growing rapidly",
+                "sodium-ion battery technology",
+            )
+        )
+
+    def test_no_relevant_word_in_summary_fails(self):
+        self.assertFalse(
+            _market_summary_relevant(
+                "Global automotive industry revenue report 2024",
+                "hard carbon anode sodium-ion batteries",
+            )
+        )
+
+    def test_tail_word_match_passes_for_for_structure(self):
+        # Topic has "for X" structure → tail words {solid, tumors} used as filter
+        self.assertTrue(
+            _market_summary_relevant(
+                "Market for solid tumor immunotherapy projected to $50B by 2030",
+                "CAR-T cell therapy for solid tumors",
+            )
+        )
+
+    def test_no_tail_or_core_word_fails_for_for_structure(self):
+        self.assertFalse(
+            _market_summary_relevant(
+                "General pharmaceutical industry market report 2024",
+                "CAR-T cell therapy for solid tumors",
+            )
+        )
+
+    def test_empty_filter_words_always_passes(self):
+        # Topic of only stopwords → filter_words empty → pass by default
+        self.assertTrue(
+            _market_summary_relevant(
+                "Any unrelated summary",
+                "for and the in",
+            )
+        )
+
+    def test_empty_summary_fails(self):
+        self.assertFalse(
+            _market_summary_relevant(
+                "",
+                "hard carbon anode sodium-ion batteries",
+            )
+        )
+
+    def test_core_word_match_without_for_structure(self):
+        # No "for" → falls back to core words ≥6 chars; "carbon" matches
+        self.assertTrue(
+            _market_summary_relevant(
+                "Carbon material suppliers and market share report",
+                "hard carbon anode sodium batteries",
+            )
+        )
+
+    def test_short_core_words_without_for_structure_filtered_out(self):
+        # Core words are all <6 chars after stopword removal → filter_words empty → True
+        self.assertTrue(
+            _market_summary_relevant(
+                "Totally unrelated content here",
+                "hard coal anode",   # "hard"(4), "coal"(4), "anode"(5) — all < 6 chars
+            )
+        )
+
+
+# ---------------------------------------------------------------------------
+# M-5: _patent_source_from_lens() — integration tests with real Lens JSON
+# ---------------------------------------------------------------------------
+
+# Representative Lens.org Patent API response (verified against live API 2026-07).
+_LENS_PATENT_RECORD = {
+    "lens_id": "157-112-256-209-36X",
+    "jurisdiction": "CN",
+    "biblio": {
+        "publication_reference": {
+            "jurisdiction": "CN",
+            "doc_number": "109678130",
+            "kind": "A",
+            "date": "2019-04-26",
+        },
+        "invention_title": [
+            {
+                "text": (
+                    "Hard carbon material for anode of sodium-ion battery, "
+                    "preparation method of hard carbon material and related sodium-ion battery"
+                ),
+                "lang": "en",
+            },
+            {"text": "一种用于钠离子电池负极的硬碳材料", "lang": "zh"},
+        ],
+        "parties": {
+            "applicants": [
+                {"extracted_name": {"value": "UNIV ELECTRONIC SCI & TECH CHINA"}},
+                {"extracted_name": {"value": "BAOSHAN YALONGXIN INVESTMENT MAN CO LTD"}},
+            ],
+        },
+        "application_reference": {},
+        "priority_claims": [],
+    },
+    "abstract": [
+        {
+            "text": (
+                "The invention provides a hard carbon material for an anode of "
+                "a sodium-ion battery, a preparation method and related battery."
+            ),
+            "lang": "en",
+        },
+        {"text": "本发明提供一种硬碳材料。", "lang": "zh"},
+    ],
+}
+
+
+class LensPatentParserTests(TestCase):
+    """Integration tests for _patent_source_from_lens() with real API JSON structure."""
+
+    _TOPIC = "hard carbon anode sodium-ion battery"
+
+    def _parse(self, record=None):
+        return _patent_source_from_lens(
+            record or _LENS_PATENT_RECORD,
+            "P1",
+            date(2026, 7, 17),
+            self._TOPIC,
+        )
+
+    def test_english_title_preferred(self):
+        src, err = self._parse()
+        self.assertIsNotNone(src, f"Expected source, got error: {err}")
+        self.assertIn("Hard carbon material", src.title)
+
+    def test_pub_number_constructed_from_biblio_reference(self):
+        src, _ = self._parse()
+        self.assertIsNotNone(src)
+        # jurisdiction=CN, doc_number=109678130, kind=A → CN109678130A
+        self.assertIn("CN109678130A", src.credibility_reason)
+
+    def test_applicant_from_extracted_name_field(self):
+        src, _ = self._parse()
+        self.assertIsNotNone(src)
+        self.assertIn("UNIV ELECTRONIC SCI & TECH CHINA", src.publisher)
+
+    def test_publication_date_from_pub_reference(self):
+        src, _ = self._parse()
+        self.assertIsNotNone(src)
+        self.assertEqual(src.published_date, date(2019, 4, 26))
+
+    def test_english_abstract_used_as_evidence_summary(self):
+        src, _ = self._parse()
+        self.assertIsNotNone(src)
+        self.assertIn("sodium-ion battery", src.evidence_summary)
+
+    def test_lens_url_uses_lens_id(self):
+        src, _ = self._parse()
+        self.assertIsNotNone(src)
+        self.assertEqual(str(src.url), "https://lens.org/lens/patent/157-112-256-209-36X")
+
+    def test_missing_title_returns_none(self):
+        record = {
+            **_LENS_PATENT_RECORD,
+            "biblio": {**_LENS_PATENT_RECORD["biblio"], "invention_title": []},
+        }
+        src, err = self._parse(record)
+        self.assertIsNone(src)
+        self.assertIn("no title", err)
+
+    def test_irrelevant_title_rejected(self):
+        record = {
+            **_LENS_PATENT_RECORD,
+            "biblio": {
+                **_LENS_PATENT_RECORD["biblio"],
+                "invention_title": [
+                    {"text": "Automotive engine lubricant compound additive", "lang": "en"}
+                ],
+            },
+        }
+        src, err = self._parse(record)
+        self.assertIsNone(src)
+        self.assertIn("not relevant", err)
+
+    def test_missing_lens_id_returns_none(self):
+        record = {**_LENS_PATENT_RECORD, "lens_id": ""}
+        src, err = self._parse(record)
+        self.assertIsNone(src)
+        self.assertIn("no lens_id", err)

@@ -72,7 +72,8 @@ def main() -> None:
             # Preserve sticky fields (topic, source_counts) set by earlier calls.
             try:
                 existing = json.loads(status_path.read_text(encoding="utf-8"))
-            except Exception:
+            except Exception as _e:
+                print(f"[worker] write_status: could not read existing status: {_e}", file=sys.stderr)
                 existing = {}
             data: dict = {
                 "stage": stage,
@@ -88,8 +89,8 @@ def main() -> None:
             if topic is not None:
                 data["topic"] = topic
             status_path.write_text(json.dumps(data), encoding="utf-8")
-        except Exception:
-            pass
+        except Exception as _e:
+            print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
 
     write_status(_STAGE_INITIAL, topic=args.topic)
 
@@ -176,8 +177,8 @@ def main() -> None:
                 else:
                     with open(steps_path, "a", encoding="utf-8") as _f:
                         _f.write(line)
-            except Exception:
-                pass
+            except Exception as _e:
+                print(f"[worker] _write_step failed: {_e}", file=sys.stderr)
 
         _total_agents = _PARALLEL_COUNT + len(_SEQUENTIAL_STAGES)
 
@@ -265,8 +266,19 @@ def main() -> None:
             _steps_fh.clear()
             _sf.close()
 
+        # Crew has 6 tasks (0-indexed): academic(0) patent(1) market(2)
+        # report(3) review(4) scoring(5).  Use explicit indices so a new task
+        # inserted in the middle doesn't silently corrupt which output we read.
+        _IDX_REVIEW  = 4   # report_review_task
+        _IDX_SCORING = 5   # commercialization_scoring_task
         tasks_output = getattr(result, "tasks_output", None) or []
-        if len(tasks_output) >= 2:
+        if len(tasks_output) > _IDX_SCORING:
+            report_raw = tasks_output[_IDX_REVIEW].raw
+            scores_raw = tasks_output[_IDX_SCORING].raw
+        elif len(tasks_output) == _IDX_SCORING:
+            report_raw = tasks_output[_IDX_REVIEW].raw
+            scores_raw = None
+        elif len(tasks_output) >= 2:
             report_raw = tasks_output[-2].raw
             scores_raw = tasks_output[-1].raw
         else:

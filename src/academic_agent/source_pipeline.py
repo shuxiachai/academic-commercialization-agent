@@ -1072,6 +1072,59 @@ class ArxivClient:
         return results
 
 
+# ── Academic dedup thresholds ─────────────────────────────────────────────────
+# SequenceMatcher threshold above which two titles are treated as near-duplicates.
+_TITLE_NEAR_DUP_THRESHOLD: float = 0.88
+# Minimum word-overlap ratio required before running the (slower) SequenceMatcher.
+# Titles below this overlap ratio can never reach _TITLE_NEAR_DUP_THRESHOLD.
+_TITLE_PREFILTER_OVERLAP: float = 0.4
+
+# ── Shared patent-search utilities ───────────────────────────────────────────
+
+_PATENT_STOPWORDS: frozenset[str] = frozenset(
+    {"for", "with", "and", "the", "of", "in", "to", "a", "an"}
+)
+_PATENT_MAX_QUERY_WORDS: int = 8
+
+
+def _patent_keywords(topic: str, max_words: int = _PATENT_MAX_QUERY_WORDS) -> str:
+    """Return the first ``max_words`` content words from *topic*, skipping stopwords."""
+    words = [w for w in topic.split() if w.lower() not in _PATENT_STOPWORDS]
+    return " ".join(words[:max_words])
+
+
+def _http_fetch_json(
+    request: Request,
+    *,
+    retries: int,
+    timeout: int,
+    backoff: float = 0.75,
+) -> "dict[str, Any] | list[Any] | None":
+    """Fetch *request* and return the parsed JSON body.
+
+    Retries on transient network / decode errors with exponential backoff.
+    Returns ``None`` when retries are exhausted or the response is not JSON
+    (e.g. when a retired API endpoint returns an HTML portal page).
+    Raises ``HTTPError`` so callers can handle auth / rate-limit codes.
+    """
+    for attempt in range(retries + 1):
+        try:
+            with urlopen(request, timeout=timeout) as resp:
+                raw = resp.read()
+            if raw.lstrip()[:1] == b"<":
+                return None  # HTML page — endpoint likely retired or redirected
+            return json.loads(raw.decode("utf-8"))
+        except HTTPError:
+            raise
+        except (URLError, TimeoutError, OSError, json.JSONDecodeError):
+            if attempt >= retries:
+                return None
+            time.sleep(backoff * (attempt + 1))
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 class LensPatentClient:
     """Client for the Lens.org Patent Search API (free after registration).
     Set LENS_API_KEY to enable; if absent the client silently returns no results.
@@ -1079,25 +1132,16 @@ class LensPatentClient:
     """
 
     _URL = "https://api.lens.org/patent/search"
-    # Cap query at 8 keywords so a long topic phrase does not over-constrain
-    # Lens's full-text match (same heuristic as USPTO client).
-    _MAX_QUERY_WORDS = 8
 
     def __init__(self, api_key: str | None = None, *, timeout: int = 25, retries: int = 2) -> None:
         self.api_key = api_key or os.getenv("LENS_API_KEY") or ""
         self.timeout = timeout
         self.retries = retries
 
-    @staticmethod
-    def _keywords(topic: str, max_words: int) -> str:
-        _STOPWORDS = frozenset({"for", "with", "and", "the", "of", "in", "to", "a", "an"})
-        words = [w for w in topic.split() if w.lower() not in _STOPWORDS]
-        return " ".join(words[:max_words])
-
     def search(self, topic: str, rows: int = 10) -> list[dict[str, Any]]:
         if not self.api_key:
             return []
-        kw = self._keywords(topic, self._MAX_QUERY_WORDS)
+        kw = _patent_keywords(topic)
         body = {
             "query": {
                 "bool": {
@@ -1123,17 +1167,9 @@ class LensPatentClient:
             method="POST",
         )
         for attempt in range(self.retries + 1):
+            payload = None
             try:
-                with urlopen(request, timeout=self.timeout) as resp:
-                    payload = json.loads(resp.read().decode("utf-8"))
-                if not payload.get("data"):
-                    import warnings
-                    warnings.warn(
-                        f"Lens.org returned 0 results for keywords {kw!r} "
-                        f"(total={payload.get('total', '?')}); "
-                        f"response keys: {list(payload.keys())}"
-                    )
-                return payload.get("data") or []
+                payload = _http_fetch_json(request, retries=0, timeout=self.timeout)
             except HTTPError as exc:
                 if exc.code in {400, 401, 403}:
                     import warnings
@@ -1155,39 +1191,40 @@ class LensPatentClient:
                     time.sleep(5 * (attempt + 1))
                     continue
                 return []
-            except (URLError, TimeoutError, OSError, json.JSONDecodeError):
-                if attempt >= self.retries:
-                    return []
-                time.sleep(0.75 * (attempt + 1))
+            if payload is None:
+                if attempt < self.retries:
+                    time.sleep(0.75 * (attempt + 1))
+                    continue
+                return []
+            if not payload.get("data"):
+                import warnings
+                warnings.warn(
+                    f"Lens.org returned 0 results for keywords {kw!r} "
+                    f"(total={payload.get('total', '?')}); "
+                    f"response keys: {list(payload.keys())}"
+                )
+            return payload.get("data") or []
         return []
 
 
 class USPTOPatentClient:
     """Client for the PatentsView API (USPTO). Free, no key required.
-    Covers all US granted patents and pre-grant publications.
-    API docs: https://api.patentsview.org/
+
+    NOTE: The PatentsView v1 REST API at ``_URL`` was retired in 2024.
+    The domain now serves an HTML Open Data Portal for bulk data downloads,
+    not a JSON search endpoint.  ``search()`` will warn and return ``[]``
+    until ``_URL`` is updated to a working replacement endpoint.
     """
 
     _URL = "https://api.patentsview.org/patents/query"
     _UA  = "AcademicAgentSourceCollector/1.0"
-    # PatentsView _text_any only accepts a single field per clause; use _or to
-    # cover both title and abstract.  Also cap the keyword string at 8 words so
-    # a long topic phrase does not over-constrain the full-text match.
-    _MAX_QUERY_WORDS = 8
 
     def __init__(self, *, timeout: int = 25, retries: int = 2) -> None:
         self.timeout = timeout
         self.retries = retries
 
-    @staticmethod
-    def _keywords(topic: str, max_words: int) -> str:
-        """Return the first `max_words` content words from the topic string."""
-        _STOPWORDS = frozenset({"for", "with", "and", "the", "of", "in", "to", "a", "an"})
-        words = [w for w in topic.split() if w.lower() not in _STOPWORDS]
-        return " ".join(words[:max_words])
-
     def search(self, topic: str, rows: int = 10) -> list[dict[str, Any]]:
-        kw = self._keywords(topic, self._MAX_QUERY_WORDS)
+        kw = _patent_keywords(topic)
         body = {
             "q": {
                 "_or": [
@@ -1205,41 +1242,34 @@ class USPTOPatentClient:
             headers={"Content-Type": "application/json", "User-Agent": self._UA},
             method="POST",
         )
-        for attempt in range(self.retries + 1):
+        import warnings
+        try:
+            payload = _http_fetch_json(request, retries=self.retries, timeout=self.timeout)
+        except HTTPError as exc:
+            body_text = ""
             try:
-                with urlopen(request, timeout=self.timeout) as resp:
-                    raw = resp.read()
-                    payload = json.loads(raw.decode("utf-8"))
-                count = payload.get("total_patent_count", "?")
-                if not payload.get("patents"):
-                    import warnings
-                    warnings.warn(
-                        f"USPTO PatentsView returned 0 patents for keywords {kw!r} "
-                        f"(total_patent_count={count}); "
-                        f"response keys: {list(payload.keys())}"
-                    )
-                return payload.get("patents") or []
-            except HTTPError as exc:
-                import warnings
-                body_text = ""
-                try:
-                    body_text = exc.read().decode("utf-8", errors="replace")[:400]
-                except Exception:
-                    pass
-                warnings.warn(
-                    f"USPTO PatentsView HTTP {exc.code} for keywords {kw!r}: {body_text}"
-                )
-                if exc.code == 429:
-                    time.sleep(5 * (attempt + 1))
-                    continue
-                return []
-            except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
-                if attempt >= self.retries:
-                    import warnings
-                    warnings.warn(f"USPTO PatentsView error ({type(exc).__name__}): {exc}")
-                    return []
-                time.sleep(1.0 * (attempt + 1))
-        return []
+                body_text = exc.read().decode("utf-8", errors="replace")[:400]
+            except Exception:
+                pass
+            warnings.warn(
+                f"USPTO PatentsView HTTP {exc.code} for keywords {kw!r}: {body_text}"
+            )
+            return []
+        if payload is None:
+            warnings.warn(
+                f"USPTO PatentsView returned no JSON for keywords {kw!r}. "
+                f"The v1 REST API at {self._URL!r} was retired in 2024 and now "
+                "serves an HTML portal. Update _URL when a new endpoint is available."
+            )
+            return []
+        count = payload.get("total_patent_count", "?")
+        if not payload.get("patents"):
+            warnings.warn(
+                f"USPTO PatentsView returned 0 patents for keywords {kw!r} "
+                f"(total_patent_count={count}); "
+                f"response keys: {list(payload.keys())}"
+            )
+        return payload.get("patents") or []
 
 
 def _patent_source_from_uspto(
@@ -2829,6 +2859,7 @@ def _collect_academic_primary(
     arxiv_client = ArxivClient()
 
     accepted: list[EvidenceSource] = []
+    accepted_token_sets: list[frozenset[str]] = []  # parallel to accepted; used for O(1) pre-filter
     seen_dois: set[str] = set()
     seen_title_keys: set[str] = set()
     audits: list[SearchAudit] = []
@@ -2845,8 +2876,16 @@ def _collect_academic_primary(
         if tkey and tkey in seen_title_keys:
             audit.rejected_reasons.append(f"duplicate title: {source.title}")
             return False
-        for existing in accepted:
-            if _title_similarity(source.title, existing.title) >= 0.88:
+        new_tokens = frozenset(tkey.split())
+        for i, existing in enumerate(accepted):
+            # word-overlap pre-filter: skip SequenceMatcher when titles share too
+            # few words to ever reach the 0.88 similarity threshold.
+            ex_tokens = accepted_token_sets[i]
+            if ex_tokens and new_tokens:
+                n = min(len(new_tokens), len(ex_tokens))
+                if len(new_tokens & ex_tokens) / n < _TITLE_PREFILTER_OVERLAP:
+                    continue
+            if _title_similarity(source.title, existing.title) >= _TITLE_NEAR_DUP_THRESHOLD:
                 audit.rejected_reasons.append(
                     f"near-duplicate of '{existing.title}': {source.title}"
                 )
@@ -2854,6 +2893,7 @@ def _collect_academic_primary(
         if doi_key:
             seen_dois.add(doi_key)
         seen_title_keys.add(tkey)
+        accepted_token_sets.append(new_tokens)
         accepted.append(source)
         audit.accepted_source_ids.append(source.source_id)
         return True
@@ -3187,7 +3227,8 @@ def collect_source_collection(
             src.citation_count = cited
 
     def _fetch_citation_arxiv(src: EvidenceSource) -> None:
-        arxiv_id = str(src.url or "").split("arxiv.org/abs/")[-1].strip("/")
+        _m = re.search(r"arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})", str(src.url or ""), re.IGNORECASE)
+        arxiv_id = _m.group(1) if _m else ""
         if not arxiv_id:
             return
         s2_url = f"https://api.semanticscholar.org/graph/v1/paper/arXiv:{arxiv_id}?fields=citationCount"

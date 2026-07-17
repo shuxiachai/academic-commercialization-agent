@@ -88,9 +88,11 @@ def detect_language(text: str) -> str:
 def get_lang_info(lang_code: str) -> dict:
     """Return the registry entry for a language code.
 
-    Chinese variants ('zh-cn', 'zh-tw', 'zh') all map to 'zh-cn'.
-    Unknown codes fall back to English.
+    Exact matches (including 'zh-tw') are returned directly.
+    Unknown 'zh-*' variants fall back to 'zh-cn'; all other unknowns to English.
     """
+    if lang_code in LANGUAGE_REGISTRY:
+        return LANGUAGE_REGISTRY[lang_code]
     if lang_code.startswith("zh"):
         return LANGUAGE_REGISTRY["zh-cn"]
     return LANGUAGE_REGISTRY.get(lang_code, LANGUAGE_REGISTRY["en"])

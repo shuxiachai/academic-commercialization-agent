@@ -241,6 +241,8 @@ class AcademicAgent:
                 required_headings=localized,
                 output_language=self.source_collection.output_language,
             ),
+            # 1 retry (not 2): full report regeneration is slow and rarely fixes
+            # structural guardrail failures on a second attempt.
             guardrail_max_retries=1,
             markdown=True,
         )
