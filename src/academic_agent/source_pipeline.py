@@ -564,6 +564,8 @@ class OpenAlexClient:
         "id", "title", "doi", "publication_date",
         "primary_location", "cited_by_count", "abstract_inverted_index", "topics",
     ])
+    # referenced_works is fetched separately (per-paper) for snowballing so we
+    # don't bloat every search response with large ID lists.
 
     def __init__(self, *, timeout: int = 20, retries: int = 2) -> None:
         self.timeout = timeout
@@ -573,12 +575,13 @@ class OpenAlexClient:
         self.headers = {"User-Agent": f"{ua} (mailto:{mailto})" if mailto else ua}
 
     def search(self, topic: str, rows: int = 15) -> list[dict[str, Any]]:
-        # Use the core noun phrase (before prepositions) with title.search.
-        # Full topic string is too broad: "solid-state batteries for grid energy
-        # storage" would also match solid-state transformer + energy storage papers.
+        # Use default.search (title + abstract) with the core noun phrase so we
+        # catch papers where the concept appears in the abstract but not the title.
+        # Truncating to the core phrase still avoids over-broad matches from
+        # secondary qualifiers like "for grid energy storage".
         core = _topic_core_phrase(topic)
         params = urlencode({
-            "filter": f"title.search:{core}",
+            "filter": f"default.search:{core}",
             "sort": "cited_by_count:desc",
             "per-page": min(rows, 50),
             "select": self._SELECT,
@@ -611,6 +614,85 @@ class OpenAlexClient:
             return int(data.get("cited_by_count") or 0)
         except Exception:
             return None
+
+    def fetch_referenced_works(self, doi: str, top_n: int = 25) -> list[str]:
+        """Return OpenAlex IDs of works cited by the paper with the given DOI.
+
+        Used for citation snowballing: seed a new search from the references of
+        high-quality accepted papers.
+        """
+        url = f"{self._BASE}/https://doi.org/{doi}?select=referenced_works"
+        request = Request(url, headers=self.headers)
+        try:
+            with urlopen(request, timeout=self.timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            return list(data.get("referenced_works") or [])[:top_n]
+        except Exception:
+            return []
+
+    def fetch_works_by_ids(self, openalex_ids: list[str], rows: int = 15) -> list[dict[str, Any]]:
+        """Fetch work metadata for a list of OpenAlex IDs (e.g. from referenced_works).
+
+        IDs may be short ('W2964126049') or full URLs; both are accepted by the API.
+        Returns results sorted by cited_by_count descending.
+        """
+        if not openalex_ids:
+            return []
+        # API allows pipe-separated filter; cap at 50 IDs to stay under URL length limits.
+        ids_param = "|".join(str(i) for i in openalex_ids[:50])
+        params = urlencode({
+            "filter": f"openalex_id:{ids_param}",
+            "sort": "cited_by_count:desc",
+            "per-page": min(rows, 50),
+            "select": self._SELECT,
+        })
+        url = f"{self._BASE}?{params}"
+        request = Request(url, headers=self.headers)
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                return payload.get("results") or []
+            except HTTPError as exc:
+                if exc.code == 429:
+                    time.sleep(2 ** attempt)
+                    continue
+                return []
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError):
+                if attempt >= self.retries:
+                    return []
+                time.sleep(0.75 * (attempt + 1))
+        return []
+
+    def search_by_topic(self, topic_id: str, rows: int = 10) -> list[dict[str, Any]]:
+        """Return high-citation papers in the same OpenAlex topic cluster.
+
+        topic_id is the full OpenAlex topic URL, e.g.
+        'https://openalex.org/T12345' or just 'T12345'.
+        """
+        params = urlencode({
+            "filter": f"topics.id:{topic_id}",
+            "sort": "cited_by_count:desc",
+            "per-page": min(rows, 50),
+            "select": self._SELECT,
+        })
+        url = f"{self._BASE}?{params}"
+        request = Request(url, headers=self.headers)
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                return payload.get("results") or []
+            except HTTPError as exc:
+                if exc.code == 429:
+                    time.sleep(2 ** attempt)
+                    continue
+                return []
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError):
+                if attempt >= self.retries:
+                    return []
+                time.sleep(0.75 * (attempt + 1))
+        return []
 
     def search_recent(self, topic: str, since_year: int = 2023, rows: int = 15) -> list[dict[str, Any]]:
         """Search OpenAlex for papers published since_year or later, sorted by date desc."""
@@ -708,8 +790,9 @@ class PubMedClient:
     Set NCBI_API_KEY to raise rate limit from 3 to 10 req/s.
     """
 
-    _ESEARCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-    _EFETCH  = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+    _ESEARCH  = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+    _EFETCH   = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+    _ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
 
     def __init__(self, *, timeout: int = 25, retries: int = 2) -> None:
         self.timeout = timeout
@@ -831,6 +914,77 @@ class PubMedClient:
                 break
 
         return {"title": title, "abstract": abstract, "doi": doi, "pmid": pmid, "journal": journal, "pub_date": pub_date}
+
+    def get_mesh_terms(self, topic: str, max_terms: int = 3) -> list[str]:
+        """Return MeSH controlled-vocabulary terms related to the topic.
+
+        Uses NCBI ESearch on the 'mesh' database, then ESummary to resolve term
+        names.  Biomedical topics benefit greatly from MeSH-structured queries
+        (e.g. "large language models" → "Natural Language Processing" [MeSH]).
+        Returns an empty list on any failure.
+        """
+        params: dict[str, Any] = {
+            "db": "mesh", "term": topic,
+            "retmax": max_terms * 2, "retmode": "json",
+        }
+        if self._api_key:
+            params["api_key"] = self._api_key
+        raw = self._get(f"{self._ESEARCH}?{urlencode(params)}")
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+
+        # Fast path: extract MeSH terms directly from translation stack.
+        terms: list[str] = []
+        for entry in data.get("esearchresult", {}).get("translationstack", []):
+            if isinstance(entry, dict) and entry.get("field") == "MeSH Terms":
+                raw_term = entry.get("term", "")
+                clean = re.sub(r'\[MeSH Terms\]$', '', raw_term, flags=re.IGNORECASE)
+                clean = clean.strip().strip('"')
+                if clean and len(clean) > 2:
+                    terms.append(clean)
+        if terms:
+            return list(dict.fromkeys(terms))[:max_terms]
+
+        # Fallback: resolve IDs via ESummary.
+        ids = data.get("esearchresult", {}).get("idlist", [])
+        if not ids:
+            return []
+        sum_params: dict[str, Any] = {
+            "db": "mesh", "id": ",".join(ids[:max_terms]),
+            "retmode": "json",
+        }
+        if self._api_key:
+            sum_params["api_key"] = self._api_key
+        raw_sum = self._get(f"{self._ESUMMARY}?{urlencode(sum_params)}")
+        if not raw_sum:
+            return []
+        try:
+            sum_data = json.loads(raw_sum)
+        except json.JSONDecodeError:
+            return []
+        result = sum_data.get("result", {})
+        for mid in ids[:max_terms]:
+            entry = result.get(str(mid), {})
+            name = entry.get("ds_name") or ""
+            if name:
+                terms.append(str(name))
+        return list(dict.fromkeys(terms))[:max_terms]
+
+    def search_mesh(self, mesh_terms: list[str], rows: int = 10) -> list[dict[str, Any]]:
+        """Search PubMed using MeSH controlled-vocabulary terms.
+
+        Constructs an OR query of the form:
+            ("term1"[MeSH Terms] OR "term2"[MeSH Terms])
+        Falls back to a plain-text search if no terms provided.
+        """
+        if not mesh_terms:
+            return []
+        mesh_query = " OR ".join(f'"{t}"[MeSH Terms]' for t in mesh_terms)
+        return self.search(f"({mesh_query})", rows=rows)
 
 
 class ArxivClient:
@@ -2328,7 +2482,10 @@ def _queries(
 
     return {
         "academic": [
-            f"{topic} peer reviewed DOI",
+            f"{topic} peer reviewed DOI journal",
+            f"{topic} systematic review meta-analysis",
+            f"{topic} site:scholar.google.com",
+            f"{topic} Nature Science Cell Lancet article",
             f"{topic} review journal",
             f"{topic} efficiency stability commercialization",
         ],
@@ -2579,39 +2736,29 @@ def _collect_academic_primary(
     accessed_date: date,
     *,
     maximum_sources: int,
+    weight_profile: str = "industrial",
+    synonyms: list[str] | None = None,
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
-    """Collect academic sources: dual-track (recent 2023+ + high-citation) from OpenAlex, S2 supplement."""
+    """Collect academic sources via concurrent multi-API fetch with synonym,
+    topic-cluster, MeSH, and citation-snowball expansion."""
+    from concurrent.futures import ThreadPoolExecutor
+
     fetch_rows = max(20, maximum_sources * 4)
-    recent_slots = (maximum_sources + 1) // 2  # ceil(max/2) slots reserved for recent papers
+    recent_slots = (maximum_sources + 1) // 2
+    all_synonyms = list(synonyms or [])
 
-    # ── Track A: recent papers (2023+), sorted by publication date desc ──────
-    recent_works = openalex.search_recent(topic, since_year=date.today().year - 3, rows=fetch_rows)
-    recent_audit = SearchAudit(
-        domain="academic",
-        query=f"[OpenAlex-Recent 2023+] {topic}",
-        result_count=len(recent_works),
-    )
-
-    # ── Track B: high-citation papers, sorted by citation count desc ─────────
-    cited_works = openalex.search(topic, rows=fetch_rows)
-    cited_audit = SearchAudit(
-        domain="academic",
-        query=f"[OpenAlex-Cited] {topic}",
-        result_count=len(cited_works),
-    )
+    pubmed_client = PubMedClient()
+    arxiv_client = ArxivClient()
 
     accepted: list[EvidenceSource] = []
     seen_dois: set[str] = set()
-    # Word-normalised title dedup catches same-paper published in multiple journal
-    # editions under different DOIs (e.g. Angewandte Chemie ange/anie parallel issues).
     seen_title_keys: set[str] = set()
-    audits: list[SearchAudit] = [recent_audit, cited_audit]
+    audits: list[SearchAudit] = []
 
     def _title_key(title: str) -> str:
         return " ".join(_WORD_PATTERN.findall(title.lower()))
 
     def _try_add(source: EvidenceSource, audit: SearchAudit) -> bool:
-        """Deduplicate by DOI, exact title key, and fuzzy title similarity."""
         doi_key = (source.doi or "").lower()
         if doi_key and doi_key in seen_dois:
             audit.rejected_reasons.append(f"duplicate DOI: {doi_key}")
@@ -2620,8 +2767,6 @@ def _collect_academic_primary(
         if tkey and tkey in seen_title_keys:
             audit.rejected_reasons.append(f"duplicate title: {source.title}")
             return False
-        # Fuzzy check: catch same paper with slightly different titles
-        # (e.g. preprint vs published version, or truncated conference title).
         for existing in accepted:
             if _title_similarity(source.title, existing.title) >= 0.88:
                 audit.rejected_reasons.append(
@@ -2635,100 +2780,193 @@ def _collect_academic_primary(
         audit.accepted_source_ids.append(source.source_id)
         return True
 
-    # Fill recent slots first
-    for work in recent_works:
-        if len(accepted) >= recent_slots:
-            break
-        source_id = f"A{len(accepted) + 1}"
-        source, reason = _academic_source_from_openalex(work, source_id, accessed_date, topic, s2_client=s2)
-        if source is None:
-            recent_audit.rejected_reasons.append(reason)
-            continue
-        _try_add(source, recent_audit)
+    def _fill_oa(works: list[dict], audit: SearchAudit, limit: int) -> None:
+        """Convert and dedup OpenAlex works into accepted up to limit."""
+        for work in works:
+            if len(accepted) >= limit:
+                break
+            src_id = f"A{len(accepted) + 1}"
+            source, reason = _academic_source_from_openalex(
+                work, src_id, accessed_date, topic, s2_client=s2
+            )
+            if source is None:
+                audit.rejected_reasons.append(reason)
+                continue
+            _try_add(source, audit)
 
-    # Fill remaining slots from high-citation track, skipping already-seen DOIs/titles.
-    # Two-pass strategy: prefer papers published within the last 7 years; only fall
-    # back to older high-citation papers when there are not enough recent ones.
-    # This avoids filler papers from 2015–2018 crowding out newer work when the
-    # recent-papers track yielded fewer than recent_slots results.
-    _CITED_AGE_CUTOFF = date.today().replace(year=date.today().year - 7)
-    cited_preferred: list[dict] = []
-    cited_fallback: list[dict] = []
-    for work in cited_works:
-        pub = _published_date(work)
-        if pub is None or pub >= _CITED_AGE_CUTOFF:
-            cited_preferred.append(work)
-        else:
-            cited_fallback.append(work)
+    def _fill(papers: list[dict], audit: SearchAudit, converter, limit: int) -> None:
+        """Convert and dedup S2/PubMed/arXiv papers into accepted up to limit."""
+        for paper in papers:
+            if len(accepted) >= limit:
+                break
+            src_id = f"A{len(accepted) + 1}"
+            source, reason = converter(paper, src_id, accessed_date, topic)
+            if source is None:
+                audit.rejected_reasons.append(reason)
+                continue
+            _try_add(source, audit)
 
-    for work in cited_preferred + cited_fallback:
+    # ── Phase 1: concurrent raw fetch ─────────────────────────────────────────
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        f_recent = pool.submit(
+            openalex.search_recent, topic,
+            since_year=date.today().year - 3, rows=fetch_rows,
+        )
+        f_cited  = pool.submit(openalex.search, topic, rows=fetch_rows)
+        f_s2     = pool.submit(s2.search, topic, rows=fetch_rows)
+        f_pubmed = pool.submit(pubmed_client.search, topic, rows=fetch_rows)
+        f_arxiv  = pool.submit(arxiv_client.search, topic, rows=fetch_rows)
+        syn_futures = {
+            syn: pool.submit(openalex.search, syn, rows=fetch_rows // 2)
+            for syn in all_synonyms
+        }
+
+    def _safe(future, label: str) -> list:
+        try:
+            return future.result()
+        except Exception as exc:
+            audits.append(SearchAudit(
+                domain="academic",
+                query=f"[{label}] {topic}",
+                result_count=0,
+                rejected_reasons=[str(exc)],
+            ))
+            return []
+
+    recent_works  = _safe(f_recent, "OA-Recent")
+    cited_works   = _safe(f_cited,  "OA-Cited")
+    s2_papers     = _safe(f_s2,     "S2")
+    pm_papers     = _safe(f_pubmed, "PubMed")
+    ax_papers     = _safe(f_arxiv,  "arXiv")
+    syn_works_map = {syn: _safe(f, f"OA-Syn:{syn[:20]}") for syn, f in syn_futures.items()}
+
+    # ── Phase 2: fill in priority order ───────────────────────────────────────
+    recent_audit = SearchAudit(
+        domain="academic",
+        query=f"[OA-Recent] {topic}",
+        result_count=len(recent_works),
+    )
+    cited_audit = SearchAudit(
+        domain="academic",
+        query=f"[OA-Cited] {topic}",
+        result_count=len(cited_works),
+    )
+    audits.extend([recent_audit, cited_audit])
+
+    # Recent-slots first, then age-split cited track
+    _fill_oa(recent_works, recent_audit, limit=recent_slots)
+
+    _cited_cutoff = date.today().replace(year=date.today().year - 7)
+    cited_preferred = [w for w in cited_works if (p := _published_date(w)) is None or p >= _cited_cutoff]
+    cited_fallback  = [w for w in cited_works if (p := _published_date(w)) is not None and p < _cited_cutoff]
+    _fill_oa(cited_preferred + cited_fallback, cited_audit, limit=maximum_sources)
+
+    # Synonym expansion (each synonym adds a separate audit row)
+    for syn, syn_works in syn_works_map.items():
         if len(accepted) >= maximum_sources:
             break
-        source_id = f"A{len(accepted) + 1}"
-        source, reason = _academic_source_from_openalex(work, source_id, accessed_date, topic, s2_client=s2)
-        if source is None:
-            cited_audit.rejected_reasons.append(reason)
-            continue
-        _try_add(source, cited_audit)
-
-    # ── Semantic Scholar supplement (when OpenAlex tracks fall short) ─────────
-    if len(accepted) < maximum_sources:
-        s2_papers = s2.search(topic, rows=fetch_rows)
-        s2_audit = SearchAudit(
+        syn_audit = SearchAudit(
             domain="academic",
-            query=f"[SemanticScholar] {topic}",
-            result_count=len(s2_papers),
+            query=f"[OA-Syn:{syn[:30]}] {topic}",
+            result_count=len(syn_works),
         )
-        for paper in s2_papers:
-            if len(accepted) >= maximum_sources:
-                break
-            source_id = f"A{len(accepted) + 1}"
-            source, reason = _academic_source_from_s2(paper, source_id, accessed_date, topic)
-            if source is None:
-                s2_audit.rejected_reasons.append(reason)
-                continue
-            _try_add(source, s2_audit)
+        audits.append(syn_audit)
+        _fill_oa(syn_works, syn_audit, limit=maximum_sources)
+
+    # S2 / PubMed / arXiv supplements when still short
+    if len(accepted) < maximum_sources:
+        s2_audit = SearchAudit(domain="academic", query=f"[S2] {topic}", result_count=len(s2_papers))
         audits.append(s2_audit)
+        _fill(s2_papers, s2_audit, _academic_source_from_s2, maximum_sources)
 
-    # ── PubMed supplement (biomedical / clinical topics) ──────────────────────
     if len(accepted) < maximum_sources:
-        pubmed = PubMedClient()
-        pm_papers = pubmed.search(topic, rows=fetch_rows)
-        pm_audit = SearchAudit(
-            domain="academic",
-            query=f"[PubMed] {topic}",
-            result_count=len(pm_papers),
-        )
-        for paper in pm_papers:
-            if len(accepted) >= maximum_sources:
-                break
-            source_id = f"A{len(accepted) + 1}"
-            source, reason = _academic_source_from_pubmed(paper, source_id, accessed_date, topic)
-            if source is None:
-                pm_audit.rejected_reasons.append(reason)
-                continue
-            _try_add(source, pm_audit)
+        pm_audit = SearchAudit(domain="academic", query=f"[PubMed] {topic}", result_count=len(pm_papers))
         audits.append(pm_audit)
+        _fill(pm_papers, pm_audit, _academic_source_from_pubmed, maximum_sources)
 
-    # ── arXiv supplement (CS / AI / physics / bio preprints) ──────────────────
     if len(accepted) < maximum_sources:
-        arxiv = ArxivClient()
-        ax_papers = arxiv.search(topic, rows=fetch_rows)
-        ax_audit = SearchAudit(
-            domain="academic",
-            query=f"[arXiv] {topic}",
-            result_count=len(ax_papers),
-        )
-        for paper in ax_papers:
+        ax_audit = SearchAudit(domain="academic", query=f"[arXiv] {topic}", result_count=len(ax_papers))
+        audits.append(ax_audit)
+        _fill(ax_papers, ax_audit, _academic_source_from_arxiv, maximum_sources)
+
+    # ── Phase 4: Topic-ID cluster expansion ───────────────────────────────────
+    _topic_id_counts: dict[str, int] = {}
+    for work in recent_works + cited_works:
+        for t in work.get("topics") or []:
+            tid = t.get("id") or ""
+            if tid:
+                _topic_id_counts[tid] = _topic_id_counts.get(tid, 0) + 1
+    top_topic_ids = sorted(_topic_id_counts, key=_topic_id_counts.__getitem__, reverse=True)[:2]
+
+    if top_topic_ids and len(accepted) < maximum_sources:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            cl_futures = {pool.submit(openalex.search_by_topic, tid, rows=10): tid for tid in top_topic_ids}
+        for future, tid in cl_futures.items():
             if len(accepted) >= maximum_sources:
                 break
-            source_id = f"A{len(accepted) + 1}"
-            source, reason = _academic_source_from_arxiv(paper, source_id, accessed_date, topic)
-            if source is None:
-                ax_audit.rejected_reasons.append(reason)
+            try:
+                cl_works = future.result()
+            except Exception:
+                cl_works = []
+            if not cl_works:
                 continue
-            _try_add(source, ax_audit)
-        audits.append(ax_audit)
+            cl_audit = SearchAudit(
+                domain="academic",
+                query=f"[OA-Cluster:{tid.rsplit('/', 1)[-1]}] {topic}",
+                result_count=len(cl_works),
+            )
+            audits.append(cl_audit)
+            _fill_oa(cl_works, cl_audit, limit=maximum_sources)
+
+    # ── Phase 5: PubMed MeSH expansion (biomedical topics only) ──────────────
+    if weight_profile == "biomedical" and len(accepted) < maximum_sources:
+        try:
+            mesh_terms = pubmed_client.get_mesh_terms(topic, max_terms=3)
+        except Exception:
+            mesh_terms = []
+        if mesh_terms:
+            try:
+                mesh_papers = pubmed_client.search_mesh(mesh_terms, rows=fetch_rows // 2)
+            except Exception:
+                mesh_papers = []
+            if mesh_papers:
+                mesh_audit = SearchAudit(
+                    domain="academic",
+                    query=f"[PubMed-MeSH:{', '.join(mesh_terms[:2])}] {topic}",
+                    result_count=len(mesh_papers),
+                )
+                audits.append(mesh_audit)
+                _fill(mesh_papers, mesh_audit, _academic_source_from_pubmed, maximum_sources)
+
+    # ── Phase 6: Citation snowball ────────────────────────────────────────────
+    if len(accepted) < maximum_sources:
+        snowball_candidates = sorted(
+            [s for s in accepted if s.doi and (s.citation_count or 0) >= 5],
+            key=lambda s: s.citation_count or 0,
+            reverse=True,
+        )[:3]
+        if snowball_candidates:
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                ref_futures = {pool.submit(openalex.fetch_referenced_works, s.doi, top_n=25): s for s in snowball_candidates}
+            all_ref_ids: list[str] = []
+            for future in ref_futures:
+                try:
+                    all_ref_ids.extend(future.result())
+                except Exception:
+                    pass
+            if all_ref_ids:
+                try:
+                    snowball_works = openalex.fetch_works_by_ids(all_ref_ids, rows=15)
+                except Exception:
+                    snowball_works = []
+                if snowball_works:
+                    sb_audit = SearchAudit(
+                        domain="academic",
+                        query=f"[OA-Snowball] {topic}",
+                        result_count=len(snowball_works),
+                    )
+                    audits.append(sb_audit)
+                    _fill_oa(snowball_works, sb_audit, limit=maximum_sources)
 
     return accepted, audits
 
@@ -2748,14 +2986,14 @@ def collect_source_collection(
     s2: SemanticScholarClient | None = None,
     url_checker: UrlChecker = check_public_url,
     minimum_sources: int = 3,
-    maximum_sources: int = 6,
+    maximum_sources: int = 8,
     accessed_date: date | None = None,
     paper_seed: "EvidenceSource | None" = None,  # noqa: F821
     extra_market_queries: list[str] | None = None,
 ) -> SourceCollection:
     # ── Language detection & translation ─────────────────────────────────────
     from academic_agent.language import (
-        detect_language, get_lang_info,
+        detect_language, generate_synonyms, get_lang_info,
         translate_to_english, translate_headings,
     )
     from academic_agent.evidence import _REQUIRED_REPORT_HEADINGS
@@ -2773,6 +3011,10 @@ def collect_source_collection(
 
     normalized_topic = " ".join(english_topic.split())
     weight_profile = _detect_weight_profile(normalized_topic)
+
+    # Generate 2 synonym phrasings to widen API search coverage.
+    # Done after translation so synonyms are always in English.
+    topic_synonyms = generate_synonyms(normalized_topic, n=2)
     if len(normalized_topic) < 3:
         raise SourceCollectionError("Research topic must contain at least 3 characters.")
     if minimum_sources < 1 or maximum_sources < minimum_sources:
@@ -2815,6 +3057,8 @@ def collect_source_collection(
     academic, oa_audits = _collect_academic_primary(
         normalized_topic, resolved_openalex, resolved_s2, resolved_date,
         maximum_sources=maximum_sources,
+        weight_profile=weight_profile,
+        synonyms=topic_synonyms,
     )
     all_audits.extend(oa_audits)
 

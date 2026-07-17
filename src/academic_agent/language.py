@@ -157,6 +157,29 @@ def translate_to_language(text: str, target_language_name: str) -> str:
     return result if result else text
 
 
+def generate_synonyms(topic: str, n: int = 2) -> list[str]:
+    """Generate n alternative scientific phrasings for the research topic.
+
+    Used to broaden API search coverage when different communities use different
+    terminology for the same concept (e.g. "EV battery" vs "traction battery",
+    "LLM" vs "large language model").  Returns an empty list on LLM failure.
+    """
+    result = _llm_call(
+        f"Generate {n} alternative scientific phrasings for this research topic. "
+        f"Use different terminology that researchers in the same field might search for. "
+        f"Return ONLY the alternatives, one per line, no numbering, no explanation:\n\n{topic}",
+        system=(
+            "You are a scientific literature expert. "
+            "Output only the alternative phrasings, one per line."
+        ),
+        max_tokens=150,
+    )
+    if not result:
+        return []
+    lines = [ln.strip() for ln in result.splitlines() if ln.strip()]
+    return lines[:n]
+
+
 def translate_to_english(text: str) -> str:
     """Translate an arbitrary-language string to English.
 
