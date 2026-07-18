@@ -35,6 +35,35 @@ class _NullS2:
         return ""
 
 
+class _NullPubMed:
+    """Stub that returns no results from PubMed, for offline tests."""
+
+    def search(self, *args, **kwargs) -> list:  # type: ignore[override]
+        return []
+
+    def search_mesh(self, *args, **kwargs) -> list:  # type: ignore[override]
+        return []
+
+    def get_mesh_terms(self, *args, **kwargs) -> list:  # type: ignore[override]
+        return []
+
+
+class _NullArXiv:
+    """Stub that returns no results from arXiv, for offline tests."""
+
+    def search(self, *args, **kwargs) -> list:  # type: ignore[override]
+        return []
+
+
+class _NullLens:
+    """Stub that returns no results from Lens.org, for offline tests."""
+
+    api_key: str = ""
+
+    def search(self, *args, **kwargs) -> list:  # type: ignore[override]
+        return []
+
+
 _LONG_ACADEMIC_ABSTRACT = (
     "This peer-reviewed study presents experimental findings on the research topic, "
     "covering the methodology, quantitative results, and implications for commercial "
@@ -62,6 +91,7 @@ def _crossref_record(index: int) -> dict:
         "abstract": _LONG_ACADEMIC_ABSTRACT,
         "publisher": "Test Journal Publisher",
         "published": {"date-parts": [[2025, 1, index]]},
+        "is-referenced-by-count": 5,
     }
 
 
@@ -169,6 +199,8 @@ class SourcePipelineTests(TestCase):
                 crossref=MismatchingCrossref(),
                 openalex=_NullOpenAlex(),
                 s2=_NullS2(),
+                pubmed=_NullPubMed(),
+                arxiv=_NullArXiv(),
                 url_checker=lambda url: (True, ""),
                 minimum_sources=3,
                 maximum_sources=3,
@@ -292,6 +324,8 @@ class SourcePipelineTests(TestCase):
             crossref=MatchingCrossref(),
             openalex=_NullOpenAlex(),
             s2=_NullS2(),
+            pubmed=_NullPubMed(),
+            arxiv=_NullArXiv(),
             url_checker=lambda url: (True, ""),
             minimum_sources=3,
             maximum_sources=3,
@@ -357,6 +391,9 @@ class SourcePipelineTests(TestCase):
             crossref=MatchingCrossref(),
             openalex=_NullOpenAlex(),
             s2=_NullS2(),
+            pubmed=_NullPubMed(),
+            arxiv=_NullArXiv(),
+            lens=_NullLens(),
             url_checker=lambda url: (True, ""),
             minimum_sources=3,
             maximum_sources=3,
@@ -542,6 +579,8 @@ class SourcePipelineTests(TestCase):
             crossref=MatchingCrossref(),
             openalex=_NullOpenAlex(),
             s2=_NullS2(),
+            pubmed=_NullPubMed(),
+            arxiv=_NullArXiv(),
             url_checker=lambda url: (True, ""),
             minimum_sources=3,
             maximum_sources=3,

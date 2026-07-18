@@ -48,7 +48,7 @@ _MATERIAL_MARKERS: tuple[str, ...] = (
 _CLEAN_TECH_MARKERS: tuple[str, ...] = (
     "renewable energy", "wind turbine", "offshore wind", "onshore wind",
     "green hydrogen", "hydrogen production", "hydrogen storage",
-    "carbon capture", "carbon sequestration", "direct air capture",
+    "carbon sequestration", "direct air capture",
     "grid storage", "grid-scale storage", "energy storage system",
     "smart grid", "microgrid", "power-to-gas", "electrolysis",
     "geothermal", "tidal energy", "wave energy",
@@ -2870,6 +2870,8 @@ def _collect_academic_primary(
     maximum_sources: int,
     weight_profile: str = "industrial",
     synonyms: list[str] | None = None,
+    pubmed: "PubMedClient | None" = None,
+    arxiv: "ArxivClient | None" = None,
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
     """Collect academic sources via concurrent multi-API fetch with synonym,
     topic-cluster, MeSH, and citation-snowball expansion."""
@@ -2879,8 +2881,8 @@ def _collect_academic_primary(
     recent_slots = (maximum_sources + 1) // 2
     all_synonyms = list(synonyms or [])
 
-    pubmed_client = PubMedClient()
-    arxiv_client = ArxivClient()
+    pubmed_client = pubmed if pubmed is not None else PubMedClient()
+    arxiv_client = arxiv if arxiv is not None else ArxivClient()
 
     accepted: list[EvidenceSource] = []
     accepted_token_sets: list[frozenset[str]] = []  # parallel to accepted; used for O(1) pre-filter
@@ -3126,6 +3128,9 @@ def collect_source_collection(
     crossref: CrossrefClient | None = None,
     openalex: OpenAlexClient | None = None,
     s2: SemanticScholarClient | None = None,
+    pubmed: "PubMedClient | None" = None,
+    arxiv: "ArxivClient | None" = None,
+    lens: "LensPatentClient | None" = None,
     url_checker: UrlChecker = check_public_url,
     minimum_sources: int = 3,
     maximum_sources: int = 8,
@@ -3201,6 +3206,8 @@ def collect_source_collection(
         maximum_sources=maximum_sources,
         weight_profile=weight_profile,
         synonyms=topic_synonyms,
+        pubmed=pubmed,
+        arxiv=arxiv,
     )
     all_audits.extend(oa_audits)
 
@@ -3305,7 +3312,7 @@ def collect_source_collection(
     # ── Patents: Lens.org primary → Serper fallback ───────────────────────────
     patents: list[EvidenceSource] = []
     patent_audits: list[SearchAudit] = []
-    lens_client = LensPatentClient()
+    lens_client = lens if lens is not None else LensPatentClient()
     if lens_client.api_key:
         seen_lens_ids: set[str] = set()
         seen_patent_titles: set[str] = set()
@@ -3381,19 +3388,22 @@ def collect_source_collection(
     # Always run a targeted Google Patents / WIPO Serper search as a geographic
     # supplement: Lens.org skews toward Chinese and Asian patents, while the
     # site:-qualified Serper queries surface US, EP, and WO records not always
-    # represented in the Lens index.  Cap at 3 extra slots so total stays bounded.
-    _GP_SUPPLEMENT_SLOTS = 3
-    serper_patents, serper_patent_audits = _collect_domain(
-        "patent",
-        query_map["patent"],
-        resolved_searcher, resolved_crossref, url_checker,
-        resolved_date, normalized_topic,
-        minimum_sources=0,
-        maximum_sources=_GP_SUPPLEMENT_SLOTS,
-        blocked_titles={p.title for p in patents},
-    )
-    patent_audits.extend(serper_patent_audits)
-    patents.extend(serper_patents)
+    # represented in the Lens index.  Cap at 3 extra slots, but never exceed
+    # maximum_sources in total.
+    _gp_remaining = max(0, maximum_sources - len(patents))
+    if _gp_remaining > 0:
+        _gp_slots = min(3, _gp_remaining)
+        serper_patents, serper_patent_audits = _collect_domain(
+            "patent",
+            query_map["patent"],
+            resolved_searcher, resolved_crossref, url_checker,
+            resolved_date, normalized_topic,
+            minimum_sources=0,
+            maximum_sources=_gp_slots,
+            blocked_titles={p.title for p in patents},
+        )
+        patent_audits.extend(serper_patent_audits)
+        patents.extend(serper_patents)
 
     all_audits.extend(patent_audits)
 
