@@ -1,6 +1,11 @@
 # Academic Commercialization Assessment Agent
 
+> **Turn any research paper or topic into a commercialization readiness report in minutes** — six AI agents gather academic, patent, and market evidence, then produce a scored report with verifiable citations.
+
 [![Tests](https://github.com/shuxiachai/academic-commercialization-agent/actions/workflows/test.yml/badge.svg)](https://github.com/shuxiachai/academic-commercialization-agent/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![CrewAI](https://img.shields.io/badge/CrewAI-1.14.x-orange.svg)](https://github.com/crewAIInc/crewAI)
 
 [English](#english) | [中文](#chinese)
 
@@ -130,6 +135,49 @@ The pipeline runs in a **subprocess** (`pipeline_worker.py`) so the Gradio UI ca
 > **Multilingual support**: Language is auto-detected from the topic string. Reports in Simplified/Traditional Chinese, Japanese, Korean, German, French, and 6 more languages are fully localized — section headings, citation legend, and patent disclaimers all adapt automatically.
 
 The scorecard (`commercialization_scores.json`) additionally contains: TRL score, patent strength, market accessibility, evidence confidence, overall score, key risks, and key opportunities.
+
+---
+
+### Sample output
+
+<details>
+<summary>▶ Example report excerpt — CRISPR base editing for hemophilia A (overall score: 41.3 / 100)</summary>
+
+---
+
+**Overall Score: 41.3 / 100** · Biotech profile · TRL 3.3/9 · MRL 2.0/10 · Patent 4.0/5 · Market 2.0/5 · Evidence 3.0/5
+
+---
+
+**Executive Summary**
+
+This assessment evaluates single-dose LNP-ABE8e base editing therapy for hemophilia A targeting the F8 Arg2038Cys mutation. The technology demonstrates strong preclinical proof-of-concept with durable factor VIII restoration (83.7 ± 9.1% at 52 weeks, no detectable immune response [A1]) but remains at an early readiness stage with significant clinical development milestones ahead.
+
+**1. Technology Overview & Maturity**
+
+In vivo adenine base editing via LNP delivery achieved 72 ± 8% on-target A-to-G correction in bulk liver tissue at 4 weeks, with FVIII activity restoration confirmed durable to 52 weeks [A1]. Tail-clip bleeding time normalised to 2.8 ± 0.4 min (wild-type: 2.6 ± 0.3 min) [A1][A2]. No off-target editing or immune response was detected.
+
+> **TRL 3.3 / 9** — Active R&D with in vivo animal model proof-of-concept; no IND filing or human data available.
+
+**2. Patent Landscape & White Spaces**
+
+LNP-mediated liver delivery for in vivo base editing is actively patented by Beam Therapeutics, Intellia Therapeutics, and Precision BioSciences [P2][P4]. The specific F8 Arg2038Cys correction approach may represent a differentiated white space, but freedom-to-operate analysis is required before clinical or commercial use [P1][P3].
+
+**Evidence Limitations**
+
+- Academic: All efficacy data from a single murine model; primate or human data absent [A1]
+- Patent: USPTO PatentsView API retired — patent search via Google Patents / WIPO only [P1–P6]
+- Market: Hemophilia A gene therapy market projections vary widely ($2.9B–$4.3B by 2032) [M1][M3]
+
+**References**
+
+- [A1] Kim et al. (2025). *In Vivo CRISPR-Cas9 Base Editing Achieves Durable Factor VIII Restoration…* https://doi.org/10.1038/s41587-025-02314-8
+- [P1] ENDONUCLEASE FOR TARGETING BLOOD COAGULATION FACTOR VIII — Google Patents
+- [M1] *Hemophilia Gene Therapy Market Report, Market Size and Revenue…* — Market Research Future
+
+---
+
+</details>
 
 ---
 
@@ -450,6 +498,43 @@ Step 6     Agent 6 — 量化评分（独立于报告；公式自动修正）
 > **多语言支持**：系统根据研究主题自动检测输出语言（支持中文简体/繁体、日文、韩文、德文、法文等 12 种语言）。各语言版本的报告结构、章节标题、引用图例（A/P/M 说明行）及专利免责声明均自动本地化。
 
 评分卡（`commercialization_scores.json`）额外包含：TRL 评分、专利强度、市场可及性、证据置信度、综合评分、关键风险和机遇列表。
+
+---
+
+### 示例输出
+
+<details>
+<summary>▶ 报告节选示例 — CRISPR 碱基编辑治疗血友病 A（综合评分：41.3 / 100）</summary>
+
+---
+
+**综合评分：41.3 / 100** · 生物技术权重方案 · TRL 3.3/9 · MRL 2.0/10 · 专利强度 4.0/5 · 市场可及性 2.0/5 · 证据置信度 3.0/5
+
+---
+
+**执行摘要**
+
+本次评估针对靶向 F8 Arg2038Cys 突变的单次给药 LNP-ABE8e 碱基编辑疗法（血友病 A）。该技术在动物模型中展现出强有力的概念验证，FVIII 活性恢复可持续 52 周且无免疫反应 [A1]，但距离临床转化仍有较大距离（TRL 3.3/9）。
+
+**1. 技术概览与成熟度**
+
+体内腺嘌呤碱基编辑通过 LNP 递送，在小鼠肝脏组织中实现 72 ± 8% 的靶向 A-to-G 编辑，FVIII 活性恢复率在 52 周时仍维持在 83.7 ± 9.1%，止血时间恢复正常 [A1][A2]。
+
+> **TRL 3.3 / 9** — 已完成动物模型概念验证；尚无 IND 申请或人体数据。
+
+**2. 专利图谱与空白领域**
+
+LNP 体内碱基编辑递送领域专利竞争激烈，Beam Therapeutics、Intellia Therapeutics 等公司已布局核心专利 [P2][P4]。针对 F8 Arg2038Cys 特定位点的修正策略或存在差异化空间，但商业化前须完成自由实施分析 [P1][P3]。
+
+**证据局限性**
+
+- 学术：所有有效性数据来自单一小鼠模型，缺乏灵长类或人体数据 [A1]
+- 专利：USPTO PatentsView API 已退役，仅通过 Google Patents / WIPO 检索 [P1–P6]
+- 市场：血友病 A 基因疗法市场规模预测差异较大（2032 年 $29 亿–$43 亿）[M1][M3]
+
+---
+
+</details>
 
 ---
 
