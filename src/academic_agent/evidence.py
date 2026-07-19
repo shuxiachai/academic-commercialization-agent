@@ -246,7 +246,7 @@ class EvidenceFinding(BaseModel):
     category: str = Field(min_length=2)
     claim: str = Field(min_length=20)
     claim_type: ClaimType
-    source_ids: list[str] = Field(min_length=1)
+    source_ids: list[str] = Field(default_factory=list)
     confidence: Confidence
     commercial_implication: str = Field(min_length=10)
     limitations: str | None = None
@@ -748,14 +748,21 @@ def make_evidence_guardrail(
     validated_sources = list(sources)
     validated_queries = list(search_queries)
 
+    _available_ids = [s.source_id for s in validated_sources]
+
     def validate_analysis(output: TaskOutput) -> tuple[bool, Any]:
         try:
             analysis = EvidenceAnalysis.model_validate_json(output.raw)
         except (ValidationError, ValueError) as exc:
+            _ids_hint = (
+                f" Available source IDs you MUST cite in each finding's source_ids: {_available_ids}."
+                if _available_ids
+                else ""
+            )
             return (
                 False,
                 "Return exactly one valid JSON object matching the analysis schema "
-                f"without a sources field. Validation error: {exc}",
+                f"without a sources field.{_ids_hint} Validation error: {exc}",
             )
 
         report = EvidenceReport(
