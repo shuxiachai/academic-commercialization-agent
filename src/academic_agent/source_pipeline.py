@@ -436,7 +436,7 @@ class SourceCollection(BaseModel):
     localized_headings: list[str] = Field(default_factory=list)  # Translated section headings
     weight_profile: str = "industrial"  # Scoring weight profile: industrial | biomedical | material_science
     collected_at: datetime
-    academic_sources: list[EvidenceSource] = Field(min_length=3)
+    academic_sources: list[EvidenceSource] = Field(min_length=1)
     patent_sources: list[EvidenceSource] = Field(default_factory=list)
     patent_assignees: list[str] = Field(default_factory=list)  # Deduplicated company/org names from patents
     market_sources: list[EvidenceSource] = Field(default_factory=list)
@@ -3508,7 +3508,10 @@ def collect_source_collection(
             pass
 
     _academic_before = list(academic)
-    academic = _filter_by_relevance(academic, normalized_topic, min_score=3, min_keep=3)
+    # When a paper_seed is present it will contribute one guaranteed academic source,
+    # so lower min_keep by 1 to avoid discarding valid search results unnecessarily.
+    _ac_min_keep = 2 if paper_seed is not None else 3
+    academic = _filter_by_relevance(academic, normalized_topic, min_score=3, min_keep=_ac_min_keep)
     _record_relevance_filter(_academic_before, academic, "academic", all_audits, min_score=2)
 
     _patents_before = list(patents)
