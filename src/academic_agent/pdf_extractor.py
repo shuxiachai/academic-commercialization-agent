@@ -118,33 +118,28 @@ def _detect_paper_language(text: str) -> str:
 _LANG_INSTRUCTIONS: dict[str, str] = {
     "zh": (
         "IMPORTANT — This paper is written in Chinese (中文). "
-        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
-        "in Chinese to match the paper. "
-        "commercialization_topic and search_keywords must remain in English for database search compatibility."
+        "Write ALL fields — title, core_contribution, application_domain, key_metrics, "
+        "delta_from_prior, commercialization_topic, and search_keywords — in Chinese to match the paper."
     ),
     "ja": (
         "IMPORTANT — This paper is written in Japanese (日本語). "
-        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
-        "in Japanese to match the paper. "
-        "commercialization_topic and search_keywords must remain in English."
+        "Write ALL fields — title, core_contribution, application_domain, key_metrics, "
+        "delta_from_prior, commercialization_topic, and search_keywords — in Japanese to match the paper."
     ),
     "ko": (
         "IMPORTANT — This paper is written in Korean (한국어). "
-        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
-        "in Korean to match the paper. "
-        "commercialization_topic and search_keywords must remain in English."
+        "Write ALL fields — title, core_contribution, application_domain, key_metrics, "
+        "delta_from_prior, commercialization_topic, and search_keywords — in Korean to match the paper."
     ),
     "ar": (
         "IMPORTANT — This paper is written in Arabic (العربية). "
-        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
-        "in Arabic to match the paper. "
-        "commercialization_topic and search_keywords must remain in English."
+        "Write ALL fields — title, core_contribution, application_domain, key_metrics, "
+        "delta_from_prior, commercialization_topic, and search_keywords — in Arabic to match the paper."
     ),
     "ru": (
         "IMPORTANT — This paper is written in Russian (Русский). "
-        "Write title, core_contribution, application_domain, key_metrics, and delta_from_prior "
-        "in Russian to match the paper. "
-        "commercialization_topic and search_keywords must remain in English."
+        "Write ALL fields — title, core_contribution, application_domain, key_metrics, "
+        "delta_from_prior, commercialization_topic, and search_keywords — in Russian to match the paper."
     ),
     "en": "Output all fields in English.",
 }
@@ -177,15 +172,15 @@ Return a JSON object with exactly these keys:
   "application_domain": "target industry or application",
   "key_metrics": ["specific metric 1 with value", "comparison vs prior work 2"],
   "delta_from_prior": "1-2 sentences: what makes this different from existing solutions",
-  "commercialization_topic": "focused English topic for commercialization search, e.g. 'sulfide solid electrolyte with 25 mS/cm ionic conductivity for lithium metal EV batteries'",
-  "search_keywords": ["english_keyword1", "english_keyword2", "english_keyword3", "english_keyword4", "english_keyword5"],
+  "commercialization_topic": "focused topic for commercialization search, e.g. 'sulfide solid electrolyte with 25 mS/cm ionic conductivity for lithium metal EV batteries'",
+  "search_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
   "abstract_excerpt": "first 250 characters of the abstract"
 }}
 
 Rules:
 - core_contribution must describe THIS paper's novel contribution only
 - commercialization_topic must be specific enough to distinguish from related work
-- search_keywords should target patents and market applications, not general academic terms
+- search_keywords should target patents and market applications, not general academic terms; use the same language as the paper
 - Return valid JSON only — no markdown, no prose outside the JSON object"""
 
     data = _call_llm_json(prompt)
@@ -209,16 +204,24 @@ def paper_to_evidence_source(pc: PaperContribution) -> "EvidenceSource":  # noqa
     """Convert a PaperContribution into an EvidenceSource for pipeline injection as A1."""
     from academic_agent.evidence import EvidenceSource
 
-    # Prefer real DOI URL; placeholder DOIs get stored in the doi field only
-    if pc.url:
-        src_url: str | None = pc.url
-        src_doi: str | None = None
-    elif pc.doi and not pc.doi.startswith("10.0000/uploaded-"):
-        src_url = f"https://doi.org/{pc.doi}"
+    # Prefer real DOI URL; placeholder DOIs get stored in the doi field only.
+    # Always populate src_doi when available so dedup and citation-tracking work.
+    _real_doi = pc.doi if (pc.doi and not pc.doi.startswith("10.0000/uploaded-")) else None
+    if not _real_doi and pc.url:
+        # Extract DOI from a doi.org URL the LLM returned in the url field.
+        _m = re.match(r"https?://doi\.org/(.+)", pc.url.strip())
+        if _m:
+            _real_doi = _m.group(1)
+
+    if _real_doi:
+        src_doi: str | None = _real_doi
+        src_url: str | None = pc.url or f"https://doi.org/{_real_doi}"
+    elif pc.url:
         src_doi = None
+        src_url = pc.url
     else:
-        src_url = None
         src_doi = pc.doi  # placeholder, passes format check
+        src_url = None
 
     summary = f"{pc.core_contribution.rstrip('.')}. {pc.delta_from_prior}"
 

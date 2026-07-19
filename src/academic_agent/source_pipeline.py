@@ -2302,6 +2302,17 @@ _STOP_WORDS: frozenset[str] = frozenset({
     "was", "were", "which", "with",
 })
 
+# Generic experimental terms that appear in virtually every empirical paper
+# regardless of domain (e.g. "process parameters" matches Al-alloy drilling
+# and CFRP autoclave curing equally).  Excluded from keyword relevance scoring
+# so only domain-specific terms contribute to source relevance.
+_EXPERIMENTAL_NOISE_TERMS: frozenset[str] = frozenset({
+    "process", "processes", "parameter", "parameters",
+    "sample", "samples", "experiment", "experiments",
+    "measurement", "measurements", "property", "properties",
+    "result", "results", "value", "values", "data",
+})
+
 # High-frequency technology/method terms that appear across ALL domains and
 # therefore cannot identify the application domain of a paper.  Used by
 # _topic_domain_keywords to strip generic words before extracting domain signal.
@@ -2321,7 +2332,10 @@ _GENERIC_TECH_TERMS: frozenset[str] = frozenset({
 def _topic_keywords(topic: str) -> frozenset[str]:
     """Extract meaningful lowercase words from a topic string."""
     words = re.findall(r"[a-z]{3,}", topic.lower())
-    return frozenset(w for w in words if w not in _STOP_WORDS)
+    return frozenset(
+        w for w in words
+        if w not in _STOP_WORDS and w not in _EXPERIMENTAL_NOISE_TERMS
+    )
 
 
 def _topic_bigrams(topic: str) -> frozenset[str]:
@@ -2554,10 +2568,14 @@ def _queries(
     native_topic: str | None = None,
     patent_cc: str = "",
 ) -> dict[Domain, list[str]]:
-    # Short-form topic for patent search: strip parenthetical qualifiers and
-    # take the first 4 words so site:-restricted queries match patent titles.
+    # Short-form topic for patent/market search: strip parenthetical qualifiers
+    # and take the first N words so queries are search-engine-friendly.
     _pat_clean = re.sub(r"\s*\([^)]*\)", "", topic).strip()
     _pat_short = " ".join(_pat_clean.split()[:4])
+    # Market short: 6 content words — specific enough to find sector reports
+    # without including metric clauses (e.g. "improving X by 12.1%") that
+    # appear in no market report.
+    _mkt_short = " ".join(_pat_clean.split()[:6])
     patent: list[str] = [
         f"{topic} site:patents.google.com/patent",
         f"{topic} site:patentscope.wipo.int",
@@ -2571,9 +2589,13 @@ def _queries(
         patent.insert(0, f"{topic} {patent_cc} site:patents.google.com/patent")
 
     market: list[str] = [
+        # Short-form queries first: more likely to match market/industry reports
+        # than the full metric-laden topic string.
+        f"{_mkt_short} market size revenue commercial manufacturer 2024 2025",
+        f"{_mkt_short} industry company deployment commercial scale",
         f"{topic} product manufacturer revenue commercial sales 2024 2025",
         f"{topic} company commercial deployment industry news",
-        f"{topic} market report investment company startup 2024",
+        f"{_mkt_short} market report investment startup 2024",
         f"{topic} commercial scale production manufacturer press release",
         f"{topic} manufacturing commercialization company",
         f"{topic} government standards policy commercialization",
@@ -3486,7 +3508,7 @@ def collect_source_collection(
             pass
 
     _academic_before = list(academic)
-    academic = _filter_by_relevance(academic, normalized_topic, min_score=2, min_keep=3)
+    academic = _filter_by_relevance(academic, normalized_topic, min_score=3, min_keep=3)
     _record_relevance_filter(_academic_before, academic, "academic", all_audits, min_score=2)
 
     _patents_before = list(patents)

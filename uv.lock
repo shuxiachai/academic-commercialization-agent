@@ -23,6 +23,7 @@ dependencies = [
     { name = "langdetect" },
     { name = "markdown" },
     { name = "pydantic" },
+    { name = "pypdfium2" },
     { name = "reportlab" },
     { name = "xhtml2pdf" },
 ]
@@ -39,6 +40,7 @@ requires-dist = [
     { name = "langdetect", specifier = ">=1.0.9" },
     { name = "markdown", specifier = ">=3.6" },
     { name = "pydantic", specifier = ">=2.0" },
+    { name = "pypdfium2", specifier = ">=4.0" },
     { name = "reportlab", specifier = ">=4.0" },
     { name = "xhtml2pdf", specifier = ">=0.2.16" },
 ]

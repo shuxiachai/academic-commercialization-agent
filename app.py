@@ -146,11 +146,15 @@ _CHIP_ONCLICK = (
 def _source_id_chips(ids: list) -> str:
     if not ids:
         return ""
+    _kd = "if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"
     chips = "".join(
-        f'<span style="display:inline-block;background:#222222;border:1px solid #333333;'
+        f'<span role="button" tabindex="0" '
+        f'style="display:inline-block;background:#222222;border:1px solid #333333;'
         f'color:#9a9a9a;font-size:9px;font-family:ui-monospace,monospace;font-weight:600;'
         f'padding:1px 5px;border-radius:4px;margin:1px 1px 0;cursor:pointer;" '
         f'onclick="{html.escape(_CHIP_ONCLICK.replace("{ID}", str(sid)))}" '
+        f'onkeydown="{html.escape(_kd)}" '
+        f'aria-label="View source {html.escape(str(sid))}" '
         f'title="Click to view source details">'
         f'{html.escape(str(sid))}</span>'
         for sid in ids
@@ -210,6 +214,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "Download Report (.md)", "dl_pdf": "Download Report (.pdf)",
         "progress": "Analysis in progress",
         "err_failed": "✗ Analysis Failed", "err_run": "Run ID",
+        "reviewer_notes": "Reviewer Notes",
     },
     "Simplified Chinese": {
         "formula": "评分公式", "out_of": "满分 100",
@@ -222,6 +227,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "下载报告 (.md)", "dl_pdf": "下载报告 (.pdf)",
         "progress": "分析进行中",
         "err_failed": "✗ 分析失败", "err_run": "运行 ID",
+        "reviewer_notes": "审阅备注",
     },
     "Traditional Chinese": {
         "formula": "評分公式", "out_of": "滿分 100",
@@ -234,6 +240,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "下載報告 (.md)", "dl_pdf": "下載報告 (.pdf)",
         "progress": "分析進行中",
         "err_failed": "✗ 分析失敗", "err_run": "執行 ID",
+        "reviewer_notes": "審閱備註",
     },
     "Japanese": {
         "formula": "スコア計算式", "out_of": "100点満点",
@@ -246,6 +253,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "レポートをダウンロード (.md)", "dl_pdf": "レポートをダウンロード (.pdf)",
         "progress": "分析中",
         "err_failed": "✗ 分析に失敗しました", "err_run": "実行 ID",
+        "reviewer_notes": "レビュアーノート",
     },
     "Korean": {
         "formula": "점수 공식", "out_of": "100점 만점",
@@ -258,6 +266,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "보고서 다운로드 (.md)", "dl_pdf": "보고서 다운로드 (.pdf)",
         "progress": "분석 중",
         "err_failed": "✗ 분석 실패", "err_run": "실행 ID",
+        "reviewer_notes": "검토자 노트",
     },
     "German": {
         "formula": "Bewertungsformel", "out_of": "von 100",
@@ -270,6 +279,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "Bericht herunterladen (.md)", "dl_pdf": "Bericht herunterladen (.pdf)",
         "progress": "Analyse läuft",
         "err_failed": "✗ Analyse fehlgeschlagen", "err_run": "Ausführungs-ID",
+        "reviewer_notes": "Prüfungshinweise",
     },
     "French": {
         "formula": "Formule de score", "out_of": "sur 100",
@@ -282,6 +292,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "Télécharger le rapport (.md)", "dl_pdf": "Télécharger le rapport (.pdf)",
         "progress": "Analyse en cours",
         "err_failed": "✗ Échec de l'analyse", "err_run": "ID d'exécution",
+        "reviewer_notes": "Notes du réviseur",
     },
     "Spanish": {
         "formula": "Fórmula de puntuación", "out_of": "de 100",
@@ -294,6 +305,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "Descargar informe (.md)", "dl_pdf": "Descargar informe (.pdf)",
         "progress": "Análisis en curso",
         "err_failed": "✗ Análisis fallido", "err_run": "ID de ejecución",
+        "reviewer_notes": "Notas del revisor",
     },
     "Italian": {
         "formula": "Formula di punteggio", "out_of": "su 100",
@@ -306,6 +318,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "Scarica il rapporto (.md)", "dl_pdf": "Scarica il rapporto (.pdf)",
         "progress": "Analisi in corso",
         "err_failed": "✗ Analisi non riuscita", "err_run": "ID esecuzione",
+        "reviewer_notes": "Note del revisore",
     },
     "Portuguese": {
         "formula": "Fórmula de pontuação", "out_of": "de 100",
@@ -318,6 +331,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "Baixar relatório (.md)", "dl_pdf": "Baixar relatório (.pdf)",
         "progress": "Análise em andamento",
         "err_failed": "✗ Análise falhou", "err_run": "ID da execução",
+        "reviewer_notes": "Notas do revisor",
     },
     "Russian": {
         "formula": "Формула оценки", "out_of": "из 100",
@@ -330,6 +344,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "Скачать отчёт (.md)", "dl_pdf": "Скачать отчёт (.pdf)",
         "progress": "Анализ выполняется",
         "err_failed": "✗ Ошибка анализа", "err_run": "ID запуска",
+        "reviewer_notes": "Замечания рецензента",
     },
     "Arabic": {
         "formula": "صيغة التقييم", "out_of": "من 100",
@@ -342,6 +357,7 @@ _SCORECARD_I18N: dict[str, dict[str, str]] = {
         "dl_md": "تنزيل التقرير (.md)", "dl_pdf": "تنزيل التقرير (.pdf)",
         "progress": "جارٍ التحليل",
         "err_failed": "✗ فشل التحليل", "err_run": "معرّف التشغيل",
+        "reviewer_notes": "ملاحظات المراجع",
     },
 }
 
@@ -395,6 +411,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "Industry Profile",
         "run_btn":            "▶  Run Analysis",
         "cancel_btn":         "⏹  Cancel",
+        "cancel_msg":         "⏹  Analysis cancelled.",
         "pdf_accordion_label": "📄 Upload Paper PDF (optional)",
         "pdf_desc": (
             "Upload a PDF to anchor the analysis on a specific paper — it becomes the"
@@ -463,6 +480,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "行业类型",
         "run_btn":            "▶  运行分析",
         "cancel_btn":         "⏹  取消",
+        "cancel_msg":         "⏹  分析已取消。",
         "pdf_accordion_label": "📄 上传论文 PDF（可选）",
         "pdf_desc": (
             "上传 PDF 可将分析锚定在特定论文上——该论文成为主要来源"
@@ -531,6 +549,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "業界プロファイル",
         "run_btn":            "▶  分析を実行",
         "cancel_btn":         "⏹  キャンセル",
+        "cancel_msg":         "⏹  分析をキャンセルしました。",
         "pdf_accordion_label": "📄 論文 PDF のアップロード（任意）",
         "pdf_desc": (
             "PDF をアップロードすることで特定の論文に分析を固定できます。"
@@ -601,6 +620,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "산업 프로파일",
         "run_btn":            "▶  분석 실행",
         "cancel_btn":         "⏹  취소",
+        "cancel_msg":         "⏹  분석이 취소되었습니다.",
         "pdf_accordion_label": "📄 논문 PDF 업로드 (선택사항)",
         "pdf_desc": (
             "PDF를 업로드하면 특정 논문에 분석을 고정할 수 있습니다."
@@ -671,6 +691,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "Profil industriel",
         "run_btn":            "▶  Lancer l'analyse",
         "cancel_btn":         "⏹  Annuler",
+        "cancel_msg":         "⏹  Analyse annulée.",
         "pdf_accordion_label": "📄 Importer un PDF (facultatif)",
         "pdf_desc": (
             "Importez un PDF pour ancrer l'analyse sur un article spécifique —"
@@ -740,6 +761,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "Branchenprofil",
         "run_btn":            "▶  Analyse starten",
         "cancel_btn":         "⏹  Abbrechen",
+        "cancel_msg":         "⏹  Analyse abgebrochen.",
         "pdf_accordion_label": "📄 PDF hochladen (optional)",
         "pdf_desc": (
             "Laden Sie ein PDF hoch, um die Analyse auf ein bestimmtes Paper zu fixieren —"
@@ -809,6 +831,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "Perfil industrial",
         "run_btn":            "▶  Ejecutar análisis",
         "cancel_btn":         "⏹  Cancelar",
+        "cancel_msg":         "⏹  Análisis cancelado.",
         "pdf_accordion_label": "📄 Subir PDF del artículo (opcional)",
         "pdf_desc": (
             "Suba un PDF para anclar el análisis en un artículo específico —"
@@ -878,6 +901,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "Perfil industrial",
         "run_btn":            "▶  Executar análise",
         "cancel_btn":         "⏹  Cancelar",
+        "cancel_msg":         "⏹  Análise cancelada.",
         "pdf_accordion_label": "📄 Carregar PDF do artigo (opcional)",
         "pdf_desc": (
             "Carregue um PDF para ancorar a análise num artigo específico —"
@@ -948,6 +972,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "الملف الصناعي",
         "run_btn":            "▶  تشغيل التحليل",
         "cancel_btn":         "⏹  إلغاء",
+        "cancel_msg":         "⏹  تم إلغاء التحليل.",
         "pdf_accordion_label": "📄 تحميل ملف PDF للورقة (اختياري)",
         "pdf_desc": (
             "قم بتحميل ملف PDF لتثبيت التحليل على ورقة بحثية محددة —"
@@ -1017,6 +1042,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "Отраслевой профиль",
         "run_btn":            "▶  Запустить анализ",
         "cancel_btn":         "⏹  Отмена",
+        "cancel_msg":         "⏹  Анализ отменён.",
         "pdf_accordion_label": "📄 Загрузить PDF статьи (необязательно)",
         "pdf_desc": (
             "Загрузите PDF, чтобы зафиксировать анализ на конкретной статье —"
@@ -1085,6 +1111,7 @@ _UI_I18N: dict[str, dict[str, str]] = {
         "profile_label":      "उद्योग प्रोफाइल",
         "run_btn":            "▶  विश्लेषण चलाएं",
         "cancel_btn":         "⏹  रद्द करें",
+        "cancel_msg":         "⏹  विश्लेषण रद्द किया गया।",
         "pdf_accordion_label": "📄 PDF अपलोड करें (वैकल्पिक)",
         "pdf_desc": (
             "किसी विशिष्ट पेपर पर विश्लेषण केंद्रित करने के लिए PDF अपलोड करें —"
@@ -1299,6 +1326,16 @@ _WARNING_I18N: dict[str, dict[str, str]] = {
         "pat_old": "⚠ براءات: {n}/{total} براءة(براءات) مُقدَّمة منذ أكثر من 15 عامًا قد تكون منتهية الصلاحية",
         "ac_old": "⚠ أكاديمي: أقدم مصدر من عام {year} (\"{title}\") — قد لا تعكس النتائج الحالة الراهنة للمجال",
     },
+    "Hindi": {
+        "title": "स्रोत कवरेज चेतावनी",
+        "footer": "चिह्नित क्षेत्रों में विश्लेषण गुणवत्ता सीमित हो सकती है।",
+        "ac_few": "⚠ शैक्षणिक: केवल {n} स्रोत (अनुशंसित ≥3)",
+        "pa_few": "⚠ पेटेंट: केवल {n} स्रोत (अनुशंसित ≥2)",
+        "mk_few": "⚠ बाज़ार: केवल {n} स्रोत (अनुशंसित ≥2)",
+        "mk_stale": "⚠ बाज़ार: {stale}/{total} स्रोत बिना तारीख के या 3 वर्ष से पुराने — बाज़ार जानकारी पुरानी हो सकती है",
+        "pat_old": "⚠ पेटेंट: {n}/{total} पेटेंट 15+ वर्ष पहले दाखिल — उपयोग से पहले कानूनी स्थिति सत्यापित करें",
+        "ac_old": "⚠ शैक्षणिक: सबसे पुराना स्रोत {year} का है (\"{title}\") — तेज़ी से बढ़ते क्षेत्रों में निष्कर्ष वर्तमान स्थिति नहीं दर्शा सकते",
+    },
 }
 
 
@@ -1385,9 +1422,18 @@ def _radar_svg(trl: float, mrl: float, pat: float, mkt: float, evi: float, color
             f'fill="{color}" font-size="8" font-family="ui-monospace,monospace">{raw}</text>'
         )
 
+    _svg_title = "Commercialization radar chart"
+    _svg_desc = (
+        f"TRL {trl:.1f}/9, MRL {mrl:.1f}/10, Patent {pat:.1f}/5, "
+        f"Market {mkt:.1f}/5, Evidence {evi:.1f}/5"
+    )
     return (
         '<svg viewBox="0 0 200 200" width="190" height="190" '
-        'xmlns="http://www.w3.org/2000/svg" style="overflow:visible;display:block;">'
+        'xmlns="http://www.w3.org/2000/svg" role="img" '
+        f'aria-label="{_svg_title}" '
+        'style="overflow:visible;display:block;">'
+        f'<title>{_svg_title}</title>'
+        f'<desc>{_svg_desc}</desc>'
         + "".join(parts)
         + "</svg>"
     )
@@ -1488,8 +1534,9 @@ def _render_source_warning_html(run_dir: Path, output_language: str = "English")
         items_html = "".join(
             f'<div style="margin-bottom:3px;">{html.escape(w)}</div>' for w in warnings
         )
+        _rtl = ' dir="rtl" lang="ar"' if output_language == "Arabic" else ""
         return (
-            f'<div style="background:#1c1400;border:1px solid #713f12;border-radius:8px;'
+            f'<div{_rtl} style="background:#1c1400;border:1px solid #713f12;border-radius:8px;'
             f'padding:10px 16px;margin-bottom:14px;font-size:12px;color:#fbbf24;'
             f'font-family:system-ui;">'
             f'<div style="font-weight:700;margin-bottom:4px;">{html.escape(w["title"])}</div>'
@@ -1502,7 +1549,7 @@ def _render_source_warning_html(run_dir: Path, output_language: str = "English")
         return ""
 
 
-def _render_reviewer_notes_html(run_dir: Path) -> str:
+def _render_reviewer_notes_html(run_dir: Path, output_language: str = "English") -> str:
     """Return a collapsible HTML block with Agent 5's reviewer notes, or '' if absent."""
     notes_path = run_dir / "reviewer_notes.md"
     if not notes_path.exists():
@@ -1511,6 +1558,7 @@ def _render_reviewer_notes_html(run_dir: Path) -> str:
         raw = notes_path.read_text(encoding="utf-8").strip()
         if not raw:
             return ""
+        notes_label = _scorecard_strings(output_language).get("reviewer_notes", "Reviewer Notes")
         # Strip the heading line if present
         raw = re.sub(r"(?im)^##\s+Reviewer Notes\s*\n?", "", raw).strip()
         # Minimal markdown → HTML: bold, numbered list items, paragraphs
@@ -1532,7 +1580,7 @@ def _render_reviewer_notes_html(run_dir: Path) -> str:
             'background:#141414;padding:14px 18px;font-family:system-ui,sans-serif;">'
             '<summary style="cursor:pointer;font-size:11px;font-weight:700;color:#6b7280;'
             'text-transform:uppercase;letter-spacing:0.07em;user-select:none;">'
-            '&#x270E; Agent 5 — Reviewer Notes</summary>'
+            f'&#x270E; Agent 5 — {html.escape(notes_label)}</summary>'
             '<div style="margin-top:12px;font-size:12px;color:#d4d4d4;line-height:1.7;">'
             + "".join(lines_html)
             + "</div></details>"
@@ -1658,8 +1706,9 @@ def _render_score_html(
         f'</div>'
     ) if (risks or opps) else ""
 
+    _rtl_attrs = ' dir="rtl" lang="ar"' if output_language == "Arabic" else ""
     return (
-        f'<div style="font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;'
+        f'<div{_rtl_attrs} style="font-family:system-ui,-apple-system,\'Segoe UI\',sans-serif;'
         f'background:#1a1a1a;border:1px solid #2d2d2d;'
         f'border-left:4px solid {color};border-radius:10px;'
         f'padding:24px;margin-bottom:16px;">'
@@ -2058,7 +2107,7 @@ def _load_run(run_id: str) -> tuple[str, str]:
     if not score_html and not report_md:
         return "", f"> No report found for run `{html.escape(run_id)}`."
 
-    score_html += _render_reviewer_notes_html(run_dir)
+    score_html += _render_reviewer_notes_html(run_dir, output_lang)
     score_html += _src_detail_panel_html(sources_index)
     return score_html, report_md
 
@@ -2197,7 +2246,7 @@ def _render_history_html(ui_lang: str = "English") -> str:
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">MRL</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
-        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">Patent</th>'
+        f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">{html.escape(u["src_patent"])}</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
         f'font-size:11px;letter-spacing:0.06em;text-transform:uppercase;">{html.escape(u["src_market"])}</th>'
         f'<th style="text-align:center;padding:11px 14px;color:#777777;font-weight:700;'
@@ -2626,11 +2675,22 @@ def extract_paper_from_pdf(pdf_file, ui_lang: str = "English") -> tuple:
     paper_json, card_visible, status_msg, submit_btn_update,
     clear_paper_btn_update, paper_run_btn_update, paper_divider_html_update.
     """
+    _PDF_MAX_BYTES = 50 * 1024 * 1024  # 50 MB
     _no_change = gr.update()
     _fail_trail = (_no_change, _no_change, _no_change)
     if pdf_file is None:
         return ("", "", "", "", "", "", "", gr.update(visible=False),
                 '<p style="color:#f59e0b;font-size:13px;margin:6px 0">⚠ Please upload a PDF file first.</p>',
+                _no_change, *_fail_trail)
+
+    try:
+        _pdf_size = Path(pdf_file).stat().st_size
+    except Exception:
+        _pdf_size = 0
+    if _pdf_size > _PDF_MAX_BYTES:
+        _mb = _pdf_size / (1024 * 1024)
+        return ("", "", "", "", "", "", "", gr.update(visible=False),
+                f'<p style="color:#f87171;font-size:13px;margin:6px 0">✗ File too large ({_mb:.1f} MB). Maximum allowed size is 50 MB.</p>',
                 _no_change, *_fail_trail)
 
     try:
@@ -2764,13 +2824,29 @@ def run_analysis(
         cmd += ["--weight-profile", weight_profile]
     if paper_json_path and Path(paper_json_path).exists():
         cmd += ["--paper-json", paper_json_path]
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _TIMEOUT_SECS = 1800  # 30-minute hard limit
+    stderr_log = open(run_dir / "process.log", "w", encoding="utf-8")
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=stderr_log)
+    except Exception:
+        stderr_log.close()
+        raise
 
     start = time.time()
     tick = 0
     try:
         while proc.poll() is None:
             elapsed = int(time.time() - start)
+            if elapsed > _TIMEOUT_SECS:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                (run_dir / "error.log").write_text(
+                    f"Analysis timed out after {_TIMEOUT_SECS // 60} minutes.", encoding="utf-8"
+                )
+                break
             stage = _STAGE_INITIAL
             output_language = "English"
             source_counts: dict | None = None
@@ -2802,6 +2878,7 @@ def run_analysis(
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 proc.kill()
+        stderr_log.close()
 
     # Read final status written by the worker.
     try:
@@ -2836,22 +2913,23 @@ def run_analysis(
     scores_json = scores_path.read_text(encoding="utf-8") if scores_path.exists() else None
     output_language = status.get("output_language") or "English"
 
+    _lang_badge_prefix = _ui(output_language).get("lang_badge_prefix", "Report language: ")
     lang_badge = (
         f'<div style="font-family:system-ui;margin-bottom:10px;">'
         f'<span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;'
         f'font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">'
-        f'🌐 Report language: {html.escape(output_language)}</span></div>'
+        f'🌐 {html.escape(_lang_badge_prefix)}{html.escape(output_language)}</span></div>'
     ) if output_language != "English" else ""
     wp = _read_weight_profile(run_dir)
     sources_index = _build_sources_index(run_dir)
     score_html = (lang_badge + _render_source_warning_html(run_dir, output_language) + _render_score_html(scores_json, research_topic.strip(), output_language, wp, sources_index=sources_index)) if scores_json else lang_badge
-    score_html += _render_reviewer_notes_html(run_dir)
+    score_html += _render_reviewer_notes_html(run_dir, output_language)
     score_html += _src_detail_panel_html(sources_index)
     t = _scorecard_strings(output_language)
     md_update = gr.update(value=str(report_path), visible=True, label=t["dl_md"]) if report_path.exists() else gr.update(visible=False)
 
-    # Yield results immediately; PDF is generated in background to avoid blocking.
-    yield "", score_html, report, md_update, gr.update(visible=False), gr.update(interactive=False), gr.update(visible=False), ""
+    # Yield results and re-enable Run button immediately; PDF generation runs concurrently.
+    yield "", score_html, report, md_update, gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False), ""
 
     _pdf_result: list[Path | None] = [None]
     def _bg_pdf() -> None:
@@ -3158,35 +3236,6 @@ def _on_lang_change(lang: str):
     )
 
 
-_HEADER_HTML = """
-<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
-  padding:24px 0 18px; border-bottom:1px solid #2d2d2d; margin-bottom:8px;">
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-    <h1 style="font-size:21px;font-weight:800;color:#f5f5f5;letter-spacing:-0.3px;margin:0;">
-      Academic Commercialization Assessment
-    </h1>
-    <span style="background:#1e3a5f;color:#60a5fa;font-size:10px;font-weight:800;
-      padding:3px 9px;border-radius:10px;letter-spacing:0.06em;text-transform:uppercase;">BETA</span>
-  </div>
-  <p style="font-size:13px;color:#9a9a9a;line-height:1.6;max-width:660px;margin:0 0 12px;">
-    Enter a research topic to launch <strong style="color:#e5e5e5;">6 specialized AI agents</strong>
-    that assess commercialization readiness — producing a scored report with verified citations.
-    Agents 1–3 run in parallel; expected run time: <strong style="color:#e5e5e5;">2–3 minutes</strong>.
-    Input any language — the report is generated in the same language.
-  </p>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;">
-    <span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;font-size:11px;
-      font-weight:600;padding:3px 10px;border-radius:20px;">📚 OpenAlex · Semantic Scholar</span>
-    <span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;font-size:11px;
-      font-weight:600;padding:3px 10px;border-radius:20px;">🔬 6 AI Agents</span>
-    <span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;font-size:11px;
-      font-weight:600;padding:3px 10px;border-radius:20px;">📊 TRL · IP · Market · Evidence</span>
-    <span style="background:#1a1a1a;border:1px solid #2d2d2d;color:#9a9a9a;font-size:11px;
-      font-weight:600;padding:3px 10px;border-radius:20px;">✓ Verified Citations</span>
-  </div>
-</div>
-"""
-
 _theme = gr.themes.Default(
     primary_hue=gr.themes.colors.blue,
     neutral_hue=gr.themes.colors.slate,
@@ -3356,9 +3405,13 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
                 outputs=[progress_output, score_output, report_output, download_md, download_pdf,
                          submit_btn, cancel_btn, log_output],
             )
-            cancel_btn.click(
-                fn=lambda: (
-                    "",
+            def _on_cancel(lang: str):
+                msg = _ui(lang).get("cancel_msg", "⏹  Analysis cancelled.")
+                cancel_html = (
+                    f'<p style="color:#9a9a9a;font-size:13px;margin:4px 0;">{html.escape(msg)}</p>'
+                )
+                return (
+                    cancel_html,
                     "",
                     "",
                     gr.update(value=None, visible=False),
@@ -3366,7 +3419,11 @@ with gr.Blocks(title="Academic Commercialization Assessment", fill_height=False)
                     gr.update(interactive=True),
                     gr.update(visible=False),
                     "",
-                ),
+                )
+
+            cancel_btn.click(
+                fn=_on_cancel,
+                inputs=[ui_lang_state],
                 outputs=[progress_output, score_output, report_output,
                          download_md, download_pdf, submit_btn, cancel_btn, log_output],
                 cancels=[submit_event, paper_run_event],
