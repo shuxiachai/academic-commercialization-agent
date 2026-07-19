@@ -23,18 +23,18 @@ Input a research direction or paper topic. Six specialized AI agents automatical
 
 ### Screenshots
 
-<img src="首页.png" alt="Homepage — enter a topic and click Run Analysis" width="800">
+<img src="assets/screenshot-home.png" alt="Homepage — enter a topic and click Run Analysis" width="800">
 
 <details>
 <summary>▶ Analysis in progress — live agent status + source list</summary>
 <br>
-<img src="运行中.png" alt="Analysis in progress — 6 agents with live status" width="800">
+<img src="assets/screenshot-running.png" alt="Analysis in progress — 6 agents with live status" width="800">
 </details>
 
 <details>
 <summary>▶ Full results — scorecard, radar chart, and complete report</summary>
 <br>
-<img src="运行结果.png" alt="Full results page with scorecard and report" width="800">
+<img src="assets/screenshot-results.png" alt="Full results page with scorecard and report" width="800">
 </details>
 
 ---
@@ -385,18 +385,18 @@ Each dimension records its supporting source IDs visible in the Gradio scorecard
 
 ### 界面截图
 
-<img src="首页.png" alt="首页 — 输入研究主题，点击 Run Analysis" width="800">
+<img src="assets/screenshot-home.png" alt="首页 — 输入研究主题，点击 Run Analysis" width="800">
 
 <details>
 <summary>▶ 分析运行中 — 实时 Agent 进度 + 来源列表</summary>
 <br>
-<img src="运行中.png" alt="分析运行中 — 6 个 Agent 实时状态" width="800">
+<img src="assets/screenshot-running.png" alt="分析运行中 — 6 个 Agent 实时状态" width="800">
 </details>
 
 <details>
 <summary>▶ 完整结果 — 评分卡、雷达图与完整报告</summary>
 <br>
-<img src="运行结果.png" alt="运行结果页面，含评分卡和报告全文" width="800">
+<img src="assets/screenshot-results.png" alt="运行结果页面，含评分卡和报告全文" width="800">
 </details>
 
 ---

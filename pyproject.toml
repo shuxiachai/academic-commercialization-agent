@@ -1,6 +1,6 @@
 [project]
 name = "academic_agent"
-version = "0.1.0"
+version = "1.0.0"
 description = "Academic research commercialization assessment agent built with CrewAI"
 authors = [{ name = "Jason Chai", email = "shuxiachai@163.com" }]
 requires-python = ">=3.11,<3.14"
