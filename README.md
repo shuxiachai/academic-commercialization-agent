@@ -136,6 +136,8 @@ The pipeline runs in a **subprocess** (`pipeline_worker.py`) so the Gradio UI ca
 
 The scorecard (`commercialization_scores.json`) additionally contains: TRL score, patent strength, market accessibility, evidence confidence, overall score, key risks, and key opportunities.
 
+See the [`examples/`](examples/) folder for three complete real reports across different industries.
+
 ---
 
 ### Sample output
@@ -498,6 +500,8 @@ Step 6     Agent 6 — 量化评分（独立于报告；公式自动修正）
 > **多语言支持**：系统根据研究主题自动检测输出语言（支持中文简体/繁体、日文、韩文、德文、法文等 12 种语言）。各语言版本的报告结构、章节标题、引用图例（A/P/M 说明行）及专利免责声明均自动本地化。
 
 评分卡（`commercialization_scores.json`）额外包含：TRL 评分、专利强度、市场可及性、证据置信度、综合评分、关键风险和机遇列表。
+
+完整报告示例见 [`examples/`](examples/) 文件夹（钙钛矿太阳能 / CAR-T 疗法 / 固态电池，三个行业）。
 
 ---
 
