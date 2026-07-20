@@ -1,4 +1,4 @@
-"""Tests for ui/html_scorecard.py and ui/html_sources.py rendering helpers."""
+"""Tests for ui/html_scorecard.py, ui/html_sources.py, and ui/runner helpers."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from datetime import date
 from pathlib import Path
 from unittest import TestCase
 
+from ui.runner import _read_failure_reason
 from ui.html_scorecard import (
     _bar_row,
     _bullet_item,
@@ -321,3 +322,45 @@ class CleanupOldRunsTests(TestCase):
             with patch("ui.history.DEFAULT_OUTPUT_ROOT", out):
                 _cleanup_old_runs(keep_n=2)
             self.assertTrue((out / "benchmark").exists())
+
+
+# ---------------------------------------------------------------------------
+# _read_failure_reason
+# ---------------------------------------------------------------------------
+
+class ReadFailureReasonTests(TestCase):
+    def test_returns_error_log_content_when_present(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            (run_dir / "error.log").write_text("Analysis timed out.", encoding="utf-8")
+            result = _read_failure_reason(run_dir)
+            self.assertEqual(result, "Analysis timed out.")
+
+    def test_falls_back_to_process_log_when_no_error_log(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            (run_dir / "process.log").write_text("Traceback:\n  KeyError: 'foo'", encoding="utf-8")
+            result = _read_failure_reason(run_dir)
+            self.assertIn("KeyError", result)
+            self.assertIn("Worker stderr", result)
+
+    def test_error_log_takes_priority_over_process_log(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            (run_dir / "error.log").write_text("Timeout message.", encoding="utf-8")
+            (run_dir / "process.log").write_text("Some other stderr content.", encoding="utf-8")
+            result = _read_failure_reason(run_dir)
+            self.assertIn("Timeout message", result)
+            self.assertNotIn("Some other stderr", result)
+
+    def test_generic_message_when_no_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = _read_failure_reason(Path(tmp))
+            self.assertIn("exited without completing", result)
+
+    def test_truncates_long_error_log(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            (run_dir / "error.log").write_text("X" * 2000, encoding="utf-8")
+            result = _read_failure_reason(run_dir)
+            self.assertLessEqual(len(result), 820)

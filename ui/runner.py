@@ -28,6 +28,28 @@ from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
 from academic_agent.pdf_extractor import extract_paper_contribution
 
 
+def _read_failure_reason(run_dir: Path) -> str:
+    """Return a human-readable failure reason for a run that did not complete.
+
+    Checks, in order: error.log (written on timeout or by the worker on crash),
+    the last 800 chars of process.log (subprocess stderr).
+    Returns a generic message when neither file has content.
+    """
+    try:
+        msg = (run_dir / "error.log").read_text(encoding="utf-8", errors="replace").strip()
+        if msg:
+            return msg[:800]
+    except OSError:
+        pass
+    try:
+        proc = (run_dir / "process.log").read_text(encoding="utf-8", errors="replace").strip()
+        if proc:
+            return "Worker stderr:\n" + proc[-800:]
+    except OSError:
+        pass
+    return "The worker process exited without completing. Check API keys and network, then retry."
+
+
 def _is_cjk_text(text: str) -> bool:
     """Return True if >25% of characters are CJK (simplified/traditional Chinese)."""
     if not text:
@@ -253,9 +275,23 @@ def run_analysis(
         status = {"done": False, "error": None, "output_language": "English"}
 
     # If the process was cancelled (GeneratorExit path doesn't reach here),
-    # or exited before marking done, return silently.
+    # or exited unexpectedly, surface whatever diagnostic is available.
     if not status.get("done"):
-        yield "", "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False), ""
+        _err_msg = status.get("error") or _read_failure_reason(run_dir)
+        _out_lang = status.get("output_language") or "English"
+        _et = _scorecard_strings(_out_lang)
+        _err_html = (
+            '<div style="font-family:system-ui;background:#2d1515;border:1px solid #7f1d1d;'
+            'border-radius:8px;padding:16px 20px;">'
+            '<div style="font-size:14px;font-weight:600;color:#f87171;margin-bottom:8px;">'
+            f'{html.escape(_et.get("err_failed", "✗ Analysis Failed"))}</div>'
+            '<div style="font-size:13px;color:#9a9a9a;white-space:pre-wrap">'
+            f'{html.escape(_err_msg)}</div>'
+            '<div style="font-size:12px;color:#777777;margin-top:8px;">'
+            f'{html.escape(_et.get("err_run", "Run ID"))}: <code>{html.escape(run_id)}</code></div>'
+            '</div>'
+        )
+        yield _err_html, "", "", gr.update(visible=False), gr.update(visible=False), gr.update(interactive=True), gr.update(visible=False), ""
         return
 
     output_language = status.get("output_language") or "English"
