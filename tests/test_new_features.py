@@ -800,26 +800,27 @@ class RelevanceFilterAuditTests(TestCase):
         )
 
     def test_adds_audit_entry_for_removed_sources(self) -> None:
-        before = [self._make_source("A1", "kept paper"), self._make_source("A2", "removed paper")]
-        after  = [self._make_source("A1", "kept paper")]
+        removed = [(self._make_source("A2", "removed paper"), 1)]
         audits: list[SearchAudit] = []
-        _record_relevance_filter(before, after, "academic", audits, min_score=2)
+        _record_relevance_filter(removed, "academic", audits, min_score=2)
         self.assertEqual(len(audits), 1)
         self.assertEqual(audits[0].query, "[Relevance-Filter]")
-        # Format is now title-only (no stale pre-renumber ID)
         self.assertTrue(any("removed paper" in r for r in audits[0].rejected_reasons))
+        # New format includes actual score
+        self.assertTrue(any("score=1" in r for r in audits[0].rejected_reasons))
 
     def test_no_audit_entry_when_nothing_removed(self) -> None:
-        sources = [self._make_source("A1", "kept paper")]
         audits: list[SearchAudit] = []
-        _record_relevance_filter(sources, sources, "academic", audits, min_score=2)
+        _record_relevance_filter([], "academic", audits, min_score=2)
         self.assertEqual(len(audits), 0)
 
     def test_multiple_removals_all_recorded(self) -> None:
-        before = [self._make_source(f"A{i}", f"paper {i}") for i in range(1, 5)]
-        after  = [before[0]]  # only keep A1
+        removed = [
+            (self._make_source(f"A{i}", f"paper {i}"), i)
+            for i in range(2, 5)
+        ]
         audits: list[SearchAudit] = []
-        _record_relevance_filter(before, after, "patent", audits, min_score=1)
+        _record_relevance_filter(removed, "patent", audits, min_score=1)
         self.assertEqual(len(audits), 1)
         self.assertEqual(len(audits[0].rejected_reasons), 3)  # A2, A3, A4 removed
 
@@ -1240,8 +1241,8 @@ class FilterByRelevanceSkipDomainTests(TestCase):
             "Global PV Solar Cell Market Size and Forecast 2024",
             "The PV solar market is projected to reach $100B by 2030 driven by rising installations.",
         )
-        result = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=1)
-        self.assertEqual(result, [])
+        kept, _ = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=1)
+        self.assertEqual(kept, [])
 
     def test_pv_source_passes_with_skip(self):
         # With domain filter bypassed: "solar"(+1) + "cell"(+1) + "solar cell" bigram(+2) = 4 ≥ 2
@@ -1249,9 +1250,9 @@ class FilterByRelevanceSkipDomainTests(TestCase):
             "Global PV Solar Cell Market Size and Forecast 2024",
             "The PV solar market is projected to reach $100B by 2030 driven by rising installations.",
         )
-        result = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=1,
-                                       skip_domain_filter=True)
-        self.assertIn(src, result)
+        kept, _ = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=1,
+                                        skip_domain_filter=True)
+        self.assertIn(src, kept)
 
     def test_unrelated_source_still_filtered_with_skip(self):
         # Even with skip, sources with score < min_score are excluded
@@ -1259,9 +1260,9 @@ class FilterByRelevanceSkipDomainTests(TestCase):
             "Global Automotive Engine Lubricant Market 2024",
             "Engine oil and lubricant demand growing with automotive industry expansion.",
         )
-        result = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=0,
-                                       skip_domain_filter=True)
-        self.assertEqual(result, [])
+        kept, _ = _filter_by_relevance([src], self._TOPIC, min_score=2, min_keep=0,
+                                        skip_domain_filter=True)
+        self.assertEqual(kept, [])
 
 
 # ---------------------------------------------------------------------------

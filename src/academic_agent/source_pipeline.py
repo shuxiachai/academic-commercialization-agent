@@ -1564,8 +1564,11 @@ def _filter_by_relevance(
     min_keep: int = 2,
     *,
     skip_domain_filter: bool = False,
-) -> list["EvidenceSource"]:
+) -> tuple[list["EvidenceSource"], list[tuple["EvidenceSource", int]]]:
     """Filter low-relevance sources and sort survivors by relevance score descending.
+
+    Returns (kept, removed_with_scores) where removed_with_scores is a list of
+    (source, score) pairs for sources that did not make the cut.
 
     Sources with score -1 (domain mismatch) are always excluded, even when the
     fallback min_keep logic would otherwise include them.  The fallback returns
@@ -1586,33 +1589,32 @@ def _filter_by_relevance(
     )
     qualified = [(s, sc) for s, sc in scored if sc >= 0]
     kept = [s for s, sc in qualified if sc >= min_score]
-    return kept if len(kept) >= min_keep else [s for s, _ in qualified]
+    result = kept if len(kept) >= min_keep else [s for s, _ in qualified]
+    result_ids = {s.source_id for s in result}
+    removed = [(s, sc) for s, sc in scored if s.source_id not in result_ids]
+    return result, removed
 
 
 def _record_relevance_filter(
-    before: list["EvidenceSource"],
-    after: list["EvidenceSource"],
+    removed_with_scores: list[tuple["EvidenceSource", int]],
     domain: str,
     audits: list["SearchAudit"],
     min_score: int,
 ) -> None:
-    """Add a post-filter audit entry when _filter_by_relevance silently removes sources.
+    """Add a post-filter audit entry for sources dropped by _filter_by_relevance.
 
-    Without this, sources that passed _collect_domain but were later dropped appear
-    in audit.accepted_source_ids without a corresponding entry in the final source list,
-    creating a misleading discrepancy.
+    Records the actual relevance score alongside the title so the audit trail
+    shows why each source was removed (score=N vs min=M), not just that it was.
     """
-    after_ids = {s.source_id for s in after}
-    removed = [s for s in before if s.source_id not in after_ids]
-    if not removed:
+    if not removed_with_scores:
         return
     audits.append(SearchAudit(
         domain=domain,
         query="[Relevance-Filter]",
         result_count=0,
         rejected_reasons=[
-            f"score<{min_score} — removed '{s.title}'"
-            for s in removed
+            f"score={sc} (min={min_score}) — removed '{s.title}'"
+            for s, sc in removed_with_scores
         ],
     ))
 
@@ -2607,21 +2609,18 @@ def collect_source_collection(
         except SourceCollectionError:
             pass
 
-    _academic_before = list(academic)
     # When a paper_seed is present it will contribute one guaranteed academic source,
     # so lower min_keep by 1 to avoid discarding valid search results unnecessarily.
     _ac_min_keep = 2 if paper_seed is not None else 3
-    academic = _filter_by_relevance(academic, normalized_topic, min_score=3, min_keep=_ac_min_keep)
-    _record_relevance_filter(_academic_before, academic, "academic", all_audits, min_score=3)
+    academic, _ac_removed = _filter_by_relevance(academic, normalized_topic, min_score=3, min_keep=_ac_min_keep)
+    _record_relevance_filter(_ac_removed, "academic", all_audits, min_score=3)
 
-    _patents_before = list(patents)
-    patents  = _filter_by_relevance(patents,  normalized_topic, min_score=1, min_keep=1)
-    _record_relevance_filter(_patents_before, patents, "patent", all_audits, min_score=1)
+    patents, _pat_removed = _filter_by_relevance(patents, normalized_topic, min_score=1, min_keep=1)
+    _record_relevance_filter(_pat_removed, "patent", all_audits, min_score=1)
 
-    _market_before = list(market)
-    market   = _filter_by_relevance(market,   normalized_topic, min_score=2, min_keep=2,
-                                    skip_domain_filter=True)
-    _record_relevance_filter(_market_before, market, "market", all_audits, min_score=2)
+    market, _mkt_removed = _filter_by_relevance(market, normalized_topic, min_score=2, min_keep=2,
+                                                 skip_domain_filter=True)
+    _record_relevance_filter(_mkt_removed, "market", all_audits, min_score=2)
     if paper_seed is not None:
         academic = [paper_seed] + academic
     _renumber(academic, "A")
