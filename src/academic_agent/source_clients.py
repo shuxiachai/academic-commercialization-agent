@@ -701,7 +701,7 @@ class LensPatentClient:
                     body_text = ""
                     try:
                         body_text = exc.read().decode("utf-8", errors="replace")[:300]
-                    except Exception:
+                    except OSError:
                         pass
                     hint = (
                         "check LENS_API_KEY and trial plan scope"

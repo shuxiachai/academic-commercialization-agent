@@ -325,7 +325,7 @@ def _extract_market_size_billions(market_task: Any) -> list[float]:
     if not isinstance(report, EvidenceReport):
         try:
             report = EvidenceReport.model_validate_json(getattr(output, "raw", ""))
-        except Exception:
+        except ValueError:
             return []
 
     bn_pat = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(?:bn|billion)", re.IGNORECASE)

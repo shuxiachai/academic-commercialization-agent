@@ -2435,7 +2435,7 @@ def collect_source_collection(
             count = data.get("citationCount")
             if count is not None:
                 src.citation_count = int(count)
-        except Exception:
+        except (OSError, URLError, TimeoutError, json.JSONDecodeError, ValueError, TypeError):
             pass
 
     if _needs_citation_doi or _needs_citation_arxiv:
