@@ -643,6 +643,12 @@ def validate_evidence_report(
             errors.append(f"Finding ID {finding.finding_id!r} is duplicated.")
         finding_ids.add(finding.finding_id)
 
+        if not finding.source_ids:
+            errors.append(
+                f"Finding {finding.finding_id} has no source_ids; "
+                "cite at least one source from the available list."
+            )
+
         if len(finding.source_ids) != len(set(finding.source_ids)):
             errors.append(
                 f"Finding {finding.finding_id} contains duplicate source IDs."
@@ -775,7 +781,11 @@ def make_evidence_guardrail(
         )
         errors = validate_evidence_report(report, expected_prefix)
         if errors:
-            return False, "Evidence validation failed:\n- " + "\n- ".join(errors)
+            _ids_hint = (
+                f" Available source IDs: {_available_ids}."
+                if _available_ids else ""
+            )
+            return False, "Evidence validation failed:\n- " + "\n- ".join(errors) + _ids_hint
 
         output.pydantic = report
         output.raw = report.model_dump_json()

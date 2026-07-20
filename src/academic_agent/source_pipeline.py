@@ -3512,7 +3512,7 @@ def collect_source_collection(
     # so lower min_keep by 1 to avoid discarding valid search results unnecessarily.
     _ac_min_keep = 2 if paper_seed is not None else 3
     academic = _filter_by_relevance(academic, normalized_topic, min_score=3, min_keep=_ac_min_keep)
-    _record_relevance_filter(_academic_before, academic, "academic", all_audits, min_score=2)
+    _record_relevance_filter(_academic_before, academic, "academic", all_audits, min_score=3)
 
     _patents_before = list(patents)
     patents  = _filter_by_relevance(patents,  normalized_topic, min_score=1, min_keep=1)

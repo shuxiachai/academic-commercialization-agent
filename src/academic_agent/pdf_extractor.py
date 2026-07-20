@@ -209,7 +209,7 @@ def paper_to_evidence_source(pc: PaperContribution) -> "EvidenceSource":  # noqa
     _real_doi = pc.doi if (pc.doi and not pc.doi.startswith("10.0000/uploaded-")) else None
     if not _real_doi and pc.url:
         # Extract DOI from a doi.org URL the LLM returned in the url field.
-        _m = re.match(r"https?://doi\.org/(.+)", pc.url.strip())
+        _m = re.match(r"https?://doi\.org/(10\.\d{4,9}/[^\s?#]+)", pc.url.strip())
         if _m:
             _real_doi = _m.group(1)
 
