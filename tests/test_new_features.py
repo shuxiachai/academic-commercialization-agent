@@ -4,8 +4,7 @@ Covers:
 - Predatory publisher detection
 - Fuzzy title deduplication across sources
 - ArxivClient Atom feed parsing
-- USPTOPatentClient source construction
-- patent_assignees extraction in SourceCollection
+- patent_assignees extraction in SourceCollection (via Lens)
 - Zero-citation credibility downgrade (OpenAlex + Crossref paths)
 - translate_to_language in language module
 """
@@ -26,13 +25,11 @@ from academic_agent.source_pipeline import (
     _market_summary_relevant,
     _patent_keywords,
     _patent_source_from_lens,
-    _patent_source_from_uspto,
     _record_relevance_filter,
     SearchAudit,
     ArxivClient,
     EvidenceSource,
     LensPatentClient,
-    USPTOPatentClient,
     collect_source_collection,
 )
 
@@ -481,62 +478,8 @@ class ArxivSourceConversionTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 6. USPTOPatentClient source construction
 # ---------------------------------------------------------------------------
-
-class USPTOSourceConversionTests(TestCase):
-    _RECORD = {
-        "patent_number": "10123456",
-        "patent_title": "System and method for LLM integration in clinical workflow",
-        "patent_abstract": (
-            "A system for integrating large language model outputs into electronic health "
-            "record workflows with automated safety filtering and physician override controls."
-        ),
-        "patent_date": "2023-06-15",
-        "assignee_organization": [
-            {"assignee_organization": "MedTech Innovations Inc"},
-            {"assignee_organization": "University Medical Center"},
-        ],
-    }
-    _ACCESSED = date(2025, 7, 1)
-
-    def test_basic_construction(self) -> None:
-        source = _patent_source_from_uspto(self._RECORD, "P1", self._ACCESSED)
-        self.assertIsNotNone(source)
-        self.assertEqual(source.source_id, "P1")
-        self.assertEqual(source.source_type, "patent")
-        self.assertEqual(source.credibility_tier, "high")
-        self.assertIn("US10123456", str(source.url))
-        self.assertIn("MedTech Innovations Inc", source.publisher)
-        self.assertEqual(source.published_date, date(2023, 6, 15))
-
-    def test_missing_patent_number_returns_none(self) -> None:
-        record = {**self._RECORD, "patent_number": ""}
-        source = _patent_source_from_uspto(record, "P1", self._ACCESSED)
-        self.assertIsNone(source)
-
-    def test_missing_title_returns_none(self) -> None:
-        record = {**self._RECORD, "patent_title": ""}
-        source = _patent_source_from_uspto(record, "P1", self._ACCESSED)
-        self.assertIsNone(source)
-
-    def test_no_assignee_falls_back_to_uspto(self) -> None:
-        record = {**self._RECORD, "assignee_organization": []}
-        source = _patent_source_from_uspto(record, "P1", self._ACCESSED)
-        self.assertIsNotNone(source)
-        self.assertEqual(source.publisher, "USPTO")
-
-    def test_abstract_used_as_evidence_summary(self) -> None:
-        source = _patent_source_from_uspto(self._RECORD, "P1", self._ACCESSED)
-        self.assertIn("large language model", source.evidence_summary.lower())
-
-    def test_credibility_reason_includes_patent_number(self) -> None:
-        source = _patent_source_from_uspto(self._RECORD, "P1", self._ACCESSED)
-        self.assertIn("US10123456", source.credibility_reason)
-
-
-# ---------------------------------------------------------------------------
-# 7. Fuzzy title deduplication across sources
+# 6. Fuzzy title deduplication across sources
 # ---------------------------------------------------------------------------
 
 class FuzzyTitleDeduplicationTests(TestCase):
@@ -564,9 +507,6 @@ class FuzzyTitleDeduplicationTests(TestCase):
             return_value=[],
         ), patch(
             "academic_agent.source_pipeline.LensPatentClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.USPTOPatentClient.search",
             return_value=[],
         ):
             collection = collect_source_collection(
@@ -597,131 +537,103 @@ class FuzzyTitleDeduplicationTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 8. patent_assignees extraction in SourceCollection
+# 7. patent_assignees extraction in SourceCollection
 # ---------------------------------------------------------------------------
 
-class PatentAssigneesTests(TestCase):
-    def test_assignees_extracted_from_uspto_results(self) -> None:
-        """USPTO results with known assignees should populate patent_assignees."""
-        fake_uspto_records = [
-            {
-                "patent_number": "10000001",
-                "patent_title": "Research topic method and system",
-                "patent_abstract": _LONG_PATENT_SNIPPET,
-                "patent_date": "2023-01-01",
-                "assignee_organization": [
-                    {"assignee_organization": "Acme Healthcare Corp"},
+def _lens_patent_record(lens_id: str, doc_number: str, title: str, applicants: list[str]) -> dict:
+    """Build a minimal Lens.org patent record for testing."""
+    return {
+        "lens_id": lens_id,
+        "jurisdiction": "US",
+        "biblio": {
+            "publication_reference": {
+                "jurisdiction": "US",
+                "doc_number": doc_number,
+                "kind": "A",
+                "date": "2023-01-01",
+            },
+            "invention_title": [{"text": title, "lang": "en"}],
+            "parties": {
+                "applicants": [
+                    {"extracted_name": {"value": name}} for name in applicants
                 ],
             },
-            {
-                "patent_number": "10000002",
-                "patent_title": "Research topic apparatus and process",
-                "patent_abstract": _LONG_PATENT_SNIPPET,
-                "patent_date": "2023-06-01",
-                "assignee_organization": [
-                    {"assignee_organization": "BioTech Solutions Ltd"},
-                ],
-            },
-        ]
+            "application_reference": {},
+            "priority_claims": [],
+        },
+        "abstract": [{"text": _LONG_PATENT_SNIPPET, "lang": "en"}],
+    }
 
+
+class _FakeLens:
+    """Fake LensPatentClient that bypasses the api_key guard."""
+    api_key = "fake-test-key"
+
+    def __init__(self, records: list[dict]) -> None:
+        self._records = records
+
+    def search(self, topic: str, rows: int = 10) -> list[dict]:
+        return self._records
+
+
+class PatentAssigneesTests(TestCase):
+    def _run_collection(self, lens_records: list[dict]) -> "SourceCollection":  # type: ignore[name-defined]
         with patch(
-            "academic_agent.source_pipeline.USPTOPatentClient.search",
-            return_value=fake_uspto_records,
-        ), patch(
-            "academic_agent.source_pipeline.LensPatentClient.search",
-            return_value=[],
-        ), patch(
             "academic_agent.source_pipeline.PubMedClient.search",
             return_value=[],
         ), patch(
             "academic_agent.source_pipeline.ArxivClient.search",
             return_value=[],
         ):
-            collection = collect_source_collection(
+            return collect_source_collection(
                 "research topic commercialization",
                 searcher=_fake_search,
                 crossref=_MatchingCrossref(),
                 openalex=_NullOpenAlex(),
                 s2=_NullS2(),
+                lens=_FakeLens(lens_records),
                 url_checker=lambda url: (True, ""),
                 minimum_sources=3,
                 maximum_sources=6,
                 accessed_date=date(2025, 7, 1),
             )
 
+    def test_assignees_extracted_from_lens_results(self) -> None:
+        """Lens results with known applicants should populate patent_assignees."""
+        records = [
+            _lens_patent_record(
+                "001-001-001-001-001", "10000001",
+                "Research topic method and system",
+                ["Acme Healthcare Corp"],
+            ),
+            _lens_patent_record(
+                "002-002-002-002-002", "10000002",
+                "Research topic apparatus and process",
+                ["BioTech Solutions Ltd"],
+            ),
+        ]
+        collection = self._run_collection(records)
         self.assertIn("Acme Healthcare Corp", collection.patent_assignees)
         self.assertIn("BioTech Solutions Ltd", collection.patent_assignees)
 
     def test_generic_assignee_names_filtered_out(self) -> None:
-        """Generic values like 'USPTO' should not appear in patent_assignees."""
-        fake_uspto_records = [
-            {
-                "patent_number": "10000003",
-                "patent_title": "Research topic device",
-                "patent_abstract": _LONG_PATENT_SNIPPET,
-                "patent_date": "2023-01-01",
-                "assignee_organization": [],  # → falls back to "USPTO"
-            },
+        """'Patent Applicant' (Lens fallback) should not appear in patent_assignees."""
+        records = [
+            _lens_patent_record(
+                "003-003-003-003-003", "10000003",
+                "Research topic device and system",
+                [],  # no applicant → publisher becomes "Patent Applicant"
+            ),
         ]
-
-        with patch(
-            "academic_agent.source_pipeline.USPTOPatentClient.search",
-            return_value=fake_uspto_records,
-        ), patch(
-            "academic_agent.source_pipeline.LensPatentClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.PubMedClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.ArxivClient.search",
-            return_value=[],
-        ):
-            collection = collect_source_collection(
-                "research topic commercialization",
-                searcher=_fake_search,
-                crossref=_MatchingCrossref(),
-                openalex=_NullOpenAlex(),
-                s2=_NullS2(),
-                url_checker=lambda url: (True, ""),
-                minimum_sources=3,
-                maximum_sources=6,
-                accessed_date=date(2025, 7, 1),
-            )
-
-        self.assertNotIn("USPTO", collection.patent_assignees)
+        collection = self._run_collection(records)
+        self.assertNotIn("Patent Applicant", collection.patent_assignees)
         self.assertNotIn("", collection.patent_assignees)
 
     def test_assignees_present_in_crew_inputs(self) -> None:
         """patent_assignees_json must appear in crew_inputs() output."""
-        with patch(
-            "academic_agent.source_pipeline.USPTOPatentClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.LensPatentClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.PubMedClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.ArxivClient.search",
-            return_value=[],
-        ):
-            collection = collect_source_collection(
-                "research topic commercialization",
-                searcher=_fake_search,
-                crossref=_MatchingCrossref(),
-                openalex=_NullOpenAlex(),
-                s2=_NullS2(),
-                url_checker=lambda url: (True, ""),
-                minimum_sources=3,
-                maximum_sources=6,
-                accessed_date=date(2025, 7, 1),
-            )
-
+        collection = self._run_collection([])
         inputs = collection.crew_inputs()
         self.assertIn("patent_assignees_json", inputs)
-        # Must be valid JSON
         parsed = json.loads(inputs["patent_assignees_json"])
         self.assertIsInstance(parsed, list)
 
@@ -774,14 +686,14 @@ class TranslateToLanguageTests(TestCase):
 # ---------------------------------------------------------------------------
 
 class PatentApiKeywordTests(TestCase):
-    """Verify that both Lens and USPTO truncate long topics to core keywords."""
+    """Verify that _patent_keywords truncates long topics to core keywords."""
 
     _LONG_TOPIC = (
         "large language model for healthcare with ethical compliance framework "
         "and multi-modal clinical workflow integration"
     )
 
-    def test_uspto_keywords_strips_stopwords_and_caps_length(self) -> None:
+    def test_keywords_strips_stopwords_and_caps_length(self) -> None:
         kw = _patent_keywords(self._LONG_TOPIC, 8)
         words = kw.split()
         self.assertLessEqual(len(words), 8)
@@ -792,37 +704,10 @@ class PatentApiKeywordTests(TestCase):
         self.assertIn("large", words)
         self.assertIn("language", words)
 
-    def test_lens_keywords_same_behaviour(self) -> None:
-        kw = _patent_keywords(self._LONG_TOPIC, 8)
-        words = kw.split()
-        self.assertLessEqual(len(words), 8)
-        self.assertIn("large", words)
-
     def test_short_topic_not_truncated(self) -> None:
         short = "perovskite solar cell"
         kw = _patent_keywords(short, 8)
         self.assertEqual(kw, short)
-
-    def test_uspto_query_body_uses_or_structure(self) -> None:
-        """USPTO search body must use _or so both title and abstract are searched."""
-        client = USPTOPatentClient()
-        captured: list[dict] = []
-
-        def _fake_urlopen(req, timeout=None):
-            import json as _json
-            captured.append(_json.loads(req.data))
-            raise OSError("no network in test")
-
-        with patch("academic_agent.source_pipeline.urlopen", side_effect=_fake_urlopen):
-            client.search(self._LONG_TOPIC, rows=5)
-
-        self.assertTrue(captured, "Expected at least one request to be built")
-        q = captured[0].get("q", {})
-        self.assertIn("_or", q, "Query must use _or to cover title and abstract")
-        clauses = q["_or"]
-        fields = [list(c.get("_text_any", {}).keys())[0] for c in clauses if "_text_any" in c]
-        self.assertIn("patent_title", fields)
-        self.assertIn("patent_abstract", fields)
 
 
 # ---------------------------------------------------------------------------
@@ -1027,9 +912,6 @@ class PatentElectrodeDirectionFilterTests(TestCase):
             "academic_agent.source_pipeline.LensPatentClient.search",
             return_value=[],
         ), patch(
-            "academic_agent.source_pipeline.USPTOPatentClient.search",
-            return_value=[],
-        ), patch(
             "academic_agent.source_pipeline.PubMedClient.search",
             return_value=[],
         ), patch(
@@ -1066,9 +948,6 @@ class PatentElectrodeDirectionFilterTests(TestCase):
             "academic_agent.source_pipeline.LensPatentClient.search",
             return_value=[],
         ), patch(
-            "academic_agent.source_pipeline.USPTOPatentClient.search",
-            return_value=[],
-        ), patch(
             "academic_agent.source_pipeline.PubMedClient.search",
             return_value=[],
         ), patch(
@@ -1096,9 +975,6 @@ class PatentElectrodeDirectionFilterTests(TestCase):
     def test_cathode_rejection_recorded_in_audit(self) -> None:
         with patch(
             "academic_agent.source_pipeline.LensPatentClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.USPTOPatentClient.search",
             return_value=[],
         ), patch(
             "academic_agent.source_pipeline.PubMedClient.search",

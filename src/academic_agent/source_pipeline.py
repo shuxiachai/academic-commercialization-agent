@@ -1222,110 +1222,6 @@ class LensPatentClient:
         return []
 
 
-class USPTOPatentClient:
-    """Client for the PatentsView API (USPTO). Free, no key required.
-
-    NOTE: The PatentsView v1 REST API at ``_URL`` was retired in 2024.
-    The domain now serves an HTML Open Data Portal for bulk data downloads,
-    not a JSON search endpoint.  ``search()`` will warn and return ``[]``
-    until ``_URL`` is updated to a working replacement endpoint.
-    """
-
-    _URL = "https://api.patentsview.org/patents/query"
-    _UA  = "AcademicAgentSourceCollector/1.0"
-
-    def __init__(self, *, timeout: int = 25, retries: int = 2) -> None:
-        self.timeout = timeout
-        self.retries = retries
-
-    def search(self, topic: str, rows: int = 10) -> list[dict[str, Any]]:
-        kw = _patent_keywords(topic)
-        body = {
-            "q": {
-                "_or": [
-                    {"_text_any": {"patent_title": kw}},
-                    {"_text_any": {"patent_abstract": kw}},
-                ]
-            },
-            "f": ["patent_number", "patent_title", "patent_abstract",
-                  "patent_date", "assignee_organization", "app_date"],
-            "o": {"per_page": min(rows, 25)},
-        }
-        request = Request(
-            self._URL,
-            data=json.dumps(body).encode("utf-8"),
-            headers={"Content-Type": "application/json", "User-Agent": self._UA},
-            method="POST",
-        )
-        import warnings
-        try:
-            payload = _http_fetch_json(request, retries=self.retries, timeout=self.timeout)
-        except HTTPError as exc:
-            body_text = ""
-            try:
-                body_text = exc.read().decode("utf-8", errors="replace")[:400]
-            except Exception:
-                pass
-            warnings.warn(
-                f"USPTO PatentsView HTTP {exc.code} for keywords {kw!r}: {body_text}"
-            )
-            return []
-        if payload is None:
-            warnings.warn(
-                f"USPTO PatentsView returned no JSON for keywords {kw!r}. "
-                f"The v1 REST API at {self._URL!r} was retired in 2024 and now "
-                "serves an HTML portal. Update _URL when a new endpoint is available."
-            )
-            return []
-        count = payload.get("total_patent_count", "?")
-        if not payload.get("patents"):
-            warnings.warn(
-                f"USPTO PatentsView returned 0 patents for keywords {kw!r} "
-                f"(total_patent_count={count}); "
-                f"response keys: {list(payload.keys())}"
-            )
-        return payload.get("patents") or []
-
-
-def _patent_source_from_uspto(
-    record: dict[str, Any],
-    source_id: str,
-    accessed_date: date,
-) -> "EvidenceSource | None":
-    title   = _clean_text(str(record.get("patent_title") or ""))
-    abstract = _clean_text(str(record.get("patent_abstract") or ""))
-    number  = str(record.get("patent_number") or "").strip()
-    pub_date_str = str(record.get("patent_date") or "")
-    assignees = record.get("assignee_organization") or []
-    assignee  = ", ".join(
-        str(a.get("assignee_organization") or "") for a in assignees if a.get("assignee_organization")
-    ) or "USPTO"
-
-    if not title or not number:
-        return None
-
-    published: date | None = None
-    try:
-        if pub_date_str:
-            published = date.fromisoformat(pub_date_str[:10])
-    except ValueError:
-        pass
-
-    url = f"https://patents.google.com/patent/US{number}"
-    return EvidenceSource(
-        source_id=source_id,
-        title=title,
-        url=url,
-        doi=None,
-        publisher=assignee,
-        published_date=published,
-        accessed_date=accessed_date,
-        source_type="patent",
-        credibility_tier="high",
-        credibility_reason=f"USPTO granted patent US{number}; assignee: {assignee}.",
-        evidence_summary=(abstract[:_ABSTRACT_MAX_CHARS] if abstract else f"US Patent {number}: {title}"),
-        citation_count=None,
-    )
 
 
 class CrossrefClient:
@@ -3368,44 +3264,7 @@ def collect_source_collection(
             lens_audit.accepted_source_ids.append(source_id)
         patent_audits.append(lens_audit)
 
-    # ── USPTO PatentsView supplement ──────────────────────────────────────────
-    if len(patents) < maximum_sources:
-        uspto = USPTOPatentClient()
-        seen_patent_nums: set[str] = {
-            str(p.url or "").split("US")[-1] for p in patents if p.url
-        }
-        seen_patent_titles_us: set[str] = {
-            " ".join(_WORD_PATTERN.findall(p.title.lower())) for p in patents
-        }
-        # USPTO uses a full-text JSON query — pass the clean topic once, not
-        # Serper site:-qualified strings which make no sense to the PatentsView API.
-        us_results = uspto.search(normalized_topic, rows=maximum_sources * 2)
-        us_audit = SearchAudit(
-            domain="patent",
-            query=f"[USPTO] {normalized_topic}",
-            result_count=len(us_results),
-        )
-        for rec in us_results:
-            if len(patents) >= maximum_sources:
-                break
-            num = str(rec.get("patent_number") or "").strip()
-            if num in seen_patent_nums:
-                us_audit.rejected_reasons.append(f"duplicate patent: US{num}")
-                continue
-            source_id = f"P{len(patents) + 1}"
-            source = _patent_source_from_uspto(rec, source_id, resolved_date)
-            if source is None:
-                us_audit.rejected_reasons.append(f"invalid USPTO record: {num}")
-                continue
-            tkey = " ".join(_WORD_PATTERN.findall(source.title.lower()))
-            if tkey in seen_patent_titles_us:
-                us_audit.rejected_reasons.append(f"duplicate title: {source.title}")
-                continue
-            seen_patent_nums.add(num)
-            seen_patent_titles_us.add(tkey)
-            patents.append(source)
-            us_audit.accepted_source_ids.append(source_id)
-        patent_audits.append(us_audit)
+
 
     # Always run a targeted Google Patents / WIPO Serper search as a geographic
     # supplement: Lens.org skews toward Chinese and Asian patents, while the
@@ -3532,6 +3391,7 @@ def collect_source_collection(
     _GENERIC_ASSIGNEES = frozenset({
         "uspto", "lens.org", "serper", "google", "wipo", "epo",
         "patentsview", "justia", "espacenet", "unknown", "",
+        "patent applicant",  # Lens fallback when no applicant extracted
     })
     seen_assignees: set[str] = set()
     patent_assignees: list[str] = []

@@ -22,10 +22,10 @@ All 188 tests must pass before submitting a PR.
 ## What to contribute
 
 - **Bug fixes** — check the [issue tracker](https://github.com/shuxiachai/academic-commercialization-agent/issues) for open bugs
-- **New language support** — add entries to `_WARNING_I18N`, `_UI_I18N`, and `_SCORECARD_I18N` in `app.py`
+- **New language support** — add entries to `_WARNING_I18N`, `_UI_I18N`, and `_SCORECARD_I18N` in `ui/i18n.py`
 - **New industry weight profiles** — add to `_WEIGHT_PROFILES` in `evidence.py`
 - **Source API integrations** — extend `source_pipeline.py` with additional academic or patent sources
-- **UI improvements** — `app.py` contains the full Gradio interface
+- **UI improvements** — `ui/ui.py` contains the Gradio interface; rendering helpers live in the other `ui/` modules
 
 ## Pull request guidelines
 
@@ -36,9 +36,19 @@ All 188 tests must pass before submitting a PR.
 
 ## Project structure
 
-| File | Purpose |
+| Path | Purpose |
 |---|---|
-| `app.py` | Gradio web UI |
+| `app.py` | 10-line entry point — imports and launches Gradio |
+| `ui/ui.py` | Gradio Blocks definition and all callbacks |
+| `ui/i18n.py` | All UI/scorecard/warning strings (12 languages) |
+| `ui/runner.py` | Analysis pipeline entry point (subprocess + streaming) |
+| `ui/history.py` | Run history tab and load-run logic |
+| `ui/html_scorecard.py` | Score card HTML rendering |
+| `ui/html_sources.py` | Source list and detail panel HTML |
+| `ui/html_progress.py` | Progress step HTML and stage constants |
+| `ui/html_misc.py` | Header, reviewer notes, and paper divider HTML |
+| `ui/pdf_export.py` | reportlab PDF export |
+| `ui/run_reader.py` | Run directory metadata readers |
 | `src/academic_agent/crew.py` | Agent and task wiring |
 | `src/academic_agent/source_pipeline.py` | Pre-run source collection |
 | `src/academic_agent/evidence.py` | Evidence models and guardrails |
