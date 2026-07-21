@@ -49,7 +49,7 @@ class SemanticScholarClient:
             with urlopen(request, timeout=self.timeout) as resp:
                 payload = json.loads(resp.read().decode("utf-8"))
             return str(payload.get("abstract") or "")
-        except Exception:
+        except (OSError, URLError, TimeoutError, json.JSONDecodeError):
             return ""
 
     def search(self, topic: str, rows: int = 15) -> list[dict[str, Any]]:
@@ -160,7 +160,7 @@ class PubMedClient:
                 rec = self._parse_article(article)
                 if rec:
                     results.append(rec)
-            except Exception:
+            except (AttributeError, TypeError, ValueError):
                 continue
         return results
 
@@ -365,7 +365,7 @@ class ArxivClient:
                     "arxiv_url": arxiv_url, "doi": doi,
                     "pub_date": pub_date, "authors": author_str,
                 })
-            except Exception:
+            except (AttributeError, TypeError, ValueError):
                 continue
         return results
 
@@ -541,7 +541,7 @@ class OpenAlexClient:
             with urlopen(request, timeout=self.timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             return int(data.get("cited_by_count") or 0)
-        except Exception:
+        except (OSError, URLError, TimeoutError, json.JSONDecodeError, ValueError):
             return None
 
     def fetch_referenced_works(self, doi: str, top_n: int = 25) -> list[str]:
@@ -556,7 +556,7 @@ class OpenAlexClient:
             with urlopen(request, timeout=self.timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             return list(data.get("referenced_works") or [])[:top_n]
-        except Exception:
+        except (OSError, URLError, TimeoutError, json.JSONDecodeError, ValueError):
             return []
 
     def fetch_works_by_ids(self, openalex_ids: list[str], rows: int = 15) -> list[dict[str, Any]]:

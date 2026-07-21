@@ -2129,7 +2129,7 @@ def _collect_academic_primary(
     def _safe(future, label: str) -> list:
         try:
             return future.result()
-        except Exception as exc:
+        except (OSError, URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
             audits.append(SearchAudit(
                 domain="academic",
                 query=f"[{label}] {topic}",
@@ -2211,7 +2211,7 @@ def _collect_academic_primary(
                 break
             try:
                 cl_works = future.result()
-            except Exception:
+            except (OSError, URLError, TimeoutError, json.JSONDecodeError):
                 cl_works = []
             if not cl_works:
                 continue
@@ -2227,12 +2227,12 @@ def _collect_academic_primary(
     if weight_profile == "biomedical" and len(accepted) < maximum_sources:
         try:
             mesh_terms = pubmed_client.get_mesh_terms(topic, max_terms=3)
-        except Exception:
+        except (OSError, URLError, TimeoutError, json.JSONDecodeError):
             mesh_terms = []
         if mesh_terms:
             try:
                 mesh_papers = pubmed_client.search_mesh(mesh_terms, rows=fetch_rows // 2)
-            except Exception:
+            except (OSError, URLError, TimeoutError, json.JSONDecodeError):
                 mesh_papers = []
             if mesh_papers:
                 mesh_audit = SearchAudit(
@@ -2257,12 +2257,12 @@ def _collect_academic_primary(
             for future in ref_futures:
                 try:
                     all_ref_ids.extend(future.result())
-                except Exception:
+                except (OSError, URLError, TimeoutError, json.JSONDecodeError):
                     pass
             if all_ref_ids:
                 try:
                     snowball_works = openalex.fetch_works_by_ids(all_ref_ids, rows=15)
-                except Exception:
+                except (OSError, URLError, TimeoutError, json.JSONDecodeError):
                     snowball_works = []
                 if snowball_works:
                     sb_audit = SearchAudit(

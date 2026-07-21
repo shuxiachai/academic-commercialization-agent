@@ -587,7 +587,7 @@ def check_public_url(value: str) -> tuple[bool, str]:
             return False, f"HTTP status {exc.code}"
         except (URLError, TimeoutError, OSError) as exc:
             return False, f"request failed: {exc}"
-        except Exception as exc:
+        except (UnicodeError, ValueError, OverflowError) as exc:
             return False, f"URL check error: {type(exc).__name__}: {exc}"
 
     return False, "too many redirects"
