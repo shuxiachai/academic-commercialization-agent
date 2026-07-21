@@ -17,7 +17,7 @@ cp .env.example .env   # fill in your API keys
 uv run pytest tests/ -q
 ```
 
-All 188 tests must pass before submitting a PR.
+All 292 tests must pass before submitting a PR.
 
 ## What to contribute
 
