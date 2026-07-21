@@ -34,7 +34,13 @@ class PaperContribution(BaseModel):
 
 
 def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
-    """Extract text from the highest-signal pages of a PDF (first 3 + last 2)."""
+    """Extract text from the highest-signal pages of a PDF.
+
+    Strategy: first 3 pages (title/abstract/intro) + up to 2 middle pages
+    with the highest character density (results/methods) + last 2 pages
+    (conclusions/references).  Duplicates are removed; total is capped at
+    max_chars so the LLM prompt stays within budget.
+    """
     try:
         import pypdfium2 as pdfium
     except ImportError:
@@ -44,15 +50,28 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
 
     with pdfium.PdfDocument(str(pdf_path)) as doc:
         n = len(doc)
-        key_pages = list(dict.fromkeys(
-            list(range(min(3, n))) + list(range(max(0, n - 2), n))
-        ))
+
+        # Read all pages once, keeping (index, text) pairs
+        page_texts: list[tuple[int, str]] = []
+        for i in range(n):
+            tp = doc[i].get_textpage()
+            text = tp.get_text_range().strip()
+            page_texts.append((i, text))
+
+        head_idx  = set(range(min(3, n)))
+        tail_idx  = set(range(max(0, n - 2), n))
+        fixed_idx = head_idx | tail_idx
+
+        # From the remaining middle pages, pick up to 2 by character count
+        middle = [(i, t) for i, t in page_texts if i not in fixed_idx]
+        middle.sort(key=lambda x: len(x[1]), reverse=True)
+        mid_idx = {i for i, _ in middle[:2]}
+
+        key_pages = sorted(fixed_idx | mid_idx)
 
         parts: list[str] = []
         for i in key_pages:
-            page = doc[i]
-            tp = page.get_textpage()
-            text = tp.get_text_range().strip()
+            text = page_texts[i][1]
             if text:
                 parts.append(f"[Page {i + 1}]\n{text}")
 

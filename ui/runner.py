@@ -74,7 +74,7 @@ def extract_paper_from_pdf(pdf_file, ui_lang: str = "English") -> tuple:
 
     try:
         _pdf_size = Path(pdf_file).stat().st_size
-    except Exception:
+    except OSError:
         _pdf_size = 0
     if _pdf_size > _PDF_MAX_BYTES:
         _mb = _pdf_size / (1024 * 1024)
@@ -138,7 +138,7 @@ def run_analysis_from_paper(
     if paper_json_state:
         try:
             pc_data = json.loads(paper_json_state)
-        except Exception:
+        except json.JSONDecodeError:
             pass
 
     metrics = [m.strip() for m in paper_metrics_str.splitlines() if m.strip()]
@@ -216,7 +216,7 @@ def run_analysis(
     stderr_log = open(run_dir / "process.log", "w", encoding="utf-8")
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=stderr_log)
-    except Exception:
+    except OSError:
         stderr_log.close()
         raise
 
@@ -243,7 +243,7 @@ def run_analysis(
                 stage = _status.get("stage", _STAGE_INITIAL)
                 output_language = _status.get("output_language") or "English"
                 source_counts = _status.get("source_counts")
-            except Exception:
+            except (OSError, json.JSONDecodeError):
                 pass
             spin = SPINNER[tick % len(SPINNER)]
             yield (
@@ -271,7 +271,7 @@ def run_analysis(
     # Read final status written by the worker.
     try:
         status = json.loads(status_path.read_text(encoding="utf-8"))
-    except Exception:
+    except (OSError, json.JSONDecodeError):
         status = {"done": False, "error": None, "output_language": "English"}
 
     # If the process was cancelled (GeneratorExit path doesn't reach here),
