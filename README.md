@@ -311,13 +311,27 @@ academic_agent/
 │   ├── main.py              # CLI entry point (--topic "your topic" flag)
 │   ├── evidence.py          # Evidence models, guardrail validators, CommercializationScore
 │   ├── source_pipeline.py   # Pre-run deterministic source collection & validation
+│   ├── source_clients.py    # API clients (OpenAlex, S2, PubMed, arXiv, Lens, Crossref, Serper)
+│   ├── pdf_extractor.py     # Uploaded-paper contribution extraction
+│   ├── language.py          # Language detection, translation, synonym generation
 │   ├── llm_config.py        # Multi-LLM config (DeepSeek / OpenAI / Anthropic; JSON mode)
 │   ├── run_output.py        # Run ID, report & scorecard persistence; StepEntry TypedDict
 │   └── config/
 │       ├── agents.yaml      # Agent role definitions + scoring rubrics (6 agents)
 │       └── tasks.yaml       # Task requirements & citation rules (6 tasks)
+├── ui/                      # Gradio front-end package
+│   ├── ui.py                # Blocks definition and all callbacks
+│   ├── runner.py            # Analysis entry points (subprocess + streaming)
+│   ├── history.py           # Run history tab
+│   ├── i18n.py              # All UI / scorecard / warning strings (12 languages)
+│   ├── html_scorecard.py    # Score card rendering
+│   ├── html_sources.py      # Source list and detail panel
+│   ├── html_progress.py     # Progress steps and stage constants
+│   ├── html_misc.py         # Header, reviewer notes, paper divider
+│   ├── pdf_export.py        # reportlab PDF export
+│   └── run_reader.py        # Run directory metadata readers
 ├── tests/                   # Unit tests and integration tests
-├── app.py                   # Gradio web UI (scorecard, radar chart, history tab)
+├── app.py                   # 10-line entry point — imports and launches Gradio
 ├── benchmark.py             # 10-topic benchmark runner
 ├── benchmark_check.py       # Benchmark result analyzer (CSV + terminal table)
 ├── outputs/
@@ -352,13 +366,17 @@ Scores are computed using a **weight profile** selected automatically based on t
 
 | Profile | Market | TRL | MRL | Patent | Evidence | Typical domain |
 |---|---|---|---|---|---|---|
-| `industrial` | 35% | 20% | 15% | 20% | 10% | General / cleantech / materials |
-| `biotech` | 30% | 25% | 20% | 15% | 10% | Biotech / pharma / medical |
-| `material_science` | 25% | 30% | 20% | 15% | 10% | Advanced materials / chemistry |
-| `software` | 40% | 15% | 5% | 25% | 15% | Software / digital |
-| `deep_tech` | 20% | 35% | 20% | 15% | 10% | Quantum / fusion / frontier tech |
+| `industrial` | 35% | 20% | 15% | 20% | 10% | Default — general manufacturing and anything unmatched |
+| `biomedical` | 25% | 20% | **30%** | 15% | 10% | Therapy, vaccine, gene editing, medical device, cultivated meat |
+| `material_science` | 20% | **30%** | 20% | 20% | 10% | Perovskite, graphene, electrolyte, solid-state battery, fuel cell |
+| `clean_tech` | 25% | **30%** | 20% | 15% | 10% | Green hydrogen, offshore wind, grid storage, direct air capture |
+| `software_ai` | **40%** | 30% | 10% | 10% | 10% | LLM, computer vision, SaaS / cloud platform |
 
-All profiles sum to 100%. The `overall_score` is computed by the system from dimension scores and the active profile — the LLM always writes `overall_score: 0` and the formula corrects it automatically.
+Rationale for the weightings: MRL dominates in `biomedical` because manufacturing scale-up is the main gate for biologics; TRL leads in `material_science` and `clean_tech` because lab-to-production cycles are long; `software_ai` puts weight on market traction since distribution cost is near zero and patent moats are weak relative to trade secrets.
+
+Detection runs in priority order — biomedical → material_science → clean_tech → software_ai → industrial — by matching keyword markers against the (English-translated) topic string. The selected profile is stored in `validated_sources.json` and shown as a badge in the UI scorecard.
+
+All profiles sum to 100%, enforced by an `assert` at module load. The `overall_score` is computed by the system from dimension scores and the active profile — the LLM always writes `overall_score: 0` and the formula corrects it automatically.
 
 | Dimension | Field | Max | Description |
 |-----------|-------|-----|-------------|
@@ -670,13 +688,27 @@ academic_agent/
 │   ├── main.py              # 命令行入口（支持 --topic 参数）
 │   ├── evidence.py          # 证据模型、guardrail 校验、CommercializationScore 模型
 │   ├── source_pipeline.py   # 运行前确定性来源收集与验证
+│   ├── source_clients.py    # API 客户端（OpenAlex / S2 / PubMed / arXiv / Lens / Crossref / Serper）
+│   ├── pdf_extractor.py     # 上传论文的核心贡献提取
+│   ├── language.py          # 语言检测、翻译、同义词生成
 │   ├── llm_config.py        # 多 LLM 配置（DeepSeek / OpenAI / Anthropic；JSON 模式）
 │   ├── run_output.py        # 运行 ID、报告与评分 JSON 持久化；StepEntry TypedDict
 │   └── config/
 │       ├── agents.yaml      # Agent 角色配置 + 评分 rubric（6 个）
 │       └── tasks.yaml       # Task 需求与引用规则（6 个）
+├── ui/                      # Gradio 前端包
+│   ├── ui.py                # Blocks 定义与全部回调
+│   ├── runner.py            # 分析入口（子进程 + 流式输出）
+│   ├── history.py           # 历史运行标签页
+│   ├── i18n.py              # 全部 UI / 评分卡 / 警告文案（12 种语言）
+│   ├── html_scorecard.py    # 评分卡渲染
+│   ├── html_sources.py      # 来源列表与详情面板
+│   ├── html_progress.py     # 进度步骤与阶段常量
+│   ├── html_misc.py         # 页头、审查记录、论文分隔线
+│   ├── pdf_export.py        # reportlab PDF 导出
+│   └── run_reader.py        # 运行目录元数据读取
 ├── tests/                   # 单元测试与集成测试
-├── app.py                   # Gradio 网页界面（评分卡、雷达图、History 标签页）
+├── app.py                   # 10 行入口文件 —— 导入并启动 Gradio
 ├── benchmark.py             # 10 话题基准测试运行器
 ├── benchmark_check.py       # 基准结果分析器（生成 CSV + 终端表格）
 ├── outputs/
@@ -711,13 +743,17 @@ URL/DOI 无效或不可达、引用编号错误、References 不一致、报告�
 
 | 方案 | 市场 | TRL | MRL | 专利 | 证据 | 典型领域 |
 |---|---|---|---|---|---|---|
-| `industrial` | 35% | 20% | 15% | 20% | 10% | 通用 / 清洁技术 / 材料 |
-| `biotech` | 30% | 25% | 20% | 15% | 10% | 生物技术 / 制药 / 医疗 |
-| `material_science` | 25% | 30% | 20% | 15% | 10% | 先进材料 / 化学 |
-| `software` | 40% | 15% | 5% | 25% | 15% | 软件 / 数字 |
-| `deep_tech` | 20% | 35% | 20% | 15% | 10% | 量子 / 聚变 / 前沿技术 |
+| `industrial` | 35% | 20% | 15% | 20% | 10% | 默认方案 —— 通用制造业及未匹配到其他方案的话题 |
+| `biomedical` | 25% | 20% | **30%** | 15% | 10% | 疗法、疫苗、基因编辑、医疗器械、培养肉 |
+| `material_science` | 20% | **30%** | 20% | 20% | 10% | 钙钛矿、石墨烯、电解质、固态电池、燃料电池 |
+| `clean_tech` | 25% | **30%** | 20% | 15% | 10% | 绿氢、海上风电、电网储能、直接空气捕集 |
+| `software_ai` | **40%** | 30% | 10% | 10% | 10% | 大语言模型、计算机视觉、SaaS / 云平台 |
 
-所有方案权重之和为 100%。`overall_score` 由系统根据维度分数和当前方案自动计算——LLM 始终输出 `overall_score: 0`，系统公式自动修正。
+权重设计依据：`biomedical` 中 MRL 占比最高，因为生物制品的量产工艺是商业化的主要瓶颈；`material_science` 与 `clean_tech` 以 TRL 为主，因为从实验室到量产的周期极长；`software_ai` 侧重市场牵引，因为分发成本接近于零，且专利护城河相对商业秘密更弱。
+
+方案检测按优先级顺序进行——biomedical → material_science → clean_tech → software_ai → industrial，通过关键词标记匹配（已翻译为英文的）话题字符串。选中的方案存入 `validated_sources.json`，并在 UI 评分卡中以徽章显示。
+
+所有方案权重之和为 100%，由模块加载时的 `assert` 强制校验。`overall_score` 由系统根据维度分数和当前方案自动计算——LLM 始终输出 `overall_score: 0`，系统公式自动修正。
 
 | 维度 | 字段 | 满分 | 说明 |
 |------|------|------|------|
