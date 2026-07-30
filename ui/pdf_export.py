@@ -3,7 +3,7 @@
 from pathlib import Path
 
 # Reportlab built-in CID fonts — no font file needed, cross-platform.
-# xhtml2pdf resolves these via pdfmetrics after registerFont() is called.
+# Resolved via pdfmetrics.registerFont(UnicodeCIDFont(...)) in _register_cid_font.
 _CID_FONT_MAP: dict[str, str] = {
     "Simplified Chinese":  "STSong-Light",
     "Traditional Chinese": "MSung-Light",
