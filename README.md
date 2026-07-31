@@ -308,15 +308,32 @@ outputs/
 `benchmark.py` ships with 10 preset topics spanning different industries and expected TRL ranges, for validating scoring accuracy and consistency.
 
 ```bash
-# Run all 10 topics (already-succeeded runs are skipped automatically)
+# Run all 10 topics serially (already-succeeded runs are skipped automatically)
 uv run python benchmark.py
 
+# Run 3 topics at a time — cuts a full pass from ~30 min to roughly a third
+uv run python benchmark.py --concurrency 3
+
 # Re-run a specific topic (delete its output directory first)
-uv run python benchmark.py --only 3
+uv run python benchmark.py --only 03
+
+# Check the scheduling without spending any API credit
+uv run python benchmark.py --dry-run --concurrency 3
 
 # Generate summary table and CSV
 uv run python benchmark_check.py
 ```
+
+Topics run in **separate processes**, not threads — CrewAI keeps global state
+(notably the event bus), so two crews in one interpreter risk cross-talk.
+
+The limit on concurrency is upstream API rate limits, not local CPU: each topic
+issues LLM requests at up to `MAX_RPM` (default 6) plus bursts to OpenAlex,
+Serper and Crossref, so the aggregate is roughly `concurrency × MAX_RPM`. Every
+run records a `rate_limit_hits` count in its `meta.json`, and the summary line
+reports the total — **raise `--concurrency` only while that stays at 0**. Starts
+are staggered by 10 s (`--stagger`) because every topic opens with the same
+burst of source-collection requests.
 
 | # | Topic | Expected TRL | Industry |
 |---|-------|-------------|---------|
@@ -727,15 +744,30 @@ outputs/
 `benchmark.py` 包含 10 个预设话题，覆盖不同行业和预期 TRL 范围，用于验证系统的评分准确性和一致性。
 
 ```bash
-# 运行全部 10 个话题（已成功的自动跳过）
+# 串行运行全部 10 个话题（已成功的自动跳过）
 uv run python benchmark.py
 
+# 并发 3 个话题 —— 完整一轮从约 30 分钟压缩到三分之一左右
+uv run python benchmark.py --concurrency 3
+
 # 单独重跑某个话题（先手动删除对应目录）
-uv run python benchmark.py --only 3
+uv run python benchmark.py --only 03
+
+# 仅验证调度逻辑，不消耗任何 API 额度
+uv run python benchmark.py --dry-run --concurrency 3
 
 # 生成摘要表格并输出 CSV
 uv run python benchmark_check.py
 ```
+
+话题运行在**独立进程**而非线程中 —— CrewAI 持有全局状态（尤其是 event bus），
+同一解释器内跑两个 crew 存在事件流串扰的风险。
+
+并发上限取决于上游 API 限速而非本机 CPU：每个话题以最高 `MAX_RPM`（默认 6）的速率
+调用 LLM，外加对 OpenAlex、Serper、Crossref 的突发请求，因此总速率约为
+`并发数 × MAX_RPM`。每次运行都会在 `meta.json` 中记录 `rate_limit_hits`，汇总行输出总数
+——**只有该值保持为 0 时才可以继续调高 `--concurrency`**。任务启动默认错开 10 秒
+（`--stagger`），因为每个话题开头都是同一批来源检索请求的突发。
 
 | # | 话题 | 预期 TRL | 行业 |
 |---|------|---------|------|
