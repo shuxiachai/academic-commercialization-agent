@@ -238,7 +238,46 @@ UI features:
 - **Report**: Full Markdown render + `.md` / `.pdf` download (PDF generated in background; report appears immediately)
 - **History tab**: Browse all past runs; click any row to fill the Run ID field automatically; Run ID column for easy copy
 
-**Option B — Command line**
+**Option B — HTTP API**
+
+```bash
+uv run uvicorn api.main:app --port 8000
+```
+
+Interactive docs at `http://localhost:8000/docs`. Submit a run, poll for progress, fetch the result:
+
+```bash
+# Submit — returns immediately with a run_id
+curl -X POST http://localhost:8000/api/runs \
+     -H 'Content-Type: application/json' \
+     -d '{"topic": "solid-state batteries for electric vehicles"}'
+# → {"run_id": "20260729T031500Z-a1b2c3d4e5", "state": "running", ...}
+
+# Poll — state is running | completed | failed | cancelled | timeout
+curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5
+
+# Fetch the report once state is "completed"
+curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
+```
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/health` | Liveness, active-run count, resolved LLM provider |
+| `POST` | `/api/runs` | Queue an assessment (`202`, or `429` at capacity) |
+| `GET` | `/api/runs` | List runs, newest first |
+| `GET` | `/api/runs/{id}` | Stage, state, elapsed time, available artifacts |
+| `DELETE` | `/api/runs/{id}` | Terminate a running assessment |
+| `GET` | `/api/runs/{id}/report` | Final report as Markdown |
+| `GET` | `/api/runs/{id}/{artifact}` | `scores`, `sources`, `notes`, or `steps` |
+
+Concurrency is capped at 2 runs (`API_MAX_CONCURRENT` to change) — the binding
+constraint is upstream API rate limits, not local CPU. Runs exceeding 30 minutes
+are terminated automatically.
+
+The API and the Gradio UI share the same `outputs/` directory and launch the
+same worker, so a run started from one is visible to the other.
+
+**Option C — Command line**
 
 ```bash
 uv run crewai run
@@ -330,6 +369,10 @@ academic_agent/
 │   ├── html_misc.py         # Header, reviewer notes, paper divider
 │   ├── pdf_export.py        # reportlab PDF export
 │   └── run_reader.py        # Run directory metadata readers
+├── api/                     # FastAPI HTTP layer
+│   ├── main.py              # Endpoints, OpenAPI docs, timeout reaper
+│   ├── runs.py              # Worker process registry, concurrency cap, state derivation
+│   └── models.py            # Request / response schemas
 ├── tests/                   # Unit tests and integration tests
 ├── app.py                   # 10-line entry point — imports and launches Gradio
 ├── benchmark.py             # 10-topic benchmark runner
@@ -353,6 +396,7 @@ academic_agent/
 - **Academic metadata**: Crossref API (DOI verification and abstract retrieval)
 - **Data validation**: Pydantic v2 + custom guardrails (source structure, citation integrity, report structure, scoring formula, hallucinated source ID detection)
 - **Web UI**: Gradio 6.x
+- **HTTP API**: FastAPI + Uvicorn (OpenAPI docs at `/docs`)
 - **PDF export**: reportlab Platypus (embedded TTFont for CJK; falls back to CID fonts)
 - **Python**: 3.11+
 
@@ -615,7 +659,44 @@ uv run python app.py
 - **报告**：Markdown 全文渲染 + `.md` / `.pdf` 双格式下载（PDF 后台生成，报告立即显示）
 - **History 标签页**：浏览所有历史运行；点击任意行自动填入 Run ID；包含 Run ID 列便于复制
 
-**方式二：命令行**
+**方式二：HTTP API**
+
+```bash
+uv run uvicorn api.main:app --port 8000
+```
+
+交互式文档：`http://localhost:8000/docs`。提交任务、轮询进度、获取结果：
+
+```bash
+# 提交 —— 立即返回 run_id，不阻塞
+curl -X POST http://localhost:8000/api/runs \
+     -H 'Content-Type: application/json' \
+     -d '{"topic": "solid-state batteries for electric vehicles"}'
+# → {"run_id": "20260729T031500Z-a1b2c3d4e5", "state": "running", ...}
+
+# 轮询 —— state 取值：running | completed | failed | cancelled | timeout
+curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5
+
+# state 变为 completed 后获取报告
+curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
+```
+
+| 方法 | 路径 | 用途 |
+|---|---|---|
+| `GET` | `/health` | 存活检查、当前运行数、已解析的 LLM provider |
+| `POST` | `/api/runs` | 提交评估任务（`202`，达到并发上限时 `429`） |
+| `GET` | `/api/runs` | 列出历史运行，最新在前 |
+| `GET` | `/api/runs/{id}` | 阶段、状态、已用时长、可用产物清单 |
+| `DELETE` | `/api/runs/{id}` | 终止运行中的任务 |
+| `GET` | `/api/runs/{id}/report` | Markdown 格式的最终报告 |
+| `GET` | `/api/runs/{id}/{artifact}` | `scores` / `sources` / `notes` / `steps` |
+
+并发上限默认为 2（通过 `API_MAX_CONCURRENT` 调整）——真正的瓶颈是上游 API 限速而非本机 CPU。
+超过 30 分钟的运行会被自动终止。
+
+API 与 Gradio 界面共享同一个 `outputs/` 目录、启动同一个 worker，因此从任一入口发起的运行在另一侧都可见。
+
+**方式三：命令行**
 
 ```bash
 uv run crewai run
@@ -707,6 +788,10 @@ academic_agent/
 │   ├── html_misc.py         # 页头、审查记录、论文分隔线
 │   ├── pdf_export.py        # reportlab PDF 导出
 │   └── run_reader.py        # 运行目录元数据读取
+├── api/                     # FastAPI HTTP 层
+│   ├── main.py              # 端点定义、OpenAPI 文档、超时回收
+│   ├── runs.py              # Worker 进程注册表、并发控制、状态推导
+│   └── models.py            # 请求 / 响应模型
 ├── tests/                   # 单元测试与集成测试
 ├── app.py                   # 10 行入口文件 —— 导入并启动 Gradio
 ├── benchmark.py             # 10 话题基准测试运行器
@@ -730,6 +815,7 @@ academic_agent/
 - **学术元数据**：Crossref API（DOI 验证与摘要检索）+ 并发引用数补全
 - **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、幻觉来源 ID 检测、评分算法验证）
 - **网页界面**：Gradio 6.x
+- **HTTP API**：FastAPI + Uvicorn（OpenAPI 文档位于 `/docs`）
 - **PDF 导出**：reportlab Platypus（嵌入式 TTFont，支持 CJK；回退至 CID 字体）
 - **Python**：3.11+
 

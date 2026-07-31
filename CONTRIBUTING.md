@@ -17,7 +17,8 @@ cp .env.example .env   # fill in your API keys
 uv run pytest tests/ -q
 ```
 
-All 292 tests must pass before submitting a PR.
+All 365 tests must pass before submitting a PR. They need no API keys and make
+no network calls — any test that reaches the network is a bug.
 
 ## What to contribute
 
@@ -39,6 +40,9 @@ All 292 tests must pass before submitting a PR.
 | Path | Purpose |
 |---|---|
 | `app.py` | 10-line entry point — imports and launches Gradio |
+| `api/main.py` | FastAPI endpoints, OpenAPI docs, timeout reaper |
+| `api/runs.py` | Worker process registry, concurrency cap, run-state derivation |
+| `api/models.py` | API request / response schemas |
 | `ui/ui.py` | Gradio Blocks definition and all callbacks |
 | `ui/i18n.py` | All UI/scorecard/warning strings (12 languages) |
 | `ui/runner.py` | Analysis pipeline entry point (subprocess + streaming) |
