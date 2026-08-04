@@ -469,9 +469,10 @@ class SerperClient:
                 if not isinstance(payload, dict):
                     raise SourceCollectionError("Serper returned a non-object response.")
                 return payload
-            except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
-                last_exc = exc
-                time.sleep(2 ** attempt)
+            # HTTPError subclasses URLError, so it must be caught first —
+            # otherwise a 401/403/404 gets swallowed by the transient-error
+            # branch below and retried three times, burning quota and
+            # reporting "after 3 attempts" instead of the real cause.
             except HTTPError as exc:
                 if exc.code in {429, 500, 502, 503, 504}:
                     last_exc = exc
@@ -480,6 +481,9 @@ class SerperClient:
                     raise SourceCollectionError(
                         f"Serper search failed for {query!r}: {exc}"
                     ) from exc
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+                last_exc = exc
+                time.sleep(2 ** attempt)
         raise SourceCollectionError(
             f"Serper search failed for {query!r} after 3 attempts: {last_exc}"
         ) from last_exc
