@@ -1,4 +1,4 @@
-﻿"""Deterministic source retrieval and validation before LLM analysis."""
+"""Deterministic source retrieval and validation before LLM analysis."""
 
 import html
 import json

@@ -1,4 +1,4 @@
-﻿"""External API client classes for the source collection pipeline.
+"""External API client classes for the source collection pipeline.
 
 Extracted from source_pipeline.py. Import anything you need from here;
 source_pipeline re-exports these symbols for backwards compatibility.
