@@ -28,6 +28,16 @@ type = "crew"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+# Turning UserWarning into an error is what stops a test from quietly calling a
+# real API: those paths warn and fall back rather than raising, so a leak would
+# otherwise pass. Configured here rather than on the CI command line because the
+# httpx filter contains a backtick, which PowerShell reads as an escape and bash
+# reads as command substitution — the same command cannot survive both shells.
+filterwarnings = [
+    "error::UserWarning",
+    "ignore::DeprecationWarning",
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
 
 [tool.ruff]
 line-length = 120

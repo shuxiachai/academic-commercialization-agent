@@ -93,8 +93,16 @@ class ResolveFontTests(unittest.TestCase):
         self.assertEqual(_resolve_font("Klingon"), _FALLBACK_FONT)
 
     @patch("ui.pdf_export.Path.is_file", return_value=True)
+    @patch("reportlab.pdfbase.ttfonts.TTFont")
     @patch("reportlab.pdfbase.pdfmetrics.registerFont")
-    def test_embedded_font_preferred_when_file_exists(self, mock_reg, _mock_isfile):
+    def test_embedded_font_preferred_when_file_exists(self, mock_reg, _mock_ttf, _mock_isfile):
+        """TTFont is stubbed as well as is_file.
+
+        Faking only the existence check leaves reportlab trying to parse a
+        path that is not there, which raises and sends the chain to the CID
+        fallback — passing on a machine that happens to have the font and
+        failing everywhere else.
+        """
         self.assertEqual(_resolve_font("Simplified Chinese"), _EMBEDDED_FONT_NAME)
         self.assertTrue(mock_reg.called)
 
@@ -102,11 +110,15 @@ class ResolveFontTests(unittest.TestCase):
     @patch("reportlab.pdfbase.pdfmetrics.registerFont")
     def test_first_existing_candidate_wins(self, _mock_reg, _mock_isfile):
         """Registration must stop at the first hit, not walk the whole list."""
+        import ui.pdf_export as pdf_export
+
         with patch("reportlab.pdfbase.ttfonts.TTFont") as mock_ttf:
             _resolve_font("Japanese")
             self.assertEqual(mock_ttf.call_count, 1)
             used_path = mock_ttf.call_args[0][1]
-            self.assertEqual(used_path, _CJK_TTF_CANDIDATES["Japanese"][0])
+            # Read the table off the module rather than the import binding, so
+            # the assertion follows any patched candidate list.
+            self.assertEqual(used_path, pdf_export._CJK_TTF_CANDIDATES["Japanese"][0])
 
     @patch("ui.pdf_export.Path.is_file", return_value=False)
     def test_falls_back_to_cid_when_no_ttf_present(self, _mock_isfile):
@@ -366,12 +378,17 @@ class GeneratePdfTests(unittest.TestCase):
         missing = self.run_dir / "does" / "not" / "exist"
         self.assertIsNone(_generate_pdf(_REPORT, missing))
 
-    def test_cjk_pdf_is_substantially_larger_than_latin(self):
+    def test_cjk_pdf_embeds_the_face_when_one_is_installed(self):
         """Size is the observable proof that a CJK face was embedded.
 
         This is the regression guard for the blank-box bug: a PDF that merely
         references a font is small, and its CJK glyphs render as empty squares
         outside Acrobat. An embedded face costs tens of kilobytes.
+
+        The assertion is conditional because it depends on the host having a
+        CJK font at all — GitHub's Linux runners do not, and falling back to a
+        CID face there is correct behaviour, not a regression. Asserting the
+        size unconditionally made this pass on Windows and fail in CI.
         """
         cjk_report = _REPORT.replace("Solid Electrolyte", "固态电解质") + "\n\n中文正文内容测试。\n"
         en_dir = self.run_dir / "en"
@@ -383,7 +400,21 @@ class GeneratePdfTests(unittest.TestCase):
         zh_pdf = _generate_pdf(cjk_report, zh_dir, "Simplified Chinese")
         self.assertIsNotNone(en_pdf)
         self.assertIsNotNone(zh_pdf)
-        self.assertGreater(zh_pdf.stat().st_size, en_pdf.stat().st_size * 3)
+
+        if _resolve_font("Simplified Chinese") == _EMBEDDED_FONT_NAME:
+            self.assertGreater(zh_pdf.stat().st_size, en_pdf.stat().st_size * 3)
+        else:
+            # No CJK font on this host: the CID fallback still has to produce
+            # a real, non-empty PDF.
+            self.assertEqual(zh_pdf.read_bytes()[:5], b"%PDF-")
+            self.assertGreater(zh_pdf.stat().st_size, 0)
+
+    def test_font_resolution_is_deterministic_per_host(self):
+        """Whatever face this host resolves to, it must resolve to it every time."""
+        first = _resolve_font("Simplified Chinese")
+        self.assertEqual(first, _resolve_font("Simplified Chinese"))
+        self.assertIn(first, {_EMBEDDED_FONT_NAME, _CID_FONT_MAP["Simplified Chinese"],
+                              _FALLBACK_FONT})
 
     def test_all_cjk_languages_produce_output(self):
         for lang in _CID_FONT_MAP:

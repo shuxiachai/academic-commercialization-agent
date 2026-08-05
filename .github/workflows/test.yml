@@ -32,15 +32,9 @@ jobs:
         run: uv sync --python ${{ matrix.python-version }}
 
       - name: Run tests
-        # -W error::UserWarning turns an accidental real API call into a
-        # failure: those paths warn and fall back rather than raising, so
-        # without this a leak passes silently and spends credit.
-        run: >
-          uv run --python ${{ matrix.python-version }}
-          pytest tests/ -v --tb=short
-          -W error::UserWarning
-          -W ignore::DeprecationWarning
-          -W "ignore:Using `httpx`"
+        # Warning filters live in pyproject.toml so this command is identical
+        # on both shells — see the filterwarnings comment there.
+        run: uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short
 
   lint:
     name: lint
