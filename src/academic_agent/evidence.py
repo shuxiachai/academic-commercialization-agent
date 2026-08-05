@@ -1519,7 +1519,11 @@ def make_final_report_guardrail(
     return validate_report
 
 
-_REVIEWER_REQUIRED_HEADINGS = ("## executive summary", "## references")
+_REVIEWER_REQUIRED_HEADINGS = (
+    "# academic commercialization assessment:",   # document title
+    "## executive summary",
+    "## references",
+)
 
 
 def make_reviewer_guardrail(
@@ -1566,12 +1570,17 @@ def make_reviewer_guardrail(
         # localized_headings order: [title, exec_summary, ..., evidence_limits, references]
         # References is always written in English by _canonical_reference_section,
         # so check both the localized form and the English "## references".
+        #
+        # The document title is checked too. Task 4's guardrail enforces the full
+        # heading set, but the reviewer rewrites the report wholesale and only
+        # these headings are re-checked afterwards — so a title edit slipped
+        # through: one run emitted "# Commercialization Assessment: ..." after
+        # the reviewer dropped "Academic" from a title that had been correct.
         if localized_headings and len(localized_headings) >= 2:
-            exec_summary_heading = localized_headings[1].lower()
-            localized_ref = localized_headings[-1].lower()
             reviewer_headings_pairs = [
-                (exec_summary_heading,),
-                (localized_ref, "## references"),  # accept either form
+                (localized_headings[0].lower(),),          # document title
+                (localized_headings[1].lower(),),          # executive summary
+                (localized_headings[-1].lower(), "## references"),
             ]
         else:
             reviewer_headings_pairs = [(h,) for h in _REVIEWER_REQUIRED_HEADINGS]

@@ -12,7 +12,7 @@ from urllib.error import URLError
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
 
@@ -541,10 +541,30 @@ def _clean_text(value: str) -> str:
 
 
 def _safe_summary(snippet: str, title: str) -> str:
+    """Build an evidence_summary that EvidenceSource will accept.
+
+    The floor here must match the model's, not _ABSTRACT_MIN_CHARS. That
+    constant (20) governs whether an abstract is worth keeping; EvidenceSource
+    separately requires 60 characters for Latin text (20 for CJK, which is
+    denser). A snippet between those two numbers passed here and then failed
+    validation — Google Patents returns "No information is available for this
+    page." (42 chars) for some records, which aborted the run.
+    """
     cleaned = _clean_text(snippet)
-    if len(cleaned) >= _ABSTRACT_MIN_CHARS:
+    cjk = sum(1 for c in cleaned if "一" <= c <= "鿿")
+    min_len = 20 if cjk / max(len(cleaned), 1) > 0.25 else 60
+    if len(cleaned) >= min_len:
         return cleaned[:_ABSTRACT_MAX_CHARS]
-    return f"Verified search result for the source titled {title}."
+
+    fallback = f"Verified search result for the source titled {title}."
+    if len(fallback) >= min_len:
+        return fallback
+    # A very short title leaves the fallback under the floor too; pad with the
+    # URL-free context the caller already validated.
+    return (
+        f"{fallback} Retrieved and URL-verified during deterministic "
+        "pre-run source collection."
+    )
 
 
 def _canonical_url(value: str) -> str:
@@ -1710,8 +1730,15 @@ def _web_source(
             + credibility_reason
         )
 
-    return (
-        EvidenceSource(
+    # Every rejection path above returns (None, reason); construction must do the
+    # same rather than raise. A search engine can return a result whose snippet
+    # fails a model constraint — Google Patents serves "No information is
+    # available for this page." for some records, which is 42 characters against
+    # a 60-character minimum. Letting that propagate aborts the entire run over
+    # one unusable row, which is exactly what happened once the patent domain
+    # started requesting a full budget instead of three results.
+    try:
+        source = EvidenceSource(
             source_id=source_id,
             title=title,
             url=canonical,
@@ -1723,9 +1750,13 @@ def _web_source(
             credibility_reason=credibility_reason,
             evidence_summary=_safe_summary(snippet, title),
             summary_source="search_snippet" if domain == "market" else None,
-        ),
-        "",
-    )
+        )
+    except ValidationError as exc:
+        first = exc.errors()[0] if exc.errors() else {}
+        field = ".".join(str(p) for p in first.get("loc", ())) or "unknown field"
+        return None, f"source failed validation ({field}): {first.get('msg', exc)}"
+
+    return source, ""
 
 
 def _queries(

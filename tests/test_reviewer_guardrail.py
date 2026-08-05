@@ -34,7 +34,7 @@ def _report(body_filler: int = 1, citations: str = "[A1][P1][M1]") -> str:
     """A report long enough to clear the 500-char floor."""
     body = "Evidence indicates commercial deployment is underway. " * body_filler
     return (
-        "# Commercialization Assessment: Solid Electrolyte\n\n"
+        "# Academic Commercialization Assessment: Solid Electrolyte\n\n"
         "## Executive Summary\n\n"
         f"{body} Findings are supported by {citations}.\n\n"
         "## 1. Technology Overview & Maturity\n\n"
@@ -114,6 +114,26 @@ class RequiredSectionTests(unittest.TestCase):
         ok, msg = _run(reviewed)
         self.assertFalse(ok)
         self.assertIn("missing", msg.lower())
+
+    def test_reviewer_dropping_a_word_from_the_title_is_rejected(self):
+        """The reviewer must not reword the document title.
+
+        Observed in a real run: Task 4 emitted the correct
+        "# Academic Commercialization Assessment: ..." and the reviewer returned
+        "# Commercialization Assessment: ...". Task 4's guardrail enforces the
+        full heading set, but only a subset was re-checked after review, so the
+        edit reached the user and the benchmark reported a missing section.
+        """
+        reviewed = _DRAFT.replace(
+            "# Academic Commercialization Assessment: Solid Electrolyte",
+            "# Commercialization Assessment: Solid Electrolyte",   # "Academic" dropped
+        )
+        ok, msg = _run(reviewed)
+        self.assertFalse(ok)
+        self.assertIn("missing", msg.lower())
+
+    def test_intact_title_still_passes(self):
+        self.assertTrue(_run(_DRAFT)[0])
 
     def test_missing_references_rejected(self):
         reviewed = _DRAFT.replace("## References", "## Sources Consulted")

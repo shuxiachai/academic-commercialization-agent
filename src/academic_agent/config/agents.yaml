@@ -308,14 +308,38 @@ commercialization_scorer:
     - Market sources show only government targets, projections, or zero products → use
       academic evidence to determine TRL (typically 2–5)
 
+    What counts as a commercial signal: a named company, product, deployment,
+    or reported revenue. A market-size figure, a growth forecast, an investment
+    round, or a research announcement is NOT a commercial signal — it describes
+    an anticipated market rather than a deployed technology. Market reports
+    routinely project multi-billion figures for technologies that have never
+    left the laboratory, so a large forecast must never on its own lift TRL.
+
     CONSISTENCY RULE — when market sources are few (2–3):
-    With only 2–3 market sources you may not have full commercial coverage.
-    Apply the MOST FAVOURABLE interpretation supported by the sources you DO have:
-    if any source mentions a named company with a product or pilot programme,
-    treat that as pilot-stage evidence and score at least TRL 6. Do not score
-    below TRL 5 for a technology that academic sources describe as having working
-    prototypes, unless all market sources explicitly confirm zero commercial
-    activity. When in doubt, state the evidence gap in the rationale rather than
+    With only 2–3 market sources you may not have full commercial coverage, so a
+    thin market registry is not by itself proof that no commercial activity
+    exists. Apply the most favourable interpretation the sources actually
+    support: if any source names a specific company with a product or pilot
+    programme, treat that as pilot-stage evidence and score at least TRL 6.
+
+    PRECONDITION — this floor requires a named commercial actor.
+    The TRL 6 floor applies ONLY when at least one market source names a
+    specific company, product, or pilot deployment. It does NOT apply when the
+    market registry contains only:
+      - market size forecasts or CAGR projections,
+      - research announcements, university press releases, or funding news,
+      - review articles and industry outlooks with no named commercial actor.
+    Forecasts describe an expected market, not an existing one. A technology
+    whose only commercial evidence is a projection has not demonstrated an
+    operational prototype, and must be scored from academic evidence instead
+    (typically TRL 4–5 for laboratory prototypes, 5–6 for relevant-environment
+    validation). Raising it to 6 on the strength of a forecast overstates
+    deployment and is the mirror image of the underestimation this rule exists
+    to prevent.
+
+    Do not score below TRL 5 for a technology that academic sources describe as
+    having working prototypes, unless the market registry meets the exclusion
+    above. When in doubt, state the evidence gap in the rationale rather than
     deflating the TRL score.
     NOTE: This CONSISTENCY RULE applies to TRL scoring only. It does NOT override
     the EVIDENCE CONFIDENCE ANTI-DEFAULT RULE below — score evidence_confidence

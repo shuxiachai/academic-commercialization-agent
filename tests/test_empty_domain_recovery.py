@@ -206,3 +206,107 @@ class EmptySourcePoolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# Defect 4 — a single unusable search result must not abort the run
+# ---------------------------------------------------------------------------
+
+class WebSourceValidationTests(unittest.TestCase):
+    """_web_source rejects by returning (None, reason); it must never raise.
+
+    Google Patents serves "No information is available for this page." for some
+    records — 42 characters against the model's 60-character minimum. That
+    ValidationError propagated out of collect_source_collection and killed the
+    whole run, which only surfaced once the patent domain began requesting a
+    full budget rather than three results.
+    """
+
+    def _result(self, snippet: str) -> dict:
+        return {
+            "title": "US1234567B2 - Flexible graphene electrode",
+            "link": "https://patents.google.com/patent/US1234567B2/en",
+            "snippet": snippet,
+        }
+
+    def test_placeholder_snippet_yields_a_usable_source(self):
+        """The exact payload that aborted a run.
+
+        Google Patents returns this for records with no indexed abstract. It is
+        42 characters, over _safe_summary's old floor of 20 but under the
+        model's 60, so it was passed through and then rejected by validation —
+        taking the whole run with it. It must now produce a valid source.
+        """
+        from datetime import date
+        from academic_agent.source_pipeline import _web_source
+
+        source, reason = _web_source(
+            self._result("No information is available for this page."),
+            "P1", "patent", date.today(), lambda url: (True, ""),
+        )
+        self.assertIsNotNone(source, f"rejected with: {reason}")
+        self.assertGreaterEqual(len(source.evidence_summary), 60)
+
+    def test_validation_failure_returns_reason_instead_of_raising(self):
+        """Even so, construction must not be able to abort the caller.
+
+        _web_source signals rejection with (None, reason) everywhere else; the
+        constructor is wrapped so an unforeseen constraint cannot propagate.
+        """
+        from datetime import date
+        from unittest.mock import patch
+        from pydantic import ValidationError
+        from academic_agent.source_pipeline import _web_source
+
+        err = ValidationError.from_exception_data(
+            "EvidenceSource",
+            [{"type": "value_error", "loc": ("evidence_summary",),
+              "input": "x", "ctx": {"error": ValueError("too short")}}],
+        )
+        with patch("academic_agent.source_pipeline.EvidenceSource", side_effect=err):
+            source, reason = _web_source(
+                self._result("A sufficiently long and perfectly ordinary patent "
+                             "abstract describing a flexible graphene electrode."),
+                "P1", "patent", date.today(), lambda url: (True, ""),
+            )
+        self.assertIsNone(source)
+        self.assertIn("evidence_summary", reason)
+
+    def test_summary_floor_matches_the_model(self):
+        """_safe_summary must clear EvidenceSource's floor, not a lower one.
+
+        The two thresholds disagreed: _safe_summary accepted anything over
+        _ABSTRACT_MIN_CHARS (20) while the model demands 60 for Latin text, so
+        every snippet of length 20-59 passed here and failed validation.
+        """
+        from academic_agent.source_pipeline import _safe_summary
+
+        for snippet, title in [
+            ("No information is available for this page.", "Graphene electrode"),
+            ("Short.", "X"),                       # tiny title too
+            ("", "US1234567B2 - Flexible graphene electrode"),
+        ]:
+            with self.subTest(snippet=snippet[:24]):
+                self.assertGreaterEqual(len(_safe_summary(snippet, title)), 60)
+
+    def test_cjk_summary_keeps_the_lower_floor(self):
+        """CJK is denser, so the model allows 20 — do not over-pad it."""
+        from academic_agent.source_pipeline import _safe_summary
+
+        cjk = "柔性石墨烯电极用于可穿戴传感器件的制备方法与应用。"
+        self.assertEqual(_safe_summary(cjk, "石墨烯"), cjk)
+
+    def test_usable_snippet_still_accepted(self):
+        from datetime import date
+        from academic_agent.source_pipeline import _web_source
+
+        snippet = (
+            "A flexible graphene-based electrode structure for wearable sensing "
+            "devices, comprising a patterned conductive layer on an elastomer film."
+        )
+        source, reason = _web_source(
+            self._result(snippet), "P1", "patent", date.today(),
+            lambda url: (True, ""),
+        )
+        self.assertIsNotNone(source)
+        self.assertEqual(reason, "")
