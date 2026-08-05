@@ -308,14 +308,19 @@ outputs/
 `benchmark.py` ships with 10 preset topics spanning different industries and expected TRL ranges, for validating scoring accuracy and consistency.
 
 ```bash
-# Run all 10 topics serially (already-succeeded runs are skipped automatically)
+# Run all 10 topics serially (already-succeeded runs are skipped, so an
+# interrupted batch resumes where it left off)
 uv run python benchmark.py
 
 # Run 3 topics at a time — cuts a full pass from ~30 min to roughly a third
 uv run python benchmark.py --concurrency 3
 
-# Re-run a specific topic (delete its output directory first)
-uv run python benchmark.py --only 03
+# Re-measure after changing the pipeline. Without --force every completed
+# topic is skipped and nothing new is produced.
+uv run python benchmark.py --force --concurrency 3
+
+# Re-run one topic
+uv run python benchmark.py --only 03 --force
 
 # Check the scheduling without spending any API credit
 uv run python benchmark.py --dry-run --concurrency 3
@@ -744,14 +749,17 @@ outputs/
 `benchmark.py` 包含 10 个预设话题，覆盖不同行业和预期 TRL 范围，用于验证系统的评分准确性和一致性。
 
 ```bash
-# 串行运行全部 10 个话题（已成功的自动跳过）
+# 串行运行全部 10 个话题（已成功的自动跳过，因此中断后可续跑）
 uv run python benchmark.py
 
 # 并发 3 个话题 —— 完整一轮从约 30 分钟压缩到三分之一左右
 uv run python benchmark.py --concurrency 3
 
-# 单独重跑某个话题（先手动删除对应目录）
-uv run python benchmark.py --only 03
+# 改动流水线后重新测量。不加 --force 的话，已完成的话题会全部跳过、不产生新结果
+uv run python benchmark.py --force --concurrency 3
+
+# 重跑单个话题
+uv run python benchmark.py --only 03 --force
 
 # 仅验证调度逻辑，不消耗任何 API 额度
 uv run python benchmark.py --dry-run --concurrency 3

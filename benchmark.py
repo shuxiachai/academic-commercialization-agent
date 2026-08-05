@@ -150,6 +150,7 @@ def run_topic(
     trl_range: tuple,
     industry: str,
     dry_run: bool = False,
+    force: bool = False,
 ) -> dict:
     """Run one topic end to end. Executed in its own process when concurrent."""
     if dry_run:
@@ -169,8 +170,12 @@ def run_topic(
 
     _log(f"  [{num}] start — {topic}  [{industry}]  expect TRL {trl_range[0]}–{trl_range[1]}")
 
-    if _already_succeeded(run_dir):
-        _log(f"  [{num}] already succeeded — skipping")
+    # Skipping succeeded runs makes an interrupted batch resumable, but it also
+    # means a plain re-run after changing the pipeline does nothing at all —
+    # every topic is skipped and the summary silently reports the old results.
+    # --force is the way to re-measure; it rewrites this run's outputs in place.
+    if not force and _already_succeeded(run_dir):
+        _log(f"  [{num}] already succeeded — skipping (use --force to re-run)")
         meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
         meta["skipped"] = True
         return meta
@@ -264,11 +269,11 @@ def run_topic(
     return meta
 
 
-def _run_serial(selected: list[tuple], dry_run: bool) -> list[dict]:
+def _run_serial(selected: list[tuple], dry_run: bool, force: bool = False) -> list[dict]:
     """Original behaviour: one topic at a time, with a pause between them."""
     results = []
     for i, (num, topic, trl_range, industry) in enumerate(selected):
-        meta = run_topic(num, topic, trl_range, industry, dry_run)
+        meta = run_topic(num, topic, trl_range, industry, dry_run, force)
         results.append(meta)
         if i < len(selected) - 1 and not meta.get("skipped") and not dry_run:
             _log(f"  → pausing {_INTER_RUN_PAUSE}s before next topic")
@@ -277,7 +282,8 @@ def _run_serial(selected: list[tuple], dry_run: bool) -> list[dict]:
 
 
 def _run_concurrent(
-    selected: list[tuple], concurrency: int, stagger: float, dry_run: bool
+    selected: list[tuple], concurrency: int, stagger: float, dry_run: bool,
+    force: bool = False,
 ) -> list[dict]:
     """Run topics in a process pool, staggering submissions.
 
@@ -291,7 +297,7 @@ def _run_concurrent(
         for i, (num, topic, trl_range, industry) in enumerate(selected):
             if i and stagger:
                 time.sleep(stagger)
-            fut = pool.submit(run_topic, num, topic, trl_range, industry, dry_run)
+            fut = pool.submit(run_topic, num, topic, trl_range, industry, dry_run, force)
             futures[fut] = num
 
         for done, fut in enumerate(as_completed(futures), start=1):
@@ -342,6 +348,13 @@ def main() -> None:
         action="store_true",
         help="Exercise scheduling with simulated work — no API calls, no cost",
     )
+    parser.add_argument(
+        "-f", "--force",
+        action="store_true",
+        help="Re-run topics that already succeeded, overwriting their outputs. "
+             "Needed to re-measure after changing the pipeline — without it "
+             "every completed topic is skipped and the summary keeps the old numbers.",
+    )
     args = parser.parse_args()
 
     if args.concurrency < 1:
@@ -371,17 +384,23 @@ def main() -> None:
         _log(f"Stagger        : {args.stagger}s between starts")
     if args.dry_run:
         _log("Mode           : DRY RUN — simulated work, no API calls")
+    if args.force:
+        _log("Mode           : FORCE — re-running topics that already succeeded")
     _log()
 
     wall_start = time.time()
     if concurrency == 1:
-        results = _run_serial(selected, args.dry_run)
+        results = _run_serial(selected, args.dry_run, args.force)
     else:
-        results = _run_concurrent(selected, concurrency, args.stagger, args.dry_run)
+        results = _run_concurrent(selected, concurrency, args.stagger,
+                                  args.dry_run, args.force)
     wall_elapsed = time.time() - wall_start
 
-    success = sum(1 for r in results if r.get("status") == "success")
+    # A skipped topic carries the previous run's status ("success"), so counting
+    # it in both buckets makes failed go negative. Skipped is its own category.
     skipped = sum(1 for r in results if r.get("skipped"))
+    success = sum(1 for r in results
+                  if r.get("status") == "success" and not r.get("skipped"))
     failed = len(results) - success - skipped
     limit_hits = sum(r.get("rate_limit_hits", 0) for r in results)
     topic_seconds = sum(r.get("elapsed_seconds", 0) for r in results)
@@ -389,6 +408,17 @@ def main() -> None:
     _log(f"\n{'=' * 62}")
     _log("  Benchmark complete")
     _log(f"  Succeeded : {success}   Skipped : {skipped}   Failed : {failed}")
+
+    # Everything skipped means nothing was measured. Saying so beats a summary
+    # that looks like a successful run but reports figures from a previous one.
+    if skipped == len(results) and not args.dry_run:
+        _log("")
+        _log("  ⚠ Every topic was skipped — no new results were produced.")
+        _log("    Existing runs are kept so an interrupted batch can resume.")
+        _log("    To re-measure after changing the pipeline:")
+        _log("        uv run python benchmark.py --force --concurrency 3")
+        return
+
     _log(f"  Wall time : {wall_elapsed / 60:.1f} min"
           f"   (sum of topic times: {topic_seconds / 60:.1f} min)")
     if concurrency > 1 and topic_seconds:
