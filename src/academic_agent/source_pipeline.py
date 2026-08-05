@@ -2539,11 +2539,18 @@ def collect_source_collection(
     # Always run a targeted Google Patents / WIPO Serper search as a geographic
     # supplement: Lens.org skews toward Chinese and Asian patents, while the
     # site:-qualified Serper queries surface US, EP, and WO records not always
-    # represented in the Lens index.  Cap at 3 extra slots, but never exceed
-    # maximum_sources in total.
+    # represented in the Lens index.
+    #
+    # The 3-slot cap keeps Serper a supplement while Lens is working. When Lens
+    # returns nothing — expired key, quota exhausted, API change — that cap
+    # silently became the total: Serper was matching 10 patents per topic and
+    # every run still ended with exactly 3, across all ten benchmark topics.
+    # A supplement's ceiling must not survive the failure of the primary source,
+    # so Serper takes the full remaining budget once Lens contributes nothing.
     _gp_remaining = max(0, maximum_sources - len(patents))
     if _gp_remaining > 0:
-        _gp_slots = min(3, _gp_remaining)
+        _SUPPLEMENT_SLOTS = 3
+        _gp_slots = _gp_remaining if not patents else min(_SUPPLEMENT_SLOTS, _gp_remaining)
         serper_patents, serper_patent_audits = _collect_domain(
             "patent",
             query_map["patent"],

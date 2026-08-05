@@ -158,10 +158,19 @@ def analyse_run(run_dir: Path) -> dict | None:
             row["market_accessibility"] = scores.get("market_accessibility", "")
             row["evidence_confidence"]  = scores.get("evidence_confidence", "")
             row["formula_correct"]      = _formula_correct(scores)
-            # TRL calibration: cross-check against expected range from meta
-            if not row["trl_calibration"] and exp_str and isinstance(row["trl_score"], int):
+            # TRL calibration: cross-check against expected range from meta.
+            # Accept floats — the guardrail normalises the model's x10 integer,
+            # so a TRL is only an int when it happened to be a multiple of ten.
+            # Requiring int here reported "?" for accurate scores. bool is
+            # excluded because it is a subclass of int.
+            # "?" counts as unset: meta.json may carry it from a run made before
+            # this check accepted floats, and those stale values would otherwise
+            # survive re-analysis of perfectly good scores.
+            _trl = row["trl_score"]
+            if (row["trl_calibration"] in ("", "?") and exp_str
+                    and not isinstance(_trl, bool) and isinstance(_trl, (int, float))):
                 lo, hi = (int(x) for x in exp_str.split("-"))
-                row["trl_calibration"] = "pass" if lo <= row["trl_score"] <= hi else "flag"
+                row["trl_calibration"] = "pass" if lo <= _trl <= hi else "flag"
         except Exception:
             row["error"] = "scores JSON parse error"
 

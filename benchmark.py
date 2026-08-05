@@ -84,7 +84,16 @@ def _run_dir(num: str, topic: str) -> Path:
 
 
 def _trl_flag(trl, trl_range: tuple) -> str:
-    if not isinstance(trl, int):
+    """Classify a TRL against its expected range.
+
+    Accepts floats. The scoring guardrail divides the model's x10 integer by 10,
+    so a TRL is only an int when the model happened to write a multiple of ten
+    (85 -> 8.5, but 90 -> 9.0 -> 9). An `isinstance(trl, int)` check therefore
+    passed on some runs and returned "?" on others for no meaningful reason,
+    silently reporting nothing calibrated when scores were in fact accurate.
+    bool is excluded because it is a subclass of int.
+    """
+    if isinstance(trl, bool) or not isinstance(trl, (int, float)):
         return "?"
     return "pass" if trl_range[0] <= trl <= trl_range[1] else "flag"
 

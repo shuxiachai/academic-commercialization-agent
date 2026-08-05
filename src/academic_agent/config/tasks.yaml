@@ -67,7 +67,7 @@ patent_analysis_task:
     framed underexplored areas. This is not a legal freedom-to-operate opinion.
 
     Validated source registry: {patent_sources_json}
-    Known patent assignees / competitors extracted from sources: {patent_assignees_json}
+    Assignee names available in the source metadata: {patent_assignees_json}
     Queries executed by code: {patent_search_queries_json}
 
     Evidence rules:
@@ -76,6 +76,12 @@ patent_analysis_task:
     - Do not output or modify patent titles, URLs, applicants, or dates.
     - Never invent patent numbers, family counts, legal status, or coverage.
     - Treat white-space conclusions as analyst_inference and state limitations.
+    - An empty assignee list means the retrieval source did not expose that
+      field, NOT that the patents are unassigned or that the field was checked
+      and found empty. Web-search patent results carry titles and abstracts but
+      no structured applicant data. When the list is empty, say that assignee
+      information was unavailable and do not infer anything about competitive
+      concentration, market fragmentation, or how crowded the landscape is.
     - Do not claim legal clearance or freedom to operate.
     - Patent age note: If a patent source has a published_date that is 10 or
       more years ago, note in the relevant finding that its legal status
