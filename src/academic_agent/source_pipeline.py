@@ -1484,18 +1484,42 @@ def _topic_bigrams(topic: str) -> frozenset[str]:
     return frozenset(f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1))
 
 
+# A topic longer than this is a specification, not a "technology in a field"
+# phrase — its prepositions separate clauses rather than marking a domain.
+_DOMAIN_KEYWORD_MAX_TOPIC_WORDS = 14
+# More extracted terms than this means several clauses were swept up, so the
+# result is a description of usage rather than one focused domain.
+_DOMAIN_KEYWORD_MAX_TERMS = 3
+
+
 def _topic_domain_keywords(topic: str) -> frozenset[str]:
     """Extract the application-domain portion of a topic after a splitting preposition.
 
     For topics like "large language models in clinical medicine", this returns
     the domain part keywords ({"clinical", "medicine"}) stripped of generic tech
-    terms.  These are used as a hard inclusion filter: academic papers must
-    mention at least one domain keyword in their title or summary, otherwise
-    they are treated as off-domain and excluded.
+    terms.  These are used as a hard inclusion filter: sources must mention at
+    least one domain keyword in their title or summary, otherwise they are
+    treated as off-domain and excluded.
 
-    For topics without a splitting preposition (e.g. "solid state batteries"),
-    returns an empty frozenset so no domain check is applied.
+    Returns an empty frozenset — disabling the filter — when the topic has no
+    splitting preposition, or when it is too long or too varied for the split to
+    mean anything. That guard exists because uploaded-paper topics arrive as
+    full specifications:
+
+        "...sensor based on CNT/PDMS micro-pyramid structure, with a sensitivity
+         of 47.3 kPa, for tactile perception in industrial robots and medical
+         rehabilitation"
+
+    The first " for " here opens a usage clause, not a field, and everything
+    after it ({industrial, medical, rehabilitation, robots}) then becomes a
+    mandatory keyword. No patent title carries those words, so the filter
+    silently removed every genuinely relevant hit. Extracting nothing is the
+    safer failure: it costs some precision, whereas a wrong domain filter
+    removes all the evidence.
     """
+    if len(re.findall(r"[a-z]+", topic.lower())) > _DOMAIN_KEYWORD_MAX_TOPIC_WORDS:
+        return frozenset()
+
     lower = topic.lower()
     for prep in (" in ", " for ", " applied to ", " used in "):
         idx = lower.find(prep)
@@ -1507,7 +1531,7 @@ def _topic_domain_keywords(topic: str) -> frozenset[str]:
                 if w not in _STOP_WORDS and w not in _GENERIC_TECH_TERMS
             )
             if domain_kw:
-                return domain_kw
+                return domain_kw if len(domain_kw) <= _DOMAIN_KEYWORD_MAX_TERMS else frozenset()
     return frozenset()
 
 
@@ -2618,7 +2642,14 @@ def collect_source_collection(
     academic, _ac_removed = _filter_by_relevance(academic, normalized_topic, min_score=3, min_keep=_ac_min_keep)
     _record_relevance_filter(_ac_removed, "academic", all_audits, min_score=3)
 
-    patents, _pat_removed = _filter_by_relevance(patents, normalized_topic, min_score=1, min_keep=1)
+    # Patents skip the hard domain-keyword exclusion for the same reason market
+    # sources do, only more so: a patent title claims the invention, not its
+    # application. "Electronic skin, preparation method and use thereof" is
+    # exactly the right hit for a tactile-sensor topic, yet it names no
+    # application domain, so the -1 rule would drop it — and -1 is excluded even
+    # by the min_keep fallback, which is how a topic ended up with zero patents.
+    patents, _pat_removed = _filter_by_relevance(patents, normalized_topic, min_score=1, min_keep=1,
+                                                 skip_domain_filter=True)
     _record_relevance_filter(_pat_removed, "patent", all_audits, min_score=1)
 
     market, _mkt_removed = _filter_by_relevance(market, normalized_topic, min_score=2, min_keep=2,

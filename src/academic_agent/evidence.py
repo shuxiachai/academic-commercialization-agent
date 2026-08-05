@@ -644,7 +644,14 @@ def validate_evidence_report(
             errors.append(f"Finding ID {finding.finding_id!r} is duplicated.")
         finding_ids.add(finding.finding_id)
 
-        if not finding.source_ids:
+        # Only demand a citation when there is something to cite. A domain can
+        # legitimately come back empty — no patents matched, a search API was
+        # down — and in that case this rule is unsatisfiable: the agent has no
+        # valid ID to use, so the guardrail rejects, the retry produces the same
+        # output, and the whole run fails on a domain that simply had no
+        # evidence. Reporting "no patent evidence found" is a real result and
+        # must not be turned into a crash.
+        if not finding.source_ids and source_id_set:
             errors.append(
                 f"Finding {finding.finding_id} has no source_ids; "
                 "cite at least one source from the available list."
