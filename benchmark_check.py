@@ -93,15 +93,36 @@ def _count_numeric_uncited(report: str) -> int:
     return count
 
 
-def _formula_correct(scores: dict) -> bool:
+def _formula_correct(scores: dict, weight_profile: str = "industrial") -> bool:
+    """Recompute overall_score independently and compare.
+
+    Reads the weights from evidence._WEIGHT_PROFILES rather than restating
+    them. The previous version hard-coded "TRL 30 / Patent 30 / Market 25 /
+    Evidence 15" — a scheme that no longer exists and that omitted MRL
+    entirely, so this check reported every run as incorrect regardless of the
+    actual arithmetic. A verifier that cannot be right is worse than none.
+
+    Duplicating the numbers here would defeat the point of the check, but
+    reading the same table is still meaningful: it verifies that the score
+    stored on disk matches the weights the run recorded, catching a guardrail
+    that failed to apply its correction.
+    """
+    from academic_agent.evidence import _WEIGHT_PROFILES
+
+    w = _WEIGHT_PROFILES.get(weight_profile, _WEIGHT_PROFILES["industrial"])
     trl = scores.get("trl_score", 0)
+    mrl = scores.get("mrl_score", 0)
     pat = scores.get("patent_strength", 0)
     mkt = scores.get("market_accessibility", 0)
     evi = scores.get("evidence_confidence", 0)
     overall = scores.get("overall_score", -1)
-    # Weights: TRL 30%, Patent 30%, Market 25%, Evidence 15%
-    expected = round((trl / 9) * 30 + (pat / 5) * 30 + (mkt / 5) * 25 + (evi / 5) * 15)
-    return overall == expected
+
+    expected = round(
+        (mkt / 5) * w["market"] + (trl / 9) * w["trl"] + (mrl / 10) * w["mrl"]
+        + (pat / 5) * w["patent"] + (evi / 5) * w["evidence"],
+        1,
+    )
+    return abs(overall - expected) < 0.05
 
 
 def analyse_run(run_dir: Path) -> dict | None:
@@ -157,7 +178,18 @@ def analyse_run(run_dir: Path) -> dict | None:
             row["patent_strength"]      = scores.get("patent_strength", "")
             row["market_accessibility"] = scores.get("market_accessibility", "")
             row["evidence_confidence"]  = scores.get("evidence_confidence", "")
-            row["formula_correct"]      = _formula_correct(scores)
+            # The active profile decides the weights, so read the one this run
+            # actually used rather than assuming the default.
+            _profile = "industrial"
+            _sources_path = run_dir / "validated_sources.json"
+            if _sources_path.exists():
+                try:
+                    _profile = json.loads(
+                        _sources_path.read_text(encoding="utf-8")
+                    ).get("weight_profile") or "industrial"
+                except (OSError, json.JSONDecodeError):
+                    pass
+            row["formula_correct"] = _formula_correct(scores, _profile)
             # TRL calibration: cross-check against expected range from meta.
             # Accept floats — the guardrail normalises the model's x10 integer,
             # so a TRL is only an int when it happened to be a multiple of ten.
