@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-import time
-from datetime import timezone
+from datetime import UTC
 from pathlib import Path
 from unittest import TestCase
 import tempfile
@@ -44,9 +43,9 @@ class RunDurationTests(TestCase):
         status_path = run_dir / "status.json"
         status_path.write_text("{}", encoding="utf-8")
         # Set mtime to run_id start time + delay so _run_duration sees the right duration
-        from datetime import datetime, timezone as _tz
+        from datetime import datetime
         ts_str = run_id.split("-")[0]
-        start_ts = datetime.strptime(ts_str, "%Y%m%dT%H%M%SZ").replace(tzinfo=_tz.utc).timestamp()
+        start_ts = datetime.strptime(ts_str, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC).timestamp()
         mtime = start_ts + status_delay_secs
         os.utime(status_path, (mtime, mtime))
         return run_dir

@@ -1,7 +1,6 @@
 """Tests for language detection, translation fallback, and registry lookups."""
 from unittest.mock import patch
 
-import pytest
 
 from academic_agent.language import (
     LANGUAGE_REGISTRY,

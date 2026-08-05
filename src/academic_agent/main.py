@@ -2,7 +2,6 @@
 """Command-line entry points for the commercialization assessment crew."""
 
 import argparse
-import sys
 import warnings
 
 from academic_agent.crew import AcademicAgent
@@ -47,33 +46,9 @@ def run():
         raise RuntimeError(f"An error occurred while running the crew: {exc}") from exc
 
 
-def train():
-    source_collection = _build_collection()
-    try:
-        AcademicAgent(source_collection).crew().train(
-            n_iterations=int(sys.argv[1]),
-            filename=sys.argv[2],
-            inputs=source_collection.crew_inputs(),
-        )
-    except Exception as exc:
-        raise RuntimeError(f"An error occurred while training the crew: {exc}") from exc
-
-
-def replay():
-    source_collection = _build_collection()
-    try:
-        AcademicAgent(source_collection).crew().replay(task_id=sys.argv[1])
-    except Exception as exc:
-        raise RuntimeError(f"An error occurred while replaying the crew: {exc}") from exc
-
-
-def test():
-    source_collection = _build_collection()
-    try:
-        AcademicAgent(source_collection).crew().test(
-            n_iterations=int(sys.argv[1]),
-            eval_llm=sys.argv[2],
-            inputs=source_collection.crew_inputs(),
-        )
-    except Exception as exc:
-        raise RuntimeError(f"An error occurred while testing the crew: {exc}") from exc
+# The CrewAI scaffold also ships train/replay/test entry points. They were
+# removed here rather than fixed: each called a _build_collection() helper that
+# never existed, so every one of them raised NameError on invocation — they had
+# never been run. Restoring them would mean re-running the full source
+# collection on each invocation, which is neither cheap nor what those commands
+# are for. `benchmark.py` covers the evaluation need this project actually has.

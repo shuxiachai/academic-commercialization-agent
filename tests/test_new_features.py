@@ -29,7 +29,6 @@ from academic_agent.source_pipeline import (
     SearchAudit,
     ArxivClient,
     EvidenceSource,
-    LensPatentClient,
     collect_source_collection,
 )
 
@@ -577,7 +576,7 @@ class _FakeLens:
 
 
 class PatentAssigneesTests(TestCase):
-    def _run_collection(self, lens_records: list[dict]) -> "SourceCollection":  # type: ignore[name-defined]
+    def _run_collection(self, lens_records: list[dict]):
         with patch(
             "academic_agent.source_pipeline.PubMedClient.search",
             return_value=[],

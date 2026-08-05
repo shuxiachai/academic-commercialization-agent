@@ -8,9 +8,15 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: pytest (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        # Windows is not incidental here: font resolution walks C:/Windows/Fonts,
+        # and the benchmark's process pool uses spawn rather than fork, so a
+        # Linux-only matrix would never exercise either path.
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12"]
 
     steps:
@@ -26,4 +32,38 @@ jobs:
         run: uv sync --python ${{ matrix.python-version }}
 
       - name: Run tests
-        run: uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short
+        # -W error::UserWarning turns an accidental real API call into a
+        # failure: those paths warn and fall back rather than raising, so
+        # without this a leak passes silently and spends credit.
+        run: >
+          uv run --python ${{ matrix.python-version }}
+          pytest tests/ -v --tb=short
+          -W error::UserWarning
+          -W ignore::DeprecationWarning
+          -W "ignore:Using `httpx`"
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          python-version: "3.12"
+
+      - name: ruff
+        run: uv run --with ruff ruff check .
+
+      - name: pylint (exception-order checks only)
+        # Narrow on purpose. ruff has no equivalent of E0701, which is exactly
+        # what a real bug in this repo looked like: `except HTTPError` placed
+        # after `except URLError` is dead code, since HTTPError subclasses
+        # URLError — so every auth failure was retried as if transient.
+        # Running all of pylint would drown that signal in style noise.
+        run: >
+          uv run --with pylint pylint src/ ui/ api/
+          --disable=all
+          --enable=bad-except-order,unreachable,used-before-assignment,undefined-variable
+          --score=n

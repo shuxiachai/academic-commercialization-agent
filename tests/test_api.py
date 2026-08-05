@@ -11,7 +11,7 @@ import json
 import shutil
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -22,7 +22,7 @@ from api.main import app
 
 
 def _run_id(suffix: str = "abcdef0123") -> str:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     return f"{stamp}-{suffix}"
 
 

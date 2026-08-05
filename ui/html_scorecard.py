@@ -147,7 +147,9 @@ def _radar_svg(trl: float, mrl: float, pat: float, mkt: float, evi: float, color
     parts.append(f'<polygon points="{dpts}" fill="{color}" fill-opacity="0.18" stroke="{color}" stroke-width="1.5"/>')
 
     # Dots + labels + raw values (merged to share title tooltip on dots)
-    for i, (v, lbl, raw, a) in enumerate(zip(vals, labels, raws, angles)):
+    # strict=True: all four sequences describe the same five score dimensions,
+    # so a length mismatch means a dimension lost its label or its angle.
+    for v, lbl, raw, a in zip(vals, labels, raws, angles, strict=True):
         x, y = pt(a, r * max(v, 0.02))
         parts.append(
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}" style="cursor:pointer;">'
@@ -315,11 +317,11 @@ def _render_score_html(
         f'<div style="font-size:10px;font-weight:700;color:#777777;'
         f'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">'
         f'{html.escape(t["formula"])}'
-        + (f'<span style="margin-left:8px;font-size:9px;font-weight:600;'
-           f'background:#292912;border:1px solid #52520a;color:#a3a30a;'
-           f'padding:1px 6px;border-radius:4px;text-transform:none;letter-spacing:0;">'
-           f'auto-corrected</span>' if autocorrect_note else "") +
-        f'</div>'
+        + ('<span style="margin-left:8px;font-size:9px;font-weight:600;'
+           'background:#292912;border:1px solid #52520a;color:#a3a30a;'
+           'padding:1px 6px;border-radius:4px;text-transform:none;letter-spacing:0;">'
+           'auto-corrected</span>' if autocorrect_note else "") +
+        '</div>'
         + (f'<div style="font-size:10px;color:#555555;font-family:ui-monospace,monospace;'
            f'margin-bottom:6px;padding:3px 8px;background:#111111;border-radius:4px;'
            f'overflow-x:auto;white-space:nowrap;">'

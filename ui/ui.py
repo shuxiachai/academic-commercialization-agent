@@ -8,7 +8,6 @@ from ui.i18n import _ui, _profile_choices, _PROFILE_CHOICES_DEFAULT, _CARD_LABEL
 from ui.html_misc import _header_html, _pdf_desc_html, _paper_divider_html
 from ui.history import _render_history_html, _cleanup_old_runs, _load_run
 from ui.runner import extract_paper_from_pdf, run_analysis_from_paper, run_analysis
-from academic_agent.run_output import DEFAULT_OUTPUT_ROOT
 
 # ---------------------------------------------------------------------------
 # CSS

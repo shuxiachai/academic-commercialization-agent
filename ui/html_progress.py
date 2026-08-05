@@ -2,7 +2,6 @@
 
 import html
 import json
-from pathlib import Path
 
 from ui.i18n import _scorecard_strings, _ui
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT
@@ -75,7 +74,12 @@ def _render_progress_html(
     u = _ui(output_language)
     all_stages = [_STAGE_INITIAL] + TASK_STAGE_LABELS
     _stage_en_keys = ["stage_init", "stage_evidence", "stage_writing", "stage_review", "stage_scoring"]
-    _stage_display = {en: u.get(key, en) for en, key in zip(all_stages, _stage_en_keys)}
+    # strict=True: a stage added without its i18n key would otherwise be
+    # silently dropped from the mapping and render untranslated.
+    _stage_display = {
+        en: u.get(key, en)
+        for en, key in zip(all_stages, _stage_en_keys, strict=True)
+    }
     _phase1_labels = [
         u.get("agent_academic", _PHASE1_AGENTS[0][0]),
         u.get("agent_patent",   _PHASE1_AGENTS[1][0]),
@@ -140,7 +144,7 @@ def _render_progress_html(
                     f'</div>'
                 )
 
-            for j, (agent_name, color, bg) in enumerate(_PHASE1_AGENTS):
+            for j, (_agent_name, color, bg) in enumerate(_PHASE1_AGENTS):
                 agent_done = state == "done" or j in phase1_done
                 if agent_done:
                     dot = _progress_dot("done", spin)
@@ -175,7 +179,7 @@ def _render_progress_html(
     # Connector lines between steps (thin vertical line on left column)
     # Achieved by wrapping steps in a relative container with a left border
     steps_html = (
-        f'<div style="padding-left:9px;border-left:2px solid #27272a;margin-left:0;">'
+        '<div style="padding-left:9px;border-left:2px solid #27272a;margin-left:0;">'
         + "".join(items)
         + "</div>"
     )

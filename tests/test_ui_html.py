@@ -287,14 +287,13 @@ class CleanupOldRunsTests(TestCase):
 
     def test_no_output_dir_returns_message(self) -> None:
         from unittest.mock import patch
-        from academic_agent.run_output import DEFAULT_OUTPUT_ROOT
         with patch("ui.history.DEFAULT_OUTPUT_ROOT", Path("/nonexistent/outputs")):
             result = _cleanup_old_runs(20)
         self.assertIn("No output directory", result)
 
     def test_nothing_to_clean_when_under_limit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            dirs = self._populate_output_dir(Path(tmp), 3)
+            self._populate_output_dir(Path(tmp), 3)
             from unittest.mock import patch
             with patch("ui.history.DEFAULT_OUTPUT_ROOT", Path(tmp) / "outputs"):
                 result = _cleanup_old_runs(keep_n=5)

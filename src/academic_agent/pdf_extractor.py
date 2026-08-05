@@ -43,10 +43,10 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
     """
     try:
         import pypdfium2 as pdfium
-    except ImportError:
+    except ImportError as exc:
         raise RuntimeError(
             "pypdfium2 is required. Install with: pip install pypdfium2"
-        )
+        ) from exc
 
     with pdfium.PdfDocument(str(pdf_path)) as doc:
         n = len(doc)

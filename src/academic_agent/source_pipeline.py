@@ -4,26 +4,29 @@ import html
 import json
 import os
 import re
-import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from difflib import SequenceMatcher
-from typing import Any, Callable, Literal
-from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
+from typing import Any, Literal
+from collections.abc import Callable
+from urllib.error import URLError
+from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, Field
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
 
-from academic_agent.source_clients import (
+from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
     SourceCollectionError,
     _TOPIC_PREPOSITIONS,
-    _PM_MONTH,
-    _PATENT_STOPWORDS, _PATENT_MAX_QUERY_WORDS, _patent_keywords,
-    _http_fetch_json, _topic_core_phrase,
+    _topic_core_phrase,
     SerperClient, OpenAlexClient, SemanticScholarClient,
     PubMedClient, ArxivClient, LensPatentClient, CrossrefClient,
+    # Re-exported for callers and tests that treat source_pipeline as the
+    # public surface of the retrieval layer. Not referenced in this module,
+    # so an unused-import autofix will delete them unless the noqa stays.
+    _PM_MONTH,
+    _PATENT_STOPWORDS, _PATENT_MAX_QUERY_WORDS, _patent_keywords,
 )
 
 
@@ -2649,7 +2652,7 @@ def collect_source_collection(
         output_language=lang_info["name"],
         localized_headings=localized_headings,
         weight_profile=weight_profile,
-        collected_at=datetime.now(timezone.utc),
+        collected_at=datetime.now(UTC),
         academic_sources=academic,
         patent_sources=patents,
         patent_assignees=patent_assignees,

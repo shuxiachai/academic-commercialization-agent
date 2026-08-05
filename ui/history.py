@@ -2,7 +2,6 @@
 
 import html
 import json
-from pathlib import Path
 
 from ui.i18n import _ui
 from ui.html_scorecard import _score_color, _render_score_html
@@ -125,7 +124,7 @@ def _render_history_html(ui_lang: str = "English") -> str:
                 f'</div>'
             )
         else:
-            score_cell = f'<span style="color:#9a9a9a;">—</span>'
+            score_cell = '<span style="color:#9a9a9a;">—</span>'
 
         run_id_short = run_id[:26]
         rows_html += (

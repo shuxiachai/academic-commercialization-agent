@@ -2,7 +2,7 @@
 
 from academic_agent.crew import AcademicAgent
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, UTC
 from academic_agent.evidence import EvidenceSource
 from academic_agent.source_pipeline import SourceCollection
 
@@ -25,7 +25,7 @@ def _make_collection() -> SourceCollection:
 
     return SourceCollection(
         topic="Test commercialization topic",
-        collected_at=datetime.now(timezone.utc),
+        collected_at=datetime.now(UTC),
         academic_sources=sources("A", "academic_paper"),
         patent_sources=sources("P", "patent"),
         market_sources=sources("M", "company_disclosure"),

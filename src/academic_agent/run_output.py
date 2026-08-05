@@ -1,6 +1,6 @@
 """Per-run output management for generated commercialization reports."""
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Literal, TypedDict
 from uuid import uuid4
@@ -25,7 +25,7 @@ DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "outputs"
 
 
 def create_run_id() -> str:
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     return f"{timestamp}-{uuid4().hex[:10]}"
 
 

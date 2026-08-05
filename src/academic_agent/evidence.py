@@ -5,7 +5,8 @@ import re
 import socket
 from datetime import date
 from functools import lru_cache
-from typing import Any, Callable, Literal, Sequence
+from typing import Any, Literal
+from collections.abc import Callable, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener

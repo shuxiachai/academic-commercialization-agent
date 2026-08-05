@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 
@@ -34,7 +34,7 @@ def _parse_run_timestamp(run_id: str) -> str:
     """Convert run_id like '20241215T123456Z-abc' to local time."""
     try:
         ts = run_id.split("-")[0]  # '20241215T123456Z'
-        dt = datetime.strptime(ts, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(ts, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
         return dt.astimezone().strftime("%Y-%m-%d %H:%M")
     except Exception:
         return run_id[:16]
@@ -45,13 +45,12 @@ def _run_duration(run_dir: Path) -> str:
     try:
         run_id = run_dir.name
         ts = run_id.split("-")[0]
-        start_dt = datetime.strptime(ts, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        start_dt = datetime.strptime(ts, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
         status_path = run_dir / "status.json"
         if not status_path.exists():
             return "—"
         end_ts = os.path.getmtime(status_path)
-        from datetime import timezone as _tz
-        end_dt = datetime.fromtimestamp(end_ts, tz=_tz.utc)
+        end_dt = datetime.fromtimestamp(end_ts, tz=UTC)
         secs = int((end_dt - start_dt).total_seconds())
         if secs < 0:
             return "—"

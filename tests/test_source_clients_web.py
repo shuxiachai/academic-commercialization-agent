@@ -211,8 +211,12 @@ class LensClientTests(unittest.TestCase):
 
     @patch("academic_agent.source_clients.urlopen")
     def test_bearer_token_sent(self, mock_urlopen):
+        # An empty result set warns by design (see the zero-results test), so
+        # the warning is asserted rather than left to leak — the suite runs
+        # with -W error::UserWarning to catch accidental live API calls.
         mock_urlopen.return_value = _FakeResponse({"data": []})
-        LensPatentClient(api_key="secret").search("q")
+        with self.assertWarns(UserWarning):
+            LensPatentClient(api_key="secret").search("q")
         headers = mock_urlopen.call_args[0][0].headers
         self.assertEqual(headers.get("Authorization"), "Bearer secret")
 
@@ -220,7 +224,8 @@ class LensClientTests(unittest.TestCase):
     def test_row_count_capped_at_fifty(self, mock_urlopen):
         """Lens rejects size > 50 outright."""
         mock_urlopen.return_value = _FakeResponse({"data": []})
-        LensPatentClient(api_key="k").search("q", rows=500)
+        with self.assertWarns(UserWarning):
+            LensPatentClient(api_key="k").search("q", rows=500)
         body = json.loads(mock_urlopen.call_args[0][0].data.decode())
         self.assertEqual(body["size"], 50)
 

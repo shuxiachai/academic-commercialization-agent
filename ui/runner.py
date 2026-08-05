@@ -22,7 +22,7 @@ from ui.html_sources import (
 )
 from ui.html_progress import _render_progress_html, _STAGE_INITIAL, SPINNER
 from ui.html_misc import _render_reviewer_notes_html, _paper_divider_html
-from ui.run_reader import _read_output_language, _read_weight_profile
+from ui.run_reader import _read_weight_profile
 from ui.pdf_export import _generate_pdf
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
 from academic_agent.pdf_extractor import extract_paper_contribution

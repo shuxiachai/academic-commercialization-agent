@@ -18,9 +18,6 @@ dependencies = [
 [project.scripts]
 academic_agent = "academic_agent.main:run"
 run_crew = "academic_agent.main:run"
-train = "academic_agent.main:train"
-replay = "academic_agent.main:replay"
-test = "academic_agent.main:test"
 
 [build-system]
 requires = ["hatchling"]
@@ -31,6 +28,42 @@ type = "crew"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [".venv", ".claude", "outputs", "__pycache__"]
+
+[tool.ruff.lint]
+# Deliberately narrow: rules that catch defects, not rules that enforce taste.
+# E501 (line length) is off because the codebase uses aligned dict literals and
+# long URLs in font-path tables where wrapping hurts readability.
+select = [
+    "F",      # pyflakes — undefined names, unused imports; catches real bugs
+    "E4",     # import placement
+    "E7",     # statement-level mistakes (comparison to None/True, etc.)
+    "E9",     # syntax / IO errors
+    "B",      # bugbear — mutable defaults, except-in-loop, missing raise-from
+    "UP",     # pyupgrade — keeps syntax current with the 3.11 floor
+]
+ignore = [
+    "B008",   # function call in default arg — intentional for DI defaults
+    "B028",   # warnings.warn without stacklevel — the messages name their source
+    # UP037 would unquote annotations that reference lazily-imported names.
+    # Several modules defer heavy imports into function bodies, so the name
+    # genuinely does not exist at module scope and unquoting breaks at runtime.
+    "UP037",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests reach into private helpers by design, and fixtures shadow builtins.
+"tests/*" = ["F811", "E402"]
+# These entry points reconfigure stdout/stderr encoding or load .env before
+# importing anything that depends on it — the ordering is the point.
+"api/main.py" = ["E402"]
+"app.py" = ["E402"]
+"benchmark.py" = ["E402"]
+"benchmark_check.py" = ["E402"]
 
 [dependency-groups]
 dev = [

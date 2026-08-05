@@ -20,7 +20,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
@@ -157,7 +157,7 @@ def cancel_run(run_id: str) -> None:
     handle.terminate()
     _registry.pop(run_id, None)
     (run_dir_for(run_id) / _CANCEL_MARKER).write_text(
-        datetime.now(timezone.utc).isoformat(), encoding="utf-8"
+        datetime.now(UTC).isoformat(), encoding="utf-8"
     )
 
 
@@ -270,7 +270,7 @@ def get_state(run_id: str) -> dict:
 def _started_at(run_id: str) -> str:
     try:
         stamp = run_id.split("-")[0]
-        dt = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
         return dt.isoformat()
     except ValueError:
         return ""
@@ -279,11 +279,11 @@ def _started_at(run_id: str) -> str:
 def _duration(run_dir: Path) -> str:
     try:
         stamp = run_dir.name.split("-")[0]
-        start = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        start = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
         status_path = run_dir / "status.json"
         if not status_path.exists():
             return "—"
-        end = datetime.fromtimestamp(os.path.getmtime(status_path), tz=timezone.utc)
+        end = datetime.fromtimestamp(os.path.getmtime(status_path), tz=UTC)
         secs = int((end - start).total_seconds())
         if secs < 0:
             return "—"
