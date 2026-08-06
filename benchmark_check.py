@@ -88,6 +88,13 @@ def _count_numeric_uncited(report: str) -> int:
         # "**Recommendation 1 (High Priority): Title**"
         if re.fullmatch(r"\*\*(?:(?:\w+\s+){1,3})?\d+(?:\s*\([^)]+\))?[.:]\s*.+\*\*", s):
             continue
+        # Bold headers whose only digits sit in a parenthesised horizon:
+        # "**Near-Term (1-3 years):**", "**Long-Term (7+ years):**". These label
+        # a roadmap section rather than assert a figure, and requiring a citation
+        # on them counted three headings as hallucination risk in a report that
+        # had none.
+        if re.fullmatch(r"\*\*[^*]*\([^)]*\d[^)]*\)[^*]*:?\*\*", s):
+            continue
         if _NUMERIC_CLAIM_PATTERN.search(s) and not _CITATION_PATTERN.search(s):
             count += 1
     return count

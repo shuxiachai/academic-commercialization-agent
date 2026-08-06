@@ -76,6 +76,42 @@ class TrlFlagTests(unittest.TestCase):
 
         self.assertEqual(sum(1 for t, r, _ in observed if _trl_flag(t, r) == "pass"), 8)
 
+class NumericUncitedTests(unittest.TestCase):
+    """The hallucination proxy must not count roadmap headings.
+
+    A real report was reported as carrying three uncited numeric claims. All
+    three were timeline labels — "**Near-Term (1-3 years):**" and friends —
+    which name a section rather than assert a figure. The existing bold-header
+    exclusion only matched numbered headings like "**1. Title**".
+    """
+
+    def _count(self, line: str) -> int:
+        from benchmark_check import _count_numeric_uncited
+        return _count_numeric_uncited(f"## Section\n\n{line}\n\n## References\n")
+
+    def test_parenthesised_horizon_headings_not_counted(self):
+        for heading in [
+            "**Near-Term (1-3 years):**",
+            "**Near-Term (1\u20133 years):**",   # en dash, as emitted
+            "**Medium-Term (3-7 years):**",
+            "**Long-Term (7+ years):**",
+            "**Phase 2 (2027-2030):**",
+        ]:
+            with self.subTest(heading=heading):
+                self.assertEqual(self._count(heading), 0)
+
+    def test_genuine_uncited_figure_still_counted(self):
+        """The check must keep catching what it exists to catch."""
+        self.assertEqual(
+            self._count("The market will reach USD 4.2 billion by 2030."), 1)
+
+    def test_cited_figure_not_counted(self):
+        self.assertEqual(
+            self._count("The market will reach USD 4.2 billion by 2030 [M3]."), 0)
+
+    def test_multi_id_citation_recognised(self):
+        self.assertEqual(
+            self._count("Seven records [P1, P2, P3] were filed since 2019."), 0)
 
 if __name__ == "__main__":
     unittest.main()
