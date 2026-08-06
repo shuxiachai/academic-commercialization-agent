@@ -55,6 +55,7 @@ def main() -> None:
         DEFAULT_OUTPUT_ROOT,
         StepEntry,
         save_error,
+        save_evidence_reports,
         save_report,
         save_reviewer_notes,
         save_scores,
@@ -280,6 +281,16 @@ def main() -> None:
         _IDX_REVIEW  = 4   # report_review_task
         _IDX_SCORING = 5   # commercialization_scoring_task
         tasks_output = getattr(result, "tasks_output", None) or []
+
+        # Persist the evidence stage before anything that can fail below. Tasks
+        # 4 and 6 read these outputs rather than the source registry, so they
+        # are the only record of how sources became findings — and they used to
+        # exist solely in memory, leaving half the pipeline unauditable.
+        try:
+            save_evidence_reports(tasks_output, run_id=args.run_id)
+        except Exception:  # noqa: BLE001 - inspection files must not fail a run
+            pass
+
         if len(tasks_output) > _IDX_SCORING:
             report_raw = tasks_output[_IDX_REVIEW].raw
             scores_raw = tasks_output[_IDX_SCORING].raw

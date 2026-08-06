@@ -169,6 +169,7 @@ def run_topic(
         return meta
 
     from academic_agent.crew import AcademicAgent
+    from academic_agent.run_output import save_evidence_reports
     from academic_agent.source_pipeline import (
         SourceCollectionError,
         collect_source_collection,
@@ -224,6 +225,12 @@ def run_topic(
         )
 
         tasks_output = getattr(result, "tasks_output", None) or []
+
+        # Keep the evidence stage for inspection. A benchmark exists to explain
+        # why a score came out the way it did, and that reasoning lives in
+        # Tasks 1-3 — the report writer and scorer never see the raw registry.
+        save_evidence_reports(tasks_output, run_id=run_dir.name, output_root=run_dir.parent)
+
         if len(tasks_output) >= 2:
             report_raw = tasks_output[-2].raw   # Task 5 = reviewer = Markdown report
             scores_raw = tasks_output[-1].raw   # Task 6 = scorer  = JSON scorecard
