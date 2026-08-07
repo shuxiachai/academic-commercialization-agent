@@ -296,10 +296,42 @@ outputs/
     ├── commercialization_report.pdf   # Final report (PDF, CJK-font-aware)
     ├── commercialization_scores.json  # Quantitative scorecard
     ├── validated_sources.json         # Pre-validated source list
+    ├── academic_evidence.json         # Task 1 findings, with source IDs and claim types
+    ├── patent_evidence.json           # Task 2 findings
+    ├── market_evidence.json           # Task 3 findings
     ├── reviewer_notes.md              # Reviewer change log (separated from main report)
     ├── status.json                    # Pipeline stage + source counts (polled by UI)
     └── steps.jsonl                    # Per-agent step events (polled for live progress)
 ```
+
+The three `*_evidence.json` files are what the report writer and scorer actually
+read — neither sees the raw source registry. They record how a validated source
+became a cited finding, each carrying `source_ids`, a `claim_type` of
+`observed_fact` / `estimate` / `analyst_inference`, a confidence level, and its
+own limitations.
+
+---
+
+### Docker
+
+```bash
+mkdir -p outputs          # bind-mounted; create it first so it is not root-owned
+cp .env.example .env      # add your keys
+docker compose up --build
+```
+
+The UI is then on http://localhost:7860.
+
+Three things in the image are specific to this project rather than boilerplate:
+
+| Choice | Why |
+|---|---|
+| `fonts-noto-cjk` | The PDF exporter embeds a CJK font instead of trusting the reader to have one. None ship in `python:slim`, and the fallback chain degrades silently — Chinese reports would render as blank boxes with nothing logged. The build runs `scripts/verify_container_fonts.py` and fails if no embedded font resolves. |
+| `tini` as PID 1 | Each run is a `subprocess.Popen` that the UI cancels with `proc.terminate()`. A bare Python PID 1 neither forwards signals nor reaps children, so cancelled runs would accumulate as zombies and `docker stop` would block until it timed out. |
+| `GRADIO_SERVER_NAME=0.0.0.0` | Gradio binds loopback by default, which is unreachable from outside a container. Setting it in the environment keeps `app.py` unchanged, so local development retains its loopback-only default. |
+
+`outputs/` is a bind mount because run history, reports and status files are
+state. API keys come from `.env` at runtime and are never baked into a layer.
 
 ---
 
@@ -420,6 +452,7 @@ academic_agent/
 - **Web UI**: Gradio 6.x
 - **HTTP API**: FastAPI + Uvicorn (OpenAPI docs at `/docs`)
 - **PDF export**: reportlab Platypus (embedded TTFont for CJK; falls back to CID fonts)
+- **Container**: Docker multi-stage build (dependency layer cached separately from source), `tini` as PID 1 for subprocess reaping, non-root user, build-time CJK font verification
 - **Python**: 3.11+
 
 Invalid or unreachable URLs/DOIs, mismatched citation IDs, References inconsistencies, malformed report sections, hallucinated source IDs in scoring, and scoring JSON format errors all block the task and trigger automatic retries.

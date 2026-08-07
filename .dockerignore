@@ -1,0 +1,35 @@
+# Keeping the build context small matters here: outputs/ accumulates reports
+# and .venv is hundreds of megabytes, and both would otherwise be shipped to
+# the daemon on every build only to be discarded.
+
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Run artifacts — state, not source. The container writes its own.
+outputs/
+
+# Secrets must never enter an image layer; compose supplies them at runtime.
+.env
+.env.*
+!.env.example
+
+.git/
+.github/
+.gitignore
+.claude/
+*.md
+!README.md
+简历项目说明.md
+
+Dockerfile
+.dockerignore
+docker-compose.yml

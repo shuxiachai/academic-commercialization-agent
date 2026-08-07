@@ -1,0 +1,39 @@
+services:
+  app:
+    build:
+      context: .
+      # Pinned rather than "latest" so a rebuilt image resolves the same
+      # interpreter the lockfile and CI matrix were tested against.
+      args:
+        PYTHON_VERSION: "3.12"
+    image: academic-agent:1.0.0
+    ports:
+      - "7860:7860"
+
+    # API keys are read from a host .env at runtime. They are deliberately not
+    # baked into the image: an image layer is readable by anyone who pulls it,
+    # and these keys are billable.
+    env_file:
+      - .env
+
+    volumes:
+      # Reports, run history and status files are state and must outlive the
+      # container. Create ./outputs on the host before the first `up`, otherwise
+      # Docker creates it as root and the non-root user in the image cannot
+      # write to it.
+      - ./outputs:/app/outputs
+
+    # Reaps the pipeline_worker subprocesses that a cancelled run leaves behind.
+    # The image already sets tini as its entrypoint; this covers the case where
+    # someone overrides the entrypoint from the command line.
+    init: true
+
+    restart: unless-stopped
+
+    # A single run drives six agents plus concurrent source retrieval. These are
+    # ceilings that keep one container from starving its host, not measured
+    # requirements — raise them if runs are being OOM-killed.
+    deploy:
+      resources:
+        limits:
+          memory: 4G
