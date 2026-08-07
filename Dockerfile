@@ -11,17 +11,23 @@ ARG PYTHON_VERSION=3.12
 # ---------------------------------------------------------------------------
 FROM python:${PYTHON_VERSION}-slim AS base
 
-# fonts-noto-cjk: the PDF exporter embeds a CJK font rather than relying on the
-#   reader having one (ui/pdf_export.py). Its Linux candidates all live under
-#   /usr/share/fonts and none ship in python:slim, so Chinese reports would fall
-#   back to Helvetica and render as blank boxes. This exact gap already broke a
-#   CI run on the Linux runner.
+# fonts-wqy-zenhei: the PDF exporter embeds a CJK font rather than relying on
+#   the reader having one (ui/pdf_export.py), and none ship in python:slim.
+#
+#   Not fonts-noto-cjk, which is the obvious choice and does not work here.
+#   Debian ships Noto CJK as OpenType/CFF, and reportlab's TTFont only reads
+#   TrueType outlines — it rejects the file with "postscript outlines are not
+#   supported" even though the path resolves. The font then degrades to a CID
+#   face and reports render as blank boxes for anyone whose reader lacks the
+#   typeface. WenQuanYi Zen Hei is TrueType, registers cleanly, and was
+#   verified to cover Simplified, Traditional, Japanese and Korean glyphs.
+#   Its path is already among _CJK_TTF_CANDIDATES, so no code change is needed.
 # tini: the UI launches each pipeline run as a subprocess and cancels it with
 #   proc.terminate() (ui/runner.py). A bare Python PID 1 neither forwards
 #   signals nor reaps children, so cancelled runs would linger as zombies and
 #   `docker stop` would sit until it timed out and killed the container.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        fonts-noto-cjk \
+        fonts-wqy-zenhei \
         tini \
     && rm -rf /var/lib/apt/lists/*
 

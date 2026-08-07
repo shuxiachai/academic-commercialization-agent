@@ -28,7 +28,12 @@ _CJK_TTF_CANDIDATES: dict[str, list[str]] = {
         "C:/Windows/Fonts/msyh.ttc",
         "C:/Windows/Fonts/simhei.ttf",
         "C:/Windows/Fonts/simsun.ttc",
-        # Linux (Ubuntu / Debian / Fedora / Alpine)
+        # Linux (Ubuntu / Debian / Fedora / Alpine).
+        # The Noto entries are kept for distributions that ship a TrueType
+        # build, but Debian's fonts-noto-cjk is OpenType/CFF and TTFont
+        # rejects it ("postscript outlines are not supported"), so the
+        # WenQuanYi entry below is what actually resolves there — and is
+        # what the container image installs.
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
@@ -53,10 +58,13 @@ _CJK_TTF_CANDIDATES: dict[str, list[str]] = {
         "C:/Windows/Fonts/YuGothM.ttc",
         "C:/Windows/Fonts/meiryo.ttc",
         "C:/Windows/Fonts/msgothic.ttc",
-        # Linux
+        # Linux. WenQuanYi last: it is a Chinese face, but it carries the full
+        # kana and Hangul ranges and is TrueType, so it is the one that resolves
+        # on Debian where the Noto build is OpenType/CFF and TTFont rejects it.
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
         # macOS
         "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
         "/Library/Fonts/Osaka.ttf",
@@ -65,10 +73,12 @@ _CJK_TTF_CANDIDATES: dict[str, list[str]] = {
         # Windows
         "C:/Windows/Fonts/malgun.ttf",
         "C:/Windows/Fonts/gulim.ttc",
-        # Linux
+        # Linux. WenQuanYi last, for the same reason as the Japanese list: it
+        # covers Hangul and is TrueType, so it resolves on Debian.
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
         # macOS
         "/System/Library/Fonts/AppleSDGothicNeo.ttc",
     ],

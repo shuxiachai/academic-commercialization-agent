@@ -23,10 +23,11 @@ services:
       # write to it.
       - ./outputs:/app/outputs
 
-    # Reaps the pipeline_worker subprocesses that a cancelled run leaves behind.
-    # The image already sets tini as its entrypoint; this covers the case where
-    # someone overrides the entrypoint from the command line.
-    init: true
+    # No `init: true` here. The image already runs tini as its entrypoint, and
+    # setting this as well produced "/sbin/docker-init -- /usr/bin/tini --
+    # python app.py" — two init processes in a chain, which reaps nothing the
+    # first one would not. If you override the entrypoint on the command line,
+    # add `--init` to that invocation instead.
 
     restart: unless-stopped
 
