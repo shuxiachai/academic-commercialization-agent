@@ -18,6 +18,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
@@ -42,6 +43,28 @@ _ARTIFACTS = {
     "notes":   "reviewer_notes.md",
     "steps":   "steps.jsonl",
 }
+
+
+class _PendingProcess:
+    """Stands in for a subprocess that is being launched.
+
+    Occupies a concurrency slot from the moment it is reserved until the real
+    Popen replaces it, so a burst of submissions cannot all pass the cap check
+    while their processes are still starting. Reports itself as alive for that
+    reason; terminate() is a no-op because there is nothing to signal yet.
+    """
+
+    def poll(self) -> None:
+        return None
+
+    def terminate(self) -> None:
+        return None
+
+    def kill(self) -> None:
+        return None
+
+    def wait(self, timeout: float | None = None) -> int:
+        return 0
 
 
 @dataclass
@@ -86,17 +109,28 @@ class RunNotFound(Exception):
 
 _registry: dict[str, _Handle] = {}
 
+# Guards _registry. FastAPI runs `def` endpoints in a thread pool, so two
+# submissions genuinely execute in parallel — the cap was checked and written
+# without any lock, and the gap between them spans a mkdir and a Popen. Six
+# concurrent submissions against a cap of 2 all started. Each run is a
+# six-agent LLM pipeline, so exceeding the cap costs real money and pushes
+# concurrent retrieval into upstream rate limits.
+#
+# Reentrant because start_run calls active_count while holding it.
+_registry_lock = threading.RLock()
+
 
 def active_count() -> int:
     """Number of runs still executing. Reaps finished handles as a side effect."""
-    for run_id in [rid for rid, h in _registry.items() if not h.alive()]:
-        h = _registry.pop(run_id, None)
-        if h and h.log_file is not None:
-            try:
-                h.log_file.close()
-            except OSError:
-                pass
-    return len(_registry)
+    with _registry_lock:
+        for run_id in [rid for rid, h in _registry.items() if not h.alive()]:
+            h = _registry.pop(run_id, None)
+            if h and h.log_file is not None:
+                try:
+                    h.log_file.close()
+                except OSError:
+                    pass
+        return len(_registry)
 
 
 def run_dir_for(run_id: str) -> Path:
@@ -121,12 +155,23 @@ def start_run(
     paper_json_path: str | None = None,
 ) -> tuple[str, Path]:
     """Launch a worker subprocess. Returns (run_id, run_dir)."""
-    if active_count() >= MAX_CONCURRENT:
-        raise ConcurrencyLimitReached(
-            f"{active_count()} of {MAX_CONCURRENT} concurrent runs in use"
+    # Claim a slot and publish the run_id in one atomic step. Checking the cap
+    # and registering the handle separately let parallel submissions all pass
+    # the check before any of them registered.
+    #
+    # The slot is reserved with a placeholder handle so the subprocess launch —
+    # the slow part — happens outside the lock. A reservation counts towards
+    # the cap, so a burst cannot slip through while processes are starting.
+    with _registry_lock:
+        if active_count() >= MAX_CONCURRENT:
+            raise ConcurrencyLimitReached(
+                f"{active_count()} of {MAX_CONCURRENT} concurrent runs in use"
+            )
+        run_id = create_run_id()
+        _registry[run_id] = _Handle(
+            run_id=run_id, topic=topic, proc=_PendingProcess(), log_file=None
         )
 
-    run_id = create_run_id()
     run_dir = run_dir_for(run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -138,24 +183,38 @@ def start_run(
     if paper_json_path and Path(paper_json_path).exists():
         cmd += ["--paper-json", paper_json_path]
 
-    log_file = open(run_dir / "process.log", "w", encoding="utf-8")
+    # Any failure from here on must release the reserved slot, or the cap
+    # leaks permanently: a placeholder counts as alive and nothing else
+    # removes it.
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=log_file)
-    except OSError:
-        log_file.close()
+        log_file = open(run_dir / "process.log", "w", encoding="utf-8")
+        try:
+            proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=log_file)
+        except BaseException:
+            log_file.close()
+            raise
+    except BaseException:
+        with _registry_lock:
+            _registry.pop(run_id, None)
         raise
 
-    _registry[run_id] = _Handle(run_id=run_id, topic=topic, proc=proc, log_file=log_file)
+    with _registry_lock:
+        _registry[run_id] = _Handle(
+            run_id=run_id, topic=topic, proc=proc, log_file=log_file
+        )
     return run_id, run_dir
 
 
 def cancel_run(run_id: str) -> None:
     """Terminate a live run and mark it cancelled."""
-    handle = _registry.get(run_id)
-    if handle is None or not handle.alive():
-        raise RunNotFound(f"No live run with id {run_id}")
+    # Removed under the lock so two concurrent cancels cannot both decide the
+    # run is theirs to terminate.
+    with _registry_lock:
+        handle = _registry.get(run_id)
+        if handle is None or not handle.alive():
+            raise RunNotFound(f"No live run with id {run_id}")
+        _registry.pop(run_id, None)
     handle.terminate()
-    _registry.pop(run_id, None)
     (run_dir_for(run_id) / _CANCEL_MARKER).write_text(
         datetime.now(UTC).isoformat(), encoding="utf-8"
     )
@@ -164,23 +223,33 @@ def cancel_run(run_id: str) -> None:
 def reap_timeouts() -> list[str]:
     """Kill runs past the deadline. Returns the run_ids that were killed."""
     killed: list[str] = []
-    for run_id, handle in list(_registry.items()):
-        if handle.alive() and handle.elapsed > TIMEOUT_SECONDS:
-            handle.terminate()
+    # Claim each expired run under the lock before terminating it, so a
+    # concurrent cancel_run cannot terminate the same handle twice.
+    with _registry_lock:
+        expired = [
+            (rid, h) for rid, h in _registry.items()
+            if h.alive() and h.elapsed > TIMEOUT_SECONDS
+        ]
+        for run_id, _handle in expired:
             _registry.pop(run_id, None)
-            (run_dir_for(run_id) / "error.log").write_text(
-                f"Analysis timed out after {TIMEOUT_SECONDS // 60} minutes.",
-                encoding="utf-8",
-            )
-            killed.append(run_id)
+
+    for run_id, handle in expired:
+        handle.terminate()
+        (run_dir_for(run_id) / "error.log").write_text(
+            f"Analysis timed out after {TIMEOUT_SECONDS // 60} minutes.",
+            encoding="utf-8",
+        )
+        killed.append(run_id)
     return killed
 
 
 def shutdown_all() -> None:
     """Terminate every live run. Called on application shutdown."""
-    for run_id, handle in list(_registry.items()):
+    with _registry_lock:
+        handles = list(_registry.values())
+        _registry.clear()
+    for handle in handles:
         handle.terminate()
-        _registry.pop(run_id, None)
 
 
 def _read_status(run_dir: Path) -> dict:
@@ -217,7 +286,16 @@ def available_artifacts(run_dir: Path) -> list[str]:
 
 
 def artifact_path(run_id: str, name: str) -> Path | None:
-    """Resolve an artifact name to a path, or None if unknown/missing."""
+    """Resolve an artifact name to a path, or None if unknown/missing.
+
+    Validates run_id itself rather than trusting the caller. Both current
+    callers happen to call get_state() first, which rejects a traversing id —
+    so this function was safe by call order rather than by construction, and a
+    new endpoint that resolved an artifact directly would have reintroduced the
+    traversal. The filename is already confined by the _ARTIFACTS allowlist.
+    """
+    if not _is_valid_run_id(run_id):
+        return None
     fname = _ARTIFACTS.get(name)
     if fname is None:
         return None
