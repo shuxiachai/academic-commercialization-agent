@@ -61,3 +61,57 @@ jobs:
           --disable=all
           --enable=bad-except-order,unreachable,used-before-assignment,undefined-variable
           --score=n
+
+  docker:
+    name: docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # The image build runs scripts/verify_container_fonts.py, and that check
+      # is the point of this job. The font the exporter needs is decided by two
+      # files that are edited independently: the apt package in the Dockerfile
+      # and the candidate paths in ui/pdf_export.py. When they disagree, the
+      # PDF silently falls back to a CID font and Chinese reports render as
+      # blank boxes for whoever opens them — no error anywhere.
+      #
+      # That is not hypothetical. Debian ships Noto CJK with PostScript
+      # outlines, which reportlab cannot read, so the first build of this image
+      # failed the check on all four languages while every path in it existed.
+      # Nothing in the test suite can catch that: it depends on which font
+      # files the base image happens to contain.
+      - name: Build image (runs the CJK font check)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: academic-agent:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Cheap assertions on things the Dockerfile promises and a build alone
+      # would not prove.
+      #
+      # Note the absence of --entrypoint: overriding it replaces tini, so
+      # `--entrypoint sh ... 'cat /proc/1/comm'` reports "sh" and the first
+      # check below can never pass. Passing the command as arguments lets tini
+      # stay PID 1 and exec it, which is what production actually looks like.
+      - name: Verify runtime contract
+        run: |
+          set -euo pipefail
+
+          echo "PID 1 must be tini, or cancelled runs leak zombie workers"
+          pid1=$(docker run --rm academic-agent:ci sh -c 'cat /proc/1/comm')
+          echo "  got: $pid1"
+          [ "$pid1" = "tini" ]
+
+          echo "Container must not run as root"
+          uid=$(docker run --rm academic-agent:ci id -u)
+          echo "  got uid: $uid"
+          [ "$uid" != "0" ]
+
+          echo "All four CJK languages must resolve to an embedded font"
+          docker run --rm academic-agent:ci python scripts/verify_container_fonts.py

@@ -770,10 +770,39 @@ outputs/
     ├── commercialization_report.pdf  # 最终报告（PDF，支持 CJK 字体）
     ├── commercialization_scores.json # 量化评分卡
     ├── validated_sources.json        # 预验证来源清单
+    ├── academic_evidence.json        # Task 1 的发现，含来源 ID 与论断类型
+    ├── patent_evidence.json          # Task 2 的发现
+    ├── market_evidence.json          # Task 3 的发现
     ├── reviewer_notes.md             # 审查员修改记录（与正文分离）
     ├── status.json                   # 流水线阶段 + 来源数量（UI 轮询用）
     └── steps.jsonl                   # 每个 Agent 的步骤事件（实时进度用）
 ```
+
+三个 `*_evidence.json` 是报告撰写与评分 Agent 实际读取的内容——它们都看不到原始来源清单。这些文件记录了"一条已验证的来源如何变成一条带引用的结论"，每条发现都带有 `source_ids`、`claim_type`（`observed_fact` / `estimate` / `analyst_inference`）、置信度，以及它自身的局限性。
+
+---
+
+### Docker 部署
+
+```bash
+mkdir -p outputs          # 会被挂载，先建好以免属主变成 root
+cp .env.example .env      # 填入 API Key
+docker compose up --build
+```
+
+启动后访问 http://localhost:7860
+
+镜像里有三处配置是针对本项目的，不是通用模板：
+
+| 配置 | 原因 |
+|---|---|
+| `fonts-wqy-zenhei` | PDF 导出会嵌入 CJK 字体，而非依赖阅读器本地有字库，`python:slim` 里一个都没有。**注意不是 `fonts-noto-cjk`**——Debian 的 Noto CJK 是 PostScript/CFF 轮廓，reportlab 的 `TTFont` 只读 TrueType，会直接拒绝。而这个失败是静默的：字体会降级到 CID 再到 Helvetica，中文报告渲染成空白方块却没有任何报错。构建期会运行 `scripts/verify_container_fonts.py`，解析不到嵌入字体就让构建失败。 |
+| `tini` 作 PID 1 | 每次运行都是一个 `subprocess.Popen`，UI 通过 `proc.terminate()` 取消。裸 Python 作 PID 1 既不转发信号也不回收子进程，取消的运行会堆积成僵尸进程，`docker stop` 也会一直卡到超时。 |
+| `GRADIO_SERVER_NAME=0.0.0.0` | Gradio 默认绑定回环地址，容器外访问不到。用环境变量设置使 `app.py` 无需改动，本地开发仍保持仅回环的默认行为。 |
+
+`outputs/` 用绑定挂载，因为运行历史、报告和状态文件都是状态数据。API Key 在运行时从 `.env` 读取，不会进入镜像层。
+
+CI 每次提交都会构建镜像并断言 PID 1 是 tini、容器非 root 运行、四种 CJK 语言都能解析到嵌入字体。
 
 ---
 
@@ -890,6 +919,7 @@ academic_agent/
 - **网页界面**：Gradio 6.x
 - **HTTP API**：FastAPI + Uvicorn（OpenAPI 文档位于 `/docs`）
 - **PDF 导出**：reportlab Platypus（嵌入式 TTFont，支持 CJK；回退至 CID 字体）
+- **容器化**：Docker 多阶段构建（依赖层与源码层分离缓存），`tini` 作 PID 1 回收子进程，非 root 运行，构建期 CJK 字体校验
 - **Python**：3.11+
 
 URL/DOI 无效或不可达、引用编号错误、References 不一致、报告结构错误、幻觉来源 ID 和评分 JSON 格式错误都会阻止任务并触发重试。
