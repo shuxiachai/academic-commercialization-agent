@@ -229,7 +229,17 @@ def run_topic(
         # Keep the evidence stage for inspection. A benchmark exists to explain
         # why a score came out the way it did, and that reasoning lives in
         # Tasks 1-3 — the report writer and scorer never see the raw registry.
-        save_evidence_reports(tasks_output, run_id=run_dir.name, output_root=run_dir.parent)
+        # Best-effort, matching pipeline_worker. These are inspection files;
+        # a disk error while writing them must not turn a run that produced a
+        # report into an error_crew result. Without the guard the exception
+        # reaches the broad `except Exception` below and the topic is recorded
+        # as a crew failure it never had.
+        try:
+            save_evidence_reports(
+                tasks_output, run_id=run_dir.name, output_root=run_dir.parent
+            )
+        except Exception:  # noqa: BLE001 - inspection files must not fail a run
+            _log(f"  [{num}] evidence artifacts could not be written (run unaffected)")
 
         if len(tasks_output) >= 2:
             report_raw = tasks_output[-2].raw   # Task 5 = reviewer = Markdown report
