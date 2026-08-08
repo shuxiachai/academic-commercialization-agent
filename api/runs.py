@@ -259,6 +259,37 @@ def _read_status(run_dir: Path) -> dict:
         return {}
 
 
+def read_steps(run_id: str, since: int = 0) -> list[dict]:
+    """Step events from steps.jsonl, skipping the first `since` entries.
+
+    The worker appends to this file while running, so a partially written
+    trailing line is normal and is skipped rather than treated as corruption.
+    """
+    if not _is_valid_run_id(run_id):
+        raise RunNotFound(f"Invalid run id: {run_id!r}")
+
+    path = run_dir_for(run_id) / "steps.jsonl"
+    if not path.exists():
+        return []
+
+    events: list[dict] = []
+    try:
+        with path.open(encoding="utf-8") as handle:
+            for index, line in enumerate(handle):
+                if index < since:
+                    continue
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue      # the writer is mid-line; it will be there next poll
+    except OSError:
+        return []
+    return events
+
+
 def _failure_reason(run_dir: Path) -> str:
     """Best available explanation for a run that did not complete."""
     try:

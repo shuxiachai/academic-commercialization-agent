@@ -22,6 +22,64 @@ class RunRequest(BaseModel):
         description="Force scoring profile (industrial | biomedical | material_science "
                     "| clean_tech | software_ai); auto-detected when omitted",
     )
+    paper_id: str | None = Field(
+        default=None,
+        description="Id returned by POST /api/papers, to anchor the run on an "
+                    "uploaded paper rather than on the topic alone",
+    )
+
+
+class PaperExtraction(BaseModel):
+    """Structured contribution extracted from an uploaded PDF.
+
+    Mirrors PaperContribution, plus the id needed to reference it when
+    starting a run. The fields are editable in the client: extraction is a
+    model's reading of the paper, and the person who uploaded it is better
+    placed to correct the topic than the model is.
+    """
+
+    paper_id: str
+    title: str
+    authors: str = ""
+    doi: str | None = None
+    url: str | None = None
+    core_contribution: str
+    application_domain: str
+    key_metrics: list[str] = Field(default_factory=list)
+    delta_from_prior: str = ""
+    commercialization_topic: str
+    search_keywords: list[str] = Field(default_factory=list)
+    abstract_excerpt: str = ""
+
+
+class StepEvent(BaseModel):
+    """One line of steps.jsonl, surfaced for live progress."""
+
+    ts: float | None = None
+    type: str = ""
+    agent_idx: int | None = None
+    agent: str = ""
+    thought: str = ""
+    tool: str = ""
+
+
+class RunProgress(BaseModel):
+    """Everything a client needs to render live progress in one request.
+
+    Combines status.json with the tail of steps.jsonl so a polling client
+    makes one call per tick rather than three.
+    """
+
+    run_id: str
+    state: RunState
+    stage: str = ""
+    done: bool = False
+    error: str | None = None
+    elapsed_seconds: int | None = None
+    source_counts: dict[str, int] | None = None
+    output_language: str = "English"
+    steps: list[StepEvent] = Field(default_factory=list)
+    artifacts: list[str] = Field(default_factory=list)
 
 
 class RunAccepted(BaseModel):

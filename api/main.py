@@ -16,7 +16,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
 
 # Load .env before anything reads os.environ. The Gradio entry point gets this
@@ -24,13 +24,17 @@ from fastapi.responses import FileResponse, PlainTextResponse
 # rely on, not a contract — an API server should be explicit about its config.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-from api import runs  # noqa: E402  — must follow load_dotenv
+from academic_agent.pdf_extractor import extract_paper_contribution  # noqa: E402
+from api import papers, runs  # noqa: E402  — must follow load_dotenv
 from api.models import (  # noqa: E402
     HealthStatus,
+    PaperExtraction,
     RunAccepted,
     RunList,
+    RunProgress,
     RunRequest,
     RunStatus,
+    StepEvent,
 )
 
 _REAP_INTERVAL_SECONDS = 30
@@ -46,6 +50,11 @@ async def _reaper() -> None:
         await asyncio.sleep(_REAP_INTERVAL_SECONDS)
         for run_id in runs.reap_timeouts():
             print(f"[api] run {run_id} killed: exceeded {runs.TIMEOUT_SECONDS}s")
+        # Uploaded PDFs that were never run would otherwise accumulate; they
+        # are only useful until the run that consumes them starts.
+        removed = papers.prune_old()
+        if removed:
+            print(f"[api] pruned {removed} expired paper upload(s)")
 
 
 @contextlib.asynccontextmanager
@@ -110,11 +119,19 @@ def submit_run(request: RunRequest) -> RunAccepted:
 
     A full run takes roughly 2.5–4 minutes.
     """
+    paper_json_path: str | None = None
+    if request.paper_id:
+        try:
+            paper_json_path = str(papers.extraction_path_for_run(request.paper_id))
+        except papers.PaperNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
     try:
         run_id, _ = runs.start_run(
             topic=request.topic,
             language=request.language,
             weight_profile=request.weight_profile,
+            paper_json_path=paper_json_path,
         )
     except runs.ConcurrencyLimitReached as exc:
         raise HTTPException(
@@ -192,6 +209,79 @@ def get_report(run_id: str) -> PlainTextResponse:
         path.read_text(encoding="utf-8"),
         media_type="text/markdown; charset=utf-8",
     )
+
+
+@app.get(
+    "/api/runs/{run_id}/progress",
+    response_model=RunProgress,
+    tags=["runs"],
+    responses={404: {"description": "Unknown run_id"}},
+)
+def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgress:
+    """Status plus new step events, for a client polling during a run.
+
+    `since` is the number of step events the client already has; only later
+    ones are returned. Without it a client would re-receive the whole log on
+    every tick, which grows to hundreds of lines over a run.
+
+    Registered before /api/runs/{run_id}/{artifact} because that route would
+    otherwise match "progress" as an artifact name.
+    """
+    try:
+        state = runs.get_state(run_id)
+    except runs.RunNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return RunProgress(
+        run_id=run_id,
+        state=state["state"],
+        stage=state.get("stage", ""),
+        done=state["state"] != "running",
+        error=state.get("error"),
+        elapsed_seconds=state.get("elapsed_seconds"),
+        source_counts=state.get("source_counts"),
+        output_language=state.get("output_language", "English"),
+        steps=[StepEvent(**s) for s in runs.read_steps(run_id, since=since)],
+        artifacts=state.get("artifacts", []),
+    )
+
+
+@app.post(
+    "/api/papers",
+    response_model=PaperExtraction,
+    tags=["papers"],
+    responses={
+        413: {"description": "File exceeds the size limit"},
+        422: {"description": "PDF could not be parsed into a contribution"},
+    },
+)
+async def upload_paper(file: UploadFile = File(...)) -> PaperExtraction:
+    """Extract a paper's contribution from an uploaded PDF.
+
+    Returns the extraction and a paper_id. Pass that id to POST /api/runs to
+    anchor a run on the paper; the fields are editable first, since the topic
+    the model derives is a starting point rather than an answer.
+
+    Runs the extractor in a worker thread: it makes an LLM call and would
+    otherwise block the event loop for several seconds.
+    """
+    data = await file.read()
+    try:
+        paper_id, pdf_path = papers.save_upload(file.filename or "paper.pdf", data)
+    except papers.PaperTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+
+    try:
+        contribution = await asyncio.to_thread(extract_paper_contribution, str(pdf_path))
+    except Exception as exc:  # noqa: BLE001 - surface the reason to the client
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not extract a contribution from this PDF: {exc}",
+        ) from exc
+
+    payload = contribution.model_dump()
+    papers.save_extraction(paper_id, payload)
+    return PaperExtraction(paper_id=paper_id, **payload)
 
 
 @app.get(
