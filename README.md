@@ -112,7 +112,7 @@ Step 5     Agent 5 — Quality review  (Reviewer Notes saved separately)
 Step 6     Agent 6 — Quantitative scoring  (independent of report; formula auto-corrected)
 ```
 
-The pipeline runs in a **subprocess** (`pipeline_worker.py`) so the Gradio UI can cancel it immediately via `proc.terminate()`.
+The pipeline runs in a **subprocess** (`pipeline_worker.py`) so a run can be cancelled immediately via `proc.terminate()` rather than waiting for the current agent to finish.
 
 ---
 
@@ -223,28 +223,34 @@ Optional:
 
 #### 3. Run
 
-**Option A — Gradio web UI (recommended)**
-
-```bash
-uv run python app.py
-```
-
-Open `http://localhost:7860` in your browser, enter a research topic, and click **Run Analysis**.
-
-UI features:
-- **Live progress**: Per-agent status rows for Phase 1 (parallel agents) + elapsed time
-- **Scorecard**: Overall score (0–100) + five-dimension radar chart + bar chart with source ID chips (e.g. `A2` `M1`) traceable to validated sources; weight profile badge shows which scoring profile was applied
-- **Source warning**: Amber banner when any domain has fewer sources than the recommended minimum
-- **Report**: Full Markdown render + `.md` / `.pdf` download (PDF generated in background; report appears immediately)
-- **History tab**: Browse all past runs; click any row to fill the Run ID field automatically; Run ID column for easy copy
-
-**Option B — HTTP API**
+**Option A — web interface (recommended)**
 
 ```bash
 uv run uvicorn api.main:app --port 8000
 ```
 
-Interactive docs at `http://localhost:8000/docs`. Submit a run, poll for progress, fetch the result:
+Open `http://localhost:8000`, type a research topic, and press Enter.
+
+The client is static HTML, CSS and ES modules served by the same process as
+the API — no build step and no framework, so what is in `web/` is what runs.
+
+- **Left rail**: every run, grouped by recency, with a live state dot. Runs
+  accumulate, so the list is permanent furniture rather than a tab
+- **Composer**: the topic field grows with its content; language and scoring
+  profile are chips on its bottom bar; `N` starts a new run, Enter submits
+- **Live progress**: the five pipeline stages at once, so what is finished and
+  what is left are both visible. The elapsed clock ticks locally rather than on
+  poll responses, which arrive up to four seconds apart
+- **Result**: scorecard, report and sources as three tabs, loaded on demand.
+  Citation markers are styled distinctly — they are what makes the report
+  auditable. Download as Markdown or PDF (CJK glyphs embedded)
+- **Attach a paper**: drop a PDF on the composer and it becomes source A1; the
+  pipeline then searches around that paper's specific contribution
+
+**Option B — HTTP API**
+
+The same process serves it; no second command. Interactive docs at
+`http://localhost:8000/docs`. Submit a run, poll for progress, fetch the result:
 
 ```bash
 # Submit — returns immediately with a run_id
@@ -274,7 +280,7 @@ Concurrency is capped at 2 runs (`API_MAX_CONCURRENT` to change) — the binding
 constraint is upstream API rate limits, not local CPU. Runs exceeding 30 minutes
 are terminated automatically.
 
-The API and the Gradio UI share the same `outputs/` directory and launch the
+The web client and the JSON API share the same `outputs/` directory and launch the
 same worker, so a run started from one is visible to the other.
 
 **Option C — Command line**
@@ -320,7 +326,7 @@ cp .env.example .env      # add your keys
 docker compose up --build
 ```
 
-The UI is then on http://localhost:7860.
+The interface is then on http://localhost:8000.
 
 Three things in the image are specific to this project rather than boilerplate:
 
@@ -328,7 +334,7 @@ Three things in the image are specific to this project rather than boilerplate:
 |---|---|
 | `fonts-noto-cjk` | The PDF exporter embeds a CJK font instead of trusting the reader to have one. None ship in `python:slim`, and the fallback chain degrades silently — Chinese reports would render as blank boxes with nothing logged. The build runs `scripts/verify_container_fonts.py` and fails if no embedded font resolves. |
 | `tini` as PID 1 | Each run is a `subprocess.Popen` that the UI cancels with `proc.terminate()`. A bare Python PID 1 neither forwards signals nor reaps children, so cancelled runs would accumulate as zombies and `docker stop` would block until it timed out. |
-| `GRADIO_SERVER_NAME=0.0.0.0` | Gradio binds loopback by default, which is unreachable from outside a container. Setting it in the environment keeps `app.py` unchanged, so local development retains its loopback-only default. |
+| Single uvicorn worker | Runs are subprocesses tracked in an in-process registry. A second worker would enforce its own separate concurrency cap and could neither see nor cancel the first one's runs. |
 
 `outputs/` is a bind mount because run history, reports and status files are
 state. API keys come from `.env` at runtime and are never baked into a layer.
@@ -412,7 +418,8 @@ academic_agent/
 │   └── config/
 │       ├── agents.yaml      # Agent role definitions + scoring rubrics (6 agents)
 │       └── tasks.yaml       # Task requirements & citation rules (6 tasks)
-├── ui/                      # Gradio front-end package
+├── web/                     # Static client (HTML + CSS + ES modules)
+├── ui/                      # PDF export, report i18n, run-directory reader
 │   ├── ui.py                # Blocks definition and all callbacks
 │   ├── runner.py            # Analysis entry points (subprocess + streaming)
 │   ├── history.py           # Run history tab
@@ -428,7 +435,6 @@ academic_agent/
 │   ├── runs.py              # Worker process registry, concurrency cap, state derivation
 │   └── models.py            # Request / response schemas
 ├── tests/                   # Unit tests and integration tests
-├── app.py                   # 10-line entry point — imports and launches Gradio
 ├── benchmark.py             # 10-topic benchmark runner
 ├── benchmark_check.py       # Benchmark result analyzer (CSV + terminal table)
 ├── outputs/
@@ -449,8 +455,8 @@ academic_agent/
 - **Patent / market search**: SerperDevTool (3-attempt retry with exponential backoff)
 - **Academic metadata**: Crossref API (DOI verification and abstract retrieval)
 - **Data validation**: Pydantic v2 + custom guardrails (source structure, citation integrity, report structure, scoring formula, hallucinated source ID detection)
-- **Web UI**: Gradio 6.x
-- **HTTP API**: FastAPI + Uvicorn (OpenAPI docs at `/docs`)
+- **Web client**: static HTML, CSS and ES modules served by FastAPI — no build step, no framework
+- **HTTP API**: FastAPI + Uvicorn, serving both the client and the JSON API (OpenAPI docs at `/docs`)
 - **PDF export**: reportlab Platypus (embedded TTFont for CJK; falls back to CID fonts)
 - **Container**: Docker multi-stage build (dependency layer cached separately from source), `tini` as PID 1 for subprocess reaping, non-root user, build-time CJK font verification
 - **Python**: 3.11+
@@ -486,7 +492,7 @@ All profiles sum to 100%, enforced by an `assert` at module load. The `overall_s
 | Evidence confidence | `evidence_confidence` | 5 | Cross-validation across source types |
 | **Overall score** | `overall_score` | **100** | Weighted formula, profile-dependent |
 
-Each dimension records its supporting source IDs visible in the Gradio scorecard.
+Each dimension records its supporting source IDs, shown on the scorecard and traceable to the original source.
 
 ---
 
@@ -594,7 +600,7 @@ Step 5     Agent 5 — 质量审查（Reviewer Notes 单独保存）
 Step 6     Agent 6 — 量化评分（独立于报告；公式自动修正）
 ```
 
-流水线在 **子进程**（`pipeline_worker.py`）中运行，Gradio UI 可通过 `proc.terminate()` 即时取消。
+流水线在 **子进程**（`pipeline_worker.py`）中运行，可通过 `proc.terminate()` 即时取消，无需等待当前智能体结束。
 
 ---
 
@@ -699,13 +705,21 @@ LLM — 三选一填入：
 
 #### 3. 运行
 
-**方式一：Gradio 网页界面（推荐）**
+**方式一：网页界面（推荐）**
 
 ```bash
-uv run python app.py
+uv run uvicorn api.main:app --port 8000
 ```
 
-浏览器打开 `http://localhost:7860`，在输入框填写研究方向，点击 Run Analysis。
+浏览器打开 `http://localhost:8000`，输入研究方向后按回车。
+
+客户端是静态 HTML / CSS / ES 模块，由 API 同一个进程托管——无构建步骤、无框架，`web/` 里是什么跑的就是什么。
+
+- **左侧栏**：全部运行按时间分组，带实时状态点。运行会不断累积，因此列表是常驻结构而非一个标签页
+- **输入区**：话题框随内容增高；报告语言与评分方案收在底部小 chip 中；`N` 新建，回车提交
+- **实时进度**：五个流水线阶段同时可见，已完成与待执行一目了然。计时在本地每秒走，而非依赖间隔可达四秒的轮询响应
+- **结果**：评分卡、报告、来源三个标签页，按需加载。引用标记有独立样式——它们是报告可审计的凭据。可导出 Markdown 或 PDF（内嵌 CJK 字体）
+- **附加论文**：把 PDF 拖到输入框即成为来源 A1，流水线随后围绕该论文的具体贡献检索证据
 
 界面功能：
 - **实时进度**：Phase 1 并行三个 Agent 的独立状态行 + 已用时间
@@ -716,9 +730,7 @@ uv run python app.py
 
 **方式二：HTTP API**
 
-```bash
-uv run uvicorn api.main:app --port 8000
-```
+同一个进程提供，无需另外启动。
 
 交互式文档：`http://localhost:8000/docs`。提交任务、轮询进度、获取结果：
 
@@ -749,7 +761,7 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
 并发上限默认为 2（通过 `API_MAX_CONCURRENT` 调整）——真正的瓶颈是上游 API 限速而非本机 CPU。
 超过 30 分钟的运行会被自动终止。
 
-API 与 Gradio 界面共享同一个 `outputs/` 目录、启动同一个 worker，因此从任一入口发起的运行在另一侧都可见。
+网页客户端与 JSON API 共享同一个 `outputs/` 目录、启动同一个 worker，因此从任一入口发起的运行在另一侧都可见。
 
 **方式三：命令行**
 
@@ -790,7 +802,7 @@ cp .env.example .env      # 填入 API Key
 docker compose up --build
 ```
 
-启动后访问 http://localhost:7860
+启动后访问 http://localhost:8000
 
 镜像里有三处配置是针对本项目的，不是通用模板：
 
@@ -798,7 +810,7 @@ docker compose up --build
 |---|---|
 | `fonts-wqy-zenhei` | PDF 导出会嵌入 CJK 字体，而非依赖阅读器本地有字库，`python:slim` 里一个都没有。**注意不是 `fonts-noto-cjk`**——Debian 的 Noto CJK 是 PostScript/CFF 轮廓，reportlab 的 `TTFont` 只读 TrueType，会直接拒绝。而这个失败是静默的：字体会降级到 CID 再到 Helvetica，中文报告渲染成空白方块却没有任何报错。构建期会运行 `scripts/verify_container_fonts.py`，解析不到嵌入字体就让构建失败。 |
 | `tini` 作 PID 1 | 每次运行都是一个 `subprocess.Popen`，UI 通过 `proc.terminate()` 取消。裸 Python 作 PID 1 既不转发信号也不回收子进程，取消的运行会堆积成僵尸进程，`docker stop` 也会一直卡到超时。 |
-| `GRADIO_SERVER_NAME=0.0.0.0` | Gradio 默认绑定回环地址，容器外访问不到。用环境变量设置使 `app.py` 无需改动，本地开发仍保持仅回环的默认行为。 |
+| 单个 uvicorn worker | 运行是进程内注册表跟踪的子进程。第二个 worker 会各自执行独立的并发上限，且看不到也无法取消对方的运行。 |
 
 `outputs/` 用绑定挂载，因为运行历史、报告和状态文件都是状态数据。API Key 在运行时从 `.env` 读取，不会进入镜像层。
 
@@ -879,7 +891,8 @@ academic_agent/
 │   └── config/
 │       ├── agents.yaml      # Agent 角色配置 + 评分 rubric（6 个）
 │       └── tasks.yaml       # Task 需求与引用规则（6 个）
-├── ui/                      # Gradio 前端包
+├── web/                     # 静态客户端（HTML + CSS + ES 模块）
+├── ui/                      # PDF 导出、报告国际化、运行目录读取
 │   ├── ui.py                # Blocks 定义与全部回调
 │   ├── runner.py            # 分析入口（子进程 + 流式输出）
 │   ├── history.py           # 历史运行标签页
@@ -895,7 +908,6 @@ academic_agent/
 │   ├── runs.py              # Worker 进程注册表、并发控制、状态推导
 │   └── models.py            # 请求 / 响应模型
 ├── tests/                   # 单元测试与集成测试
-├── app.py                   # 10 行入口文件 —— 导入并启动 Gradio
 ├── benchmark.py             # 10 话题基准测试运行器
 ├── benchmark_check.py       # 基准结果分析器（生成 CSV + 终端表格）
 ├── outputs/
@@ -916,7 +928,7 @@ academic_agent/
 - **专利 / 市场搜索**：SerperDevTool（3 次重试 + 指数退避）
 - **学术元数据**：Crossref API（DOI 验证与摘要检索）+ 并发引用数补全
 - **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、幻觉来源 ID 检测、评分算法验证）
-- **网页界面**：Gradio 6.x
+- **网页客户端**：静态 HTML / CSS / ES 模块，由 FastAPI 托管——无构建步骤、无框架
 - **HTTP API**：FastAPI + Uvicorn（OpenAPI 文档位于 `/docs`）
 - **PDF 导出**：reportlab Platypus（嵌入式 TTFont，支持 CJK；回退至 CID 字体）
 - **容器化**：Docker 多阶段构建（依赖层与源码层分离缓存），`tini` 作 PID 1 回收子进程，非 root 运行，构建期 CJK 字体校验
@@ -953,4 +965,4 @@ URL/DOI 无效或不可达、引用编号错误、References 不一致、报告�
 | 证据置信度 | `evidence_confidence` | 5 | 多维来源交叉验证程度（元维度） |
 | **综合分** | `overall_score` | **100** | 加权公式，因方案而异 |
 
-每个维度评分同时记录支撑来源 ID，可在 Gradio 评分卡中直接查看并追溯至原始文献。
+每个维度评分同时记录支撑来源 ID，可在评分卡中直接查看并追溯至原始文献。
