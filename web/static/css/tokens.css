@@ -1,0 +1,123 @@
+/* Design tokens.
+ *
+ * Every value the interface uses is declared here. Components reference these
+ * and never hard-code a colour or a spacing value, so a change to the scale
+ * moves the whole interface together instead of leaving one panel behind.
+ *
+ * The palette is near-monochrome on purpose. Colour is scarce enough that when
+ * it appears — the run button, a live indicator, a score — it means something.
+ */
+
+:root {
+  /* ── Surfaces ──
+     Five steps of near-black. Depth is read from lightness rather than from
+     borders, which keeps the page quiet when a dozen panels are on screen. */
+  --bg-base:      #0a0a0b;   /* page */
+  --bg-raised:    #111113;   /* cards sitting on the page */
+  --bg-overlay:   #17171a;   /* inputs, menus, anything above a card */
+  --bg-hover:     #1c1c20;
+  --bg-active:    #232329;
+
+  /* ── Borders ──
+     White at low alpha rather than fixed greys: the same value reads correctly
+     over any surface above, which fixed greys do not. */
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.09);
+  --border-strong:  rgba(255, 255, 255, 0.14);
+
+  /* ── Text ──
+     Four levels. More than four and the hierarchy stops being legible. */
+  --text-primary:   #ededef;
+  --text-secondary: #a1a1aa;
+  --text-tertiary:  #71717a;
+  --text-disabled:  #52525b;
+
+  /* ── Accent ──
+     One hue, three roles. Used for the primary action, focus rings, and live
+     state — nothing decorative. */
+  --accent:        #3b82f6;
+  --accent-hover:  #2f6fe0;
+  --accent-subtle: rgba(59, 130, 246, 0.12);
+  --accent-ring:   rgba(59, 130, 246, 0.35);
+
+  /* ── Status ── */
+  --success:        #22c55e;
+  --success-subtle: rgba(34, 197, 94, 0.12);
+  --warning:        #f59e0b;
+  --warning-subtle: rgba(245, 158, 11, 0.12);
+  --danger:         #ef4444;
+  --danger-subtle:  rgba(239, 68, 68, 0.12);
+
+  /* ── Type ──
+     System stack: it renders at native weights on every platform and costs no
+     network request. CJK faces are listed because the interface is used in
+     Chinese and Japanese, where the Latin defaults fall back badly. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Roboto",
+               "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+               "Microsoft YaHei", sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace;
+
+  --text-xs:   11px;
+  --text-sm:   12px;
+  --text-base: 13px;
+  --text-md:   14px;
+  --text-lg:   16px;
+  --text-xl:   20px;
+  --text-2xl:  26px;
+  --text-3xl:  32px;
+
+  --leading-tight:  1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  /* ── Spacing ──
+     A 4px scale. Arbitrary values are what make spacing look accidental. */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* ── Radii ── */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-full: 9999px;
+
+  /* ── Elevation ──
+     Shadows stay tight and dark. Large soft shadows read as light coming from
+     somewhere, which a near-black interface does not have. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.6);
+
+  /* ── Motion ──
+     Short enough to feel like a response, not an animation. */
+  --ease:      cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:  cubic-bezier(0, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
+
+  /* ── Layout ── */
+  --content-width: 880px;   /* a comfortable measure for reading a report */
+  --wide-width:   1140px;   /* results, where two columns are useful */
+  --header-height: 56px;
+}
+
+/* Respect a user who has asked for less movement. Transitions become
+   instantaneous rather than being removed, so state changes still register. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0.01ms;
+    --duration-base: 0.01ms;
+    --duration-slow: 0.01ms;
+  }
+}

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="English">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Commercialization Assessment</title>
+<meta name="description" content="Six AI agents assess the commercialization readiness of academic research, producing a scored report with verifiable citations.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233b82f6'/%3E%3Ctext x='16' y='22' font-family='system-ui' font-size='17' font-weight='700' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/workbench.css">
+</head>
+<body>
+
+<div class="workbench" id="workbench">
+
+  <!-- ═══ Sidebar ══════════════════════════════════════════════════
+       Runs are the unit of work, so the list of them is permanent
+       furniture rather than a tab you navigate away to. -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar__head">
+      <a class="brand" href="/">
+        <span class="brand__mark">A</span>
+        <span class="brand__name">Assessment</span>
+      </a>
+      <button type="button" class="icon-btn sidebar__collapse" id="collapse-btn"
+              aria-label="Collapse sidebar" title="Toggle sidebar">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6.5 3.5v9M3 2.5h10a.5.5 0 01.5.5v10a.5.5 0 01-.5.5H3a.5.5 0 01-.5-.5V3a.5.5 0 01.5-.5z"
+                stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <button type="button" class="new-run" id="new-run-btn">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span data-i18n="new_analysis">New analysis</span>
+      <kbd class="kbd">N</kbd>
+    </button>
+
+    <nav class="runlist" id="runlist" aria-label="Previous runs">
+      <div class="runlist__empty" id="runlist-empty">
+        <span data-i18n="no_runs">No runs yet</span>
+      </div>
+    </nav>
+
+    <div class="sidebar__foot">
+      <div class="capacity" id="capacity" title="Concurrent run slots">
+        <span class="capacity__dots" id="capacity-dots"></span>
+        <span class="capacity__label" id="capacity-label">—</span>
+      </div>
+      <select class="bare-select" id="ui-lang" aria-label="Interface language">
+        <option value="English">EN</option>
+        <option value="Simplified Chinese">中文</option>
+      </select>
+    </div>
+  </aside>
+
+  <!-- ═══ Main ═════════════════════════════════════════════════════ -->
+  <main class="main" id="main">
+
+    <!-- ── Compose ─────────────────────────────────────────────── -->
+    <section class="pane" id="pane-compose">
+      <div class="pane__body pane__body--centered">
+        <div class="compose">
+          <h1 class="compose__title" data-i18n="compose_title">What should we assess?</h1>
+          <p class="compose__sub" data-i18n="compose_sub">
+            Six agents gather academic, patent, and market evidence, then score
+            commercialization readiness. Every claim carries a citation.
+          </p>
+
+          <form id="compose-form" novalidate>
+            <div class="composer" id="composer">
+              <textarea
+                class="composer__input"
+                id="topic"
+                rows="1"
+                maxlength="300"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="perovskite solar cells for utility-scale power generation"></textarea>
+
+              <div class="composer__bar">
+                <button type="button" class="chip-btn" id="attach-btn" title="Attach a paper (PDF)">
+                  <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M10.5 5.5l-4 4a1.5 1.5 0 002.1 2.1l4.2-4.2a3 3 0 00-4.2-4.2L4 7.8a4.5 4.5 0 006.4 6.4l3.3-3.3"
+                          stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                  </svg>
+                  <span data-i18n="attach">Paper</span>
+                </button>
+
+                <select class="chip-select" id="language" aria-label="Report language">
+                  <option value="" data-i18n="auto_lang">Auto language</option>
+                </select>
+
+                <select class="chip-select" id="profile" aria-label="Scoring profile">
+                  <option value="" data-i18n="auto_profile">Auto profile</option>
+                </select>
+
+                <span class="composer__spacer"></span>
+                <span class="composer__count tabular" id="topic-count"></span>
+
+                <button type="submit" class="send-btn" id="run-btn" disabled
+                        aria-label="Run analysis" title="Run analysis  (Enter)">
+                  <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M2.8 8h10.4M8.8 3.6L13.2 8l-4.4 4.4"
+                          stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+
+              <input type="file" id="pdf-input" accept=".pdf,application/pdf" class="visually-hidden">
+              <div class="composer__attachment" id="attachment" hidden></div>
+            </div>
+          </form>
+
+          <div class="starters" id="starters">
+            <button type="button" class="starter" data-topic="solid-state batteries for electric vehicles">
+              solid-state batteries for electric vehicles
+            </button>
+            <button type="button" class="starter" data-topic="CRISPR gene editing for genetic diseases">
+              CRISPR gene editing for genetic diseases
+            </button>
+            <button type="button" class="starter" data-topic="carbon capture and storage for industrial emitters">
+              carbon capture and storage for industry
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Run: progress and result share one pane ─────────────── -->
+    <section class="pane" id="pane-run" hidden>
+      <header class="pane__head">
+        <div class="pane__heading">
+          <h1 class="pane__title" id="run-title">—</h1>
+          <div class="pane__meta">
+            <span class="pill" id="run-pill"></span>
+            <span class="dot-sep"></span>
+            <span class="tabular" id="run-elapsed">0:00</span>
+            <span id="run-sources"></span>
+          </div>
+        </div>
+        <div class="pane__actions" id="run-actions"></div>
+      </header>
+
+      <div class="pane__body" id="run-body"></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

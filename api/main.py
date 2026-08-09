@@ -18,6 +18,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 # Load .env before anything reads os.environ. The Gradio entry point gets this
 # for free because importing crewai pulls it in, but that is a side effect to
@@ -80,6 +81,27 @@ app = FastAPI(
     version="1.0.0",
     lifespan=_lifespan,
 )
+
+
+_WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
+
+# Mounted before the API routes are declared below only in source order; the
+# router matches /api/* first regardless, because StaticFiles is mounted at a
+# sub-path rather than at "/". The SPA entry point is served explicitly.
+if _WEB_ROOT.is_dir():
+    app.mount("/static", StaticFiles(directory=_WEB_ROOT / "static"), name="static")
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/history", include_in_schema=False)
+    @app.get("/run/{run_id}", include_in_schema=False)
+    def _spa(run_id: str = "") -> FileResponse:
+        """Serve the single page for every client-side route.
+
+        Routing happens in the browser, so a deep link must return the same
+        document rather than a 404 — the client reads the path and renders the
+        matching view.
+        """
+        return FileResponse(_WEB_ROOT / "index.html", media_type="text/html")
 
 
 @app.get("/health", response_model=HealthStatus, tags=["meta"])
