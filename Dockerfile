@@ -71,12 +71,7 @@ COPY --from=deps /usr/local/bin/uv /usr/local/bin/uv
 
 COPY --chown=appuser:appuser . .
 
-# Gradio binds 127.0.0.1 by default, which is unreachable from outside the
-# container. It reads these at launch, so app.py stays unchanged and local
-# development keeps its loopback-only default.
-ENV GRADIO_SERVER_NAME=0.0.0.0 \
-    GRADIO_SERVER_PORT=7860 \
-    PATH="/app/.venv/bin:$PATH" \
+ENV PATH="/app/.venv/bin:$PATH" \
     VIRTUAL_ENV=/app/.venv
 
 # Runs are written here. Declared so an unmounted container still works, though
@@ -92,11 +87,17 @@ VOLUME ["/app/outputs"]
 RUN python scripts/verify_container_fonts.py
 
 USER appuser
-EXPOSE 7860
+EXPOSE 8000
 
+# Checks /health rather than the page. It reports the concurrency state and
+# whether an LLM provider resolved, so a container that serves HTML but cannot
+# actually run an assessment is still reported unhealthy.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/', timeout=4)" \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)" \
         || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["python", "app.py"]
+# A single worker on purpose. Runs are subprocesses tracked in an in-process
+# registry, so a second worker would enforce its own separate concurrency cap
+# and could neither see nor cancel the first one's runs.
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -298,9 +298,10 @@
   padding: var(--space-8);
   min-height: 0;
 }
-/* A measure, not the window width. Scorecard bars and report prose both read
-   badly when a line runs the full width of a 2000px monitor. */
-.pane__body > * { max-width: 860px; margin-inline: auto; }
+/* A measure, not the window width — but 860px wasted most of a wide screen.
+   Prose sets its own narrower limit further in; scorecards and source lists
+   have short lines and benefit from the extra room. */
+.pane__body > * { max-width: 1100px; margin-inline: auto; }
 .pane__head { padding-inline: var(--space-8); }
 .pane__head > * { max-width: none; }
 .pane__body--centered {
@@ -358,6 +359,28 @@
   overflow-y: auto;
 }
 .composer__input::placeholder { color: var(--text-disabled); }
+
+/* The container already turns blue on :focus-within, and base.css gives every
+   focusable element a 2px outline with a 2px offset — so focusing the textarea
+   drew a second blue rectangle inside the first, with a gap between them.
+   Focus is expressed once, by the container. Keyboard users lose nothing: that
+   border is the focus indicator.
+
+   Same reasoning for the chips and send button on the bar below, which sit
+   inside the same focused container. */
+.composer__input:focus-visible,
+.composer__bar .chip-btn:focus-visible,
+.composer__bar .chip-select:focus-visible,
+.composer__bar .send-btn:focus-visible {
+  outline: none;
+}
+/* Except when the container itself is not the thing being focused — tabbing
+   between chips still needs to show which one is active. */
+.composer__bar .chip-btn:focus-visible,
+.composer__bar .chip-select:focus-visible,
+.composer__bar .send-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
 
 .composer__bar {
   display: flex;
@@ -526,13 +549,18 @@
   top: 28px;
   bottom: -4px;
   width: 1px;
-  background: var(--border-subtle);
+  /* Brighter than border-subtle so the connector does not vanish between two
+     now-visible dots, which read as a broken sequence. */
+  background: var(--border-strong);
 }
 
 .stage__dot {
   width: 11px; height: 11px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--bg-active);
+  /* Pending reads as a hollow white ring. The previous #232329 border was
+     three shades off the background, so only the active and completed states
+     were distinguishable and the pipeline looked two stages long. */
+  border: 2px solid var(--text-secondary);
   background: var(--bg-base);
   flex-shrink: 0;
   z-index: 1;

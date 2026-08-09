@@ -308,6 +308,57 @@ async def upload_paper(file: UploadFile = File(...)) -> PaperExtraction:
 
 
 @app.get(
+    "/api/runs/{run_id}/report.pdf",
+    tags=["artifacts"],
+    responses={
+        200: {"content": {"application/pdf": {}}},
+        409: {"description": "Run has not produced a report yet"},
+    },
+)
+def get_report_pdf(run_id: str) -> FileResponse:
+    """The report as a PDF, with CJK glyphs embedded.
+
+    Generated on first request and cached beside the report: rendering takes a
+    second or two, and most runs are never exported. The embedded font matters
+    here — a reader without a CJK typeface installed would otherwise see blank
+    boxes, which is why the image build verifies one resolves.
+    """
+    try:
+        state = runs.get_state(run_id)
+    except runs.RunNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    markdown_path = runs.artifact_path(run_id, "report")
+    if markdown_path is None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"No report available; run state is '{state['state']}'.",
+        )
+
+    pdf_path = markdown_path.parent / "commercialization_report.pdf"
+    if not pdf_path.exists():
+        from ui.pdf_export import _generate_pdf
+
+        try:
+            _generate_pdf(
+                markdown_path.read_text(encoding="utf-8"),
+                markdown_path.parent,
+                output_language=state.get("output_language", "English"),
+            )
+        except Exception as exc:  # noqa: BLE001 - report the reason
+            raise HTTPException(
+                status_code=500, detail=f"Could not render the PDF: {exc}"
+            ) from exc
+
+    if not pdf_path.exists():
+        raise HTTPException(status_code=500, detail="PDF rendering produced no file.")
+
+    return FileResponse(
+        pdf_path, media_type="application/pdf", filename=f"{run_id}.pdf"
+    )
+
+
+@app.get(
     "/api/runs/{run_id}/{artifact}",
     tags=["artifacts"],
     responses={

@@ -8,7 +8,7 @@ services:
         PYTHON_VERSION: "3.12"
     image: academic-agent:1.0.0
     ports:
-      - "7860:7860"
+      - "8000:8000"
 
     # API keys are read from a host .env at runtime. They are deliberately not
     # baked into the image: an image layer is readable by anyone who pulls it,

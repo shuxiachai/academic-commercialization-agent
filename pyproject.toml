@@ -7,7 +7,6 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "crewai[tools]==1.14.7",
     "fastapi>=0.115",
-    "gradio>=6.19.0",
     "markdown>=3.6",
     "pydantic>=2.0",
     "pypdfium2>=4.0",

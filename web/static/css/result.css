@@ -25,7 +25,10 @@
   border-bottom-color: var(--accent);
 }
 
-.panel { max-width: 780px; }
+/* Panels fill the pane. Only running prose needs a narrow measure, and it
+   sets one itself — a shared 780px cap made the scorecard needlessly cramped
+   on a wide screen. */
+.panel { max-width: none; }
 
 /* ═══ Scorecard ════════════════════════════════════════════════════════ */
 
@@ -63,7 +66,7 @@
 
 .dim {
   display: grid;
-  grid-template-columns: 168px 1fr 72px;
+  grid-template-columns: 200px 1fr 80px;
   align-items: center;
   gap: var(--space-4);
 }
@@ -118,7 +121,17 @@
 
 /* ═══ Report prose ═════════════════════════════════════════════════════ */
 
-.prose { font-size: var(--text-md); line-height: var(--leading-relaxed); color: var(--text-secondary); }
+.prose {
+  /* Full panel width, so the report's left edge lines up with the scorecard's
+     and with the tabs above both. A narrower centred measure reads better for
+     long English prose, but it put the report on a different vertical line
+     from every other tab, which is more distracting than a long line.
+     (Not `ch` either: that unit is the width of "0", and a CJK glyph is about
+     twice that, so a ch-based measure is half as wide in Chinese.) */
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+}
 
 .prose h1 { font-size: var(--text-2xl); color: var(--text-primary); margin: 0 0 var(--space-6); }
 .prose h2 {

@@ -122,17 +122,25 @@ function paintActions(state) {
   // click away and always visible. A finished run needs a way out of the
   // browser instead.
   if (state === "completed") {
-    const download = document.createElement("a");
-    download.className = "btn btn--secondary";
-    download.href = `/api/runs/${activeRunId}/report`;
-    download.download = `${activeRunId}.md`;
-    download.innerHTML = `
+    const icon = `
       <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path d="M8 2.5v8m0 0L4.5 7M8 10.5L11.5 7M3 12.5v.5a1 1 0 001 1h8a1 1 0 001-1v-.5"
               stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`;
-    download.append(t("download_report"));
-    actions.append(download);
+
+    // Markdown first: it is instant, while the PDF renders on first request.
+    for (const [suffix, path, label] of [
+      ["md", "report", "Markdown"],
+      ["pdf", "report.pdf", "PDF"],
+    ]) {
+      const link = document.createElement("a");
+      link.className = "btn btn--secondary";
+      link.href = `/api/runs/${activeRunId}/${path}`;
+      link.download = `${activeRunId}.${suffix}`;
+      link.innerHTML = icon;
+      link.append(label);
+      actions.append(link);
+    }
   }
 }
 
