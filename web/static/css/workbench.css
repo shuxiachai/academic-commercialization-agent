@@ -15,7 +15,20 @@
   overflow: hidden;         /* each pane scrolls independently */
   transition: grid-template-columns var(--duration-base) var(--ease);
 }
-.workbench[data-collapsed="true"] { grid-template-columns: 0 1fr; }
+/* Collapsing hides the rail's content but keeps a 48px strip, because the
+   toggle lives inside it: a zero-width sidebar took its own reopen control
+   with it, and the state is persisted, so a reload did not recover either. */
+.workbench[data-collapsed="true"] { grid-template-columns: 48px 1fr; }
+.workbench[data-collapsed="true"] .brand__name,
+.workbench[data-collapsed="true"] .new-run span,
+.workbench[data-collapsed="true"] .new-run .kbd,
+.workbench[data-collapsed="true"] .runlist,
+.workbench[data-collapsed="true"] .capacity__label,
+.workbench[data-collapsed="true"] .bare-select { display: none; }
+.workbench[data-collapsed="true"] .sidebar__head { padding: 0 var(--space-2); justify-content: center; }
+.workbench[data-collapsed="true"] .brand { display: none; }
+.workbench[data-collapsed="true"] .new-run { justify-content: center; margin-inline: var(--space-2); padding-inline: 0; }
+.workbench[data-collapsed="true"] .sidebar__foot { justify-content: center; padding-inline: var(--space-2); }
 
 /* ═══ Sidebar ══════════════════════════════════════════════════════════ */
 
@@ -285,6 +298,11 @@
   padding: var(--space-8);
   min-height: 0;
 }
+/* A measure, not the window width. Scorecard bars and report prose both read
+   badly when a line runs the full width of a 2000px monitor. */
+.pane__body > * { max-width: 860px; margin-inline: auto; }
+.pane__head { padding-inline: var(--space-8); }
+.pane__head > * { max-width: none; }
 .pane__body--centered {
   display: flex;
   align-items: center;

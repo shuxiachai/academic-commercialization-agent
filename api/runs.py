@@ -351,7 +351,11 @@ def get_state(run_id: str) -> dict:
         error = None
         elapsed = handle.elapsed
     else:
-        elapsed = None
+        # A finished run has no handle, and returning None here meant a client
+        # showed 0:00 for a run that plainly took minutes. The elapsed time is
+        # still on disk: the directory name carries the start and status.json's
+        # mtime the last write.
+        elapsed = _elapsed_seconds(run_dir)
         if (run_dir / _CANCEL_MARKER).exists():
             state, error = "cancelled", "Cancelled by request."
         elif status.get("error"):
@@ -385,16 +389,30 @@ def _started_at(run_id: str) -> str:
         return ""
 
 
-def _duration(run_dir: Path) -> str:
+def _elapsed_seconds(run_dir: Path) -> int | None:
+    """Wall-clock seconds for a finished run, from what is on disk.
+
+    The run_id encodes the start; status.json's mtime is the last thing the
+    worker wrote. Used for runs whose handle is gone, where the in-memory
+    timer is no longer available.
+    """
     try:
         stamp = run_dir.name.split("-")[0]
         start = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
         status_path = run_dir / "status.json"
         if not status_path.exists():
-            return "—"
+            return None
         end = datetime.fromtimestamp(os.path.getmtime(status_path), tz=UTC)
         secs = int((end - start).total_seconds())
-        if secs < 0:
+        return secs if secs >= 0 else None
+    except (ValueError, OSError):
+        return None
+
+
+def _duration(run_dir: Path) -> str:
+    try:
+        secs = _elapsed_seconds(run_dir)
+        if secs is None:
             return "—"
         return f"{secs}s" if secs < 60 else f"{secs // 60}m {secs % 60:02d}s"
     except (ValueError, OSError):

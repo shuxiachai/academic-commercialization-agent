@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/static/css/tokens.css">
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/workbench.css">
+<link rel="stylesheet" href="/static/css/result.css">
 </head>
 <body>
 
@@ -92,12 +93,30 @@
                   <span data-i18n="attach">Paper</span>
                 </button>
 
+                <!-- Empty value means auto-detect; the API treats null as
+                     "decide from the topic", which is the default. -->
                 <select class="chip-select" id="language" aria-label="Report language">
                   <option value="" data-i18n="auto_lang">Auto language</option>
+                  <option value="English">English</option>
+                  <option value="Chinese">简体中文</option>
+                  <option value="Japanese">日本語</option>
+                  <option value="Korean">한국어</option>
+                  <option value="French">Français</option>
+                  <option value="German">Deutsch</option>
+                  <option value="Spanish">Español</option>
+                  <option value="Portuguese">Português</option>
+                  <option value="Arabic">العربية</option>
+                  <option value="Russian">Русский</option>
+                  <option value="Hindi">हिन्दी</option>
                 </select>
 
                 <select class="chip-select" id="profile" aria-label="Scoring profile">
                   <option value="" data-i18n="auto_profile">Auto profile</option>
+                  <option value="industrial">Industrial</option>
+                  <option value="material_science">Materials</option>
+                  <option value="biomedical">Biomedical</option>
+                  <option value="clean_tech">Clean tech</option>
+                  <option value="software_ai">Software / AI</option>
                 </select>
 
                 <span class="composer__spacer"></span>
