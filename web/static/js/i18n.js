@@ -73,6 +73,8 @@ const STRINGS = {
     msg_not_pdf: "That is not a PDF.",
     msg_too_large: "That PDF is over the 50 MB limit.",
     msg_reading: "Reading",
+    msg_wait_extract: "Waiting for the paper to finish extracting",
+    run_hint: "Run analysis  (Enter)",
   },
 
   "Simplified Chinese": {
@@ -132,6 +134,8 @@ const STRINGS = {
     msg_not_pdf: "这不是 PDF 文件。",
     msg_too_large: "PDF 超过 50 MB 上限。",
     msg_reading: "正在读取",
+    msg_wait_extract: "等待论文提取完成",
+    run_hint: "开始分析（回车）",
   },
 };
 

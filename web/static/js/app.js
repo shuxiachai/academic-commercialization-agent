@@ -187,6 +187,15 @@ function refreshSidebar() {
 
 /* ── Composer ──────────────────────────────────────────────────────── */
 
+/* True only while an extraction is in flight. Submission is blocked for that
+ * window: attachedPaper is null until the response arrives, so a run started
+ * mid-extraction would quietly go out without the paper the user attached.
+ *
+ * Declared here rather than beside the upload handler because syncComposer
+ * reads it and runs first — a `let` further down is a temporal dead zone, and
+ * the boot-time call threw before anything rendered. */
+let extracting = false;
+
 const topic = $("#topic");
 const count = $("#topic-count");
 const runBtn = $("#run-btn");
@@ -198,7 +207,8 @@ function autosize() {
 }
 
 function syncComposer() {
-  runBtn.disabled = topic.value.trim().length < 3;
+  runBtn.disabled = topic.value.trim().length < 3 || extracting;
+  runBtn.title = extracting ? t("msg_wait_extract") : t("run_hint");
   count.textContent = topic.value.length > 240 ? `${topic.value.length} / 300` : "";
   autosize();
 }
@@ -256,14 +266,18 @@ const pdfInput = $("#pdf-input");
 
 function clearAttachment() {
   attachedPaper = null;
+  extracting = false;
   attachment.hidden = true;
+  attachment.removeAttribute("data-loading");
   attachment.innerHTML = "";
   attachBtn.dataset.active = "false";
   pdfInput.value = "";      // so re-picking the same file still fires change
+  syncComposer();
 }
 
 function paintAttachment(paper) {
   attachment.hidden = false;
+  attachment.removeAttribute("data-loading");
   attachment.innerHTML = "";
 
   const title = document.createElement("span");
@@ -301,13 +315,22 @@ async function uploadPaper(file) {
     return;
   }
 
+  extracting = true;
   attachment.hidden = false;
-  attachment.textContent = `${t("msg_reading")} ${file.name}…`;
+  attachment.dataset.loading = "true";
+  attachment.innerHTML = "";
+  const dot = document.createElement("span");
+  dot.className = "attachment__dot";
+  const label = document.createElement("span");
+  label.textContent = `${t("msg_reading")} ${file.name}…`;
+  attachment.append(dot, label);
   attachBtn.dataset.active = "true";
+  syncComposer();
 
   try {
     const paper = await api.uploadPaper(file);
     attachedPaper = paper;
+    extracting = false;
     paintAttachment(paper);
     toast(t("msg_paper_attached"), "success");
   } catch (err) {

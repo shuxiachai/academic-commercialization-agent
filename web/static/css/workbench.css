@@ -447,6 +447,29 @@
   color: var(--text-secondary);
 }
 
+/* Extraction makes an LLM call and takes several seconds. A static line of
+   text is indistinguishable from a hang, so the row shimmers and carries the
+   same pulsing dot the run stages use — one vocabulary for "working", not a
+   third one invented here. */
+.composer__attachment[data-loading="true"] {
+  background: linear-gradient(90deg,
+    var(--bg-overlay) 25%, var(--bg-hover) 50%, var(--bg-overlay) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+  color: var(--text-tertiary);
+}
+.attachment__dot {
+  width: 6px; height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: pulse-dot 1.8s var(--ease) infinite;
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
 /* Drag state applies to the whole composer, so a file may be dropped
    anywhere over it rather than onto a small target. */
 .composer[data-dragging="true"] {
