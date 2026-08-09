@@ -13,3 +13,6 @@ dist/
 .coverage
 htmlcov/
 简历项目说明.md
+
+# Tooling scratch space — worktrees here are separate git repos
+.claude/
