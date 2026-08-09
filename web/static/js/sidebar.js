@@ -1,6 +1,7 @@
 /* Sidebar run list. */
 
 import * as api from "./api.js";
+import { t } from "./i18n.js";
 
 /* Runs are grouped by recency rather than shown as a flat list: with a few
  * dozen entries, "which of these did I run this morning" is the question
@@ -28,7 +29,7 @@ export function render(container, runs, { activeId, onSelect }) {
   if (!runs.length) {
     const empty = document.createElement("div");
     empty.className = "runlist__empty";
-    empty.textContent = "No runs yet";
+    empty.textContent = t("no_runs");
     container.append(empty);
     return;
   }
@@ -42,7 +43,7 @@ export function render(container, runs, { activeId, onSelect }) {
 
     const heading = document.createElement("div");
     heading.className = "runlist__group";
-    heading.textContent = name;
+    heading.textContent = t(`group_${name.toLowerCase()}`);
     container.append(heading);
 
     for (const run of entries) {

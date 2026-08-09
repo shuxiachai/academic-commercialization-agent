@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -33,6 +34,9 @@ TIMEOUT_SECONDS = 1800
 # Concurrent workers. The real ceiling is upstream API rate limits, not local
 # CPU — each run issues dozens of requests to OpenAlex/Serper/the LLM.
 MAX_CONCURRENT = int(os.getenv("API_MAX_CONCURRENT", "2"))
+
+# Run directories are named <UTC timestamp>-<hex>; see create_run_id().
+_RUN_ID_PATTERN = re.compile(r"\d{8}T\d{6}Z-[0-9a-f]+")
 
 _CANCEL_MARKER = "cancelled.marker"
 
@@ -424,8 +428,13 @@ def list_runs(limit: int = 50) -> tuple[list[dict], int]:
     if not DEFAULT_OUTPUT_ROOT.is_dir():
         return [], 0
 
+    # Match the run_id shape rather than excluding known non-runs one at a
+    # time. The old rule skipped only "benchmark", so adding outputs/_papers
+    # for uploads immediately put a storage directory in the run list, where
+    # it rendered as a run with no topic and no status.
     dirs = sorted(
-        (d for d in DEFAULT_OUTPUT_ROOT.iterdir() if d.is_dir() and d.name != "benchmark"),
+        (d for d in DEFAULT_OUTPUT_ROOT.iterdir()
+         if d.is_dir() and _RUN_ID_PATTERN.fullmatch(d.name)),
         key=lambda d: d.name,
         reverse=True,
     )

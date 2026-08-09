@@ -1,0 +1,168 @@
+/* Interface language.
+ *
+ * Distinct from the report language: this translates the chrome, while the
+ * report language is passed to the pipeline and decides what the agents
+ * write. A user reading Chinese reports may still want an English interface,
+ * so the two are chosen separately.
+ *
+ * English is the source. A missing key falls back to it rather than showing
+ * a bare identifier — a partially translated interface is still usable.
+ */
+
+const STRINGS = {
+  English: {
+    // Chrome
+    brand: "Assessment",
+    new_analysis: "New analysis",
+    no_runs: "No runs yet",
+    group_today: "Today",
+    group_yesterday: "Yesterday",
+    group_earlier: "Earlier",
+    running_label: "running",
+    offline: "offline",
+
+    // Composer
+    compose_title: "What should we assess?",
+    compose_sub: "Six agents gather academic, patent, and market evidence, then score commercialization readiness. Every claim carries a citation.",
+    topic_placeholder: "perovskite solar cells for utility-scale power generation",
+    attach: "Paper",
+    auto_lang: "Auto language",
+    auto_profile: "Auto profile",
+
+    // Stages
+    stage_sources: "Collecting and validating sources",
+    stage_evidence: "Academic · Patent · Market analysis",
+    stage_report: "Writing the report",
+    stage_review: "Reviewing citations and claims",
+    stage_scoring: "Scoring commercialization readiness",
+
+    // Run pane
+    cancel: "Cancel",
+    download_report: "Report",
+    sources_suffix: "sources",
+    academic: "academic",
+    patent: "patent",
+    market: "market",
+
+    // Result
+    tab_score: "Scorecard",
+    tab_report: "Report",
+    tab_sources: "Sources",
+    readiness: "commercialization readiness",
+    band_strong: "Strong",
+    band_moderate: "Moderate",
+    band_early: "Early",
+    band_nascent: "Nascent",
+    dim_trl: "Technology readiness",
+    dim_mrl: "Manufacturing readiness",
+    dim_patent: "Patent position",
+    dim_market: "Market accessibility",
+    dim_evidence: "Evidence confidence",
+    risks: "Risks",
+    opportunities: "Opportunities",
+    group_academic: "Academic",
+    group_patents: "Patents",
+    group_market: "Market",
+    no_artifacts: "This run produced no artifacts.",
+
+    // Messages
+    msg_complete: "Analysis complete.",
+    msg_cancelled: "Run cancelled.",
+    msg_busy: "Both run slots are busy. Try again when one finishes.",
+    msg_paper_attached: "Paper attached.",
+    msg_not_pdf: "That is not a PDF.",
+    msg_too_large: "That PDF is over the 50 MB limit.",
+    msg_reading: "Reading",
+  },
+
+  "Simplified Chinese": {
+    brand: "商业化评估",
+    new_analysis: "新建分析",
+    no_runs: "暂无运行记录",
+    group_today: "今天",
+    group_yesterday: "昨天",
+    group_earlier: "更早",
+    running_label: "运行中",
+    offline: "未连接",
+
+    compose_title: "要评估什么技术？",
+    compose_sub: "六个智能体收集学术、专利与市场证据，评估商业化就绪度。每条结论都附带可核查的引用。",
+    topic_placeholder: "钙钛矿太阳能电池在公用事业级发电中的应用",
+    attach: "论文",
+    auto_lang: "自动语言",
+    auto_profile: "自动方案",
+
+    stage_sources: "收集并校验来源",
+    stage_evidence: "学术 · 专利 · 市场分析",
+    stage_report: "撰写报告",
+    stage_review: "审查引用与论断",
+    stage_scoring: "评估商业化就绪度",
+
+    cancel: "取消",
+    download_report: "报告",
+    sources_suffix: "条来源",
+    academic: "学术",
+    patent: "专利",
+    market: "市场",
+
+    tab_score: "评分卡",
+    tab_report: "报告",
+    tab_sources: "来源",
+    readiness: "商业化就绪度",
+    band_strong: "较强",
+    band_moderate: "中等",
+    band_early: "早期",
+    band_nascent: "萌芽",
+    dim_trl: "技术就绪度",
+    dim_mrl: "制造就绪度",
+    dim_patent: "专利地位",
+    dim_market: "市场可及性",
+    dim_evidence: "证据置信度",
+    risks: "风险",
+    opportunities: "机会",
+    group_academic: "学术",
+    group_patents: "专利",
+    group_market: "市场",
+    no_artifacts: "该次运行没有产出任何文件。",
+
+    msg_complete: "分析完成。",
+    msg_cancelled: "运行已取消。",
+    msg_busy: "两个运行槽位都在忙，等一个结束后再试。",
+    msg_paper_attached: "论文已附加。",
+    msg_not_pdf: "这不是 PDF 文件。",
+    msg_too_large: "PDF 超过 50 MB 上限。",
+    msg_reading: "正在读取",
+  },
+};
+
+const STORAGE_KEY = "ui-language";
+
+let current = localStorage.getItem(STORAGE_KEY) ?? "English";
+if (!STRINGS[current]) current = "English";
+
+/** Translate a key, falling back to English and then to the key itself. */
+export function t(key) {
+  return STRINGS[current]?.[key] ?? STRINGS.English[key] ?? key;
+}
+
+export function language() {
+  return current;
+}
+
+export function setLanguage(next) {
+  if (!STRINGS[next]) return;
+  current = next;
+  localStorage.setItem(STORAGE_KEY, next);
+  apply();
+}
+
+/** Apply translations to everything declaratively marked in the HTML. */
+export function apply(root = document) {
+  for (const node of root.querySelectorAll("[data-i18n]")) {
+    node.textContent = t(node.dataset.i18n);
+  }
+  for (const node of root.querySelectorAll("[data-i18n-placeholder]")) {
+    node.placeholder = t(node.dataset.i18nPlaceholder);
+  }
+  document.documentElement.lang = current === "English" ? "en" : "zh-CN";
+}

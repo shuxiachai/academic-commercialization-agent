@@ -73,6 +73,9 @@ class RunProgress(BaseModel):
     run_id: str
     state: RunState
     stage: str = ""
+    # Carried here so a client that opens a run from a list has a title on
+    # the first response rather than a placeholder until it guesses one.
+    topic: str = ""
     done: bool = False
     error: str | None = None
     elapsed_seconds: int | None = None

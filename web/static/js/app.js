@@ -4,6 +4,8 @@ import * as api from "./api.js";
 import * as runView from "./run.js";
 import * as sidebar from "./sidebar.js";
 import * as result from "./result.js";
+import * as i18n from "./i18n.js";
+const t = i18n.t;
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -101,12 +103,12 @@ function paintActions(state) {
     const cancel = document.createElement("button");
     cancel.type = "button";
     cancel.className = "btn btn--danger";
-    cancel.textContent = "Cancel";
+    cancel.textContent = t("cancel");
     cancel.addEventListener("click", async () => {
       cancel.disabled = true;
       try {
         await api.cancelRun(activeRunId);
-        toast("Run cancelled.");
+        toast(t("msg_cancelled"));
       } catch (err) {
         cancel.disabled = false;
         toast(err.message, "error");
@@ -116,12 +118,22 @@ function paintActions(state) {
     return;
   }
 
-  const again = document.createElement("button");
-  again.type = "button";
-  again.className = "btn btn--secondary";
-  again.textContent = "New analysis";
-  again.addEventListener("click", showCompose);
-  actions.append(again);
+  // Not another "New analysis" — that button already lives in the rail, one
+  // click away and always visible. A finished run needs a way out of the
+  // browser instead.
+  if (state === "completed") {
+    const download = document.createElement("a");
+    download.className = "btn btn--secondary";
+    download.href = `/api/runs/${activeRunId}/report`;
+    download.download = `${activeRunId}.md`;
+    download.innerHTML = `
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M8 2.5v8m0 0L4.5 7M8 10.5L11.5 7M3 12.5v.5a1 1 0 001 1h8a1 1 0 001-1v-.5"
+              stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    download.append(t("download_report"));
+    actions.append(download);
+  }
 }
 
 async function openRun(runId, { known } = {}) {
@@ -147,7 +159,7 @@ async function openRun(runId, { known } = {}) {
       refreshSidebar();
 
       if (progress.state === "completed") {
-        toast("Analysis complete.", "success");
+        toast(t("msg_complete"), "success");
       } else if (progress.error) {
         toast(progress.error, "error");
       }
@@ -227,7 +239,7 @@ $("#compose-form").addEventListener("submit", async (e) => {
     // 429 is the expected answer when both slots are busy, and deserves a
     // sentence rather than a raw status.
     toast(err.status === 429
-      ? "Both run slots are busy. Try again when one finishes."
+      ? t("msg_busy")
       : err.message, "error");
   }
 });
@@ -285,23 +297,23 @@ function paintAttachment(paper) {
 async function uploadPaper(file) {
   if (!file) return;
   if (!file.name.toLowerCase().endsWith(".pdf")) {
-    toast("That is not a PDF.", "error");
+    toast(t("msg_not_pdf"), "error");
     return;
   }
 
   attachment.hidden = false;
-  attachment.textContent = `Reading ${file.name}…`;
+  attachment.textContent = `${t("msg_reading")} ${file.name}…`;
   attachBtn.dataset.active = "true";
 
   try {
     const paper = await api.uploadPaper(file);
     attachedPaper = paper;
     paintAttachment(paper);
-    toast("Paper attached.", "success");
+    toast(t("msg_paper_attached"), "success");
   } catch (err) {
     clearAttachment();
     toast(err.status === 413
-      ? "That PDF is over the 50 MB limit."
+      ? t("msg_too_large")
       : err.message, "error");
   }
 }
@@ -371,9 +383,9 @@ async function refreshCapacity() {
       dot.dataset.busy = String(i < active_runs);
       dots.append(dot);
     }
-    $("#capacity-label").textContent = `${active_runs}/${max_concurrent} running`;
+    $("#capacity-label").textContent = `${active_runs}/${max_concurrent} ${t("running_label")}`;
   } catch {
-    $("#capacity-label").textContent = "offline";
+    $("#capacity-label").textContent = t("offline");
   }
 }
 
@@ -394,6 +406,23 @@ window.addEventListener("popstate", routeFromLocation);
 
 /* ── Boot ──────────────────────────────────────────────────────────── */
 
+/* ── Language ──────────────────────────────────────────────────────── */
+
+const langSelect = $("#ui-lang");
+langSelect.value = i18n.language();
+langSelect.addEventListener("change", () => {
+  i18n.setLanguage(langSelect.value);
+  topic.placeholder = t("topic_placeholder");
+  // Re-render whatever is on screen so switching mid-run does not leave a
+  // half-translated pane behind.
+  refreshSidebar();
+  if (activeRunId) openRun(activeRunId);
+});
+
+/* ── Boot ──────────────────────────────────────────────────────────── */
+
+i18n.apply();
+topic.placeholder = t("topic_placeholder");
 syncComposer();
 routeFromLocation();
 refreshSidebar();

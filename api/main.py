@@ -258,6 +258,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         run_id=run_id,
         state=state["state"],
         stage=state.get("stage", ""),
+        topic=state.get("topic", ""),
         done=state["state"] != "running",
         error=state.get("error"),
         elapsed_seconds=state.get("elapsed_seconds"),

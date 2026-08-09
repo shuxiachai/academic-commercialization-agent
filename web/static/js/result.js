@@ -1,26 +1,27 @@
 /* Result view: scorecard, report, and sources. */
 
 import * as api from "./api.js";
+import { t } from "./i18n.js";
 
 /* ── Scoring dimensions ────────────────────────────────────────────────
  * Maxima differ per dimension (TRL is out of 9, MRL out of 10, the rest out
  * of 5), so a bar cannot assume a shared scale. Declared here rather than
  * inferred, because a wrong denominator silently misdraws the bar. */
 const DIMENSIONS = [
-  { key: "trl_score",            max: 9,  label: "Technology readiness", short: "TRL" },
-  { key: "mrl_score",            max: 10, label: "Manufacturing readiness", short: "MRL" },
-  { key: "patent_strength",      max: 5,  label: "Patent position", short: "IP" },
-  { key: "market_accessibility", max: 5,  label: "Market accessibility", short: "Market" },
-  { key: "evidence_confidence",  max: 5,  label: "Evidence confidence", short: "Evidence" },
+  { key: "trl_score",            max: 9,  label: "dim_trl" },
+  { key: "mrl_score",            max: 10, label: "dim_mrl" },
+  { key: "patent_strength",      max: 5,  label: "dim_patent" },
+  { key: "market_accessibility", max: 5,  label: "dim_market" },
+  { key: "evidence_confidence",  max: 5,  label: "dim_evidence" },
 ];
 
 /** Band for the headline number. Thresholds match the scorecard the Python
  *  side renders, so the same run does not get two different verdicts. */
 function band(score) {
-  if (score >= 70) return { name: "Strong", tone: "success" };
-  if (score >= 55) return { name: "Moderate", tone: "accent" };
-  if (score >= 40) return { name: "Early", tone: "warning" };
-  return { name: "Nascent", tone: "muted" };
+  if (score >= 70) return { name: t("band_strong"), tone: "success" };
+  if (score >= 55) return { name: t("band_moderate"), tone: "accent" };
+  if (score >= 40) return { name: t("band_early"), tone: "warning" };
+  return { name: t("band_nascent"), tone: "muted" };
 }
 
 const el = (tag, className, text) => {
@@ -144,7 +145,7 @@ function renderScorecard(scores) {
   const caption = el("div", "scorecard__caption");
   caption.append(
     el("span", "scorecard__band", name),
-    el("span", "scorecard__label", "commercialization readiness"),
+    el("span", "scorecard__label", t("readiness")),
   );
   head.append(figure, caption);
   wrap.append(head);
@@ -155,7 +156,7 @@ function renderScorecard(scores) {
     const pct = Math.max(0, Math.min(100, (value / dim.max) * 100));
 
     const row = el("div", "dim");
-    const label = el("div", "dim__label", dim.label);
+    const label = el("div", "dim__label", t(dim.label));
     const bar = el("div", "dim__bar");
     const fill = el("div", "dim__fill");
     fill.style.width = `${pct}%`;
@@ -171,7 +172,7 @@ function renderScorecard(scores) {
   }
   wrap.append(grid);
 
-  for (const [key, title] of [["key_risks", "Risks"], ["key_opportunities", "Opportunities"]]) {
+  for (const [key, title] of [["key_risks", t("risks")], ["key_opportunities", t("opportunities")]]) {
     const items = scores[key];
     if (!Array.isArray(items) || !items.length) continue;
     const block = el("div", "notes");
@@ -194,12 +195,12 @@ export async function render(container, runId, { artifacts }) {
   const panels = el("div", "panels");
 
   const views = [];
-  if (artifacts.includes("scores")) views.push({ id: "score", label: "Scorecard" });
-  if (artifacts.includes("report")) views.push({ id: "report", label: "Report" });
-  if (artifacts.includes("sources")) views.push({ id: "sources", label: "Sources" });
+  if (artifacts.includes("scores")) views.push({ id: "score", label: t("tab_score") });
+  if (artifacts.includes("report")) views.push({ id: "report", label: t("tab_report") });
+  if (artifacts.includes("sources")) views.push({ id: "sources", label: t("tab_sources") });
 
   if (!views.length) {
-    container.append(el("p", "empty-note", "This run produced no artifacts."));
+    container.append(el("p", "empty-note", t("no_artifacts")));
     return;
   }
 
@@ -259,9 +260,9 @@ function renderSources(collection) {
   const wrap = el("div", "sources");
 
   const groups = [
-    ["academic_sources", "Academic"],
-    ["patent_sources", "Patents"],
-    ["market_sources", "Market"],
+    ["academic_sources", t("group_academic")],
+    ["patent_sources", t("group_patents")],
+    ["market_sources", t("group_market")],
   ];
 
   for (const [key, title] of groups) {

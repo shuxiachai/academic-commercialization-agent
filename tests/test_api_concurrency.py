@@ -182,6 +182,33 @@ class ArtifactPathTests(_ConcurrencyTestBase):
         (Path(self._tmp.name) / run_id).mkdir(parents=True)
         self.assertIsNone(runs.artifact_path(run_id, "report"))
 
+class RunListFilterTests(_ConcurrencyTestBase):
+    """Only run directories belong in the run list.
+
+    The filter used to name its exceptions ("benchmark"), so adding
+    outputs/_papers for uploaded PDFs immediately put a storage directory in
+    the list, rendering as a run with no topic and no status. Matching the
+    run_id shape instead means a new internal directory cannot reappear there.
+    """
+
+    def _make(self, *names):
+        for name in names:
+            (Path(self._tmp.name) / name).mkdir(parents=True, exist_ok=True)
+
+    def test_internal_directories_are_not_runs(self):
+        self._make("_papers", "benchmark", ".cache", "20260809T005704Z-1fac18d7a9")
+        summaries, _total = runs.list_runs()
+        self.assertEqual([s["run_id"] for s in summaries], ["20260809T005704Z-1fac18d7a9"])
+
+    def test_real_run_ids_are_accepted(self):
+        ids = ["20260809T005704Z-1fac18d7a9", "20260101T000000Z-abcdef0123"]
+        self._make(*ids)
+        summaries, _total = runs.list_runs()
+        self.assertEqual(sorted(s["run_id"] for s in summaries), sorted(ids))
+
+    def test_empty_output_root_is_not_an_error(self):
+        summaries, total = runs.list_runs()
+        self.assertEqual((summaries, total), ([], 0))
 
 if __name__ == "__main__":
     unittest.main()

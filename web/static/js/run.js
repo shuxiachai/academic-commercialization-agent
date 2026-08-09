@@ -1,6 +1,7 @@
 /* Live run: stage model, polling, and the progress view. */
 
 import * as api from "./api.js";
+import { t } from "./i18n.js";
 
 /* ── Stage model ───────────────────────────────────────────────────────
  * The worker reports one free-text stage string at a time. The UI shows the
@@ -12,11 +13,11 @@ import * as api from "./api.js";
  * and the labels carry en dashes and interpuncts that are easy to mistype.
  */
 const STAGES = [
-  { id: "sources",  match: "Source Collection", label: "Collecting and validating sources" },
-  { id: "evidence", match: "Phase 1",           label: "Academic · Patent · Market analysis" },
-  { id: "report",   match: "Agent 4",           label: "Writing the report" },
-  { id: "review",   match: "Agent 5",           label: "Reviewing citations and claims" },
-  { id: "scoring",  match: "Agent 6",           label: "Scoring commercialization readiness" },
+  { id: "sources",  match: "Source Collection", key: "stage_sources" },
+  { id: "evidence", match: "Phase 1",           key: "stage_evidence" },
+  { id: "report",   match: "Agent 4",           key: "stage_report" },
+  { id: "review",   match: "Agent 5",           key: "stage_review" },
+  { id: "scoring",  match: "Agent 6",           key: "stage_scoring" },
 ];
 
 const TERMINAL = new Set(["completed", "failed", "cancelled", "timeout"]);
@@ -121,7 +122,8 @@ export function sourceSummary(counts) {
   const { academic = 0, patent = 0, market = 0 } = counts;
   const total = academic + patent + market;
   if (!total) return "";
-  return `${total} sources · ${academic} academic · ${patent} patent · ${market} market`;
+  return `${total} ${t("sources_suffix")} · ${academic} ${t("academic")}`
+       + ` · ${patent} ${t("patent")} · ${market} ${t("market")}`;
 }
 
 /* ── Rendering ─────────────────────────────────────────────────────── */
@@ -141,7 +143,7 @@ export function renderStages(container, stages) {
 
     const label = document.createElement("span");
     label.className = "stage__label";
-    label.textContent = stage.label;
+    label.textContent = t(stage.key);
 
     row.append(dot, label);
     list.append(row);
