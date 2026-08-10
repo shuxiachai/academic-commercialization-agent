@@ -30,9 +30,18 @@ from academic_agent.evidence import (
     EvidenceFinding,
     EvidenceReport,
     EvidenceSource,
+    make_scoring_guardrail,
     validate_evidence_report,
 )
 from academic_agent.source_pipeline import _filter_by_relevance, _topic_domain_keywords
+
+class _Output:
+    """Minimal stand-in for a CrewAI TaskOutput."""
+
+    def __init__(self, raw: str):
+        self.raw = raw
+        self.pydantic = None
+
 
 _UPLOADED_PAPER_TOPIC = (
     "Flexible piezoresistive electronic skin sensor based on carbon nanotube/PDMS "
@@ -310,3 +319,74 @@ class WebSourceValidationTests(unittest.TestCase):
         )
         self.assertIsNotNone(source)
         self.assertEqual(reason, "")
+
+
+# ---------------------------------------------------------------------------
+# Defect 5 — an empty domain must not deadlock the scoring guardrail either
+# ---------------------------------------------------------------------------
+
+class ScoringWithAnEmptyDomainTests(unittest.TestCase):
+    """The same deadlock, one task later.
+
+    Defect 3 above fixed it for the evidence tasks; the scoring model kept
+    min_length=1 on every *_source_ids field. "Uranium-235 production and
+    storage" retrieved zero patents, so the scorer was asked to cite a patent
+    that does not exist. It cannot, so it failed, retried twice, and the run
+    was lost after the other five agents had already succeeded.
+    """
+
+    def _score(self, **overrides) -> str:
+        import json
+        payload = {
+            "trl_score": 40, "trl_rationale": "Laboratory scale only, per A1.",
+            "trl_source_ids": ["A1"],
+            "mrl_score": 30, "mrl_rationale": "No production process described.",
+            "mrl_source_ids": ["A1"],
+            "patent_strength": 30, "patent_rationale": "No patent records retrieved.",
+            "patent_source_ids": [],
+            "market_accessibility": 20, "market_rationale": "Forecasts only, no products.",
+            "market_source_ids": ["M1"],
+            "evidence_confidence": 20,
+            "evidence_rationale": "Thin registry across all three domains.",
+            "evidence_source_ids": ["A1", "M1"],
+            "overall_score": 30.0,
+            "scoring_rationale": "Early stage with a thin evidence base.",
+            "key_risks": ["No patent coverage found."],
+            "key_opportunities": ["White space may exist."],
+        }
+        payload.update(overrides)
+        return json.dumps(payload)
+
+    def test_empty_patent_ids_accepted_when_no_patents_retrieved(self):
+        """The exact shape of the failing run: 3 academic, 0 patent, 8 market."""
+        guardrail = make_scoring_guardrail(
+            known_source_ids=frozenset({"A1", "M1"}),   # no P ids at all
+        )
+        ok, result = guardrail(_Output(self._score()))
+        self.assertTrue(ok, f"rejected with: {result}")
+
+    def test_empty_patent_ids_rejected_when_patents_exist(self):
+        """Permissiveness must not become "citations optional"."""
+        guardrail = make_scoring_guardrail(
+            known_source_ids=frozenset({"A1", "M1", "P1"}),
+        )
+        ok, result = guardrail(_Output(self._score()))
+        self.assertFalse(ok)
+        self.assertIn("patent_source_ids", result)
+
+    def test_empty_market_ids_rejected_when_market_sources_exist(self):
+        guardrail = make_scoring_guardrail(
+            known_source_ids=frozenset({"A1", "M1"}),
+        )
+        ok, result = guardrail(_Output(self._score(market_source_ids=[])))
+        self.assertFalse(ok)
+        self.assertIn("market_source_ids", result)
+
+    def test_hallucinated_ids_still_rejected(self):
+        """Relaxing the floor must not weaken the phantom-ID check."""
+        guardrail = make_scoring_guardrail(
+            known_source_ids=frozenset({"A1", "M1"}),
+        )
+        ok, result = guardrail(_Output(self._score(patent_source_ids=["P9"])))
+        self.assertFalse(ok)
+        self.assertIn("P9", result)

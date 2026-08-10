@@ -280,19 +280,25 @@ class CommercializationScore(BaseModel):
     # so the output JSON always contains the normalized float (e.g. 7.3 not 73).
     trl_score: int = Field(ge=10, le=90)   # 10–90 integer → 1.0–9.0 after ÷10
     trl_rationale: str = Field(min_length=20)
-    trl_source_ids: list[str] = Field(min_length=1, description="Source IDs (A/M prefix) that drove the TRL assessment")
+    # No min_length on the *_source_ids fields. A domain can legitimately yield
+    # nothing — "Uranium-235 production and storage" returned zero patents — and
+    # a hard floor there asks the scorer to cite a source that does not exist.
+    # It cannot, so it fails, retries twice, and the whole run is lost after the
+    # other five agents already succeeded. Whether a citation is required is a
+    # function of what was actually retrieved, which only the guardrail knows.
+    trl_source_ids: list[str] = Field(default_factory=list, description="Source IDs (A/M prefix) that drove the TRL assessment")
     mrl_score: int = Field(ge=10, le=100)  # 10–100 integer → 1.0–10.0 after ÷10
     mrl_rationale: str = Field(min_length=20)
-    mrl_source_ids: list[str] = Field(min_length=1, description="Source IDs (A/M prefix) that drove the MRL assessment")
+    mrl_source_ids: list[str] = Field(default_factory=list, description="Source IDs (A/M prefix) that drove the MRL assessment")
     patent_strength: int = Field(ge=10, le=50)   # 10–50 integer → 1.0–5.0 after ÷10
     patent_rationale: str = Field(min_length=20)
-    patent_source_ids: list[str] = Field(min_length=1, description="Source IDs (P prefix) that drove the patent strength score")
+    patent_source_ids: list[str] = Field(default_factory=list, description="Source IDs (P prefix) that drove the patent strength score")
     market_accessibility: int = Field(ge=10, le=50)  # 10–50 integer → 1.0–5.0 after ÷10
     market_rationale: str = Field(min_length=20)
-    market_source_ids: list[str] = Field(min_length=1, description="Source IDs (M prefix) that drove the market accessibility score")
+    market_source_ids: list[str] = Field(default_factory=list, description="Source IDs (M prefix) that drove the market accessibility score")
     evidence_confidence: int = Field(ge=10, le=50)   # 10–50 integer → 1.0–5.0 after ÷10
     evidence_rationale: str = Field(min_length=20)
-    evidence_source_ids: list[str] = Field(min_length=1, description="All source IDs informing the overall evidence confidence score")
+    evidence_source_ids: list[str] = Field(default_factory=list, description="All source IDs informing the overall evidence confidence score")
     overall_score: float = Field(ge=0.0, le=100.0)
     scoring_rationale: str = Field(min_length=20)
     key_risks: list[str] = Field(min_length=1, max_length=5)
@@ -419,6 +425,26 @@ def make_scoring_guardrail(
                         f"{field} references source IDs not present in the context: {phantom}. "
                         f"Valid IDs are: {sorted(known_source_ids)}."
                     )
+        # Require a citation only where there was something to cite. The model
+        # fields carry no minimum, so this is where "you must show your work"
+        # is enforced — conditioned on what retrieval actually returned.
+        if known_source_ids is not None:
+            available = {prefix: any(sid.startswith(prefix) for sid in known_source_ids)
+                         for prefix in ("A", "P", "M")}
+            for field, ids, prefixes in (
+                ("trl_source_ids", score.trl_source_ids, ("A", "M")),
+                ("mrl_source_ids", score.mrl_source_ids, ("A", "M")),
+                ("patent_source_ids", score.patent_source_ids, ("P",)),
+                ("market_source_ids", score.market_source_ids, ("M",)),
+                ("evidence_source_ids", score.evidence_source_ids, ("A", "P", "M")),
+            ):
+                if not ids and any(available[p] for p in prefixes):
+                    kinds = "/".join(prefixes)
+                    id_errors.append(
+                        f"{field} is empty but {kinds} sources exist in the context. "
+                        f"Cite the IDs that drove this score."
+                    )
+
         if id_errors:
             return False, " ".join(id_errors)
 
