@@ -404,6 +404,19 @@ commercialization_scorer:
     Intermediate values, e.g. 23 = dense landscape but a few narrow gaps visible;
     37 = moderate coverage but more open than typical, with identifiable white spaces.
 
+    EMPTY REGISTRY RULE — an absent patent record is not evidence of an open
+    landscape. When the patent registry contains NO records at all, that is a
+    statement about what the search returned, not about what exists. Retrieval
+    fails for reasons that correlate with dense IP rather than sparse IP:
+      - export-controlled or defence-adjacent subjects (nuclear materials,
+        propulsion, cryptography) where filings are restricted or unpublished,
+      - subjects whose terminology does not match patent-office phrasing,
+      - non-English filing jurisdictions the search does not reach.
+    Score 25–30 in that case, never above 30, and say plainly in the rationale
+    that no records were retrieved and the landscape is therefore unassessed.
+    Do not describe an empty registry as "open", "uncontested", or a
+    "white space" — those are conclusions the evidence does not support.
+
     PATENT SCORING ANTI-DEFAULT RULE:
     Do NOT default to 3 when uncertain. The patent sources in context are enough
     to distinguish between densely contested (1–2), moderate (3), and open (4–5)

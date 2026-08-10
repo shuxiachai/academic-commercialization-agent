@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+from pathlib import Path
 
 from academic_agent.evidence import (
     EvidenceFinding,
@@ -390,3 +391,41 @@ class ScoringWithAnEmptyDomainTests(unittest.TestCase):
         ok, result = guardrail(_Output(self._score(patent_source_ids=["P9"])))
         self.assertFalse(ok)
         self.assertIn("P9", result)
+
+
+class EmptyRegistryRubricTests(unittest.TestCase):
+    """An empty registry must not be scored as an open landscape.
+
+    "Uranium-235 production and storage" retrieved zero patents and the scorer
+    gave patent_strength 4.0/5, reasoning that "the patent landscape appears
+    open due to the absence of retrieved patent records". The rubric's top band
+    is defined as "few relevant patents, strong early-mover opportunity", so
+    that inference followed the instructions as written.
+
+    Nothing retrieved is a fact about the search, not about the world — and for
+    export-controlled subjects a blank result correlates with dense IP, not
+    sparse IP. These assert the rubric now says so; the scoring itself is a
+    model judgement and is checked by the benchmark, not here.
+    """
+
+    def _rubric(self) -> str:
+        import yaml
+        path = Path(__file__).resolve().parent.parent / "src/academic_agent/config/agents.yaml"
+        agents = yaml.safe_load(path.read_text(encoding="utf-8"))
+        return agents["commercialization_scorer"]["backstory"]
+
+    def test_rubric_caps_the_score_for_an_empty_registry(self):
+        text = self._rubric()
+        self.assertIn("EMPTY REGISTRY RULE", text)
+        self.assertIn("never above 30", text)
+
+    def test_rubric_forbids_calling_it_open(self):
+        text = self._rubric()
+        for forbidden in ('"open"', '"uncontested"', '"white space"'):
+            with self.subTest(word=forbidden):
+                self.assertIn(forbidden, text)
+
+    def test_rubric_names_why_retrieval_fails(self):
+        """The reason matters: it is why blank does not mean sparse."""
+        text = self._rubric()
+        self.assertIn("export-controlled", text)
