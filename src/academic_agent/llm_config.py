@@ -8,7 +8,10 @@ Provider resolution order:
        OPENAI_API_KEY    → openai
 """
 
+import functools
 import os
+import random
+import time
 
 from crewai import LLM
 
@@ -39,6 +42,73 @@ def _detect_provider() -> str:
         "  OPENAI_API_KEY     → OpenAI    (default model: gpt-4o)\n"
         "Or set LLM_PROVIDER explicitly to override auto-detection."
     )
+
+
+# Retry only failures that a retry can fix.
+#
+# A run drives six LLM calls over roughly three minutes. Without this, one
+# dropped connection discards everything before it: a real run died at 2:16
+# having already retrieved and validated 24 sources across seven APIs, because
+# the network changed underneath it. Source retrieval has had backoff since
+# early on; the LLM calls did not, which is the asymmetry this closes.
+#
+# Deliberately narrow. A 4xx is not a transport problem — retrying an invalid
+# key or a malformed request cannot succeed, and against a billed API it may be
+# charged per attempt. Rate limits (429) are excluded too: the provider is
+# asking for less traffic, and the pipeline's concurrency cap is where that
+# belongs.
+_RETRYABLE = (ConnectionError, TimeoutError, OSError)
+_MAX_ATTEMPTS = 3
+_BASE_DELAY_SECONDS = 2.0
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    if isinstance(exc, _RETRYABLE):
+        return True
+    # CrewAI wraps provider errors in its own types, so the class is often
+    # uninformative. The message is what separates a dropped socket from a
+    # rejected request.
+    text = f"{type(exc).__name__}: {exc}".lower()
+    if any(m in text for m in ("429", "rate limit", "quota", "invalid api key",
+                               "authentication", "401", "403", "400")):
+        return False
+    return any(m in text for m in ("connection", "timed out", "timeout",
+                                   "temporarily unavailable", "reset by peer",
+                                   "502", "503", "504"))
+
+
+def _wrap_with_retry(llm):
+    """Add retry to an LLM instance by replacing its bound `call`.
+
+    Not a subclass: crewai.LLM defines __new__ and acts as a factory, so
+    LLM(...) returns a provider class such as OpenAICompatibleCompletion —
+    `isinstance(LLM(...), LLM)` is False. Subclassing it produces an object
+    that bypasses the factory and lacks the provider behaviour entirely.
+    Wrapping the instance the factory built leaves that behaviour intact.
+    """
+    inner = llm.call
+
+    @functools.wraps(inner)
+    def call_with_retry(*args, **kwargs):
+        for attempt in range(1, _MAX_ATTEMPTS + 1):
+            try:
+                return inner(*args, **kwargs)
+            except BaseException as exc:      # noqa: BLE001 - re-raised below
+                if attempt == _MAX_ATTEMPTS or not _is_retryable(exc):
+                    raise
+                # Jitter so six agents recovering from one outage do not all
+                # return at the same instant.
+                delay = _BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+                delay += random.uniform(0, delay * 0.25)
+                print(
+                    f"[llm] {type(exc).__name__} on attempt {attempt}/{_MAX_ATTEMPTS}; "
+                    f"retrying in {delay:.1f}s",
+                    flush=True,
+                )
+                time.sleep(delay)
+
+    llm.call = call_with_retry
+    return llm
 
 
 def create_llm(*, json_mode: bool = False, temperature: float | None = None) -> LLM:
@@ -92,7 +162,7 @@ def create_llm(*, json_mode: bool = False, temperature: float | None = None) -> 
     if temperature is not None:
         kwargs["temperature"] = temperature
 
-    return LLM(**kwargs)
+    return _wrap_with_retry(LLM(**kwargs))
 
 
 # Backward-compatible alias — existing code that imports create_deepseek_llm keeps working
