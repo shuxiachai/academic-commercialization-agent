@@ -43,13 +43,16 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Only the lockfile and manifest, so this layer is reused until they change.
+# Only the lockfile and manifest, so this layer is reused until they change —
+# the main speedup this stage relies on. A --mount=type=cache on top of that
+# would help when the lockfile does change, but Railway's builder requires
+# its own cacheKey-prefixed id format on that flag, which isn't worth
+# chasing for a secondary optimization; plain layer caching is enough.
 COPY pyproject.toml uv.lock README.md ./
 # The project is a package; src/ must exist for the build backend to succeed.
 COPY src/academic_agent/__init__.py src/academic_agent/__init__.py
 
-RUN --mount=type=cache,target=/root/.cache/uv,id=uv-cache \
-    uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev
 
 # ---------------------------------------------------------------------------
 # Stage 3 — runtime
