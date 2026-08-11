@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 RunState = Literal["running", "completed", "failed", "cancelled", "timeout"]
+
+BYOK_PROVIDERS = ("deepseek", "openai", "anthropic")
 
 
 class RunRequest(BaseModel):
@@ -27,6 +29,34 @@ class RunRequest(BaseModel):
         description="Id returned by POST /api/papers, to anchor the run on an "
                     "uploaded paper rather than on the topic alone",
     )
+
+    # Bring-your-own-key: an alternative to the access code for a visitor who
+    # is not the deployment owner. All three or none — a run either runs on
+    # the deployment's own billed keys (gated by the access code) or entirely
+    # on the requester's own, never a mix of the two.
+    llm_provider: str | None = Field(
+        default=None,
+        description=f"Bring-your-own-key provider: one of {BYOK_PROVIDERS}. "
+                    "Required together with llm_api_key and serper_api_key.",
+    )
+    llm_api_key: str | None = Field(default=None, description="Bring-your-own LLM API key.")
+    serper_api_key: str | None = Field(default=None, description="Bring-your-own Serper API key.")
+
+    @model_validator(mode="after")
+    def _byok_is_all_or_nothing(self) -> "RunRequest":
+        fields = (self.llm_provider, self.llm_api_key, self.serper_api_key)
+        if any(fields) and not all(fields):
+            raise ValueError(
+                "llm_provider, llm_api_key and serper_api_key must be provided together, "
+                "or all omitted to use the deployment's own keys."
+            )
+        if self.llm_provider is not None and self.llm_provider not in BYOK_PROVIDERS:
+            raise ValueError(f"llm_provider must be one of {BYOK_PROVIDERS}.")
+        return self
+
+    @property
+    def byok(self) -> bool:
+        return self.llm_provider is not None
 
 
 class PaperExtraction(BaseModel):

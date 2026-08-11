@@ -35,6 +35,12 @@ TIMEOUT_SECONDS = 1800
 # CPU — each run issues dozens of requests to OpenAlex/Serper/the LLM.
 MAX_CONCURRENT = int(os.getenv("API_MAX_CONCURRENT", "2"))
 
+# Total runs allowed per UTC day, independent of concurrency. The concurrency
+# cap limits how many runs are billed at once; it does nothing to stop one
+# leaked access code from triggering hundreds of runs sequentially over a day.
+# 0 disables the cap — the default for local development.
+DAILY_CAP = int(os.getenv("API_DAILY_RUN_CAP", "0"))
+
 # Run directories are named <UTC timestamp>-<hex>; see create_run_id().
 _RUN_ID_PATTERN = re.compile(r"\d{8}T\d{6}Z-[0-9a-f]+")
 
@@ -47,6 +53,29 @@ _ARTIFACTS = {
     "notes":   "reviewer_notes.md",
     "steps":   "steps.jsonl",
 }
+
+
+@dataclass(frozen=True)
+class BYOKCredentials:
+    """A visitor's own LLM + Serper keys, for a run billed to them, not us.
+
+    Scoped to a single subprocess via an explicit `env=` dict passed to
+    Popen — never written to disk, never merged into this process's own
+    os.environ, so one BYOK run cannot leak its key to another concurrent
+    run (BYOK or not) and does not persist past the subprocess it was built
+    for.
+    """
+
+    llm_provider: str
+    llm_api_key: str
+    serper_api_key: str
+
+    def as_env(self, base: dict[str, str]) -> dict[str, str]:
+        env = dict(base)
+        env["LLM_PROVIDER"] = self.llm_provider
+        env[f"{self.llm_provider.upper()}_API_KEY"] = self.llm_api_key
+        env["SERPER_API_KEY"] = self.serper_api_key
+        return env
 
 
 class _PendingProcess:
@@ -107,11 +136,21 @@ class ConcurrencyLimitReached(Exception):
     """Raised when the active-run cap would be exceeded."""
 
 
+class DailyCapReached(Exception):
+    """Raised when the day's run budget is exhausted."""
+
+
 class RunNotFound(Exception):
     """Raised for an unknown run_id."""
 
 
 _registry: dict[str, _Handle] = {}
+
+# Runs started so far today (UTC) and the date that count applies to. Reset
+# lazily on the next start_run call rather than with a scheduled task — a demo
+# deployment does not need a background timer for something this small.
+_daily_count = 0
+_daily_date = None
 
 # Guards _registry. FastAPI runs `def` endpoints in a thread pool, so two
 # submissions genuinely execute in parallel — the cap was checked and written
@@ -157,8 +196,15 @@ def start_run(
     language: str | None = None,
     weight_profile: str | None = None,
     paper_json_path: str | None = None,
+    byok: BYOKCredentials | None = None,
 ) -> tuple[str, Path]:
-    """Launch a worker subprocess. Returns (run_id, run_dir)."""
+    """Launch a worker subprocess. Returns (run_id, run_dir).
+
+    `byok`, if given, is billed to the requester, not the deployment — so it
+    is exempt from the daily cap, which exists only to bound the operator's
+    own bill. The concurrency cap still applies to every run regardless of
+    who is paying: it protects host resources, not a wallet.
+    """
     # Claim a slot and publish the run_id in one atomic step. Checking the cap
     # and registering the handle separately let parallel submissions all pass
     # the check before any of them registered.
@@ -167,11 +213,21 @@ def start_run(
     # the slow part — happens outside the lock. A reservation counts towards
     # the cap, so a burst cannot slip through while processes are starting.
     with _registry_lock:
+        global _daily_count, _daily_date
+        if byok is None:
+            today = datetime.now(UTC).date()
+            if _daily_date != today:
+                _daily_date, _daily_count = today, 0
+            if DAILY_CAP and _daily_count >= DAILY_CAP:
+                raise DailyCapReached(f"{DAILY_CAP} runs already used today")
+
         if active_count() >= MAX_CONCURRENT:
             raise ConcurrencyLimitReached(
                 f"{active_count()} of {MAX_CONCURRENT} concurrent runs in use"
             )
         run_id = create_run_id()
+        if byok is None:
+            _daily_count += 1
         _registry[run_id] = _Handle(
             run_id=run_id, topic=topic, proc=_PendingProcess(), log_file=None
         )
@@ -187,13 +243,18 @@ def start_run(
     if paper_json_path and Path(paper_json_path).exists():
         cmd += ["--paper-json", paper_json_path]
 
+    # BYOK credentials travel as env, never as argv: command-line arguments
+    # are visible to any other process on the same host via `ps`/the process
+    # list, which a shared or multi-tenant deployment cannot rule out.
+    env = byok.as_env(os.environ) if byok is not None else None
+
     # Any failure from here on must release the reserved slot, or the cap
     # leaks permanently: a placeholder counts as alive and nothing else
     # removes it.
     try:
         log_file = open(run_dir / "process.log", "w", encoding="utf-8")
         try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=log_file)
+            proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=log_file, env=env)
         except BaseException:
             log_file.close()
             raise

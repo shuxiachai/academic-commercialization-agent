@@ -187,6 +187,18 @@ async function openRun(runId, { known } = {}) {
 /* ── Sidebar ───────────────────────────────────────────────────────── */
 
 function refreshSidebar() {
+  // GET /api/runs (the list) always stays behind the access code — it is the
+  // one endpoint that would show a BYOK visitor every other visitor's run
+  // history, not just their own. Calling it here would just 401.
+  if (byokMode) {
+    const list = $("#runlist");
+    list.innerHTML = "";
+    const note = document.createElement("div");
+    note.className = "runlist__empty";
+    note.textContent = t("byok_no_history");
+    list.append(note);
+    return Promise.resolve(null);
+  }
   return sidebar.refresh($("#runlist"), {
     activeId: activeRunId,
     onSelect: (runId) => openRun(runId),
@@ -420,6 +432,110 @@ async function refreshCapacity() {
   }
 }
 
+/* ── Access gate ───────────────────────────────────────────────────────
+ * Only deployments with ACCESS_CODE set (see api/access.py) ever show this —
+ * elsewhere the boot-time check comes back ok with no header at all, and the
+ * gate never becomes visible. Blocks routing/sidebar/capacity, all of which
+ * hit endpoints the gate would otherwise reject anyway.
+ *
+ * Two ways through: the operator's access code, or a visitor's own LLM +
+ * Serper keys (POST /api/runs accepts either — see api/access.py
+ * authorizes_run). The second path is never verified up front — there is no
+ * cheap way to check a BYOK key without spending a real call — so a bad key
+ * only surfaces once a run actually fails, with the provider's own error. */
+
+let byokMode = false;
+
+function applyByokMode() {
+  byokMode = true;
+  $("#byok-badge").hidden = false;
+  attachBtn.disabled = true;
+  attachBtn.title = t("byok_no_attach");
+}
+
+$("#byok-exit").addEventListener("click", () => {
+  api.setByok(null);
+  location.reload();
+});
+
+async function ensureAccess() {
+  if (api.getByok()) {
+    applyByokMode();
+    return;
+  }
+  try {
+    await api.checkAccess(api.getAccessCode());
+    return;
+  } catch (err) {
+    if (err.status !== 401) throw err;
+  }
+  await showGate();
+}
+
+function showGate() {
+  const gate = $("#gate");
+  const codeForm = $("#gate-form");
+  const codeInput = $("#gate-input");
+  const codeError = $("#gate-error");
+  const codeSubmit = $("#gate-submit");
+  const byokForm = $("#byok-form");
+
+  gate.hidden = false;
+  codeForm.hidden = false;
+  byokForm.hidden = true;
+  codeInput.focus();
+
+  return new Promise((resolve) => {
+    const finish = () => {
+      gate.hidden = true;
+      resolve();
+    };
+
+    $("#gate-to-byok").addEventListener("click", () => {
+      codeForm.hidden = true;
+      byokForm.hidden = false;
+      $("#byok-llm-key").focus();
+    });
+    $("#byok-to-gate").addEventListener("click", () => {
+      byokForm.hidden = true;
+      codeForm.hidden = false;
+      codeInput.focus();
+    });
+
+    codeForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const code = codeInput.value.trim();
+      if (!code) return;
+
+      codeSubmit.disabled = true;
+      codeError.hidden = true;
+      try {
+        await api.checkAccess(code);
+        api.setAccessCode(code);
+        finish();
+      } catch (err) {
+        codeError.textContent = err.status === 401 ? t("gate_error") : err.message;
+        codeError.hidden = false;
+        codeInput.select();
+      } finally {
+        codeSubmit.disabled = false;
+      }
+    });
+
+    byokForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const provider = $("#byok-provider").value;
+      const llmKey = $("#byok-llm-key").value.trim();
+      const serperKey = $("#byok-serper-key").value.trim();
+      if (!llmKey || !serperKey) return;
+
+      api.setByok({ provider, llmKey, serperKey });
+      applyByokMode();
+      finish();
+    });
+  });
+}
+
 /* ── Routing ───────────────────────────────────────────────────────── */
 
 function routeFromLocation() {
@@ -455,7 +571,10 @@ langSelect.addEventListener("change", () => {
 i18n.apply();
 topic.placeholder = t("topic_placeholder");
 syncComposer();
-routeFromLocation();
-refreshSidebar();
-refreshCapacity();
-setInterval(refreshCapacity, 15000);
+
+ensureAccess().then(() => {
+  routeFromLocation();
+  refreshSidebar();
+  refreshCapacity();
+  setInterval(refreshCapacity, 1000);
+});

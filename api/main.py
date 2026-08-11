@@ -16,8 +16,8 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 # Load .env before anything reads os.environ. The Gradio entry point gets this
@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from academic_agent.pdf_extractor import extract_paper_contribution  # noqa: E402
-from api import papers, runs  # noqa: E402  — must follow load_dotenv
+from api import access, papers, runs  # noqa: E402  — must follow load_dotenv
 from api.models import (  # noqa: E402
     HealthStatus,
     PaperExtraction,
@@ -83,6 +83,46 @@ app = FastAPI(
 )
 
 
+@app.middleware("http")
+async def _access_gate(request: Request, call_next):
+    """Reject ungated requests before they reach any endpoint.
+
+    Runs ahead of routing, so a missing/wrong code never gets as far as
+    starting a worker or spending a search-API call. Three exceptions:
+
+    - /health — costs nothing; platform load balancers poll it without a header.
+    - POST /api/runs — authorizes itself (see submit_run) with either the code
+      or complete bring-your-own-key credentials in the body. That decision
+      needs the parsed body, which a middleware does not cheaply have.
+    - GET/DELETE /api/runs/{id}/... — a specific run, addressed by its id, is
+      a capability URL: the id itself (40 bits of randomness, see
+      create_run_id) is the credential, the same trust model already used for
+      sharing a finished report's link. Reading or cancelling one run costs
+      nothing further, unlike GET /api/runs (no id), which lists every run on
+      the deployment and stays gated.
+    """
+    path = request.url.path
+    if not path.startswith("/api/"):
+        return await call_next(request)
+    if path == "/api/runs" and request.method == "POST":
+        return await call_next(request)
+    if path.startswith("/api/runs/"):
+        return await call_next(request)
+    if not access.check(request.headers.get("x-access-code")):
+        return JSONResponse({"detail": "Missing or invalid access code."}, status_code=401)
+    return await call_next(request)
+
+
+@app.get("/api/access/check", include_in_schema=False)
+def access_check() -> dict:
+    """No-op the frontend calls to validate a code before storing it.
+
+    Reaching this handler at all means the middleware already accepted the
+    header — there is nothing left to verify here.
+    """
+    return {"ok": True}
+
+
 _WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
 
 # Mounted before the API routes are declared below only in source order; the
@@ -134,13 +174,28 @@ def health() -> HealthStatus:
     response_model=RunAccepted,
     status_code=202,
     tags=["runs"],
-    responses={429: {"description": "Concurrency limit reached"}},
+    responses={
+        401: {"description": "Neither the access code nor complete bring-your-own-key credentials were provided"},
+        429: {"description": "Concurrency limit or daily run cap reached"},
+    },
 )
-def submit_run(request: RunRequest) -> RunAccepted:
+def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
     """Queue an assessment. Returns immediately with a run_id to poll.
 
-    A full run takes roughly 2.5–4 minutes.
+    A full run takes roughly 2.5–4 minutes. Authorized either by the
+    X-Access-Code header (billed to the deployment) or by supplying
+    llm_provider/llm_api_key/serper_api_key in the body (billed to the
+    caller) — not gated by the middleware because that choice needs the
+    parsed body.
     """
+    if not access.authorizes_run(
+        http_request.headers.get("x-access-code"), byok=request.byok
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Provide the access code, or your own llm_provider/llm_api_key/serper_api_key.",
+        )
+
     paper_json_path: str | None = None
     if request.paper_id:
         try:
@@ -148,17 +203,28 @@ def submit_run(request: RunRequest) -> RunAccepted:
         except papers.PaperNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    byok = (
+        runs.BYOKCredentials(request.llm_provider, request.llm_api_key, request.serper_api_key)
+        if request.byok else None
+    )
+
     try:
         run_id, _ = runs.start_run(
             topic=request.topic,
             language=request.language,
             weight_profile=request.weight_profile,
             paper_json_path=paper_json_path,
+            byok=byok,
         )
     except runs.ConcurrencyLimitReached as exc:
         raise HTTPException(
             status_code=429,
             detail=f"{exc}. Retry once a run finishes.",
+        ) from exc
+    except runs.DailyCapReached as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=f"{exc}. The daily run budget resets at 00:00 UTC.",
         ) from exc
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Failed to start worker: {exc}") from exc

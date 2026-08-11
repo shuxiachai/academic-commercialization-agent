@@ -647,6 +647,99 @@
   color: #f87171;
 }
 .btn--danger:hover { background: rgba(239, 68, 68, 0.18); }
+.btn--primary {
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+}
+.btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn--primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ═══ Access gate ══════════════════════════════════════════════════════ */
+
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 11, 0.72);
+  backdrop-filter: blur(4px);
+}
+.gate__card {
+  width: min(380px, calc(100vw - var(--space-8)));
+  padding: var(--space-6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-lg);
+}
+.gate__card form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.gate__title { font-size: var(--text-lg); }
+.gate__sub {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+.gate__input {
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+}
+.gate__input::placeholder { color: var(--text-disabled); }
+.gate__input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.gate__error {
+  font-size: var(--text-sm);
+  color: #f87171;
+}
+.gate__hint {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: var(--leading-normal);
+  word-break: break-word;
+}
+.gate__switch {
+  align-self: center;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.gate__switch:hover { color: var(--text-primary); }
+
+select.gate__input { cursor: pointer; }
+
+/* ═══ BYOK badge ═══════════════════════════════════════════════════════ */
+
+.byok-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: var(--text-xs);
+}
+.byok-badge #byok-exit {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  flex-shrink: 0;
+}
+.workbench[data-collapsed="true"] .byok-badge { display: none; }
 
 /* ═══ Toasts ═══════════════════════════════════════════════════════════ */
 

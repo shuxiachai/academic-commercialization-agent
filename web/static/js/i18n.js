@@ -75,6 +75,27 @@ const STRINGS = {
     msg_reading: "Reading",
     msg_wait_extract: "Waiting for the paper to finish extracting",
     run_hint: "Run analysis  (Enter)",
+
+    // Access gate
+    gate_title: "Access code required",
+    gate_sub: "This is a private demo link. Enter the code you were given.",
+    gate_placeholder: "Access code",
+    gate_submit: "Continue",
+    gate_error: "That code was not accepted.",
+    gate_no_code: "No code? Use your own API keys instead",
+
+    // Bring-your-own-key
+    byok_title: "Use your own API keys",
+    byok_sub: "Nothing is sent anywhere but this run's worker process, and nothing is saved once you close the tab.",
+    byok_llm_placeholder: "LLM API key",
+    byok_serper_placeholder: "Serper API key",
+    byok_hint: "Keys: platform.deepseek.com/api-keys · platform.openai.com/api-keys · console.anthropic.com — and serper.dev/api-key for search (free tier available).",
+    byok_submit: "Start",
+    byok_have_code: "I have an access code",
+    byok_badge: "Using your own API keys",
+    byok_exit: "Exit",
+    byok_no_history: "Run history is only visible with an access code. Your run stays open in this tab once it starts.",
+    byok_no_attach: "Paper upload needs an access code",
   },
 
   "Simplified Chinese": {
@@ -136,6 +157,25 @@ const STRINGS = {
     msg_reading: "正在读取",
     msg_wait_extract: "等待论文提取完成",
     run_hint: "开始分析（回车）",
+
+    gate_title: "需要访问口令",
+    gate_sub: "这是一个私密演示链接，请输入你收到的口令。",
+    gate_placeholder: "访问口令",
+    gate_submit: "继续",
+    gate_error: "口令不正确。",
+    gate_no_code: "没有口令？改用自己的 API Key",
+
+    byok_title: "使用自己的 API Key",
+    byok_sub: "密钥只会传给这次运行的工作进程，关闭标签页后不会被保存。",
+    byok_llm_placeholder: "LLM API Key",
+    byok_serper_placeholder: "Serper API Key",
+    byok_hint: "获取密钥：platform.deepseek.com/api-keys · platform.openai.com/api-keys · console.anthropic.com；检索用的 serper.dev/api-key 有免费额度。",
+    byok_submit: "开始",
+    byok_have_code: "我有访问口令",
+    byok_badge: "正在使用自己的 API Key",
+    byok_exit: "退出",
+    byok_no_history: "运行历史仅对持有访问口令的访客可见。本次运行会一直显示在当前标签页里。",
+    byok_no_attach: "上传论文需要访问口令",
   },
 };
 

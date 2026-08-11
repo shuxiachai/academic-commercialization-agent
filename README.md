@@ -332,12 +332,54 @@ Three things in the image are specific to this project rather than boilerplate:
 
 | Choice | Why |
 |---|---|
-| `fonts-noto-cjk` | The PDF exporter embeds a CJK font instead of trusting the reader to have one. None ship in `python:slim`, and the fallback chain degrades silently — Chinese reports would render as blank boxes with nothing logged. The build runs `scripts/verify_container_fonts.py` and fails if no embedded font resolves. |
+| `fonts-wqy-zenhei` | The PDF exporter embeds a CJK font instead of trusting the reader to have one. None ship in `python:slim`. **Not `fonts-noto-cjk`** — the obvious choice — Debian's Noto CJK is PostScript/CFF outlines, and reportlab's `TTFont` only reads TrueType, so it is rejected outright. The failure is silent: the font falls back to CID, then Helvetica, and Chinese reports render as blank boxes with nothing logged. The build runs `scripts/verify_container_fonts.py` and fails if no embedded font resolves. |
 | `tini` as PID 1 | Each run is a `subprocess.Popen` that the UI cancels with `proc.terminate()`. A bare Python PID 1 neither forwards signals nor reaps children, so cancelled runs would accumulate as zombies and `docker stop` would block until it timed out. |
 | Single uvicorn worker | Runs are subprocesses tracked in an in-process registry. A second worker would enforce its own separate concurrency cap and could neither see nor cancel the first one's runs. |
 
 `outputs/` is a bind mount because run history, reports and status files are
 state. API keys come from `.env` at runtime and are never baked into a layer.
+
+---
+
+### Deploying publicly
+
+Anything reachable on the open internet at `/api/runs` triggers real, billed
+calls — the pipeline makes six LLM calls and dozens of search-API calls per
+run. For a link shared with a specific, small audience (e.g. reviewers
+looking at this project) rather than the general public, two settings in
+`.env` close that off without building a login system:
+
+```bash
+ACCESS_CODE=choose-a-long-random-string   # gates every /api/ route
+API_DAILY_RUN_CAP=20                      # hard ceiling, in case the code leaks
+```
+
+`ACCESS_CODE` is checked by a middleware in `api/main.py` against an
+`X-Access-Code` header; the web client prompts for it once and remembers it
+in `localStorage` from then on. `/health` stays open regardless — platform
+load balancers poll it without a header, and serving it costs nothing.
+Leaving `ACCESS_CODE` unset (the default) makes the gate inert: local
+development sees no difference from before it existed.
+
+`API_DAILY_RUN_CAP` is a second, independent line of defence: the
+concurrency cap only limits how many runs execute at once, so a leaked code
+could still trigger hundreds of runs one after another over a day. This caps
+the total regardless of pacing. 0 (default) disables it.
+
+**A second, open entrance:** `POST /api/runs` also accepts `llm_provider` /
+`llm_api_key` / `serper_api_key` in the body as an alternative to the access
+code — a visitor's own keys, billed to them, not to the deployment. This
+needs no extra server configuration; it becomes reachable in the web client
+automatically once `ACCESS_CODE` is set (the gate modal offers it as a
+second option), and stays invisible when the gate is off, since there is
+nothing to bypass. The credentials go straight into that one run's
+subprocess environment — never to disk, never merged into the server's own
+environment — so concurrent runs, BYOK or not, cannot see each other's keys.
+One endpoint deliberately stays behind the code regardless: `GET /api/runs`
+(the run-history list) would otherwise show every visitor's topics to every
+other visitor. Reading or cancelling one specific run by its id needs no
+code either way — the id itself carries 40 bits of randomness, the same
+capability-URL trust model already used for sharing a finished report's link.
 
 ---
 
@@ -459,6 +501,7 @@ academic_agent/
 - **HTTP API**: FastAPI + Uvicorn, serving both the client and the JSON API (OpenAPI docs at `/docs`)
 - **PDF export**: reportlab Platypus (embedded TTFont for CJK; falls back to CID fonts)
 - **Container**: Docker multi-stage build (dependency layer cached separately from source), `tini` as PID 1 for subprocess reaping, non-root user, build-time CJK font verification
+- **Access control**: optional shared-secret middleware (`ACCESS_CODE`) plus a daily run cap, for exposing a demo link without an open API bill — with an open bring-your-own-key path alongside it, so a visitor without the code can still run it on their own keys
 - **Python**: 3.11+
 
 Invalid or unreachable URLs/DOIs, mismatched citation IDs, References inconsistencies, malformed report sections, hallucinated source IDs in scoring, and scoring JSON format errors all block the task and trigger automatic retries.
@@ -818,6 +861,23 @@ CI 每次提交都会构建镜像并断言 PID 1 是 tini、容器非 root 运�
 
 ---
 
+### 公网部署
+
+只要 `/api/runs` 能被公网访问到，任何人都能触发真实计费的调用——一次运行会调六次 LLM，再加几十次检索 API。如果只是把链接发给特定的少数人看（比如给面试官看这个项目），而不是面向公众开放，`.env` 里两个开关就能把这个口子堵上，不用做一整套登录系统：
+
+```bash
+ACCESS_CODE=换成一串足够长的随机字符串     # 拦截所有 /api/ 路由
+API_DAILY_RUN_CAP=20                      # 硬上限，万一口令泄漏出去兜底
+```
+
+`ACCESS_CODE` 由 `api/main.py` 里的中间件校验请求头 `X-Access-Code`；网页客户端只在第一次访问时弹窗询问，之后记在 `localStorage` 里不用重复输入。`/health` 不受影响——云平台的健康检查不会带请求头，这个接口本身也不花钱。不设置 `ACCESS_CODE`（默认）时门禁完全不生效，本地开发和之前没有任何区别。
+
+`API_DAILY_RUN_CAP` 是第二道独立防线：并发上限只管同时跑几个，管不住口令泄漏后被人在一天内前后接力刷上百次；这个直接卡总数，与节奏无关。默认 0 表示不限制。
+
+**第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要设了 `ACCESS_CODE`，网页客户端就会在门禁弹窗里自动多出这个选项；不设 `ACCESS_CODE` 时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。`GET /api/runs`（运行历史列表）是唯一始终留在口令后面的接口，因为一旦开放，会把每个访客的话题暴露给所有其他访客；而按 `run_id` 读取或取消某一次具体的运行则两条路都不需要口令——`run_id` 本身带 40 位随机性，用的是和"分享一份已完成报告的链接"同一套能力令牌信任模型。
+
+---
+
 ### 基准测试
 
 `benchmark.py` 包含 10 个预设话题，覆盖不同行业和预期 TRL 范围，用于验证系统的评分准确性和一致性。
@@ -932,6 +992,7 @@ academic_agent/
 - **HTTP API**：FastAPI + Uvicorn（OpenAPI 文档位于 `/docs`）
 - **PDF 导出**：reportlab Platypus（嵌入式 TTFont，支持 CJK；回退至 CID 字体）
 - **容器化**：Docker 多阶段构建（依赖层与源码层分离缓存），`tini` 作 PID 1 回收子进程，非 root 运行，构建期 CJK 字体校验
+- **访问控制**：可选的共享口令中间件（`ACCESS_CODE`）+ 每日运行次数熔断，用于对外发布演示链接而不暴露一张空白账单；旁边还留了一条开放的"自带 Key"通道，没有口令的访客也能用自己的 Key 跑起来
 - **Python**：3.11+
 
 URL/DOI 无效或不可达、引用编号错误、References 不一致、报告结构错误、幻觉来源 ID 和评分 JSON 格式错误都会阻止任务并触发重试。

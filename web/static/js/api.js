@@ -13,10 +13,53 @@ export class ApiError extends Error {
   }
 }
 
+/* ── Access code ───────────────────────────────────────────────────────
+ * Set only when a deployment defines ACCESS_CODE (see api/access.py). Stored
+ * so the gate is not re-prompted on every reload; a wrong/rotated code is
+ * discovered the moment any request comes back 401, at which point it is
+ * dropped so the app does not keep resending a code the server will never
+ * accept. */
+
+const ACCESS_KEY = "access-code";
+
+export const getAccessCode = () => localStorage.getItem(ACCESS_KEY);
+
+export function setAccessCode(code) {
+  if (code) localStorage.setItem(ACCESS_KEY, code);
+  else localStorage.removeItem(ACCESS_KEY);
+}
+
+/* ── Bring-your-own-key ───────────────────────────────────────────────
+ * The open alternative to the access code: a visitor's own LLM + Serper
+ * keys, billed to them. sessionStorage rather than localStorage — these are
+ * live third-party credentials, not a code minted for this deployment, so
+ * they should not outlive the tab. */
+
+const BYOK_KEY = "byok-credentials";
+
+export function getByok() {
+  try {
+    return JSON.parse(sessionStorage.getItem(BYOK_KEY));
+  } catch {
+    return null;
+  }
+}
+
+export function setByok(creds) {
+  if (creds) sessionStorage.setItem(BYOK_KEY, JSON.stringify(creds));
+  else sessionStorage.removeItem(BYOK_KEY);
+}
+
 async function request(path, options = {}) {
+  const stored = getAccessCode();
+  const headers = {
+    ...(stored ? { "X-Access-Code": stored } : {}),
+    ...(options.headers || {}),
+  };
+
   let response;
   try {
-    response = await fetch(path, options);
+    response = await fetch(path, { ...options, headers });
   } catch (cause) {
     // fetch only rejects on a transport failure, so this is always "the
     // server is unreachable" rather than an application error.
@@ -24,6 +67,7 @@ async function request(path, options = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 401) setAccessCode(null);
     let detail = "";
     try {
       const body = await response.json();
@@ -49,17 +93,32 @@ const json = (body) => ({
 
 export const health = () => request("/health");
 
+// Verifies a code without storing it — the gate calls this with a candidate
+// before persisting it, and once at boot with whatever is already stored (or
+// none) to find out whether the deployment is gated at all.
+export const checkAccess = (code) =>
+  request("/api/access/check", { headers: code ? { "X-Access-Code": code } : {} });
+
 export const listRuns = (limit = 50) => request(`/api/runs?limit=${limit}`);
 
-export const startRun = ({ topic, language, weight_profile, paper_id }) =>
-  request("/api/runs", json({
+export const startRun = ({ topic, language, weight_profile, paper_id }) => {
+  const byok = getByok();
+  return request("/api/runs", json({
     topic,
     // The API distinguishes "auto-detect" (null) from a forced value; the
     // empty string a <select> yields is neither.
     language: language || null,
     weight_profile: weight_profile || null,
     paper_id: paper_id || null,
+    // Present only in BYOK mode — omitted (not null) so a plain run without
+    // these keys still authorizes on the access code alone server-side.
+    ...(byok ? {
+      llm_provider: byok.provider,
+      llm_api_key: byok.llmKey,
+      serper_api_key: byok.serperKey,
+    } : {}),
   }));
+};
 
 export const getRun = (runId) => request(`/api/runs/${runId}`);
 
