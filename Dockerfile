@@ -48,7 +48,7 @@ COPY pyproject.toml uv.lock README.md ./
 # The project is a package; src/ must exist for the build backend to succeed.
 COPY src/academic_agent/__init__.py src/academic_agent/__init__.py
 
-RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=type=cache,target=/root/.cache/uv,id=uv-cache \
     uv sync --frozen --no-dev
 
 # ---------------------------------------------------------------------------
@@ -74,10 +74,12 @@ COPY --chown=appuser:appuser . .
 ENV PATH="/app/.venv/bin:$PATH" \
     VIRTUAL_ENV=/app/.venv
 
-# Runs are written here. Declared so an unmounted container still works, though
-# compose binds a host directory over it — history and reports are state.
+# Runs are written here — history and reports are state, so whatever runs
+# this image should mount something over it (docker-compose binds a host
+# directory; Railway and similar PaaS use their own volume feature instead
+# of the Dockerfile VOLUME instruction, which some of their builders reject
+# outright).
 RUN mkdir -p /app/outputs && chown appuser:appuser /app/outputs
-VOLUME ["/app/outputs"]
 
 # Fail the build if no CJK font resolved. Without this the failure is silent:
 # _resolve_font() degrades to a CID font and then to Helvetica, so a Chinese
