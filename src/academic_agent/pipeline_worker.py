@@ -27,6 +27,66 @@ _SEQUENTIAL_STAGES = [
     "Agent 6 — Commercialization Scoring",
 ]
 
+# Tasks are 0-indexed: academic(0) patent(1) market(2) report(3) review(4)
+# scoring(5).
+_IDX_REVIEW = 4
+_IDX_SCORING = 5
+
+
+def _select_report_and_scores(
+    tasks_output: list, fallback_raw: str | None,
+) -> tuple[str | None, str | None]:
+    """Pick the report and scorecard text out of the crew's task outputs.
+
+    Indices are explicit rather than reading tasks_output[-1] throughout, so a
+    task inserted in the middle of the pipeline cannot silently shift which
+    output gets read as the report — a mistake here means every run persists
+    the wrong text with no error raised anywhere.
+
+    Degrades for partial completion (a run that crashed mid-pipeline, so its
+    task list is shorter than 6) rather than raising: the caller's job is to
+    persist whatever exists so a partial failure still has diagnostic
+    artifacts, not to demand a complete run.
+    """
+    if len(tasks_output) > _IDX_SCORING:
+        return tasks_output[_IDX_REVIEW].raw, tasks_output[_IDX_SCORING].raw
+    if len(tasks_output) == _IDX_SCORING:
+        return tasks_output[_IDX_REVIEW].raw, None
+    if len(tasks_output) >= 2:
+        return tasks_output[-1].raw, None
+    return fallback_raw, None
+
+
+def _merge_status_fields(
+    existing: dict,
+    *,
+    stage: str,
+    done: bool,
+    error: str | None,
+    output_language: str | None,
+    source_counts: dict | None,
+    topic: str | None,
+) -> dict:
+    """Build the next status.json payload from the previous one plus updates.
+
+    status.json is rewritten wholesale on every stage transition, but topic
+    and source_counts are set once early on and must survive every later call
+    that does not pass them again — otherwise a client polling mid-run would
+    see the topic disappear the moment the pipeline moved past the stage that
+    first reported it.
+    """
+    data: dict = {
+        "stage": stage, "done": done, "error": error, "output_language": output_language,
+    }
+    for sticky in ("topic", "source_counts"):
+        if existing.get(sticky) is not None:
+            data[sticky] = existing[sticky]
+    if source_counts is not None:
+        data["source_counts"] = source_counts
+    if topic is not None:
+        data["topic"] = topic
+    return data
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -79,25 +139,15 @@ def main() -> None:
         topic: str | None = None,
     ) -> None:
         try:
-            # Preserve sticky fields (topic, source_counts) set by earlier calls.
             try:
                 existing = json.loads(status_path.read_text(encoding="utf-8"))
             except Exception as _e:
                 print(f"[worker] write_status: could not read existing status: {_e}", file=sys.stderr)
                 existing = {}
-            data: dict = {
-                "stage": stage,
-                "done": done,
-                "error": error,
-                "output_language": output_language,
-            }
-            for sticky in ("topic", "source_counts"):
-                if existing.get(sticky) is not None:
-                    data[sticky] = existing[sticky]
-            if source_counts is not None:
-                data["source_counts"] = source_counts
-            if topic is not None:
-                data["topic"] = topic
+            data = _merge_status_fields(
+                existing, stage=stage, done=done, error=error,
+                output_language=output_language, source_counts=source_counts, topic=topic,
+            )
             status_path.write_text(json.dumps(data), encoding="utf-8")
         except Exception as _e:
             print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
@@ -163,7 +213,9 @@ def main() -> None:
                         source_collection.display_topic = translated_topic
         if args.weight_profile and args.weight_profile != "Auto (detect from topic)":
             source_collection.weight_profile = args.weight_profile
-        save_source_collection(source_collection.model_dump_json(indent=2), run_id=args.run_id)
+        save_source_collection(
+            source_collection.model_dump_json(indent=2), run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT,
+        )
         write_status(
             _PARALLEL_STAGE,
             source_counts={
@@ -275,11 +327,6 @@ def main() -> None:
             _steps_fh = None
             _sf.close()
 
-        # Crew has 6 tasks (0-indexed): academic(0) patent(1) market(2)
-        # report(3) review(4) scoring(5).  Use explicit indices so a new task
-        # inserted in the middle doesn't silently corrupt which output we read.
-        _IDX_REVIEW  = 4   # report_review_task
-        _IDX_SCORING = 5   # commercialization_scoring_task
         tasks_output = getattr(result, "tasks_output", None) or []
 
         # Persist the evidence stage before anything that can fail below. Tasks
@@ -287,40 +334,31 @@ def main() -> None:
         # are the only record of how sources became findings — and they used to
         # exist solely in memory, leaving half the pipeline unauditable.
         try:
-            save_evidence_reports(tasks_output, run_id=args.run_id)
+            save_evidence_reports(tasks_output, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
         except Exception:  # noqa: BLE001 - inspection files must not fail a run
             pass
 
-        if len(tasks_output) > _IDX_SCORING:
-            report_raw = tasks_output[_IDX_REVIEW].raw
-            scores_raw = tasks_output[_IDX_SCORING].raw
-        elif len(tasks_output) == _IDX_SCORING:
-            report_raw = tasks_output[_IDX_REVIEW].raw
-            scores_raw = None
-        elif len(tasks_output) >= 2:
-            report_raw = tasks_output[-1].raw
-            scores_raw = None
-        else:
-            report_raw = result.raw
-            scores_raw = None
+        report_raw, scores_raw = _select_report_and_scores(tasks_output, result.raw)
 
         m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", report_raw, re.IGNORECASE) if report_raw else None
         if m_rev:
-            save_reviewer_notes(report_raw[m_rev.start():].strip(), run_id=args.run_id)
+            save_reviewer_notes(
+                report_raw[m_rev.start():].strip(), run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT,
+            )
             report_raw = report_raw[: m_rev.start()].rstrip()
 
         if report_raw is not None:
-            save_report(report_raw, run_id=args.run_id)
+            save_report(report_raw, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
 
         if scores_raw:
-            save_scores(scores_raw, run_id=args.run_id)
+            save_scores(scores_raw, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
 
         write_status("Done", done=True, output_language=source_collection.output_language)
 
     except Exception as exc:
         error_details = traceback.format_exc()
         try:
-            save_error(error_details, run_id=args.run_id)
+            save_error(error_details, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
         except Exception as _save_err:
             print(f"[worker] save_error failed: {_save_err}", file=sys.stderr)
         print(error_details, file=sys.stderr, flush=True)
