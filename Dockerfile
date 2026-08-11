@@ -91,13 +91,23 @@ EXPOSE 8000
 
 # Checks /health rather than the page. It reports the concurrency state and
 # whether an LLM provider resolved, so a container that serves HTML but cannot
-# actually run an assessment is still reported unhealthy.
+# actually run an assessment is still reported unhealthy. Reads $PORT rather
+# than assuming 8000, so it still checks the right port on a platform that
+# assigns one (see CMD below).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)" \
+    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT','8000') + '/health', timeout=4)" \
         || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 # A single worker on purpose. Runs are subprocesses tracked in an in-process
 # registry, so a second worker would enforce its own separate concurrency cap
 # and could neither see nor cancel the first one's runs.
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+#
+# Binds to $PORT when the platform sets one (Railway, Render, Heroku-style
+# PaaS all assign a port at deploy time and expect the app to listen on it)
+# and falls back to 8000 for docker-compose, where the mapping is fixed on
+# the host side instead. `exec` replaces this shell rather than forking a
+# child of it, so tini still supervises uvicorn directly — the whole reason
+# a shell shows up here instead of the exec-form CMD used everywhere else in
+# this file is that JSON-array CMD does not expand environment variables.
+CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
