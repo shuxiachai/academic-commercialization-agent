@@ -23,18 +23,18 @@ Input a research direction or paper topic. Six specialized AI agents automatical
 
 ### Screenshots
 
-<img src="assets/screenshot-home.png" alt="Homepage — enter a topic and click Run Analysis" width="800">
+<img src="assets/screenshot-home.png" alt="Composer — type a topic and press Enter, or attach a paper" width="800">
 
 <details>
 <summary>▶ Analysis in progress — live agent status + source list</summary>
 <br>
-<img src="assets/screenshot-running.png" alt="Analysis in progress — 6 agents with live status" width="800">
+<img src="assets/screenshot-running.png" alt="Live progress — all five pipeline stages visible at once" width="800">
 </details>
 
 <details>
 <summary>▶ Full results — scorecard, radar chart, and complete report</summary>
 <br>
-<img src="assets/screenshot-results.png" alt="Full results page with scorecard and report" width="800">
+<img src="assets/screenshot-results.png" alt="Scorecard, report and sources as tabs, citation IDs traceable to the source list" width="800">
 </details>
 
 ---
@@ -510,18 +510,18 @@ Each dimension records its supporting source IDs, shown on the scorecard and tra
 
 ### 界面截图
 
-<img src="assets/screenshot-home.png" alt="首页 — 输入研究主题，点击 Run Analysis" width="800">
+<img src="assets/screenshot-home.png" alt="输入区 — 键入话题后按回车，或附加一篇论文" width="800">
 
 <details>
 <summary>▶ 分析运行中 — 实时 Agent 进度 + 来源列表</summary>
 <br>
-<img src="assets/screenshot-running.png" alt="分析运行中 — 6 个 Agent 实时状态" width="800">
+<img src="assets/screenshot-running.png" alt="实时进度 — 五个流水线阶段同时可见" width="800">
 </details>
 
 <details>
 <summary>▶ 完整结果 — 评分卡、雷达图与完整报告</summary>
 <br>
-<img src="assets/screenshot-results.png" alt="运行结果页面，含评分卡和报告全文" width="800">
+<img src="assets/screenshot-results.png" alt="评分卡、报告、来源三个标签页，引用 ID 可追溯至来源列表" width="800">
 </details>
 
 ---
