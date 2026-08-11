@@ -169,6 +169,36 @@ def health() -> HealthStatus:
     )
 
 
+@app.get("/api/debug/serper-check", include_in_schema=False)
+def _debug_serper_check(request: Request) -> dict:
+    """TEMPORARY — diagnosing a 403 this deployment gets from Serper.
+
+    Runs two real Serper queries server-side (billed, hence gated behind the
+    access code) and reports whether each succeeded: a plain query, matching
+    what market search sends, and a site:-restricted one, matching what
+    patent search sends — the one already confirmed to 403 from this host.
+    Remove this endpoint once the cause is found; it exists only to answer
+    that question without needing shell access to the container.
+    """
+    if not access.check(request.headers.get("x-access-code")):
+        raise HTTPException(status_code=401, detail="Missing or invalid access code.")
+
+    from academic_agent.source_clients import SerperClient
+
+    client = SerperClient()
+    results = {}
+    for label, query in (
+        ("plain", "solid-state batteries market size 2026"),
+        ("site_restricted", "solid-state batteries site:patents.google.com/patent"),
+    ):
+        try:
+            payload = client.search(query)
+            results[label] = {"ok": True, "result_count": len(payload.get("organic", []))}
+        except Exception as exc:  # noqa: BLE001 - this is a diagnostic, not production logic
+            results[label] = {"ok": False, "error": str(exc)}
+    return results
+
+
 @app.post(
     "/api/runs",
     response_model=RunAccepted,
