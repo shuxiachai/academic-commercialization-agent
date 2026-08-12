@@ -26,9 +26,12 @@ FROM python:${PYTHON_VERSION}-slim AS base
 #   proc.terminate() (ui/runner.py). A bare Python PID 1 neither forwards
 #   signals nor reaps children, so cancelled runs would linger as zombies and
 #   `docker stop` would sit until it timed out and killed the container.
+# util-linux: provides setpriv, used by docker-entrypoint.sh to drop from
+#   root to appuser via exec (no wrapper process left behind, unlike su/gosu).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         fonts-wqy-zenhei \
         tini \
+        util-linux \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONUNBUFFERED=1 \
@@ -73,6 +76,7 @@ COPY --from=deps --chown=appuser:appuser /app/.venv /app/.venv
 COPY --from=deps /usr/local/bin/uv /usr/local/bin/uv
 
 COPY --chown=appuser:appuser . .
+RUN chmod +x docker-entrypoint.sh
 
 ENV PATH="/app/.venv/bin:$PATH" \
     VIRTUAL_ENV=/app/.venv
@@ -81,7 +85,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
 # this image should mount something over it (docker-compose binds a host
 # directory; Railway and similar PaaS use their own volume feature instead
 # of the Dockerfile VOLUME instruction, which some of their builders reject
-# outright).
+# outright). Ownership is fixed at build time for the case where nothing
+# ends up mounted over it (e.g. a plain `docker run` with no volume); when
+# something *is* mounted here, docker-entrypoint.sh re-chowns it at
+# container start, since the mount replaces whatever this RUN set.
 RUN mkdir -p /app/outputs && chown appuser:appuser /app/outputs
 
 # Fail the build if no CJK font resolved. Without this the failure is silent:
@@ -91,7 +98,10 @@ RUN mkdir -p /app/outputs && chown appuser:appuser /app/outputs
 # application's own resolver rather than testing a hard-coded path.
 RUN python scripts/verify_container_fonts.py
 
-USER appuser
+# No USER here: the container starts as root so docker-entrypoint.sh can fix
+# /app/outputs ownership after a volume mount replaces it, then drops to
+# appuser itself via setpriv before uvicorn ever runs — the app process
+# itself is still unprivileged, only the brief startup chown runs as root.
 EXPOSE 8000
 
 # Checks /health rather than the page. It reports the concurrency state and
@@ -100,10 +110,9 @@ EXPOSE 8000
 # than assuming 8000, so it still checks the right port on a platform that
 # assigns one (see CMD below).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT','8000') + '/health', timeout=4)" \
-        || exit 1
+    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT','8000') + '/health', timeout=4)"
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/app/docker-entrypoint.sh"]
 # A single worker on purpose. Runs are subprocesses tracked in an in-process
 # registry, so a second worker would enforce its own separate concurrency cap
 # and could neither see nor cancel the first one's runs.
