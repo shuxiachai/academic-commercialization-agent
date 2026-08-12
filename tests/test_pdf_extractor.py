@@ -156,47 +156,61 @@ def _make_pc(**kwargs) -> PaperContribution:
     return PaperContribution(**defaults)
 
 
+def _reachable(_url: str) -> tuple[bool, str]:
+    """Stand-in for check_public_url that accepts every locator.
+
+    Injected explicitly rather than left to the default: the real checker
+    issues an HTTP request, and a test that quietly reaches doi.org is the
+    exact failure mode this suite already got bitten by twice.
+    """
+    return True, ""
+
+
+def _unreachable(_url: str) -> tuple[bool, str]:
+    return False, "HTTP status 404"
+
+
 class PaperToEvidenceSourceTests(unittest.TestCase):
 
     def test_source_id_is_always_A1(self):
-        src = paper_to_evidence_source(_make_pc(doi="10.1234/test"))
+        src = paper_to_evidence_source(_make_pc(doi="10.1234/test"), _reachable)
         self.assertEqual(src.source_id, "A1")
 
     def test_source_type_is_academic_paper(self):
-        src = paper_to_evidence_source(_make_pc(doi="10.1234/test"))
+        src = paper_to_evidence_source(_make_pc(doi="10.1234/test"), _reachable)
         self.assertEqual(src.source_type, "academic_paper")
 
     def test_credibility_tier_is_high(self):
-        src = paper_to_evidence_source(_make_pc(doi="10.1234/test"))
+        src = paper_to_evidence_source(_make_pc(doi="10.1234/test"), _reachable)
         self.assertEqual(src.credibility_tier, "high")
 
     def test_real_doi_sets_doi_and_doi_org_url(self):
-        src = paper_to_evidence_source(_make_pc(doi="10.1038/s41586-023-001"))
+        src = paper_to_evidence_source(_make_pc(doi="10.1038/s41586-023-001"), _reachable)
         self.assertEqual(src.doi, "10.1038/s41586-023-001")
         self.assertIn("doi.org", str(src.url))
 
     def test_placeholder_doi_stored_but_no_url(self):
         placeholder = "10.0000/uploaded-abc123"
-        src = paper_to_evidence_source(_make_pc(doi=placeholder))
+        src = paper_to_evidence_source(_make_pc(doi=placeholder), _reachable)
         self.assertEqual(src.doi, placeholder)
         self.assertTrue(src.url is None or not src.url.startswith("https://doi.org/10.0000"))
 
     def test_arxiv_url_used_when_no_real_doi(self):
         src = paper_to_evidence_source(
-            _make_pc(doi=None, url="https://arxiv.org/abs/1706.03762")
+            _make_pc(doi=None, url="https://arxiv.org/abs/1706.03762"), _reachable
         )
         self.assertIn("1706.03762", str(src.url))
         self.assertIsNone(src.doi)
 
     def test_doi_org_url_in_url_field_extracts_real_doi(self):
         src = paper_to_evidence_source(
-            _make_pc(doi=None, url="https://doi.org/10.1016/j.cell.2024.01.001")
+            _make_pc(doi=None, url="https://doi.org/10.1016/j.cell.2024.01.001"), _reachable
         )
         self.assertEqual(src.doi, "10.1016/j.cell.2024.01.001")
 
     def test_evidence_summary_combines_contribution_and_delta(self):
         pc = _make_pc(doi="10.1234/test")
-        src = paper_to_evidence_source(pc)
+        src = paper_to_evidence_source(pc, _reachable)
         self.assertIn("novel solid electrolyte", src.evidence_summary)
         self.assertIn("prior sulfide", src.evidence_summary)
 
@@ -204,12 +218,88 @@ class PaperToEvidenceSourceTests(unittest.TestCase):
         long_contrib = "A" * 400
         long_delta = "B" * 400
         pc = _make_pc(doi="10.1234/test", core_contribution=long_contrib, delta_from_prior=long_delta)
-        src = paper_to_evidence_source(pc)
+        src = paper_to_evidence_source(pc, _reachable)
         self.assertLessEqual(len(src.evidence_summary), 500)
 
     def test_title_used_in_source(self):
-        src = paper_to_evidence_source(_make_pc(doi="10.1234/test"))
+        src = paper_to_evidence_source(_make_pc(doi="10.1234/test"), _reachable)
         self.assertEqual(src.title, "Solid Electrolyte Interface Study")
+
+
+class PaperLocatorVerificationTests(unittest.TestCase):
+    """The DOI/URL come from an LLM reading PDF text, so they are checked
+    before this source is offered to the report as a citable reference."""
+
+    def test_unresolvable_doi_is_dropped_rather_than_cited(self):
+        """The bad identifier must not survive into the report. It degrades
+        to the synthetic upload id, which EvidenceSource requires (a source
+        with neither URL nor DOI fails model validation) and which nothing
+        mistakes for a registered DOI."""
+        src = paper_to_evidence_source(_make_pc(doi="10.1234/hallucinated"), _unreachable)
+        self.assertIsNone(src.url)
+        self.assertNotEqual(src.doi, "10.1234/hallucinated")
+        self.assertTrue(src.doi.startswith("10.0000/uploaded-"))
+
+    def test_unresolvable_locator_downgrades_credibility(self):
+        """"high" asserts a reader can go and check it — without a working
+        locator that claim is not the pipeline's to make."""
+        src = paper_to_evidence_source(_make_pc(doi="10.1234/hallucinated"), _unreachable)
+        self.assertEqual(src.credibility_tier, "medium")
+        self.assertIn("no independently resolvable", src.credibility_reason)
+
+    def test_unreachable_url_falls_back_to_the_doi_resolver(self):
+        """A dead publisher link does not condemn a DOI extracted separately."""
+        checks = []
+
+        def only_doi_org_resolves(url: str) -> tuple[bool, str]:
+            checks.append(url)
+            return (True, "") if url.startswith("https://doi.org/") else (False, "HTTP status 404")
+
+        src = paper_to_evidence_source(
+            _make_pc(doi="10.1038/s41586-023-001", url="https://publisher.example/dead"),
+            only_doi_org_resolves,
+        )
+        self.assertEqual(src.doi, "10.1038/s41586-023-001")
+        self.assertEqual(str(src.url), "https://doi.org/10.1038/s41586-023-001")
+        self.assertEqual(src.credibility_tier, "high")
+        self.assertIn("https://publisher.example/dead", checks)
+
+    def test_unreachable_arxiv_url_leaves_no_real_locator(self):
+        src = paper_to_evidence_source(
+            _make_pc(doi=None, url="https://arxiv.org/abs/9999.99999"), _unreachable
+        )
+        self.assertIsNone(src.url)
+        self.assertTrue(src.doi.startswith("10.0000/uploaded-"))
+        self.assertEqual(src.credibility_tier, "medium")
+
+    def test_placeholder_fallback_is_stable_for_the_same_paper(self):
+        """Dedup and citation tracking key off this id, so two uploads of
+        the same paper must not become two different sources."""
+        first = paper_to_evidence_source(_make_pc(doi="10.1234/nope"), _unreachable)
+        second = paper_to_evidence_source(_make_pc(doi="10.1234/nope"), _unreachable)
+        self.assertEqual(first.doi, second.doi)
+
+    def test_placeholder_doi_never_triggers_a_network_check(self):
+        """Nothing to resolve, so nothing should be looked up — and the
+        paper still keeps its placeholder id for dedup/citation tracking."""
+        checks = []
+
+        def recording(url: str) -> tuple[bool, str]:
+            checks.append(url)
+            return True, ""
+
+        src = paper_to_evidence_source(_make_pc(doi="10.0000/uploaded-abc123"), recording)
+        self.assertEqual(checks, [])
+        self.assertEqual(src.doi, "10.0000/uploaded-abc123")
+        self.assertEqual(src.credibility_tier, "medium")
+
+    def test_paper_is_kept_even_when_no_locator_verifies(self):
+        """The upload is still the researcher's own primary source — it is
+        the citation claim that degrades, not the evidence itself."""
+        src = paper_to_evidence_source(_make_pc(doi="10.1234/nope"), _unreachable)
+        self.assertEqual(src.source_id, "A1")
+        self.assertEqual(src.title, "Solid Electrolyte Interface Study")
+        self.assertIn("novel solid electrolyte", src.evidence_summary)
 
 
 if __name__ == "__main__":

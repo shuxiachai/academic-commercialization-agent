@@ -253,7 +253,11 @@ the API — no build step and no framework, so what is in `web/` is what runs.
   Citation markers are styled distinctly — they are what makes the report
   auditable. Download as Markdown or PDF (CJK glyphs embedded)
 - **Attach a paper**: drop a PDF on the composer and it becomes source A1; the
-  pipeline then searches around that paper's specific contribution
+  pipeline then searches around that paper's specific contribution. Its DOI
+  and URL were read out of the PDF by a model, so they are resolved before
+  the paper is cited — one that does not resolve is dropped rather than
+  printed as a reference, and the source drops to `medium` credibility to
+  say so
 
 **Option B — HTTP API**
 
@@ -359,7 +363,7 @@ looking at this project) rather than the general public, two settings in
 
 ```bash
 ACCESS_CODE=choose-a-long-random-string   # gates every /api/ route
-API_DAILY_RUN_CAP=20                      # hard ceiling, in case the code leaks
+API_DAILY_RUN_CAP=3                       # hard ceiling, in case the code leaks
 ```
 
 `ACCESS_CODE` (or `ACCESS_CODES` — see below) is checked by a middleware in
@@ -373,6 +377,13 @@ inert: local development sees no difference from before it existed.
 concurrency cap only limits how many runs execute at once, so a leaked code
 could still trigger hundreds of runs one after another over a day. This caps
 the total regardless of pacing. 0 (default) disables it.
+
+Size it against your **search** quota rather than your LLM bill. One run
+issues roughly 20-30 web searches (`source_pipeline._queries`), so Tavily's
+1000-per-month free tier works out to about 35-50 runs in total across every
+code — a public deployment handing out several codes wants a single-digit
+value here. Note the cap is per code, so it bounds what any one leaked code
+can do, not what every code can do put together.
 
 **Handing out a separate code per person:** `ACCESS_CODES` accepts a
 comma-separated list instead of one shared value — `ACCESS_CODES=for-alice,
@@ -841,7 +852,7 @@ uv run uvicorn api.main:app --port 8000
 - **输入区**：话题框随内容增高；报告语言与评分方案收在底部小 chip 中；`N` 新建，回车提交
 - **实时进度**：五个流水线阶段同时可见，已完成与待执行一目了然。计时在本地每秒走，而非依赖间隔可达四秒的轮询响应
 - **结果**：评分卡、报告、来源三个标签页，按需加载。引用标记有独立样式——它们是报告可审计的凭据。可导出 Markdown 或 PDF（内嵌 CJK 字体）
-- **附加论文**：把 PDF 拖到输入框即成为来源 A1，流水线随后围绕该论文的具体贡献检索证据
+- **附加论文**：把 PDF 拖到输入框即成为来源 A1，流水线随后围绕该论文的具体贡献检索证据。论文的 DOI 和 URL 是模型从 PDF 正文里读出来的，因此在被当作引用之前会先做一次解析校验——解析不通过的定位符会被丢弃而不是照样印进参考文献，同时这条来源的可信度降为 `medium` 以如实反映"读者无法自行核查"
 
 界面功能：
 - **实时进度**：Phase 1 并行三个 Agent 的独立状态行 + 已用时间
@@ -946,12 +957,14 @@ CI 每次提交都会构建镜像并断言 PID 1 是 tini、容器非 root 运�
 
 ```bash
 ACCESS_CODE=换成一串足够长的随机字符串     # 拦截所有 /api/ 路由
-API_DAILY_RUN_CAP=20                      # 硬上限，万一口令泄漏出去兜底
+API_DAILY_RUN_CAP=3                       # 硬上限，万一口令泄漏出去兜底
 ```
 
 `ACCESS_CODE`（或下面的 `ACCESS_CODES`）由 `api/main.py` 里的中间件校验请求头 `X-Access-Code`；网页客户端只在第一次访问时弹窗询问，之后记在 `localStorage` 里不用重复输入。`/health` 不受影响——云平台的健康检查不会带请求头，这个接口本身也不花钱。两个都不设置（默认）时门禁完全不生效，本地开发和之前没有任何区别。
 
 `API_DAILY_RUN_CAP` 是第二道独立防线：并发上限只管同时跑几个，管不住口令泄漏后被人在一天内前后接力刷上百次；这个直接卡总数，与节奏无关。**按每个口令各自计数**，不是所有口令共用一个池子——不然一个人测得起劲，会把其他持有不同口令的人当天的额度全部用光。默认 0 表示不限制。
+
+**这个值要对着检索额度定，而不是对着 LLM 账单定。** 一次运行会发起大约 20–30 次网页检索（见 `source_pipeline._queries`），所以 Tavily 每月 1000 次的免费额度，换算下来是**所有口令加起来**总共约 35–50 次运行。公网部署又发了好几个口令的话，这里应该填个个位数。另外注意这个上限是按口令算的，它兜住的是"单个口令泄漏能造成多大损失"，不是"所有口令加起来最多花多少"。
 
 **给每个人发不同的口令：** `ACCESS_CODES` 接受逗号分隔的多个值，而不是一个共用口令——`ACCESS_CODES=给alice的口令,给bob的口令`。每个口令的运行历史都只属于它自己：持有"给alice的口令"的人，侧栏永远只看得到用这个口令跑过的记录，看不到"给bob的口令"跑过的。这只是运行时打的一个标记（口令的哈希值，写进每次运行的目录里），不是给每个人单独跑一套部署——还是一个进程、一个 `outputs/` 目录，口令只是决定 `GET /api/runs` 返回哪些。`ACCESS_CODE`（单数）还是照常可用，对应原来那种所有人共用一个口令的设置；两者可以同时设置。
 

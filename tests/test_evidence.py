@@ -3,7 +3,6 @@
 import json
 from datetime import date, timedelta
 from unittest import TestCase
-from unittest.mock import patch
 
 from crewai import TaskOutput
 from pydantic import ValidationError
@@ -14,10 +13,8 @@ from academic_agent.evidence import (
     EvidenceSource,
     make_evidence_guardrail,
     parse_citation_ids,
-    validate_academic_evidence,
     validate_evidence_report,
     validate_final_report,
-    validate_source_reachability,
 )
 
 
@@ -77,31 +74,18 @@ class EvidenceValidationTests(TestCase):
         self.assertIsInstance(payload["sources"][0]["published_date"], str)
         self.assertIsInstance(payload["sources"][0]["accessed_date"], str)
 
-    def test_raw_json_is_validated_locally(self) -> None:
-        report = make_report()
-        output = TaskOutput(
-            description="test",
-            raw=report.model_dump_json(),
-            agent="test",
-        )
-        with patch(
-            "academic_agent.evidence.validate_source_reachability",
-            return_value=[],
-        ):
-            success, validated = validate_academic_evidence(output)
-
-        self.assertTrue(success)
-        self.assertIs(validated, output)
-        self.assertIsInstance(output.pydantic, EvidenceReport)
-
     def test_non_json_output_is_rejected_without_llm_conversion(self) -> None:
+        report = make_report()
         output = TaskOutput(
             description="test",
             raw="A free-form Markdown report",
             agent="test",
         )
+        guardrail = make_evidence_guardrail(
+            "A", report.topic, report.sources, report.search_queries
+        )
 
-        success, message = validate_academic_evidence(output)
+        success, message = guardrail(output)
 
         self.assertFalse(success)
         self.assertIn("exactly one valid JSON object", message)
@@ -163,28 +147,11 @@ class EvidenceValidationTests(TestCase):
                 evidence_summary="This evidence summary is sufficiently descriptive for analysis purposes.",
             )
 
-    def test_reachability_failure_blocks_task_guardrail(self) -> None:
-        report = make_report()
-        output = TaskOutput(
-            description="test",
-            raw=report.model_dump_json(),
-            pydantic=report,
-            agent="test",
-        )
-        with patch(
-            "academic_agent.evidence.validate_source_reachability",
-            return_value=["A1 is unreachable"],
-        ):
-            success, message = validate_academic_evidence(output)
-        self.assertFalse(success)
-        self.assertIn("unreachable", message)
-
-    def test_unreachable_sources_are_rejected(self) -> None:
-        errors = validate_source_reachability(
-            make_report(),
-            url_checker=lambda url: (False, "offline test failure"),
-        )
-        self.assertEqual(len(errors), 3)
+    # Source reachability is not re-checked at the guardrail: make_evidence_guardrail
+    # binds the sources collected and already URL-verified upstream
+    # (source_pipeline._web_source), and the LLM contributes only findings, so
+    # there is nothing new here to verify. check_public_url itself is covered
+    # in test_url_safety.py.
 
     def test_bound_guardrail_uses_immutable_validated_sources(self) -> None:
         report = make_report()

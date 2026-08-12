@@ -16,6 +16,21 @@ _DOI_RE    = re.compile(r"\b(10\.\d{4,9}/[^\s,;<>\"')\]]+)", re.IGNORECASE)
 _ARXIV_RE  = re.compile(r"arXiv[:\s]+(\d{4}\.\d{4,5})(?:v\d+)?", re.IGNORECASE)
 _ARXIV_URL_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})", re.IGNORECASE)
 
+# Marks a synthesised DOI, as opposed to one registered with a real agency.
+_PLACEHOLDER_DOI_PREFIX = "10.0000/uploaded-"
+
+
+def _placeholder_doi(title: str) -> str:
+    """Synthetic DOI for an upload with no verifiable public locator.
+
+    EvidenceSource requires a URL or a DOI, so a paper that resolves to
+    neither still needs one to travel through the pipeline as A1 at all.
+    Deriving it from the title keeps it stable across re-uploads of the same
+    paper (dedup and citation tracking both key off it) while staying
+    obviously not a registered identifier to anything that reads it.
+    """
+    return f"{_PLACEHOLDER_DOI_PREFIX}{hashlib.md5(title.encode()).hexdigest()[:10]}"
+
 
 class PaperContribution(BaseModel):
     """Structured contribution extracted from an academic paper."""
@@ -212,20 +227,36 @@ Rules:
 
     # Fallback placeholder DOI so EvidenceSource passes model validation
     if not data.get("doi") and not data.get("url"):
-        title_hash = hashlib.md5(str(data.get("title", "paper")).encode()).hexdigest()[:10]
-        data["doi"] = f"10.0000/uploaded-{title_hash}"
+        data["doi"] = _placeholder_doi(str(data.get("title", "paper")))
 
     valid_fields = PaperContribution.model_fields.keys()
     return PaperContribution(**{k: v for k, v in data.items() if k in valid_fields})
 
 
-def paper_to_evidence_source(pc: PaperContribution) -> "EvidenceSource":  # noqa: F821
-    """Convert a PaperContribution into an EvidenceSource for pipeline injection as A1."""
-    from academic_agent.evidence import EvidenceSource
+def paper_to_evidence_source(
+    pc: PaperContribution,
+    url_checker: "UrlChecker | None" = None,  # noqa: F821
+) -> "EvidenceSource":  # noqa: F821
+    """Convert a PaperContribution into an EvidenceSource for pipeline injection as A1.
+
+    The DOI and URL carried by `pc` were read out of the PDF's text by an LLM,
+    not resolved through a search index the way every other source in the
+    pipeline is (source_pipeline._web_source runs the same check before
+    admitting anything). A misread digit or an outright hallucinated
+    identifier is well within what PDF text extraction produces, so the
+    locators are verified here before this source is presented as a citable
+    reference — an unresolvable DOI cited at "high" credibility is worse than
+    citing none at all, since a reader who follows it finds nothing while the
+    scorer counts it as verified evidence either way.
+    """
+    from academic_agent.evidence import EvidenceSource, check_public_url
+
+    if url_checker is None:
+        url_checker = check_public_url
 
     # Prefer real DOI URL; placeholder DOIs get stored in the doi field only.
     # Always populate src_doi when available so dedup and citation-tracking work.
-    _real_doi = pc.doi if (pc.doi and not pc.doi.startswith("10.0000/uploaded-")) else None
+    _real_doi = pc.doi if (pc.doi and not pc.doi.startswith(_PLACEHOLDER_DOI_PREFIX)) else None
     if not _real_doi and pc.url:
         # Extract DOI from a doi.org URL the LLM returned in the url field.
         _m = re.match(r"https?://doi\.org/(10\.\d{4,9}/[^\s?#]+)", pc.url.strip())
@@ -242,6 +273,31 @@ def paper_to_evidence_source(pc: PaperContribution) -> "EvidenceSource":  # noqa
         src_doi = pc.doi  # placeholder, passes format check
         src_url = None
 
+    if src_url is not None and not url_checker(str(src_url))[0]:
+        # A doi.org link that does not resolve condemns the DOI itself, not
+        # just the link. Any other URL failing says nothing about a DOI that
+        # was extracted separately, so that one is re-checked below instead.
+        if src_doi and str(src_url).startswith("https://doi.org/"):
+            src_doi = None
+        src_url = None
+
+    if src_url is None and _real_doi and src_doi:
+        _resolver = f"https://doi.org/{src_doi}"
+        src_url = _resolver if url_checker(_resolver)[0] else None
+        if src_url is None:
+            src_doi = None
+
+    # Nothing survived verification, but the upload itself is still real and
+    # still has to reach the crew as A1 — fall back to the same synthetic id
+    # used for a paper that never carried an identifier at all.
+    if src_url is None and src_doi is None:
+        src_doi = _placeholder_doi(pc.title or "Uploaded Paper")
+
+    # An uploaded paper is a primary source whether or not its identifiers
+    # check out, but "high" asserts a reader can go and verify it. With no
+    # locator that resolves, that is not a claim this pipeline can make.
+    verifiable = src_url is not None or not src_doi.startswith(_PLACEHOLDER_DOI_PREFIX)
+
     summary = f"{pc.core_contribution.rstrip('.')}. {pc.delta_from_prior}"
 
     return EvidenceSource(
@@ -253,8 +309,13 @@ def paper_to_evidence_source(pc: PaperContribution) -> "EvidenceSource":  # noqa
         published_date=None,
         accessed_date=date.today(),
         source_type="academic_paper",
-        credibility_tier="high",
-        credibility_reason="Primary source uploaded directly by the researcher.",
+        credibility_tier="high" if verifiable else "medium",
+        credibility_reason=(
+            "Primary source uploaded directly by the researcher."
+            if verifiable else
+            "Primary source uploaded by the researcher; no independently "
+            "resolvable DOI or URL was found in the paper."
+        ),
         evidence_summary=summary[:500],
         citation_count=None,
     )
