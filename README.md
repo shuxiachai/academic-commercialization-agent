@@ -384,6 +384,15 @@ process, one `outputs/` directory, codes just partition what `GET /api/runs`
 returns. `ACCESS_CODE` (singular) still works for the original one-code-for-
 everyone setup; both may be set together.
 
+`ACCESS_CODE_ADMIN` is one further code that authorizes runs like any
+other (its own owner tag, its own daily-cap budget) but is exempt from that
+same filter, so its holder sees every code's history combined — a way to
+check who has actually used their code without checking each one
+individually. `API_DAILY_RUN_CAP` is likewise applied per code (including
+the admin one), not as one shared total — otherwise one enthusiastic
+tester could exhaust the day's budget for everyone else holding a
+different code.
+
 **A second, open entrance:** `POST /api/runs` also accepts `llm_provider` /
 `llm_api_key` / `serper_api_key` in the body as an alternative to any access
 code — a visitor's own keys, billed to them, not to the deployment. This
@@ -921,13 +930,15 @@ API_DAILY_RUN_CAP=20                      # 硬上限，万一口令泄漏出去
 
 `ACCESS_CODE`（或下面的 `ACCESS_CODES`）由 `api/main.py` 里的中间件校验请求头 `X-Access-Code`；网页客户端只在第一次访问时弹窗询问，之后记在 `localStorage` 里不用重复输入。`/health` 不受影响——云平台的健康检查不会带请求头，这个接口本身也不花钱。两个都不设置（默认）时门禁完全不生效，本地开发和之前没有任何区别。
 
-`API_DAILY_RUN_CAP` 是第二道独立防线：并发上限只管同时跑几个，管不住口令泄漏后被人在一天内前后接力刷上百次；这个直接卡总数，与节奏无关。默认 0 表示不限制。
+`API_DAILY_RUN_CAP` 是第二道独立防线：并发上限只管同时跑几个，管不住口令泄漏后被人在一天内前后接力刷上百次；这个直接卡总数，与节奏无关。**按每个口令各自计数**，不是所有口令共用一个池子——不然一个人测得起劲，会把其他持有不同口令的人当天的额度全部用光。默认 0 表示不限制。
 
 **给每个人发不同的口令：** `ACCESS_CODES` 接受逗号分隔的多个值，而不是一个共用口令——`ACCESS_CODES=给alice的口令,给bob的口令`。每个口令的运行历史都只属于它自己：持有"给alice的口令"的人，侧栏永远只看得到用这个口令跑过的记录，看不到"给bob的口令"跑过的。这只是运行时打的一个标记（口令的哈希值，写进每次运行的目录里），不是给每个人单独跑一套部署——还是一个进程、一个 `outputs/` 目录，口令只是决定 `GET /api/runs` 返回哪些。`ACCESS_CODE`（单数）还是照常可用，对应原来那种所有人共用一个口令的设置；两者可以同时设置。
 
 **第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为任意访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要配置了口令，网页客户端就会在门禁弹窗里自动多出这个选项；不设口令时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。BYOK 提交的运行不会被打上任何口令标记，所以服务端不会把它记进任何一个口令的历史里；网页客户端转而在 `sessionStorage` 里维护一份访客自己这次会话提交过的运行列表，让侧栏依然能显示自己提交过什么——标签页一关就消失，标签页开着的时候完整可见。
 
 `GET /api/runs`（运行历史列表）无论如何都始终留在口令后面——开放的话会把每个访客的话题暴露给所有其他访客。按 `run_id` 读取或取消某一次具体的运行则不需要口令——`run_id` 本身带 40 位随机性，用的是和"分享一份已完成报告的链接"同一套能力令牌信任模型。
+
+**`ACCESS_CODE_ADMIN`** 是再多的一个口令，授权运行的方式和其他口令完全一样（有自己的归属标记、自己的每日额度），但它不受历史列表过滤的限制——持有这个口令的人能看到所有口令的历史合在一起，用来确认"到底哪几个口令真的被用过"而不用一个个去查。
 
 **部署到 Railway 需要特别注意的地方：** 这个 Dockerfile 在普通 `docker build`/`docker-compose` 下构建完全正常，但 Railway 的构建器比标准 Docker 严格，有几处本地构建根本测不出来的差异：
 
