@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import unittest
+import warnings
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
@@ -513,3 +514,56 @@ class CrossrefSearchTitleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LensUnavailabilityTests(unittest.TestCase):
+    """An expired key and a topic with no patents both return [].
+
+    The caller writes that count straight into the audit trail, where "0
+    results" then reads as a finding about the technology rather than about
+    the subscription. This was live: the deployment's Lens key expired and
+    every run quietly fell back to web search, which carries no applicant
+    field — so the patent task kept reporting that assignee information was
+    unavailable, correctly, for a reason nobody could see.
+    """
+
+    def test_auth_failure_is_distinguishable_from_an_empty_landscape(self):
+        client = LensPatentClient(api_key="expired-key")
+        with patch("academic_agent.source_clients.urlopen",
+                   side_effect=_http_error(401, b'{"message":"Unable to authorize"}')):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                results = client.search("solid state batteries")
+        self.assertEqual(results, [])
+        self.assertIsNotNone(client.last_error)
+        self.assertIn("401", client.last_error)
+
+    def test_a_genuinely_empty_result_sets_no_error(self):
+        """The other half: a working key that finds nothing must not look
+        like an outage, or every early-stage topic would be reported as one."""
+        client = LensPatentClient(api_key="valid-key")
+        # simplefilter: the client warns on a zero-result response, and this
+        # suite runs with -W error::UserWarning (see 难点 9), so an expected
+        # informational warning would otherwise fail the test.
+        with patch("academic_agent.source_clients.urlopen",
+                   return_value=_FakeResponse({"data": []})),              warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            results = client.search("a topic with no patents at all")
+        self.assertEqual(results, [])
+        self.assertIsNone(client.last_error)
+
+    def test_error_is_cleared_between_searches(self):
+        """Stale state would mark a later healthy run as degraded."""
+        client = LensPatentClient(api_key="k")
+        client.last_error = "HTTP 401 — from an earlier call"
+        with patch("academic_agent.source_clients.urlopen",
+                   return_value=_FakeResponse({"data": []})),              warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            client.search("anything")
+        self.assertIsNone(client.last_error)
+
+    def test_no_key_configured_is_not_an_error(self):
+        """Running without Lens is a supported configuration, not a failure."""
+        client = LensPatentClient(api_key="")
+        self.assertEqual(client.search("topic"), [])
+        self.assertIsNone(client.last_error)

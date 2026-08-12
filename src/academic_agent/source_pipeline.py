@@ -4,6 +4,7 @@ import html
 import json
 import os
 import re
+import sys
 from datetime import date, datetime, UTC
 from difflib import SequenceMatcher
 from typing import Any, Literal
@@ -2603,6 +2604,27 @@ def collect_source_collection(
             query=f"[Lens.org] {normalized_topic}",
             result_count=len(lens_results),
         )
+        # getattr, not attribute access: `lens` is a dependency-injection
+        # point that accepts any object exposing .search()/.api_key, and
+        # several stand-ins already do. Requiring a new attribute would
+        # break every one of them for a field that is optional by nature.
+        _lens_error = getattr(lens_client, "last_error", None)
+        if _lens_error:
+            # Structured patent search was unavailable, so this run's patents
+            # come from web search alone — which carries titles and abstracts
+            # but no applicant field, and the patent task reads an empty
+            # assignee list as "the source did not expose it". Recording the
+            # cause here keeps a reader of the audit trail from concluding the
+            # landscape was searched and found bare.
+            lens_audit.rejected_reasons.append(
+                f"Lens.org unavailable ({_lens_error}); "
+                "patent evidence for this run came from web search only"
+            )
+            print(
+                f"[sources] Lens.org unavailable ({_lens_error}) — "
+                "falling back to web search for patents",
+                file=sys.stderr, flush=True,
+            )
         for rec in lens_results:
             if len(patents) >= maximum_sources:
                 break

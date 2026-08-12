@@ -775,11 +775,23 @@ class LensPatentClient:
     _URL = "https://api.lens.org/patent/search"
 
     def __init__(self, api_key: str | None = None, *, timeout: int = 25, retries: int = 2) -> None:
-        self.api_key = api_key or os.getenv("LENS_API_KEY") or ""
+        # `is None`, not falsy: passing api_key="" means "no Lens for this
+        # client", and the `or` form quietly ignored that and read the
+        # ambient LENS_API_KEY instead — so a caller that had explicitly
+        # disabled Lens still issued real API calls, and a test could not
+        # construct a keyless client on a machine whose .env has a key.
+        self.api_key = os.getenv("LENS_API_KEY", "") if api_key is None else api_key
         self.timeout = timeout
         self.retries = retries
+        # Why the last search returned nothing, when the reason was the API
+        # rather than the patent landscape. An expired key and a topic with no
+        # patents both produce an empty list, and the caller writes that count
+        # into the audit trail — where "0 results" then reads as a finding
+        # about the technology. Callers check this to tell the two apart.
+        self.last_error: str | None = None
 
     def search(self, topic: str, rows: int = 10) -> list[dict[str, Any]]:
+        self.last_error = None
         if not self.api_key:
             return []
         kw = _patent_keywords(topic)
@@ -823,6 +835,7 @@ class LensPatentClient:
                         if exc.code in {401, 403}
                         else "bad request — likely an invalid 'include' field name"
                     )
+                    self.last_error = f"HTTP {exc.code} — {hint}"
                     warnings.warn(
                         f"Lens.org API returned HTTP {exc.code} ({hint}): {body_text}"
                     )
