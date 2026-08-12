@@ -514,6 +514,10 @@ def get_state(run_id: str) -> dict:
         # gap is visible to whoever reads the report, not only to whoever reads
         # the server's stderr.
         "evidence_incomplete": bool(status.get("evidence_incomplete")),
+        # Domains whose retrieval backend failed, so the assessment was made
+        # without them. An empty domain otherwise reads as a finding about the
+        # technology rather than an outage.
+        "failed_domains": list(status.get("failed_domains") or []),
         "artifacts": available_artifacts(run_dir),
     }
 

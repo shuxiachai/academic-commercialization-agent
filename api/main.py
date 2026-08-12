@@ -560,6 +560,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         elapsed_seconds=state.get("elapsed_seconds"),
         source_counts=state.get("source_counts"),
         evidence_incomplete=state.get("evidence_incomplete", False),
+        failed_domains=state.get("failed_domains", []),
         output_language=state.get("output_language", "English"),
         steps=[StepEvent(**s) for s in runs.read_steps(run_id, since=since)],
         artifacts=state.get("artifacts", []),

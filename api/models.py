@@ -116,6 +116,12 @@ class RunProgress(BaseModel):
                     "written; the report stands, the audit trail behind its "
                     "citations does not.",
     )
+    failed_domains: list[str] = Field(
+        default_factory=list,
+        description="Evidence domains whose retrieval backend failed, so the "
+                    "assessment was produced without them. Distinct from a "
+                    "domain that searched successfully and found nothing.",
+    )
     output_language: str = "English"
     steps: list[StepEvent] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
@@ -145,6 +151,12 @@ class RunStatus(BaseModel):
         description="Run finished but its per-agent evidence files could not be "
                     "written; the report stands, the audit trail behind its "
                     "citations does not.",
+    )
+    failed_domains: list[str] = Field(
+        default_factory=list,
+        description="Evidence domains whose retrieval backend failed, so the "
+                    "assessment was produced without them. Distinct from a "
+                    "domain that searched successfully and found nothing.",
     )
     artifacts: list[str] = Field(
         default_factory=list,

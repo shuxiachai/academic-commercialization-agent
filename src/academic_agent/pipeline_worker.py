@@ -81,7 +81,7 @@ def _merge_status_fields(
     # evidence_incomplete is sticky for the same reason topic is: it is set
     # once, mid-run, by the only code path that can discover it, and every
     # later status write would otherwise erase the warning it carries.
-    for sticky in ("topic", "source_counts", "evidence_incomplete"):
+    for sticky in ("topic", "source_counts", "evidence_incomplete", "failed_domains"):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
     if source_counts is not None:
@@ -141,6 +141,7 @@ def main() -> None:
         source_counts: dict | None = None,
         topic: str | None = None,
         evidence_incomplete: bool | None = None,
+        failed_domains: list[str] | None = None,
     ) -> None:
         try:
             try:
@@ -154,6 +155,8 @@ def main() -> None:
             )
             if evidence_incomplete is not None:
                 data["evidence_incomplete"] = evidence_incomplete
+            if failed_domains is not None:
+                data["failed_domains"] = failed_domains
             status_path.write_text(json.dumps(data), encoding="utf-8")
         except Exception as _e:
             print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
@@ -222,6 +225,14 @@ def main() -> None:
         save_source_collection(
             source_collection.model_dump_json(indent=2), run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT,
         )
+        if source_collection.failed_domains:
+            # An empty domain reads as a fact about the technology; this says
+            # it is a fact about the infrastructure instead. Logged and put on
+            # the status so the distinction reaches whoever reads the report.
+            for _domain, _why in source_collection.failed_domains.items():
+                print(f"[worker] {_domain} retrieval failed, continuing without it: "
+                      f"{_why[:200]}", file=sys.stderr, flush=True)
+
         write_status(
             _PARALLEL_STAGE,
             source_counts={
@@ -230,6 +241,7 @@ def main() -> None:
                 "market":   len(source_collection.market_sources),
             },
             output_language=source_collection.output_language,
+            failed_domains=sorted(source_collection.failed_domains) or None,
         )
 
         parallel_done   = [0]   # counts completions of the 3 async evidence tasks

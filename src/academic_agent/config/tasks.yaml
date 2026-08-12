@@ -185,6 +185,9 @@ commercialization_report_task:
     Required section headings (use these exactly):
     {localized_headings}
 
+    Evidence coverage for this run:
+    {retrieval_notice}
+
     Citation rules:
     - Cite every factual, numerical, patent, company, market, and maturity claim
       with its supplied source ID, such as [A1], [P2], or [M3].

@@ -75,6 +75,22 @@ def _patent(idx: int, title: str) -> EvidenceSource:
     )
 
 
+def _academic_stub() -> EvidenceSource:
+    """One valid academic source — SourceCollection requires at least one."""
+    return EvidenceSource(
+        source_id="A1",
+        title="A study of solid state battery electrolytes",
+        url="https://records.test-domain.org/a1",
+        publisher="Journal of Testing",
+        accessed_date=date.today(),
+        source_type="academic_paper",
+        evidence_summary=(
+            "Reports ionic conductivity measurements for a sulfide electrolyte "
+            "across a range of operating temperatures and cycling conditions."
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Defect 1 — domain keyword extraction on specification-style topics
 # ---------------------------------------------------------------------------
@@ -429,3 +445,87 @@ class EmptyRegistryRubricTests(unittest.TestCase):
         """The reason matters: it is why blank does not mean sparse."""
         text = self._rubric()
         self.assertIn("export-controlled", text)
+
+
+# ---------------------------------------------------------------------------
+# Retrieval-backend failure: degrade, but never silently
+# ---------------------------------------------------------------------------
+
+class FailedDomainReportingTests(unittest.TestCase):
+    """A domain whose backend failed and a domain that found nothing must not
+    look the same.
+
+    Losing the market search used to lose the whole run — including academic
+    sources already retrieved and validated, the slowest part of the pipeline,
+    discarded because a different backend was down. Degrading is better, but
+    only if the reason travels with the data: the scoring rubric reads a thin
+    market registry as evidence about the technology ("only forecasts -> score
+    from academic evidence, typically TRL 2-5"), so an outage would otherwise
+    produce a confident, low, and entirely wrong score.
+    """
+
+    @staticmethod
+    def _collection(**overrides):
+        """A minimal valid SourceCollection; only failed_domains varies."""
+        from datetime import datetime, UTC
+
+        from academic_agent.source_pipeline import SourceCollection
+
+        base = dict(
+            topic="solid state batteries",
+            collected_at=datetime.now(UTC),
+            academic_sources=[_academic_stub()],
+            academic_queries=["q"],
+            patent_queries=["q"],
+            market_queries=["q"],
+        )
+        base.update(overrides)
+        return SourceCollection(**base)
+
+    def test_a_healthy_run_records_no_failure(self):
+        self.assertEqual(self._collection().failed_domains, {})
+
+    def test_the_report_writer_is_told_which_domain_failed(self):
+        inputs = self._collection(
+            failed_domains={"market": "Tavily search failed: HTTP 432"},
+        ).crew_inputs()
+        notice = inputs["retrieval_notice"]
+        self.assertIn("RETRIEVAL FAILURE", notice)
+        self.assertIn("market", notice)
+        self.assertIn("Evidence Limitations", notice)
+
+    def test_the_notice_forbids_reading_absence_as_evidence(self):
+        """The specific misreading this exists to prevent."""
+        notice = self._collection(
+            failed_domains={"patent": "backend down"},
+        ).crew_inputs()["retrieval_notice"]
+        self.assertIn("not", notice.lower())
+        for word in ("empty", "sparse", "undeveloped"):
+            self.assertIn(word, notice.lower())
+
+    def test_a_healthy_run_still_permits_reporting_a_genuinely_thin_domain(self):
+        """The opposite error: treating every sparse domain as an outage would
+        suppress a real finding about an early-stage technology."""
+        notice = self._collection().crew_inputs()["retrieval_notice"]
+        self.assertIn("searched successfully", notice)
+        self.assertIn("finding about the technology", notice)
+
+    def test_notice_is_always_supplied_to_the_report_task(self):
+        """Missing key would make CrewAI interpolation fail at runtime, long
+        after retrieval, on a run that had already cost real money."""
+        for failed in ({}, {"market": "x"}, {"patent": "y", "market": "z"}):
+            with self.subTest(failed=sorted(failed)):
+                self.assertIn("retrieval_notice", self._collection(
+                    failed_domains=failed).crew_inputs())
+
+    def test_report_task_actually_consumes_the_placeholder(self):
+        """A crew input nothing references is dead weight, and the notice
+        would never reach the reader."""
+        import yaml
+        from pathlib import Path as _P
+
+        cfg = yaml.safe_load(
+            (_P(__file__).resolve().parent.parent
+             / "src" / "academic_agent" / "config" / "tasks.yaml").read_text(encoding="utf-8")
+        )
+        self.assertIn("{retrieval_notice}", cfg["commercialization_report_task"]["description"])

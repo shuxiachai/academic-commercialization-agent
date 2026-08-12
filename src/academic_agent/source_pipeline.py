@@ -452,6 +452,12 @@ class SourceCollection(BaseModel):
     patent_queries: list[str] = Field(min_length=1)
     market_queries: list[str] = Field(min_length=1)
     audit: list[SearchAudit] = Field(default_factory=list)
+    # Domains whose retrieval failed outright (search backend down, quota
+    # exhausted), as {"patent": "reason"}. Distinct from a domain that simply
+    # found nothing: that is a real result about the technology, this is a
+    # result about the infrastructure, and they must not read the same in a
+    # report. Empty on a healthy run.
+    failed_domains: dict[str, str] = Field(default_factory=dict)
 
     def sources_for_prefix(self, prefix: str) -> list[EvidenceSource]:
         mapping = {
@@ -499,9 +505,35 @@ class SourceCollection(BaseModel):
             f"(Market {w['market']}% + TRL {w['trl']}% + MRL {w['mrl']}% "
             f"+ Patent {w['patent']}% + Evidence {w['evidence']}%)"
         )
+        # A domain whose backend failed is not the same as a domain that
+        # searched and found nothing, and the report must not read as though
+        # it were: an absent market registry otherwise looks like evidence
+        # that the technology has no commercial activity. The report writer is
+        # told which is which, in words, because the reader of the report has
+        # no other way to find out.
+        if self.failed_domains:
+            names = ", ".join(sorted(self.failed_domains))
+            retrieval_notice = (
+                f"RETRIEVAL FAILURE — the {names} evidence domain(s) could not be "
+                "searched for this run because the retrieval backend failed, not "
+                "because nothing exists. You MUST state this plainly in the "
+                "Evidence Limitations section, name the affected domain(s), and "
+                "say that the assessment was produced without them. Do NOT treat "
+                "the absence of those sources as evidence about the technology, "
+                "and do not describe the landscape in those domains as empty, "
+                "sparse, or undeveloped."
+            )
+        else:
+            retrieval_notice = (
+                "All evidence domains were searched successfully. Where a domain "
+                "has few or no sources, that is a finding about the technology "
+                "and may be reported as such."
+            )
+
         return {
             "research_topic":  self.topic,
             "display_topic":   display,
+            "retrieval_notice": retrieval_notice,
             "output_language": self.output_language,
             "localized_headings": "\n".join(headings),
             "weight_profile":  weight_profile_str,
@@ -2416,6 +2448,10 @@ def collect_source_collection(
     else:
         localized_headings = []
 
+    # Retrieval failures recorded rather than raised; see the except blocks
+    # around the patent supplement and the market domain below.
+    failed_domains: dict[str, str] = {}
+
     patent_cc  = lang_info.get("patent_cc", "")
     query_map  = _queries(normalized_topic, native_topic=native_topic, patent_cc=patent_cc)
     if extra_market_queries:
@@ -2606,31 +2642,53 @@ def collect_source_collection(
     if _gp_remaining > 0:
         _SUPPLEMENT_SLOTS = 3
         _gp_slots = _gp_remaining if not patents else min(_SUPPLEMENT_SLOTS, _gp_remaining)
-        serper_patents, serper_patent_audits = _collect_domain(
-            "patent",
-            query_map["patent"],
-            resolved_searcher, resolved_crossref, url_checker,
-            resolved_date, normalized_topic,
-            minimum_sources=0,
-            maximum_sources=_gp_slots,
-            blocked_titles={p.title for p in patents},
-        )
+        try:
+            serper_patents, serper_patent_audits = _collect_domain(
+                "patent",
+                query_map["patent"],
+                resolved_searcher, resolved_crossref, url_checker,
+                resolved_date, normalized_topic,
+                minimum_sources=0,
+                maximum_sources=_gp_slots,
+                blocked_titles={p.title for p in patents},
+            )
+        except SourceCollectionError as exc:
+            # minimum_sources=0 means this cannot raise for finding too little;
+            # reaching here means the search backend itself failed. Whatever
+            # Lens already returned is still worth having, and an assessment
+            # without the web-search supplement beats no assessment at all.
+            failed_domains["patent"] = str(exc)
+            serper_patents, serper_patent_audits = [], []
         patent_audits.extend(serper_patent_audits)
         patents.extend(serper_patents)
 
     all_audits.extend(patent_audits)
 
     # ── Market: English Serper + native-language Serper supplement ────────────
-    market, market_audits = _collect_domain(
-        "market",
-        query_map["market"],
-        resolved_searcher, resolved_crossref, url_checker,
-        resolved_date, normalized_topic,
-        minimum_sources=max(2, minimum_sources - 1),
-        maximum_sources=maximum_sources,
-        blocked_dois={src.doi for src in academic if src.doi is not None},
-        blocked_titles={src.title for src in academic},
-    )
+    try:
+        market, market_audits = _collect_domain(
+            "market",
+            query_map["market"],
+            resolved_searcher, resolved_crossref, url_checker,
+            resolved_date, normalized_topic,
+            minimum_sources=max(2, minimum_sources - 1),
+            maximum_sources=maximum_sources,
+            blocked_dois={src.doi for src in academic if src.doi is not None},
+            blocked_titles={src.title for src in academic},
+        )
+    except SourceCollectionError as exc:
+        # Losing the market domain used to lose the whole run, including the
+        # academic sources already validated above — the most expensive part,
+        # discarded because a different backend was down.
+        #
+        # Degrading has its own hazard, which is why failed_domains exists:
+        # the scoring rubric reads a thin market registry as evidence about
+        # the technology ("only forecasts -> score from academic evidence,
+        # typically TRL 2-5"). An empty market domain caused by an outage
+        # would therefore produce a confident, low, and wrong score. The
+        # difference has to travel with the data, not be inferred from it.
+        failed_domains["market"] = str(exc)
+        market, market_audits = [], []
     all_audits.extend(market_audits)
 
     # ── Company-news coverage guard ───────────────────────────────────────────
@@ -2756,4 +2814,5 @@ def collect_source_collection(
         patent_queries=query_map["patent"],
         market_queries=query_map["market"],
         audit=all_audits,
+        failed_domains=failed_domains,
     )
