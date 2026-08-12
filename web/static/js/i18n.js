@@ -96,6 +96,8 @@ const STRINGS = {
     byok_exit: "Exit",
     byok_no_history: "No runs yet this session. Runs you start will stay listed here until you close this tab.",
     byok_no_attach: "Paper upload needs an access code",
+    code_badge: "Signed in with an access code",
+    code_exit: "Log out",
   },
 
   "Simplified Chinese": {
@@ -176,6 +178,8 @@ const STRINGS = {
     byok_exit: "退出",
     byok_no_history: "本次会话还没有运行记录。你提交的运行会一直显示在这里，直到关闭这个标签页。",
     byok_no_attach: "上传论文需要访问口令",
+    code_badge: "已通过访问口令登录",
+    code_exit: "退出登录",
   },
 };
 

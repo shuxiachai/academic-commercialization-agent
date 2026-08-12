@@ -492,6 +492,18 @@ $("#byok-exit").addEventListener("click", () => {
   location.reload();
 });
 
+// Mutually exclusive with applyByokMode(): shown only when a stored code is
+// what got the visitor past the gate, never when the gate is off entirely
+// (nothing to log out of then) and never alongside the BYOK badge.
+function applyCodeMode() {
+  $("#code-badge").hidden = false;
+}
+
+$("#code-exit").addEventListener("click", () => {
+  api.setAccessCode(null);
+  location.reload();
+});
+
 async function ensureAccess() {
   if (api.getByok()) {
     applyByokMode();
@@ -499,6 +511,7 @@ async function ensureAccess() {
   }
   try {
     await api.checkAccess(api.getAccessCode());
+    if (api.getAccessCode()) applyCodeMode();
     return;
   } catch (err) {
     if (err.status !== 401) throw err;
@@ -546,6 +559,7 @@ function showGate() {
       try {
         await api.checkAccess(code);
         api.setAccessCode(code);
+        applyCodeMode();
         finish();
       } catch (err) {
         codeError.textContent = err.status === 401 ? t("gate_error") : err.message;

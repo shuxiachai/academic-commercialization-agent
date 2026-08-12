@@ -53,6 +53,13 @@
       <button type="button" id="byok-exit" data-i18n="byok_exit">Exit</button>
     </div>
 
+    <!-- Mutually exclusive with byok-badge above: a visit is either
+         code-authorized or BYOK, never both, so only one is ever shown. -->
+    <div class="byok-badge" id="code-badge" hidden>
+      <span data-i18n="code_badge">Signed in with an access code</span>
+      <button type="button" id="code-exit" data-i18n="code_exit">Log out</button>
+    </div>
+
     <div class="sidebar__foot">
       <div class="capacity" id="capacity" title="Concurrent run slots">
         <span class="capacity__dots" id="capacity-dots"></span>
