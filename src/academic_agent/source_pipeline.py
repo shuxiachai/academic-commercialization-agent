@@ -967,13 +967,13 @@ def _academic_source_from_openalex(
     if summary_sparse:
         credibility_tier: str = "medium"
         credibility_reason = (
-            f"OpenAlex record: DOI verified, peer-reviewed journal, "
+            f"OpenAlex record: DOI resolves; journal record (peer-review status not independently verified), "
             f"{cited:,} citations. Brief evidence summary — detailed findings may be limited."
         )
     elif cited == 0 and days_since_pub is not None and days_since_pub <= _ZERO_CITATION_RECENCY_DAYS:
         credibility_tier = "high"
         credibility_reason = (
-            "OpenAlex record: DOI verified, peer-reviewed journal. "
+            "OpenAlex record: DOI resolves; journal record (peer-review status not independently verified). "
             f"Newly published ({days_since_pub}d ago); 0 citations is expected, "
             "not a quality signal."
         )
@@ -981,14 +981,14 @@ def _academic_source_from_openalex(
         credibility_tier = "medium"
         age_note = f"{days_since_pub}d since publication" if days_since_pub else "publication date unknown"
         credibility_reason = (
-            f"OpenAlex record: DOI verified, peer-reviewed journal. "
+            f"OpenAlex record: DOI resolves; journal record (peer-review status not independently verified). "
             f"0 citations after {age_note} — treat findings conservatively; "
             "independent corroboration recommended."
         )
     else:
         credibility_tier = "high"
         credibility_reason = (
-            f"OpenAlex record: DOI verified, peer-reviewed journal, "
+            f"OpenAlex record: DOI resolves; journal record (peer-review status not independently verified), "
             f"{cited:,} citations."
         )
     # Publisher quality override: downgrade regardless of citation count.
@@ -1076,7 +1076,8 @@ def _academic_source_from_s2(
             source_type="academic_paper",
             credibility_tier="medium" if summary_sparse else "high",
             credibility_reason=(
-                f"Semantic Scholar record: DOI verified, peer-reviewed journal, "
+                f"Semantic Scholar record: DOI resolves; journal record "
+                f"(peer-review status not independently verified), "
                 f"{cited:,} citations."
                 + (" Brief evidence summary — detailed findings may be limited." if summary_sparse else "")
             ),
@@ -1124,7 +1125,9 @@ def _academic_source_from_arxiv(
         url = f"https://doi.org/{doi}"
         credibility_tier = "high"
         credibility_reason = (
-            f"arXiv preprint with peer-reviewed DOI ({doi})."
+            f"arXiv preprint that also carries a DOI ({doi}), which usually means a "
+            "journal version exists — but the DOI alone does not establish that, "
+            "and the text indexed here is the preprint."
         )
     else:
         url = arxiv_url
@@ -1204,7 +1207,9 @@ def _academic_source_from_pubmed(
             source_type="academic_paper",
             credibility_tier="medium" if summary_sparse else "high",
             credibility_reason=(
-                f"PubMed indexed: peer-reviewed biomedical journal ({journal})."
+                f"Indexed in PubMed ({journal}). Indexing covers editorials, letters and "
+                "comments as well as research articles, so it does not by itself "
+                "establish that this record was peer reviewed."
                 + (" Brief evidence summary." if summary_sparse else "")
             ),
             evidence_summary=abstract[:_ABSTRACT_MAX_CHARS],

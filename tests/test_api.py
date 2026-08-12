@@ -221,6 +221,21 @@ class RunStateTests(_ApiTestCase):
         body = self.client.get(f"/api/runs/{rid}").json()
         self.assertEqual(body["state"], "completed")
 
+    def test_missing_evidence_artifacts_are_reported_not_hidden(self):
+        """A run whose evidence files could not be written still completes,
+        but the gap must reach the reader: the audit trail behind its
+        citations is exactly what someone checking one would open."""
+        rid = self._make_run(status={"done": True, "evidence_incomplete": True})
+        for path in (f"/api/runs/{rid}", f"/api/runs/{rid}/progress"):
+            with self.subTest(path=path):
+                body = self.client.get(path).json()
+                self.assertEqual(body["state"] if "state" in body else "", "completed")
+                self.assertTrue(body["evidence_incomplete"])
+
+    def test_a_normal_run_is_not_flagged(self):
+        rid = self._make_run(status={"done": True})
+        self.assertFalse(self.client.get(f"/api/runs/{rid}").json()["evidence_incomplete"])
+
     def test_failed_state_from_status_error(self):
         rid = self._make_run(status={"done": False, "error": "LLM refused"})
         body = self.client.get(f"/api/runs/{rid}").json()

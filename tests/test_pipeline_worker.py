@@ -100,6 +100,13 @@ class MergeStatusFieldsTests(unittest.TestCase):
         self.assertEqual(data["source_counts"], {"academic": 5})
         self.assertEqual(data["stage"], "Phase 2")
 
+    def test_evidence_incomplete_warning_survives_later_writes(self):
+        """It is set once, mid-run, by the only code that can discover it —
+        every later status write would otherwise erase the warning."""
+        existing = {"evidence_incomplete": True}
+        data = self._merge(existing, stage="Agent 6")
+        self.assertTrue(data["evidence_incomplete"])
+
     def test_a_new_value_overwrites_the_sticky_one(self):
         existing = {"topic": "old topic"}
         data = self._merge(existing, topic="new topic")

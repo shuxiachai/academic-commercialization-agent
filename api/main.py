@@ -1,11 +1,13 @@
 """FastAPI application exposing the analysis pipeline over HTTP.
 
-Runs alongside the Gradio UI rather than replacing it: both launch the same
-`pipeline_worker` subprocess and read the same run directory, so a run started
-from one is visible to the other.
+Serves both the JSON API and the web client (web/) from one process, and
+launches each run as a `pipeline_worker` subprocess writing to its own run
+directory — so the API, the browser and the CLI all observe the same run
+through the same files rather than through shared memory.
 
     uv run uvicorn api.main:app --reload
-    → http://localhost:8000/docs
+    → http://localhost:8000       (web client)
+    → http://localhost:8000/docs  (OpenAPI)
 """
 
 from __future__ import annotations
@@ -422,6 +424,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         error=state.get("error"),
         elapsed_seconds=state.get("elapsed_seconds"),
         source_counts=state.get("source_counts"),
+        evidence_incomplete=state.get("evidence_incomplete", False),
         output_language=state.get("output_language", "English"),
         steps=[StepEvent(**s) for s in runs.read_steps(run_id, since=since)],
         artifacts=state.get("artifacts", []),

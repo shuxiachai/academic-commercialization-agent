@@ -110,6 +110,12 @@ class RunProgress(BaseModel):
     error: str | None = None
     elapsed_seconds: int | None = None
     source_counts: dict[str, int] | None = None
+    evidence_incomplete: bool = Field(
+        default=False,
+        description="Run finished but its per-agent evidence files could not be "
+                    "written; the report stands, the audit trail behind its "
+                    "citations does not.",
+    )
     output_language: str = "English"
     steps: list[StepEvent] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
@@ -134,6 +140,12 @@ class RunStatus(BaseModel):
     error: str | None = None
     elapsed_seconds: int | None = None
     source_counts: dict[str, int] | None = None
+    evidence_incomplete: bool = Field(
+        default=False,
+        description="Run finished but its per-agent evidence files could not be "
+                    "written; the report stands, the audit trail behind its "
+                    "citations does not.",
+    )
     artifacts: list[str] = Field(
         default_factory=list,
         description="Artifact names available via /api/runs/{run_id}/{name}",

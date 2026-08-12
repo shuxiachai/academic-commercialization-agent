@@ -507,6 +507,13 @@ def get_state(run_id: str) -> dict:
         "error": error,
         "elapsed_seconds": elapsed,
         "source_counts": status.get("source_counts"),
+        # True when the run finished but its per-agent evidence files could not
+        # be written. The report is still valid; what is missing is the record
+        # of how sources became findings — which is precisely what someone
+        # checking a citation would open. Surfaced rather than logged so that
+        # gap is visible to whoever reads the report, not only to whoever reads
+        # the server's stderr.
+        "evidence_incomplete": bool(status.get("evidence_incomplete")),
         "artifacts": available_artifacts(run_dir),
     }
 

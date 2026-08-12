@@ -78,7 +78,10 @@ def _merge_status_fields(
     data: dict = {
         "stage": stage, "done": done, "error": error, "output_language": output_language,
     }
-    for sticky in ("topic", "source_counts"):
+    # evidence_incomplete is sticky for the same reason topic is: it is set
+    # once, mid-run, by the only code path that can discover it, and every
+    # later status write would otherwise erase the warning it carries.
+    for sticky in ("topic", "source_counts", "evidence_incomplete"):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
     if source_counts is not None:
@@ -137,6 +140,7 @@ def main() -> None:
         output_language: str | None = None,
         source_counts: dict | None = None,
         topic: str | None = None,
+        evidence_incomplete: bool | None = None,
     ) -> None:
         try:
             try:
@@ -148,6 +152,8 @@ def main() -> None:
                 existing, stage=stage, done=done, error=error,
                 output_language=output_language, source_counts=source_counts, topic=topic,
             )
+            if evidence_incomplete is not None:
+                data["evidence_incomplete"] = evidence_incomplete
             status_path.write_text(json.dumps(data), encoding="utf-8")
         except Exception as _e:
             print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
@@ -333,10 +339,18 @@ def main() -> None:
         # 4 and 6 read these outputs rather than the source registry, so they
         # are the only record of how sources became findings — and they used to
         # exist solely in memory, leaving half the pipeline unauditable.
+        evidence_saved = True
         try:
             save_evidence_reports(tasks_output, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
-        except Exception:  # noqa: BLE001 - inspection files must not fail a run
-            pass
+        except Exception as exc:  # noqa: BLE001 - inspection files must not fail a run
+            # Still not fatal: a report the user can read beats no report at
+            # all. But swallowing this silently produced the one outcome
+            # nobody can detect — a run that looks completely successful while
+            # the record of how its sources became findings is missing, which
+            # is exactly what someone auditing a citation would go looking for.
+            evidence_saved = False
+            print(f"[worker] evidence artifacts could not be saved: "
+                  f"{type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
 
         report_raw, scores_raw = _select_report_and_scores(tasks_output, result.raw)
 
@@ -353,7 +367,11 @@ def main() -> None:
         if scores_raw:
             save_scores(scores_raw, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
 
-        write_status("Done", done=True, output_language=source_collection.output_language)
+        write_status(
+            "Done", done=True,
+            output_language=source_collection.output_language,
+            evidence_incomplete=not evidence_saved,
+        )
 
     except Exception as exc:
         error_details = traceback.format_exc()
