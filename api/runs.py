@@ -23,7 +23,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
@@ -43,6 +43,18 @@ MAX_CONCURRENT = int(os.getenv("API_MAX_CONCURRENT", "2"))
 # sequentially over a day. 0 disables the cap — the default for local
 # development.
 DAILY_CAP = int(os.getenv("API_DAILY_RUN_CAP", "0"))
+
+# Days a finished run is kept before it is deleted automatically. 0 (the
+# default) keeps runs forever, which is right for local development where the
+# outputs directory is the developer's own.
+#
+# A public deployment is a different situation. Reading a run needs only its
+# id — that is the deliberate report-sharing model — so a link stays live for
+# as long as the run does, and a visitor who uploads an unpublished paper
+# leaves its contents, its extracted contribution and the resulting assessment
+# on someone else's server indefinitely. Retention is the bound on that, and
+# the reason it matters more once links are shareable rather than less.
+RUN_RETENTION_DAYS = int(os.getenv("RUN_RETENTION_DAYS", "0"))
 
 # Run directories are named <UTC timestamp>-<hex>; see create_run_id().
 _RUN_ID_PATTERN = re.compile(r"\d{8}T\d{6}Z-[0-9a-f]+")
@@ -559,6 +571,52 @@ def _duration(run_dir: Path) -> str:
         return f"{secs}s" if secs < 60 else f"{secs // 60}m {secs % 60:02d}s"
     except (ValueError, OSError):
         return "—"
+
+
+def prune_expired_runs(retention_days: int | None = None) -> list[str]:
+    """Delete runs older than the retention window. Returns the ids removed.
+
+    Age is taken from the run id's own timestamp rather than the directory's
+    mtime: reading a run rewrites nothing, but generating its PDF on first
+    download does, and mtime would silently grant an extension to exactly the
+    runs someone had been opening.
+
+    Never touches a live run: a worker is still writing into that directory,
+    and its id is in the registry regardless of how old the id looks — which
+    matters for a run that outlived the window while executing.
+
+    Best-effort, like the paper pruning it runs beside: a directory that
+    cannot be removed is skipped rather than raising, because this is called
+    from a timer whose failure would take the reaper down with it.
+    """
+    days = RUN_RETENTION_DAYS if retention_days is None else retention_days
+    if days <= 0 or not DEFAULT_OUTPUT_ROOT.is_dir():
+        return []
+
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    with _registry_lock:
+        live = {rid for rid, h in _registry.items() if h.alive()}
+
+    removed: list[str] = []
+    for directory in DEFAULT_OUTPUT_ROOT.iterdir():
+        if not directory.is_dir() or not _RUN_ID_PATTERN.fullmatch(directory.name):
+            continue
+        if directory.name in live:
+            continue
+        try:
+            stamp = datetime.strptime(
+                directory.name.split("-")[0], "%Y%m%dT%H%M%SZ"
+            ).replace(tzinfo=UTC)
+        except ValueError:
+            continue
+        if stamp >= cutoff:
+            continue
+        try:
+            shutil.rmtree(directory)
+        except OSError:
+            continue
+        removed.append(directory.name)
+    return removed
 
 
 def _read_owner(run_dir: Path) -> str | None:

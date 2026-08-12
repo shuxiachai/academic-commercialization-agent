@@ -189,4 +189,11 @@ class HealthStatus(BaseModel):
     status: Literal["ok"]
     active_runs: int
     max_concurrent: int
+    retention_days: int = Field(
+        default=0,
+        description="Days a finished run is kept before automatic deletion; "
+                    "0 means runs are kept indefinitely. Reported so a visitor "
+                    "can see how long their uploaded paper and its assessment "
+                    "will live on this deployment.",
+    )
     llm_provider: str | None = None

@@ -486,7 +486,7 @@ document.addEventListener("keydown", (e) => {
 
 async function refreshCapacity() {
   try {
-    const { active_runs, max_concurrent } = await api.health();
+    const { active_runs, max_concurrent, retention_days } = await api.health();
     const dots = $("#capacity-dots");
     dots.innerHTML = "";
     for (let i = 0; i < max_concurrent; i += 1) {
@@ -496,6 +496,13 @@ async function refreshCapacity() {
       dots.append(dot);
     }
     $("#capacity-label").textContent = `${active_runs}/${max_concurrent} ${t("running_label")}`;
+    // Someone who uploads an unpublished paper is entitled to know how long it
+    // stays here — and a deletion nobody was told about reads as data loss
+    // rather than as policy. Shown on the capacity line rather than in a
+    // dialog because it is a standing fact about the deployment, not an event.
+    $("#capacity-label").title = retention_days
+      ? t("retention_note").replace("{days}", retention_days)
+      : t("retention_forever");
   } catch {
     $("#capacity-label").textContent = t("offline");
   }

@@ -61,6 +61,12 @@ async def _reaper() -> None:
         removed = papers.prune_old()
         if removed:
             print(f"[api] pruned {removed} expired paper upload(s)")
+        expired = runs.prune_expired_runs()
+        if expired:
+            print(f"[api] deleted {len(expired)} run(s) past the "
+                  f"{runs.RUN_RETENTION_DAYS}-day retention window: "
+                  f"{', '.join(expired[:5])}"
+                  + (" ..." if len(expired) > 5 else ""))
 
 
 @contextlib.asynccontextmanager
@@ -346,6 +352,7 @@ def health() -> HealthStatus:
         status="ok",
         active_runs=runs.active_count(),
         max_concurrent=runs.MAX_CONCURRENT,
+        retention_days=runs.RUN_RETENTION_DAYS,
         llm_provider=provider,
     )
 

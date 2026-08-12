@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import time
 import unittest
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from api import papers
+from api import papers, runs
 
 
 class _PapersTestBase(unittest.TestCase):
@@ -177,3 +178,74 @@ class PruneTests(_PapersTestBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RunRetentionTests(unittest.TestCase):
+    """Runs are deleted after RUN_RETENTION_DAYS.
+
+    Uploads already expired after a day; runs did not, and a run holds far
+    more of the visitor's material than the upload does — the paper's
+    contents, the contribution extracted from it, and the assessment written
+    about it. Reading a run needs only its id, so a shared link stays live for
+    as long as the run does; retention is what bounds that.
+    """
+
+    def setUp(self):
+        self._tmp = TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        patcher = patch.object(runs, "DEFAULT_OUTPUT_ROOT", self.root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        runs._registry.clear()
+        self.addCleanup(runs._registry.clear)
+
+    def _run_dir(self, days_old: float) -> str:
+        stamp = datetime.now(UTC) - timedelta(days=days_old)
+        run_id = f"{stamp.strftime('%Y%m%dT%H%M%SZ')}-{'a' * 10}"
+        d = self.root / run_id
+        d.mkdir(parents=True)
+        (d / "commercialization_report.md").write_text("# R", encoding="utf-8")
+        return run_id
+
+    def test_disabled_by_default_keeps_everything(self):
+        """Local development's outputs directory is the developer's own."""
+        old = self._run_dir(days_old=400)
+        self.assertEqual(runs.prune_expired_runs(0), [])
+        self.assertTrue((self.root / old).exists())
+
+    def test_runs_past_the_window_are_deleted(self):
+        old = self._run_dir(days_old=31)
+        self.assertEqual(runs.prune_expired_runs(30), [old])
+        self.assertFalse((self.root / old).exists())
+
+    def test_runs_inside_the_window_are_kept(self):
+        recent = self._run_dir(days_old=3)
+        self.assertEqual(runs.prune_expired_runs(30), [])
+        self.assertTrue((self.root / recent).exists())
+
+    def test_a_live_run_is_never_deleted(self):
+        """A worker is still writing there, and a long run can outlive the
+        window while executing."""
+        old = self._run_dir(days_old=99)
+        proc = MagicMock()
+        proc.poll.return_value = None                 # still running
+        runs._registry[old] = runs._Handle(run_id=old, topic="t", proc=proc)
+
+        self.assertEqual(runs.prune_expired_runs(30), [])
+        self.assertTrue((self.root / old).exists())
+
+    def test_age_comes_from_the_run_id_not_the_mtime(self):
+        """Rendering a PDF on first download rewrites the directory, which
+        would otherwise extend the life of exactly the runs being opened."""
+        old = self._run_dir(days_old=90)
+        (self.root / old / "commercialization_report.pdf").write_bytes(b"%PDF-1.4")
+        self.assertEqual(runs.prune_expired_runs(30), [old])
+
+    def test_unrelated_directories_are_left_alone(self):
+        """_papers and benchmark live under outputs too."""
+        (self.root / "_papers").mkdir()
+        (self.root / "benchmark").mkdir()
+        runs.prune_expired_runs(1)
+        self.assertTrue((self.root / "_papers").exists())
+        self.assertTrue((self.root / "benchmark").exists())
