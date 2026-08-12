@@ -126,6 +126,37 @@ async def _access_gate(request: Request, call_next):
     return await call_next(request)
 
 
+def _authorize_destructive(run_id: str, http_request: Request) -> None:
+    """Require the code that owns this run before cancelling or deleting it.
+
+    The access-gate middleware exempts /api/runs/{id}/... so a report link
+    can be shared without handing over the access code. That exemption is
+    right for reads and wrong for destructive calls, which is why this check
+    lives in the handler rather than the middleware.
+
+    Raises 404 rather than 403 on a mismatch: a distinct "forbidden" would
+    confirm to a caller probing ids that a given run exists, which is the one
+    thing a 40-bit id cannot afford to leak.
+    """
+    if not access.gate_enabled():
+        return                      # nothing configured to authorize against
+
+    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    if matched is not None and access.is_admin(matched):
+        return
+
+    owner = runs.owner_of(run_id)
+    if owner is None:
+        # A BYOK run carries no owner tag by design, and its submitter holds
+        # no code to prove ownership with — the id is the only credential
+        # that exists for it, so it stays the credential here too. Nothing
+        # else in the deployment references these runs.
+        return
+
+    if matched is None or access.owner_id(matched) != owner:
+        raise HTTPException(status_code=404, detail=f"No run with id {run_id}")
+
+
 @app.get("/api/access/check", include_in_schema=False)
 def access_check() -> dict:
     """No-op the frontend calls to validate a code before storing it.
@@ -298,7 +329,7 @@ def get_run(run_id: str) -> RunStatus:
         409: {"description": "Run is mid-cancellation from a concurrent request — retry"},
     },
 )
-def delete_run(run_id: str) -> dict:
+def delete_run(run_id: str, http_request: Request) -> dict:
     """Stop a live run, or permanently delete a finished one's record.
 
     A live run is only terminated (kept, marked cancelled) so its partial
@@ -306,7 +337,16 @@ def delete_run(run_id: str) -> dict:
     actually remove it. A run that is already completed, failed, cancelled,
     or timed out is deleted immediately: its directory, report, and every
     other artifact are gone for good, not just hidden from the list.
+
+    Unlike the read endpoints on this same path prefix, this one is NOT a
+    capability URL. Knowing a run_id is enough to read a run — that is the
+    deliberate report-sharing model — but it must not be enough to destroy
+    one: run ids travel through browser history, screenshots and forwarded
+    links, and a reader who was handed a report link should not thereby be
+    able to delete it out from under its owner.
     """
+    _authorize_destructive(run_id, http_request)
+
     try:
         runs.cancel_run(run_id)
         return {"run_id": run_id, "action": "cancelled"}

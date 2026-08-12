@@ -50,7 +50,7 @@ Input a research direction or paper topic. Six specialized AI agents automatical
 | Output format | Free-form text | Markdown report with `[A1][P2][M3]` inline citations + References block + JSON scorecard |
 | Output management | Fixed filename (overwritten) | Unique run ID per execution, stored in `outputs/` |
 | Data quality | None | Structured evidence + citation integrity check + minimum summary length filter + auto-retry |
-| Score reproducibility | — | JSON-mode agents all at `temperature=0`; same topic produces stable results across runs |
+| Score reproducibility | — | JSON-mode agents all at `temperature=0`, so scoring is reproducible **for a given set of evidence**. Across runs the evidence itself moves — market sources come from live search — so repeat runs of a topic are close, not identical |
 | Score traceability | — | Each dimension records source IDs (`trl_source_ids`, `patent_source_ids`, etc.) |
 
 ---
@@ -548,15 +548,10 @@ academic_agent/
 │       ├── agents.yaml      # Agent role definitions + scoring rubrics (6 agents)
 │       └── tasks.yaml       # Task requirements & citation rules (6 tasks)
 ├── web/                     # Static client (HTML + CSS + ES modules)
-├── ui/                      # PDF export, report i18n, run-directory reader
-│   ├── ui.py                # Blocks definition and all callbacks
-│   ├── runner.py            # Analysis entry points (subprocess + streaming)
-│   ├── history.py           # Run history tab
-│   ├── i18n.py              # All UI / scorecard / warning strings (12 languages)
-│   ├── html_scorecard.py    # Score card rendering
-│   ├── html_sources.py      # Source list and detail panel
-│   ├── html_progress.py     # Progress steps and stage constants
-│   ├── html_misc.py         # Header, reviewer notes, paper divider
+├── ui/                      # What outlived the Gradio interface: the seven
+│   │                        # rendering modules went with it, these three are
+│   │                        # independent of any particular front end
+│   ├── i18n.py              # Report / scorecard / warning strings (12 languages)
 │   ├── pdf_export.py        # reportlab PDF export
 │   └── run_reader.py        # Run directory metadata readers
 ├── api/                     # FastAPI HTTP layer
@@ -670,7 +665,7 @@ Each dimension records its supporting source IDs, shown on the scorecard and tra
 | 输出格式 | 自由文本报告 | 带 [A1][P2][M3] 行内引用 + References 区块的 Markdown 报告 + JSON 评分卡 |
 | 输出管理 | 固定文件名（覆盖） | 每次运行生成唯一 ID，存入 outputs/ 目录 |
 | 数据质量保障 | 无 | 结构化证据 + 引用完整性校验 + 来源最低字数过滤 + 自动重试 |
-| 评分确定性 | — | JSON 模式 Agent 全部 temperature=0，同一话题多次运行结果稳定 |
+| 评分确定性 | — | JSON 模式 Agent 全部 temperature=0，因此**给定同一份证据**时评分可复现。但跨次运行证据本身会变（市场来源走实时检索），所以同一话题重复跑是接近而非完全一致 |
 | 评分可追溯性 | — | 每个评分维度标注来源 ID（trl_source_ids / patent_source_ids 等） |
 
 ---
@@ -1058,15 +1053,9 @@ academic_agent/
 │       ├── agents.yaml      # Agent 角色配置 + 评分 rubric（6 个）
 │       └── tasks.yaml       # Task 需求与引用规则（6 个）
 ├── web/                     # 静态客户端（HTML + CSS + ES 模块）
-├── ui/                      # PDF 导出、报告国际化、运行目录读取
-│   ├── ui.py                # Blocks 定义与全部回调
-│   ├── runner.py            # 分析入口（子进程 + 流式输出）
-│   ├── history.py           # 历史运行标签页
-│   ├── i18n.py              # 全部 UI / 评分卡 / 警告文案（12 种语言）
-│   ├── html_scorecard.py    # 评分卡渲染
-│   ├── html_sources.py      # 来源列表与详情面板
-│   ├── html_progress.py     # 进度步骤与阶段常量
-│   ├── html_misc.py         # 页头、审查记录、论文分隔线
+├── ui/                      # Gradio 界面移除后留下的三个模块：其余 7 个渲染
+│   │                        # 模块随之一并删除，这三个与具体前端无关
+│   ├── i18n.py              # 报告 / 评分卡 / 警告文案（12 种语言）
 │   ├── pdf_export.py        # reportlab PDF 导出
 │   └── run_reader.py        # 运行目录元数据读取
 ├── api/                     # FastAPI HTTP 层

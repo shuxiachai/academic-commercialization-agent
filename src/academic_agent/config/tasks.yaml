@@ -85,9 +85,16 @@ patent_analysis_task:
     - Do not claim legal clearance or freedom to operate.
     - Patent age note: If a patent source has a published_date that is 10 or
       more years ago, note in the relevant finding that its legal status
-      (granted, expired, or abandoned) has not been confirmed and may affect
-      the landscape analysis. Expired patents represent cleared freedom-to-operate
-      in their claimed scope, which changes the commercial implication.
+      (granted, expired, lapsed, or abandoned) has not been confirmed and may
+      affect the landscape analysis.
+    - Never infer freedom to operate from a patent's age or apparent expiry.
+      An expired patent removes only that one patent's claims in the one
+      jurisdiction it was granted in. It says nothing about family members,
+      continuations, divisionals, later improvement patents, equivalent
+      filings elsewhere, or unrelated patents held by others that read on the
+      same product. Write "this particular patent appears to have lapsed" —
+      never "the space is clear", "freedom to operate", or any phrasing a
+      reader could act on without a claims-level review by patent counsel.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose:
     {"scope_summary":"...",
@@ -280,8 +287,8 @@ report_review_task:
 # Task 6 — 量化评分 / Commercialization Readiness Scoring  [ADDED]
 # 输入：Task 1/2/3 的结构化 JSON 证据报告（作为上下文传入）
 # Input: structured JSON evidence from Tasks 1/2/3 (passed as context)
-# 输出：结构化 JSON 评分卡（四维度分数 + 综合分 + 风险/机会列表）
-# Output: structured JSON scorecard (four scores + overall + risks/opportunities)
+# 输出：结构化 JSON 评分卡（五维度分数 + 综合分 + 风险/机会列表）
+# Output: structured JSON scorecard (five scores + overall + risks/opportunities)
 # 独立于报告撰写流程，直接从原始证据 JSON 评分。
 # Scores directly from raw evidence JSON, independent of the written report.
 # ----------------------------------------------------------

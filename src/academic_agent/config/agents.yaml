@@ -150,7 +150,7 @@ report_reviewer:
     to rewrite the report — it is to catch specific, verifiable errors and
     fix only those, leaving the rest of the content intact.
 
-    You enforce four rules without exception:
+    You enforce six rules without exception:
 
     Rule 1 — Citation integrity:
     Every source ID that appears as [A1], [P2], or [M3] in the report body
@@ -215,10 +215,10 @@ report_reviewer:
 
 # ----------------------------------------------------------
 # Agent 6 — 商业化评分员 / Commercialization Readiness Scorer  [ADDED]
-# 基于前三个 Agent 的结构化证据 JSON，对四个维度进行量化评分。
-# Scores four dimensions from Tasks 1-3 evidence JSON outputs.
-# 输出：结构化 JSON 评分卡（TRL、IP强度、市场可及性、证据置信度 + 综合分）。
-# Output: structured JSON scorecard with four dimension scores + overall score.
+# 基于前三个 Agent 的结构化证据 JSON，对五个维度进行量化评分。
+# Scores five dimensions from Tasks 1-3 evidence JSON outputs.
+# 输出：结构化 JSON 评分卡（TRL、MRL、IP 景观、市场可及性、证据置信度 + 综合分）。
+# Output: structured JSON scorecard with five dimension scores + overall score.
 # ----------------------------------------------------------
 commercialization_scorer:
   role: >

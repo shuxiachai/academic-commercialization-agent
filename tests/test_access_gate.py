@@ -484,11 +484,106 @@ class BYOKSubmissionTests(_RunLifecycleTestBase):
             r = self.client.get(f"/api/runs/{run_id}")
         self.assertEqual(r.status_code, 200)
 
-    def test_cancelling_a_run_needs_no_code_either(self):
+    def test_cancelling_a_byok_run_needs_no_code_either(self):
+        """A BYOK run carries no owner tag and its submitter holds no code,
+        so the id stays its only credential."""
         with patch.object(access, "ACCESS_CODE", "secret123"):
             created = self.client.post("/api/runs", json=self._byok_body())
             run_id = created.json()["run_id"]
             r = self.client.delete(f"/api/runs/{run_id}")
+        self.assertEqual(r.status_code, 200)
+
+
+class DestructiveAuthorizationTests(_RunLifecycleTestBase):
+    """Reading a run by id is deliberately open — that is the report-sharing
+    model. Destroying one is not: DELETE now permanently removes a finished
+    run's report and every artifact with it, so a forwarded link must not
+    carry the power to do that.
+    """
+
+    def setUp(self):
+        super().setUp()
+        popen_patcher = patch("api.runs.subprocess.Popen", _FakeProc)
+        popen_patcher.start()
+        self.addCleanup(popen_patcher.stop)
+        self.client = TestClient(app)
+
+    def _make_run(self, code: str) -> str:
+        with patch.object(access, "ACCESS_CODE", code):
+            created = self.client.post(
+                "/api/runs",
+                json={"topic": "a valid research topic"},
+                headers={"X-Access-Code": code},
+            )
+        return created.json()["run_id"]
+
+    def test_a_leaked_run_id_alone_cannot_delete(self):
+        """The regression this class exists for: before object-level
+        authorization, knowing the id was enough to destroy the run."""
+        run_id = self._make_run("alice-code")
+        with patch.object(access, "ACCESS_CODE", "alice-code"):
+            r = self.client.delete(f"/api/runs/{run_id}")
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(runs.run_dir_for(run_id).is_dir(), "run was destroyed")
+
+    def test_another_code_cannot_delete_someone_elses_run(self):
+        run_id = self._make_run("alice-code")
+        with patch.object(access, "ACCESS_CODES", "alice-code,bob-code"), \
+             patch.object(access, "ACCESS_CODE", None):
+            r = self.client.delete(
+                f"/api/runs/{run_id}", headers={"X-Access-Code": "bob-code"}
+            )
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(runs.run_dir_for(run_id).is_dir(), "run was destroyed")
+
+    def test_unauthorized_delete_is_indistinguishable_from_a_missing_run(self):
+        """404 rather than 403 — a distinct 'forbidden' would confirm which
+        ids exist, which is the one thing a 40-bit id cannot afford to leak."""
+        run_id = self._make_run("alice-code")
+        absent = "20260101T000000Z-ffffffffff"
+        with patch.object(access, "ACCESS_CODE", "alice-code"):
+            denied = self.client.delete(f"/api/runs/{run_id}")
+            missing = self.client.delete(f"/api/runs/{absent}")
+        self.assertEqual(denied.status_code, missing.status_code)
+        # Same template, each naming only the id the caller already supplied —
+        # so the reply carries nothing that distinguishes "exists but is not
+        # yours" from "does not exist".
+        self.assertEqual(denied.json()["detail"], f"No run with id {run_id}")
+        self.assertEqual(missing.json()["detail"], f"No run with id {absent}")
+
+    def test_the_owning_code_can_still_delete(self):
+        run_id = self._make_run("alice-code")
+        with patch.object(access, "ACCESS_CODE", "alice-code"):
+            r = self.client.delete(
+                f"/api/runs/{run_id}", headers={"X-Access-Code": "alice-code"}
+            )
+        self.assertEqual(r.status_code, 200)
+
+    def test_admin_can_delete_any_code_s_run(self):
+        run_id = self._make_run("alice-code")
+        with patch.object(access, "ACCESS_CODE", "alice-code"), \
+             patch.object(access, "ADMIN_CODE", "admin-code"):
+            r = self.client.delete(
+                f"/api/runs/{run_id}", headers={"X-Access-Code": "admin-code"}
+            )
+        self.assertEqual(r.status_code, 200)
+
+    def test_reading_a_run_by_id_stays_open(self):
+        """The sharing model must survive the fix — locking reads down too
+        would break every already-shared report link."""
+        run_id = self._make_run("alice-code")
+        with patch.object(access, "ACCESS_CODE", "alice-code"):
+            r = self.client.get(f"/api/runs/{run_id}")
+        self.assertEqual(r.status_code, 200)
+
+    def test_no_gate_configured_leaves_delete_open(self):
+        """Local development has no code to authorize against; the check must
+        not turn into a lockout there."""
+        created = self.client.post(
+            "/api/runs", json={"topic": "a valid research topic"}
+        )
+        run_id = created.json()["run_id"]
+        r = self.client.delete(f"/api/runs/{run_id}")
         self.assertEqual(r.status_code, 200)
 
 

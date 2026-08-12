@@ -1392,34 +1392,57 @@ def normalize_final_report(
     return normalized, errors
 
 
-def _append_quality_control_warnings(
-    markdown: str,
-    warnings: Sequence[str],
-) -> str:
-    """Preserve a usable report while making non-blocking defects explicit."""
+# Validation failures that must block a report rather than be reported as a
+# warning: each one means a citation cannot be resolved, a required section is
+# gone, or the patent disclaimer is missing — defects that make the artifact
+# untrustworthy rather than merely imperfect.
+_CRITICAL_REPORT_ERROR_PREFIXES = (
+    "Missing required heading:",
+    "The report body contains no source citations.",
+    "Report body cites unknown source IDs:",
+    "Malformed citation block:",
+    "Cross-prefix citation range",
+    "Citation range is invalid",
+    "The report must state that patent analysis",
+)
 
-    unique_warnings = list(dict.fromkeys(warnings))
-    if not unique_warnings:
-        return markdown
 
-    displayed = unique_warnings[:12]
-    warning_lines = [f"- {warning}" for warning in displayed]
-    remaining = len(unique_warnings) - len(displayed)
-    if remaining:
-        warning_lines.append(
-            f"- {remaining} additional automated warnings were omitted for brevity."
-        )
-    warning_block = (
-        "### Automated Quality-Control Warnings\n\n"
-        "These statements remain in the report as analyst output but require "
-        "manual verification before commercial, investment, or legal use.\n\n"
-        + "\n".join(warning_lines)
-        + "\n\n"
+def _normalize_and_find_blocking_errors(
+    raw: str,
+    allowed_sources: dict[str, EvidenceSource],
+    finding_sources: dict[str, list[str]],
+    *,
+    required_headings: tuple[str, ...] | None,
+    output_language: str,
+) -> tuple[str, list[str]]:
+    """Repair a model-written report and return it with its blocking errors.
+
+    Shared by tasks 4 and 5 on purpose. Task 5 rewrites task 4's output and
+    it is task 5's text that save_report() persists, so validating only task
+    4 left the delivered artifact unchecked: a reviewer could introduce a
+    citation to a source that does not exist, or drop the patent disclaimer,
+    and nothing downstream would notice.
+    """
+    normalized, normalization_errors = normalize_final_report(
+        raw,
+        allowed_sources,
+        finding_sources,
+        required_headings=required_headings,
+        output_language=output_language,
     )
-    marker = "## References"
-    if marker not in markdown:
-        return markdown
-    return markdown.replace(marker, warning_block + marker, 1)
+    errors = validate_final_report(
+        normalized,
+        allowed_sources,
+        required_headings=required_headings,
+        output_language=output_language,
+    )
+    blocking = list(normalization_errors)
+    blocking.extend(
+        error for error in errors
+        if error.startswith(_CRITICAL_REPORT_ERROR_PREFIXES)
+    )
+    return normalized, list(dict.fromkeys(blocking))
+
 
 def make_final_report_guardrail(
     context_tasks: Sequence[Any],
@@ -1437,36 +1460,14 @@ def make_final_report_guardrail(
         if len(output.raw.strip()) < 500:
             return False, "Final report is too short to be usable."
 
-        normalized, normalization_errors = normalize_final_report(
+        normalized, critical_errors = _normalize_and_find_blocking_errors(
             output.raw,
             allowed_sources,
             finding_sources,
             required_headings=required_headings,
             output_language=output_language,
         )
-
         output.raw = normalized
-        errors = validate_final_report(
-            normalized, allowed_sources,
-            required_headings=required_headings,
-            output_language=output_language,
-        )
-        critical_prefixes = (
-            "Missing required heading:",
-            "The report body contains no source citations.",
-            "Report body cites unknown source IDs:",
-            "Malformed citation block:",
-            "Cross-prefix citation range",
-            "Citation range is invalid",
-            "The report must state that patent analysis",
-        )
-        critical_errors = list(normalization_errors)
-        critical_errors.extend(
-            error
-            for error in errors
-            if error.startswith(critical_prefixes)
-        )
-        critical_errors = list(dict.fromkeys(critical_errors))
         if critical_errors:
             return (
                 False,
@@ -1489,18 +1490,25 @@ _REVIEWER_REQUIRED_HEADINGS = (
 def make_reviewer_guardrail(
     report_task: Any,
     *,
+    context_tasks: Sequence[Any] = (),
     localized_headings: tuple[str, ...] | None = None,
     output_language: str = "English",
 ) -> Callable[[TaskOutput], tuple[bool, Any]]:
-    """Light guardrail for Task 5: prevent regression from Task 4's validated output.
+    """Guardrail for Task 5, whose output is the report that actually ships.
 
-    Checks three things only — structural completeness is already guaranteed by
-    Task 4's guardrail; this one just ensures the reviewer didn't accidentally
-    break what was already correct:
+    Three checks guard against regression from Task 4's validated draft:
 
     1. Length: reviewed report >= 500 chars AND >= 80 % of Task 4 length.
     2. Required headings (Executive Summary, References) still present.
     3. No inline citation IDs ([A*] [P*] [M*]) from Task 4 were removed.
+
+    Those cover what the reviewer might have *removed*. A fourth step re-runs
+    Task 4's own citation and disclaimer validation, because none of the three
+    say anything about what the reviewer might have *added* — and since
+    save_report() persists this task's text rather than Task 4's, validating
+    only the draft meant the delivered artifact was never checked at all.
+    `context_tasks` supplies the evidence tasks whose sources define which
+    citations are real; omit it and step 4 is skipped.
     """
 
     def validate_review(output: TaskOutput) -> tuple[bool, Any]:
@@ -1575,6 +1583,30 @@ def make_reviewer_guardrail(
                 False,
                 "Reviewer output has blocking issues:\n- " + "\n- ".join(errors),
             )
+
+        # 4. Everything task 4's guardrail enforced, re-applied to the text that
+        # actually ships. The three checks above only catch regressions against
+        # the draft — they say nothing about what the reviewer *added*, and this
+        # output is what save_report() persists. Without this, a reviewer could
+        # cite [A99] into existence or delete the patent disclaimer and the
+        # delivered report would carry it unchallenged.
+        if context_tasks:
+            allowed_sources = collect_context_sources(context_tasks)
+            if allowed_sources:
+                normalized, blocking = _normalize_and_find_blocking_errors(
+                    output.raw,
+                    allowed_sources,
+                    collect_context_finding_sources(context_tasks),
+                    required_headings=localized_headings,
+                    output_language=output_language,
+                )
+                if blocking:
+                    return (
+                        False,
+                        "Reviewer output has blocking validation errors:\n- "
+                        + "\n- ".join(blocking),
+                    )
+                output.raw = normalized
 
         # Re-insert patent disclaimer if the reviewer removed or re-translated it.
         _disclaimer, _check_phrases = _patent_disclaimer(output_language)

@@ -7,14 +7,25 @@ citation markers while rewording a sentence.
 
 This guardrail treats the Task 4 output as a baseline and refuses any review
 that lost ground against it. Nothing else in the pipeline re-checks Task 5, so
-a failure here reaches the user directly.
+a failure here reaches the user directly — pipeline_worker persists this task's
+text, not Task 4's.
+
+That last point is why the guardrail also re-runs Task 4's citation and
+disclaimer validation when the evidence tasks are supplied: the baseline checks
+only cover what the reviewer removed, and say nothing about what it added.
 """
 
 from __future__ import annotations
 
 import unittest
+from datetime import date
 
-from academic_agent.evidence import make_reviewer_guardrail
+from academic_agent.evidence import (
+    EvidenceFinding,
+    EvidenceReport,
+    EvidenceSource,
+    make_reviewer_guardrail,
+)
 
 
 class _Output:
@@ -55,6 +66,132 @@ def _run(reviewed: str, draft: str = _DRAFT, **kw):
     guardrail = make_reviewer_guardrail(_Task(draft), **kw)
     ok, result = guardrail(_Output(reviewed))
     return ok, (result.raw if ok else result)
+
+
+class _EvidenceTask:
+    """A completed evidence task (1/2/3), whose sources define which citation
+    IDs are real. collect_context_sources reads output.pydantic."""
+
+    def __init__(self, report: EvidenceReport):
+        self.output = _Output(report.model_dump_json())
+        self.output.pydantic = report
+
+
+def _evidence_report(prefix: str) -> EvidenceReport:
+    source = EvidenceSource(
+        source_id=f"{prefix}1",
+        title=f"Source {prefix}1 with a sufficiently long title",
+        url=f"https://records.test-domain.org/{prefix.lower()}1",
+        publisher="Publisher",
+        accessed_date=date.today(),
+        source_type="academic_paper",
+        evidence_summary=(
+            "This source directly supports the corresponding finding with "
+            "relevant experimental data and reported measurements."
+        ),
+    )
+    finding = EvidenceFinding(
+        finding_id=f"{prefix}F1",
+        category="technology maturity",
+        claim="A sufficiently detailed and externally supportable research conclusion.",
+        claim_type="observed_fact",
+        source_ids=[f"{prefix}1"],
+        confidence="high",
+        commercial_implication="This affects the commercialization pathway.",
+    )
+    return EvidenceReport(
+        topic="Solid electrolyte",
+        scope_summary="A bounded review of technical maturity and published evidence.",
+        search_queries=["solid electrolyte commercial maturity"],
+        findings=[finding],
+        sources=[source],
+        limitations=["Publicly available evidence may omit private deployments."],
+    )
+
+
+_EVIDENCE_TASKS = [_EvidenceTask(_evidence_report(p)) for p in ("A", "P", "M")]
+
+
+def _complete_report(citations: str = "[A1][P1][M1]") -> str:
+    """A report carrying every section _REQUIRED_REPORT_HEADINGS demands.
+
+    The smaller _report() fixture above predates step 4 and omits most
+    sections — fine for the baseline checks, which only look at a few
+    headings, but step 4 runs the same full validation Task 4 does, and a
+    real reviewer input has always been a complete Task 4 report.
+    """
+    body = "Evidence indicates commercial deployment is underway. " * 3
+    return (
+        "# Academic Commercialization Assessment: Solid Electrolyte\n\n"
+        "## Executive Summary\n\n"
+        f"{body} Findings are supported by {citations}.\n\n"
+        "## 1. Technology Overview & Maturity\n\n"
+        f"{body} [A1]\n\n"
+        "## 2. Patent Landscape & White Spaces\n\n"
+        f"{body} [P1]\n\n"
+        "Patent analysis here is a landscape review and not a legal "
+        "freedom-to-operate opinion; claims-level review by qualified patent "
+        "counsel is required.\n\n"
+        "## 3. Target Industries & Use Cases\n\n"
+        f"{body} [M1]\n\n"
+        "## 4. Competitive Landscape\n\n"
+        f"{body} [M1]\n\n"
+        "## 5. Commercialization Opportunities & Recommendations\n\n"
+        f"{body} [A1]\n\n"
+        "## Evidence Limitations\n\n"
+        "Single-source market estimates.\n\n"
+        "## References\n\n"
+        "- [A1] Source A1 https://records.test-domain.org/a1\n"
+        "- [P1] Source P1 https://records.test-domain.org/p1\n"
+        "- [M1] Source M1 https://records.test-domain.org/m1\n"
+    )
+
+
+class ReviewerAddedContentTests(unittest.TestCase):
+    """The baseline checks catch what the reviewer removed. These cover what
+    it added — which matters more, because Task 5's text is what ships."""
+
+    def test_citation_to_a_source_that_does_not_exist_is_rejected(self):
+        """The reviewer inventing [A99] must not reach the delivered report."""
+        draft = _complete_report()
+        reviewed = _complete_report(citations="[A1][P1][M1][A99]")
+        ok, message = _run(reviewed, draft=draft, context_tasks=_EVIDENCE_TASKS)
+        self.assertFalse(ok)
+        self.assertIn("A99", message)
+
+    def test_dropping_the_patent_disclaimer_is_repaired(self):
+        """A reviewer that deletes it gets it put back rather than failing the
+        run — normalize_final_report restores the disclaimer deterministically.
+
+        Reaching that repair at all is the point: before the reviewer output
+        was normalized, a review that dropped the disclaimer shipped without
+        it, leaving a landscape review that reads as legal clearance.
+        """
+        draft = _complete_report()
+        reviewed = draft.replace(
+            "Patent analysis here is a landscape review and not a legal "
+            "freedom-to-operate opinion; claims-level review by qualified patent "
+            "counsel is required.\n\n",
+            "",
+        )
+        self.assertNotIn("freedom-to-operate", reviewed)
+
+        ok, result = _run(reviewed, draft=draft, context_tasks=_EVIDENCE_TASKS)
+        self.assertTrue(ok)
+        self.assertIn("freedom-to-operate", result)
+
+    def test_an_untouched_review_still_passes(self):
+        """The added validation must not reject a genuinely correct review —
+        a false positive here fails the whole run at its most expensive point."""
+        draft = _complete_report()
+        ok, _result = _run(draft, draft=draft, context_tasks=_EVIDENCE_TASKS)
+        self.assertTrue(ok)
+
+    def test_validation_is_skipped_when_no_evidence_tasks_are_supplied(self):
+        """Backwards compatible: without the source registry there is nothing
+        to validate citations against, so only the baseline checks apply."""
+        ok, _result = _run(_report(6, citations="[A1][P1][M1][A99]"))
+        self.assertTrue(ok)
 
 
 # ---------------------------------------------------------------------------

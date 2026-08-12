@@ -42,7 +42,16 @@ function escapeHtml(text) {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    // Quotes matter as much as angle brackets here: inline() goes on to build
+    // <a href="..."> by substitution, so a link target carrying a quote could
+    // otherwise close the attribute and open an event handler beside it
+    // ([x](https://e.test/" onmouseover="…)). Escaping happens before that
+    // substitution runs, so the URL is already inert by the time it is placed
+    // in the attribute. Report text is model output plus third-party result
+    // titles and URLs — none of it is ours to trust.
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function inline(text) {

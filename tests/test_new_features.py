@@ -1265,59 +1265,6 @@ class FilterByRelevanceSkipDomainTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# L-4: _append_quality_control_warnings unit tests
-# ---------------------------------------------------------------------------
-
-class AppendQualityControlWarningsTests(TestCase):
-    """Unit tests for _append_quality_control_warnings()."""
-
-    def _make_report(self) -> str:
-        return (
-            "## Executive Summary\n\nSome content.\n\n"
-            "## References\n\n[A1] Example source.\n"
-        )
-
-    def test_warnings_inserted_before_references(self) -> None:
-        from academic_agent.evidence import _append_quality_control_warnings
-
-        result = _append_quality_control_warnings(
-            self._make_report(), ["Unverified numeric claim: 95% efficiency"]
-        )
-        ref_pos = result.index("## References")
-        warn_pos = result.index("### Automated Quality-Control Warnings")
-        self.assertLess(warn_pos, ref_pos)
-
-    def test_empty_warnings_returns_markdown_unchanged(self) -> None:
-        from academic_agent.evidence import _append_quality_control_warnings
-
-        md = self._make_report()
-        result = _append_quality_control_warnings(md, [])
-        self.assertEqual(result, md)
-
-    def test_no_references_marker_returns_unchanged(self) -> None:
-        from academic_agent.evidence import _append_quality_control_warnings
-
-        md = "## Executive Summary\n\nSome content without a references section.\n"
-        result = _append_quality_control_warnings(md, ["some warning"])
-        self.assertEqual(result, md)
-
-    def test_duplicate_warnings_deduplicated(self) -> None:
-        from academic_agent.evidence import _append_quality_control_warnings
-
-        warnings = ["Same warning"] * 5
-        result = _append_quality_control_warnings(self._make_report(), warnings)
-        self.assertEqual(result.count("Same warning"), 1)
-
-    def test_excess_warnings_capped_at_twelve(self) -> None:
-        from academic_agent.evidence import _append_quality_control_warnings
-
-        warnings = [f"Warning {i}" for i in range(20)]
-        result = _append_quality_control_warnings(self._make_report(), warnings)
-        self.assertIn("additional automated warnings", result)
-        self.assertNotIn("Warning 12", result)
-
-
-# ---------------------------------------------------------------------------
 # L-4: pdf_extractor._call_llm_json JSON parse failure tests
 # ---------------------------------------------------------------------------
 

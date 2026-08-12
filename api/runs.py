@@ -557,6 +557,20 @@ def _read_owner(run_dir: Path) -> str | None:
         return None
 
 
+def owner_of(run_id: str) -> str | None:
+    """The access.owner_id() that created this run, or None if it has no owner.
+
+    None covers three distinct cases the caller must not conflate: a BYOK run
+    (deliberately untagged), a run created on a deployment with no access code
+    configured, and a run directory that does not exist. Callers deciding
+    authorization should check existence separately rather than reading None
+    as "unowned, therefore fair game".
+    """
+    if not _is_valid_run_id(run_id):
+        return None
+    return _read_owner(run_dir_for(run_id))
+
+
 def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], int]:
     """Return (summaries, total) for finished and running runs, newest first.
 

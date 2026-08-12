@@ -144,7 +144,7 @@ class AcademicAgent:
     def commercialization_scorer(self) -> Agent:
         """Agent 6 — 商业化评分员 / Commercialization Readiness Scorer  [ADDED]
         基于 Task 1/2/3 的结构化证据 JSON 输出量化评分卡。
-        Scores four dimensions from Tasks 1-3 evidence JSON; outputs JSON scorecard.
+        Scores five dimensions from Tasks 1-3 evidence JSON; outputs JSON scorecard.
         使用 JSON 模式确保评分输出格式正确。
         JSON mode enabled to ensure structured scorecard output.
         """
@@ -270,6 +270,14 @@ class AcademicAgent:
             ],
             guardrail=make_reviewer_guardrail(
                 report_task,
+                # The same evidence tasks passed as context above: the reviewer's
+                # output is what gets persisted, so it is re-checked against the
+                # real source registry rather than trusted because the draft passed.
+                context_tasks=[
+                    self.academic_research_task(),
+                    self.patent_analysis_task(),
+                    self.market_intelligence_task(),
+                ],
                 localized_headings=(
                     tuple(self.source_collection.localized_headings)
                     if self.source_collection.localized_headings

@@ -47,11 +47,44 @@ _PAYLOADS = [
     "[click](JaVaScRiPt:alert(1))",
     "<a href='x' onmouseover='alert(1)'>y</a>",
     "A1 &lt;already escaped&gt; text",
+    # Attribute injection: the link target closes href and opens an event
+    # handler beside it. Distinct from every payload above because it produces
+    # no new tag and no javascript: scheme, so neither of the original two
+    # checks noticed it — inline() builds <a href="..."> by substitution, and
+    # escapeHtml did not escape quotes.
+    '[click](https://e.test/" onmouseover="alert(1))',
+    "[click](https://e.test/' onmouseover='alert(1))",
+    '![x](https://e.test/i.png" onerror="alert(1))',
 ]
+
+# Attributes the renderer legitimately emits.
+_ALLOWED_ATTRS = {"href", "target", "rel", "class", "colspan", "scope"}
 
 
 def _node() -> str | None:
     return shutil.which("node")
+
+
+def _parse_attributes(html: str) -> list[tuple[str, str, str]]:
+    """Every (tag, attribute, value) a real parser resolves out of `html`.
+
+    Uses an HTML parser rather than a regex so the assertions see what a
+    browser would: entity-encoded quotes stay inside an attribute's value
+    instead of being read as the delimiter that ends it.
+    """
+    from html.parser import HTMLParser
+
+    found: list[tuple[str, str, str]] = []
+
+    class _Collector(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            for name, value in attrs:
+                found.append((tag, name, value or ""))
+
+    parser = _Collector()
+    parser.feed(html)
+    parser.close()
+    return found
 
 
 @unittest.skipUnless(_node(), "node not installed")
@@ -105,6 +138,29 @@ class MarkdownEscapingTests(unittest.TestCase):
         for payload, html in zip(_PAYLOADS, self._render(_PAYLOADS), strict=True):
             with self.subTest(payload=payload[:40]):
                 self.assertNotRegex(html, r'href\s*=\s*["\']?\s*javascript:')
+
+    def test_no_payload_produces_an_unexpected_attribute(self):
+        """Parsed rather than pattern-matched, because the bug this covers is
+        invisible to both checks above: an injected event handler adds no new
+        tag and uses no javascript: scheme. Only looking at the attributes a
+        parser actually resolves — the way a browser would — shows it.
+        """
+        for payload, html in zip(_PAYLOADS, self._render(_PAYLOADS), strict=True):
+            with self.subTest(payload=payload[:40]):
+                for tag, attr, _value in _parse_attributes(html):
+                    self.assertIn(
+                        attr, _ALLOWED_ATTRS,
+                        f"{payload!r} produced <{tag} {attr}=...>: {html[:200]}",
+                    )
+
+    def test_link_targets_stay_http(self):
+        """A resolved href must still be a web URL after escaping — proving
+        the fix did not merely mangle links into something inert."""
+        for payload, html in zip(_PAYLOADS, self._render(_PAYLOADS), strict=True):
+            with self.subTest(payload=payload[:40]):
+                for _tag, attr, value in _parse_attributes(html):
+                    if attr == "href":
+                        self.assertRegex(value, r"^https?://")
 
     def test_angle_brackets_are_entity_encoded(self):
         [html] = self._render(["<script>alert(1)</script>"])
