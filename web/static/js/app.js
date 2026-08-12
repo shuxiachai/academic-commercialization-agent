@@ -15,6 +15,15 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 let follower = null;
 let activeRunId = null;
 
+/* Capacity polling state. Declared here with the other module state rather
+ * than beside the scheduler at the bottom: showRun/showCompose re-time the
+ * poll and are defined far above it, so leaving these in the boot section
+ * made correctness depend on nothing calling those before the module body
+ * finished — true today, and not a property worth relying on. */
+const CAPACITY_INTERVAL_ACTIVE = 1000;
+const CAPACITY_INTERVAL_IDLE = 10000;
+let capacityTimer = null;
+
 /* ── Toasts ────────────────────────────────────────────────────────── */
 
 function toast(message, variant = "") {
@@ -40,6 +49,10 @@ function showCompose() {
   $("#pane-run").hidden = true;
   history.pushState({}, "", "/");
   refreshSidebar();
+  // Re-time capacity polling: the pending timer was scheduled for whichever
+  // state we just left, so without this a run starting waits out the idle
+  // delay before the display starts tracking it.
+  scheduleCapacity();
   $("#topic").focus();
 }
 
@@ -48,6 +61,7 @@ function showRun(runId) {
   $("#pane-compose").hidden = true;
   $("#pane-run").hidden = false;
   refreshSidebar();
+  scheduleCapacity();
 }
 
 /* ── Run pane ──────────────────────────────────────────────────────── */
@@ -662,9 +676,41 @@ i18n.apply();
 topic.placeholder = t("topic_placeholder");
 syncComposer();
 
+/* Capacity polling.
+ *
+ * A fixed 1s interval ran for as long as the tab existed, whether or not it
+ * was visible and whether or not anything was running: a tab left open
+ * overnight sent ~86k requests to say the deployment was idle, on a platform
+ * that meters them.
+ *
+ * Two changes. It backs off to 10s when no run is active — capacity only
+ * changes when someone starts or finishes a run, and this client knows when
+ * it started one. And it stops entirely while the tab is hidden, resuming
+ * with an immediate refresh so a returning user never reads a stale number.
+ */
+function scheduleCapacity() {
+  if (capacityTimer) clearTimeout(capacityTimer);
+  if (document.hidden) return;
+  const delay = activeRunId ? CAPACITY_INTERVAL_ACTIVE : CAPACITY_INTERVAL_IDLE;
+  capacityTimer = setTimeout(async () => {
+    await refreshCapacity();
+    scheduleCapacity();
+  }, delay);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    if (capacityTimer) clearTimeout(capacityTimer);
+    capacityTimer = null;
+  } else {
+    refreshCapacity();
+    scheduleCapacity();
+  }
+});
+
 ensureAccess().then(() => {
   routeFromLocation();
   refreshSidebar();
   refreshCapacity();
-  setInterval(refreshCapacity, 1000);
+  scheduleCapacity();
 });
