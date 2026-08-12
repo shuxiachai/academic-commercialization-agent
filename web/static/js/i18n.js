@@ -38,6 +38,9 @@ const STRINGS = {
 
     // Run pane
     cancel: "Cancel",
+    delete_run: "Delete",
+    confirm_delete_run: "Delete this run permanently? The report and every other artifact will be gone for good.",
+    msg_deleted: "Run deleted.",
     download_report: "Report",
     sources_suffix: "sources",
     academic: "academic",
@@ -124,6 +127,9 @@ const STRINGS = {
     stage_scoring: "评估商业化就绪度",
 
     cancel: "取消",
+    delete_run: "删除",
+    confirm_delete_run: "确定要永久删除这条记录吗？报告和其他所有产出文件都会一并清除，无法恢复。",
+    msg_deleted: "记录已删除。",
     download_report: "报告",
     sources_suffix: "条来源",
     academic: "学术",

@@ -319,18 +319,23 @@ class ArtifactTests(_ApiTestCase):
 # DELETE /api/runs/{run_id}
 # ---------------------------------------------------------------------------
 
-class CancelRunTests(_ApiTestCase):
+class DeleteRunTests(_ApiTestCase):
+    """DELETE does one of two things depending on whether the run is live:
+    stop it (kept, marked cancelled) or, for anything already finished,
+    remove its directory and every artifact in it for good.
+    """
 
     @patch("api.runs.subprocess.Popen")
-    def test_cancel_live_run_marks_cancelled(self, mock_popen):
+    def test_delete_live_run_cancels_but_keeps_it(self, mock_popen):
         proc = self._live_proc()
         mock_popen.return_value = proc
         rid = self.client.post("/api/runs", json={"topic": "cancel me"}).json()["run_id"]
 
         r = self.client.delete(f"/api/runs/{rid}")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()["state"], "cancelled")
+        self.assertEqual(r.json()["action"], "cancelled")
         proc.terminate.assert_called_once()
+        self.assertEqual(self.client.get(f"/api/runs/{rid}").json()["state"], "cancelled")
 
     @patch("api.runs.subprocess.Popen")
     def test_cancel_frees_concurrency_slot(self, mock_popen):
@@ -343,9 +348,28 @@ class CancelRunTests(_ApiTestCase):
         self.client.delete(f"/api/runs/{ids[0]}")
         self.assertEqual(self.client.post("/api/runs", json={"topic": "now ok"}).status_code, 202)
 
-    def test_cancel_finished_run_returns_404(self):
+    def test_delete_finished_run_removes_it_for_good(self):
+        rid = self._make_run(status={"done": True}, report="# Report")
+
+        r = self.client.delete(f"/api/runs/{rid}")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["action"], "deleted")
+        self.assertFalse((self.tmp / rid).exists())
+        self.assertEqual(self.client.get(f"/api/runs/{rid}").status_code, 404)
+
+    def test_deleted_run_disappears_from_the_list(self):
         rid = self._make_run(status={"done": True})
+        self.client.delete(f"/api/runs/{rid}")
+        body = self.client.get("/api/runs").json()
+        self.assertNotIn(rid, [r["run_id"] for r in body["runs"]])
+
+    def test_delete_already_deleted_run_returns_404(self):
+        rid = self._make_run(status={"done": True})
+        self.client.delete(f"/api/runs/{rid}")
         self.assertEqual(self.client.delete(f"/api/runs/{rid}").status_code, 404)
+
+    def test_delete_unknown_run_returns_404(self):
+        self.assertEqual(self.client.delete(f"/api/runs/{_run_id('ffffffffff')}").status_code, 404)
 
 
 # ---------------------------------------------------------------------------

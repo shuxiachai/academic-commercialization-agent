@@ -142,6 +142,16 @@ function paintActions(state) {
       actions.append(link);
     }
   }
+
+  // Every terminal state — completed, failed, cancelled, timeout — can be
+  // permanently removed; only a still-running one (handled above, which
+  // already returned) cannot.
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "btn btn--danger";
+  del.textContent = t("delete_run");
+  del.addEventListener("click", () => handleDeleteRun(activeRunId, $("#run-title").textContent));
+  actions.append(del);
 }
 
 async function openRun(runId, { known } = {}) {
@@ -196,6 +206,26 @@ function _startedAtFromRunId(runId) {
   return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : "";
 }
 
+async function handleDeleteRun(runId, topic) {
+  if (!confirm(`${t("confirm_delete_run")}\n\n"${topic}"`)) return;
+  try {
+    await api.deleteRun(runId);
+  } catch (err) {
+    toast(err.message, "error");
+    return;
+  }
+  // BYOK history is a client-only list (see api.getByokRuns) — the server
+  // has no owner tag to have deleted anything from in the first place, so
+  // this is the only place that ever learns the run is gone.
+  if (byokMode) api.removeByokRun(runId);
+  toast(t("msg_deleted"));
+  // The follower already stopped polling once this run reached a terminal
+  // state (see run.js follow()), so nothing else will notice it vanished —
+  // navigate away explicitly rather than leaving a dead run open.
+  if (runId === activeRunId) showCompose();
+  else refreshSidebar();
+}
+
 async function refreshSidebar() {
   // GET /api/runs (the list) always stays behind the access code, scoped
   // server-side to that code's own runs (api/access.py owner_id). A BYOK
@@ -226,12 +256,17 @@ async function refreshSidebar() {
         return { run_id, topic, state: "failed", started_at: _startedAtFromRunId(run_id) };
       }
     }));
-    sidebar.render(list, runs, { activeId: activeRunId, onSelect: (id) => openRun(id) });
+    sidebar.render(list, runs, {
+      activeId: activeRunId,
+      onSelect: (id) => openRun(id),
+      onDelete: handleDeleteRun,
+    });
     return runs;
   }
   return sidebar.refresh($("#runlist"), {
     activeId: activeRunId,
     onSelect: (runId) => openRun(runId),
+    onDelete: handleDeleteRun,
   });
 }
 

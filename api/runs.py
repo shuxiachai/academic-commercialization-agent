@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -150,6 +151,10 @@ class DailyCapReached(Exception):
 
 class RunNotFound(Exception):
     """Raised for an unknown run_id."""
+
+
+class RunStillActive(Exception):
+    """Raised when delete_run is asked to remove a run that has not stopped."""
 
 
 _registry: dict[str, _Handle] = {}
@@ -309,9 +314,41 @@ def cancel_run(run_id: str) -> None:
             raise RunNotFound(f"No live run with id {run_id}")
         _registry.pop(run_id, None)
     handle.terminate()
-    (run_dir_for(run_id) / _CANCEL_MARKER).write_text(
-        datetime.now(UTC).isoformat(), encoding="utf-8"
-    )
+    try:
+        (run_dir_for(run_id) / _CANCEL_MARKER).write_text(
+            datetime.now(UTC).isoformat(), encoding="utf-8"
+        )
+    except OSError:
+        # The directory can vanish here if a concurrent delete_run() call for
+        # the same id already popped this handle's twin registration and won
+        # the race to remove it — see delete_run's docstring. Nothing left to
+        # mark at that point is a fine outcome, not a failure to report.
+        pass
+
+
+def delete_run(run_id: str) -> None:
+    """Permanently remove a finished run's directory and every artifact in it.
+
+    Refuses a run that is still active — cancel_run() first — so a delete
+    can never pull the filesystem out from under a subprocess still writing
+    to it. The registry check and the active-run rejection happen under the
+    lock together so a run that starts finishing mid-call cannot slip
+    through between the two.
+    """
+    if not _is_valid_run_id(run_id):
+        raise RunNotFound(f"Invalid run id: {run_id!r}")
+
+    run_dir = run_dir_for(run_id)
+    if not run_dir.is_dir():
+        raise RunNotFound(f"No run with id {run_id}")
+
+    with _registry_lock:
+        handle = _registry.get(run_id)
+        if handle is not None and handle.alive():
+            raise RunStillActive(f"Run {run_id} is still active — cancel it first")
+        _registry.pop(run_id, None)
+
+    shutil.rmtree(run_dir)
 
 
 def reap_timeouts() -> list[str]:

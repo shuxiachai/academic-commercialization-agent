@@ -209,6 +209,31 @@
   text-overflow: ellipsis;
 }
 
+/* Buttons cannot nest inside a <button>, so the select button and the
+   delete icon sit side by side in this row instead of one inside the
+   other (see sidebar.js render()). */
+.runitem-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.runitem-row .runitem { flex: 1; min-width: 0; }
+
+/* Hidden until the row is hovered/focused — a permanent trash icon on
+   every item read as visual noise next to how rarely it's used. */
+.runitem__delete {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease),
+              background var(--duration-fast) var(--ease),
+              color var(--duration-fast) var(--ease);
+}
+.runitem-row:hover .runitem__delete,
+.runitem__delete:focus-visible {
+  opacity: 1;
+}
+.runitem__delete:hover { background: var(--bg-hover); color: var(--danger); }
+
 .runlist__empty {
   padding: var(--space-8) var(--space-4);
   text-align: center;

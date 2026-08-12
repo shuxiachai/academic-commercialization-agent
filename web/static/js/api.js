@@ -73,6 +73,14 @@ export function addByokRun(runId, topic) {
   sessionStorage.setItem(BYOK_RUNS_KEY, JSON.stringify(runs));
 }
 
+// Called after a successful deleteRun() so a removed BYOK run does not
+// reappear in the sidebar on the next refresh — the server-side directory
+// is gone, but this session list is a separate, client-only record of it.
+export function removeByokRun(runId) {
+  const runs = getByokRuns().filter((r) => r.run_id !== runId);
+  sessionStorage.setItem(BYOK_RUNS_KEY, JSON.stringify(runs));
+}
+
 async function request(path, options = {}) {
   const stored = getAccessCode();
   const headers = {
@@ -149,6 +157,13 @@ export const getProgress = (runId, since = 0) =>
   request(`/api/runs/${runId}/progress?since=${since}`);
 
 export const cancelRun = (runId) =>
+  request(`/api/runs/${runId}`, { method: "DELETE" });
+
+// Same endpoint as cancelRun — the server stops a live run or deletes a
+// finished one depending on its state (see api/main.py delete_run). Two
+// names for the one call because the two call sites mean different things:
+// this one is only ever reached for a run already known to be terminal.
+export const deleteRun = (runId) =>
   request(`/api/runs/${runId}`, { method: "DELETE" });
 
 export const getReport = (runId) => request(`/api/runs/${runId}/report`);

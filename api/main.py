@@ -292,20 +292,36 @@ def get_run(run_id: str) -> RunStatus:
 
 @app.delete(
     "/api/runs/{run_id}",
-    response_model=RunStatus,
     tags=["runs"],
-    responses={404: {"description": "No live run with that id"}},
+    responses={
+        404: {"description": "Unknown run_id"},
+        409: {"description": "Run is mid-cancellation from a concurrent request — retry"},
+    },
 )
-def cancel_run(run_id: str) -> RunStatus:
-    """Terminate a running assessment. Partial artifacts are kept."""
+def delete_run(run_id: str) -> dict:
+    """Stop a live run, or permanently delete a finished one's record.
+
+    A live run is only terminated (kept, marked cancelled) so its partial
+    progress stays inspectable — call this again once it has stopped to
+    actually remove it. A run that is already completed, failed, cancelled,
+    or timed out is deleted immediately: its directory, report, and every
+    other artifact are gone for good, not just hidden from the list.
+    """
     try:
         runs.cancel_run(run_id)
-        return RunStatus(**runs.get_state(run_id))
+        return {"run_id": run_id, "action": "cancelled"}
+    except runs.RunNotFound:
+        pass  # not live — fall through to an actual delete
+
+    try:
+        runs.delete_run(run_id)
     except runs.RunNotFound as exc:
-        raise HTTPException(
-            status_code=404,
-            detail=f"{exc}. Already-finished runs cannot be cancelled.",
-        ) from exc
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except runs.RunStillActive as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Could not delete run: {exc}") from exc
+    return {"run_id": run_id, "action": "deleted"}
 
 
 @app.get(

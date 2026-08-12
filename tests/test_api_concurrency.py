@@ -170,6 +170,24 @@ class ConcurrencyCapTests(_ConcurrencyTestBase):
 
         self.assertEqual(outcomes.count("cancelled"), 1, outcomes)
 
+    def test_delete_run_refuses_a_live_run(self):
+        with patch("api.runs.subprocess.Popen", _FakeProc):
+            run_id, run_dir = runs.start_run("topic")
+            with self.assertRaises(runs.RunStillActive):
+                runs.delete_run(run_id)
+            self.assertTrue(run_dir.exists())  # refused, not partially removed
+
+    def test_delete_run_removes_a_finished_runs_directory(self):
+        with patch("api.runs.subprocess.Popen", _FakeProc):
+            run_id, run_dir = runs.start_run("topic")
+            runs.cancel_run(run_id)  # stops it — no longer tracked as alive
+        runs.delete_run(run_id)
+        self.assertFalse(run_dir.exists())
+
+    def test_delete_run_rejects_an_unknown_id(self):
+        with self.assertRaises(runs.RunNotFound):
+            runs.delete_run("20260101T000000Z-nonexistent0")
+
 
 class ArtifactPathTests(_ConcurrencyTestBase):
     """artifact_path must validate run_id itself, not rely on call order."""

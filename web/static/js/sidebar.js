@@ -23,7 +23,21 @@ function groupOf(startedAt) {
 
 const GROUP_ORDER = ["Today", "Yesterday", "Earlier"];
 
-export function render(container, runs, { activeId, onSelect }) {
+// A run still in progress has no delete affordance in the list — DELETE on
+// a live run stops it rather than removing it (see api/main.py delete_run),
+// and surfacing that as a trash icon here would read as "delete" while
+// actually just cancelling, leaving the item sitting right where it was.
+// Stopping a run has its own explicit Cancel button in the run pane; once a
+// run reaches one of these states, deleting it here means what it says.
+const DELETABLE_STATES = new Set(["completed", "failed", "cancelled", "timeout"]);
+
+const TRASH_ICON = `
+  <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.6 8.4a1 1 0 001 .9h3.8a1 1 0 001-.9l.6-8.4"
+          stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+
+export function render(container, runs, { activeId, onSelect, onDelete }) {
   container.innerHTML = "";
 
   if (!runs.length) {
@@ -47,6 +61,9 @@ export function render(container, runs, { activeId, onSelect }) {
     container.append(heading);
 
     for (const run of entries) {
+      const row = document.createElement("div");
+      row.className = "runitem-row";
+
       const item = document.createElement("button");
       item.type = "button";
       item.className = "runitem";
@@ -77,15 +94,33 @@ export function render(container, runs, { activeId, onSelect }) {
         item.append(owner);
       }
       item.addEventListener("click", () => onSelect(run.run_id));
-      container.append(item);
+      row.append(item);
+
+      // Buttons cannot nest inside a <button>, hence the wrapping row rather
+      // than appending this into `item` itself.
+      if (onDelete && DELETABLE_STATES.has(run.state)) {
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "runitem__delete icon-btn";
+        del.setAttribute("aria-label", t("delete_run"));
+        del.title = t("delete_run");
+        del.innerHTML = TRASH_ICON;
+        del.addEventListener("click", (e) => {
+          e.stopPropagation();
+          onDelete(run.run_id, run.topic || run.run_id);
+        });
+        row.append(del);
+      }
+
+      container.append(row);
     }
   }
 }
 
-export async function refresh(container, { activeId, onSelect }) {
+export async function refresh(container, { activeId, onSelect, onDelete }) {
   try {
     const { runs } = await api.listRuns(50);
-    render(container, runs, { activeId, onSelect });
+    render(container, runs, { activeId, onSelect, onDelete });
     return runs;
   } catch {
     // A failed refresh leaves the previous list in place: an empty rail would
