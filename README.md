@@ -7,6 +7,8 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![CrewAI](https://img.shields.io/badge/CrewAI-1.14.x-orange.svg)](https://github.com/crewAIInc/crewAI)
 
+[![Live demo](https://img.shields.io/badge/live%20demo-try%20it-brightgreen.svg)](https://academic-commercialization-agent.up.railway.app)
+
 [English](#english) | [中文](#chinese)
 
 ---
@@ -18,6 +20,26 @@
 A multi-agent system built on [CrewAI](https://github.com/crewAIInc/crewAI) that evaluates the commercialization readiness of academic research.
 
 Input a research direction or paper topic. Six specialized AI agents automatically gather evidence from academic literature, patent databases, and market intelligence sources, then produce a structured commercialization assessment report with verifiable citations and a quantitative scorecard.
+
+---
+
+### Try it online
+
+**https://academic-commercialization-agent.up.railway.app**
+
+Running on Railway — nothing to install. The gate offers two ways in:
+
+- **Bring your own API keys** — no access code needed. Pick your LLM provider,
+  paste an LLM key and a search key, and the run is billed to you. The keys go
+  only into that one run's subprocess environment: never written to disk, never
+  merged into the server's own environment, never visible to another run
+  happening at the same time, and gone when you close the tab.
+- **Access code** — runs on the deployment's own keys. Codes are handed out
+  privately; without one, use the BYOK option above.
+
+A run takes roughly 3 minutes and costs a few cents of LLM plus 20–30 search
+queries, so the deployment caps concurrency and daily runs per code. See
+[Deploying publicly](#deploying-publicly) for how the two entrances work.
 
 ---
 
@@ -648,6 +670,17 @@ Each dimension records its supporting source IDs, shown on the scorecard and tra
 基于 [CrewAI](https://github.com/crewAIInc/crewAI) 框架开发的学术成果商业化评估智能体系统。
 
 输入一个研究方向或论文主题，系统将自动调度多个专职 AI Agent，从学术文献、专利图谱、市场竞争三个维度完成分析，最终生成一份带可验证引用的结构化商业化评估报告和量化评分卡。
+
+### 在线体验
+
+**https://academic-commercialization-agent.up.railway.app**
+
+已部署在 Railway，无需安装任何环境。门禁提供两个入口：
+
+- **自带 API Key（BYOK）**——不需要访问口令。选择 LLM 供应商、填入自己的 LLM Key 与检索 Key 即可运行，费用记在自己账上。密钥只进入这一次运行的子进程环境变量：不落盘、不并入服务端自身环境、不会被同时运行的其他任务看到，关闭标签页即清除
+- **访问口令**——用部署方自己的 Key 运行。口令私下提供；没有口令请用上面的 BYOK 入口
+
+一次运行约 3 分钟，消耗几美分的 LLM 额度加 20–30 次检索，因此部署方设有并发上限和每个口令的每日次数上限。两个入口的具体机制见下方「访问控制」。
 
 ---
 
