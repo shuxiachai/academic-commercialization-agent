@@ -121,6 +121,24 @@ class ConcurrencyCapTests(_ConcurrencyTestBase):
             runs.start_run("topic")          # must not raise
         self.assertEqual(runs.active_count(), 1)
 
+    def test_slot_is_released_when_run_dir_creation_fails(self):
+        """A failure before Popen must release the reservation too.
+
+        Regression test: run_dir.mkdir() and the .owner write used to sit
+        between the reservation and the try/except that frees it on
+        failure, so an unwritable outputs directory (an unwritable Railway
+        volume, in production) leaked one slot per failed attempt with no
+        way to clear it short of restarting the process.
+        """
+        with patch("api.runs.Path.mkdir", side_effect=PermissionError("no access")):
+            with self.assertRaises(PermissionError):
+                runs.start_run("topic")
+
+        self.assertEqual(runs.active_count(), 0)
+        with patch("api.runs.subprocess.Popen", _FakeProc):
+            runs.start_run("topic")          # must not raise
+        self.assertEqual(runs.active_count(), 1)
+
     def test_cancel_frees_a_slot(self):
         with patch("api.runs.subprocess.Popen", _FakeProc):
             run_id, _ = runs.start_run("topic")

@@ -255,27 +255,32 @@ def start_run(
         )
 
     run_dir = run_dir_for(run_id)
-    run_dir.mkdir(parents=True, exist_ok=True)
-    if owner is not None:
-        (run_dir / _OWNER_FILE).write_text(owner, encoding="utf-8")
-
-    cmd = [sys.executable, "-m", "academic_agent.pipeline_worker", run_id, topic.strip()]
-    if language:
-        cmd += ["--language", language]
-    if weight_profile:
-        cmd += ["--weight-profile", weight_profile]
-    if paper_json_path and Path(paper_json_path).exists():
-        cmd += ["--paper-json", paper_json_path]
-
-    # BYOK credentials travel as env, never as argv: command-line arguments
-    # are visible to any other process on the same host via `ps`/the process
-    # list, which a shared or multi-tenant deployment cannot rule out.
-    env = byok.as_env(os.environ) if byok is not None else None
 
     # Any failure from here on must release the reserved slot, or the cap
     # leaks permanently: a placeholder counts as alive and nothing else
-    # removes it.
+    # removes it. This has to start at run_dir.mkdir, not just the Popen
+    # call below — a mkdir failure (e.g. an unwritable outputs volume) is
+    # exactly the kind of failure this guards against, and one that left
+    # outside the boundary leaked a slot per attempt with no way to clear
+    # it short of restarting the process.
     try:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        if owner is not None:
+            (run_dir / _OWNER_FILE).write_text(owner, encoding="utf-8")
+
+        cmd = [sys.executable, "-m", "academic_agent.pipeline_worker", run_id, topic.strip()]
+        if language:
+            cmd += ["--language", language]
+        if weight_profile:
+            cmd += ["--weight-profile", weight_profile]
+        if paper_json_path and Path(paper_json_path).exists():
+            cmd += ["--paper-json", paper_json_path]
+
+        # BYOK credentials travel as env, never as argv: command-line arguments
+        # are visible to any other process on the same host via `ps`/the process
+        # list, which a shared or multi-tenant deployment cannot rule out.
+        env = byok.as_env(os.environ) if byok is not None else None
+
         log_file = open(run_dir / "process.log", "w", encoding="utf-8")
         try:
             proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=log_file, env=env)
