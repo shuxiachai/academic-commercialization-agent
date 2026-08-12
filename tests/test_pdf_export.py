@@ -369,14 +369,26 @@ class GeneratePdfTests(unittest.TestCase):
         self.assertIsNotNone(path)
         self.assertGreater(path.stat().st_size, 0)
 
-    def test_returns_none_when_build_fails(self):
-        """A PDF failure must not propagate — the report itself is already saved."""
-        with patch("ui.pdf_export.markdown_to_story", side_effect=RuntimeError("boom")):
-            self.assertIsNone(_generate_pdf(_REPORT, self.run_dir))
+    def test_build_failure_propagates_with_its_cause(self):
+        """The reason has to survive.
 
-    def test_returns_none_for_unwritable_directory(self):
+        This used to return None. That was written for the Gradio interface,
+        which rendered the PDF during a run and could hide a download button
+        when it failed. The only caller now is the report.pdf endpoint, which
+        runs because someone asked for the download — nothing is left to hide,
+        and swallowing the error made that endpoint's own "report the reason"
+        handler unreachable, so every failure surfaced as a bare "PDF
+        rendering produced no file".
+        """
+        with patch("ui.pdf_export.markdown_to_story", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError) as caught:
+                _generate_pdf(_REPORT, self.run_dir)
+        self.assertIn("boom", str(caught.exception))
+
+    def test_unwritable_directory_propagates(self):
         missing = self.run_dir / "does" / "not" / "exist"
-        self.assertIsNone(_generate_pdf(_REPORT, missing))
+        with self.assertRaises(OSError):
+            _generate_pdf(_REPORT, missing)
 
     def test_cjk_pdf_embeds_the_face_when_one_is_installed(self):
         """Size is the observable proof that a CJK face was embedded.

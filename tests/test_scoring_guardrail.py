@@ -354,5 +354,64 @@ class MarketVarianceTests(unittest.TestCase):
         self.assertIsNone(out["market_uncertainty"])
 
 
+class WeightProfileConsistencyTests(unittest.TestCase):
+    """The weights shown to the model must equal the weights it is graded on.
+
+    They live in two places by necessity: agents.yaml states them so the model
+    can apply them, and _WEIGHT_PROFILES holds them so the guardrail can
+    recompute overall_score and correct the model's arithmetic. Nothing ties
+    the two together.
+
+    They drifted once already. The guardrail was left on an older split
+    (patent 20 / market 35) after the rubric moved to 30 / 25, so it
+    "corrected" scores the model had computed correctly — a CAR-T run went
+    from 53 to 51 with no error anywhere. That is the worst shape a bug can
+    take here: the wrong number looks exactly like the right one, and the
+    component that exists to catch mistakes is the one making them.
+    """
+
+    @staticmethod
+    def _weights_declared_to_the_model() -> dict[str, dict[str, float]]:
+        import re
+        from pathlib import Path
+
+        yaml_text = (
+            Path(__file__).resolve().parent.parent
+            / "src" / "academic_agent" / "config" / "agents.yaml"
+        ).read_text(encoding="utf-8")
+
+        pattern = re.compile(
+            r"^\s{4}([A-Z_]+) \([^)]*\):\s*\n"
+            r"\s+W_market=([\d.]+)\s+W_trl=([\d.]+)\s+W_patent=([\d.]+)"
+            r"\s+W_mrl=([\d.]+)\s+W_evidence=([\d.]+)",
+            re.M,
+        )
+        return {
+            m.group(1).lower(): {
+                "market": float(m.group(2)), "trl": float(m.group(3)),
+                "patent": float(m.group(4)), "mrl": float(m.group(5)),
+                "evidence": float(m.group(6)),
+            }
+            for m in pattern.finditer(yaml_text)
+        }
+
+    def test_the_rubric_states_every_profile_the_code_scores_with(self):
+        declared = self._weights_declared_to_the_model()
+        self.assertTrue(declared, "no weight profiles parsed out of agents.yaml — "
+                                  "the rubric's format changed and this check went blind")
+        self.assertEqual(sorted(declared), sorted(_WEIGHT_PROFILES))
+
+    def test_each_profile_matches_between_rubric_and_guardrail(self):
+        declared = self._weights_declared_to_the_model()
+        for name, weights in sorted(declared.items()):
+            with self.subTest(profile=name):
+                self.assertEqual(
+                    weights, _WEIGHT_PROFILES[name],
+                    f"{name}: agents.yaml tells the model one split and the "
+                    "guardrail grades on another, so it will silently overwrite "
+                    "correct arithmetic with a wrong total.",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

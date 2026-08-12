@@ -354,30 +354,35 @@ def markdown_to_story(report_md: str, styles: dict) -> list:
     return parser.story
 
 
-def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English") -> Path | None:
-    """Convert a markdown report to PDF. Returns None if generation fails.
+def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English") -> Path:
+    """Convert a markdown report to PDF. Raises if generation fails.
 
-    Failure is swallowed on purpose: the report itself is already saved and
-    shown to the user, so a PDF problem must not take down the run — the
-    caller simply hides the download button.
+    Failures used to be swallowed and returned as None, on the reasoning that
+    the report was already saved and shown, so a PDF problem should not take
+    the run down — "the caller simply hides the download button". That was
+    written for the Gradio interface, which rendered the PDF during a run and
+    could drop a button from the page it was building.
+
+    The only caller now is GET /api/runs/{id}/report.pdf, which runs *because*
+    someone asked for the download. There is no button left to hide: the
+    request fails either way, and the sole question is whether it carries the
+    reason. It did not — that endpoint wraps this call to report the cause,
+    and the swallow made its handler unreachable, so every failure arrived as
+    a bare "PDF rendering produced no file" with the reportlab error gone.
     """
-    try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate
 
-        font_name = _resolve_font(output_language)
-        styles = _build_styles(font_name)
-        story = markdown_to_story(report_md, styles)
+    font_name = _resolve_font(output_language)
+    styles = _build_styles(font_name)
+    story = markdown_to_story(report_md, styles)
 
-        pdf_path = run_dir / "commercialization_report.pdf"
-        doc = SimpleDocTemplate(
-            str(pdf_path), pagesize=A4,
-            rightMargin=2 * cm, leftMargin=2 * cm,
-            topMargin=2 * cm,   bottomMargin=2 * cm,
-        )
-        doc.build(story)
-        return pdf_path
-
-    except Exception:
-        return None
+    pdf_path = run_dir / "commercialization_report.pdf"
+    doc = SimpleDocTemplate(
+        str(pdf_path), pagesize=A4,
+        rightMargin=2 * cm, leftMargin=2 * cm,
+        topMargin=2 * cm,   bottomMargin=2 * cm,
+    )
+    doc.build(story)
+    return pdf_path
