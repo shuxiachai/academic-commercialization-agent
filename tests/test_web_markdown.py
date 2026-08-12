@@ -108,19 +108,45 @@ class MarkdownEscapingTests(unittest.TestCase):
             console.log(JSON.stringify(inputs.map((md) => renderMarkdown(md))));
         """), encoding="utf-8")
         cls._work = work
+        cls._cache = {}
+
+        # Spawn Node once here, before any assertion depends on the timing.
+        # The first spawn on a cold CI runner is far slower than the rest --
+        # observed 60s, then 2.2s, then ~60ms -- because loading node.exe and
+        # scanning a freshly written .mjs are one-time OS-level costs. Paying
+        # them inside the first test made whichever test happened to run first
+        # fail on a slow runner, which reads as "the escaping broke" rather
+        # than "the machine was busy". Generous timeout: this measures the
+        # runner, not the renderer.
+        warmup = subprocess.run(
+            [_node(), str(work / "run.mjs"), '["warmup"]'],
+            capture_output=True, text=True, timeout=300, cwd=work,
+        )
+        # Not check=True: a syntax error in result.js exits non-zero here now
+        # rather than in the first test, and CalledProcessError would report
+        # only the exit code. The stderr is the whole diagnosis.
+        if warmup.returncode != 0:
+            raise RuntimeError(f"renderer failed to load: {warmup.stderr[:400]}")
 
     @classmethod
     def tearDownClass(cls):
         cls._tmp.cleanup()
 
     def _render(self, inputs: list[str]) -> list[str]:
-        result = subprocess.run(
-            [_node(), str(self._work / "run.mjs"), json.dumps(inputs)],
-            capture_output=True, text=True, timeout=60, cwd=self._work,
-        )
-        if result.returncode != 0:
-            self.fail(f"renderer failed: {result.stderr[:400]}")
-        return json.loads(result.stdout)
+        # Memoised because four tests render the identical payload list, each
+        # asking a different question about the same HTML. The renderer is a
+        # pure function of its input, so re-spawning Node for it bought
+        # nothing and multiplied the exposure to a slow spawn.
+        key = json.dumps(inputs)
+        if key not in self._cache:
+            result = subprocess.run(
+                [_node(), str(self._work / "run.mjs"), key],
+                capture_output=True, text=True, timeout=120, cwd=self._work,
+            )
+            if result.returncode != 0:
+                self.fail(f"renderer failed: {result.stderr[:400]}")
+            self._cache[key] = json.loads(result.stdout)
+        return self._cache[key]
 
     def test_no_payload_produces_an_unexpected_tag(self):
         """The check: every tag in the output is one the renderer emits."""
