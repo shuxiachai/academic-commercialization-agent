@@ -95,6 +95,30 @@ class OwnerIdTests(unittest.TestCase):
         self.assertNotIn("for-alice", access.owner_id("for-alice"))
 
 
+class AdminCodeTests(unittest.TestCase):
+    """access.is_admin() — the one code exempted from per-code history
+    isolation, so its holder can see every code's usage at a glance."""
+
+    def test_admin_code_is_recognized(self):
+        with patch.object(access, "ADMIN_CODE", "the-admin-code"):
+            self.assertTrue(access.is_admin("the-admin-code"))
+
+    def test_a_different_code_is_not_admin(self):
+        with patch.object(access, "ADMIN_CODE", "the-admin-code"):
+            self.assertFalse(access.is_admin("some-other-code"))
+
+    def test_no_admin_configured_nothing_is_admin(self):
+        with patch.object(access, "ADMIN_CODE", None):
+            self.assertFalse(access.is_admin("anything"))
+
+    def test_admin_code_also_authorizes_like_any_other_code(self):
+        with patch.object(access, "ACCESS_CODE", None), \
+             patch.object(access, "ACCESS_CODES", None), \
+             patch.object(access, "ADMIN_CODE", "the-admin-code"):
+            self.assertEqual(access.matching_code("the-admin-code"), "the-admin-code")
+            self.assertTrue(access.gate_enabled())
+
+
 class MisconfigurationWarningTests(unittest.TestCase):
     """access._warn_if_misconfigured() — catches the exact mistake that
     motivated it: pasting `ACCESS_CODES=a,b,c` whole, prefix and all, into a
@@ -103,6 +127,7 @@ class MisconfigurationWarningTests(unittest.TestCase):
     def _warning_text(self, **patched):
         with patch.object(access, "ACCESS_CODE", patched.get("ACCESS_CODE")), \
              patch.object(access, "ACCESS_CODES", patched.get("ACCESS_CODES")), \
+             patch.object(access, "ADMIN_CODE", patched.get("ADMIN_CODE")), \
              patch("sys.stderr", new_callable=io.StringIO) as stderr:
             access._warn_if_misconfigured()
             return stderr.getvalue()
@@ -541,6 +566,35 @@ class MultiCodeIsolationTests(_RunLifecycleTestBase):
 
         self.assertEqual([r["topic"] for r in alice_view["runs"]], ["alice's topic"])
         self.assertEqual([r["topic"] for r in bob_view["runs"]], ["bob's topic"])
+
+    def test_admin_code_sees_every_codes_runs_combined(self):
+        with patch.object(access, "ACCESS_CODES", "for-alice,for-bob"), \
+             patch.object(access, "ADMIN_CODE", "for-the-operator"):
+            alice_run = self.client.post(
+                "/api/runs", json={"topic": "alice's topic"},
+                headers={"X-Access-Code": "for-alice"},
+            ).json()
+            self._write_topic(alice_run["run_id"], "alice's topic")
+            bob_run = self.client.post(
+                "/api/runs", json={"topic": "bob's topic"},
+                headers={"X-Access-Code": "for-bob"},
+            ).json()
+            self._write_topic(bob_run["run_id"], "bob's topic")
+
+            admin_view = self.client.get(
+                "/api/runs", headers={"X-Access-Code": "for-the-operator"}
+            ).json()
+            # The admin code must not have muddied its holder's own filtered
+            # view for anyone else — alice still sees only her own.
+            alice_view = self.client.get(
+                "/api/runs", headers={"X-Access-Code": "for-alice"}
+            ).json()
+
+        self.assertEqual(
+            sorted(r["topic"] for r in admin_view["runs"]),
+            ["alice's topic", "bob's topic"],
+        )
+        self.assertEqual([r["topic"] for r in alice_view["runs"]], ["alice's topic"])
 
     def test_byok_run_appears_in_no_ones_list(self):
         with patch.object(access, "ACCESS_CODES", "for-alice"):

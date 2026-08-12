@@ -113,11 +113,15 @@ async def _access_gate(request: Request, call_next):
     if access.gate_enabled() and matched is None:
         return JSONResponse({"detail": "Missing or invalid access code."}, status_code=401)
     # Which code answered, if any — GET /api/runs uses this to show each
-    # code holder only the runs made under their own code. None with the
-    # gate enabled can't reach here (rejected above); None with it disabled
-    # means "no code to scope by", i.e. show everything, matching the
-    # single-tenant behaviour this had before multiple codes existed.
-    request.state.owner = access.owner_id(matched) if matched else None
+    # code holder only the runs made under their own code. None means
+    # "don't filter": with the gate disabled there is no code to scope by
+    # (matching the single-tenant behaviour from before multiple codes
+    # existed), and the admin code deliberately opts out of scoping so its
+    # holder sees every code's history at once.
+    if matched is not None and access.is_admin(matched):
+        request.state.owner = None
+    else:
+        request.state.owner = access.owner_id(matched) if matched else None
     return await call_next(request)
 
 

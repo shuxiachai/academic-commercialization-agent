@@ -9,11 +9,14 @@ Multiple codes exist so different holders don't share one identity: each
 code's runs are tagged with owner_id(code) and the run list (api/runs.py)
 filters by it, so code A's history never appears for code B. A run created
 without any code (BYOK) gets no owner tag and so never appears in anyone's
-list — see api/main.py's submit_run.
+list — see api/main.py's submit_run. ADMIN_CODE is the one exception: it
+authorizes runs like any other code (its own runs tagged and rate-limited
+the same way) but is exempted from the list filter, so whoever holds it
+sees every code's history — see is_admin() and api/main.py's middleware.
 
-Leaving both ACCESS_CODE and ACCESS_CODES unset disables the gate entirely:
-local development and anyone self-hosting without configuring either see no
-difference from before this existed.
+Leaving ACCESS_CODE, ACCESS_CODES and ACCESS_CODE_ADMIN all unset disables
+the gate entirely: local development and anyone self-hosting without
+configuring any of them see no difference from before this existed.
 """
 
 from __future__ import annotations
@@ -31,6 +34,12 @@ ACCESS_CODE = (os.getenv("ACCESS_CODE") or "").strip() or None
 # fresh on every call (not cached at import) so tests can patch either.
 ACCESS_CODES = os.getenv("ACCESS_CODES")
 
+# One further code, if set, that authorizes runs exactly like any other but
+# additionally sees every code's history when listing — the one exception
+# to per-code isolation, for the operator to check who has actually used
+# their code without asking each person individually.
+ADMIN_CODE = (os.getenv("ACCESS_CODE_ADMIN") or "").strip() or None
+
 
 def _valid_codes() -> list[str]:
     codes = []
@@ -38,7 +47,16 @@ def _valid_codes() -> list[str]:
         codes.append(ACCESS_CODE)
     if ACCESS_CODES:
         codes.extend(c.strip() for c in ACCESS_CODES.split(",") if c.strip())
+    if ADMIN_CODE:
+        codes.append(ADMIN_CODE)
     return codes
+
+
+def is_admin(code: str) -> bool:
+    """True if `code` — already a value matching_code() returned, so
+    already validated in constant time against the configured set — is the
+    admin code specifically."""
+    return ADMIN_CODE is not None and code == ADMIN_CODE
 
 
 def _warn_if_misconfigured() -> None:
