@@ -219,20 +219,23 @@
 }
 .runitem-row .runitem { flex: 1; min-width: 0; }
 
-/* Hidden until the row is hovered/focused — a permanent trash icon on
-   every item read as visual noise next to how rarely it's used. */
+/* Always rendered, never hover-gated. It was hidden until hover at first, on
+   the theory that a permanent trash icon on every row is visual noise — but
+   the person who owns these runs could not find the feature at all, which is
+   the worse failure of the two: an affordance nobody knows about is not a
+   quieter interface, it is a missing one. It stays visually quiet instead,
+   inheriting .icon-btn's muted colour at rest and turning red on hover, so it
+   reads as available without competing with the topic it sits beside. */
 .runitem__delete {
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease),
-              background var(--duration-fast) var(--ease),
+  transition: background var(--duration-fast) var(--ease),
               color var(--duration-fast) var(--ease);
 }
-.runitem-row:hover .runitem__delete,
+.runitem__delete:hover,
 .runitem__delete:focus-visible {
-  opacity: 1;
+  background: var(--bg-hover);
+  color: var(--danger);
 }
-.runitem__delete:hover { background: var(--bg-hover); color: var(--danger); }
 
 .runlist__empty {
   padding: var(--space-8) var(--space-4);
