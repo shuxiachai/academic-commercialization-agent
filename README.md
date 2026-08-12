@@ -436,6 +436,27 @@ None of this needs to be hunted down again — it's already fixed in this
 Dockerfile — but if you fork it and see a build fail in under a few seconds
 on another platform, this is the shape of thing to check first.
 
+**Attaching a Railway Volume at `/app/outputs`** (so run history survives a
+redeploy) surfaces two more platform-specific gotchas once the build itself
+is working:
+
+- A freshly attached volume is owned by root regardless of what the image
+  `chown`'d at build time — the mount replaces the directory entirely, so the
+  non-root `appuser` the container runs as can't write into it.
+  `docker-entrypoint.sh` fixes this by starting as root, re-`chown`ing
+  `/app/outputs`, then dropping to `appuser` via `setpriv` before `exec`-ing
+  into uvicorn (no wrapper process left behind — `tini` still supervises
+  uvicorn directly).
+- `setpriv` switches the effective uid/gid but does not touch `$HOME`, which
+  stays `/root` unless the entrypoint sets it explicitly. Docker's `USER`
+  instruction used to do this for free; dropping it for the
+  root-then-`setpriv` startup means `docker-entrypoint.sh` has to
+  `export HOME=/home/appuser` itself. Left unset, `crewai`'s own chromadb
+  storage-path resolution (`appdirs.user_data_dir()`, which expands
+  `$HOME/.local/share/<app>`) tries to create a directory under `/root` as
+  `appuser` and fails — taking down `/health` and every pipeline run, since
+  both import `crewai` and both inherit this process's environment.
+
 ---
 
 ### Benchmark
