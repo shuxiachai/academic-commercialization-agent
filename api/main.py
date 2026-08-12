@@ -14,6 +14,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
+import threading
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -83,6 +86,138 @@ app = FastAPI(
     version="1.0.0",
     lifespan=_lifespan,
 )
+
+
+# Response headers applied to everything this app serves.
+#
+# The web client makes a strict policy affordable: it has no inline <script>,
+# no inline <style>, no on* attributes, and loads every asset from its own
+# origin — so none of the usual 'unsafe-inline' escape hatches are needed, and
+# adding one later would be a signal that something regressed. Report text is
+# model output plus third-party titles and URLs reaching innerHTML, so this is
+# the layer that limits what a missed escape could do.
+#
+# style-src stays strict deliberately: the client sets individual properties
+# (el.style.height = ...), which CSSOM permits under CSP; only cssText and
+# style attributes would need an exception, and neither is used.
+_SECURITY_HEADERS = {
+    "Content-Security-Policy": "; ".join((
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self'",
+        "img-src 'self' data:",          # data: covers the inline SVG favicon
+        "connect-src 'self'",
+        "form-action 'self'",
+        "base-uri 'none'",
+        "frame-ancestors 'none'",        # clickjacking, and supersedes X-Frame-Options
+        "object-src 'none'",
+    )),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    # Reports link out to third-party sources; keep those tabs from reaching back.
+    "Cross-Origin-Opener-Policy": "same-origin",
+}
+
+
+# Per-client request budget, refilled continuously (token bucket).
+#
+# Distinct from the concurrency cap and the daily run cap, which both count
+# *runs*: this counts *requests*, and exists because the endpoints that cost
+# nothing to serve are the ones an unauthenticated caller can reach. A run id
+# is a capability URL, so anyone holding one can poll a run as fast as they
+# like; the gate itself (/api/access/check) is likewise open by construction,
+# since rejecting a wrong code is what it is for. Neither is expensive per
+# call, and both are unbounded without this.
+#
+# Generous on purpose. The client polls progress every 1.2-4s during a run and
+# capacity once a second, so a person with two tabs open is already near 100
+# requests/minute through normal use; this is sized to stop scripted abuse
+# without ever touching that.
+_RATE_LIMIT_REQUESTS = int(os.getenv("API_RATE_LIMIT_PER_MINUTE", "300"))
+_RATE_LIMIT_WINDOW = 60.0
+
+_rate_buckets: dict[str, tuple[float, float]] = {}   # client -> (tokens, last refill)
+_rate_lock = threading.Lock()
+
+
+def _client_key(request: Request) -> str:
+    """Who to charge for this request.
+
+    Prefers the access code over the address: several people behind one
+    campus or corporate NAT share an IP, and throttling them as one client
+    would penalise the exact audience this deployment is for. A code holder
+    is charged individually; everyone else falls back to the peer address.
+
+    X-Forwarded-For is read because the app sits behind Railway's proxy, and
+    only its first entry — the rest are appendable by the caller.
+    """
+    code = request.headers.get("x-access-code")
+    if code:
+        return f"code:{access.owner_id(code)}"
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return f"ip:{forwarded.split(',')[0].strip()}"
+    return f"ip:{request.client.host if request.client else 'unknown'}"
+
+
+def _rate_limit_exceeded(key: str) -> bool:
+    """Spend one token for `key`; True when the bucket is empty.
+
+    A bucket refills continuously rather than resetting on a fixed boundary,
+    so a caller cannot save up a burst by waiting for the top of a window.
+    """
+    if _RATE_LIMIT_REQUESTS <= 0:            # 0 disables the limit entirely
+        return False
+    now = time.monotonic()
+    rate = _RATE_LIMIT_REQUESTS / _RATE_LIMIT_WINDOW
+    with _rate_lock:
+        tokens, last = _rate_buckets.get(key, (float(_RATE_LIMIT_REQUESTS), now))
+        tokens = min(float(_RATE_LIMIT_REQUESTS), tokens + (now - last) * rate)
+        if tokens < 1.0:
+            _rate_buckets[key] = (tokens, now)
+            return True
+        _rate_buckets[key] = (tokens - 1.0, now)
+
+        # Drop buckets that have refilled completely; they carry no state a
+        # new one would not reproduce. Without this the dict is a slow leak
+        # keyed by every address that ever called.
+        if len(_rate_buckets) > 2048:
+            full = _RATE_LIMIT_REQUESTS - 0.5
+            for k, (t, seen) in list(_rate_buckets.items()):
+                if k != key and t + (now - seen) * rate >= full:
+                    del _rate_buckets[k]
+    return False
+
+
+@app.middleware("http")
+async def _rate_limit(request: Request, call_next):
+    """Bound request volume per client.
+
+    /health is exempt: platform health checks poll it on their own schedule
+    and must never be throttled into reporting the service as down.
+    """
+    if request.url.path != "/health" and _rate_limit_exceeded(_client_key(request)):
+        return JSONResponse(
+            {"detail": "Too many requests. Slow down and retry shortly."},
+            status_code=429,
+            headers={"Retry-After": "10"},
+        )
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    """Attach the response headers above to every response.
+
+    Deliberately not HSTS: that is the platform's to set. Railway terminates
+    TLS ahead of this process and already redirects http→https, and an app
+    that sends max-age on a host it does not control can outlive its own
+    certificate story.
+    """
+    response = await call_next(request)
+    for name, value in _SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
 
 
 @app.middleware("http")

@@ -51,6 +51,27 @@ def no_real_access_codes(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def empty_rate_limit_buckets():
+    """Give every test a fresh request budget.
+
+    The limiter is process-global and keyed by client, and TestClient presents
+    the same client for the whole session — so without this the suite spends
+    one shared budget across every HTTP test it runs. It fits today, which is
+    the problem: the margin shrinks silently with each test added, and the
+    failure it eventually produces is a 429 in whichever test happens to run
+    last, nowhere near the change that caused it.
+
+    The limiter's own behaviour is covered deliberately in test_api.py rather
+    than left to accumulate here.
+    """
+    from api import main
+
+    main._rate_buckets.clear()
+    yield
+    main._rate_buckets.clear()
+
+
+@pytest.fixture(autouse=True)
 def stub_llm_calls(monkeypatch, request):
     """Replace language._llm_call with an offline stub for every test.
 

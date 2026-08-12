@@ -450,3 +450,86 @@ class TimeoutReaperTests(_ApiTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# Security headers and request rate limiting
+# ---------------------------------------------------------------------------
+
+class SecurityHeaderTests(_ApiTestCase):
+    """Report text is model output plus third-party titles reaching innerHTML,
+    so these headers are what bounds a missed escape."""
+
+    def test_every_response_carries_the_policy(self):
+        for path in ("/health", "/api/runs"):
+            with self.subTest(path=path):
+                h = self.client.get(path).headers
+                self.assertIn("default-src 'self'", h["content-security-policy"])
+                self.assertEqual(h["x-content-type-options"], "nosniff")
+                self.assertIn("strict-origin", h["referrer-policy"])
+
+    def test_policy_permits_no_inline_escape_hatch(self):
+        """The web client has no inline script, style or on* attribute, so
+        'unsafe-inline' appearing here later would mean something regressed
+        rather than that the policy needed loosening."""
+        csp = self.client.get("/health").headers["content-security-policy"]
+        self.assertNotIn("unsafe-inline", csp)
+        self.assertNotIn("unsafe-eval", csp)
+
+    def test_framing_and_object_embedding_are_denied(self):
+        csp = self.client.get("/health").headers["content-security-policy"]
+        self.assertIn("frame-ancestors 'none'", csp)
+        self.assertIn("object-src 'none'", csp)
+
+
+class RateLimitTests(_ApiTestCase):
+    """Bounds request volume, which the concurrency and daily caps do not:
+    those count runs, and the endpoints reachable without a code cost nothing
+    to serve but are unbounded without this."""
+
+    def setUp(self):
+        super().setUp()
+        from api import main
+        self.main = main
+        main._rate_buckets.clear()
+        self._limit = main._RATE_LIMIT_REQUESTS
+        self.addCleanup(setattr, main, "_RATE_LIMIT_REQUESTS", self._limit)
+        self.addCleanup(main._rate_buckets.clear)
+
+    def test_requests_past_the_budget_are_refused(self):
+        self.main._RATE_LIMIT_REQUESTS = 3
+        codes = [self.client.get("/api/runs").status_code for _ in range(5)]
+        self.assertEqual(codes[:3], [200, 200, 200])
+        self.assertEqual(codes[3:], [429, 429])
+
+    def test_the_refusal_says_when_to_come_back(self):
+        self.main._RATE_LIMIT_REQUESTS = 1
+        self.client.get("/api/runs")
+        r = self.client.get("/api/runs")
+        self.assertEqual(r.status_code, 429)
+        self.assertIn("retry-after", r.headers)
+
+    def test_health_is_never_throttled(self):
+        """A platform health check that gets a 429 reads as the service being
+        down, which would take the deployment offline over request volume."""
+        self.main._RATE_LIMIT_REQUESTS = 1
+        self.client.get("/api/runs")
+        for _ in range(5):
+            self.assertEqual(self.client.get("/health").status_code, 200)
+
+    def test_separate_codes_get_separate_budgets(self):
+        """Charging by address alone would throttle everyone behind one
+        campus or corporate NAT as a single client."""
+        self.main._RATE_LIMIT_REQUESTS = 2
+        with patch.object(access, "ACCESS_CODES", "alice,bob"):
+            for _ in range(2):
+                self.client.get("/api/runs", headers={"X-Access-Code": "alice"})
+            spent = self.client.get("/api/runs", headers={"X-Access-Code": "alice"})
+            fresh = self.client.get("/api/runs", headers={"X-Access-Code": "bob"})
+        self.assertEqual(spent.status_code, 429)
+        self.assertEqual(fresh.status_code, 200)
+
+    def test_zero_disables_the_limit(self):
+        self.main._RATE_LIMIT_REQUESTS = 0
+        for _ in range(20):
+            self.assertEqual(self.client.get("/api/runs").status_code, 200)
