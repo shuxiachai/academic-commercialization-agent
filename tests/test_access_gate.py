@@ -11,6 +11,7 @@ development and every prior test in this suite see no gate at all.
 
 from __future__ import annotations
 
+import io
 import json
 import os
 from datetime import date, timedelta
@@ -92,6 +93,35 @@ class OwnerIdTests(unittest.TestCase):
 
     def test_id_does_not_contain_the_raw_code(self):
         self.assertNotIn("for-alice", access.owner_id("for-alice"))
+
+
+class MisconfigurationWarningTests(unittest.TestCase):
+    """access._warn_if_misconfigured() — catches the exact mistake that
+    motivated it: pasting `ACCESS_CODES=a,b,c` whole, prefix and all, into a
+    field meant to hold just the codes."""
+
+    def _warning_text(self, **patched):
+        with patch.object(access, "ACCESS_CODE", patched.get("ACCESS_CODE")), \
+             patch.object(access, "ACCESS_CODES", patched.get("ACCESS_CODES")), \
+             patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            access._warn_if_misconfigured()
+            return stderr.getvalue()
+
+    def test_flags_a_pasted_assignment_line(self):
+        text = self._warning_text(ACCESS_CODE="ACCESS_CODES=abc,def,ghi")
+        self.assertIn("ACCESS_CODES=abc,def,ghi", text)
+
+    def test_flags_it_in_the_plural_variable_too(self):
+        text = self._warning_text(ACCESS_CODES="ACCESS_CODE=abc")
+        self.assertIn("ACCESS_CODE=abc", text)
+
+    def test_a_normal_code_is_silent(self):
+        text = self._warning_text(ACCESS_CODES="for-alice,for-bob,ceshi")
+        self.assertEqual(text, "")
+
+    def test_no_codes_configured_is_silent(self):
+        text = self._warning_text()
+        self.assertEqual(text, "")
 
 
 class RunRequestByokValidationTests(unittest.TestCase):
@@ -265,15 +295,18 @@ class GateMiddlewareTests(unittest.TestCase):
 
 
 class DailyCapTests(_RunLifecycleTestBase):
-    """The fallback for a leaked code: a hard ceiling independent of concurrency."""
+    """The fallback for a leaked code: a hard ceiling independent of
+    concurrency, applied per owner rather than as one pool every code
+    shares — ten people with ten separate codes should not be able to
+    exhaust each other's budget."""
 
     def setUp(self):
         super().setUp()
         # These are module globals mutated by start_run; reset them so this
         # test file cannot leak state into whichever test runs after it.
-        self.addCleanup(setattr, runs, "_daily_count", runs._daily_count)
+        self.addCleanup(setattr, runs, "_daily_counts", dict(runs._daily_counts))
         self.addCleanup(setattr, runs, "_daily_date", runs._daily_date)
-        runs._daily_count = 0
+        runs._daily_counts = {}
         runs._daily_date = None
 
     def test_cap_disabled_by_default(self):
@@ -294,10 +327,23 @@ class DailyCapTests(_RunLifecycleTestBase):
             with self.assertRaises(runs.DailyCapReached):
                 runs.start_run("t3")
 
+    def test_each_owner_has_an_independent_budget(self):
+        """The reason this is per-owner at all: one code exhausting its
+        budget must not touch another code's, or handing out separate
+        codes to separate people would not have bought them anything."""
+        with patch.object(runs, "DAILY_CAP", 1), \
+             patch.object(runs, "MAX_CONCURRENT", 100), \
+             patch("api.runs.subprocess.Popen", _FakeProc):
+            runs.start_run("alice's only run", owner="alice-hash")
+            with self.assertRaises(runs.DailyCapReached):
+                runs.start_run("alice's second run", owner="alice-hash")
+
+            runs.start_run("bob's only run", owner="bob-hash")  # must not raise
+
     def test_cap_resets_on_a_new_utc_day(self):
         with patch.object(runs, "DAILY_CAP", 1):
             runs._daily_date = date.today() - timedelta(days=1)
-            runs._daily_count = 1        # yesterday's budget, fully spent
+            runs._daily_counts[None] = 1     # yesterday's budget, fully spent
 
             with patch("api.runs.subprocess.Popen", _FakeProc):
                 runs.start_run("today's first run")   # must not raise

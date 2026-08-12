@@ -35,10 +35,12 @@ TIMEOUT_SECONDS = 1800
 # CPU — each run issues dozens of requests to OpenAlex/Serper/the LLM.
 MAX_CONCURRENT = int(os.getenv("API_MAX_CONCURRENT", "2"))
 
-# Total runs allowed per UTC day, independent of concurrency. The concurrency
-# cap limits how many runs are billed at once; it does nothing to stop one
-# leaked access code from triggering hundreds of runs sequentially over a day.
-# 0 disables the cap — the default for local development.
+# Runs allowed per UTC day, independent of concurrency — applied separately
+# to each access code (see _daily_counts), not as one total every code
+# shares. The concurrency cap limits how many runs are billed at once; it
+# does nothing to stop one leaked code from triggering hundreds of runs
+# sequentially over a day. 0 disables the cap — the default for local
+# development.
 DAILY_CAP = int(os.getenv("API_DAILY_RUN_CAP", "0"))
 
 # Run directories are named <UTC timestamp>-<hex>; see create_run_id().
@@ -152,10 +154,14 @@ class RunNotFound(Exception):
 
 _registry: dict[str, _Handle] = {}
 
-# Runs started so far today (UTC) and the date that count applies to. Reset
-# lazily on the next start_run call rather than with a scheduled task — a demo
-# deployment does not need a background timer for something this small.
-_daily_count = 0
+# Runs started so far today (UTC), per owner, and the date the counts apply
+# to — reset lazily on the next start_run call rather than with a scheduled
+# task. Keyed by owner (None = no code configured / BYOK is exempt before
+# this is ever consulted) so the cap is a per-person budget, not one pool
+# every code holder draws from: ten people sharing a single DAILY_CAP meant
+# one enthusiastic tester could exhaust everyone else's day, which defeats
+# the point of giving each person their own code in the first place.
+_daily_counts: dict[str | None, int] = {}
 _daily_date = None
 
 # Guards _registry. FastAPI runs `def` endpoints in a thread pool, so two
@@ -213,9 +219,11 @@ def start_run(
     who is paying: it protects host resources, not a wallet.
 
     `owner` is the access.owner_id() of whichever code authorized this run —
-    None for BYOK (and for a deployment with no code configured at all).
-    Written to the run directory so list_runs() can show each code holder
-    only the runs made under their own code.
+    None for BYOK (and for a deployment with no code configured at all). Also
+    what DAILY_CAP is scoped by: each owner gets their own budget, not one
+    pool every code holder draws from together. Written to the run directory
+    so list_runs() can show each code holder only the runs made under their
+    own code.
     """
     # Claim a slot and publish the run_id in one atomic step. Checking the cap
     # and registering the handle separately let parallel submissions all pass
@@ -225,12 +233,14 @@ def start_run(
     # the slow part — happens outside the lock. A reservation counts towards
     # the cap, so a burst cannot slip through while processes are starting.
     with _registry_lock:
-        global _daily_count, _daily_date
+        global _daily_date
         if byok is None:
             today = datetime.now(UTC).date()
             if _daily_date != today:
-                _daily_date, _daily_count = today, 0
-            if DAILY_CAP and _daily_count >= DAILY_CAP:
+                _daily_date = today
+                _daily_counts.clear()
+            owner_count = _daily_counts.get(owner, 0)
+            if DAILY_CAP and owner_count >= DAILY_CAP:
                 raise DailyCapReached(f"{DAILY_CAP} runs already used today")
 
         if active_count() >= MAX_CONCURRENT:
@@ -239,7 +249,7 @@ def start_run(
             )
         run_id = create_run_id()
         if byok is None:
-            _daily_count += 1
+            _daily_counts[owner] = _daily_counts.get(owner, 0) + 1
         _registry[run_id] = _Handle(
             run_id=run_id, topic=topic, proc=_PendingProcess(), log_file=None
         )

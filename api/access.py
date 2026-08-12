@@ -21,9 +21,10 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import sys
 
 # Single code, kept for backward compatibility with existing deployments.
-ACCESS_CODE = os.getenv("ACCESS_CODE")
+ACCESS_CODE = (os.getenv("ACCESS_CODE") or "").strip() or None
 
 # Comma-separated codes, for handing out a distinct one per person so their
 # run histories stay separate. Both variables are honored if set — read
@@ -38,6 +39,30 @@ def _valid_codes() -> list[str]:
     if ACCESS_CODES:
         codes.extend(c.strip() for c in ACCESS_CODES.split(",") if c.strip())
     return codes
+
+
+def _warn_if_misconfigured() -> None:
+    """Catch the copy-paste mistake this exists to prevent: pasting the
+    whole `ACCESS_CODES=a,b,c` line — name, equals sign and all — as the
+    *value* of a variable, rather than just the values. A code containing
+    "=" or starting with "ACCESS_CODE" is not a plausible code anyone would
+    intentionally choose, so it is almost certainly this exact mistake.
+    A plain print rather than warnings.warn: this needs to show up in a
+    platform's deploy logs unconditionally, not depend on however Python's
+    warning filters happen to be configured at runtime.
+    """
+    for code in _valid_codes():
+        if "=" in code or code.upper().startswith("ACCESS_CODE"):
+            print(
+                f"[access] a configured code looks like a mispasted variable "
+                f"assignment rather than a real code: {code!r}. Check that "
+                f"ACCESS_CODES holds only the comma-separated codes "
+                f"themselves, not the 'ACCESS_CODES=' prefix.",
+                file=sys.stderr,
+            )
+
+
+_warn_if_misconfigured()
 
 
 def gate_enabled() -> bool:
