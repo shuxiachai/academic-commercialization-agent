@@ -529,3 +529,45 @@ class FailedDomainReportingTests(unittest.TestCase):
              / "src" / "academic_agent" / "config" / "tasks.yaml").read_text(encoding="utf-8")
         )
         self.assertIn("{retrieval_notice}", cfg["commercialization_report_task"]["description"])
+
+
+class EmptyAssigneeListMustNotBeReadAsAFinding(unittest.TestCase):
+    """The same failure shape as an empty domain, one level down.
+
+    Lens.org is the only source that exposes structured applicant names, and
+    it is off by default (LENS_API_KEY unset skips the block entirely). So
+    patent_assignees is empty on essentially every run, and the emptiness is
+    an artifact of how retrieval works — not a fact about the patents. The
+    only thing standing between that artifact and a confident sentence about
+    market fragmentation is a rule in the patent task prompt. Deleting the
+    rule breaks nothing, fails no test, and produces a plausible report, so
+    it needs a test that says out loud why it must stay.
+    """
+
+    def _patent_task(self):
+        import yaml
+
+        cfg = yaml.safe_load(
+            (Path(__file__).resolve().parent.parent
+             / "src" / "academic_agent" / "config" / "tasks.yaml").read_text(encoding="utf-8")
+        )
+        keys = [k for k in cfg if "patent" in k]
+        self.assertEqual(len(keys), 1, f"expected one patent task, got {keys}")
+        # Collapse whitespace: the block scalar keeps the source line breaks,
+        # so a phrase can straddle two lines. What is asserted below is the
+        # rule's content, which must not depend on where the YAML wraps.
+        return " ".join(cfg[keys[0]]["description"].split())
+
+    def test_rule_states_empty_means_field_absent_not_unassigned(self):
+        text = self._patent_task()
+        self.assertIn("empty assignee list", text.lower())
+        self.assertIn("NOT that the patents are unassigned", text)
+
+    def test_rule_forbids_the_specific_inferences_it_would_invite(self):
+        """Naming the wrong conclusions matters more than naming the right
+        one: 'assignees unavailable' is a limitation an LLM will happily note
+        and then reason past. These three are what it reasons *to*."""
+        text = self._patent_task().lower()
+        for inference in ("competitive concentration", "market fragmentation", "crowded"):
+            with self.subTest(inference=inference):
+                self.assertIn(inference, text)
