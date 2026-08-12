@@ -1,8 +1,11 @@
-"""Tests for the three non-academic API clients: Serper, Lens.org, Crossref.
+"""Tests for the non-academic API clients: Serper, Tavily, Lens.org, Crossref.
 
-Serper is the only mandatory key in the whole project — every patent and
-market source flows through it — so its retry and failure behaviour is worth
-pinning down precisely.
+A web search client (Serper or Tavily) is the only mandatory key in the whole
+project — every patent and market source flows through one of them — so
+their retry and failure behaviour is worth pinning down precisely. Tavily
+exists alongside Serper, not instead of it: some deployment hosts get a 403
+from Serper on every request (it proxies Google, which blocks some
+datacenter IP ranges) while Tavily, built for server-side callers, does not.
 
 Companion to test_source_clients.py, which covers the four academic clients.
 """
@@ -19,6 +22,8 @@ from academic_agent.source_clients import (
     LensPatentClient,
     SerperClient,
     SourceCollectionError,
+    TavilyClient,
+    default_web_search_client,
 )
 
 
@@ -186,6 +191,128 @@ class SerperRetryTests(unittest.TestCase):
         with self.assertRaises(SourceCollectionError):
             self._client().search("q")
         self.assertEqual(mock_urlopen.call_count, 1)
+
+
+# ---------------------------------------------------------------------------
+# TavilyClient — the fallback for hosts where Serper 403s outright
+# ---------------------------------------------------------------------------
+
+class TavilyConstructionTests(unittest.TestCase):
+
+    def test_explicit_key_accepted(self):
+        self.assertEqual(TavilyClient(api_key="abc").api_key, "abc")
+
+    @patch.dict("os.environ", {"TAVILY_API_KEY": "from-env"}, clear=False)
+    def test_key_read_from_environment(self):
+        self.assertEqual(TavilyClient().api_key, "from-env")
+
+    @patch.dict("os.environ", {}, clear=True)
+    def test_missing_key_raises_immediately(self):
+        with self.assertRaises(SourceCollectionError) as ctx:
+            TavilyClient()
+        self.assertIn("TAVILY_API_KEY", str(ctx.exception))
+
+
+class TavilyRequestTests(unittest.TestCase):
+
+    def _client(self, **kw):
+        return TavilyClient(api_key="k", **kw)
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_key_sent_as_bearer_token(self, mock_urlopen):
+        mock_urlopen.return_value = _FakeResponse({"results": []})
+        self._client().search("q")
+        headers = mock_urlopen.call_args[0][0].headers
+        self.assertEqual(headers.get("Authorization"), "Bearer k")
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_plain_query_has_no_include_domains(self, mock_urlopen):
+        mock_urlopen.return_value = _FakeResponse({"results": []})
+        self._client().search("solid state batteries")
+        body = json.loads(mock_urlopen.call_args[0][0].data.decode())
+        self.assertEqual(body["query"], "solid state batteries")
+        self.assertNotIn("include_domains", body)
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_site_token_becomes_include_domains(self, mock_urlopen):
+        """The exact query shape _queries() already builds for patent search —
+        this client must adapt it, not require source_pipeline.py to change."""
+        mock_urlopen.return_value = _FakeResponse({"results": []})
+        self._client().search("solid-state batteries site:patents.google.com/patent")
+        body = json.loads(mock_urlopen.call_args[0][0].data.decode())
+        self.assertEqual(body["query"], "solid-state batteries")
+        self.assertEqual(body["include_domains"], ["patents.google.com/patent"])
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_response_reshaped_to_organic(self, mock_urlopen):
+        """Every caller in source_pipeline.py reads response['organic'], the
+        Serper shape — Tavily's own {results: [{title,url,content}]} must
+        come out the other side looking identical regardless of which client
+        actually ran the search."""
+        mock_urlopen.return_value = _FakeResponse({
+            "results": [{"title": "T", "url": "https://x", "content": "snip"}]
+        })
+        result = self._client().search("q")
+        self.assertEqual(
+            result, {"organic": [{"title": "T", "link": "https://x", "snippet": "snip"}]}
+        )
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_non_object_response_rejected(self, mock_urlopen):
+        mock_urlopen.return_value = _FakeResponse(["not", "an", "object"])
+        with self.assertRaises(SourceCollectionError):
+            self._client().search("q")
+
+
+@patch("academic_agent.source_clients.time.sleep")
+class TavilyRetryTests(unittest.TestCase):
+    """Mirrors SerperRetryTests — same policy, same reasons, different API."""
+
+    def _client(self):
+        return TavilyClient(api_key="k")
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_transient_network_error_retried_then_succeeds(self, mock_urlopen, _sleep):
+        mock_urlopen.side_effect = [URLError("flaky"), _FakeResponse({"results": []})]
+        self.assertEqual(self._client().search("q"), {"organic": []})
+        self.assertEqual(mock_urlopen.call_count, 2)
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_gives_up_after_three_attempts(self, mock_urlopen, _sleep):
+        mock_urlopen.side_effect = URLError("down")
+        with self.assertRaises(SourceCollectionError) as ctx:
+            self._client().search("q")
+        self.assertEqual(mock_urlopen.call_count, 3)
+        self.assertIn("3 attempts", str(ctx.exception))
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_forbidden_is_not_retried(self, mock_urlopen, _sleep):
+        """The exact failure this client exists to work around for Serper —
+        must not be masked by a retry loop here either."""
+        mock_urlopen.side_effect = _http_error(403)
+        with self.assertRaises(SourceCollectionError) as ctx:
+            self._client().search("q")
+        self.assertEqual(mock_urlopen.call_count, 1)
+        self.assertIn("403", str(ctx.exception))
+
+
+class DefaultWebSearchClientTests(unittest.TestCase):
+    """The auto-detection that lets a deployment switch providers by setting
+    one env var, with no code change and no break for existing Serper-only
+    setups."""
+
+    @patch.dict("os.environ", {"TAVILY_API_KEY": "t", "SERPER_API_KEY": "s"}, clear=True)
+    def test_tavily_preferred_when_both_are_set(self):
+        self.assertIsInstance(default_web_search_client(), TavilyClient)
+
+    @patch.dict("os.environ", {"SERPER_API_KEY": "s"}, clear=True)
+    def test_serper_used_when_tavily_not_configured(self):
+        """The original, still-default setup must keep working unchanged."""
+        self.assertIsInstance(default_web_search_client(), SerperClient)
+
+    @patch.dict("os.environ", {"TAVILY_API_KEY": "t"}, clear=True)
+    def test_tavily_used_alone(self):
+        self.assertIsInstance(default_web_search_client(), TavilyClient)
 
 
 # ---------------------------------------------------------------------------

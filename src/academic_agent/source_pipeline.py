@@ -20,7 +20,8 @@ from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
     SourceCollectionError,
     _TOPIC_PREPOSITIONS,
     _topic_core_phrase,
-    SerperClient, OpenAlexClient, SemanticScholarClient,
+    SerperClient, TavilyClient, default_web_search_client,
+    OpenAlexClient, SemanticScholarClient,
     PubMedClient, ArxivClient, LensPatentClient, CrossrefClient,
     # Re-exported for callers and tests that treat source_pipeline as the
     # public surface of the retrieval layer. Not referenced in this module,
@@ -2406,16 +2407,18 @@ def collect_source_collection(
     resolved_date     = accessed_date or date.today()
     all_audits: list[SearchAudit] = []
 
-    # Default (English) Serper client — only instantiated when no searcher is injected
+    # Default (English) web search client — only instantiated when no searcher
+    # is injected. Tavily when TAVILY_API_KEY is set, else Serper — see
+    # default_web_search_client() for why there are two.
     if searcher is None:
-        default_serper    = SerperClient()
-        resolved_searcher = default_serper.search
+        default_search_client = default_web_search_client()
+        resolved_searcher = default_search_client.search
     else:
         resolved_searcher = searcher
 
-    # Native-language Serper client (only instantiated when needed)
+    # Native-language client (only instantiated when needed)
     if is_native and searcher is None:
-        native_serper = SerperClient(gl=lang_info["gl"], hl=lang_info["hl"])
+        native_serper = default_web_search_client(gl=lang_info["gl"], hl=lang_info["hl"])
     else:
         native_serper = None
 

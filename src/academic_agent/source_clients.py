@@ -489,6 +489,117 @@ class SerperClient:
         ) from last_exc
 
 
+class TavilyClient:
+    """Drop-in alternative to SerperClient, same search(query) -> dict shape.
+
+    Exists because Serper (which proxies Google) 403s every request from at
+    least one real deployment host (confirmed for two Railway regions, both
+    plain and site:-restricted queries) — a class of block search-scraping
+    APIs commonly apply to datacenter IP ranges. Tavily is built for
+    server-side/agent callers rather than proxying Google, so it is not
+    expected to have the same restriction, though that is an expectation,
+    not a guarantee, until it has run somewhere Serper was blocked.
+
+    Domain restriction is Tavily's own `include_domains` request field
+    rather than a `site:` token glued onto the query text, so any
+    `site:domain` fragment is parsed out of the query and sent that way —
+    the query strings _queries() already builds need no change for this.
+    """
+
+    _SITE_TOKEN = re.compile(r"\bsite:(\S+)")
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        *,
+        n_results: int = 10,
+        timeout: int = 20,
+        gl: str = "us",
+        hl: str = "en",
+    ) -> None:
+        self.api_key = api_key or os.getenv("TAVILY_API_KEY")
+        if not self.api_key:
+            raise SourceCollectionError("TAVILY_API_KEY is required for source retrieval.")
+        self.n_results = n_results
+        self.timeout = timeout
+        # No Tavily equivalent to Serper's Google locale params — accepted
+        # only so the two clients share a constructor signature.
+        self.gl = gl
+        self.hl = hl
+
+    def search(self, query: str) -> dict[str, Any]:
+        domains = self._SITE_TOKEN.findall(query)
+        text = self._SITE_TOKEN.sub("", query).strip()
+        body: dict[str, Any] = {"query": text, "max_results": min(self.n_results, 20)}
+        if domains:
+            body["include_domains"] = domains
+        request = Request(
+            "https://api.tavily.com/search",
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "AcademicAgentSourceCollector/1.0",
+            },
+            method="POST",
+        )
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                with urlopen(request, timeout=self.timeout) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise SourceCollectionError("Tavily returned a non-object response.")
+                return self._to_organic_shape(payload)
+            # HTTPError subclasses URLError, so it must be caught first —
+            # otherwise a 401/403/404 gets swallowed by the transient-error
+            # branch below and retried three times, burning quota and
+            # reporting "after 3 attempts" instead of the real cause.
+            except HTTPError as exc:
+                if exc.code in {429, 500, 502, 503, 504}:
+                    last_exc = exc
+                    time.sleep(2 ** attempt)
+                else:
+                    raise SourceCollectionError(
+                        f"Tavily search failed for {query!r}: {exc}"
+                    ) from exc
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+                last_exc = exc
+                time.sleep(2 ** attempt)
+        raise SourceCollectionError(
+            f"Tavily search failed for {query!r} after 3 attempts: {last_exc}"
+        ) from last_exc
+
+    @staticmethod
+    def _to_organic_shape(payload: dict[str, Any]) -> dict[str, Any]:
+        """Reshape Tavily's {results: [{title,url,content}]} into Serper's
+        {organic: [{title,link,snippet}]} — the one shape every caller in
+        source_pipeline.py already reads, regardless of which client ran."""
+        results = payload.get("results", [])
+        organic = [
+            {
+                "title": item.get("title", ""),
+                "link": item.get("url", ""),
+                "snippet": item.get("content", ""),
+            }
+            for item in results
+            if isinstance(item, dict)
+        ]
+        return {"organic": organic}
+
+
+def default_web_search_client(*, gl: str = "us", hl: str = "en") -> "SerperClient | TavilyClient":
+    """The web search client to use when the caller hasn't injected one.
+
+    Prefers Tavily when configured: see TavilyClient for why. Falls back to
+    Serper so a deployment that has only ever set SERPER_API_KEY (the
+    original, still-default setup) keeps working unchanged.
+    """
+    if os.getenv("TAVILY_API_KEY"):
+        return TavilyClient(gl=gl, hl=hl)
+    return SerperClient(gl=gl, hl=hl)
+
+
 class OpenAlexClient:
     """Client for the OpenAlex Works API (free, no key required)."""
 
