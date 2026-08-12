@@ -5,9 +5,22 @@ Usage:
     uv run python benchmark.py --concurrency 3    # 3 topics at a time
     uv run python benchmark.py --only 01,06       # specific cases by number
     uv run python benchmark.py --skip 03,04       # skip already-tested cases
+    uv run python benchmark.py --repeat 3         # each topic 3x, for spread
     uv run python benchmark.py --dry-run -c 3     # exercise scheduling, no API calls
 
-Each topic writes to outputs/benchmark/<num>-<slug>/:
+Measuring a change to scoring
+-----------------------------
+Use --repeat. Market sources come from live search, so two runs of the same
+topic see different evidence and land on different scores; a single run
+therefore cannot separate "the pipeline changed" from "the evidence changed".
+benchmark_check.py reports mean and standard deviation per topic once any
+topic has more than one run, and a scoring shift smaller than that spread is
+not yet evidence of anything. Repetitions are interleaved across the batch
+rather than run back to back, so a slow window upstream does not land entirely
+on one topic and masquerade as that topic being unstable.
+
+Each topic writes to outputs/benchmark/<num>-<slug>/ (repetitions after the
+first get a __r2, __r3 suffix):
     validated_sources.json
     commercialization_report.md
     commercialization_scores.json
@@ -79,8 +92,15 @@ def _slug(topic: str) -> str:
     return topic.lower().replace(" ", "-")[:45].rstrip("-")
 
 
-def _run_dir(num: str, topic: str) -> Path:
-    return BENCHMARK_ROOT / f"{num}-{_slug(topic)}"
+def _run_dir(num: str, topic: str, rep: int = 1) -> Path:
+    """Directory for one execution of one topic.
+
+    Repetition 1 keeps the historic unsuffixed name so existing result
+    directories, and anything pointing at them, keep working; only the extra
+    repetitions of --repeat get a suffix.
+    """
+    base = BENCHMARK_ROOT / f"{num}-{_slug(topic)}"
+    return base if rep <= 1 else base.with_name(f"{base.name}__r{rep}")
 
 
 def _trl_flag(trl, trl_range: tuple) -> str:
@@ -160,12 +180,15 @@ def run_topic(
     industry: str,
     dry_run: bool = False,
     force: bool = False,
+    rep: int = 1,
 ) -> dict:
     """Run one topic end to end. Executed in its own process when concurrent."""
+    label = num if rep <= 1 else f"{num}#{rep}"
     if dry_run:
-        _log(f"  [{num}] dry-run start")
+        _log(f"  [{label}] dry-run start")
         meta = _simulate_topic(num, topic, trl_range, industry)
-        _log(f"  [{num}] dry-run done in {meta['elapsed_seconds']}s")
+        meta["rep"] = rep
+        _log(f"  [{label}] dry-run done in {meta['elapsed_seconds']}s")
         return meta
 
     from academic_agent.crew import AcademicAgent
@@ -175,23 +198,24 @@ def run_topic(
         collect_source_collection,
     )
 
-    run_dir = _run_dir(num, topic)
+    run_dir = _run_dir(num, topic, rep)
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    _log(f"  [{num}] start — {topic}  [{industry}]  expect TRL {trl_range[0]}–{trl_range[1]}")
+    _log(f"  [{label}] start — {topic}  [{industry}]  expect TRL {trl_range[0]}–{trl_range[1]}")
 
     # Skipping succeeded runs makes an interrupted batch resumable, but it also
     # means a plain re-run after changing the pipeline does nothing at all —
     # every topic is skipped and the summary silently reports the old results.
     # --force is the way to re-measure; it rewrites this run's outputs in place.
     if not force and _already_succeeded(run_dir):
-        _log(f"  [{num}] already succeeded — skipping (use --force to re-run)")
+        _log(f"  [{label}] already succeeded — skipping (use --force to re-run)")
         meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
         meta["skipped"] = True
         return meta
 
     meta: dict = {
         "num": num,
+        "rep": rep,
         "topic": topic,
         "industry": industry,
         "expected_trl_range": list(trl_range),
@@ -210,7 +234,7 @@ def run_topic(
         a_count = len(source_collection.academic_sources)
         p_count = len(source_collection.patent_sources)
         m_count = len(source_collection.market_sources)
-        _log(f"  [{num}] sources: {a_count} academic / {p_count} patent / {m_count} market")
+        _log(f"  [{label}] sources: {a_count} academic / {p_count} patent / {m_count} market")
 
         # Throttling during source collection is recorded in the audit trail
         # rather than raised, so it has to be counted separately from crew errors.
@@ -239,7 +263,7 @@ def run_topic(
                 tasks_output, run_id=run_dir.name, output_root=run_dir.parent
             )
         except Exception:  # noqa: BLE001 - inspection files must not fail a run
-            _log(f"  [{num}] evidence artifacts could not be written (run unaffected)")
+            _log(f"  [{label}] evidence artifacts could not be written (run unaffected)")
 
         if len(tasks_output) >= 2:
             report_raw = tasks_output[-2].raw   # Task 5 = reviewer = Markdown report
@@ -261,7 +285,7 @@ def run_topic(
             meta["trl_calibration"] = flag
             icon = "✓" if flag == "pass" else "⚠"
             _log(
-                f"  [{num}] score: overall={overall}  "
+                f"  [{label}] score: overall={overall}  "
                 f"TRL={trl}/9 [{icon} {flag}, expected {trl_range[0]}–{trl_range[1]}]  "
                 f"market={scores.get('market_accessibility')}/5"
             )
@@ -274,7 +298,7 @@ def run_topic(
         meta["error"] = str(exc)
         meta["rate_limit_hits"] += _count_rate_limit_hits(str(exc))
         (run_dir / "error.log").write_text(traceback.format_exc(), encoding="utf-8")
-        _log(f"  [{num}] ✗ source collection failed: {exc}")
+        _log(f"  [{label}] ✗ source collection failed: {exc}")
 
     except Exception:
         err_text = traceback.format_exc()
@@ -282,7 +306,7 @@ def run_topic(
         meta["error"] = err_text.splitlines()[-1]
         meta["rate_limit_hits"] += _count_rate_limit_hits(err_text)
         (run_dir / "error.log").write_text(err_text, encoding="utf-8")
-        _log(f"  [{num}] ✗ crew failed: {meta['error']}")
+        _log(f"  [{label}] ✗ crew failed: {meta['error']}")
 
     meta["elapsed_seconds"] = round(time.time() - start)
     (run_dir / "meta.json").write_text(
@@ -291,15 +315,15 @@ def run_topic(
     icon = "✓" if meta["status"] == "success" else "✗"
     limits = meta.get("rate_limit_hits", 0)
     suffix = f"  [{limits} rate-limit hits]" if limits else ""
-    _log(f"  [{num}] {icon} done in {meta['elapsed_seconds']}s  [{meta['status']}]{suffix}")
+    _log(f"  [{label}] {icon} done in {meta['elapsed_seconds']}s  [{meta['status']}]{suffix}")
     return meta
 
 
 def _run_serial(selected: list[tuple], dry_run: bool, force: bool = False) -> list[dict]:
     """Original behaviour: one topic at a time, with a pause between them."""
     results = []
-    for i, (num, topic, trl_range, industry) in enumerate(selected):
-        meta = run_topic(num, topic, trl_range, industry, dry_run, force)
+    for i, (num, topic, trl_range, industry, rep) in enumerate(selected):
+        meta = run_topic(num, topic, trl_range, industry, dry_run, force, rep)
         results.append(meta)
         if i < len(selected) - 1 and not meta.get("skipped") and not dry_run:
             _log(f"  → pausing {_INTER_RUN_PAUSE}s before next topic")
@@ -320,20 +344,21 @@ def _run_concurrent(
     results: list[dict] = []
     with ProcessPoolExecutor(max_workers=concurrency) as pool:
         futures = {}
-        for i, (num, topic, trl_range, industry) in enumerate(selected):
+        for i, (num, topic, trl_range, industry, rep) in enumerate(selected):
             if i and stagger:
                 time.sleep(stagger)
-            fut = pool.submit(run_topic, num, topic, trl_range, industry, dry_run, force)
-            futures[fut] = num
+            fut = pool.submit(run_topic, num, topic, trl_range, industry, dry_run, force, rep)
+            futures[fut] = (num, rep)
 
         for done, fut in enumerate(as_completed(futures), start=1):
-            num = futures[fut]
+            num, rep = futures[fut]
             try:
                 results.append(fut.result())
             except Exception as exc:                      # worker crashed outright
-                _log(f"  [{num}] ✗ worker process died: {exc}")
+                _log(f"  [{num if rep <= 1 else f'{num}#{rep}'}] ✗ worker process died: {exc}")
                 results.append({
                     "num": num,
+                    "rep": rep,
                     "status": "error_worker",
                     "error": str(exc),
                     "rate_limit_hits": 0,
@@ -381,29 +406,53 @@ def main() -> None:
              "Needed to re-measure after changing the pipeline — without it "
              "every completed topic is skipped and the summary keeps the old numbers.",
     )
+    parser.add_argument(
+        "-r", "--repeat",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Run each topic N times so the summary can report spread as well "
+             "as a value. One run cannot tell a real scoring change from "
+             "run-to-run variation — market sources come from live search, so "
+             "the evidence itself differs between runs. Costs N times as much.",
+    )
     args = parser.parse_args()
 
     if args.concurrency < 1:
         parser.error("--concurrency must be at least 1")
+    if args.repeat < 1:
+        parser.error("--repeat must be at least 1")
 
     only_set = {n.strip() for n in args.only.split(",")} if args.only else None
     skip_set = {n.strip() for n in args.skip.split(",")} if args.skip else set()
 
-    selected = [
+    topics = [
         (num, topic, trl_range, industry)
         for num, topic, trl_range, industry in TOPICS
         if (only_set is None or num in only_set) and num not in skip_set
     ]
-    if not selected:
+    if not topics:
         _log("No topics selected — check --only / --skip.")
         return
+
+    # Repetitions are interleaved (every topic once, then every topic again)
+    # rather than run back to back. A slow window upstream would otherwise land
+    # on all repetitions of whichever topic was running at the time, and show up
+    # as that topic being unstable — spreading them across the batch keeps the
+    # spread this measures closer to real run-to-run variation.
+    selected = [
+        (num, topic, trl_range, industry, rep)
+        for rep in range(1, args.repeat + 1)
+        for num, topic, trl_range, industry in topics
+    ]
 
     concurrency = min(args.concurrency, len(selected))
     max_rpm = os.getenv("MAX_RPM", "6")
 
     BENCHMARK_ROOT.mkdir(parents=True, exist_ok=True)
     _log(f"Benchmark root : {BENCHMARK_ROOT}")
-    _log(f"Topics to run  : {len(selected)}")
+    _log(f"Topics to run  : {len(topics)}"
+         + (f" x {args.repeat} repetitions = {len(selected)} runs" if args.repeat > 1 else ""))
     _log(f"Concurrency    : {concurrency}" + ("  (serial)" if concurrency == 1 else ""))
     if concurrency > 1:
         _log(f"Aggregate rate : ~{concurrency} x {max_rpm} RPM to the LLM, plus source-API bursts")

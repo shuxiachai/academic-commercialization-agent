@@ -16,6 +16,7 @@ Also prints a human-readable table to the terminal.
 import csv
 import json
 import re
+import statistics
 import sys
 from pathlib import Path
 
@@ -32,6 +33,8 @@ from academic_agent.evidence import (
 
 BENCHMARK_ROOT = Path(__file__).parent / "outputs" / "benchmark"
 OUTPUT_CSV = BENCHMARK_ROOT / "benchmark_summary.csv"
+# Written only when some topic was run more than once — see _stability_rows.
+STABILITY_CSV = BENCHMARK_ROOT / "benchmark_stability.csv"
 
 # Matches citation brackets: [A1], [P2], [M3], or comma-separated [A4, A5]
 _CITATION_PATTERN = re.compile(r"\[[APM]\d+(?:\s*,\s*[APM]\d+)*\]")
@@ -163,6 +166,9 @@ def analyse_run(run_dir: Path) -> dict | None:
 
     row: dict = {
         "case_num":              meta.get("num", "?"),
+        # 1 for a single run and for every result produced before --repeat
+        # existed, so old directories still aggregate as a sample of one.
+        "rep":                   meta.get("rep", 1),
         "topic":                 meta.get("topic", "?"),
         "industry":              meta.get("industry", ""),
         "status":                meta.get("status", "?"),
@@ -305,6 +311,60 @@ def _print_table(rows: list[dict]) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+def _stability_rows(rows: list[dict]) -> list[dict]:
+    """Per-topic spread across repetitions.
+
+    A single run cannot separate "the pipeline changed" from "the evidence
+    changed": market sources come from live search, so two runs of one topic
+    see different material. Reporting mean and standard deviation alongside the
+    calibration verdict is what makes a scoring change measurable rather than
+    anecdotal — a shift smaller than the spread is not yet evidence of anything.
+    """
+    by_case: dict[str, list[dict]] = {}
+    for row in rows:
+        if row.get("status") == "success":
+            by_case.setdefault(row["case_num"], []).append(row)
+
+    out: list[dict] = []
+    for case_num, group in sorted(by_case.items()):
+        trls = [float(r["trl_score"]) for r in group if r.get("trl_score") != ""]
+        overalls = [float(r["overall_score"]) for r in group if r.get("overall_score") != ""]
+        if not trls:
+            continue
+        passes = sum(1 for r in group if r.get("trl_calibration") == "pass")
+        out.append({
+            "case_num":     case_num,
+            "topic":        group[0]["topic"],
+            "expected_trl": group[0].get("expected_trl", ""),
+            "n":            len(trls),
+            "trl_mean":     round(statistics.mean(trls), 2),
+            "trl_sd":       round(statistics.stdev(trls), 2) if len(trls) > 1 else 0.0,
+            "trl_min":      min(trls),
+            "trl_max":      max(trls),
+            "overall_mean": round(statistics.mean(overalls), 1) if overalls else "",
+            "overall_sd":   (round(statistics.stdev(overalls), 2)
+                             if len(overalls) > 1 else 0.0),
+            "calibrated":   f"{passes}/{len(group)}",
+        })
+    return out
+
+
+def _print_stability(stats: list[dict]) -> None:
+    print()
+    print("Stability across repetitions")
+    print("─" * 108)
+    print(f"{'#':>2}  {'Topic':<40}  {'n':>2}  {'TRL mean':>8}  {'sd':>5}  "
+          f"{'range':>9}  {'expected':>9}  {'overall':>7}  {'sd':>5}  {'calib':>6}")
+    print("─" * 108)
+    for s in stats:
+        rng = f"{s['trl_min']:g}-{s['trl_max']:g}"
+        print(f"{s['case_num']:>2}  {s['topic'][:40]:<40}  {s['n']:>2}  "
+              f"{s['trl_mean']:>8}  {s['trl_sd']:>5}  {rng:>9}  "
+              f"{s['expected_trl']:>9}  {str(s['overall_mean']):>7}  "
+              f"{s['overall_sd']:>5}  {s['calibrated']:>6}")
+    print("─" * 108)
+
+
 def main() -> None:
     run_dirs = sorted(d for d in BENCHMARK_ROOT.iterdir() if d.is_dir())
     if not run_dirs:
@@ -325,7 +385,7 @@ def main() -> None:
     _print_table(rows)
 
     fieldnames = [
-        "case_num", "topic", "industry", "status", "elapsed_s",
+        "case_num", "rep", "topic", "industry", "status", "elapsed_s",
         "overall_score", "trl_score", "expected_trl", "trl_calibration",
         "patent_strength", "market_accessibility", "evidence_confidence", "formula_correct",
         "academic_sources", "patent_sources", "market_sources",
@@ -338,6 +398,15 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(rows)
 
+    stats = _stability_rows(rows)
+    repeated = [s for s in stats if s["n"] > 1]
+    if repeated:
+        _print_stability(stats)
+        with STABILITY_CSV.open("w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.DictWriter(f, fieldnames=list(stats[0]), extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(stats)
+
     success  = sum(1 for r in rows if r.get("status") == "success")
     trl_pass = sum(1 for r in rows if r.get("trl_calibration") == "pass")
     trl_flag = sum(1 for r in rows if r.get("trl_calibration") == "flag")
@@ -345,6 +414,12 @@ def main() -> None:
     print(f"\nResults       : {success}/{len(rows)} succeeded")
     print(f"TRL calibrated: {trl_pass} pass / {trl_flag} flag (outside expected range)")
     print(f"CSV           : {OUTPUT_CSV}")
+    if repeated:
+        widest = max(repeated, key=lambda s: s["trl_sd"])
+        print(f"Stability CSV : {STABILITY_CSV}")
+        print(f"Widest spread : case {widest['case_num']}, TRL sd {widest['trl_sd']} "
+              f"(range {widest['trl_min']:g}-{widest['trl_max']:g}) — a scoring "
+              f"change smaller than this is not measurable from one run")
     print()
     print("Next step: open the CSV in Excel and add a 'human_notes' column")
     print("for manual spot-checks (URL accuracy, TRL plausibility, hallucination).")

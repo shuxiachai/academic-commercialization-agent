@@ -113,5 +113,76 @@ class NumericUncitedTests(unittest.TestCase):
         self.assertEqual(
             self._count("Seven records [P1, P2, P3] were filed since 2019."), 0)
 
+
+class RunDirRepetitionTests(unittest.TestCase):
+    """--repeat needs a directory per execution, without renaming the ones
+    already on disk from before the flag existed."""
+
+    def test_first_repetition_keeps_the_historic_name(self):
+        from benchmark import _run_dir
+        self.assertEqual(_run_dir("01", "solid state batteries", 1).name,
+                         _run_dir("01", "solid state batteries").name)
+
+    def test_later_repetitions_get_distinct_names(self):
+        from benchmark import _run_dir
+        names = {_run_dir("01", "solid state batteries", r).name for r in (1, 2, 3)}
+        self.assertEqual(len(names), 3)
+
+    def test_repetition_suffix_is_recoverable(self):
+        from benchmark import _run_dir
+        self.assertTrue(_run_dir("01", "topic here", 2).name.endswith("__r2"))
+
+
+class StabilityAggregationTests(unittest.TestCase):
+    """Spread across repetitions is what makes a scoring change measurable:
+    a shift smaller than the run-to-run spread is not evidence of anything."""
+
+    @staticmethod
+    def _row(case_num, rep, trl, overall, calibration):
+        return {
+            "case_num": case_num, "rep": rep, "topic": f"topic {case_num}",
+            "status": "success", "trl_score": trl, "overall_score": overall,
+            "expected_trl": "5-7", "trl_calibration": calibration,
+        }
+
+    def test_mean_and_spread_are_reported_per_topic(self):
+        from benchmark_check import _stability_rows
+        rows = [
+            self._row("01", 1, 6.0, 60.0, "pass"),
+            self._row("01", 2, 7.0, 66.0, "pass"),
+            self._row("01", 3, 8.0, 72.0, "flag"),
+        ]
+        [stat] = _stability_rows(rows)
+        self.assertEqual(stat["n"], 3)
+        self.assertEqual(stat["trl_mean"], 7.0)
+        self.assertEqual(stat["trl_sd"], 1.0)
+        self.assertEqual((stat["trl_min"], stat["trl_max"]), (6.0, 8.0))
+        self.assertEqual(stat["calibrated"], "2/3")
+
+    def test_single_run_reports_zero_spread_not_an_error(self):
+        """Directories from before --repeat existed are a sample of one, and
+        statistics.stdev raises on those rather than returning 0."""
+        from benchmark_check import _stability_rows
+        [stat] = _stability_rows([self._row("01", 1, 6.0, 60.0, "pass")])
+        self.assertEqual(stat["n"], 1)
+        self.assertEqual(stat["trl_sd"], 0.0)
+
+    def test_failed_runs_are_excluded_from_the_statistics(self):
+        """A crashed run has no score; averaging it in would drag the mean."""
+        from benchmark_check import _stability_rows
+        failed = self._row("01", 2, "", "", "")
+        failed["status"] = "error_crew"
+        [stat] = _stability_rows([self._row("01", 1, 6.0, 60.0, "pass"), failed])
+        self.assertEqual(stat["n"], 1)
+
+    def test_topics_are_aggregated_separately(self):
+        from benchmark_check import _stability_rows
+        stats = _stability_rows([
+            self._row("01", 1, 6.0, 60.0, "pass"),
+            self._row("02", 1, 3.0, 30.0, "flag"),
+        ])
+        self.assertEqual([s["case_num"] for s in stats], ["01", "02"])
+
+
 if __name__ == "__main__":
     unittest.main()
