@@ -408,6 +408,41 @@ rather than the search API. Tavily's 1000-per-month free tier is therefore
 roughly 110 runs in total across every code. Note the cap is per code, so it bounds what any one leaked code
 can do, not what every code can do put together.
 
+**Two more settings worth turning on before a link goes public**, both
+default-off so local use is unaffected:
+
+```bash
+API_RATE_LIMIT_PER_MINUTE=300   # requests per client per minute
+RUN_RETENTION_DAYS=30           # delete finished runs after N days
+```
+
+The rate limit counts *requests*, which neither cap above does — those count
+runs. It matters because the endpoints reachable without a code are the cheap
+ones: a run id is a capability URL, so whoever holds one can poll it freely,
+and the gate check itself must stay open in order to reject wrong codes at
+all. Charged per access code where one is present and per address otherwise,
+so several people behind one campus NAT are not throttled as a single client.
+`/health` is exempt — a throttled health check reads as the service being down.
+
+Retention matters *because* run links are shareable. Reading a run needs only
+its id, so a shared link lives exactly as long as the run does, and a visitor
+who uploads an unpublished paper otherwise leaves its contents, the extracted
+contribution and the resulting assessment on your server indefinitely. Age is
+taken from the run id's timestamp rather than the directory mtime, so
+rendering a PDF on first download does not quietly extend the life of the runs
+people are actually opening; live runs are never deleted. `/health` reports
+the window and the web client shows it, since a deletion nobody was told about
+reads as data loss rather than as policy.
+
+Every response also carries `Content-Security-Policy`, `X-Content-Type-Options`,
+`Referrer-Policy` and `Cross-Origin-Opener-Policy`. The policy needs no
+`unsafe-inline`: the client has no inline script, no inline style and no `on*`
+attributes, and sets style through CSSOM properties. Report text is model
+output plus third-party titles reaching innerHTML, so this is what bounds a
+missed escape. HSTS is deliberately absent — Railway terminates TLS ahead of
+this process, and an app sending `max-age` for a host it does not control can
+outlive its own certificate story.
+
 **Handing out a separate code per person:** `ACCESS_CODES` accepts a
 comma-separated list instead of one shared value — `ACCESS_CODES=for-alice,
 for-bob`. Each code's run history is scoped to itself: the sidebar for
@@ -1012,6 +1047,19 @@ API_DAILY_RUN_CAP=3                       # 硬上限，万一口令泄漏出去
 `API_DAILY_RUN_CAP` 是第二道独立防线：并发上限只管同时跑几个，管不住口令泄漏后被人在一天内前后接力刷上百次；这个直接卡总数，与节奏无关。**按每个口令各自计数**，不是所有口令共用一个池子——不然一个人测得起劲，会把其他持有不同口令的人当天的额度全部用光。默认 0 表示不限制。
 
 **这个值要对着检索额度定，而不是对着 LLM 账单定。** 实测 30 次运行：单次运行消耗的网页检索**中位数是 9 次**（区间 5–15），远少于它构造出来的约 22 条 query——因为某个域凑够来源后会提前终止，而且学术检索走的是 OpenAlex/PubMed/arXiv，不消耗检索 API 额度。所以 Tavily 每月 1000 次的免费额度，换算下来是**所有口令加起来**约 110 次运行。另外注意这个上限是按口令算的，它兜住的是"单个口令泄漏能造成多大损失"，不是"所有口令加起来最多花多少"。
+
+**链接公开之前还值得打开的两个设置**，两个都默认关闭，本地使用不受影响：
+
+```bash
+API_RATE_LIMIT_PER_MINUTE=300   # 每个客户端每分钟请求数
+RUN_RETENTION_DAYS=30           # N 天后自动删除已完成的运行
+```
+
+请求限流计的是**请求数**，上面两个上限计的都是**运行数**——这不是一回事。之所以需要，恰恰是因为不需要口令就能到达的接口最便宜：`run_id` 是能力 URL，持有者可以随意轮询；门禁校验接口本身也必须开放（拒绝错误口令正是它的用途）。有口令时按口令计额度、否则按地址计，这样同一个校园或公司出口 IP 后面的多个人不会被当成一个客户端限流。`/health` 豁免——被限流的健康检查会被平台读成服务已宕机。
+
+保留期之所以重要，**正是因为运行链接可以分享**：读取一个运行只需要 id，所以分享出去的链接活多久，取决于那次运行活多久；而一个上传了未发表论文的访客，会把论文内容、提取出的核心贡献、以及据此写成的评估长期留在你的服务器上。计龄用的是 run_id 自带的时间戳而不是目录 mtime，这样首次下载时渲染 PDF 不会给"正在被人打开的运行"偷偷续期；正在执行的运行永不删除。`/health` 会上报保留窗口、前端会显示——没被告知的删除读起来是数据丢失，不是策略。
+
+此外每个响应都带 `Content-Security-Policy`、`X-Content-Type-Options`、`Referrer-Policy` 和 `Cross-Origin-Opener-Policy`。这套策略不需要任何 `unsafe-inline`：前端没有内联脚本、没有内联样式、没有 `on*` 属性，样式通过 CSSOM 逐属性设置。报告正文是模型输出加第三方标题、最终会进入 innerHTML，所以这一层限定的是"万一某处转义漏了，能造成多大后果"。**刻意没有加 HSTS**——Railway 在这个进程之前就终结了 TLS，一个应用给自己并不掌控的域名下发 `max-age`，可能比它的证书方案活得更久。
 
 **给每个人发不同的口令：** `ACCESS_CODES` 接受逗号分隔的多个值，而不是一个共用口令——`ACCESS_CODES=给alice的口令,给bob的口令`。每个口令的运行历史都只属于它自己：持有"给alice的口令"的人，侧栏永远只看得到用这个口令跑过的记录，看不到"给bob的口令"跑过的。这只是运行时打的一个标记（口令的哈希值，写进每次运行的目录里），不是给每个人单独跑一套部署——还是一个进程、一个 `outputs/` 目录，口令只是决定 `GET /api/runs` 返回哪些。`ACCESS_CODE`（单数）还是照常可用，对应原来那种所有人共用一个口令的设置；两者可以同时设置。
 
