@@ -550,5 +550,11 @@ def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], in
             "topic": _read_status(d).get("topic", "—"),
             "started_at": _started_at(d.name),
             "duration": _duration(d),
+            # Not part of RunSummary — the API layer strips this back out
+            # for everyone except an admin request, which resolves it to a
+            # readable code via access.label_for_owner() first. Included
+            # unconditionally here because this function has no notion of
+            # "admin"; that decision belongs to the caller, not this layer.
+            "_owner": _read_owner(d),
         })
     return summaries, len(dirs)

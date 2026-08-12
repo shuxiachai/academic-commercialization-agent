@@ -117,3 +117,22 @@ def owner_id(code: str) -> str:
     disk. Not a security boundary by itself — codes are already secret —
     just avoids writing them out in plaintext a second place."""
     return hashlib.sha256(code.encode()).hexdigest()[:16]
+
+
+def label_for_owner(owner: str | None) -> str | None:
+    """The admin view's answer to "which code ran this": recovers the raw
+    code an owner_id() hash came from by testing it against every code
+    currently configured, rather than storing the raw code a second place
+    on disk. Showing the admin the actual code is not a new disclosure —
+    whoever controls ADMIN_CODE already controls every code in .env — it
+    just makes the combined history legible instead of an unlabelled merge.
+
+    None if `owner` is None (BYOK, or no code configured) or belongs to a
+    code that has since been removed or rotated out of the configuration.
+    """
+    if owner is None:
+        return None
+    for code in _valid_codes():
+        if owner_id(code) == owner:
+            return code
+    return None

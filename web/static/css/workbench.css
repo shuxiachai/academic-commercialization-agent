@@ -193,6 +193,22 @@
   text-overflow: ellipsis;
 }
 
+/* Only ever rendered for an admin request (RunSummary.owner_label) — which
+   code ran this, so a merged multi-code history stays legible instead of
+   reading as one undifferentiated list. */
+.runitem__owner {
+  flex-shrink: 0;
+  max-width: 96px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--bg-active);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .runlist__empty {
   padding: var(--space-8) var(--space-4);
   text-align: center;

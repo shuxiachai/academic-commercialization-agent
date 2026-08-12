@@ -119,6 +119,33 @@ class AdminCodeTests(unittest.TestCase):
             self.assertTrue(access.gate_enabled())
 
 
+class LabelForOwnerTests(unittest.TestCase):
+    """access.label_for_owner() — the admin view's way to show which code
+    ran something, recovered by testing owner_id() against every code
+    currently configured rather than storing the raw code a second place."""
+
+    def test_recovers_the_code_that_produced_the_hash(self):
+        with patch.object(access, "ACCESS_CODE", None), \
+             patch.object(access, "ACCESS_CODES", "for-alice,for-bob"):
+            self.assertEqual(
+                access.label_for_owner(access.owner_id("for-alice")), "for-alice"
+            )
+            self.assertEqual(
+                access.label_for_owner(access.owner_id("for-bob")), "for-bob"
+            )
+
+    def test_none_owner_is_none(self):
+        self.assertIsNone(access.label_for_owner(None))
+
+    def test_a_rotated_out_code_resolves_to_none(self):
+        """The run still exists on disk with its old hash; the code that
+        made it no longer being configured must not raise or mismatch."""
+        stale_hash = access.owner_id("code-nobody-has-anymore")
+        with patch.object(access, "ACCESS_CODE", None), \
+             patch.object(access, "ACCESS_CODES", "for-alice"):
+            self.assertIsNone(access.label_for_owner(stale_hash))
+
+
 class MisconfigurationWarningTests(unittest.TestCase):
     """access._warn_if_misconfigured() — catches the exact mistake that
     motivated it: pasting `ACCESS_CODES=a,b,c` whole, prefix and all, into a
@@ -595,6 +622,29 @@ class MultiCodeIsolationTests(_RunLifecycleTestBase):
             ["alice's topic", "bob's topic"],
         )
         self.assertEqual([r["topic"] for r in alice_view["runs"]], ["alice's topic"])
+
+    def test_admin_view_labels_each_run_with_its_code(self):
+        """The whole point of the admin view: an unlabelled merge answers
+        "what ran", not "who ran it"."""
+        with patch.object(access, "ACCESS_CODES", "for-alice,for-bob"), \
+             patch.object(access, "ADMIN_CODE", "for-the-operator"):
+            alice_run = self.client.post(
+                "/api/runs", json={"topic": "alice's topic"},
+                headers={"X-Access-Code": "for-alice"},
+            ).json()
+            self._write_topic(alice_run["run_id"], "alice's topic")
+
+            admin_view = self.client.get(
+                "/api/runs", headers={"X-Access-Code": "for-the-operator"}
+            ).json()
+            alice_view = self.client.get(
+                "/api/runs", headers={"X-Access-Code": "for-alice"}
+            ).json()
+
+        self.assertEqual(admin_view["runs"][0]["owner_label"], "for-alice")
+        # A non-admin's own list needs no label — every entry is already
+        # known to be their own.
+        self.assertIsNone(alice_view["runs"][0]["owner_label"])
 
     def test_byok_run_appears_in_no_ones_list(self):
         with patch.object(access, "ACCESS_CODES", "for-alice"):

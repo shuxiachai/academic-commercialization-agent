@@ -118,7 +118,8 @@ async def _access_gate(request: Request, call_next):
     # (matching the single-tenant behaviour from before multiple codes
     # existed), and the admin code deliberately opts out of scoping so its
     # holder sees every code's history at once.
-    if matched is not None and access.is_admin(matched):
+    request.state.is_admin = matched is not None and access.is_admin(matched)
+    if request.state.is_admin:
         request.state.owner = None
     else:
         request.state.owner = access.owner_id(matched) if matched else None
@@ -256,12 +257,22 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
 def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200)) -> RunList:
     """List runs, newest first — scoped to the calling code's own history.
 
-    `request.state.owner` was set by the access-gate middleware, which ran
-    ahead of this handler for every path that isn't POST /api/runs or
-    /api/runs/{id}/...; this path falls into neither, so it is always set
-    (to None when the gate is disabled entirely, meaning no filter).
+    `request.state.owner`/`.is_admin` were set by the access-gate
+    middleware, which ran ahead of this handler for every path that isn't
+    POST /api/runs or /api/runs/{id}/...; this path falls into neither, so
+    both are always set (owner to None when the gate is disabled entirely,
+    meaning no filter).
     """
     summaries, total = runs.list_runs(limit=limit, owner=http_request.state.owner)
+    if http_request.state.is_admin:
+        # An unlabelled merge of everyone's history answers "what ran" but
+        # not "who ran it" — the entire reason to hold the admin code
+        # rather than just leaving the gate unfiltered for everyone.
+        for summary in summaries:
+            summary["owner_label"] = access.label_for_owner(summary.pop("_owner", None))
+    else:
+        for summary in summaries:
+            summary.pop("_owner", None)
     return RunList(runs=summaries, total=total)
 
 

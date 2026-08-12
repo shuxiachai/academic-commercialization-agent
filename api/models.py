@@ -148,6 +148,12 @@ class RunSummary(BaseModel):
     topic: str
     started_at: str
     duration: str
+    owner_label: str | None = Field(
+        default=None,
+        description="Which access code created this run — set only when the "
+                    "requester holds ACCESS_CODE_ADMIN; every other viewer's "
+                    "list is already scoped to their own code alone.",
+    )
 
 
 class RunList(BaseModel):

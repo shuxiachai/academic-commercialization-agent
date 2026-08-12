@@ -64,6 +64,18 @@ export function render(container, runs, { activeId, onSelect }) {
       item.title = run.topic || run.run_id;
 
       item.append(dot, label);
+
+      // Only ever present for an admin request (api/access.py owner_label) —
+      // an unlabelled merge of every code's history answers "what ran", not
+      // "who ran it", which is the entire reason to hold that code rather
+      // than just leaving the gate unfiltered for everyone.
+      if (run.owner_label) {
+        const owner = document.createElement("span");
+        owner.className = "runitem__owner";
+        owner.textContent = run.owner_label;
+        item.title = `${run.owner_label} · ${item.title}`;
+        item.append(owner);
+      }
       item.addEventListener("click", () => onSelect(run.run_id));
       container.append(item);
     }
