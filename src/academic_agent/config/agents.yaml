@@ -289,12 +289,11 @@ commercialization_scorer:
     PROCESS/TECHNOLOGY SCOPE RULE — apply this FIRST before selecting a TRL signal:
     The TRL score must measure the readiness of the SPECIFIC PROCESS OR TECHNOLOGY
     described in the research topic, not the end-product derived from it.
-    - If the topic is "bioreactor scale-up", assess the bioreactor manufacturing
-      process, NOT the readiness of the cultivated meat product.
-    - A regulatory approval for a specialty product (e.g., FDA approval for
-      cultivated fat sold in restaurant servings) signals product-level TRL 7–8,
-      but does NOT imply that the underlying large-scale manufacturing process is
-      at TRL 7–8. Score the PROCESS.
+    - If the topic names a production process, assess that process, NOT the
+      readiness of the product it yields.
+    - A regulatory approval covering a specialty product in limited quantities
+      signals product-level TRL 7–8, but does NOT imply that the underlying
+      large-scale manufacturing process is at TRL 7–8. Score the PROCESS.
     - "Small-scale commercial launch" of a derived product from a single company
       with limited batch sizes signals TRL 4–5 for the manufacturing PROCESS if
       no full-scale production facility exists.
@@ -325,13 +324,19 @@ commercialization_scorer:
       - LEVEL: is the named product the system in the topic, or an input to it?
         A company producing a MATERIAL or COMPONENT that goes into the topic's
         system evidences the readiness of that component, not of the system.
-        For "graphene-based flexible electronics", a firm piloting graphene
-        FILM production is component-level: it supports TRL 5 for the system at
-        most, not TRL 6+.
+        A firm piloting production of a specialty film, powder, catalyst or
+        substrate that the topic's device is built from is component-level: it
+        supports TRL 5 for the system at most, not TRL 6+.
       - SCALE: does the named deployment operate at the scale the topic states?
-        For "perovskite solar cells for utility-scale power generation", panels
-        sold for rooftop or specialty use are below the stated scale. They do
-        not evidence utility-scale readiness, however commercial they are.
+        When a topic names a scale — grid, utility, fleet, plant, population —
+        a deployment described as a demonstrator, a single site, a rooftop
+        install or a specialty product is below it, and does not evidence
+        readiness at the stated scale however commercial it is.
+      These are deliberately stated as patterns rather than worked examples for
+      named technologies. Naming one would put the answer for that technology
+      in this prompt, and a model that then repeats it back looks like it
+      reasoned when it recited — the exact failure this rubric's calibration
+      anchors already produced once.
     When a signal fails either axis, score it one to two levels below what the
     ladder above would give, and say so in the rationale. Evidence about a
     narrower or adjacent thing is weaker evidence about the topic, not equal
@@ -416,17 +421,17 @@ commercialization_scorer:
 
     Dimension 3 — IP Landscape Navigability (write patent_strength 10–50):
     Score how open the patent landscape is for a new entrant or university filing.
-    10: Highly contested — dense blocking patents from major players (e.g. CAR-T,
-        mRNA vaccines — Big Pharma holds broad composition-of-matter claims)
-    20: Substantial coverage — limited filing opportunities (e.g. CRISPR base editing
-        — major institutions hold foundational claims)
-    30: Moderate — notable white spaces exist, IP strategy needed (e.g. solid-state
-        batteries — core electrolyte claims filed but process methods open)
+    10: Highly contested — dense blocking patents from major players (e.g. GLP-1
+        receptor agonists — originators hold broad composition-of-matter claims)
+    20: Substantial coverage — limited filing opportunities (e.g. 5G massive-MIMO
+        beamforming — a few vendors hold the standard-essential claims)
+    30: Moderate — notable white spaces exist, IP strategy needed (e.g. industrial
+        high-temperature heat pumps — core cycles claimed, integration methods open)
     40: Favorable — meaningful white spaces, first-mover advantage available (e.g.
-        graphene electronics — many early patents expired or narrow)
+        precision fermentation for specialty chemicals — many early patents expired)
     50: Very open — few relevant patents, strong early-mover IP opportunity (e.g.
-        room temperature superconductors — technology too early-stage to have
-        significant patent coverage)
+        space-based solar power — technology too early-stage to have significant
+        patent coverage)
     Intermediate values, e.g. 23 = dense landscape but a few narrow gaps visible;
     37 = moderate coverage but more open than typical, with identifiable white spaces.
 
@@ -573,6 +578,15 @@ commercialization_scorer:
     These are canonical reference points. Your scores should be consistent with
     where the topic falls relative to these benchmarks.
 
+    None of these anchors may name a technology that the benchmark suite also
+    scores. An earlier set did — CAR-T, mRNA, solid-state batteries and
+    perovskite were both anchors here and test topics — and the model simply
+    reproduced the anchor's number: three of those topics scored the anchor
+    value exactly, identically across repeated runs. That measured memory, not
+    judgement, and for perovskite the anchor (TRL 7.3) contradicted the range
+    the suite expects (4–6), so the rubric was marking its own test wrong.
+    tests/test_benchmark_calibration.py enforces the separation.
+
     1. LFP lithium-iron-phosphate batteries (as of 2024)
        Status: mass-produced globally by CATL, BYD, and dozens of suppliers
        TRL=9, MRL=10, patent_strength=2, market_accessibility=5, evidence_confidence=5
@@ -580,57 +594,70 @@ commercialization_scorer:
        Use as upper anchor: a topic scoring above 85 must have similarly widespread
        commercial deployment with multiple large-volume manufacturers.
 
-    2. Solid-state lithium batteries (as of 2024)
-       Status: Toyota/QuantumScape/Solid Power have prototypes; no mass-market product
-       TRL=6, MRL=5, patent_strength=2, market_accessibility=3, evidence_confidence=4
-       → overall ≈ 58
-       Use as mid-anchor: a topic with pilot programmes but no commercial product
-       should score in the 50–65 range.
+    2. Monoclonal antibody therapeutics (as of 2024)
+       Status: dozens of approved products, contract manufacturing widely available,
+       standard of care across oncology and autoimmune disease
+       TRL=9, MRL=9, patent_strength=2, market_accessibility=4.5, evidence_confidence=5
+       → overall ≈ 84 (biomedical profile weights)
+       Use as the biomedical upper anchor: a mature therapeutic class whose
+       manufacturing is routine rather than bespoke.
 
-    3. Perovskite silicon-tandem solar cells (as of mid-2025)
-       Status: Oxford PV completed first commercial sales Sep 2024; pilot production
-       line operational; single manufacturer; manufacturing scalability unresolved
-       TRL=7.3, MRL=6.5, patent_strength=3.3, market_accessibility=4.3, evidence_confidence=4.2
-       → overall ≈ 76 (material_science profile weights)
-       Use as first-commercial-sale anchor: a topic with its first commercial product
-       shipped by one manufacturer, but not yet at volume production, should score
-       in the 70–78 range. Score below 70 if manufacturing challenges are severe.
+    3. PEM electrolysers for green hydrogen (as of 2025)
+       Status: multiple vendors selling commercial units; installed at industrial
+       pilot scale; cost and durability at gigawatt scale unresolved
+       TRL=7, MRL=6, patent_strength=3, market_accessibility=3.5, evidence_confidence=4
+       → overall ≈ 68
+       Use as first-commercial-sale anchor: real products shipping from more than
+       one vendor, but not yet at the scale the sector needs.
 
-    4. CAR-T cell therapy — Kymriah/Yescarta (as of 2025)
-       Status: FDA-approved since 2017, multiple commercial products, but manufacturing
-       is bespoke per-patient ($400k/treatment); only specialist centres can administer
-       TRL=8.5, MRL=7.5, patent_strength=2.0, market_accessibility=4.5, evidence_confidence=4.0
-       → overall ≈ 78 (biomedical profile weights)
-       Use as biomedical first-commercial anchor: approved products with high manufacturing
-       complexity and limited patient volume should score 72–80.
+    4. Level-4 robotaxi services (as of 2025)
+       Status: Waymo and a few operators run paid driverless service in a handful
+       of cities; expansion is gated by per-city validation, not by the vehicle
+       TRL=7, MRL=5, patent_strength=3, market_accessibility=3, evidence_confidence=4
+       → overall ≈ 62
+       Use as the pilot-to-early-commercial anchor: a working system in revenue
+       service whose deployment does not yet generalise.
 
-    5. mRNA vaccines (as of 2024)
-       Status: multiple approved products (Pfizer/Moderna), manufacturing at scale
-       TRL=9, MRL=9, patent_strength=1, market_accessibility=5, evidence_confidence=5
-       → overall ≈ 83
-       Note: high overall despite patent_strength=1 because market and TRL are maximal.
+    5. Tokamak fusion power (as of 2025)
+       Status: net-energy-gain shots demonstrated in a laboratory; no grid-connected
+       plant; commercial designs unbuilt
+       TRL=3, MRL=2, patent_strength=3, market_accessibility=1, evidence_confidence=3
+       → overall ≈ 30
+       Use as the LOW anchor. A topic whose evidence is laboratory results and
+       announced intentions — however large the projected market — belongs here,
+       not in the 50s. Without a low reference every score drifts upward, which
+       is the failure mode this anchor exists to prevent.
 
     CALIBRATION ANCHOR ATTRIBUTION RULE:
     When scoring_rationale references a calibration benchmark by name
-    (e.g., "solid-state batteries", "LFP batteries", "CAR-T"), always
+    (e.g., "LFP batteries", "PEM electrolysers"), always
     label it explicitly as a "calibration anchor" so readers can distinguish
     it from A-, P-, or M-prefixed source citations.
     Write: "calibration anchor for [topic] (TRL X, MRL Y)"
     NOT: "benchmark (TRL X, MRL Y)" or "the [topic] benchmark (TRL X)".
-    Example: "This is consistent with the calibration anchor for solid-state
-    lithium batteries (TRL 6, MRL 5), which represents the mid-anchor for
-    pilot-stage technologies with no commercial product."
+    Example: "This is consistent with the calibration anchor for PEM
+    electrolysers (TRL 7, MRL 6), which represents first commercial sales
+    from more than one vendor without sector-scale deployment."
+
+    An anchor is a reference point for comparison, never an answer to copy.
+    If the topic resembles an anchor, say what makes it more or less mature
+    than that anchor and score accordingly — do not reproduce the anchor's
+    number because the technologies sound alike.
 
     BENCHMARK CONSISTENCY CHECK — before finalising your scores:
-    Compare the topic to these four anchors and place it on the scale below:
+    Compare the topic to these five anchors and place it on the scale below:
 
-    35–55: Lab/proof-of-concept stage — academic papers only, no pilot line, no product
-    55–65: Pilot/pre-commercial stage — prototype lines or government pilots, no product
-           (Solid-state batteries ≈ 58 is the reference)
-    70–78: First commercial sale — one manufacturer, limited volume, unresolved scale-up
-           (Perovskite tandem ≈ 76 is the reference)
-    80–88: Multi-manufacturer commercial — multiple companies with reported revenue
-           (mRNA vaccines ≈ 83, LFP batteries ≈ 88 are the references)
+    25–40: Laboratory stage — results in papers, no pilot line, no product
+           (Tokamak fusion ≈ 30 is the reference)
+    40–55: Proof-of-concept to component validation — lab prototypes, no deployment
+    55–70: Pilot/early-commercial — prototype lines, paid pilots, or a working
+           system that does not yet generalise
+           (L4 robotaxi ≈ 62, PEM electrolysers ≈ 68 are the references)
+    70–80: Established commercial — several vendors, real revenue, scale-up
+           or cost still unresolved
+    80–88: Multi-manufacturer mature — routine manufacturing, standard of care
+           or standard of industry
+           (Monoclonal antibodies ≈ 84, LFP batteries ≈ 88 are the references)
 
     A topic with NO commercial product must score below 65.
     A topic with a SINGLE first-sale manufacturer should score 68–78.

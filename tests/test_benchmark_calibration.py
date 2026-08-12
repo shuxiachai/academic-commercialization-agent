@@ -133,6 +133,81 @@ class RunDirRepetitionTests(unittest.TestCase):
         self.assertTrue(_run_dir("01", "topic here", 2).name.endswith("__r2"))
 
 
+class BenchmarkContaminationTests(unittest.TestCase):
+    """A benchmark topic must not be named in the rubric that scores it.
+
+    Four of the ten topics were once calibration anchors carrying an explicit
+    TRL, and six appeared as patent_strength examples. Three scored their
+    anchor's value exactly, identically across repeated runs — which reads as
+    a confident, stable judgement and is in fact recitation. For perovskite
+    the anchor (7.3) even contradicted the range the suite expects (4-6), so
+    the rubric was marking its own test wrong.
+
+    The failure is easy to reintroduce, because the canonical example of a
+    technology at a given maturity is exactly the technology worth testing:
+    the SCOPE MATCH RULE was written with two benchmark topics as its worked
+    examples, and one of them then echoed that wording back in its rationale.
+    Hence a test rather than a note.
+    """
+
+
+    @classmethod
+    def setUpClass(cls):
+        import re
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent / "src" / "academic_agent" / "config"
+        text = "\n".join(
+            (root / name).read_text(encoding="utf-8").lower()
+            for name in ("agents.yaml", "tasks.yaml")
+        )
+
+        # Weight-profile keyword lists are exempt. They route a topic to a set
+        # of dimension weights and assert nothing about how mature it is, so
+        # naming a technology there gives away no answer — unlike an anchor,
+        # which states the score outright.
+        text = re.sub(
+            r"^\s{4}[a-z_]+ \([^)]*\):\s*\n\s+w_market=.*?(?=\n\n)",
+            "", text, flags=re.S | re.M,
+        )
+        # The passage documenting this rule necessarily names the topics it is
+        # about; excluding it keeps the test from failing on its own rationale.
+        text = re.sub(
+            r"none of these anchors may name.*?enforces the separation\.",
+            "", text, flags=re.S,
+        )
+        cls._rubric = text
+
+    @staticmethod
+    def _technology_name(topic: str) -> str:
+        """The technology a rubric example would name it by.
+
+        Matched as a phrase rather than word by word: the words a topic is
+        built from ("state", "storage", "capture", "solar") are ordinary
+        English that appears all over a long prompt, and flagging those
+        reports contamination everywhere and so gets ignored. What matters is
+        whether the technology itself is named, which is the part before the
+        application clause — "solid-state batteries", not "for electric
+        vehicles".
+        """
+        name = topic.lower().split(" for ")[0]
+        return name.replace("-", " ").strip()
+
+    def test_no_benchmark_topic_is_named_in_the_scoring_rubric(self):
+        from benchmark import TOPICS
+
+        haystack = self._rubric.replace("-", " ")
+        for num, topic, _range, _industry in TOPICS:
+            name = self._technology_name(topic)
+            with self.subTest(topic=f"{num} {topic}"):
+                self.assertNotIn(
+                    name, haystack,
+                    f"topic {num} is named in the rubric as {name!r}. Scoring a "
+                    "topic whose answer appears in its own prompt measures "
+                    "recall, not judgement — rename the rubric's example rather "
+                    "than the benchmark topic.",
+                )
+
+
 class StabilityAggregationTests(unittest.TestCase):
     """Spread across repetitions is what makes a scoring change measurable:
     a shift smaller than the run-to-run spread is not evidence of anything."""

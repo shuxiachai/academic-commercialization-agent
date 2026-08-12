@@ -353,7 +353,7 @@ commercialization_scoring_task:
       specific evidence in the raw evidence JSON that justifies the discrepancy;
       explain any deviation explicitly in trl_rationale.
     - Calibration anchor attribution rule: If scoring_rationale references
-      a calibration benchmark by name (e.g., "solid-state batteries", "LFP
+      a calibration benchmark by name (e.g., "PEM electrolysers", "LFP
       batteries"), label it as "calibration anchor" — NOT bare "benchmark".
       Write "calibration anchor for [topic] (TRL X, MRL Y)" so readers can
       distinguish internal rubric references from A-/P-/M-prefixed source
