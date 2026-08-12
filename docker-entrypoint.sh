@@ -11,4 +11,16 @@
 set -e
 mkdir -p /app/outputs
 chown appuser:appuser /app/outputs
+
+# setpriv only switches the effective uid/gid — it does not touch $HOME,
+# which stays "/root" (root's own entry) unless reset here. Docker's USER
+# instruction used to set this for free; dropping it for the root-then-setpriv
+# startup means every path derived from $HOME now needs it set explicitly.
+# Left at /root, crewai's own chromadb storage-path resolution tries to
+# mkdir /root/.local/share/app as appuser and fails with EACCES on the very
+# first import, taking down every endpoint that touches crewai — including
+# /health and every pipeline_worker subprocess, since both inherit this
+# process's environment.
+export HOME=/home/appuser
+
 exec setpriv --reuid=appuser --regid=appuser --clear-groups "$@"
