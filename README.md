@@ -489,12 +489,29 @@ uv run python benchmark.py --force --concurrency 3
 # Re-run one topic
 uv run python benchmark.py --only 03 --force
 
+# Run each topic 3 times, to measure spread rather than a single sample
+uv run python benchmark.py --repeat 3 --force --concurrency 3
+
 # Check the scheduling without spending any API credit
 uv run python benchmark.py --dry-run --concurrency 3
 
 # Generate summary table and CSV
 uv run python benchmark_check.py
 ```
+
+**Use `--repeat` before concluding that a scoring change did anything.** Market
+sources come from live search, so two runs of the same topic see different
+evidence and land on different scores — a single run cannot separate "the
+pipeline changed" from "the evidence changed". This is not hypothetical: a
+rubric edit here was measured against a one-shot re-run, scores moved up on
+five topics and down on four, and the result was indistinguishable from noise.
+With `--repeat`, `benchmark_check.py` additionally writes
+`benchmark_stability.csv` and reports mean, standard deviation, range and
+pass-rate per topic, naming the widest spread so it is clear what size of
+change is measurable at all. Repetitions are interleaved across the batch, not
+run back to back, so a slow window upstream does not land entirely on one topic
+and read as that topic being unstable. Repetitions after the first write to a
+`__r2`/`__r3` directory; earlier single runs still aggregate, as a sample of one.
 
 Topics run in **separate processes**, not threads — CrewAI keeps global state
 (notably the event bus), so two crews in one interpreter risk cross-talk.
@@ -563,7 +580,8 @@ academic_agent/
 ├── benchmark_check.py       # Benchmark result analyzer (CSV + terminal table)
 ├── outputs/
 │   ├── <run_id>/            # Per-run output directory
-│   └── benchmark/           # benchmark.py outputs (includes benchmark_summary.csv)
+│   └── benchmark/           # benchmark.py outputs (benchmark_summary.csv, and
+│                            # benchmark_stability.csv when --repeat was used)
 ├── .env.example             # Environment variable template
 ├── pyproject.toml           # Project dependencies
 └── README.md
@@ -996,12 +1014,25 @@ uv run python benchmark.py --force --concurrency 3
 # 重跑单个话题
 uv run python benchmark.py --only 03 --force
 
+# 每个话题跑 3 次，测的是分布而不是单个样本
+uv run python benchmark.py --repeat 3 --force --concurrency 3
+
 # 仅验证调度逻辑，不消耗任何 API 额度
 uv run python benchmark.py --dry-run --concurrency 3
 
 # 生成摘要表格并输出 CSV
 uv run python benchmark_check.py
 ```
+
+**判断一次评分改动是否真的起了作用之前，先用 `--repeat`。** 市场来源走实时检索，
+同一话题两次运行看到的证据本就不同、分数也会不同——单次运行无法区分"流水线变了"
+和"证据变了"。这不是假设：本项目就发生过一次 rubric 改动只做了一次重跑来验证，结果
+5 个话题分数上调、4 个下调，和噪声无法区分，等于什么都没测出来。加上 `--repeat` 后，
+`benchmark_check.py` 会额外输出 `benchmark_stability.csv`，给出每个话题的均值、标准差、
+极差与通过率，并点名波动最大的话题——好让人知道多大的改动才是测得出来的。重复运行
+在整批里**交错执行**而非同一话题连跑，避免上游某个时段变慢集中砸在一个话题上、被误读
+成该话题不稳定。第 2 次起写入 `__r2`/`__r3` 目录；此前的单次运行仍会作为"样本量为 1"
+参与聚合。
 
 话题运行在**独立进程**而非线程中 —— CrewAI 持有全局状态（尤其是 event bus），
 同一解释器内跑两个 crew 存在事件流串扰的风险。
