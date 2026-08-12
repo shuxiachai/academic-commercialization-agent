@@ -85,8 +85,25 @@ def _count_numeric_uncited(report: str) -> int:
         if re.match(r"^[-*]\s", s):
             continue
         # Bold internal headers: "**1. Title**", "**Use Case 1: Title**",
-        # "**Recommendation 1 (High Priority): Title**"
-        if re.fullmatch(r"\*\*(?:(?:\w+\s+){1,3})?\d+(?:\s*\([^)]+\))?[.:]\s*.+\*\*", s):
+        # "**Recommendation 1 (High Priority): Title**". The ordinal in these
+        # is a label, not a figure.
+        #
+        # Stripped rather than skipped, and matched from the start of the line
+        # rather than against the whole of it. Reports write these headers three
+        # ways — alone, trailed by an annotation ("**Opportunity 1: …**
+        # *(analyst inference)*"), and run straight into prose
+        # ("**Recommendation 4: …** Before entering…") — and a whole-line match
+        # caught only the first. The other two counted their ordinal as an
+        # uncited numeric claim: six such headers across two topics were being
+        # reported as hallucination risk in reports that had none. Skipping the
+        # line outright would fix that but lose any real figure in the prose
+        # after the header, so only the header itself is removed.
+        s = re.sub(
+            r"^\*\*(?:(?:\w+\s+){1,3})?\d+(?:\s*\([^)]+\))?[.:]\s*[^*]+\*\*",
+            "",
+            s,
+        ).strip()
+        if not s:
             continue
         # Bold headers whose only digits sit in a parenthesised horizon:
         # "**Near-Term (1-3 years):**", "**Long-Term (7+ years):**". These label
