@@ -207,11 +207,19 @@ LLM — pick **one** of:
 | `ANTHROPIC_API_KEY` | Anthropic Claude ([get key](https://console.anthropic.com/)) | `claude-sonnet-5` |
 | `OPENAI_API_KEY` | OpenAI ([get key](https://platform.openai.com/api-keys)) | `gpt-4o` |
 
-Also required:
+Also required — one of:
 
 | Variable | Where to get it |
 |---|---|
 | `SERPER_API_KEY` | [serper.dev/api-key](https://serper.dev/api-key) (free tier: 2 500 queries/month) |
+| `TAVILY_API_KEY` | [tavily.com](https://tavily.com) (free tier: 1 000 credits/month, no card required) |
+
+If both are set, `TAVILY_API_KEY` wins. Serper proxies Google search and, like
+similar scraping-based APIs, may reject requests from cloud/datacenter IP
+ranges — confirmed blocking every request from a Railway deployment while the
+same key worked fine from a home network. Tavily is built for server-side
+callers and was not observed to have this problem; prefer it for a cloud
+deployment, Serper is fine for local use.
 
 Optional:
 
@@ -381,6 +389,27 @@ other visitor. Reading or cancelling one specific run by its id needs no
 code either way — the id itself carries 40 bits of randomness, the same
 capability-URL trust model already used for sharing a finished report's link.
 
+**Deploying to Railway specifically:** the Dockerfile builds cleanly with
+plain `docker build`/`docker-compose`, but Railway's builder is stricter
+about a couple of things a local build never exercises:
+
+- It requires an explicit `id` on any `--mount=type=cache`, in a
+  Railway-specific format that isn't publicly documented — this image just
+  drops that cache mount rather than guessing at it; the lockfile-only layer
+  above it (reused whenever `pyproject.toml`/`uv.lock` don't change) is the
+  speedup that actually matters.
+- It rejects the `VOLUME` instruction outright — persistence there is
+  configured through Railway's own Volumes feature in its dashboard, not the
+  Dockerfile.
+- It assigns a port at deploy time via `$PORT`, so a hardcoded `--port 8000`
+  builds fine and then is unreachable. The `CMD` here reads `${PORT:-8000}`
+  (falling back to 8000 for `docker-compose`, where the mapping is fixed on
+  the host side instead).
+
+None of this needs to be hunted down again — it's already fixed in this
+Dockerfile — but if you fork it and see a build fail in under a few seconds
+on another platform, this is the shape of thing to check first.
+
 ---
 
 ### Benchmark
@@ -494,7 +523,7 @@ academic_agent/
 - **Framework**: CrewAI 1.14.x
 - **LLM**: DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — auto-detected from API key, or set `LLM_PROVIDER` explicitly
 - **Academic sources**: OpenAlex Works API (primary) + Semantic Scholar Academic Graph API (supplement)
-- **Patent / market search**: SerperDevTool (3-attempt retry with exponential backoff)
+- **Patent / market search**: Serper or Tavily (3-attempt retry with exponential backoff), auto-selected by which API key is set — see "Deploying publicly" for why there are two
 - **Academic metadata**: Crossref API (DOI verification and abstract retrieval)
 - **Data validation**: Pydantic v2 + custom guardrails (source structure, citation integrity, report structure, scoring formula, hallucinated source ID detection)
 - **Web client**: static HTML, CSS and ES modules served by FastAPI — no build step, no framework
@@ -732,11 +761,14 @@ LLM — 三选一填入：
 | `ANTHROPIC_API_KEY` | Anthropic Claude（[申请](https://console.anthropic.com/)） | `claude-sonnet-5` |
 | `OPENAI_API_KEY` | OpenAI（[申请](https://platform.openai.com/api-keys)） | `gpt-4o` |
 
-必填：
+必填——二选一：
 
 | 变量 | 申请地址 |
 |---|---|
 | `SERPER_API_KEY` | [serper.dev/api-key](https://serper.dev/api-key)（免费额度：2500 次/月） |
+| `TAVILY_API_KEY` | [tavily.com](https://tavily.com)（免费额度：1000 credits/月，不需要绑卡） |
+
+两个都设置时优先用 `TAVILY_API_KEY`。Serper 本质是代理抓取 Google 搜索结果，跟同类抓取型 API 一样，可能会拒绝来自云主机/数据中心 IP 段的请求——实测在 Railway 部署上，同一把 key 从家庭网络请求正常、从云端请求全部被拒。Tavily 是为服务器端调用设计的，没观察到这个问题；云端部署建议优先用 Tavily，本地开发用 Serper 没问题。
 
 可选项：
 
@@ -876,6 +908,14 @@ API_DAILY_RUN_CAP=20                      # 硬上限，万一口令泄漏出去
 
 **第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要设了 `ACCESS_CODE`，网页客户端就会在门禁弹窗里自动多出这个选项；不设 `ACCESS_CODE` 时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。`GET /api/runs`（运行历史列表）是唯一始终留在口令后面的接口，因为一旦开放，会把每个访客的话题暴露给所有其他访客；而按 `run_id` 读取或取消某一次具体的运行则两条路都不需要口令——`run_id` 本身带 40 位随机性，用的是和"分享一份已完成报告的链接"同一套能力令牌信任模型。
 
+**部署到 Railway 需要特别注意的地方：** 这个 Dockerfile 在普通 `docker build`/`docker-compose` 下构建完全正常，但 Railway 的构建器比标准 Docker 严格，有几处本地构建根本测不出来的差异：
+
+- `--mount=type=cache` 必须显式带 `id`，还得符合 Railway 自己的格式（没有公开文档写清楚）——这个镜像直接去掉了这个缓存挂载，没有去猜这个格式；真正的加速来自上面那层只依赖 `pyproject.toml`/`uv.lock` 的层缓存，`lockfile` 不变就整层复用
+- `VOLUME` 指令 Railway 直接不认，持久化要在它自己的 Volumes 功能里配置，不能写在 Dockerfile 里
+- 端口是运行时通过 `$PORT` 环境变量动态分配的，写死 `--port 8000` 会导致构建成功但外部访问不到。这里的 `CMD` 读取 `${PORT:-8000}`（没有 `$PORT` 时退回 8000，兼容 `docker-compose` 固定端口映射的场景）
+
+这些坑已经在这份 Dockerfile 里修好了，不需要重新踩一遍——但如果你 fork 之后在别的平台上遇到几秒钟就构建失败的情况，可以先往这个方向查。
+
 ---
 
 ### 基准测试
@@ -985,7 +1025,7 @@ academic_agent/
 - **框架**：CrewAI 1.14.x
 - **LLM**：DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — 自动从 API Key 检测，或通过 `LLM_PROVIDER` 显式指定
 - **学术来源**：OpenAlex Works API（主力）+ Semantic Scholar Academic Graph API（补充）
-- **专利 / 市场搜索**：SerperDevTool（3 次重试 + 指数退避）
+- **专利 / 市场搜索**：Serper 或 Tavily（3 次重试 + 指数退避），按配置了哪个 Key 自动选择——原因见"公网部署"一节
 - **学术元数据**：Crossref API（DOI 验证与摘要检索）+ 并发引用数补全
 - **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、幻觉来源 ID 检测、评分算法验证）
 - **网页客户端**：静态 HTML / CSS / ES 模块，由 FastAPI 托管——无构建步骤、无框架
