@@ -663,3 +663,37 @@ class WeightProfileDetectionTests(TestCase):
     def test_case_insensitive(self):
         self.assertEqual(_detect_weight_profile("Cultivated Meat Bioreactor"), "biomedical")
         self.assertEqual(_detect_weight_profile("PEROVSKITE SOLAR CELL"), "material_science")
+
+
+class MarketQueryRecencyTests(TestCase):
+    """Market queries carry a year window, and it has to move with the clock.
+
+    The window was hard-coded as "2024 2025" — correct when written, still
+    there in 2026, by which point the queries were steering retrieval away
+    from the most recent eighteen months of company activity. Market evidence
+    is the primary input to the TRL judgement, so a stale window quietly
+    depresses the freshest signal the pipeline has. Nothing failed; the
+    results just aged.
+    """
+
+    def test_window_tracks_the_current_year(self):
+        from academic_agent.source_pipeline import _recent_years
+        self.assertEqual(_recent_years(date(2026, 8, 12)), "2025 2026")
+        self.assertEqual(_recent_years(date(2030, 1, 1)), "2029 2030")
+
+    def test_no_year_literal_survives_in_market_queries(self):
+        """The regression guard: any literal year here ages silently."""
+        import re
+
+        from academic_agent.source_pipeline import _queries, _recent_years
+
+        current = set(_recent_years().split())
+        market = _queries("solid-state batteries for electric vehicles")["market"]
+        for query in market:
+            with self.subTest(query=query[:50]):
+                years = set(re.findall(r"\b(?:19|20)\d{2}\b", query))
+                self.assertTrue(
+                    years <= current,
+                    f"{sorted(years - current)} is a fixed year in a market query; "
+                    "use _recent_years() so the window moves with the clock",
+                )

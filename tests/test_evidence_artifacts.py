@@ -12,10 +12,15 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from academic_agent.run_output import EVIDENCE_ARTIFACTS, save_evidence_reports
+from academic_agent.run_output import (
+    EVIDENCE_ARTIFACTS,
+    EvidenceArtifactsIncomplete,
+    save_evidence_reports,
+)
 
 
 class _Output:
@@ -56,6 +61,66 @@ class SaveEvidenceReportsTests(unittest.TestCase):
         self.assertEqual(len(written), 3)
         for _idx, name in EVIDENCE_ARTIFACTS:
             self.assertTrue((self.root / "run1" / name).exists(), name)
+
+    def test_partial_write_failure_is_reported_not_swallowed(self):
+        """The gap this closes.
+
+        Each artifact was written under its own try/except OSError that
+        continued on failure, so losing two files out of three returned a
+        short list and raised nothing. The worker treats "no exception" as
+        "evidence saved", so a run whose sources-to-findings record was half
+        gone looked exactly like a complete one — the single failure mode
+        nobody can detect by looking at the result.
+        """
+        real_write = Path.write_text
+        calls = {"n": 0}
+
+        def fail_after_first(self_path, *args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] > 1:
+                raise OSError("disk full")
+            return real_write(self_path, *args, **kwargs)
+
+        with patch.object(Path, "write_text", fail_after_first):
+            with self.assertRaises(EvidenceArtifactsIncomplete) as caught:
+                save_evidence_reports(
+                    _outputs(_ACADEMIC, _PATENT, _MARKET, "report", "reviewed", "{}"),
+                    run_id="run1", output_root=self.root,
+                )
+
+        message = str(caught.exception)
+        self.assertIn("2 of 3", message)
+        self.assertIn("disk full", message)
+
+    def test_what_could_be_written_is_still_written(self):
+        """Best-effort must survive the change: the artifacts that can be
+        saved are saved, and only then is the failure raised."""
+        real_write = Path.write_text
+        calls = {"n": 0}
+
+        def fail_on_second_only(self_path, *args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise OSError("transient")
+            return real_write(self_path, *args, **kwargs)
+
+        with patch.object(Path, "write_text", fail_on_second_only):
+            with self.assertRaises(EvidenceArtifactsIncomplete):
+                save_evidence_reports(
+                    _outputs(_ACADEMIC, _PATENT, _MARKET, "report", "reviewed", "{}"),
+                    run_id="run1", output_root=self.root,
+                )
+
+        present = [n for _i, n in EVIDENCE_ARTIFACTS if (self.root / "run1" / n).exists()]
+        self.assertEqual(len(present), 2, present)
+
+    def test_a_task_with_no_output_is_skipped_not_failed(self):
+        """Nothing to write is not a failure — only a failed write is."""
+        written = save_evidence_reports(
+            _outputs("", _PATENT, _MARKET, "report", "reviewed", "{}"),
+            run_id="run1", output_root=self.root,
+        )
+        self.assertEqual(len(written), 2)
 
     def test_content_matches_the_originating_task(self):
         """Index drift here would silently mislabel every artifact."""

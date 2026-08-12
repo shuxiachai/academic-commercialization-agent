@@ -1765,6 +1765,21 @@ def _web_source(
     return source, ""
 
 
+def _recent_years(today: date | None = None) -> str:
+    """The last two calendar years, as a search token like "2025 2026".
+
+    Market queries ask for commercialisation signals, which are the freshest
+    evidence in the pipeline and the primary input to the TRL judgement. They
+    used to hard-code "2024 2025" — written when those were the current years
+    and still there in 2026, by which point the queries were actively steering
+    retrieval away from the most recent eighteen months of company activity.
+    A date-dependent literal in a query string ages silently: nothing fails,
+    the results just quietly get staler every year.
+    """
+    year = (today or date.today()).year
+    return f"{year - 1} {year}"
+
+
 def _queries(
     topic: str,
     *,
@@ -1791,14 +1806,15 @@ def _queries(
         # Prioritise country-specific patents when input language implies a country.
         patent.insert(0, f"{topic} {patent_cc} site:patents.google.com/patent")
 
+    _years = _recent_years()
     market: list[str] = [
         # Short-form queries first: more likely to match market/industry reports
         # than the full metric-laden topic string.
-        f"{_mkt_short} market size revenue commercial manufacturer 2024 2025",
+        f"{_mkt_short} market size revenue commercial manufacturer {_years}",
         f"{_mkt_short} industry company deployment commercial scale",
-        f"{topic} product manufacturer revenue commercial sales 2024 2025",
+        f"{topic} product manufacturer revenue commercial sales {_years}",
         f"{topic} company commercial deployment industry news",
-        f"{_mkt_short} market report investment startup 2024",
+        f"{_mkt_short} market report investment startup {_years}",
         f"{topic} commercial scale production manufacturer press release",
         f"{topic} manufacturing commercialization company",
         f"{topic} government standards policy commercialization",
@@ -2628,9 +2644,11 @@ def collect_source_collection(
     if _company_news_count < 1:
         # Trigger regardless of whether market slots are full: if all slots are
         # market_report sources, replace the last one so company news is represented.
+        _cn_years = _recent_years()
         _company_news_queries = [
-            f"{normalized_topic} company commercial product launch news 2025",
-            f"{normalized_topic} manufacturer production deployment announcement press release 2024 2025",
+            f"{normalized_topic} company commercial product launch news {_cn_years}",
+            f"{normalized_topic} manufacturer production deployment announcement "
+            f"press release {_cn_years}",
         ]
         try:
             _cn_sources, _cn_audits = _collect_domain(

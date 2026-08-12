@@ -64,6 +64,14 @@ def save_error(
 #: the scorer sees the raw source registry — so without these files the middle
 #: of the pipeline leaves no trace and a questionable score cannot be traced
 #: back to the agent that produced the reasoning behind it.
+class EvidenceArtifactsIncomplete(OSError):
+    """Some evidence artifacts could not be written; the rest were.
+
+    Subclasses OSError because that is what it wraps, and because a caller
+    that already tolerates OSError around this call keeps working.
+    """
+
+
 EVIDENCE_ARTIFACTS: tuple[tuple[int, str], ...] = (
     (0, "academic_evidence.json"),
     (1, "patent_evidence.json"),
@@ -80,7 +88,17 @@ def save_evidence_reports(
 
     Best-effort by design: these files are for inspection, so a failure to
     write one must never take down a run that has already produced a report.
-    Returns the paths actually written.
+    Every artifact that can be written is written. Returns those paths.
+
+    Raises EvidenceArtifactsIncomplete afterwards if any write failed, so the
+    caller can record that the audit trail is missing without losing the
+    report. Silently returning a short list instead made partial loss
+    undetectable: the caller saw no exception, marked the evidence saved, and
+    a run whose sources-to-findings record was half gone looked identical to
+    one that was complete.
+
+    A task that produced no output is skipped, not failed — there was nothing
+    to write.
     """
     if not run_id:
         raise ValueError(f"run_id must be a non-empty string, got {run_id!r}")
@@ -88,6 +106,7 @@ def save_evidence_reports(
     run_directory.mkdir(parents=True, exist_ok=True)
 
     written: list[Path] = []
+    failures: list[str] = []
     for index, filename in EVIDENCE_ARTIFACTS:
         if index >= len(tasks_output):
             continue
@@ -104,9 +123,17 @@ def save_evidence_reports(
             text = raw if isinstance(raw, str) else str(raw)
         try:
             path.write_text(text, encoding="utf-8")
-        except OSError:
+        except OSError as exc:
+            # Keep going: the remaining artifacts are still worth having.
+            failures.append(f"{filename}: {exc}")
             continue
         written.append(path)
+
+    if failures:
+        raise EvidenceArtifactsIncomplete(
+            f"{len(failures)} of {len(failures) + len(written)} evidence "
+            f"artifacts could not be written — " + "; ".join(failures)
+        )
     return written
 
 
