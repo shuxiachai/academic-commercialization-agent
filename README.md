@@ -37,7 +37,7 @@ Running on Railway — nothing to install. The gate offers two ways in:
 - **Access code** — runs on the deployment's own keys. Codes are handed out
   privately; without one, use the BYOK option above.
 
-A run takes roughly 3 minutes and costs a few cents of LLM plus 20–30 search
+A run takes roughly 3 minutes and costs a few cents of LLM plus about 9 search
 queries, so the deployment caps concurrency and daily runs per code. See
 [Deploying publicly](#deploying-publicly) for how the two entrances work.
 
@@ -400,11 +400,12 @@ concurrency cap only limits how many runs execute at once, so a leaked code
 could still trigger hundreds of runs one after another over a day. This caps
 the total regardless of pacing. 0 (default) disables it.
 
-Size it against your **search** quota rather than your LLM bill. One run
-issues roughly 20-30 web searches (`source_pipeline._queries`), so Tavily's
-1000-per-month free tier works out to about 35-50 runs in total across every
-code — a public deployment handing out several codes wants a single-digit
-value here. Note the cap is per code, so it bounds what any one leaked code
+Size it against your **search** quota rather than your LLM bill. Measured
+over 30 runs, one run issues a median of 9 web searches (range 5-15) — fewer
+than the ~22 queries it builds, because collection stops early once a domain
+has enough sources and because academic retrieval goes to OpenAlex/PubMed/arXiv
+rather than the search API. Tavily's 1000-per-month free tier is therefore
+roughly 110 runs in total across every code. Note the cap is per code, so it bounds what any one leaked code
 can do, not what every code can do put together.
 
 **Handing out a separate code per person:** `ACCESS_CODES` accepts a
@@ -680,7 +681,7 @@ Each dimension records its supporting source IDs, shown on the scorecard and tra
 - **自带 API Key（BYOK）**——不需要访问口令。选择 LLM 供应商、填入自己的 LLM Key 与检索 Key 即可运行，费用记在自己账上。密钥只进入这一次运行的子进程环境变量：不落盘、不并入服务端自身环境、不会被同时运行的其他任务看到，关闭标签页即清除
 - **访问口令**——用部署方自己的 Key 运行。口令私下提供；没有口令请用上面的 BYOK 入口
 
-一次运行约 3 分钟，消耗几美分的 LLM 额度加 20–30 次检索，因此部署方设有并发上限和每个口令的每日次数上限。两个入口的具体机制见下方「访问控制」。
+一次运行约 3 分钟，消耗几美分的 LLM 额度加约 9 次检索，因此部署方设有并发上限和每个口令的每日次数上限。两个入口的具体机制见下方「访问控制」。
 
 ---
 
@@ -1010,7 +1011,7 @@ API_DAILY_RUN_CAP=3                       # 硬上限，万一口令泄漏出去
 
 `API_DAILY_RUN_CAP` 是第二道独立防线：并发上限只管同时跑几个，管不住口令泄漏后被人在一天内前后接力刷上百次；这个直接卡总数，与节奏无关。**按每个口令各自计数**，不是所有口令共用一个池子——不然一个人测得起劲，会把其他持有不同口令的人当天的额度全部用光。默认 0 表示不限制。
 
-**这个值要对着检索额度定，而不是对着 LLM 账单定。** 一次运行会发起大约 20–30 次网页检索（见 `source_pipeline._queries`），所以 Tavily 每月 1000 次的免费额度，换算下来是**所有口令加起来**总共约 35–50 次运行。公网部署又发了好几个口令的话，这里应该填个个位数。另外注意这个上限是按口令算的，它兜住的是"单个口令泄漏能造成多大损失"，不是"所有口令加起来最多花多少"。
+**这个值要对着检索额度定，而不是对着 LLM 账单定。** 实测 30 次运行：单次运行消耗的网页检索**中位数是 9 次**（区间 5–15），远少于它构造出来的约 22 条 query——因为某个域凑够来源后会提前终止，而且学术检索走的是 OpenAlex/PubMed/arXiv，不消耗检索 API 额度。所以 Tavily 每月 1000 次的免费额度，换算下来是**所有口令加起来**约 110 次运行。另外注意这个上限是按口令算的，它兜住的是"单个口令泄漏能造成多大损失"，不是"所有口令加起来最多花多少"。
 
 **给每个人发不同的口令：** `ACCESS_CODES` 接受逗号分隔的多个值，而不是一个共用口令——`ACCESS_CODES=给alice的口令,给bob的口令`。每个口令的运行历史都只属于它自己：持有"给alice的口令"的人，侧栏永远只看得到用这个口令跑过的记录，看不到"给bob的口令"跑过的。这只是运行时打的一个标记（口令的哈希值，写进每次运行的目录里），不是给每个人单独跑一套部署——还是一个进程、一个 `outputs/` 目录，口令只是决定 `GET /api/runs` 返回哪些。`ACCESS_CODE`（单数）还是照常可用，对应原来那种所有人共用一个口令的设置；两者可以同时设置。
 
