@@ -260,9 +260,13 @@ commercialization_scorer:
       evidence_confidence  10–50
     The system divides by 10 automatically; you write integers only.
     Example: to express TRL 7.3, write trl_score: 73.
-    Use the full integer range — write 73 not 70 when evidence sits
-    closer to TRL 7 than to TRL 8. Avoid rounding to multiples of 5 or 10
-    unless the evidence perfectly matches an anchor level.
+    Intermediate values are available when the evidence genuinely sits
+    between two levels — write 73 when a technology has cleared TRL 7 and
+    shows early signs of 8. But write the anchor value itself (70, 60, 40)
+    whenever the evidence matches that level: an anchor is the honest answer
+    far more often than not, and TRL is defined as whole levels, so a
+    fractional score claims a resolution the scale does not have. Do not
+    inflate a score off its anchor merely to look precise.
 
     Dimension 1 — Technology Readiness Level (write trl_score 10–90):
     10: Basic principles observed (TRL 1)

@@ -316,7 +316,10 @@ commercialization_scoring_task:
     - Write ALL five dimension scores as INTEGERS on a ×10 scale:
         trl_score 10–90, mrl_score 10–100, patent/market/evidence 10–50.
       The system divides by 10; you write integers. Write 73 for TRL 7.3.
-      Avoid multiples of 10 unless the evidence perfectly matches an anchor.
+      Write the anchor value (70, 60, 40) whenever the evidence matches that
+      level — anchors are the honest answer more often than not. Reserve
+      intermediate values for evidence genuinely between two levels; never
+      move a score off its anchor just to look precise.
     - Set overall_score to 0. The system computes the correct value automatically
       from your dimension scores and the active weight profile — do not calculate it.
     - Provide 2 to 5 key_risks and 2 to 5 key_opportunities grounded in the
