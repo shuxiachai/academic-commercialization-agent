@@ -98,8 +98,35 @@ def get_lang_info(lang_code: str) -> dict[str, str]:
     return LANGUAGE_REGISTRY.get(lang_code, LANGUAGE_REGISTRY["en"])
 
 
-def _llm_call(prompt: str, *, system: str, max_tokens: int = 400) -> str:
-    """Minimal one-shot LLM call using the same credentials as the main pipeline."""
+def _anthropic_request(prompt: str, system: str, max_tokens: int) -> tuple[Request, str]:
+    """Build a Messages API request. Anthropic is not OpenAI-shaped.
+
+    Different endpoint, `x-api-key` instead of a bearer token, a required
+    version header, `system` as a top-level field rather than a message, and
+    a response of {"content": [{"type": "text", "text": ...}]}.
+    """
+    payload = {
+        "model": os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5",
+        "max_tokens": max_tokens,
+        "temperature": 0,
+        "system": system,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    base = (os.getenv("ANTHROPIC_API_BASE") or "https://api.anthropic.com").rstrip("/")
+    return Request(
+        f"{base}/v1/messages",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "x-api-key": os.getenv("ANTHROPIC_API_KEY", ""),
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    ), "anthropic"
+
+
+def _openai_shaped_request(prompt: str, system: str, max_tokens: int) -> tuple[Request, str]:
+    """Build a /chat/completions request, used by DeepSeek and OpenAI alike."""
     api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY", "")
     base_url = (
         os.getenv("DEEPSEEK_API_BASE")
@@ -123,7 +150,7 @@ def _llm_call(prompt: str, *, system: str, max_tokens: int = 400) -> str:
         "temperature": 0,
         "max_tokens": max_tokens,
     }
-    req = Request(
+    return Request(
         f"{base_url}/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
         headers={
@@ -131,10 +158,44 @@ def _llm_call(prompt: str, *, system: str, max_tokens: int = 400) -> str:
             "Content-Type": "application/json",
         },
         method="POST",
-    )
+    ), "openai"
+
+
+def _llm_call(prompt: str, *, system: str, max_tokens: int = 400) -> str:
+    """Minimal one-shot LLM call using the same credentials as the main pipeline.
+
+    Routes on the same _detect_provider() the pipeline uses, rather than
+    guessing from whichever key happens to be set. This function previously
+    read only DEEPSEEK_API_KEY / OPENAI_API_KEY and always spoke the OpenAI
+    wire format — so on an Anthropic-only deployment, which llm_config
+    explicitly supports, every call went out with an empty bearer token, was
+    caught by the fallback below, and silently returned "". The callers all
+    degrade to the untranslated original, so nothing failed: a non-English
+    topic simply never got translated for search, its synonyms were never
+    generated, and retrieval quality dropped for a reason that surfaced only
+    as one warnings.warn nobody reads in production.
+    """
+    from academic_agent.llm_config import _detect_provider   # heavy import; deferred
+
+    try:
+        provider = _detect_provider()
+    except RuntimeError:
+        provider = ""
+
+    if provider == "anthropic":
+        req, shape = _anthropic_request(prompt, system, max_tokens)
+    else:
+        req, shape = _openai_shaped_request(prompt, system, max_tokens)
+
     try:
         with urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read())
+        if shape == "anthropic":
+            return "".join(
+                block.get("text", "")
+                for block in data.get("content", [])
+                if block.get("type") == "text"
+            ).strip()
         return data["choices"][0]["message"]["content"].strip()
     except Exception as exc:
         import warnings

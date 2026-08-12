@@ -1,5 +1,10 @@
 """Tests for language detection, translation fallback, and registry lookups."""
+import json
+import os
+import warnings
 from unittest.mock import patch
+
+import pytest
 
 
 from academic_agent.language import (
@@ -122,3 +127,101 @@ def test_translate_headings_preserves_tuple_type():
     with patch("academic_agent.language._llm_call", return_value="## 介绍"):
         result = translate_headings(headings, "Simplified Chinese")
     assert isinstance(result, tuple)
+
+
+# ---------------------------------------------------------------------------
+# Provider routing in _llm_call
+# ---------------------------------------------------------------------------
+
+# Only the provider variables are neutralised — clearing all of os.environ
+# takes HOME with it, and the deferred llm_config import needs it.
+_PROVIDER_ENV = dict.fromkeys((
+    "LLM_PROVIDER",
+    "DEEPSEEK_API_KEY", "DEEPSEEK_API_BASE", "DEEPSEEK_MODEL",
+    "OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL_NAME",
+    "ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE", "ANTHROPIC_MODEL",
+), "")
+
+
+def _only(**overrides):
+    """Provider environment with exactly `overrides` set."""
+    return {**_PROVIDER_ENV, **overrides}
+
+
+class _Resp:
+    """urlopen stub supporting 'with urlopen(...) as resp:'."""
+
+    def __init__(self, payload):
+        self._body = json.dumps(payload).encode("utf-8")
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        pass
+
+
+@pytest.mark.allow_llm
+def test_anthropic_deployment_actually_translates():
+    """The defect this covers.
+
+    _llm_call read only DEEPSEEK_API_KEY / OPENAI_API_KEY and always spoke
+    the OpenAI wire format, so an Anthropic-only deployment — a configuration
+    llm_config explicitly supports — sent every request with an empty bearer
+    token. The failure was swallowed by the fallback, so nothing broke
+    visibly: non-English topics simply stopped being translated for search.
+    """
+    captured = {}
+
+    def fake_urlopen(request, timeout=None):
+        captured["url"] = request.full_url
+        captured["headers"] = {k.lower(): v for k, v in request.header_items()}
+        captured["body"] = json.loads(request.data)
+        return _Resp({"content": [{"type": "text", "text": "solid state batteries"}]})
+
+    with patch.dict(os.environ, _only(ANTHROPIC_API_KEY="sk-ant-test")), \
+         patch("academic_agent.language.urlopen", fake_urlopen):
+        out = translate_to_english("固态电池")
+
+    assert out == "solid state batteries"
+    assert captured["url"].endswith("/v1/messages")
+    assert captured["headers"]["x-api-key"] == "sk-ant-test"
+    assert "anthropic-version" in captured["headers"]
+    # system is a top-level field for Anthropic, not a message role
+    assert "system" in captured["body"]
+    assert [m["role"] for m in captured["body"]["messages"]] == ["user"]
+
+
+@pytest.mark.allow_llm
+def test_deepseek_deployment_keeps_the_openai_shape():
+    """The path that already worked must not move."""
+    captured = {}
+
+    def fake_urlopen(request, timeout=None):
+        captured["url"] = request.full_url
+        captured["headers"] = {k.lower(): v for k, v in request.header_items()}
+        captured["body"] = json.loads(request.data)
+        return _Resp({"choices": [{"message": {"content": "solid state batteries"}}]})
+
+    with patch.dict(os.environ, _only(DEEPSEEK_API_KEY="sk-test")), \
+         patch("academic_agent.language.urlopen", fake_urlopen):
+        out = translate_to_english("固态电池")
+
+    assert out == "solid state batteries"
+    assert captured["url"].endswith("/chat/completions")
+    assert captured["headers"]["authorization"] == "Bearer sk-test"
+    assert [m["role"] for m in captured["body"]["messages"]] == ["system", "user"]
+
+
+@pytest.mark.allow_llm
+def test_an_unreachable_endpoint_still_degrades_to_the_original():
+    """Callers rely on "" meaning "use the untranslated text"; adding a
+    second provider must not turn a failed call into a crash mid-run."""
+    with patch.dict(os.environ, _only(ANTHROPIC_API_KEY="k")), \
+         patch("academic_agent.language.urlopen", side_effect=OSError("no network")), \
+         warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert translate_to_english("固态电池") == "固态电池"
