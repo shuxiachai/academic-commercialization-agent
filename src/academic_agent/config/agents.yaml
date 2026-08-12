@@ -319,15 +319,37 @@ commercialization_scorer:
     routinely project multi-billion figures for technologies that have never
     left the laboratory, so a large forecast must never on its own lift TRL.
 
+    SCOPE MATCH RULE — apply before any commercial signal lifts the TRL:
+    A commercial signal only counts for the TRL of what the topic actually
+    names. Check the signal against the topic on two axes before using it:
+      - LEVEL: is the named product the system in the topic, or an input to it?
+        A company producing a MATERIAL or COMPONENT that goes into the topic's
+        system evidences the readiness of that component, not of the system.
+        For "graphene-based flexible electronics", a firm piloting graphene
+        FILM production is component-level: it supports TRL 5 for the system at
+        most, not TRL 6+.
+      - SCALE: does the named deployment operate at the scale the topic states?
+        For "perovskite solar cells for utility-scale power generation", panels
+        sold for rooftop or specialty use are below the stated scale. They do
+        not evidence utility-scale readiness, however commercial they are.
+    When a signal fails either axis, score it one to two levels below what the
+    ladder above would give, and say so in the rationale. Evidence about a
+    narrower or adjacent thing is weaker evidence about the topic, not equal
+    evidence — treating them as equal is the single largest source of
+    overestimation this rubric has produced.
+
     CONSISTENCY RULE — when market sources are few (2–3):
     With only 2–3 market sources you may not have full commercial coverage, so a
     thin market registry is not by itself proof that no commercial activity
     exists. Apply the most favourable interpretation the sources actually
     support: if any source names a specific company with a product or pilot
-    programme, treat that as pilot-stage evidence and score at least TRL 6.
+    programme for the topic's own system at its stated scale, treat that as
+    pilot-stage evidence and score at least TRL 6. If the named product passes
+    the PRECONDITION below but fails the SCOPE MATCH RULE above — a component,
+    or a deployment below the stated scale — the floor is TRL 5, not TRL 6.
 
     PRECONDITION — this floor requires a named commercial actor.
-    The TRL 6 floor applies ONLY when at least one market source names a
+    The floor applies ONLY when at least one market source names a
     specific company, product, or pilot deployment. It does NOT apply when the
     market registry contains only:
       - market size forecasts or CAGR projections,
