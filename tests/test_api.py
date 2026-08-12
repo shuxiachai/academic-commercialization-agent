@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from api import runs
+from api import access, runs
 from api.main import app
 
 
@@ -27,17 +27,30 @@ def _run_id(suffix: str = "abcdef0123") -> str:
 
 
 class _ApiTestCase(unittest.TestCase):
-    """Redirects the output root to a temp dir and clears the run registry."""
+    """Redirects the output root to a temp dir and clears the run registry.
+
+    Also disables the access-code gate (api/access.py): this file predates
+    it and posts to /api/runs directly with no header, which the real
+    deployment's ACCESS_CODE — loaded from .env by api/main.py at import
+    time — would otherwise reject regardless of what these tests intend to
+    exercise. Access-gate behaviour itself is covered in test_access_gate.py.
+    """
 
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp())
         self._patcher = patch.object(runs, "DEFAULT_OUTPUT_ROOT", self.tmp)
         self._patcher.start()
+        self._access_code_patcher = patch.object(access, "ACCESS_CODE", None)
+        self._access_code_patcher.start()
+        self._access_codes_patcher = patch.object(access, "ACCESS_CODES", None)
+        self._access_codes_patcher.start()
         runs._registry.clear()
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
         self._patcher.stop()
+        self._access_code_patcher.stop()
+        self._access_codes_patcher.stop()
         runs._registry.clear()
         shutil.rmtree(self.tmp, ignore_errors=True)
 

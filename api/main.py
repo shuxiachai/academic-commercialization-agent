@@ -108,8 +108,16 @@ async def _access_gate(request: Request, call_next):
         return await call_next(request)
     if path.startswith("/api/runs/"):
         return await call_next(request)
-    if not access.check(request.headers.get("x-access-code")):
+
+    matched = access.matching_code(request.headers.get("x-access-code"))
+    if access.gate_enabled() and matched is None:
         return JSONResponse({"detail": "Missing or invalid access code."}, status_code=401)
+    # Which code answered, if any — GET /api/runs uses this to show each
+    # code holder only the runs made under their own code. None with the
+    # gate enabled can't reach here (rejected above); None with it disabled
+    # means "no code to scope by", i.e. show everything, matching the
+    # single-tenant behaviour this had before multiple codes existed.
+    request.state.owner = access.owner_id(matched) if matched else None
     return await call_next(request)
 
 
@@ -188,13 +196,20 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
     caller) — not gated by the middleware because that choice needs the
     parsed body.
     """
-    if not access.authorizes_run(
-        http_request.headers.get("x-access-code"), byok=request.byok
-    ):
+    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    # matched is None both when no code was configured at all (nothing to
+    # check against — must not block) and when one was configured but this
+    # request's code was missing/wrong (must block unless BYOK) — gate_enabled()
+    # is what tells those two apart.
+    if matched is None and not request.byok and access.gate_enabled():
         raise HTTPException(
             status_code=401,
             detail="Provide the access code, or your own llm_provider/llm_api_key/serper_api_key.",
         )
+    # BYOK runs get no owner tag at all — never recorded in anyone's history,
+    # billed to the requester, gone once the tab closes (frontend keeps its
+    # own session-only list; see web/static/js/app.js).
+    owner = access.owner_id(matched) if matched else None
 
     paper_json_path: str | None = None
     if request.paper_id:
@@ -215,6 +230,7 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
             weight_profile=request.weight_profile,
             paper_json_path=paper_json_path,
             byok=byok,
+            owner=owner,
         )
     except runs.ConcurrencyLimitReached as exc:
         raise HTTPException(
@@ -233,9 +249,15 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
 
 
 @app.get("/api/runs", response_model=RunList, tags=["runs"])
-def list_runs(limit: int = Query(default=50, ge=1, le=200)) -> RunList:
-    """List runs, newest first."""
-    summaries, total = runs.list_runs(limit=limit)
+def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200)) -> RunList:
+    """List runs, newest first — scoped to the calling code's own history.
+
+    `request.state.owner` was set by the access-gate middleware, which ran
+    ahead of this handler for every path that isn't POST /api/runs or
+    /api/runs/{id}/...; this path falls into neither, so it is always set
+    (to None when the gate is disabled entirely, meaning no filter).
+    """
+    summaries, total = runs.list_runs(limit=limit, owner=http_request.state.owner)
     return RunList(runs=summaries, total=total)
 
 

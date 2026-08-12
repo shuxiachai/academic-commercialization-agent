@@ -11,6 +11,7 @@ development and every prior test in this suite see no gate at all.
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import date, timedelta
 import unittest
@@ -45,23 +46,52 @@ class AccessCheckTests(unittest.TestCase):
             self.assertFalse(access.check(""))
 
 
-class AuthorizesRunTests(unittest.TestCase):
-    """access.authorizes_run() — the code-OR-BYOK decision for POST /api/runs."""
+class MatchingCodeTests(unittest.TestCase):
+    """access.matching_code() — which specific code (if any) a header
+    matches, the piece submit_run() and list_runs() build their own
+    authorization/scoping decisions on top of."""
 
-    def test_byok_authorizes_regardless_of_the_code(self):
-        with patch.object(access, "ACCESS_CODE", "secret123"):
-            self.assertTrue(access.authorizes_run(None, byok=True))
-            self.assertTrue(access.authorizes_run("wrong", byok=True))
+    def test_no_codes_configured_matches_nothing(self):
+        with patch.object(access, "ACCESS_CODE", None), \
+             patch.object(access, "ACCESS_CODES", None):
+            self.assertIsNone(access.matching_code(None))
+            self.assertIsNone(access.matching_code("anything"))
+            self.assertFalse(access.gate_enabled())
 
-    def test_without_byok_the_code_still_governs(self):
-        with patch.object(access, "ACCESS_CODE", "secret123"):
-            self.assertFalse(access.authorizes_run(None, byok=False))
-            self.assertTrue(access.authorizes_run("secret123", byok=False))
+    def test_single_legacy_code_still_works(self):
+        with patch.object(access, "ACCESS_CODE", "secret123"), \
+             patch.object(access, "ACCESS_CODES", None):
+            self.assertEqual(access.matching_code("secret123"), "secret123")
+            self.assertIsNone(access.matching_code("wrong"))
+            self.assertIsNone(access.matching_code(None))
+            self.assertTrue(access.gate_enabled())
 
-    def test_gate_disabled_authorizes_either_way(self):
-        with patch.object(access, "ACCESS_CODE", None):
-            self.assertTrue(access.authorizes_run(None, byok=False))
-            self.assertTrue(access.authorizes_run(None, byok=True))
+    def test_multiple_codes_each_match_their_own_value(self):
+        with patch.object(access, "ACCESS_CODE", None), \
+             patch.object(access, "ACCESS_CODES", "for-alice, for-bob"):
+            self.assertEqual(access.matching_code("for-alice"), "for-alice")
+            self.assertEqual(access.matching_code("for-bob"), "for-bob")
+            self.assertIsNone(access.matching_code("for-carol"))
+
+    def test_legacy_and_plural_codes_both_accepted_together(self):
+        with patch.object(access, "ACCESS_CODE", "legacy"), \
+             patch.object(access, "ACCESS_CODES", "for-alice"):
+            self.assertEqual(access.matching_code("legacy"), "legacy")
+            self.assertEqual(access.matching_code("for-alice"), "for-alice")
+
+
+class OwnerIdTests(unittest.TestCase):
+    """access.owner_id() — the tag that separates one code's run history
+    from another's without keeping the raw code in a run directory."""
+
+    def test_same_code_always_produces_the_same_id(self):
+        self.assertEqual(access.owner_id("for-alice"), access.owner_id("for-alice"))
+
+    def test_different_codes_produce_different_ids(self):
+        self.assertNotEqual(access.owner_id("for-alice"), access.owner_id("for-bob"))
+
+    def test_id_does_not_contain_the_raw_code(self):
+        self.assertNotIn("for-alice", access.owner_id("for-alice"))
 
 
 class RunRequestByokValidationTests(unittest.TestCase):
@@ -362,6 +392,123 @@ class BYOKSubmissionTests(_RunLifecycleTestBase):
             run_id = created.json()["run_id"]
             r = self.client.delete(f"/api/runs/{run_id}")
         self.assertEqual(r.status_code, 200)
+
+
+class OwnerScopingTests(_RunLifecycleTestBase):
+    """runs.start_run(owner=...) tags a run; list_runs(owner=...) filters by
+    it — the mechanism behind giving each access code its own history."""
+
+    @staticmethod
+    def _write_topic(run_dir, topic):
+        """list_runs() reads the topic from status.json, which only the real
+        pipeline_worker subprocess writes — _FakeProc never does, so these
+        tests write it themselves rather than seeing the "—" placeholder."""
+        (run_dir / "status.json").write_text(
+            json.dumps({"topic": topic}), encoding="utf-8"
+        )
+
+    def test_run_created_with_an_owner_writes_the_owner_file(self):
+        with patch("api.runs.subprocess.Popen", _FakeProc):
+            _run_id, run_dir = runs.start_run("topic", owner="alice-hash")
+        self.assertEqual(
+            (run_dir / runs._OWNER_FILE).read_text(encoding="utf-8"), "alice-hash"
+        )
+
+    def test_run_created_with_no_owner_writes_no_file(self):
+        """The BYOK case, and the no-code-configured case — neither should
+        leave a marker that could make the run attributable to anyone."""
+        with patch("api.runs.subprocess.Popen", _FakeProc):
+            _run_id, run_dir = runs.start_run("topic")
+        self.assertFalse((run_dir / runs._OWNER_FILE).exists())
+
+    def test_list_filters_to_the_given_owner(self):
+        with patch("api.runs.subprocess.Popen", _FakeProc):
+            _id, dir_a = runs.start_run("alice's topic", owner="alice-hash")
+            self._write_topic(dir_a, "alice's topic")
+            _id, dir_b = runs.start_run("bob's topic", owner="bob-hash")
+            self._write_topic(dir_b, "bob's topic")
+
+        alice_summaries, alice_total = runs.list_runs(owner="alice-hash")
+        self.assertEqual([s["topic"] for s in alice_summaries], ["alice's topic"])
+        self.assertEqual(alice_total, 1)
+
+        bob_summaries, _bob_total = runs.list_runs(owner="bob-hash")
+        self.assertEqual([s["topic"] for s in bob_summaries], ["bob's topic"])
+
+    def test_no_owner_filter_shows_everything(self):
+        """The no-code-configured / local-dev case: nothing to scope by."""
+        with patch("api.runs.subprocess.Popen", _FakeProc):
+            runs.start_run("alice's topic", owner="alice-hash")
+            runs.start_run("byok topic")  # no owner at all
+
+        _summaries, total = runs.list_runs(owner=None)
+        self.assertEqual(total, 2)
+
+    def test_a_byok_run_is_invisible_to_any_code(self):
+        with patch("api.runs.subprocess.Popen", _FakeProc):
+            _id, dir_a = runs.start_run("alice's topic", owner="alice-hash")
+            self._write_topic(dir_a, "alice's topic")
+            runs.start_run("byok topic")  # owner=None, as submit_run() passes for BYOK
+
+        alice_summaries, _ = runs.list_runs(owner="alice-hash")
+        self.assertEqual([s["topic"] for s in alice_summaries], ["alice's topic"])
+
+
+class MultiCodeIsolationTests(_RunLifecycleTestBase):
+    """End to end over HTTP: two different codes, each sees only its own
+    submitted runs through GET /api/runs — not the fact that the gate
+    accepts both codes, but that it keeps their histories apart."""
+
+    def setUp(self):
+        super().setUp()
+        popen_patcher = patch("api.runs.subprocess.Popen", _FakeProc)
+        popen_patcher.start()
+        self.addCleanup(popen_patcher.stop)
+        self.client = TestClient(app)
+
+    def _write_topic(self, run_id, topic):
+        """list_runs() reads the topic from status.json, which only the real
+        pipeline_worker subprocess writes — _FakeProc never does."""
+        (Path(self._tmp.name) / run_id / "status.json").write_text(
+            json.dumps({"topic": topic}), encoding="utf-8"
+        )
+
+    def test_each_code_sees_only_its_own_runs(self):
+        with patch.object(access, "ACCESS_CODES", "for-alice,for-bob"):
+            alice_run = self.client.post(
+                "/api/runs", json={"topic": "alice's topic"},
+                headers={"X-Access-Code": "for-alice"},
+            ).json()
+            self._write_topic(alice_run["run_id"], "alice's topic")
+            bob_run = self.client.post(
+                "/api/runs", json={"topic": "bob's topic"},
+                headers={"X-Access-Code": "for-bob"},
+            ).json()
+            self._write_topic(bob_run["run_id"], "bob's topic")
+
+            alice_view = self.client.get(
+                "/api/runs", headers={"X-Access-Code": "for-alice"}
+            ).json()
+            bob_view = self.client.get(
+                "/api/runs", headers={"X-Access-Code": "for-bob"}
+            ).json()
+
+        self.assertEqual([r["topic"] for r in alice_view["runs"]], ["alice's topic"])
+        self.assertEqual([r["topic"] for r in bob_view["runs"]], ["bob's topic"])
+
+    def test_byok_run_appears_in_no_ones_list(self):
+        with patch.object(access, "ACCESS_CODES", "for-alice"):
+            self.client.post("/api/runs", json={
+                "topic": "byok topic",
+                "llm_provider": "deepseek",
+                "llm_api_key": "k",
+                "serper_api_key": "s",
+            })
+            alice_view = self.client.get(
+                "/api/runs", headers={"X-Access-Code": "for-alice"}
+            ).json()
+
+        self.assertEqual(alice_view["runs"], [])
 
 
 if __name__ == "__main__":

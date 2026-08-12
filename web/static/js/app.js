@@ -186,18 +186,48 @@ async function openRun(runId, { known } = {}) {
 
 /* ── Sidebar ───────────────────────────────────────────────────────── */
 
-function refreshSidebar() {
-  // GET /api/runs (the list) always stays behind the access code — it is the
-  // one endpoint that would show a BYOK visitor every other visitor's run
-  // history, not just their own. Calling it here would just 401.
+// Run ids built with create_run_id() start with a UTC timestamp — parsed
+// back out client-side so the BYOK sidebar can group "Today"/"Yesterday"
+// the same way sidebar.js already does for the server-backed list, with no
+// server round trip needed just to learn when a run the visitor just
+// submitted was started.
+function _startedAtFromRunId(runId) {
+  const m = runId.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z-/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : "";
+}
+
+async function refreshSidebar() {
+  // GET /api/runs (the list) always stays behind the access code, scoped
+  // server-side to that code's own runs (api/access.py owner_id). A BYOK
+  // visitor has no code at all, so this builds the same view from the
+  // session-only list of run ids api.addByokRun() has been recording —
+  // gone once the tab closes, complete for as long as it's open.
   if (byokMode) {
     const list = $("#runlist");
-    list.innerHTML = "";
-    const note = document.createElement("div");
-    note.className = "runlist__empty";
-    note.textContent = t("byok_no_history");
-    list.append(note);
-    return Promise.resolve(null);
+    const entries = api.getByokRuns();
+    if (!entries.length) {
+      list.innerHTML = "";
+      const note = document.createElement("div");
+      note.className = "runlist__empty";
+      note.textContent = t("byok_no_history");
+      list.append(note);
+      return null;
+    }
+    const runs = await Promise.all(entries.map(async ({ run_id, topic }) => {
+      try {
+        const status = await api.getRun(run_id);
+        return {
+          run_id, topic: status.topic || topic, state: status.state,
+          started_at: _startedAtFromRunId(run_id),
+        };
+      } catch {
+        // The run itself is still a capability URL even if this poll
+        // failed transiently — keep it in the list rather than dropping it.
+        return { run_id, topic, state: "failed", started_at: _startedAtFromRunId(run_id) };
+      }
+    }));
+    sidebar.render(list, runs, { activeId: activeRunId, onSelect: (id) => openRun(id) });
+    return runs;
   }
   return sidebar.refresh($("#runlist"), {
     activeId: activeRunId,
@@ -260,6 +290,10 @@ $("#compose-form").addEventListener("submit", async (e) => {
       weight_profile: $("#profile").value,
       paper_id: attachedPaper?.paper_id,
     });
+    // BYOK runs get no server-side history (see api/access.py) — this is
+    // the only place that ever learns the run happened, so the sidebar has
+    // something to show for the rest of the session.
+    if (byokMode) api.addByokRun(accepted.run_id, accepted.topic);
     topic.value = "";
     clearAttachment();
     syncComposer();

@@ -94,7 +94,7 @@ const STRINGS = {
     byok_have_code: "I have an access code",
     byok_badge: "Using your own API keys",
     byok_exit: "Exit",
-    byok_no_history: "Run history is only visible with an access code. Your run stays open in this tab once it starts.",
+    byok_no_history: "No runs yet this session. Runs you start will stay listed here until you close this tab.",
     byok_no_attach: "Paper upload needs an access code",
   },
 
@@ -174,7 +174,7 @@ const STRINGS = {
     byok_have_code: "我有访问口令",
     byok_badge: "正在使用自己的 API Key",
     byok_exit: "退出",
-    byok_no_history: "运行历史仅对持有访问口令的访客可见。本次运行会一直显示在当前标签页里。",
+    byok_no_history: "本次会话还没有运行记录。你提交的运行会一直显示在这里，直到关闭这个标签页。",
     byok_no_attach: "上传论文需要访问口令",
   },
 };

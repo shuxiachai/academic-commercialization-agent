@@ -1,43 +1,76 @@
 """Shared-secret gate for the API.
 
-This project's only deployment target is a short-lived public demo link
-handed to specific people (interviewers), not a multi-tenant product — so
-there is no user table, no signup, just one secret the operator sets before
-sharing the link. Every request under /api/ must carry it in the
-X-Access-Code header, or it is rejected before touching anything that spends
-money (LLM calls, Serper searches).
+No user table, no signup — an operator mints one or more codes and hands
+them to specific people (interviewers). Every request under /api/ must
+carry a valid one in the X-Access-Code header, or it is rejected before
+touching anything that spends money (LLM calls, search API calls).
 
-Leaving ACCESS_CODE unset disables the gate entirely: local development and
-anyone self-hosting without configuring it see no difference from before.
+Multiple codes exist so different holders don't share one identity: each
+code's runs are tagged with owner_id(code) and the run list (api/runs.py)
+filters by it, so code A's history never appears for code B. A run created
+without any code (BYOK) gets no owner tag and so never appears in anyone's
+list — see api/main.py's submit_run.
+
+Leaving both ACCESS_CODE and ACCESS_CODES unset disables the gate entirely:
+local development and anyone self-hosting without configuring either see no
+difference from before this existed.
 """
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import os
 
+# Single code, kept for backward compatibility with existing deployments.
 ACCESS_CODE = os.getenv("ACCESS_CODE")
+
+# Comma-separated codes, for handing out a distinct one per person so their
+# run histories stay separate. Both variables are honored if set — read
+# fresh on every call (not cached at import) so tests can patch either.
+ACCESS_CODES = os.getenv("ACCESS_CODES")
+
+
+def _valid_codes() -> list[str]:
+    codes = []
+    if ACCESS_CODE:
+        codes.append(ACCESS_CODE)
+    if ACCESS_CODES:
+        codes.extend(c.strip() for c in ACCESS_CODES.split(",") if c.strip())
+    return codes
+
+
+def gate_enabled() -> bool:
+    return bool(_valid_codes())
+
+
+def matching_code(header_value: str | None) -> str | None:
+    """The specific configured code the header matches, or None.
+
+    Also None when the gate is disabled (no codes configured) — callers
+    that need to distinguish "disabled" from "wrong code" should check
+    gate_enabled() separately. Every candidate is compared in constant
+    time; which one leaks nothing beyond total elapsed time, an accepted
+    trade for a handful of codes.
+    """
+    if header_value is None:
+        return None
+    for candidate in _valid_codes():
+        if hmac.compare_digest(header_value, candidate):
+            return candidate
+    return None
 
 
 def check(header_value: str | None) -> bool:
-    """True if the gate is open: either disabled, or the code matches.
-
-    Constant-time comparison — a demo link is exactly the kind of target
-    where an early-exit string comparison invites a timing attack for free.
-    """
-    if ACCESS_CODE is None:
+    """True if the gate is open: either disabled, or the code matches."""
+    if not gate_enabled():
         return True
-    return header_value is not None and hmac.compare_digest(header_value, ACCESS_CODE)
+    return matching_code(header_value) is not None
 
 
-def authorizes_run(header_value: str | None, *, byok: bool) -> bool:
-    """True if this request may create a new run — the one action that
-    always spends someone's money.
-
-    Two ways in: the deployment's own access code (billed to the operator),
-    or complete bring-your-own-key credentials (billed to the requester).
-    Both are checked here rather than in the path-based gate, because this
-    decision needs the parsed request body — whether BYOK fields are present
-    — which a middleware would have to parse the body early to see.
-    """
-    return byok or check(header_value)
+def owner_id(code: str) -> str:
+    """Stable identifier for a specific code, used to tag which code a run
+    belongs to without keeping the raw secret sitting in run directories on
+    disk. Not a security boundary by itself — codes are already secret —
+    just avoids writing them out in plaintext a second place."""
+    return hashlib.sha256(code.encode()).hexdigest()[:16]

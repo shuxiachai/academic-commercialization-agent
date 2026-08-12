@@ -50,6 +50,29 @@ export function setByok(creds) {
   else sessionStorage.removeItem(BYOK_KEY);
 }
 
+/* A BYOK run gets no owner tag server-side (see api/access.py) and so never
+ * appears in GET /api/runs for anyone — nothing is recorded past the run
+ * directory itself. The sidebar for a BYOK visitor still needs *something*
+ * to show, so this keeps a session-only list of the run ids they submitted:
+ * gone the moment the tab closes (sessionStorage, not localStorage), fully
+ * populated for as long as it's open. */
+
+const BYOK_RUNS_KEY = "byok-runs";
+
+export function getByokRuns() {
+  try {
+    return JSON.parse(sessionStorage.getItem(BYOK_RUNS_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+export function addByokRun(runId, topic) {
+  const runs = getByokRuns();
+  runs.unshift({ run_id: runId, topic });
+  sessionStorage.setItem(BYOK_RUNS_KEY, JSON.stringify(runs));
+}
+
 async function request(path, options = {}) {
   const stored = getAccessCode();
   const headers = {

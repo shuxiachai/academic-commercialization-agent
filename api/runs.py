@@ -46,6 +46,12 @@ _RUN_ID_PATTERN = re.compile(r"\d{8}T\d{6}Z-[0-9a-f]+")
 
 _CANCEL_MARKER = "cancelled.marker"
 
+# Which access.owner_id() created this run, so list_runs() can scope the
+# history each code holder sees to their own runs. Absent for BYOK runs and
+# for any deployment with no code configured — both cases mean "no owner",
+# not "everyone's owner", so those runs never appear in a filtered list.
+_OWNER_FILE = ".owner"
+
 _ARTIFACTS = {
     "report":  "commercialization_report.md",
     "scores":  "commercialization_scores.json",
@@ -197,6 +203,7 @@ def start_run(
     weight_profile: str | None = None,
     paper_json_path: str | None = None,
     byok: BYOKCredentials | None = None,
+    owner: str | None = None,
 ) -> tuple[str, Path]:
     """Launch a worker subprocess. Returns (run_id, run_dir).
 
@@ -204,6 +211,11 @@ def start_run(
     is exempt from the daily cap, which exists only to bound the operator's
     own bill. The concurrency cap still applies to every run regardless of
     who is paying: it protects host resources, not a wallet.
+
+    `owner` is the access.owner_id() of whichever code authorized this run —
+    None for BYOK (and for a deployment with no code configured at all).
+    Written to the run directory so list_runs() can show each code holder
+    only the runs made under their own code.
     """
     # Claim a slot and publish the run_id in one atomic step. Checking the cap
     # and registering the handle separately let parallel submissions all pass
@@ -234,6 +246,8 @@ def start_run(
 
     run_dir = run_dir_for(run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
+    if owner is not None:
+        (run_dir / _OWNER_FILE).write_text(owner, encoding="utf-8")
 
     cmd = [sys.executable, "-m", "academic_agent.pipeline_worker", run_id, topic.strip()]
     if language:
@@ -484,8 +498,21 @@ def _duration(run_dir: Path) -> str:
         return "—"
 
 
-def list_runs(limit: int = 50) -> tuple[list[dict], int]:
-    """Return (summaries, total) for finished and running runs, newest first."""
+def _read_owner(run_dir: Path) -> str | None:
+    try:
+        return (run_dir / _OWNER_FILE).read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+
+def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], int]:
+    """Return (summaries, total) for finished and running runs, newest first.
+
+    `owner`, when given, scopes the result to runs created under that same
+    access.owner_id() — a code holder sees only their own history, not
+    every code's combined. None means no filter: every run, the behaviour
+    for a deployment with no access code configured at all.
+    """
     if not DEFAULT_OUTPUT_ROOT.is_dir():
         return [], 0
 
@@ -499,6 +526,8 @@ def list_runs(limit: int = 50) -> tuple[list[dict], int]:
         key=lambda d: d.name,
         reverse=True,
     )
+    if owner is not None:
+        dirs = [d for d in dirs if _read_owner(d) == owner]
     summaries = []
     for d in dirs[:limit]:
         try:

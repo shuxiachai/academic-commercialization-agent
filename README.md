@@ -362,32 +362,49 @@ ACCESS_CODE=choose-a-long-random-string   # gates every /api/ route
 API_DAILY_RUN_CAP=20                      # hard ceiling, in case the code leaks
 ```
 
-`ACCESS_CODE` is checked by a middleware in `api/main.py` against an
-`X-Access-Code` header; the web client prompts for it once and remembers it
-in `localStorage` from then on. `/health` stays open regardless — platform
-load balancers poll it without a header, and serving it costs nothing.
-Leaving `ACCESS_CODE` unset (the default) makes the gate inert: local
-development sees no difference from before it existed.
+`ACCESS_CODE` (or `ACCESS_CODES` — see below) is checked by a middleware in
+`api/main.py` against an `X-Access-Code` header; the web client prompts for
+it once and remembers it in `localStorage` from then on. `/health` stays
+open regardless — platform load balancers poll it without a header, and
+serving it costs nothing. Leaving both unset (the default) makes the gate
+inert: local development sees no difference from before it existed.
 
 `API_DAILY_RUN_CAP` is a second, independent line of defence: the
 concurrency cap only limits how many runs execute at once, so a leaked code
 could still trigger hundreds of runs one after another over a day. This caps
 the total regardless of pacing. 0 (default) disables it.
 
+**Handing out a separate code per person:** `ACCESS_CODES` accepts a
+comma-separated list instead of one shared value — `ACCESS_CODES=for-alice,
+for-bob`. Each code's run history is scoped to itself: the sidebar for
+whoever holds `for-alice` only ever shows runs submitted with that same
+code, never `for-bob`'s. This is a run-time tag (a hash of the code, written
+to each run's directory), not a separate deployment per person — one
+process, one `outputs/` directory, codes just partition what `GET /api/runs`
+returns. `ACCESS_CODE` (singular) still works for the original one-code-for-
+everyone setup; both may be set together.
+
 **A second, open entrance:** `POST /api/runs` also accepts `llm_provider` /
-`llm_api_key` / `serper_api_key` in the body as an alternative to the access
+`llm_api_key` / `serper_api_key` in the body as an alternative to any access
 code — a visitor's own keys, billed to them, not to the deployment. This
 needs no extra server configuration; it becomes reachable in the web client
-automatically once `ACCESS_CODE` is set (the gate modal offers it as a
+automatically once a code is configured (the gate modal offers it as a
 second option), and stays invisible when the gate is off, since there is
 nothing to bypass. The credentials go straight into that one run's
 subprocess environment — never to disk, never merged into the server's own
 environment — so concurrent runs, BYOK or not, cannot see each other's keys.
-One endpoint deliberately stays behind the code regardless: `GET /api/runs`
-(the run-history list) would otherwise show every visitor's topics to every
-other visitor. Reading or cancelling one specific run by its id needs no
-code either way — the id itself carries 40 bits of randomness, the same
-capability-URL trust model already used for sharing a finished report's link.
+A BYOK run gets no code tag at all, so it never appears in any code's
+history server-side; the web client instead keeps a session-only list of
+the visitor's own runs (in `sessionStorage`) so their sidebar still shows
+what they submitted — gone the moment the tab closes, complete for as long
+as it's open.
+
+`GET /api/runs` (the run-history list) always stays behind a code
+regardless of any of this — opening it up would show every visitor's topics
+to every other visitor. Reading or cancelling one specific run by its id
+needs no code either way — the id itself carries 40 bits of randomness, the
+same capability-URL trust model already used for sharing a finished
+report's link.
 
 **Deploying to Railway specifically:** the Dockerfile builds cleanly with
 plain `docker build`/`docker-compose`, but Railway's builder is stricter
@@ -902,11 +919,15 @@ ACCESS_CODE=换成一串足够长的随机字符串     # 拦截所有 /api/ 路
 API_DAILY_RUN_CAP=20                      # 硬上限，万一口令泄漏出去兜底
 ```
 
-`ACCESS_CODE` 由 `api/main.py` 里的中间件校验请求头 `X-Access-Code`；网页客户端只在第一次访问时弹窗询问，之后记在 `localStorage` 里不用重复输入。`/health` 不受影响——云平台的健康检查不会带请求头，这个接口本身也不花钱。不设置 `ACCESS_CODE`（默认）时门禁完全不生效，本地开发和之前没有任何区别。
+`ACCESS_CODE`（或下面的 `ACCESS_CODES`）由 `api/main.py` 里的中间件校验请求头 `X-Access-Code`；网页客户端只在第一次访问时弹窗询问，之后记在 `localStorage` 里不用重复输入。`/health` 不受影响——云平台的健康检查不会带请求头，这个接口本身也不花钱。两个都不设置（默认）时门禁完全不生效，本地开发和之前没有任何区别。
 
 `API_DAILY_RUN_CAP` 是第二道独立防线：并发上限只管同时跑几个，管不住口令泄漏后被人在一天内前后接力刷上百次；这个直接卡总数，与节奏无关。默认 0 表示不限制。
 
-**第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要设了 `ACCESS_CODE`，网页客户端就会在门禁弹窗里自动多出这个选项；不设 `ACCESS_CODE` 时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。`GET /api/runs`（运行历史列表）是唯一始终留在口令后面的接口，因为一旦开放，会把每个访客的话题暴露给所有其他访客；而按 `run_id` 读取或取消某一次具体的运行则两条路都不需要口令——`run_id` 本身带 40 位随机性，用的是和"分享一份已完成报告的链接"同一套能力令牌信任模型。
+**给每个人发不同的口令：** `ACCESS_CODES` 接受逗号分隔的多个值，而不是一个共用口令——`ACCESS_CODES=给alice的口令,给bob的口令`。每个口令的运行历史都只属于它自己：持有"给alice的口令"的人，侧栏永远只看得到用这个口令跑过的记录，看不到"给bob的口令"跑过的。这只是运行时打的一个标记（口令的哈希值，写进每次运行的目录里），不是给每个人单独跑一套部署——还是一个进程、一个 `outputs/` 目录，口令只是决定 `GET /api/runs` 返回哪些。`ACCESS_CODE`（单数）还是照常可用，对应原来那种所有人共用一个口令的设置；两者可以同时设置。
+
+**第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为任意访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要配置了口令，网页客户端就会在门禁弹窗里自动多出这个选项；不设口令时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。BYOK 提交的运行不会被打上任何口令标记，所以服务端不会把它记进任何一个口令的历史里；网页客户端转而在 `sessionStorage` 里维护一份访客自己这次会话提交过的运行列表，让侧栏依然能显示自己提交过什么——标签页一关就消失，标签页开着的时候完整可见。
+
+`GET /api/runs`（运行历史列表）无论如何都始终留在口令后面——开放的话会把每个访客的话题暴露给所有其他访客。按 `run_id` 读取或取消某一次具体的运行则不需要口令——`run_id` 本身带 40 位随机性，用的是和"分享一份已完成报告的链接"同一套能力令牌信任模型。
 
 **部署到 Railway 需要特别注意的地方：** 这个 Dockerfile 在普通 `docker build`/`docker-compose` 下构建完全正常，但 Railway 的构建器比标准 Docker 严格，有几处本地构建根本测不出来的差异：
 
