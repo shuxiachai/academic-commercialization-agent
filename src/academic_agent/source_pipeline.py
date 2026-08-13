@@ -1346,6 +1346,11 @@ def _patent_source_from_lens(
                 "Legal scope requires full claim review."
             ),
             evidence_summary=evidence[:_ABSTRACT_MAX_CHARS],
+            # Lens returns the patent's own abstract. Left unset, this record
+            # was indistinguishable from a truncated Google Patents extract,
+            # which also lands on None — so the field could not answer the one
+            # question it exists for.
+            summary_source="abstract" if abstract else None,
             citation_count=None,
         ),
         "",
@@ -1788,7 +1793,13 @@ def _web_source(
             credibility_tier=credibility_tier,
             credibility_reason=credibility_reason,
             evidence_summary=_safe_summary(snippet, title),
-            summary_source="search_snippet" if domain == "market" else None,
+            # Every source built here comes from a search engine's page
+            # extract, whatever domain asked for it. Labelling only the
+            # market ones left patent extracts sharing a value with real
+            # Lens abstracts, so anything reading this field to decide
+            # "is this text complete enough to reason about absence"
+            # got the wrong answer for two thirds of the patent domain.
+            summary_source="search_snippet",
         )
     except ValidationError as exc:
         first = exc.errors()[0] if exc.errors() else {}

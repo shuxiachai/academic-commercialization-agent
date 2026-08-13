@@ -164,6 +164,14 @@ def save_claim_grounding(
         run_directory = output_root / run_id
         combined: list[Any] = []
         totals = {"checked": 0, "ungrounded": 0, "unverifiable": 0}
+        # Also per domain, because the aggregate is actively misleading. Across
+        # the 30-run baseline the overall figure was 14% checkable, which reads
+        # as "this check barely works" — while the academic domain was 92% and
+        # the market domain 0%. Market claims are quantitative-heavy and cite
+        # market reports, which have no abstract anywhere; that zero is a fact
+        # about the evidence, not a shortfall in the screen. One number cannot
+        # say both things.
+        per_domain: dict[str, dict[str, int]] = {}
 
         for index, filename in EVIDENCE_ARTIFACTS:
             if index >= len(tasks_output):
@@ -178,22 +186,28 @@ def save_claim_grounding(
                 # two failures from being reported as one.
                 continue
             result = check_report(report)
+            domain = filename.split("_")[0]
             totals["checked"] += result.checked_count
             totals["ungrounded"] += result.ungrounded_count
             totals["unverifiable"] += result.unverifiable_count
+            per_domain[domain] = {
+                "checked": result.checked_count,
+                "ungrounded": result.ungrounded_count,
+                "unverifiable": result.unverifiable_count,
+            }
             for check in result.checks:
                 if check.status != "grounded":
-                    combined.append({"domain": filename.split("_")[0], **check.as_dict()})
+                    combined.append({"domain": domain, **check.as_dict()})
 
         if not any(totals.values()):
             return None
 
-        payload = {**totals, "findings": combined}
+        payload = {**totals, "by_domain": per_domain, "findings": combined}
         run_directory.mkdir(parents=True, exist_ok=True)
         (run_directory / "claim_grounding.json").write_text(
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
         )
-        return totals
+        return {**totals, "by_domain": per_domain}
     except Exception as exc:  # noqa: BLE001 - see the docstring
         warnings.warn(f"claim grounding screen failed: {type(exc).__name__}: {exc}")
         return None

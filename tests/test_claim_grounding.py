@@ -17,6 +17,7 @@ measurements, and the distinction is what these tests pin down.
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest import TestCase
 
 from academic_agent.claim_grounding import (
@@ -237,3 +238,166 @@ class RobustnessTests(TestCase):
 
     def test_empty_report_serialises(self):
         self.assertEqual(GroundingReport().as_dict()["checked"], 0)
+
+
+class SummarySourceLabellingTests(TestCase):
+    """The screen decides whether absence means anything by reading
+    summary_source, so the label has to be accurate at the point it is set.
+
+    It was not. Two different things both landed on None: a real Lens patent
+    abstract (the builder never set the field) and a truncated Google Patents
+    extract (the web builder labelled only the market domain). One field, two
+    opposite meanings, and this screen read both as complete text — so it was
+    reasoning about absence in roughly two thirds of the patent domain on
+    fragments that end in "[...]".
+    """
+
+    def test_lens_patent_abstract_is_labelled_abstract(self):
+        from datetime import date
+
+        from academic_agent.source_pipeline import _patent_source_from_lens
+
+        record = {
+            "lens_id": "123-456-789",
+            "biblio": {
+                "invention_title": [{"text": "Solid state battery with solid electrolyte for electric vehicles", "lang": "en"}],
+                "publication_reference": {"jurisdiction": "US", "doc_number": "11111111"},
+                "parties": {"applicants": [{"extracted_name": {"value": "Acme Corp"}}]},
+                "publication_date": "2021-05-04",
+            },
+            "abstract": [{"text": "A solid-state electrochemical cell achieving "
+                                  "500 Wh/kg with a sulfide electrolyte. " * 4}],
+        }
+        source, reason = _patent_source_from_lens(
+            record, "P1", date(2026, 1, 1), "solid state batteries")
+        self.assertIsNotNone(source, reason)
+        self.assertEqual(source.summary_source, "abstract")
+
+    def test_lens_record_without_an_abstract_is_not_labelled_abstract(self):
+        """The builder falls back to a synthesised one-liner when the record
+        carries no abstract; calling that an abstract would be the same lie in
+        the other direction."""
+        from datetime import date
+
+        from academic_agent.source_pipeline import _patent_source_from_lens
+
+        record = {
+            "lens_id": "123-456-789",
+            "biblio": {
+                "invention_title": [{"text": "A solid electrolyte cell for vehicles",
+                                     "lang": "en"}],
+                "publication_reference": {"jurisdiction": "US", "doc_number": "11111111"},
+                "parties": {"applicants": [{"extracted_name": {"value": "Acme Corp"}}]},
+                "publication_date": "2021-05-04",
+            },
+        }
+        source, reason = _patent_source_from_lens(
+            record, "P1", date(2026, 1, 1), "solid state batteries")
+        if source is not None:
+            self.assertNotEqual(source.summary_source, "abstract")
+
+    def test_web_extracts_are_labelled_snippet_in_every_domain(self):
+        """Not only market. A Google Patents page extract is as truncated as a
+        market report's, and labelling one and not the other is what made the
+        field unreadable."""
+        from datetime import date
+
+        from academic_agent.source_pipeline import _web_source
+
+        snippet = ("FIELD OF THE INVENTION The present invention relates to "
+                   "batteries for electric vehicles. " * 6)
+        # Each domain applies its own host allowlist, so the URL has to be one
+        # that domain accepts; the label is what is under test, not the filter.
+        for domain, link in (
+            ("patent", "https://patents.google.com/patent/US11111111B2/en"),
+            ("market", "https://www.reuters.com/business/energy/solid-state-2026"),
+        ):
+            with self.subTest(domain=domain):
+                source, reason = _web_source(
+                    {"title": "Solid-state battery cell with sulfide electrolyte",
+                     "link": link, "snippet": snippet},
+                    "P1", domain, date(2026, 1, 1), lambda _u: (True, ""))
+                self.assertIsNotNone(source, reason)
+                self.assertEqual(source.summary_source, "search_snippet")
+
+
+class PerDomainReportingTests(TestCase):
+    """One aggregate number cannot say both things.
+
+    Across the 30-run baseline the overall figure was 14% checkable, which
+    reads as "this screen barely works". Split by domain it was academic 92%,
+    market 0% — and the market zero is a fact about market reports, which have
+    no abstract anywhere, not a shortfall in the check. Reporting only the
+    aggregate invites exactly the wrong conclusion about both.
+    """
+
+    def _tasks(self):
+        import json
+
+        class _Task:
+            def __init__(self, raw):
+                self.raw = raw
+
+        def report(prefix, claim, summary, summary_source):
+            return json.dumps({
+                # EvidenceReport requires these; the screen ignores them, but
+                # a report that fails to parse is skipped entirely and the
+                # test would pass vacuously.
+                "topic": "solid state batteries", "scope_summary": "s" * 40,
+                "search_queries": ["q"], "limitations": ["l" * 40],
+                "findings": [{
+                    "finding_id": f"{prefix}F1", "category": "performance", "claim": claim,
+                    "claim_type": "observed_fact", "source_ids": [f"{prefix}1"],
+                    "confidence": "high",
+                    "commercial_implication": "implication text",
+                    "limitations": None,
+                }],
+                "sources": [{
+                    "source_id": f"{prefix}1", "title": "a source title",
+                    "url": "https://example.test/a", "doi": None, "publisher": "Publisher",
+                    "published_date": None, "accessed_date": "2026-01-01",
+                    "source_type": "academic_paper", "credibility_tier": "high",
+                    "credibility_reason": "a stated reason", "evidence_summary": summary,
+                    "summary_source": summary_source, "citation_count": None,
+                }],
+            })
+
+        long = " ".join(["filler prose."] * 60)
+        return [
+            # academic: a real abstract, and the figure is in it
+            _Task(report("A", "efficiency reached 26.1%", f"We measured 26.1%. {long}",
+                         "abstract")),
+            # patent: nothing quantitative to check
+            _Task(report("P", "the filing describes a layered cell", f"text. {long}",
+                         "abstract")),
+            # market: a figure, but only a truncated page extract to check against
+            _Task(report("M", "the market reached $12.5 billion",
+                         f"a page extract. {long}", "search_snippet")),
+        ]
+
+    def test_counts_are_broken_out_by_domain(self):
+        import tempfile
+
+        from academic_agent.run_output import save_claim_grounding
+
+        with tempfile.TemporaryDirectory() as tmp:
+            totals = save_claim_grounding(self._tasks(), run_id="r",
+                                          output_root=Path(tmp))
+        by_domain = totals["by_domain"]
+        self.assertEqual(by_domain["academic"]["checked"], 1)
+        self.assertEqual(by_domain["academic"]["ungrounded"], 0)
+        self.assertEqual(by_domain["market"]["checked"], 0)
+        self.assertEqual(by_domain["market"]["unverifiable"], 1)
+
+    def test_the_breakdown_reaches_the_artifact_too(self):
+        import json
+        import tempfile
+
+        from academic_agent.run_output import save_claim_grounding
+
+        with tempfile.TemporaryDirectory() as tmp:
+            save_claim_grounding(self._tasks(), run_id="r", output_root=Path(tmp))
+            payload = json.loads(
+                (Path(tmp) / "r" / "claim_grounding.json").read_text(encoding="utf-8"))
+        self.assertIn("by_domain", payload)
+        self.assertEqual(payload["checked"], 1)
