@@ -530,6 +530,11 @@ def get_state(run_id: str) -> dict:
         # without them. An empty domain otherwise reads as a finding about the
         # technology rather than an outage.
         "failed_domains": list(status.get("failed_domains") or []),
+        # Tokens and estimated cost, per agent and in total. Present once the
+        # crew has run, including on failed runs — a run that died halfway
+        # still spent whatever it spent, and that is the case where the number
+        # is least guessable and most worth showing.
+        "usage": status.get("usage"),
         "artifacts": available_artifacts(run_dir),
     }
 

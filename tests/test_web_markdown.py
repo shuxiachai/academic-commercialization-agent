@@ -120,7 +120,7 @@ class MarkdownEscapingTests(unittest.TestCase):
         # runner, not the renderer.
         warmup = subprocess.run(
             [_node(), str(work / "run.mjs"), '["warmup"]'],
-            capture_output=True, text=True, timeout=300, cwd=work,
+            capture_output=True, text=True, encoding="utf-8", timeout=300, cwd=work,
         )
         # Not check=True: a syntax error in result.js exits non-zero here now
         # rather than in the first test, and CalledProcessError would report
@@ -141,7 +141,7 @@ class MarkdownEscapingTests(unittest.TestCase):
         if key not in self._cache:
             result = subprocess.run(
                 [_node(), str(self._work / "run.mjs"), key],
-                capture_output=True, text=True, timeout=120, cwd=self._work,
+                capture_output=True, text=True, encoding="utf-8", timeout=120, cwd=self._work,
             )
             if result.returncode != 0:
                 self.fail(f"renderer failed: {result.stderr[:400]}")

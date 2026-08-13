@@ -22,6 +22,9 @@ const STRINGS = {
     offline: "offline",
     retention_note: "Runs on this deployment are deleted automatically after {days} days.",
     retention_forever: "Runs on this deployment are kept until deleted manually.",
+    tokens_suffix: "tokens",
+    price_basis: "Price basis",
+    cost_partial: "Partial estimate — no price known for: {models}",
 
     // Composer
     compose_title: "What should we assess?",
@@ -116,6 +119,9 @@ const STRINGS = {
     offline: "未连接",
     retention_note: "本部署的运行记录会在 {days} 天后自动删除。",
     retention_forever: "本部署的运行记录会一直保留，直到手动删除。",
+    tokens_suffix: "tokens",
+    price_basis: "计价依据",
+    cost_partial: "部分估算 —— 以下模型无已知价格：{models}",
 
     compose_title: "要评估什么技术？",
     compose_sub: "六个智能体收集学术、专利与市场证据，评估商业化就绪度。每条结论都附带可核查的引用。",

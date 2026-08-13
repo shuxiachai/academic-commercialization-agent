@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="dark">
 <title>Commercialization Assessment</title>
 <meta name="description" content="Six AI agents assess the commercialization readiness of academic research, producing a scored report with verifiable citations.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233b82f6'/%3E%3Ctext x='16' y='22' font-family='system-ui' font-size='17' font-weight='700' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="/static/brand/aca-mark.svg">
 <link rel="stylesheet" href="/static/css/tokens.css">
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/workbench.css">
@@ -21,8 +21,8 @@
        furniture rather than a tab you navigate away to. -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar__head">
-      <a class="brand" href="/">
-        <span class="brand__mark">A</span>
+      <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
+        <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
         <span class="brand__name">Assessment</span>
       </a>
       <button type="button" class="icon-btn sidebar__collapse" id="collapse-btn"
@@ -173,6 +173,7 @@
             <span class="dot-sep"></span>
             <span class="tabular" id="run-elapsed">0:00</span>
             <span id="run-sources"></span>
+            <span id="run-usage" class="tabular"></span>
           </div>
         </div>
         <div class="pane__actions" id="run-actions"></div>

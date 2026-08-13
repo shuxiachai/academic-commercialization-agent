@@ -81,7 +81,7 @@ def _merge_status_fields(
     # evidence_incomplete is sticky for the same reason topic is: it is set
     # once, mid-run, by the only code path that can discover it, and every
     # later status write would otherwise erase the warning it carries.
-    for sticky in ("topic", "source_counts", "evidence_incomplete", "failed_domains"):
+    for sticky in ("topic", "source_counts", "evidence_incomplete", "failed_domains", "usage"):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
     if source_counts is not None:
@@ -126,6 +126,7 @@ def main() -> None:
     )
     from academic_agent.pdf_extractor import PaperContribution, paper_to_evidence_source
     from academic_agent.source_pipeline import collect_source_collection
+    from academic_agent.token_usage import collect_usage
 
     run_dir = DEFAULT_OUTPUT_ROOT / args.run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -142,6 +143,7 @@ def main() -> None:
         topic: str | None = None,
         evidence_incomplete: bool | None = None,
         failed_domains: list[str] | None = None,
+        usage: dict | None = None,
     ) -> None:
         try:
             try:
@@ -157,11 +159,32 @@ def main() -> None:
                 data["evidence_incomplete"] = evidence_incomplete
             if failed_domains is not None:
                 data["failed_domains"] = failed_domains
+            if usage is not None:
+                data["usage"] = usage
             status_path.write_text(json.dumps(data), encoding="utf-8")
         except Exception as _e:
             print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
 
     write_status(_STAGE_INITIAL, topic=args.topic)
+
+    # Bound before the try so the failure path can still account for a run
+    # that died after spending money. A crash halfway through is exactly when
+    # someone wants to know what it cost, and it is also the only case where
+    # this name might never be assigned.
+    crew_obj = None
+
+    def snapshot_usage() -> dict | None:
+        if crew_obj is None:
+            return None
+        usage = collect_usage(crew_obj)
+        if not usage.agents and usage.collection_error is None:
+            return None
+        cost = "unknown" if usage.cost_usd is None else f"${usage.cost_usd:.4f}"
+        if not usage.cost_complete:
+            cost += f" (at least; unpriced: {', '.join(usage.unpriced_models)})"
+        print(f"[usage] {usage.total_tokens} tokens over {usage.total_requests} "
+              f"requests, {cost}", flush=True)
+        return usage.as_dict()
 
     try:
         paper_seed = None
@@ -383,6 +406,7 @@ def main() -> None:
             "Done", done=True,
             output_language=source_collection.output_language,
             evidence_incomplete=not evidence_saved,
+            usage=snapshot_usage(),
         )
 
     except Exception as exc:
@@ -392,7 +416,7 @@ def main() -> None:
         except Exception as _save_err:
             print(f"[worker] save_error failed: {_save_err}", file=sys.stderr)
         print(error_details, file=sys.stderr, flush=True)
-        write_status("Error", done=True, error=str(exc)[:400])
+        write_status("Error", done=True, error=str(exc)[:400], usage=snapshot_usage())
         sys.exit(1)
 
 

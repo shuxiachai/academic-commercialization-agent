@@ -90,7 +90,7 @@ function startClock(fromSeconds) {
   clock = setInterval(paint, 1000);
 }
 
-function paintHeader({ topic, state, elapsed_seconds, source_counts }) {
+function paintHeader({ topic, state, elapsed_seconds, source_counts, usage }) {
   if (topic) $("#run-title").textContent = topic;
 
   const pill = $("#run-pill");
@@ -107,6 +107,13 @@ function paintHeader({ topic, state, elapsed_seconds, source_counts }) {
   const summary = runView.sourceSummary(source_counts);
   const el = $("#run-sources");
   el.textContent = summary ? `· ${summary}` : "";
+
+  // Shown for failed runs too: a run that died halfway still spent whatever
+  // it spent, and that is the bill nobody can otherwise estimate.
+  const spend = runView.usageSummary(usage);
+  const spendEl = $("#run-usage");
+  spendEl.textContent = spend ? `· ${spend}` : "";
+  spendEl.title = spend ? runView.usageTitle(usage) : "";
 }
 
 function paintActions(state) {

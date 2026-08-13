@@ -59,14 +59,8 @@
   color: var(--text-primary);
 }
 .brand__mark {
-  width: 20px; height: 20px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);
-  display: grid;
-  place-items: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
+  width: 22px; height: 22px;
+  display: block;
   flex-shrink: 0;
 }
 .brand__name {

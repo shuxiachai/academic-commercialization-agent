@@ -126,6 +126,44 @@ export function sourceSummary(counts) {
        + ` · ${patent} ${t("patent")} · ${market} ${t("market")}`;
 }
 
+/**
+ * Tokens and cost for a finished run.
+ *
+ * Tokens are measured and always shown. Cost is an estimate from a price the
+ * server cannot verify, so it is shown only when there is one, and a partial
+ * total is prefixed with ~ and marked in the tooltip rather than being
+ * rounded up into a figure that looks authoritative. A run whose model has no
+ * price shows its tokens and no dollar figure at all — which is the honest
+ * output, and the reason this is not simply `cost ?? 0`.
+ */
+export function usageSummary(usage) {
+  if (!usage || !usage.total_tokens) return "";
+  const tokens = usage.total_tokens >= 1000
+    ? `${(usage.total_tokens / 1000).toFixed(1)}k`
+    : String(usage.total_tokens);
+  const parts = [`${tokens} ${t("tokens_suffix")}`];
+  if (usage.cost_usd != null) {
+    const approx = usage.cost_complete ? "" : "~";
+    parts.push(`${approx}$${usage.cost_usd.toFixed(4)}`);
+  }
+  return parts.join(" · ");
+}
+
+/** Tooltip spelling out where the cost figure came from, if anywhere. */
+export function usageTitle(usage) {
+  if (!usage) return "";
+  const lines = [];
+  if (usage.price_basis) lines.push(`${t("price_basis")}: ${usage.price_basis}`);
+  if (usage.cost_complete === false && usage.unpriced_models?.length) {
+    lines.push(t("cost_partial").replace("{models}", usage.unpriced_models.join(", ")));
+  }
+  for (const agent of usage.agents ?? []) {
+    const cost = agent.cost_usd == null ? "—" : `$${agent.cost_usd.toFixed(4)}`;
+    lines.push(`${agent.role}: ${agent.total_tokens} · ${cost}`);
+  }
+  return lines.join("\n");
+}
+
 /* ── Rendering ─────────────────────────────────────────────────────── */
 
 export function renderStages(container, stages) {

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">Academic Commercialization Assessment</title>
+  <desc id="desc">Three evidence sources converge into a verified commercialization path.</desc>
+  <defs>
+    <linearGradient id="path" x1="22" y1="70" x2="75" y2="23" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/><stop offset=".54" stop-color="#3B82F6"/><stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="96" height="96" rx="24" fill="#0F172A"/>
+  <rect x="1" y="1" width="94" height="94" rx="23" fill="none" stroke="#334155" stroke-opacity=".7" stroke-width="2"/>
+  <path d="M22 66c8 0 10-10 18-10 6 0 8 6 14 6 8 0 11-16 20-29" fill="none" stroke="url(#path)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M66 33h8v8" fill="none" stroke="#2DD4BF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="22" cy="66" r="6" fill="#38BDF8"/><circle cx="40" cy="56" r="6" fill="#818CF8"/><circle cx="54" cy="62" r="6" fill="#FBBF24"/>
+  <circle cx="74" cy="25" r="11" fill="#14B8A6" filter="url(#glow)"/>
+  <path d="m68.9 25 3.4 3.4 6.3-7" fill="none" stroke="#F8FAFC" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
