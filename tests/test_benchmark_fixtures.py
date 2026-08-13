@@ -111,10 +111,14 @@ class FreezeAndLoadTests(TestCase):
                 benchmark_fixtures.load("01", "slug")
 
     def test_digest_ignores_line_endings(self):
-        """Git translates newlines on checkout, so the same committed fixture
-        is CRLF in a Windows working copy and LF on a Linux runner. Hashing
-        raw bytes made the guard fire everywhere except the machine that
-        captured the file, which trains people to ignore it."""
+        """Git checks the same fixture out as CRLF on Windows and LF on a
+        Linux runner, so a byte-for-byte hash would call one of them tampered.
+
+        This passes today for a reason that is not in _digest: Python's text
+        mode folds the newlines before it is called. Pinning the property here
+        means a later switch to read_bytes(), or an open(newline=""), fails
+        this test instead of failing the integrity guard on everyone else's
+        machine while still passing on the one that captured the fixture."""
         raw = _collection_json()
         self.assertEqual(
             benchmark_fixtures._digest(raw),
@@ -131,6 +135,8 @@ class FreezeAndLoadTests(TestCase):
                 benchmark_fixtures._digest(path.read_text(encoding="utf-8")), recorded)
 
     def test_freeze_writes_lf_so_the_working_copy_matches_the_repo(self):
+        """Keeps `git status` meaningful: a CRLF rewrite marks all ten
+        fixtures modified, hiding the one that actually changed."""
         raw = _collection_json()
         with _TempFixtureRoot(self.root):
             benchmark_fixtures.freeze("01", "slug", "topic", raw)

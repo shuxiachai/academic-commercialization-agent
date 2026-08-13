@@ -49,11 +49,15 @@ def fixture_path(num: str, slug: str) -> Path:
 def _digest(text: str) -> str:
     """Content hash, blind to line endings.
 
-    Git translates newlines on checkout, so the same committed fixture is CRLF
-    in a Windows working copy and LF on a Linux CI runner. Hashing the bytes as
-    they sit on disk made the guard fire on every machine that was not the one
-    that captured the file — a platform artifact reported as tampering, which
-    would have trained everyone to ignore the check.
+    Git checks the same committed fixture out as CRLF on Windows and LF on a
+    Linux runner, so a byte-for-byte hash would call one of them tampered.
+    Today that never happens, because every caller reads through Python's text
+    mode, which folds \\r\\n to \\n before this function sees it — the
+    normalisation below is a no-op. It is written down anyway so the guarantee
+    belongs to this function rather than to a habit at each call site: one
+    read_bytes(), or one open(newline=""), and the guard would start failing
+    on other people's machines while passing on the one that captured the
+    fixture.
     """
     return hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest()[:16]
 
@@ -83,9 +87,10 @@ def freeze(num: str, slug: str, topic: str, sources_json: str) -> dict:
     """
     FIXTURE_ROOT.mkdir(parents=True, exist_ok=True)
     path = fixture_path(num, slug)
-    # newline="" so Windows does not expand \n to \r\n on the way out: the
-    # file then matches what git stores, and a fixture captured on one
-    # platform is byte-identical to the same fixture captured on another.
+    # newline="" so Windows does not expand \n to \r\n on the way out. Not a
+    # correctness fix -- the digest ignores line endings -- but without it
+    # every capture rewrites all ten files as CRLF, git reports them all as
+    # modified, and a real change to one fixture is invisible in that diff.
     with path.open("w", encoding="utf-8", newline="") as fh:
         fh.write(sources_json)
 
