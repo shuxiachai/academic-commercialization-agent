@@ -443,6 +443,17 @@ missed escape. HSTS is deliberately absent — Railway terminates TLS ahead of
 this process, and an app sending `max-age` for a host it does not control can
 outlive its own certificate story.
 
+**What a run cost.** Every run reports its token count per agent, on the
+failure path too — a run that crashed halfway still spent whatever it spent.
+The web client shows tokens and, where a price is known, an estimate; hover
+for the per-agent breakdown and the basis the figure came from.
+
+Tokens are measured. Cost is not: it needs a price this program cannot
+verify, so a model the built-in table does not know reports its tokens and no
+dollar figure, rather than a `$0.00` that reads as "free". Set
+`LLM_PRICE_PER_MTOK=input:output` (USD per 1M tokens, optional third field for
+the cache-read rate) to price such a model or correct a stale entry.
+
 **Handing out a separate code per person:** `ACCESS_CODES` accepts a
 comma-separated list instead of one shared value — `ACCESS_CODES=for-alice,
 for-bob`. Each code's run history is scoped to itself: the sidebar for
@@ -1060,6 +1071,10 @@ RUN_RETENTION_DAYS=30           # N 天后自动删除已完成的运行
 保留期之所以重要，**正是因为运行链接可以分享**：读取一个运行只需要 id，所以分享出去的链接活多久，取决于那次运行活多久；而一个上传了未发表论文的访客，会把论文内容、提取出的核心贡献、以及据此写成的评估长期留在你的服务器上。计龄用的是 run_id 自带的时间戳而不是目录 mtime，这样首次下载时渲染 PDF 不会给"正在被人打开的运行"偷偷续期；正在执行的运行永不删除。`/health` 会上报保留窗口、前端会显示——没被告知的删除读起来是数据丢失，不是策略。
 
 此外每个响应都带 `Content-Security-Policy`、`X-Content-Type-Options`、`Referrer-Policy` 和 `Cross-Origin-Opener-Policy`。这套策略不需要任何 `unsafe-inline`：前端没有内联脚本、没有内联样式、没有 `on*` 属性，样式通过 CSSOM 逐属性设置。报告正文是模型输出加第三方标题、最终会进入 innerHTML，所以这一层限定的是"万一某处转义漏了，能造成多大后果"。**刻意没有加 HSTS**——Railway 在这个进程之前就终结了 TLS，一个应用给自己并不掌控的域名下发 `max-age`，可能比它的证书方案活得更久。
+
+**一次运行花了多少。** 每次运行按 agent 记录 token 用量，失败的运行也记——跑崩的运行照样花了钱。前端显示 token 数，以及在有价格时显示成本估算；悬停可看逐 agent 明细和这个数字的计价依据。
+
+token 是测出来的，成本不是：它需要一份本程序无法验证的价格。所以内置价格表不认识的模型，只报 token、不报金额，而不是给一个会被读成"免费"的 `$0.00`。要给这类模型定价、或修正一条过期的价格，设置 `LLM_PRICE_PER_MTOK=输入:输出`（美元 / 每 100 万 token，可选第三个字段为缓存读取价）。
 
 **给每个人发不同的口令：** `ACCESS_CODES` 接受逗号分隔的多个值，而不是一个共用口令——`ACCESS_CODES=给alice的口令,给bob的口令`。每个口令的运行历史都只属于它自己：持有"给alice的口令"的人，侧栏永远只看得到用这个口令跑过的记录，看不到"给bob的口令"跑过的。这只是运行时打的一个标记（口令的哈希值，写进每次运行的目录里），不是给每个人单独跑一套部署——还是一个进程、一个 `outputs/` 目录，口令只是决定 `GET /api/runs` 返回哪些。`ACCESS_CODE`（单数）还是照常可用，对应原来那种所有人共用一个口令的设置；两者可以同时设置。
 
