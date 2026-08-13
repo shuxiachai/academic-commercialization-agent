@@ -1,6 +1,7 @@
 """Per-run output management for generated commercialization reports."""
 
 import json
+import warnings
 from collections.abc import Sequence
 from datetime import datetime, UTC
 from pathlib import Path
@@ -135,6 +136,67 @@ def save_evidence_reports(
             f"artifacts could not be written — " + "; ".join(failures)
         )
     return written
+
+
+def save_claim_grounding(
+    tasks_output: Sequence[Any],
+    run_id: str,
+    output_root: Path = DEFAULT_OUTPUT_ROOT,
+) -> dict | None:
+    """Screen the evidence tasks' claims against the sources they cite.
+
+    Writes claim_grounding.json beside the evidence files and returns a
+    summary for status.json, or None when there was nothing to screen.
+
+    Deliberately not a guardrail. The existing guardrails block and retry, and
+    this check is a heuristic: a false positive would fail a sound run and
+    charge for a second attempt, while the errors it catches are ones a reader
+    can act on after the fact. It reports; it does not reject.
+
+    Never raises, for the same reason the evidence writer is best-effort — an
+    audit that takes down the assessment it was auditing is worse than no
+    audit.
+    """
+    from academic_agent.claim_grounding import check_report
+    from academic_agent.evidence import EvidenceReport
+
+    try:
+        run_directory = output_root / run_id
+        combined: list[Any] = []
+        totals = {"checked": 0, "ungrounded": 0, "unverifiable": 0}
+
+        for index, filename in EVIDENCE_ARTIFACTS:
+            if index >= len(tasks_output):
+                continue
+            raw = getattr(tasks_output[index], "raw", None)
+            if not raw:
+                continue
+            try:
+                report = EvidenceReport.model_validate_json(raw)
+            except Exception:  # noqa: BLE001 - unparseable output is the
+                # guardrail's business, not this screen's; skipping keeps the
+                # two failures from being reported as one.
+                continue
+            result = check_report(report)
+            totals["checked"] += result.checked_count
+            totals["ungrounded"] += result.ungrounded_count
+            totals["unverifiable"] += result.unverifiable_count
+            for check in result.checks:
+                if check.status != "grounded":
+                    combined.append({"domain": filename.split("_")[0], **check.as_dict()})
+
+        if not any(totals.values()):
+            return None
+
+        payload = {**totals, "findings": combined}
+        run_directory.mkdir(parents=True, exist_ok=True)
+        (run_directory / "claim_grounding.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return totals
+    except Exception as exc:  # noqa: BLE001 - see the docstring
+        warnings.warn(f"claim grounding screen failed: {type(exc).__name__}: {exc}")
+        return None
 
 
 def save_source_collection(

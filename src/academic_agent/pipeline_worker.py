@@ -81,7 +81,8 @@ def _merge_status_fields(
     # evidence_incomplete is sticky for the same reason topic is: it is set
     # once, mid-run, by the only code path that can discover it, and every
     # later status write would otherwise erase the warning it carries.
-    for sticky in ("topic", "source_counts", "evidence_incomplete", "failed_domains", "usage"):
+    for sticky in ("topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
+                   "claim_grounding"):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
     if source_counts is not None:
@@ -118,6 +119,7 @@ def main() -> None:
         DEFAULT_OUTPUT_ROOT,
         StepEntry,
         save_error,
+        save_claim_grounding,
         save_evidence_reports,
         save_report,
         save_reviewer_notes,
@@ -144,6 +146,7 @@ def main() -> None:
         evidence_incomplete: bool | None = None,
         failed_domains: list[str] | None = None,
         usage: dict | None = None,
+        claim_grounding: dict | None = None,
     ) -> None:
         try:
             try:
@@ -161,6 +164,8 @@ def main() -> None:
                 data["failed_domains"] = failed_domains
             if usage is not None:
                 data["usage"] = usage
+            if claim_grounding is not None:
+                data["claim_grounding"] = claim_grounding
             status_path.write_text(json.dumps(data), encoding="utf-8")
         except Exception as _e:
             print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
@@ -387,6 +392,16 @@ def main() -> None:
             print(f"[worker] evidence artifacts could not be saved: "
                   f"{type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
 
+        # Screens the evidence agents' quantitative claims against the text of
+        # the sources they cite. Runs off tasks_output rather than the files
+        # above, so a failed artifact write does not also cost the audit.
+        grounding = save_claim_grounding(
+            tasks_output, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
+        if grounding:
+            print(f"[grounding] {grounding['checked']} checkable claims, "
+                  f"{grounding['ungrounded']} with a figure absent from the cited "
+                  f"source, {grounding['unverifiable']} unverifiable", flush=True)
+
         report_raw, scores_raw = _select_report_and_scores(tasks_output, result.raw)
 
         m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", report_raw, re.IGNORECASE) if report_raw else None
@@ -407,6 +422,7 @@ def main() -> None:
             output_language=source_collection.output_language,
             evidence_incomplete=not evidence_saved,
             usage=snapshot_usage(),
+            claim_grounding=grounding,
         )
 
     except Exception as exc:

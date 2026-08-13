@@ -73,6 +73,11 @@ _ARTIFACTS = {
     "sources": "validated_sources.json",
     "notes":   "reviewer_notes.md",
     "steps":   "steps.jsonl",
+    # Downloadable so a reader can see *which* claims the screen could not
+    # check, not only how many. The counts alone invite the wrong reading —
+    # a low ungrounded count next to a high unverifiable one means the check
+    # mostly could not run, which is a different thing from mostly passing.
+    "grounding": "claim_grounding.json",
 }
 
 
@@ -535,6 +540,13 @@ def get_state(run_id: str) -> dict:
         # still spent whatever it spent, and that is the case where the number
         # is least guessable and most worth showing.
         "usage": status.get("usage"),
+        # Counts from the claim-grounding screen: how many quantitative claims
+        # could be checked against the text of the sources they cite, how many
+        # cited a figure absent from it, and how many could not be checked at
+        # all because the retrieved source text is a fragment. The third
+        # number is the honest one to read first — it bounds what the other
+        # two can mean.
+        "claim_grounding": status.get("claim_grounding"),
         "artifacts": available_artifacts(run_dir),
     }
 

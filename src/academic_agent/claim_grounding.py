@@ -1,0 +1,285 @@
+"""Check whether a cited source actually contains what the claim asserts.
+
+`validate_evidence_report` checks structure: IDs are well formed, unique, and
+every finding cites one that exists. What it cannot check is whether the cited
+source says anything resembling the claim attached to it. A finding reading
+"efficiency reached 26.1% [A3]" passes every existing rule while A3 is a paper
+about manufacturing cost that never mentions 26.1%, and that is the failure
+this system's whole premise depends on not happening.
+
+**This is a screen, not a proof.** Deciding entailment in general needs a
+model, which would add a second judge whose mistakes correlate with the first
+agent's and whose cost scales with the number of claims. What this module does
+instead is check a *necessary condition* on the subclass where a deterministic
+answer exists: a claim that states a specific figure, and cites a source whose
+text does not contain that figure anywhere, is not supported by that source —
+whatever else may be true. High precision on the narrow question beats a
+plausible score on the broad one.
+
+**Silence is not disagreement.** Two thirds of the sources in a typical run
+carry a search snippet rather than a full abstract, and a snippet is a
+fragment by construction: a number missing from it says nothing about whether
+the paper contains that number. Reporting those as unsupported would be the
+same category error the rest of this codebase keeps running into — an absent
+signal read as a negative finding. They are reported as UNVERIFIABLE, counted
+separately, and never folded into the unsupported total.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from typing import Any
+
+#: Below this, a summary with no declared provenance is treated as a fragment.
+#: Abstracts in this pipeline run 800-2000 characters; search snippets run
+#: 150-300. The gap is wide enough that the exact cut hardly matters, and
+#: erring high only moves findings into "unverifiable", never into a false
+#: accusation.
+_SUBSTANTIVE_SUMMARY_CHARS = 400
+
+#: A figure has to be distinctive before its absence means anything. Bare
+#: small integers ("3 approaches", "TRL 5", "two of the four") appear in
+#: prose constantly and would swamp the signal with noise, so a checkable
+#: figure must carry a decimal point, a percent sign, a unit, or be large.
+_LARGE_ENOUGH = 1000
+
+_UNIT_PATTERN = (
+    r"(?:%|percent|wh/kg|wh/l|mah|kwh|mwh|gwh|kw|mw|gw|mpa|gpa|kpa|"
+    r"°c|℃|k\b|nm|µm|um|mm|cm|km|kg|mg|µg|ug|ml|mol|hz|khz|mhz|ghz|"
+    r"usd|eur|billion|million|trillion|bn|yr|years?|months?|cycles?|x\b)"
+)
+
+_FIGURE_RE = re.compile(
+    r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*" + _UNIT_PATTERN + r"?",
+    re.IGNORECASE,
+)
+
+#: Words that turn a following round number into a bound rather than a
+#: quotation. "above 100 GPa" is the analyst's threshold, and is a correct
+#: sentence when the sources say 120 and 140 — so demanding that 100 appear
+#: in a source reports a sound inference as a fabrication. A *precise* figure
+#: survives these: "approximately 26.1%" is still quoting 26.1.
+_BOUND_QUALIFIERS = re.compile(
+    r"(?:above|over|under|below|beyond|exceed(?:s|ing)?|more than|less than|"
+    r"fewer than|greater than|at least|at most|up to|within|nearly|almost|"
+    r"around|about|approximately|roughly|~|>=|<=|>|<|≥|≤)\s*$",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class ClaimCheck:
+    """One finding's grounding result."""
+
+    finding_id: str
+    claim: str
+    source_ids: tuple[str, ...] = ()
+    #: Figures stated in the claim and found in at least one cited source.
+    grounded: tuple[str, ...] = ()
+    #: Figures stated in the claim and absent from every cited source whose
+    #: text is substantive enough for absence to mean anything.
+    ungrounded: tuple[str, ...] = ()
+    #: Why no verdict was possible, when there is none.
+    unverifiable_reason: str | None = None
+
+    @property
+    def status(self) -> str:
+        if self.unverifiable_reason:
+            return "unverifiable"
+        if self.ungrounded:
+            return "ungrounded"
+        return "grounded"
+
+    def as_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "finding_id": self.finding_id,
+            "status": self.status,
+            "claim": self.claim[:300],
+            "source_ids": list(self.source_ids),
+        }
+        if self.grounded:
+            data["grounded_figures"] = list(self.grounded)
+        if self.ungrounded:
+            data["ungrounded_figures"] = list(self.ungrounded)
+        if self.unverifiable_reason:
+            data["unverifiable_reason"] = self.unverifiable_reason
+        return data
+
+
+@dataclass(frozen=True)
+class GroundingReport:
+    checks: tuple[ClaimCheck, ...] = ()
+    #: Findings with a figure absent from every checkable cited source.
+    ungrounded_count: int = 0
+    #: Findings carrying a checkable figure that a verdict could be reached on.
+    checked_count: int = 0
+    #: Findings skipped: no figure to check, or no substantive source text.
+    unverifiable_count: int = 0
+    error: str | None = field(default=None)
+
+    def as_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "checked": self.checked_count,
+            "ungrounded": self.ungrounded_count,
+            "unverifiable": self.unverifiable_count,
+            # Only the interesting rows. A run with 40 fully grounded findings
+            # should produce a short file, or nobody will open it.
+            "findings": [c.as_dict() for c in self.checks if c.status != "grounded"],
+        }
+        if self.error:
+            data["error"] = self.error
+        return data
+
+
+def _normalize_number(raw: str) -> str:
+    """'1,250.0' -> '1250'. Thousands separators and trailing zeros are
+    formatting, not content, and a claim that writes 26.10% against a source
+    that writes 26.1% is quoting the same figure."""
+    cleaned = raw.replace(",", "").strip()
+    if "." in cleaned:
+        cleaned = cleaned.rstrip("0").rstrip(".")
+    return cleaned or "0"
+
+
+def checkable_figures(text: str) -> list[str]:
+    """Distinctive figures stated in `text`, normalised.
+
+    Deliberately conservative: a figure that is not distinctive produces noise
+    rather than signal, and a check people learn to ignore is worse than no
+    check.
+    """
+    found: list[str] = []
+    for match in _FIGURE_RE.finditer(text or ""):
+        raw = match.group(1)
+        unit = match.group(0)[len(raw):].strip()
+        number = _normalize_number(raw)
+        try:
+            value = float(number)
+        except ValueError:
+            continue
+        # A bare four-digit year is the noisiest thing this could flag. Claims
+        # routinely date themselves against the analyst's present ("as of
+        # 2026, no commercial product exists") while citing a source from an
+        # earlier year, and demanding the year appear in the source would
+        # report that ordinary, correct sentence as a fabrication. A figure
+        # carrying a unit stays even if it looks like a year: "2024 GWh" is a
+        # quantity, not a date.
+        if not unit and 1900 <= value <= 2100 and "." not in number:
+            continue
+
+        # A round number behind a comparative is a bound the analyst chose,
+        # not a figure taken from a source. All three flags this screen
+        # produced on the first baseline it was run against were of this
+        # shape — "more than 10 years", "above 100 GPa" — and all three were
+        # sound sentences. A check that reports correct reasoning as
+        # fabrication is one people stop reading.
+        if "." not in number and _BOUND_QUALIFIERS.search(text[: match.start()]):
+            continue
+
+        distinctive = bool(unit) or "." in number or value >= _LARGE_ENOUGH
+        if distinctive and number not in found:
+            found.append(number)
+    return found
+
+
+def _source_is_checkable(source: Any) -> bool:
+    """Whether absence of a figure in this source means anything.
+
+    A search snippet is a fragment by construction, so no. The label wins over
+    length: a long snippet is still a truncation of something longer, and
+    treating it as complete is how "we did not see it" becomes "it is not
+    there".
+    """
+    if getattr(source, "summary_source", None) == "search_snippet":
+        return False
+    text = str(getattr(source, "evidence_summary", "") or "")
+    return len(text) >= _SUBSTANTIVE_SUMMARY_CHARS
+
+
+def _source_text(source: Any) -> str:
+    return " ".join(str(getattr(source, attr, "") or "")
+                    for attr in ("title", "evidence_summary", "publisher"))
+
+
+def check_report(report: Any, sources: Any = None) -> GroundingReport:
+    """Screen every finding in `report` against the sources it cites.
+
+    Never raises: this runs beside a finished report, and an accounting bug
+    here must not destroy the assessment it was auditing.
+    """
+    try:
+        return _check_report(report, sources)
+    except Exception as exc:  # noqa: BLE001 - an audit must not fail a run
+        return GroundingReport(error=f"{type(exc).__name__}: {exc}"[:200])
+
+
+def _check_report(report: Any, sources: Any = None) -> GroundingReport:
+    pool = list(sources if sources is not None else getattr(report, "sources", None) or [])
+    by_id = {str(getattr(s, "source_id", "")): s for s in pool}
+
+    checks: list[ClaimCheck] = []
+    ungrounded = checked = unverifiable = 0
+
+    for finding in getattr(report, "findings", None) or []:
+        claim = str(getattr(finding, "claim", "") or "")
+        cited_ids = tuple(getattr(finding, "source_ids", None) or ())
+        figures = checkable_figures(claim)
+
+        if not figures:
+            # Nothing deterministic to check. Not a pass and not a failure —
+            # this screen simply has no opinion about a purely qualitative
+            # claim, and saying so beats implying it was verified.
+            continue
+
+        cited = [by_id[i] for i in cited_ids if i in by_id]
+        checkable = [s for s in cited if _source_is_checkable(s)]
+
+        if not cited:
+            checks.append(ClaimCheck(
+                finding_id=str(getattr(finding, "finding_id", "")), claim=claim,
+                source_ids=cited_ids,
+                unverifiable_reason="cites no source present in the registry",
+            ))
+            unverifiable += 1
+            continue
+
+        if not checkable:
+            checks.append(ClaimCheck(
+                finding_id=str(getattr(finding, "finding_id", "")), claim=claim,
+                source_ids=cited_ids,
+                unverifiable_reason=(
+                    "every cited source carries only a search snippet, which is "
+                    "a fragment — a figure missing from it is not evidence the "
+                    "source lacks it"
+                ),
+            ))
+            unverifiable += 1
+            continue
+
+        haystack = " ".join(_source_text(s) for s in checkable)
+        present = set(checkable_figures(haystack))
+        # Substring fallback so "26.1" in the claim matches "26.15" in the
+        # source text: a claim rounding a source's figure is quoting it, and
+        # flagging that would be a false accusation.
+        hit, miss = [], []
+        for figure in figures:
+            if figure in present or figure in haystack.replace(",", ""):
+                hit.append(figure)
+            else:
+                miss.append(figure)
+
+        checks.append(ClaimCheck(
+            finding_id=str(getattr(finding, "finding_id", "")), claim=claim,
+            source_ids=cited_ids, grounded=tuple(hit), ungrounded=tuple(miss),
+        ))
+        checked += 1
+        if miss:
+            ungrounded += 1
+
+    return GroundingReport(
+        checks=tuple(checks),
+        ungrounded_count=ungrounded,
+        checked_count=checked,
+        unverifiable_count=unverifiable,
+    )
