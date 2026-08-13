@@ -13,6 +13,7 @@ check survived this long.
 
 from __future__ import annotations
 
+import re
 import unittest
 
 from benchmark import _trl_flag
@@ -257,6 +258,44 @@ class StabilityAggregationTests(unittest.TestCase):
             self._row("02", 1, 3.0, 30.0, "flag"),
         ])
         self.assertEqual([s["case_num"] for s in stats], ["01", "02"])
+
+
+class CsvFieldCoverageTests(unittest.TestCase):
+    """Every field analyse_run produces must reach the CSV.
+
+    The writer uses extrasaction="ignore", so a key missing from the explicit
+    fieldnames list is dropped in silence — the run succeeds, the file is
+    written, and the column simply is not there. That is how evidence_mode was
+    first added and first lost, and the next field would go the same way.
+    """
+
+    def test_no_analysed_field_is_silently_dropped(self):
+        import ast
+        import inspect
+
+        import benchmark_check
+
+        # The keys analyse_run builds, read from the source rather than by
+        # running it, so this needs no benchmark output on disk.
+        tree = ast.parse(inspect.getsource(benchmark_check.analyse_run))
+        produced = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Dict):
+                produced.update(k.value for k in node.keys
+                                if isinstance(k, ast.Constant) and isinstance(k.value, str))
+            if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
+                if isinstance(node.slice.value, str):
+                    produced.add(node.slice.value)
+
+        source = inspect.getsource(benchmark_check.main)
+        declared = set(re.findall(r'"([a-z_]+)"', source.split("fieldnames = [", 1)[1]
+                                                        .split("]", 1)[0]))
+        # Keys read from meta.json rather than written to the row are picked up
+        # by the subscript walk above; only assert on ones the row actually has.
+        row_keys = produced & set(re.findall(r'"([a-z_]+)":', inspect.getsource(
+            benchmark_check.analyse_run)))
+        missing = row_keys - declared
+        self.assertFalse(missing, f"produced but never written to the CSV: {sorted(missing)}")
 
 
 if __name__ == "__main__":

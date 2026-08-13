@@ -1,0 +1,539 @@
+{
+  "topic": "solid-state batteries for electric vehicles",
+  "display_topic": "solid-state batteries for electric vehicles",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "material_science",
+  "collected_at": "2026-08-12T08:32:37.595485Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "Configuring solid-state batteries to power electric vehicles: a deliberation on technology, chemistry and energy.",
+      "url": "https://doi.org/10.1039/d1cc04368d",
+      "doi": "10.1039/d1cc04368d",
+      "publisher": "Chem Commun (Camb)",
+      "published_date": "2021-11-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Chem Commun (Camb)).",
+      "evidence_summary": "Solid-state batteries (SSBs) have been widely regarded as a promising electrochemical energy storage technology to power electric vehicles (EVs) that raise battery safety and energy/power densities as kernel metrics to achieve high-safety, long-range and fast-charge operations. Governments around the world have set ambitious yet imperative goals on battery energy density; however, sluggish charge transport and challenging processing routes of SSBs raise doubts of whether they have the possibility to meet such targets. In this contribution, the battery development roadmap of China is set as the guideline to direct how material chemistries and processing parameters of SSBs need to be optimized to fulfill the requirements of battery energy density. Starting with the identification of bipolar cell configurations in SSBs, the blade cell dimension is then selected as an emerging cell format to clarify weight breakdown of a solid NCM523||Li cell. Quantifying energy densities of SSBs by varying key cell parameters reveals the importance of active material content, cathode layer thickness and solid-electrolyte-separator thickness, whereas the thicknesses of the lithium metal anode and bipolar current collector have mild impacts. Even in the pushing conditions (200 μm for the cathode layer and 20 μm for the solid electrolyte separator), high-nickel ternary (NCM) cathodes hardly meet the expectation of the battery development roadmap in terms of gravimetric energy density at a cell leve",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A2",
+      "title": "Gel Polymer Electrolytes: Advancing Solid-State Batteries for High-Performance Applications.",
+      "url": "https://doi.org/10.3390/gels9070585",
+      "doi": "10.3390/gels9070585",
+      "publisher": "Gels",
+      "published_date": "2023-07-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Gels).",
+      "evidence_summary": "Gel polymer electrolytes (GPEs) hold tremendous potential for advancing high-energy-density and safe rechargeable solid-state batteries, making them a transformative technology for advancing electric vehicles. GPEs offer high ionic conductivity and mechanical stability, enabling their use in quasi-solid-state batteries that combine solid-state interfaces with liquid-like behavior. Various GPEs based on different materials, including flame-retardant GPEs, dendrite-free polymer gel electrolytes, hybrid solid-state batteries, and 3D printable GPEs, have been developed. Significant efforts have also been directed toward improving the interface between GPEs and electrodes. The integration of gel-based electrolytes into solid-state electrochemical devices has the potential to revolutionize energy storage solutions by offering improved efficiency and reliability. These advancements find applications across diverse industries, particularly in electric vehicles and renewable energy. This review comprehensively discusses the potential of GPEs as solid-state electrolytes for diverse battery systems, such as lithium-ion batteries (LiBs), lithium metal batteries (LMBs), lithium-oxygen batteries, lithium-sulfur batteries, zinc-based batteries, sodium-ion batteries, and dual-ion batteries. This review highlights the materials being explored for GPE development, including polymers, inorganic compounds, and ionic liquids. Furthermore, it underscores the transformative impact of GPEs on solid-",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A3",
+      "title": "Recent Configurational Advances for Solid-State Lithium Batteries Featuring Conversion-Type Cathodes.",
+      "url": "https://doi.org/10.3390/molecules28124579",
+      "doi": "10.3390/molecules28124579",
+      "publisher": "Molecules",
+      "published_date": "2023-06-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Molecules).",
+      "evidence_summary": "Solid-state lithium metal batteries offer superior energy density, longer lifespan, and enhanced safety compared to traditional liquid-electrolyte batteries. Their development has the potential to revolutionize battery technology, including the creation of electric vehicles with extended ranges and smaller more efficient portable devices. The employment of metallic lithium as the negative electrode allows the use of Li-free positive electrode materials, expanding the range of cathode choices and increasing the diversity of solid-state battery design options. In this review, we present recent developments in the configuration of solid-state lithium batteries with conversion-type cathodes, which cannot be paired with conventional graphite or advanced silicon anodes due to the lack of active lithium. Recent advancements in electrode and cell configuration have resulted in significant improvements in solid-state batteries with chalcogen, chalcogenide, and halide cathodes, including improved energy density, better rate capability, longer cycle life, and other notable benefits. To fully leverage the benefits of lithium metal anodes in solid-state batteries, high-capacity conversion-type cathodes are necessary. While challenges remain in optimizing the interface between solid-state electrolytes and conversion-type cathodes, this area of research presents significant opportunities for the development of improved battery systems and will require continued efforts to overcome these cha",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A4",
+      "title": "Redox-Active Halide Catholytes for Solid-State Lithium Batteries.",
+      "url": "https://doi.org/10.1002/advs.202514215",
+      "doi": "10.1002/advs.202514215",
+      "publisher": "Adv Sci (Weinh)",
+      "published_date": "2025-12-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Adv Sci (Weinh)).",
+      "evidence_summary": "All-solid-state Li batteries that incorporate halide solid-state electrolytes (SEs) promise the safety, thermal stability, and high energy density needed for electric vehicles and grid-scale renewable energy storage. However, a substantial fraction of these electrochemical inert SEs is used as catholytes within the composite cathodes to sustain continuous Li-ion pathways, adding \"dead weight\" that does not contribute to the overall capacity. This review highlights the emerging redox-active halide catholytes, specifically Li containing transition metal halide that combine reversible redox chemistry with efficient mixed ionic-electronic conductivity. When integrated into composite cathodes, these materials contribute to an additional 20-50% reversible capacity, and simultaneously lowers the electronic transport tortuosity. Drawing on insights from solid‑state ionics and electronic band structure, the design principles for achieving mixed ionic-electronic conductivity are first outlined, and then summarize recent progress on Fe-, V-, and Ti-based redox-active halide catholytes, along with their dynamic behavior during cycling. Finally, the conclusion outlined further directions for redox-active halide catholytes, including the discovery of new materials, anion‑sublattice engineering, and the elucidation of dynamic interface evolution, as well as the exploration of anionic‑redox processes.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A5",
+      "title": "Recent advances and interfacial challenges in solid-state electrolytes for rechargeable Li-air batteries.",
+      "url": "https://doi.org/10.1002/exp.20220051",
+      "doi": "10.1002/exp.20220051",
+      "publisher": "Exploration (Beijing)",
+      "published_date": "2023-06-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Exploration (Beijing)).",
+      "evidence_summary": "Among the promising batteries for electric vehicles, rechargeable Li-air (O2) batteries (LABs) have risen keen interest due to their high energy density. However, safety issues of conventional nonaqueous electrolytes remain the bottleneck of practical implementation of LABs. Solid-state electrolytes (SSEs) with non-flammable and eco-friendly properties are expected to alleviate their safety concerns, which have become a research focus in the research field of LABs. Herein, we present a systematic review on the progress of SSEs for rechargeable LABs, mainly focusing on the interfacial issues existing between the SSEs and electrodes. The discussion highlights the challenges and feasible strategies for designing suitable SSEs for LABs.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A6",
+      "title": "Design Strategies for Anodes and Interfaces Toward Practical Solid-State Li-Metal Batteries.",
+      "url": "https://doi.org/10.1002/advs.202302263",
+      "doi": "10.1002/advs.202302263",
+      "publisher": "Adv Sci (Weinh)",
+      "published_date": "2023-09-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Adv Sci (Weinh)).",
+      "evidence_summary": "Solid-state Li-metal batteries (based on solid-state electrolytes) offer excellent safety and exhibit high potential to overcome the energy-density limitations of current Li-ion batteries, making them suitable candidates for the rapidly developing fields of electric vehicles and energy-storage systems. However, establishing close solid-solid contact is challenging, and Li-dendrite formation in solid-state electrolytes at high current densities causes fatal technical problems (due to high interfacial resistance and short-circuit failure). The Li metal/solid electrolyte interfacial properties significantly influence the kinetics of Li-metal batteries and short-circuit formation. This review discusses various strategies for introducing anode interlayers, from the perspective of reducing the interfacial resistance and preventing short-circuit formation. In addition, 3D anode structural-design strategies are discussed to alleviate the stress caused by volume changes during charging and discharging. This review highlights the importance of comprehensive anode/electrolyte interface control and anode design strategies that reduce the interfacial resistance, hinder short-circuit formation, and facilitate stress relief for developing Li-metal batteries with commercial-level performance.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A7",
+      "title": "Dual-Seed Strategy for High-Performance Anode-Less All-Solid-State Batteries.",
+      "url": "https://doi.org/10.1002/adma.202407443",
+      "doi": "10.1002/adma.202407443",
+      "publisher": "Adv Mater",
+      "published_date": "2024-11-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Adv Mater).",
+      "evidence_summary": "Interest in all-solid-state batteries (ASSBs), particularly the anode-less type, has grown alongside the expansion of the electric vehicle (EV) market, because they offer advantages in terms of their energy density and manufacturing cost. However, in most anode-less ASSBs, the anode is covered by a protective layer to ensure stable lithium (Li) deposition, thus requiring high temperatures to ensure adequate Li ion diffusion kinetics through the protective layer. This study proposes a dual-seed protective layer consisting of silver (Ag) and zinc oxide (ZnO) nanoparticles for sulfide-based anode-less ASSBs. This dual-seed-based protective layer not only facilitates Li diffusion via multiple lithiation pathways over a wide range of potentials, but also enhances the mechanical stability of the anode interface through the in situ formation of a Ag-Zn alloy with high ductility. The capacity retention during full-cell evaluation is 80.8% for 100 cycles when cycled at 1 mA cm-2 with 3 mAh cm-2 at room temperature. The dual-seed approach provides useful insights into the design of multi-seed concepts in which, from a mechanochemical perspective, various lithiophilic materials synergistically impact upon the anode-less interface.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A8",
+      "title": "Interelectrode Talk in Solid-State Lithium-Metal Batteries.",
+      "url": "https://doi.org/10.1002/adma.202301892",
+      "doi": "10.1002/adma.202301892",
+      "publisher": "Adv Mater",
+      "published_date": "2023-09-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Adv Mater).",
+      "evidence_summary": "Solid-state lithium-metal batteries have been identified as a strategic research direction for the electric vehicle industry because of their promising high energy density and potential characteristic safety. However, the intrinsic mechanical properties of solid materials cause inevitable electro-chemo-mechanical failure of electrodes and electrolytes during charging and discharging; these failure mechanisms include lithium penetration and formation of cracks and voids, which pose a serious challenge for the long cycle life of solid-state lithium-metal batteries. Here, a short overview of the recent advances with a view to understand this challenge is provided. Furthermore, new insights into the cross-talk behavior between the cathode and lithium-metal anode are provided based on the non-uniform Li+ flux inducing interactional electro-chemo-mechanical failure. Furthermore, guidelines for designing stable solid-state lithium-metal batteries and research directions to figure out the interelectrode-talk-related electro-chemo-mechanical failure mechanism are presented, which can be significant for accelerating the development of solid-state lithium batteries.",
+      "summary_source": "abstract",
+      "citation_count": null
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "US20180233752A1 - Electric vehicle battery cell with solid state electrolyte - Google Patents",
+      "url": "https://patents.google.com/patent/US20180233752A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2018-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2018; legal scope still requires claim review.",
+      "evidence_summary": "FIELD OF THE INVENTION The present invention relates generally to electric vehicles and more particularly to batteries for electric vehicles. [...] the present invention relates generally to electric vehicles and more particularly to batteries for electric vehicles. U.S. Patent Application Publication No. 2013/0157111 discloses a casing for a lithium bipolar electrochemical battery including a bipolar element. [...] describes some of the advantages of all solid-state batteries. SUMMARY OF THE INVENTION The present invention provides a battery unit comprising:",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "EP3168914A1 - Solid-state batteries and methods of fabrication thereof - Google Patents",
+      "url": "https://patents.google.com/patent/EP3168914A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2013-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2013; legal scope still requires claim review.",
+      "evidence_summary": "battery can be fabricated at low cost using ceramic processing techniques such as casting and hot roll annealing. An all-solid-state cell can be constructed that has low impedance, utilizes thick active electrodes relative to the thickness of the inert components, can be fabricated on a large scale, and is safe for applications such as powering cell phones, computers, any other type of electronic device, and even electric vehicles. The solid-state rechargeable batteries have long term stability [...] battery. Further, a solid-state battery can be fabricated at low cost using ceramic processing techniques such as casting and hot roll annealing. An all-solid-state cell can be constructed that has low impedance, utilizes thick active electrodes relative to the thickness of the inert components, can be fabricated on a large scale, and is safe for applications such as powering cell phones, computers, any other type of electronic device, and even electric vehicles. The solid-state rechargeable [...] | JP6303412B2 (en) \\ | 2013-03-19 | 2018-04-04 | 株式会社村田製作所 | Batteries, electrolyte layers, battery packs, electronic devices, electric vehicles, power storage devices, and power systems | | WO2014153551A1 (en) | 2013-03-21 | 2014-09-25 | Liox Power, Inc. | Alkali metal/oxygen batteries employing molten nitrate electrolytes | | JP2016517146A (en) | 2013-03-21 | 2016-06-09 | ユニバーシティー オブ メリーランド、カレッジ パーク | Ion conductive battery containing solid electrolyte material |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "US11742494B2 - High energy density lithium metal based anode for solid-state lithium-ion batteries - Google Patents",
+      "url": "https://patents.google.com/patent/US11742494B2/de",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "EVs electric vehicles Lithium in its solid-state has a maximum possible capacity of 3600 mAh/g, or nearly ten times that off LiC 6 . lithium metal is also highly reactive in its solid-state and it plates very unevenly. [...] to recall expensive electronic devices without removable batteries due to lithium-ion fires. This issue is of increasing concern due to incorporation of liquid lithium-ion batteries in electric vehicles (EVs). During and immediately after an accident, an EV's liquid lithium-ion battery may be readily ignited when exposed to water in the air, thus posing a major safety problem. This safety issue is becoming more important to address as electric vehicles become increasingly commercially viable [...] a lithium-ion battery, or Li-ion battery is a type of rechargeable battery commonly used in portable electronics and electric vehicles. Compared with previous battery technologies, lithium-ion batteries offer faster charging, larger capacity, and higher power density which allows for greater performance in a smaller and lighter package. While there are a large number of reasons that lithium has become a favorable element in battery technology, the most important reasons have to do with its",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "US11444347B2 - Three-dimensional rechargeable battery with solid-state electrolyte - Google Patents",
+      "url": "https://patents.google.com/patent/US11444347B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "“Lithium-oxygen (Li—O2), also known as lithium-air batteries, are considered to be a technology having a future potential. Theoretically, this technology provides specific energies and energy densities similar to those provided by Petrol. It therefore appears to be possible to power electric vehicles up to a range of 550 km and more by this means. ” [...] the inventors' 3D battery has use in Energy storage for (1) Consumer electronics: Computers and Cell phones (2) Vehicles: electric cars, (3) grid electricity storage, and (4) other uses. Lithium-air batteries are viable alternatives to lithium-ion batteries as they have a theoretical energy density comparable to gasoline. practical implementations of these batteries have encountered challenges in achieving high power density and high charge-discharge lifecycle. [...] Energy storage for (1) Consumer electronics: Computers and Cell phones (2) Vehicles: electric cars, (3) grid electricity storage, and (4) other uses.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P5",
+      "title": "US20230420764A1 - All-solid-state battery system provided with pressurizing device - Google Patents",
+      "url": "https://patents.google.com/patent/US20230420764A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2023-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2023; legal scope still requires claim review.",
+      "evidence_summary": "vehicle or “vehicular” or other similar term as used herein is inclusive of motor vehicles in general such as passenger automobiles including sports utility vehicles (SUV), buses, trucks, various commercial vehicles, watercraft including a variety of boats and ships, aircraft, and the like, and includes hybrid vehicles, electric vehicles, plug-in hybrid electric vehicles, hydrogen-powered vehicles and other alternative fuel vehicles (e.g. fuels derived from resources other than petroleum). [...] DETAILED DESCRIPTION It is understood that the term “vehicle” or “vehicular” or other similar term as used herein is inclusive of motor vehicles in general such as passenger automobiles including sports utility vehicles (SUV), buses, trucks, various commercial vehicles, watercraft including a variety of boats and ships, aircraft, and the like, and includes hybrid vehicles, electric vehicles, plug-in hybrid electric vehicles, hydrogen-powered vehicles and other alternative fuel vehicles (e.g. [...] Secondary batteries are rechargeable energy storage devices. Secondary batteries are widely used as power sources not only for small electronic devices such as mobile phones and laptops, but also for large vehicles such as hybrid vehicles and electric vehicles.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P6",
+      "title": "WO2018123967A1 - All-solid-state lithium ion battery - Google Patents",
+      "url": "https://patents.google.com/patent/WO2018123967A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2018-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2018; legal scope still requires claim review.",
+      "evidence_summary": "| Publication number | Priority date | Publication date | Assignee | Title | | CN110858660A (en) \\ | 2018-08-24 | 2020-03-03 | 比亚迪股份有限公司 | Lithium ion battery, preparation method thereof and electric vehicle | | CN110858660B (en) \\ | 2018-08-24 | 2021-06-18 | 比亚迪股份有限公司 | Lithium-ion battery, preparation method thereof, and electric vehicle | | EP3888175A4 (en) \\ | 2018-11-26 | 2022-11-16 | President and Fellows of Harvard College | Solid state batteries |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P7",
+      "title": "US20100273062A1 - All-solid-state battery - Google Patents",
+      "url": "https://patents.google.com/patent/US20100273062A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2010-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2010; legal scope still requires claim review.",
+      "evidence_summary": "in electric motor vehicles and hybrid motor vehicles are being developed. [...] Along with the recent rapid spread of information appliances, communication appliances, etc., such as personal computers, video cameras, cellular phones, etc., the development of an excellent battery (e.g., the lithium battery) as a power source of the foregoing appliances is regarded as being important. Besides, in fields other than the information appliances and the communication appliances, for example, in the motor vehicle industry, lithium batteries and the like for use in electric motor [...] | US20040185336A1 (en) \\ | 2003-02-18 | 2004-09-23 | Matsushita Electric Industrial Co., Ltd. | All solid-state thin-film cell and application thereof | | US20090068563A1 (en) \\ | 2007-09-11 | 2009-03-12 | Sumitomo Electric Industries, Ltd. | Lithium battery | | US20120034529A1 (en) \\ | 2009-02-27 | 2012-02-09 | Toyota Jidosha Kabushiki Kaisha | Sulfide solid electrolyte material |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P8",
+      "title": "WO2017123026A1 - Sulfide-based solid electrolyte and all-solid-state battery applied therewith - Google Patents",
+      "url": "https://patents.google.com/patent/WO2017123026A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2017-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2017; legal scope still requires claim review.",
+      "evidence_summary": "Example 1 As shown in FIG. 5, it was confirmed that the solid electrolyte particles of Example 1 were similar to the crystal structure of Li 4 SnS 4 and some of the peaks were shifted by indium (In) substitution. the all-solid-state battery according to the present invention has a safer and higher energy density, and thus may be preferably applied as a substitute for renewable energy or an electric vehicle. [...] 이에 본 발명에 따른 전고체 전지는 보다 안전하고 고에너지 밀도를 가져 재생에너지 등의 대체제 또는 전기자동차의 전원으로 바람직하게 적용될 수 있다.Therefore, the all-solid-state battery according to the present invention has a safer and higher energy density, and thus may be preferably applied as a substitute for renewable energy or an electric vehicle. ## Claims (10)",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "The future of solid-state batteries in electric vehicles: from innovation to commercial reality - Fastmarkets",
+      "url": "https://www.fastmarkets.com/insights/the-future-of-solid-state-batteries-in-electric-vehicles-from-innovation-to-commercial-reality",
+      "doi": null,
+      "publisher": "Fastmarkets",
+      "published_date": "2026-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "The report suggests a phased pathway: demonstration and pilot deployment from 2026 to 2028, niche commercialization from 2028 to 2030, and potential broader adoption in the early 2030s, contingent on cost and scale milestones. From a pricing perspective, this timeline reinforces a critical point. Adoption will accelerate not when the technology is proven, but when it is priced competitively. [...] Solid-state batteries have moved beyond laboratory validation and into pilot-scale development, with OEM roadmaps pointing toward initial commercialization later this decade. Yet the gap between technical feasibility and commercial viability remains substantial. Fastmarkets’ analysis anchors this gap in a simple but powerful framework: [...] ContactExisting Customer SupportLogin Fastmarkets # The future of solid-state batteries in electric vehicles: from innovation to commercial reality ## Solid-state batteries (SSBs) promise significant advances in electric vehicle technology but their commercial success hinges primarily on achieving competitive pricing rather than just performance improvements. This report emphasizes the critical role of cost in the transition from laboratory innovation to market adoption.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "Solid-State Battery News: Samsung & Toyota | Monolith",
+      "url": "https://www.monolithai.com/blog/solid-state-battery-news",
+      "doi": null,
+      "publisher": "Monolithai",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "Toyota is accelerating its solid-state battery development for electric vehicles (EVs), targeting production by 2027-2028. The company aims to achieve a 750-mile range and a rapid 10-minute charging time with these batteries. Toyota's solid-state batteries promise a higher energy density, improved safety, and reduced charging times compared to current lithium-ion technologies. [...] Samsung has achieved notable progress in developing solid-state batteries, with a prototype showcasing an impressive range of 800 km for electric vehicles and a lifespan exceeding 1,000 cycles. Their strategy involves using a silver-carbon composite layer as the anode to address dendrite formation issues and enhance battery stability. [...] Toyota plans to introduce these batteries first in hybrids before transitioning to fully electric vehicles. The company believes solid-state technology is key to addressing range anxiety and enhancing EV adoption globally. toyota solid state ev battery tech toyota solid state ev battery tech ## The future of energy storage and battery development",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "EV Solid-state Battery Market Outlook, Size & Forecast 2031",
+      "url": "https://www.mordorintelligence.com/industry-reports/ev-solid-state-battery-market",
+      "doi": null,
+      "publisher": "Mordorintelligence",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "By vehicle type, passenger cars led with 73.52% of the solid-state battery market share in 2025; commercial vehicles are projected to post the fastest 38.95% CAGR to 2031. By propulsion, battery electric vehicles (BEVs) accounted for 69.45% of the solid-state battery market size in 2025, and the segment is expected to rise at a 38.60% CAGR through 2031. [...] Global electric-vehicle sales are expected to top 20 million units in 2025, roughly triple 2021 levels, intensifying automakers’ search for batteries that charge faster and go fartherInternational Energy Agency, “Global EV Outlook 2025,” iea.org. China’s production dominance gives Asian cell makers early-scale advantages, while commercial-fleet electrification widens demand beyond consumer segments. Larger pack orders allow suppliers to push pilot lines toward higher equipment utilisation, in [...] By solid electrolyte type, sulfide chemistries commanded 46.92% market share in 2025, while oxide systems are forecast to expand at 30.25% CAGR to 2031. By anode material, lithium-metal captured 55.05% share of the solid-state battery market size in 2025 and is advancing at a 44.10% CAGR between 2026 and 2031. By battery capacity, 20–100 Ah cells held 47.95% revenue share in 2025; cells above 100 Ah are projected to register the strongest 41.90% CAGR through 2031.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "Solid-State Battery Market Size, Share & Trends - MarketsandMarkets",
+      "url": "https://www.marketsandmarkets.com/Market-Reports/solid-state-battery-market-164577856.html",
+      "doi": null,
+      "publisher": "Marketsandmarkets",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "### Solid-state Battery Market Size & Forecast • 2025 Market Size: USD 0.26 Billion • 2031 Projected Market Size: USD 1.77 Billion • CAGR (2025-2031): 37.5% • Above 500 mAh Segment: Highest CAGR • Asia Pacific: Fastest Growing Market ### Solid-state Battery Market Key Takeaways BY REGION Asia Pacific is estimated to dominate the solid-state battery market share. BY APPLICATION By application, the Electric Vehicles segment held a share of 33.0% in 2024. BY CAPACITY [...] | REPORT METRIC | DETAILS | --- | | Market Size in 2025 (Value) | USD 0.26 Billion | | Market Forecast in 2031 (Value) | USD 1.77 Billion | | Growth Rate | CAGR of 37.5% from 2025-2031 | | Years Considered | 2021-2031 | | Base Year | 2024 | | Forecast Period | 2025-2031 | | Units Considered | Value (USD Billion), Volume (MWh) | | Report Coverage | Revenue forecast, company ranking, competitive landscape, growth factors, and trends | [...] TABLE 31 SOLID-STATE BATTERY MARKET, BY CAPACITY, 2025–2031 (MWH) TABLE 32 PRIMARY: MARKET, BY APPLICATION, 2022–2024 (USD MILLION) TABLE 33 PRIMARY: MARKET, BY APPLICATION, 2025–2031 (USD MILLION) TABLE 34 PRIMARY: MARKET, BY REGION, 2022–2024 (USD MILLION) TABLE 35 PRIMARY: MARKET, BY REGION, 2025–2031 (USD MILLION) TABLE 36 SECONDARY: MARKET, BY APPLICATION, 2022–2024 (USD MILLION) TABLE 37 SECONDARY: MARKET, BY APPLICATION, 2025–2031 (USD MILLION) TABLE 38",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M5",
+      "title": "Electric Vehicle Solid State Battery Market Size, Growth 2035",
+      "url": "https://www.marketresearchfuture.com/reports/electric-vehicle-solid-state-battery-market-33205",
+      "doi": null,
+      "publisher": "Marketresearchfuture",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "As per Market Research Future analysis, the Electric Vehicle Solid State Battery Market Size was estimated at 3.319 USD Billion in 2024. The Electric Vehicle Solid State Battery industry is projected to grow from 4.547 USD Billion in 2025 to 106.09 USD Billion by 2035, exhibiting a compound annual growth rate (CAGR) of 37.02% during the forecast period 2025 - 2035 ### Key Market Trends & Highlights [...] ID: MRFR/AT/31383-HCR 128 Pages Shubham Munde, Sejal Akre Last Updated: July 23, 2026 Electric Vehicle Solid State Battery Market Market Size Forecast Period2025 - 2035 CAGR (2025 - 2035)37.02% 2024 Market Size$ 3.32 Billion 2025 Market Size$ 4.55 Billion 2035 Market Size$ 106.09 Billion Key Players Samsung SDI LG Energy Solution Solid Power Bollinger Motors Technological Advancements Regulatory Support Sustainability Focus [...] | | | --- | | MARKET SIZE 2024 | 3.319(USD Billion) | | MARKET SIZE 2025 | 4.547(USD Billion) | | MARKET SIZE 2035 | 106.09(USD Billion) | | COMPOUND ANNUAL GROWTH RATE (CAGR) | 37.02% (2025 - 2035) | | REPORT COVERAGE | Revenue Forecast, Competitive Landscape, Growth Factors, and Trends | | BASE YEAR | 2024 | | Market Forecast Period | 2025 - 2035 | | Historical Data | 2019 - 2024 | | Market Forecast Units | USD Billion |",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M6",
+      "title": "EV Solid State Battery Market Size, Share | Forecast [2026-2034]",
+      "url": "https://www.fortunebusinessinsights.com/ev-solid-state-battery-market-115751",
+      "doi": null,
+      "publisher": "Fortunebusinessinsights",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "Play Audio The global EV solid-state battery market size was valued at USD 24.8 million in 2025. The market is projected to grow from USD 78.6 million in 2026 to USD 3,582.7 million by 2034, exhibiting a CAGR of 61.2% during the forecast period. Asia Pacific dominated the EV solid-state battery market with a market share of 97.17% in 2025. [...] ## Frequently Asked Questions Fortune Business Insights says that the global market value stood at USD 24.8 million in 2025 and is projected to reach USD 3,582.7 million by 2034. In 2025, the Asia Pacific market value stood at USD 24.1 million. The market is expected to exhibit a CAGR of 61.2% during the forecast period. The hatchback & sedans segment leads the market in terms of vehicle type. Rising demand for high energy density to drive market growth [...] | | | --- | | ATTRIBUTE | DETAILS | | Study Period | 2021-2034 | | Base Year | 2025 | | Forecast Period | 2026-2034 | | Historical Period | 2021-2024 | | Growth Rate | CAGR of 61.2% from 2026-2034 | | Unit | Value (USD Million) | | Segmentation | By Electrolyte Type, Vehicle Type, Battery Capacity, Anode Material, Cell Architecture, and Region | | By Electrolyte Type | Sulfide-based Oxide-based Polymer-based Hybrid/Composite | | By Vehicle Type | Hatchback & Sedans SUVs LCVs HCVs |",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M7",
+      "title": "Solid state Battery Market Size, Share & Industry Growth ...",
+      "url": "https://www.snsinsider.com/reports/solid-state-battery-market-1344",
+      "doi": null,
+      "publisher": "Snsinsider",
+      "published_date": "2026-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "May 7, 2026 — Solid State Battery Market size is valued at USD 167.76 Million in 2025. It is estimated to grow at CAGR of 42% to reach USD 5592.06",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M8",
+      "title": "Electric vehicle batteries – Global EV Outlook 2026",
+      "url": "https://www.iea.org/reports/global-ev-outlook-2026/electric-vehicle-batteries",
+      "doi": null,
+      "publisher": "Iea",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "research_institute",
+      "credibility_tier": "high",
+      "credibility_reason": "Authoritative intergovernmental or independent research institution.",
+      "evidence_summary": "report, they indicated that almost 35% of revenue came from overseas activity, up from 30% in the same period of 2024. The battery business of Panasonic, the largest Japanese battery maker, has also maintained sustained profit margins, reaching 10% in 2024 and 14% in 2025, although overall volumes are significantly lower. CATL revenues were slightly larger than the combined revenues of LG Energy Solution (LGES), Samsung SDI, SK On and Panasonic Energy in 2024, roughly 40% larger in 2025,5and [...] 9 billion in 2024, decreasing to about USD 7.5 billion in 2025. [...] Global nameplate manufacturing capacity for lithium‑ion batteries reached more than 4 TWh by the end of 2025, up roughly 30% compared to 2024. Year-on-year capacity growth was even faster in the European Union and the United States (at about 50%) than in China (at just over 25%). Capacity outside the largest production regions grew faster still, almost doubling between 2024 and 2025, driven largely by the opening of Envision AESC’s plant in Sunderland, United Kingdom, and investments in",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "solid-state batteries for electric vehicles peer reviewed DOI journal",
+    "solid-state batteries for electric vehicles systematic review meta-analysis",
+    "solid-state batteries for electric vehicles site:scholar.google.com",
+    "solid-state batteries for electric vehicles Nature Science Cell Lancet article",
+    "solid-state batteries for electric vehicles review journal",
+    "solid-state batteries for electric vehicles efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "solid-state batteries for electric vehicles site:patents.google.com/patent",
+    "solid-state batteries for electric vehicles site:patentscope.wipo.int",
+    "solid-state batteries for electric vehicles site:worldwide.espacenet.com",
+    "solid-state batteries for electric vehicles site:patents.justia.com",
+    "solid-state batteries for electric site:patents.google.com/patent",
+    "solid-state batteries for electric site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "solid-state batteries for electric vehicles market size revenue commercial manufacturer 2024 2025",
+    "solid-state batteries for electric vehicles industry company deployment commercial scale",
+    "solid-state batteries for electric vehicles product manufacturer revenue commercial sales 2024 2025",
+    "solid-state batteries for electric vehicles company commercial deployment industry news",
+    "solid-state batteries for electric vehicles market report investment startup 2024",
+    "solid-state batteries for electric vehicles commercial scale production manufacturer press release",
+    "solid-state batteries for electric vehicles manufacturing commercialization company",
+    "solid-state batteries for electric vehicles government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] solid-state batteries for electric vehicles",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] solid-state batteries for electric vehicles",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:All-solid-state lithium-ion ba] solid-state batteries for electric vehicles",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Inorganic solid electrolyte-ba] solid-state batteries for electric vehicles",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] solid-state batteries for electric vehicles",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[PubMed] solid-state batteries for electric vehicles",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] solid-state batteries for electric vehicles",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "solid-state batteries for electric vehicles site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "market",
+      "query": "solid-state batteries for electric vehicles market size revenue commercial manufacturer 2024 2025",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.sphericalinsights.com",
+        "market host is blocked or not approved: bisresearch.com",
+        "deferred (market-report cap): 'Solid State Battery Market Size & Share Report, 2026- 2033'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "solid-state batteries for electric vehicles industry company deployment commercial scale",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M6"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.mdpi.com",
+        "deferred (market-report cap): 'Solid-State Battery Companies - Top Companies List of Solid-State Battery Industry'",
+        "duplicate source: https://www.mordorintelligence.com/industry-reports/ev-solid-state-battery-market",
+        "market host is blocked or not approved: bisresearch.com",
+        "market host is blocked or not approved: monitor-industrial-ecosystems.ec.europa.eu",
+        "duplicate source: https://www.fortunebusinessinsights.com/ev-solid-state-battery-market-115751",
+        "market host is blocked or not approved: www.youtube.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "solid-state batteries for electric vehicles product manufacturer revenue commercial sales 2024 2025",
+      "result_count": 8,
+      "accepted_source_ids": [
+        "M7"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.sphericalinsights.com",
+        "duplicate source: https://www.iea.org/reports/global-ev-outlook-2026/electric-vehicle-batteries",
+        "duplicate source: https://www.marketsandmarkets.com/Market-Reports/solid-state-battery-market-164577856.html",
+        "duplicate source: https://www.mordorintelligence.com/industry-reports/ev-solid-state-battery-market",
+        "market host is blocked or not approved: bisresearch.com",
+        "deferred (market-report cap): 'Battery Market Size, Share, Trends | Growth Report [2034]'",
+        "duplicate source: https://www.grandviewresearch.com/industry-analysis/solid-state-battery-market"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "solid-state batteries for electric vehicles company commercial deployment industry news",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M8"
+      ],
+      "rejected_reasons": [
+        "deferred (market-report cap): 'Solid-State Battery for Electric Vehicle Market Size, 2034 Report'"
+      ]
+    }
+  ]
+}

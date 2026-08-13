@@ -53,6 +53,8 @@ import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
+import benchmark_fixtures
+
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
         stream.reconfigure(encoding="utf-8", errors="backslashreplace")
@@ -118,15 +120,21 @@ def _trl_flag(trl, trl_range: tuple) -> str:
     return "pass" if trl_range[0] <= trl <= trl_range[1] else "flag"
 
 
-def _already_succeeded(run_dir: Path) -> bool:
+def _already_succeeded(run_dir: Path, evidence_mode: str = "live") -> bool:
     meta_path = run_dir / "meta.json"
     if not meta_path.exists():
         return False
     try:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        return meta.get("status") == "success"
     except Exception:
         return False
+    if meta.get("status") != "success":
+        return False
+    # A run done over live retrieval and one done over a fixture measure
+    # different things, so resuming across the two would silently blend them
+    # into a single summary. Runs from before this field existed are treated
+    # as live, which is what they were.
+    return meta.get("evidence_mode", "live") == evidence_mode
 
 
 # Substrings that identify an upstream throttling response, whatever the
@@ -181,6 +189,7 @@ def run_topic(
     dry_run: bool = False,
     force: bool = False,
     rep: int = 1,
+    use_fixture: bool = False,
 ) -> dict:
     """Run one topic end to end. Executed in its own process when concurrent."""
     label = num if rep <= 1 else f"{num}#{rep}"
@@ -207,7 +216,8 @@ def run_topic(
     # means a plain re-run after changing the pipeline does nothing at all —
     # every topic is skipped and the summary silently reports the old results.
     # --force is the way to re-measure; it rewrites this run's outputs in place.
-    if not force and _already_succeeded(run_dir):
+    evidence_mode = "fixture" if use_fixture else "live"
+    if not force and _already_succeeded(run_dir, evidence_mode):
         _log(f"  [{label}] already succeeded — skipping (use --force to re-run)")
         meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
         meta["skipped"] = True
@@ -222,12 +232,33 @@ def run_topic(
         "run_dir": str(run_dir),
         "status": "running",
         "rate_limit_hits": 0,
+        # Recorded on every run, not only fixture ones: a result whose mode is
+        # unstated cannot be compared with anything, and the summary reads
+        # this rather than the flag it was invoked with.
+        "evidence_mode": evidence_mode,
     }
     start = time.time()
 
     try:
-        # Step 0: deterministic source collection
-        source_collection = collect_source_collection(topic)
+        # Step 0: evidence — retrieved live, or replayed from a fixture so the
+        # measurement isolates the agents' reasoning from what the web happened
+        # to return that day.
+        source_collection = None
+        if use_fixture:
+            source_collection = benchmark_fixtures.load(num, _slug(topic))
+            if source_collection is None:
+                # Not a silent fall back to live retrieval: the run would then
+                # be a live measurement filed under a fixture summary, which is
+                # the one confusion fixtures exist to prevent.
+                raise FileNotFoundError(
+                    f"no fixture for topic {num} — capture one with "
+                    f"`python benchmark.py --freeze --only {num}`"
+                )
+            _log(f"  [{label}] evidence: fixture "
+                 f"(captured {benchmark_fixtures.age_days(num):.0f}d ago)")
+        else:
+            source_collection = collect_source_collection(topic)
+
         (run_dir / "validated_sources.json").write_text(
             source_collection.model_dump_json(indent=2), encoding="utf-8"
         )
@@ -319,11 +350,12 @@ def run_topic(
     return meta
 
 
-def _run_serial(selected: list[tuple], dry_run: bool, force: bool = False) -> list[dict]:
+def _run_serial(selected: list[tuple], dry_run: bool, force: bool = False,
+                use_fixture: bool = False) -> list[dict]:
     """Original behaviour: one topic at a time, with a pause between them."""
     results = []
     for i, (num, topic, trl_range, industry, rep) in enumerate(selected):
-        meta = run_topic(num, topic, trl_range, industry, dry_run, force, rep)
+        meta = run_topic(num, topic, trl_range, industry, dry_run, force, rep, use_fixture)
         results.append(meta)
         if i < len(selected) - 1 and not meta.get("skipped") and not dry_run:
             _log(f"  → pausing {_INTER_RUN_PAUSE}s before next topic")
@@ -333,7 +365,7 @@ def _run_serial(selected: list[tuple], dry_run: bool, force: bool = False) -> li
 
 def _run_concurrent(
     selected: list[tuple], concurrency: int, stagger: float, dry_run: bool,
-    force: bool = False,
+    force: bool = False, use_fixture: bool = False,
 ) -> list[dict]:
     """Run topics in a process pool, staggering submissions.
 
@@ -347,7 +379,8 @@ def _run_concurrent(
         for i, (num, topic, trl_range, industry, rep) in enumerate(selected):
             if i and stagger:
                 time.sleep(stagger)
-            fut = pool.submit(run_topic, num, topic, trl_range, industry, dry_run, force, rep)
+            fut = pool.submit(run_topic, num, topic, trl_range, industry,
+                              dry_run, force, rep, use_fixture)
             futures[fut] = (num, rep)
 
         for done, fut in enumerate(as_completed(futures), start=1):
@@ -416,7 +449,41 @@ def main() -> None:
              "run-to-run variation — market sources come from live search, so "
              "the evidence itself differs between runs. Costs N times as much.",
     )
+    parser.add_argument(
+        "--fixtures",
+        action="store_true",
+        help="Replay frozen evidence instead of retrieving it. Holds the "
+             "input constant so the spread that remains is the agents' "
+             "reasoning rather than what the web returned that day — and "
+             "skips the slowest, most rate-limited stage. Results are marked "
+             "evidence_mode=fixture and are NOT comparable with live ones.",
+    )
+    parser.add_argument(
+        "--freeze",
+        action="store_true",
+        help="Capture the current evidence for the selected topics as "
+             "fixtures and exit without running the crew. Retrieves live, so "
+             "it costs a retrieval pass but no LLM tokens.",
+    )
+    parser.add_argument(
+        "--list-fixtures",
+        action="store_true",
+        help="Show the captured fixtures with their age and source counts.",
+    )
     args = parser.parse_args()
+
+    if args.list_fixtures:
+        _log("Fixtures:")
+        for line in benchmark_fixtures.describe():
+            _log(line)
+        return
+
+    if args.fixtures and args.freeze:
+        parser.error("--fixtures replays frozen evidence; --freeze captures it. "
+                     "Pick one.")
+    if args.fixtures and args.dry_run:
+        parser.error("--dry-run simulates the whole run, so there is no "
+                     "evidence for --fixtures to hold constant.")
 
     if args.concurrency < 1:
         parser.error("--concurrency must be at least 1")
@@ -461,14 +528,42 @@ def main() -> None:
         _log("Mode           : DRY RUN — simulated work, no API calls")
     if args.force:
         _log("Mode           : FORCE — re-running topics that already succeeded")
+    if args.fixtures:
+        # Stated up front and again in the summary. A fixture run and a live
+        # run produce the same-looking table, and only one of them is a
+        # measurement of the whole system.
+        ages = [benchmark_fixtures.age_days(num) for num, *_ in topics]
+        known = [a for a in ages if a is not None]
+        oldest = f"{max(known):.0f}d" if known else "unknown"
+        _log("Mode           : FIXTURES — frozen evidence, reasoning only")
+        _log(f"Fixture age    : oldest {oldest}"
+             + ("  ⚠ STALE" if known and max(known) > benchmark_fixtures.STALE_AFTER_DAYS
+                else ""))
     _log()
+
+    if args.freeze:
+        from academic_agent.source_pipeline import collect_source_collection
+
+        _log("Mode           : FREEZE — capturing evidence, not running the crew\n")
+        for num, topic, _trl, _industry in topics:
+            _log(f"  [{num}] retrieving — {topic}")
+            collection = collect_source_collection(topic)
+            entry = benchmark_fixtures.freeze(
+                num, _slug(topic), topic, collection.model_dump_json(indent=2)
+            )
+            counts = entry["counts"]
+            _log(f"  [{num}] frozen: {counts['academic']}A / {counts['patent']}P "
+                 f"/ {counts['market']}M  -> {entry['file']}")
+        _log(f"\nFixtures written to {benchmark_fixtures.FIXTURE_ROOT}")
+        _log("Replay them with:  uv run python benchmark.py --fixtures")
+        return
 
     wall_start = time.time()
     if concurrency == 1:
-        results = _run_serial(selected, args.dry_run, args.force)
+        results = _run_serial(selected, args.dry_run, args.force, args.fixtures)
     else:
         results = _run_concurrent(selected, concurrency, args.stagger,
-                                  args.dry_run, args.force)
+                                  args.dry_run, args.force, args.fixtures)
     wall_elapsed = time.time() - wall_start
 
     # A skipped topic carries the previous run's status ("success"), so counting
@@ -482,6 +577,9 @@ def main() -> None:
 
     _log(f"\n{'=' * 62}")
     _log("  Benchmark complete")
+    if args.fixtures:
+        _log("  Evidence  : FIXTURE (frozen) — measures reasoning, not retrieval.")
+        _log("              Not comparable with a live-retrieval baseline.")
     _log(f"  Succeeded : {success}   Skipped : {skipped}   Failed : {failed}")
 
     # Everything skipped means nothing was measured. Saying so beats a summary

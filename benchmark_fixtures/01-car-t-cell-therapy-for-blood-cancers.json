@@ -1,0 +1,505 @@
+{
+  "topic": "CAR-T cell therapy for blood cancers",
+  "display_topic": "CAR-T cell therapy for blood cancers",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "biomedical",
+  "collected_at": "2026-08-12T08:32:21.873281Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "In vivo chimeric antigen receptor (CAR)-T cell therapy.",
+      "url": "https://doi.org/10.1038/s41573-025-01291-5",
+      "doi": "10.1038/s41573-025-01291-5",
+      "publisher": "Nat Rev Drug Discov",
+      "published_date": "2026-02-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Nat Rev Drug Discov).",
+      "evidence_summary": "Chimeric antigen receptor (CAR)-T cell therapy has transformed the outcomes of patients with haematological malignancies, yet its use is limited by labour-intensive manufacturing, constrained production capacity and variable clinical performance. In vivo CAR-T cell engineering, in which CAR-T cells are generated directly inside the patient's body, seeks to overcome these challenges by eliminating the need for ex vivo cell processing and complex logistics, as well as improve clinical performance. Recent advances in virology, RNA medicines and nanotechnology have catalysed a radical overhaul of this approach, which uses targeted delivery systems such as lentiviral vectors and lipid nanoparticles to introduce CAR-encoding genetic material into endogenous T cells. Early clinical studies have shown efficient transduction, sustained CAR expression and initial signs of antitumour activity, establishing proof of concept. This Review explores the underlying technologies - including RNA delivered by lipid nanoparticles and engineered viral vectors - and discusses how they are being adapted to develop more broadly applicable, scalable, safe and effective CAR-T cell therapies. By removing the need for ex vivo manipulation and chemotherapeutic conditioning, this strategy could enable the wider application of CAR-T cell therapies not just to blood cancers but to autoimmune diseases for which ex vivo CAR-T cell therapies have shown strong promise, such as systemic lupus erythematosus.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A2",
+      "title": "Harnessing the potential of CAR-T cell therapy: progress, challenges, and future directions in hematological and solid tumor treatments.",
+      "url": "https://doi.org/10.1186/s12967-023-04292-3",
+      "doi": "10.1186/s12967-023-04292-3",
+      "publisher": "J Transl Med",
+      "published_date": "2023-07-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (J Transl Med).",
+      "evidence_summary": "Traditional cancer treatments use nonspecific drugs and monoclonal antibodies to target tumor cells. Chimeric antigen receptor (CAR)-T cell therapy, however, leverages the immune system's T-cells to recognize and attack tumor cells. T-cells are isolated from patients and modified to target tumor-associated antigens. CAR-T therapy has achieved FDA approval for treating blood cancers like B-cell acute lymphoblastic leukemia, large B-cell lymphoma, and multiple myeloma by targeting CD-19 and B-cell maturation antigens. Bi-specific chimeric antigen receptors may contribute to mitigating tumor antigen escape, but their efficacy could be limited in cases where certain tumor cells do not express the targeted antigens. Despite success in blood cancers, CAR-T technology faces challenges in solid tumors, including lack of reliable tumor-associated antigens, hypoxic cores, immunosuppressive tumor environments, enhanced reactive oxygen species, and decreased T-cell infiltration. To overcome these challenges, current research aims to identify reliable tumor-associated antigens and develop cost-effective, tumor microenvironment-specific CAR-T cells. This review covers the evolution of CAR-T therapy against various tumors, including hematological and solid tumors, highlights challenges faced by CAR-T cell therapy, and suggests strategies to overcome these obstacles, such as utilizing single-cell RNA sequencing and artificial intelligence to optimize clinical-grade CAR-T cells.",
+      "summary_source": "abstract",
+      "citation_count": null
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "Anti-LYPD3 CAR T cell therapy for the treatment of cancer",
+      "url": "https://patents.google.com/patent/JP2021530238A/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2014-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2014; legal scope still requires claim review.",
+      "evidence_summary": "過去１０年間に、キメラ抗原レセプター（ＣＡＲ）Ｔ細胞療法は、血液の種々のがんの成功裡の処置として出現した。この治療ストラテジーは、腫瘍細胞の表面に発現される抗原性分子を選択的に認識し、免疫系活性化、腫瘍細胞クリアランス、および改善された患者の転帰を生じるために、Ｔ細胞のエキソビボ操作を含む。白血病およびリンパ腫の多くのタイプの処置が成功しているが、ＣＡＲ Ｔ細胞有効性は、固形腫瘍の処置に関しては制限されているままである。１つの固形腫瘍タイプである扁平上皮癌は、頭頚部、食道、肺、膀胱、および子宮頚部に端を発するがんを含み，その大部分は現在、有効な処置がない。 Description of Related Techniques In the last decade, chimeric antigen receptor (CAR) T cell therapy has emerged as a successful treatment for various cancers of the blood. This therapeutic strategy selectively [...] by leukocyte depletion. Here, the white blood cells are selectively removed from the collected blood, recombined, and then infused again into the donor subject. Alternatively, allogeneic cells derived from non-autologous donors that are not subjects can be used. For non-autologous donors, the cells are typed and matched against human leukocyte antigen (HLA) to determine the appropriate level of compatibility, as is well known in the art. For both autologous and non-autologous cells, the cells [...] Human T Cells, 2014; and Ghassemi, et al., see Reducing Ex Vivo Culture Improves the Antileukemic Activity of Chimeric Antigen Receptor (CAR) T Cells, 2018). Sources of T cells include, but are not limited to, peripheral blood, cord blood, bone marrow, or other sources of hematopoietic stem cells. Various techniques can be used to isolate the cells and isolate or enrich the desired T cells. In addition, methods for expanding T cells are well known in the art (eg, Cartellieri et al., A Novel E",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "US20220125845A1 - Anti-alpp car-t cell therapy",
+      "url": "https://patents.google.com/patent/US20220125845A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2022-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2022; legal scope still requires claim review.",
+      "evidence_summary": "the present disclosure provides a method for personalized anti-tumor immunotherapy, wherein the anti-ALPP CAR engineered T cells are produced from a patient's blood. These engineered T cells can be re-infused into the patient as a cellular therapy product. Such a product can then be applied to any patient harboring an ALPP-positive tumor, including patients with ovarian, endometrial, cervical, or testicular cancers, among others. [...] In some embodiments, the present disclosure provides a method for personalized anti-tumor immunotherapy, wherein the anti-ALPP CAR engineered T cells are produced from a patient's blood. These engineered T cells can be re-infused into the patient as a cellular therapy product. Such a product can then be applied to any patient harboring an ALPP-positive tumor, including patients with ovarian, endometrial, cervical, or testicular cancers, among others. [...] According to embodiments of the disclosure, anti-ALPP CAR-T cell therapy can be used for different types of cancer having elevated expression of ALPP, including, but not limited to, cancers of the cervix, ovaries, endometrium, uterus, testes, brain, thyroid, lung, pancreas, head & neck, stomach, colorectum, kidney, and urothelial cells.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "Cancer treatment with 237 car-t cell based therapeutics ...",
+      "url": "https://patents.google.com/patent/US20220047631A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2022-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2022; legal scope still requires claim review.",
+      "evidence_summary": "hemolytic anemia (42). Thus, the exclusive cancer specificity and the broad recognition of various Tn-glycopeptide antigens makes the 237CART cell a desirable candidate for treating human cancers with Tn-expression on the cell surface. [...] hemolytic anemia (42). Thus, the exclusive cancer specificity and the broad recognition of various Tn-glycopeptide antigens makes the 237CART cell a desirable candidate for treating human cancers with Tn-expression on the cell surface. [...] the results shown in FIG. 27 establish that 237 CAR-T cell therapy is effective against Jurkat cancer cells regardless of Pdpn genotype, but the effectiveness of 237 CAR-T cells is diminished in cancer cells that have wild-type Cosmc. Thus, 237 CAR-T cell therapy is effective for Cosmc− cancers, regardless of PDPN genotype.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "AU2020254699A1 - Manufacturing anti-BCMA CAR T cells - Google Patents",
+      "url": "https://patents.google.com/patent/AU2020254699A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "| Van Caeneghem et al. | | Antigen receptor-redirected T cells derived from hematopoietic precursor cells lack expression of the endogenous TCR/CD3 receptor and exhibit specific antitumor capacities | | JP2024509917A (en) | | Method for selective stimulation of T cells in solid tumors using orthogonal IL-2 delivery by oncolytic viruses | | KR20250006881A (en) | | Allogeneic T cells for the treatment of blood cancers |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P5",
+      "title": "U.S. Patent for Car t-cells comprising inactivated CBL and CBL-B genes Patent (Patent # 12,187,780 issued January 7, 2025)",
+      "url": "https://patents.justia.com/patent/12187780",
+      "doi": null,
+      "publisher": "Justia",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "cytotoxic T cells generates CAR-T cells that upon infusion back into a patient exhibit significant and selective killing of the tumor or cancer cells against which their CAR cells are targeted. Initial clinical experience has shown significant activity of CAR-T cells in hematological malignancies, such as the treatment of B-cell leukemia with CD19-directed CAR-T cells. Indeed, clinical trials on CAR-modified T cells for adults and pediatric patients with B cell malignancies have been reported [...] The methods may further comprise the administration of at least one other cancer therapy to the subject. Examples of additional therapies include, without limitation: chemotherapies (chemotherapeutic agents), immunotherapies, cell therapies, targeted therapy (e.g., small molecule inhibitors, antibodies), and radiation therapy (e.g., external beam radiation, radiopharmaceuticals). The CAR-T therapy of the instant invention may be administered to a subject consecutively (e.g., before and/or [...] In accordance with one aspect of the instant invention, compositions and methods for improving the efficacy of a chimeric antigen receptor T-cell (CAR-T) therapy are provided. In a particular embodiment, the methods comprise inhibiting and/or reducing the expression of CBL and/or CBL-B in the chimeric antigen receptor T-cells prior to administration of the T cells to a subject. In a particular embodiment, CBL and/or CBL-B expression is reduced through the use of an inhibitory nucleic acid",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P6",
+      "title": "EP3784351A1 - Car t cell therapies with enhanced efficacy - Google Patents",
+      "url": "https://patents.google.com/patent/EP3784351A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "Description Chimeric antigen receptor-engineered T-cell (CAR T) therapy has shown promise in the treatment of certain cancers, e.g., hematological cancers, in subsets of patients. CAR-T therapy can be optimized using approaches that consider, e.g. , factors that contribute to therapeutic levels of CAR T cell expansion. The present disclosure provides, inter alia, approaches that can contribute to the expansion and/or proliferation of CAR T therapies. [...] Chimeric antigen receptor-engineered T-cells (CAR T cells) have provided a breakthrough for personalized cancer therapy. In this method, a gene encoding a chimeric antigen receptor is delivered into patient T-cells ex vivo using a lenti viral vector, after which cells are reinfused into patients. In CART 19 therapy, the engineered T-cells attack and destroy CD19 positive cancer cells. While successful for some treatment-refractory cancers, in some cases a significant proportion of patients do [...] a cancer associate antigen as described herein includes cancers and malignancies including, but not limited to, e.g., one or more acute leukemias including but not limited to, e.g. , B-cell acute Lymphoid Leukemia (“BALL”), T-cell acute Lymphoid Leukemia (“TALL”), acute lymphoid leukemia (ALL); one or more chronic leukemias including but not limited to, e.g., chronic myelogenous leukemia (CML), Chronic Lymphoid Leukemia (CLL). Additional cancers or hematologic conditions associated with",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P7",
+      "title": "cd74 car-t therapy and methods of use thereof",
+      "url": "https://patentscope.wipo.int/search/en/WO2024259186",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2024; legal scope still requires claim review.",
+      "evidence_summary": "Dec 19, 2024 — CAR-T THERAPY ・ chimeric antigen receptor (CAR) a method of treating lymphoma ・ a method of reducing tumor activity in a subject with",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P8",
+      "title": "WO/2023/218381 CD19/22 CAR T-CELL TREATMENT OF ...",
+      "url": "https://patentscope.wipo.int/search/en/WO2023218381",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": "2023-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2023; legal scope still requires claim review.",
+      "evidence_summary": "Nov 16, 2023 — CD19/22 CAR T-CELL TREATMENT OF HIGH RISK OR RELAPSED PEDIATRIC ACUTE LYMPHOBLASTIC LEUKEMIA ... treating high risk or relapsed CD19+ or",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "CAR T-Cell Therapy Market Size to Hit USD ...",
+      "url": "https://www.precedenceresearch.com/car-t-cell-therapy-market",
+      "doi": null,
+      "publisher": "Precedenceresearch",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "By manufacturing method, the centralized manufacturing segment led the market with a major market share of 53.3% in 2024. By manufacturing method, the in vivo car t therapy segment is expected to grow at a significant CAGR of 24.92% over the projected period. By end user, the hospitals segment held a significant market share of 44.0% in 2025. [...] The autologous CAR-T cell therapy maintained its dominant position in the global market in 2025, primarily due to its personalized nature and success in treating certain blood cancers. Autologous CAR-T cell therapy is tailored to each patient, minimizing the risk of immune rejection by utilizing their cells. In this approach, a patient's T cells are genetically modified and reinfused, avoiding the risks of immune rejection associated with allogeneic (donor-derived) therapies. This therapy has [...] For inquiries regarding discounts, bulk purchases, or customization requests, please contact us at sales@precedenceresearch.com ## Frequently Asked Questions ## Answer : The global CAR T-cell therapy market size is estimated at USD 5,206.15 million in 2025 and it is expected to reach around USD 26,982.3 million by 2035. ## Answer : The global CAR T-cell therapy market is poised to grow at a CAGR of 17.88% from 2026 to 2035. ##",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "CAR-T Cell Therapy Market Research 2024-2025: Size, ...",
+      "url": "https://crisprmedicinenews.com/press-release-service/card/car-t-cell-therapy-market-research-2024-2025-size-forecasts-trials-and-trends-approved-car-t-t",
+      "doi": null,
+      "publisher": "Crisprmedicinenews",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "The billion-dollar CAR-T cell therapy market owes much of its success to the early therapies' impressive effectiveness in treating blood cancers. However, the next major challenge for CAR-T therapies will be expanding their use to treat solid tumors. Currently, all nine marketed CAR-T products, along with nearly 75% of ongoing clinical trials, utilize an autologous approach (using the patient's own cells). Developing allogeneic CAR-T therapies-using donor cells-will open up critical market [...] # CAR-T Cell Therapy Market Research 2024-2025: Size, Forecasts, Trials, and Trends - Approved CAR-T Therapies and Late-stage Clinical Trials that Could Reach Commercialization Soon - ResearchAndMarkets.com Jan. 6, 2025 DUBLIN--(BUSINESS WIRE)--The \"CAR-T Cell Therapy Market - Market Size, Forecasts, Trials, and Trends, 2025\" report has been added to ResearchAndMarkets.com's offering. [...] Cellectis Celularity, Inc. Celyad Oncology CRISPR Therapeutics Curocell, Inc. DiaCarta Elicera Therapeutics AB EXUMA Biotech Fate Therapeutics Galapagos NV Gilead Sciences, Inc. Gracell Biotechnologies IASO Biotherapeutics ImmPACT Bio Immuneel Therapeutics, Pvt., Ltd. ImmunoACT Interius BioTherapeutics Juventas Cell Therapy JW Therapeutics Kite Pharma (Gilead) Kyverna Therapeutics Legend Biotech Leucid Bio Luminary Therapeutics, Inc. Lyell Immunopharma, Inc.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "India CAR T-Cell Therapy Market (2026-2031)",
+      "url": "https://www.marketsandmarkets.com/Market-Reports/geography/car-t-cell-therapy-market/india",
+      "doi": null,
+      "publisher": "Marketsandmarkets",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "| JW (CAYMAN) THERAPEUTICS CO., LTD. | China | Public Company | Commercial and late-stage CAR-T for hematologic malignancies (Carteyva, JWCAR201, JWCAR239),Autoimmune indications (relma-cel for SLE and related programs),Solid tumor pipeline (JWATM204/214/203/213, JWTCR001, JWCAR031), | [...] India faces significant barriers to CAR T-cell therapy deployment, including limited healthcare infrastructure, high treatment costs, regulatory complexities, and restricted patient access to specialized oncology centers. Looking toward 2031, India's CAR T-cell therapy market is projected to remain at USD 0.0 million with a 0.0% CAGR, indicating stagnant growth during the forecast period. [...] process, the CAR T-cells are cultured and multiplied in large quantities. Finally, the amplified CAR T-cells are administered to the patient via infusion. This therapeutic approach is predominantly utilized in the management of specific blood cancers, and ongoing research is exploring its potential applications in treating other forms of cancer. The CAR T-Cell therapy market includes approved and pipeline CAR T-cell products for therapeutic purposes.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "For many blood cancer patients, CAR T-cell therapy is ...",
+      "url": "https://www.fredhutch.org/en/news/center-news/2025/12/for-many-blood-cancer-patients-car-t-cell-therapy-is-game-changing.html",
+      "doi": null,
+      "publisher": "Fredhutch",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "## Hutch News Stories # For many blood cancer patients, CAR T-cell therapy is game-changing In this episode of From Bench to Bedside and Beyond, Dr. Mazyar Shadman explains why CAR T-cell therapy should be considered for patients who relapse December 2, 2025 • By Bonnie Rochman / Fred Hutch News Service Video by Stefan Muehleis / Fred Hutch News Service Fred Hutch turns 50! Take a look back at half a century of leading-edge research and compassionate care. [...] CAR T-cell therapy, which transforms patients’ own immune cells into cancer-fighting warriors, has revolutionized how physicians treat cancer, especially blood cancers. [...] T therapy, which is a general term for a number of drugs that we now have available, is now standard of care for a number of blood cancers, lymphomas, multiple myeloma, some of the leukemias. You know, although we still continue research trials that bring more and more novel CAR T approaches, CAR T is already part of our standard treatment portfolio.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M5",
+      "title": "CAR-T Cell Therapy Market Size, Share & Growth Report ...",
+      "url": "https://www.fortunebusinessinsights.com/car-t-cell-therapy-market-108455",
+      "doi": null,
+      "publisher": "Fortunebusinessinsights",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The global CAR-T cell therapy market size was valued at USD 8.95 billion in 2025, and is projected to grow from USD 10.92 billion in 2026 to USD 19.25 billion by 2034, exhibiting a CAGR of 7.34% during the forecast period. North America dominated the CAR-T cell therapy market with a market share of 70.41% in 2025. [...] Didn't find What you looking for? Use our deep market intelligence to beat the curve! Unlock Dental Market Intelligence Access 74+ Detailed Reports Featuring Market Insights, Trends, Forecasts, & Competitive Analysis Across Sectors: CAR-T cell therapy market size is projected to grow from $8.95 billion in 2025 to USD 19.25 billion by 2034, exhibiting a CAGR of 7.34% during 2024-2034. Read More at:- CAR-T Cell Therapy Market × We use cookies. to enhance your experience. [...] globe Market Share North America dominated the CAR-T cell therapy market with a market share of 70.41% in 2025. The Non-Hodgkin lymphoma segment is projected to account for 65.46% of the market in 2026. The hospitals segment is expected to lead the market with a 66.54% share in 2026. flag Key Regional Highlights North America North America remained the leading regional market, generating USD 6.3 billion in revenue in 2025 and is projected to reach USD 7.73 billion in 2026. Europe",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M6",
+      "title": "CAR T-Cell Therapy Market to Surge at 40.2% CAGR",
+      "url": "https://www.bccresearch.com/pressroom/bio/car-t-cell-therapy-market-to-surge-at-402-cagr",
+      "doi": null,
+      "publisher": "Bccresearch",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "July 10, 2025 Boston: According to the latest study from BCC Research, the “Current R&D Status of Chimeric Antigen Receptor (CAR) T-Cell Therapy Market” is expected to grow from $4.6 billion in 2024 to $25.1 billion by the end of 2029, at a compound annual growth rate (CAGR) of 40.2% from 2024 to 2029. [...] The report addresses the following questions: 1.What is the projected market size and growth rate? The global CAR T-cell therapy market was valued at $4.6 billion in 2024. It is projected to reach $25.1 billion by the end of 2029, at an estimated CAGR of 40.2% from 2024 to 2029. 2.What are the factors driving the growth of the market? Key market drivers include: [...] | | | --- | | Report Metric | Details | | Base year considered | 2023 | | Forecast period considered | 2024-2029 | | Base year market size | $4.6 billion | | Market size forecast | $25.1 billion | | Growth rate | CAGR of 40.2% from 2024 to 2029 | | Segments covered | Product, Indication, and Region | | Regions covered | U.S. and International markets |",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M7",
+      "title": "CAR T-cell Therapy Market Size Report, 2026-2033",
+      "url": "https://www.grandviewresearch.com/industry-analysis/car-t-cell-therapy-market-report",
+      "doi": null,
+      "publisher": "Grandviewresearch",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The global CAR t-cell therapy market size was valued at USD 5.8 billion in 2025 and is projected to grow from USD 6.9 billion in 2026 to USD 22.3 billion by ...Read more",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M8",
+      "title": "T-Cell Therapy Market Size, Share & Trends Report, 2035",
+      "url": "https://www.rootsanalysis.com/reports/t-cell-therapies-market/261.html",
+      "doi": null,
+      "publisher": "Rootsanalysis",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "T-cell therapy market size is projected to grow from $6.5 billion in 2025 to $8.1 billion in 2026 and to $20.9 billion by 2035, representing a CAGR of",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "CAR-T cell therapy for blood cancers peer reviewed DOI journal",
+    "CAR-T cell therapy for blood cancers systematic review meta-analysis",
+    "CAR-T cell therapy for blood cancers site:scholar.google.com",
+    "CAR-T cell therapy for blood cancers Nature Science Cell Lancet article",
+    "CAR-T cell therapy for blood cancers review journal",
+    "CAR-T cell therapy for blood cancers efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "CAR-T cell therapy for blood cancers site:patents.google.com/patent",
+    "CAR-T cell therapy for blood cancers site:patentscope.wipo.int",
+    "CAR-T cell therapy for blood cancers site:worldwide.espacenet.com",
+    "CAR-T cell therapy for blood cancers site:patents.justia.com",
+    "CAR-T cell therapy for site:patents.google.com/patent",
+    "CAR-T cell therapy for site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "CAR-T cell therapy for blood cancers market size revenue commercial manufacturer 2024 2025",
+    "CAR-T cell therapy for blood cancers industry company deployment commercial scale",
+    "CAR-T cell therapy for blood cancers product manufacturer revenue commercial sales 2024 2025",
+    "CAR-T cell therapy for blood cancers company commercial deployment industry news",
+    "CAR-T cell therapy for blood cancers market report investment startup 2024",
+    "CAR-T cell therapy for blood cancers commercial scale production manufacturer press release",
+    "CAR-T cell therapy for blood cancers manufacturing commercialization company",
+    "CAR-T cell therapy for blood cancers government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] CAR-T cell therapy for blood cancers",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] CAR-T cell therapy for blood cancers",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Chimeric antigen receptor T-ce] CAR-T cell therapy for blood cancers",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Adoptive T-cell therapy target] CAR-T cell therapy for blood cancers",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] CAR-T cell therapy for blood cancers",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[PubMed] CAR-T cell therapy for blood cancers",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": [
+        "PubMed title not relevant to topic: 'CAR T Cells and T-Cell Therapies for Cancer: A Translational Science Review.'",
+        "PubMed title not relevant to topic: 'Current understanding and management of CAR T cell-associated toxicities.'",
+        "PubMed title not relevant to topic: 'CAR T-Cell-Based gene therapy for cancers: new perspectives, challenges, and clinical developments.'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] CAR-T cell therapy for blood cancers",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "CAR-T cell therapy for blood cancers site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'WO2012079000A1 - Use of chimeric antigen receptor-modified t cells to treat cancer - Google Patents'",
+        "patent title not relevant to topic (score 1): 'WO2019079564A1 - Methods of administering chimeric antigen receptor immunotherapy - Google Patents'",
+        "patent title not relevant to topic (score 0): 'US20250179145A1 - Chimeric antigen receptor tumor infiltrating lymphocytes - Google Patents'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "CAR-T cell therapy for blood cancers site:patentscope.wipo.int",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P6",
+        "P7"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'synthetic viscoelastic activating cells for t cell engineering'",
+        "patent title not relevant to topic (score 0): 'anti-gd3 specific chimeric antigen receptors for cancer ...'",
+        "patent title not relevant to topic (score 1): 'METHODS TO PREDICT OUTCOMES TO CHIMERIC ANTIGEN RECEPTOR T-CELLS IN LYMPHOMA FROM CELL-FREE DNA AND GENETIC MUTATIONS'",
+        "patent title not relevant to topic (score 0): 'an improved system for antigen targeting'",
+        "patent title not relevant to topic (score 0): 'WIPO - Search International and National Patent Collections'",
+        "patent title not relevant to topic (score 0): 'effective targeting of primary human leukemia using anti- ...'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "CAR-T cell therapy for blood cancers site:worldwide.espacenet.com",
+      "result_count": 1,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "search result lacks a usable title or URL"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "CAR-T cell therapy for blood cancers site:patents.justia.com",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "market",
+      "query": "CAR-T cell therapy for blood cancers market size revenue commercial manufacturer 2024 2025",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.biospace.com",
+        "market host is blocked or not approved: www.insightaceanalytic.com",
+        "market host is blocked or not approved: www.novaoneadvisor.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "CAR-T cell therapy for blood cancers industry company deployment commercial scale",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M6",
+        "M7"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: bioinformant.com",
+        "market host is blocked or not approved: www.marketdataforecast.com",
+        "market host is blocked or not approved: pmc.ncbi.nlm.nih.gov",
+        "market host is blocked or not approved: www.insights.bio",
+        "duplicate source: https://crisprmedicinenews.com/press-release-service/card/car-t-cell-therapy-market-research-2024-2025-size-forecasts-trials-and-trends-approved-car-t-t",
+        "market host is blocked or not approved: meditechinsights.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "CAR-T cell therapy for blood cancers product manufacturer revenue commercial sales 2024 2025",
+      "result_count": 9,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "duplicate source: https://crisprmedicinenews.com/press-release-service/card/car-t-cell-therapy-market-research-2024-2025-size-forecasts-trials-and-trends-approved-car-t-t",
+        "duplicate source: https://www.grandviewresearch.com/industry-analysis/car-t-cell-therapy-market-report",
+        "duplicate source: https://www.fortunebusinessinsights.com/car-t-cell-therapy-market-108455",
+        "market host is blocked or not approved: www.marketdataforecast.com",
+        "market host is blocked or not approved: www.biospace.com",
+        "market host is blocked or not approved: www.moffitt.org",
+        "duplicate source: https://www.precedenceresearch.com/car-t-cell-therapy-market",
+        "unreachable URL https://www.technavio.com/report/car-t-cell-therapy-market-analysis: HTTP status 404"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "CAR-T cell therapy for blood cancers company commercial deployment industry news",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M8"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.insights.bio",
+        "market host is blocked or not approved: bioinformant.com",
+        "market host is blocked or not approved: www.marketdataforecast.com",
+        "duplicate source: https://crisprmedicinenews.com/press-release-service/card/car-t-cell-therapy-market-research-2024-2025-size-forecasts-trials-and-trends-approved-car-t-t"
+      ]
+    },
+    {
+      "domain": "academic",
+      "query": "[Relevance-Filter]",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "score=-1 (min=3) — removed 'CAR-T cell therapy: current limitations and potential strategies.'",
+        "score=-1 (min=3) — removed 'Revolutionizing cancer treatment: a comprehensive review of CAR-T cell therapy.'",
+        "score=-1 (min=3) — removed 'CAR T-Cell Therapy in Hematological Malignancies.'",
+        "score=-1 (min=3) — removed 'Metabolic challenges and interventions in CAR T cell therapy.'",
+        "score=-1 (min=3) — removed 'Vaccine schedule recommendations and updates for patients with hematologic malignancy post-hematopoietic cell transplant or CAR T-cell therapy.'",
+        "score=-1 (min=3) — removed 'Chimeric antigen receptor T (CAR-T) cells: Novel cell therapy for hematological malignancies.'"
+      ]
+    }
+  ]
+}

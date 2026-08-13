@@ -1,0 +1,540 @@
+{
+  "topic": "CRISPR gene editing for genetic diseases",
+  "display_topic": "CRISPR gene editing for genetic diseases",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "biomedical",
+  "collected_at": "2026-08-12T08:35:06.137348Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "Lipid Nanoparticles for Delivery of CRISPR Gene Editing Components",
+      "url": "https://doi.org/10.1002/smtd.202401632",
+      "doi": "10.1002/smtd.202401632",
+      "publisher": "Small Methods",
+      "published_date": "2025-05-28",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "Semantic Scholar record: DOI verified, peer-reviewed journal, 43 citations.",
+      "evidence_summary": "Gene editing has emerged as a promising therapeutic option for treating genetic diseases. However, a central challenge in the field is the safe and efficient delivery of these large editing tools, especially in vivo. Lipid nanoparticles (LNPs) are attractive nonviral vectors due to their low immunogenicity and high delivery efficiency. To maximize editing efficiency, LNPs should efficiently protect gene editing components against multiple biological barriers and release them into the cytoplasm of target cells. In this review, the widely used CRISPR gene editing systems are first overviewed. Then, each component of LNPs, as well as their effects on delivery, are systematically discussed. Following this, the current LNP engineering strategies to achieve non‐liver targeting are summarized. Finally, preclinical and clinical applications of LNPs for in vivo genome editing are highlighted, and perspectives for the future development of LNPs are provided.",
+      "summary_source": "abstract",
+      "citation_count": 43
+    },
+    {
+      "source_id": "A2",
+      "title": "Beyond the promise: evaluating and mitigating off-target effects in CRISPR gene editing for safer therapeutics",
+      "url": "https://doi.org/10.3389/fbioe.2023.1339189",
+      "doi": "10.3389/fbioe.2023.1339189",
+      "publisher": "Frontiers in Bioengineering and Biotechnology",
+      "published_date": "2024-01-18",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "Semantic Scholar record: DOI verified, peer-reviewed journal, 71 citations.",
+      "evidence_summary": "Over the last decade, CRISPR has revolutionized drug development due to its potential to cure genetic diseases that currently do not have any treatment. CRISPR was adapted from bacteria for gene editing in human cells in 2012 and, remarkably, only 11 years later has seen it’s very first approval as a medicine for the treatment of sickle cell disease and transfusion-dependent beta-thalassemia. However, the application of CRISPR systems is associated with unintended off-target and on-target alterations (including small indels, and structural variations such as translocations, inversions and large deletions), which are a source of risk for patients and a vital concern for the development of safe therapies. In recent years, a wide range of methods has been developed to detect unwanted effects of CRISPR-Cas nuclease activity. In this review, we summarize the different methods for off-target assessment, discuss their strengths and limitations, and highlight strategies to improve the safety of CRISPR systems. Finally, we discuss their relevance and application for the pre-clinical risk assessment of CRISPR therapeutics within the current regulatory context.",
+      "summary_source": "abstract",
+      "citation_count": 71
+    },
+    {
+      "source_id": "A3",
+      "title": "Cas9 immunity creates challenges for CRISPR gene editing therapies",
+      "url": "https://doi.org/10.1038/s41467-018-05843-9",
+      "doi": "10.1038/s41467-018-05843-9",
+      "publisher": "Nature Communications",
+      "published_date": "2018-08-29",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "Semantic Scholar record: DOI verified, peer-reviewed journal, 232 citations.",
+      "evidence_summary": "Clustered regularly interspaced short palindromic repeats (CRISPR)-Cas9 is a genome-editing technology1,2 that utilizes archaeal and bacterial Cas9 nucleases to introduce double-stranded breaks in DNA at targeted sites. These breaks can be used to remove, replace, or add pieces of DNA. While not the first genome editor, CRISPR-Cas9 is efficient and cost-effective because cutting is guided by a strand of RNA rather than a protein. The potential uses in health care are plentiful, from disrupting dominant genes that cause cancer3 to repairing mutated genes that cause genetic diseases, such as muscular dystrophy4. Therapeutic approaches based on this technology fill the preclinical pipeline, and rely on the use of viral vectors to deliver the Cas9 gene and guide RNA to a gene of interest. However, concerns regarding the safety and efficacy of CRISPR-Cas9 use in gene therapy remain. A pre-print released prior to peer review has recently underlined the question of whether immunological responses to Cas9 may negatively impact its clinical use5. Here we discuss the implications of this finding for the application of CRISPR/Cas in gene therapy.",
+      "summary_source": "abstract",
+      "citation_count": 232
+    },
+    {
+      "source_id": "A4",
+      "title": "CRISPR–Cas9 Gene Editing: Curing Genetic Diseases by Inherited Epigenetic Modifications",
+      "url": "https://doi.org/10.1055/s-0044-1785234",
+      "doi": "10.1055/s-0044-1785234",
+      "publisher": "Global Medical Genetics",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "Semantic Scholar record: DOI verified, peer-reviewed journal, 69 citations.",
+      "evidence_summary": "Abstract Introduction CRISPR–Cas9 gene editing, leveraging bacterial defense mechanisms, offers precise DNA modifications, holding promise in curing genetic diseases. This review critically assesses its potential, analyzing evidence on therapeutic applications, challenges, and future prospects. Examining diverse genetic disorders, it evaluates efficacy, safety, and limitations, emphasizing the need for a thorough understanding among medical professionals and researchers. Acknowledging its transformative impact, a systematic review is crucial for informed decision-making, responsible utilization, and guiding future research to unlock CRISPR–Cas9's full potential in realizing the cure for genetic diseases. Methods A comprehensive literature search across PubMed, Scopus, and the Web of Science identified studies applying CRISPR–Cas9 gene editing for genetic diseases, following the Preferred Reporting Items for Systematic Reviews and Meta-Analyses guidelines. Inclusion criteria covered in vitro and in vivo models targeting various genetic diseases with reported outcomes on disease modification or potential cure. Quality assessment revealed a generally moderate to high risk of bias. Heterogeneity prevented quantitative meta-analysis, prompting a narrative synthesis of findings. Discussion CRISPR–Cas9 enables precise gene editing, correcting disease-causing mutations and offering hope for previously incurable genetic conditions. Leveraging inherited epigenetic modifications, it not",
+      "summary_source": "abstract",
+      "citation_count": 69
+    },
+    {
+      "source_id": "A5",
+      "title": "Correction of muscular dystrophies by CRISPR gene editing.",
+      "url": "https://doi.org/10.1172/jci136873",
+      "doi": "10.1172/jci136873",
+      "publisher": "Journal of Clinical Investigation",
+      "published_date": "2020-06-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "Semantic Scholar record: DOI verified, peer-reviewed journal, 80 citations.",
+      "evidence_summary": "Muscular dystrophies are debilitating disorders that result in progressive weakness and degeneration of skeletal muscle. Although the genetic mutations and clinical abnormalities of a variety of neuromuscular diseases are well known, no curative therapies have been developed to date. The advent of genome editing technology provides new opportunities to correct the underlying mutations responsible for many monogenic neuromuscular diseases. For example, Duchenne muscular dystrophy, which is caused by mutations in the dystrophin gene, has been successfully corrected in mice, dogs, and human cells through CRISPR/Cas9 editing. In this Review, we focus on the potential for, and challenges of, correcting muscular dystrophies by editing disease-causing mutations at the genomic level. Ideally, because muscle tissues are extremely long-lived, CRISPR technology could offer a one-time treatment for muscular dystrophies by correcting the culprit genomic mutations and enabling normal expression of the repaired gene.",
+      "summary_source": "abstract",
+      "citation_count": 80
+    },
+    {
+      "source_id": "A6",
+      "title": "CRISPR and gene editing for kidney diseases: where are we?",
+      "url": "https://doi.org/10.1093/ckj/sfaf246",
+      "doi": "10.1093/ckj/sfaf246",
+      "publisher": "Clinical Kidney Journal",
+      "published_date": "2025-07-31",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "Semantic Scholar record: DOI verified, peer-reviewed journal, 10 citations.",
+      "evidence_summary": "ABSTRACT Genome editing technologies, particularly clustered regularly interspaced short palindromic repeats (CRISPR)-Cas9, have transformed biomedical research by enabling precise genetic modifications. Due to its efficiency, cost-effectiveness and versatility, CRISPR has been widely applied across various stages of research, from fundamental biological investigations in preclinical models to potential therapeutic interventions. In nephrology, CRISPR represents a groundbreaking tool for elucidating the molecular mechanisms underlying kidney diseases and developing innovative therapeutic approaches. This review synthesizes the latest advancements in CRISPR-based gene editing within nephrology, highlighting its applications in genetic kidney disorders, polygenic nephropathies and functional genomic studies. Preclinical studies utilizing CRISPR-engineered kidney organoids and animal models have provided crucial insights into disease pathophysiology, offering platforms for drug discovery and precision medicine. Additionally, CRISPR-based functional screens have identified novel disease-associated pathways, particularly in diabetic nephropathy and glomerular disorders. Beyond experimental research, the therapeutic potential of CRISPR in nephrology is emerging, with recent advances in base editing and prime editing demonstrating the feasibility of correcting pathogenic mutations in conditions such as Alport syndrome and autosomal dominant polycystic kidney disease. Moreover, CRISP",
+      "summary_source": "abstract",
+      "citation_count": 10
+    },
+    {
+      "source_id": "A7",
+      "title": "Overcoming the Delivery Challenges in CRISPR/Cas9 Gene Editing for Effective Cancer Treatment: A Review of Delivery Systems",
+      "url": "https://doi.org/10.7150/ijms.112724",
+      "doi": "10.7150/ijms.112724",
+      "publisher": "International Journal of Medical Sciences",
+      "published_date": "2025-07-28",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "Semantic Scholar record: DOI verified, peer-reviewed journal, 16 citations.",
+      "evidence_summary": "Therapeutic strategies based on gene editing provide the ability to modify faulty genes contributing to the development of diseases such as cancer by directly altering the cellular machinery. The clustered regularly interspaced short palindromic repeats associated nuclease 9 (CRISPR/Cas9) system is currently the primary tool used for gene editing. Several effective Cas9 variants have already been established to address the complex genetic modifications that arise during diseases. Although gene-editing systems have made significant advancements, a primary obstacle that requires attention is the transportation of CRISPR/Cas to diverse target cells, both in vivo and in vitro, to render them suitable for clinical implementation. Various strategies can be utilized to facilitate the transportation of the CRISPR/Cas systems into mammalian cells. Herein, we reviewed contemporary research about delivery systems for gene-editing systems that interact effectively in biological systems. This review explores the benefits and drawbacks of using extracellular vesicles and viral vectors as vehicles for delivering the CRISPR/Cas system in the context of cancer treatment.",
+      "summary_source": "abstract",
+      "citation_count": 16
+    },
+    {
+      "source_id": "A8",
+      "title": "Topical gene editing therapeutics using lipid nanoparticles: \"gene creams\" for genetic skin diseases?",
+      "url": "https://doi.org/10.1093/bjd/ljad528",
+      "doi": "10.1093/bjd/ljad528",
+      "publisher": "British Journal of Dermatology",
+      "published_date": "2023-12-27",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "Semantic Scholar record: DOI verified, peer-reviewed journal, 13 citations.",
+      "evidence_summary": "Patients living with inherited skin diseases have benefitted from recent advances in DNA sequencing technologies that provide new or improved diagnostics. However, developing and delivering new treatments for the \"genodermatoses\" remains challenging. The goal of creating topical preparations that can recover the inherent gene pathology remains largely aspirational. However, recent progress in two fields, the chemistry of topical delivery formulations (lipid nanoparticles) and the molecular biology of gene repair (CRISPR-Cas9, base and prime editing), now presents new opportunities to address that unmet need. In this review, we discuss how lipid nanoparticle delivery vehicles could be used to deliver gene editing tools to formulate topical \"gene creams\" suitable for the treatment of genodermatoses. We summarise the historical landscape of topical therapeutics and advances in gene editing which may herald an era of new therapies for patients with inherited skin disorders.",
+      "summary_source": "abstract",
+      "citation_count": 13
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "WO2020225754A1 - Crispr gene editing for autosomal dominant diseases - Google Patents",
+      "url": "https://patents.google.com/patent/WO2020225754A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2020-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2020; legal scope still requires claim review.",
+      "evidence_summary": "## Abstract The present disclosure relates to Clustered Regularly Interspaced Short Palindromic Repeats (CRISPR)/CRISPR associated protein (Cas) systems, and methods of use thereof for gene editing or for preventing, ameliorating or treating a disease associated with a gene mutation or single-nucleotide polymorphism (SNP) in a subject. ## Description CRISPR GENE EDITING FOR AUTOSOMAL DOMINANT DISEASES FIELD OF THE INVENTION [...] genome engineering. Cell 2014; 157: 1262-1278). This highly specific and efficient RNA- guided DNA endonuclease may be of therapeutic importance in a range of genetic diseases. The CRISPR/Cas9 system relies on a single catalytic protein, Cas9 that is guided to a specific DNA sequence by 2 RNA molecules; the tracrRNA and the crRNA (Hsu PD, Lander ES, Zhang F. [...] Cas9 CRISPR associated protein 9 This highly specific and efficient RNA- guided DNA endonuclease may be of therapeutic importance in a range of genetic diseases. the CRISPR/Cas9 system relies on a single catalytic protein, Cas9 that is guided to a specific DNA sequence by 2 RNA molecules; the tracrRNA and the crRNA (Hsu PD, Lander ES, Zhang F.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "US11976307B2 - Genetic correction of mutated genes - Google Patents",
+      "url": "https://patents.google.com/patent/US11976307B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2013-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2013; legal scope still requires claim review.",
+      "evidence_summary": "| MX374532B (en) | 2013-06-17 | 2025-03-06 | Broad Inst Inc | SUPPLY, USE AND THERAPEUTIC APPLICATIONS OF CRISPR-CAS SYSTEMS AND COMPOSITIONS, TO ACT ON DISORDERS AND DISEASES USING VIRAL COMPONENTS. | | EP3470089A1 (en) | 2013-12-12 | 2019-04-17 | The Broad Institute Inc. | Delivery, use and therapeutic applications of the crispr-cas systems and compositions for targeting disorders and diseases using particle delivery components | [...] | US20160281166A1 (en) | 2015-03-23 | 2016-09-29 | Parabase Genomics, Inc. | Methods and systems for screening diseases in subjects | | US20190048337A1 (en) | 2015-04-01 | 2019-02-14 | Editas Medicine, Inc. | Crispr/Cas-Related Methods and Compositions for Treating Duchenne Muscular Dystrophy and Becker | | WO2016161380A1 (en) | 2015-04-01 | 2016-10-06 | Editas Medicine, Inc. | Crispr/cas-related methods and compositions for treating duchenne muscular dystrophy and becker muscular dystrophy | [...] | Publication | Publication Date | Title | --- | US11976307B2 (en) | | Genetic correction of mutated genes | | US9738879B2 (en) | | Genetic correction of mutated genes | | US20250114482A1 (en) | | Therapeutic applications of cpf1-based genome editing | | AU2022250572B2 (en) | | RNA-guided gene editing and gene regulation | | EP3452498B1 (en) | | Crispr/cas-related compositions for treating duchenne muscular dystrophy |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "WO2020247321A1 - A bacterial platform for delivery of gene-editing systems to eukaryotic cells - Google Patents",
+      "url": "https://patents.google.com/patent/WO2020247321A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2020-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2020; legal scope still requires claim review.",
+      "evidence_summary": "Gene-editing approaches are generally characterized by the use of a nuclease-based system (i.e. CRISPR/Cas) to effectively address a wide range of gene-editing applications including prevention of infectious disease, chronic non-infectious disease and other genetic disorders. Commonly, these nucleases create site-specific double strand breaks at desired locations in the genome. The induced double-strand breaks are repaired through nonhomologous end-joining (NHEJ) or homologous recombination [...] Gene-editing approaches are generally characterized by the use of a nuclease-based system (i.e. CRISPR/Cas) to effectively address a wide range of gene-editing applications including prevention of infectious disease, chronic non-infectious disease and other genetic disorders. CRISPR/Cas a nuclease-based system these nucleases create site-specific double strand breaks at desired locations in the genome. [...] motifs or the PAM sequences present on the DNA in vivo is recognized by the CRISPR/Cas gene-editing system that is transcribed and translated from a eukaryotic plasmid inside the targeted eukaryotic cell following delivery by the bacterial cell to a particular tissue. These in vivo gene-editing applications can include but are not limited to the purpose of studying disease, pathogenesis of a particular gene modification, infectious agents, genetic disorders, developing gene knock-in and",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "WO2021026081A2 - Rna guide genome editing in citrus using crispr-ribonucleoprotein complexes - Google Patents",
+      "url": "https://patents.google.com/patent/WO2021026081A2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2021-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2021; legal scope still requires claim review.",
+      "evidence_summary": "LbCas12a reportedly performs better than AsCas12a in rice (Tang et al., 2017). a potential long term solution to citrus Huanglongbing (HLB) or other diseases of citrus is genome modification/gene editing of citrus. genome editing as a precise method for modification of genome sequences can play vital roles. CRISPR has rapidly turned out to be an important technology for genome editing applications due to its simplicity, effectiveness and flexibility. [...] In addition, the performances of the three Cas12a homologs are different. LbCas12a reportedly performs better than AsCas12a in rice (Tang et al., 2017). A potential long term solution to citrus Huanglongbing (HLB) or other diseases of citrus is genome modification/gene editing of citrus. To overcome the susceptibility of citrus to Xcc, genome editing as a precise method for modification of genome sequences can play vital roles. [...] 1. Field The invention relates to methods for gene editing in crops, including citrus crops. In particular, the invention relates to optimized CRISPR-Cas9 sequences for in vivo expression and gene editing in citrus, useful for reduction of bacterial disease in citrus crops. 2. Background",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P5",
+      "title": "crispr methods for correcting bag3 gene mutations in vivo",
+      "url": "https://patentscope.wipo.int/search/en/WO2023147558",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "Compositions include gene-editing complexes for the treatment of myopathies, cancer and neurodegenerative diseases.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P6",
+      "title": "U.S. Patent Application for TARGETED ACTIVE GENE EDITING AGENT AND METHODS OF USE Patent Application (Application #20220010337 issued January 13, 2022)",
+      "url": "https://patents.justia.com/patent/20220010337",
+      "doi": null,
+      "publisher": "Justia",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "during subsequent infections and cleave viral polynucleotides via CRISPR-associated (Cas) polypeptides that function as an RNA-guided nuclease to cleave the viral polynucleotides. As used herein, a “CRISPR-associated polypeptide” or “Cas polypeptide” refers to a naturally-occurring polypeptide that is found within proximity to CRISPR sequences within a naturally-occurring CRISPR system. Certain Cas polypeptides function as RNA-guided nucleases. [...] The activator-NA comprises a CRISPR repeat sequence comprising a nucleotide sequence that comprises a region with sufficient complementarity to hybridize to an activator-NA (the other part of the polypeptide-binding segment of the guide nucleic acid). In various embodiments, the CRISPR repeat sequence can comprise from about 8 nucleotides to about 30 nucleotides, or more. For example, the CRISPR repeat sequence can be about 8, about 9, about 10, about 11, about 12, about 13, about 14, about 15, [...] segment of the guide RNA, also referred to herein as the CRISPR repeat sequence.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P7",
+      "title": "US8697359B1 - CRISPR-Cas systems and methods for altering expression of gene products - Google Patents",
+      "url": "https://patents.google.com/patent/US8697359B1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "Syndrome 1 [COFS1]; Cerebrotendinous Xanthomatosis; Cornelia de Lange Syndrome; MAPT-Related Disorders; Genetic Prion Diseases; Dravet Syndrome; Early-Onset Familial Alzheimer Disease; Friedreich Ataxia [FRDA]; Fryns Syndrome; Fucosidosis; Fukuyama Congenital Muscular Dystrophy; Galactosialidosis; Gaucher Disease; Organic Acidemias; Hemophagocytic Lymphohistiocytosis; Hutchinson-Gilford Progeria Syndrome; Mucolipidosis II; Infantile Free Sialic Acid Storage Disease; PLA2G6-Associated [...] Syndrome 1 [COFS1]; Cerebrotendinous Xanthomatosis; Cornelia de Lange Syndrome; MAPT-Related Disorders; Genetic Prion Diseases; Dravet Syndrome; Early-Onset Familial Alzheimer Disease; Friedreich Ataxia [FRDA]; Fryns Syndrome; Fucosidosis; Fukuyama Congenital Muscular Dystrophy; Galactosialidosis; Gau [...] Syndrome, Batten Disease, CADASIL, Cerebellar Degeneration, Fabry's Disease, Gerstmann-Straussler-Scheinker Disease, Huntington's Disease and other Triplet Repeat Disorders, Leigh's Disease, Lesch-Nyhan Syndrome, Menkes Disease, Mitochondrial Myopathies and NINDS Colpocephaly. These diseases are further described on the website of the National Institutes of Health under the subsection Genetic Brain Disorders.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P8",
+      "title": "U.S. Patent for Directed editing of cellular RNA via nuclear delivery of CRISPR/CAS9 Patent (Patent # 11,453,891 issued September 27, 2022)",
+      "url": "https://patents.justia.com/patent/11453891",
+      "doi": null,
+      "publisher": "Justia",
+      "published_date": "2011-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2011; legal scope still requires claim review.",
+      "evidence_summary": "Cystic fibrosis is a genetic disorder that affects the lungs, pancreas, liver, kidneys, and intestine. Long-term symptoms include difficulty breathing and coughing up mucus as a result of frequent lung infections. Other signs and symptoms may include sinus infections, poor growth, fatty stool, clubbing of the fingers and toes, and infertility. Cystic fibrosis is caused by mutations in the cystic fibrosis transmembrane conductance regulator (CFTR) gene. By developing methods to accurately [...] Hurler syndrome is a genetic disorder that results in the buildup of glycosaminoglycans due to a deficiency of alpha-L iduronidase (IDUA), an enzyme responsible for the degradation of mucopolysaccharides in lysosomes. Without this enzyme, a buildup of dermatan sulfate and heparan sulphate occurs in the body. Symptoms include but are not limited to hepatosplenomegaly, dwarfism, unique facial features, progressive mental retardation, and early death due to organ damage. [...] Mingozzi et al., “Therapeutic in vivo gene transfer for genetic disease using AAV: progress and challenges,” Nature reviews genetics, May 2011, 12(5):341-355. Muzyczka, “Use of adeno-associated virus as a general transduction vector for mammalian cells,” Viral expression vectors, 1992, 97-129. Nasevicius et al., “Effective targeted gene ‘knockdown’ in zebrafish,” Nature genetics, Oct. 2000, 26(2):216-220.",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "CRISPR Gene Editing Market Trends for 2026",
+      "url": "https://www.towardshealthcare.com/insights/crispr-gene-editing-market-sizing",
+      "doi": null,
+      "publisher": "Towardshealthcare",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "The global CRISPR gene editing market size was calculated at USD 4.76 billion in 2025 and is predicted to reach around USD 18.89 billion by 2035, expanding at a CAGR of 14.77% from 2026 to 2035. Government backing, growing investments in biotechnology, the prevalence of genetic illnesses, and technological and scientific improvements are all contributing factors to this expansion. ## Key Takeaways [...] | Software Vendors | Benchling, Dotmatics, Revvity Signals | CRISPR design, genomic analysis, laboratory informatics, and data management | | Research Institutions | Broad Institute, University of California Berkeley, Harvard University | Fundamental CRISPR research and technology innovation | | End-User Industries | Biotechnology, Pharmaceuticals, Academic Research, Agriculture, Synthetic Biology | Commercial and research deployment of CRISPR technologies | [...] By product and services, the services segment is anticipated to grow with the highest CAGR in the market during the studied years. The design, development, and validation of CRISPR systems are among the specialist services that researchers and companies need for effective deployment as CRISPR technology becomes more widely accepted. To support these efforts, companies like GenScript and Integrated DNA Technologies now provide comprehensive service packages that include gene synthesis, cell line",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "Gene Editing Market Size, Share | Growth Report [2026-2034]",
+      "url": "https://www.fortunebusinessinsights.com/gene-editing-market-104463",
+      "doi": null,
+      "publisher": "Fortunebusinessinsights",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "North America Gene Editing Market Size,2025 (USD Billion) To get more information on the regional analysis of this market, Download Free sample For instance, in April 2024, Regeneron Pharmaceuticals, Inc., collaborated with Mammoth Biosciences, Inc., to develop and commercialize in vivo CRISPR-based gene editing therapies for multiple tissues and cell types. In 2025, the U.S. market is estimated to reach USD 2.03 billion. ### Europe [...] For instance, in May 2025, Aldevron, in collaboration with Integrated DNA Technologies (IDT), successfully manufactured a personalized CRISPR gene editing drug product to treat an infant with urea cycle disorder (UCD). The services segment is expected to grow at a CAGR of 14.57% during the forecast period. To know how our report can help streamline your business, Speak to Analyst ### By Technology Varied Applications of CRISPR Technology to Drive Segmental Growth [...] The global gene editing market size was valued at USD 10.31 billion in 2025. The market is projected to grow from USD 10.98 billion in 2026 to USD 35.02 billion by 2034, exhibiting a CAGR of 15.60% during the forecast period. North America dominated the global gene editing market with a market share of 43.35% in 2025.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "CRISPR Market Report 2025-2030, By Offering, Service, and Geo",
+      "url": "https://www.marketsandmarkets.com/Market-Reports/crispr-technology-market-134401204.html",
+      "doi": null,
+      "publisher": "Marketsandmarkets",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The CRISPR market is projected to reach USD 5.47 billion in 2030 from USD 3.21 billion in 2025, at a CAGR of 11.2%. The major factors driving the growth of the CRISPR market are the growing demand for CRISPR-based gene therapies, advancements in CRISPR technology, and growing government and private investments and funding for CRISPR technology. Development of new vaccines and treatments for genetic diseases along with expanding industrial and agricultural applications of CRISPR are set to open [...] ### KEY TAKEAWAYS By Region The North America CRISPR market accounted for a 49.8% revenue share in 2024. By Offering By offering, the CRISPR products segment is expected to dominate the market throughout the forecast period. By Application By application, the drug discovery & development segment is projected to grow at the fastest rate from 2025 to 2030. By End User [...] | REPORT METRIC | DETAILS | --- | | Market Size in 2024 (Value) | USD 2.90 Billion | | Market Forecast in 2030 (Value) | USD 5.47 Billion | | Growth Rate | CAGR of 11.2% from 2025-2030 | | Years Considered | 2023-2030 | | Base Year | 2024 | | Forecast Period | 2025-2030 | | Units Considered | Value (USD Billion) | | Report Coverage | Revenue forecast, company ranking, competitive landscape, growth factors, and trends |",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "Genome Editing Market Size, Share & Growth Report 2035",
+      "url": "https://www.snsinsider.com/reports/genome-editing-market-3944",
+      "doi": null,
+      "publisher": "Snsinsider",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "By 2025, the CRISPR/Cas9 segment contributed the largest revenue share of 64.38% due to its superior editing efficiency, ease of design and implementation, and cost-effectiveness compared to other genome editing technologies. Growing adoption of CRISPR-based research tools coupled with extensive patent licensing frameworks, researchers are increasingly utilizing CRISPR systems for diverse applications. [...] North America held the largest revenue share of over 42.34% in 2025 of the genome editing market due to an established biotechnology industry infrastructure, leading academic research institutions, and increased venture capital funding for gene therapy companies. Drivers include ubiquitous use of CRISPR technologies in research settings, an advanced clinical trial network, growing pharmaceutical company investment in genetic medicine and greater acceptance of innovative therapeutic modalities [...] In May 2024, received FDA approval for its first CRISPR-based therapy for sickle cell disease and beta-thalassemia, marking a historic milestone in gene editing therapeutics and expanding commercial market opportunities for genetic medicine.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M5",
+      "title": "Press Release Service: Gene Editing Market Size, Share, Growth, and Forecasts 2021-2024 & 2025-2033 | Focus on CRISPR-Cas9 (CRISPR), TALEN, ZFN (Zinc Finger), and Antisense - ResearchAndMarkets.com - CRISPR Medicine",
+      "url": "https://crisprmedicinenews.com/press-release-service/card/gene-editing-market-size-share-growth-and-forecasts-2021-2024-amp-2025-2033-focus-on-crispr-c",
+      "doi": null,
+      "publisher": "Crisprmedicinenews",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "--The \"Gene Editing Market Size, Share, Growth, and Forecasts 2025-2033\"%2c+TALEN%2c+ZFN+(Zinc+Finger)%2c+and+Antisense&utm_exec=chdomspi) report has been added to ResearchAndMarkets.com's offering. The global gene editing market size was valued at USD 6 billion in 2024 and is likely to reach USD 22 billion by 2033, expanding at a CAGR 15.6% during the forecast period. [...] Key Attributes: | | | --- | | Report Attribute | Details | | No. of Pages | 250 | | Forecast Period | 2024 - 2033 | | Estimated Market Value (USD) in 2024 | $6 Billion | | Forecasted Market Value (USD) by 2033 | $22 Billion | | Compound Annual Growth Rate | 15.6% | | Regions Covered | Global | Key Topics Covered: 1. Market Definition 2. Research and Methodology 3. Executive Summary 4. Global Gene Editing Market - Market Dynamics 4.1 Growth Drivers 4.2 Challengers [...] Press Release Service # Gene Editing Market Size, Share, Growth, and Forecasts 2021-2024 & 2025-2033 | Focus on CRISPR-Cas9 (CRISPR), TALEN, ZFN (Zinc Finger), and Antisense - ResearchAndMarkets.com DUBLIN--(BUSINESS WIRE)--The \"Gene Editing Market Size, Share, Growth, and Forecasts 2025-2033\"%2c+TALEN%2c+ZFN+(Zinc+Finger)%2c+and+Antisense&utm_exec=chdomspi) report has been added to ResearchAndMarkets.com's offering.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M6",
+      "title": "CRISPR-based Gene Editing Market Size Report, 2026-2033",
+      "url": "https://www.grandviewresearch.com/industry-analysis/crispr-based-gene-editing-market-report",
+      "doi": null,
+      "publisher": "Grandviewresearch",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "CRISPR-based gene editing market size was valued at $4.5B in 2025 and is projected to grow from $5.1B in 2026 to $13.5B by 2033, at a CAGR of 14.8%",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M7",
+      "title": "CRISPR in Agriculture: 2024 in Review - Innovative Genomics Institute (IGI)",
+      "url": "https://innovativegenomics.org/news/crispr-in-agriculture-2024",
+      "doi": null,
+      "publisher": "Innovativegenomics",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "New approach leads to virus-resistant pigsThe UK-based company Genus used a CRISPR-Cas9 editing approach to disrupt a cell surface protein implicated in viral infection to protect piglets from porcine reproductive and respiratory syndrome, a deadly disease that affects pigs worldwide. A similar approach on a different gene discussed in our previous review was effective but resulted in unexpected side effects including cataracts. Genus introduced this new approach into multiple commercially [...] and edits leading to programmable changes in how much protein is made from a given gene. We also anticipate CRISPR optimization to expand beyond staple crop species into more genomically complex plant and animal species, commercial crop varieties, and divergent cultivars grown on small-scale farms. A one-size-fits-all CRISPR-Cas system may not exist, but as the gene-editing toolkit expands, so will the breadth of products edited for the benefit of humans, growers, and the planet. [...] Consumers, farmers, and climate researchers alike stand to benefit in the seemingly endless gene-editing possibilities which CRISPR provides, as well as the pace and creativity with which scientists are deploying it in their favorite systems. As CRISPR-based gene-editing tools become more sophisticated, expect to see equally complex editing strategies like targeting multiple genes at once, multi-function Cas enzymes, adding new genomic material at specific spots in the genome, and edits leading",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M8",
+      "title": "Genome Editing Market to Rise at 16.95% CAGR till 2035",
+      "url": "https://www.towardshealthcare.com/insights/genome-editing-market-sizing",
+      "doi": null,
+      "publisher": "Towardshealthcare",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "In May 2025, Biomay, a leading manufacturer of recombinant proteins, announced the commercial availability of its CRISPR/Cas9 nuclease, marking an important addition to its off-the-shelf product portfolio for genome-editing applications. Clients purchasing Biomay´s Cas9 will benefit from the company´s unparalleled track record and expertise as a market-registered GMP manufacturer of the nuclease. [...] By application, the clinical application segment is expected to expand at a solid CAGR of 13.20% during the forecast period. By technology, the CRISPR/Cas9 segment has contributed more than 44% of revenue share in 2025. By technology, the ZFN segment is projected to grow with a significant CAGR of 16.58%during the forecast period. By the delivery method, the ex-vivo segment has generated more than 52% of revenue share in 2025. [...] According to Shivani Zoting, who specializes in genomics, biotechnology, and precision medicine, with 5+ years of experience in market research and industry analysis, this research highlights strong long-term growth in the genome editing market, which is projected to expand from USD 10.98 billion in 2025 to USD 52.56 billion by 2035 at a 16.95% CAGR. Her analysis identifies genetic engineering, CRISPR/Cas9 technology, ex-vivo delivery methods, and biotechnology & pharmaceutical companies as the",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "CRISPR gene editing for genetic diseases peer reviewed DOI journal",
+    "CRISPR gene editing for genetic diseases systematic review meta-analysis",
+    "CRISPR gene editing for genetic diseases site:scholar.google.com",
+    "CRISPR gene editing for genetic diseases Nature Science Cell Lancet article",
+    "CRISPR gene editing for genetic diseases review journal",
+    "CRISPR gene editing for genetic diseases efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "CRISPR gene editing for genetic diseases site:patents.google.com/patent",
+    "CRISPR gene editing for genetic diseases site:patentscope.wipo.int",
+    "CRISPR gene editing for genetic diseases site:worldwide.espacenet.com",
+    "CRISPR gene editing for genetic diseases site:patents.justia.com",
+    "CRISPR gene editing for site:patents.google.com/patent",
+    "CRISPR gene editing for site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "CRISPR gene editing for genetic diseases market size revenue commercial manufacturer 2024 2025",
+    "CRISPR gene editing for genetic diseases industry company deployment commercial scale",
+    "CRISPR gene editing for genetic diseases product manufacturer revenue commercial sales 2024 2025",
+    "CRISPR gene editing for genetic diseases company commercial deployment industry news",
+    "CRISPR gene editing for genetic diseases market report investment startup 2024",
+    "CRISPR gene editing for genetic diseases commercial scale production manufacturer press release",
+    "CRISPR gene editing for genetic diseases manufacturing commercialization company",
+    "CRISPR gene editing for genetic diseases government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] CRISPR gene editing for genetic diseases",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] CRISPR gene editing for genetic diseases",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Precision genome engineering f] CRISPR gene editing for genetic diseases",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:CRISPR-Cas9 therapeutic applic] CRISPR gene editing for genetic diseases",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] CRISPR gene editing for genetic diseases",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] CRISPR gene editing for genetic diseases",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "CRISPR gene editing for genetic diseases site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'US20240240208A1 - Compositions and methods for increasing efficiency of precise editing repair - Google Patents'",
+        "patent title not relevant to topic (score 1): 'WO2023141504A2 - Dcas9-integrase for targeted genome editing - Google Patents'",
+        "patent title not relevant to topic (score 1): 'WO2015148863A3 - Crispr/cas-related methods and compositions for treating sickle cell disease - Google Patents'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "CRISPR gene editing for genetic diseases site:patentscope.wipo.int",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P6"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'therapeutic crispr/cas9 compositions and methods of use'",
+        "patent title not relevant to topic (score 0): 'dmd reporter models containing humanized duschene ...'",
+        "patent title not relevant to topic (score 0): 'exon deletion correction of duchenne muscular dystrophy ...'",
+        "patent title not relevant to topic (score 1): 'WO/2019/209777 IMPROVED CRISPR THERAPY'",
+        "patent title not relevant to topic (score 0): 'CORRECTION OF DYSTROPHIN EXON 43, EXON 45, OR EXON 52 DELETIONS IN DUCHENNE MUSCULAR DYSTROPHY'",
+        "patent title not relevant to topic (score 1): 'methods for autocatalytic genome editing and neutralizing ...'",
+        "patent title not relevant to topic (score 0): 'WO/2016/164356 CHEMICALLY MODIFIED GUIDE RNAS ...'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "CRISPR gene editing for genetic diseases site:worldwide.espacenet.com",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "CRISPR gene editing for genetic diseases site:patents.justia.com",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P7",
+        "P8"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'U.S. Patent for CRISPR-Cas systems, crystal structure and uses thereof Patent (Patent # 11,155,795 issued October 26, 2021)'",
+        "patent title not relevant to topic (score 0): 'U.S. Patent for Delivery, engineering and optimization of systems, methods and compositions for sequence manipulation and therapeutic applications Patent (Patent # 11,041,173 issued June 22, 2021)'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "CRISPR gene editing for genetic diseases market size revenue commercial manufacturer 2024 2025",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M6"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.biospace.com",
+        "market host is blocked or not approved: ir.crisprtx.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "CRISPR gene editing for genetic diseases industry company deployment commercial scale",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M7",
+        "M8"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: investingnews.com",
+        "market host is blocked or not approved: app.biopharmiq.com",
+        "market host is blocked or not approved: straitsresearch.com",
+        "market host is blocked or not approved: www.custommarketinsights.com"
+      ]
+    }
+  ]
+}

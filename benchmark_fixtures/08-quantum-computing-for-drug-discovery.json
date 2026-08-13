@@ -1,0 +1,618 @@
+{
+  "topic": "quantum computing for drug discovery",
+  "display_topic": "quantum computing for drug discovery",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "biomedical",
+  "collected_at": "2026-08-12T08:38:06.354111Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "Quantum computing's potential for drug discovery: Early stage industry dynamics.",
+      "url": "https://doi.org/10.1016/j.drudis.2021.06.003",
+      "doi": "10.1016/j.drudis.2021.06.003",
+      "publisher": "Drug Discov Today",
+      "published_date": "2021-07-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Drug Discov Today).",
+      "evidence_summary": "Quantum computing (QC) is expected to revolutionize drug research by performing tasks classical supercomputers are not capable of. However, practically useful quantum computation is not yet a reality, and thus it is still unclear when and whether QC will be capable of solving real-world issues in drug discovery. By identifying the QC-related activities of pharmaceutical companies, startups, and academia in the field of drug discovery and development, we show that QC has gained traction across all of these stakeholder groups, that there is focus on developing utilities related to lead optimization and compound screening, and that there is a need for collaboration in the highly dynamic QC ecosystem.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A2",
+      "title": "Quantum computing for near-term applications in generative chemistry and drug discovery.",
+      "url": "https://doi.org/10.1016/j.drudis.2023.103675",
+      "doi": "10.1016/j.drudis.2023.103675",
+      "publisher": "Drug Discov Today",
+      "published_date": "2023-08-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Drug Discov Today).",
+      "evidence_summary": "In recent years, drug discovery and life sciences have been revolutionized with machine learning and artificial intelligence (AI) methods. Quantum computing is touted to be the next most significant leap in technology; one of the main early practical applications for quantum computing solutions is predicted to be in quantum chemistry simulations. Here, we review the near-term applications of quantum computing and their advantages for generative chemistry and highlight the challenges that can be addressed with noisy intermediate-scale quantum (NISQ) devices. We also discuss the possible integration of generative systems running on quantum computers into established generative AI platforms.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A3",
+      "title": "Perspective on the Current State-of-the-Art of Quantum Computing for Drug Discovery Applications.",
+      "url": "https://doi.org/10.1021/acs.jctc.2c00574",
+      "doi": "10.1021/acs.jctc.2c00574",
+      "publisher": "J Chem Theory Comput",
+      "published_date": "2022-12-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (J Chem Theory Comput).",
+      "evidence_summary": "Computational chemistry is an essential tool in the pharmaceutical industry. Quantum computing is a fast evolving technology that promises to completely shift the computational capabilities in many areas of chemical research by bringing into reach currently impossible calculations. This perspective illustrates the near-future applicability of quantum computation of molecules to pharmaceutical problems. We briefly summarize and compare the scaling properties of state-of-the-art quantum algorithms and provide novel estimates of the quantum computational cost of simulating progressively larger embedding regions of a pharmaceutically relevant covalent protein-drug complex involving the drug Ibrutinib. Carrying out these calculations requires an error-corrected quantum architecture that we describe. Our estimates showcase that recent developments on quantum phase estimation algorithms have dramatically reduced the quantum resources needed to run fully quantum calculations in active spaces of around 50 orbitals and electrons, from estimated over 1000 years using the Trotterization approach to just a few days with sparse qubitization, painting a picture of fast and exciting progress in this nascent field.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A4",
+      "title": "A hybrid quantum computing pipeline for real world drug discovery.",
+      "url": "https://doi.org/10.1038/s41598-024-67897-8",
+      "doi": "10.1038/s41598-024-67897-8",
+      "publisher": "Sci Rep",
+      "published_date": "2024-07-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Sci Rep).",
+      "evidence_summary": "Quantum computing, with its superior computational capabilities compared to classical approaches, holds the potential to revolutionize numerous scientific domains, including pharmaceuticals. However, the application of quantum computing for drug discovery has primarily been limited to proof-of-concept studies, which often fail to capture the intricacies of real-world drug development challenges. In this study, we diverge from conventional investigations by developing a hybrid quantum computing pipeline tailored to address genuine drug design problems. Our approach underscores the application of quantum computation in drug discovery and propels it towards more scalable system. We specifically construct our versatile quantum computing pipeline to address two critical tasks in drug discovery: the precise determination of Gibbs free energy profiles for prodrug activation involving covalent bond cleavage, and the accurate simulation of covalent bond interactions. This work serves as a pioneering effort in benchmarking quantum computing against veritable scenarios encountered in drug design, especially the covalent bonding issue present in both of the case studies, thereby transitioning from theoretical models to tangible applications. Our results demonstrate the potential of a quantum computing pipeline for integration into real world drug design workflows.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A5",
+      "title": "Quantum Machine Learning Algorithms for Drug Discovery Applications.",
+      "url": "https://doi.org/10.1021/acs.jcim.1c00166",
+      "doi": "10.1021/acs.jcim.1c00166",
+      "publisher": "J Chem Inf Model",
+      "published_date": "2021-06-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (J Chem Inf Model).",
+      "evidence_summary": "The growing quantity of public and private data sets focused on small molecules screened against biological targets or whole organisms provides a wealth of drug discovery relevant data. This is matched by the availability of machine learning algorithms such as Support Vector Machines (SVM) and Deep Neural Networks (DNN) that are computationally expensive to perform on very large data sets with thousands of molecular descriptors. Quantum computer (QC) algorithms have been proposed to offer an approach to accelerate quantum machine learning over classical computer (CC) algorithms, however with significant limitations. In the case of cheminformatics, which is widely used in drug discovery, one of the challenges to overcome is the need for compression of large numbers of molecular descriptors for use on a QC. Here, we show how to achieve compression with data sets using hundreds of molecules (SARS-CoV-2) to hundreds of thousands of molecules (whole cell screening data sets for plague and M. tuberculosis) with SVM and the data reuploading classifier (a DNN equivalent algorithm) on a QC benchmarked against CC and hybrid approaches. This study illustrates the steps needed in order to be \"quantum computer ready\" in order to apply quantum computing to drug discovery and to provide the foundation on which to build this field.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A6",
+      "title": "Integrating QSAR modelling and deep learning in drug discovery: the emergence of deep QSAR.",
+      "url": "https://doi.org/10.1038/s41573-023-00832-0",
+      "doi": "10.1038/s41573-023-00832-0",
+      "publisher": "Nat Rev Drug Discov",
+      "published_date": "2024-02-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Nat Rev Drug Discov).",
+      "evidence_summary": "Quantitative structure-activity relationship (QSAR) modelling, an approach that was introduced 60 years ago, is widely used in computer-aided drug design. In recent years, progress in artificial intelligence techniques, such as deep learning, the rapid growth of databases of molecules for virtual screening and dramatic improvements in computational power have supported the emergence of a new field of QSAR applications that we term 'deep QSAR'. Marking a decade from the pioneering applications of deep QSAR to tasks involved in small-molecule drug discovery, we herein describe key advances in the field, including deep generative and reinforcement learning approaches in molecular design, deep learning models for synthetic planning and the application of deep QSAR models in structure-based virtual screening. We also reflect on the emergence of quantum computing, which promises to further accelerate deep QSAR applications and the need for open-source and democratized resources to support computer-aided drug design.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A7",
+      "title": "User-Friendly Quantum Mechanics: Applications for Drug Discovery.",
+      "url": "https://doi.org/10.1007/978-1-0716-0282-9_15",
+      "doi": "10.1007/978-1-0716-0282-9_15",
+      "publisher": "Methods Mol Biol",
+      "published_date": "2020-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Methods Mol Biol).",
+      "evidence_summary": "Quantum mechanics (QM) methods provide a fine description of receptor-ligand interactions and of chemical reactions. Their use in drug design and drug discovery is increasing, especially for complex systems including metal ions in the binding sites, for the design of highly selective inhibitors, for the optimization of bi-specific compounds, to understand enzymatic reactions, and for the study of covalent ligands and prodrugs. They are also used for generating molecular descriptors for predictive QSAR/QSPR models and for the parameterization of force fields. Thanks to the continuous increase of computational power offered by GPUs and to the development of sophisticated algorithms, QM methods are becoming part of the standard tools used in computer-aided drug design (CADD). We present the most used QM methods and software packages, and we discuss recent representative applications in drug design and drug discovery.",
+      "summary_source": "abstract",
+      "citation_count": null
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "Nanofiber quantum computing system and related method",
+      "url": "https://patents.google.com/patent/US20240403682A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2024; legal scope still requires claim review.",
+      "evidence_summary": "the invention can be applied to a variety of applications such as cryptography, drug discovery, optimization, machine learning and artificial intelligence, finance, weather forecasting, chemical, mechanical, electrical, civil, nuclear fusion and fission, economics, materials, and any other complex human or non-human matters. Quantum computing is a type of computing that utilizes quantum mechanics to perform certain tasks more efficiently than classical computing. [...] Quantum computing can be used to break many of the cryptographic codes that are currently in use. Quantum computing can simulate complex molecular interactions, which can help discover new drugs or improve existing ones. Quantum computing could dramatically speed up the development of new pharmaceuticals. [...] As additional background, quantum computing is an advancing field that will revolutionize computing by harnessing the principles of quantum mechanics to perform computations that are intractable for classical computers. Various applications exist. Such applications include cryptography, drug discovery, optimization, machine learning and artificial intelligence, finance, weather forecasting, chemical, mechanical, electrical, civil, nuclear fusion and fission, economics, materials, and any other",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "US10044638B2 - Methods and systems for quantum computing - Google Patents",
+      "url": "https://patents.google.com/patent/US10044638B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "planets, and drug discovery, etc. may provide them a flexibility of accessing different quantum computing resources using methods and systems disclosed herein. Quantum computing services provided through the cloud can provide significantly faster service than digital computers. [...] not be required to understand the internal architecture and mechanisms of quantum computing resources. Users' different familiarities with the issues and relevant solutions in their respective practices, such as, for example, weather forecasting, financial analysis, cryptography, logistical planning, search for Earth-like planets, and drug discovery, etc. may provide them a flexibility of accessing different quantum computing resources using methods and systems disclosed herein. Quantum [...] such as on the cloud. Users can run algorithms and experiments on quantum computers and processors working with individual quantum bits (qubits). Users may not be required to understand the internal architecture and mechanisms of quantum computing resources. Users' different familiarities with the issues and relevant solutions in their respective practices, such as, for example, weather forecasting, financial analysis, cryptography, logistical planning, search for Earth-like planets, and drug",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "Methods and systems for quantum computing",
+      "url": "https://patents.google.com/patent/US20180091440A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2018-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2018; legal scope still requires claim review.",
+      "evidence_summary": "planets, and drug discovery, etc. may provide them a flexibility of accessing different quantum computing resources using methods and systems disclosed herein. Quantum computing services provided through the cloud can provide significantly faster service than digital computers. [...] not be required to understand the internal architecture and mechanisms of quantum computing resources. Users' different familiarities with the issues and relevant solutions in their respective practices, such as, for example, weather forecasting, financial analysis, cryptography, logistical planning, search for Earth-like planets, and drug discovery, etc. may provide them a flexibility of accessing different quantum computing resources using methods and systems disclosed herein. Quantum [...] such as on the cloud. Users can run algorithms and experiments on quantum computers and processors working with individual quantum bits (qubits). Users may not be required to understand the internal architecture and mechanisms of quantum computing resources. Users' different familiarities with the issues and relevant solutions in their respective practices, such as, for example, weather forecasting, financial analysis, cryptography, logistical planning, search for Earth-like planets, and drug",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "U.S. Patent Application for MODULAR QUANTUM COMPUTING SYSTEM WITH AN OPTICAL LINK AND COMPUTING REGION Patent Application (Application #20260178959 issued June 25, 2026)",
+      "url": "https://patents.justia.com/patent/20260178959",
+      "doi": null,
+      "publisher": "Justia",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The present invention relates generally to distributed quantum computing and quantum repeater techniques. In particular, the present invention provides method including an optical link for a quantum computing device. Merely by way of example, the invention can be applied to a variety of applications such as secure communication, cryptography, drug discovery, optimization, machine learning and artificial intelligence, finance, weather forecasting, chemical, mechanical, electrical, civil, nuclear [...] drug discovery, optimization, machine learning and artificial intelligence, finance, weather forecasting, chemical, mechanical, electrical, civil, nuclear fusion and fission, economics, materials, and any other complex human or non-human matters. [...] According to the present invention, techniques generally related to quantum computing and quantum repeater are provided. In particular, the present invention provides an optical link for a distributed quantum computing and repeater device. Merely by way of example, the invention can be applied to a variety of applications such as cryptography, drug discovery, optimization, machine learning and artificial intelligence, finance, weather forecasting, chemical, mechanical, electrical, civil,",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "Quantum Computing In Drug Discovery Market Size, Share ...",
+      "url": "https://www.mordorintelligence.com/industry-reports/quantum-computing-in-drug-discovery-market",
+      "doi": null,
+      "publisher": "Mordorintelligence",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The quantum computing in drug discovery market size reached USD 450.34 million in 2025 and, on its present trajectory, will enlarge to USD 810.65 million by 2030, producing a robust 12.20% CAGR over the forecast window. Rising cloud access to qubit resources, escalating pharmaceutical–quantum partnerships, and sustained government moon-shot funding converge as the primary accelerants behind this expansion. Pharmaceutical developers, under pressure to compress traditional 10- to 15-year research [...] By deployment mode, cloud solutions accounted for 68.3% of quantum computing in drug discovery market share in 2024, while on-premise installations are projected to expand at a 14.5% CAGR through 2030. By quantum processing type, gate-model processors led with 46.7% revenue share in 2024; photonic hardware is forecast to register the fastest 15.7% CAGR to 2030. [...] Pharmaceutical and Biotech Enterprises absorbed 53.8% of 2024 revenue, confirming their role as anchor clients. Contract research organizations followed with 21.7%, often white-labelling cloud quantum environments for fee-for-service engagements. Academia accounted for 15.4% through grant-funded algorithm development that feeds commercial pipelines. Start-ups captured 9.1% yet project a 13.7% CAGR, reflecting strong venture funding and lighter organizational inertia.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "Global Quantum Computing in Drug Discovery Market",
+      "url": "https://www.databridgemarketresearch.com/reports/global-quantum-computing-in-drug-discovery-market",
+      "doi": null,
+      "publisher": "Databridgemarketresearch",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The lead optimization segment is expected to dominate the quantum computing in drug discovery market with the largest share of 65.5% in 2025 due to its critical role in refining potential drug candidates for efficacy, safety, and pharmacokinetics. Quantum computing enhances the accuracy of molecular simulations, allowing researchers to predict how small changes affect drug performance. This reduces trial-and-error cycles and accelerates the development pipeline. The precision offered by quantum [...] The lead optimization segment is expected to dominate the quantum computing in drug discovery market with the largest share of 65.5% in 2025 due to its critical role in refining potential drug candidates for efficacy, safety, and pharmacokinetics. Quantum computing enhances the accuracy of molecular simulations, allowing researchers to predict how small changes affect drug performance. This reduces trial-and-error cycles and accelerates the development pipeline. The precision offered by quantum [...] The lead optimization segment is expected to dominate the quantum computing in drug discovery market with the largest share of 65.5% in 2025 due to its critical role in refining potential drug candidates for efficacy, safety, and pharmacokinetics. Quantum computing enhances the accuracy of molecular simulations, allowing researchers to predict how small changes affect drug performance. This reduces trial-and-error cycles and accelerates the development pipeline. The precision offered",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "Quantum Computing In Drug Discovery Market Size, Share ...",
+      "url": "https://www.snsinsider.com/reports/quantum-computing-in-drug-discovery-market-10497",
+      "doi": null,
+      "publisher": "Snsinsider",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "Quantum Software Platforms captured the highest market share of 26.00% in 2025 due to the high demand for quantum software platforms, molecular simulation software, quantum chemistry software, and workflow integration software for pharmaceutical companies. The increase in the demand for quantum software that allows scientists to access quantum computing hardware, develop algorithms for drug discovery, and AI-enabled molecular modeling software can be witnessed from both pharmaceutical companies [...] In 2025, North America accounted for around 47.00% of the global revenue share in the Quantum Computing In Drug Discovery Market, which makes it the largest regional market. It holds the advantage of being home to the presence of leading quantum computing hardware vendors, cloud service providers, pharmaceuticals, biotechnology firms, and government initiative for quantum computing. Many pharmaceutical firms in the US and Canada have shown interest in quantum computing for the purpose of [...] The Quantum Computing In Drug Discovery Market was valued at USD 0.45 Billion in 2025 and is projected to reach USD 1.48 Billion by 2035, expanding at a CAGR of 12.61% during the forecast period 2026–2035.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "Quantum Computing in Healthcare Market Report 2025 ...",
+      "url": "https://www.marketsandmarkets.com/Market-Reports/quantum-computing-in-healthcare-market-41524710.html",
+      "doi": null,
+      "publisher": "Marketsandmarkets",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "In 2024, the drug discovery and development application segment held the largest market share of the quantum computing in healthcare market, driven by the technology's ability to dramatically accelerate molecular modeling and simulation processes. Quantum computers excel at analyzing complex molecular interactions, predicting drug-target binding affinities, and optimizing chemical compounds with unprecedented accuracy compared to classical computing methods. Pharmaceutical giants are leveraging [...] The global quantum computing in healthcare market is projected to reach USD 1.32 billion by 2030 from USD 0.19 billion in 2024, at a high CAGR of 37.9% during the forecast period. The quantum computing in healthcare market is gaining momentum, fueled by the need for faster and more advanced data analysis in areas such as drug discovery, genomics, and precision medicine. ### KEY TAKEAWAYS [...] In 2024, the superconducting qubits technology segment held the largest market share of the quantum computing in healthcare market, driven by its maturity, scalability, and proven performance in complex healthcare applications. Superconducting systems, developed by leaders like IBM, Google, and Rigetti, offer faster gate operations and greater qubit connectivity essential for molecular simulations and drug discovery algorithms. The technology's compatibility with existing semiconductor",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M5",
+      "title": "Quantum Computing in Drug Discovery Market Size 2035",
+      "url": "https://www.rootsanalysis.com/reports/quantum-computing-in-drug-discovery.html",
+      "doi": null,
+      "publisher": "Rootsanalysis",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "Partnerships and Collaborations: Quantum Computing companies are forming numerous partnerships that are driving market growth. For instance, market players, such as QuEra Computing and IonQ have signed 16 and 14 collaborations, respectively, since 2024 to accelerate the development of quantum computing technologies. Similarly, several other market players are entering into collaborations to integrate technologies and advance research in quantum computing for drug discovery. [...] Answer: Quantum computing accelerates drug discovery process by precisely simulating molecular interactions at the atomic level, reducing the overall time and cost of traditional methods. Answer: The current global market size is USD 361 million and is expected to reach USD 1,692 million by 2035. Answer: The market is expected to grow at a CAGR of 18.7% over the forecast period. [...] ChatGPT Perplexity Claude Google AI ### Analyze with AI ChatGPT Perplexity Claude Google AI ## Market Size The quantum computing in drug discovery market, valued at USD 315 million in 2025, is projected to reach USD 361 million in 2026 and USD 1,692 million by 2035, representing a CAGR of 18.7% during the forecast period 2026 to 2035. Global Quantum Computing in Drug Discovery Market Growth 2025 to 2035 See What’s in the Full Report – Request Your Complimentary Insights!",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M6",
+      "title": "D-Wave Reports Fourth Quarter and Year-End 2025 Results",
+      "url": "https://www.dwavequantum.com/company/newsroom/press-release/d-wave-reports-fourth-quarter-and-year-end-2025-results",
+      "doi": null,
+      "publisher": "Dwavequantum",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "Bookings1: Bookings for the year ended December 31, 2025 were $18.7 million, a decrease of $5.2 million, or 22%, from Bookings of $23.9 million for the year ended December 31, 2024 that included an eight-figure booking of the Company's first quantum computer system sale. Subsequent to year-end 2025, the Company has closed over $32.8 million in additional Bookings. [...] Bookings1: Bookings for the fourth quarter of fiscal 2025 were $13.4 million, a decrease of $4.9 million, or 27%, from the fiscal 2024 fourth quarter Bookings of $18.3 million that included an eight-figure booking of the Company's first quantum computer system sale, and an increase of $11.0 million, or 471%, from the immediately preceding fiscal 2025 third quarter Bookings of $2.4 million. [...] + Multicolor annealing, a set of processor controls that give researchers new ways to shape and observe quantum behavior over time, enabling exploration in quantum materials simulation, molecular models for drug discovery, and advanced quantum-driven applications; and + Fast-reverse anneal, which allows the annealing quantum computer to move back and forth through the annealing process while maintaining coherence, thus leading to faster time-to-solution.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M7",
+      "title": "Quantum Computing Market Size, Share | CAGR of 37.0%",
+      "url": "https://market.us/report/quantum-computing-market",
+      "doi": null,
+      "publisher": "Market",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "Among pure-play quantum companies, IonQ has emerged as a leading commercial player, reporting USD 130.0 million in GAAP revenue in 2025, representing 202% year-on-year growth. The company became the first publicly traded quantum computing firm to exceed USD 100 million in annual GAAP revenue and ended 2025 with USD 3.3 billion in cash and investments. IonQ also projected USD 225–245 million in revenue for 2026, indicating continued strong expansion in quantum hardware and related services. [...] IBM has established a strong market position, reporting more than USD 1 billion in cumulative quantum technology revenue by early 2025 and allocating USD 8.3 billion toward R&D in 2025, including investments in advanced technologies such as quantum computing. [...] ## Report Overview In 2025, the Quantum Computing Market was valued at USD 2.2 billion and is projected to expand at a CAGR of 37.0% from 2026 to 2035, reaching approximately USD 50.4 billion by 2035. North America held the dominant position in the global market in 2025, accounting for more than 38.4% of the total market share and generating around USD 0.9 billion in revenue. Global Quantum Computing Market Market Size Valuation Chart 2025",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M8",
+      "title": "Ushering in the Next Frontier of Quantum Innovation",
+      "url": "https://www.whitehouse.gov/presidential-actions/2026/06/ushering-in-the-next-frontier-of-quantum-innovation",
+      "doi": null,
+      "publisher": "Whitehouse",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "government",
+      "credibility_tier": "high",
+      "credibility_reason": "Official government source; authoritative within its stated scope.",
+      "evidence_summary": "Sec. 2. Policy. It is the policy of my Administration to ensure that the United States maintains a strategic technical advantage in QIST and leads the development of a robust and trusted quantum ecosystem across QIST research, manufacturing, commercialization, and application. [...] Today, as other nations move quickly to challenge American leadership, the United States must take a cohesive, whole-of-government approach to accelerate deployment and commercialization of quantum computing, sensing, and networking. [...] (b) The Secretary of War, the Secretary of Commerce, the Secretary of Energy, the DNI, the Director of NSF, and the heads of other relevant agencies as appropriate, in consultation with the Director of OMB, shall ensure that relevant capabilities, manufacturing infrastructure, and expertise are made available to support the QC-ADDS Effort to the extent practicable, and shall deploy these resources towards exploration of quantum-computer-enabled capabilities for commercial, government, and",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "quantum computing for drug discovery peer reviewed DOI journal",
+    "quantum computing for drug discovery systematic review meta-analysis",
+    "quantum computing for drug discovery site:scholar.google.com",
+    "quantum computing for drug discovery Nature Science Cell Lancet article",
+    "quantum computing for drug discovery review journal",
+    "quantum computing for drug discovery efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "quantum computing for drug discovery site:patents.google.com/patent",
+    "quantum computing for drug discovery site:patentscope.wipo.int",
+    "quantum computing for drug discovery site:worldwide.espacenet.com",
+    "quantum computing for drug discovery site:patents.justia.com",
+    "quantum computing for drug site:patents.google.com/patent",
+    "quantum computing for drug site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "quantum computing for drug discovery market size revenue commercial manufacturer 2024 2025",
+    "quantum computing for drug discovery industry company deployment commercial scale",
+    "quantum computing for drug discovery product manufacturer revenue commercial sales 2024 2025",
+    "quantum computing for drug discovery company commercial deployment industry news",
+    "quantum computing for drug discovery market report investment startup 2024",
+    "quantum computing for drug discovery commercial scale production manufacturer press release",
+    "quantum computing for drug discovery manufacturing commercialization company",
+    "quantum computing for drug discovery government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] quantum computing for drug discovery",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] quantum computing for drug discovery",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Quantum algorithms for pharmac] quantum computing for drug discovery",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Quantum-enhanced virtual scree] quantum computing for drug discovery",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] quantum computing for drug discovery",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[PubMed] quantum computing for drug discovery",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": [
+        "near-duplicate of 'Quantum computing for near-term applications in generative chemistry and drug discovery.': Quantum computing applications in drug discovery."
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] quantum computing for drug discovery",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "quantum computing for drug discovery site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'Machine learning based methods of analysing drug-like ...'",
+        "patent title not relevant to topic (score 1): 'US20230289636A1 - Quantum Computer with Improved Quantum Optimization by Exploiting Marginal Data - Google Patents'",
+        "patent title not relevant to topic (score 1): 'US20070239366A1 - Hybrid classical-quantum computer ...'",
+        "duplicate patent family title: Methods and systems for quantum computing",
+        "patent title not relevant to topic (score 1): 'US20120071333A1 - Uses of systems with degrees of freedom poised between fully quantum and fully classical states - Google Patents'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "quantum computing for drug discovery site:patentscope.wipo.int",
+      "result_count": 3,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'WO/2012/047356 USES OF SYSTEMS WITH DEGREES ...'",
+        "patent title not relevant to topic (score 0): 'Search International and National Patent Collections'",
+        "patent title not relevant to topic (score 0): 'WIPO - Search International and National Patent Collections'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "quantum computing for drug discovery site:worldwide.espacenet.com",
+      "result_count": 10,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet - Classification search'",
+        "patent title not relevant to topic (score 0): 'Espacenet - Classification search'",
+        "patent title not relevant to topic (score 0): 'Espacenet - Classification search'",
+        "patent title not relevant to topic (score 0): 'Espacenet - Classification search'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "quantum computing for drug discovery site:patents.justia.com",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P4"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'U.S. Patent for Hybrid quantum-classical computer for solving linear systems Patent (Patent # 12,340,277 issued June 24, 2025)'",
+        "patent title not relevant to topic (score 1): 'Hybrid quantum-classical computer system and method for ...'",
+        "patent title not relevant to topic (score 0): 'David Park Inventions, Patents and Patent Applications'",
+        "patent title not relevant to topic (score 1): 'Thermal Quantum Annealing'",
+        "patent title not relevant to topic (score 0): 'Stuart Kauffman Inventions, Patents and Patent Applications'",
+        "patent title not relevant to topic (score 0): 'system and method for orchestration of multi-agent ...'",
+        "patent title not relevant to topic (score 0): 'Involving Nucleic Acid Patents (Class 435/6.1)'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "quantum computing for drug site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "non-primary patent host: en.wikipedia.org",
+        "non-primary patent host: www.quantinuum.com",
+        "non-primary patent host: chicagoquantum.org",
+        "non-primary patent host: www.quantum.com",
+        "non-primary patent host: www.anl.gov",
+        "non-primary patent host: www.ibm.com",
+        "non-primary patent host: www.nist.gov",
+        "non-primary patent host: en.wikipedia.org"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "quantum computing for drug site:patentscope.wipo.int",
+      "result_count": 9,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'WO/2012/047356 USES OF SYSTEMS WITH DEGREES ...'",
+        "patent title not relevant to topic (score 0): 'metal complex incorporated low-dimensional perovskite ...'",
+        "patent title not relevant to topic (score 0): 'Search International and National Patent Collections'",
+        "patent title not relevant to topic (score 0): 'الويبو - البحث في مجموعات البراءات الدولية والوطنية'",
+        "non-primary patent host: mirror.patentscope.wipo.int",
+        "patent title not relevant to topic (score 0): 'WIPO - Online-Suche in nationalen und internationalen Patentsammlungen'",
+        "patent title not relevant to topic (score 0): 'WIPO - Online-Suche in nationalen und internationalen Patentsammlungen'",
+        "patent title not relevant to topic (score 0): 'WIPO - Search International and National Patent Collections'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "quantum computing for drug discovery market size revenue commercial manufacturer 2024 2025",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: dataintelo.com",
+        "market host is blocked or not approved: www.insightaceanalytic.com",
+        "deferred (market-report cap): 'Quantum Computing Market Size to Reach USD 19.44 Billion by 2035'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "quantum computing for drug discovery industry company deployment commercial scale",
+      "result_count": 9,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "duplicate source: https://www.snsinsider.com/reports/quantum-computing-in-drug-discovery-market-10497",
+        "market host is blocked or not approved: www.insightaceanalytic.com",
+        "market host is blocked or not approved: www.nature.com",
+        "duplicate source: https://www.mordorintelligence.com/industry-reports/quantum-computing-in-drug-discovery-market",
+        "market host is blocked or not approved: www.rootsanalysis.com",
+        "market host is blocked or not approved: www.sciencedirect.com",
+        "market host is blocked or not approved: entangledfuture.com",
+        "market host is blocked or not approved: www.youtube.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "quantum computing for drug discovery product manufacturer revenue commercial sales 2024 2025",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M6"
+      ],
+      "rejected_reasons": [
+        "duplicate source: https://www.marketsandmarkets.com/Market-Reports/quantum-computing-in-healthcare-market-41524710.html",
+        "duplicate source: https://www.mordorintelligence.com/industry-reports/quantum-computing-in-drug-discovery-market",
+        "market host is blocked or not approved: www.spinquanta.com",
+        "market host is blocked or not approved: www.insightaceanalytic.com",
+        "duplicate source: https://market.us/report/quantum-computing-market",
+        "deferred (market-report cap): 'Quantum Computing Market Size, Share & Industry Trends- 2035'",
+        "deferred (market-report cap): 'Quantum Computing Market Size & Share Report, 2026-2033'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "quantum computing for drug discovery company commercial deployment industry news",
+      "result_count": 10,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "market host is blocked or not approved: entangledfuture.com",
+        "duplicate source: https://www.snsinsider.com/reports/quantum-computing-in-drug-discovery-market-10497",
+        "market host is blocked or not approved: intuitionlabs.ai",
+        "market host is blocked or not approved: postquantum.com",
+        "duplicates academic title: Quantum computing's potential for drug discovery: Early stage industry dynamics",
+        "duplicate source: https://www.marketsandmarkets.com/Market-Reports/quantum-computing-in-healthcare-market-41524710.html",
+        "market host is blocked or not approved: www.nature.com",
+        "market host is blocked or not approved: www.dwavequantum.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "quantum computing for drug discovery market report investment startup 2024",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M7"
+      ],
+      "rejected_reasons": [
+        "duplicate source: https://www.databridgemarketresearch.com/reports/global-quantum-computing-in-drug-discovery-market",
+        "market host is blocked or not approved: intuitionlabs.ai",
+        "market host is blocked or not approved: www.thebusinessresearchcompany.com",
+        "market host is blocked or not approved: www.nature.com",
+        "market host is blocked or not approved: www.linkedin.com",
+        "duplicate source: https://www.grandviewresearch.com/industry-analysis/quantum-computing-market",
+        "deferred (market-report cap): 'Quantum Computing Market Size, Share & Trends'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "quantum computing for drug discovery commercial scale production manufacturer press release",
+      "result_count": 10,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "duplicate source: https://www.mordorintelligence.com/industry-reports/quantum-computing-in-drug-discovery-market",
+        "market host is blocked or not approved: intuitionlabs.ai",
+        "market host is blocked or not approved: www.hpcwire.com",
+        "market host is blocked or not approved: www.sphericalinsights.com",
+        "market host is blocked or not approved: www.insightaceanalytic.com",
+        "market host is blocked or not approved: www.nature.com",
+        "duplicate source: https://www.snsinsider.com/reports/quantum-computing-in-drug-discovery-market-10497",
+        "market host is blocked or not approved: www.youtube.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "quantum computing for drug discovery manufacturing commercialization company",
+      "result_count": 9,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.rootsanalysis.com",
+        "market host is blocked or not approved: intuitionlabs.ai",
+        "market host is blocked or not approved: www.insightaceanalytic.com",
+        "market host is blocked or not approved: www.youtube.com",
+        "deferred (market-report cap): 'Quantum Computing in Pharma | Biogen Case Study'",
+        "unreachable URL https://www.mckinsey.com/industries/life-sciences/our-insights/the-quantum-revolution-in-pharma-faster-smarter-and-more-precise: request failed: The read operation timed out",
+        "market host is blocked or not approved: www.nature.com",
+        "market host is blocked or not approved: www.dwavequantum.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "quantum computing for drug discovery government standards policy commercialization",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M8"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: ieeexplore.ieee.org",
+        "market host is blocked or not approved: www.datamintelligence.com",
+        "market host is blocked or not approved: www.nature.com"
+      ]
+    },
+    {
+      "domain": "academic",
+      "query": "[Relevance-Filter]",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "score=-1 (min=3) — removed 'Quantum-computing-enhanced algorithm unveils potential KRAS inhibitors.'"
+      ]
+    }
+  ]
+}

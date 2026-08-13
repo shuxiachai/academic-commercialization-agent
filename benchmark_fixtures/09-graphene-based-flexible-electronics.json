@@ -1,0 +1,578 @@
+{
+  "topic": "graphene-based flexible electronics",
+  "display_topic": "graphene-based flexible electronics",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "material_science",
+  "collected_at": "2026-08-12T08:39:45.076002Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "Laser Fabrication of Graphene-Based Flexible Electronics.",
+      "url": "https://doi.org/10.1002/adma.201901981",
+      "doi": "10.1002/adma.201901981",
+      "publisher": "Adv Mater",
+      "published_date": "2020-04-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Adv Mater).",
+      "evidence_summary": "Recent years have witnessed the rise of graphene and its applications in various electronic devices. Specifically, featuring excellent flexibility, transparency, conductivity, and mechanical robustness, graphene has emerged as a versatile material for flexible electronics. In the past decade, facilitated by various laser processing technologies, including the laser-treatment-induced photoreduction of graphene oxides, flexible patterning, hierarchical structuring, heteroatom doping, controllable thinning, etching, and shock of graphene, along with laser-induced graphene on polyimide, graphene has found broad applications in a wide range of electronic devices, such as power generators, supercapacitors, optoelectronic devices, sensors, and actuators. Here, the recent advancements in the laser fabrication of graphene-based flexible electronic devices are comprehensively summarized. The various laser fabrication technologies that have been employed for the preparation, processing, and modification of graphene and its derivatives are reviewed. A thorough overview of typical laser-enabled flexible electronic devices that are based on various graphene sources is presented. With the rapid progress that has been made in the research on graphene preparation methodologies and laser micronanofabrication technologies, graphene-based electronics may soon undergo fast development.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A2",
+      "title": "Graphene-Based Polymer Composites for Flexible Electronic Applications.",
+      "url": "https://doi.org/10.3390/mi13071123",
+      "doi": "10.3390/mi13071123",
+      "publisher": "Micromachines (Basel)",
+      "published_date": "2022-07-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Micromachines (Basel)).",
+      "evidence_summary": "Graphene-based nanomaterials have gained a lot of interest over the last years in flexible electronics due to their exceptional electrical, mechanical, and optoelectronic properties, as well as their potential of surface modification. Their flexibility and processability make them suitable for electronic devices that require bending, folding, and stretching, which cannot be fulfilled by conventional electronics. These nanomaterials can be assembled with various types of organic materials, including polymers, and biomolecules, to generate a variety of nanocomposites with greater stretchability and healability, higher stiffness, electrical conductivity, and exceptional thermal stability for flexible lighting and display technologies. This article summarizes the main characteristics and synthesis methods of graphene, its oxidized form graphene oxide (GO), and reduced GO derivative, as well as their corresponding polymeric composites, and provides a brief overview about some recent examples of these nanocomposites in flexible electronic applications, including electrodes for solar cells and supercapacitors, electronic textiles, and transistors.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A3",
+      "title": "Graphene-Based Flexible and Stretchable Electronics.",
+      "url": "https://doi.org/10.1002/adma.201504245",
+      "doi": "10.1002/adma.201504245",
+      "publisher": "Adv Mater",
+      "published_date": "2016-06-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Adv Mater).",
+      "evidence_summary": "Graphene provides outstanding properties that can be integrated into various flexible and stretchable electronic devices in a conventional, scalable fashion. The mechanical, electrical, and optical properties of graphene make it an attractive candidate for applications in electronics, energy-harvesting devices, sensors, and other systems. Recent research progress on graphene-based flexible and stretchable electronics is reviewed here. The production and fabrication methods used for target device applications are first briefly discussed. Then, the various types of flexible and stretchable electronic devices that are enabled by graphene are discussed, including logic devices, energy-harvesting devices, sensors, and bioinspired devices. The results represent important steps in the development of graphene-based electronics that could find applications in the area of flexible and stretchable electronics.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A4",
+      "title": "Laser-Induced Graphene Based Flexible Electronic Devices.",
+      "url": "https://doi.org/10.3390/bios12020055",
+      "doi": "10.3390/bios12020055",
+      "publisher": "Biosensors (Basel)",
+      "published_date": "2022-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Biosensors (Basel)).",
+      "evidence_summary": "Since it was reported in 2014, laser-induced graphene (LIG) has received growing attention for its fast speed, non-mask, and low-cost customizable preparation, and has shown its potential in the fields of wearable electronics and biological sensors that require high flexibility and versatility. Laser-induced graphene has been successfully prepared on various substrates with contents from various carbon sources, e.g., from organic films, plants, textiles, and papers. This paper reviews the recent progress on the state-of-the-art preparations and applications of LIG including mechanical sensors, temperature and humidity sensors, electrochemical sensors, electrophysiological sensors, heaters, and actuators. The achievements of LIG based devices for detecting diverse bio-signal, serving as monitoring human motions, energy storage, and heaters are highlighted here, referring to the advantages of LIG in flexible designability, excellent electrical conductivity, and diverse choice of substrates. Finally, we provide some perspectives on the remaining challenges and opportunities of LIG.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A5",
+      "title": "Toward Integrated Multifunctional Laser-Induced Graphene-Based Skin-Like Flexible Sensor Systems.",
+      "url": "https://doi.org/10.1021/acsnano.4c09062",
+      "doi": "10.1021/acsnano.4c09062",
+      "publisher": "ACS Nano",
+      "published_date": "2024-10-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (ACS Nano).",
+      "evidence_summary": "The burgeoning demands for health care and human-machine interfaces call for the next generation of multifunctional integrated sensor systems with facile fabrication processes and reliable performances. Laser-induced graphene (LIG) with highly tunable physical and chemical characteristics plays vital roles in developing versatile skin-like flexible or stretchable sensor systems. This Progress Report presents an in-depth overview of the latest advances in LIG-based techniques in the applications of flexible sensors. First, the merits of the LIG technique are highlighted especially as the building blocks for flexible sensors, followed by the description of various fabrication methods of LIG and its variants. Then, the focus is moved to diverse LIG-based flexible sensors, including physical sensors, chemical sensors, and electrophysiological sensors. Mechanisms and advantages of LIG in these scenarios are described in detail. Furthermore, various representative paradigms of integrated LIG-based sensor systems are presented to show the capabilities of LIG technique for multipurpose applications. The signal cross-talk issues are discussed with possible strategies. The LIG technology with versatile functionalities coupled with other fabrication strategies will enable high-performance integrated sensor systems for next-generation skin electronics.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A6",
+      "title": "Review on Graphene-, Graphene Oxide-, Reduced Graphene Oxide-Based Flexible Composites: From Fabrication to Applications.",
+      "url": "https://doi.org/10.3390/ma15031012",
+      "doi": "10.3390/ma15031012",
+      "publisher": "Materials (Basel)",
+      "published_date": "2022-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Materials (Basel)).",
+      "evidence_summary": "In the new era of modern flexible and bendable technology, graphene-based materials have attracted great attention. The excellent electrical, mechanical, and optical properties of graphene as well as the ease of functionalization of its derivates have enabled graphene to become an attractive candidate for the construction of flexible devices. This paper provides a comprehensive review about the most recent progress in the synthesis and applications of graphene-based composites. Composite materials based on graphene, graphene oxide (GO), and reduced graphene oxide (rGO), as well as conducting polymers, metal matrices, carbon-carbon matrices, and natural fibers have potential application in energy-harvesting systems, clean-energy storage devices, and wearable and portable electronics owing to their superior mechanical strength, conductivity, and extraordinary thermal stability. Additionally, the difficulties and challenges in the current development of graphene are summarized and indicated. This review provides a comprehensive and useful database for further innovation of graphene-based composite materials.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A7",
+      "title": "Graphene-Based Nanomaterials for Flexible and Stretchable Batteries.",
+      "url": "https://doi.org/10.1002/smll.202006262",
+      "doi": "10.1002/smll.202006262",
+      "publisher": "Small",
+      "published_date": "2021-12-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Small).",
+      "evidence_summary": "Recently, as flexible and wearable electronic devices have become widely popular, research on light weight and large-capacity batteries suitable for powering such devices has been actively conducted. In particular, graphene has attracted considerable attention from researchers in the battery field owing to its good mechanical properties and its applicability in various processes to fabricate electrodes for batteries. Graphene is classified into two types: flake-type, fabricated from graphite, and film-type, synthesized using chemical vapor deposition. The unique processes involved in these two types enable the fabrication of flexible and stretchable batteries with various shapes and functions. In this article, the recent progress in the development of flexible and stretchable batteries based on graphene, as well as its important technical issues are reviewed.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A8",
+      "title": "Graphene-Based Materials for Flexible Lithium-Sulfur Batteries.",
+      "url": "https://doi.org/10.1021/acsnano.1c03183",
+      "doi": "10.1021/acsnano.1c03183",
+      "publisher": "ACS Nano",
+      "published_date": "2021-09-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (ACS Nano).",
+      "evidence_summary": "The increasing demand for wearable electronic devices necessitates flexible batteries with high stability and desirable energy density. Flexible lithium-sulfur batteries (FLSBs) have been increasingly studied due to their high theoretical energy density through the multielectron chemistry of low-cost sulfur. However, the implementation of FLSBs is challenged by several obstacles, including their low practical energy density, short life, and poor flexibility. Various graphene-based materials have been applied to address these issues. Graphene, with good conductivity and flexibility, exhibits synergistic effects with other active/catalytic/flexible materials to form multifunctional graphene-based materials, which play a pivotal role in FLSBs. This review summarizes the recent progress of graphene-based materials that have been used as various FLSB components, including cathodes, interlayers, and anodes. Particular attention is focused on the precise nanostructures, graphene efficacy, interfacial effects, and battery layout for realizing FLSBs with good flexibility, energy density, and cycling stability.",
+      "summary_source": "abstract",
+      "citation_count": null
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "WO2022093005A1 - A method for preparing a graphene-based conductive film - Google Patents",
+      "url": "https://patents.google.com/patent/WO2022093005A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2022-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2022; legal scope still requires claim review.",
+      "evidence_summary": "Flexible electronics is a technology that allows building of electronic circuits on flexible substrates thus making them foldable and stretchable. The main advantages of flexible electronics are the low cost manufacturing through inkjet printing and inexpensive flexible substrate such as plastics, paper, textiles or metal foils. Therefore, flexible electronic has gained great attention due to its ability in providing cost effective solutions to wide area of applications such as rollable [...] the present invention relates to preparation of graphene-based conductive film for flexible electronics, more particularly a method for preparing a reduced graphene oxide-silver nanoparticles conductive film through inkjet printing. Flexible electronics is a technology that allows building of electronic circuits on flexible substrates thus making them foldable and stretchable. [...] the main advantages of flexible electronics are the low cost manufacturing through inkjet printing and inexpensive flexible substrate such as plastics, paper, textiles or metal foils. Therefore, flexible electronic has gained great attention due to its ability in providing cost effective solutions to wide area of applications such as rollable displays, electronic paper, flexible cellular phone, solar cells, RFID-tags, wearable sensors for health monitoring, lab-on-a-chip for disease",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "US9704964B1 - Graphene-based device with liquid metal contacts - Google Patents",
+      "url": "https://patents.google.com/patent/US9704964B1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "Recent attempts to utilize graphene in thin and flexible electronics have led to advances in capacitive multi-touch sensors, graphene-based light-emitting devices, and nonvolatile memory. Reliability and high performance are rarely achieved due to problems related to interfacial delamination and cracking of traditional device interconnects that are mainly comprised of standard electrode materials, such as gold, silver, titanium, chromium, and their composites. [...] the disclosed embodiments may also be useful for fabricating devices including wearable electronics, flexible power sources, solar cells, optical sensors, radio-frequency devices, and chemical-biological detectors with increased performance due to the utilization of monolayer and multilayer graphene or other graphene microstructures or graphene nanostructures. [...] | Publication | Publication Date | Title | --- | US9704964B1 (en) | | Graphene-based device with liquid metal contacts | | Almuslem et al. | | Flexible and stretchable electronics for harsh‐environmental applications | | Catania et al. | | Thin-film electronics on active substrates: review of materials, technologies and applications | | Dickey | | Stretchable and soft electronics using liquid metals |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "U.S. Patent for Wearable device utilizing flexible electronics Patent (Patent # 11,832,971 issued December 5, 2023)",
+      "url": "https://patents.justia.com/patent/11832971",
+      "doi": null,
+      "publisher": "Justia",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "In certain embodiments, the wearable device 115,125 may contain printed Graphene and flexible circuitry. Graphene may be a component utilized for its conductive nature, its ability to repel water and its ability to withstand damage. Graphene-based ink printing devices may be used to print in mass using printers specifically developed to print the devices of the system 100. Sensors may even be graphene-based as well. In another embodiment, the flexible wearable devices 115, 125 may contain a [...] In certain embodiments, the system 100 may perform hydration monitoring via the sensors of the wearable devices 115, 125 on the bodies of the users of the system 100. In certain embodiments, glucose and electrolyte measurements may be obtained via the sensors of the wearable devices 115, 125 as well. In certain embodiments, the wearable devices 115, 125 may utilized graphene sensors. In certain embodiments, the system 100 and wearable devices 115, 125 will not only give feedback on force, [...] 17. The method of claim 15, further comprising comparing the performance metric to baseline data for the individual to determine deviation from the baseline data. 18. The method of claim 15, further comprising generating the wearable device by utilizing a three-dimensional printer, conductive ink, graphene, or a combination thereof.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "Graphene-based films in sensor applications",
+      "url": "https://patents.google.com/patent/US9178129B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2012-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2012; legal scope still requires claim review.",
+      "evidence_summary": "Graphene has received significant attention in a variety of technical fields because of its potential use in highly-flexible electrically-conductive films for applications such as optoelectronics, energy storage, environmental sensors, and biomedical devices. [...] | El-Kady, M. et al., \"Laser Scribing of High-Performance and Flexible Graphene-Based Electrochemical Capacitors,\" Science, vol. 335, No. 6074, pp. 1326-1330, Mar. 2012. | | Ferrari, A. et al., Inkjet-Printed Graphene Electronics; ACS Nano, vol. 6, No. 4, 2992-3006, (2012). | | Final Office Action mailed Jun. 25, 2014 in reference to U.S. Appl. No. 13/324,622. | [...] | US20120128983A1 (en) | 2010-11-17 | 2012-05-24 | Sungkyunkwan University Foundation For Corporate Collaboration | Multi-layered graphene sheet and method of fabricating the same | | US20120170171A1 (en) | 2010-11-22 | 2012-07-05 | Woo Young Lee | Inkjet-printed flexible electronic components from graphene oxide | | US20140321028A1 (en) | 2010-11-22 | 2014-10-30 | The Trustees Of The Stevens Institute Of Technology | Inkjet-printed flexible electronic components from graphene oxide |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P5",
+      "title": "US9249016B2 - Graphene-based multi-junctions flexible solar cell - Google Patents",
+      "url": "https://patents.google.com/patent/US9249016B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The disclosure provides a method of fabricating graphene-based multi-junctions flexible thin-film solar cells. In contrast to the common multi-junctions flexible thin-film solar cells that use III-V semiconductor materials, the solar cells described herein use at least one, two, three or more sub-cells of a semiconducting graphene layer as a component. There are several advantages of using semiconducting graphene layers over the III-V semiconductor materials. The semiconducting graphene has a [...] or other polymeric sacrificial layers. The band gap opening of the graphene layer can be created by exposing it to dry oxidation or reduction treatment. In one embodiment, the conductive substrate is a flexible conductive substrate. [...] gap to provide a graphene-flexible substrate assembly; combining one or more other graphene-flexible substrate assemblies that have equal band gap but opposite doping to provide a p-n-doped graphene assembly; stacking one or more p-n-doped assembly or sub-cell on top or on bottom of other of p-n-doped assembly or sub-cell with the same or different band gaps.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P6",
+      "title": "WO2015168308A1 - High-resolution patterning of graphene by screen and gravure printing for highly flexible printed electronics - Google Patents",
+      "url": "https://patents.google.com/patent/WO2015168308A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2015-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2015; legal scope still requires claim review.",
+      "evidence_summary": "topographically rough substrate. This printing strategy thus offers the opportunity to utilize the two-dimensional nature of graphene in a robust, large-area format. In this manner, the integration of graphene with gravure printing represents a milestone in the development of solution-processed graphene for commercially relevant, highly scalable applications in printed and flexible electronics. [...] It can also be an object of the present invention to provide a low temperature, environmentally benign approach to gravure graphene printing en route to the fabrication of high-conductivity patterns suitable for flexible or foldable electronics. [...] It can also be an object of the present invention to provide high resolution graphene screen printing, as compared to conventional lithographic methods of the prior art, en route to the fabrication of high-conductivity patterns suitable for flexible or foldable electronics.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P7",
+      "title": "a method for preparing graphene-based films using laser ...",
+      "url": "https://patentscope.wipo.int/search/en/WO2022238722",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The resulting turbostratic graphene and graphene-based nanohybrids can be used, inter alia, as electrodes in energy conversion and storage devices, in flexible ...Read more",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P8",
+      "title": "WO2016106039A1 - Transfer of monolayer graphene onto flexible glass substrates - Google Patents",
+      "url": "https://patents.google.com/patent/WO2016106039A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2016-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2016; legal scope still requires claim review.",
+      "evidence_summary": "The demand for smaller, thinner, lighter, flexible and in some cases, transparent, electronics devices, such as displays, touch sensors, and photovoltaics, continues to increase at a phenomenal rate. Graphene is an ideal candidate for such technologies, as it has high transparency, mechanical flexibility and an electrical conductivity that can be tuned over a wide range from insulator to metal. In fact, graphene is considered as a viable candidate material to replace common transparent [...] opportunity to design even smaller devices. Since graphene remains conductive and stable at the molecular level, it is in a position to provide the next generation of low power electronics. [...] Described herein are methods for improved transfer of graphene from formation substrates to flexible glass target substrates. In particular, the methods described herein are useful in the transfer of high-quality chemical vapor deposition-grown monolayers of graphene from metal, e.g., copper, formation substrates to dimensionally and thermally stable targets that offer wide applicability for use in electronics. Technical Background",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "Graphene Electronics Market Trends, Forecast by 2025",
+      "url": "https://www.transparencymarketresearch.com/graphene-electronics-market.html",
+      "doi": null,
+      "publisher": "Transparencymarketresearch",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "interest in unlocking the potential of graphene electronics for nanoelectromechanical accelerometers. Advancements in fabrication technologies have also boosted the revenue potential for industry players. In recent years, an array of research initiatives in developing economies have focused on novel electronics for wearable. This will likely expand the horizon for the commercialization of graphene electronics. Advances in large area and flexible electronics have fueled the prospects. Growing [...] Currently, very few graphene based electronic devices are currently available commercially across the globe. The global graphene electronics market is primarily driven by the versatile applications of graphene. Graphene’s superconductivity feature has led to it increasingly becoming an important constituent of advanced batteries and ultracapacitors. GFETs have shown that biosensors and chemical sensors based on graphene can derive result faster and more accurately than traditional sensors. [...] once graphene based consumer electronic devices is commercially available; the market in this region can be expected to grow significantly.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "Graphene Boosts Flexible and Wearable Electronics - www.caltech.edu",
+      "url": "https://www.caltech.edu/about/news/graphene-boosts-flexible-and-wearable-electronics",
+      "doi": null,
+      "publisher": "Caltech",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "research_institute",
+      "credibility_tier": "medium",
+      "credibility_reason": "University or academic institution; credible for research outputs, verify for commercial claims.",
+      "evidence_summary": "But while graphene-based research has been fast-tracked, the nanomaterial has hit roadblocks: in particular, manufacturers have not been able to create large, industrially relevant amounts of the material. New research from the laboratory of Nai-Chang Yeh, the Thomas W. Hogan Professor of Physics, is reinvigorating the graphene craze. [...] In two new studies, the researchers demonstrate that graphene can greatly improve electrical circuits required for wearable and flexible electronics such as smart health patches, bendable smartphones, helmets, large folding display screens, and more. [...] Yeh adds that their graphene-growth method, which can be scaled up for industrial needs, is compatible with a host of other applications in addition to flexible and wearable electronics. \"Our method is highly compatible with all kinds of substrates, ranging from tiny, nanostructure metals, to semiconducting materials, to even plastics. Because we don't require high temperatures, this method can be used on different substrates for many applications,\" she says. Pink Plasma",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "Graphene Electronics Market | Global Market Analysis Report",
+      "url": "https://www.futuremarketinsights.com/reports/graphene-electronics-market",
+      "doi": null,
+      "publisher": "Futuremarketinsights",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The proliferation of graphene-enabled flexible electronics is reshaping consumer device design, particularly in smart textiles, bendable phones, and health wearables. Between Q4 2024 and Q2 2025, Korea-based OEMs expanded pilot production of graphene films for foldable OLED displays by 29%, while EU health-tech startups launched biosensor patches incorporating graphene e-skin circuits for hydration and ECG tracking. Apple’s 2025 patent filings included layered graphene logic arrays for [...] Graphene Film is expected to account for 35.0% of the market revenue in 2025, solidifying its status as the leading material type. This segment benefits from the film’s excellent electrical and mechanical properties, which make it ideal for integration into flexible electronics and sensors. The production of high-quality graphene films has improved with advances in chemical vapor deposition and transfer techniques, increasing scalability and reducing costs. [...] The Display segment is projected to hold 30.0% of the graphene electronics market revenue in 2025, driven by the need for improved screen technologies. Graphene’s high transparency and conductivity have enabled enhancements in display resolution and energy efficiency. Manufacturers have increasingly incorporated graphene films into touchscreens and OLED displays to achieve thinner and more flexible designs.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "Graphene Chip Market Report, Industry and Market Size & Revenue, Share, Forecast 2024–2030",
+      "url": "https://www.strategicmarketresearch.com/market-report/graphene-chip-market",
+      "doi": null,
+      "publisher": "Strategicmarketresearch",
+      "published_date": "2023-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "deployment. Recent Developments + Opportunities & RestraintsRecent Developments (Last 2 Years) In 2023, Samsung Electronics announced progress on integrating graphene transistors into flexible display prototypes, signaling a push toward commercialization in consumer electronics. IBM Research demonstrated a graphene-based RF transistor capable of operating at frequencies above 300 GHz, showing promise for high-speed communication devices. TSMC partnered with academic institutions in Taiwan to [...] Applications define the most practical value drivers for graphene chips. Key areas include consumer electronics, telecommunications, energy storage and power electronics, computing and data centers, and automotive electronics. Telecommunications, particularly in 5G base stations and high-frequency RF devices, represents one of the earliest commercial adoption points. Consumer electronics, especially wearables and flexible devices, is expected to become the fastest-growing segment, supported by [...] of graphene chips are shaped by the balance between performance demands and commercial readiness. High-end sectors like defense and research will continue to lead in early adoption, while consumer electronics and automotive applications are expected to drive volume growth once cost and manufacturing barriers are overcome. Each end-user group is essentially testing different pathways, but together they are accelerating the transition from laboratory breakthroughs to real-world deployment.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M5",
+      "title": "Graphene Electronics Market Size To Exceed $11.08 Billion By 2035",
+      "url": "https://www.snsinsider.com/press-release/global-graphene-electronics-market",
+      "doi": null,
+      "publisher": "Snsinsider",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "By end user, OEMs were forecasted to contribute approximately 61.40% of market revenue in 2025, reflecting growing integration of graphene into commercial products. Research and development organizations are expected to witness the fastest growth as investment increases in semiconductor technologies, advanced batteries, healthcare devices, and defense applications. Flexible Electronics and Battery Innovation Remain Key Priorities [...] Key Market Insights Highlight Shifting Demand Patterns By product type, graphene coatings segment accounted for approximately 35.80% of global market revenue in 2025. Their established use in thermal management, electromagnetic interference shielding, and conductive applications supports segment leadership. Graphene nanoplatelets are projected to record the fastest growth as demand rises for advanced battery electrodes and high-performance composite materials. [...] logo Download PDF Login The global Graphene Electronics Market is entering a high-growth phase as industries pursue advanced materials capable of improving the performance, flexibility, and efficiency of next-generation electronic devices. According to a recent study by SNS Insider, the global Graphene Electronics Market size valued at USD 943.10 million in 2025, is anticipated to grow to USD 11.08 billion by 2035, registering a CAGR of 27.99% over the 2026–2035 forecast period.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M6",
+      "title": "Global Flexible Electronics Market Report 2022-2026",
+      "url": "https://www.prnewswire.com/news-releases/global-flexible-electronics-market-report-2022-2026-graphene---a-potent-material-for-flexible-foldable-and-stretchable-electronic-devices-301514033.html",
+      "doi": null,
+      "publisher": "Prnewswire",
+      "published_date": "2022-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "Press release wire service; primary for attributed company announcements.",
+      "evidence_summary": "Key Benefits Offered Drive Deployment of R2R Technology Graphene: A Potent Material for Flexible, Foldable and Stretchable Electronic Devices [...] Accessibility Statement Skip Navigation # Global Flexible Electronics Market Report 2022-2026: Graphene - A Potent Material for Flexible, Foldable and Stretchable Electronic Devices Research and Markets Logo ## News provided by Research and Markets Mar 30, 2022, 14:15 ET ## Share this article Share toX Share this article Share toX [...] Flexible electronics is a progressive technology that aims to facilitate development of electronic systems in folded, curved, rolled, bent and stretched designs, while addressing the issues and challenges persisting in manufacture of miniature, compact and portable devices. Initially perceived as a futuristic concept, flexible electronics is gradually making its presence felt in various application markets.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M7",
+      "title": "Graphene Electronics Market Size, Share, 2025-2030 Outlook",
+      "url": "https://www.mordorintelligence.com/industry-reports/graphene-electronics-market",
+      "doi": null,
+      "publisher": "Mordorintelligence",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "Consumer electronics maintained 29.43% share in 2024, mainly smartphones and tablets seeking higher battery gravimetric energy and improved thermal paths. Wearable electronics head the growth league at 35.95% CAGR, leveraging graphene’s flexibility and skin-compatibility for continuous health tracking. Laser lift-off techniques cut carbon residues by 92.8%, allowing 10 µm flexible OLED stacks viable for smart patches. Energy storage and power electronics claim rising budgets as EV manufacturers [...] Graphene film accounted for 38.21% of the graphene electronics market size in 2024, reflecting mature CVD supply chains for transparent conductors in touch panels and OLED displays. Films deliver sub-300 Ω/□ sheet resistance with ≥90% transmittance, meeting OEM specs without indium tin oxide fragility. Graphene oxide’s 35.53% forecast CAGR stems from its solution processability, enabling inkjet-printed antennas, EMI coatings and polymer composites that sidestep high-vacuum tools. Few-layer and [...] By material type, graphene film captured 38.21% of the graphene electronics market share in 2024, while graphene oxide commands the highest forecast CAGR at 35.53% through 2030. By device type, batteries and ultracapacitors held 34.58% share of the graphene electronics market size in 2024; sensors are projected to advance at 35.61% CAGR between 2025-2030. By application, consumer electronics accounted for 29.43% share in 2024, but wearable electronics are expanding at a 35.95% CAGR to",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "graphene-based flexible electronics peer reviewed DOI journal",
+    "graphene-based flexible electronics systematic review meta-analysis",
+    "graphene-based flexible electronics site:scholar.google.com",
+    "graphene-based flexible electronics Nature Science Cell Lancet article",
+    "graphene-based flexible electronics review journal",
+    "graphene-based flexible electronics efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "graphene-based flexible electronics site:patents.google.com/patent",
+    "graphene-based flexible electronics site:patentscope.wipo.int",
+    "graphene-based flexible electronics site:worldwide.espacenet.com",
+    "graphene-based flexible electronics site:patents.justia.com",
+    "graphene-based flexible electronics site:patents.google.com/patent",
+    "graphene-based flexible electronics site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "graphene-based flexible electronics market size revenue commercial manufacturer 2024 2025",
+    "graphene-based flexible electronics industry company deployment commercial scale",
+    "graphene-based flexible electronics product manufacturer revenue commercial sales 2024 2025",
+    "graphene-based flexible electronics company commercial deployment industry news",
+    "graphene-based flexible electronics market report investment startup 2024",
+    "graphene-based flexible electronics commercial scale production manufacturer press release",
+    "graphene-based flexible electronics manufacturing commercialization company",
+    "graphene-based flexible electronics government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] graphene-based flexible electronics",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] graphene-based flexible electronics",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:two-dimensional material flexi] graphene-based flexible electronics",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:carbon nanomaterial wearable e] graphene-based flexible electronics",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] graphene-based flexible electronics",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[PubMed] graphene-based flexible electronics",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] graphene-based flexible electronics",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "graphene-based flexible electronics site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'US20120170171A1 - Inkjet-printed flexible electronic ...'",
+        "patent title not relevant to topic (score 1): 'WO2015153989A1 - Electropolymerization onto flexible substrates for electronic applications - Google Patents'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "graphene-based flexible electronics site:patentscope.wipo.int",
+      "result_count": 3,
+      "accepted_source_ids": [
+        "P7"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'PCT Publications - Gazettes Archive - 2014 - Patentscope'",
+        "evidence summary too thin (75 chars): 'PCT Publications - Gazettes Archive - 2018'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "graphene-based flexible electronics site:worldwide.espacenet.com",
+      "result_count": 10,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'",
+        "patent title not relevant to topic (score 0): 'Espacenet - Classification search'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "graphene-based flexible electronics site:patents.justia.com",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P8"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'Surya Mallapragada Inventions, Patents and Patent Applications'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "graphene-based flexible electronics market size revenue commercial manufacturer 2024 2025",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.usdanalytics.com",
+        "market host is blocked or not approved: www.zionmarketresearch.com",
+        "market host is blocked or not approved: marketintelo.com",
+        "market host is blocked or not approved: www.linkedin.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "graphene-based flexible electronics industry company deployment commercial scale",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M5"
+      ],
+      "rejected_reasons": [
+        "duplicate source: https://www.snsinsider.com/press-release/global-graphene-electronics-market",
+        "market host is blocked or not approved: www.usdanalytics.com",
+        "market host is blocked or not approved: eureka.patsnap.com",
+        "duplicate source: https://www.futuremarketinsights.com/reports/graphene-electronics-market",
+        "duplicates academic title: Laser-Induced Graphene Based Flexible Electronic Devices",
+        "market host is blocked or not approved: www.sciencedirect.com",
+        "market host is blocked or not approved: www.facebook.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "graphene-based flexible electronics product manufacturer revenue commercial sales 2024 2025",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M6"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: en.wikipedia.org",
+        "market host is blocked or not approved: www.graphenea.com",
+        "market host is blocked or not approved: www.acsmaterial.com",
+        "market host is blocked or not approved: www.youtube.com",
+        "market host is blocked or not approved: graphene-flagship.eu",
+        "market host is blocked or not approved: www.americanscientist.org",
+        "market host is blocked or not approved: www.repsol.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "graphene-based flexible electronics company commercial deployment industry news",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M7",
+        "M8"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.usdanalytics.com",
+        "market host is blocked or not approved: graphene-flagship.eu",
+        "duplicate source: https://www.snsinsider.com/press-release/global-graphene-electronics-market",
+        "market host is blocked or not approved: www.mddionline.com",
+        "market host is blocked or not approved: spectrum.ieee.org"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "[Relevance-Filter]",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "score=1 (min=2) — removed 'Graphene-Info | Graphene industry portal'"
+      ]
+    }
+  ]
+}

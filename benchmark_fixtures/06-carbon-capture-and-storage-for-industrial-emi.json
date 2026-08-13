@@ -1,0 +1,547 @@
+{
+  "topic": "carbon capture and storage for industrial emissions",
+  "display_topic": "carbon capture and storage for industrial emissions",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "industrial",
+  "collected_at": "2026-08-12T08:36:53.064578Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "Strategies for mitigating carbon dioxide emissions: advanced carbon capture and storage technologies.",
+      "url": "https://doi.org/10.1007/s11356-025-37368-2",
+      "doi": "10.1007/s11356-025-37368-2",
+      "publisher": "Environ Sci Pollut Res Int",
+      "published_date": "2026-02-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Environ Sci Pollut Res Int).",
+      "evidence_summary": "Carbon capture and storage (CCS) is vital for cutting CO₂ emissions and tackling climate change. The CCS innovations of the last decades can be categorized based on the post- or pre-combustion capture, oxy-fuel combustion, and chemical looping combustion (CLC) approaches used. These techniques are primarily aimed towards capturing CO2 that would be emitted from industrial sources or power plants in separate, manicured environments prior to its release into the atmosphere. For instance, post-combustion capture can be applied to coal-fired sources to extract CO₂ from flue gases, whereas pre-combustion technologies, as the name implies, remove CO₂ before fuel is burned and are typically used for gasification processes. However, despite their promise, high energy demand, large implementing costs, and long-term storage risks stay as major hurdles to mass adoption. The different levels of technology development for carbon capture and storage and carbon capture, utilization and storage (CCUS) have made significant developments for three decades, representing the continuing interests of scientists and engineers, but also have significant shortcomings in terms of efficiency, economy, and environmental impacts. This research provides evidence of the importance of CCS for reducing CO₂ emissions, a critical component in meeting global sustainability targets, especially in hard-to-decarbonize sectors. The review differs from earlier studies in that it reviews current technological innovat",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A2",
+      "title": "Negative emissions technologies and carbon capture and storage to achieve the Paris Agreement commitments.",
+      "url": "https://doi.org/10.1098/rsta.2016.0447",
+      "doi": "10.1098/rsta.2016.0447",
+      "publisher": "Philos Trans A Math Phys Eng Sci",
+      "published_date": "2018-05-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Philos Trans A Math Phys Eng Sci).",
+      "evidence_summary": "How will the global atmosphere and climate be protected? Achieving net-zero CO2 emissions will require carbon capture and storage (CCS) to reduce current GHG emission rates, and negative emissions technology (NET) to recapture previously emitted greenhouse gases. Delivering NET requires radical cost and regulatory innovation to impact on climate mitigation. Present NET exemplars are few, are at small-scale and not deployable within a decade, with the exception of rock weathering, or direct injection of CO2 into selected ocean water masses. To keep warming less than 2°C, bioenergy with CCS (BECCS) has been modelled but does not yet exist at industrial scale. CCS already exists in many forms and at low cost. However, CCS has no political drivers to enforce its deployment. We make a new analysis of all global CCS projects and model the build rate out to 2050, deducing this is 100 times too slow. Our projection to 2050 captures just 700 Mt CO2 yr-1, not the minimum 6000 Mt CO2 yr-1 required to meet the 2°C target. Hence new policies are needed to incentivize commercial CCS. A first urgent action for all countries is to commercially assess their CO2 storage. A second simple action is to assign a Certificate of CO2 Storage onto producers of fossil carbon, mandating a progressively increasing proportion of CO2 to be stored. No CCS means no 2°C.This article is part of the theme issue 'The Paris Agreement: understanding the physical and social challenges for a warming world of 1.5°C a",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A3",
+      "title": "Is Carbon Capture and Storage (CCS) Really So Expensive? An Analysis of Cascading Costs and CO2 Emissions Reduction of Industrial CCS Implementation on the Construction of a Bridge.",
+      "url": "https://doi.org/10.1021/acs.est.2c05724",
+      "doi": "10.1021/acs.est.2c05724",
+      "publisher": "Environ Sci Technol",
+      "published_date": "2023-02-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Environ Sci Technol).",
+      "evidence_summary": "Carbon capture and storage (CCS) is an essential technology to mitigate global CO2 emissions from power and industry sectors. Despite the increasing recognition of its importance to achieve the net-zero target, current CCS deployment is far behind targeted ambitions. A key reason is that CCS is often perceived as too expensive. The costs of CCS have however traditionally been looked at from the industrial plant perspective, which does not necessarily reflect the end user's one. This paper addresses the incomplete view by investigating the impact of implementing CCS in industrial facilities on the overall costs and CO2 emissions of end-user products and services. As an example, we examine the extent to which an increase in costs of raw materials (cement and steel) due to CCS impacts the costs of building a bridge. Results show that although CCS significantly increases cement and steel costs, the subsequent increment in the overall bridge construction cost remains marginal (∼1%). This 1% cost increase, however, enables a deep reduction in CO2 emissions (∼51%) associated with the bridge construction. Although more research is needed in this area, this work is the first step to a better understanding of the real cost and benefits of CCS.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A4",
+      "title": "A Comprehensive Review of Carbon Capture, Storage, and Reduction Strategies Within the Built Environment.",
+      "url": "https://doi.org/10.3390/ma18245646",
+      "doi": "10.3390/ma18245646",
+      "publisher": "Materials (Basel)",
+      "published_date": "2025-12-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Materials (Basel)).",
+      "evidence_summary": "The built environment (BE) encompasses an enormous volume and substantial material mass. However, structures within it typically serve single, limited functions. Enhancing these structures with multifunctional capabilities holds significant potential for achieving broader sustainability goals and creating impactful environmental benefits. Among these potential multifunctional applications, carbon capture, reduction, and storage are especially critical, given the current built environment's substantial contribution of approximately 40% of global energy and CO2 emissions. Keeping this potential in view, this comprehensive review critically evaluates carbon management strategies for the built environment via three interrelated approaches: carbon capture (via photosynthesis, passive concrete carbonation, and microbial biomineralization), carbon storage (employing carbonation curing, mineral carbonation, and valorization of construction and demolition waste), and carbon reduction (integrating industrial waste, alternative binders, and bio-based materials). The review also evaluates the potential of novel direct air-capture materials, assessing their feasibility for integration into construction processes and existing infrastructure. Key findings highlight significant advancements, quantify CO2 absorption potentials across various construction materials, and reveal critical knowledge gaps, thereby providing a strategic roadmap for future research direction toward a low-carbon, clim",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A5",
+      "title": "Biorefineries of carbon dioxide: From carbon capture and storage (CCS) to bioenergies production.",
+      "url": "https://doi.org/10.1016/j.biortech.2016.04.019",
+      "doi": "10.1016/j.biortech.2016.04.019",
+      "publisher": "Bioresour Technol",
+      "published_date": "2016-09-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Bioresour Technol).",
+      "evidence_summary": "Greenhouse gas emissions have several adverse environmental effects, like pollution and climate change. Currently applied carbon capture and storage (CCS) methods are not cost effective and have not been proven safe for long term sequestration. Another attractive approach is CO2 valorization, whereby CO2 can be captured in the form of biomass via photosynthesis and is subsequently converted into various form of bioenergy. This article summarizes the current carbon sequestration and utilization technologies, while emphasizing the value of bioconversion of CO2. In particular, CO2 sequestration by terrestrial plants, microalgae and other microorganisms are discussed. Prospects and challenges for CO2 conversion are addressed. The aim of this review is to provide comprehensive knowledge and updated information on the current advances in biological CO2 sequestration and valorization, which are essential if this approach is to achieve environmental sustainability and economic feasibility.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A6",
+      "title": "Carbon Capture and Storage: concluding remarks.",
+      "url": "https://doi.org/10.1039/c6fd00182c",
+      "doi": "10.1039/c6fd00182c",
+      "publisher": "Faraday Discuss",
+      "published_date": "2016-10-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Faraday Discuss).",
+      "evidence_summary": "This paper aims to pull together the main points, messages and underlying themes to emerge from the Discussion. It sets these remarks in the context of where Carbon Capture and Storage (CCS) fits into the spectrum of carbon mitigation solutions required to meet the challenging greenhouse gas (GHG) emissions reduction targets set by the COP21 climate change conference. The Discussion focused almost entirely on carbon capture (21 out of 23 papers) and covered all the main technology contenders for this except biological processes. It included (chemical) scientists and engineers in equal measure and the Discussion was enriched by the broad content and perspectives this brought. The major underlying theme to emerge was the essential need for closer integration of materials and process design - the use of isolated materials performance criteria in the absence of holistic process modelling for design and optimisation can be misleading. Indeed, combining process and materials simulation for reverse materials molecular engineering to achieve the required process performance and cost constraints is now within reach and is beginning to make a significant impact on optimising CCS and CCU (CO2 utilisation) processes in particular, as it is on materials science and engineering generally. Examples from the Discussion papers are used to illustrate this potential. The take-home messages from a range of other underpinning research themes key to CCUS are also summarised: new capture materials,",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A7",
+      "title": "Utilization of steelmaking slag for carbon capture and storage with flue gas.",
+      "url": "https://doi.org/10.1007/s11356-021-17493-4",
+      "doi": "10.1007/s11356-021-17493-4",
+      "publisher": "Environ Sci Pollut Res Int",
+      "published_date": "2022-07-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Environ Sci Pollut Res Int).",
+      "evidence_summary": "Carbon capture and storage is a necessary action for the reduction of CO2 emissions, and thereby mitigation of climate change and its impacts. Especially, in India, with its growing fuel needs and very little attention paid towards carbon capture and storage, mineral carbonation technology is a suitable option as it is cost-effective and could be retrofitted to existing plants that emit CO2. Given the development of carbon capture and storage technology, this study attempts direct mineral carbonation of steelmaking slag with flue gas. Response surface methodology was employed to design gas-solid and slurry phase aqueous carbonation experiments. A maximum reduction of about 36.1% was achieved through aqueous carbonation at 61.1 °C, 46.24 bar, and a liquid-to-solid ratio of 14.5, corresponding to a sequestration capacity of 127.4 g of CO2/kg of slag. The temperature was found to be the most vital parameter in both the aqueous and gas-solid carbonation processes. Regression models used to study the carbonation process were found to be statistically significant. The carbonated slag consisted of mineral phases, namely, calcite and dolomite. The results demonstrated the sequestration potential of Indian steelmaking slag with flue gas. Carbonation of steelmaking slag with flue gas poses to be a promising option for the development of carbon capture and storage technology in the country.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A8",
+      "title": "Design Insights for Industrial CO2 Capture, Transport, and Storage Systems.",
+      "url": "https://doi.org/10.1021/acs.est.4c05484",
+      "doi": "10.1021/acs.est.4c05484",
+      "publisher": "Environ Sci Technol",
+      "published_date": "2024-08-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Environ Sci Technol).",
+      "evidence_summary": "We present methods and insights for the design of CO2 capture, transport, and storage systems for industrial facilities with a case study focus on Louisiana. Our analytical framework includes (1) evaluating the scale and concentration of capturable CO2 emissions at individual facilities for the purpose of estimating the cost of CO2 capture retrofits that utilize various energy supply sources to meet parasitic demands; (2) screening to identify potential CO2 storage sites and estimate their capacities, injectivities, and costs; and (3) designing cost-minimized trucking or pipeline infrastructure connecting CO2 capture plants with storage sites, considering existing land uses, demographics, and a variety of social and environmental justice factors. Estimated levelized costs of capture at Louisiana's 190 industrial facilities range from below $50/tCO2 to above $500/tCO2, depending on facility-specific features. We identified 98 potential storage sites with storage costs ranging from $8 to $17/tCO2. We find that in most situations, pipelines are the least-costly mode of CO2 transport. When industrial facilities in a region share pipelines, aggregate pipeline mileage and average transport costs are dramatically lower than without sharing. Shared pipeline networks designed to avoid disadvantaged communities require right-of-way areas compared to those for networks that transect such communities, but result in 25% higher average per-tonne transport cost.",
+      "summary_source": "abstract",
+      "citation_count": null
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "US10670334B2 - Highly cost effective technology for capture of industrial emissions without reagent for clean energy and clean environment applications - Google Patents",
+      "url": "https://patents.google.com/patent/US10670334B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "+ \\An overview of current status of carbon dioxide capture and storage technologies—Edward S. Rubin, John E. Dawson, Howard J. Herzog, International Journal of Green House and Gas Control, vol. 40, P. 378-400. Cost of Carbon Capture Using Existing Amine Technology and Comparison with Our Technique. [...] 1. An equipment that can be connected as a bolt-on to a flue gas emission line from a power or industrial plant in general, for cost-effective and energy-efficient capture of emission components from an industrial flue gas, the flue gas containing but not limited to Carbon Dioxide (CO2), mercury vapor, oxides of sulfur, oxides of nitrogen, acid vapors, each component being captured separately, without using any chemical/reagent, without using any storage systems for refrigerants and using only [...] One advantage of our invention is that the equipment of this invention for industrial emission capture can be retrofitted (or, bolt-on) as a single unit to a coal or natural gas power plant or to a cement or a steel plants. It does not require any chemical or natural gas to be used as a refrigerant and does not need storage systems for the refrigerant to cool the components of the flue gas. The system does not need recurrent use of water. Same fixed amount of water can be used repeatedly during",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "US20130139543A1 - Systems and methods for integrated energy storage and cryogenic carbon capture - Google Patents",
+      "url": "https://patents.google.com/patent/US20130139543A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2013-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2013; legal scope still requires claim review.",
+      "evidence_summary": "| Publication number | Priority date | Publication date | Assignee | Title | | US10954825B2 (en) | 2017-08-29 | 2021-03-23 | Arizona Board Of Regents On Behalf Of Arizona State University | System and method for carbon dioxide upgrade and energy storage using an ejector | | US10670334B2 (en) | 2017-12-01 | 2020-06-02 | Dilip Kumar De | Highly cost effective technology for capture of industrial emissions without reagent for clean energy and clean environment applications | [...] While the present invention is particularly advantageous for use with process streams from power plants (flue gases), the invention can also be used with other industrial process streams, such as, but not limited to, process streams from petroleum refining, natural gas treatment, and biomass process streams. Most examples of the process stream are given as process gas containing CO2, N2 and impurities, but the invention can be applied to other condensable vapors and light gases or liquids [...] | CN101231131A (en) | | Purification of carbon dioxide | | CN101231130A (en) | | Purification of carbon dioxide | | CN119334073B (en) | | A liquid air energy storage system with coupled air separation device | | US12251658B2 (en) | | System, apparatus, and method for capture of multi-pollutants from industrial gases and/or exhausts | | KR102876591B1 (en) | | CO2 flow automatic control system |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "US20160362800A1 - Carbon dioxide capture and storage electrolytic methods - Google Patents",
+      "url": "https://patents.google.com/patent/US20160362800A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2016-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2016; legal scope still requires claim review.",
+      "evidence_summary": "Point-source carbon dioxide (CO2) mitigation, in particular carbon capture and storage (CCS), has been a main strategy for reducing industrial and energy-related CO2 emissions (e.g., power plants, cement and petrochemical industries, and so forth), which account for approximately 60% total CO2 emission due to fossil-fuel use. Conventional CCS consists of energy-intensive and costly CO2 separation, purification, compression, transportation, and injection underground. A power plant equipped with [...] CaCO3 and purified low calcium fly ash residue can be renewable materials for industrial utilization. Furthermore, the ions present in the waste brines of power plant boiler feed water can be also removed during the process, so it serves as a wastewater pretreatment and reduces the operational cost of RO and other water reuse processes. The concurrent management of multiple wastes (fly ash, brine, CO2) in coal power plants has both environmental and economic benefits due to reduced burdens of [...] 0.73×109 ton (Gt) of carbon dioxide-eq/yr emission is attributed to the degradation of organics in wastewater, equivalent to nearly 1.5% of the GHG emissions of 49 Gt carbon dioxide-eq/yr. These numbers are even larger when industrial and agricultural wastewater treatment industries are included. Great progress has been made to increase energy efficiency and recover renewable energy from wastewater using technologies such as anaerobic digestion and bioelectrochemical systems, because th",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "WO2010096871A1 - Carbon capture - Google Patents",
+      "url": "https://patents.google.com/patent/WO2010096871A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2010-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2010; legal scope still requires claim review.",
+      "evidence_summary": "The present invention relates to the separation and capture of carbon-containing compounds from gases. Specifically, the present invention relates to the use of rare- earth based compounds for the capture and separation of carbon-containing compounds from gases. The carbon capture processes can be integrated into fossil fuel power generation plants or other industrial process plants in order to reduce emission of greenhouse gases from the plants. [...] The large scale burning of fossil fuels for electricity generation and other industrial processes, such as natural gas processing, ammonia production, cement manufacture, etc., results in the release of greenhouse gases, such as carbon dioxide, into the atmosphere. Electricity generation and industrial processes are the main sources of carbon dioxide emissions in most industrialised nations, and by far the largest single source of carbon dioxide emissions is fossil fuel based electricity [...] In recent times, considerable attention and political pressure has been applied on organisations and individuals to reduce the amount of carbon dioxide that is released into the atmosphere. One way this can be done is to capture the emitted carbon dioxide before it is released into the atmosphere. The aim of so called \"carbon capture\" processes is to capture, separate and purify the emitted carbon dioxide so that it can subsequently be sent off to storage, in which case it is effectively taken",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P5",
+      "title": "EP3012273A1 - Method for carbon capture and storage - Google Patents",
+      "url": "https://patents.google.com/patent/EP3012273A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2009-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2009; legal scope still requires claim review.",
+      "evidence_summary": "Climate scientists argue that during most of human history-up to the industrial revolution-the air held no more than 275 ppm CO2. The atmospheric CO2 concentration in 2009 was 385 ppm and rising. To slow down global warming, CO2 from high fossil fuel emission sources such as coal-fired power plants, needs to be captured and \"returned\" to the ground-essentially reversing the fossil fuel mining, processing, and combustion process. [...] the present invention relates to a method for sequestering carbon dioxide. the present invention also relates to a process for producing bio-based olefins, polyolefins, and motor gasoline. CCS CO 2 capture and storage the storage of CO 2 has also been referred to as CO 2 sequestration. One method for CCS uses metal oxide solutions, such as potassium or magnesium oxide, to remove CO 2 from flue gas or other CO 2 containing vent gases. [...] Although these gas absorption methods are technically mature, their use in CCS applications has been limited. This is in part due to the fact that not all geological formations are well-suited for CO2 storage. Perhaps more importantly, the hesitation to adopt such CCS processes stems from the fact that the investment and operating cost for capture, compression and storage of CO2 brings the carbon emitting plant owner no corresponding financial return.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P6",
+      "title": "WO2023076393A1 - Intensified carbon capture using building infrastructure - Google Patents",
+      "url": "https://patents.google.com/patent/WO2023076393A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2023-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2023; legal scope still requires claim review.",
+      "evidence_summary": "this increase in average surface temperature to below 2°C. Mitigation of global warming has included use of renewable energy, increase in energy efficiencies, and carbon capture and storage (CCS) of emissions from fossil-fuel power plants and other sources of carbon dioxide emissions. Recently, mitigation efforts have expanded to include removal of carbon dioxide from the atmosphere for storage in geologic reservoirs. These so-called negative emissions technologies (NETs) include carbon dioxide [...] mitigation efforts have expanded to include removal of carbon dioxide from the atmosphere for storage in geologic reservoirs. These so-called negative emissions technologies include carbon dioxide direct air capture (DAC) and bioenergy carbon capture and storage (BECCS). NETs are considered essential in reducing the concentration of carbon dioxide in the atmosphere. [...] Increased carbon dioxide (CO2) production and emission in the last 300 years has been one of the largest culprits in the rising level of atmospheric greenhouse gases, which threatens to increase the average surface temperature on Earth. CO2 carbon dioxide Mitigation of global warming has included use of renewable energy, increase in energy efficiencies, and carbon capture and storage (CCS) of emissions from fossil-fuel power plants and other sources of carbon dioxide emissions.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P7",
+      "title": "US11285437B2 - Systems and methods for carbon capture - Google Patents",
+      "url": "https://patents.google.com/patent/US11285437B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The present disclosure provides systems for carbon capture in combination with production of one or more industrially useful materials. The disclosure also provides methods for carrying out carbon capture in combination with an industrial process. In particular, carbon capture can include carrying out calcination in a reactor, separation of carbon dioxide rich flue gases from industrially useful products, and capture of at least a portion of the carbon dioxide for sequestration of other use, [...] the industrial flue gas can be taken from an existing power plant, lime production plant, cement plant, steel plant and/or other industrial process. CaCO 3 can be separated (in line 261 ) from flue gas (in line 262 ) and directly sent back to the calciner reactor 200 for CaO regeneration. CO 2 lean flue gas from the carbonator 260 in line 262 at around 650° C. can be cooled in a heat exchanger 265 down to near ambient temperature before venting in line 266 . [...] As seen in the example embodiment of FIG. 3, oxy-fired calcination process can be integrated with a post combustion industrial carbon capture process (CaO+CO2═CaCO3). At the exit of the separator 205, CaO at about 900° C. in line 207 can be split into two streams. One CaO stream in line 207 a can be sent to the heat exchanger network for waste heat recuperation before export. The other CaO stream in line 207 b can be sent to a carbonator to capture CO2 from industrial flue gas provided through",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P8",
+      "title": "US8156725B2 - CO2 capture during compressed air energy storage - Google Patents",
+      "url": "https://patents.google.com/patent/US8156725B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "disclosure to provide an improved system for removing carbon dioxide and other greenhouse gases from mixed gas streams on an industrial scale. It is another object of the present disclosure to increase the efficiency and cost-effectiveness of the CO2 capture process by coupling it with a CAES system and by recycling energy throughout the system. [...] the present disclosure relates to a system and method for the capture of CO 2 from a mixed gas stream on an industrial scale. the present disclosure is more particularly related to a compressed air energy storage (CAES) system having one or more of a pressure swing absorption bed, a temperature swing absorption bed or a pressure-temperature swing absorption bed for removing CO 2 from a mixed gas stream. CAES compressed air energy storage [...] on an industrial scale. It is another object of the present disclosure to increase the efficiency and cost-effectiveness of the CO 2 capture process by coupling it with a CAES system and by recycling energy throughout the system.",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "Industrial CCUS Market Size, Share | Growth Report [2025-2032]",
+      "url": "https://www.fortunebusinessinsights.com/industrial-ccus-market-114650",
+      "doi": null,
+      "publisher": "Fortunebusinessinsights",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "Based on type, the market is segmented into capture, transportation, utilization, and storage. In 2024, capture segment held the largest industrial CCUS market share and with a revenue of USD 10.9 billion. This growth is due to the presence of high-cost equipment, technologies and infrastructure that are needed to purify and separate CO2 from industrial emissions. Additionally, its growing deployment in refineries, power plants and chemical sector further boosts the segmental growth. [...] The global industrial CCUS market size was valued at USD 17.39 billion in 2024. The market is projected to grow from USD 19.3 billion in 2025 to USD 41.85 billion by 2032, exhibiting a CAGR of 11.70% during the forecast period. North America dominated the global market with a share of 34.67% in 2024. [...] Asia Pacific region held highest CAGR of 13.6% in 2024. The market is also expected to reach USD 6.2 billion in 2025. This growth is driven by rising CO2 emission, rapid industrialization, and growing government initiatives to boost carbon capture technologies. Additionally, growing chemical, energy and manufacturing sectors across countries such as India, China and Japan also fuels the demand for cost effective CCUS solutions. India and China are the major contributors for the market growth",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "Carbon Dioxide Market Size, Share | Industry Report, 2033",
+      "url": "https://www.grandviewresearch.com/industry-analysis/carbon-dioxide-market",
+      "doi": null,
+      "publisher": "Grandviewresearch",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "In April 2025, Air Liquide is actively contributing to the market growth through its involvement in the Porthos CO₂ Transportation and Storage Project in Rotterdam, Europe's largest industrial port. As one of the key industrial partners, Air Liquide is implementing its CRYOCAP carbon capture technology at its hydrogen plant in Rozenburg to reduce CO₂ emissions by 50%. The investment in public-private Porthos initiative will capture, transport, and store up to 2.5 million tonnes of CO₂ [...] North America dominated the carbon dioxide market with the largest revenue share of 42.0% in 2024, driven by the expanding industrial sector and rising demand from the oil & gas industry, particularly for enhanced oil recovery (EOR) applications. The U.S. is seeing a surge in CO₂-EOR projects, supported by favorable policies like the FUTURE Act, which promotes carbon capture and utilization from power plants and industrial sources. In addition, innovative technologies, such as those by [...] The China carbon dioxide market accounted for the largest market revenue share in Asia Pacific in 2024, driven by rising demand across oil recovery, food & beverage, medical, and industrial sectors. The country’s focus on reducing greenhouse gas emissions has spurred investments in large-scale CO₂ capture projects, such as Sinopec’s EOR-based plant, expected to inject over 10 million tons of CO₂ over 15 years. China's position as a leading soft drink producer and food exporter fuels strong",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "Carbon Capture and Storage, Explained | World Resources Institute",
+      "url": "https://www.wri.org/insights/carbon-capture-technology",
+      "doi": null,
+      "publisher": "Wri",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "research_institute",
+      "credibility_tier": "high",
+      "credibility_reason": "Authoritative intergovernmental or independent research institution.",
+      "evidence_summary": "While a number of CCUS projects are being announced in the industrial sector, the application is still nascent. Heidelberg's cement CCUS project in Brevik, Norway reached mechanical completion in late 2024 and will become the world's first commercial-scale carbon capture cement plant when commissioned. [...] Carbon capture technology combined with utilization (sometimes referenced as \"use\") or sequestration (sometimes referenced as \"storage\") is a way to reduce CO2 from emissions sources (such as power plants or industrial facilities) using different technologies that separate CO2 from the other gases coming out of a facility. The CO2 is thus captured before entering the atmosphere. Then it is either permanently stored underground or incorporated into certain types of products, such as concrete or [...] The two sectors where CCUS could be deployed are power and industry, which represent large \"point sources\" of emissions. Whether it makes sense to use CCUS in those sectors will depend on costs, the feasibility of other decarbonization options, and other project- and location-specific factors.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "Carbon Capture and Storage Market Size, Forecast 2025-2034",
+      "url": "https://www.gminsights.com/industry-analysis/carbon-capture-and-storage-market",
+      "doi": null,
+      "publisher": "Gminsights",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "## Carbon Capture and Storage Market Key Takeaways 2024 Market Size $ 8.6 Billion 2034 Forecast Market Size $ 51.5 Billion CAGR (2025–2034) 16% Regional Dominance Key Players Air Products, Aker Solutions, Carbon Clean, Chevron, Dakota Gasification Company, Equinor, Exxon Mobil, Fluor, General Electric, Halliburton, Linde, Mitsubishi Heavy Industries, NRG Energy, Shell Cansolv, Siemens, SLB, Sulzer, TotalEnergies Key Market Drivers [...] The global carbon capture and storage market was valued at USD 8.6 billion in 2024 and is estimated to grow at a CAGR of 16% from 2025 to 2034. The growth of the market is determined by stringent emission criteria and rules coupled with expenditure to achieve decarbonization. For example, The Environmental Protection Agency (EPA) in 2024 introduced a national control measure for gas or coal powered plants which had to incorporate CCS to reduce emissions. Emission reduction of 90% is to be met [...] The carbon capture and storage market is categorized into power generation, chemical processing, oil & gas, among others based on application. The power generation application accounted for over 37% revenue share in 2024 and is set to grow at a CAGR of over 10% through 2034.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M5",
+      "title": "Carbon Capture, Utilization, and Storage Market Report 2025-2030 [347 Pages & 317 Tables]",
+      "url": "https://www.marketsandmarkets.com/Market-Reports/carbon-capture-utilization-storage-market-151234843.html",
+      "doi": null,
+      "publisher": "Marketsandmarkets",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "Equinor ASA (Star) is the market leader in the carbon capture, utilization, and storage market, with the largest market share due to its pioneering Sleipner project and the Northern Lights joint venture, which together offer decades of offshore storage experience and a rapidly expanding commercial service. Linde plc (Emerging Leader) is gaining visibility due to its presence in industrial gas processing and proven CO2 capture, purification, and liquefaction technologies. Additionally, it has a [...] | REPORT METRIC | DETAILS | --- | | Market Size in 2024 (Value) | USD 5.10 Billion | | Market Forecast in 2030 (Value) | USD 17.75 Billion | | Growth Rate | CAGR of 25.0% from 2025-2030 | | Years Considered | 2020–2030 | | Base Year | 2024 | | Forecast Period | 2025–2030 | | Units Considered | Value (USD Billion), Volume (Kiloton) | | Report Coverage | Revenue forecast, company ranking, competitive landscape, growth factors, and trends | [...] TABLE 272 CARBON CAPTURE, UTILIZATION, AND STORAGE MARKET: END-USE INDUSTRY FOOTPRINT, 2024 TABLE 273 CARBON CAPTURE, UTILIZATION, AND STORAGE MARKET: DETAILED LIST OF KEY STARTUPS/SMES, 2024 TABLE 274 CARBON CAPTURE, UTILIZATION, AND STORAGE MARKET: COMPETITIVE BENCHMARKING OF KEY STARTUPS/SMES, 2024 TABLE 276 CARBON CAPTURE, UTILIZATION, AND STORAGE MARKET: EXPANSIONS, JANUARY 2020–AUGUST 2025 TABLE 277 FLUOR CORPORATION: COMPANY OVERVIEW TABLE 278",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M6",
+      "title": "Carbon capture, usage and storage (CCUS): business models - GOV.UK",
+      "url": "https://www.gov.uk/government/publications/carbon-capture-usage-and-storage-ccus-business-models",
+      "doi": null,
+      "publisher": "Gov",
+      "published_date": "2026-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "government",
+      "credibility_tier": "high",
+      "credibility_reason": "Official government source; authoritative within its stated scope.",
+      "evidence_summary": "## Documents ### Transition Access Agreement: Policy Position Statement (July 2026) PDF, 211 KB, 15 pages ### Transition Access Agreement: Draft Commercial Principles (February 2026) PDF, 221 KB, 17 pages ### Industrial Carbon Capture business models update (November 2025) PDF, 343 KB, 25 pages ### Industrial Carbon Capture: Front End Agreement (Version: Template 1 - November 2025) PDF, 376 KB, 30 pages This file may not be suitable for users of assistive technology. [...] 4. Added CCS network code (January 2025 version) and a Comparison between Heads of Terms (December 2023) and Network Code (January 2025). 5. Added April 2024 update on the industrial carbon capture business models for Track-1 Expansion and Track-2. 6. Added CCUS: Update on the Business Model for Transport and Storage - Heads of Terms, December 2023. [...] Request an accessible format. If you use assistive technology (such as a screen reader) and need a version of this document in a more accessible format, please email alt.formats@energysecurity.gov.uk. Please tell us what format you need. It will help us if you say what assistive technology you use. ### Industrial Carbon Capture: Standard Terms and Conditions (Version: Template 1 - November 2025) PDF, 6.85 MB, 875 pages This file may not be suitable for users of assistive technology.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M7",
+      "title": "Carbon Capture and Storage Market Size, Share & Growth Report 2033",
+      "url": "https://www.snsinsider.com/reports/carbon-capture-and-storage-market-3291",
+      "doi": null,
+      "publisher": "Snsinsider",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "In September 2024, Shell, Equinor and TotalEnergies opened the Northern Lights CO₂ storage facility—ready to receive first deliveries in 2025; Phase 1 capacity ~1.5 MtCO₂/year with planned expansion. Carbon Capture and Storage Market Key Players: [...] Carbon Capture and Storage Market Size and Forecast: Market Size in 2025E: USD 10.01 Billion Market Size by 2033: USD 15.48 Billion CAGR: 5.6% from 2026 to 2033 Base Year: 2025E Forecast Period: 2026–2033 Historical Data: 2022–2024 To Get More Information on Carbon Capture and Storage Market - Request Sample Report ## Carbon Capture and Storage Market Highlights: [...] In October 2024, ExxonMobil secured a 271,000-acre offshore CO₂ storage lease in Texas, expanding its Gulf Coast CCS capacity and strengthening its leadership in U.S. carbon capture.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M8",
+      "title": "Carbon capture, utilisation and storage",
+      "url": "https://www.iea.org/energy-system/renewables-and-low-emissions/carbon-capture-utilisation-and-storage",
+      "doi": null,
+      "publisher": "Iea",
+      "published_date": "2026-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "research_institute",
+      "credibility_tier": "high",
+      "credibility_reason": "Authoritative intergovernmental or independent research institution.",
+      "evidence_summary": "The figures below show the latest findings in this technology as of June 2026. The data for these figures is from the CCUS Projects Explorer. Explore more of our data here. ### Installed CO2 capture capacity, 2015-2024 Open #### IEA (2026), CCUS Projects Explorer #### Subscription successful Thank you for subscribing. You can unsubscribe at any time by clicking the link at the bottom of any IEA newsletter. [...] Sign In You are connecting via IP recognition from . If you wish to proceed, click on Connect. If you prefer to log into your personal account, please sign in below. Connect OR ##### Create an account Create a free IEA account to download our reports or subcribe to a paid service. Join for free # Carbon Capture, Utilisation and Storage ### Latest findings",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "carbon capture and storage for industrial emissions peer reviewed DOI journal",
+    "carbon capture and storage for industrial emissions systematic review meta-analysis",
+    "carbon capture and storage for industrial emissions site:scholar.google.com",
+    "carbon capture and storage for industrial emissions Nature Science Cell Lancet article",
+    "carbon capture and storage for industrial emissions review journal",
+    "carbon capture and storage for industrial emissions efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "carbon capture and storage for industrial emissions site:patents.google.com/patent",
+    "carbon capture and storage for industrial emissions site:patentscope.wipo.int",
+    "carbon capture and storage for industrial emissions site:worldwide.espacenet.com",
+    "carbon capture and storage for industrial emissions site:patents.justia.com",
+    "carbon capture and storage site:patents.google.com/patent",
+    "carbon capture and storage site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "carbon capture and storage for industrial market size revenue commercial manufacturer 2024 2025",
+    "carbon capture and storage for industrial industry company deployment commercial scale",
+    "carbon capture and storage for industrial emissions product manufacturer revenue commercial sales 2024 2025",
+    "carbon capture and storage for industrial emissions company commercial deployment industry news",
+    "carbon capture and storage for industrial market report investment startup 2024",
+    "carbon capture and storage for industrial emissions commercial scale production manufacturer press release",
+    "carbon capture and storage for industrial emissions manufacturing commercialization company",
+    "carbon capture and storage for industrial emissions government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] carbon capture and storage for industrial emissions",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] carbon capture and storage for industrial emissions",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:CO2 sequestration in industria] carbon capture and storage for industrial emissions",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Industrial flue gas decarboniz] carbon capture and storage for industrial emissions",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] carbon capture and storage for industrial emissions",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[PubMed] carbon capture and storage for industrial emissions",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": [
+        "PubMed title not relevant to topic: 'Carbon dioxide capture, storage and production of biofuel and biomaterials by bacteria: A review.'",
+        "PubMed title not relevant to topic: 'Carbon dioxide capture and geological storage.'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] carbon capture and storage for industrial emissions",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "carbon capture and storage for industrial emissions site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "market",
+      "query": "carbon capture and storage for industrial market size revenue commercial manufacturer 2024 2025",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M6"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.maximizemarketresearch.com",
+        "market host is blocked or not approved: www.thebusinessresearchcompany.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "carbon capture and storage for industrial industry company deployment commercial scale",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M7"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.sciencedirect.com",
+        "market host is blocked or not approved: www.c2es.org",
+        "market host is blocked or not approved: en.wikipedia.org",
+        "market host is blocked or not approved: pubs.acs.org",
+        "market host is blocked or not approved: www.persistencemarketresearch.com",
+        "deferred (market-report cap): 'Carbon Capture And Storage Market Size | CAGR of 10.6%'",
+        "market host is blocked or not approved: corporate.exxonmobil.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "carbon capture and storage for industrial emissions product manufacturer revenue commercial sales 2024 2025",
+      "result_count": 10,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "deferred (market-report cap): 'Carbon Capture and Storage (CCS) Market'",
+        "deferred (market-report cap): 'Carbon Capture And Storage Market Size, YoY Growth Rate,2033'",
+        "market host is blocked or not approved: www.persistencemarketresearch.com",
+        "deferred (market-report cap): 'Carbon Capture, Utilization, and Storage Market | CAGR of 19.20%'",
+        "market host is blocked or not approved: straitsresearch.com",
+        "deferred (market-report cap): 'Carbon Capture and Sequestration [CCS] Market Size, 2034'",
+        "duplicate source: https://www.marketsandmarkets.com/Market-Reports/carbon-capture-utilization-storage-market-151234843.html",
+        "duplicate source: https://www.grandviewresearch.com/industry-analysis/carbon-dioxide-market"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "carbon capture and storage for industrial emissions company commercial deployment industry news",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M8"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: corporate.exxonmobil.com",
+        "market host is blocked or not approved: www.catf.us",
+        "market host is blocked or not approved: www.bakerhughes.com",
+        "market host is blocked or not approved: status22.globalccsinstitute.com",
+        "market host is blocked or not approved: www.c2es.org",
+        "market host is blocked or not approved: pubs.acs.org",
+        "market host is blocked or not approved: www.sciencedirect.com"
+      ]
+    }
+  ]
+}

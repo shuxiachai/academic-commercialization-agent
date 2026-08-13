@@ -1,0 +1,494 @@
+{
+  "topic": "room temperature ambient pressure superconductors",
+  "display_topic": "room temperature ambient pressure superconductors",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "material_science",
+  "collected_at": "2026-08-12T08:41:13.079742Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "Room-Temperature Superconductivity in Yb/Lu Substituted Clathrate Hexahydrides under Moderate Pressure.",
+      "url": "https://doi.org/10.34133/2022/9784309",
+      "doi": "10.34133/2022/9784309",
+      "publisher": "Research (Wash D C)",
+      "published_date": "2022-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Research (Wash D C)).",
+      "evidence_summary": "Room temperature superconductivity is a dream that mankind has been chasing for a century. In recent years, the synthesis of H3S, LaH10, and C-S-H compounds under high pressures has gradually made that dream become a reality. But the extreme high pressure required for stabilization of hydrogen-based superconductors limit their applications. So, the next challenge is to achieve room-temperature superconductivity at significantly low pressures, even ambient pressure. In this work, we design a series of high temperature superconductors that can be stable at moderate pressures by incorporating heavy rare earth elements Yb/Lu into sodalite-like clathrate hexahydrides. In particular, the critical temperatures (T c) of Y3LuH24, YLuH12, and YLu3H24 can reach 283 K at 120 GPa, 275 K at 140 GPa, and 288 K at 110 GPa, respectively. Their critical temperatures are close to or have reached room temperature, and minimum stable pressures are significantly lower than that of reported room temperature superconductors. Our work provides an effective method for the rational design of low-pressure stabilized hydrogen-based superconductors with room-temperature superconductivity simultaneously and will stimulate further experimental exploration.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A2",
+      "title": "The maximum Tc of conventional superconductors at ambient pressure.",
+      "url": "https://doi.org/10.1038/s41467-025-63702-w",
+      "doi": "10.1038/s41467-025-63702-w",
+      "publisher": "Nat Commun",
+      "published_date": "2025-09-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Nat Commun).",
+      "evidence_summary": "The theoretical maximum critical temperature (Tc) for conventional superconductors at ambient pressure remains a fundamental question in condensed matter physics. Through analysis of electron-phonon calculations for over 20,000 metals, we critically examine this question. We find that while hydride metals can exhibit maximum phonon frequencies of more than 5000 K, the crucial logarithmic average frequency ω log rarely exceeds 1800 K. Our data reveals an inherent trade-off between ω log and the electron-phonon coupling constant λ, suggesting that the optimal Eliashberg function that maximizes Tc is unphysical. Based on our calculations, we identify Li2AgH6 and its sibling Li2AuH6 as theoretical materials that likely approach the practical limit for conventional superconductivity at ambient pressure. Analysis of thermodynamic stability indicates that compounds with higher predicted Tc values are increasingly unstable, making their synthesis challenging. While fundamental physical laws do not strictly limit Tc to low-temperatures, our analysis suggests that achieving room-temperature conventional superconductivity at ambient pressure is extremely unlikely.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A3",
+      "title": "A perspective on reducing stabilizing pressure for high-temperature superconductivity in hydrides.",
+      "url": "https://doi.org/10.1088/1361-648x/ad7217",
+      "doi": "10.1088/1361-648x/ad7217",
+      "publisher": "J Phys Condens Matter",
+      "published_date": "2024-09-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (J Phys Condens Matter).",
+      "evidence_summary": "The theoretical predictions and experimental syntheses of hydrogen sulfide (H3S) have ignited a surge of research interest in hydride superconductors. Over the past two decades, extensive investigations have been conducted on hydrides with the ultimate goal of achieving room-temperature superconductivity under ambient conditions. In this review, we present a comprehensive summary of the current strategies and progress towards this goal in hydride materials. We conclude their electronic characteristics, hydrogen atom aggregation forms, stability mechanisms, and more. While providing a real-time snapshot of the research landscape, our aim is to offer deeper insights into reducing the stabilizing pressure for high-temperature superconductors in hydrides. This involves defining key long-term theoretical and experimental opportunities and challenges. Although achieving high critical temperatures for hydrogen-based superconductors still requires high pressure, we remain confident in the potential of hydrides as candidates for room-temperature superconductors at ambient pressure.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A4",
+      "title": "Superconductivity in room-temperature stable electride and high-pressure phases of alkali metals.",
+      "url": "https://doi.org/10.1098/rsta.2014.0450",
+      "doi": "10.1098/rsta.2014.0450",
+      "publisher": "Philos Trans A Math Phys Eng Sci",
+      "published_date": "2015-03-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Philos Trans A Math Phys Eng Sci).",
+      "evidence_summary": "S-band metals such as alkali and alkaline earth metals do not undergo a superconducting transition (SCT) at ambient pressure, but their high-pressure phases do. By contrast, room-temperature stable electride [Ca(24)Al(28)O(64)](4+)⋅4e(-) (C12A7:e(-)) in which anionic electrons in the crystallographic sub-nanometer-size cages have high s-character exhibits SCT at 0.2-0.4 K at ambient pressure. In this paper, we report that crystal and electronic structures of C12A7:e(-) are close to those of the high-pressure superconducting phase of alkali and alkaline earth metals and the SCT of both materials is induced when electron nature at Fermi energy (EF) switches from s- to sd-hybridized state.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A5",
+      "title": "Pressure-induced high-temperature superconductivity retained without pressure in FeSe single crystals.",
+      "url": "https://doi.org/10.1073/pnas.2108938118",
+      "doi": "10.1073/pnas.2108938118",
+      "publisher": "Proc Natl Acad Sci U S A",
+      "published_date": "2021-07-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Proc Natl Acad Sci U S A).",
+      "evidence_summary": "To raise the superconducting-transition temperature (Tc) has been the driving force for the long-sustained effort in superconductivity research. Recent progress in hydrides with Tcs up to 287 K under pressure of 267 GPa has heralded a new era of room temperature superconductivity (RTS) with immense technological promise. Indeed, RTS will lift the temperature barrier for the ubiquitous application of superconductivity. Unfortunately, formidable pressure is required to attain such high Tcs. The most effective relief to this impasse is to remove the pressure needed while retaining the pressure-induced Tc without pressure. Here, we show such a possibility in the pure and doped high-temperature superconductor (HTS) FeSe by retaining, at ambient pressure via pressure quenching (PQ), its Tc up to 37 K (quadrupling that of a pristine FeSe at ambient) and other pressure-induced phases. We have also observed that some phases remain stable without pressure at up to 300 K and for at least 7 d. The observations are in qualitative agreement with our ab initio simulations using the solid-state nudged elastic band (SSNEB) method. We strongly believe that the PQ technique developed here can be adapted to the RTS hydrides and other materials of value with minimal effort.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A6",
+      "title": "Creation, stabilization, and investigation at ambient pressure of pressure-induced superconductivity in Bi0.5Sb1.5Te3.",
+      "url": "https://doi.org/10.1073/pnas.2423102122",
+      "doi": "10.1073/pnas.2423102122",
+      "publisher": "Proc Natl Acad Sci U S A",
+      "published_date": "2025-02-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Proc Natl Acad Sci U S A).",
+      "evidence_summary": "In light of breakthroughs in superconductivity under high pressure, and considering that record critical temperatures (Tcs) across various systems have been achieved under high pressure, the primary challenge for higher Tc should no longer solely be to increase Tc under extreme conditions but also to reduce, or ideally eliminate, the need for applied pressure in retaining pressure-induced or -enhanced superconductivity. The topological semiconductor Bi0.5Sb1.5Te3 (BST) was chosen to demonstrate our approach to addressing this challenge and exploring its intriguing physics. Under pressures up to ~50 GPa, three superconducting phases (BST-I, -II, and -III) were observed. A superconducting phase in BST-I appears at ~4 GPa, without a structural transition, suggesting the possible topological nature of this phase. Using the pressure-quench protocol (PQP) recently developed by us, we successfully retained this pressure-induced phase at ambient pressure and revealed the bulk nature of the state. Significantly, this demonstrates recovery of a pressure-quenched sample from a diamond anvil cell at room temperature with the pressure-induced phase retained at ambient pressure. Other superconducting phases were retained in BST-II and -III at ambient pressure and subjected to thermal and temporal stability testing. Superconductivity was also found in BST with Tc up to 10.2 K, the record for this compound series. While PQP maintains superconducting phases in BST at ambient pressure, both de",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A7",
+      "title": "Clathrate metal superhydrides under high-pressure conditions: enroute to room-temperature superconductivity.",
+      "url": "https://doi.org/10.1093/nsr/nwad270",
+      "doi": "10.1093/nsr/nwad270",
+      "publisher": "Natl Sci Rev",
+      "published_date": "2024-07-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Natl Sci Rev).",
+      "evidence_summary": "Room-temperature superconductivity has been a long-held dream of mankind and a focus of considerable interest in the research field of superconductivity. Significant progress has recently been achieved in hydrogen-based superconductors found in superhydrides (hydrides with unexpectedly high hydrogen contents) that are stabilized under high-pressure conditions and are not capturable at ambient conditions. Of particular interest is the discovery of a class of best-ever-known superconductors in clathrate metal superhydrides that hold the record for high superconductivity (e.g. T c = 250-260 K for LaH10) among known superconductors and have great promise to be those that realize the long-sought room-temperature superconductivity. In these peculiar clathrate superhydrides, hydrogen forms unusual 'clathrate' cages containing encaged metal atoms, of which such a kind was first reported in a calcium hexa-superhydride (CaH6) showing a measured high T c of 215 K under a pressure of 170 GPa. In this review, we aim to offer an overview of the current status of research progress on the clathrate metal superhydride superconductors, discuss the superconducting mechanism and highlight the key features (e.g. structure motifs, bonding features, electronic structure, etc.) that govern the high-temperature superconductivity. Future research direction along this line to find room-temperature superconductors will be discussed.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A8",
+      "title": "The 2021 room-temperature superconductivity roadmap.",
+      "url": "https://doi.org/10.1088/1361-648x/ac2864",
+      "doi": "10.1088/1361-648x/ac2864",
+      "publisher": "J Phys Condens Matter",
+      "published_date": "2022-03-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (J Phys Condens Matter).",
+      "evidence_summary": "Designing materials with advanced functionalities is the main focus of contemporary solid-state physics and chemistry. Research efforts worldwide are funneled into a few high-end goals, one of the oldest, and most fascinating of which is the search for an ambient temperature superconductor (A-SC). The reason is clear: superconductivity at ambient conditions implies being able to handle, measure and access a single, coherent, macroscopic quantum mechanical state without the limitations associated with cryogenics and pressurization. This would not only open exciting avenues for fundamental research, but also pave the road for a wide range of technological applications, affecting strategic areas such as energy conservation and climate change. In this roadmap we have collected contributions from many of the main actors working on superconductivity, and asked them to share their personal viewpoint on the field. The hope is that this article will serve not only as an instantaneous picture of the status of research, but also as a true roadmap defining the main long-term theoretical and experimental challenges that lie ahead. Interestingly, although the current research in superconductor design is dominated by conventional (phonon-mediated) superconductors, there seems to be a widespread consensus that achieving A-SC may require different pairing mechanisms.In memoriam, to Neil Ashcroft, who inspired us all.",
+      "summary_source": "abstract",
+      "citation_count": null
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "Above room temperature type II superconductor",
+      "url": "https://patents.google.com/patent/US11710584B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2018-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2018; legal scope still requires claim review.",
+      "evidence_summary": "graphite and single-layer graphene above room temperature under ambient pressure” to Myung-Hwan Whangbo addresses a possible explanation for why graphite and graphene become high temperature Type I superconductors at ambient pressure but does not consider the possibility of altering the structure of the graphite or graphene to produce a Type II superconductor. One Type I superconductor required packing graphite powder into a rigid tube and wetting the graphite with liquid aliphatic hydrocarbon [...] | Whangbo, M. H. (2018). Probable cause for the superconductor-like properties of alkane-wetted graphite and single-layer graphene above room temperature under ambient pressure. | [...] the present invention relates to Type II superconductors and, more particularly, to Type II superconductors that operate above room temperature. Type II superconductors require cryogenic temperatures to function, which limits their practical applications.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "Room temperature and normal pressure superconducting ...",
+      "url": "https://patents.google.com/patent/WO2023027536A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2023-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2023; legal scope still requires claim review.",
+      "evidence_summary": "본 발명은 부분적으로 채워진 SQW 모델로 입증되었으며 상온에서 초전도 퍼즐을 연구하는 데 매우 유용한 재료가 될 것이고, 모든 증거와 설명은 LK-99가 최초의 실온 및 주변 압력 초전도체라는 것을 보여주며, LK-99는 자석, 모터, 케이블, 공중부양열차, 전원 케이블, 양자 컴퓨터용 큐비트, THZ 안테나 등과 같은 다양한 응용 가능성을 가지고 있다 할 수 있다.The present invention has been demonstrated with a partially filled SQW model and will be a very useful material for studying superconducting puzzles at room temperature, all evidence and explanations show that LK-99 is the first room temperature and ambient pressure superconductor, and [...] 그 이유는 이러한 황화수소 계열이나, 이트륨 초수소화물의 실험 결과로 인해 학계에서도 상온 초전도체에 대한 기대가 큰 것이 사실이나, 267GPa이나 186GPa는 대기압(1atm)의 약 이십만 배 내외에 해당하는 압력이며, 무게로 환산하면 1cm2의 면적에 2700톤 이상이 가해지고 있는 것으로 이 자체로써 산업적으로 이용하기에는 거의 불가능하다고 볼 수 있다.The reason for this is that, due to the experimental results of these hydrogen sulfide series and yttrium superhydride, it is true that there is great expectation for room temperature superconductors in the academic world, but 267 GPa or 186 GPa is a pressure that is about 200,000 times the [...] FIG. 42 is a photograph of an experiment in which resistance is measured in real time for Example 4, and the measured resistance is approximately 10 ⁇ 12 to 10 ⁇ 10 Ohmcm, indicating very low resistance. Example 4 XRD analysis was measured using a measuring device (Multi-Purpose X-ray Diffractometer, PHILIPS), and the results are shown in FIG. 30. PHILIPS Multi-Purpose X-ray Diffractometer LK-99 is the first room temperature and ambient pressure superconductor",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "Room-temperature and ambient-pressure superconducting ...",
+      "url": "https://patents.google.com/patent/ZA202401582B/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2021-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2021; legal scope still requires claim review.",
+      "evidence_summary": "## Abstract Disclosed are a room-temperature and ambient-pressure superconducting ceramic and methods for producing the same. The superconducting ceramic is represented by Formula 1: A10-xBx(PO4)6O wherein A is Ca, Ba, Sr, Sn or Pb, B is Cu, Cd, Zn, Mn, Fe, Ni or Ag, and x is 0.1 to 2.0. The superconducting ceramic exhibits superconductivity at room temperature and ambient pressure. The methods are suitable for producing the superconducting ceramic. [...] | Application Number | Priority Date | Filing Date | Title | --- --- | | PCT/KR2022/012774 WO2023027537A1 (en) | 2021-08-25 | 2022-08-25 | Room-temperature and atmospheric-pressure superconducting ceramic compound and preparation method therefor | | KR1020220106845A KR20240028724A (en) | 2022-08-25 | 2022-08-25 | Ceramic composite with superconductivities over room temperature at atmospheric (ambient) pressure and method of manufacturing the ceramic composite | [...] | KR1020220106812A KR20230030551A (en) | 2021-08-25 | 2022-08-25 | Ceramic composite with superconductivities over room temperature at atmospheric condition and mehtod of manufacturing the ceramic composite |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "WO2023027537A1 - Room-temperature and atmospheric- ...",
+      "url": "https://patents.google.com/patent/WO2023027537A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2023-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2023; legal scope still requires claim review.",
+      "evidence_summary": "LK-99 according to the present invention exhibits superconductivity at room temperature and ambient pressure is that the stress caused by Cu 2+ substitution of Pb(2) 2+ ions is not relieved due to the structural uniqueness of LK-99 and At the same time, it is because it is properly transferred to the interface of the cylindrical column. [...] the Pb(1) atoms at the interface of the cylindrical pillars of LK-99 occupy a structurally limited space, and these atoms are entirely affected by the stress and strain generated by the Cu 2+ ions, and thus, the SQWs are free from relaxation. It can be created at the interface with phosphate by a moderate amount of strain at room temperature and ambient pressure. LK-99 is the first room temperature and ambient pressure superconductor [...] 본 발명은 부분적으로 채워진 SQW 모델로 입증되었으며 상온에서 초전도 퍼즐을 연구하는 데 매우 유용한 재료가 될 것이고, 모든 증거와 설명은 LK-99가 최초의 실온 및 주변 압력 초전도체라는 것을 보여주며, LK-99는 자석, 모터, 케이블, 공중부양열차, 전원 케이블, 양자 컴퓨터용 큐비트, THZ 안테나 등과 같은 다양한 응용 가능성을 가지고 있다 할 수 있다.The present invention has been demonstrated with a partially filled SQW model and will be a very useful material for studying superconducting puzzles at room temperature, all evidence and explanations show that LK-99 is the first room temperature and ambient pressure superconductor, and",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P5",
+      "title": "US20190058105A1 - Piezoelectricity-induced Room Temperature Superconductor - Google Patents",
+      "url": "https://patents.google.com/patent/US20190058105A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2019-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2019; legal scope still requires claim review.",
+      "evidence_summary": "BACKGROUND A room-temperature superconductor is a material that is capable of exhibiting superconductivity at operating temperatures of or above 25° C. (approx. 300° K). Several materials have been reported to be room-temperature superconductors, although none of these reports has been confirmed. However, instead of concentrating on the chemical structure of such materials which do not utilize any electrical or mechanical manipulation, room temperature superconductivity (RTSC) in a manipulated [...] | WO2023027537A1 (en) \\ | 2021-08-25 | 2023-03-02 | 주식회사 퀀텀에너지연구소 | Room-temperature and atmospheric-pressure superconducting ceramic compound and preparation method therefor | | US11710584B2 (en) | 2020-02-21 | 2023-07-25 | Taj Quantum | Above room temperature type II superconductor | | EP4107797A4 (en) \\ | 2020-02-21 | 2024-03-13 | John A. Wood | TYPE II SUPERCONDUCTOR OPERATING ABOVE AMBIENT TEMPERATURE | [...] | WO2023027537A1 (en) \\ | 2021-08-25 | 2023-03-02 | 주식회사 퀀텀에너지연구소 | Room-temperature and atmospheric-pressure superconducting ceramic compound and preparation method therefor | | MA64608B1 (en) \\ | 2022-08-25 | 2024-10-31 | Young-Wan Kwon | CERAMIC COMPOUND SUPERCONDUCTING AT ROOM TEMPERATURE AND ATMOSPHERIC PRESSURE AND PREPARATION METHOD THEREOF |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P6",
+      "title": "WO2023027537 ROOM-TEMPERATURE AND ATMOSPHERIC-PRESSURE SUPERCONDUCTING CERAMIC COMPOUND AND PREPARATION METHOD THEREFOR",
+      "url": "https://patentscope.wipo.int/search/en/WO2023027537",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "(EN)A room-temperature and atmospheric-pressure superconducting ceramic compound and a preparation method therefor are disclosed. The room-temperature and atmospheric-pressure superconducting ceramic compound and the preparation method therefor, according to the present invention, comprise a ceramic compound of chemical formula 1, A 10-x B x(PO 4)6 O (A is Ca, Ba, Sr, Sn or Pb, B is Cu, Cd, Zn, Mn, Fe, Ni or Ag, and x is 0.1-2.0), and the superconducting ceramic compound exhibits [...] compound exhibits superconducting properties at room temperature and at atmospheric pressure. [...] 2,0), et le composé céramique supraconducteur présente des propriétés supraconductrices à température ambiante et à pression atmosphérique.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P7",
+      "title": "WO2023027536 ROOM TEMPERATURE AND NORMAL PRESSURE SUPERCONDUCTING CERAMIC COMPOUND, AND METHOD FOR MANUFACTURING SAME",
+      "url": "https://patentscope.wipo.int/search/en/WO2023027536",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "Abstract (EN)Disclosed are a superconducting ceramic compound and a method for manufacturing same. The superconducting ceramic compound and method for manufacturing same according to the present invention are characterized by comprising a ceramic compound represented by chemical formula 1, thereby exhibiting superconducting properties at room temperature and normal pressure. [...] (FR)L'invention concerne un composé céramique supraconducteur et son procédé de fabrication. Le composé céramique supraconducteur et son procédé de fabrication selon la présente invention sont caractérisés en ce qu'ils comprennent un composé céramique représenté par la formule chimique 1, présentant ainsi des propriétés supraconductrices à température ambiante et pression normale. [...] Hide all Title (EN)ROOM TEMPERATURE AND NORMAL PRESSURE SUPERCONDUCTING CERAMIC COMPOUND, AND METHOD FOR MANUFACTURING SAME (FR)COMPOSÉ CÉRAMIQUE SUPRACONDUCTEUR À TEMPÉRATURE AMBIANTE ET PRESSION NORMALE, ET SON PROCÉDÉ DE FABRICATION (KO)상온, 상압 초전도 세라믹화합물 및 그 제조방법 Image 2: front page image Abstract",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P8",
+      "title": "WO1999028404 FRICTION-ACTIVATED ADHESIVE SUBSTANCES WHICH ARE SOLID AT ROOM TEMPERATURE AND WHICH HAVE A BASE OF PARTIALLY CRYSTALLINE GRAFT-COPOLYMER COMPOUNDS",
+      "url": "https://patentscope.wipo.int/search/en/WO1999028404",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "(FR)MATIERES ADHESIVES SOLIDES A TEMPERATURE AMBIANTE, ACTIVABLES PAR FROTTEMENT, ET A BASE DE COMPOSES COPOLYMERES GREFFES PARTIELLEMENT CRISTALLINS Abstract [...] sont produits par réaction a) de chaînes polymères préformées présentant un poids moléculaire moyen de 1 000 à 35 000 et une structure au moins partiellement cristalline à température ambiante, et b) de monomères constituant des régions partielles amorphes dans la structure moléculaire du copolymère greffé, cette réaction étant initiée par voie radicalaire. Les composés polymères greffés s'utilisent comme constituants solides adhésifs structurants dans des matières adhésives activables par [...] activables par frottement. L'invention concerne également des matières adhésives solides activables par frottement, qui sont façonnées et par conséquent configurées spécialement pour être appliquées à la main, et qui sont dépourvues ou pratiquement dépourvues d'eau et/ou d'agents diluants volatils à température ambiante. Ces matières sont caractérisées en ce qu'elles contiennent des adhésifs activables par frottement, à base de composés copolymères greffés.",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "Room-temperature superconductor research 2026 landscape",
+      "url": "https://www.patsnap.com/resources/blog/articles/room-temperature-superconductor-research-2026-landscape",
+      "doi": null,
+      "publisher": "Patsnap",
+      "published_date": "2021-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "Patent filings in the room-temperature superconductor space surged 70% from 2021 to 2025, with 44 filings in 2021 and 40 filings in 2025. The 2024–2025 period alone accounted for 32.6% of total filings combined, driven by hydride synthesis methods, HTS device applications, and alternative ambient-pressure candidate materials. [...] Patent activity in room-temperature superconductors tells a story of sustained industrial conviction despite the absence of commercialisable materials. Filings surged 70% between 2021 and 2025 — from 44 filings in 2021 to 40 in 2025, with 2024 and 2025 together accounting for 32.6% of all filings across the tracked period. The 2021 peak coincided with the high-profile validation of LaH₁₀, demonstrating that fundamental scientific milestones directly drive IP activity even when commercial [...] Room-temperature superconductor patent filings surged 70% from 2021 to 2025, reaching 40 filings in 2025. As of April 2026, 40% of 2024–2025 patent filings in this space have no corresponding peer-reviewed publications, indicating speculative intellectual property positioning. ## Commercial Viability: Why the Holy Grail Remains Distant",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "Superconducting Materials Market Market Demand Dynamics: Insights 2026-2034",
+      "url": "https://www.datainsightsreports.com/reports/superconducting-materials-market-369",
+      "doi": null,
+      "publisher": "Datainsightsreports",
+      "published_date": "2026-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "The global Superconducting Materials Market is experiencing robust growth, projected to reach an estimated $2.41 Billion by 2026, with a compelling Compound Annual Growth Rate (CAGR) of 9.5% during the forecast period of 2026-2034. This significant expansion is fueled by the increasing demand for advanced technologies across critical sectors. Low-temperature superconducting (LTS) materials continue to dominate, driven by their established applications in MRI machines, particle accelerators, and [...] Superconducting Materials Market Research Report - Market Overview and Key Insights ### Superconducting Materials Market Market Size (In Billion) 4.0B 3.0B 2.0B 1.0B 0 2.058 B 2025 2.252 B 2026 2.467 B 2027 2.704 B 2028 2.965 B 2029 3.252 B 2030 3.567 B 2031 Publisher Logo [...] Development of Room-Temperature Superconductors (RTS): While still in early research phases, breakthroughs in achieving superconductivity at or near room temperature would revolutionize the industry. Increased Focus on HTS for Power Applications: Significant R&D is dedicated to making HTS wires and cables more cost-effective and robust for large-scale grid applications, including fault current limiters and transformers.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "Superconductors Market Size & Share Forecast, 2035",
+      "url": "https://www.snsinsider.com/reports/superconductors-market-4291",
+      "doi": null,
+      "publisher": "Snsinsider",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "The Superconductors Market was Valued at USD 10.94 Billion in 2025 and is now anticipated to grow to USD 26.28 Billion by 2035, displaying a compound annual growth rate (CAGR) 9.16% of during the forecast Period 2026 - 2035. [...] ### Superconductors MarketSize and Forecast: Market Size in 2025: USD 10.94 Billion Market Size by 2035: USD 26.28 Billion CAGR: 9.16% from 2026 to 2035 Base Year: 2025 Forecast Period: 2026–2035 Historical Data: 2022–2024 Get More Information on Superconductors Market - Request Sample Report ### Superconductors Market TrendsHighlights: [...] Low-temperature superconductors dominate the superconductor market with a significant 50% market share IN 2025. Their superior position is rooted in a three-sided benefit. Initially, established manufacturing methods help lower production expenses and ensure easily accessible materials, making low temperature superconductors a more cost-effective choice in comparison to high temperature superconductors. Next, low temperature superconductors have a successful history. They are the reliable",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "Superconducting Materials Market | Global Market Analysis Report - 2035",
+      "url": "https://www.futuremarketinsights.com/reports/superconducting-materials-market",
+      "doi": null,
+      "publisher": "Futuremarketinsights",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The high-temperature superconducting materials segment is projected to hold 61.5% of the superconducting materials market revenue in 2025, establishing itself as the dominant product type. Growth in this segment has been driven by the ability of these materials to operate at temperatures significantly higher than traditional low-temperature superconductors. [...] The superconducting materials market is expected to grow at a 11.3% CAGR between 2025 and 2035. What are the key product types in the superconducting materials market? The key product types in superconducting materials market are high temperature and low temperature. Which end-user segment to contribute significant share in the superconducting materials market in 2025? In terms of end-user, medical segment to command 33.8% share in the superconducting materials market in 2025. [...] The medical segment is projected to account for 33.8% of the superconducting materials market revenue in 2025, sustaining its position as the leading end-user category. This growth has been driven by the extensive use of superconducting magnets in diagnostic equipment such as MRI and magnetoencephalography (MEG) systems.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "room temperature ambient pressure superconductors peer reviewed DOI journal",
+    "room temperature ambient pressure superconductors systematic review meta-analysis",
+    "room temperature ambient pressure superconductors site:scholar.google.com",
+    "room temperature ambient pressure superconductors Nature Science Cell Lancet article",
+    "room temperature ambient pressure superconductors review journal",
+    "room temperature ambient pressure superconductors efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "room temperature ambient pressure superconductors site:patents.google.com/patent",
+    "room temperature ambient pressure superconductors site:patentscope.wipo.int",
+    "room temperature ambient pressure superconductors site:worldwide.espacenet.com",
+    "room temperature ambient pressure superconductors site:patents.justia.com",
+    "room temperature ambient pressure site:patents.google.com/patent",
+    "room temperature ambient pressure site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "room temperature ambient pressure superconductors market size revenue commercial manufacturer 2024 2025",
+    "room temperature ambient pressure superconductors industry company deployment commercial scale",
+    "room temperature ambient pressure superconductors product manufacturer revenue commercial sales 2024 2025",
+    "room temperature ambient pressure superconductors company commercial deployment industry news",
+    "room temperature ambient pressure superconductors market report investment startup 2024",
+    "room temperature ambient pressure superconductors commercial scale production manufacturer press release",
+    "room temperature ambient pressure superconductors manufacturing commercialization company",
+    "room temperature ambient pressure superconductors government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] room temperature ambient pressure superconductors",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] room temperature ambient pressure superconductors",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:ambient-condition superconduct] room temperature ambient pressure superconductors",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:superconductivity at standard ] room temperature ambient pressure superconductors",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] room temperature ambient pressure superconductors",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[PubMed] room temperature ambient pressure superconductors",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": [
+        "PubMed title not relevant to topic: 'Pressure-induced hydrogen-dominant high-temperature superconductors.'",
+        "PubMed title not relevant to topic: 'Design Principles for High-Temperature Superconductors with a Hydrogen-Based Alloy Backbone at Moderate Pressure.'",
+        "PubMed title not relevant to topic: 'Absence of near-ambient superconductivity in LuH2±xNy.'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] room temperature ambient pressure superconductors",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "room temperature ambient pressure superconductors site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'WO2023027536A1'",
+        "patent title not relevant to topic (score 1): 'KR20210157461A - Ceramic composite with low resistance including superconductors - Google Patents'",
+        "patent title not relevant to topic (score 0): 'Superconducting hydride materials and methods for their ...'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "room temperature ambient pressure superconductors site:patentscope.wipo.int",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P6",
+        "P7",
+        "P8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "market",
+      "query": "room temperature ambient pressure superconductors market size revenue commercial manufacturer 2024 2025",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: dataintelo.com",
+        "market host is blocked or not approved: www.congruencemarketinsights.com",
+        "market summary lacks core topic keywords: 'BCC Research Forecasts 11.8% CAGR for ...'",
+        "market summary lacks core topic keywords: 'Superconducting Wire Market Size And Share Report, 2030'",
+        "market summary lacks core topic keywords: 'Superconducting Materials Market YoY Growth Rate, 2026- ...'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "room temperature ambient pressure superconductors industry company deployment commercial scale",
+      "result_count": 10,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "search result lacks a usable title or URL",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: "
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "room temperature ambient pressure superconductors product manufacturer revenue commercial sales 2024 2025",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M4",
+        "M5",
+        "M6",
+        "M7",
+        "M8"
+      ],
+      "rejected_reasons": [
+        "duplicate source: https://www.fortunebusinessinsights.com/superconductors-market-115867",
+        "market host is blocked or not approved: www.congruencemarketinsights.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "[Relevance-Filter]",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "score=1 (min=2) — removed 'Superconductors Market Size, Share | Industry Report [2034]'",
+        "score=1 (min=2) — removed '2026-2032 Global Low Temperature Superconducting Material Industry Research & Trends Analysis Report- YH Research'",
+        "score=1 (min=2) — removed 'Superconducting Materials Market YoY Growth Rate, 2026-2033'",
+        "score=1 (min=2) — removed 'Superconducting Wire Market Size, Share | CAGR of 9.6%'"
+      ]
+    }
+  ]
+}

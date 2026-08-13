@@ -1,0 +1,551 @@
+{
+  "topic": "cultivated meat for food industry",
+  "display_topic": "cultivated meat for food industry",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "biomedical",
+  "collected_at": "2026-08-12T08:37:42.029956Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "Recent advances in scaffolding biomaterials for cultivated meat.",
+      "url": "https://doi.org/10.1016/j.bioadv.2024.213897",
+      "doi": "10.1016/j.bioadv.2024.213897",
+      "publisher": "Biomater Adv",
+      "published_date": "2024-09-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Biomater Adv).",
+      "evidence_summary": "The emergence of cultivated meat provides a sustainable and ethical alternative to traditional animal agriculture, highlighting its increasing importance in the food industry. Biomaterial scaffolds are critical components in cultivated meat production for enabling cell adhesion, proliferation, differentiation, and orientation. While there's extensive research on scaffolding biomaterials, applying them to cultivated meat production poses distinct challenges, with each material offering its own set of advantages and disadvantages. This review summarizes the most recent scaffolding biomaterials used in the last five years for cell-cultured meat, detailing their respective advantages and disadvantages. We suggest future research directions and provide recommendations for scaffolds that support scalable, cost-effective, and safe high-quality meat production. Additionally, we highlight commercial challenges cultivated meat faces, encompassing bioreactor design, cell culture mediums, and regulatory and food safety issues. In summary, this review provides a comprehensive guide and valuable insights for researchers and companies in the field of cultivated meat production.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A2",
+      "title": "Tissue Engineering Challenges for Cultivated Meat to Meet the Real Demand of a Global Market.",
+      "url": "https://doi.org/10.3390/ijms24076033",
+      "doi": "10.3390/ijms24076033",
+      "publisher": "Int J Mol Sci",
+      "published_date": "2023-03-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Int J Mol Sci).",
+      "evidence_summary": "Cultivated meat (CM) technology has the potential to disrupt the food industry-indeed, it is already an inevitable reality. This new technology is an alternative to solve the environmental, health and ethical issues associated with the demand for meat products. The global market longs for biotechnological improvements for the CM production chain. CM, also known as cultured, cell-based, lab-grown, in vitro or clean meat, is obtained through cellular agriculture, which is based on applying tissue engineering principles. In practice, it is first necessary to choose the best cell source and type, and then to furnish the necessary nutrients, growth factors and signalling molecules via cultivation media. This procedure occurs in a controlled environment that provides the surfaces necessary for anchor-dependent cells and offers microcarriers and scaffolds that favour the three-dimensional (3D) organisation of multiple cell types. In this review, we discuss relevant information to CM production, including the cultivation process, cell sources, medium requirements, the main obstacles to CM production (consumer acceptance, scalability, safety and reproducibility), the technological aspects of 3D models (biomaterials, microcarriers and scaffolds) and assembly methods (cell layering, spinning and 3D bioprinting). We also provide an outlook on the global CM market. Our review brings a broad overview of the CM field, providing an update for everyone interested in the topic, which is especi",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A3",
+      "title": "Starch-Based Scaffolds for Cultivated Meat Production: Challenges and Perspectives.",
+      "url": "https://doi.org/10.1111/1541-4337.70343",
+      "doi": "10.1111/1541-4337.70343",
+      "publisher": "Compr Rev Food Sci Food Saf",
+      "published_date": "2025-11-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Compr Rev Food Sci Food Saf).",
+      "evidence_summary": "The advancement of cultured meat depends on the development of structures that combine biological compatibility, edibility, sensory acceptance, and large-scale feasibility. In this context, starch emerges as an abundant, low-cost, and food-grade biopolymer, uniquely positioned for applications in food systems. Although widely studied in biomedical contexts, its specific role in cultured meat remains underexplored, despite advantages such as regulatory acceptance, consumer familiarity, and global availability. Unlike reviews focused on biomaterials for medical applications, this work centers on starch-based structures applied to food biofabrication, considering not only the physicochemical, rheological, and structural aspects of native and modified forms, but also their performance in relation to requirements specific to the food industry. The main commercial starch sources, corn, cassava, potato, wheat, and rice, are discussed according to their relevance in global production and the availability of experimental data. The review further emphasizes processing routes such as extrusion, freeze-drying, and 3D bioprinting, highlighting how these methods define the architecture, mechanical properties, and biofunctionality of starch matrices. The analysis balances benefits, including cost-effectiveness, safety, and edibility, with limitations, particularly the low capacity of starch alone to promote cell adhesion. Moreover, it distinguishes results obtained from strictly biomedical ",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A4",
+      "title": "Soy Protein Amyloid Fibril Scaffold for Cultivated Meat Application.",
+      "url": "https://doi.org/10.1021/acsami.2c21702",
+      "doi": "10.1021/acsami.2c21702",
+      "publisher": "ACS Appl Mater Interfaces",
+      "published_date": "2023-03-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (ACS Appl Mater Interfaces).",
+      "evidence_summary": "It is important to have sustainable and edible scaffolds to produce cultivated meat. In this research, three-dimensional (3D) porous scaffolds were developed by soy protein amyloid fibrils for cultivated meat applications. Food-safe biological and physical cross-linking methods using microbial transglutaminase and temperature-controlled water vapor annealing technique were employed to crosslink soy protein amyloid fibrils, resulting in the production of 3D scaffolds. The generated 3D scaffolds had pores with sizes ranging from 50 to 250 μm, porosities of 72-83%, and compressive moduli of 3.8-4.2 kPa, depending on the type of soy protein used in the process (β-conglycinin (7S), glycinin (11S) and soy protein isolate (SPI)). When present with pepsin, these scaffolds can degrade within an hour but remain stable in phosphate-buffered saline for at least 30 days. The soy protein amyloid fibril scaffolds enabled C2C12 mouse skeletal myoblasts proliferate and differentiate without adding cell adhesive proteins or other coatings. The results demonstrate the potential of abundant and inexpensive soy protein amyloid fibrils to be utilized as scaffold materials for cultivated meat in the food industry.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A5",
+      "title": "Scaffolding Biomaterials for 3D Cultivated Meat: Prospects and Challenges.",
+      "url": "https://doi.org/10.1002/advs.202102908",
+      "doi": "10.1002/advs.202102908",
+      "publisher": "Adv Sci (Weinh)",
+      "published_date": "2022-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Adv Sci (Weinh)).",
+      "evidence_summary": "Cultivating meat from stem cells rather than by raising animals is a promising solution to concerns about the negative externalities of meat production. For cultivated meat to fully mimic conventional meat's organoleptic and nutritional properties, innovations in scaffolding technology are required. Many scaffolding technologies are already developed for use in biomedical tissue engineering. However, cultivated meat production comes with a unique set of constraints related to the scale and cost of production as well as the necessary attributes of the final product, such as texture and food safety. This review discusses the properties of vertebrate skeletal muscle that will need to be replicated in a successful product and the current state of scaffolding innovation within the cultivated meat industry, highlighting promising scaffold materials and techniques that can be applied to cultivated meat development. Recommendations are provided for future research into scaffolds capable of supporting the growth of high-quality meat while minimizing production costs. Although the development of appropriate scaffolds for cultivated meat is challenging, it is also tractable and provides novel opportunities to customize meat properties.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A6",
+      "title": "Bioprocess Engineering for Cultivated Meat.",
+      "url": "https://doi.org/10.1007/10_2025_292",
+      "doi": "10.1007/10_2025_292",
+      "publisher": "Adv Biochem Eng Biotechnol",
+      "published_date": "2025-10-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Adv Biochem Eng Biotechnol).",
+      "evidence_summary": "Cultivated meat (CM) has emerged as a promising solution to the environmental, ethical, and food security concerns associated with conventional meat production. However, realising its full potential depends on developing robust, scalable, and cost-effective bioprocessing strategies. This chapter explores the entire CM bioprocessing pipeline, from upstream challenges such as the development of robust cell lines, scaling up cell cultures, and evaluating different operating modes like batch, fed-batch, and perfusion to downstream processes such as biomass harvesting, purification, and product structuring. Key considerations include ensuring sterility, monitoring critical process parameters, and supporting effective cell proliferation and differentiation. Economically, the high cost of media and capital expenditures remain a major barrier to scale. Strategies such as media recycling, bulk ingredient sourcing, and in-house production are being explored to reduce costs. Emerging technologies like artificial intelligence, machine learning, and digital twins offer new tools for optimising operations, though adoption is still in early stages. As the industry progresses toward commercialisation, continued innovation in bioprocess engineering, guided by techno-economic modelling, will be crucial to achieving scalable and sustainable meat alternatives.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A7",
+      "title": "Establishing food-safe cell lines and banks for cultivated meat: current status and future directions.",
+      "url": "https://doi.org/10.1016/j.psj.2026.107270",
+      "doi": "10.1016/j.psj.2026.107270",
+      "publisher": "Poult Sci",
+      "published_date": "2026-06-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Poult Sci).",
+      "evidence_summary": "Cultivated meat has emerged as a promising complement to conventional livestock production, with the potential to contribute to food security, animal welfare, and more sustainable food systems. As the field advances toward commercial-scale manufacturing, ensuring product safety and consistency depends fundamentally on establishing well-characterized, stable, and food-safe cell lines and cell banking systems. Cell lines underpin cultivated meat production and serve as critical control points for hazards, including microbial contamination, adventitious agents, genomic instability, cell misidentification, and tumorigenic transformation. This review examines current scientific knowledge, regulatory developments, and industry practices related to cell line development and cell banking for cultivated meat production. Drawing on publicly available regulatory dossiers from GOOD Meat, UPSIDE Foods, and Vow Group, it systematically compares approaches to donor animal qualification, cell sourcing, adventitious agent testing, genomic stability assessment, tumorigenicity evaluation, and cell bank monitoring. The analysis reveals substantial variability in testing strategies, documentation practices, and safety assessment criteria, highlighting the absence of internationally harmonized food-grade standards for cell line qualification and banking. By integrating evidence from regulatory dossiers, scientific literature, and established biopharmaceutical guidance frameworks, this review ident",
+      "summary_source": "abstract",
+      "citation_count": null
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "US20200100525A1 - Cultured meat-containing hybrid food - Google Patents",
+      "url": "https://patents.google.com/patent/US20200100525A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2020-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2020; legal scope still requires claim review.",
+      "evidence_summary": "| AU2022206415A1 (en) | 2021-01-10 | 2023-08-17 | Supermeat The Essence Of Meat Ltd. | Pluripotent stem cell aggregates and microtissues obtained therefrom for the cultured meat industry | | CN117396077A (en) \\ | 2021-03-10 | 2024-01-12 | 寺崎生物医学创新研究所 | Growth factors for lab-grown meat and other applications | | AU2022270087A1 (en) | 2021-05-04 | 2023-12-07 | Ecovative Design Llc | Aerial mycelia and methods of making the same | [...] | US6835390B1 (en) | | Method for producing tissue engineered meat for consumption | | EP4319565B1 (en) | | Comestible cell-based meat products comprising dry cell powder and methods of making such products | | Lambert et al. | | Enhancing the palatability of cultivated meat | | CN114554866B (en) | | Avian stem cells for the production of food products | | Behera et al. | | Review on cultured meat: ethical alternative to animal industrial farming | [...] FIELD AND BACKGROUND OF THE INVENTION The present invention, in some embodiments thereof, relates to cultured meat-containing hybrid food. In recent years, attempts have been made to bring natural taste, odor, appearance and nutritional value of meat to the process of vegetarian food preparation, under the fields of food science, food technology and molecular gastronomy.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "CN110730615A - Mixed food containing cultured meat - Google Patents",
+      "url": "https://patents.google.com/patent/CN110730615A/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "| US20240306685A1 (en) | | Meat Flavouring | | JP7692122B2 (en) | | Media for cell growth in cultured meat production | | US20240263138A1 (en) | | Methods for preparing a food ingredient and compositions produced thereby | | US20250344727A1 (en) | | An edible product, from cultivated cells, with an enhanced meat-like flavor and production method thereof | | KR20260024974A (en) | | Cultured meat produced using plant-based micro-supports and method for producing thereof | [...] 近年来，在食品科学、食品技术及分子料理领域，已经尝试将天然的肉的味道、气味、外观及营养价值带入素食食品的制备过程中。In recent years, in the fields of food science, food technology and molecular cuisine, attempts have been made to bring the taste, smell, appearance and nutritional value of natural meat into the preparation process of vegetarian food. [...] | EP4319565B1 (en) | | Comestible cell-based meat products comprising dry cell powder and methods of making such products | | Lambert et al. | | Enhancing the palatability of cultivated meat | | CN114554866B (en) | | Avian stem cells for the production of food products | | Behera et al. | | Review on cultured meat: ethical alternative to animal industrial farming | | Peshuk et al. | | New technologies. artificial meat as a new source of protein products in the nutrition of modern people |",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "bioreactor, method and system for producing cultivated meat",
+      "url": "https://patentscope.wipo.int/search/en/WO2025012910",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The present disclosure related to a packed bed bioreactor, methods for using the same, cultured cell mass and food products comprising the",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "EP3609344A1 - Cultured meat-containing hybrid food - Google Patents",
+      "url": "https://patents.google.com/patent/EP3609344A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2020-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2020; legal scope still requires claim review.",
+      "evidence_summary": "| CN112515113B (en) \\ | 2020-11-30 | 2022-04-08 | 中国肉类食品综合研究中心 | Cell culture meat, preparation method and application | | US20240306685A1 (en) \\ | 2020-11-30 | 2024-09-19 | Ants Innovate Pte. Ltd. | Meat Flavouring | | AU2022206415A1 (en) | 2021-01-10 | 2023-08-17 | Supermeat The Essence Of Meat Ltd. | Pluripotent stem cell aggregates and microtissues obtained therefrom for the cultured meat industry | [...] The present invention, in some embodiments thereof, relates to cultured meat-containing hybrid food. In recent years, attempts have been made to bring natural taste, odor, appearance and nutritional value of meat to the process of vegetarian food preparation, under the fields of food science, food technology and molecular gastronomy. [...] a chicken-flavored cultured-meat containing foodstuff namely sausage-like hybrid food (I) and ground meat-like hybrid food (II), where the differentiated hepatocytes cells are cultivated to provide about 0.03% to about 0.07% HPs in the foodstuff; a chicken- flavored cultured-meat containing foodstuff where the differentiated hepatocytes cells are cultivated to provide about 0.1% to about 0.7% HPs;",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P5",
+      "title": "U.S. Patent Application for EXTRUDATE FOOD COMPOSITIONS COMPRISING CULTIVATED ANIMAL CELLS AND METHODS OF PRODUCTION THEREOF Patent Application (Application #20220079194 issued March 17, 2022)",
+      "url": "https://patents.justia.com/patent/20220079194",
+      "doi": null,
+      "publisher": "Justia",
+      "published_date": "2006-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2006; legal scope still requires claim review.",
+      "evidence_summary": "Cultured meat products have the potential to: (1) substantially reduce reliance on slaughtered animals for food use, (2) lessen the environmental burden of raising animals for food supply, and (3) provide a reliable source of protein that is both safe and has consistent quality. Extruded food products made with cultivated animal cells produce foods that have superior organoleptic performance and better nutritional profile as compared to meat analogues that use only plant proteins. [...] The carryover of media components in the cultured meat is alleviated by efficiently washing the cell pellet after centrifugation. Specifically, the cell pellet obtained after centrifugation of the spent medium at the end of the cell culture is washed twice sequentially via a resuspension & centrifugation process using five-fold (w/v) 0.45% NaCl solution. By washing, the effective reduction of the media component carryover in the cultured meat is at least 25-fold. Except for glucose, glutamine & [...] Meat from farmed animals has been a part of the human diet for thousands of years. Poultry, beef, pork and other animals are consumed the world over and it is well recognized that the farming of animals contributes significantly to global warming. In 2006, the United Nations Food and Agricultural Organization estimated that animal farming produces about 18 percent of the total greenhouse gases produced by human activity. The UN estimated that greenhouse gases produced by animal farming exceeded",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P6",
+      "title": "WO2018189738A1 - Cultured meat-containing hybrid food - Google Patents",
+      "url": "https://patents.google.com/patent/WO2018189738A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2018-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2018; legal scope still requires claim review.",
+      "evidence_summary": "a chicken-flavored cultured-meat containing foodstuff where the differentiated hepatocytes cells are cultivated to provide about 0.1% to about 0.3% oxymyoglobin; a chicken-flavored cultured-meat containing foodstuff where the differentiated hepatocytes cells are cultivated to provide about 0.1% to about 0.3% oxymyoglobin; [...] a chicken-flavored cultured-meat containing foodstuff namely sausage-like hybrid food (I) and ground meat-like hybrid food (II), where the differentiated hepatocytes cells are cultivated to provide about 0.03% to about 0.07% HPs in the foodstuff; a chicken- flavored cultured-meat containing foodstuff where the differentiated hepatocytes cells are cultivated to provide about 0.1% to about 0.7% HPs; [...] The present invention, in some embodiments thereof, relates to cultured meat-containing hybrid food. In recent years, attempts have been made to bring natural taste, odor, appearance and nutritional value of meat to the process of vegetarian food preparation, under the fields of food science, food technology and molecular gastronomy.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P7",
+      "title": "cultured meat-containing hybrid food",
+      "url": "https://patentscope.wipo.int/search/en/WO2018189738",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The method comprises combining a plant-originated substance with an amount of cultured animal cells so as to enhance a meat organoleptic and/or",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "Cultured Meat Market Size & Share, Forecast Report 2035",
+      "url": "https://www.researchnester.com/reports/cultured-meat-market/8272",
+      "doi": null,
+      "publisher": "Researchnester",
+      "published_date": "2023-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The cultured meat market is highly dynamic and competitive, defined by a global race for commercial scale and regulatory approvals. The key players from Europe, Israel, and the U.S. are leading the market. Their prime strategic initiatives focus on achieving cost reduction via technological innovation in cell culture media and bioreactor design. Partnerships are vital, and companies are actively forming alliances with the top players in the food industry, pharmaceutical firms, and biotechnology [...] + By 2035, the business-to-business segment in the cultured meat market is expected to secure a 60.4% share as it leverages established distribution networks to achieve scalable commercial deployment. + The food service segment is projected to lead the end-use category by 2035 as it gains momentum through professional preparation settings that streamline early consumer introduction. ### Key Growth Trends: [...] U.S. cultivated meat companies receiving a significant amount of venture capital investment in 2023. This data indicates that there is strong financial backing for scaling production and R&D. The strategic focus for the market is now on achieving industrial-scale manufacturing and forging B2B partnerships with major food service and ingredient suppliers to ensure commercial distribution upon full regulatory authorization.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "Cultured Meat Market Size, Share & 2031 Industry Report",
+      "url": "https://www.mordorintelligence.com/industry-reports/cultured-meat-market",
+      "doi": null,
+      "publisher": "Mordorintelligence",
+      "published_date": "2021-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "low",
+      "credibility_reason": "Stale market data (published 2021): commercial market estimates >3 years old have low reliability. Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The cultivated meat sector exhibits moderate fragmentation as companies compete across species, product formats, and geographies, yet no single player commands more than 15% share, and aggregate venture funding collapsed from USD 989 million in 2021 to USD 36 million in the first nine months of 2025, forcing strategic pivots toward asset-light models and hybrid formulations. Upside Foods, despite raising USD 608 million cumulatively, underwent restructuring and layoffs in 2024 and shifted from [...] In the cultured meat market, Asia-Pacific is forecast to grow at 23.27% CAGR through 2031, propelled by Singapore's 9-12 month pre-market approval cycle and Australia's June 2025 FSANZ clearance, which together create a regulatory corridor absent in slower-moving jurisdictions. Singapore's Food Agency approved GOOD Meat's chicken in 2020, Vow's quail in April 2024, and Parima's Vital Meat chicken in 2025, establishing the city-state as the global leader in cultivated-meat commercialization [...] April 2025: Meatable and TruMeat have formed a partnership to accelerate commercial-scale production of cost-effective cultivated meat. The collaboration combines Meatable's Opti-Ox technology for cell proliferation and differentiation with TruMeat's media formulation and process optimization expertise. The companies plan to establish Singapore's first dedicated cultivated meat facility, aiming to reduce production costs and achieve price parity with conventional meat.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "State of the Industry: Cultivated meat, seafood, and ...",
+      "url": "https://gfi.org/resource/cultivated-meat-seafood-and-ingredients-state-of-the-industry",
+      "doi": null,
+      "publisher": "Gfi",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "reputable_news",
+      "credibility_tier": "medium",
+      "credibility_reason": "Specialist trade publication; useful but not an independent primary record.",
+      "evidence_summary": "## Download the report Access the full report or the executive summary. Share your information to help us improve your experience or click “download as guest” to go directly to the resources. \"\\\" indicates required fields ## Key bright spots and challenges In 2025, the cultivated meat sector experienced a mix of successes and struggles across the commercial, investment, technology, policy, and regulatory landscape. Highlights featured in the report include: ### Commercial landscape [...] In 2025, the field experienced both early-stage challenges and meaningful progress. A tighter funding environment, regulatory complexity, and a handful of company closures created headwinds, while important advances, including cost reductions, production innovations, and expanded regulatory pathways, moved the sector forward. Open-access tools like cell lines and growth media formulations are helping accelerate research, while emerging technologies such as AI are streamlining processes and [...] A look back underscores how quickly the field has progressed and how much potential remains. In 2015, only a handful of companies existed and patent activity was minimal; by 2025, more than 140 companies were operating globally, with over 1,500 patents published. Recent milestones include the first cultivated meat products reaching U.S. retail, restaurant launches in multiple countries, and expanding global bioreactor capacity.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "The current state of cultivated meat | CRB",
+      "url": "https://www.crbgroup.com/insights/current-state-of-cultivated-meat",
+      "doi": null,
+      "publisher": "Crbgroup",
+      "published_date": "2013-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "So the technology is rapidly evolving and a market for cultivated meat is developing—what stands in the way of commercial success? It all revolves around the production process. Companies have to find a way to scale production to make the cost of the products feasible for consumers. They also have to navigate an uncertain regulatory environment. And they need manufacturing facilities suited to address both of these concerns. ### Scaling up production [...] At lab scale, this is a costly and time-consuming process. But according to an analysis from the Good Food Institute’s Senior Scientist Dr. Liz Specht, cell-based meat produced at industrial scale will likely rival conventional meat costs. To get to commercial scale at a competitive price point, manufacturers need to look at these five component technologies. #### Cell lines [...] The main challenge of making cultivated meat a commercial reality lies in producing enough cultivated meat at a reasonable price point. The cost of producing one hamburger has gone from $278,000 in 2013 down to about $4 ; while that is a much more reasonable price, scaling-up is still a major challenge in the industry. So is regulation. Is it food? Is it biotechnology? Who is responsible for a meat product that doesn’t come straight from the animal?",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M5",
+      "title": "Cell-Cultivated Meat: An Overview | Congress.gov | Library of Congress",
+      "url": "https://www.congress.gov/crs-product/R47697",
+      "doi": null,
+      "publisher": "Congress",
+      "published_date": "2010-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "government",
+      "credibility_tier": "high",
+      "credibility_reason": "Official government source; authoritative within its stated scope.",
+      "evidence_summary": "In the last 10 years, the National Science Foundation (NSF) has issued roughly $5 million in research grants and the USDA National Institute of Food and Agriculture (NIFA) has issued approximately $12 million of research grants for cell-cultivated meat projects. Most of these research grants were awarded to universities. The cell-cultivated meat industry faces various hurdles in commercializing the technology, such as scaling up production, matching the taste and texture of traditional meat, [...] More than 150 companies worldwide are involved in the cell-cultivated meat industry, 43 of which are in the United States. The United States and Singapore are the only countries that allow cell-cultivated meat products to be sold to consumers. The industry has benefitted from private and public investment in research. The Good Food Institute estimated that from 2010 to 2022, approximately $3 billion in private capital was invested in cell-cultivated meat and seafood companies. In the last 10 [...] 16.Emily Waltz, \"Club-Goers Take First Bites of Lab-Made Chicken,\" _Nature Biotechnology_,vol. 39 (March 10, 2021), pp. 257-258, at GOOD Meat is the cultivated meat division of food technology company Eat Just, Inc. 17.GOOD Meat, \"GOOD Meat Gets Full Approval in the U.S. for Cultivated Meat,\" press release, June 21, 2023; UPSIDE Foods, \"UPSIDE is approved for sale in the US! Here's what you need to know,\" press release, June 21, 2023.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M6",
+      "title": "The science of cultivated meat | GFI",
+      "url": "https://gfi.org/science/the-science-of-cultivated-meat",
+      "doi": null,
+      "publisher": "Gfi",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "reputable_news",
+      "credibility_tier": "medium",
+      "credibility_reason": "Specialist trade publication; useful but not an independent primary record.",
+      "evidence_summary": "Scaling up cultivated meat occurs in several separate phases: R&D, bench-scale, pre-pilot, pilot, industrial, and commodity scale. Many companies are currently moving into pilot-scale facilities, where bioreactor volumes can range from approximately 100 to 1000 liters, with at least one company reaching 20,000 liter volumes by the end of 2025. As cultivated meat companies move beyond pilot facilities, they will face the challenge of designing efficient, fit-for-purpose bioprocesses that can [...] The holy grail of the cultivated meat industry is to produce a complex meat product, such as a steak or chicken breast, in a pre-programmed way each and every time. However, current technologies cannot yet accomplish this feat. Significant advances in tissue engineering techniques will be needed to commercialize structured products at scale. Additional challenges lie in discovering the methods and materials most amenable to large-scale production. ## Check out additional reading and resources [...] of scaffolding technologies. These data will inform which scaffolds may be best suited for large-scale, commercial production of structured cuts of cultivated meat.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M7",
+      "title": "Cultured Meat Market Size, Share, Trends, Growth, Forecast 2035",
+      "url": "https://www.marketresearchfuture.com/reports/cultured-meat-market-11918",
+      "doi": null,
+      "publisher": "Marketresearchfuture",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "Health and Nutritional Benefits Regulatory Support and Frameworks Investment and Funding Opportunities Request Free Sample ## Cultured Meat Market Summary As per Market Research Future analysis, the Cultured Meat Market Size was estimated at 0.33 USD Billion in 2024. The Cultured Meat industry is projected to grow from USD 0.5013 Billion in 2025 to USD 32.79 Billion by 2035, exhibiting a compound annual growth rate (CAGR) of 51.9% during the forecast period 2025 - 2035 [...] ID: MRFR/FnB/10397-HCR 200 Pages Snehal Singh Last Updated: April 24, 2026 Cultured Meat Market Market Size Forecast Period2025 - 2035 CAGR (2025 - 2035)51.9% 2024 Market Size$ 0.33 Billion 2025 Market Size$ 0.5 Billion 2035 Market Size$ 32.79 Billion Key Players Upside Foods Memphis Meats Mosa Meat Eat Just Future Meat Technologies Sustainability Focus Technological Innovations Regulatory Developments [...] | | | --- | | MARKET SIZE 2024 | 0.33(USD Billion) | | MARKET SIZE 2025 | 0.5013(USD Billion) | | MARKET SIZE 2035 | 32.79(USD Billion) | | COMPOUND ANNUAL GROWTH RATE (CAGR) | 51.9% (2025 - 2035) | | REPORT COVERAGE | Revenue Forecast, Competitive Landscape, Growth Factors, and Trends | | BASE YEAR | 2024 | | Market Forecast Period | 2025 - 2035 | | Historical Data | 2019 - 2024 | | Market Forecast Units | USD Billion |",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "cultivated meat for food industry peer reviewed DOI journal",
+    "cultivated meat for food industry systematic review meta-analysis",
+    "cultivated meat for food industry site:scholar.google.com",
+    "cultivated meat for food industry Nature Science Cell Lancet article",
+    "cultivated meat for food industry review journal",
+    "cultivated meat for food industry efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "cultivated meat for food industry site:patents.google.com/patent",
+    "cultivated meat for food industry site:patentscope.wipo.int",
+    "cultivated meat for food industry site:worldwide.espacenet.com",
+    "cultivated meat for food industry site:patents.justia.com",
+    "cultivated meat for food site:patents.google.com/patent",
+    "cultivated meat for food site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "cultivated meat for food industry market size revenue commercial manufacturer 2024 2025",
+    "cultivated meat for food industry industry company deployment commercial scale",
+    "cultivated meat for food industry product manufacturer revenue commercial sales 2024 2025",
+    "cultivated meat for food industry company commercial deployment industry news",
+    "cultivated meat for food industry market report investment startup 2024",
+    "cultivated meat for food industry commercial scale production manufacturer press release",
+    "cultivated meat for food industry manufacturing commercialization company",
+    "cultivated meat for food industry government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] cultivated meat for food industry",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] cultivated meat for food industry",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Alternative formulations of cu] cultivated meat for food industry",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Cell-cultured protein for comm] cultivated meat for food industry",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] cultivated meat for food industry",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[PubMed] cultivated meat for food industry",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": [
+        "PubMed title not relevant to topic: 'Environmental impacts of cultured meat production.'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] cultivated meat for food industry",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "cultivated meat for food industry site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'WO2020222239A1 - Cultivation systems and methods for large-scale production of cultured food - Google Patents'",
+        "patent title not relevant to topic (score 1): 'US20200140810A1 - Cultured meat compositions - Google Patents'",
+        "patent title not relevant to topic (score 1): 'WO2022019686A1 - Method for preparing cultured meat on basis of cell coating technique, and cultured meat prepared thereby - Google Patents'",
+        "patent title not relevant to topic (score 1): 'WO2023225686A1 - Supplemented serum-free media including unhydrolyzed plant protein for cultured meat production - Google Patents'",
+        "patent title not relevant to topic (score 1): 'US7270829B2 - Industrial production of meat using cell culture methods - Google Patents'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "cultivated meat for food industry site:patentscope.wipo.int",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "cultivated meat for food industry site:worldwide.espacenet.com",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "cultivated meat for food industry site:patents.justia.com",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P4"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'U.S. Patent Application for Industrial production of meat Patent Application (Application #20060029922 issued February 9, 2006)'",
+        "patent title not relevant to topic (score 0): 'Neta LAVON Inventions, Patents and Patent Applications'",
+        "patent title not relevant to topic (score 0): 'Patents Assigned to The Japanese Research & ...'",
+        "patent title not relevant to topic (score 0): 'U.S. Patent Application for METHOD OF PRODUCING PROTEIN ISOLATE FROM SUNFLOWER MEAL Patent Application (Application #20240180191 issued June 6, 2024)'",
+        "patent title not relevant to topic (score 0): 'U.S. Patent for Edible compositions including fungal mycelium protein Patent (Patent # 11,751,596 issued September 12, 2023)'",
+        "patent title not relevant to topic (score 0): 'U.S. Patent for Methods and compositions for consumables Patent (Patent # 10,172,381 issued January 8, 2019)'",
+        "patent title not relevant to topic (score 0): 'Product, system and method of cell cultivation'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "cultivated meat for food site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P5"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'WO2020243695A1 - Cultured meat product with genetically modified cells - Google Patents'",
+        "patent title not relevant to topic (score 1): 'WO2023104768A1 - Edible microcarrier for the preparation of cultured meat and method of producing same - Google Patents'",
+        "duplicate source: https://patents.google.com/patent/US20200100525A1/en",
+        "patent title not relevant to topic (score 1): 'WO2025259382A1 - Heat-induced meat flavors - Google Patents'",
+        "patent title not relevant to topic (score 1): 'WO2020100143A1 - High quality cultured meat, compositions and methods for producing same - Google Patents'",
+        "duplicate source: https://patents.google.com/patent/CN110730615A/en",
+        "patent title not relevant to topic (score 1): 'US20200140810A1 - Cultured meat compositions'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "cultivated meat for food site:patentscope.wipo.int",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P6",
+        "P7"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'cultivation systems and methods for large-scale production ...'",
+        "patent title not relevant to topic (score 0): 'methods and compositions for cell culture on ...'",
+        "patent title not relevant to topic (score 1): 'cell proliferation medium for producing cultured meat'",
+        "patent title not relevant to topic (score 0): 'edible and sterilizable porous 3d scaffold and uses thereof'",
+        "patent title not relevant to topic (score 0): '1. wo2026053129 - ferritin compositions and uses thereof'",
+        "patent title not relevant to topic (score 0): 'WO/2015/066377 METHOD FOR SCALABLE SKELETAL ...'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "cultivated meat for food industry market size revenue commercial manufacturer 2024 2025",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.custommarketinsights.com",
+        "market host is blocked or not approved: www.youtube.com",
+        "market host is blocked or not approved: www.datamintelligence.com",
+        "market host is blocked or not approved: www.stellarmr.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "cultivated meat for food industry industry company deployment commercial scale",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M5",
+        "M6",
+        "M7",
+        "M8"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: bioinformant.com",
+        "market host is blocked or not approved: www.youtube.com",
+        "market host is blocked or not approved: pmc.ncbi.nlm.nih.gov"
+      ]
+    },
+    {
+      "domain": "academic",
+      "query": "[Relevance-Filter]",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "score=-1 (min=3) — removed 'Cell Sources for Cultivated Meat: Applications and Considerations throughout the Production Workflow.'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "[Relevance-Filter]",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "score=1 (min=2) — removed 'Lab-grown Food Market Size, Share | Growth Analysis [2034]'"
+      ]
+    }
+  ]
+}

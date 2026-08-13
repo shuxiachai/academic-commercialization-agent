@@ -173,6 +173,10 @@ def analyse_run(run_dir: Path) -> dict | None:
         "industry":              meta.get("industry", ""),
         "status":                meta.get("status", "?"),
         "elapsed_s":             meta.get("elapsed_seconds", ""),
+        # "live" for every run made before fixtures existed, which is what
+        # they were. Carried into the CSV so a spreadsheet that mixes the two
+        # can still be split apart afterwards.
+        "evidence_mode":         meta.get("evidence_mode", "live"),
         # Scores
         "overall_score":         "",
         "trl_score":             "",
@@ -384,8 +388,12 @@ def main() -> None:
 
     _print_table(rows)
 
+    # extrasaction="ignore" below means a key missing from this list is
+    # silently dropped rather than raising — so a field added to analyse_run
+    # has to be added here too, or it never reaches the spreadsheet anyone
+    # actually reads.
     fieldnames = [
-        "case_num", "rep", "topic", "industry", "status", "elapsed_s",
+        "case_num", "rep", "topic", "industry", "status", "evidence_mode", "elapsed_s",
         "overall_score", "trl_score", "expected_trl", "trl_calibration",
         "patent_strength", "market_accessibility", "evidence_confidence", "formula_correct",
         "academic_sources", "patent_sources", "market_sources",
@@ -411,7 +419,23 @@ def main() -> None:
     trl_pass = sum(1 for r in rows if r.get("trl_calibration") == "pass")
     trl_flag = sum(1 for r in rows if r.get("trl_calibration") == "flag")
 
+    modes = sorted({r.get("evidence_mode", "live") for r in rows})
+
     print(f"\nResults       : {success}/{len(rows)} succeeded")
+    if modes == ["fixture"]:
+        print("Evidence      : FIXTURE (frozen) — measures reasoning over fixed")
+        print("                evidence, not the system's retrieval. Not comparable")
+        print("                with a live-retrieval baseline.")
+    elif len(modes) > 1:
+        # The numbers below are computed over both kinds of run, so the
+        # headline would be an average of two different measurements. Said
+        # here rather than left for the reader to notice, because nothing in
+        # the table's appearance distinguishes them.
+        counts = {m: sum(1 for r in rows if r.get("evidence_mode", "live") == m)
+                  for m in modes}
+        print(f"Evidence      : ⚠ MIXED — {counts}. The figures below average two")
+        print("                different measurements. Split by the evidence_mode")
+        print("                column in the CSV, or re-run one mode with --force.")
     print(f"TRL calibrated: {trl_pass} pass / {trl_flag} flag (outside expected range)")
     print(f"CSV           : {OUTPUT_CSV}")
     if repeated:

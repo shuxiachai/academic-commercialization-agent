@@ -1,0 +1,500 @@
+{
+  "topic": "perovskite solar cells for utility-scale power generation",
+  "display_topic": "perovskite solar cells for utility-scale power generation",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "material_science",
+  "collected_at": "2026-08-12T08:34:56.756415Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "High Open-Circuit Voltage Cs2 AgBiBr6 Carbon-Based Perovskite Solar Cells via Green Processing of Ultrasonic Spray-Coated Carbon Electrodes from Waste Tire Sources.",
+      "url": "https://doi.org/10.1002/cssc.202201590",
+      "doi": "10.1002/cssc.202201590",
+      "publisher": "ChemSusChem",
+      "published_date": "2022-11-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (ChemSusChem).",
+      "evidence_summary": "Costs and toxicity concerns are at the center of a heated debate regarding the implementation of perovskite solar cells (PSCs) into commercial products. The first bottleneck could be overcome by eliminating the top metal electrode (generally gold) and the underlying hole transporting material and substituting both with one single thick layer of conductive carbon, as in the so-called carbon-based PSCs (C-PSCs). The second issue, related to the presence of lead, can be tackled by resorting to other perovskite structures based on less toxic metallic components. An interesting case is that of the double perovskite Cs2 AgBiBr6 , which at present still lacks the outstanding optoelectronic performances of the lead-based counterparts but is very stable to environmental factors. In this work, the processing of carbon electrodes onto Cs2 AgBiBr6 -based C-PSCs was reported, starting from an additive-free isopropanol ink of a carbon material obtained from the hydrothermal recycling of waste tires and employing a high-throughput ultrasonic spray coating method in normal environmental conditions. Through this highly sustainable approach that ensures a valuable step from an end-of-life to an end-of-waste status for used tires, devices were obtained delivering a record open circuit voltage of 1.293 V, which might in the future represent ultra-cheap solutions to power the indoor Internet of Things ecosystem.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A2",
+      "title": "Efficient indoor p-i-n hybrid perovskite solar cells using low temperature solution processed NiO as hole extraction layers",
+      "url": "https://doi.org/10.1016/j.solmat.2019.110071",
+      "doi": "10.1016/j.solmat.2019.110071",
+      "publisher": "Lethy Krishnan Jagadamma, Oskar Blaszczyk, Muhammad T. Sajjad et al.",
+      "published_date": "2019-09-09",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "arXiv preprint with peer-reviewed DOI (10.1016/j.solmat.2019.110071).",
+      "evidence_summary": "Hybrid perovskites have received tremendous attention due to their exceptional photovoltaic and optoelectronic properties. Among the two widely used perovskite solar cell device architectures of n-ip and p-i-n, the latter is interesting in terms of its simplicity of fabrication and lower energy input. However this structure mostly uses PEDOT:PSS as a hole transporting layer which can accelerate the perovskite solar cell degradation. Hence the development of stable, inorganic hole extraction layers (HEL), without compromising the simplicity of device fabrication is crucial in this fast-growing photovoltaic field. Here we demonstrate a low temperature (~100 oC) solution - processed and ultrathin (~ 6 nm) NiO nanoparticle thin films as an efficient HEL for CH3NH3PbI3 based perovskite solar cells. We measure a power conversion efficiency (PCE) of 13.3 % on rigid glass substrates and 8.5 % on flexible substrates. A comparison with PEDOT:PSS based MAPbI3 solar cells (PCE ~ 7.9 %) shows that NiO based solar cells have higher short circuit current density and improved open circuit voltage (1.03V). Apart from the photovoltaic performance under 1 Sun, the efficient hole extraction property of NiO is demonstrated for indoor lighting as well with a PCE of 23.0 % for NiO based CH3NH3PbI2.9Cl0.1 p-i-n solar cells under compact fluorescent lighting. Compared to the perovskite solar cells fabricated on PEDOT:PSS HEL, better shelf-life stability is observed for perovskite solar cells fabricat",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A3",
+      "title": "Organic and perovskite solar cells for space applications",
+      "url": "https://doi.org/10.1016/j.solmat.2018.03.024",
+      "doi": "10.1016/j.solmat.2018.03.024",
+      "publisher": "Ilaria Cardinaletti, Tim Vangerven, Steven Nagels et al.",
+      "published_date": "2017-08-28",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "arXiv preprint with peer-reviewed DOI (10.1016/j.solmat.2018.03.024).",
+      "evidence_summary": "For almost sixty years, solar energy for space applications has relied on inorganic photovoltaics, evolving from solar cells made of single crystalline silicon to triple junctions based on germanium and III-V alloys. The class of organic-based photovoltaics, which ranges from all-organic to hybrid perovskites, has the potential of becoming a disruptive technology in space applications, thanks to the unique combination of appealing intrinsic properties (e.g. record high specific power, tunable absorption window) and processing possibilities. Here, we report on the launch of the stratospheric mission OSCAR, which demonstrated for the first time organic-based solar cell operation in extra-terrestrial conditions. This successful maiden flight for organic-based photovoltaics opens a new paradigm for solar electricity in space, from satellites to orbital and planetary space stations.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A4",
+      "title": "Photovoltaic Power Generation in the Stellar Environments",
+      "url": "https://arxiv.org/abs/1012.0721",
+      "doi": null,
+      "publisher": "T. E. Girish, S. Aranya",
+      "published_date": "2010-12-03",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "medium",
+      "credibility_reason": "arXiv preprint — not yet peer-reviewed; corroborate with published literature before citing as definitive.",
+      "evidence_summary": "In this paper we have studied the problem of photovoltaic power generation near selected stars in the solar neighborhood. The nature of the optical radiation from a star will depend on its luminosity,HR classification and spectral characteristics. The solar celloperation in the habitable zones of the stars is similar to AM1.0 operation near earth.Thecurrent space solar cell technology can be adopted for power generation near G,K and Mtype stars. Silicon solar cells with good near IR response are particularly suitable in theenvironments of M type stars which are most abundant in the universe. . Photovoltaicpower generation near binary stars like Sirius and Alpha Centauri is also discussed.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A5",
+      "title": "Dynamic electrical behavior of halide perovskite based solar cells",
+      "url": "https://doi.org/10.1016/j.solmat.2016.09.012",
+      "doi": "10.1016/j.solmat.2016.09.012",
+      "publisher": "George Alexandru Nemnes, Cristina Besleaga, Andrei Gabriel Tomulescu et al.",
+      "published_date": "2016-06-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "arXiv preprint with peer-reviewed DOI (10.1016/j.solmat.2016.09.012).",
+      "evidence_summary": "A dynamic electrical model is introduced to investigate the hysteretic effects in the I-V characteristics of perovskite based solar cells. By making a simple ansatz for the polarization relaxation, our model is able to reproduce qualitatively and quantitatively detailed features of measured I-V characteristics. Pre-poling effects are discussed, pointing out the differences between initially over- and under-polarized samples. In particular, the presence of the current over-shoot observed in the reverse characteristics is correlated with the solar cell pre-conditioning. Furthermore, the dynamic hysteresis is analyzed with respect to changing the bias scan rate, the obtained results being consistent with experimentally reported data: the hysteresis amplitude is maximum at intermediate scan rates, while at very slow and very fast ones it becomes negligible. The effects induced by different relaxation time scales are assessed. The proposed dynamic electrical model offers a comprehensive view of the solar cell operation, being a practical tool for future calibration of tentative microscopic descriptions.",
+      "summary_source": "abstract",
+      "citation_count": null
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "US11764001B2 - Perovskite solar cell configurations",
+      "url": "https://patents.google.com/patent/US11764001B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "processes can be applied to the large scale production of halide PSCs. Thus, this emerging hybrid solar cell has the potential to meet the urgent need for low cost and high efficiency power generation. [...] a high absorption coefficient >10 4 cm ⁇ 1 a long carrier diffusion length >1 ⁇ m high carrier mobility 25 cm 2 /Vs a suitable band gap spanning the energy of visible and near infrared light. simple and cheap synthesis processes can be applied to the large scale production of halide PSCs. this emerging hybrid solar cell has the potential to meet the urgent need for low cost and high efficiency power generation. [...] been found to be an excellent light absorber for use in creating highly efficient and economically viable solar cells, known as halide perovskite solar cells (PSCs). Halide perovskites have outstanding optical and electronic properties, such as a high absorption coefficient (>104 cm−1), a long carrier diffusion length (>1 μm), high carrier mobility (25 cm2/Vs), and a suitable band gap spanning the energy of visible and near infrared light. In addition, simple and cheap synthesis processes can",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "Perovskite solar cell module and packaging method thereof",
+      "url": "https://patents.google.com/patent/CN111261785A/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2009-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2009; legal scope still requires claim review.",
+      "evidence_summary": "from researchers and the industry in the field of solar power generation technology around the world, making them promising to realize cheap solar power generation. The core technology fully reflects its good commercialization prospects and great potential market value. However, the stability and device size scaling of perovskite solar cells have always been the key challenges restricting their high-efficiency commercial applications. At present, substantial progress has been made in the [...] 钙钛矿太阳能电池自从2009年发明以来，基于元素地球储量丰富、制备工艺简单、转换效率高等优势，受到世界各地太阳能发电技术领域科研工作者和业界的广泛关注，使其有望实现廉价太阳能发电的核心技术，充分体现了其良好的商业化前景和极大的潜在市场价值 。然而，钙钛矿太阳能电池的稳定性和器件尺寸放大一直是制约其高效率商业化应用的关键性难题。目前，大尺寸钙钛矿电池制备技术已经取得了实质性进展，然而，为进一步制备大尺寸钙钛矿电池组件，调节其电压及输出功率，能够接入光伏逆变器实现发电输出并接入电网，还需对钙钛矿电池单元进行串并联连接及进一步封装。Since the invention of perovskite solar cells in 2009, based on the advantages of abundant earth reserves of elements, simple preparation process and high conversion efficiency, they have received extensive attention from researchers [...] been made in the preparation technology of large-scale perovskite cells. However, in order to further prepare large-scale perovskite cell components, adjust their voltage and output power, it can be connected to a photovoltaic inverter to achieve power output and access to The power grid requires series-parallel connection and further packaging of perovskite battery cells.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "WO2018156987A1 - Stable perovskite solar cell",
+      "url": "https://patents.google.com/patent/WO2018156987A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2018-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2018; legal scope still requires claim review.",
+      "evidence_summary": "Perovskite solar cells use an inexpensive halide-based material as the light-harvesting layer. The perovskite may include calcium, titanium, and oxygen (e.g., (e.g., CaTiCh). Perovskite solar cells hold an advantage over traditional silicon solar cells in the simplicity of their processing. Silicon cells require an expensive, multistep process, conducted at temperatures greater than 1000°C, in a high vacuum, using a clean room facility. Until a process like this is scaled, the costs are [...] Perovskite solar cells hold an advantage over traditional silicon solar cells in the simplicity of their processing. Silicon cells require an expensive, multistep process, conducted at temperatures greater than 1000°C, in a high vacuum, using a clean room facility. Until a process like this is scaled, the costs are prohibitive. In comparison, a perovskite cell can be manufactured in a kitchen, with simple wet chemistry and inexpensive materials. However, perovskite solar cells have not been [...] the control circuitry may, for example, keep solar power generation on the maximum power point, perform battery management, etc. the control circuitry may additionally or alternatively include the moisture detection circuit described herein. the control circuitry and/or moisture detection circuit may be encapsulated by the second encapsulant layer. the control circuitry may be potted circuitry.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "Ultralight Photovoltaic Power Generation Tiles",
+      "url": "https://patents.google.com/patent/US20180315877A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2018-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2018; legal scope still requires claim review.",
+      "evidence_summary": "Perovskite Use in Photovoltaic Cells Perovskite solar cells have emerged as a potential replacement for traditional photovoltaic cells that may suffer damage from irradiation in space. Perovskite solar cells may show similar efficiency in power generation as gallium arsenide (GaAs) photovoltaic cells, while generating a higher level of power per weight. As shown in FIG. 42, a comparison of power-per-weight of various photovoltaic cells are illustrated. Additionally, perovskite solar cells may [...] Perovskite solar cells have emerged as a potential replacement for traditional photovoltaic cells that may suffer damage from irradiation in space. Perovskite solar cells may show similar efficiency in power generation as gallium arsenide (GaAs) photovoltaic cells, while generating a higher level of power per weight. GaAs gallium arsenide FIG. 42 a comparison of power-per-weight of various photovoltaic cells are illustrated. [...] FIG. 44 illustrates a J-V curve of perovskite solar cells under proton radiation in accordance with various embodiments. the SBSP systems include arrays of independent satellite modules each incorporating arrays of independent solar electric power generation tiles. the power generation tiles are each formed incorporating independent photovoltaic cells, power transmitters, and control circuits.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P5",
+      "title": "US20150279573A1 - Perovskite solar cell",
+      "url": "https://patents.google.com/patent/US20150279573A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2015-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2015; legal scope still requires claim review.",
+      "evidence_summary": "Recently, a perovskite solar cell in which a perovskite type compound absorbs light and generates electric power was announced by Miyasaka et al. of Toin University of Yokohama in J. Am. Chem. Soc., 131(2009)6050. The perovskite type compound employed in the perovskite solar cell is formed by mixing halogenated methylamine and lead halide. [...] perovskite solar cell in which a perovskite type compound absorbs light and generates electric power was announced by Miyasaka et al. of Toin University of Yokohama in J. Am. Chem. Soc., 131(2009)6050. the perovskite type compound employed in the perovskite solar cell is formed by mixing halogenated methylamine and lead halide. [...] 238000010248 power generation Methods 0.000 description 1 239000011164 primary particle Substances 0.000 description 1 239000001294 propane Substances 0.000 description 1 RUOJZAUFBMNUDX-UHFFFAOYSA-N propylene carbonate Chemical compound CC1COC(=O)O1 RUOJZAUFBMNUDX-UHFFFAOYSA-N 0.000 description 1 238000010298 pulverizing process Methods 0.000 description 1 125000001453 quaternary ammonium group Chemical group 0.000 description 1",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P6",
+      "title": "Perovskite Solar Cells with Self Assembled Monolayers",
+      "url": "https://patents.google.com/patent/US20240188313A1/en?oq=18%2F286%2C109",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2024; legal scope still requires claim review.",
+      "evidence_summary": "BACKGROUND The field of thin-film photovoltaics includes perovskite solar cells that use hybrid perovskites as the light absorber. The promise of low cost, high power conversion efficiency (PCE), and versatility has driven research efforts on perovskite solar cells (PSCs) (see Park et al., Organic-Inorganic Halide Perovskite Photovoltaics: From Fundamentals to Device Architectures. (Springer, Zurich, Switzerland, 2016); Snaith. “Present status and future prospects of perovskite photovoltaics,” [...] the field of thin-film photovoltaics includes perovskite solar cells that use hybrid perovskites as the light absorber. PCE power conversion efficiency PSCs perovskite solar cells [...] According to one aspect, an iodine-terminated self-assembled monolayer (I-SAM) was used in perovskite solar cells (PSCs) to achieve a 50% increase of adhesion toughness at the interface between the electron transport layer (ETL) and the halide perovskite thin film to enhance mechanical reliability. Treatment with I-SAM also improved the power conversion efficiency from 20.2% to 21.4%, reduced hysteresis, and improved operational stability with a projected T80 (80% of the initial efficiency",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P7",
+      "title": "EP3223323A1 - High efficiency large area perovskite solar ...",
+      "url": "https://patents.google.com/patent/EP3223323A1/zh",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "the method of the invention is also enabled for solid state solar cell comprising cesium (Cs) mixed perovskite [FA x Cs (1-x) PbX 3 ] formulations. VASP The method of the invention(VASP) is readily scalable to the industrial level. It provides a new bench mark for pushing the perovskite solar cells towards practical applications on a large scale. the main fabrication steps of the perovskite film by VASP method are the following: [...] the present invention addresses the disadvantages of the other methods for producing perovskite films, which are not versatile, use anti-solvents method and cannot be adaptable for preparing larger scale PSCs. the present invention addresses the problem of the presence of hysteresis in the J-V (current-voltage) curves in PSCs of small size. the present invention addresses the problems depicted above. [...] the method of the invention provides a procedure for preparing larger scale PSCs by avoiding the use of anti-solvents.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P8",
+      "title": "Perovskite solar cell and preparation method thereof",
+      "url": "https://patents.google.com/patent/CN103746078A/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "also known as a photovoltaic cell. Perovskite solar cells are currently a relatively new type of solar cells, mainly using similar ABX 3 (A=CH 3 NH 3 + etc.; B=Pb 2+ , Sn 2+ etc.; X=Cl - , Br - , I - etc.) have the photovoltaic material of perovskite structure to realize photoelectric conversion, have advantage such as manufacturing process is simple, source of raw material is extensive, and cost is low. The basic structure of perovskite solar cells includes substrates, transparent electrodes, [...] 目前钙钛矿电池的结构基本是p-i-n结构，而本发明提出的“基于双复合异质结的钙钛矿太阳能电池”，利用的是类似于p-(pi)-i-(in)-n的多层结构，引入两个复合层(pi)及（in）在器件结构中，增大光吸光层与电荷传输层的接触面积，有利于电荷的传输，从而抑制光生电子与空穴的复合，最终改善器件性能。At present, the structure of perovskite cells is basically a p-i-n structure, but the \"perovskite solar cells based on double composite heterojunction\" proposed by the present invention utilizes a structure similar to p-(pi)-i-(in)-n The multi-layer structure, introducing two composite layers (pi) and (in) in the device structure, increases the [...] reported high-efficiency solid-state perovskite solar cells, which greatly improved the perovskite solar energy The photoelectric conversion efficiency of the battery. These perovskite solar cells adopt heterojunction structures based on p-i-n structures.",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "Perovskite Solar Cell Market Size, Share | Growth Report ...",
+      "url": "https://www.fortunebusinessinsights.com/industry-reports/perovskite-solar-cell-market-101556",
+      "doi": null,
+      "publisher": "Fortunebusinessinsights",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "In September 2024, Oxford PV started the commercialization of their record-breaking tandem solar technology with the first shipment to a U.S.-based customer. This shipment of 72-cell panels is comprised of perovskite-on-silicon solar cells, which are capable of producing up to 20% more energy than a standard silicon panel. These cells will be used in a utility-scale installation, reducing the cost of electricity (LCOE) and thus contributing to more efficient land use by generating more [...] In November 2024, UtmoLight launched a 450 W perovskite solar panel with a power conversion efficiency of 16.1%. It features an open-circuit voltage of 190.7 V, a short-circuit current of 3.19, and a fill factor of 73.7%. This panel is currently the largest perovskite photovoltaic module available in the market. [...] The Asia Pacific market accounted for USD 48.85 million in 2025, representing 48.36% of the global industry, and is expected to reach USD 68.32 million in 2026. The Asia Pacific region is expected have largest revenue share in perovskite solar cells market, driven by rising energy demand owing to urbanization and industrialization, increasing renewable energy targets, including solar energy, the presence of favorable climate supporting solar projects installations, and rising technological",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "Next-Generation Solar Cell Market Size, Share & Trends, 2032",
+      "url": "https://www.snsinsider.com/reports/next-generation-solar-cell-market-6887",
+      "doi": null,
+      "publisher": "Snsinsider",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "The Next-Generation Solar Cell Market size was valued at USD 3.31 billion in 2024 and is expected to reach USD 14.11 billion by 2032, growing at a CAGR of 19.94% over the forecast period 2025-2032. The Market growth is driven by rise in demand for clean and sustainable energy solutions among consumers, rapid developments in solar technologies (perovskite and tandem cells) and global demand for carbon neutrality. [...] ### Recent Trends In April 2025, Oxford PV and Trina Solar signed a landmark patent licensing agreement for perovskite-silicon tandem solar technology. In June 2024, Heliatek launched a lightweight organic PV module, HeliaSol, designed for low load-bearing roofs and facades, offering 45 W of power output. In April 2025, LONGi set new world records in solar cell efficiency, achieving 34.85% for crystalline silicon-perovskite tandem cells and 30.1% for commercial M6-sized tandem cells. [...] Cadmium Telluride (CdTe) had a market share of 33.8%, which accounts for the highest market share of all next-generation solar cells in 2024. CdTe solar cells have seen the most significant commercial success relative to other thin-film techniques as a result of their low costs, simple fabrication processes, and relatively high efficiencies, particularly for utility-scale solar systems. They are also good for utility-scale job sites, where cost and performance matter. As a result, continued",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "U.S. Perovskite Solar Cells Market Size | Industry Report ...",
+      "url": "https://marksparksolutions.com/reports/us-perovskite-solar-cells-market",
+      "doi": null,
+      "publisher": "Marksparksolutions",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "The research methodology for the U.S. Perovskite Solar Cells Market combines primary industry validation with thorough tracking of technology commercialization and capacity-based market modeling. The study starts by identifying active participants across the value chain, which includes developers of perovskite materials, cell manufacturers, tandem module developers, equipment suppliers, research institutions, national laboratories, and utility-scale project developers. Information at the [...] The increasing demand from U.S. utility-scale solar developers for higher-energy-yield photovoltaic modules is emerging as a key driver of perovskite solar cell adoption. This shift is particularly relevant as the industry grapples with constraints related to land availability, interconnection capacity, and project economics. In recent years, utility-scale solar installations have accounted for over 70% of new solar capacity additions in the United States, with high-irradiance regions like [...] On the demand side, assessments incorporate utility-scale solar developers, commercial rooftop operators, building-integrated photovoltaic (BIPV) stakeholders, defense agencies, and specialty electronics manufacturers to gauge adoption potential across various application segments. Pricing analysis examines module-level cost structures, tandem-module efficiency projections, balance-of-system savings, and expected declines in manufacturing costs as production scales up.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "Scaling Reliable, Next-Generation Perovskite Solar Cell ...",
+      "url": "https://www.energy.ca.gov/sites/default/files/2024-06/CEC-500-2024-029.pdf",
+      "doi": null,
+      "publisher": "Ca",
+      "published_date": "2021-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "government",
+      "credibility_tier": "high",
+      "credibility_reason": "Official government source; authoritative within its stated scope.",
+      "evidence_summary": "A major appeal for the blade coating evaporation technique, is its ability to deposit on large-area substrates with minimal adaptations from the small-area process. This is necessary for the commercial deployment of PSCs, whether as single-junction devices or as silicon-perovskite tandem cells. Figure 33 shows a proof-of-concept for the viability of thermally evaporated tin oxide as a large-area ETL. From Figure 33b, the project team saw that six large SnO x/FTO pieces (originally deposited as [...] The air-instability of PSCs remains a major challenge toward their commercialization and deployment on a gigawatt scale. While the record efficiency of PSCs continues to rise (Green, M. et al., 2021), their sensitivity to ambient oxygen and moisture necessitates an encapsula-tion scheme in order to ensure viable long-term stability. Despite numerous reports of encap-sulated devices, long-lasting PSCs often have a low PCE compared to record devices, which themselves often lack stability (Uddin, [...] Since their discovery, perovskite solar cells have failed to meet efficiency and durability requirements for commercialization; however, recent advances at laboratory scale have pushed their power conversion efficiency to greater than 25 percent, making them one of the most efficient solar technologies in existence today. These perovskite solar cells can be fabricated in a comparably simple process at low temperatures, holding a promise for dramatically cutting solar costs.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M5",
+      "title": "Solar Cells and Modules Market Share, Trends, Size 2035",
+      "url": "https://www.businessresearchinsights.com/market-reports/solar-cells-and-modules-market-101967",
+      "doi": null,
+      "publisher": "Businessresearchinsights",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The United States Solar Cells and Modules Market installed 38 GW of solar photovoltaic capacity during 2024, with utility-scale projects contributing 71% of new additions. Domestic module manufacturing capacity reached 51 GW in 2025 after multiple factory expansions across Texas, Ohio, and Georgia. Mono-Si modules represented 88% of installations across the United States market due to efficiency levels above 23%. Residential rooftop solar penetration touched 6% of single-family homes, while [...] North America represented 14% of the Solar Cells and Modules Market during 2025. The United States accounted for 82% of regional photovoltaic demand, while Canada represented 11% and Mexico contributed 7%. More than 38 GW of photovoltaic capacity was installed in the United States during 2024, with utility-scale projects representing 71% of additions. Domestic module manufacturing capacity crossed 51 GW because of factory expansion projects in Texas, Ohio, and Georgia. CdTe modules maintained [...] In 2024, AI-enabled predictive maintenance systems were adopted in 39% of commercial solar monitoring platforms for performance optimization. In 2025, battery-integrated solar photovoltaic systems were deployed in 51% of newly developed utility-scale renewable energy projects globally.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M6",
+      "title": "Perovskite Solar Cell Market Size & Opportunities, 2026- ...",
+      "url": "https://www.coherentmarketinsights.com/industry-reports/perovskite-solar-cell-market",
+      "doi": null,
+      "publisher": "Coherentmarketinsights",
+      "published_date": "2020-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "low",
+      "credibility_reason": "Stale market data (published 2020): commercial market estimates >3 years old have low reliability. Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "Historical Range : 2020 - 2024 Base Year : 2025 Estimated Year : 2026 Forecast Period : 2026-2033 ## Perovskite Solar Cell Market Size and Trends Global perovskite solar cell market is estimated to be valued at USD 465.0 Mn in 2026 and is expected to reach USD 11,031.1 Mn by 2033, exhibiting a compound annual growth rate (CAGR) of 57.2% from 2026 to 2033. Discover market dynamics shaping the industry: Request Free Sample [...] | Report Coverage | Details | --- | | Base Year: | 2025 | Market Size in 2026: | USD 465.0 Mn | | Historical Data for: | 2020 To 2024 | Forecast Period: | 2026 To 2033 | | Forecast Period 2026 to 2033 CAGR: | 57.2% | 2033 Value Projection: | USD 11,031.1 Mn | [...] In April 2024, Solaires and XLYNX collaborated to build high efficiency perovskite solar cells In January 2024, RenShine Solar announced the completion of its 150MW perovskite PV module project in Changsgu, China, which had begun in April 2023. In February 2023, Oxford PV announced its plans to launch its perovskite-on-silicon tandem cell, with a predicted conversion efficiency of 27% and an energy yield of 24%.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M7",
+      "title": "Perovskite Solar Cell Market: Revolutionizing Renewable Energy",
+      "url": "https://www.altenergymag.com/news/2025/12/29/perovskite-solar-cell-market-revolutionizing-renewable-energy/46579",
+      "doi": null,
+      "publisher": "Altenergymag",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "According to Cervicorn Consulting’s latest analysis, the global perovskite solar cell market is projected to grow from USD 489.50 million in 2025 to USD 8805.49 million by 2033, achieving a remarkable CAGR of 38.05% between 2025 and 2034. This exponential growth reflects the increasing adoption of PSCs across residential, commercial, and industrial sectors. Moreover, the lightweight and flexible properties of PSCs enable integration into cutting-edge applications such as building-integrated [...] A key player in the Chinese market, GCL Perovskite has announced plans to establish gigawatt-scale production lines by 2025. The company is also collaborating with Towngas Energy on pilot projects to improve the durability and scalability of tandem PSC modules for long-term outdoor use. 2. UtmoLight [...] energy yields and cost-effectiveness. Jinko Solar aims to achieve 34% efficiency by 2026, reflecting the intense competition and continuous innovation within this segment. This trend is pivotal as it propels solar energy technology to new frontiers, ensuring enhanced energy output for both residential and industrial applications.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M8",
+      "title": "Perovskite Solar Cell Market Size, Share | CAGR 67.6%",
+      "url": "https://market.us/press-release/perovskite-solar-cell-market",
+      "doi": null,
+      "publisher": "Market",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "In 2025, the Global Perovskite Solar Cell Market was valued at USD 289.4 million. From 2026 to 2035, the market is projected to expand at a CAGR of 67.6%,",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "perovskite solar cells for utility-scale power generation peer reviewed DOI journal",
+    "perovskite solar cells for utility-scale power generation systematic review meta-analysis",
+    "perovskite solar cells for utility-scale power generation site:scholar.google.com",
+    "perovskite solar cells for utility-scale power generation Nature Science Cell Lancet article",
+    "perovskite solar cells for utility-scale power generation review journal",
+    "perovskite solar cells for utility-scale power generation efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "perovskite solar cells for utility-scale power generation site:patents.google.com/patent",
+    "perovskite solar cells for utility-scale power generation site:patentscope.wipo.int",
+    "perovskite solar cells for utility-scale power generation site:worldwide.espacenet.com",
+    "perovskite solar cells for utility-scale power generation site:patents.justia.com",
+    "perovskite solar cells for site:patents.google.com/patent",
+    "perovskite solar cells for site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "perovskite solar cells for utility-scale power market size revenue commercial manufacturer 2024 2025",
+    "perovskite solar cells for utility-scale power industry company deployment commercial scale",
+    "perovskite solar cells for utility-scale power generation product manufacturer revenue commercial sales 2024 2025",
+    "perovskite solar cells for utility-scale power generation company commercial deployment industry news",
+    "perovskite solar cells for utility-scale power market report investment startup 2024",
+    "perovskite solar cells for utility-scale power generation commercial scale production manufacturer press release",
+    "perovskite solar cells for utility-scale power generation manufacturing commercialization company",
+    "perovskite solar cells for utility-scale power generation government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] perovskite solar cells for utility-scale power generation",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] perovskite solar cells for utility-scale power generation",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:perovskite photovoltaics for g] perovskite solar cells for utility-scale power generation",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:metal-halide perovskite module] perovskite solar cells for utility-scale power generation",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] perovskite solar cells for utility-scale power generation",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[PubMed] perovskite solar cells for utility-scale power generation",
+      "result_count": 1,
+      "accepted_source_ids": [
+        "A1"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[arXiv] perovskite solar cells for utility-scale power generation",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": [
+        "arXiv title not relevant to topic: 'CH3NH3PbI3/GeSe bilayer heterojunction solar cell with high performance'",
+        "arXiv title not relevant to topic: 'SEP environment in the inner heliosphere from Solar Orbiter and Parker Solar Probe'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] perovskite solar cells for utility-scale power generation",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "perovskite solar cells for utility-scale power generation site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "market",
+      "query": "perovskite solar cells for utility-scale power market size revenue commercial manufacturer 2024 2025",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.maximizemarketresearch.com",
+        "deferred (market-report cap): 'Perovskite Solar Cell Market Size, Growth Report, 2026-2033'",
+        "market host is blocked or not approved: www.custommarketinsights.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "perovskite solar cells for utility-scale power industry company deployment commercial scale",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M6",
+        "M7"
+      ],
+      "rejected_reasons": [
+        "duplicate source: https://www.grandviewresearch.com/industry-analysis/perovskite-solar-cell-market-report",
+        "market host is blocked or not approved: energy-solutions.co",
+        "market host is blocked or not approved: www.vde.com",
+        "market host is blocked or not approved: www.acumenresearchandconsulting.com",
+        "market host is blocked or not approved: www.sciencedirect.com",
+        "market host is blocked or not approved: www.youtube.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "perovskite solar cells for utility-scale power generation product manufacturer revenue commercial sales 2024 2025",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M8"
+      ],
+      "rejected_reasons": [
+        "deferred (market-report cap): 'Perovskite Solar Cell Market Size, Share | CAGR 67.6%'",
+        "duplicate source: https://www.fortunebusinessinsights.com/industry-reports/perovskite-solar-cell-market-101556"
+      ]
+    },
+    {
+      "domain": "academic",
+      "query": "[Relevance-Filter]",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "score=2 (min=3) — removed 'Corotating Shock Waves and the Solar-Wind Source of Energetic Ion Abundances: Power Laws in A/Q'",
+        "score=-1 (min=3) — removed 'Radiation hardness and post irradiation regeneration behavior of GaInAsP solar cells'",
+        "score=-1 (min=3) — removed 'Unraveling the defect landscape of wide-bandgap perovskites from electrical and photoelectrical characterization of thin films and solar cells'"
+      ]
+    }
+  ]
+}

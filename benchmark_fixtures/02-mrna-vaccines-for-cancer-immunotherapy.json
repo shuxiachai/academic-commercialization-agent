@@ -1,0 +1,620 @@
+{
+  "topic": "mRNA vaccines for cancer immunotherapy",
+  "display_topic": "mRNA vaccines for cancer immunotherapy",
+  "output_language": "English",
+  "localized_headings": [],
+  "weight_profile": "biomedical",
+  "collected_at": "2026-08-12T08:33:14.288134Z",
+  "academic_sources": [
+    {
+      "source_id": "A1",
+      "title": "Clinical advances of mRNA vaccines for cancer immunotherapy.",
+      "url": "https://doi.org/10.1016/j.medj.2024.11.015",
+      "doi": "10.1016/j.medj.2024.11.015",
+      "publisher": "Med",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Med).",
+      "evidence_summary": "The development of mRNA vaccines represents a significant advancement in cancer treatment, with more than 120 clinical trials to date demonstrating their potential across various malignancies, including lung, breast, prostate, melanoma, and more challenging cancers such as pancreatic and brain tumors. These vaccines work by encoding tumor-specific antigens and immune-stimulating molecules, effectively activating the immune system to target and eliminate cancer cells. Despite these promising advancements, significant challenges remain, particularly in achieving efficient delivery and precise regulation of the immune response. This review provides a comprehensive overview of recent clinical progress in mRNA cancer vaccines, discusses the innovative strategies being employed to overcome existing hurdles, and explores future directions, including the integration of CRISPR-Cas9 technology and advancements in mRNA design. Our aim is to provide insights into the ongoing research and clinical trials, highlighting the transformative potential of mRNA vaccines in advancing oncology and improving patient outcomes.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A2",
+      "title": "mRNA vaccine for cancer immunotherapy.",
+      "url": "https://doi.org/10.1186/s12943-021-01335-5",
+      "doi": "10.1186/s12943-021-01335-5",
+      "publisher": "Mol Cancer",
+      "published_date": "2021-02-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Mol Cancer).",
+      "evidence_summary": "mRNA vaccines have become a promising platform for cancer immunotherapy. During vaccination, naked or vehicle loaded mRNA vaccines efficiently express tumor antigens in antigen-presenting cells (APCs), facilitate APC activation and innate/adaptive immune stimulation. mRNA cancer vaccine precedes other conventional vaccine platforms due to high potency, safe administration, rapid development potentials, and cost-effective manufacturing. However, mRNA vaccine applications have been limited by instability, innate immunogenicity, and inefficient in vivo delivery. Appropriate mRNA structure modifications (i.e., codon optimizations, nucleotide modifications, self-amplifying mRNAs, etc.) and formulation methods (i.e., lipid nanoparticles (LNPs), polymers, peptides, etc.) have been investigated to overcome these issues. Tuning the administration routes and co-delivery of multiple mRNA vaccines with other immunotherapeutic agents (e.g., checkpoint inhibitors) have further boosted the host anti-tumor immunity and increased the likelihood of tumor cell eradication. With the recent U.S. Food and Drug Administration (FDA) approvals of LNP-loaded mRNA vaccines for the prevention of COVID-19 and the promising therapeutic outcomes of mRNA cancer vaccines achieved in several clinical trials against multiple aggressive solid tumors, we envision the rapid advancing of mRNA vaccines for cancer immunotherapy in the near future. This review provides a detailed overview of the recent progress and e",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A3",
+      "title": "Clinical advances and ongoing trials on mRNA vaccines for cancer treatment.",
+      "url": "https://doi.org/10.1016/s1470-2045(22)00372-2",
+      "doi": "10.1016/s1470-2045(22)00372-2",
+      "publisher": "Lancet Oncol",
+      "published_date": "2022-10-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Lancet Oncol).",
+      "evidence_summary": "Years of research exploring mRNA vaccines for cancer treatment in preclinical and clinical trials have set the stage for the rapid development of mRNA vaccines during the COVID-19 pandemic. Therapeutic cancer vaccines based on mRNA are well tolerated, and the inherent advantage in ease of production, which rivals the best available conventional vaccine manufacture methods, renders mRNA vaccines a promising option for cancer immunotherapy. Technological advances have optimised mRNA-based vaccine stability, structure, and delivery methods, and multiple clinical trials investigating mRNA vaccine therapy are now enrolling patients with various cancer diagnoses. Although therapeutic mRNA-based cancer vaccines have not yet been approved for standard treatment, encouraging results from early clinical trials with mRNA vaccines as monotherapy and in combination with checkpoint inhibitors have been obtained. This Review summarises the latest clinical advances in mRNA-based vaccines for cancer treatment and reflects on future perspectives and challenges for this new and promising treatment approach.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A4",
+      "title": "Cancer mRNA vaccines: clinical application progress and challenges.",
+      "url": "https://doi.org/10.1016/j.canlet.2025.217752",
+      "doi": "10.1016/j.canlet.2025.217752",
+      "publisher": "Cancer Lett",
+      "published_date": "2025-08-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Cancer Lett).",
+      "evidence_summary": "Messenger RNA (mRNA) vaccines have emerged as one of the most promising and rapidly evolving immunotherapeutic approaches due to their ease of production, demonstrated clinical efficacy, and high safety. The coronavirus disease 2019(COVID-19) pandemic has showcased the remarkable therapeutic potential of mRNA vaccines, prompting researchers to explore their use for cancer treatment. Preclinical studies and human clinical trials have indicated their substantial clinical applicability. However, current research faces several challenges, including the complexity of tumor antigen selection, vaccine stability, and the development of resistance. This review summarizes the optimization strategies for cancer mRNA vaccines in preclinical settings, the progress of clinical trials, and the challenges encountered while analyzing various delivery vehicle types, infusion methods, and application cases across different cancer types, highlighting key factors in vaccine design. The findings demonstrate that mRNA vaccines elicit specific immune responses and exhibit favorable safety and tolerability in clinical trials. Moreover, developing personalized neoantigen vaccines offers a novel direction for cancer immunotherapy. The unique contribution of this review lies in its comprehensive overview of the latest advancements in therapeutic mRNA vaccines for cancer treatment while identifying critical areas for future research to propel the field forward.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A5",
+      "title": "mRNA delivery systems for cancer immunotherapy: Lipid nanoparticles and beyond.",
+      "url": "https://doi.org/10.1016/j.addr.2024.115190",
+      "doi": "10.1016/j.addr.2024.115190",
+      "publisher": "Adv Drug Deliv Rev",
+      "published_date": "2024-03-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Adv Drug Deliv Rev).",
+      "evidence_summary": "mRNA-based vaccines are emerging as a promising alternative to standard cancer treatments and the conventional vaccines. Moreover, the FDA-approval of three nucleic acid based therapeutics (Onpattro, BNT162b2 and mRNA-1273) has further increased the interest and trust on this type of therapeutics. In order to achieve a significant therapeutic efficacy, the mRNA needs from a drug delivery system. In the last years, several delivery platforms have been explored, being the lipid nanoparticles (LNPs) the most well characterized and studied. A better understanding on how mRNA-based therapeutics operate (both the mRNA itself and the drug delivery system) will help to further improve their efficacy and safety. In this review, we will provide an overview of what mRNA cancer vaccines are and their mode of action and we will highlight the advantages and challenges of the different delivery platforms that are under investigation.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A6",
+      "title": "mRNA vaccines for prostate cancer: A novel promising immunotherapy.",
+      "url": "https://doi.org/10.1016/j.bbcan.2025.189333",
+      "doi": "10.1016/j.bbcan.2025.189333",
+      "publisher": "Biochim Biophys Acta Rev Cancer",
+      "published_date": "2025-07-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Biochim Biophys Acta Rev Cancer).",
+      "evidence_summary": "The treatment of advanced prostate cancer (PCa) primarily based on androgen deprivation therapy (ADT); however, patients inevitably progress to the castration-resistant prostate cancer (CRPC) stage. Despite the recent advancements in CRPC treatment with novel endocrine drugs that further inhibit androgen receptor signaling, resistance ultimately develops, underscoring the urgent need for new effective therapeutic strategies. Therapeutic cancer vaccines, a form of immunotherapy, exert anti-cancer effects by activating the host's immune system. Over the past few decades, various conventional therapeutic PCa vaccines based on cells, microbes, proteins, peptides, or DNA have been developed and tested in patients with advanced PCa. These attempts have largely failed to improve survival, with the sole exception of sipuleucel-T, which extended the median overall survival of asymptomatic or minimally symptomatic metastatic CRPC (mCRPC) patients by four months. The rapid development and high efficacy of mRNA vaccines during the COVID-19 pandemic have garnered worldwide attention. Compared to conventional vaccines, mRNA vaccines offer several unique advantages, including high production efficiency, low cost, high safety, strong immune response induction, and high adaptability and precision. These attributes make mRNA vaccines a promising frontier in the treatment of advanced PCa.",
+      "summary_source": "abstract",
+      "citation_count": null
+    },
+    {
+      "source_id": "A7",
+      "title": "Personalized RNA neoantigen vaccines stimulate T cells in pancreatic cancer.",
+      "url": "https://doi.org/10.1038/s41586-023-06063-y",
+      "doi": "10.1038/s41586-023-06063-y",
+      "publisher": "Nature",
+      "published_date": "2023-06-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "academic_paper",
+      "credibility_tier": "high",
+      "credibility_reason": "PubMed indexed: peer-reviewed biomedical journal (Nature).",
+      "evidence_summary": "Pancreatic ductal adenocarcinoma (PDAC) is lethal in 88% of patients1, yet harbours mutation-derived T cell neoantigens that are suitable for vaccines 2,3. Here in a phase I trial of adjuvant autogene cevumeran, an individualized neoantigen vaccine based on uridine mRNA-lipoplex nanoparticles, we synthesized mRNA neoantigen vaccines in real time from surgically resected PDAC tumours. After surgery, we sequentially administered atezolizumab (an anti-PD-L1 immunotherapy), autogene cevumeran (a maximum of 20 neoantigens per patient) and a modified version of a four-drug chemotherapy regimen (mFOLFIRINOX, comprising folinic acid, fluorouracil, irinotecan and oxaliplatin). The end points included vaccine-induced neoantigen-specific T cells by high-threshold assays, 18-month recurrence-free survival and oncologic feasibility. We treated 16 patients with atezolizumab and autogene cevumeran, then 15 patients with mFOLFIRINOX. Autogene cevumeran was administered within 3 days of benchmarked times, was tolerable and induced de novo high-magnitude neoantigen-specific T cells in 8 out of 16 patients, with half targeting more than one vaccine neoantigen. Using a new mathematical strategy to track T cell clones (CloneTrack) and functional assays, we found that vaccine-expanded T cells comprised up to 10% of all blood T cells, re-expanded with a vaccine booster and included long-lived polyfunctional neoantigen-specific effector CD8+ T cells. At 18-month median follow-up, patients with vacci",
+      "summary_source": "abstract",
+      "citation_count": null
+    }
+  ],
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "WO2019036670A2 - Efficacious mrna vaccines - Google Patents",
+      "url": "https://patents.google.com/patent/WO2019036670A2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2019-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2019; legal scope still requires claim review.",
+      "evidence_summary": "Type I IFNs have been shown to be critical for inducing anti-tumor responses both in mice and humans in response to intravenously administered RNA aimed as cancer immunotherapy (Kranz et al., Nature, 534(7607): 396-401 (2016)). Consistent with the presently disclosed data, upregulation of co-stimulatory molecules on DCs was shown to be driven by IFNa induced exclusively by the mRNA cargo and not by the lipid carrier. In addition, earlier studies demonstrated that targeting of DCs by mRNA was [...] Nucleic acid vaccines based on plasmid DNA, viral vectors or messenger RNA (mRNA) have been evaluated for several clinical applications including cancer, allergy and gene replacement therapies, and have proven to be effective as vaccines against infectious diseases. There has been considerable focus on modified mRNA vaccines during the last decade, as they are safe, scalable and offer precision in antigen design. They circumvent the problem of pre-existing immunity associated with viral vectors [...] Nucleic acid vaccines based on plasmid DNA, viral vectors or messenger RNA (mRNA) have been evaluated for several clinical applications including cancer, allergy and gene replacement therapies, and have proven to be effective as vaccines against infectious diseases.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P2",
+      "title": "US20170246207A1 - Antigen specific mrna cellular cancer vaccines - Google Patents",
+      "url": "https://patents.google.com/patent/US20170246207A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2017-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2017; legal scope still requires claim review.",
+      "evidence_summary": "the invention pertains to the field of cancer immunotherapy, more particularly the invention relates to stimulation of immunity through the induction of gene expression for tumor antigens and tumor antigen derived epitopes utilizing chemically generated mRNA the invention provides means of generating cellular therapies for cancer through the administration of mRNA that is chemically modified to allow for in vitro entry into cells. [...] FIELD OF THE INVENTION The invention pertains to the field of cancer immunotherapy, more particularly the invention relates to stimulation of immunity through the induction of gene expression for tumor antigens and tumor antigen derived epitopes utilizing chemically generated mRNA [...] or may also be used as vaccines. In the practice of the invention, it is known that dendritic cells (DC) possess unique morphology similar to neuronal dendrites and were originally identified based on their ability to stimulate the adaptive immune system. Of importance to the field of tumor immunotherapy, dendritic cells appear to be the only cell in the body capable of activating naïve T cells . Accordingly, in the practice of the invention utilization of mRNA or synthetically generated",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P3",
+      "title": "WO2017070618A1 - Cancer vaccines - Google Patents",
+      "url": "https://patents.google.com/patent/WO2017070618A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2017-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2017; legal scope still requires claim review.",
+      "evidence_summary": "The mRNA cancer vaccines provide unique therapeutic alternatives to peptide based or DNA vaccines. When the mRNA cancer vaccine is delivered to a cell, the mRNA will be processed into a polypeptide by the intracellular machinery which can then process the polypeptide into immunosensitive fragments capable of stimulating an immune response against the tumor. [...] The mRNA cancer vaccines may be utilized in various settings depending on the severity of the cancer or the degree or level of unmet medical need. As a non-limiting example, the mRNA cancer vaccines may be utilized to treat any stage of cancer. The mRNA cancer vaccines have superior properties in that they produce much larger antibody titers, T cell responses and produce responses early than commercially available anti-cancer vaccines. While not wishing to be bound by theory, the inventors [...] mRNA vaccines are described in International Patent Application No . PCT/US2015/027400, filed on April 23, 2015, herein incorporated by reference in its entirety. the mRNA cancer vaccines provide unique therapeutic alternatives to peptide based or DNA vaccines.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P4",
+      "title": "WO2020097291A1 - Rna cancer vaccines - Google Patents",
+      "url": "https://patents.google.com/patent/WO2020097291A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2020-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2020; legal scope still requires claim review.",
+      "evidence_summary": "Personalized cancer vaccines were created using the unique mutational profile of an individual patient’s tumor matched to their specific HLA-type. Each unique mRNA vaccine comprised a single strand of mRNA encoding up to 20 neoantigens and formulated in lipid nanoparticles (LNPs) for intramuscular (IM) injection. Such mRNA vaccines are thought to prime, activate, and expand a diverse population of neoantigen- specific T cells for the treatment of solid tumors. The safety and tolerability of the [...] Each unique mRNA vaccine comprised a single strand of mRNA encoding up to 20 neoantigens and formulated in lipid nanoparticles (LNPs) for intramuscular (IM) injection. LNPs lipid nanoparticles IM intramuscular Such mRNA vaccines are thought to prime, activate, and expand a diverse population of neoantigen- specific T cells for the treatment of solid tumors. the safety and tolerability of the mRNA vaccine was assessed both as monotherapy and in combination with pembrolizumab. [...] Antigen-encoded mRNA is an attractive technology platform for neoantigen vaccination as an mRNA vaccine can deliver multiple neoantigens in a single molecule, a vaccine unique to each particular subject can be rapidly manufactured, and the neoantigens are endogenously translated and enter into the natural cellular antigen processing and presentation pathway. Moreover, this mRNA-based vaccine technology overcomes the challenges commonly associated with DNA- based vaccines, such as risk of",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P5",
+      "title": "WO2024151811A1 - Personalized cancer vaccines - Google Patents",
+      "url": "https://patents.google.com/patent/WO2024151811A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2024; legal scope still requires claim review.",
+      "evidence_summary": "Each mRNA cancer vaccine comprises an mRNA encoding multiple neoantigens designed specifically for each individual subject’s tumor mutanome and HLA type. This allows for the inclusion of the maximum number of neoantigens while both maintaining a sufficient amount of flanking sequence to facilitate both HLA Class I and Class II presentation of the peptides and retaining an mRNA construct length that can be reliably and rapidly manufactured. nucleic acid e.g., RNA, such as mRNA [...] mRNA-1 an mRNA-based personalized cancer vaccine comprising an mRNA encoding up to 34 antigens encapsulated in a lipid-nanoparticle, is tailored to a patient’s tumor. Algorithmically derived and encoded neoantigens in mRNA-1 are endogenously translated and enter the cellular antigen presentation pathway. Preliminary data indicated that mRNA-1 induced robust and antigen-specific T-cell responses to several neoantigens encoded in the mRNA sequence. [...] mRNA vaccine, identifying at least 2 cancer antigens from a sample of the subject to produce a second set of cancer antigens, and administering to the subject a mRNA vaccine having an open reading frame encoding the second set of cancer antigens to the subject. The mRNA vaccine having an open reading frame encoding second set of antigens, in some embodiments, is administered to the subject 2 months, 3 months, 4 months, 5 months, 6 months, 8 months, 10 months, or 1 year after the mRNA vaccine",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P6",
+      "title": "WO/2020/097291 RNA CANCER VACCINES",
+      "url": "https://patentscope.wipo.int/search/en/WO2020097291",
+      "doi": null,
+      "publisher": "Wipo",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The present application is related to a method of treating a cancer by administering to a human subject multiple doses of a mRNA cancer vaccine formulated ...Read more",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P7",
+      "title": "WO2018144082A1 - Rna cancer vaccines - Google Patents",
+      "url": "https://patents.google.com/patent/WO2018144082A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2018-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2018; legal scope still requires claim review.",
+      "evidence_summary": "The mRNA cancer vaccines may be utilized in various settings depending on the severity of the cancer or the degree or level of unmet medical need. As a non-limiting example, the mRNA cancer vaccines may be utilized to treat any stage of cancer. The mRNA cancer vaccines have superior properties in that they produce much larger antibody titers, T cell responses and produce responses early than commercially available anti-cancer vaccines. While not wishing to be bound by theory, the inventors [...] In some embodiments, the mRNA cancer vaccine may be administered with an anticancer therapeutic agent, including but not limited to, a traditional cancer vaccine. The mRNA cancer vaccine and anti-cancer therapeutic can be combined to enhance immune therapeutic responses even further. The mRNA cancer vaccine and other therapeutic agent may be administered simultaneously or sequentially. When the other therapeutic agents are administered simultaneously they can be administered in the same or [...] the mRNA cancer vaccine is administered to the subject by intradermal or intramuscular injection. In some embodiments, the mRNA cancer vaccine is administered to the subject on day zero. In some embodiments, a second dose of the mRNA cancer vaccine is administered to the subject on day twenty one.",
+      "summary_source": null,
+      "citation_count": null
+    },
+    {
+      "source_id": "P8",
+      "title": "US20190351040A1 - Rna cancer vaccines - Google Patents",
+      "url": "https://patents.google.com/patent/US20190351040A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": "2019-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; publication year: 2019; legal scope still requires claim review.",
+      "evidence_summary": "The mRNA cancer vaccines may be utilized in various settings depending on the severity of the cancer or the degree or level of unmet medical need. As a non-limiting example, the mRNA cancer vaccines may be utilized to treat any stage of cancer. The mRNA cancer vaccines have superior properties in that they produce much larger antibody titers, T cell responses and produce responses early than commercially available anti-cancer vaccines. While not wishing to be bound by theory, the inventors [...] the mRNA cancer vaccines described herein may be combined with any other therapy useful for treating the patient. a patient may be treated with the mRNA cancer vaccine and an anti-cancer agent. the methods of the invention can be used in conjunction with one or more cancer therapeutics, for example, in conjunction with an anti-cancer agent, a traditional cancer vaccine, chemotherapy, radiotherapy, etc. (e.g., simultaneously, or as part of an overall treatment procedure). [...] In some embodiments, the mRNA cancer vaccine may be administered with an anti-cancer therapeutic agent, including but not limited to, a traditional cancer vaccine. The mRNA cancer vaccine and anti-cancer therapeutic can be combined to enhance immune therapeutic responses even further. The mRNA cancer vaccine and other therapeutic agent may be administered simultaneously or sequentially. When the other therapeutic agents are administered simultaneously they can be administered in the same or",
+      "summary_source": null,
+      "citation_count": null
+    }
+  ],
+  "patent_assignees": [],
+  "market_sources": [
+    {
+      "source_id": "M1",
+      "title": "mRNA vaccines for cancer immunotherapy - PMC",
+      "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9794995",
+      "doi": null,
+      "publisher": "Nih",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "government",
+      "credibility_tier": "high",
+      "credibility_reason": "Official government source; authoritative within its stated scope.",
+      "evidence_summary": "Title: mRNA vaccines for cancer immunotherapy - PMC # mRNA vaccines for cancer immunotherapy. mRNA vaccines are an attractive and powerful immunotherapeutic platform against cancer because of their high potency, specificity, versatility, rapid and large-scale development capability, low-cost manufacturing potential, and safety. Recent technological advances in mRNA vaccine design and delivery have accelerated mRNA cancer vaccines’ development and clinical application. We discuss rational design and optimization strategies for mRNA cancer vaccine development. **Keywords:** mRNA, cancer vaccine, immunotherapy, lipid nanoparticles, nucleic acid, optimization, tumor antigen. The development of cancer vaccines is a promising immunotherapy strategy to induce tumor antigens (TAs) specific and long-lasting immune responses. In this review, we discuss cancer vaccine approaches with a focus on nucleic acid vaccines, compare DNA and mRNA cancer vaccines, and finally discuss on the approaches for designing and optimizing mRNA-based cancer vaccines, delivery formats for mRNA vaccines, and future prospects. Peptide-based cancer vaccines consist of highly immunogenic tumor-specific peptide antigens to elicit the desired immune response. Several mRNA cancer vaccines are in different phases of development. Rational design and optimization of mRNA cancer vaccines. The typical mRNA consists of a cap flanked by 5′- untranslated regions (UTR), 3′-UTRs, an open reading frame (ORF) encoding cancer ",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M2",
+      "title": "mRNA vaccines for cancer immunotherapy - Penn State",
+      "url": "https://pure.psu.edu/en/publications/mrna-vaccines-for-cancer-immunotherapy",
+      "doi": null,
+      "publisher": "Psu",
+      "published_date": "2022-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "research_institute",
+      "credibility_tier": "medium",
+      "credibility_reason": "University or academic institution; credible for research outputs, verify for commercial claims.",
+      "evidence_summary": "Title: mRNA vaccines for cancer immunotherapy - Penn State mRNA vaccines for cancer immunotherapy. Immunotherapy has emerged as a breakthrough strategy in cancer treatment. mRNA vaccines are an attractive and powerful immunotherapeutic platform against cancer because of their high potency, specificity, versatility, rapid and large-scale development capability, low-cost manufacturing potential, and safety. Recent technological advances in mRNA vaccine design and delivery have accelerated mRNA cancer vaccines’ development and clinical application. We discuss rational design and optimization strategies for mRNA cancer vaccine development. Finally, we discuss the limitations of mRNA cancer vaccines and future challenges. * Link to publication in Scopus. Dive into the research topics of 'mRNA vaccines for cancer immunotherapy'. # mRNA vaccines for cancer immunotherapy. / **mRNA vaccines for cancer immunotherapy**. title = \"mRNA vaccines for cancer immunotherapy\",. abstract = \"Immunotherapy has emerged as a breakthrough strategy in cancer treatment. mRNA vaccines are an attractive and powerful immunotherapeutic platform against cancer because of their high potency, specificity, versatility, rapid and large-scale development capability, low-cost manufacturing potential, and safety. Recent technological advances in mRNA vaccine design and delivery have accelerated mRNA cancer vaccines{\\textquoteright} development and clinical application. We discuss rational design and optimization s",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M3",
+      "title": "mRNA Therapeutics Market Size, Share & Growth Forecast, 2035",
+      "url": "https://www.snsinsider.com/reports/mrna-therapeutics-market-2671",
+      "doi": null,
+      "publisher": "Snsinsider",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "For instance, in June 2024, mRNA-based cancer vaccines and personalized immunotherapies accounted for ~58% of the total global oncology pipeline investments in genetic medicine, reflecting growing institutional confidence and expanding market share. ## mRNA Therapeutics Market Restraints: High Manufacturing Complexity and Cold Chain Requirements are Hampering the mRNA Therapeutics Market Growth [...] In September 2024, introduced next-generation combination mRNA vaccines targeting influenza and COVID-19 with improved thermostability features, strengthening pandemic preparedness capabilities and expanding market reach through reduced cold chain dependency. ### mRNA Therapeutics Market Key Players: [...] In February 2025, it expanded its mRNA cancer vaccine portfolio with positive Phase 3 data for personalized melanoma immunotherapy, aiming to revolutionize oncology treatment and strengthen its position in the therapeutic vaccines segment across global markets.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M4",
+      "title": "BioNTech Announces Second Quarter 2025 Financial Results and Corporate Update",
+      "url": "https://www.biontech.com/us/en/home/mediaroom/news/press-releases/2025/08/biontech-announces-second-quarter-2025-financial-results-and.html",
+      "doi": null,
+      "publisher": "Biontech",
+      "published_date": null,
+      "accessed_date": "2026-08-12",
+      "source_type": "company_disclosure",
+      "credibility_tier": "medium",
+      "credibility_reason": "First-party company page; authoritative for its own claims but not independent.",
+      "evidence_summary": "Announced strategic transaction to acquire CureVac N.V. (“CureVac”) to strengthen the research, development, manufacturing and commercialization of mRNA-based cancer immunotherapy candidates Presented multiple clinical updates across diversified oncology pipeline at medical meetings validating the Company’s oncology combination strategy [...] Continued execution of BioNTech’s oncology strategy with focus on two pan-tumor programs including two announced transactions: mRNA-based cancer immunotherapy candidates and BNT327, a bispecific antibody candidate targeting PD-L11 and VEGF-A Entered a global strategic co-development and co-commercialization collaboration with Bristol Myers Squibb (“BMS”) to jointly execute a broad clinical development program to evaluate and advance BNT327 across numerous solid tumor types [...] Biopharmaceutical New Technologies (BioNTech) is a global next generation immunotherapy company pioneering novel investigative therapies for cancer and other serious diseases. BioNTech exploits a wide array of computational discovery and therapeutic modalities with the intent of rapid development of novel biopharmaceuticals. Its diversified portfolio of oncology product candidates aiming to address the full continuum of cancer includes mRNA cancer immunotherapies, next-generation",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M5",
+      "title": "mRNA Cancer Vaccines Market Report, Market Analysis and Industry Insights, Market Size & Revenue, Share, Forecast 2024–2030",
+      "url": "https://www.strategicmarketresearch.com/market-report/mrna-cancer-vaccines-market",
+      "doi": null,
+      "publisher": "Strategicmarketresearch",
+      "published_date": "2024-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "of approximately USD 0.22 billion, supported by biomarker-driven vaccine development strategies. Prostate Cancer represented roughly 10% of the global market in 2024, equivalent to about USD 0.18 billion, reflecting ongoing clinical-stage immunotherapy integration. By Vaccine Type Personalized mRNA Cancer Vaccines dominated the market with a 58% share in 2024, driven by neoantigen-targeted precision approaches and tumor-specific sequencing integration, corresponding to an estimated market [...] Prostate Cancer represented roughly 10% of the global market in 2024, equivalent to about USD 0.18 billion, reflecting ongoing clinical-stage immunotherapy integration. By Vaccine Type Personalized mRNA Cancer Vaccines dominated the market with a 58% share in 2024, driven by neoantigen-targeted precision approaches and tumor-specific sequencing integration, corresponding to an estimated market value of approximately USD 1.04 billion. [...] momentum in this market isn’t only scientific — it’s psychological. After the pandemic proved mRNA’s clinical and commercial viability, the oncology community is now testing how far and fast the platform can go against the most complex disease of our time. Comprehensive Market Snapshot The Global mRNA Cancer Vaccines Market is projected to grow at a strong 25.8% CAGR, expanding from USD 1.8 billion in 2024 to nearly USD 7.3 billion by 2030, reflecting accelerating oncology pipeline maturity and",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M6",
+      "title": "mRNA Vaccines Market Size, Share | Growth Report [2034]",
+      "url": "https://www.fortunebusinessinsights.com/mrna-vaccines-market-113546",
+      "doi": null,
+      "publisher": "Fortunebusinessinsights",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The global mRNA vaccines market size was valued at USD 6.01 billion in 2025. The market is expected to grow from USD 6.85 billion in 2026 to USD 25.64 billion",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M7",
+      "title": "Cancer Immunotherapy Market Size Report, 2026-2033",
+      "url": "https://www.grandviewresearch.com/industry-analysis/cancer-immunotherapy-market",
+      "doi": null,
+      "publisher": "Grandviewresearch",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "Cancer immunotherapy market size was $153.3 billion in 2025, to grow from $166.4 billion in 2026 to $305.8 billion by 2033, a revenue share of 43.3% in 2025.",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    },
+    {
+      "source_id": "M8",
+      "title": "mRNA Cancer Vaccines and Therapeutics Market 2035",
+      "url": "https://www.vantagemarketresearch.com/mrna-cancer-vaccines-and-therapeutics-market",
+      "doi": null,
+      "publisher": "Vantagemarketresearch",
+      "published_date": "2025-01-01",
+      "accessed_date": "2026-08-12",
+      "source_type": "market_report",
+      "credibility_tier": "medium",
+      "credibility_reason": "Commercial market estimate with potentially proprietary methodology.",
+      "evidence_summary": "The Global mRNA Cancer Vaccines and Therapeutics Market size was estimated at USD 6.4 billion in 2025 and is projected to reach USD 22.8 billion by 2035,",
+      "summary_source": "search_snippet",
+      "citation_count": null
+    }
+  ],
+  "academic_queries": [
+    "mRNA vaccines for cancer immunotherapy peer reviewed DOI journal",
+    "mRNA vaccines for cancer immunotherapy systematic review meta-analysis",
+    "mRNA vaccines for cancer immunotherapy site:scholar.google.com",
+    "mRNA vaccines for cancer immunotherapy Nature Science Cell Lancet article",
+    "mRNA vaccines for cancer immunotherapy review journal",
+    "mRNA vaccines for cancer immunotherapy efficiency stability commercialization"
+  ],
+  "patent_queries": [
+    "mRNA vaccines for cancer immunotherapy site:patents.google.com/patent",
+    "mRNA vaccines for cancer immunotherapy site:patentscope.wipo.int",
+    "mRNA vaccines for cancer immunotherapy site:worldwide.espacenet.com",
+    "mRNA vaccines for cancer immunotherapy site:patents.justia.com",
+    "mRNA vaccines for cancer site:patents.google.com/patent",
+    "mRNA vaccines for cancer site:patentscope.wipo.int"
+  ],
+  "market_queries": [
+    "mRNA vaccines for cancer immunotherapy market size revenue commercial manufacturer 2024 2025",
+    "mRNA vaccines for cancer immunotherapy industry company deployment commercial scale",
+    "mRNA vaccines for cancer immunotherapy product manufacturer revenue commercial sales 2024 2025",
+    "mRNA vaccines for cancer immunotherapy company commercial deployment industry news",
+    "mRNA vaccines for cancer immunotherapy market report investment startup 2024",
+    "mRNA vaccines for cancer immunotherapy commercial scale production manufacturer press release",
+    "mRNA vaccines for cancer immunotherapy manufacturing commercialization company",
+    "mRNA vaccines for cancer immunotherapy government standards policy commercialization"
+  ],
+  "audit": [
+    {
+      "domain": "academic",
+      "query": "[OA-Recent] mRNA vaccines for cancer immunotherapy",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Cited] mRNA vaccines for cancer immunotherapy",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:mRNA-based cancer vaccines for] mRNA vaccines for cancer immunotherapy",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[OA-Syn:Messenger RNA therapeutics for] mRNA vaccines for cancer immunotherapy",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[S2] mRNA vaccines for cancer immunotherapy",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[PubMed] mRNA vaccines for cancer immunotherapy",
+      "result_count": 32,
+      "accepted_source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8"
+      ],
+      "rejected_reasons": [
+        "near-duplicate of 'Clinical advances of mRNA vaccines for cancer immunotherapy.': mRNA vaccines for cancer immunotherapy.",
+        "PubMed title not relevant to topic: 'Recent progress in mRNA cancer vaccines.'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "[Lens.org] mRNA vaccines for cancer immunotherapy",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "patent",
+      "query": "mRNA vaccines for cancer immunotherapy site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 1): 'WO2018140826A1 - Core/shell structure platform for immunotherapy - Google Patents'",
+        "patent title not relevant to topic (score 0): 'US20190008938A1 - Concatemeric peptide epitope rnas - Google Patents'",
+        "patent title not relevant to topic (score 1): 'US20220143161A1 - Mrna vaccine - Google Patents'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "mRNA vaccines for cancer immunotherapy site:patentscope.wipo.int",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P6"
+      ],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'OMPI – Búsqueda en las colecciones de patentes ...'",
+        "patent title not relevant to topic (score 1): 'immunotherapy targeting tumor neoantigenic peptides'",
+        "patent title not relevant to topic (score 1): 'core/shell structure platform for immunotherapy'",
+        "patent title not relevant to topic (score 0): 'nanoparticle comprising cell-penetrating peptides ...'",
+        "patent title not relevant to topic (score 0): 'OMPI – Pesquisa nas coleções internacionais e nacionais de patentes'",
+        "patent title not relevant to topic (score 0): 'OMPI – Búsqueda en las colecciones de patentes nacionales e internacionales'",
+        "patent title not relevant to topic (score 0): 'OMPI – Búsqueda en las colecciones de patentes nacionales e internacionales'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "mRNA vaccines for cancer immunotherapy site:worldwide.espacenet.com",
+      "result_count": 1,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'Espacenet – search results'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "mRNA vaccines for cancer immunotherapy site:patents.justia.com",
+      "result_count": 10,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "patent title not relevant to topic (score 0): 'Joseph Senn Inventions, Patents and Patent Applications'",
+        "patent title not relevant to topic (score 0): 'Michael J. Shamblott Inventions, Patents and ...'",
+        "patent title not relevant to topic (score 1): 'modified mrna for multicell transformation'",
+        "patent title not relevant to topic (score 1): 'U.S. Patent for Personalized immunotherapy against several neuronal and brain tumors Patent (Patent # 11,890,333 issued February 6, 2024)'",
+        "patent title not relevant to topic (score 0): 'Yingzhong Li Inventions, Patents and Patent Applications'",
+        "patent title not relevant to topic (score 0): 'Patents by Inventor Claudia Gravekamp'",
+        "patent title not relevant to topic (score 0): 'Julie Magarian Blander Inventions, Patents and ...'",
+        "patent title not relevant to topic (score 0): 'Sidi Chen Inventions, Patents and Patent Applications'"
+      ]
+    },
+    {
+      "domain": "patent",
+      "query": "mRNA vaccines for cancer site:patents.google.com/patent",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "P7",
+        "P8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "market",
+      "query": "mRNA vaccines for cancer immunotherapy market size revenue commercial manufacturer 2024 2025",
+      "result_count": 9,
+      "accepted_source_ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4"
+      ],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.custommarketinsights.com",
+        "market host is blocked or not approved: www.biospace.com",
+        "market host is blocked or not approved: www.datamintelligence.com",
+        "deferred (market-report cap): 'mRNA Vaccines and Therapeutics Market Size Report 2031'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "mRNA vaccines for cancer immunotherapy industry company deployment commercial scale",
+      "result_count": 9,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: ",
+        "market host is blocked or not approved: "
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "mRNA vaccines for cancer immunotherapy product manufacturer revenue commercial sales 2024 2025",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M5"
+      ],
+      "rejected_reasons": [
+        "market summary lacks core topic keywords: 'mrna-20251231'",
+        "market host is blocked or not approved: www.custommarketinsights.com",
+        "market host is blocked or not approved: www.datamintelligence.com",
+        "market host is blocked or not approved: www.delveinsight.com",
+        "market host is blocked or not approved: www.biospace.com",
+        "market host is blocked or not approved: straitsresearch.com",
+        "duplicate source: https://www.fortunebusinessinsights.com/mrna-vaccines-market-113546"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "mRNA vaccines for cancer immunotherapy company commercial deployment industry news",
+      "result_count": 9,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "market host is blocked or not approved: www.marketbusinessinsights.com",
+        "market host is blocked or not approved: pmc.ncbi.nlm.nih.gov",
+        "market host is blocked or not approved: www.contemporarypediatrics.com",
+        "market host is blocked or not approved: wewillcure.com",
+        "market host is blocked or not approved: finance.yahoo.com",
+        "market host is blocked or not approved: www.mdpi.com",
+        "unreachable URL https://www.globenewswire.com/news-release/2026/07/01/3320427/0/en/mRNA-Cancer-Vaccine-Market-to-Surpass-1-20-Billion-in-2026-as-Personalized-Oncology-Immunotherapies-Advance-New-Report-Finds.html: request failed: The read operation timed out",
+        "market host is blocked or not approved: www.drugdiscoverynews.com"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "mRNA vaccines for cancer immunotherapy market report investment startup 2024",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M6"
+      ],
+      "rejected_reasons": [
+        "unreachable URL https://www.businesswire.com/news/home/20240628914984/en/Global-mRNA-Cancer-Vaccines-Clinical-Trials-Future-Market-Outlook-2024---ResearchAndMarkets.com: request failed: The read operation timed out",
+        "duplicate source: https://www.strategicmarketresearch.com/market-report/mrna-cancer-vaccines-market",
+        "market host is blocked or not approved: www.biospace.com",
+        "deferred (market-report cap): 'mRNA Cancer Vaccines and Therapeutics Market Size, Share [2035] | Research Report'",
+        "market host is blocked or not approved: www.custommarketinsights.com",
+        "deferred (market-report cap): 'mRNA Therapeutics Market Size & Share Report, 2024-2030'",
+        "deferred (market-report cap): 'Cancer Vaccines Market Report 2024-2032, By Type, Technology, and Geo'"
+      ]
+    },
+    {
+      "domain": "market",
+      "query": "mRNA vaccines for cancer immunotherapy commercial scale production manufacturer press release",
+      "result_count": 10,
+      "accepted_source_ids": [
+        "M7",
+        "M8"
+      ],
+      "rejected_reasons": []
+    },
+    {
+      "domain": "academic",
+      "query": "[Relevance-Filter]",
+      "result_count": 0,
+      "accepted_source_ids": [],
+      "rejected_reasons": [
+        "score=2 (min=3) — removed 'RNA vaccines for cancer: Principles to practice.'"
+      ]
+    }
+  ]
+}
