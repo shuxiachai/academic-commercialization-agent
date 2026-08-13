@@ -67,9 +67,11 @@ def load_manifest() -> dict:
 
 def _save_manifest(manifest: dict) -> None:
     FIXTURE_ROOT.mkdir(parents=True, exist_ok=True)
-    MANIFEST_PATH.write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+    # newline="" for the same reason as the fixtures themselves: otherwise
+    # every capture on Windows rewrites the whole file as CRLF and git shows
+    # it as changed even when no fixture moved.
+    with MANIFEST_PATH.open("w", encoding="utf-8", newline="") as fh:
+        fh.write(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
 
 
 def freeze(num: str, slug: str, topic: str, sources_json: str) -> dict:

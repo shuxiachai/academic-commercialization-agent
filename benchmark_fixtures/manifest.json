@@ -3,7 +3,7 @@
     "01": {
       "topic": "CAR-T cell therapy for blood cancers",
       "file": "01-car-t-cell-therapy-for-blood-cancers.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:32:21.873281Z",
       "sha256_16": "6159a446a2f36859",
       "counts": {
@@ -15,7 +15,7 @@
     "02": {
       "topic": "mRNA vaccines for cancer immunotherapy",
       "file": "02-mrna-vaccines-for-cancer-immunotherapy.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:33:14.288134Z",
       "sha256_16": "96935f19b7cfc29b",
       "counts": {
@@ -27,7 +27,7 @@
     "03": {
       "topic": "solid-state batteries for electric vehicles",
       "file": "03-solid-state-batteries-for-electric-vehicles.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:32:37.595485Z",
       "sha256_16": "8643e7369b337b9b",
       "counts": {
@@ -39,7 +39,7 @@
     "04": {
       "topic": "perovskite solar cells for utility-scale power generation",
       "file": "04-perovskite-solar-cells-for-utility-scale-powe.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:34:56.756415Z",
       "sha256_16": "231bc9bd2210f9ac",
       "counts": {
@@ -51,7 +51,7 @@
     "05": {
       "topic": "CRISPR gene editing for genetic diseases",
       "file": "05-crispr-gene-editing-for-genetic-diseases.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:35:06.137348Z",
       "sha256_16": "abb0d051a5071093",
       "counts": {
@@ -63,7 +63,7 @@
     "06": {
       "topic": "carbon capture and storage for industrial emissions",
       "file": "06-carbon-capture-and-storage-for-industrial-emi.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:36:53.064578Z",
       "sha256_16": "4dcd24217fea4e80",
       "counts": {
@@ -75,7 +75,7 @@
     "07": {
       "topic": "cultivated meat for food industry",
       "file": "07-cultivated-meat-for-food-industry.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:37:42.029956Z",
       "sha256_16": "6732ba8c9d0f5d2f",
       "counts": {
@@ -87,7 +87,7 @@
     "08": {
       "topic": "quantum computing for drug discovery",
       "file": "08-quantum-computing-for-drug-discovery.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:38:06.354111Z",
       "sha256_16": "2cb26be92fc7e04b",
       "counts": {
@@ -99,7 +99,7 @@
     "09": {
       "topic": "graphene-based flexible electronics",
       "file": "09-graphene-based-flexible-electronics.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:39:45.076002Z",
       "sha256_16": "1082e67c2bedad41",
       "counts": {
@@ -111,7 +111,7 @@
     "10": {
       "topic": "room temperature ambient pressure superconductors",
       "file": "10-room-temperature-ambient-pressure-superconduc.json",
-      "captured_at": "2026-08-13T02:38:20+00:00",
+      "captured_at": "2026-08-13T02:40:30+00:00",
       "collected_at": "2026-08-12T08:41:13.079742Z",
       "sha256_16": "397e7080d907f4f8",
       "counts": {
