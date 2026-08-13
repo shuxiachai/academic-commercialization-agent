@@ -110,6 +110,33 @@ class FreezeAndLoadTests(TestCase):
             with self.assertRaises(ValueError):
                 benchmark_fixtures.load("01", "slug")
 
+    def test_digest_ignores_line_endings(self):
+        """Git translates newlines on checkout, so the same committed fixture
+        is CRLF in a Windows working copy and LF on a Linux runner. Hashing
+        raw bytes made the guard fire everywhere except the machine that
+        captured the file, which trains people to ignore it."""
+        raw = _collection_json()
+        self.assertEqual(
+            benchmark_fixtures._digest(raw),
+            benchmark_fixtures._digest(raw.replace("\n", "\r\n")),
+        )
+        # And the guard built on it does not fire on a CRLF checkout.
+        with _TempFixtureRoot(self.root):
+            benchmark_fixtures.freeze("01", "slug", "topic", raw)
+            path = benchmark_fixtures.fixture_path("01", "slug")
+            with path.open("w", encoding="utf-8", newline="") as fh:
+                fh.write(raw.replace("\n", "\r\n"))
+            recorded = benchmark_fixtures.load_manifest()["fixtures"]["01"]["sha256_16"]
+            self.assertEqual(
+                benchmark_fixtures._digest(path.read_text(encoding="utf-8")), recorded)
+
+    def test_freeze_writes_lf_so_the_working_copy_matches_the_repo(self):
+        raw = _collection_json()
+        with _TempFixtureRoot(self.root):
+            benchmark_fixtures.freeze("01", "slug", "topic", raw)
+            written = benchmark_fixtures.fixture_path("01", "slug").read_bytes()
+        self.assertNotIn(b"\r\n", written)
+
     def test_refreezing_updates_the_digest(self):
         """Otherwise the guard above would reject every legitimate refresh."""
         with _TempFixtureRoot(self.root):

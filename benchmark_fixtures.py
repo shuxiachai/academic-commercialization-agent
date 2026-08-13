@@ -47,7 +47,15 @@ def fixture_path(num: str, slug: str) -> Path:
 
 
 def _digest(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    """Content hash, blind to line endings.
+
+    Git translates newlines on checkout, so the same committed fixture is CRLF
+    in a Windows working copy and LF on a Linux CI runner. Hashing the bytes as
+    they sit on disk made the guard fire on every machine that was not the one
+    that captured the file — a platform artifact reported as tampering, which
+    would have trained everyone to ignore the check.
+    """
+    return hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest()[:16]
 
 
 def load_manifest() -> dict:
@@ -73,7 +81,11 @@ def freeze(num: str, slug: str, topic: str, sources_json: str) -> dict:
     """
     FIXTURE_ROOT.mkdir(parents=True, exist_ok=True)
     path = fixture_path(num, slug)
-    path.write_text(sources_json, encoding="utf-8")
+    # newline="" so Windows does not expand \n to \r\n on the way out: the
+    # file then matches what git stores, and a fixture captured on one
+    # platform is byte-identical to the same fixture captured on another.
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        fh.write(sources_json)
 
     parsed = json.loads(sources_json)
     entry = {
