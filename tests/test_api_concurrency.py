@@ -248,3 +248,81 @@ class RunListFilterTests(_ConcurrencyTestBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ByokShareOfThePoolTests(_ConcurrencyTestBase):
+    """A visitor bringing their own key pays for their own tokens, so the
+    daily cap does not apply to them. That exemption is what made this a
+    problem: anonymous traffic that costs the operator nothing could hold
+    every concurrency slot, and a submission with a wrong key holds one while
+    it fails. The people the deployment exists for — the ones handed an
+    access code — were the ones who got shut out.
+    """
+
+    def _byok(self):
+        return runs.BYOKCredentials(llm_provider="deepseek",
+                                    llm_api_key="sk-test",
+                                    serper_api_key="s-test")
+
+    def test_byok_cannot_take_the_last_slot(self):
+        with patch.object(runs.subprocess, "Popen", _FakeProc), \
+             patch.object(runs, "MAX_CONCURRENT", 3), \
+             patch.object(runs, "BYOK_MAX_CONCURRENT", 2):
+            for _ in range(2):
+                runs.start_run("topic", byok=self._byok())
+            with self.assertRaises(runs.ConcurrencyLimitReached):
+                runs.start_run("one too many", byok=self._byok())
+
+    def test_a_code_holder_can_still_start_when_byok_is_saturated(self):
+        """The whole point. The global cap is not reached, so this must run."""
+        with patch.object(runs.subprocess, "Popen", _FakeProc), \
+             patch.object(runs, "MAX_CONCURRENT", 3), \
+             patch.object(runs, "BYOK_MAX_CONCURRENT", 2):
+            for _ in range(2):
+                runs.start_run("topic", byok=self._byok())
+            runs.start_run("code holder", owner="alice")   # must not raise
+            self.assertEqual(runs.active_count(), 3)
+
+    def test_the_global_cap_still_bounds_code_holders(self):
+        """The BYOK limit is checked in addition to the global one, not
+        instead of it — otherwise this fix would remove the cap it sits
+        behind."""
+        with patch.object(runs.subprocess, "Popen", _FakeProc), \
+             patch.object(runs, "MAX_CONCURRENT", 2), \
+             patch.object(runs, "BYOK_MAX_CONCURRENT", 1):
+            runs.start_run("a", owner="alice")
+            runs.start_run("b", owner="alice")
+            with self.assertRaises(runs.ConcurrencyLimitReached):
+                runs.start_run("c", owner="alice")
+
+    def test_a_finished_byok_run_releases_its_share(self):
+        """Counted from live handles, not from a running total — otherwise the
+        limit would be a lifetime quota that never resets."""
+        class _Exited(_FakeProc):
+            def poll(self):
+                return 0
+
+        with patch.object(runs, "MAX_CONCURRENT", 3), \
+             patch.object(runs, "BYOK_MAX_CONCURRENT", 1):
+            with patch.object(runs.subprocess, "Popen", _Exited):
+                runs.start_run("finished", byok=self._byok())
+            self.assertEqual(runs.active_byok_count(), 0)
+            with patch.object(runs.subprocess, "Popen", _FakeProc):
+                runs.start_run("next", byok=self._byok())   # must not raise
+
+    def test_the_message_says_it_is_the_byok_limit(self):
+        """A visitor told "the service is busy" while the deployment sits idle
+        would report a bug that is not there."""
+        with patch.object(runs.subprocess, "Popen", _FakeProc), \
+             patch.object(runs, "MAX_CONCURRENT", 5), \
+             patch.object(runs, "BYOK_MAX_CONCURRENT", 1):
+            runs.start_run("topic", byok=self._byok())
+            with self.assertRaises(runs.ConcurrencyLimitReached) as ctx:
+                runs.start_run("blocked", byok=self._byok())
+        self.assertIn("bring-your-own-key", str(ctx.exception))
+        self.assertIn("access-code holders", str(ctx.exception))
+
+    def test_default_leaves_at_least_one_slot_for_code_holders(self):
+        """The default has to be safe on a deployment nobody configured."""
+        self.assertGreaterEqual(runs.MAX_CONCURRENT - runs.byok_limit(), 1)
+        self.assertGreaterEqual(runs.byok_limit(), 1)

@@ -36,6 +36,33 @@ TIMEOUT_SECONDS = 1800
 # CPU — each run issues dozens of requests to OpenAlex/Serper/the LLM.
 MAX_CONCURRENT = int(os.getenv("API_MAX_CONCURRENT", "2"))
 
+# How many of those slots visitors bringing their own key may hold at once.
+# They are exempt from the daily cap because they pay for their own tokens,
+# which left them free to occupy every slot — and a submission whose key is
+# wrong still holds one while it fails. So the people the deployment exists
+# for, the ones handed an access code, could be shut out by anonymous traffic
+# that costs the operator nothing. Defaults to leaving one slot that only a
+# code holder can take.
+_BYOK_MAX_CONCURRENT_ENV = os.getenv("API_BYOK_MAX_CONCURRENT")
+BYOK_MAX_CONCURRENT: int | None = (
+    int(_BYOK_MAX_CONCURRENT_ENV) if _BYOK_MAX_CONCURRENT_ENV else None
+)
+
+
+def byok_limit() -> int:
+    """Effective BYOK cap: the configured value, or one below the global cap.
+
+    Derived when unset rather than frozen at import, so the default tracks
+    MAX_CONCURRENT instead of silently keeping whatever that was the moment
+    this module loaded. Freezing it made raising MAX_CONCURRENT stop meaning
+    "allow more runs" — the global cap moved and this one did not, which is
+    the sort of coupling that shows up as a test failing for a reason
+    unrelated to what it tests.
+    """
+    if BYOK_MAX_CONCURRENT is not None:
+        return BYOK_MAX_CONCURRENT
+    return max(1, MAX_CONCURRENT - 1)
+
 # Runs allowed per UTC day, independent of concurrency — applied separately
 # to each access code (see _daily_counts), not as one total every code
 # shares. The concurrency cap limits how many runs are billed at once; it
@@ -135,6 +162,9 @@ class _Handle:
     proc: subprocess.Popen
     started: float = field(default_factory=time.monotonic)
     log_file: object = None
+    #: Billed to the visitor rather than the operator, and therefore capped
+    #: separately -- see BYOK_MAX_CONCURRENT.
+    byok: bool = False
 
     @property
     def elapsed(self) -> int:
@@ -210,6 +240,14 @@ def active_count() -> int:
         return len(_registry)
 
 
+def active_byok_count() -> int:
+    """Live runs billed to a visitor's own key. Reaps first, via active_count,
+    so a finished run cannot keep holding a slot it no longer occupies."""
+    active_count()
+    with _registry_lock:
+        return sum(1 for h in _registry.values() if h.byok)
+
+
 def run_dir_for(run_id: str) -> Path:
     return DEFAULT_OUTPUT_ROOT / run_id
 
@@ -240,6 +278,12 @@ def start_run(
     own bill. The concurrency cap still applies to every run regardless of
     who is paying: it protects host resources, not a wallet.
 
+    BYOK runs are additionally bounded by BYOK_MAX_CONCURRENT. Being exempt
+    from the daily cap otherwise let anonymous traffic hold every slot — and
+    a submission with a wrong key holds one while it fails — so the visitors
+    who cost the operator nothing could shut out the code holders the
+    deployment exists for.
+
     `owner` is the access.owner_id() of whichever code authorized this run —
     None for BYOK (and for a deployment with no code configured at all). Also
     what DAILY_CAP is scoped by: each owner gets their own budget, not one
@@ -269,11 +313,22 @@ def start_run(
             raise ConcurrencyLimitReached(
                 f"{active_count()} of {MAX_CONCURRENT} concurrent runs in use"
             )
+        # Checked after the global cap, not instead of it: a code holder is
+        # still bounded by MAX_CONCURRENT, and only BYOK runs are bounded
+        # twice. The message names the BYOK limit specifically so a visitor
+        # is not told the service is busy when the deployment is idle.
+        if byok is not None and active_byok_count() >= byok_limit():
+            raise ConcurrencyLimitReached(
+                f"{active_byok_count()} of {byok_limit()} concurrent "
+                "bring-your-own-key runs in use; the remaining capacity is "
+                "reserved for access-code holders"
+            )
         run_id = create_run_id()
         if byok is None:
             _daily_counts[owner] = _daily_counts.get(owner, 0) + 1
         _registry[run_id] = _Handle(
-            run_id=run_id, topic=topic, proc=_PendingProcess(), log_file=None
+            run_id=run_id, topic=topic, proc=_PendingProcess(), log_file=None,
+            byok=byok is not None,
         )
 
     run_dir = run_dir_for(run_id)
@@ -315,8 +370,13 @@ def start_run(
         raise
 
     with _registry_lock:
+        # byok has to be carried across: this replaces the placeholder handle
+        # reserved above, and dropping the flag here would clear it the moment
+        # the process actually started — so the limit would only ever see runs
+        # that had not launched yet, which is to say none of them.
         _registry[run_id] = _Handle(
-            run_id=run_id, topic=topic, proc=proc, log_file=log_file
+            run_id=run_id, topic=topic, proc=proc, log_file=log_file,
+            byok=byok is not None,
         )
     return run_id, run_dir
 

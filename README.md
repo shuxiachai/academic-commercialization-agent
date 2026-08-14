@@ -454,6 +454,13 @@ dollar figure, rather than a `$0.00` that reads as "free". Set
 `LLM_PRICE_PER_MTOK=input:output` (USD per 1M tokens, optional third field for
 the cache-read rate) to price such a model or correct a stale entry.
 
+`API_BYOK_MAX_CONCURRENT` bounds how many of those slots visitors using their
+own keys may hold at once; it defaults to one below `API_MAX_CONCURRENT`.
+Bring-your-own-key runs skip the daily cap since the visitor pays for their
+own tokens, and that exemption is what let anonymous traffic — including
+submissions failing on a bad key — fill every slot and lock out the people
+holding a code.
+
 **Handing out a separate code per person:** `ACCESS_CODES` accepts a
 comma-separated list instead of one shared value — `ACCESS_CODES=for-alice,
 for-bob`. Each code's run history is scoped to itself: the sidebar for
@@ -1075,6 +1082,8 @@ RUN_RETENTION_DAYS=30           # N 天后自动删除已完成的运行
 **一次运行花了多少。** 每次运行按 agent 记录 token 用量，失败的运行也记——跑崩的运行照样花了钱。前端显示 token 数，以及在有价格时显示成本估算；悬停可看逐 agent 明细和这个数字的计价依据。
 
 token 是测出来的，成本不是：它需要一份本程序无法验证的价格。所以内置价格表不认识的模型，只报 token、不报金额，而不是给一个会被读成"免费"的 `$0.00`。要给这类模型定价、或修正一条过期的价格，设置 `LLM_PRICE_PER_MTOK=输入:输出`（美元 / 每 100 万 token，可选第三个字段为缓存读取价）。
+
+`API_BYOK_MAX_CONCURRENT` 限制自带 Key 的访客最多能同时占用几个并发槽位，默认比 `API_MAX_CONCURRENT` 少一个。自带 Key 的运行不计入每日额度（token 由访客自己付），而正是这个豁免让匿名流量——包括那些因为 Key 填错、几秒就失败的提交——可以占满全部槽位，把持有口令的人挡在外面。
 
 **给每个人发不同的口令：** `ACCESS_CODES` 接受逗号分隔的多个值，而不是一个共用口令——`ACCESS_CODES=给alice的口令,给bob的口令`。每个口令的运行历史都只属于它自己：持有"给alice的口令"的人，侧栏永远只看得到用这个口令跑过的记录，看不到"给bob的口令"跑过的。这只是运行时打的一个标记（口令的哈希值，写进每次运行的目录里），不是给每个人单独跑一套部署——还是一个进程、一个 `outputs/` 目录，口令只是决定 `GET /api/runs` 返回哪些。`ACCESS_CODE`（单数）还是照常可用，对应原来那种所有人共用一个口令的设置；两者可以同时设置。
 
