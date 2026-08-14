@@ -78,3 +78,82 @@ difficulty 31) is removed and any difference is the rubric's.
 
 Baseline recorded before the edit; treatment after; nothing else changed
 between them.
+
+
+---
+
+## Result (measured 2026-08-14, both arms on the same frozen evidence)
+
+**The hypothesis was wrong.** F2 tripped: the scope rule was not what pinned
+those topics to their floors.
+
+| | before | after |
+|---|---|---|
+| Runs sitting exactly on the floor | 14/30 | **14/30** |
+| Pass rate vs anchored ranges | 28/30 | 27/30 |
+
+| # | before | after | delta |
+|---|---:|---:|---:|
+| 01 CAR-T | 8.00 | 9.00 | **+1.00** |
+| 02 | 6.00 | 6.00 | 0 |
+| 03 | 5.00 | 5.00 | 0 |
+| 04 | 6.00 | 6.00 | 0 |
+| 05 | 7.33 | 7.33 | 0 |
+| 06 | 7.00 | 7.00 | 0 |
+| 07 | 6.00 | 6.00 | 0 |
+| 08 | 4.00 | 4.00 | 0 |
+| 09 | 5.67 | 5.83 | +0.16 |
+| 10 | 2.00 | 2.00 | 0 |
+
+- **P1 FAIL** — floor-sitting unchanged at 14/30
+- **P2 FAIL** — 04, 05 and 07 did not move at all
+- **P3 pass** — no global inflation; 09/10 essentially flat
+- **P4 pass** — 27/30, one below baseline
+- **F1 clear, F4 clear, F2 TRIPPED**
+
+## What the arms show that the numbers do not
+
+The gate worked *mechanically*. The scorer stopped invoking the
+process/product distinction and now leads with the commercial evidence:
+
+- 04 before: "initial shipments and product launches rather than widespread
+  deployment" -> after: names Oxford PV, UtmoLight and GCL's commercial
+  shipments
+- 07 before: discussed bioreactor volumes -> after: names the US and
+  Singapore approvals and three companies selling product
+
+And then lands on 6.0 either way, with a different justification: "the
+sector is still scaling, with most companies at pilot".
+
+So the binding constraint is downstream of the rule I changed. The
+commercial-signal table directly below says "multiple companies selling
+commercial products -> TRL 8-9" and "1-2 companies with commercial products
+or government-approved deployments -> TRL 7-8". Topic 07 satisfies both
+rows — three named companies, two national approvals — and scores 6.0.
+Something else is capping it.
+
+## Decision
+
+Keeping the gate, with the failure recorded rather than dressed up.
+
+For: the rule genuinely was being applied to product topics it was never
+written for, the reasoning it now produces is more honest, and 01 CAR-T
+moving to 9.0 matches the strongest anchor in the set (marketed FDA-approved
+products since 2017).
+
+Against: it failed both predictions it was made for, and the pass rate fell
+by one run. That run is on topic 09, whose range is the one marked
+UNRESOLVED — a range I have already said I do not trust, so the -1 is
+measured against a yardstick I disowned.
+
+Reverting would also be defensible. What is not defensible is keeping it
+*and* describing it as the fix for floor-sitting, which is what I would have
+written had these criteria not been registered first.
+
+## Next lead
+
+Not another guess. Read what actually caps a score once the commercial
+evidence is admitted — the candidates are the anti-overestimation guardrail
+(difficulty 14's mirror), and whether "reported revenue or unit sales" in
+the top row of the mapping is a condition market sources can essentially
+never satisfy, so the scorer never reaches 8-9 by that path at all.

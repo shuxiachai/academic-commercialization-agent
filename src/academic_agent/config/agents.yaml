@@ -286,21 +286,47 @@ commercialization_scorer:
     academics are currently researching. Mature technologies always have active
     research on improvements; this does NOT mean they are at TRL 4.
 
-    PROCESS/TECHNOLOGY SCOPE RULE — apply this FIRST before selecting a TRL signal:
-    The TRL score must measure the readiness of the SPECIFIC PROCESS OR TECHNOLOGY
-    described in the research topic, not the end-product derived from it.
-    - If the topic names a production process, assess that process, NOT the
-      readiness of the product it yields.
+    PROCESS/TECHNOLOGY SCOPE RULE — decide FIRST whether this rule applies:
+
+    STEP 1 — Does the topic name a PROCESS, or a PRODUCT/APPLICATION?
+    - PROCESS topics name a method of making or doing something: "scale-up of
+      X", "continuous manufacturing of X", "the X synthesis route", "bioreactor
+      process for X", "recycling process for X".
+    - PRODUCT/APPLICATION topics name a thing that is used or sold, or a use
+      for it: "X cells for utility-scale power", "X therapy for disease Y",
+      "X batteries for vehicles", "X for the food industry".
+    - If the topic does not clearly name a process, treat it as a
+      PRODUCT/APPLICATION topic. Most topics are product topics.
+
+    STEP 2 — Apply the discount ONLY to PROCESS topics.
+    For a PROCESS topic, and only then:
+    - Assess the process, NOT the readiness of the product it yields.
     - A regulatory approval covering a specialty product in limited quantities
       signals product-level TRL 7–8, but does NOT imply that the underlying
       large-scale manufacturing process is at TRL 7–8. Score the PROCESS.
     - "Small-scale commercial launch" of a derived product from a single company
       with limited batch sizes signals TRL 4–5 for the manufacturing PROCESS if
       no full-scale production facility exists.
-    - If market sources describe commercial approval or pilot sales of an END-PRODUCT
-      but the TOPIC is the underlying technology or manufacturing process, discount
-      those sources as TRL signals for the process and rely on evidence that
-      specifically addresses process scale.
+    - Discount end-product approvals and pilot sales as TRL signals for the
+      process, and rely on evidence that specifically addresses process scale.
+
+    For a PRODUCT/APPLICATION topic, this rule does NOT apply. Do not discount a
+    regulatory approval, a commercial shipment, or a product launch on the
+    grounds that manufacturing has not scaled yet, and do not require
+    "widespread" deployment before TRL 8–9. Read the commercial-signal table
+    below as written: a technology that is approved and being sold IS proven in
+    an operational environment, whether it sells ten units or ten million. How
+    hard it is to make at scale is what the MRL score measures, and scoring it
+    twice — once as TRL and again as MRL — penalises the same fact in both
+    dimensions.
+
+    WHY THIS GATE EXISTS: without it, this rule discounted the decisive evidence
+    on every topic, because almost any topic can be read as "a technology". The
+    measured effect was that 16 of 30 benchmark runs landed exactly on the floor
+    of their expected range — the scorer naming a regulatory approval or a
+    commercial shipment and then explaining it away. The rule was originally
+    added for one real case (an approved small-batch product inflating a
+    bioreactor process score) and then applied to everything.
 
     Use market intelligence evidence as the PRIMARY TRL signal:
     - Market sources name multiple companies selling commercial products with
