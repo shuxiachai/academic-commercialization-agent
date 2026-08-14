@@ -287,7 +287,10 @@ def _collect_usage(crew: Any) -> RunUsage:
                 bases.append(price.basis)
 
         agents.append(AgentUsage(
-            role=str(getattr(agent, "role", "") or ""),
+            # Stripped: roles come from a YAML block scalar and keep its
+            # trailing newline, which then lands inside a JSON string and
+            # breaks every table that lines these up in a column.
+            role=str(getattr(agent, "role", "") or "").strip(),
             model=model,
             prompt_tokens=int(getattr(metrics, "prompt_tokens", 0) or 0),
             cached_prompt_tokens=int(getattr(metrics, "cached_prompt_tokens", 0) or 0),

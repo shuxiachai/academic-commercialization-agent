@@ -193,6 +193,18 @@ class CollectionTests(TestCase):
         return _Crew([_Agent(role, _LLM(model, metrics))
                       for role, model, metrics in specs])
 
+    def test_agent_roles_are_stripped(self):
+        """Roles come from a YAML block scalar and arrive with a trailing
+        newline. Left in, it lands inside a JSON string in status.json and
+        breaks any table that aligns these in a column — which is what the
+        first real run's output looked like."""
+        with _clean_env():
+            usage = collect_usage(self._crew(
+                ("Scientific Report Quality Reviewer\n", "deepseek-chat",
+                 _Metrics(prompt=10, completion=1)),
+            ))
+        self.assertEqual(usage.agents[0].role, "Scientific Report Quality Reviewer")
+
     def test_per_agent_attribution(self):
         """The point of collecting per agent rather than reading the crew
         total: 'which agent is expensive' is the question worth answering."""
