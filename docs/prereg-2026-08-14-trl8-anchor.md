@@ -88,3 +88,66 @@ in a row is to stop changing the rubric, not to try a third guess.
 
 Same frozen evidence as both previous arms. The anchor text is the only edit
 between baseline and treatment.
+
+
+---
+
+## Result (measured 2026-08-14) — reverted
+
+**F2 tripped. The anchor is reverted, per the criterion registered above.**
+
+| | baseline | anchor arm |
+|---|---|---|
+| Runs at exactly 6.0 | 11/30 | **9/28** |
+| Runs at 8.x | 1/30 | 5/28 |
+| Pass rate | 27/30 | 25/28 |
+
+| # | before | after | delta |
+|---|---:|---:|---:|
+| 01 CAR-T | 9.00 | 8.33 | -0.67 |
+| 04 perovskite | 6.00 | 6.00 | 0 |
+| 05 CRISPR | 7.33 | 8.00 | +0.67 |
+| 07 cultivated | 6.00 | 6.33 | +0.33 |
+| 09 graphene | 5.83 | 5.67 | -0.16 |
+| others | | | 0 |
+
+- **P1 FAIL** — 6.0 runs were to drop to <= 6; they went 11 -> 9
+- **P2 FAIL** — 04 did not move; 07 rose 0.33, under the 0.5 threshold
+- **P3 pass** — 08 and 10 unchanged
+- **P4 FAIL** — 25/28
+- **F1 clear, F4 clear, F2 TRIPPED** (9 is not below the registered 9)
+
+The anchor did do something real: the 8 band went from one run to five, and
+05 CRISPR moved to exactly 8.0, which is the value its public anchor
+supports. But the effect is far short of what was registered, 01 CAR-T moved
+*down* from 9.0 to 8.33, and the pile-up at 6.0 barely shifted.
+
+Two runs produced no score. 08#2 hit a guardrail (report cited a source ID
+not in the registry) — a pre-existing failure mode. 10#3 failed with HTTP
+402, **Insufficient Balance**: the account ran out of credit during the
+batch. Both missing runs are on topics that scored identically in their
+remaining repetitions, and the F2 count is >= 9 whether the denominator is
+28 or 30, so the verdict does not depend on them.
+
+## Conclusion — stop changing the rubric
+
+Two pre-registered hypotheses about the floor-sitting, both falsified by the
+experiment built to test them:
+
+1. The PROCESS/TECHNOLOGY SCOPE RULE was discounting commercial evidence.
+   Removing the discount changed the reasoning and moved no score.
+2. The anchor set had no TRL 8 reference point. Adding one filled the 8 band
+   a little and left the 6.0 pile-up nearly intact.
+
+Each was plausible, each was diagnosed from reading real output rather than
+guessing, and each was wrong about the magnitude. What is left is not a
+third hypothesis. It is the observation that the scorer is stable and
+internally consistent at these values across repetitions — which points at
+something structural in how the model reads the whole rubric, not at any one
+rule inside it.
+
+The registered response to two failures in a row was to stop, and that is
+what this is. The next honest move is not another edit; it is deciding
+whether TRL calibration at this resolution is worth more measurement at all,
+given that difficulty 31 already concluded the remaining gaps are inside the
+noise the method can resolve.
