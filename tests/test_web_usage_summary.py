@@ -199,3 +199,136 @@ class LocaleParityTests(unittest.TestCase):
                 self.assertFalse(
                     set(defined) - set(keys[source]),
                     f"defined only in {locale}: {sorted(set(defined) - set(keys[source]))}")
+
+
+@unittest.skipUnless(_node(), "node not installed")
+class GroundingPanelTests(unittest.TestCase):
+    """The panel exists so a reader learns what was *not* verified.
+
+    The server is careful to keep "figure absent from the source" and "no
+    source text to check against" apart, and the whole chain is wasted if the
+    last step renders a large unverifiable count as if it were a pass. These
+    assertions are about that presentation, run through the shipped result.js
+    rather than a transcription of it.
+    """
+
+    _RESULT_JS = _REPO / "web" / "static" / "js" / "result.js"
+
+    @classmethod
+    def setUpClass(cls):
+        cls._tmp = TemporaryDirectory()
+        work = Path(cls._tmp.name)
+
+        source = cls._RESULT_JS.read_text(encoding="utf-8")
+        source = source.replace('import * as api from "./api.js";', "const api = {};")
+        (work / "result.mjs").write_text(source, encoding="utf-8")
+        shutil.copy2(_I18N_JS, work / "i18n.js")
+
+        # renderGrounding is exported for this, as renderMarkdown already is
+        # in the same module. The DOM stub is thin enough to record what was
+        # built without pulling in a browser.
+        (work / "harness.mjs").write_text(textwrap.dedent("""
+            globalThis.localStorage = { getItem: () => null, setItem: () => {} };
+
+            function makeNode(tag) {
+                const node = {
+                    tagName: tag, className: "", textContent: "", hidden: false,
+                    dataset: {}, children: [], innerHTML: "",
+                    append(...kids) { this.children.push(...kids); },
+                    addEventListener() {},
+                    querySelector() { return makeNode("div"); },
+                };
+                return node;
+            }
+            globalThis.document = { createElement: makeNode };
+
+            const { renderGrounding } = await import("./result.mjs");
+            const node = renderGrounding(JSON.parse(process.argv[2]));
+
+            function flatten(n, out = []) {
+                out.push({ cls: n.className || "", text: n.textContent || "" });
+                for (const kid of n.children || []) flatten(kid, out);
+                return out;
+            }
+            console.log(JSON.stringify(flatten(node)));
+        """), encoding="utf-8")
+        cls._work = work
+
+        warm = subprocess.run(
+            [_node(), str(work / "harness.mjs"), '{"checked":0}'],
+            capture_output=True, text=True, encoding="utf-8", timeout=300, cwd=work,
+        )
+        if warm.returncode != 0:
+            raise RuntimeError(f"result.js failed to load: {warm.stderr[:500]}")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _render(self, data) -> list[dict]:
+        result = subprocess.run(
+            [_node(), str(self._work / "harness.mjs"), json.dumps(data)],
+            capture_output=True, text=True, encoding="utf-8", timeout=120, cwd=self._work,
+        )
+        if result.returncode != 0:
+            self.fail(f"harness failed: {result.stderr[:400]}")
+        return json.loads(result.stdout)
+
+    def _texts(self, nodes) -> str:
+        return " | ".join(n["text"] for n in nodes if n["text"])
+
+    def test_all_three_counts_are_shown_together(self):
+        """A reader given only "0 unsupported" would conclude the report was
+        verified, when in this run almost nothing could be checked."""
+        nodes = self._render({"checked": 2, "ungrounded": 0, "unverifiable": 205})
+        text = self._texts(nodes)
+        for value in ("2", "0", "205"):
+            with self.subTest(value=value):
+                self.assertIn(value, text)
+
+    def test_an_ungrounded_finding_is_marked(self):
+        nodes = self._render({
+            "checked": 1, "ungrounded": 1, "unverifiable": 0,
+            "findings": [{"domain": "academic", "finding_id": "AF1",
+                          "status": "ungrounded", "claim": "efficiency reached 26.1%",
+                          "ungrounded_figures": ["26.1"]}],
+        })
+        classes = " ".join(n["cls"] for n in nodes)
+        self.assertIn("grounding__item--ungrounded", classes)
+        self.assertIn("26.1", self._texts(nodes))
+
+    def test_an_unverifiable_finding_states_why(self):
+        """Not styled or worded as a failure: the source text was missing, not
+        contradictory, and conflating the two is the error this whole feature
+        is built to avoid."""
+        nodes = self._render({
+            "checked": 0, "ungrounded": 0, "unverifiable": 1,
+            "findings": [{"domain": "market", "finding_id": "MF1",
+                          "status": "unverifiable", "claim": "the market reached $12.5bn",
+                          "unverifiable_reason": "every cited source carries only a "
+                                                 "search snippet"}],
+        })
+        classes = " ".join(n["cls"] for n in nodes)
+        self.assertNotIn("grounding__item--ungrounded", classes)
+        self.assertIn("search snippet", self._texts(nodes))
+
+    def test_per_domain_breakdown_is_rendered(self):
+        nodes = self._render({
+            "checked": 2, "ungrounded": 0, "unverifiable": 3,
+            "by_domain": {
+                "academic": {"checked": 2, "ungrounded": 0, "unverifiable": 0},
+                "market": {"checked": 0, "ungrounded": 0, "unverifiable": 3},
+            },
+        })
+        text = self._texts(nodes)
+        self.assertIn("2/2", text)
+        self.assertIn("0/3", text)
+
+    def test_a_clean_run_renders_without_a_detail_list(self):
+        """Everything grounded means no rows; the panel should still show the
+        counts rather than an empty list."""
+        nodes = self._render({"checked": 5, "ungrounded": 0, "unverifiable": 0,
+                              "findings": []})
+        classes = " ".join(n["cls"] for n in nodes)
+        self.assertIn("grounding__stats", classes)
+        self.assertNotIn("grounding__list", classes)

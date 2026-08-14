@@ -207,6 +207,8 @@ export async function render(container, runId, { artifacts }) {
   if (artifacts.includes("scores")) views.push({ id: "score", label: t("tab_score") });
   if (artifacts.includes("report")) views.push({ id: "report", label: t("tab_report") });
   if (artifacts.includes("sources")) views.push({ id: "sources", label: t("tab_sources") });
+  if (artifacts.includes("grounding"))
+    views.push({ id: "grounding", label: t("tab_grounding") });
 
   if (!views.length) {
     container.append(el("p", "empty-note", t("no_artifacts")));
@@ -248,6 +250,10 @@ export async function render(container, runId, { artifacts }) {
       } else if (id === "report") {
         const md = await api.getReport(runId);
         panel.innerHTML = `<article class="prose">${renderMarkdown(md)}</article>`;
+      } else if (id === "grounding") {
+        const grounding = await api.getArtifact(runId, "grounding");
+        panel.innerHTML = "";
+        panel.append(renderGrounding(grounding));
       } else {
         const sources = await api.getArtifact(runId, "sources");
         panel.innerHTML = "";
@@ -261,6 +267,82 @@ export async function render(container, runId, { artifacts }) {
   }
 
   select(views[0].id);
+}
+
+/* ── Citation check ────────────────────────────────────────────────────
+ * What the server could and could not verify about the report's numbers.
+ *
+ * The counts are shown together on purpose. "0 unsupported" alone reads as a
+ * clean bill of health, when next to a large "could not check" it means the
+ * screen mostly did not run — a different statement, and the one a reader
+ * needs in order to know how much the first number is worth.
+ */
+
+// Exported for the same reason renderMarkdown is: the app calls it only
+// through render(), but what it decides — how three counts are presented
+// relative to each other — is worth asserting on directly.
+export function renderGrounding(data) {
+  const wrap = el("div", "grounding");
+
+  const checked = data.checked ?? 0;
+  const ungrounded = data.ungrounded ?? 0;
+  const unverifiable = data.unverifiable ?? 0;
+
+  wrap.append(el("p", "grounding__lede", t("grounding_lede")));
+
+  const stats = el("div", "grounding__stats");
+  for (const [value, label, tone] of [
+    [checked, t("grounding_checked"), "ok"],
+    [ungrounded, t("grounding_ungrounded"), ungrounded ? "warn" : "ok"],
+    [unverifiable, t("grounding_unverifiable"), "muted"],
+  ]) {
+    const cell = el("div", `grounding__stat grounding__stat--${tone}`);
+    cell.append(el("div", "grounding__value", String(value)));
+    cell.append(el("div", "grounding__label", label));
+    stats.append(cell);
+  }
+  wrap.append(stats);
+
+  // Per domain, because one aggregate cannot say both "the check works" and
+  // "market reports have no abstract to check against".
+  const byDomain = data.by_domain ?? {};
+  const domains = [
+    ["academic", t("group_academic")],
+    ["patent", t("group_patents")],
+    ["market", t("group_market")],
+  ].filter(([key]) => byDomain[key]);
+
+  if (domains.length) {
+    const list = el("ul", "grounding__domains");
+    for (const [key, label] of domains) {
+      const d = byDomain[key];
+      const total = (d.checked ?? 0) + (d.unverifiable ?? 0);
+      const text = total
+        ? `${label}: ${d.checked}/${total} ${t("grounding_checkable")}`
+        : `${label}: ${t("grounding_no_figures")}`;
+      list.append(el("li", "grounding__domain", text));
+    }
+    wrap.append(list);
+  }
+
+  const rows = data.findings ?? [];
+  if (!rows.length) return wrap;
+
+  const list = el("ul", "grounding__list");
+  for (const row of rows) {
+    const item = el("li", `grounding__item grounding__item--${row.status}`);
+    item.append(el("span", "grounding__id", `${row.finding_id}`));
+    item.append(el("span", "grounding__claim", row.claim ?? ""));
+    const why = row.status === "ungrounded"
+      ? t("grounding_missing").replace("{figures}",
+          (row.ungrounded_figures ?? []).join(", "))
+      : row.unverifiable_reason ?? "";
+    if (why) item.append(el("span", "grounding__why", why));
+    list.append(item);
+  }
+  wrap.append(el("h3", "sources__title", t("grounding_detail")));
+  wrap.append(list);
+  return wrap;
 }
 
 /* ── Sources ───────────────────────────────────────────────────────── */
