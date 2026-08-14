@@ -151,3 +151,47 @@ what this is. The next honest move is not another edit; it is deciding
 whether TRL calibration at this resolution is worth more measurement at all,
 given that difficulty 31 already concluded the remaining gaps are inside the
 noise the method can resolve.
+
+
+---
+
+## Postscript — the statistic itself was never stabilised
+
+A live-retrieval batch under the current code, run after the account was
+topped up, completed 30/30 and scored 26/30 against the anchored ranges.
+Floor-sitting: **9/30**.
+
+| arm | evidence | scope gate | floor-sitting | pass |
+|---|---|---|---|---|
+| live (the 26/30 in the docs) | live | no | **16/30** | 26/30 |
+| fixture baseline | frozen | no | 14/30 | 28/30 |
+| fixture + gate | frozen | yes | 14/30 | 27/30 |
+| fixture + gate + anchor | frozen | yes | 9/28 | 25/28 |
+| live (today) | live | yes | **9/30** | 26/30 |
+
+The only clean A/B in that table — fixture baseline against fixture + gate,
+identical evidence, one edit between them — moved nothing: 14 to 14. So the
+gate does not change floor-sitting. Yet two live batches, which differ in
+that same gate plus whatever the web returned that day, give 16 and 9.
+
+With the code change ruled out by the controlled arm, what remains is the
+evidence. **The floor-sitting count swings by at least 7 in 30 from
+retrieval variation alone.**
+
+Which means the signal that launched both experiments — "16 of 30 runs land
+exactly on their range floor" — sits inside its own between-batch noise. I
+never measured that. `--repeat 3` was in every arm, but repetition inside one
+batch measures the spread of a single score on fixed inputs; it says nothing
+about how a *derived aggregate* like a floor-count moves when the evidence is
+re-retrieved. Difficulty 31 established the first discipline and I applied it.
+The second one is a different question and I did not ask it.
+
+This does not change either verdict — both were reverted or kept on their own
+registered criteria, and the fixture arms were internally controlled. What it
+changes is the standing of the finding they were chasing. Before treating
+floor-sitting as a real property of the scorer, it needs three or more
+independent live batches to establish whether 16 and 9 are the ends of its
+range or the middle of a wider one.
+
+Cost of learning this: roughly $4 across four batches. Cheaper than shipping
+a rubric change justified by it.
