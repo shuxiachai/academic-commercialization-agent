@@ -67,20 +67,63 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 # Each entry: (case_number, topic_string, (expected_trl_min, expected_trl_max), industry)
 # expected_trl_range is saved in meta.json so benchmark_check.py can flag calibration issues.
 #
-# Selection rationale:
-#   Cases 01-02: high TRL (7-9) — system should give strong scores; false negatives here are bad
-#   Cases 03-05: mid TRL (5-7) — approaching commercial but not fully deployed
-#   Cases 06-07: lower-mid TRL (4-6) — partial commercial signal, harder to judge
-#   Cases 08-09: low TRL (3-4) — high hype, minimal commercial signal; false positives are bad
-#   Case 10:     very low TRL (1-2) — hallucination stress test; should score near-minimum
+# WHERE THESE RANGES COME FROM
+#
+# Originally: my own estimate. That is a problem the benchmark cannot detect,
+# because the same person wrote the topics, the rubric, the expected ranges and
+# the pass criterion — so "26/30 within range" measured agreement with one
+# opinion, not accuracy.
+#
+# Checking them against public milestones in Aug 2026 found three set too low
+# (04, 05, 07), and in all three the system had scored at the *ceiling* of my
+# range and been recorded as a pass. The yardstick was capping how right the
+# output could look, and the pass hid it.
+#
+# Each range below now cites a milestone anyone can verify. Two caveats stated
+# rather than buried:
+#
+#   1. The revision happened after seeing the scores. What makes these
+#      different from the estimates they replace is not the order of work but
+#      that they are independently checkable — an FDA approval date does not
+#      move because it would be convenient. Every anchor is a dated public
+#      event, not a judgement about how the field "feels".
+#   2. TRL is assessed for the leading application, not for the whole field.
+#      One approved product does not make every use of a technology mature,
+#      and the ranges are wide enough to hold both.
+#
+# ANCHORS (verified 2026-08-14)
+#   01 CAR-T ......... FDA approvals from 2017 (Kymriah, Yescarta); marketed
+#                      therapies -> 9
+#   02 mRNA cancer ... intismeran autogene (mRNA-4157) Phase 3 fully enrolled;
+#                      first approvals expected late 2026-27 -> 7
+#   03 solid-state ... QuantumScape Eagle pilot line inaugurated 2026-02-04 for
+#                      OEM sampling; Toyota mass production targeted 2030+ -> 6
+#   04 perovskite .... Oxford PV shipped commercial tandem modules to a US
+#                      utility-scale project 2024-09 (~100 kW) -> 7
+#   05 CRISPR ........ Casgevy FDA-approved 2023-12-08; indication extended to
+#                      age 2+ on 2026-07-01. A marketed therapy -> 9
+#   06 CCS ........... commercial-scale capture and storage in operation
+#                      (Sleipner 1996-, Quest 2015-) -> 8
+#   07 cultivated .... approved for sale Singapore 2020 (retail 2024), US
+#                      2023-06, Israel 2024; production volumes tiny -> 8
+#   08 quantum ....... no production drug discovered by quantum hardware;
+#                      research-stage only -> 3
+#   09 graphene ...... UNRESOLVED. Product claims exist but the sources are
+#                      market-research summaries, not primary announcements —
+#                      exactly the low-credibility tier this project's own
+#                      rubric discounts. Range left at my original estimate and
+#                      flagged, rather than moved on evidence I would reject if
+#                      an agent cited it.
+#   10 supercon. ..... no ambient-pressure room-temperature superconductor
+#                      exists; the 2023 LK-99 claim was retracted -> 1
 TOPICS = [
     ("01", "CAR-T cell therapy for blood cancers",                    (7, 9), "Biomed"),
     ("02", "mRNA vaccines for cancer immunotherapy",                   (6, 8), "Biomed"),
     ("03", "solid-state batteries for electric vehicles",              (5, 7), "Energy"),
-    ("04", "perovskite solar cells for utility-scale power generation",(4, 6), "Clean Energy"),
-    ("05", "CRISPR gene editing for genetic diseases",                 (6, 8), "Biomed"),
-    ("06", "carbon capture and storage for industrial emissions",      (5, 7), "Climate"),
-    ("07", "cultivated meat for food industry",                        (4, 6), "Food"),
+    ("04", "perovskite solar cells for utility-scale power generation",(6, 8), "Clean Energy"),
+    ("05", "CRISPR gene editing for genetic diseases",                 (8, 9), "Biomed"),
+    ("06", "carbon capture and storage for industrial emissions",      (6, 8), "Climate"),
+    ("07", "cultivated meat for food industry",                        (6, 8), "Food"),
     ("08", "quantum computing for drug discovery",                     (2, 4), "Computing"),
     ("09", "graphene-based flexible electronics",                      (3, 5), "Materials"),
     ("10", "room temperature ambient pressure superconductors",        (1, 2), "Materials"),

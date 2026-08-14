@@ -298,5 +298,56 @@ class CsvFieldCoverageTests(unittest.TestCase):
         self.assertFalse(missing, f"produced but never written to the CSV: {sorted(missing)}")
 
 
+class ExpectedRangeProvenanceTests(unittest.TestCase):
+    """Every expected TRL range must cite a milestone somebody can check.
+
+    The ranges started as my own estimate, which the benchmark could not
+    detect as a problem: the same person wrote the topics, the rubric, the
+    ranges and the pass criterion, so the headline measured agreement with
+    one opinion. Checking them against public milestones found three set too
+    low — and in all three the system had scored at the ceiling of the range
+    and been recorded as a pass.
+
+    This does not stop anyone widening a range to make a number look better;
+    no test can read intent. What it stops is doing it *silently*: moving a
+    range without stating what the new one is anchored to now fails here.
+    """
+
+    def _anchor_block(self) -> str:
+        import inspect
+
+        import benchmark
+
+        source = inspect.getsource(benchmark)
+        start = source.index("# ANCHORS")
+        return source[start:source.index("TOPICS = [", start)]
+
+    def test_every_topic_has_an_anchor(self):
+        import benchmark
+
+        block = self._anchor_block()
+        for num, topic, _range, _industry in benchmark.TOPICS:
+            with self.subTest(num=num, topic=topic):
+                # (?m) so ^ means "start of a line" rather than "start of the
+                # block" — without it this passes only for the first case and
+                # silently stops checking the other nine.
+                self.assertRegex(
+                    block, rf"(?m)^#\s+{num}\s",
+                    f"case {num} has an expected range but no anchor line",
+                )
+
+    def test_the_anchor_block_is_dated(self):
+        """A milestone list with no date cannot be judged for staleness, and
+        these do go stale — an approval that had not happened when the range
+        was set is exactly what moved three of them."""
+        self.assertRegex(self._anchor_block(), r"verified \d{4}-\d{2}-\d{2}")
+
+    def test_unresolved_anchors_are_named_as_such(self):
+        """One case could not be anchored to a primary source. Leaving that
+        implicit would let a guess sit among the verified ones looking the
+        same."""
+        self.assertIn("UNRESOLVED", self._anchor_block())
+
+
 if __name__ == "__main__":
     unittest.main()
