@@ -100,8 +100,15 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 #                      OEM sampling; Toyota mass production targeted 2030+ -> 6
 #   04 perovskite .... Oxford PV shipped commercial tandem modules to a US
 #                      utility-scale project 2024-09 (~100 kW) -> 7
-#   05 CRISPR ........ Casgevy FDA-approved 2023-12-08; indication extended to
-#                      age 2+ on 2026-07-01. A marketed therapy -> 9
+#   05 CRISPR ........ Casgevy FDA-approved 2023-12-08 (beta-thal 2024-01);
+#                      extended to age 2+ 2026-07-01. But the topic names the
+#                      whole field, and most genetic-disease applications are
+#                      still preclinical -- so the defensible readings run from
+#                      7 (field) to 9 (leading application). Range covers both.
+#                      Set to 8-9 on first pass, which excluded the field
+#                      reading and contradicted the scope note below; the
+#                      system had argued for exactly that reading, in all three
+#                      repetitions, and was right.
 #   06 CCS ........... commercial-scale capture and storage in operation
 #                      (Sleipner 1996-, Quest 2015-) -> 8
 #   07 cultivated .... approved for sale Singapore 2020 (retail 2024), US
@@ -121,7 +128,7 @@ TOPICS = [
     ("02", "mRNA vaccines for cancer immunotherapy",                   (6, 8), "Biomed"),
     ("03", "solid-state batteries for electric vehicles",              (5, 7), "Energy"),
     ("04", "perovskite solar cells for utility-scale power generation",(6, 8), "Clean Energy"),
-    ("05", "CRISPR gene editing for genetic diseases",                 (8, 9), "Biomed"),
+    ("05", "CRISPR gene editing for genetic diseases",                 (7, 9), "Biomed"),
     ("06", "carbon capture and storage for industrial emissions",      (6, 8), "Climate"),
     ("07", "cultivated meat for food industry",                        (6, 8), "Food"),
     ("08", "quantum computing for drug discovery",                     (2, 4), "Computing"),
