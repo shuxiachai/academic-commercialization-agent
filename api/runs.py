@@ -109,6 +109,46 @@ _ARTIFACTS = {
 }
 
 
+# Environment variables that spend the operator's money or point a key at a
+# host the visitor did not choose. Every one of these is removed before a BYOK
+# subprocess starts, and only the visitor's own values are put back.
+#
+# Overriding the three keys was not enough, because none of these three
+# mechanisms goes through the key that was overridden:
+#
+#   TAVILY_API_KEY   default_web_search_client() prefers Tavily whenever it is
+#                    set, so the visitor's Serper key was never once used and
+#                    every BYOK search came out of the operator's Tavily quota.
+#   OPENAI_API_BASE  create_llm() reads the base URL from the environment while
+#                    taking the api_key from the visitor. llm_config documents
+#                    a supported setup where this points at DeepSeek — under
+#                    which a visitor choosing "openai" had their own OpenAI key
+#                    sent to api.deepseek.com. That is not a quota question.
+#   *_MODEL          the visitor pays for whichever model the operator named.
+#
+#: Removed for a BYOK run: billed to the operator, or able to redirect the
+#: visitor's key somewhere they did not choose.
+_OPERATOR_BILLED_ENV: frozenset[str] = frozenset({
+    "LLM_PROVIDER",
+    "DEEPSEEK_API_KEY", "DEEPSEEK_API_BASE", "DEEPSEEK_MODEL",
+    "OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL", "OPENAI_MODEL_NAME",
+    "ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE", "ANTHROPIC_MODEL",
+    "SERPER_API_KEY", "TAVILY_API_KEY",
+    "LENS_API_KEY",
+})
+
+#: Kept for a BYOK run. These are free-tier keys that raise a rate limit
+#: rather than incur a charge, and the visitor has no way to supply their own —
+#: stripping them would make BYOK runs measurably worse (PubMed drops from 10
+#: to 3 requests/second) to honour a promise about cost that they do not cost
+#: anything against. Listed explicitly, not by omission, so the distinction is
+#: a decision on the record rather than an oversight.
+_FREE_TO_SHARE_ENV: frozenset[str] = frozenset({
+    "NCBI_API_KEY",             # PubMed rate limit; free to obtain
+    "SEMANTIC_SCHOLAR_API_KEY", # same, for Semantic Scholar
+})
+
+
 @dataclass(frozen=True)
 class BYOKCredentials:
     """A visitor's own LLM + Serper keys, for a run billed to them, not us.
@@ -125,7 +165,16 @@ class BYOKCredentials:
     serper_api_key: str
 
     def as_env(self, base: dict[str, str]) -> dict[str, str]:
-        env = dict(base)
+        """The subprocess environment for this run: scrubbed, then filled in.
+
+        Scrubbed first and injected second, deliberately. Copying the operator's
+        environment and overriding three names left every other paid credential
+        in place, and the search client, the LLM base URL and the model name are
+        all chosen from names that were not among the three — see
+        _OPERATOR_BILLED_ENV. Removing the whole set means a provider added
+        later is excluded by default rather than included by default.
+        """
+        env = {k: v for k, v in base.items() if k not in _OPERATOR_BILLED_ENV}
         env["LLM_PROVIDER"] = self.llm_provider
         env[f"{self.llm_provider.upper()}_API_KEY"] = self.llm_api_key
         env["SERPER_API_KEY"] = self.serper_api_key
