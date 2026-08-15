@@ -50,6 +50,24 @@ _UNIT_PATTERN = (
     r"usd|eur|billion|million|trillion|bn|yr|years?|months?|cycles?|x\b)"
 )
 
+#: Spellings of the same unit. A claim writing "%" against a source writing
+#: "percent" is quoting it; treating those as different units would flag a
+#: correct sentence, which costs more here than missing one.
+_UNIT_SYNONYMS = {
+    "percent": "%", "pct": "%",
+    "℃": "°c",
+    "um": "µm", "ug": "µg",
+    "bn": "billion",
+    "yr": "years", "year": "years",
+    "month": "months", "cycle": "cycles",
+}
+
+
+def _normalize_unit(unit: str) -> str:
+    cleaned = (unit or "").strip().lower().rstrip(".,;:)")
+    return _UNIT_SYNONYMS.get(cleaned, cleaned)
+
+
 _FIGURE_RE = re.compile(
     r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*" + _UNIT_PATTERN + r"?",
     re.IGNORECASE,
@@ -142,17 +160,22 @@ def _normalize_number(raw: str) -> str:
     return cleaned or "0"
 
 
-def checkable_figures(text: str) -> list[str]:
-    """Distinctive figures stated in `text`, normalised.
+def checkable_figures(text: str) -> list[tuple[str, str]]:
+    """Distinctive (number, unit) pairs stated in `text`, normalised.
+
+    The unit travels with the number because without it "26.1%" matches a
+    source saying "26.1 million" and "100 MW" matches "100 kg" — the same
+    digits describing unrelated quantities, reported as a verified citation.
 
     Deliberately conservative: a figure that is not distinctive produces noise
     rather than signal, and a check people learn to ignore is worse than no
     check.
     """
-    found: list[str] = []
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
     for match in _FIGURE_RE.finditer(text or ""):
         raw = match.group(1)
-        unit = match.group(0)[len(raw):].strip()
+        unit = _normalize_unit(match.group(0)[len(raw):])
         number = _normalize_number(raw)
         try:
             value = float(number)
@@ -178,8 +201,10 @@ def checkable_figures(text: str) -> list[str]:
             continue
 
         distinctive = bool(unit) or "." in number or value >= _LARGE_ENOUGH
-        if distinctive and number not in found:
-            found.append(number)
+        key = f"{number}|{unit}"
+        if distinctive and key not in seen:
+            seen.add(key)
+            found.append((number, unit))
     return found
 
 
@@ -198,8 +223,55 @@ def _source_is_checkable(source: Any) -> bool:
 
 
 def _source_text(source: Any) -> str:
-    return " ".join(str(getattr(source, attr, "") or "")
-                    for attr in ("title", "evidence_summary", "publisher"))
+    """Everything the source states, prose and structured fields alike.
+
+    citation_count and published_date are in here because a claim citing them
+    is quoting the source, and they live in fields rather than in the summary
+    text. Leaving them out produced exactly the false accusation this module
+    exists to avoid: "10,614 citations for the 2012 paper" was reported as a
+    figure absent from its source, when the source carried it — in a field the
+    haystack did not read.
+    """
+    parts = [str(getattr(source, attr, "") or "")
+             for attr in ("title", "evidence_summary", "publisher")]
+    for attr in ("citation_count", "published_date"):
+        value = getattr(source, attr, None)
+        if value is not None:
+            parts.append(str(value))
+    return " ".join(parts)
+
+
+def _render(number: str, unit: str) -> str:
+    """How a figure is shown back to a reader. The unit is part of the claim,
+    so a report saying "26.1 is absent" when the claim said "26.1%" sends the
+    reader looking for the wrong thing."""
+    return f"{number}{unit}" if unit in {"%", ""} else f"{number} {unit}"
+
+
+def _supported(number: str, unit: str, present: list[tuple[str, str]],
+               haystack: str) -> bool:
+    """Whether a cited source states this figure.
+
+    Units must not conflict. Without that, "26.1%" is satisfied by a source
+    saying "26.1 million" and "100 MW" by "100 kg" — the same digits attached
+    to an unrelated quantity, reported as a verified citation.
+
+    A source figure carrying *no* unit still counts. That is the same rule
+    this module applies everywhere else: absence of a unit is not evidence of
+    a different one, and refusing it would turn "the source wrote the number
+    without repeating the unit" into an accusation of fabrication.
+    """
+    for source_number, source_unit in present:
+        if source_unit and unit and source_unit != unit:
+            continue
+        # Prefix, not equality: a claim rounding a source's 26.15 to 26.1 is
+        # quoting it.
+        if source_number == number or source_number.startswith(number):
+            return True
+    # Last resort for a figure the extractor did not pick up as distinctive on
+    # the source side — but only for unitless claims, since a bare substring
+    # hit carries no unit to compare.
+    return not unit and number in haystack.replace(",", "")
 
 
 def check_report(report: Any, sources: Any = None) -> GroundingReport:
@@ -258,16 +330,13 @@ def _check_report(report: Any, sources: Any = None) -> GroundingReport:
             continue
 
         haystack = " ".join(_source_text(s) for s in checkable)
-        present = set(checkable_figures(haystack))
-        # Substring fallback so "26.1" in the claim matches "26.15" in the
-        # source text: a claim rounding a source's figure is quoting it, and
-        # flagging that would be a false accusation.
+        present = checkable_figures(haystack)
         hit, miss = [], []
-        for figure in figures:
-            if figure in present or figure in haystack.replace(",", ""):
-                hit.append(figure)
+        for number, unit in figures:
+            if _supported(number, unit, present, haystack):
+                hit.append(_render(number, unit))
             else:
-                miss.append(figure)
+                miss.append(_render(number, unit))
 
         checks.append(ClaimCheck(
             finding_id=str(getattr(finding, "finding_id", "")), claim=claim,

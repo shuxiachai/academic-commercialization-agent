@@ -60,10 +60,10 @@ class FigureExtractionTests(TestCase):
 
     def test_figures_with_units_or_decimals_are_checkable(self):
         for claim, expected in [
-            ("efficiency reached 26.1%", ["26.1"]),
-            ("energy density of 500 Wh/kg", ["500"]),
-            ("raised $50.5 million", ["50.5"]),
-            ("survived 10000 cycles", ["10000"]),
+            ("efficiency reached 26.1%", [("26.1", "%")]),
+            ("energy density of 500 Wh/kg", [("500", "wh/kg")]),
+            ("raised $50.5 million", [("50.5", "million")]),
+            ("survived 10000 cycles", [("10000", "cycles")]),
         ]:
             with self.subTest(claim=claim):
                 self.assertEqual(checkable_figures(claim), expected)
@@ -83,7 +83,7 @@ class FigureExtractionTests(TestCase):
         self.assertEqual(checkable_figures("as of 2026 no product exists"), [])
 
     def test_a_year_with_a_unit_is_a_quantity_not_a_date(self):
-        self.assertIn("2024", checkable_figures("shipped 2024 GWh of capacity"))
+        self.assertIn(("2024", "gwh"), checkable_figures("shipped 2024 GWh of capacity"))
 
     def test_round_numbers_behind_a_comparative_are_bounds_not_quotations(self):
         """The false positives that motivated this rule. Each is sound given
@@ -96,10 +96,10 @@ class FigureExtractionTests(TestCase):
     def test_precise_figures_survive_a_qualifier(self):
         """'approximately 26.1%' is still quoting 26.1 — only round numbers
         behind a comparative are treated as the analyst's own threshold."""
-        self.assertEqual(checkable_figures("approximately 26.1%"), ["26.1"])
+        self.assertEqual(checkable_figures("approximately 26.1%"), [("26.1", "%")])
 
     def test_thousands_separators_and_trailing_zeros_are_formatting(self):
-        self.assertEqual(checkable_figures("1,250.0 Wh/kg"), ["1250"])
+        self.assertEqual(checkable_figures("1,250.0 Wh/kg"), [("1250", "wh/kg")])
 
 
 class DetectionTests(TestCase):
@@ -116,7 +116,7 @@ class DetectionTests(TestCase):
         result = check_report(self._report(
             "efficiency reached 26.1%", "This paper reports 19.2% efficiency."))
         self.assertEqual(result.ungrounded_count, 1)
-        self.assertEqual(result.checks[0].ungrounded, ("26.1",))
+        self.assertEqual(result.checks[0].ungrounded, ("26.1%",))
 
     def test_figure_present_in_the_cited_source_is_not_flagged(self):
         result = check_report(self._report(
@@ -147,6 +147,59 @@ class DetectionTests(TestCase):
                      _Source("A2", _abstract("we report 500 Wh/kg in a pouch cell"))],
         )
         self.assertEqual(check_report(report).ungrounded_count, 1)
+
+
+class UnitTests(TestCase):
+    """Same digits, different quantity.
+
+    Without the unit, "efficiency reached 26.1%" is satisfied by a source
+    reporting "26.1 million in revenue" — a verified citation to a sentence
+    about something else entirely. Raised by an external review; the first
+    version of this screen compared numbers only.
+    """
+
+    def _report(self, claim, summary):
+        return _Report(
+            findings=[_Finding("F1", claim, ["A1"])],
+            sources=[_Source("A1", _abstract(summary))],
+        )
+
+    def test_a_percentage_is_not_satisfied_by_a_money_figure(self):
+        result = check_report(self._report(
+            "efficiency reached 26.1%", "Revenue of 26.1 million was reported."))
+        self.assertEqual(result.ungrounded_count, 1)
+
+    def test_power_is_not_satisfied_by_mass(self):
+        result = check_report(self._report(
+            "a 100 MW plant", "The 100 kg sample was characterised."))
+        self.assertEqual(result.ungrounded_count, 1)
+
+    def test_the_same_unit_still_matches(self):
+        result = check_report(self._report(
+            "a 100 MW plant", "They commissioned a 100 MW installation."))
+        self.assertEqual(result.ungrounded_count, 0)
+
+    def test_spellings_of_one_unit_are_the_same_unit(self):
+        """A claim writing % against a source writing percent is quoting it."""
+        result = check_report(self._report(
+            "efficiency reached 26.1%", "We measured 26.1 percent efficiency."))
+        self.assertEqual(result.ungrounded_count, 0)
+
+    def test_a_source_figure_without_a_unit_still_counts(self):
+        """Absence of a unit is not evidence of a different one. Refusing it
+        would turn "the source wrote the number without repeating the unit"
+        into an accusation of fabrication — the same error this module refuses
+        to make about missing text."""
+        result = check_report(self._report(
+            "efficiency reached 26.1%", "The measured value was 26.1 under AM1.5G."))
+        self.assertEqual(result.ungrounded_count, 0)
+
+    def test_the_reported_figure_keeps_its_unit(self):
+        """A report saying "26.1 is absent" when the claim said "26.1%" sends
+        the reader looking for the wrong thing."""
+        result = check_report(self._report(
+            "efficiency reached 26.1%", "Revenue of 26.1 million was reported."))
+        self.assertEqual(result.checks[0].ungrounded, ("26.1%",))
 
 
 class SilenceIsNotDisagreementTests(TestCase):
