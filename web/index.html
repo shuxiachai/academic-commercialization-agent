@@ -208,7 +208,13 @@
          whoever fills this in rather than to the deployment owner. -->
     <form id="byok-form" hidden>
       <h2 class="gate__title" data-i18n="byok_title">Use your own API keys</h2>
-      <p class="gate__sub" data-i18n="byok_sub">Nothing is sent anywhere but this run's worker process, and nothing is saved once you close the tab.</p>
+      <p class="gate__sub" data-i18n="byok_sub">Your keys go to this run's worker process and nowhere else, and are gone from this browser once you close the tab.</p>
+      <!-- Filled from /health when this form is opened, because the number is
+           the deployment's, not the page's. The sentence above is about the
+           keys; this one is about the assessment and the uploaded paper, which
+           do stay on the server. Keeping them apart is the point: one line
+           covering both was read as a promise it did not make. -->
+      <p class="gate__sub gate__sub--retention" id="byok-retention"></p>
       <select class="gate__input" id="byok-provider" aria-label="LLM provider">
         <option value="deepseek">DeepSeek</option>
         <option value="openai">OpenAI</option>

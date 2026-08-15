@@ -205,8 +205,13 @@ async function openRun(runId, { known } = {}) {
 
       // A failed run keeps its stage list: where it stopped is the useful
       // information, and it has no artifacts to show anyway.
+      // The whole progress payload, not just the artifact list. The automated
+      // checks it carries — consistency, claim grounding, failed domains, a
+      // truncated audit trail — all qualify the score, and passing only the
+      // artifact names is how they stayed invisible while being computed,
+      // stored and returned on every run.
       if (progress.artifacts.length) {
-        result.render(body, runId, { artifacts: progress.artifacts });
+        result.render(body, runId, progress);
       }
     },
     onError(err) {
@@ -582,6 +587,31 @@ async function ensureAccess() {
   await showGate();
 }
 
+/* How long the deployment keeps what a visitor is about to hand it.
+ *
+ * The line above this one is about the API keys and is true of them. Someone
+ * about to upload an unpublished paper reads it as covering everything, and
+ * the assessment and the PDF do stay on the server — so the retention window
+ * is stated here, next to the form, rather than only in a tooltip on a
+ * capacity indicator they have not reached yet.
+ *
+ * Silent on failure: /health is unauthenticated and this is the one moment the
+ * gate is up, so an unreachable server must not leave a claim on screen that
+ * nothing has confirmed. No line is better than a wrong one.
+ */
+async function showByokRetention() {
+  const node = $("#byok-retention");
+  if (!node || node.textContent) return;
+  try {
+    const { retention_days } = await api.health();
+    node.textContent = retention_days
+      ? t("byok_retention").replace("{days}", retention_days)
+      : t("byok_retention_forever");
+  } catch {
+    node.textContent = "";
+  }
+}
+
 function showGate() {
   const gate = $("#gate");
   const codeForm = $("#gate-form");
@@ -605,6 +635,7 @@ function showGate() {
       codeForm.hidden = true;
       byokForm.hidden = false;
       $("#byok-llm-key").focus();
+      showByokRetention();
     });
     $("#byok-to-gate").addEventListener("click", () => {
       byokForm.hidden = true;

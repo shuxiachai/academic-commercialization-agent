@@ -197,8 +197,9 @@ function renderScorecard(scores) {
 
 /* ── Public ────────────────────────────────────────────────────────── */
 
-export async function render(container, runId, { artifacts }) {
+export async function render(container, runId, progress) {
   container.innerHTML = "";
+  const artifacts = progress.artifacts ?? [];
 
   const tabs = el("div", "tabs");
   const panels = el("div", "panels");
@@ -209,11 +210,20 @@ export async function render(container, runId, { artifacts }) {
   if (artifacts.includes("sources")) views.push({ id: "sources", label: t("tab_sources") });
   if (artifacts.includes("grounding"))
     views.push({ id: "grounding", label: t("tab_grounding") });
+  if (artifacts.includes("consistency"))
+    views.push({ id: "consistency", label: t("tab_consistency") });
 
   if (!views.length) {
     container.append(el("p", "empty-note", t("no_artifacts")));
     return;
   }
+
+  // Above the tabs, not inside one. Every finding it summarises was already
+  // being computed and written to disk, and every one of them qualifies the
+  // score — so a reader has to meet them before the number, not after
+  // choosing to go looking in a tab.
+  const reliability = renderReliability(progress);
+  if (reliability) container.append(reliability);
 
   for (const view of views) {
     const tab = el("button", "tab", view.label);
@@ -254,6 +264,10 @@ export async function render(container, runId, { artifacts }) {
         const grounding = await api.getArtifact(runId, "grounding");
         panel.innerHTML = "";
         panel.append(renderGrounding(grounding));
+      } else if (id === "consistency") {
+        const consistency = await api.getArtifact(runId, "consistency");
+        panel.innerHTML = "";
+        panel.append(renderConsistency(consistency));
       } else {
         const sources = await api.getArtifact(runId, "sources");
         panel.innerHTML = "";
@@ -388,5 +402,153 @@ function renderSources(collection) {
     }
     wrap.append(list);
   }
+  return wrap;
+}
+
+/* ── Report vs scorecard ───────────────────────────────────────────────
+ * A report can urge moving quickly to market beside a scorecard reading 40,
+ * and until this check existed nothing in the pipeline compared them: the
+ * reviewer never sees the scorecard, the scorer never sees the reviewed
+ * report. Each output is internally consistent, so every other guardrail
+ * passes.
+ */
+export function renderConsistency(data) {
+  const wrap = el("div", "consistency");
+  wrap.append(el("p", "grounding__lede", t("consistency_lede")));
+
+  const findings = data.findings ?? [];
+  if (!findings.length) {
+    wrap.append(el("p", "consistency__clear", t("consistency_clear")));
+    return wrap;
+  }
+
+  const list = el("ul", "consistency__list");
+  for (const finding of findings) {
+    const item = el("li", `consistency__item consistency__item--${finding.severity}`);
+    item.append(el("p", "consistency__detail", finding.detail));
+    if (finding.excerpt) {
+      // Quoted, not paraphrased. The whole value of the finding is that a
+      // reader can go and judge the sentence for themselves rather than
+      // taking a phrase table's word for it.
+      const quote = el("blockquote", "consistency__excerpt");
+      quote.append(el("span", "consistency__excerpt-label", t("consistency_excerpt")));
+      quote.append(el("q", null, finding.excerpt));
+      item.append(quote);
+    }
+    list.append(item);
+  }
+  wrap.append(list);
+  return wrap;
+}
+
+/* ── Automated checks ──────────────────────────────────────────────────
+ * One panel over every check the run already performed, placed above the
+ * scorecard. Each of these numbers was being written to disk and returned by
+ * the API, and none of them was on screen — a reader had to know they existed
+ * and go and fetch the JSON.
+ *
+ * Split into a pure function and a renderer so what it decides — which
+ * findings outrank which, and what silence is allowed to mean — is testable
+ * without a DOM.
+ */
+const _TONE_RANK = { risk: 3, warn: 2, ok: 1, muted: 0 };
+
+/**
+ * Rows for the automated-check panel, from a run's status payload.
+ *
+ * Returns [] when the run produced no check at all, so the caller can leave
+ * the panel out entirely rather than showing an empty box that reads as
+ * "checked, nothing found".
+ */
+export function reliabilityRows(progress) {
+  const rows = [];
+
+  const consistency = progress.consistency;
+  if (consistency == null) {
+    // Distinct from "consistent". The check reads English conclusions, so a
+    // Chinese or Japanese report simply is not covered — and reporting that
+    // as a pass would be the exact overclaim this panel exists to prevent.
+    rows.push({ id: "consistency", tone: "muted",
+                label: t("rel_consistency"), detail: t("rel_consistency_unchecked") });
+  } else if (consistency.blockers > 0) {
+    rows.push({ id: "consistency", tone: "risk", label: t("rel_consistency"),
+                detail: t("rel_consistency_conflict").replace("{count}", consistency.blockers) });
+  } else {
+    rows.push({ id: "consistency", tone: "ok",
+                label: t("rel_consistency"), detail: t("rel_consistency_ok") });
+  }
+
+  const grounding = progress.claim_grounding;
+  if (grounding != null) {
+    const ungrounded = grounding.ungrounded ?? 0;
+    const checked = grounding.checked ?? 0;
+    if (ungrounded > 0) {
+      rows.push({ id: "grounding", tone: "warn", label: t("rel_grounding"),
+                  detail: t("rel_grounding_flagged").replace("{count}", ungrounded) });
+    } else if (checked === 0) {
+      // Zero unsupported out of zero checked. Shown as "nothing could be
+      // checked" rather than as a clean result, because the two are opposite
+      // statements that produce the same pair of numbers.
+      rows.push({ id: "grounding", tone: "muted",
+                  label: t("rel_grounding"), detail: t("rel_grounding_none") });
+    } else {
+      rows.push({ id: "grounding", tone: "ok", label: t("rel_grounding"),
+                  detail: t("rel_grounding_ok").replace("{count}", checked) });
+    }
+  }
+
+  const failed = progress.failed_domains ?? [];
+  if (failed.length) {
+    rows.push({ id: "sources", tone: "warn", label: t("rel_sources"),
+                detail: t("rel_sources_failed").replace("{domains}", failed.join(", ")) });
+  } else if (progress.source_counts) {
+    rows.push({ id: "sources", tone: "ok",
+                label: t("rel_sources"), detail: t("rel_sources_ok") });
+  }
+
+  if (progress.evidence_incomplete) {
+    rows.push({ id: "trail", tone: "warn",
+                label: t("rel_trail"), detail: t("rel_trail_incomplete") });
+  }
+
+  return rows;
+}
+
+/** The panel's headline, from the worst row present. */
+export function reliabilityVerdict(rows) {
+  const worst = rows.reduce(
+    (acc, row) => (_TONE_RANK[row.tone] > _TONE_RANK[acc] ? row.tone : acc), "muted");
+  if (worst === "risk") return { tone: "risk", label: t("rel_verdict_risk") };
+  if (worst === "warn") return { tone: "warn", label: t("rel_verdict_review") };
+  if (worst === "ok") {
+    return { tone: "ok", label: t("rel_verdict_clear"), note: t("rel_verdict_clear_sub") };
+  }
+  return { tone: "muted", label: t("rel_verdict_unknown") };
+}
+
+export function renderReliability(progress) {
+  const rows = reliabilityRows(progress);
+  if (!rows.length) return null;
+
+  const verdict = reliabilityVerdict(rows);
+  const wrap = el("section", "reliability");
+  wrap.dataset.tone = verdict.tone;
+
+  const head = el("div", "reliability__head");
+  head.append(el("span", "reliability__title", t("rel_title")));
+  head.append(el("strong", "reliability__verdict", verdict.label));
+  wrap.append(head);
+
+  if (verdict.note) wrap.append(el("p", "reliability__note", verdict.note));
+
+  const list = el("ul", "reliability__rows");
+  for (const row of rows) {
+    const item = el("li", "reliability__row");
+    item.dataset.tone = row.tone;
+    item.append(el("span", "reliability__label", row.label));
+    item.append(el("span", "reliability__detail", row.detail));
+    list.append(item);
+  }
+  wrap.append(list);
   return wrap;
 }

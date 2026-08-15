@@ -57,7 +57,12 @@ const STRINGS = {
     tab_report: "Report",
     tab_sources: "Sources",
     tab_grounding: "Citation check",
-    grounding_lede: "Which numbers in this report were checked against the text of the sources they cite.",
+    // Says what was actually checked. The old wording claimed "the numbers in
+    // this report", which named the wrong document: the screen reads the three
+    // evidence agents' structured findings, and the report is written from
+    // those afterwards. A reader who took the old sentence at face value would
+    // have credited the final text with a check it never received.
+    grounding_lede: "Which figures in the evidence agents' findings were checked against the text of the sources they cite. This screens the findings the report is written from, not the finished report.",
     grounding_checked: "checked",
     grounding_ungrounded: "figure not in the cited source",
     grounding_unverifiable: "could not be checked",
@@ -65,6 +70,40 @@ const STRINGS = {
     grounding_no_figures: "no numeric claims",
     grounding_missing: "not found in the cited sources: {figures}",
     grounding_detail: "Claims needing a look",
+
+    // Report-versus-scorecard
+    tab_consistency: "Report vs score",
+    consistency_lede: "Whether the report's own advice agrees with the scorecard beside it. Nothing else in the pipeline compares the two: the reviewer never sees the scorecard, and the scorer never sees the reviewed report.",
+    consistency_clear: "The recommendation matches the score.",
+    consistency_excerpt: "In the report",
+
+    // Reliability panel — what the automated checks found, above the score
+    // rather than inside a JSON file. A reader meets the flags before the
+    // number they qualify.
+    rel_title: "Automated checks",
+    rel_verdict_risk: "A check disagrees with this report",
+    rel_verdict_review: "Worth reading with the notes below in mind",
+    rel_verdict_clear: "Nothing was flagged",
+    rel_verdict_unknown: "Too little could be checked to say",
+    // The distinction the panel exists to preserve. "Nothing flagged" is not
+    // "verified" — the checks are heuristics over what could be retrieved, and
+    // presenting silence as a pass is the failure mode this whole panel is
+    // meant to avoid rather than commit.
+    rel_verdict_clear_sub: "These are automated checks over the sources that were retrieved, not verification. They can only report what they can see.",
+    rel_consistency: "Report vs score",
+    rel_consistency_conflict: "The report's advice is stronger than its own score supports ({count})",
+    rel_consistency_ok: "The recommendation matches the score",
+    rel_consistency_unchecked: "Not run — this check reads English conclusions only",
+    rel_grounding: "Citation check",
+    rel_grounding_flagged: "{count} figures were not found in the source cited for them",
+    rel_grounding_ok: "{count} figures matched the sources cited for them",
+    rel_grounding_none: "No figure could be checked — the retrieved source text is too short",
+    rel_sources: "Source coverage",
+    rel_sources_failed: "Assessed without {domains} — retrieval for it failed",
+    rel_sources_ok: "All three evidence domains returned sources",
+    rel_trail: "Audit trail",
+    rel_trail_incomplete: "The per-agent evidence files could not be written; the report is unaffected",
+
     readiness: "commercialization readiness",
     band_strong: "Strong",
     band_moderate: "Moderate",
@@ -103,7 +142,15 @@ const STRINGS = {
 
     // Bring-your-own-key
     byok_title: "Use your own API keys",
-    byok_sub: "Nothing is sent anywhere but this run's worker process, and nothing is saved once you close the tab.",
+    // Says "your keys", not "nothing". The old sentence was written about the
+    // credentials and was true of them, but a visitor about to upload an
+    // unpublished paper reads it as a statement about everything they are
+    // handing over — and the assessment, along with the uploaded PDF, stays on
+    // this server for the retention window. The second line below carries that
+    // half, with the actual number.
+    byok_sub: "Your keys go to this run's worker process and nowhere else, and are gone from this browser once you close the tab.",
+    byok_retention: "The assessment itself is stored on this server for {days} days, then deleted automatically.",
+    byok_retention_forever: "The assessment itself is stored on this server until it is deleted.",
     byok_llm_placeholder: "LLM API key",
     byok_serper_placeholder: "Serper API key",
     byok_hint: "Keys: platform.deepseek.com/api-keys · platform.openai.com/api-keys · console.anthropic.com — and serper.dev/api-key for search (free tier available).",
@@ -159,7 +206,7 @@ const STRINGS = {
     tab_report: "报告",
     tab_sources: "来源",
     tab_grounding: "引用核查",
-    grounding_lede: "本报告中的数字，有哪些已对照其引用来源的正文核对过。",
+    grounding_lede: "三个证据智能体的结论中，有哪些数字已对照其引用来源的正文核对过。核的是报告所依据的结论，不是成文的报告本身。",
     grounding_checked: "已核对",
     grounding_ungrounded: "来源正文中没有该数字",
     grounding_unverifiable: "无法核对",
@@ -167,6 +214,31 @@ const STRINGS = {
     grounding_no_figures: "无量化结论",
     grounding_missing: "在被引来源中未找到：{figures}",
     grounding_detail: "需要留意的结论",
+
+    tab_consistency: "报告与评分",
+    consistency_lede: "报告自己给出的建议，与旁边的评分卡是否一致。流水线里没有别的环节比较过这两者：审查员看不到评分卡，评分器看不到审查后的报告。",
+    consistency_clear: "建议强度与评分一致。",
+    consistency_excerpt: "报告原文",
+
+    rel_title: "自动检查",
+    rel_verdict_risk: "有一项检查与本报告不一致",
+    rel_verdict_review: "阅读时请一并参考下列说明",
+    rel_verdict_clear: "未发现问题",
+    rel_verdict_unknown: "可核对的内容太少，无法判断",
+    rel_verdict_clear_sub: "这些是针对已检索到的来源做的自动检查，不等于核实。它们只能报告自己看得见的部分。",
+    rel_consistency: "报告与评分",
+    rel_consistency_conflict: "报告的建议强度超出了自身评分所能支持的范围（{count} 处）",
+    rel_consistency_ok: "建议强度与评分一致",
+    rel_consistency_unchecked: "未运行——此项检查只识别英文结论",
+    rel_grounding: "引用核查",
+    rel_grounding_flagged: "有 {count} 个数字未能在其引用的来源中找到",
+    rel_grounding_ok: "{count} 个数字与其引用的来源一致",
+    rel_grounding_none: "没有数字可核对——检索到的来源正文过短",
+    rel_sources: "来源覆盖",
+    rel_sources_failed: "本次评估未包含 {domains}——该域检索失败",
+    rel_sources_ok: "三个证据域均返回了来源",
+    rel_trail: "审计记录",
+    rel_trail_incomplete: "各智能体的证据文件未能写入；报告本身不受影响",
     readiness: "商业化就绪度",
     band_strong: "较强",
     band_moderate: "中等",
@@ -202,7 +274,9 @@ const STRINGS = {
     gate_no_code: "没有口令？改用自己的 API Key",
 
     byok_title: "使用自己的 API Key",
-    byok_sub: "密钥只会传给这次运行的工作进程，关闭标签页后不会被保存。",
+    byok_sub: "密钥只会传给这次运行的工作进程，关闭标签页后就从浏览器中消失。",
+    byok_retention: "评估结果本身会保存在本服务器上 {days} 天，之后自动删除。",
+    byok_retention_forever: "评估结果本身会保存在本服务器上，直到被删除。",
     byok_llm_placeholder: "LLM API Key",
     byok_serper_placeholder: "Serper API Key",
     byok_hint: "获取密钥：platform.deepseek.com/api-keys · platform.openai.com/api-keys · console.anthropic.com；检索用的 serper.dev/api-key 有免费额度。",

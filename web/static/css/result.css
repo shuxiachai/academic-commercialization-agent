@@ -358,3 +358,124 @@
   font-size: var(--text-xs);
   color: var(--text-tertiary);
 }
+
+/* ── Automated checks ──────────────────────────────────────────────────
+ * Above the tabs, so the flags are read before the number they qualify.
+ * Every figure here was already being computed and stored; what was missing
+ * was any place on screen for it.
+ *
+ * The verdict tints the border, not the whole panel. A red block over a
+ * finished assessment reads as "this run failed", which is not what any of
+ * these findings mean — the run succeeded and something about its output is
+ * worth a second look.
+ */
+.reliability {
+  border: 1px solid var(--border-default);
+  border-left-width: 3px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.reliability[data-tone="risk"]  { border-left-color: var(--danger); }
+.reliability[data-tone="warn"]  { border-left-color: var(--warning); }
+.reliability[data-tone="ok"]    { border-left-color: var(--success); }
+.reliability[data-tone="muted"] { border-left-color: var(--border-strong); }
+
+.reliability__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.reliability__title {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.reliability__verdict {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.reliability__note {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  margin: var(--space-2) 0 0;
+}
+
+.reliability__rows {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.reliability__row {
+  display: grid;
+  grid-template-columns: minmax(110px, max-content) 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+  font-size: var(--text-sm);
+}
+
+.reliability__label { color: var(--text-tertiary); }
+.reliability__detail { color: var(--text-secondary); }
+.reliability__row[data-tone="risk"] .reliability__detail { color: var(--danger); }
+.reliability__row[data-tone="warn"] .reliability__detail { color: var(--warning); }
+
+@media (max-width: 640px) {
+  .reliability__row { grid-template-columns: 1fr; gap: var(--space-1); }
+}
+
+/* ── Report vs scorecard ─────────────────────────────────────────────── */
+
+.consistency__clear {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.consistency__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.consistency__item {
+  border-left: 2px solid var(--border-strong);
+  padding-left: var(--space-3);
+}
+.consistency__item--blocker { border-left-color: var(--danger); }
+.consistency__item--warning { border-left-color: var(--warning); }
+
+.consistency__detail {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+/* The quoted sentence is the point of the finding: a phrase table decided
+ * this, and a reader has to be able to overrule it by reading the words. */
+.consistency__excerpt {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.consistency__excerpt-label {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-1);
+}
+
+.gate__sub--retention {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
