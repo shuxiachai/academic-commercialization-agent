@@ -93,24 +93,24 @@ class UploadTests(_PapersTestBase):
         self.assertEqual(pdf_path.parent.parent, self.root)
 
     def test_oversized_upload_rejected(self):
-        oversized = b"x" * (papers.MAX_UPLOAD_BYTES + 1)
+        oversized = b"%PDF-1.4" + b"x" * (papers.MAX_UPLOAD_BYTES + 1)
         with self.assertRaises(papers.PaperTooLarge):
             papers.save_upload("big.pdf", oversized)
 
     def test_upload_at_the_limit_is_accepted(self):
         """Exactly at the ceiling is allowed; the check is > not >=."""
-        at_limit = b"x" * papers.MAX_UPLOAD_BYTES
+        at_limit = b"%PDF-1.4" + b"x" * (papers.MAX_UPLOAD_BYTES - 8)
         paper_id, _ = papers.save_upload("big.pdf", at_limit)
         self.assertTrue(papers.paper_dir(paper_id).is_dir())
 
     def test_rejected_upload_leaves_nothing_behind(self):
         with self.assertRaises(papers.PaperTooLarge):
-            papers.save_upload("big.pdf", b"x" * (papers.MAX_UPLOAD_BYTES + 1))
+            papers.save_upload("big.pdf", b"%PDF-1.4" + b"x" * papers.MAX_UPLOAD_BYTES)
         self.assertFalse(self.root.exists() and any(self.root.iterdir()))
 
     def test_two_uploads_do_not_collide(self):
-        a, _ = papers.save_upload("p.pdf", b"%PDF a")
-        b, _ = papers.save_upload("p.pdf", b"%PDF b")
+        a, _ = papers.save_upload("p.pdf", b"%PDF-1.4 a")
+        b, _ = papers.save_upload("p.pdf", b"%PDF-1.4 b")
         self.assertNotEqual(a, b)
 
 
@@ -249,3 +249,62 @@ class RunRetentionTests(unittest.TestCase):
         runs.prune_expired_runs(1)
         self.assertTrue((self.root / "_papers").exists())
         self.assertTrue((self.root / "benchmark").exists())
+
+
+class UploadShapeTests(unittest.TestCase):
+    """The upload is the one place a stranger hands this system a file, and it
+    goes on to a native PDF parser. Both checks here run before that."""
+
+    def test_a_non_pdf_is_refused_before_it_is_stored(self):
+        """Filename and content type both come from the client. A renamed
+        archive should be refused here rather than several layers in, by
+        pypdfium2, on a path with no HTTP status to return."""
+        with self.assertRaises(papers.PaperNotAPdf):
+            papers.save_upload("paper.pdf", b"PK this is a zip")
+
+    def test_an_empty_body_is_refused(self):
+        with self.assertRaises(papers.PaperNotAPdf):
+            papers.save_upload("paper.pdf", b"")
+
+    def test_a_real_pdf_header_passes(self):
+        paper_id, path = papers.save_upload("paper.pdf", b"%PDF-1.7 content")
+        self.assertTrue(path.exists())
+        self.assertTrue(paper_id)
+
+
+class CappedReadTests(unittest.IsolatedAsyncioTestCase):
+    """The size limit used to run after `await file.read()`, so a 2 GB body was
+    allocated in full and only then rejected. The check ran; it just ran after
+    the damage it existed to prevent."""
+
+    class _Body:
+        """An upload that would be enormous if fully read."""
+
+        def __init__(self, total: int, chunk: int = 1024 * 1024):
+            self.remaining = total
+            self.chunk = chunk
+            self.delivered = 0
+
+        async def read(self, size: int = -1) -> bytes:
+            if self.remaining <= 0:
+                return b""
+            n = min(size if size > 0 else self.chunk, self.remaining, self.chunk)
+            self.remaining -= n
+            self.delivered += n
+            return b"x" * n
+
+    async def test_it_stops_reading_once_the_cap_is_passed(self):
+        from api.main import _read_capped
+
+        body = self._Body(papers.MAX_UPLOAD_BYTES * 20)
+        with self.assertRaises(papers.PaperTooLarge):
+            await _read_capped(body, papers.MAX_UPLOAD_BYTES)
+        # The point: it gave up near the limit instead of consuming the lot.
+        self.assertLess(body.delivered, papers.MAX_UPLOAD_BYTES * 2)
+
+    async def test_a_body_within_the_cap_is_returned_whole(self):
+        from api.main import _read_capped
+
+        body = self._Body(3 * 1024 * 1024)
+        data = await _read_capped(body, papers.MAX_UPLOAD_BYTES)
+        self.assertEqual(len(data), 3 * 1024 * 1024)

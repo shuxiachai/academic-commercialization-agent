@@ -582,6 +582,30 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
     )
 
 
+#: Read the body in pieces so an oversized upload is refused partway rather
+#: than after it is entirely in memory. The previous code did `await
+#: file.read()` and only then compared the length, so a 2 GB body was
+#: allocated in full before being rejected — the check ran, but only once the
+#: damage it was meant to prevent had already happened.
+_UPLOAD_CHUNK = 1024 * 1024
+
+
+async def _read_capped(file: UploadFile, limit: int) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(_UPLOAD_CHUNK)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > limit:
+            raise papers.PaperTooLarge(
+                f"Upload exceeds the {limit // 1024 // 1024} MB limit"
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 @app.post(
     "/api/papers",
     response_model=PaperExtraction,
@@ -601,11 +625,16 @@ async def upload_paper(file: UploadFile = File(...)) -> PaperExtraction:
     Runs the extractor in a worker thread: it makes an LLM call and would
     otherwise block the event loop for several seconds.
     """
-    data = await file.read()
+    try:
+        data = await _read_capped(file, papers.MAX_UPLOAD_BYTES)
+    except papers.PaperTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
     try:
         paper_id, pdf_path = papers.save_upload(file.filename or "paper.pdf", data)
     except papers.PaperTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except papers.PaperNotAPdf as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from exc
 
     try:
         contribution = await asyncio.to_thread(extract_paper_contribution, str(pdf_path))

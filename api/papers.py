@@ -39,6 +39,10 @@ class PaperTooLarge(Exception):
     """Raised when an upload exceeds MAX_UPLOAD_BYTES."""
 
 
+class PaperNotAPdf(Exception):
+    """Raised when an upload does not begin with the PDF signature."""
+
+
 def _is_valid_paper_id(paper_id: str) -> bool:
     """Reject anything that could escape PAPERS_ROOT."""
     return (
@@ -58,8 +62,19 @@ def create_paper_id() -> str:
     return f"paper-{uuid.uuid4().hex[:12]}"
 
 
+#: Every PDF starts with this. Checked because the filename and the declared
+#: content type both come from the client, and the file is handed to a native
+#: parser afterwards — a renamed archive or image should be refused here
+#: rather than by pypdfium2 several layers in.
+_PDF_SIGNATURE = b"%PDF-"
+
+
 def save_upload(filename: str, data: bytes) -> tuple[str, Path]:
     """Persist an uploaded PDF. Returns (paper_id, pdf_path)."""
+    if not data.startswith(_PDF_SIGNATURE):
+        raise PaperNotAPdf(
+            "The uploaded file does not look like a PDF (missing %PDF- header)."
+        )
     if len(data) > MAX_UPLOAD_BYTES:
         raise PaperTooLarge(
             f"{len(data) / 1024 / 1024:.1f} MB exceeds the "
