@@ -79,12 +79,19 @@ class PageSelectionTests(unittest.TestCase):
         # first two middle pages by position — passes anyway, which is what
         # the first version of this test did until the fault was injected.
         pages = ["head one", "head two", "head three"]
-        pages += [f"sparse{i}" for i in range(1, 5)]                     # pages 4-7
-        pages.append("\n".join([f"dense line {i}" for i in range(30)]))  # page 8
-        pages += ["tail one", "tail two"]                                # pages 9-10
+        # Middle pages of strictly increasing length, densest last. Equal
+        # lengths would leave the runner-up decided by sort stability, i.e.
+        # by position — which is exactly what this test must not depend on.
+        pages += [f"mid{i} " + ("filler " * (i * 5)) for i in range(1, 4)]
+        pages.append("\n".join([f"dense line {i}" for i in range(40)]))
+        pages += ["tail one", "tail two"]
         text = extract_pdf_text(_pdf(pages))
-        self.assertIn("dense line 29", text)
-        self.assertNotIn("sparse1", text)
+        # Two middle pages are taken: the densest, and the next densest.
+        self.assertIn("dense line 39", text)
+        self.assertIn("mid3", text)
+        # The thinnest middle page loses. A selector that took the first two
+        # by position would keep mid1 and drop the dense page instead.
+        self.assertNotIn("mid1", text)
 
     def test_only_two_middle_pages_are_taken(self):
         """Uncapped, a long paper would blow the character budget before
