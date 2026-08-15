@@ -652,6 +652,7 @@
 .pill--failed    { background: var(--danger-subtle);  color: var(--danger); }
 .pill--cancelled { background: var(--bg-active);      color: var(--text-tertiary); }
 .pill--timeout   { background: var(--warning-subtle); color: var(--warning); }
+.pill--unknown   { background: var(--bg-active);      color: var(--text-tertiary); }
 
 /* ═══ Buttons ══════════════════════════════════════════════════════════ */
 

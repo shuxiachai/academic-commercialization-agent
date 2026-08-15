@@ -225,7 +225,17 @@ def main() -> None:
                 data["usage"] = usage
             if claim_grounding is not None:
                 data["claim_grounding"] = claim_grounding
-            status_path.write_text(json.dumps(data), encoding="utf-8")
+            # Atomic: the API polls this file while the worker rewrites it on
+            # every stage transition. A plain write leaves a window where the
+            # reader sees a truncated document, and an unreadable status was
+            # being derived as a failed run — so a finished run could be
+            # reported as failed for as long as it took to write one line.
+            tmp_path = status_path.with_suffix(".json.tmp")
+            with tmp_path.open("w", encoding="utf-8") as fh:
+                json.dump(data, fh)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp_path, status_path)
         except Exception as _e:
             print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
 

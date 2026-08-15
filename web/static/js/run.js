@@ -20,6 +20,9 @@ const STAGES = [
   { id: "scoring",  match: "Agent 6",           key: "stage_scoring" },
 ];
 
+// "unknown" is absent on purpose: the status file was unreadable, which says
+// nothing about whether the run finished. Treating it as terminal would stop
+// polling and show a still-running analysis as over.
 const TERMINAL = new Set(["completed", "failed", "cancelled", "timeout"]);
 
 /** Index of the stage a status string refers to, or -1 when unrecognised. */

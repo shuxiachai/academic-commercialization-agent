@@ -6,7 +6,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-RunState = Literal["running", "completed", "failed", "cancelled", "timeout"]
+#: "unknown" means the status file could not be read, not that the run
+#: failed. It is deliberately not terminal: a client should retry rather than
+#: tell the user their run died, because it may well have finished.
+RunState = Literal["running", "completed", "failed", "cancelled", "timeout",
+                   "unknown"]
 
 BYOK_PROVIDERS = ("deepseek", "openai", "anthropic")
 

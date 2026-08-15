@@ -159,3 +159,78 @@ class AbsentDataTests(unittest.TestCase):
         body = self.client.get(f"/api/runs/{self.run_id}").json()
         self.assertIsNone(body["usage"])
         self.assertNotEqual(body["usage"], {})
+
+
+class UnreadableStatusTests(unittest.TestCase):
+    """A torn or truncated status.json must not be reported as a failed run.
+
+    The worker rewrites this file on every stage transition while the API
+    polls it. Before the write became atomic there was a window where the
+    reader saw half a document, and an unparseable status was derived as
+    "failed" — so a run that finished perfectly could be announced as dead for
+    as long as it took to write one line.
+
+    Atomic writes close that window. These cover what happens if it opens
+    anyway, from a full disk or anything else: the answer must be "I do not
+    know", which a client retries, not "it failed", which it reports.
+    """
+
+    def setUp(self):
+        self._tmp = TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.run_id = "20260814T002830Z-bbbbbbbbbb"
+        (self.root / self.run_id).mkdir()
+        patcher = patch.object(runs, "DEFAULT_OUTPUT_ROOT", self.root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.client = TestClient(app)
+
+    def _write(self, text: str) -> None:
+        (self.root / self.run_id / "status.json").write_text(text, encoding="utf-8")
+
+    def test_a_torn_file_is_unknown_not_failed(self):
+        self._write('{"stage": "Done", "do')
+        body = self.client.get(f"/api/runs/{self.run_id}").json()
+        self.assertEqual(body["state"], "unknown")
+
+    def test_unknown_is_a_valid_response_state(self):
+        """It is a Literal. Returning a value outside it raises at
+        serialisation and the client sees a 500 instead of a retryable state."""
+        self._write("not json at all")
+        for path in (f"/api/runs/{self.run_id}", f"/api/runs/{self.run_id}/progress"):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 200)
+
+    def test_the_message_says_the_run_may_have_finished(self):
+        """A user told "failed" stops waiting. The distinction is the point."""
+        self._write("{oops")
+        body = self.client.get(f"/api/runs/{self.run_id}").json()
+        self.assertIn("may have completed", body["error"])
+
+    def test_a_missing_status_file_is_still_treated_as_a_failure(self):
+        """Absent is not the same as unreadable: a run whose worker died
+        before writing anything really did fail, and saying "unknown" there
+        would leave a client polling a corpse."""
+        body = self.client.get(f"/api/runs/{self.run_id}").json()
+        self.assertNotEqual(body["state"], "unknown")
+
+    def test_a_readable_status_is_unaffected(self):
+        self._write(json.dumps({"stage": "Done", "done": True}))
+        self.assertEqual(
+            self.client.get(f"/api/runs/{self.run_id}").json()["state"], "completed")
+
+
+class AtomicWriteTests(unittest.TestCase):
+
+    def test_the_worker_replaces_rather_than_overwrites(self):
+        """os.replace is atomic on both platforms this ships to; write_text is
+        not, and the reader is polling."""
+        import inspect
+
+        from academic_agent import pipeline_worker
+
+        source = inspect.getsource(pipeline_worker.main)
+        self.assertIn("os.replace(", source)
+        self.assertIn("os.fsync(", source)
+        self.assertNotIn('status_path.write_text(', source)

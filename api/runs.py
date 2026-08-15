@@ -460,11 +460,34 @@ def shutdown_all() -> None:
         handle.terminate()
 
 
+class StatusUnreadable(Exception):
+    """status.json exists but does not parse.
+
+    Distinct from "not written yet", which is an empty dict and means the run
+    has only just started. Conflating them made a torn read look like a run
+    that had produced no status at all, which get_state() derives as failed.
+    """
+
+
 def _read_status(run_dir: Path) -> dict:
+    """The run's status, or {} when it has not been written yet.
+
+    Raises StatusUnreadable for a file that is present but unparseable. The
+    worker now writes atomically so this should not happen from a torn read,
+    but a truncated file on a full disk still must not be reported as a
+    failed run — the run may have finished perfectly.
+    """
+    path = run_dir / "status.json"
     try:
-        return json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
         return {}
+    except OSError:
+        raise StatusUnreadable(str(path)) from None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise StatusUnreadable(f"{path}: {exc}") from exc
 
 
 def read_steps(run_id: str, since: int = 0) -> list[dict]:
@@ -551,7 +574,13 @@ def get_state(run_id: str) -> dict:
     if not run_dir.is_dir():
         raise RunNotFound(f"No run with id {run_id}")
 
-    status = _read_status(run_dir)
+    try:
+        status = _read_status(run_dir)
+        status_readable = True
+    except StatusUnreadable:
+        # Report what is known rather than guessing. "unknown" is a state a
+        # client can retry; "failed" is one it reports to the user.
+        status, status_readable = {}, False
     handle = _registry.get(run_id)
 
     if handle is not None and handle.alive():
@@ -570,6 +599,10 @@ def get_state(run_id: str) -> dict:
             state, error = "failed", str(status["error"])
         elif status.get("done"):
             state, error = "completed", None
+        elif not status_readable:
+            state = "unknown"
+            error = ("Run status is temporarily unreadable; the run itself may "
+                     "have completed. Retry in a moment.")
         else:
             reason = _failure_reason(run_dir)
             state = "timeout" if "timed out" in reason.lower() else "failed"
