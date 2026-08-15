@@ -251,7 +251,9 @@ def run_topic(
         return meta
 
     from academic_agent.crew import AcademicAgent
-    from academic_agent.run_output import save_evidence_reports
+    from academic_agent.pipeline_worker import _select_report_and_scores
+    from academic_agent.run_output import save_claim_grounding, save_evidence_reports
+    from academic_agent.token_usage import collect_usage
     from academic_agent.source_pipeline import (
         SourceCollectionError,
         collect_source_collection,
@@ -324,10 +326,11 @@ def run_topic(
             for entry in source_collection.audit
         )
 
-        # Steps 1–6: crew run
-        result = AcademicAgent(source_collection).crew().kickoff(
-            inputs=source_collection.crew_inputs()
-        )
+        # Steps 1–6: crew run. The crew object is held rather than chained
+        # away, because the per-agent token usage lives on it and is only
+        # readable after kickoff returns.
+        crew_obj = AcademicAgent(source_collection).crew()
+        result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
 
         tasks_output = getattr(result, "tasks_output", None) or []
 
@@ -346,12 +349,33 @@ def run_topic(
         except Exception:  # noqa: BLE001 - inspection files must not fail a run
             _log(f"  [{label}] evidence artifacts could not be written (run unaffected)")
 
-        if len(tasks_output) >= 2:
-            report_raw = tasks_output[-2].raw   # Task 5 = reviewer = Markdown report
-            scores_raw = tasks_output[-1].raw   # Task 6 = scorer  = JSON scorecard
-        else:
-            report_raw = result.raw
-            scores_raw = None
+        # What the batch actually cost. benchmark.py does not go through
+        # pipeline_worker -- it cannot, because the worker has no fixture
+        # replay path -- so it calls the same accounting the worker calls
+        # rather than delegating. Without this, "what did this batch cost"
+        # had no answer, which came up every time a rubric experiment needed
+        # justifying.
+        usage = collect_usage(crew_obj)
+        if usage.agents:
+            meta["usage"] = usage.as_dict()
+            cost = "unknown" if usage.cost_usd is None else f"${usage.cost_usd:.4f}"
+            _log(f"  [{label}] cost: {usage.total_tokens} tokens, {cost}")
+
+        # How much of this run's quantitative output could be checked against
+        # its own sources. A calibration score says whether the number was
+        # right; this says how much of the reasoning behind it was verifiable
+        # at all, which is a benchmark dimension in its own right.
+        grounding = save_claim_grounding(
+            tasks_output, run_id=run_dir.name, output_root=run_dir.parent)
+        if grounding:
+            meta["claim_grounding"] = grounding
+
+        # Shared with the worker rather than re-derived. The negative indices
+        # this replaces are the bug the worker's own docstring warns about: a
+        # task inserted mid-pipeline silently shifts which output is written
+        # as the report, and nothing raises. They coincide at six tasks, which
+        # is why two copies of it survived this long.
+        report_raw, scores_raw = _select_report_and_scores(tasks_output, result.raw)
 
         (run_dir / "commercialization_report.md").write_text(report_raw, encoding="utf-8")
         if scores_raw:
@@ -631,6 +655,35 @@ def main() -> None:
         _log("  Evidence  : FIXTURE (frozen) — measures reasoning, not retrieval.")
         _log("              Not comparable with a live-retrieval baseline.")
     _log(f"  Succeeded : {success}   Skipped : {skipped}   Failed : {failed}")
+
+    # What the batch cost, totalled. A per-run figure nobody adds up still
+    # leaves "is another experiment worth it" unanswerable, which is the
+    # question this exists to serve.
+    priced = [r["usage"] for r in results
+              if isinstance(r.get("usage"), dict) and r["usage"].get("cost_usd") is not None]
+    if priced:
+        total = sum(u["cost_usd"] for u in priced)
+        tokens = sum(u.get("total_tokens", 0) for u in priced)
+        incomplete = sum(1 for u in priced if not u.get("cost_complete", True))
+        note = f"  ({incomplete} run(s) partially priced)" if incomplete else ""
+        _log(f"  Cost      : ${total:.4f} over {len(priced)} run(s), "
+             f"{tokens:,} tokens{note}")
+        if len(priced) < len(results):
+            # Skipped runs carry the previous batch's usage or none at all;
+            # counting them would report an old bill as this one's.
+            _log(f"              ({len(results) - len(priced)} run(s) without "
+                 f"usage data, e.g. skipped or failed before the crew started)")
+
+    checked = sum(r.get("claim_grounding", {}).get("checked", 0)
+                  for r in results if isinstance(r.get("claim_grounding"), dict))
+    unver = sum(r.get("claim_grounding", {}).get("unverifiable", 0)
+                for r in results if isinstance(r.get("claim_grounding"), dict))
+    ungrounded = sum(r.get("claim_grounding", {}).get("ungrounded", 0)
+                     for r in results if isinstance(r.get("claim_grounding"), dict))
+    if checked or unver:
+        _log(f"  Citations : {checked} quantitative claim(s) checkable, "
+             f"{ungrounded} with a figure absent from the cited source, "
+             f"{unver} unverifiable")
 
     # Everything skipped means nothing was measured. Saying so beats a summary
     # that looks like a successful run but reports figures from a previous one.
