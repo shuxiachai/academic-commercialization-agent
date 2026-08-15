@@ -57,6 +57,65 @@ def _select_report_and_scores(
     return fallback_raw, None
 
 
+class ProgressTracker:
+    """Which agent just finished, what stage the run is now in, and which
+    agent to show as starting next.
+
+    Extracted from the callback it used to live in. CrewAI fires that callback
+    from the three parallel evidence agents' own threads, so the counters need
+    a lock — and a closure holding a lock inside a 300-line function cannot be
+    tested without running a real crew, which is why the ordering it encodes
+    had never been checked.
+
+    The rule it encodes is not obvious from either end: the first two parallel
+    completions announce no successor, because the other two evidence agents
+    are already running and marking one "starting" would show the same agent
+    twice. Only the third does, when the report writer genuinely begins.
+    """
+
+    def __init__(self, parallel_count: int, sequential_stages: list[str],
+                 parallel_stage: str) -> None:
+        self._parallel_count = parallel_count
+        self._sequential_stages = sequential_stages
+        self._parallel_stage = parallel_stage
+        self._total = parallel_count + len(sequential_stages)
+        self._parallel_done = 0
+        self._sequential_done = 0
+        self._lock = threading.Lock()
+
+    @property
+    def total_agents(self) -> int:
+        return self._total
+
+    @property
+    def completed(self) -> int:
+        """Completions so far, used as the agent index when a tool event
+        arrives with a role the crew's role map does not know. Reading it
+        needs the lock too: the tool events fire from the same threads."""
+        with self._lock:
+            return self._parallel_done + self._sequential_done
+
+    def on_complete(self) -> tuple[int, str, int | None]:
+        """Record one completion. Returns (finished_idx, stage, next_idx)."""
+        with self._lock:
+            if self._parallel_done < self._parallel_count:
+                self._parallel_done += 1
+                finished = self._parallel_done - 1
+                last_parallel = self._parallel_done == self._parallel_count
+                stage = (self._sequential_stages[0] if last_parallel
+                         else self._parallel_stage)
+                return finished, stage, (self._parallel_count if last_parallel else None)
+
+            self._sequential_done += 1
+            finished = self._parallel_count + self._sequential_done - 1
+            seq_idx = self._sequential_done
+            stage = (self._sequential_stages[seq_idx]
+                     if seq_idx < len(self._sequential_stages)
+                     else self._sequential_stages[-1])
+            nxt = finished + 1
+            return finished, stage, (nxt if nxt < self._total else None)
+
+
 def _merge_status_fields(
     existing: dict,
     *,
@@ -272,8 +331,8 @@ def main() -> None:
             failed_domains=sorted(source_collection.failed_domains) or None,
         )
 
-        parallel_done   = [0]   # counts completions of the 3 async evidence tasks
-        sequential_done = [0]   # counts completions of tasks 4/5/6
+        tracker = ProgressTracker(
+            _PARALLEL_COUNT, _SEQUENTIAL_STAGES, _PARALLEL_STAGE)
         _steps_fh = None        # open steps.jsonl handle during kickoff (set before kickoff)
 
         def _write_step(entry: StepEntry) -> None:
@@ -285,41 +344,15 @@ def main() -> None:
             except Exception as _e:
                 print(f"[worker] _write_step failed: {_e}", file=sys.stderr)
 
-        _total_agents = _PARALLEL_COUNT + len(_SEQUENTIAL_STAGES)
-        _task_lock = threading.Lock()
+        _total_agents = tracker.total_agents
 
         def on_task_complete(_task_output) -> None:
-            with _task_lock:
-                if parallel_done[0] < _PARALLEL_COUNT:
-                    parallel_done[0] += 1
-                    agent_idx = parallel_done[0] - 1   # 0 = Academic, 1 = Patent, 2 = Market
-                    stage = (
-                        _SEQUENTIAL_STAGES[0]
-                        if parallel_done[0] == _PARALLEL_COUNT
-                        else _PARALLEL_STAGE
-                    )
-                    _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
-                    # All parallel tasks done — signal writer starting
-                    if parallel_done[0] == _PARALLEL_COUNT:
-                        _write_step({"agent_idx": _PARALLEL_COUNT, "type": "action",
-                                     "thought": "", "tool": "reasoning",
-                                     "tool_input": "", "result": ""})
-                else:
-                    sequential_done[0] += 1
-                    agent_idx = _PARALLEL_COUNT + sequential_done[0] - 1  # 3, 4, 5
-                    seq_idx = sequential_done[0]
-                    stage = (
-                        _SEQUENTIAL_STAGES[seq_idx]
-                        if seq_idx < len(_SEQUENTIAL_STAGES)
-                        else _SEQUENTIAL_STAGES[-1]
-                    )
-                    _write_step({"agent_idx": agent_idx, "type": "finish", "thought": ""})
-                    # Signal the next sequential agent starting, if any remain
-                    next_idx = agent_idx + 1
-                    if next_idx < _total_agents:
-                        _write_step({"agent_idx": next_idx, "type": "action",
-                                     "thought": "", "tool": "reasoning",
-                                     "tool_input": "", "result": ""})
+            finished, stage, next_idx = tracker.on_complete()
+            _write_step({"agent_idx": finished, "type": "finish", "thought": ""})
+            if next_idx is not None:
+                _write_step({"agent_idx": next_idx, "type": "action",
+                             "thought": "", "tool": "reasoning",
+                             "tool_input": "", "result": ""})
             write_status(stage, output_language=source_collection.output_language)
 
         crew_obj = AcademicAgent(
@@ -341,7 +374,7 @@ def main() -> None:
 
                 @crewai_event_bus.on(ToolUsageStartedEvent)
                 def on_tool_started(source, event: ToolUsageStartedEvent) -> None:
-                    idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0] + sequential_done[0])
+                    idx = agent_role_to_idx.get(event.agent_role or "", tracker.completed)
                     _write_step({
                         "agent_idx": idx,
                         "type": "action",
@@ -353,7 +386,7 @@ def main() -> None:
 
                 @crewai_event_bus.on(ToolUsageFinishedEvent)
                 def on_tool_finished(source, event: ToolUsageFinishedEvent) -> None:
-                    idx = agent_role_to_idx.get(event.agent_role or "", parallel_done[0] + sequential_done[0])
+                    idx = agent_role_to_idx.get(event.agent_role or "", tracker.completed)
                     _write_step({
                         "agent_idx": idx,
                         "type": "result",
