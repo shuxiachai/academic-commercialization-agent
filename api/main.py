@@ -569,6 +569,14 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         evidence_incomplete=state.get("evidence_incomplete", False),
         failed_domains=state.get("failed_domains", []),
         output_language=state.get("output_language", "English"),
+        # Threaded explicitly, like every other field here. That is the flaw
+        # this pair of lines is fixing: RunStatus builds itself with
+        # RunStatus(**get_state(...)) and picks up new keys automatically,
+        # while this constructor names each one, so a field added to
+        # get_state() reaches one endpoint and silently not the other.
+        # test_api_contract.py now fails when they diverge.
+        usage=state.get("usage"),
+        claim_grounding=state.get("claim_grounding"),
         steps=[StepEvent(**s) for s in runs.read_steps(run_id, since=since)],
         artifacts=state.get("artifacts", []),
     )

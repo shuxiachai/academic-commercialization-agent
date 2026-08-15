@@ -122,6 +122,20 @@ class RunProgress(BaseModel):
                     "assessment was produced without them. Distinct from a "
                     "domain that searched successfully and found nothing.",
     )
+    usage: dict | None = Field(
+        default=None,
+        description="Tokens and estimated cost for the run, per agent and in "
+                    "total. Absent for runs that predate cost accounting and "
+                    "for runs that failed before the crew started.",
+    )
+    claim_grounding: dict | None = Field(
+        default=None,
+        description="How many of the run's quantitative claims could be "
+                    "checked against the text of the sources they cite, how "
+                    "many cited a figure absent from it, and how many could "
+                    "not be checked at all. The last number bounds what the "
+                    "other two mean.",
+    )
     output_language: str = "English"
     steps: list[StepEvent] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
@@ -157,6 +171,20 @@ class RunStatus(BaseModel):
         description="Evidence domains whose retrieval backend failed, so the "
                     "assessment was produced without them. Distinct from a "
                     "domain that searched successfully and found nothing.",
+    )
+    usage: dict | None = Field(
+        default=None,
+        description="Tokens and estimated cost for the run, per agent and in "
+                    "total. Absent for runs that predate cost accounting and "
+                    "for runs that failed before the crew started.",
+    )
+    claim_grounding: dict | None = Field(
+        default=None,
+        description="How many of the run's quantitative claims could be "
+                    "checked against the text of the sources they cite, how "
+                    "many cited a figure absent from it, and how many could "
+                    "not be checked at all. The last number bounds what the "
+                    "other two mean.",
     )
     artifacts: list[str] = Field(
         default_factory=list,
