@@ -102,12 +102,17 @@ class HealthTests(_ApiTestCase):
         self.assertEqual(body["active_runs"], 0)
         self.assertEqual(body["max_concurrent"], runs.MAX_CONCURRENT)
 
-    @patch("academic_agent.llm_config._detect_provider", return_value="deepseek")
+    # Patched where api.main looks it up, not where it is defined. The
+    # import is at module scope there on purpose: importing llm_config pulls
+    # in crewai, which calls load_dotenv() as a side effect, and a lazy import
+    # inside the endpoint repopulated os.environ from .env part-way through
+    # the checks that read it.
+    @patch("api.main._detect_provider", return_value="deepseek")
     def test_reports_resolved_provider(self, _mock):
         self.assertEqual(self.client.get("/health").json()["llm_provider"], "deepseek")
 
     @patch(
-        "academic_agent.llm_config._detect_provider",
+        "api.main._detect_provider",
         side_effect=RuntimeError("No LLM API key found."),
     )
     def test_missing_key_reports_null_provider_not_500(self, _mock):

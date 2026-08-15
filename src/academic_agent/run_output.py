@@ -1,12 +1,12 @@
 """Per-run output management for generated commercialization reports."""
 
 import json
+import secrets
 import warnings
 from collections.abc import Sequence
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Literal, TypedDict
-from uuid import uuid4
 
 
 class _StepEntryRequired(TypedDict):
@@ -27,9 +27,22 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "outputs"
 
 
+#: Bytes of randomness in a run id's suffix. The id is not only a name: the
+#: API treats a run URL as a capability, so anyone holding one can read the
+#: report and anyone who guesses one can too. It used to be uuid4().hex[:10] —
+#: 40 bits, against a timestamp prefix that tells an attacker which minute to
+#: search. Rate limiting makes 40 bits impractical to brute force in practice,
+#: which is a weaker thing to be relying on than the id itself when the run may
+#: hold an unpublished paper. 128 bits costs nothing.
+#:
+#: Old ids stay readable: nothing parses the suffix, and _RUN_ID_PATTERN in
+#: api/runs.py matches [0-9a-f]+ at any length.
+_RUN_ID_ENTROPY_BYTES = 16
+
+
 def create_run_id() -> str:
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    return f"{timestamp}-{uuid4().hex[:10]}"
+    return f"{timestamp}-{secrets.token_hex(_RUN_ID_ENTROPY_BYTES)}"
 
 
 def save_report(

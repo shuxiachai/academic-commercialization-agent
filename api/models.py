@@ -241,3 +241,22 @@ class HealthStatus(BaseModel):
                     "will live on this deployment.",
     )
     llm_provider: str | None = None
+
+
+class ReadinessStatus(BaseModel):
+    """Whether this container can actually run an assessment, not just serve.
+
+    Separate from HealthStatus because the two answer different questions and
+    a platform can only act on one of them. /health says the process is up;
+    this says a submitted run would get past the first minute. A deployment
+    missing its LLM key serves every page perfectly and fails every run.
+    """
+
+    ready: bool
+    checks: dict[str, str] = Field(
+        description="Check name -> 'ok' or the reason it is not. Named rather "
+                    "than counted so an operator reading a failed deploy sees "
+                    "which one to fix.",
+    )
+    llm_provider: str | None = None
+    search_provider: str | None = None

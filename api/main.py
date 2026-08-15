@@ -21,7 +21,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -30,11 +30,13 @@ from fastapi.staticfiles import StaticFiles
 # rely on, not a contract — an API server should be explicit about its config.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
+from academic_agent.llm_config import _detect_provider  # noqa: E402
 from academic_agent.pdf_extractor import extract_paper_contribution  # noqa: E402
 from api import access, papers, runs  # noqa: E402  — must follow load_dotenv
 from api.models import (  # noqa: E402
     HealthStatus,
     PaperExtraction,
+    ReadinessStatus,
     RunAccepted,
     RunList,
     RunProgress,
@@ -199,10 +201,13 @@ def _rate_limit_exceeded(key: str) -> bool:
 async def _rate_limit(request: Request, call_next):
     """Bound request volume per client.
 
-    /health is exempt: platform health checks poll it on their own schedule
-    and must never be throttled into reporting the service as down.
+    The /health endpoints are exempt: platform health checks poll them on
+    their own schedule and must never be throttled into reporting the service
+    as down. Matched by prefix so /health/ready is covered — it is the one the
+    container healthcheck actually polls, and a 429 there would restart a
+    perfectly healthy container.
     """
-    if request.url.path != "/health" and _rate_limit_exceeded(_client_key(request)):
+    if not request.url.path.startswith("/health") and _rate_limit_exceeded(_client_key(request)):
         return JSONResponse(
             {"detail": "Too many requests. Slow down and retry shortly."},
             status_code=429,
@@ -238,7 +243,7 @@ async def _access_gate(request: Request, call_next):
       or complete bring-your-own-key credentials in the body. That decision
       needs the parsed body, which a middleware does not cheaply have.
     - GET/DELETE /api/runs/{id}/... — a specific run, addressed by its id, is
-      a capability URL: the id itself (40 bits of randomness, see
+      a capability URL: the id itself (128 bits of randomness, see
       create_run_id) is the credential, the same trust model already used for
       sharing a finished report's link. Reading or cancelling one run costs
       nothing further, unlike GET /api/runs (no id), which lists every run on
@@ -341,8 +346,6 @@ def health() -> HealthStatus:
     # Reuse the pipeline's own resolution so this never disagrees with what a
     # run would actually use (it handles LLM_PROVIDER and the legacy
     # OPENAI_API_BASE-pointing-at-DeepSeek setup).
-    from academic_agent.llm_config import _detect_provider
-
     try:
         provider = _detect_provider()
     except RuntimeError:
@@ -355,6 +358,78 @@ def health() -> HealthStatus:
         retention_days=runs.RUN_RETENTION_DAYS,
         llm_provider=provider,
     )
+
+
+def readiness() -> ReadinessStatus:
+    """Everything a submitted run needs before it can get past its first minute.
+
+    Split out of the endpoint so the checks can be exercised without HTTP, and
+    so each one is a named string rather than a count — an operator staring at
+    a deploy that will not go healthy needs to know which of the three.
+    """
+    # _detect_provider is imported at module scope, not here. Importing
+    # llm_config pulls in crewai, which calls load_dotenv() as a side effect —
+    # so a lazy import inside this function would repopulate os.environ from
+    # .env part-way through the very checks that are reading it, and report
+    # keys the running process does not actually have.
+    checks: dict[str, str] = {}
+
+    try:
+        provider = _detect_provider()
+        checks["llm"] = "ok"
+    except RuntimeError as exc:
+        provider = None
+        checks["llm"] = str(exc).splitlines()[0]
+
+    # Retrieval has no fallback: without a web search key the pipeline raises
+    # SourceCollectionError before the first agent runs. Which of the two is
+    # configured decides who is billed and how results are shaped, so it is
+    # reported rather than reduced to a boolean.
+    search = ("tavily" if os.getenv("TAVILY_API_KEY")
+              else "serper" if os.getenv("SERPER_API_KEY") else None)
+    checks["search"] = "ok" if search else (
+        "no web search key: set SERPER_API_KEY or TAVILY_API_KEY")
+
+    # A read-only outputs volume is the failure this catches that the other two
+    # cannot: every key is right, the page loads, and each run dies at its
+    # first write. Probed with a real file rather than os.access, which reports
+    # the permission bits and not what the filesystem will actually allow.
+    try:
+        runs.DEFAULT_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+        probe = runs.DEFAULT_OUTPUT_ROOT / ".readiness"
+        probe.write_text("", encoding="utf-8")
+        probe.unlink()
+        checks["outputs"] = "ok"
+    except OSError as exc:
+        checks["outputs"] = f"outputs directory is not writable: {exc}"
+
+    return ReadinessStatus(
+        ready=all(v == "ok" for v in checks.values()),
+        checks=checks,
+        llm_provider=provider,
+        search_provider=search,
+    )
+
+
+@app.get(
+    "/health/ready",
+    response_model=ReadinessStatus,
+    tags=["meta"],
+    responses={503: {"description": "The container is running but cannot complete an assessment"}},
+)
+def health_ready(response: Response) -> ReadinessStatus:
+    """Readiness, as distinct from liveness — 503 when a run would fail.
+
+    /health answers "is this process alive", which a load balancer needs, and
+    it returns 200 for a container that serves every page and fails every run.
+    That gap was real: the Docker healthcheck asserted in a comment that such a
+    container would be reported unhealthy, and it was not, because it only
+    checked that /health returned at all.
+    """
+    status = readiness()
+    if not status.ready:
+        response.status_code = 503
+    return status
 
 
 @app.post(
@@ -640,6 +715,10 @@ async def upload_paper(file: UploadFile = File(...)) -> PaperExtraction:
     try:
         contribution = await asyncio.to_thread(extract_paper_contribution, str(pdf_path))
     except Exception as exc:  # noqa: BLE001 - surface the reason to the client
+        # The upload is unreachable from here on — no paper_id reaches the
+        # client, so no run can name it — and it is somebody's unpublished
+        # paper. Deleted now rather than left for the day-long pruner.
+        papers.discard(paper_id)
         raise HTTPException(
             status_code=422,
             detail=f"Could not extract a contribution from this PDF: {exc}",

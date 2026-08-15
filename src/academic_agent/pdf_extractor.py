@@ -48,6 +48,37 @@ class PaperContribution(BaseModel):
     abstract_excerpt: str = ""
 
 
+#: How many pages may be read from one document, however long it is.
+#:
+#: The selection below keeps at most seven pages, but choosing the middle two
+#: by density meant reading every page first — so a 4,000-page upload was
+#: parsed in full to discard 3,993 pages. The 50 MB upload cap does not bound
+#: this: page count and byte count are close to unrelated, and a text-only PDF
+#: reaches four figures well inside the limit. This is a public deployment with
+#: two run slots, and parsing runs in a worker thread, so an unbounded scan is
+#: reachable by anyone who can upload.
+#:
+#: Chosen so that no real paper changes behaviour. Journal articles run to tens
+#: of pages, theses under a hundred; below the ceiling every page is read
+#: exactly as before, and above it the middle is sampled evenly rather than
+#: truncated — a 300-page document keeps candidates from its whole span, which
+#: is where the results sections of the long documents actually are.
+_MAX_PAGES_SCANNED = 120
+
+
+def _pages_to_scan(n: int) -> list[int]:
+    """Page indices to read: all of them, or head + tail + an even sample."""
+    if n <= _MAX_PAGES_SCANNED:
+        return list(range(n))
+    head = list(range(min(3, n)))
+    tail = list(range(max(0, n - 2), n))
+    budget = _MAX_PAGES_SCANNED - len(set(head + tail))
+    lo, hi = len(head), n - len(tail)
+    step = (hi - lo) / budget
+    middle = sorted({lo + int(i * step) for i in range(budget)})
+    return sorted(set(head + middle + tail))
+
+
 def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
     """Extract text from the highest-signal pages of a PDF.
 
@@ -55,6 +86,8 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
     with the highest character density (results/methods) + last 2 pages
     (conclusions/references).  Duplicates are removed; total is capped at
     max_chars so the LLM prompt stays within budget.
+
+    At most _MAX_PAGES_SCANNED pages are read; see there for why.
     """
     try:
         import pypdfium2 as pdfium
@@ -66,19 +99,21 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
     with pdfium.PdfDocument(str(pdf_path)) as doc:
         n = len(doc)
 
-        # Read all pages once, keeping (index, text) pairs
-        page_texts: list[tuple[int, str]] = []
-        for i in range(n):
+        # Read the candidate pages once. Keyed by page number, not by
+        # position: once the scan is a sample rather than a full sweep, the
+        # nth page read is no longer page n, and a list indexed by page number
+        # would quietly return some other page's text.
+        page_texts: dict[int, str] = {}
+        for i in _pages_to_scan(n):
             tp = doc[i].get_textpage()
-            text = tp.get_text_range().strip()
-            page_texts.append((i, text))
+            page_texts[i] = tp.get_text_range().strip()
 
         head_idx  = set(range(min(3, n)))
         tail_idx  = set(range(max(0, n - 2), n))
         fixed_idx = head_idx | tail_idx
 
         # From the remaining middle pages, pick up to 2 by character count
-        middle = [(i, t) for i, t in page_texts if i not in fixed_idx]
+        middle = [(i, t) for i, t in page_texts.items() if i not in fixed_idx]
         middle.sort(key=lambda x: len(x[1]), reverse=True)
         mid_idx = {i for i, _ in middle[:2]}
 
@@ -86,7 +121,7 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
 
         parts: list[str] = []
         for i in key_pages:
-            text = page_texts[i][1]
+            text = page_texts[i]
             if text:
                 parts.append(f"[Page {i + 1}]\n{text}")
 

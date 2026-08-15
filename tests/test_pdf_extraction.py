@@ -20,6 +20,8 @@ from unittest.mock import patch
 from pydantic import ValidationError
 
 from academic_agent.pdf_extractor import (
+    _MAX_PAGES_SCANNED,
+    _pages_to_scan,
     PaperContribution,
     extract_paper_contribution,
     extract_pdf_text,
@@ -180,3 +182,88 @@ class ContributionAssemblyTests(unittest.TestCase):
         with patch("academic_agent.pdf_extractor._call_llm_json", return_value=broken), \
              self.assertRaises(ValidationError):
             extract_paper_contribution(_pdf(["text"]))
+
+
+class PageScanBudgetTests(unittest.TestCase):
+    """How many pages may be read from one upload.
+
+    The selection keeps at most seven pages, but picking the middle two by
+    density meant reading every page first — so a 4,000-page upload was parsed
+    in full to discard 3,993 pages. The 50 MB upload cap does not bound that:
+    page count and byte count are close to unrelated, and a text-only PDF
+    reaches four figures well inside the limit. This is a public deployment
+    with two run slots and parsing runs in a worker thread, so an unbounded
+    scan is reachable by anyone who can upload.
+    """
+
+    def test_a_normal_paper_is_still_read_in_full(self):
+        """The cap must be invisible to every real document. Journal articles
+        run to tens of pages and theses to under a hundred; if the ceiling
+        changed behaviour for those, it would be trading a real capability for
+        a hypothetical attack."""
+        for pages in (1, 8, 40, _MAX_PAGES_SCANNED):
+            with self.subTest(pages=pages):
+                self.assertEqual(_pages_to_scan(pages), list(range(pages)))
+
+    def test_a_pathological_document_is_bounded(self):
+        self.assertEqual(len(_pages_to_scan(4000)), _MAX_PAGES_SCANNED)
+
+    def test_the_pages_that_are_always_used_are_always_scanned(self):
+        """Head and tail are selected unconditionally afterwards. Sampling
+        them away would index into text that was never read."""
+        scanned = set(_pages_to_scan(4000))
+        self.assertTrue({0, 1, 2} <= scanned)
+        self.assertTrue({3998, 3999} <= scanned)
+
+    def test_the_sample_spans_the_whole_document(self):
+        """Evenly spaced rather than truncated at the ceiling. The results
+        section of a 300-page document is not in its first 120 pages, and
+        taking a prefix would guarantee the middle-page selection never sees
+        the pages it exists to find."""
+        scanned = _pages_to_scan(600)
+        middle = [i for i in scanned if 3 <= i < 598]
+        self.assertGreater(max(middle), 500)
+        self.assertLess(min(middle), 20)
+
+    def test_no_page_is_scanned_twice(self):
+        for pages in (200, 601, 4000):
+            with self.subTest(pages=pages):
+                scanned = _pages_to_scan(pages)
+                self.assertEqual(len(scanned), len(set(scanned)))
+                self.assertEqual(scanned, sorted(scanned))
+
+
+class SampledPageLabellingTests(unittest.TestCase):
+    """A page's text must stay attached to that page's number.
+
+    The regression the cap could introduce, and nearly did. The scan used to
+    fill a list in page order and then index it by page number, which is only
+    correct while every page is read. Once it is a sample, the nth page read
+    is no longer page n — and the extraction would keep working, keep looking
+    right, and quote the wrong page.
+    """
+
+    def test_a_sampled_document_labels_its_pages_correctly(self):
+        total = _MAX_PAGES_SCANNED + 40
+        scanned = _pages_to_scan(total)
+        # A scanned middle page, dense enough to win the density pick.
+        target = next(i for i in scanned if 3 <= i < total - 2 and i > 60)
+
+        pages = [f"marker{i}" for i in range(total)]
+        pages[target] = "\n".join(f"marker{target} dense line {n}" for n in range(30))
+
+        text = extract_pdf_text(_pdf(pages), max_chars=100_000)
+
+        self.assertIn(f"[Page {target + 1}]", text)
+        block = text.split(f"[Page {target + 1}]")[1]
+        self.assertTrue(block.lstrip().startswith(f"marker{target}"),
+                        f"page {target + 1} is labelled with another page's text: "
+                        f"{block[:60]!r}")
+
+    def test_head_and_tail_survive_sampling(self):
+        total = _MAX_PAGES_SCANNED + 40
+        text = extract_pdf_text(_pdf([f"marker{i}" for i in range(total)]),
+                                max_chars=100_000)
+        for page in (0, 1, 2, total - 2, total - 1):
+            with self.subTest(page=page):
+                self.assertIn(f"marker{page}", text)

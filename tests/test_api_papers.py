@@ -114,6 +114,79 @@ class UploadTests(_PapersTestBase):
         self.assertNotEqual(a, b)
 
 
+class DiscardTests(_PapersTestBase):
+    """An upload whose extraction failed is unreachable and still on disk.
+
+    save_upload writes the PDF before the extractor is called, so a PDF that
+    cannot be parsed leaves a copy behind — and no paper_id ever reaches the
+    client, so no run can name it and nothing will ever read it again. It sat
+    there until the day-long pruner came round: a day of holding someone's
+    unpublished paper in exchange for an error message.
+    """
+
+    def test_a_discarded_upload_is_gone(self):
+        paper_id, pdf_path = papers.save_upload("p.pdf", b"%PDF-1.4 body")
+        papers.discard(paper_id)
+        self.assertFalse(pdf_path.exists())
+        self.assertFalse(papers.paper_dir(paper_id).exists())
+
+    def test_discarding_an_unknown_id_is_not_an_error(self):
+        """It is called from an error path. Raising there would replace a
+        useful 422 about the PDF with a confusing one about cleanup."""
+        papers.discard("paper-does-not-exist")
+
+    def test_discard_rejects_traversal(self):
+        """The id reaching this comes from save_upload, not from a client —
+        but the check costs nothing and this function deletes a tree."""
+        outside = Path(self._tmp.name) / "keepme"
+        outside.mkdir()
+        papers.discard("../keepme")
+        self.assertTrue(outside.exists())
+
+    def test_a_failed_extraction_deletes_the_upload(self):
+        """End to end through the endpoint, because that is where the two
+        halves meet: papers.py writes the file and main.py decides its fate."""
+        from fastapi.testclient import TestClient
+
+        from api.main import app
+
+        with patch("api.main.extract_paper_contribution",
+                   side_effect=ValueError("not a paper")):
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/papers",
+                    files={"file": ("p.pdf", b"%PDF-1.4 body", "application/pdf")},
+                )
+
+        self.assertEqual(response.status_code, 422)
+        remaining = list(self.root.iterdir()) if self.root.exists() else []
+        self.assertEqual(remaining, [], "the upload outlived the request that made it")
+
+    def test_a_successful_extraction_keeps_the_upload(self):
+        """The other half. A cleanup that fires on the happy path would delete
+        the PDF the run is about to be anchored on."""
+        from fastapi.testclient import TestClient
+
+        from academic_agent.pdf_extractor import PaperContribution
+        from api.main import app
+
+        contribution = PaperContribution(
+            title="A paper", core_contribution="x" * 25, application_domain="evs",
+            delta_from_prior="y" * 15, commercialization_topic="z" * 15,
+            search_keywords=["a", "b", "c"],
+        )
+        with patch("api.main.extract_paper_contribution", return_value=contribution):
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/papers",
+                    files={"file": ("p.pdf", b"%PDF-1.4 body", "application/pdf")},
+                )
+
+        self.assertEqual(response.status_code, 200)
+        paper_id = response.json()["paper_id"]
+        self.assertTrue((papers.paper_dir(paper_id) / "paper.pdf").exists())
+
+
 class ExtractionRoundTripTests(_PapersTestBase):
 
     def test_saved_extraction_reads_back_intact(self):

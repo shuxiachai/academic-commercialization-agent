@@ -104,13 +104,20 @@ RUN python scripts/verify_container_fonts.py
 # itself is still unprivileged, only the brief startup chown runs as root.
 EXPOSE 8000
 
-# Checks /health rather than the page. It reports the concurrency state and
-# whether an LLM provider resolved, so a container that serves HTML but cannot
-# actually run an assessment is still reported unhealthy. Reads $PORT rather
-# than assuming 8000, so it still checks the right port on a platform that
-# assigns one (see CMD below).
+# Readiness, not liveness. /health returns 200 for a container that serves
+# every page and fails every run — it has no LLM key, or no search key, or an
+# outputs volume it cannot write to. This comment used to claim such a
+# container would be reported unhealthy while the check below polled /health,
+# which returns 200 in all three cases; /health/ready returns 503 instead and
+# names the check that failed in its body.
+#
+# The consequence is deliberate: a misconfigured deploy now fails rather than
+# going live as a page that cannot do anything. On a platform that keeps the
+# previous version until the new one is healthy, that is the outcome worth
+# having. Reads $PORT rather than assuming 8000, so it still checks the right
+# port on a platform that assigns one (see CMD below).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT','8000') + '/health', timeout=4)"
+    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT','8000') + '/health/ready', timeout=4)"
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/app/docker-entrypoint.sh"]
 # A single worker on purpose. Runs are subprocesses tracked in an in-process

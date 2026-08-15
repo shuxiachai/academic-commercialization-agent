@@ -93,6 +93,23 @@ def save_upload(filename: str, data: bytes) -> tuple[str, Path]:
     return paper_id, pdf_path
 
 
+def discard(paper_id: str) -> None:
+    """Remove an upload and anything stored beside it. Never raises.
+
+    For the extraction that failed: the PDF has already been written by then,
+    and nothing downstream can ever use it — no paper_id was returned, so no
+    run can reference it. Left in place it sat on the server for a full day
+    waiting for the pruner, which is a day of holding someone's unpublished
+    paper in exchange for an error message.
+
+    Best-effort because the caller is already on an error path and is about to
+    report a more useful failure than this one.
+    """
+    if not _is_valid_paper_id(paper_id):
+        return
+    shutil.rmtree(paper_dir(paper_id), ignore_errors=True)
+
+
 def save_extraction(paper_id: str, extraction: dict) -> Path:
     """Store the structured extraction alongside its PDF."""
     directory = paper_dir(paper_id)
