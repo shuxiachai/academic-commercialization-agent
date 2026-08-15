@@ -808,6 +808,32 @@ def parse_citation_ids(text: str) -> tuple[list[str], list[str]]:
     return source_ids, errors
 
 
+#: Markdown emphasis around a whole line, so a label can be recognised as a
+#: label whatever weight it is written in.
+_EMPHASIS_EDGE = re.compile(r"^[*_~\s]+|[*_~\s]+$")
+
+
+def _strip_emphasis(line: str) -> str:
+    return _EMPHASIS_EDGE.sub("", line)
+
+
+#: A whole line wrapped in emphasis, i.e. a heading that skipped the hash.
+_WHOLLY_EMPHASISED = re.compile(r"[*_]{1,2}[^*_].*[^*_][*_]{1,2}")
+
+#: The report declaring a line as its own reasoning rather than a sourced fact.
+_DECLARED_INFERENCE = re.compile(
+    r"(?:analyst inference|analyst-inference|preliminary research note|"
+    r"\bnote\b\s*[:：])", re.IGNORECASE)
+
+#: Openers of sentences that describe the report itself.
+_META_SENTENCE = re.compile(
+    r"^[*_\s]*(?:\*\*[^*]{0,40}\*\*[:：]?\s*)?"        # optional bold label prefix
+    r"(?:the|these|this|those)\s+(?:\w+\s+){0,2}"
+    r"(?:recommendation|assessment|report|analysis|section|table|summary|"
+    r"evaluation|scorecard)s?\b",
+    re.IGNORECASE)
+
+
 def _is_substantive_claim_line(
     lines: list[str],
     line_index: int,
@@ -820,8 +846,35 @@ def _is_substantive_claim_line(
         return False
     if "not legal advice" in stripped.lower() or "freedom-to-operate" in stripped.lower():
         return False
-    # Introductory lines ending with colon are list/section openers, not standalone claims
-    if stripped.endswith(":"):
+    # Introductory lines ending with colon are list/section openers, not
+    # standalone claims. The emphasis has to come off first: a bold label is
+    # written "**Key application areas include:**", whose last character is an
+    # asterisk, so the plain endswith(":") test missed every one of them —
+    # they were the largest single group of false "uncited claim" reports.
+    if _strip_emphasis(stripped).endswith(":"):
+        return False
+
+    # Sentences whose subject is the document rather than the technology.
+    # "The following recommendations are analyst inferences drawn from the
+    # evidence base" asserts nothing about the subject matter and has nothing
+    # to cite; demanding a source for it trains a reader to skip the whole
+    # category. Deliberately anchored at the start of the line so a real claim
+    # that merely mentions the word "assessment" is unaffected.
+    if _META_SENTENCE.match(stripped):
+        return False
+
+    # A line that is entirely emphasised, with no sentence punctuation, is a
+    # heading written in bold rather than with a hash. "**Charge Transport and
+    # Processing Challenges**" is a section label; asking it for a citation is
+    # asking a heading for one.
+    if _WHOLLY_EMPHASISED.fullmatch(stripped) and not re.search(r"[.!?]", stripped):
+        return False
+
+    # Lines the report itself marks as inference. The evidence contract allows
+    # analyst_inference precisely so a report can reason beyond its sources
+    # while saying so, and flagging the ones that say so penalises the honest
+    # form of exactly the behaviour the label exists to permit.
+    if _DECLARED_INFERENCE.search(stripped):
         return False
     if stripped.startswith("|") and line_index + 1 < len(lines):
         if re.fullmatch(r"[\s|:-]+", lines[line_index + 1].strip()):

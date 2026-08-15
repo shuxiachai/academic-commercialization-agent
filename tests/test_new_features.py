@@ -1305,3 +1305,76 @@ class CallLlmJsonParseErrorTests(TestCase):
             result = _call_llm_json("Extract data.")
 
         self.assertEqual(result["key"], "value")
+
+
+class UncitedClaimPrecisionTests(TestCase):
+    """What the uncited-claim detector must NOT report.
+
+    It fired 134 times across the 30 delivered baseline reports — every report
+    had at least one — and a sample showed most were not claims at all: bold
+    list labels, sentences describing the report's own structure, and lines
+    the report had explicitly marked as its own inference.
+
+    That matters beyond noise. An external review proposed promoting this
+    category to a blocking error; measured first, blocking on it would have
+    failed all 30 runs, and roughly five in six of those failures would have
+    been on text that was never a claim. The exclusions below took it to 62,
+    where the residue is mostly genuine.
+    """
+
+    def _flagged(self, line: str) -> bool:
+        from academic_agent.evidence import _is_substantive_claim_line
+
+        return _is_substantive_claim_line([line], 0, False)
+
+    def test_a_bold_label_ending_in_a_colon_is_not_a_claim(self):
+        """The plain endswith(":") test missed these: the last character of
+        "**Key areas include:**" is an asterisk. They were the single largest
+        group of false reports."""
+        for line in ("**Key application areas within blood cancers include:**",
+                     "**For Technology Transfer Offices / Academic Institutions:**",
+                     "*Gene editing and allogeneic approaches:*"):
+            with self.subTest(line=line):
+                self.assertFalse(self._flagged(line))
+
+    def test_a_bold_heading_without_a_colon_is_not_a_claim(self):
+        self.assertFalse(self._flagged("**Charge Transport and Processing Challenges**"))
+
+    def test_a_sentence_about_the_report_is_not_a_claim(self):
+        """It asserts nothing about the technology and has nothing to cite."""
+        for line in (
+            "The following recommendations are analyst inferences drawn from the evidence base.",
+            "This assessment identifies commercialization opportunities in several areas.",
+            "The maturity assessment reflects the differentiated development stages above.",
+        ):
+            with self.subTest(line=line):
+                self.assertFalse(self._flagged(line))
+
+    def test_a_declared_inference_is_not_a_missing_citation(self):
+        """The evidence contract allows analyst_inference so a report can
+        reason past its sources while saying so. Flagging the lines that say
+        so penalises the honest form of the behaviour the label permits."""
+        for line in (
+            "*Analyst inference:* The combination of laboratory advances suggests a long path.",
+            "**Preliminary research note**: The patent analysis below uses a limited registry.",
+        ):
+            with self.subTest(line=line):
+                self.assertFalse(self._flagged(line))
+
+    def test_a_real_uncited_claim_is_still_reported(self):
+        """The exclusions must not swallow the thing the detector is for."""
+        for line in (
+            "The technology is commercially validated in blood cancers, "
+            "yet faces significant hurdles in manufacturing scale and cost.",
+            "The competitive landscape is characterised by early market "
+            "formation with several well-funded entrants.",
+        ):
+            with self.subTest(line=line):
+                self.assertTrue(self._flagged(line))
+
+    def test_a_claim_merely_mentioning_the_word_assessment_is_still_a_claim(self):
+        """The meta pattern is anchored at the start of the line so it cannot
+        excuse a claim that happens to use the word."""
+        self.assertTrue(self._flagged(
+            "Manufacturing readiness lags the assessment of technical maturity "
+            "by several years across every vendor surveyed."))
