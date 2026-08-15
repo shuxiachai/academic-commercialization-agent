@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sys
+import warnings
 from datetime import date, datetime, UTC
 from difflib import SequenceMatcher
 from typing import Any, Literal
@@ -2422,6 +2423,7 @@ def collect_source_collection(
     accessed_date: date | None = None,
     paper_seed: "EvidenceSource | None" = None,  # noqa: F821
     extra_market_queries: list[str] | None = None,
+    weight_profile: str | None = None,
 ) -> SourceCollection:
     # ── Language detection & translation ─────────────────────────────────────
     from academic_agent.language import (
@@ -2442,7 +2444,24 @@ def collect_source_collection(
         native_topic  = None
 
     normalized_topic = " ".join(english_topic.split())
-    weight_profile = _detect_weight_profile(normalized_topic)
+    # A caller-supplied profile decides retrieval, not just scoring. It used to
+    # be applied by the worker *after* this function returned, which meant a
+    # user who corrected an auto-detection to "biomedical" got biomedical
+    # weights over sources gathered as industrial — and the biomedical branch
+    # below (PubMed MeSH expansion) had already been skipped. The override
+    # arrived too late to change the evidence it was meant to change.
+    #
+    # An unrecognised name falls back to detection rather than to "industrial":
+    # the weights table silently defaults unknown profiles to industrial, so
+    # accepting a typo here would look like a working override while quietly
+    # scoring against the wrong rubric.
+    if weight_profile and weight_profile not in _WEIGHT_PROFILES:
+        warnings.warn(
+            f"unknown weight_profile {weight_profile!r}; detecting from the "
+            f"topic instead. Known profiles: {sorted(_WEIGHT_PROFILES)}"
+        )
+        weight_profile = None
+    weight_profile = weight_profile or _detect_weight_profile(normalized_topic)
 
     # Generate 2 synonym phrasings to widen API search coverage.
     # Done after translation so synonyms are always in English.

@@ -349,12 +349,18 @@ commercialization_scoring_task:
       dimension. For example, if you mention M4 in key_opportunities, M4 must
       appear in market_source_ids. Inconsistency between narrative citations and
       source_ids lists is an error.
-    - TRL calibration from report context: If the context includes a reviewed
-      report with an explicit TRL label in its Technology Overview section
-      (e.g. "TRL 4", "TRL 5"), treat that as a calibration signal. Do not
-      deviate from the report's TRL by more than one level without citing
-      specific evidence in the raw evidence JSON that justifies the discrepancy;
-      explain any deviation explicitly in trl_rationale.
+    # A rule telling the scorer to calibrate its TRL against "the reviewed
+    # report in the context" used to sit here. It could never fire. This task's
+    # context is Tasks 1-3 only (see crew.py) — deliberately, so the score is
+    # reached from the evidence rather than from the narrative written about
+    # it — and the reviewer's Rule 6 strips every TRL number out of the report
+    # anyway. So it addressed a document the scorer cannot see, looking for a
+    # number that document no longer contains.
+    #
+    # Removed rather than made to work: the scorer's independence from the
+    # report is the property worth keeping, and an instruction that reads as
+    # though the two are cross-checked hides the fact that nothing does. That
+    # comparison now happens after both exist, in consistency.py.
     - Calibration anchor attribution rule: If scoring_rationale references
       a calibration benchmark by name (e.g., "PEM electrolysers", "LFP
       batteries"), label it as "calibration anchor" — NOT bare "benchmark".

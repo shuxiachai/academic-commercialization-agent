@@ -265,6 +265,14 @@ def main() -> None:
         return usage.as_dict()
 
     try:
+        # "Auto (detect from topic)" is the UI's own label for "no preference",
+        # not a profile name — resolved to None here so the one place that
+        # knows the profile names does not have to know the dropdown's.
+        requested_profile = (
+            args.weight_profile
+            if args.weight_profile and args.weight_profile != "Auto (detect from topic)"
+            else None
+        )
         paper_seed = None
         extra_market_queries = None
         if args.paper_json:
@@ -286,10 +294,17 @@ def main() -> None:
                         f"{_domain} startup investment funding market leader industry",
                     ]
 
+        # Passed in rather than assigned to the returned collection, which is
+        # where it used to happen. Retrieval branches on the profile — the
+        # biomedical path runs a PubMed MeSH expansion no other profile does —
+        # so overriding it afterwards changed which rubric scored the evidence
+        # without changing which evidence was gathered. A user correcting a
+        # misdetected topic to "biomedical" still got the industrial search.
         source_collection = collect_source_collection(
             args.topic,
             paper_seed=paper_seed,
             extra_market_queries=extra_market_queries,
+            weight_profile=requested_profile,
         )
         if args.language and args.language != "Auto (detect from topic)":
             # Map UI dropdown values to canonical API language names.
@@ -321,8 +336,6 @@ def main() -> None:
                     )
                     if translated_topic and translated_topic != source_collection.display_topic:
                         source_collection.display_topic = translated_topic
-        if args.weight_profile and args.weight_profile != "Auto (detect from topic)":
-            source_collection.weight_profile = args.weight_profile
         save_source_collection(
             source_collection.model_dump_json(indent=2), run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT,
         )

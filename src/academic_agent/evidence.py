@@ -451,8 +451,21 @@ def make_scoring_guardrail(
         # A1: Deterministic floor for evidence_confidence based on credibility_tier
         # distribution.  Prevents LLM from assigning unrealistically low confidence
         # when the source pool is actually solid.
-        # Floor formula: 10 (all-low) → 30 (all-high).  Max floor is 30 so the
-        # LLM can still go lower if it has domain reasons (conflicting findings etc.).
+        # Floor formula: 10 (all-low) → 30 (all-high), out of 50.
+        #
+        # It only ever raises. The comment here used to say the model could
+        # still go lower for domain reasons such as conflicting findings; it
+        # cannot, and never could — the line below overwrites any lower value
+        # unconditionally. Stated plainly because the asymmetry is real and
+        # worth seeing: a solid-looking source pool lifts confidence, while
+        # sources that contradict each other, or a retrieval domain that failed
+        # outright, do not lower it. What bounds those is elsewhere (the market
+        # variance cap below, failed_domains on the status), not here.
+        #
+        # Left as a floor rather than rebuilt into a composite score. Every
+        # calibration figure this project reports comes from 30 runs scored
+        # under this rule, and changing how confidence is computed would retire
+        # that baseline to fix a comment.
         if all_sources:
             _high = sum(1 for s in all_sources if getattr(s, "credibility_tier", "") == "high")
             _floor = round(10 + (_high / len(all_sources)) * 20)
