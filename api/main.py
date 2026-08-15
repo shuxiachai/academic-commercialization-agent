@@ -21,7 +21,9 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Query, Request, Response, UploadFile
+from fastapi import (
+    FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile,
+)
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -239,9 +241,11 @@ async def _access_gate(request: Request, call_next):
     starting a worker or spending a search-API call. Three exceptions:
 
     - /health — costs nothing; platform load balancers poll it without a header.
-    - POST /api/runs — authorizes itself (see submit_run) with either the code
-      or complete bring-your-own-key credentials in the body. That decision
-      needs the parsed body, which a middleware does not cheaply have.
+    - POST /api/runs and POST /api/papers — both authorize themselves with
+      either the code or bring-your-own-key credentials in the body. That
+      decision needs the parsed body, which a middleware does not cheaply
+      have — for /api/papers the body is a multipart upload, less cheaply
+      still.
     - GET/DELETE /api/runs/{id}/... — a specific run, addressed by its id, is
       a capability URL: the id itself (128 bits of randomness, see
       create_run_id) is the credential, the same trust model already used for
@@ -252,7 +256,7 @@ async def _access_gate(request: Request, call_next):
     path = request.url.path
     if not path.startswith("/api/"):
         return await call_next(request)
-    if path == "/api/runs" and request.method == "POST":
+    if path in ("/api/runs", "/api/papers") and request.method == "POST":
         return await call_next(request)
     if path.startswith("/api/runs/"):
         return await call_next(request)
@@ -691,16 +695,36 @@ async def _read_capped(file: UploadFile, limit: int) -> bytes:
         422: {"description": "PDF could not be parsed into a contribution"},
     },
 )
-async def upload_paper(file: UploadFile = File(...)) -> PaperExtraction:
+async def upload_paper(
+    http_request: Request,
+    file: UploadFile = File(...),
+    llm_provider: str | None = Form(default=None),
+    llm_api_key: str | None = Form(default=None),
+) -> PaperExtraction:
     """Extract a paper's contribution from an uploaded PDF.
 
     Returns the extraction and a paper_id. Pass that id to POST /api/runs to
     anchor a run on the paper; the fields are editable first, since the topic
     the model derives is a starting point rather than an answer.
 
+    Authorized like POST /api/runs and for the same reason: by the access code
+    header, or by bringing your own key. This endpoint makes an LLM call, so it
+    cannot simply be opened — but leaving it gated by the code alone meant a
+    visitor using their own keys could run a topic assessment and not attach a
+    paper, which is half of an advertised path. Supplying the two credentials
+    bills the extraction to whoever supplied them.
+
     Runs the extractor in a worker thread: it makes an LLM call and would
     otherwise block the event loop for several seconds.
     """
+    byok = bool(llm_provider and llm_api_key)
+    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    if matched is None and not byok and access.gate_enabled():
+        raise HTTPException(
+            status_code=401,
+            detail="Provide the access code, or your own llm_provider/llm_api_key.",
+        )
+
     try:
         data = await _read_capped(file, papers.MAX_UPLOAD_BYTES)
     except papers.PaperTooLarge as exc:
@@ -713,7 +737,11 @@ async def upload_paper(file: UploadFile = File(...)) -> PaperExtraction:
         raise HTTPException(status_code=415, detail=str(exc)) from exc
 
     try:
-        contribution = await asyncio.to_thread(extract_paper_contribution, str(pdf_path))
+        contribution = await asyncio.to_thread(
+            extract_paper_contribution, str(pdf_path),
+            llm_provider=llm_provider if byok else None,
+            llm_api_key=llm_api_key if byok else None,
+        )
     except Exception as exc:  # noqa: BLE001 - surface the reason to the client
         # The upload is unreachable from here on — no paper_id reaches the
         # client, so no run can name it — and it is somebody's unpublished

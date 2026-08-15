@@ -111,15 +111,54 @@ def _wrap_with_retry(llm):
     return llm
 
 
-def create_llm(*, json_mode: bool = False, temperature: float | None = None) -> LLM:
+def create_llm(
+    *,
+    json_mode: bool = False,
+    temperature: float | None = None,
+    provider: str | None = None,
+    api_key: str | None = None,
+) -> LLM:
     """Create an LLM instance for the active provider.
 
     Provider is auto-detected from environment variables, or set explicitly
     via LLM_PROVIDER. json_mode enables structured JSON output where supported;
     Anthropic falls back to prompt-based JSON + guardrail validation.
+
+    `provider`/`api_key` override the environment entirely, for the one caller
+    that runs inside the API process rather than in a worker subprocess: the
+    paper extractor. A run gets its credentials through a scrubbed subprocess
+    environment (see api/runs.py), which is not available to code executing in
+    the shared server process — passing them in is what lets a visitor's
+    upload be billed to the visitor. When they are given, nothing from the
+    environment is read: no base URL, no model name. The operator's
+    OPENAI_API_BASE pointing somewhere else is exactly the redirect the
+    scrubbing exists to prevent, and it would apply here too.
     """
-    provider = _detect_provider()
     kwargs: dict = {}
+
+    if provider and api_key:
+        provider = provider.lower().strip()
+        kwargs["provider"] = provider
+        kwargs["api_key"] = api_key
+        kwargs["model"] = {
+            "deepseek": "deepseek-chat",
+            "openai": "gpt-4o",
+            "anthropic": "claude-sonnet-5",
+        }.get(provider, "")
+        if provider == "deepseek":
+            kwargs["base_url"] = "https://api.deepseek.com"
+        if not kwargs["model"]:
+            raise RuntimeError(
+                f"Unknown LLM provider: {provider!r}. "
+                "Supported values: deepseek, openai, anthropic."
+            )
+        if json_mode and provider in _JSON_MODE_PROVIDERS:
+            kwargs["response_format"] = {"type": "json_object"}
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        return _wrap_with_retry(LLM(**kwargs))
+
+    provider = _detect_provider()
 
     if provider == "deepseek":
         kwargs["provider"] = "deepseek"

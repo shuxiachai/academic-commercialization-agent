@@ -176,6 +176,19 @@ export const getArtifact = (runId, name) =>
 export function uploadPaper(file) {
   const form = new FormData();
   form.append("file", file);
+  // Extraction is an LLM call, so it is billed to somebody. A visitor on
+  // their own keys sends them here for the same reason they send them with a
+  // run: without this the endpoint answered 401 to everyone without a code,
+  // and attaching a paper — half of what the composer offers — was closed to
+  // exactly the people the BYOK path exists for.
+  //
+  // The serper key is not sent: extraction reads the PDF and calls the model,
+  // and never searches.
+  const byok = getByok();
+  if (byok) {
+    form.append("llm_provider", byok.provider);
+    form.append("llm_api_key", byok.llmKey);
+  }
   // No Content-Type header: the browser must set it so the multipart
   // boundary matches the body it generates.
   return request("/api/papers", { method: "POST", body: form });

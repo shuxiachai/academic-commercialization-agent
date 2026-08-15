@@ -249,3 +249,127 @@ class EveryCredentialIsClassifiedTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
+    """The other half of the BYOK path, which was closed off entirely.
+
+    Uploading a paper makes an LLM call, so /api/papers could not simply be
+    opened — but it was gated by the access code alone, which meant a visitor
+    on their own keys could run a topic assessment and could not attach a
+    paper. Half of what the composer offers, unavailable to the people the
+    BYOK path exists for.
+
+    The extraction runs in the API process, not in a run's subprocess, so
+    there is no scrubbed environment for it to inherit. The credentials have
+    to be passed in explicitly — and the test that matters is that no part of
+    the operator's configuration reaches the call anyway.
+    """
+
+    def setUp(self):
+        from api import papers
+
+        self._tmp = TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        patcher = mock.patch.object(papers, "PAPERS_ROOT",
+                                    Path(self._tmp.name) / "_papers")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    _PDF = {"file": ("p.pdf", b"%PDF-1.4 body", "application/pdf")}
+    _CREDS = {"llm_provider": "openai", "llm_api_key": "guest-openai-key"}
+
+    def _post(self, data=None, headers=None):
+        from fastapi.testclient import TestClient
+
+        from api.main import app
+
+        with TestClient(app) as client:
+            return client.post("/api/papers", files=self._PDF,
+                               data=data or {}, headers=headers or {})
+
+    def test_a_visitor_with_their_own_key_can_upload(self):
+        from api import access
+
+        captured: dict = {}
+
+        def _extract(path, **kwargs):
+            captured.update(kwargs)
+            raise ValueError("stop here; the model call is not under test")
+
+        with mock.patch.object(access, "ACCESS_CODE", "secret"), \
+                mock.patch("api.main.extract_paper_contribution", _extract):
+            response = self._post(self._CREDS)
+
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(captured["llm_provider"], "openai")
+        self.assertEqual(captured["llm_api_key"], "guest-openai-key")
+
+    def test_without_a_code_or_a_key_it_is_still_refused(self):
+        """Opening it outright would let anyone spend the operator's tokens
+        by uploading a PDF. Bringing a key is what replaces the code."""
+        from api import access
+
+        with mock.patch.object(access, "ACCESS_CODE", "secret"):
+            self.assertEqual(self._post().status_code, 401)
+
+    def test_half_the_credentials_is_not_credentials(self):
+        from api import access
+
+        with mock.patch.object(access, "ACCESS_CODE", "secret"):
+            self.assertEqual(
+                self._post({"llm_provider": "openai"}).status_code, 401)
+
+    def test_a_code_holder_uploads_on_the_deployments_keys(self):
+        """The existing path, unchanged: no credentials in the form means the
+        extraction runs on the operator's own configuration."""
+        from api import access
+
+        captured: dict = {}
+
+        def _extract(path, **kwargs):
+            captured.update(kwargs)
+            raise ValueError("stop")
+
+        with mock.patch.object(access, "ACCESS_CODE", "secret"), \
+                mock.patch("api.main.extract_paper_contribution", _extract):
+            response = self._post(headers={"X-Access-Code": "secret"})
+
+        self.assertEqual(response.status_code, 422)
+        self.assertIsNone(captured["llm_provider"])
+        self.assertIsNone(captured["llm_api_key"])
+
+    def test_the_guests_llm_reads_nothing_from_the_operators_environment(self):
+        """The same redirect the subprocess scrubbing exists to stop. This
+        call has no scrubbed environment to run in, so create_llm must ignore
+        the environment entirely once it is handed explicit credentials —
+        otherwise the operator's OPENAI_API_BASE sends a visitor's key to a
+        host they never chose."""
+        from academic_agent import llm_config
+
+        captured: dict = {}
+        with mock.patch.dict(os.environ, _OPERATOR_ENV, clear=True), \
+                mock.patch.object(llm_config, "LLM", lambda **kw: captured.update(kw)), \
+                mock.patch.object(llm_config, "_wrap_with_retry", lambda x: x):
+            llm_config.create_llm(provider="openai", api_key="guest-openai-key")
+
+        self.assertEqual(captured["api_key"], "guest-openai-key")
+        self.assertNotIn("base_url", captured)
+        self.assertEqual(captured["model"], "gpt-4o")
+        self.assertNotIn("operator-", str(captured))
+
+    def test_an_unknown_provider_is_refused_rather_than_defaulted(self):
+        from academic_agent import llm_config
+
+        with self.assertRaises(RuntimeError):
+            llm_config.create_llm(provider="not-a-provider", api_key="k")
+
+    def test_the_client_sends_the_key_it_holds(self):
+        """The seam. Threading it through the server is worth nothing if the
+        page never puts it in the form."""
+        source = (Path(__file__).resolve().parent.parent
+                  / "web" / "static" / "js" / "api.js").read_text(encoding="utf-8")
+        upload = source[source.index("export function uploadPaper"):]
+        self.assertIn('form.append("llm_provider"', upload)
+        self.assertIn('form.append("llm_api_key"', upload)
+        self.assertNotIn('form.append("serper_api_key"', upload)

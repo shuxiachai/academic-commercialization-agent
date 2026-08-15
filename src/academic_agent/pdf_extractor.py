@@ -145,11 +145,22 @@ def _find_arxiv_url(text: str) -> str | None:
     return None
 
 
-def _call_llm_json(prompt: str) -> dict[str, Any]:
-    """Call the active LLM via crewai.LLM and return parsed JSON."""
+def _call_llm_json(
+    prompt: str,
+    *,
+    provider: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Call the LLM via crewai.LLM and return parsed JSON.
+
+    provider/api_key, when supplied, bill this call to the caller rather than
+    to the deployment — see create_llm. This runs in the API process, not in a
+    run's subprocess, so there is no scrubbed environment to inherit.
+    """
     from academic_agent.llm_config import create_llm
 
-    llm = create_llm(json_mode=True, temperature=0.0)
+    llm = create_llm(json_mode=True, temperature=0.0,
+                     provider=provider, api_key=api_key)
     raw = llm.call([{"role": "user", "content": prompt}])
     content = (raw or "{}").strip()
     content = re.sub(r"^```(?:json)?\s*", "", content)
@@ -214,8 +225,17 @@ _LANG_INSTRUCTIONS: dict[str, str] = {
 }
 
 
-def extract_paper_contribution(pdf_path: str | Path) -> PaperContribution:
-    """Extract structured contribution metadata from an academic PDF using LLM."""
+def extract_paper_contribution(
+    pdf_path: str | Path,
+    *,
+    llm_provider: str | None = None,
+    llm_api_key: str | None = None,
+) -> PaperContribution:
+    """Extract structured contribution metadata from an academic PDF using LLM.
+
+    llm_provider/llm_api_key bill the extraction to a visitor bringing their
+    own key. Omitted, it runs on the deployment's own credentials as before.
+    """
     text = extract_pdf_text(pdf_path)
     doi_found   = _find_doi(text)
     arxiv_url   = _find_arxiv_url(text)
@@ -252,7 +272,7 @@ Rules:
 - search_keywords should target patents and market applications, not general academic terms; use the same language as the paper
 - Return valid JSON only — no markdown, no prose outside the JSON object"""
 
-    data = _call_llm_json(prompt)
+    data = _call_llm_json(prompt, provider=llm_provider, api_key=llm_api_key)
 
     # Priority: LLM-found DOI > regex DOI > arXiv URL > placeholder DOI
     if doi_found and not data.get("doi"):
