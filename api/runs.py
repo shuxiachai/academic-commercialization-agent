@@ -105,6 +105,7 @@ _ARTIFACTS = {
     # a low ungrounded count next to a high unverifiable one means the check
     # mostly could not run, which is a different thing from mostly passing.
     "grounding": "claim_grounding.json",
+    "consistency": "consistency.json",
 }
 
 
@@ -640,6 +641,11 @@ def get_state(run_id: str) -> dict:
         # number is the honest one to read first — it bounds what the other
         # two can mean.
         "claim_grounding": status.get("claim_grounding"),
+        # Where the report's own advice disagrees with its own
+        # scorecard. Nothing in the pipeline compares them: the
+        # reviewer never sees the scorecard, the scorer never sees
+        # the reviewed report.
+        "consistency": status.get("consistency"),
         "artifacts": available_artifacts(run_dir),
     }
 

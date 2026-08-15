@@ -213,6 +213,47 @@ def save_claim_grounding(
         return None
 
 
+def save_consistency(
+    report_markdown: str,
+    scores_raw: str | None,
+    run_id: str,
+    output_root: Path = DEFAULT_OUTPUT_ROOT,
+) -> dict | None:
+    """Check the finished report against its scorecard; return a summary.
+
+    Runs after both exist, which is the only moment either can be compared
+    with the other: the reviewer never sees the scorecard and the scorer never
+    sees the reviewed report.
+
+    Reports rather than blocks, for the same reason the citation screen does.
+    A phrase table is a heuristic, and rejecting a finished six-agent run on
+    one would throw away a paid assessment over a wording choice. What it
+    earns instead is a place in the artifacts and a count on the status, where
+    a reader meets it before acting on the recommendation.
+    """
+    from academic_agent.consistency import check
+
+    try:
+        if not report_markdown or not scores_raw:
+            return None
+        try:
+            scores = json.loads(scores_raw)
+        except (json.JSONDecodeError, TypeError):
+            return None
+        result = check(report_markdown, scores)
+        if not result.checked:
+            return None
+        payload = result.as_dict()
+        run_directory = output_root / run_id
+        run_directory.mkdir(parents=True, exist_ok=True)
+        (run_directory / "consistency.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {"blockers": payload["blockers"], "warnings": payload["warnings"]}
+    except Exception as exc:  # noqa: BLE001 - an audit must not fail a run
+        warnings.warn(f"consistency check failed: {type(exc).__name__}: {exc}")
+        return None
+
+
 def save_source_collection(
     collection_json: str,
     run_id: str,

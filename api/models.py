@@ -140,6 +140,12 @@ class RunProgress(BaseModel):
                     "not be checked at all. The last number bounds what the "
                     "other two mean.",
     )
+    consistency: dict | None = Field(
+        default=None,
+        description="Disagreements between the report's own recommendation and "
+                    "the scorecard shipped beside it. Nothing else in the "
+                    "pipeline compares the two.",
+    )
     output_language: str = "English"
     steps: list[StepEvent] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
@@ -189,6 +195,12 @@ class RunStatus(BaseModel):
                     "many cited a figure absent from it, and how many could "
                     "not be checked at all. The last number bounds what the "
                     "other two mean.",
+    )
+    consistency: dict | None = Field(
+        default=None,
+        description="Disagreements between the report's own recommendation and "
+                    "the scorecard shipped beside it. Nothing else in the "
+                    "pipeline compares the two.",
     )
     artifacts: list[str] = Field(
         default_factory=list,

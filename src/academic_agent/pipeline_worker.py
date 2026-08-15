@@ -141,7 +141,7 @@ def _merge_status_fields(
     # once, mid-run, by the only code path that can discover it, and every
     # later status write would otherwise erase the warning it carries.
     for sticky in ("topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
-                   "claim_grounding"):
+                   "claim_grounding", "consistency"):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
     if source_counts is not None:
@@ -179,6 +179,7 @@ def main() -> None:
         StepEntry,
         save_error,
         save_claim_grounding,
+        save_consistency,
         save_evidence_reports,
         save_report,
         save_reviewer_notes,
@@ -206,6 +207,7 @@ def main() -> None:
         failed_domains: list[str] | None = None,
         usage: dict | None = None,
         claim_grounding: dict | None = None,
+        consistency: dict | None = None,
     ) -> None:
         try:
             try:
@@ -225,6 +227,8 @@ def main() -> None:
                 data["usage"] = usage
             if claim_grounding is not None:
                 data["claim_grounding"] = claim_grounding
+            if consistency is not None:
+                data["consistency"] = consistency
             # Atomic: the API polls this file while the worker rewrites it on
             # every stage transition. A plain write leaves a window where the
             # reader sees a truncated document, and an unreadable status was
@@ -460,12 +464,24 @@ def main() -> None:
         if scores_raw:
             save_scores(scores_raw, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
 
+        # Only possible here: the reviewer never sees the scorecard and the
+        # scorer never sees the reviewed report, so this is the first moment
+        # anything holds both.
+        consistency = save_consistency(
+            report_raw or "", scores_raw, run_id=args.run_id,
+            output_root=DEFAULT_OUTPUT_ROOT)
+        if consistency and consistency.get("blockers"):
+            print(f"[consistency] {consistency['blockers']} finding(s): the "
+                  f"report's recommendation disagrees with its own scorecard",
+                  flush=True)
+
         write_status(
             "Done", done=True,
             output_language=source_collection.output_language,
             evidence_incomplete=not evidence_saved,
             usage=snapshot_usage(),
             claim_grounding=grounding,
+            consistency=consistency,
         )
 
     except Exception as exc:
