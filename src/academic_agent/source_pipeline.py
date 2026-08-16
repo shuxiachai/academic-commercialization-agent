@@ -324,6 +324,8 @@ _MARKET_RESEARCH_DOMAINS = {
     "verifiedmarketresearch.com",
     "marketresearchfuture.com",
     "researchnester.com",
+    "kingsresearch.com",
+    "snsinsider.com",
 }
 _ACADEMIC_PUBLISHER_DOMAINS = {
     "doi.org",

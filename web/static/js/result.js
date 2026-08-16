@@ -459,7 +459,11 @@ export function renderConsistency(data) {
  * findings outrank which, and what silence is allowed to mean — is testable
  * without a DOM.
  */
-const _TONE_RANK = { risk: 3, warn: 2, ok: 1, muted: 0 };
+// "Not checked" is less severe than a finding, but it still outranks a pass.
+// Starting the reduction at ok matters: using muted as both the unknown state
+// and the initial value makes either all-clean rows or all-unchecked rows win
+// for the wrong reason when the ordering changes.
+const _TONE_RANK = { risk: 3, warn: 2, muted: 1, ok: 0 };
 
 /**
  * Rows for the automated-check panel, from a run's status payload.
@@ -524,8 +528,9 @@ export function reliabilityRows(progress) {
 
 /** The panel's headline, from the worst row present. */
 export function reliabilityVerdict(rows) {
+  if (!rows.length) return { tone: "muted", label: t("rel_verdict_unknown") };
   const worst = rows.reduce(
-    (acc, row) => (_TONE_RANK[row.tone] > _TONE_RANK[acc] ? row.tone : acc), "muted");
+    (acc, row) => (_TONE_RANK[row.tone] > _TONE_RANK[acc] ? row.tone : acc), "ok");
   if (worst === "risk") return { tone: "risk", label: t("rel_verdict_risk") };
   if (worst === "warn") return { tone: "warn", label: t("rel_verdict_review") };
   if (worst === "ok") {

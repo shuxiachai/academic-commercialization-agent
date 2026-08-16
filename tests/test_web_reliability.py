@@ -129,6 +129,21 @@ class ReliabilityPanelTests(unittest.TestCase):
         self.assertEqual(row["tone"], "muted")
         self.assertNotIn(row["tone"], ("ok",))
 
+    def test_an_unchecked_check_outranks_successful_source_coverage(self):
+        """This is the exact shape returned by the Chinese production run.
+
+        Both content checks were unable to run, while source collection did
+        complete.  The old rank let that one successful infrastructure row
+        turn the entire headline into "Nothing was flagged".
+        """
+        panel = self._panel(
+            consistency=None,
+            claim_grounding={"checked": 0, "ungrounded": 0, "unverifiable": 12},
+            source_counts={"academic": 8, "patent": 8, "market": 8},
+        )
+        self.assertEqual(self._row(panel, "sources")["tone"], "ok")
+        self.assertEqual(panel["verdict"]["tone"], "muted")
+
     def test_a_clean_run_is_called_unflagged_rather_than_verified(self):
         """The strongest thing this panel is allowed to say. These are
         heuristics over whatever retrieval happened to return; presenting that

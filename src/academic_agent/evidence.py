@@ -323,6 +323,85 @@ def _tag_bare_benchmark_refs(rationale: str) -> str:
     return _BARE_BENCHMARK_RE.sub("calibration anchor ", rationale)
 
 
+_SCORE_RANGE_RE = re.compile(
+    r"(?<![\d.])(?P<low>\d{2,3}(?:\.\d+)?)\s*"
+    r"(?:-|–|—|~|～|\bto\b|\bthrough\b|至|到)\s*"
+    r"(?P<high>\d{2,3}(?:\.\d+)?)(?![\d.])",
+    re.IGNORECASE,
+)
+_SCORE_RANGE_CONTEXT_RE = re.compile(
+    r"\b(?:score|scoring|rating|band|range|readiness)\b|"
+    r"总分|综合(?:得分|评分)|得分|评分|分数|区间|档位",
+    re.IGNORECASE,
+)
+_NEGATED_RANGE_PREFIX_RE = re.compile(
+    r"(?:below|under|outside|lower\s+than|not(?:\s+(?:in|within))?|"
+    r"does\s+not\s+(?:reach|fall\s+in)|低于|小于|未达到|不在|并非)"
+    r"[^.!?。！？；;]{0,36}$",
+    re.IGNORECASE,
+)
+_NON_SCORE_RANGE_SUFFIX_RE = re.compile(
+    r"^\s*(?:%|percent\b|million\b|billion\b|usd\b|years?\b|months?\b|"
+    r"万元|亿元|亿美元|年|月)",
+    re.IGNORECASE,
+)
+
+
+def _repair_conflicting_score_range(rationale: str, overall_score: float) -> str:
+    """Remove only an explicit score-band assertion that excludes the score.
+
+    The score is deterministic but the prose is model-authored. Production
+    and two of the 30 frozen benchmark reports contained a stale score band in
+    that prose after the guardrail corrected the arithmetic. This deliberately
+    ignores percentages, market-size ranges, and negated comparisons such as
+    "below 55–70"; a false correction is worse than leaving ambiguous prose.
+    """
+    sentences = [
+        part.strip()
+        for part in re.split(r"(?<=[.!?。！？；;])\s*|\n+", rationale)
+        if part.strip()
+    ]
+    kept: list[str] = []
+    removed = False
+
+    for sentence in sentences:
+        contradictory = False
+        if _SCORE_RANGE_CONTEXT_RE.search(sentence):
+            for match in _SCORE_RANGE_RE.finditer(sentence):
+                low = float(match.group("low"))
+                high = float(match.group("high"))
+                if not (20 <= low <= 100 and 20 <= high <= 100):
+                    continue
+                if _NON_SCORE_RANGE_SUFFIX_RE.search(sentence[match.end():]):
+                    continue
+                if _NEGATED_RANGE_PREFIX_RE.search(sentence[:match.start()]):
+                    continue
+                lower, upper = sorted((low, high))
+                if not lower <= overall_score <= upper:
+                    contradictory = True
+                    break
+
+        if contradictory:
+            removed = True
+        else:
+            kept.append(sentence)
+
+    if not removed:
+        return rationale
+
+    if re.search(r"[\u3400-\u9fff]", rationale):
+        note = (
+            f"权威总分为 {overall_score:.1f}，由所展示的各维度分数按公式计算；"
+            "模型生成的冲突分数区间已移除。"
+        )
+    else:
+        note = (
+            f"The authoritative overall score is {overall_score:.1f}, calculated from the "
+            "displayed dimension scores; a conflicting model-authored score band was removed."
+        )
+    return " ".join([*kept, note])
+
+
 def _extract_market_size_billions(market_task: Any) -> list[float]:
     """Extract market-size numerical values (normalised to billions USD) from a completed market task."""
     output = getattr(market_task, "output", None)
@@ -509,7 +588,10 @@ def make_scoring_guardrail(
             f" + ({evi}/5)×{weights['evidence']}={evi_c:.2f}"
             f" = {correct_overall}  [{weight_profile}]"
         )
-        rationale = _tag_bare_benchmark_refs(score.scoring_rationale)
+        rationale = _repair_conflicting_score_range(
+            _tag_bare_benchmark_refs(score.scoring_rationale),
+            correct_overall,
+        )
         auto_corrected = correct_overall != score.overall_score
 
         # Rebuild output with normalized float scores (not the raw ×10 integers).
@@ -1381,11 +1463,21 @@ def normalize_final_report(
 ) -> tuple[str, list[str]]:
     """Deterministically repair common model formatting errors."""
 
+    # Repair a missing space after the first ASCII colon in the H1. This is
+    # deliberately limited to the title and does not touch the full-width
+    # Chinese colon, whose spacing convention is different.
+    normalized = re.sub(
+        r"(?m)^(#\s+[^:\n]+):(?=\S)",
+        r"\1: ",
+        markdown,
+        count=1,
+    )
+
     # Normalise the Evidence Limitations heading (English form only)
     normalized = re.sub(
         r"(?m)^##\s+(?:\d+\.\s*)?Evidence Limitations\s*$",
         "## Evidence Limitations",
-        markdown,
+        normalized,
     )
     normalized = _normalize_parenthetical_citations(normalized, allowed_sources)
     normalized, errors = _normalize_report_citations(

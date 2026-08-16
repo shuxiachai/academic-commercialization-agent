@@ -5,6 +5,7 @@ import * as runView from "./run.js";
 import * as sidebar from "./sidebar.js";
 import * as result from "./result.js";
 import * as i18n from "./i18n.js";
+import { needsScopeWarning } from "./topic.js";
 const t = i18n.t;
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -342,11 +343,16 @@ $$(".starter").forEach((btn) =>
 
 $("#compose-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const submittedTopic = topic.value.trim();
+  if (
+    needsScopeWarning(submittedTopic, { hasPaper: Boolean(attachedPaper) })
+    && !confirm(t("confirm_broad_topic"))
+  ) return;
   runBtn.disabled = true;
 
   try {
     const accepted = await api.startRun({
-      topic: topic.value.trim(),
+      topic: submittedTopic,
       language: $("#language").value,
       weight_profile: $("#profile").value,
       paper_id: attachedPaper?.paper_id,

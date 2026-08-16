@@ -150,6 +150,21 @@ def _guardrail_result(markdown: str):
     return make_final_report_guardrail(context)(output)
 
 
+def test_final_guardrail_repairs_missing_space_after_title_colon() -> None:
+    """The shipped Markdown is the seam: both HTML and PDF consume it."""
+    markdown = _final_markdown().replace(
+        "# Academic Commercialization Assessment: Test",
+        "# Academic Commercialization Assessment:Engineered phage therapy",
+    )
+
+    success, validated = _guardrail_result(markdown)
+
+    assert success is True
+    assert validated.raw.startswith(
+        "# Academic Commercialization Assessment: Engineered phage therapy"
+    )
+
+
 def test_final_guardrail_expands_ranges_and_discards_unknown_findings() -> None:
     markdown = _final_markdown().replace(
         "The available evidence supports the maturity assessment [A1].",

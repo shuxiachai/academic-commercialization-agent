@@ -175,6 +175,51 @@ class ScoreNormalisationTests(unittest.TestCase):
         self.assertNotEqual(out["overall_score"], 99.9)
         self.assertTrue(out["auto_corrected"])
 
+    def test_conflicting_model_authored_score_band_is_removed(self):
+        """A corrected total must not sit beside prose assigning another band.
+
+        These dimensions reproduce the 71.3 total seen in the Chinese
+        production run while its rationale still called the score 55–70.
+        """
+        _, out = _run(
+            make_scoring_guardrail(),
+            trl_score=65,
+            mrl_score=61,
+            patent_strength=36,
+            market_accessibility=41,
+            evidence_confidence=23,
+            scoring_rationale=(
+                "综合评分位于 55-70 区间，表明该技术已经具备较强的商业化潜力。"
+            ),
+        )
+        self.assertEqual(out["overall_score"], 71.3)
+        self.assertNotIn("55-70", out["scoring_rationale"])
+        self.assertIn("71.3", out["scoring_rationale"])
+        self.assertIn("冲突分数区间已移除", out["scoring_rationale"])
+
+    def test_negated_band_comparison_is_preserved(self):
+        """Rule-out language names a band without assigning it to the score."""
+        rationale = (
+            "The overall score falls below the 70-80 band and aligns with the "
+            "60-70 range because evidence remains mixed."
+        )
+        _, out = _run(
+            make_scoring_guardrail(),
+            scoring_rationale=rationale,
+        )
+        self.assertEqual(out["scoring_rationale"], rationale)
+
+    def test_percentage_range_is_not_treated_as_a_score_band(self):
+        rationale = (
+            "Market readiness remains uncertain because estimates assume a "
+            "55-70% adoption rate."
+        )
+        _, out = _run(
+            make_scoring_guardrail(),
+            scoring_rationale=rationale,
+        )
+        self.assertEqual(out["scoring_rationale"], rationale)
+
     def test_formula_matches_industrial_weights(self):
         w = _WEIGHT_PROFILES["industrial"]
         expected = round(

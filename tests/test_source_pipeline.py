@@ -244,6 +244,16 @@ class SourcePipelineTests(TestCase):
                 "medium",
             ),
             (
+                "https://www.kingsresearch.com/example-industry/example-market",
+                "market_report",
+                "medium",
+            ),
+            (
+                "https://www.snsinsider.com/reports/example-market",
+                "market_report",
+                "medium",
+            ),
+            (
                 "https://energy.gov/news/example",
                 "research_institute",  # energy.gov hits _AUTHORITATIVE_RESEARCH_DOMAINS before the .gov rule
                 "high",

@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1073 tests (524 subtests), CI green on Linux + Windows × Python
+Current state: 1084 tests (526 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -143,7 +143,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  45 files, organised by subject under test
+tests/                  49 Python files, organised by subject under test
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 ops_report.py           what real runs actually did, vs what the benchmark covers
 ```
