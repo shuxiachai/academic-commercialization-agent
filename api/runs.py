@@ -8,8 +8,8 @@ State lives in two places by design:
   • terminal markers (error.log, cancelled.marker) — written by this module for
     events the worker cannot know about (cancellation, timeout)
 
-Keeping the worker's contract unchanged means the Gradio UI and this API can
-observe the same run without either knowing about the other.
+Keeping the worker's contract unchanged means the HTTP API and CLI can observe
+the same run through files without sharing process memory.
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ from pathlib import Path
 
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
 
-# A run is killed after this long. Matches the Gradio path's limit so both
-# entry points behave identically.
+# A run is killed after this long. The bound belongs to the worker contract,
+# not to whichever client submitted or polls the run.
 TIMEOUT_SECONDS = 1800
 
 # Concurrent workers. The real ceiling is upstream API rate limits, not local

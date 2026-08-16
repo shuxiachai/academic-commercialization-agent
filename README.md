@@ -498,7 +498,7 @@ as it's open.
 `GET /api/runs` (the run-history list) always stays behind a code
 regardless of any of this — opening it up would show every visitor's topics
 to every other visitor. Reading or cancelling one specific run by its id
-needs no code either way — the id itself carries 40 bits of randomness, the
+needs no code either way — the id itself carries 128 bits of randomness, the
 same capability-URL trust model already used for sharing a finished
 report's link.
 
@@ -602,16 +602,16 @@ burst of source-collection requests.
 
 | # | Topic | Expected TRL | Industry |
 |---|-------|-------------|---------|
-| 01 | CAR-T cell therapy for solid tumors | 6–8 | Biotech |
-| 02 | mRNA vaccines for non-infectious disease | 6–8 | Pharma |
-| 03 | CRISPR base editing for monogenic disorders | 4–6 | Biotech |
-| 04 | Perovskite solar cells for building-integrated PV | 5–7 | CleanTech |
-| 05 | Solid-state batteries for EV | 5–7 | Energy |
-| 06 | Green hydrogen via proton exchange membrane electrolysis | 5–7 | Energy |
-| 07 | Cultivated meat for food manufacturing | 4–6 | FoodTech |
-| 08 | Quantum key distribution for enterprise networks | 4–6 | Cybersecurity |
-| 09 | Biodegradable microplastic alternatives for packaging | 5–7 | Materials |
-| 10 | Room temperature superconductors | 1–3 | Materials |
+| 01 | CAR-T cell therapy for blood cancers | 7–9 | Biomed |
+| 02 | mRNA vaccines for cancer immunotherapy | 6–8 | Biomed |
+| 03 | solid-state batteries for electric vehicles | 5–7 | Energy |
+| 04 | perovskite solar cells for utility-scale power generation | 6–8 | Clean Energy |
+| 05 | CRISPR gene editing for genetic diseases | 7–9 | Biomed |
+| 06 | carbon capture and storage for industrial emissions | 6–8 | Climate |
+| 07 | cultivated meat for food industry | 6–8 | Food |
+| 08 | quantum computing for drug discovery | 2–4 | Computing |
+| 09 | graphene-based flexible electronics | 3–5 | Materials |
+| 10 | room temperature ambient pressure superconductors | 1–2 | Materials |
 
 `benchmark_check.py` produces `outputs/benchmark/benchmark_summary.csv` and auto-checks:
 - 10/10 run success rate
@@ -1089,7 +1089,7 @@ token 是测出来的，成本不是：它需要一份本程序无法验证的�
 
 **第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为任意访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要配置了口令，网页客户端就会在门禁弹窗里自动多出这个选项；不设口令时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。BYOK 提交的运行不会被打上任何口令标记，所以服务端不会把它记进任何一个口令的历史里；网页客户端转而在 `sessionStorage` 里维护一份访客自己这次会话提交过的运行列表，让侧栏依然能显示自己提交过什么——标签页一关就消失，标签页开着的时候完整可见。
 
-`GET /api/runs`（运行历史列表）无论如何都始终留在口令后面——开放的话会把每个访客的话题暴露给所有其他访客。按 `run_id` 读取或取消某一次具体的运行则不需要口令——`run_id` 本身带 40 位随机性，用的是和"分享一份已完成报告的链接"同一套能力令牌信任模型。
+`GET /api/runs`（运行历史列表）无论如何都始终留在口令后面——开放的话会把每个访客的话题暴露给所有其他访客。按 `run_id` 读取或取消某一次具体的运行则不需要口令——`run_id` 本身带 128 位随机性，用的是和"分享一份已完成报告的链接"同一套能力令牌信任模型。
 
 **`ACCESS_CODE_ADMIN`** 是再多的一个口令，授权运行的方式和其他口令完全一样（有自己的归属标记、自己的每日额度），但它不受历史列表过滤的限制——持有这个口令的人能看到所有口令的历史合在一起，用来确认"到底哪几个口令真的被用过"而不用一个个去查。
 
@@ -1151,16 +1151,16 @@ uv run python benchmark_check.py
 
 | # | 话题 | 预期 TRL | 行业 |
 |---|------|---------|------|
-| 01 | CAR-T cell therapy for solid tumors | 6–8 | Biotech |
-| 02 | mRNA vaccines for non-infectious disease | 6–8 | Pharma |
-| 03 | CRISPR base editing for monogenic disorders | 4–6 | Biotech |
-| 04 | Perovskite solar cells for building-integrated PV | 5–7 | CleanTech |
-| 05 | Solid-state batteries for EV | 5–7 | Energy |
-| 06 | Green hydrogen via proton exchange membrane electrolysis | 5–7 | Energy |
-| 07 | Cultivated meat for food manufacturing | 4–6 | FoodTech |
-| 08 | Quantum key distribution for enterprise networks | 4–6 | Cybersecurity |
-| 09 | Biodegradable microplastic alternatives for packaging | 5–7 | Materials |
-| 10 | Room temperature superconductors | 1–3 | Materials |
+| 01 | CAR-T cell therapy for blood cancers | 7–9 | Biomed |
+| 02 | mRNA vaccines for cancer immunotherapy | 6–8 | Biomed |
+| 03 | solid-state batteries for electric vehicles | 5–7 | Energy |
+| 04 | perovskite solar cells for utility-scale power generation | 6–8 | Clean Energy |
+| 05 | CRISPR gene editing for genetic diseases | 7–9 | Biomed |
+| 06 | carbon capture and storage for industrial emissions | 6–8 | Climate |
+| 07 | cultivated meat for food industry | 6–8 | Food |
+| 08 | quantum computing for drug discovery | 2–4 | Computing |
+| 09 | graphene-based flexible electronics | 3–5 | Materials |
+| 10 | room temperature ambient pressure superconductors | 1–2 | Materials |
 
 `benchmark_check.py` 生成 `outputs/benchmark/benchmark_summary.csv`，自动校验：
 - 10/10 运行成功率

@@ -8,12 +8,12 @@ redoing a handful of things that have already been tried and measured.
 
 A six-agent CrewAI pipeline that assesses whether a piece of academic research
 is commercially viable. Three evidence agents (academic / patent / market) run
-in parallel, then a report writer, a reviewer, and a scorer. Served three ways
-from one codebase: a FastAPI + vanilla-JS web client, a Gradio UI, and a CLI.
+in parallel, then a report writer, a reviewer, and a scorer. Served two ways
+from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1064 tests (502 subtests), CI green on Linux + Windows × Python
+Current state: 1067 tests (506 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -142,7 +142,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
   pipeline_worker.py    the subprocess one run executes in
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
-ui/                     Gradio UI + PDF export
+ui/                     shared i18n, run-reader, and PDF-export utilities
 tests/                  45 files, organised by subject under test
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 ops_report.py           what real runs actually did, vs what the benchmark covers

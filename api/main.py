@@ -27,9 +27,9 @@ from fastapi import (
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-# Load .env before anything reads os.environ. The Gradio entry point gets this
-# for free because importing crewai pulls it in, but that is a side effect to
-# rely on, not a contract — an API server should be explicit about its config.
+# Load .env before anything reads os.environ. Some dependency imports also
+# happen to load it, but that is a side effect to observe, not a configuration
+# contract — an API server should be explicit about when its settings exist.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from academic_agent.llm_config import _detect_provider  # noqa: E402
@@ -53,8 +53,8 @@ _REAP_INTERVAL_SECONDS = 30
 async def _reaper() -> None:
     """Kill runs that exceed the deadline.
 
-    The Gradio path enforces its timeout inside the polling loop; the API has
-    no such loop, so the check runs here instead.
+    No request remains open for the lifetime of a run, so timeout enforcement
+    belongs to this application-level loop rather than to a polling endpoint.
     """
     while True:
         await asyncio.sleep(_REAP_INTERVAL_SECONDS)
@@ -90,8 +90,7 @@ app = FastAPI(
     title="Academic Commercialization Assessment API",
     description=(
         "Submit a research topic, poll for progress, retrieve the report and "
-        "scorecard. Each run executes the same six-agent pipeline used by the "
-        "Gradio UI."
+        "scorecard. The web client and CLI execute the same six-agent pipeline."
     ),
     version="1.0.0",
     lifespan=_lifespan,
@@ -287,8 +286,8 @@ def _authorize_destructive(run_id: str, http_request: Request) -> None:
     lives in the handler rather than the middleware.
 
     Raises 404 rather than 403 on a mismatch: a distinct "forbidden" would
-    confirm to a caller probing ids that a given run exists, which is the one
-    thing a 40-bit id cannot afford to leak.
+    confirm to a caller probing ids that a given run exists. Capability URLs
+    are credentials, but their entropy is not a reason to leak their validity.
     """
     if not access.gate_enabled():
         return                      # nothing configured to authorize against

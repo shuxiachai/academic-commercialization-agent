@@ -1,8 +1,9 @@
 """Uploaded-paper handling for the HTTP API.
 
-The Gradio path keeps an extracted paper in a `gr.State` for the length of a
-session. An HTTP client has no equivalent, so an extraction is written to disk
-under a generated id and referenced by that id when a run is started.
+Upload and run submission are separate HTTP requests, so the extraction is
+written to disk under a generated id and referenced by that id when a run is
+started. Keeping it only in process memory would lose it between requests and
+would make a second API worker unable to consume it.
 
 Extractions are disposable: they exist only between the upload and the run
 that consumes them, and are pruned by age rather than tracked.
@@ -22,8 +23,9 @@ from academic_agent.run_output import DEFAULT_OUTPUT_ROOT
 # may be uploaded and never run, and a run directory should describe a run.
 PAPERS_ROOT = DEFAULT_OUTPUT_ROOT / "_papers"
 
-# The Gradio path applies the same ceiling. Larger PDFs are almost always
-# scanned images, which the text extractor cannot use anyway.
+# This one ceiling is shared by the streaming request reader and the persisted
+# payload check. Larger PDFs are almost always scanned images, which the text
+# extractor cannot use anyway.
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 # An extraction is only useful until the run that consumes it starts. A day is
