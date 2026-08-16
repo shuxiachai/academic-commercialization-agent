@@ -4,7 +4,16 @@ __pycache__/
 *.pyc
 .DS_Store
 start.bat
-outputs/
+# Per-run outputs may contain unpublished paper content and stay local. The two
+# aggregate benchmark tables contain only the public, curated topic set and are
+# tracked because README performance claims and their contract test derive from
+# them; ignoring the evidence made those claims unverifiable in a fresh clone.
+!outputs/
+outputs/*
+!outputs/benchmark/
+outputs/benchmark/*
+!outputs/benchmark/benchmark_summary.csv
+!outputs/benchmark/benchmark_stability.csv
 commercialization_report.md
 !examples/**/commercialization_report.md
 dist/

@@ -1,0 +1,11 @@
+﻿case_num,topic,expected_trl,n,trl_mean,trl_sd,trl_min,trl_max,overall_mean,overall_sd,calibrated
+01,CAR-T cell therapy for blood cancers,7-9,3,8.67,0.58,8.0,9.0,74.8,1.27,3/3
+02,mRNA vaccines for cancer immunotherapy,6-8,3,7.0,0.0,7.0,7.0,70.1,1.73,3/3
+03,solid-state batteries for electric vehicles,5-7,3,5.33,0.58,5.0,6.0,55.1,4.67,3/3
+04,perovskite solar cells for utility-scale power generation,6-8,3,5.83,0.29,5.5,6.0,60.4,2.71,2/3
+05,CRISPR gene editing for genetic diseases,7-9,3,7.0,0.0,7.0,7.0,63.8,1.15,3/3
+06,carbon capture and storage for industrial emissions,6-8,3,7.0,0.0,7.0,7.0,67.8,1.15,3/3
+07,cultivated meat for food industry,6-8,3,6.33,0.58,6.0,7.0,62.9,4.5,3/3
+08,quantum computing for drug discovery,2-4,3,4.0,0.0,4.0,4.0,48.9,1.73,3/3
+09,graphene-based flexible electronics,3-5,3,5.33,0.29,5.0,5.5,55.8,0.92,1/3
+10,room temperature ambient pressure superconductors,1-2,3,2.33,0.58,2.0,3.0,36.5,3.06,2/3
