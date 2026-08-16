@@ -134,6 +134,8 @@ class GroundingReport:
     checked_count: int = 0
     #: Findings skipped: no figure to check, or no substantive source text.
     unverifiable_count: int = 0
+    #: Exact repeated claim/source occurrences excluded from the counts above.
+    duplicates_collapsed: int = 0
     error: str | None = field(default=None)
 
     def as_dict(self) -> dict[str, Any]:
@@ -141,6 +143,7 @@ class GroundingReport:
             "checked": self.checked_count,
             "ungrounded": self.ungrounded_count,
             "unverifiable": self.unverifiable_count,
+            "duplicates_collapsed": self.duplicates_collapsed,
             # Only the interesting rows. A run with 40 fully grounded findings
             # should produce a short file, or nobody will open it.
             "findings": [c.as_dict() for c in self.checks if c.status != "grounded"],
@@ -291,7 +294,8 @@ def _check_report(report: Any, sources: Any = None) -> GroundingReport:
     by_id = {str(getattr(s, "source_id", "")): s for s in pool}
 
     checks: list[ClaimCheck] = []
-    ungrounded = checked = unverifiable = 0
+    ungrounded = checked = unverifiable = duplicates_collapsed = 0
+    seen_claims: set[tuple[str, tuple[str, ...]]] = set()
 
     for finding in getattr(report, "findings", None) or []:
         claim = str(getattr(finding, "claim", "") or "")
@@ -303,6 +307,18 @@ def _check_report(report: Any, sources: Any = None) -> GroundingReport:
             # this screen simply has no opinion about a purely qualitative
             # claim, and saying so beats implying it was verified.
             continue
+
+        # One production evidence agent repeated five numeric findings later
+        # in the same output. The reliability panel counted all 19 positions
+        # even though they represented only 14 distinct assertions. Collapse
+        # only byte-for-byte claim text with the same source set: fuzzy prose
+        # matching would risk merging two legitimately separate estimates,
+        # which is worse than leaving a near-duplicate visible.
+        duplicate_key = (claim, tuple(sorted(set(cited_ids))))
+        if duplicate_key in seen_claims:
+            duplicates_collapsed += 1
+            continue
+        seen_claims.add(duplicate_key)
 
         cited = [by_id[i] for i in cited_ids if i in by_id]
         checkable = [s for s in cited if _source_is_checkable(s)]
@@ -351,4 +367,5 @@ def _check_report(report: Any, sources: Any = None) -> GroundingReport:
         ungrounded_count=ungrounded,
         checked_count=checked,
         unverifiable_count=unverifiable,
+        duplicates_collapsed=duplicates_collapsed,
     )

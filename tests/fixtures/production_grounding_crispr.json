@@ -1,0 +1,107 @@
+{
+  "description": "Sanitized market-evidence slice from a completed production CRISPR assessment. The capability URL and run identifier are deliberately omitted.",
+  "captured_date": "2026-08-16",
+  "expected": {
+    "raw_numeric_occurrences": 19,
+    "unique_numeric_claims": 14,
+    "duplicates_collapsed": 5
+  },
+  "sources": ["M1", "M2", "M4", "M5", "M6", "M7"],
+  "findings": [
+    {
+      "finding_id": "MF1",
+      "claim": "Editas Medicine leads the CRISPR and Cas gene market with a 20.0% market share, anchored by its CRISPR/Cas9 and Cas12a therapeutic platforms targeting genetic diseases and oncology.",
+      "source_ids": ["M1"]
+    },
+    {
+      "finding_id": "MF4",
+      "claim": "The global CRISPR gene editing market size was calculated at USD 4.76 billion in 2025 and is predicted to reach around USD 18.89 billion by 2035, expanding at a CAGR of 14.77% from 2026 to 2035.",
+      "source_ids": ["M2"]
+    },
+    {
+      "finding_id": "MF5",
+      "claim": "CRISPR-based gene editing market size was valued at $4.5B in 2025 and is projected to grow from $5.1B in 2026 to $13.5B by 2033, at a CAGR of 14.8%.",
+      "source_ids": ["M4"]
+    },
+    {
+      "finding_id": "MF6",
+      "claim": "The global CRISPR-based gene editing market size is calculated at USD 4.46 billion in 2025 and is predicted to increase from USD 4.95 billion in 2026 to approximately USD 14.96 billion by 2035, expanding at a CAGR of 12.87% from 2026 to 2035.",
+      "source_ids": ["M5"]
+    },
+    {
+      "finding_id": "MF7",
+      "claim": "The global gene editing market size was valued at USD 10.31 billion in 2025. The market is projected to grow from USD 10.98 billion in 2026 to USD 35.02 billion by 2034, exhibiting a CAGR of 15.60% during the forecast period.",
+      "source_ids": ["M6"]
+    },
+    {
+      "finding_id": "MF8",
+      "claim": "The genome editing market will likely exceed USD 12.84 billion by 2026. Valuation is projected to hit USD 52.56 billion by 2035. Estimated to grow at a CAGR of 16.95% starting from 2026 to 2035.",
+      "source_ids": ["M7"]
+    },
+    {
+      "finding_id": "MF9",
+      "claim": "Clinical applications account for 44.9% of the CRISPR and Cas gene market in 2026, confirming that therapeutic development is the primary revenue driver.",
+      "source_ids": ["M1"]
+    },
+    {
+      "finding_id": "MF13",
+      "claim": "North America dominated the global gene editing market with a market share of 43.35% in 2025.",
+      "source_ids": ["M6"]
+    },
+    {
+      "finding_id": "MF14",
+      "claim": "Asia Pacific is expected to grow at the fastest CAGR of 18.77% during the forecast period.",
+      "source_ids": ["M7"]
+    },
+    {
+      "finding_id": "MF15",
+      "claim": "By application, the genetic engineering segment dominated the market by 40% in 2025.",
+      "source_ids": ["M7"]
+    },
+    {
+      "finding_id": "MF17",
+      "claim": "Kits and enzymes hold 41.3% of the product type segment, reflecting the foundational role of CRISPR reagents in gene-editing workflows across research and therapeutic development.",
+      "source_ids": ["M1"]
+    },
+    {
+      "finding_id": "MF18",
+      "claim": "The CRISPR segment is expected to lead the market with a 61.58% share in 2026.",
+      "source_ids": ["M6"]
+    },
+    {
+      "finding_id": "MF19",
+      "claim": "The market in North America reached USD 4.47 Billion in 2025, representing 43.35% of total market revenue, and is projected to reach USD 4.76 Billion in 2026.",
+      "source_ids": ["M6"]
+    },
+    {
+      "finding_id": "MF20",
+      "claim": "Asia Pacific reached USD 2.01 billion in 2025 and is projected to grow to USD 2.16 billion in 2026.",
+      "source_ids": ["M6"]
+    },
+    {
+      "finding_id": "MF24",
+      "claim": "The global CRISPR gene editing market size was calculated at USD 4.76 billion in 2025 and is predicted to reach around USD 18.89 billion by 2035, expanding at a CAGR of 14.77% from 2026 to 2035.",
+      "source_ids": ["M2"]
+    },
+    {
+      "finding_id": "MF25",
+      "claim": "The global gene editing market size was valued at USD 10.31 billion in 2025. The market is projected to grow from USD 10.98 billion in 2026 to USD 35.02 billion by 2034, exhibiting a CAGR of 15.60% during the forecast period.",
+      "source_ids": ["M6"]
+    },
+    {
+      "finding_id": "MF26",
+      "claim": "The genome editing market will likely exceed USD 12.84 billion by 2026. Valuation is projected to hit USD 52.56 billion by 2035. Estimated to grow at a CAGR of 16.95% starting from 2026 to 2035.",
+      "source_ids": ["M7"]
+    },
+    {
+      "finding_id": "MF27",
+      "claim": "The global CRISPR-based gene editing market size is calculated at USD 4.46 billion in 2025 and is predicted to increase from USD 4.95 billion in 2026 to approximately USD 14.96 billion by 2035, expanding at a CAGR of 12.87% from 2026 to 2035.",
+      "source_ids": ["M5"]
+    },
+    {
+      "finding_id": "MF28",
+      "claim": "CRISPR-based gene editing market size was valued at $4.5B in 2025 and is projected to grow from $5.1B in 2026 to $13.5B by 2033, at a CAGR of 14.8%.",
+      "source_ids": ["M4"]
+    }
+  ]
+}

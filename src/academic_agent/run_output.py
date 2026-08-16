@@ -176,7 +176,8 @@ def save_claim_grounding(
     try:
         run_directory = output_root / run_id
         combined: list[Any] = []
-        totals = {"checked": 0, "ungrounded": 0, "unverifiable": 0}
+        totals = {"checked": 0, "ungrounded": 0, "unverifiable": 0,
+                  "duplicates_collapsed": 0}
         # Also per domain, because the aggregate is actively misleading. Across
         # the 30-run baseline the overall figure was 14% checkable, which reads
         # as "this check barely works" — while the academic domain was 92% and
@@ -203,10 +204,12 @@ def save_claim_grounding(
             totals["checked"] += result.checked_count
             totals["ungrounded"] += result.ungrounded_count
             totals["unverifiable"] += result.unverifiable_count
+            totals["duplicates_collapsed"] += result.duplicates_collapsed
             per_domain[domain] = {
                 "checked": result.checked_count,
                 "ungrounded": result.ungrounded_count,
                 "unverifiable": result.unverifiable_count,
+                "duplicates_collapsed": result.duplicates_collapsed,
             }
             for check in result.checks:
                 if check.status != "grounded":

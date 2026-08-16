@@ -317,6 +317,14 @@ export function renderGrounding(data) {
   }
   wrap.append(stats);
 
+  const duplicatesCollapsed = data.duplicates_collapsed ?? 0;
+  if (duplicatesCollapsed > 0) {
+    const note = t("grounding_duplicates").replace(
+      "{count}", String(duplicatesCollapsed),
+    );
+    wrap.append(el("p", "grounding__lede", note));
+  }
+
   // Per domain, because one aggregate cannot say both "the check works" and
   // "market reports have no abstract to check against".
   const byDomain = data.by_domain ?? {};

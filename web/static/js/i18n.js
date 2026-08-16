@@ -70,6 +70,7 @@ const STRINGS = {
     grounding_no_figures: "no numeric claims",
     grounding_missing: "not found in the cited sources: {figures}",
     grounding_detail: "Claims needing a look",
+    grounding_duplicates: "{count} repeated claim occurrences were collapsed; the counts above represent distinct claim/source pairs.",
 
     // Report-versus-scorecard
     tab_consistency: "Report vs score",
@@ -214,6 +215,7 @@ const STRINGS = {
     grounding_no_figures: "无量化结论",
     grounding_missing: "在被引来源中未找到：{figures}",
     grounding_detail: "需要留意的结论",
+    grounding_duplicates: "已合并 {count} 个完全重复的结论；以上数量按不同的“结论＋来源”组合计算。",
 
     tab_consistency: "报告与评分",
     consistency_lede: "报告自己给出的建议，与旁边的评分卡是否一致。流水线里没有别的环节比较过这两者：审查员看不到评分卡，评分器看不到审查后的报告。",
