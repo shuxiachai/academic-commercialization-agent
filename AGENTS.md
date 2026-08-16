@@ -31,10 +31,14 @@ what CI will say.
 
 ## Hard conventions
 
-- **`filterwarnings = ["error::UserWarning"]`.** Code paths that would reach a
-  paid API warn and fall back rather than raising, so a test that leaks would
-  otherwise pass silently. If a new test trips this, the test is calling
-  something real — fix the test, do not add an ignore.
+- **`filterwarnings = ["error::UserWarning"]`.** What it mainly guards: code
+  paths that would reach a paid API warn and fall back rather than raising, so
+  a test that leaks would otherwise pass silently. When a test trips it, read
+  *which* warning fired before concluding anything. If it is the network one,
+  the test is calling something real — fix the test's isolation, never add an
+  ignore. But the project also warns deliberately on an unrecognised weight
+  profile and on an audit screen that failed, and two test files assert those
+  on purpose (`assertWarns`), so not every UserWarning is a leak.
 - **No bare `except Exception`** without a `# noqa: BLE001` and a reason. ruff
   enforces it; the exceptions in this repo each say why in a comment.
 - **CI also runs pylint, narrowly,** for `E0701` alone (except-clause ordering).
