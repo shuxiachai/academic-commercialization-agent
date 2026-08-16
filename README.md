@@ -61,6 +61,28 @@ queries, so the deployment caps concurrency and daily runs per code. See
 
 ---
 
+### Measured results
+
+The frozen baseline exercises live retrieval and the complete six-agent
+pipeline: **10 topics × 3 live repetitions**. The row-level evidence is committed in
+[`benchmark_summary.csv`](outputs/benchmark/benchmark_summary.csv).
+
+| Metric | Result |
+|---|---|
+| End-to-end completion | **30/30** |
+| TRL calibration | **26/30** |
+| Weighted formula correctness | **30/30** |
+| Complete report structure | **30/30** |
+| Unsupported numeric lines | **0 across 30 reports** |
+
+TRL calibration compares the scorecard with milestone-anchored ranges whose
+public events can be checked independently. It is calibration evidence, not a
+blinded held-out accuracy score: the ranges were revised after earlier scores
+had been observed. The numeric-line check is a citation-risk proxy, not a claim
+that every possible form of hallucination has been eliminated.
+
+---
+
 ### What's different from the CrewAI starter template
 
 | | Original demo | This project |
@@ -753,6 +775,27 @@ Each dimension records its supporting source IDs, shown on the scorecard and tra
 <br>
 <img src="assets/screenshot-results.png" alt="评分卡、报告、来源三个标签页，引用 ID 可追溯至来源列表" width="800">
 </details>
+
+---
+
+### 实测结果
+
+冻结基线使用实时检索并执行完整六智能体流水线：
+**10 个主题 × 每个主题 3 次实时检索运行**。逐行结果随仓库保存在
+[`benchmark_summary.csv`](outputs/benchmark/benchmark_summary.csv)。
+
+| 指标 | 结果 |
+|---|---|
+| 端到端完成 | **30/30** |
+| TRL 校准 | **26/30** |
+| 加权公式正确 | **30/30** |
+| 报告结构完整 | **30/30** |
+| 无引用数值行 | **30 份报告中 0 行** |
+
+TRL 校准将评分卡与基于公开里程碑建立、可独立核查的区间进行比较。它属于
+校准证据，而不是盲测准确率：这些区间是在观察过早期评分后修订的。
+“无引用数值行”也是引用风险代理指标，并不代表系统已经消除了所有形式的
+大模型幻觉。
 
 ---
 
