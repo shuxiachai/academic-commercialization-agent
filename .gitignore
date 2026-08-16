@@ -12,6 +12,12 @@ dist/
 *.log
 .coverage
 htmlcov/
+# Personal write-up. Its own private repo (academic-agent-notes) lives in
+# notes/ — this repo is public and that file is a first-person job-search
+# narrative, not project documentation. Kept under the working tree rather
+# than beside it so a backup covers both, and ignored here so the two
+# repositories never see each other's files.
+notes/
 简历项目说明.md
 
 # Tooling scratch space — worktrees here are separate git repos
