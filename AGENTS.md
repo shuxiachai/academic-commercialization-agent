@@ -1,5 +1,16 @@
 # AGENTS.md — CrewAI Reference for AI Coding Assistants
 
+> ## 👉 Read [CLAUDE.md](CLAUDE.md) first
+>
+> **Everything below this box is generic CrewAI framework reference and says
+> nothing about this project.** `CLAUDE.md` is the project-specific one: the
+> conventions, where the reasoning for each decision is kept, and — most
+> importantly — the list of changes that have already been tried, measured, and
+> rejected on data. Several of those cost real money to re-measure.
+>
+> This box is hand-added. `AGENTS.md` is auto-generated, so restore it if a
+> `crewai` regeneration ever wipes it.
+
 > **Auto-generated** by `crewai create`. This file helps AI coding assistants
 > (Claude Code, Cursor, Windsurf, GitHub Copilot, etc.) write correct CrewAI code.
 > Keep it in your project root. To update, copy the latest version from the
