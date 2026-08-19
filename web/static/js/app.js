@@ -204,8 +204,9 @@ async function openRun(runId, { known } = {}) {
         toast(progress.error, "error");
       }
 
-      // A failed run keeps its stage list: where it stopped is the useful
-      // information, and it has no artifacts to show anyway.
+      // A failed run keeps its stage list and may now expose a retrieval
+      // diagnostic artifact. Where it stopped and what the search rejected
+      // are both useful even though no report was produced.
       // The whole progress payload, not just the artifact list. The automated
       // checks it carries — consistency, claim grounding, failed domains, a
       // truncated audit trail — all qualify the score, and passing only the

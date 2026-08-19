@@ -9,8 +9,10 @@ import pytest
 
 from academic_agent.language import (
     LANGUAGE_REGISTRY,
+    TopicSearchPlan,
     detect_language,
     get_lang_info,
+    plan_topic_search,
     translate_headings,
     translate_to_english,
 )
@@ -94,6 +96,56 @@ def test_translate_to_english_returns_translation_on_success():
     with patch("academic_agent.language._llm_call", return_value=expected):
         result = translate_to_english("固态锂电池的干法电极制造工艺")
     assert result == expected
+
+
+# ---------------------------------------------------------------------------
+# plan_topic_search — free-form input becomes a search-safe topic
+# ---------------------------------------------------------------------------
+
+def test_conversational_chinese_input_becomes_one_canonical_search_plan():
+    """The production defect this covers.
+
+    Literal translation preserved both "we are building" and "help me assess
+    its value" in the academic query. Relevant papers existed, but the same
+    request-shaped sentence was then used as the title-relevance filter and
+    rejected the synonym results that retrieval had found.
+    """
+    raw = "我们在做剧本创作相关的大模型，帮我看看价值如何"
+    response = (
+        "SEARCH_TOPIC: large language models for screenplay creation\n"
+        "ALIAS: LLM-assisted screenwriting\n"
+        "ALIAS: generative AI for scriptwriting"
+    )
+
+    with patch("academic_agent.language._llm_call", return_value=response) as call:
+        plan = plan_topic_search(raw)
+
+    assert plan == TopicSearchPlan(
+        search_topic="large language models for screenplay creation",
+        aliases=("LLM-assisted screenwriting", "generative AI for scriptwriting"),
+    )
+    assert call.call_count == 1
+    assert raw in call.call_args.args[0]
+
+
+def test_topic_plan_marks_an_input_without_an_identifiable_technology_unresolved():
+    with patch(
+        "academic_agent.language._llm_call",
+        return_value="SEARCH_TOPIC: UNRESOLVED",
+    ):
+        plan = plan_topic_search("帮我看看这个值不值得做")
+
+    assert not plan.resolved
+    assert plan.search_topic == ""
+    assert plan.aliases == ()
+
+
+def test_topic_plan_falls_back_to_the_original_english_input_when_call_fails():
+    raw = "solid-state batteries for electric vehicles"
+    with patch("academic_agent.language._llm_call", return_value=""):
+        plan = plan_topic_search(raw)
+
+    assert plan == TopicSearchPlan(search_topic=raw, aliases=())
 
 
 # ---------------------------------------------------------------------------

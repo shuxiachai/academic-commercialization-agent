@@ -106,6 +106,9 @@ _ARTIFACTS = {
     # mostly could not run, which is a different thing from mostly passing.
     "grounding": "claim_grounding.json",
     "consistency": "consistency.json",
+    # Present only when collection failed before validated_sources.json could
+    # exist; preserves the search plan, candidate counts, and rejection audit.
+    "retrieval": "retrieval_diagnostics.json",
 }
 
 

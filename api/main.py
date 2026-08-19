@@ -816,7 +816,7 @@ def get_report_pdf(run_id: str) -> FileResponse:
     },
 )
 def get_artifact(run_id: str, artifact: str) -> FileResponse:
-    """Fetch a run artifact: `scores`, `sources`, `notes`, or `steps`."""
+    """Fetch a named run artifact advertised by the status endpoint."""
     try:
         state = runs.get_state(run_id)
     except runs.RunNotFound as exc:

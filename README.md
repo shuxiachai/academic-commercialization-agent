@@ -90,7 +90,7 @@ that every possible form of hallucination has been eliminated.
 | Agents | 2 (researcher + reporting_analyst) | 6 (specialized roles) |
 | Tasks | 2 | 6 (sequential + guardrail validation) |
 | Tools | None | OpenAlex + Semantic Scholar + SerperDevTool + Crossref |
-| Source collection | None | Deterministic pre-run retrieval with URL reachability check |
+| Source collection | None | Structured pre-run retrieval with topic planning and URL reachability checks |
 | Output format | Free-form text | Markdown report with `[A1][P2][M3]` inline citations + References block + JSON scorecard |
 | Output management | Fixed filename (overwritten) | Unique run ID per execution, stored in `outputs/` |
 | Data quality | None | Structured evidence + citation integrity check + minimum summary length filter + auto-retry |
@@ -139,7 +139,9 @@ Agents 1–3 run in **parallel** (`async_execution=True`), reducing total pipeli
 ### Execution flow
 
 ```
-Step 0  Source collection & validation (subprocess, deterministic)
+Step 0  Source collection & validation (subprocess, before the six agents)
+        Input:    free-form request → concise English search topic + equivalent aliases;
+                  the original wording remains the report's display topic
         Academic: OpenAlex Works API (filter=title.search, sorted by citation count)
                   → Semantic Scholar supplement (when OpenAlex count is below target)
                   → DOI deduplication; summaries < 100 chars auto-rejected
@@ -149,6 +151,7 @@ Step 0  Source collection & validation (subprocess, deterministic)
         Market:   Serper + domain allowlist (30+ approved institutions); low-quality sites removed
         Metadata: Crossref API for DOI, journal name, publication date
         Output:   validated_sources.json + status.json passed to subprocess pipeline
+        Failure:  retrieval_diagnostics.json preserves the search plan and rejection audit
 
 Steps 1–3  Agents 1/2/3 — Academic / Patent / Market analysis  (parallel)
 Step 4     Agent 4 — Comprehensive report writing  (guardrail validates citations)
@@ -176,7 +179,7 @@ The pipeline runs in a **subprocess** (`pipeline_worker.py`) so a run can be can
     [A1] … [P1] … [M1] …
 ```
 
-> **Multilingual support**: Language is auto-detected from the topic string. Reports in Simplified/Traditional Chinese, Japanese, Korean, German, French, and 6 more languages are fully localized — section headings, citation legend, and patent disclaimers all adapt automatically.
+> **Multilingual and free-form input**: Language is auto-detected from the user's unedited topic. The retrieval layer derives a concise English search topic plus equivalent aliases while preserving the original wording for the report. Reports in Simplified/Traditional Chinese, Japanese, Korean, German, French, and 6 more languages are fully localized — section headings, citation legend, and patent disclaimers all adapt automatically.
 
 The scorecard (`commercialization_scores.json`) additionally contains: TRL score, patent strength, market accessibility, evidence confidence, overall score, key risks, and key opportunities.
 
@@ -330,7 +333,7 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
 | `GET` | `/api/runs/{id}` | Stage, state, elapsed time, available artifacts |
 | `DELETE` | `/api/runs/{id}` | Terminate a running assessment |
 | `GET` | `/api/runs/{id}/report` | Final report as Markdown |
-| `GET` | `/api/runs/{id}/{artifact}` | `scores`, `sources`, `notes`, or `steps` |
+| `GET` | `/api/runs/{id}/{artifact}` | Run artifacts, including `scores`, `sources`, checks, and failed-run `retrieval` diagnostics |
 
 Concurrency is capped at 2 runs (`API_MAX_CONCURRENT` to change) — the binding
 constraint is upstream API rate limits, not local CPU. Runs exceeding 30 minutes
@@ -365,6 +368,11 @@ outputs/
     ├── status.json                    # Pipeline stage + source counts (polled by UI)
     └── steps.jsonl                    # Per-agent step events (polled for live progress)
 ```
+
+Runs that stop before meeting the academic-source minimum write
+`retrieval_diagnostics.json` instead of a report. The API and browser expose
+the submitted topic, canonical search phrase, aliases, candidate counts, and
+rejection audit so a retrieval failure is not presented as an unexplained error.
 
 The three `*_evidence.json` files are what the report writer and scorer actually
 read — neither sees the raw source registry. They record how a validated source
@@ -653,10 +661,10 @@ academic_agent/
 │   ├── pipeline_worker.py   # Subprocess worker: runs pipeline, writes status.json + steps.jsonl
 │   ├── main.py              # CLI entry point (--topic "your topic" flag)
 │   ├── evidence.py          # Evidence models, guardrail validators, CommercializationScore
-│   ├── source_pipeline.py   # Pre-run deterministic source collection & validation
+│   ├── source_pipeline.py   # Structured pre-agent source collection & validation
 │   ├── source_clients.py    # API clients (OpenAlex, S2, PubMed, arXiv, Lens, Crossref, Serper)
 │   ├── pdf_extractor.py     # Uploaded-paper contribution extraction
-│   ├── language.py          # Language detection, translation, synonym generation
+│   ├── language.py          # Language detection, free-form search planning, localization
 │   ├── llm_config.py        # Multi-LLM config (DeepSeek / OpenAI / Anthropic; JSON mode)
 │   ├── run_output.py        # Run ID, report & scorecard persistence; StepEntry TypedDict
 │   └── config/
@@ -720,7 +728,7 @@ Scores are computed using a **weight profile** selected automatically based on t
 
 Rationale for the weightings: MRL dominates in `biomedical` because manufacturing scale-up is the main gate for biologics; TRL leads in `material_science` and `clean_tech` because lab-to-production cycles are long; `software_ai` puts weight on market traction since distribution cost is near zero and patent moats are weak relative to trade secrets.
 
-Detection runs in priority order — biomedical → material_science → clean_tech → software_ai → industrial — by matching keyword markers against the (English-translated) topic string. The selected profile is stored in `validated_sources.json` and shown as a badge in the UI scorecard.
+Detection runs in priority order — biomedical → material_science → clean_tech → software_ai → industrial — by matching keyword markers against the canonical English search topic. The selected profile is stored in `validated_sources.json` and shown as a badge in the UI scorecard.
 
 All profiles sum to 100%, enforced by an `assert` at module load. The `overall_score` is computed by the system from dimension scores and the active profile — the LLM always writes `overall_score: 0` and the formula corrects it automatically.
 
@@ -809,7 +817,7 @@ TRL 校准将评分卡与基于公开里程碑建立、可独立核查的区间�
 | Task 数量 | 2（research_task + reporting_task） | 6（顺序执行 + guardrail 验证） |
 | 工具 | 无 | OpenAlex + Semantic Scholar + SerperDevTool + Crossref |
 | 输入变量 | topic + current_year | research_topic |
-| 来源收集 | 无 | 运行前确定性预检索，URL 可达性验证 |
+| 来源收集 | 无 | 运行前结构化检索，含主题规划与 URL 可达性验证 |
 | 输出格式 | 自由文本报告 | 带 [A1][P2][M3] 行内引用 + References 区块的 Markdown 报告 + JSON 评分卡 |
 | 输出管理 | 固定文件名（覆盖） | 每次运行生成唯一 ID，存入 outputs/ 目录 |
 | 数据质量保障 | 无 | 结构化证据 + 引用完整性校验 + 来源最低字数过滤 + 自动重试 |
@@ -857,7 +865,9 @@ Agent 1/2/3 并行执行（`async_execution=True`），显著缩短总运行时�
 ### 执行流程
 
 ```
-Step 0  来源收集与验证（子进程，确定性）
+Step 0  来源收集与验证（子进程，在六智能体启动前完成）
+        输入：自由描述 → 简洁的英文学术检索主题 + 等价检索短语；
+              报告展示仍保留用户原始表述
         学术：OpenAlex Works API（filter=title.search，按引用数降序）
               → Semantic Scholar 补充（当 OpenAlex 不足最大来源数时触发）
               → 按 DOI 去重，摘要 <100 字符的记录自动剔除
@@ -866,6 +876,7 @@ Step 0  来源收集与验证（子进程，确定性）
         市场：Serper 检索 + 域名白名单过滤（30+ 认可机构），剔除低质量站点
         元数据：Crossref API 补充 DOI、期刊名、发表日期
         输出 validated_sources.json + status.json 传入子进程流水线
+        失败：retrieval_diagnostics.json 保留检索规划与候选拒绝审计
 
 Steps 1–3  Agent 1/2/3 — 学术 / 专利 / 市场分析（并行）
 Step 4     Agent 4 — 综合报告撰写（guardrail 校验引用完整性）
@@ -893,7 +904,7 @@ Step 6     Agent 6 — 量化评分（独立于报告；公式自动修正）
     [A1] … [P1] … [M1] …
 ```
 
-> **多语言支持**：系统根据研究主题自动检测输出语言（支持中文简体/繁体、日文、韩文、德文、法文等 12 种语言）。各语言版本的报告结构、章节标题、引用图例（A/P/M 说明行）及专利免责声明均自动本地化。
+> **多语言与自由描述输入**：系统根据用户未改写的原始主题检测输出语言，同时为检索生成简洁的英文主题和等价短语，报告仍保留用户原始表述。支持中文简体/繁体、日文、韩文、德文、法文等 12 种语言；各语言版本的章节标题、引用图例及专利免责声明均自动本地化。
 
 评分卡（`commercialization_scores.json`）额外包含：TRL 评分、专利强度、市场可及性、证据置信度、综合评分、关键风险和机遇列表。
 
@@ -994,7 +1005,7 @@ uv run uvicorn api.main:app --port 8000
 - **左侧栏**：全部运行按时间分组，带实时状态点。运行会不断累积，因此列表是常驻结构而非一个标签页
 - **输入区**：话题框随内容增高；报告语言与评分方案收在底部小 chip 中；`N` 新建，回车提交
 - **实时进度**：五个流水线阶段同时可见，已完成与待执行一目了然。计时在本地每秒走，而非依赖间隔可达四秒的轮询响应
-- **结果**：评分卡、报告、来源三个标签页，按需加载。引用标记有独立样式——它们是报告可审计的凭据。可导出 Markdown 或 PDF（内嵌 CJK 字体）
+- **结果**：评分卡、报告、来源按需加载；检索不足的失败运行会展示独立的“检索诊断”页。引用标记有独立样式——它们是报告可审计的凭据。可导出 Markdown 或 PDF（内嵌 CJK 字体）
 - **附加论文**：把 PDF 拖到输入框即成为来源 A1，流水线随后围绕该论文的具体贡献检索证据。论文的 DOI 和 URL 是模型从 PDF 正文里读出来的，因此在被当作引用之前会先做一次解析校验——解析不通过的定位符会被丢弃而不是照样印进参考文献，同时这条来源的可信度降为 `medium` 以如实反映"读者无法自行核查"
 
 界面功能：
@@ -1032,7 +1043,7 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
 | `GET` | `/api/runs/{id}` | 阶段、状态、已用时长、可用产物清单 |
 | `DELETE` | `/api/runs/{id}` | 终止运行中的任务 |
 | `GET` | `/api/runs/{id}/report` | Markdown 格式的最终报告 |
-| `GET` | `/api/runs/{id}/{artifact}` | `scores` / `sources` / `notes` / `steps` |
+| `GET` | `/api/runs/{id}/{artifact}` | 运行产物，包括 `scores`、`sources`、自动检查及失败运行的 `retrieval` 诊断 |
 
 并发上限默认为 2（通过 `API_MAX_CONCURRENT` 调整）——真正的瓶颈是上游 API 限速而非本机 CPU。
 超过 30 分钟的运行会被自动终止。
@@ -1065,6 +1076,10 @@ outputs/
     ├── status.json                   # 流水线阶段 + 来源数量（UI 轮询用）
     └── steps.jsonl                   # 每个 Agent 的步骤事件（实时进度用）
 ```
+
+未达到学术来源最低数量的运行不会生成报告，而会写入
+`retrieval_diagnostics.json`。API 与浏览器会展示原始输入、规范化检索主题、
+等价短语、候选数量和拒绝审计，让“检索失败”与“没有检查出问题”明确区分。
 
 三个 `*_evidence.json` 是报告撰写与评分 Agent 实际读取的内容——它们都看不到原始来源清单。这些文件记录了"一条已验证的来源如何变成一条带引用的结论"，每条发现都带有 `source_ids`、`claim_type`（`observed_fact` / `estimate` / `analyst_inference`）、置信度，以及它自身的局限性。
 
@@ -1223,10 +1238,10 @@ academic_agent/
 │   ├── pipeline_worker.py   # 子进程 Worker：运行流水线，写入 status.json + steps.jsonl
 │   ├── main.py              # 命令行入口（支持 --topic 参数）
 │   ├── evidence.py          # 证据模型、guardrail 校验、CommercializationScore 模型
-│   ├── source_pipeline.py   # 运行前确定性来源收集与验证
+│   ├── source_pipeline.py   # 六智能体启动前的结构化来源收集与验证
 │   ├── source_clients.py    # API 客户端（OpenAlex / S2 / PubMed / arXiv / Lens / Crossref / Serper）
 │   ├── pdf_extractor.py     # 上传论文的核心贡献提取
-│   ├── language.py          # 语言检测、翻译、同义词生成
+│   ├── language.py          # 语言检测、自由描述检索规划、本地化
 │   ├── llm_config.py        # 多 LLM 配置（DeepSeek / OpenAI / Anthropic；JSON 模式）
 │   ├── run_output.py        # 运行 ID、报告与评分 JSON 持久化；StepEntry TypedDict
 │   └── config/
@@ -1288,7 +1303,7 @@ URL/DOI 无效或不可达、引用编号错误、References 不一致、报告�
 
 权重设计依据：`biomedical` 中 MRL 占比最高，因为生物制品的量产工艺是商业化的主要瓶颈；`material_science` 与 `clean_tech` 以 TRL 为主，因为从实验室到量产的周期极长；`software_ai` 侧重市场牵引，因为分发成本接近于零，且专利护城河相对商业秘密更弱。
 
-方案检测按优先级顺序进行——biomedical → material_science → clean_tech → software_ai → industrial，通过关键词标记匹配（已翻译为英文的）话题字符串。选中的方案存入 `validated_sources.json`，并在 UI 评分卡中以徽章显示。
+方案检测按优先级顺序进行——biomedical → material_science → clean_tech → software_ai → industrial，通过关键词标记匹配规范化后的英文学术检索主题。选中的方案存入 `validated_sources.json`，并在 UI 评分卡中以徽章显示。
 
 所有方案权重之和为 100%，由模块加载时的 `assert` 强制校验。`overall_score` 由系统根据维度分数和当前方案自动计算——LLM 始终输出 `overall_score: 0`，系统公式自动修正。
 

@@ -215,6 +215,19 @@ class ConsistencyTabWiringTests(unittest.TestCase):
         self.assertIn("result.render(body, runId, progress)", app)
 
 
+class RetrievalDiagnosticsWiringTests(unittest.TestCase):
+    """A failed run has no report or source registry, so its diagnostic
+    artifact needs its own view rather than merely existing on disk."""
+
+    def test_the_client_offers_and_fetches_the_server_artifact(self):
+        from api.runs import _ARTIFACTS
+
+        source = _RESULT_JS.read_text(encoding="utf-8")
+        self.assertIn('artifacts.includes("retrieval")', source)
+        self.assertIn('getArtifact(runId, "retrieval")', source)
+        self.assertIn("retrieval", _ARTIFACTS)
+
+
 class InterfaceStringParityTests(unittest.TestCase):
     """Every key added to English exists in every other interface language.
 

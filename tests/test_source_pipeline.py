@@ -2,6 +2,9 @@
 
 from datetime import date
 from unittest import TestCase
+from unittest.mock import MagicMock, patch
+
+from academic_agent.language import TopicSearchPlan
 
 from academic_agent.source_pipeline import (
     SourceCollectionError,
@@ -156,6 +159,92 @@ def fake_search(query: str) -> dict:
 
 
 class SourcePipelineTests(TestCase):
+    def test_free_form_native_input_reaches_sources_through_its_alias(self) -> None:
+        """Assert the full retrieval seam, not only the planner's field value.
+
+        The old code did search OpenAlex with the synonym, but converted every
+        returned work against the longer literal translation. The value was
+        generated and sent correctly yet never reached the source collection.
+        """
+        raw_topic = "我们在做剧本创作相关的大模型，帮我看看价值如何"
+        plan = TopicSearchPlan(
+            search_topic="large language models for screenplay creation",
+            aliases=("LLM assisted screenwriting", "generative AI scriptwriting"),
+        )
+
+        abstract = (
+            "This study evaluates language-model assistance for screenplay writing, "
+            "including author control, narrative coherence, creative workflow design, "
+            "and repeated human evaluation of generated scripts in professional practice."
+        )
+
+        titles = [
+            "LLM Assisted Screenwriting for Narrative Production",
+            "Professional Writer Evaluation of LLM Assisted Screenwriting",
+            "Narrative Coherence and Author Control in LLM Assisted Screenwriting",
+        ]
+
+        def work(index: int) -> dict:
+            inverted: dict[str, list[int]] = {}
+            for position, word in enumerate(abstract.split()):
+                inverted.setdefault(word, []).append(position)
+            return {
+                "title": titles[index - 1],
+                "doi": f"https://doi.org/10.1234/screenwriting-{index}",
+                "abstract_inverted_index": inverted,
+                "primary_location": {"source": {"display_name": "Creative AI Journal"}},
+                "publication_date": "2024-01-01",
+                "cited_by_count": 10 + index,
+                "topics": [],
+            }
+
+        class AliasOnlyOpenAlex(_NullOpenAlex):
+            def __init__(self) -> None:
+                self.queries: list[str] = []
+
+            def search(self, query: str, *args, **kwargs) -> list:  # type: ignore[override]
+                self.queries.append(query)
+                if query == "LLM assisted screenwriting":
+                    return [work(index) for index in range(1, 4)]
+                return []
+
+        openalex = AliasOnlyOpenAlex()
+        with patch("academic_agent.language.plan_topic_search", return_value=plan):
+            collection = collect_source_collection(
+                raw_topic,
+                searcher=lambda _query: {"organic": []},
+                crossref=MatchingCrossref(),
+                openalex=openalex,
+                s2=_NullS2(),
+                pubmed=_NullPubMed(),
+                arxiv=_NullArXiv(),
+                lens=_NullLens(),
+                url_checker=lambda url: (True, ""),
+                minimum_sources=3,
+                maximum_sources=3,
+                accessed_date=date(2026, 8, 19),
+            )
+
+        self.assertEqual(collection.topic, plan.search_topic)
+        self.assertEqual(collection.display_topic, raw_topic)
+        self.assertEqual(collection.search_aliases, list(plan.aliases))
+        self.assertEqual(len(collection.academic_sources), 3)
+        self.assertIn(plan.search_topic, openalex.queries)
+        self.assertIn(plan.aliases[0], openalex.queries)
+
+    def test_unresolved_free_form_input_fails_before_any_retrieval(self) -> None:
+        searcher = MagicMock(return_value={"organic": []})
+        unresolved = TopicSearchPlan(search_topic="", aliases=(), resolved=False)
+
+        with patch("academic_agent.language.plan_topic_search", return_value=unresolved), \
+             self.assertRaisesRegex(SourceCollectionError, "identify an assessable technology") \
+             as caught:
+            collect_source_collection("帮我看看这个", searcher=searcher)
+
+        searcher.assert_not_called()
+        self.assertEqual(caught.exception.diagnostics["stage"], "topic_planning")
+        self.assertEqual(caught.exception.diagnostics["input_topic"], "帮我看看这个")
+
     def test_collection_returns_three_validated_registries(self) -> None:
         collection = collect_source_collection(
             "Test commercialization topic",

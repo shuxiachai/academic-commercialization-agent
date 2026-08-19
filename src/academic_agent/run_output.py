@@ -73,6 +73,23 @@ def save_error(
     return error_path
 
 
+def save_retrieval_diagnostics(
+    diagnostics: dict[str, Any],
+    run_id: str,
+    output_root: Path = DEFAULT_OUTPUT_ROOT,
+) -> Path:
+    """Persist why source collection failed before a registry could exist."""
+    if not run_id:
+        raise ValueError(f"run_id must be a non-empty string, got {run_id!r}")
+    run_directory = output_root / run_id
+    run_directory.mkdir(parents=True, exist_ok=True)
+    path = run_directory / "retrieval_diagnostics.json"
+    path.write_text(
+        json.dumps(diagnostics, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return path
+
+
 #: Task index -> filename for the three evidence-gathering agents. Their JSON
 #: output is what Tasks 4 and 6 actually read — neither the report writer nor
 #: the scorer sees the raw source registry — so without these files the middle

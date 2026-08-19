@@ -19,7 +19,18 @@ _TOPIC_PREPOSITIONS = frozenset({
 })
 
 class SourceCollectionError(RuntimeError):
-    """Raised when a truthful minimum source set cannot be assembled."""
+    """Raised when a truthful minimum source set cannot be assembled.
+
+    Diagnostics travel on the exception because a failed collection has no
+    SourceCollection object to persist. Keeping the audit only in a local
+    variable made the most important failed runs the least inspectable ones.
+    """
+
+    def __init__(
+        self, message: str, *, diagnostics: dict[str, Any] | None = None
+    ) -> None:
+        super().__init__(message)
+        self.diagnostics = dict(diagnostics or {})
 
 
 class SemanticScholarClient:

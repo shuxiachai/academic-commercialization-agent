@@ -1,9 +1,10 @@
 """Shared test fixtures and global safety nets.
 
 The autouse fixture below is a guard, not a convenience. ``collect_source_collection``
-calls ``generate_synonyms`` unconditionally and ``translate_to_english`` for any
-non-English topic, both of which reach the *paid* LLM endpoint. They swallow
-failures and fall back to the original text, so a test that triggers them looks
+calls ``plan_topic_search`` unconditionally. Its malformed-response fallback can
+also call ``translate_to_english`` for non-English input. Both paths reach the
+*paid* LLM endpoint but deliberately fall back to deterministic text on failure,
+so a test that triggers either path looks
 like it passes either way — but on a machine with network and a valid key it
 really does spend credit, and in CI it just adds latency and flakiness.
 

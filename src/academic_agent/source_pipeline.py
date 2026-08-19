@@ -9,7 +9,7 @@ import warnings
 from datetime import date, datetime, UTC
 from difflib import SequenceMatcher
 from typing import Any, Literal
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from urllib.error import URLError
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
@@ -444,6 +444,7 @@ class SearchAudit(BaseModel):
 class SourceCollection(BaseModel):
     topic: str                          # English topic used for search APIs
     display_topic: str = ""             # Original topic in user's language (for report title)
+    search_aliases: list[str] = Field(default_factory=list)  # Equivalent English phrases used for retrieval
     output_language: str = "English"    # Human-readable language name passed to LLM
     localized_headings: list[str] = Field(default_factory=list)  # Translated section headings
     weight_profile: str = "industrial"  # Scoring weight profile: industrial | biomedical | material_science
@@ -1658,6 +1659,7 @@ def _filter_by_relevance(
     min_keep: int = 2,
     *,
     skip_domain_filter: bool = False,
+    aliases: Sequence[str] = (),
 ) -> tuple[list["EvidenceSource"], list[tuple["EvidenceSource", int]]]:
     """Filter low-relevance sources and sort survivors by relevance score descending.
 
@@ -1673,12 +1675,33 @@ def _filter_by_relevance(
     "PV" instead of "photovoltaic" — terms that the domain filter would incorrectly
     reject despite the source being clearly on-topic.
     """
-    keywords = _topic_keywords(topic)
-    bigrams  = _topic_bigrams(topic)
-    domain_keywords = frozenset() if skip_domain_filter else _topic_domain_keywords(topic)
-    scored   = sorted(
-        [(s, _relevance_score(s, keywords, bigrams, domain_keywords)) for s in sources],
-        key=lambda x: x[1],
+    topic_variants = tuple(dict.fromkeys((topic, *aliases)))
+    scoring_profiles = [
+        (
+            _topic_keywords(candidate),
+            _topic_bigrams(candidate),
+            frozenset()
+            if skip_domain_filter
+            else _topic_domain_keywords(candidate),
+        )
+        for candidate in topic_variants
+    ]
+    # An alias was used to retrieve the source, so it must also be a valid
+    # context for judging that source. Previously aliases widened the network
+    # call but every result was re-checked only against the canonical phrase,
+    # making successful synonym retrieval indistinguishable from no results.
+    scored = sorted(
+        [
+            (
+                source,
+                max(
+                    _relevance_score(source, keywords, bigrams, domain_keywords)
+                    for keywords, bigrams, domain_keywords in scoring_profiles
+                ),
+            )
+            for source in sources
+        ],
+        key=lambda item: item[1],
         reverse=True,
     )
     qualified = [(s, sc) for s, sc in scored if sc >= 0]
@@ -2212,14 +2235,14 @@ def _collect_academic_primary(
         audit.accepted_source_ids.append(source.source_id)
         return True
 
-    def _fill_oa(works: list[dict], audit: SearchAudit, limit: int) -> None:
+    def _fill_oa(works: list[dict], audit: SearchAudit, limit: int, *, match_topic: str = topic) -> None:
         """Convert and dedup OpenAlex works into accepted up to limit."""
         for work in works:
             if len(accepted) >= limit:
                 break
             src_id = f"A{len(accepted) + 1}"
             source, reason = _academic_source_from_openalex(
-                work, src_id, accessed_date, topic, s2_client=s2
+                work, src_id, accessed_date, match_topic, s2_client=s2
             )
             if source is None:
                 audit.rejected_reasons.append(reason)
@@ -2299,11 +2322,11 @@ def _collect_academic_primary(
             break
         syn_audit = SearchAudit(
             domain="academic",
-            query=f"[OA-Syn:{syn[:30]}] {topic}",
+            query=f"[OA-Syn] {syn}",
             result_count=len(syn_works),
         )
         audits.append(syn_audit)
-        _fill_oa(syn_works, syn_audit, limit=maximum_sources)
+        _fill_oa(syn_works, syn_audit, limit=maximum_sources, match_topic=syn)
 
     # S2 / PubMed / arXiv supplements when still short
     if len(accepted) < maximum_sources:
@@ -2427,25 +2450,58 @@ def collect_source_collection(
     extra_market_queries: list[str] | None = None,
     weight_profile: str | None = None,
 ) -> SourceCollection:
-    # ── Language detection & translation ─────────────────────────────────────
+    # ── Language detection & search planning ─────────────────────────────────
     from academic_agent.language import (
-        detect_language, generate_synonyms, get_lang_info,
-        translate_to_english, translate_headings,
+        detect_language, get_lang_info, plan_topic_search, translate_headings,
     )
     from academic_agent.evidence import _REQUIRED_REPORT_HEADINGS
 
-    lang_code  = detect_language(topic)
-    lang_info  = get_lang_info(lang_code)
-    is_native  = not lang_code.startswith("en")
+    # Keep presentation and retrieval concerns separate. The former must show
+    # what the user actually submitted; the latter needs a compact English noun
+    # phrase rather than a literal translation of conversational instructions.
+    display_topic = " ".join(topic.split())
+    if len(display_topic) < 3:
+        raise SourceCollectionError("Research topic must contain at least 3 characters.")
+    if minimum_sources < 1 or maximum_sources < minimum_sources:
+        raise ValueError("Source count bounds are invalid.")
 
-    if is_native:
-        english_topic = translate_to_english(topic)
-        native_topic  = topic
-    else:
-        english_topic = topic
-        native_topic  = None
+    lang_code = detect_language(display_topic)
+    lang_info = get_lang_info(lang_code)
+    is_native = not lang_code.startswith("en")
+    plan = plan_topic_search(display_topic, n=2)
+    if not plan.resolved:
+        raise SourceCollectionError(
+            "Could not identify an assessable technology or research subject "
+            "in the submitted description.",
+            diagnostics={
+                "version": 1,
+                "stage": "topic_planning",
+                "input_topic": display_topic,
+                "search_topic": "",
+                "aliases": [],
+                "accepted_sources": 0,
+                "required_sources": minimum_sources,
+                "audit": [],
+            },
+        )
 
-    normalized_topic = " ".join(english_topic.split())
+    normalized_topic = " ".join(plan.search_topic.split())
+    if len(normalized_topic) < 3:
+        raise SourceCollectionError(
+            "Topic normalisation produced no usable academic search phrase.",
+            diagnostics={
+                "version": 1,
+                "stage": "topic_planning",
+                "input_topic": display_topic,
+                "search_topic": normalized_topic,
+                "aliases": list(plan.aliases),
+                "accepted_sources": 0,
+                "required_sources": minimum_sources,
+                "audit": [],
+            },
+        )
+    native_topic = display_topic if is_native else None
+    topic_synonyms = list(plan.aliases)
     # A caller-supplied profile decides retrieval, not just scoring. It used to
     # be applied by the worker *after* this function returned, which meant a
     # user who corrected an auto-detection to "biomedical" got biomedical
@@ -2464,14 +2520,6 @@ def collect_source_collection(
         )
         weight_profile = None
     weight_profile = weight_profile or _detect_weight_profile(normalized_topic)
-
-    # Generate 2 synonym phrasings to widen API search coverage.
-    # Done after translation so synonyms are always in English.
-    topic_synonyms = generate_synonyms(normalized_topic, n=2)
-    if len(normalized_topic) < 3:
-        raise SourceCollectionError("Research topic must contain at least 3 characters.")
-    if minimum_sources < 1 or maximum_sources < minimum_sources:
-        raise ValueError("Source count bounds are invalid.")
 
     # Translate report headings once so guardrails and the LLM use the same strings.
     if is_native:
@@ -2496,6 +2544,25 @@ def collect_source_collection(
     resolved_s2       = s2 or SemanticScholarClient()
     resolved_date     = accessed_date or date.today()
     all_audits: list[SearchAudit] = []
+
+    def _academic_shortage_diagnostics(stage: str, accepted_sources: int) -> dict[str, Any]:
+        """Snapshot retrieval state before a SourceCollection exists.
+
+        Successful runs persist the complete audit in validated_sources.json.
+        A failed academic minimum has no collection to serialise, so attaching
+        this snapshot to the exception is the only way those candidate counts
+        and rejection reasons can reach the run directory and the browser.
+        """
+        return {
+            "version": 1,
+            "stage": stage,
+            "input_topic": display_topic,
+            "search_topic": normalized_topic,
+            "aliases": topic_synonyms,
+            "accepted_sources": accepted_sources,
+            "required_sources": minimum_sources,
+            "audit": [audit.model_dump(mode="json") for audit in all_audits],
+        }
 
     # Default (English) web search client — only instantiated when no searcher
     # is injected. Tavily when TAVILY_API_KEY is set, else Serper — see
@@ -2618,7 +2685,10 @@ def collect_source_collection(
         raise SourceCollectionError(
             f"academic retrieval produced {len(academic)} validated sources "
             f"(OpenAlex + Serper+Crossref combined); "
-            f"at least {minimum_sources} are required."
+            f"at least {minimum_sources} are required.",
+            diagnostics=_academic_shortage_diagnostics(
+                "academic_validation", len(academic)
+            ),
         )
 
     # ── Patents: Lens.org primary → Serper fallback ───────────────────────────
@@ -2815,7 +2885,10 @@ def collect_source_collection(
     # When a paper_seed is present it will contribute one guaranteed academic source,
     # so lower min_keep by 1 to avoid discarding valid search results unnecessarily.
     _ac_min_keep = 2 if paper_seed is not None else 3
-    academic, _ac_removed = _filter_by_relevance(academic, normalized_topic, min_score=3, min_keep=_ac_min_keep)
+    academic, _ac_removed = _filter_by_relevance(
+        academic, normalized_topic, min_score=3, min_keep=_ac_min_keep,
+        aliases=topic_synonyms,
+    )
     _record_relevance_filter(_ac_removed, "academic", all_audits, min_score=3)
 
     # Patents skip the hard domain-keyword exclusion for the same reason market
@@ -2833,6 +2906,14 @@ def collect_source_collection(
     _record_relevance_filter(_mkt_removed, "market", all_audits, min_score=2)
     if paper_seed is not None:
         academic = [paper_seed] + academic
+    if len(academic) < minimum_sources:
+        raise SourceCollectionError(
+            f"academic relevance filtering retained {len(academic)} validated sources; "
+            f"at least {minimum_sources} are required.",
+            diagnostics=_academic_shortage_diagnostics(
+                "academic_relevance_filter", len(academic)
+            ),
+        )
     _renumber(academic, "A")
     _renumber(patents, "P")
     _renumber(market, "M")
@@ -2855,7 +2936,8 @@ def collect_source_collection(
 
     return SourceCollection(
         topic=normalized_topic,
-        display_topic=native_topic or normalized_topic,
+        display_topic=display_topic,
+        search_aliases=topic_synonyms,
         output_language=lang_info["name"],
         localized_headings=localized_headings,
         weight_profile=weight_profile,

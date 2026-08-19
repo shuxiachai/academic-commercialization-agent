@@ -183,11 +183,12 @@ def main() -> None:
         save_evidence_reports,
         save_report,
         save_reviewer_notes,
+        save_retrieval_diagnostics,
         save_scores,
         save_source_collection,
     )
     from academic_agent.pdf_extractor import PaperContribution, paper_to_evidence_source
-    from academic_agent.source_pipeline import collect_source_collection
+    from academic_agent.source_pipeline import SourceCollectionError, collect_source_collection
     from academic_agent.token_usage import collect_usage
 
     run_dir = DEFAULT_OUTPUT_ROOT / args.run_id
@@ -499,6 +500,20 @@ def main() -> None:
 
     except Exception as exc:
         error_details = traceback.format_exc()
+        if isinstance(exc, SourceCollectionError) and exc.diagnostics:
+            try:
+                save_retrieval_diagnostics(
+                    exc.diagnostics, run_id=args.run_id,
+                    output_root=DEFAULT_OUTPUT_ROOT,
+                )
+            except (OSError, TypeError, ValueError) as _diagnostic_err:
+                # The traceback remains the terminal artifact if even the
+                # structured diagnostic cannot be written. Reporting this
+                # separately avoids hiding the original retrieval failure.
+                print(
+                    f"[worker] save_retrieval_diagnostics failed: {_diagnostic_err}",
+                    file=sys.stderr,
+                )
         try:
             save_error(error_details, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
         except Exception as _save_err:

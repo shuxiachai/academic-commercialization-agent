@@ -1,4 +1,4 @@
-/* Result view: scorecard, report, and sources. */
+/* Result view: scorecard, report, sources, and failed-retrieval diagnostics. */
 
 import * as api from "./api.js";
 import { t } from "./i18n.js";
@@ -212,6 +212,8 @@ export async function render(container, runId, progress) {
     views.push({ id: "grounding", label: t("tab_grounding") });
   if (artifacts.includes("consistency"))
     views.push({ id: "consistency", label: t("tab_consistency") });
+  if (artifacts.includes("retrieval"))
+    views.push({ id: "retrieval", label: t("tab_retrieval") });
 
   if (!views.length) {
     container.append(el("p", "empty-note", t("no_artifacts")));
@@ -268,6 +270,10 @@ export async function render(container, runId, progress) {
         const consistency = await api.getArtifact(runId, "consistency");
         panel.innerHTML = "";
         panel.append(renderConsistency(consistency));
+      } else if (id === "retrieval") {
+        const diagnostics = await api.getArtifact(runId, "retrieval");
+        panel.innerHTML = "";
+        panel.append(renderRetrievalDiagnostics(diagnostics));
       } else {
         const sources = await api.getArtifact(runId, "sources");
         panel.innerHTML = "";
@@ -364,6 +370,75 @@ export function renderGrounding(data) {
   }
   wrap.append(el("h3", "sources__title", t("grounding_detail")));
   wrap.append(list);
+  return wrap;
+}
+
+/* ── Failed retrieval diagnostics ─────────────────────────────────────
+ * A failed pre-agent run has no validated_sources.json, so this is the only
+ * durable explanation of what the search layer understood and rejected.
+ * Every third-party string is assigned through textContent via el(); none of
+ * the audit data is trusted as HTML.
+ */
+export function renderRetrievalDiagnostics(data) {
+  const wrap = el("div", "sources");
+  wrap.append(el("p", "grounding__lede", t("retrieval_lede")));
+
+  const accepted = Number(data.accepted_sources ?? 0);
+  const required = Number(data.required_sources ?? 0);
+  const count = t("retrieval_count")
+    .replace("{accepted}", String(accepted))
+    .replace("{required}", String(required));
+  wrap.append(el("p", "consistency__clear", count));
+
+  const aliases = Array.isArray(data.aliases) && data.aliases.length
+    ? data.aliases.join(" · ")
+    : "—";
+  const fields = [
+    [t("retrieval_input"), data.input_topic || "—"],
+    [t("retrieval_search"), data.search_topic || "—"],
+    [t("retrieval_aliases"), aliases],
+  ];
+  const plan = el("ul", "sources__list");
+  for (const [label, value] of fields) {
+    const row = el("li", "source");
+    row.append(
+      el("span", "source__id", label),
+      el("span", "source__body", value),
+    );
+    plan.append(row);
+  }
+  wrap.append(plan, el("h3", "sources__title", t("retrieval_audit")));
+
+  const audit = Array.isArray(data.audit) ? data.audit : [];
+  if (!audit.length) {
+    wrap.append(el("p", "empty-note", t("retrieval_no_audit")));
+    return wrap;
+  }
+
+  const auditList = el("ul", "sources__list");
+  for (const entry of audit) {
+    const item = el("li", "source");
+    const body = el("div", "source__body");
+    body.append(el("span", "source__link", entry.query || "—"));
+    const summary = t("retrieval_query_summary")
+      .replace("{domain}", entry.domain || "academic")
+      .replace("{results}", String(entry.result_count ?? 0))
+      .replace("{accepted}", String(entry.accepted_source_ids?.length ?? 0));
+    body.append(el("span", "source__meta", summary));
+
+    const reasons = Array.isArray(entry.rejected_reasons)
+      ? entry.rejected_reasons
+      : [];
+    if (reasons.length) {
+      body.append(el("span", "source__meta", t("retrieval_rejections")));
+      const reasonList = el("ul", "notes__list");
+      for (const reason of reasons) reasonList.append(el("li", null, reason));
+      body.append(reasonList);
+    }
+    item.append(body);
+    auditList.append(item);
+  }
+  wrap.append(auditList);
   return wrap;
 }
 

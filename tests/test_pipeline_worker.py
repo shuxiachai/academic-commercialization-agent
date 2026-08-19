@@ -25,6 +25,7 @@ from academic_agent.pipeline_worker import (
     _merge_status_fields,
     _select_report_and_scores,
 )
+from academic_agent.source_clients import SourceCollectionError
 
 
 def _task(raw: str) -> SimpleNamespace:
@@ -197,6 +198,39 @@ class MainEndToEndTests(unittest.TestCase):
         self.assertEqual(status["stage"], "Error")
         self.assertIn("no API key", status["error"])
         self.assertTrue((run_dir / "error.log").exists())
+
+    def test_retrieval_failure_writes_machine_readable_diagnostics(self):
+        """A failed collection used to discard its in-memory audit exactly
+        when no validated_sources.json existed to preserve it."""
+        diagnostics = {
+            "version": 1,
+            "stage": "academic_retrieval",
+            "input_topic": "我们在做剧本创作相关的大模型",
+            "search_topic": "large language models for screenplay creation",
+            "aliases": ["LLM assisted screenwriting"],
+            "accepted_sources": 1,
+            "required_sources": 3,
+            "audit": [],
+        }
+        failure = SourceCollectionError(
+            "academic retrieval produced 1 validated source",
+            diagnostics=diagnostics,
+        )
+        run_id = "20260101T000000Z-abcdef01"
+        with patch("academic_agent.source_pipeline.collect_source_collection",
+                   side_effect=failure):
+            argv = ["pipeline_worker.py", run_id, "a topic"]
+            with patch.object(sys, "argv", argv), \
+                 patch("academic_agent.run_output.DEFAULT_OUTPUT_ROOT", self.output_root):
+                from academic_agent.pipeline_worker import main
+                with self.assertRaises(SystemExit):
+                    main()
+
+        payload = json.loads(
+            (self.output_root / run_id / "retrieval_diagnostics.json")
+            .read_text(encoding="utf-8")
+        )
+        self.assertEqual(payload, diagnostics)
 
     def test_crew_failure_after_sources_collected_still_reports_the_topic(self):
         """status.json must keep the topic even though the crew never finished

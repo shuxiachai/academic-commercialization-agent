@@ -286,6 +286,31 @@ class RunStateTests(_ApiTestCase):
         self.assertIn("report", body["artifacts"])
         self.assertIn("scores", body["artifacts"])
 
+    def test_failed_retrieval_diagnostics_reach_status_and_artifact_endpoints(self):
+        """The worker file is useful only if both API seams advertise and
+        serve it; response models have silently dropped new fields before."""
+        rid = self._make_run(
+            status={"done": True, "stage": "Error", "error": "source shortage"},
+            error_log="source shortage",
+        )
+        diagnostics = {
+            "stage": "academic_retrieval",
+            "search_topic": "large language models for screenplay creation",
+            "accepted_sources": 1,
+            "required_sources": 3,
+        }
+        (self.tmp / rid / "retrieval_diagnostics.json").write_text(
+            json.dumps(diagnostics), encoding="utf-8"
+        )
+
+        status = self.client.get(f"/api/runs/{rid}").json()
+        progress = self.client.get(f"/api/runs/{rid}/progress").json()
+        artifact = self.client.get(f"/api/runs/{rid}/retrieval").json()
+
+        self.assertIn("retrieval", status["artifacts"])
+        self.assertIn("retrieval", progress["artifacts"])
+        self.assertEqual(artifact, diagnostics)
+
     def test_path_traversal_run_id_rejected(self):
         for evil in ["..", "../etc", "..%2Fetc"]:
             with self.subTest(run_id=evil):
