@@ -232,6 +232,147 @@ class SourcePipelineTests(TestCase):
         self.assertIn(plan.search_topic, openalex.queries)
         self.assertIn(plan.aliases[0], openalex.queries)
 
+    def test_relevance_filter_shortage_triggers_strict_web_recovery(self) -> None:
+        """Recover at the seam where the production screenwriting run failed.
+
+        OpenAlex can fill the source budget with papers which mention the core
+        technology but belong to another application domain. Before this
+        regression, the web fallback saw a full pre-filter list and did not
+        run; the final relevance filter then removed every paper and failed
+        despite useful alias-led DOI results being available.
+        """
+        raw_topic = "We are building an LLM for scriptwriting; assess its value"
+        plan = TopicSearchPlan(
+            search_topic="large language models for scriptwriting",
+            aliases=(
+                "language model assistance for collaborative creative writing",
+                "generative AI for narrative story creation",
+            ),
+        )
+
+        off_topic_titles = (
+            "Large Language Models for Medical Report Classification",
+            "Large Language Models for Energy Demand Forecasting",
+            "Large Language Models for Protein Sequence Analysis",
+        )
+        off_topic_abstract = (
+            "This paper evaluates foundation models in a specialist scientific "
+            "domain, with quantitative benchmarks, controlled experiments, and "
+            "detailed error analysis across representative datasets."
+        )
+
+        def openalex_work(index: int) -> dict:
+            inverted: dict[str, list[int]] = {}
+            for position, word in enumerate(off_topic_abstract.split()):
+                inverted.setdefault(word, []).append(position)
+            return {
+                "title": off_topic_titles[index - 1],
+                "doi": f"https://doi.org/10.9999/off-topic-{index}",
+                "abstract_inverted_index": inverted,
+                "primary_location": {
+                    "source": {"display_name": "Unrelated Journal"}
+                },
+                "publication_date": "2024-01-01",
+                "cited_by_count": 12,
+                "topics": [],
+            }
+
+        class MisleadingOpenAlex(_NullOpenAlex):
+            def search_recent(self, *args, **kwargs) -> list:  # type: ignore[override]
+                return [openalex_work(index) for index in range(1, 4)]
+
+            def search(self, *args, **kwargs) -> list:  # type: ignore[override]
+                return [openalex_work(index) for index in range(1, 4)]
+
+        recovered_titles = (
+            "Language Model Assistance for Collaborative Creative Writing",
+            "Evaluating Language Model Assistance for Collaborative Creative Writing",
+            "Author Control in Language Model Assistance for Collaborative Creative Writing",
+        )
+        recovered_abstract = (
+            "This peer-reviewed study examines collaborative creative writing "
+            "with language-model assistance, measuring narrative quality, "
+            "author control, workflow efficiency, and screenwriter acceptance."
+        )
+
+        class RecoveryCrossref:
+            def lookup_doi(self, doi: str) -> dict | None:
+                try:
+                    index = int(doi.rsplit("-", 1)[1])
+                    title = recovered_titles[index - 1]
+                except (IndexError, ValueError):
+                    return None
+                return {
+                    "DOI": doi,
+                    "title": [title],
+                    "abstract": recovered_abstract,
+                    "publisher": "Journal of Computational Creativity",
+                    "published": {"date-parts": [[2025, 1, index]]},
+                    "is-referenced-by-count": 7,
+                }
+
+            def search_title(self, title: str) -> list[dict]:
+                return []
+
+        recovery_queries: list[str] = []
+
+        def recovery_search(query: str) -> dict:
+            recovery_queries.append(query)
+            if (
+                "collaborative creative writing" not in query
+                or "DOI journal" not in query
+            ):
+                return {"organic": []}
+            return {
+                "organic": [
+                    {
+                        "title": title,
+                        "link": (
+                            f"https://doi.org/10.5555/creative-writing-{index}"
+                        ),
+                        "snippet": recovered_abstract,
+                    }
+                    for index, title in enumerate(recovered_titles, start=1)
+                ]
+            }
+
+        with patch("academic_agent.language.plan_topic_search", return_value=plan):
+            collection = collect_source_collection(
+                raw_topic,
+                searcher=recovery_search,
+                crossref=RecoveryCrossref(),
+                openalex=MisleadingOpenAlex(),
+                s2=_NullS2(),
+                pubmed=_NullPubMed(),
+                arxiv=_NullArXiv(),
+                lens=_NullLens(),
+                url_checker=lambda url: (True, ""),
+                minimum_sources=3,
+                maximum_sources=3,
+                accessed_date=date(2026, 8, 19),
+            )
+
+        self.assertEqual(
+            [source.title for source in collection.academic_sources],
+            list(recovered_titles),
+        )
+        self.assertTrue(
+            any("collaborative creative writing" in query for query in recovery_queries)
+        )
+        self.assertTrue(
+            any(
+                "collaborative creative writing" in query
+                for query in collection.academic_queries
+            )
+        )
+        self.assertTrue(
+            any(
+                audit.accepted_source_ids
+                for audit in collection.audit
+                if "collaborative creative writing" in audit.query
+            )
+        )
+
     def test_unresolved_free_form_input_fails_before_any_retrieval(self) -> None:
         searcher = MagicMock(return_value={"organic": []})
         unresolved = TopicSearchPlan(search_topic="", aliases=(), resolved=False)

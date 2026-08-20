@@ -744,6 +744,8 @@ def _academic_source(
     crossref: CrossrefClient,
     accessed_date: date,
     research_topic: str,
+    *,
+    aliases: Sequence[str] = (),
 ) -> tuple[EvidenceSource | None, str]:
     item, reason = _resolve_crossref_item(result, crossref)
     if item is None:
@@ -753,8 +755,15 @@ def _academic_source(
     publisher = _clean_text(str(item.get("publisher", "")))
     if not doi or not title or not publisher:
         return None, "Crossref record lacks DOI, title, or publisher"
-    if not _title_matches_topic(title, research_topic):
-        return None, f"Crossref title is not relevant to research topic: {title!r}"
+    validation_topics = tuple(dict.fromkeys((research_topic, *aliases)))
+    if not any(
+        _title_matches_topic(title, validation_topic)
+        for validation_topic in validation_topics
+    ):
+        return None, (
+            "Crossref title is not relevant to research topic or its retrieval "
+            f"aliases: {title!r}"
+        )
 
     result_dois = {
         candidate
@@ -1717,6 +1726,8 @@ def _record_relevance_filter(
     domain: str,
     audits: list["SearchAudit"],
     min_score: int,
+    *,
+    query: str = "[Relevance-Filter]",
 ) -> None:
     """Add a post-filter audit entry for sources dropped by _filter_by_relevance.
 
@@ -1727,7 +1738,7 @@ def _record_relevance_filter(
         return
     audits.append(SearchAudit(
         domain=domain,
-        query="[Relevance-Filter]",
+        query=query,
         result_count=0,
         rejected_reasons=[
             f"score={sc} (min={min_score}) — removed '{s.title}'"
@@ -1907,6 +1918,28 @@ def _queries(
     }
 
 
+
+def _academic_recovery_queries(topic: str, aliases: Sequence[str]) -> list[str]:
+    """Return a bounded web-search pass after primary candidates are filtered.
+
+    The normal web fallback runs before the final relevance screen. A primary
+    backend can therefore fill all slots with wrong-domain papers, suppress the
+    fallback, and then leave zero sources once that screen does its job. The
+    recovery pass uses both the canonical phrase and its already-approved
+    academic aliases, but only two high-signal templates per phrase. Reusing
+    the full six-query matrix for every alias would turn one precision failure
+    into an unbounded search-billing failure.
+    """
+    variants = tuple(dict.fromkeys((topic, *aliases)))
+    queries: list[str] = []
+    for variant in variants:
+        queries.extend((
+            f"{variant} peer reviewed DOI journal",
+            f"{variant} site:scholar.google.com",
+        ))
+    return queries
+
+
 def _market_summary_relevant(summary: str, topic: str) -> bool:
     """Return False when a market source summary contains no relevant topic keyword.
 
@@ -1954,6 +1987,7 @@ def _collect_domain(
     maximum_sources: int,
     blocked_dois: set[str] | None = None,
     blocked_titles: set[str] | None = None,
+    research_aliases: Sequence[str] = (),
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
     prefix = {"academic": "A", "patent": "P", "market": "M"}[domain]
     accepted: list[EvidenceSource] = []
@@ -2038,7 +2072,8 @@ def _collect_domain(
                         continue
             if domain == "academic":
                 source, reason = _academic_source(
-                    result, _tmp_src_id, crossref, accessed_date, research_topic
+                    result, _tmp_src_id, crossref, accessed_date, research_topic,
+                    aliases=research_aliases,
                 )
             else:
                 source, reason = _web_source(
@@ -2544,6 +2579,7 @@ def collect_source_collection(
     resolved_s2       = s2 or SemanticScholarClient()
     resolved_date     = accessed_date or date.today()
     all_audits: list[SearchAudit] = []
+    academic_web_queries_attempted: set[str] = set()
 
     def _academic_shortage_diagnostics(stage: str, accepted_sources: int) -> dict[str, Any]:
         """Snapshot retrieval state before a SourceCollection exists.
@@ -2593,16 +2629,19 @@ def collect_source_collection(
     if len(academic) < minimum_sources:
         needed = maximum_sources - len(academic)
         existing_dois = {src.doi for src in academic if src.doi}
+        fallback_queries = query_map["academic"]
+        academic_web_queries_attempted.update(fallback_queries)
         try:
             fallback, fb_audits = _collect_domain(
                 "academic",
-                query_map["academic"],
+                fallback_queries,
                 resolved_searcher, resolved_crossref, url_checker,
                 resolved_date, normalized_topic,
                 minimum_sources=0,
                 maximum_sources=needed,
                 blocked_dois=existing_dois,
                 blocked_titles={src.title for src in academic},
+                research_aliases=topic_synonyms,
             )
             all_audits.extend(fb_audits)
             for src in fallback:
@@ -2891,6 +2930,58 @@ def collect_source_collection(
     )
     _record_relevance_filter(_ac_removed, "academic", all_audits, min_score=3)
 
+
+    required_search_sources = max(
+        0, minimum_sources - (1 if paper_seed is not None else 0)
+    )
+    if len(academic) < required_search_sources:
+        # The first fallback is intentionally driven by the pre-filter count.
+        # Moving it would discard useful provider diversity on healthy topics.
+        # This second, bounded pass exists only for the opposite seam: enough
+        # candidates arrived to suppress that fallback, but none survived the
+        # precision-first domain screen. Lowering the score or promoting the
+        # rejected candidates would make the run finish by admitting evidence
+        # we already know belongs to another field.
+        recovery_queries = [
+            query
+            for query in _academic_recovery_queries(
+                normalized_topic, topic_synonyms
+            )
+            if query not in academic_web_queries_attempted
+        ]
+        for query in recovery_queries:
+            if query not in query_map["academic"]:
+                query_map["academic"].append(query)
+        academic_web_queries_attempted.update(recovery_queries)
+
+        previously_seen = [
+            *academic,
+            *(source for source, _score in _ac_removed),
+        ]
+        recovered, recovery_audits = _collect_domain(
+            "academic",
+            recovery_queries,
+            resolved_searcher, resolved_crossref, url_checker,
+            resolved_date, normalized_topic,
+            minimum_sources=0,
+            maximum_sources=maximum_sources - len(academic),
+            blocked_dois={
+                source.doi for source in previously_seen
+                if source.doi is not None
+            },
+            blocked_titles={source.title for source in previously_seen},
+            research_aliases=topic_synonyms,
+        )
+        all_audits.extend(recovery_audits)
+        recovered, recovery_removed = _filter_by_relevance(
+            recovered, normalized_topic, min_score=3, min_keep=0,
+            aliases=topic_synonyms,
+        )
+        _record_relevance_filter(
+            recovery_removed, "academic", all_audits, min_score=3,
+            query="[Relevance-Recovery-Filter]",
+        )
+        academic.extend(recovered)
     # Patents skip the hard domain-keyword exclusion for the same reason market
     # sources do, only more so: a patent title claims the invention, not its
     # application. "Electronic skin, preparation method and use thereof" is
