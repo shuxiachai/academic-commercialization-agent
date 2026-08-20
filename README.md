@@ -484,6 +484,16 @@ dollar figure, rather than a `$0.00` that reads as "free". Set
 `LLM_PRICE_PER_MTOK=input:output` (USD per 1M tokens, optional third field for
 the cache-read rate) to price such a model or correct a stale entry.
 
+**Optional Agent tracing.** An opt-in OpenTelemetry/OpenInference adapter
+emits one redacted Trace across source collection, the six CrewAI tasks,
+provider SDK calls, and the post-run quality screens. Phoenix is only the OTLP
+backend: the files under `outputs/<run_id>/` remain the source of truth, and a
+missing collector degrades observability rather than failing a paid report.
+Tracing adds no LLM or search calls, never exports the capability-bearing run
+id or raw topic, and exposes its `trace_id` and explicit
+disabled/active/degraded state through both run endpoints. See
+[Agent observability](docs/observability.md) for setup and the data contract.
+
 `API_BYOK_MAX_CONCURRENT` bounds how many of those slots visitors using their
 own keys may hold at once; it defaults to one below `API_MAX_CONCURRENT`.
 Bring-your-own-key runs skip the daily cap since the visitor pays for their
@@ -1140,6 +1150,8 @@ RUN_RETENTION_DAYS=30           # N 天后自动删除已完成的运行
 **一次运行花了多少。** 每次运行按 agent 记录 token 用量，失败的运行也记——跑崩的运行照样花了钱。前端显示 token 数，以及在有价格时显示成本估算；悬停可看逐 agent 明细和这个数字的计价依据。
 
 token 是测出来的，成本不是：它需要一份本程序无法验证的价格。所以内置价格表不认识的模型，只报 token、不报金额，而不是给一个会被读成"免费"的 `$0.00`。要给这类模型定价、或修正一条过期的价格，设置 `LLM_PRICE_PER_MTOK=输入:输出`（美元 / 每 100 万 token，可选第三个字段为缓存读取价）。
+
+**可选的 Agent 链路追踪。** 项目现在可以显式启用 OpenTelemetry/OpenInference：一次运行会把来源采集、六个 CrewAI 任务、模型 Provider SDK 调用和运行后质量检查串成同一条脱敏 Trace，Phoenix 只是可替换的 OTLP 后端。`outputs/<run_id>/` 中的文件仍是事实来源；Collector 不可用只会把可观测性标成 `degraded`，不会让已经付费的报告失败。Trace 不增加 LLM/检索调用，也不上传作为能力令牌的完整 run id、原始话题、Prompt 或模型输出；两个运行接口都会返回同一个 `trace_id` 及 disabled/active/degraded 状态。配置与数据边界见 [Agent observability](docs/observability.md)。
 
 `API_BYOK_MAX_CONCURRENT` 限制自带 Key 的访客最多能同时占用几个并发槽位，默认比 `API_MAX_CONCURRENT` 少一个。自带 Key 的运行不计入每日额度（token 由访客自己付），而正是这个豁免让匿名流量——包括那些因为 Key 填错、几秒就失败的提交——可以占满全部槽位，把持有口令的人挡在外面。
 

@@ -5,9 +5,13 @@ description = "Academic research commercialization assessment agent built with C
 authors = [{ name = "Jason Chai", email = "shuxiachai@163.com" }]
 requires-python = ">=3.11,<3.14"
 dependencies = [
+    "arize-phoenix-otel>=0.16,<1",
     "crewai[tools]==1.14.7",
     "fastapi>=0.115",
     "markdown>=3.6",
+    "openinference-instrumentation-anthropic>=0.1,<1",
+    "openinference-instrumentation-crewai>=0.1,<1",
+    "openinference-instrumentation-openai>=0.1,<1",
     "pydantic>=2.0",
     "pypdfium2>=4.0",
     "reportlab>=4.0",

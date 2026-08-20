@@ -49,6 +49,9 @@ _STATUS = {
               "cost_complete": True, "agents": []},
     "claim_grounding": {"checked": 2, "ungrounded": 0, "unverifiable": 2,
                         "by_domain": {}},
+    "observability": {"state": "active", "backend": "phoenix",
+                      "trace_id": "0123456789abcdef0123456789abcdef",
+                      "delivery": "attempted", "content_capture": "redacted"},
 }
 
 
@@ -107,6 +110,9 @@ class StateReachesTheClientTests(unittest.TestCase):
                 self.assertIn(key, body)
         self.assertEqual(body["usage"]["cost_usd"], 0.0333)
         self.assertEqual(body["claim_grounding"]["unverifiable"], 2)
+        self.assertEqual(
+            body["observability"]["trace_id"], _STATUS["observability"]["trace_id"]
+        )
 
     def test_the_progress_endpoint_returns_them_with_their_values(self):
         """This endpoint names each field in its constructor, so it is the one
@@ -117,6 +123,9 @@ class StateReachesTheClientTests(unittest.TestCase):
                 self.assertIn(key, body)
         self.assertEqual(body["usage"]["cost_usd"], 0.0333)
         self.assertEqual(body["claim_grounding"]["unverifiable"], 2)
+        self.assertEqual(
+            body["observability"]["trace_id"], _STATUS["observability"]["trace_id"]
+        )
 
     def test_the_two_endpoints_do_not_disagree(self):
         """They are built differently — one splats get_state(), one names every
@@ -152,6 +161,11 @@ class AbsentDataTests(unittest.TestCase):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
                 self.assertIsNone(response.json()["usage"])
+
+    def test_a_run_before_tracing_reports_unknown_not_disabled(self):
+        """Absent instrumentation is not evidence that it was turned off."""
+        body = self.client.get(f"/api/runs/{self.run_id}").json()
+        self.assertIsNone(body["observability"])
 
     def test_null_is_distinguishable_from_zero(self):
         """A run with no usage recorded is not a run that cost nothing. The

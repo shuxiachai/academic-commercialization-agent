@@ -108,6 +108,16 @@ class MergeStatusFieldsTests(unittest.TestCase):
         data = self._merge(existing, stage="Agent 6")
         self.assertTrue(data["evidence_incomplete"])
 
+    def test_observability_state_survives_every_stage_write(self):
+        """The trace id is created before retrieval and finalized after the
+        crew. Intermediate writes must not erase the only correlation key a
+        polling client can receive."""
+        existing = {
+            "observability": {"state": "active", "trace_id": "a" * 32}
+        }
+        data = self._merge(existing, stage="Agent 4")
+        self.assertEqual(data["observability"], existing["observability"])
+
     def test_a_new_value_overwrites_the_sticky_one(self):
         existing = {"topic": "old topic"}
         data = self._merge(existing, topic="new topic")
@@ -180,6 +190,8 @@ class MainEndToEndTests(unittest.TestCase):
         status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
         self.assertEqual(status["stage"], "Done")
         self.assertTrue(status["done"])
+        self.assertEqual(status["observability"]["state"], "disabled")
+        self.assertEqual(status["observability"]["delivery"], "not_configured")
         self.assertTrue((run_dir / "commercialization_report.md").exists())
         self.assertTrue((run_dir / "commercialization_scores.json").exists())
 

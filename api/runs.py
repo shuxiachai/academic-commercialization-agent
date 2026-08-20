@@ -698,6 +698,11 @@ def get_state(run_id: str) -> dict:
         # reviewer never sees the scorecard, the scorer never sees
         # the reviewed report.
         "consistency": status.get("consistency"),
+        # Optional OTLP projection. Its state distinguishes disabled, active,
+        # and degraded; delivery="attempted" deliberately does not claim the
+        # collector persisted a span because OTLP gives this process no such
+        # acknowledgement.
+        "observability": status.get("observability"),
         "artifacts": available_artifacts(run_dir),
     }
 

@@ -146,6 +146,13 @@ class RunProgress(BaseModel):
                     "the scorecard shipped beside it. Nothing else in the "
                     "pipeline compares the two.",
     )
+    observability: dict | None = Field(
+        default=None,
+        description="OpenTelemetry setup and bounded-flush state for this "
+                    "run. 'active' means configured, while delivery remains "
+                    "an attempt because OTLP provides no persistence "
+                    "acknowledgement. Absent for runs created before tracing.",
+    )
     output_language: str = "English"
     steps: list[StepEvent] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
@@ -201,6 +208,13 @@ class RunStatus(BaseModel):
         description="Disagreements between the report's own recommendation and "
                     "the scorecard shipped beside it. Nothing else in the "
                     "pipeline compares the two.",
+    )
+    observability: dict | None = Field(
+        default=None,
+        description="OpenTelemetry setup and bounded-flush state for this "
+                    "run. 'active' means configured, while delivery remains "
+                    "an attempt because OTLP provides no persistence "
+                    "acknowledgement. Absent for runs created before tracing.",
     )
     artifacts: list[str] = Field(
         default_factory=list,

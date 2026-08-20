@@ -656,6 +656,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         usage=state.get("usage"),
         claim_grounding=state.get("claim_grounding"),
         consistency=state.get("consistency"),
+        observability=state.get("observability"),
         steps=[StepEvent(**s) for s in runs.read_steps(run_id, since=since)],
         artifacts=state.get("artifacts", []),
     )

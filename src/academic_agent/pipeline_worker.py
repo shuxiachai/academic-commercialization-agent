@@ -141,7 +141,7 @@ def _merge_status_fields(
     # once, mid-run, by the only code path that can discover it, and every
     # later status write would otherwise erase the warning it carries.
     for sticky in ("topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
-                   "claim_grounding", "consistency"):
+                   "claim_grounding", "consistency", "observability"):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
     if source_counts is not None:
@@ -173,6 +173,7 @@ def main() -> None:
         ToolUsageStartedEvent,
     )
 
+    from academic_agent.observability import start_run_telemetry
     from academic_agent.crew import AcademicAgent
     from academic_agent.run_output import (
         DEFAULT_OUTPUT_ROOT,
@@ -208,6 +209,7 @@ def main() -> None:
         failed_domains: list[str] | None = None,
         usage: dict | None = None,
         claim_grounding: dict | None = None,
+        observability: dict | None = None,
         consistency: dict | None = None,
     ) -> None:
         try:
@@ -230,6 +232,8 @@ def main() -> None:
                 data["claim_grounding"] = claim_grounding
             if consistency is not None:
                 data["consistency"] = consistency
+            if observability is not None:
+                data["observability"] = observability
             # Atomic: the API polls this file while the worker rewrites it on
             # every stage transition. A plain write leaves a window where the
             # reader sees a truncated document, and an unreadable status was
@@ -244,7 +248,13 @@ def main() -> None:
         except Exception as _e:
             print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
 
-    write_status(_STAGE_INITIAL, topic=args.topic)
+    # Start after write_status exists so configuration failures can be made
+    # visible, but before source collection so topic planning and retrieval
+    # belong to the same root Trace as the six CrewAI tasks.
+    telemetry = start_run_telemetry(args.run_id, topic_length=len(args.topic))
+    write_status(
+        _STAGE_INITIAL, topic=args.topic, observability=telemetry.snapshot()
+    )
 
     # Bound before the try so the failure path can still account for a run
     # that died after spending money. A crash halfway through is exactly when
@@ -301,12 +311,17 @@ def main() -> None:
         # so overriding it afterwards changed which rubric scored the evidence
         # without changing which evidence was gathered. A user correcting a
         # misdetected topic to "biomedical" still got the industrial search.
-        source_collection = collect_source_collection(
-            args.topic,
-            paper_seed=paper_seed,
-            extra_market_queries=extra_market_queries,
-            weight_profile=requested_profile,
-        )
+        with telemetry.span(
+            "source_collection",
+            "RETRIEVER",
+            {"academic_agent.source.paper_seeded": paper_seed is not None},
+        ):
+            source_collection = collect_source_collection(
+                args.topic,
+                paper_seed=paper_seed,
+                extra_market_queries=extra_market_queries,
+                weight_profile=requested_profile,
+            )
         if args.language and args.language != "Auto (detect from topic)":
             # Map UI dropdown values to canonical API language names.
             _UI_TO_API_LANG: dict[str, str] = {"Chinese": "Simplified Chinese"}
@@ -348,13 +363,20 @@ def main() -> None:
                 print(f"[worker] {_domain} retrieval failed, continuing without it: "
                       f"{_why[:200]}", file=sys.stderr, flush=True)
 
+        source_counts = {
+            "academic": len(source_collection.academic_sources),
+            "patent": len(source_collection.patent_sources),
+            "market": len(source_collection.market_sources),
+        }
+        telemetry.set_attributes({
+            "academic_agent.source.academic.count": source_counts["academic"],
+            "academic_agent.source.patent.count": source_counts["patent"],
+            "academic_agent.source.market.count": source_counts["market"],
+            "academic_agent.source.failed_domains": len(source_collection.failed_domains),
+        })
         write_status(
             _PARALLEL_STAGE,
-            source_counts={
-                "academic": len(source_collection.academic_sources),
-                "patent":   len(source_collection.patent_sources),
-                "market":   len(source_collection.market_sources),
-            },
+            source_counts=source_counts,
             output_language=source_collection.output_language,
             failed_domains=sorted(source_collection.failed_domains) or None,
         )
@@ -429,7 +451,10 @@ def main() -> None:
                     _write_step({"agent_idx": _i, "type": "action", "thought": "",
                                  "tool": "", "tool_input": "", "result": ""})
 
-                result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
+                with telemetry.span(
+                    "crew_execution", "CHAIN", {"academic_agent.pipeline.agents": 6}
+                ):
+                    result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
         finally:
             _steps_fh = None
             _sf.close()
@@ -456,8 +481,9 @@ def main() -> None:
         # Screens the evidence agents' quantitative claims against the text of
         # the sources they cite. Runs off tasks_output rather than the files
         # above, so a failed artifact write does not also cost the audit.
-        grounding = save_claim_grounding(
-            tasks_output, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
+        with telemetry.span("claim_grounding", "EVALUATOR"):
+            grounding = save_claim_grounding(
+                tasks_output, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
         if grounding:
             print(f"[grounding] {grounding['checked']} checkable claims, "
                   f"{grounding['ungrounded']} with a figure absent from the cited "
@@ -481,21 +507,36 @@ def main() -> None:
         # Only possible here: the reviewer never sees the scorecard and the
         # scorer never sees the reviewed report, so this is the first moment
         # anything holds both.
-        consistency = save_consistency(
-            report_raw or "", scores_raw, run_id=args.run_id,
-            output_root=DEFAULT_OUTPUT_ROOT)
+        with telemetry.span("report_score_consistency", "EVALUATOR"):
+            consistency = save_consistency(
+                report_raw or "", scores_raw, run_id=args.run_id,
+                output_root=DEFAULT_OUTPUT_ROOT)
         if consistency and consistency.get("blockers"):
             print(f"[consistency] {consistency['blockers']} finding(s): the "
                   f"report's recommendation disagrees with its own scorecard",
                   flush=True)
 
+        final_usage = snapshot_usage()
+        telemetry.set_attributes({
+            "academic_agent.usage.total_tokens": (
+                final_usage.get("total_tokens") if final_usage else None
+            ),
+            "academic_agent.usage.total_requests": (
+                final_usage.get("total_requests") if final_usage else None
+            ),
+            "academic_agent.grounding.ungrounded": (
+                grounding.get("ungrounded") if grounding else None
+            ),
+        })
+        telemetry.finish()
         write_status(
             "Done", done=True,
             output_language=source_collection.output_language,
             evidence_incomplete=not evidence_saved,
-            usage=snapshot_usage(),
+            usage=final_usage,
             claim_grounding=grounding,
             consistency=consistency,
+            observability=telemetry.snapshot(),
         )
 
     except Exception as exc:
@@ -519,7 +560,13 @@ def main() -> None:
         except Exception as _save_err:
             print(f"[worker] save_error failed: {_save_err}", file=sys.stderr)
         print(error_details, file=sys.stderr, flush=True)
-        write_status("Error", done=True, error=str(exc)[:400], usage=snapshot_usage())
+        error_usage = snapshot_usage()
+        telemetry.finish(exc)
+        write_status(
+            "Error", done=True, error=str(exc)[:400],
+            usage=error_usage,
+            observability=telemetry.snapshot(),
+        )
         sys.exit(1)
 
 
