@@ -140,6 +140,11 @@ class RunProgress(BaseModel):
                     "not be checked at all. The last number bounds what the "
                     "other two mean.",
     )
+    authority_coverage: dict | None = Field(
+        default=None,
+        description="Required regulator and clinical-registry coverage for applicable "
+                    "biomedical topics. Incomplete is a review warning, not a failed run.",
+    )
     consistency: dict | None = Field(
         default=None,
         description="Disagreements between the report's own recommendation and "
@@ -202,6 +207,11 @@ class RunStatus(BaseModel):
                     "many cited a figure absent from it, and how many could "
                     "not be checked at all. The last number bounds what the "
                     "other two mean.",
+    )
+    authority_coverage: dict | None = Field(
+        default=None,
+        description="Required regulator and clinical-registry coverage for applicable "
+                    "biomedical topics. Incomplete is a review warning, not a failed run.",
     )
     consistency: dict | None = Field(
         default=None,

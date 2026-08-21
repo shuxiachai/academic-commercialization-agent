@@ -219,8 +219,6 @@ commercialization_report_task:
       validated URL or DOI, access date, and source type.
     - Never describe inferred patent white space as a freedom-to-operate
       opportunity, non-infringing path, or proof that infringement is absent.
-    - Mention trucks, buses, or fleet applications only when at least one cited
-      source title or evidence summary explicitly mentions that application.
     - Do not broadly claim that government verification or evidence is absent
       when a government or standards source exists in the validated context.
     - Do not use descriptive labels such as [Market Source Limitations] as

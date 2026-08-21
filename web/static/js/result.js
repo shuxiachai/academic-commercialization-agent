@@ -592,6 +592,22 @@ export function reliabilityRows(progress) {
     rows.push({ id: "sources", tone: "ok",
                 label: t("rel_sources"), detail: t("rel_sources_ok") });
   }
+  const authority = progress.authority_coverage;
+  if (authority?.status === "incomplete") {
+    const missing = (authority.missing_categories ?? []).map(
+      category => t("authority_" + category),
+    ).join(", ");
+    rows.push({ id: "authority", tone: "warn", label: t("rel_authority"),
+                detail: t("rel_authority_missing").replace("{categories}", missing) });
+  } else if (authority?.status === "complete") {
+    rows.push({ id: "authority", tone: "ok", label: t("rel_authority"),
+                detail: t("rel_authority_complete") });
+  } else if (authority == null && progress.source_counts) {
+    // Old runs have no field. Absence says the check did not exist, not that
+    // every required authority category was covered.
+    rows.push({ id: "authority", tone: "muted", label: t("rel_authority"),
+                detail: t("rel_authority_unchecked") });
+  }
 
   if (progress.evidence_incomplete) {
     rows.push({ id: "trail", tone: "warn",

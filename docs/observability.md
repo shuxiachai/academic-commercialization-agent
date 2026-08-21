@@ -42,15 +42,25 @@ PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 PHOENIX_PROJECT_NAME=academic-commercialization-agent
 ```
 
-For Phoenix Cloud, use the collector endpoint and API key shown by that
-project:
+For Phoenix Cloud, launch the Space and copy its base URL. Spaces are
+tenant-scoped: with a browser URL such as
+`https://app.phoenix.arize.com/s/my-space`, configure that whole base URL:
 
 ```bash
 AGENT_OBSERVABILITY_ENABLED=true
-PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/v1/traces
+PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/<space-name>
 PHOENIX_API_KEY=replace-with-your-phoenix-key
 PHOENIX_PROJECT_NAME=academic-commercialization-agent
 ```
+
+The locked `phoenix.otel` adapter preserves the `/s/<space-name>` route and
+appends `/v1/traces`. Do not replace the Space URL with the account-root
+`https://app.phoenix.arize.com/v1/traces`: that drops the tenant route.
+
+`OTEL_EXPORTER_OTLP_HEADERS` is not another endpoint. It is a lower-level way
+to supply request headers and the Phoenix SDK accepts it as an authentication
+fallback. This project prefers `PHOENIX_API_KEY`; do not configure both unless
+you intentionally manage the raw OTLP headers.
 
 The worker uses a batch processor and waits at most two seconds at completion.
 That bound can be changed between 100 ms and 10 seconds:

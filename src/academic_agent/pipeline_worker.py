@@ -140,8 +140,10 @@ def _merge_status_fields(
     # evidence_incomplete is sticky for the same reason topic is: it is set
     # once, mid-run, by the only code path that can discover it, and every
     # later status write would otherwise erase the warning it carries.
-    for sticky in ("topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
-                   "claim_grounding", "consistency", "observability"):
+    for sticky in (
+        "topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
+        "claim_grounding", "consistency", "observability", "authority_coverage",
+    ):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
     if source_counts is not None:
@@ -211,6 +213,7 @@ def main() -> None:
         claim_grounding: dict | None = None,
         observability: dict | None = None,
         consistency: dict | None = None,
+        authority_coverage: dict | None = None,
     ) -> None:
         try:
             try:
@@ -234,6 +237,8 @@ def main() -> None:
                 data["consistency"] = consistency
             if observability is not None:
                 data["observability"] = observability
+            if authority_coverage is not None:
+                data["authority_coverage"] = authority_coverage
             # Atomic: the API polls this file while the worker rewrites it on
             # every stage transition. A plain write leaves a window where the
             # reader sees a truncated document, and an unreadable status was
@@ -379,6 +384,9 @@ def main() -> None:
             source_counts=source_counts,
             output_language=source_collection.output_language,
             failed_domains=sorted(source_collection.failed_domains) or None,
+            authority_coverage=source_collection.authority_coverage.model_dump(
+                mode="json"
+            ),
         )
 
         tracker = ProgressTracker(

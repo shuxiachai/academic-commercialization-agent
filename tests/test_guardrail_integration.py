@@ -1,6 +1,7 @@
 """Offline integration tests for context evidence and the final guardrail."""
 
 from datetime import date
+from pathlib import Path
 from types import SimpleNamespace
 
 from crewai import TaskOutput
@@ -306,3 +307,15 @@ def test_final_guardrail_normalizes_parenthetical_source_ids() -> None:
     assert success is True
     assert "documented evidence [A1]." in validated.raw
     assert "documented evidence (A1)." not in validated.raw
+
+
+def test_report_prompt_does_not_seed_unrelated_fleet_examples() -> None:
+    """A topic-agnostic prompt example leaked its vocabulary into reports."""
+    repository_root = Path(__file__).resolve().parent.parent
+    task_config = (
+        repository_root
+        / "src" / "academic_agent" / "config" / "tasks.yaml"
+    ).read_text(encoding="utf-8")
+    assert "trucks, buses, or fleet applications" not in task_config
+    evidence_module = repository_root / "src" / "academic_agent" / "evidence.py"
+    assert "fleet_terms =" in evidence_module.read_text(encoding="utf-8")

@@ -101,6 +101,32 @@ class ReliabilityPanelTests(unittest.TestCase):
         self.assertEqual(row["tone"], "warn")
         self.assertIn("market", row["detail"])
 
+    def test_missing_clinical_authority_category_is_a_warning(self):
+        """Missing coverage is a warning, never proof that no record exists."""
+        panel = self._panel(
+            source_counts={"academic": 8, "patent": 8, "market": 8},
+            authority_coverage={
+                "status": "incomplete",
+                "missing_categories": ["clinical_registry"],
+            },
+        )
+        row = self._row(panel, "authority")
+        self.assertEqual(row["tone"], "warn")
+        self.assertIn("clinical-trial registry", row["detail"])
+
+    def test_complete_authority_coverage_does_not_invent_an_unrequired_category(self):
+        """Complete means every required category, which may be regulator-only."""
+        panel = self._panel(
+            source_counts={"academic": 8, "patent": 8, "market": 8},
+            authority_coverage={
+                "status": "complete",
+                "required_categories": ["regulatory"],
+            },
+        )
+        row = self._row(panel, "authority")
+        self.assertEqual(row["tone"], "ok")
+        self.assertNotIn("clinical-trial registry", row["detail"])
+
     def test_an_unwritten_audit_trail_is_reported(self):
         panel = self._panel(evidence_incomplete=True)
         self.assertEqual(self._row(panel, "trail")["tone"], "warn")
@@ -142,6 +168,7 @@ class ReliabilityPanelTests(unittest.TestCase):
             source_counts={"academic": 8, "patent": 8, "market": 8},
         )
         self.assertEqual(self._row(panel, "sources")["tone"], "ok")
+        self.assertEqual(self._row(panel, "authority")["tone"], "muted")
         self.assertEqual(panel["verdict"]["tone"], "muted")
 
     def test_a_clean_run_is_called_unflagged_rather_than_verified(self):
@@ -152,6 +179,7 @@ class ReliabilityPanelTests(unittest.TestCase):
             consistency={"blockers": 0, "warnings": 0},
             claim_grounding={"checked": 12, "ungrounded": 0, "unverifiable": 1},
             source_counts={"academic": 8, "patent": 5, "market": 6},
+            authority_coverage={"status": "not_applicable"},
         )
         self.assertEqual(panel["verdict"]["tone"], "ok")
         self.assertNotIn("verified", panel["verdict"]["label"].lower())

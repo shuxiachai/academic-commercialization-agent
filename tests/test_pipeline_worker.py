@@ -118,6 +118,11 @@ class MergeStatusFieldsTests(unittest.TestCase):
         data = self._merge(existing, stage="Agent 4")
         self.assertEqual(data["observability"], existing["observability"])
 
+    def test_authority_coverage_survives_every_stage_write(self):
+        existing = {"authority_coverage": {"status": "incomplete"}}
+        data = self._merge(existing, stage="Agent 4")
+        self.assertEqual(data["authority_coverage"], existing["authority_coverage"])
+
     def test_a_new_value_overwrites_the_sticky_one(self):
         existing = {"topic": "old topic"}
         data = self._merge(existing, topic="new topic")
@@ -158,6 +163,12 @@ class MainEndToEndTests(unittest.TestCase):
         self._source_collection.output_language = "English"
         self._source_collection.localized_headings = []
         self._source_collection.display_topic = "a topic"
+        self._source_collection.authority_coverage.model_dump.return_value = {
+            "status": "not_applicable",
+            "required_categories": [],
+            "covered_source_ids": {},
+            "missing_categories": [],
+        }
         self._source_collection.model_dump_json.return_value = "{}"
         self._source_collection.crew_inputs.return_value = {}
 

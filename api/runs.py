@@ -693,6 +693,12 @@ def get_state(run_id: str) -> dict:
         # number is the honest one to read first — it bounds what the other
         # two can mean.
         "claim_grounding": status.get("claim_grounding"),
+        # Applicable clinical topics need both regulator and trial-registry
+        # evidence. Missing coverage is distinct from a search-domain outage:
+        # the search ran, but its bounded accepted set lacks an authority class.
+        # It is deliberately advisory so a temporary registry gap does not
+        # discard a paid report.
+        "authority_coverage": status.get("authority_coverage"),
         # Where the report's own advice disagrees with its own
         # scorecard. Nothing in the pipeline compares them: the
         # reviewer never sees the scorecard, the scorer never sees
