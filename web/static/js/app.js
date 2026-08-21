@@ -519,16 +519,22 @@ document.addEventListener("keydown", (e) => {
 
 async function refreshCapacity() {
   try {
-    const { active_runs, max_concurrent, retention_days } = await api.health();
+    const {
+      active_runs,
+      active_paid_operations = active_runs,
+      max_concurrent,
+      retention_days,
+    } = await api.health();
     const dots = $("#capacity-dots");
     dots.innerHTML = "";
     for (let i = 0; i < max_concurrent; i += 1) {
       const dot = document.createElement("span");
       dot.className = "capacity__dot";
-      dot.dataset.busy = String(i < active_runs);
+      dot.dataset.busy = String(i < active_paid_operations);
       dots.append(dot);
     }
-    $("#capacity-label").textContent = `${active_runs}/${max_concurrent} ${t("running_label")}`;
+    $("#capacity-label").textContent =
+      `${active_paid_operations}/${max_concurrent} ${t("running_label")}`;
     // Someone who uploads an unpublished paper is entitled to know how long it
     // stays here — and a deletion nobody was told about reads as data loss
     // rather than as policy. Shown on the capacity line rather than in a

@@ -1,29 +1,33 @@
-"""Tests for the public-deployment access gate and daily run cap.
+"""Tests for the public-deployment access gate and paid-operation caps.
 
 Both exist for the same reason: an interviewer-facing demo link is public
 enough that anyone who finds it could trigger LLM and Serper calls billed to
 the project owner. The gate (api/access.py + the middleware in api/main.py)
-keeps an anonymous visitor out entirely; the daily cap (api/runs.py) is the
-fallback if a shared code ever leaks. Neither exists, and neither test
-matters, once ACCESS_CODE is unset — which is the default, so local
-development and every prior test in this suite see no gate at all.
+keeps an anonymous visitor out entirely; the concurrency and daily caps
+(api/runs.py) bound both full runs and inline PDF extraction if a shared code
+ever leaks. Neither exists, and neither test matters, once ACCESS_CODE is
+unset — which is the default, so local development and every prior test in
+this suite see no gate at all.
 """
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import os
+import threading
 from datetime import date, timedelta
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from fastapi import Request, UploadFile
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from api import access, runs
+from api import access, papers, runs
 from api.main import app
 from api.models import RunRequest
 
@@ -255,7 +259,9 @@ class _RunLifecycleTestBase(unittest.TestCase):
     real subprocess or touching the real outputs/ directory."""
 
     def setUp(self):
+        # Both registries are one capacity boundary and must be isolated alike.
         runs._registry.clear()
+        runs._inline_paid_operations.clear()
         self._tmp = TemporaryDirectory()
         # Order matters: open process.log handles must close before the
         # directory holding them is removed — Windows refuses to unlink a
@@ -274,6 +280,7 @@ class _RunLifecycleTestBase(unittest.TestCase):
                 except OSError:
                     pass
         runs._registry.clear()
+        runs._inline_paid_operations.clear()
 
 
 class BYOKSubprocessEnvTests(_RunLifecycleTestBase):
@@ -413,6 +420,255 @@ class DailyCapTests(_RunLifecycleTestBase):
             runs.start_run("owner's run")              # spends the day's only slot
             with self.assertRaises(runs.DailyCapReached):
                 runs.start_run("owner's second run")
+
+    def test_launch_failure_refunds_an_unspent_daily_slot(self):
+        """A failure before Popen succeeds cannot have reached a paid API.
+
+        The concurrency reservation was already rolled back on this path, but
+        the daily charge was not. A transient filesystem or process-launch
+        failure could therefore exhaust a code's entire day without starting
+        a single worker.
+        """
+        with patch.object(runs, "DAILY_CAP", 1), \
+             patch.object(runs, "MAX_CONCURRENT", 100):
+            with patch("api.runs.subprocess.Popen", side_effect=OSError("cannot spawn")):
+                with self.assertRaises(OSError):
+                    runs.start_run("never launched", owner="alice")
+
+            with patch("api.runs.subprocess.Popen", _FakeProc):
+                runs.start_run("first billable attempt", owner="alice")
+
+
+class PaperPaidBoundaryTests(_RunLifecycleTestBase):
+    """PDF extraction and full runs draw from one paid-operation boundary.
+
+    Upload parsing itself is local work. The boundary begins immediately
+    before extraction reaches the LLM, and it must protect both the operator's
+    budget and the finite upstream/host concurrency shared with worker runs.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.addCleanup(setattr, runs, "_daily_counts", dict(runs._daily_counts))
+        self.addCleanup(setattr, runs, "_daily_date", runs._daily_date)
+        runs._daily_counts = {}
+        runs._daily_date = None
+
+        paper_root = Path(self._tmp.name) / "_papers"
+        paper_patcher = patch.object(papers, "PAPERS_ROOT", paper_root)
+        paper_patcher.start()
+        self.addCleanup(paper_patcher.stop)
+        self.client = TestClient(app)
+        self.addCleanup(self.client.close)
+
+    @staticmethod
+    def _contribution():
+        from academic_agent.pdf_extractor import PaperContribution
+
+        return PaperContribution(
+            title="A bounded extraction",
+            core_contribution="x" * 25,
+            application_domain="energy storage",
+            delta_from_prior="y" * 15,
+            commercialization_topic="z" * 15,
+            search_keywords=["a", "b", "c"],
+        )
+
+    def _upload(self, *, code: str | None = None, byok: bool = False):
+        headers = {"X-Access-Code": code} if code else {}
+        data = (
+            {"llm_provider": "deepseek", "llm_api_key": "visitor-key"}
+            if byok else {}
+        )
+        return self.client.post(
+            "/api/papers",
+            headers=headers,
+            data=data,
+            files={"file": ("paper.pdf", b"%PDF-1.4 body", "application/pdf")},
+        )
+
+    def test_operator_pdf_extraction_spends_the_same_daily_budget_as_a_run(self):
+        """The upload endpoint used to make an unmetered server-key LLM call."""
+        with patch.object(access, "ACCESS_CODE", "alice-code"), \
+             patch.object(runs, "DAILY_CAP", 1), \
+             patch.object(runs, "MAX_CONCURRENT", 10), \
+             patch("api.main.extract_paper_contribution", return_value=self._contribution()), \
+             patch("api.runs.subprocess.Popen", _FakeProc):
+            extracted = self._upload(code="alice-code")
+            submitted = self.client.post(
+                "/api/runs",
+                headers={"X-Access-Code": "alice-code"},
+                json={"topic": "a valid research topic"},
+            )
+
+        self.assertEqual(extracted.status_code, 200)
+        self.assertEqual(submitted.status_code, 429)
+        self.assertIn("daily", submitted.json()["detail"].lower())
+
+    def test_active_run_blocks_pdf_before_the_extractor_is_called(self):
+        """The two paid paths must share concurrency, not only a quota name."""
+        with patch.object(access, "ACCESS_CODE", "alice-code"), \
+             patch.object(runs, "DAILY_CAP", 0), \
+             patch.object(runs, "MAX_CONCURRENT", 1), \
+             patch("api.runs.subprocess.Popen", _FakeProc):
+            submitted = self.client.post(
+                "/api/runs",
+                headers={"X-Access-Code": "alice-code"},
+                json={"topic": "a valid research topic"},
+            )
+            with patch(
+                "api.main.extract_paper_contribution",
+                return_value=self._contribution(),
+            ) as extractor:
+                extracted = self._upload(code="alice-code")
+
+        self.assertEqual(submitted.status_code, 202)
+        self.assertEqual(extracted.status_code, 429)
+        extractor.assert_not_called()
+        self.assertFalse(papers.PAPERS_ROOT.exists() and any(papers.PAPERS_ROOT.iterdir()))
+
+    def test_inline_reservation_blocks_a_run_and_reaches_the_health_payload(self):
+        """The shared slot must work in both directions and reach the client.
+
+        The inverse seam is already covered above (a run blocks extraction).
+        This proves an inline call blocks run admission and that the health
+        response does not silently report a free slot merely because inline
+        calls do not have run ids.
+        """
+        with patch.object(access, "ACCESS_CODE", "alice-code"), \
+             patch.object(runs, "DAILY_CAP", 0), \
+             patch.object(runs, "MAX_CONCURRENT", 1), \
+             patch("api.runs.subprocess.Popen") as popen:
+            with runs.reserve_inline_paid_operation(owner="alice", byok=False):
+                capacity = self.client.get("/health").json()
+                submitted = self.client.post(
+                    "/api/runs",
+                    headers={"X-Access-Code": "alice-code"},
+                    json={"topic": "a valid research topic"},
+                )
+
+        self.assertEqual(capacity["active_runs"], 0)
+        self.assertEqual(capacity["active_paid_operations"], 1)
+        self.assertEqual(submitted.status_code, 429)
+        popen.assert_not_called()
+
+    def test_failed_extraction_releases_its_shared_concurrency_slot(self):
+        """A provider failure may spend budget but must never leak capacity.
+
+        DAILY_CAP is disabled here on purpose: once extraction begins the API
+        cannot prove that a failed provider request was unbilled, so the daily
+        admission remains spent. This test isolates the independently safe
+        guarantee that the in-process concurrency reservation is released.
+        """
+        with patch.object(access, "ACCESS_CODE", "alice-code"), \
+             patch.object(runs, "DAILY_CAP", 0), \
+             patch.object(runs, "MAX_CONCURRENT", 1), \
+             patch(
+                 "api.main.extract_paper_contribution",
+                 side_effect=RuntimeError("provider failed after admission"),
+             ), \
+             patch("api.runs.subprocess.Popen", _FakeProc):
+            failed = self._upload(code="alice-code")
+            submitted = self.client.post(
+                "/api/runs",
+                headers={"X-Access-Code": "alice-code"},
+                json={"topic": "a valid research topic"},
+            )
+
+        self.assertEqual(failed.status_code, 422)
+        self.assertEqual(submitted.status_code, 202)
+        self.assertEqual(runs._inline_paid_operations, {})
+
+    def test_cancelled_waiter_keeps_the_slot_until_its_thread_finishes(self):
+        """Cancelling asyncio.to_thread does not stop the provider call.
+
+        The reservation must therefore live inside that thread. Releasing it
+        with the cancelled request task would admit another paid operation
+        while the abandoned extraction was still running upstream.
+        """
+        from api import main
+
+        started = threading.Event()
+        release = threading.Event()
+        finished = threading.Event()
+
+        def blocking_extractor(*_args, **_kwargs):
+            started.set()
+            try:
+                if not release.wait(timeout=2):
+                    raise TimeoutError("test did not release extractor")
+                return self._contribution()
+            finally:
+                finished.set()
+
+        async def exercise_cancellation():
+            request = Request({
+                "type": "http",
+                "method": "POST",
+                "path": "/api/papers",
+                "headers": [],
+                "query_string": b"",
+                "client": ("test", 123),
+                "server": ("test", 80),
+                "scheme": "http",
+                "http_version": "1.1",
+            })
+            upload = UploadFile(
+                file=io.BytesIO(b"%PDF-1.4 body"),
+                filename="paper.pdf",
+            )
+            task = asyncio.create_task(
+                main.upload_paper(
+                    request,
+                    file=upload,
+                    llm_provider="deepseek",
+                    llm_api_key="visitor-key",
+                )
+            )
+            try:
+                self.assertTrue(await asyncio.to_thread(started.wait, 1))
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
+                self.assertEqual(runs.active_paid_operation_count(), 1)
+            finally:
+                release.set()
+                await upload.close()
+
+            self.assertTrue(await asyncio.to_thread(finished.wait, 1))
+            for _ in range(100):
+                if runs.active_paid_operation_count() == 0:
+                    break
+                await asyncio.sleep(0.001)
+            self.assertEqual(runs.active_paid_operation_count(), 0)
+
+        with patch.object(runs, "DAILY_CAP", 0), \
+             patch.object(runs, "MAX_CONCURRENT", 1), \
+             patch.object(runs, "BYOK_MAX_CONCURRENT", 1), \
+             patch("api.main.extract_paper_contribution", side_effect=blocking_extractor):
+            asyncio.run(exercise_cancellation())
+
+    def test_byok_pdf_is_daily_cap_exempt_but_not_resource_cap_exempt(self):
+        """Who pays changes the wallet limit, never the host/upstream limit."""
+        with patch.object(access, "ACCESS_CODE", "alice-code"), \
+             patch.object(runs, "DAILY_CAP", 1), \
+             patch.object(runs, "MAX_CONCURRENT", 2), \
+             patch.object(runs, "BYOK_MAX_CONCURRENT", 1), \
+             patch("api.runs.subprocess.Popen", _FakeProc), \
+             patch("api.main.extract_paper_contribution", return_value=self._contribution()):
+            byok = runs.BYOKCredentials("deepseek", "visitor-key", "search-key")
+            runs.start_run("visitor run", byok=byok)
+            extracted = self._upload(byok=True)
+
+        self.assertEqual(extracted.status_code, 429)
+
+        # The refused BYOK extraction did not consume the operator's daily
+        # budget. End the synthetic visitor run so only that rule is tested.
+        runs._registry.clear()
+        with patch.object(runs, "DAILY_CAP", 1), \
+             patch.object(runs, "MAX_CONCURRENT", 2), \
+             patch("api.runs.subprocess.Popen", _FakeProc):
+            runs.start_run("operator run", owner="alice")
 
 
 class BYOKSubmissionTests(_RunLifecycleTestBase):

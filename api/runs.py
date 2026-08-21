@@ -14,6 +14,8 @@ the same run through files without sharing process memory.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 import json
 import os
 import re
@@ -23,7 +25,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
@@ -32,17 +34,16 @@ from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
 # not to whichever client submitted or polls the run.
 TIMEOUT_SECONDS = 1800
 
-# Concurrent workers. The real ceiling is upstream API rate limits, not local
-# CPU — each run issues dozens of requests to OpenAlex/Serper/the LLM.
+# Concurrent paid operations, not merely worker processes. A full assessment
+# occupies a subprocess; PDF contribution extraction calls the same upstream
+# LLM inline, so both paths draw from this one host/provider ceiling.
 MAX_CONCURRENT = int(os.getenv("API_MAX_CONCURRENT", "2"))
 
-# How many of those slots visitors bringing their own key may hold at once.
-# They are exempt from the daily cap because they pay for their own tokens,
-# which left them free to occupy every slot — and a submission whose key is
-# wrong still holds one while it fails. So the people the deployment exists
-# for, the ones handed an access code, could be shut out by anonymous traffic
-# that costs the operator nothing. Defaults to leaving one slot that only a
-# code holder can take.
+# How many paid-operation slots visitors bringing their own key may hold at
+# once, across worker runs and inline PDF extraction. They are exempt from the
+# daily wallet cap because they pay for their own tokens, but not from finite
+# host/provider capacity. Defaults to leaving one slot that only an
+# access-code holder can take.
 _BYOK_MAX_CONCURRENT_ENV = os.getenv("API_BYOK_MAX_CONCURRENT")
 BYOK_MAX_CONCURRENT: int | None = (
     int(_BYOK_MAX_CONCURRENT_ENV) if _BYOK_MAX_CONCURRENT_ENV else None
@@ -63,13 +64,18 @@ def byok_limit() -> int:
         return BYOK_MAX_CONCURRENT
     return max(1, MAX_CONCURRENT - 1)
 
-# Runs allowed per UTC day, independent of concurrency — applied separately
-# to each access code (see _daily_counts), not as one total every code
-# shares. The concurrency cap limits how many runs are billed at once; it
-# does nothing to stop one leaked code from triggering hundreds of runs
-# sequentially over a day. 0 disables the cap — the default for local
-# development.
-DAILY_CAP = int(os.getenv("API_DAILY_RUN_CAP", "0"))
+# Operator-funded paid operations admitted per UTC day, applied separately to
+# each access code. Both a full run and PDF contribution extraction reach a
+# paid provider, so counting only runs left an unmetered endpoint beside the
+# cap. BYOK operations remain exempt because the visitor pays.
+#
+# API_DAILY_RUN_CAP is retained as a deployment-compatible fallback. The new
+# name describes the boundary accurately; existing Railway environments do
+# not have to change atomically with this release. 0 disables the cap.
+_DAILY_CAP_ENV = os.getenv("API_DAILY_PAID_OPERATION_CAP")
+if _DAILY_CAP_ENV is None:
+    _DAILY_CAP_ENV = os.getenv("API_DAILY_RUN_CAP", "0")
+DAILY_CAP = int(_DAILY_CAP_ENV)
 
 # Days a finished run is kept before it is deleted automatically. 0 (the
 # default) keeps runs forever, which is right for local development where the
@@ -246,7 +252,7 @@ class ConcurrencyLimitReached(Exception):
 
 
 class DailyCapReached(Exception):
-    """Raised when the day's run budget is exhausted."""
+    """Raised when the day's operator-funded paid-operation budget is exhausted."""
 
 
 class RunNotFound(Exception):
@@ -259,24 +265,23 @@ class RunStillActive(Exception):
 
 _registry: dict[str, _Handle] = {}
 
-# Runs started so far today (UTC), per owner, and the date the counts apply
-# to — reset lazily on the next start_run call rather than with a scheduled
-# task. Keyed by owner (None = no code configured / BYOK is exempt before
-# this is ever consulted) so the cap is a per-person budget, not one pool
-# every code holder draws from: ten people sharing a single DAILY_CAP meant
-# one enthusiastic tester could exhaust everyone else's day, which defeats
-# the point of giving each person their own code in the first place.
-_daily_counts: dict[str | None, int] = {}
-_daily_date = None
+# Inline paid operations live in the API process rather than a subprocess, so
+# they cannot be represented by _Handle without making cancellation, polling
+# and run history lie. The opaque token exists only for the duration of the
+# context manager; the bool records whether it consumes the BYOK share.
+_inline_paid_operations: dict[object, bool] = {}
 
-# Guards _registry. FastAPI runs `def` endpoints in a thread pool, so two
-# submissions genuinely execute in parallel — the cap was checked and written
-# without any lock, and the gap between them spans a mkdir and a Popen. Six
-# concurrent submissions against a cap of 2 all started. Each run is a
-# six-agent LLM pipeline, so exceeding the cap costs real money and pushes
-# concurrent retrieval into upstream rate limits.
-#
-# Reentrant because start_run calls active_count while holding it.
+# Operator-funded paid operations admitted so far today (UTC), per owner, and
+# the date the counts apply. Reset lazily on the next admission rather than by
+# a scheduled task. Keyed by owner so ten separate access codes do not exhaust
+# one shared pool. BYOK is exempt before this counter is consulted.
+_daily_counts: dict[str | None, int] = {}
+_daily_date: date | None = None
+
+# Guards the worker registry, inline reservations, and daily accounting as one
+# admission decision. FastAPI executes sync endpoints in a thread pool and PDF
+# extraction in asyncio.to_thread, so check-and-reserve must be atomic across
+# both paths. Reentrant because admission reaps finished worker handles.
 _registry_lock = threading.RLock()
 
 
@@ -299,6 +304,109 @@ def active_byok_count() -> int:
     active_count()
     with _registry_lock:
         return sum(1 for h in _registry.values() if h.byok)
+
+
+def _active_paid_operation_count_locked() -> int:
+    """Live worker runs plus inline LLM calls; caller holds _registry_lock."""
+    return active_count() + len(_inline_paid_operations)
+
+
+def _active_byok_paid_operation_count_locked() -> int:
+    """The BYOK share across both execution paths; caller holds the lock."""
+    return active_byok_count() + sum(_inline_paid_operations.values())
+
+
+def capacity_counts() -> tuple[int, int]:
+    """Atomic (worker runs, all paid operations) capacity snapshot."""
+    with _registry_lock:
+        active_runs = active_count()
+        return active_runs, active_runs + len(_inline_paid_operations)
+
+
+def active_paid_operation_count() -> int:
+    """Current worker runs plus inline provider calls sharing the host cap."""
+    return capacity_counts()[1]
+
+
+def _daily_window_locked() -> date:
+    """Reset the per-owner ledger at UTC midnight; caller holds the lock."""
+    global _daily_date
+    today = datetime.now(UTC).date()
+    if _daily_date != today:
+        _daily_date = today
+        _daily_counts.clear()
+    return today
+
+
+def _admit_paid_operation_locked(*, owner: str | None, byok: bool) -> date | None:
+    """Check every limit and charge one operation atomically.
+
+    The returned date identifies an operator-funded charge that can be
+    refunded only if a worker process fails to launch. Once an inline
+    extraction begins, an exception cannot prove that the provider was never
+    reached, so that attempt remains charged even though its concurrency slot
+    is always released.
+    """
+    charged_on: date | None = None
+    if not byok:
+        charged_on = _daily_window_locked()
+        owner_count = _daily_counts.get(owner, 0)
+        if DAILY_CAP and owner_count >= DAILY_CAP:
+            raise DailyCapReached(
+                f"Daily limit reached: {DAILY_CAP} operator-funded paid "
+                "operations already admitted today"
+            )
+
+    active = _active_paid_operation_count_locked()
+    if active >= MAX_CONCURRENT:
+        raise ConcurrencyLimitReached(
+            f"{active} of {MAX_CONCURRENT} concurrent paid operations in use"
+        )
+
+    if byok:
+        active_byok = _active_byok_paid_operation_count_locked()
+        if active_byok >= byok_limit():
+            raise ConcurrencyLimitReached(
+                f"{active_byok} of {byok_limit()} concurrent bring-your-own-key "
+                "paid operations in use; the remaining capacity is reserved "
+                "for access-code holders"
+            )
+
+    if charged_on is not None:
+        _daily_counts[owner] = _daily_counts.get(owner, 0) + 1
+    return charged_on
+
+
+def _refund_daily_charge_locked(owner: str | None, charged_on: date | None) -> None:
+    """Refund a pre-provider launch failure without touching a new UTC day."""
+    if charged_on is None or _daily_date != charged_on:
+        return
+    remaining = _daily_counts.get(owner, 0)
+    if remaining <= 1:
+        _daily_counts.pop(owner, None)
+    else:
+        _daily_counts[owner] = remaining - 1
+
+
+@contextmanager
+def reserve_inline_paid_operation(
+    *, owner: str | None, byok: bool
+) -> Iterator[None]:
+    """Reserve one shared slot for an in-process provider call.
+
+    Concurrency is released in finally on success, cancellation, or failure.
+    Daily accounting deliberately is not: after the extractor starts, this
+    layer cannot know whether a failed provider request was billed.
+    """
+    token = object()
+    with _registry_lock:
+        _admit_paid_operation_locked(owner=owner, byok=byok)
+        _inline_paid_operations[token] = byok
+    try:
+        yield
+    finally:
+        with _registry_lock:
+            _inline_paid_operations.pop(token, None)
 
 
 def run_dir_for(run_id: str) -> Path:
@@ -344,45 +452,24 @@ def start_run(
     so list_runs() can show each code holder only the runs made under their
     own code.
     """
-    # Claim a slot and publish the run_id in one atomic step. Checking the cap
-    # and registering the handle separately let parallel submissions all pass
-    # the check before any of them registered.
-    #
-    # The slot is reserved with a placeholder handle so the subprocess launch —
-    # the slow part — happens outside the lock. A reservation counts towards
-    # the cap, so a burst cannot slip through while processes are starting.
+    # Claim the wallet budget and the shared provider/host slot in one atomic
+    # step. The placeholder remains visible while the slow filesystem and
+    # subprocess launch happen outside the lock, so a concurrent PDF
+    # extraction cannot slip through the same slot.
+    run_id = create_run_id()
+    charged_on: date | None = None
     with _registry_lock:
-        global _daily_date
-        if byok is None:
-            today = datetime.now(UTC).date()
-            if _daily_date != today:
-                _daily_date = today
-                _daily_counts.clear()
-            owner_count = _daily_counts.get(owner, 0)
-            if DAILY_CAP and owner_count >= DAILY_CAP:
-                raise DailyCapReached(f"{DAILY_CAP} runs already used today")
-
-        if active_count() >= MAX_CONCURRENT:
-            raise ConcurrencyLimitReached(
-                f"{active_count()} of {MAX_CONCURRENT} concurrent runs in use"
-            )
-        # Checked after the global cap, not instead of it: a code holder is
-        # still bounded by MAX_CONCURRENT, and only BYOK runs are bounded
-        # twice. The message names the BYOK limit specifically so a visitor
-        # is not told the service is busy when the deployment is idle.
-        if byok is not None and active_byok_count() >= byok_limit():
-            raise ConcurrencyLimitReached(
-                f"{active_byok_count()} of {byok_limit()} concurrent "
-                "bring-your-own-key runs in use; the remaining capacity is "
-                "reserved for access-code holders"
-            )
-        run_id = create_run_id()
-        if byok is None:
-            _daily_counts[owner] = _daily_counts.get(owner, 0) + 1
-        _registry[run_id] = _Handle(
-            run_id=run_id, topic=topic, proc=_PendingProcess(), log_file=None,
-            byok=byok is not None,
+        charged_on = _admit_paid_operation_locked(
+            owner=owner, byok=byok is not None
         )
+        try:
+            _registry[run_id] = _Handle(
+                run_id=run_id, topic=topic, proc=_PendingProcess(), log_file=None,
+                byok=byok is not None,
+            )
+        except BaseException:
+            _refund_daily_charge_locked(owner, charged_on)
+            raise
 
     run_dir = run_dir_for(run_id)
 
@@ -420,6 +507,10 @@ def start_run(
     except BaseException:
         with _registry_lock:
             _registry.pop(run_id, None)
+            # No worker exists, so no LLM/search provider could have been
+            # reached. Unlike a failed running worker, this attempt is safe
+            # to refund rather than silently consuming the user's day.
+            _refund_daily_charge_locked(owner, charged_on)
         raise
 
     with _registry_lock:
