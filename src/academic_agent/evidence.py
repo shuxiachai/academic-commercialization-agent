@@ -1274,6 +1274,37 @@ def _validate_currency_unit_contradictions(
     return errors
 
 
+_REPORT_PATENT_OVERCLAIM_RE = re.compile(
+    r"\b(?:freedom-to-operate opportunit(?:y|ies)|without infringing|"
+    r"non[- ]infringing|clear freedom to operate)\b",
+    re.IGNORECASE,
+)
+_NEGATED_PATENT_OVERCLAIM_PREFIX_RE = re.compile(
+    r"\b(?:never|cannot|can't|does\s+not|do\s+not|did\s+not|"
+    r"is\s+not|are\s+not|must\s+not|should\s+not)\b"
+    r"(?P<scope>[^.!?;]{0,120})$",
+    re.IGNORECASE,
+)
+_NEGATION_SCOPE_BREAK_RE = re.compile(
+    r"\b(?:but|however|yet|although|except)\b", re.IGNORECASE
+)
+
+
+def _patent_overclaim_is_negated(line: str, match_start: int) -> bool:
+    """Recognise an explicit disclaimer without hiding a later positive claim.
+
+    The scope is intentionally local and stops at sentence punctuation. A
+    contrast conjunction after the negation also ends the exemption: "not legal
+    advice, but this is an FTO opportunity" remains an overclaim.
+    """
+
+    clause_prefix = re.split(r"[.!?;]", line[:match_start])[-1][-160:]
+    negation = _NEGATED_PATENT_OVERCLAIM_PREFIX_RE.search(clause_prefix)
+    if negation is None:
+        return False
+    return _NEGATION_SCOPE_BREAK_RE.search(negation.group("scope")) is None
+
+
 def _validate_high_risk_claims(
     body: str,
     allowed_sources: dict[str, EvidenceSource],
@@ -1300,9 +1331,9 @@ def _validate_high_risk_claims(
         ]
         for label in noncanonical_labels:
             errors.append(f"Noncanonical citation label on report line {line_number}: [{label}].")
-        if re.search(
-            r"\b(?:freedom-to-operate opportunit|without infringing|non[- ]infringing|clear freedom to operate)",
-            lowered,
+        if any(
+            not _patent_overclaim_is_negated(lowered, match.start())
+            for match in _REPORT_PATENT_OVERCLAIM_RE.finditer(lowered)
         ):
             errors.append(
                 f"Patent legal overclaim on report line {line_number}: "
@@ -1968,7 +1999,12 @@ def _apply_reviewer_corrections(
     reasons: list[str] = []
     for index, correction in enumerate(plan.corrections, start=1):
         if correction.find == correction.replace:
-            return None, [], f"Correction {index} is a no-op."
+            # A no-op cannot alter the validated draft. Rejecting it spends the
+            # reviewer's only retry on asking the model to express "no change"
+            # differently, and the paid pilot showed that it may repeat the same
+            # harmless plan and discard the whole run. Drop it exactly as an empty
+            # correction; real edits in the same plan still pass through below.
+            continue
         if re.search(r"(?m)^#{1,6}\s", correction.find + "\n" + correction.replace):
             return None, [], f"Correction {index} attempts to edit a section heading."
 

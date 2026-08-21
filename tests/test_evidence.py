@@ -361,6 +361,35 @@ Only public evidence was reviewed.
 
         self.assertTrue(any("Patent legal overclaim" in error for error in errors))
 
+    def test_negated_patent_overclaim_phrase_is_not_rejected(self) -> None:
+        """A disclaimer naming the forbidden claim is not making that claim."""
+        report = self.valid_report.replace(
+            "This preliminary patent scan is not legal advice or a freedom-to-operate opinion.",
+            (
+                "This preliminary patent scan is not legal advice or a freedom-to-operate opinion.\n"
+                "The discussion never describes inferred white space as a "
+                "freedom-to-operate opportunity or proof that infringement is absent."
+            ),
+        )
+
+        errors = validate_final_report(report, self.allowed)
+
+        self.assertFalse(any("Patent legal overclaim" in error for error in errors))
+
+    def test_contrast_after_disclaimer_does_not_hide_an_overclaim(self) -> None:
+        """Negation in an earlier clause must not excuse a later positive claim."""
+        report = self.valid_report.replace(
+            "This preliminary patent scan is not legal advice or a freedom-to-operate opinion.",
+            (
+                "This preliminary patent scan is not legal advice, but it identifies a "
+                "freedom-to-operate opportunity [A1]."
+            ),
+        )
+
+        errors = validate_final_report(report, self.allowed)
+
+        self.assertTrue(any("Patent legal overclaim" in error for error in errors))
+
     def test_broad_no_government_claim_contradicts_government_source(self) -> None:
         government_source = EvidenceSource(
             source_id="M1",

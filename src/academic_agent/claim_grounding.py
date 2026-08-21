@@ -44,10 +44,14 @@ _SUBSTANTIVE_SUMMARY_CHARS = 400
 #: figure must carry a decimal point, a percent sign, a unit, or be large.
 _LARGE_ENOUGH = 1000
 
+# Alphabetic units must end at the token boundary. Without this, ``eur`` at
+# the start of "European" turns an ordinary publication year into a currency
+# figure; the optional unit group then bypasses the bare-year exclusion below.
 _UNIT_PATTERN = (
     r"(?:%|percent|wh/kg|wh/l|mah|kwh|mwh|gwh|kw|mw|gw|mpa|gpa|kpa|"
-    r"°c|℃|k\b|nm|µm|um|mm|cm|km|kg|mg|µg|ug|ml|mol|hz|khz|mhz|ghz|"
-    r"usd|eur|billion|million|trillion|bn|yr|years?|months?|cycles?|x\b)"
+    r"°c|℃|k|nm|µm|um|mm|cm|km|kg|mg|µg|ug|ml|mol|hz|khz|mhz|ghz|"
+    r"usd|eur|billion|million|trillion|bn|yr|years?|months?|cycles?|x)"
+    r"(?![A-Za-z])"
 )
 
 #: Spellings of the same unit. A claim writing "%" against a source writing
@@ -69,7 +73,7 @@ def _normalize_unit(unit: str) -> str:
 
 
 _FIGURE_RE = re.compile(
-    r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*" + _UNIT_PATTERN + r"?",
+    r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*(?:" + _UNIT_PATTERN + r")?",
     re.IGNORECASE,
 )
 

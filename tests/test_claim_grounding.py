@@ -85,6 +85,13 @@ class FigureExtractionTests(TestCase):
     def test_a_year_with_a_unit_is_a_quantity_not_a_date(self):
         self.assertIn(("2024", "gwh"), checkable_figures("shipped 2024 GWh of capacity"))
 
+    def test_year_before_european_is_not_misread_as_eur_currency(self):
+        """The paid pilot's "2013 European patent" is a date plus adjective."""
+        self.assertEqual(checkable_figures("The 2013 European patent describes casting"), [])
+
+    def test_explicit_eur_amount_after_year_shaped_number_remains_checkable(self):
+        self.assertEqual(checkable_figures("The contract value was 2013 EUR"), [("2013", "eur")])
+
     def test_round_numbers_behind_a_comparative_are_bounds_not_quotations(self):
         """The false positives that motivated this rule. Each is sound given
         sources stating a larger figure."""

@@ -222,3 +222,76 @@ saved output but does not repair the missing runtime guardrail-attempt history.
 The one-run cost differences are descriptive pilot observations, not an
 architecture decision. The paid pilot must be rerun from the corrected commit
 before the ninety-cell study can be considered.
+
+## Corrected Stage 1 pilot outcome - 2026-08-21
+
+The three approved cells were rerun from merge commit `2d929429` against the
+same frozen case 03 and fixture digest `8643e7369b337b9b`. The persisted
+experiment is `outputs/ablation/20260821T130155Z-2d929429`.
+
+| Arm | Status | Requests | Tokens | Observed cost | Elapsed |
+|---|---:|---:|---:|---:|---:|
+| Monolith | success | 1 | 16,484 | $0.008272 | 56.758 s |
+| Specialists + writer | success | 4 | 37,558 | $0.017908 | 64.534 s |
+| Full | reviewer guardrail failure | 6 | 67,940 | $0.028757 | 89.574 s |
+
+Total observed spend was $0.054937, below the approved $0.20 soft ceiling.
+Every provider request was attributed to a priced model, and all three cells
+used fixture evidence rather than live retrieval.
+
+The corrected measurement seam worked. The monolith recorded one report
+guardrail call; the four-node arm recorded one call for each of its four tasks;
+and the full arm recorded one call for each evidence task and the writer plus
+two failed reviewer calls, including one retry. This resolves the instrumentation
+defect found in the first pilot without changing production guardrail behavior.
+
+The full arm did not reach the scorer or persist a final report. On both
+reviewer attempts, the model returned at least one correction whose `find` and
+`replace` strings were identical while explaining that no change was needed.
+The reviewer guardrail correctly rejected the no-op, but the second identical
+failure exhausted its single retry and failed the whole crew. This is a real
+workflow-reliability result, not a harness or persistence defect, and triggers
+the Stage 1 stop rule. No full ninety-cell study should run until the no-op
+review path is made failure-tolerant and another three-cell pilot succeeds.
+
+The two completed reports also failed the offline report contract: the
+monolith had 12 findings and the four-node arm had 3. The monolith introduced
+an uncited automotive cycle-life threshold, which the numeric grounding screen
+correctly identified as unsupported. The four-node screen's `2013 eur` finding
+is a false positive caused by reading the phrase "2013 European patent" as a
+currency amount. Its patent-framing finding is also a negated disclaimer that
+contains the prohibited phrase rather than an affirmative legal claim. These
+precision defects must be separated from genuine report defects before the
+quality metrics can support an architecture decision.
+
+This corrected pilot still does not decide P1-P4. P1 was not supported in this
+single case because both completed arms passed the report guardrail on their
+first attempt. P2 and the common full-arm quality outcomes are unavailable
+because the reviewer stopped the full arm. The four-node arm used 55.3% of the
+failed full arm's tokens and 62.3% of its observed cost, but the full arm never
+reached its scorer, so those differences are diagnostic only.
+
+### Post-pilot reliability fixes - 2026-08-21
+
+The three pilot defects were reproduced at their delivery or metric seams before
+implementation: the new focused selection failed three tests while the explicit
+EUR amount and contrast-clause patent overclaim controls still passed.
+
+The reviewer now treats an identical `find`/`replace` pair as an empty
+correction rather than spending its only retry on a harmless representation of
+"no change." Real edits in the same plan still follow the exact-match rules,
+and the preserved draft still passes the complete delivered-report validation.
+Alphabetic numeric units now require a token boundary, so "2013 European" is a
+year and adjective while "2013 EUR" remains a checkable amount. Patent-framing
+detection recognises a locally negated disclaimer but ends that exemption at
+punctuation or a contrast such as "but," preserving positive-overclaim checks.
+
+A zero-network re-analysis with the project functions leaves the monolith's 12
+contract findings and one unsupported numeric claim unchanged. The four-node
+report moves from three to two contract findings because the negated patent
+disclaimer is no longer misclassified, and its grounding changes from one
+unsupported line out of seven checked to zero out of six: the removed line is
+the publication-year false positive. The genuine monolith `1,000+` automotive
+cycle-life threshold remains unsupported. The failed full cell cannot be
+reconstructed from persisted artifacts, so a successful three-cell paid rerun
+is still required before Stage 2 can be considered.
