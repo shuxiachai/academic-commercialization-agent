@@ -693,6 +693,22 @@ def get_state(run_id: str) -> dict:
         # number is the honest one to read first — it bounds what the other
         # two can mean.
         "claim_grounding": status.get("claim_grounding"),
+        # Applicable clinical topics need both regulator and trial-registry
+        # evidence. Missing coverage is distinct from a search-domain outage:
+        # the search ran, but its bounded accepted set lacks an authority class.
+        # It is deliberately advisory so a temporary registry gap does not
+        # discard a paid report.
+        "authority_coverage": status.get("authority_coverage"),
+        # A combined topic can retrieve abundant evidence for one component
+        # while silently missing another. This advisory field exposes that
+        # bounded-set coverage without turning it into an absence claim.
+        "component_coverage": status.get("component_coverage"),
+
+        # Review is a separate model pass after the draft's deterministic
+        # validation. A fallback remains a completed run, but it must not look
+        # indistinguishable from an inspection that actually happened.
+        "quality_review": status.get("quality_review"),
+
         # Where the report's own advice disagrees with its own
         # scorecard. Nothing in the pipeline compares them: the
         # reviewer never sees the scorecard, the scorer never sees

@@ -23,6 +23,7 @@ from academic_agent.pipeline_worker import (
     _IDX_REVIEW,
     _IDX_SCORING,
     _merge_status_fields,
+    _recover_from_reviewer_failure,
     _select_report_and_scores,
 )
 from academic_agent.source_clients import SourceCollectionError
@@ -82,6 +83,109 @@ class SelectReportAndScoresTests(unittest.TestCase):
         report, scores = _select_report_and_scores(tasks, fallback_raw="unused")
         self.assertEqual(report, "t4")
         self.assertEqual(scores, "t5")
+class ReviewerFallbackTests(unittest.TestCase):
+    """Recovery is allowed only at the Task 4 → Task 5 seam."""
+
+    def _crew(self):
+        tasks = [SimpleNamespace(output=_task(f"t{i}")) for i in range(4)]
+        review = SimpleNamespace(output=None)
+        scoring = SimpleNamespace(
+            output=None,
+            context=tasks[:3],
+            callback=object(),
+        )
+        tasks.extend([review, scoring])
+        crew_callback = object()
+        crew = SimpleNamespace(tasks=tasks, task_callback=crew_callback)
+
+        def execute_sync(*, context):
+            self.assertEqual(context, "evidence context")
+            self.assertIsNone(scoring.callback)
+            self.assertIsNone(crew.task_callback)
+            scoring.output = _task("score")
+            return scoring.output
+
+        scoring.execute_sync = execute_sync
+        return crew, scoring, crew_callback
+
+    @patch(
+        "crewai.utilities.formatter.aggregate_raw_outputs_from_tasks",
+        return_value="evidence context",
+    )
+    def test_validated_draft_and_independent_score_survive_reviewer_failure(self, _aggregate):
+        crew, scoring, crew_callback = self._crew()
+        original_scoring_callback = scoring.callback
+        completed = []
+
+        recovered = _recover_from_reviewer_failure(
+            crew, RuntimeError("guardrail exhausted"), task_complete=completed.append
+        )
+
+        self.assertIsNotNone(recovered)
+        outputs, quality = recovered
+        self.assertEqual(outputs[_IDX_REVIEW].raw, "t3")
+        self.assertEqual(outputs[_IDX_SCORING].raw, "score")
+        self.assertEqual(quality["status"], "fallback")
+        self.assertEqual(len(completed), 2)
+        self.assertIs(scoring.callback, original_scoring_callback)
+        self.assertIs(crew.task_callback, crew_callback)
+
+    def test_missing_validated_draft_is_not_recoverable(self):
+        crew, _scoring, _callback = self._crew()
+        crew.tasks[3].output = None
+        self.assertIsNone(
+            _recover_from_reviewer_failure(crew, RuntimeError("writer failed"))
+        )
+
+    def test_completed_reviewer_is_not_misclassified_as_reviewer_failure(self):
+        crew, _scoring, _callback = self._crew()
+        crew.tasks[_IDX_REVIEW].output = _task("reviewed")
+        self.assertIsNone(
+            _recover_from_reviewer_failure(crew, RuntimeError("scorer failed"))
+        )
+
+    def _merge(self, existing, **overrides):
+        base = dict(
+            stage="s", done=False, error=None, output_language=None,
+            source_counts=None, topic=None,
+        )
+        base.update(overrides)
+        return _merge_status_fields(existing, **base)
+
+    def test_output_language_survives_an_error_write_that_omits_it(self):
+        existing = {"output_language": "Simplified Chinese"}
+        data = self._merge(existing, stage="Error", done=True, error="review failed")
+        self.assertEqual(data["output_language"], "Simplified Chinese")
+
+    def test_explicit_output_language_still_overrides_the_sticky_value(self):
+        existing = {"output_language": "Simplified Chinese"}
+        data = self._merge(existing, output_language="English")
+        self.assertEqual(data["output_language"], "English")
+
+    def test_quality_review_state_survives_later_writes(self):
+        existing = {"quality_review": {"status": "fallback"}}
+        data = self._merge(existing, stage="Done", done=True)
+        self.assertEqual(data["quality_review"]["status"], "fallback")
+
+    @patch(
+        "crewai.utilities.formatter.aggregate_raw_outputs_from_tasks",
+        return_value="evidence context",
+    )
+    def test_callbacks_are_restored_when_fallback_scoring_fails(self, _aggregate):
+        crew, scoring, crew_callback = self._crew()
+        original_scoring_callback = scoring.callback
+
+        def fail(*, context):
+            raise RuntimeError(f"scorer failed with {context}")
+
+        scoring.execute_sync = fail
+        with self.assertRaisesRegex(RuntimeError, "scorer failed"):
+            _recover_from_reviewer_failure(crew, RuntimeError("reviewer failed"))
+
+        self.assertIs(scoring.callback, original_scoring_callback)
+        self.assertIs(crew.task_callback, crew_callback)
+
+
 
 
 class MergeStatusFieldsTests(unittest.TestCase):
@@ -117,6 +221,16 @@ class MergeStatusFieldsTests(unittest.TestCase):
         }
         data = self._merge(existing, stage="Agent 4")
         self.assertEqual(data["observability"], existing["observability"])
+
+    def test_authority_coverage_survives_every_stage_write(self):
+        existing = {"authority_coverage": {"status": "incomplete"}}
+        data = self._merge(existing, stage="Agent 4")
+        self.assertEqual(data["authority_coverage"], existing["authority_coverage"])
+
+    def test_component_coverage_survives_every_stage_write(self):
+        existing = {"component_coverage": {"status": "incomplete"}}
+        data = self._merge(existing, stage="Agent 4")
+        self.assertEqual(data["component_coverage"], existing["component_coverage"])
 
     def test_a_new_value_overwrites_the_sticky_one(self):
         existing = {"topic": "old topic"}
@@ -158,6 +272,19 @@ class MainEndToEndTests(unittest.TestCase):
         self._source_collection.output_language = "English"
         self._source_collection.localized_headings = []
         self._source_collection.display_topic = "a topic"
+        self._source_collection.authority_coverage.model_dump.return_value = {
+            "status": "not_applicable",
+            "required_categories": [],
+            "covered_source_ids": {},
+            "missing_categories": [],
+        }
+        self._source_collection.component_coverage.model_dump.return_value = {
+            "status": "incomplete",
+            "components": ["sensor networks", "edge AI inference"],
+            "covered_source_ids": {"sensor networks": ["A1"]},
+            "missing_components": ["edge AI inference"],
+            "unchecked_components": [],
+        }
         self._source_collection.model_dump_json.return_value = "{}"
         self._source_collection.crew_inputs.return_value = {}
 
@@ -193,6 +320,11 @@ class MainEndToEndTests(unittest.TestCase):
         self.assertEqual(status["observability"]["state"], "disabled")
         self.assertEqual(status["observability"]["delivery"], "not_configured")
         self.assertTrue((run_dir / "commercialization_report.md").exists())
+        self.assertEqual(status["component_coverage"]["status"], "incomplete")
+        self.assertEqual(
+            status["component_coverage"]["missing_components"],
+            ["edge AI inference"],
+        )
         self.assertTrue((run_dir / "commercialization_scores.json").exists())
 
     def test_source_collection_failure_writes_error_not_a_crash(self):

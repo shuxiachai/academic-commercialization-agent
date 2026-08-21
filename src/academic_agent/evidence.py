@@ -14,6 +14,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from crewai import TaskOutput
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     HttpUrl,
     ValidationError,
@@ -82,6 +83,30 @@ _NUMERIC_CLAIM_PATTERN = re.compile(
     r"(?:\s?(?:%|x|×|USD|AUD|EUR|million|billion|trillion|M|B))?\b",
     re.IGNORECASE,
 )
+_CHINESE_USD_AMOUNT_PATTERN = re.compile(
+    r"(?P<value>\d[\d,]*(?:\.\d+)?)\s*(?P<scale>万|亿)\s*美元"
+)
+_SOURCE_USD_AMOUNT_PATTERNS = (
+    re.compile(
+        r"(?:USD|US\$|\$)\s*(?P<value>\d[\d,]*(?:\.\d+)?)\s*"
+        r"(?P<scale>million|billion|mn|bn|m|b)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?P<value>\d[\d,]*(?:\.\d+)?)\s*"
+        r"(?P<scale>million|billion|mn|bn)\s*"
+        r"(?:USD|US dollars?|dollars?)\b",
+        re.IGNORECASE,
+    ),
+)
+_SOURCE_USD_SCALE_TO_MILLIONS = {
+    "million": 1.0,
+    "mn": 1.0,
+    "m": 1.0,
+    "billion": 1000.0,
+    "bn": 1000.0,
+    "b": 1000.0,
+}
 _PLACEHOLDER_HOSTS = {
     "example.com",
     "www.example.com",
@@ -305,6 +330,31 @@ class CommercializationScore(BaseModel):
     key_opportunities: list[str] = Field(min_length=1, max_length=5)
 
 
+class ReviewerCorrection(BaseModel):
+    """One exact, local edit proposed by the reviewer agent."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    find: str = Field(min_length=1, max_length=2000)
+    replace: str = Field(max_length=2000)
+    reason: str = Field(min_length=3, max_length=300)
+
+
+class ReviewerCorrectionPlan(BaseModel):
+    """Bounded patch plan; code, not the LLM, rebuilds the final report.
+
+    The reviewer used to repeat the complete 25-35 kB Markdown report. Two
+    production completions hit the provider's 8,192-token ceiling and a third
+    dropped one required heading after two paid attempts. Exact replacements
+    keep the model focused on inspection while preserving every byte it did
+    not explicitly change.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    corrections: list[ReviewerCorrection] = Field(default_factory=list, max_length=20)
+
+
 _BARE_BENCHMARK_RE = re.compile(
     r"\b(benchmark)\s+(?=\(?\s*TRL\b)",
     re.IGNORECASE,
@@ -312,15 +362,105 @@ _BARE_BENCHMARK_RE = re.compile(
 
 
 def _tag_bare_benchmark_refs(rationale: str) -> str:
-    """Replace bare 'benchmark (TRL …)' with 'calibration anchor (TRL …)'.
-
-    The scorer's backstory embeds canonical calibration anchors (LFP, solid-state
-    batteries, etc.).  When the LLM writes "consistent with the … benchmark (TRL X)"
-    without labelling its source, readers cannot tell whether the number comes from
-    an evidence source or from the internal rubric.  This function normalises the
-    phrasing to 'calibration anchor' so the distinction is unambiguous.
-    """
+    """Tag an otherwise ambiguous internal score comparison before removing it."""
     return _BARE_BENCHMARK_RE.sub("calibration anchor ", rationale)
+
+
+def _remove_internal_calibration_refs(rationale: str) -> str:
+    """Keep internal rubric anchors out of the user-facing score explanation.
+
+    The anchors are useful input to the scorer, but they are not retrieved
+    evidence and have no A/P/M citation. One production score exposed the
+    named anchor and its TRL/MRL values as though they were findings. Only
+    sentences explicitly identifying themselves as calibration anchors are
+    removed; a normal evidence-backed mention of the same technology remains.
+    """
+    sentences = [
+        part.strip()
+        for part in re.split(r"(?<=[.!?。！？；;])\s*|\n+", rationale)
+        if part.strip()
+    ]
+    kept = [
+        sentence
+        for sentence in sentences
+        if not re.search(r"\bcalibration\s+anchor\b|校准锚点", sentence, re.IGNORECASE)
+    ]
+    if len(kept) == len(sentences):
+        return rationale
+    if kept:
+        return " ".join(kept)
+    if re.search(r"[\u3400-\u9fff]", rationale):
+        return "综合评分依据所展示的各维度分数及其引用证据得出。"
+    return "The overall result follows from the displayed dimension scores and cited evidence."
+
+
+def _normalize_raw_score_mentions(
+    rationale: str,
+    *,
+    raw_score: int,
+    maximum_raw: int,
+) -> str:
+    """Normalize only explicit score prose that repeats the model's x10 value.
+
+    Dates, percentages, market figures, and an unrelated number are left alone.
+    The replacement requires score vocabulary or an exact raw/max ratio, and
+    the number must equal the corresponding structured field. This is
+    intentionally narrower than a general number rewrite: false correction is
+    worse than leaving an uncommon wording untouched.
+    """
+    raw = re.escape(str(raw_score))
+    maximum = re.escape(str(maximum_raw))
+    normalized = f"{raw_score / 10:g}"
+    normalized_max = f"{maximum_raw / 10:g}"
+
+    def _replace(match: re.Match[str]) -> str:
+        suffix = match.groupdict().get("scale")
+        if suffix:
+            suffix = re.sub(
+                rf"{maximum}(?!\d)", normalized_max, suffix, count=1,
+            )
+        return f"{match.group('prefix')}{normalized}{suffix or ''}"
+
+    patterns = (
+        re.compile(
+            rf"(?P<prefix>\b(?:score|rating)\s*(?:of|is|was|=|:)?\s*)"
+            rf"{raw}(?![\d.])(?P<scale>\s*(?:/|out\s+of)\s*{maximum})?",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            rf"(?P<prefix>(?:评分|得分|分数)\s*(?:为|是|=|：|:)?\s*)"
+            rf"{raw}(?![\d.])(?P<scale>\s*/\s*{maximum})?",
+        ),
+        re.compile(
+            rf"(?P<prefix>(?<![\d.])){raw}(?P<scale>\s*/\s*{maximum})(?!\d)",
+        ),
+    )
+    normalized_text = rationale
+    for pattern in patterns:
+        normalized_text = pattern.sub(_replace, normalized_text)
+    return normalized_text
+
+
+_EMPTY_PATENT_REGISTRY_RE = re.compile(
+    r"\b(?:the\s+)?patent\s+(?:source\s+)?registry\s+"
+    r"(?:is|was|remains)\s+empty\b|"
+    r"\bno\s+patent\s+(?:records|sources)\s+(?:were\s+)?retrieved\b|"
+    r"\bretrieved\s+(?:zero|no)\s+patent\s+(?:records|sources)\b|"
+    r"专利(?:来源)?注册表(?:为|是)?空|未检索到任何专利(?:记录|来源)",
+    re.IGNORECASE,
+)
+_PATENT_ABSENCE_OVERCLAIM_RE = re.compile(
+    r"\b(?:this|results?|evidence|search)\s+"
+    r"(?:establish(?:es)?|confirm(?:s|ed)?|prove(?:s|d)?)\s+"
+    r"(?:clear\s+)?freedom[- ]to[- ]operate\b|"
+    r"\b(?:clear|confirmed|proven)\s+freedom[- ]to[- ]operate\s+"
+    r"(?:is\s+)?(?:established|available|secured)\b|"
+    r"\bno\s+competing\s+patents?\s+(?:exist|remain)\b|"
+    r"\buncontested\s+(?:patent\s+)?space\b|"
+    r"\bfirst[- ]mover\s+(?:patent\s+)?opportunity\b|"
+    r"不存在竞争专利|已确认自由实施|无争议专利空白",
+    re.IGNORECASE,
+)
 
 
 _SCORE_RANGE_RE = re.compile(
@@ -504,6 +644,26 @@ def make_scoring_guardrail(
                         f"{field} references source IDs not present in the context: {phantom}. "
                         f"Valid IDs are: {sorted(known_source_ids)}."
                     )
+        if known_source_ids is not None and any(
+            source_id.startswith("P") for source_id in known_source_ids
+        ):
+            if _EMPTY_PATENT_REGISTRY_RE.search(score.patent_rationale):
+                id_errors.append(
+                    "patent_rationale says the patent registry is empty, but validated "
+                    "P-prefixed sources exist. Describe the retrieved records and their "
+                    "limitations instead of claiming no patent evidence was found."
+                )
+
+        patent_text = " ".join(
+            [score.patent_rationale, *score.key_risks, *score.key_opportunities]
+        )
+        if _PATENT_ABSENCE_OVERCLAIM_RE.search(patent_text):
+            id_errors.append(
+                "Patent search results cannot establish freedom to operate, prove that "
+                "no competing patents exist, or support a first-mover patent claim. "
+                "Frame gaps as preliminary landscape observations requiring counsel."
+            )
+
         # Require a citation only where there was something to cite. The model
         # fields carry no minimum, so this is where "you must show your work"
         # is enforced — conditioned on what retrieval actually returned.
@@ -589,7 +749,9 @@ def make_scoring_guardrail(
             f" = {correct_overall}  [{weight_profile}]"
         )
         rationale = _repair_conflicting_score_range(
-            _tag_bare_benchmark_refs(score.scoring_rationale),
+            _remove_internal_calibration_refs(
+                _tag_bare_benchmark_refs(score.scoring_rationale)
+            ),
             correct_overall,
         )
         auto_corrected = correct_overall != score.overall_score
@@ -600,10 +762,31 @@ def make_scoring_guardrail(
         out_dict.update({
             "trl_score": trl,
             "trl_label": _trl_label(trl),
+            "trl_rationale": _normalize_raw_score_mentions(
+                score.trl_rationale, raw_score=score.trl_score, maximum_raw=90
+            ),
             "mrl_score": mrl,
+            "mrl_rationale": _normalize_raw_score_mentions(
+                score.mrl_rationale, raw_score=score.mrl_score, maximum_raw=100
+            ),
             "patent_strength": pat,
+            "patent_rationale": _normalize_raw_score_mentions(
+                score.patent_rationale,
+                raw_score=score.patent_strength,
+                maximum_raw=50,
+            ),
             "market_accessibility": mkt,
+            "market_rationale": _normalize_raw_score_mentions(
+                score.market_rationale,
+                raw_score=score.market_accessibility,
+                maximum_raw=50,
+            ),
             "evidence_confidence": evi,
+            "evidence_rationale": _normalize_raw_score_mentions(
+                score.evidence_rationale,
+                raw_score=score.evidence_confidence,
+                maximum_raw=50,
+            ),
             "overall_score": correct_overall,
             "scoring_rationale": rationale,
             "score_formula": score_formula,
@@ -983,6 +1166,114 @@ def _is_substantive_claim_line(
     return len(words) >= 5 or cjk_chars >= 10
 
 
+def _source_usd_amounts_million(source: EvidenceSource) -> list[float]:
+    """Read only explicitly scaled USD values from a validated source summary."""
+
+    text = f"{source.title} {source.evidence_summary}"
+    values: list[float] = []
+    for pattern in _SOURCE_USD_AMOUNT_PATTERNS:
+        for match in pattern.finditer(text):
+            raw_value = match.group("value").replace(",", "")
+            try:
+                value = float(raw_value)
+            except ValueError:
+                continue
+            scale = _SOURCE_USD_SCALE_TO_MILLIONS[match.group("scale").lower()]
+            values.append(value * scale)
+    return values
+
+
+def _currency_amounts_close(left: float, right: float) -> bool:
+    """Allow ordinary display rounding while keeping a 10x slip unmistakable."""
+
+    return abs(left - right) <= max(0.5, 0.02 * max(left, right))
+
+
+def _validate_currency_unit_contradictions(
+    body: str,
+    allowed_sources: dict[str, EvidenceSource],
+) -> list[str]:
+    """Catch an anchored Chinese USD unit slip without guessing from snippets.
+
+    A paid Chinese run rendered one cited USD 3500 million forecast as both
+    3.5亿美元 and 35亿美元. Citation integrity could not see the difference,
+    and blocking every amount absent from a search snippet would create false
+    positives. This check therefore fires only when the same report provides a
+    second, source-consistent rendering for the same cited market source. It
+    intentionally misses an isolated suspicious conversion: precision is more
+    important than recall for a guardrail that can discard a paid run.
+    """
+
+    source_values = {
+        source_id: _source_usd_amounts_million(source)
+        for source_id, source in allowed_sources.items()
+        if source_id.startswith("M")
+    }
+    occurrences: list[tuple[int, str, float, list[str]]] = []
+    for line_number, line in enumerate(body.splitlines(), start=1):
+        line_ids, citation_errors = parse_citation_ids(line)
+        if citation_errors:
+            continue
+        market_ids = [
+            source_id for source_id in line_ids if source_id in source_values
+        ]
+        if not market_ids:
+            continue
+        for match in _CHINESE_USD_AMOUNT_PATTERN.finditer(line):
+            value = float(match.group("value").replace(",", ""))
+            value_million = value * (100.0 if match.group("scale") == "亿" else 0.01)
+            occurrences.append(
+                (line_number, match.group(0), value_million, market_ids)
+            )
+
+    errors: list[str] = []
+    for line_number, rendered, value_million, market_ids in occurrences:
+        cited_values = [
+            source_value
+            for source_id in market_ids
+            for source_value in source_values[source_id]
+        ]
+        if any(
+            _currency_amounts_close(value_million, source_value)
+            for source_value in cited_values
+        ):
+            continue
+
+        found = False
+        for source_id in market_ids:
+            for source_value in source_values[source_id]:
+                one_decimal_shift = (
+                    _currency_amounts_close(source_value, value_million * 10)
+                    or _currency_amounts_close(value_million, source_value * 10)
+                )
+                if not one_decimal_shift:
+                    continue
+                anchor = next(
+                    (
+                        other_line
+                        for other_line, _other_rendered, other_value, other_ids
+                        in occurrences
+                        if other_line != line_number
+                        and source_id in other_ids
+                        and _currency_amounts_close(other_value, source_value)
+                    ),
+                    None,
+                )
+                if anchor is None:
+                    continue
+                errors.append(
+                    f"Currency unit contradiction on report line {line_number}: "
+                    f"{rendered} is 10x away from the USD {source_value:g} million "
+                    f"value in cited [{source_id}], while report line {anchor} "
+                    "renders that cited value consistently."
+                )
+                found = True
+                break
+            if found:
+                break
+    return errors
+
+
 def _validate_high_risk_claims(
     body: str,
     allowed_sources: dict[str, EvidenceSource],
@@ -1210,6 +1501,7 @@ def validate_final_report(
         )
 
     errors.extend(_validate_high_risk_claims(body, allowed_sources))
+    errors.extend(_validate_currency_unit_contradictions(body, allowed_sources))
 
     return errors
 
@@ -1562,6 +1854,7 @@ _CRITICAL_REPORT_ERROR_PREFIXES = (
     "Cross-prefix citation range",
     "Citation range is invalid",
     "The report must state that patent analysis",
+    "Currency unit contradiction on report line",
 )
 
 
@@ -1645,6 +1938,54 @@ _REVIEWER_REQUIRED_HEADINGS = (
 )
 
 
+def _apply_reviewer_corrections(
+    raw_plan: str,
+    draft: str,
+) -> tuple[str | None, list[str], str | None]:
+    """Apply a bounded reviewer patch plan to an already validated draft.
+
+    A full-report reviewer has to reproduce 25-35 kB of valid Markdown before
+    it can fix one sentence. Production runs showed the predictable failure:
+    two completions stopped exactly at the provider's 8,192-token limit, and
+    another omitted a required heading. Exact replacements make the model
+    name only the text it intends to change; code preserves everything else.
+
+    Replacement targets must occur exactly once. Picking the first occurrence
+    would make a plausible-looking edit whose location depends on wording
+    elsewhere in the report, which is too risky for investment-facing prose.
+    Headings are immutable because structure has already passed Task 4's
+    guardrail and a prose reviewer has no reason to redesign it.
+    """
+    try:
+        plan = ReviewerCorrectionPlan.model_validate_json(raw_plan)
+    except ValidationError as exc:
+        return None, [], f"Reviewer patch plan is invalid JSON: {exc}"
+
+    if not draft.strip():
+        return None, [], "The validated Task 4 draft is unavailable."
+
+    report = draft.strip()
+    reasons: list[str] = []
+    for index, correction in enumerate(plan.corrections, start=1):
+        if correction.find == correction.replace:
+            return None, [], f"Correction {index} is a no-op."
+        if re.search(r"(?m)^#{1,6}\s", correction.find + "\n" + correction.replace):
+            return None, [], f"Correction {index} attempts to edit a section heading."
+
+        occurrences = report.count(correction.find)
+        if occurrences != 1:
+            return (
+                None,
+                [],
+                f"Correction {index} target occurs {occurrences} times; "
+                "each find value must identify exactly one passage.",
+            )
+        report = report.replace(correction.find, correction.replace, 1)
+        reasons.append(" ".join(correction.reason.split()))
+
+    return report, reasons, None
+
+
 def make_reviewer_guardrail(
     report_task: Any,
     *,
@@ -1654,7 +1995,13 @@ def make_reviewer_guardrail(
 ) -> Callable[[TaskOutput], tuple[bool, Any]]:
     """Guardrail for Task 5, whose output is the report that actually ships.
 
-    Three checks guard against regression from Task 4's validated draft:
+    The preferred output is a bounded JSON correction plan. The guardrail
+    applies those exact edits to Task 4's validated draft, re-runs all report
+    validation, and appends deterministic reviewer notes. Legacy full Markdown
+    remains accepted so saved fixtures and in-flight older workers are still
+    readable during a rolling deployment.
+
+    Three checks then guard against regression from Task 4's validated draft:
 
     1. Length: reviewed report >= 500 chars AND >= 80 % of Task 4 length.
     2. Required headings (Executive Summary, References) still present.
@@ -1674,7 +2021,22 @@ def make_reviewer_guardrail(
         task4_text: str = task4_out.raw if task4_out else ""
         task4_len = len(task4_text.strip())
 
-        reviewed = output.raw.strip()
+        raw_review = output.raw.strip()
+        plan_reasons: list[str] | None = None
+        if raw_review.startswith("{"):
+            reviewed, plan_reasons, plan_error = _apply_reviewer_corrections(
+                raw_review, task4_text
+            )
+            if plan_error or reviewed is None:
+                return (
+                    False,
+                    (plan_error or "Reviewer patch plan could not be applied.")
+                    + " Return only a JSON object with a corrections array; each "
+                    "item needs exact find, replace, and reason strings.",
+                )
+        else:
+            reviewed = raw_review
+        output.raw = reviewed
         reviewed_len = len(reviewed)
 
         errors: list[str] = []
@@ -1780,6 +2142,14 @@ def make_reviewer_guardrail(
                 if marker in raw:
                     output.raw = raw.replace(marker, f"{_disclaimer}\n\n{marker}", 1)
                     break
+
+        if plan_reasons is not None:
+            notes = (
+                "\n".join(f"- {reason}" for reason in plan_reasons)
+                if plan_reasons
+                else "No corrections required."
+            )
+            output.raw = output.raw.rstrip() + f"\n\n## Reviewer Notes\n\n{notes}"
 
         return True, output
 

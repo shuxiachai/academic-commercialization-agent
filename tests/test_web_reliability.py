@@ -101,6 +101,61 @@ class ReliabilityPanelTests(unittest.TestCase):
         self.assertEqual(row["tone"], "warn")
         self.assertIn("market", row["detail"])
 
+    def test_missing_clinical_authority_category_is_a_warning(self):
+        """Missing coverage is a warning, never proof that no record exists."""
+        panel = self._panel(
+            source_counts={"academic": 8, "patent": 8, "market": 8},
+            authority_coverage={
+                "status": "incomplete",
+                "missing_categories": ["clinical_registry"],
+            },
+        )
+        row = self._row(panel, "authority")
+        self.assertEqual(row["tone"], "warn")
+        self.assertIn("clinical-trial registry", row["detail"])
+
+    def test_complete_authority_coverage_does_not_invent_an_unrequired_category(self):
+        """Complete means every required category, which may be regulator-only."""
+        panel = self._panel(
+            source_counts={"academic": 8, "patent": 8, "market": 8},
+            authority_coverage={
+                "status": "complete",
+                "required_categories": ["regulatory"],
+            },
+        )
+        row = self._row(panel, "authority")
+        self.assertEqual(row["tone"], "ok")
+        self.assertNotIn("clinical-trial registry", row["detail"])
+
+    def test_missing_compound_component_is_visible_as_a_warning(self):
+        panel = self._panel(
+            component_coverage={
+                "status": "incomplete",
+                "components": ["sensor networks", "edge AI inference"],
+                "covered_source_ids": {"sensor networks": ["A1"]},
+                "missing_components": ["edge AI inference"],
+                "unchecked_components": [],
+            },
+        )
+        row = self._row(panel, "components")
+        self.assertEqual(row["tone"], "warn")
+        self.assertIn("edge AI inference", row["detail"])
+        self.assertEqual(panel["verdict"]["tone"], "warn")
+
+    def test_uncheckable_component_is_not_reported_as_covered(self):
+        panel = self._panel(
+            component_coverage={
+                "status": "unchecked",
+                "components": ["advanced methods", "AI systems"],
+                "covered_source_ids": {},
+                "missing_components": [],
+                "unchecked_components": ["advanced methods", "AI systems"],
+            },
+        )
+        row = self._row(panel, "components")
+        self.assertEqual(row["tone"], "muted")
+        self.assertNotEqual(row["tone"], "ok")
+
     def test_an_unwritten_audit_trail_is_reported(self):
         panel = self._panel(evidence_incomplete=True)
         self.assertEqual(self._row(panel, "trail")["tone"], "warn")
@@ -110,6 +165,25 @@ class ReliabilityPanelTests(unittest.TestCase):
         row = self._row(panel, "grounding")
         self.assertEqual(row["tone"], "warn")
         self.assertIn("3", row["detail"])
+
+    def test_reviewer_fallback_is_visible_as_a_warning(self):
+        panel = self._panel(quality_review={"status": "fallback"})
+        row = self._row(panel, "review")
+        self.assertEqual(row["tone"], "warn")
+        self.assertEqual(panel["verdict"]["tone"], "warn")
+
+    def test_missing_review_status_is_not_invented_as_a_pass(self):
+        panel = self._panel(source_counts={"academic": 8, "patent": 8, "market": 8})
+        self.assertEqual(self._row(panel, "review")["tone"], "muted")
+
+    def test_partially_unverifiable_grounding_is_not_reported_as_clean(self):
+        panel = self._panel(
+            claim_grounding={"checked": 5, "ungrounded": 0, "unverifiable": 7}
+        )
+        row = self._row(panel, "grounding")
+        self.assertEqual(row["tone"], "muted")
+        self.assertIn("5", row["detail"])
+        self.assertIn("7", row["detail"])
 
     # ── What silence is not allowed to mean ──────────────────────────────
 
@@ -142,6 +216,7 @@ class ReliabilityPanelTests(unittest.TestCase):
             source_counts={"academic": 8, "patent": 8, "market": 8},
         )
         self.assertEqual(self._row(panel, "sources")["tone"], "ok")
+        self.assertEqual(self._row(panel, "authority")["tone"], "muted")
         self.assertEqual(panel["verdict"]["tone"], "muted")
 
     def test_a_clean_run_is_called_unflagged_rather_than_verified(self):
@@ -150,8 +225,11 @@ class ReliabilityPanelTests(unittest.TestCase):
         as verification is exactly the overclaim it was built to avoid."""
         panel = self._panel(
             consistency={"blockers": 0, "warnings": 0},
-            claim_grounding={"checked": 12, "ungrounded": 0, "unverifiable": 1},
+            claim_grounding={"checked": 12, "ungrounded": 0, "unverifiable": 0},
+            quality_review={"status": "passed"},
             source_counts={"academic": 8, "patent": 5, "market": 6},
+            authority_coverage={"status": "not_applicable"},
+            component_coverage={"status": "not_applicable"},
         )
         self.assertEqual(panel["verdict"]["tone"], "ok")
         self.assertNotIn("verified", panel["verdict"]["label"].lower())

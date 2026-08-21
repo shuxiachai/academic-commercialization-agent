@@ -219,8 +219,6 @@ commercialization_report_task:
       validated URL or DOI, access date, and source type.
     - Never describe inferred patent white space as a freedom-to-operate
       opportunity, non-infringing path, or proof that infringement is absent.
-    - Mention trucks, buses, or fleet applications only when at least one cited
-      source title or evidence summary explicitly mentions that application.
     - Do not broadly claim that government verification or evidence is absent
       when a government or standards source exists in the validated context.
     - Do not use descriptive labels such as [Market Source Limitations] as
@@ -241,49 +239,40 @@ commercialization_report_task:
 
 # ----------------------------------------------------------
 # Task 5 — 质量审查 / Report Quality Review  [ADDED]
-# 输入：Task 4 的草稿报告（作为上下文传入）
-# Input: Task 4 draft report (passed as context)
-# 输出：修正后的最终报告 + ## Reviewer Notes 修改清单
-# Output: corrected final report + ## Reviewer Notes change log
-# 检查四类问题 / Checks four issue types:
-#   1. 引用完整性 / Citation integrity
-#   2. 悬空数字 / Unsupported numerical claims
-#   3. 过度乐观语言 / Overconfident language
-#   4. 专利法律免责措辞 / Patent legal disclaimer framing
+# Input: Task 4's validated draft plus Tasks 1-3 evidence JSON.
+# Output: bounded exact-replacement plan; code rebuilds the report.
+#
+# Returning the complete report was measured in production and rejected: two
+# reviewer completions stopped exactly at 8,192 tokens and one dropped a
+# required heading. The reviewer now spends its budget inspecting, while the
+# guardrail preserves all text it did not explicitly ask to change.
 # ----------------------------------------------------------
 report_review_task:
   description: >
-    You will receive a draft commercialization assessment report for
-    {display_topic} as context, together with the structured evidence JSON
-    outputs from the academic, patent, and market analysis tasks.
-    Apply all six review rules exactly as described in your backstory.
+    You will receive a validated draft commercialization assessment report for
+    {display_topic}, together with the structured academic, patent, and market
+    evidence JSON. Apply all six review rules in your backstory, but return
+    ONLY a bounded JSON correction plan. Do not repeat the complete report.
 
-    LANGUAGE REQUIREMENT: The report is written in {output_language}.
-    Your corrections and the final output must remain entirely in {output_language}.
-    Do NOT translate the report. Do NOT switch the language. The ## Reviewer Notes
-    section must also be written in {output_language}.
+    LANGUAGE REQUIREMENT: Each "find" value must be copied byte-for-byte from
+    the draft. Each "replace" value and "reason" must remain in
+    {output_language}. Do not translate unchanged passages.
 
-    Do not add new factual content. Do not restructure sections. Do not
-    change the tone or depth of analysis. Only fix the six categories of
-    errors: citation mismatches, unsupported numerical claims, overconfident
-    language, incorrect patent legal framing, evidence inconsistencies, and
-    TRL number removal from narrative (Rule 6).
+    A correction is permitted only for a citation mismatch, unsupported
+    numerical claim, overconfident claim, incorrect patent legal framing,
+    direct evidence contradiction, or narrative TRL label. Do not add facts,
+    restructure sections, edit headings, alter citation syntax, or rewrite
+    passages merely for style.
 
-    Output rules — strictly enforced:
-    - Apply every correction silently in the report text itself.
-    - Do NOT insert any inline annotations, labels, brackets, or reviewer
-      markers of any kind inside the report body — no "[Reviewer: ...]",
-      no "[hedged]", no "[corrected]", no "[removed]", nothing.
-    - If you are uncertain whether to remove a claim, soften the language
-      (e.g., "will" → "may") without leaving any marker behind.
-    - In ## Reviewer Notes: record ONLY actual changes. Do NOT record checks
-      where you found no issue. If the draft was fully clean, write only:
-      "No corrections required."
+    Each "find" string must identify exactly one passage in the draft. Include
+    enough surrounding text to make it unique, but keep both "find" and
+    "replace" under 2,000 characters. Keep the plan to at most 20 corrections.
+    If no correction is required, return {"corrections": []}.
   expected_output: >
-    The complete corrected Markdown report, preserving all original section
-    headings and structure, with corrections applied inline. The report must
-    end with a ## Reviewer Notes section. Formatted as Markdown without
-    code blocks.
+    Return only one valid JSON object with no Markdown fences or prose:
+    {"corrections": [{"find": "<exact unique draft passage>",
+    "replace": "<corrected passage>", "reason": "<what changed and why>"}]}.
+    Use an empty corrections array when the draft is already valid.
   agent: report_reviewer
 
 # ----------------------------------------------------------
@@ -361,14 +350,14 @@ commercialization_scoring_task:
     # report is the property worth keeping, and an instruction that reads as
     # though the two are cross-checked hides the fact that nothing does. That
     # comparison now happens after both exist, in consistency.py.
-    - Calibration anchor attribution rule: If scoring_rationale references
-      a calibration benchmark by name (e.g., "PEM electrolysers", "LFP
-      batteries"), label it as "calibration anchor" — NOT bare "benchmark".
-      Write "calibration anchor for [topic] (TRL X, MRL Y)" so readers can
-      distinguish internal rubric references from A-/P-/M-prefixed source
-      citations. Never invent TRL/MRL benchmark numbers that are not present
-      in the scoring rubric's CALIBRATION BENCHMARKS section or in the
-      provided evidence JSON.
+    - Use calibration anchors only in your private reasoning. Do not name an
+      anchor technology or repeat its TRL/MRL values in scoring_rationale,
+      risks, opportunities, or any other user-facing field; those values are
+      rubric inputs, not retrieved evidence and have no A/P/M citation.
+    - A bounded patent search cannot establish freedom to operate, prove that
+      no competing patents exist, or justify a first-mover patent claim.
+      Describe apparent gaps only as preliminary landscape observations that
+      require claims-level review by qualified patent counsel.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose.
     All five dimension scores are INTEGERS on a ×10 scale (trl 10–90,

@@ -7,12 +7,15 @@ Writes status.json for stage progress and steps.jsonl for the live agent
 log, both polled by the parent process (app.py) without shared memory.
 """
 import argparse
+import copy
 import json
 import os
 import re
 import sys
 import threading
 import traceback
+from collections.abc import Callable
+from typing import Any
 
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
@@ -55,6 +58,85 @@ def _select_report_and_scores(
     if len(tasks_output) >= 2:
         return tasks_output[-1].raw, None
     return fallback_raw, None
+
+
+def _recover_from_reviewer_failure(
+    crew_obj: Any,
+    error: Exception,
+    *,
+    task_complete: Callable[[Any], None] | None = None,
+) -> tuple[list[Any], dict[str, str]] | None:
+    """Deliver Task 4's validated draft when only Task 5 failed.
+
+    Review is defense in depth, not the sole validator: Task 4 has already
+    passed the full structure, citation-registry, and disclaimer guardrail.
+    Throwing that paid artifact away because a second model could not finish
+    repeating it made reliability worse, not better. Recovery is deliberately
+    narrow: it is available only when the draft exists and neither review nor
+    scoring completed. A Task 4 or Task 6 failure still fails the run.
+
+    Scoring remains independent of prose and reads Tasks 1-3 only, so it can be
+    executed through CrewAI's public Task API without weakening its guardrail.
+    Both callback locations are temporarily disabled to avoid counting the
+    manually executed task twice; this helper emits the two missing completion
+    events explicitly after their outputs exist.
+    """
+    tasks = list(getattr(crew_obj, "tasks", ()) or ())
+    if len(tasks) <= _IDX_SCORING:
+        return None
+
+    report_output = getattr(tasks[3], "output", None)
+    review_task = tasks[_IDX_REVIEW]
+    scoring_task = tasks[_IDX_SCORING]
+    if (
+        report_output is None
+        or getattr(review_task, "output", None) is not None
+        or getattr(scoring_task, "output", None) is not None
+    ):
+        return None
+
+    review_output = copy.copy(report_output)
+    review_task.output = review_output
+    if task_complete is not None:
+        task_complete(review_output)
+
+    from crewai.utilities.formatter import aggregate_raw_outputs_from_tasks
+
+    scoring_context = aggregate_raw_outputs_from_tasks(scoring_task.context or [])
+    original_task_callback = getattr(scoring_task, "callback", None)
+    original_crew_callback = getattr(crew_obj, "task_callback", None)
+    try:
+        scoring_task.callback = None
+        crew_obj.task_callback = None
+        scoring_output = scoring_task.execute_sync(context=scoring_context)
+    finally:
+        scoring_task.callback = original_task_callback
+        crew_obj.task_callback = original_crew_callback
+
+    if task_complete is not None:
+        task_complete(scoring_output)
+
+    outputs = [getattr(task, "output", None) for task in tasks]
+    if any(output is None for output in outputs):
+        # This should be unreachable after the narrow state check above, but a
+        # partial list would shift fixed task indices and could persist evidence
+        # JSON as a report. Refuse that unsafe shape rather than filtering it.
+        raise RuntimeError("Reviewer fallback produced an incomplete task output list.")
+
+    print(
+        "[worker] reviewer did not complete; delivering the validated Task 4 "
+        f"draft unchanged ({type(error).__name__}: {error})",
+        file=sys.stderr,
+        flush=True,
+    )
+    return outputs, {
+        "status": "fallback",
+        "reason": (
+            "Quality review did not complete; the report is the unchanged "
+            "Task 4 draft that passed structure and citation validation."
+        ),
+        "failure_type": type(error).__name__,
+    }
 
 
 class ProgressTracker:
@@ -134,14 +216,25 @@ def _merge_status_fields(
     see the topic disappear the moment the pipeline moved past the stage that
     first reported it.
     """
-    data: dict = {
-        "stage": stage, "done": done, "error": error, "output_language": output_language,
-    }
+    data: dict = {"stage": stage, "done": done, "error": error}
+    if output_language is not None:
+        data["output_language"] = output_language
+    elif existing.get("output_language") is not None:
+        # Language is discovered during source planning. A later error write
+        # used to replace it with None, so a failed Chinese run appeared as
+        # English in the API even though all paid agent prompts were Chinese.
+        data["output_language"] = existing["output_language"]
+    else:
+        data["output_language"] = None
     # evidence_incomplete is sticky for the same reason topic is: it is set
     # once, mid-run, by the only code path that can discover it, and every
     # later status write would otherwise erase the warning it carries.
-    for sticky in ("topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
-                   "claim_grounding", "consistency", "observability"):
+    for sticky in (
+        "topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
+        "claim_grounding", "consistency", "observability", "authority_coverage",
+        "component_coverage",
+        "quality_review",
+    ):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
     if source_counts is not None:
@@ -211,6 +304,9 @@ def main() -> None:
         claim_grounding: dict | None = None,
         observability: dict | None = None,
         consistency: dict | None = None,
+        authority_coverage: dict | None = None,
+        component_coverage: dict | None = None,
+        quality_review: dict | None = None,
     ) -> None:
         try:
             try:
@@ -234,6 +330,12 @@ def main() -> None:
                 data["consistency"] = consistency
             if observability is not None:
                 data["observability"] = observability
+            if authority_coverage is not None:
+                data["authority_coverage"] = authority_coverage
+            if component_coverage is not None:
+                data["component_coverage"] = component_coverage
+            if quality_review is not None:
+                data["quality_review"] = quality_review
             # Atomic: the API polls this file while the worker rewrites it on
             # every stage transition. A plain write leaves a window where the
             # reader sees a truncated document, and an unreadable status was
@@ -379,6 +481,12 @@ def main() -> None:
             source_counts=source_counts,
             output_language=source_collection.output_language,
             failed_domains=sorted(source_collection.failed_domains) or None,
+            authority_coverage=source_collection.authority_coverage.model_dump(
+                mode="json"
+            ),
+            component_coverage=source_collection.component_coverage.model_dump(
+                mode="json"
+            ),
         )
 
         tracker = ProgressTracker(
@@ -419,6 +527,8 @@ def main() -> None:
 
         _sf = open(steps_path, "a", encoding="utf-8")
         _steps_fh = _sf
+        result = None
+        quality_review = {"status": "passed"}
         try:
             with crewai_event_bus.scoped_handlers():
 
@@ -455,11 +565,17 @@ def main() -> None:
                     "crew_execution", "CHAIN", {"academic_agent.pipeline.agents": 6}
                 ):
                     result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
+            tasks_output = getattr(result, "tasks_output", None) or []
+        except Exception as crew_error:  # noqa: BLE001 - narrow recovery below
+            recovered = _recover_from_reviewer_failure(
+                crew_obj, crew_error, task_complete=on_task_complete
+            )
+            if recovered is None:
+                raise
+            tasks_output, quality_review = recovered
         finally:
             _steps_fh = None
             _sf.close()
-
-        tasks_output = getattr(result, "tasks_output", None) or []
 
         # Persist the evidence stage before anything that can fail below. Tasks
         # 4 and 6 read these outputs rather than the source registry, so they
@@ -489,7 +605,9 @@ def main() -> None:
                   f"{grounding['ungrounded']} with a figure absent from the cited "
                   f"source, {grounding['unverifiable']} unverifiable", flush=True)
 
-        report_raw, scores_raw = _select_report_and_scores(tasks_output, result.raw)
+        report_raw, scores_raw = _select_report_and_scores(
+            tasks_output, getattr(result, "raw", None)
+        )
 
         m_rev = re.search(r"(?m)^##\s+Reviewer Notes\b", report_raw, re.IGNORECASE) if report_raw else None
         if m_rev:
@@ -537,6 +655,7 @@ def main() -> None:
             claim_grounding=grounding,
             consistency=consistency,
             observability=telemetry.snapshot(),
+            quality_review=quality_review,
         )
 
     except Exception as exc:

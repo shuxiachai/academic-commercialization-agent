@@ -49,6 +49,20 @@ _STATUS = {
               "cost_complete": True, "agents": []},
     "claim_grounding": {"checked": 2, "ungrounded": 0, "unverifiable": 2,
                         "by_domain": {}},
+    "authority_coverage": {
+        "status": "incomplete",
+        "required_categories": ["regulatory", "clinical_registry"],
+        "covered_source_ids": {"regulatory": ["M1"]},
+        "missing_categories": ["clinical_registry"],
+    },
+    "component_coverage": {
+        "status": "incomplete",
+        "components": ["sensor networks", "edge AI inference"],
+        "covered_source_ids": {"sensor networks": ["A1"]},
+        "missing_components": ["edge AI inference"],
+        "unchecked_components": [],
+    },
+    "quality_review": {"status": "fallback", "failure_type": "RuntimeError"},
     "observability": {"state": "active", "backend": "phoenix",
                       "trace_id": "0123456789abcdef0123456789abcdef",
                       "delivery": "attempted", "content_capture": "redacted"},
@@ -166,6 +180,14 @@ class AbsentDataTests(unittest.TestCase):
         """Absent instrumentation is not evidence that it was turned off."""
         body = self.client.get(f"/api/runs/{self.run_id}").json()
         self.assertIsNone(body["observability"])
+
+    def test_a_run_before_authority_coverage_reports_unknown_not_complete(self):
+        body = self.client.get(f"/api/runs/{self.run_id}").json()
+        self.assertIsNone(body["authority_coverage"])
+
+    def test_a_run_before_component_coverage_reports_unknown_not_complete(self):
+        body = self.client.get(f"/api/runs/{self.run_id}").json()
+        self.assertIsNone(body["component_coverage"])
 
     def test_null_is_distinguishable_from_zero(self):
         """A run with no usage recorded is not a run that cost nothing. The

@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1106 tests (529 subtests), CI green on Linux + Windows × Python
+Current state: 1172 tests (545 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -22,7 +22,7 @@ Current state: 1106 tests (529 subtests), CI green on Linux + Windows × Python
 uv run pytest -q                       # the whole suite; ~7s, zero network
 uv run --with ruff ruff check .        # CI uses latest ruff, the local pin is older
 uv run uvicorn api.main:app --reload   # web client on :8000
-uv run python -m academic_agent.main "<topic>"   # one run from the CLI
+uv run academic_agent --topic "<topic>"          # one run from the CLI
 ```
 
 `uv run --with ruff` is deliberate. The pinned local ruff is 0.12.0 and CI
@@ -62,7 +62,7 @@ is, in this order:
 | Why does this test exist? | Its docstring names the specific failure it caught |
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 3,526 lines, 45 write-ups. Ask the user for access if you need it |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 3,764 lines, 50 write-ups. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's

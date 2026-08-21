@@ -265,6 +265,118 @@ class ScoreNormalisationTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# User-facing score narrative integrity
+# ---------------------------------------------------------------------------
+
+class ScoreNarrativeIntegrityTests(unittest.TestCase):
+    """Structured scores and their prose must use the same displayed scale."""
+
+    def test_raw_x10_score_mention_is_normalized_with_the_field(self):
+        _, out = _run(
+            make_scoring_guardrail(),
+            patent_rationale=(
+                "The patent rating is 30 out of 50 based on the retrieved P1 record."
+            ),
+        )
+        self.assertIn("rating is 3 out of 5", out["patent_rationale"])
+        self.assertNotIn("30 out of 50", out["patent_rationale"])
+
+    def test_chinese_raw_ratio_is_normalized(self):
+        _, out = _run(
+            make_scoring_guardrail(),
+            patent_rationale="专利强度评分为30/50，依据为已检索并验证的 P1 专利记录。",
+        )
+        self.assertIn("评分为3/5", out["patent_rationale"])
+
+    def test_dates_percentages_and_unlabelled_numbers_are_untouched(self):
+        rationale = (
+            "In 2025, 30% of the sampled filings used 30 claims in one family."
+        )
+        _, out = _run(
+            make_scoring_guardrail(),
+            patent_rationale=rationale,
+        )
+        self.assertEqual(out["patent_rationale"], rationale)
+
+    def test_internal_calibration_anchor_sentence_is_not_delivered(self):
+        _, out = _run(
+            make_scoring_guardrail(),
+            scoring_rationale=(
+                "Evidence from A1 and M1 supports the displayed readiness result. "
+                "The calibration anchor for PEM electrolysers (TRL 7, MRL 6) "
+                "was used to place it on the scale."
+            ),
+        )
+        self.assertIn("A1 and M1", out["scoring_rationale"])
+        self.assertNotIn("PEM electrolysers", out["scoring_rationale"])
+        self.assertNotIn("calibration anchor", out["scoring_rationale"])
+
+    def test_anchor_only_rationale_gets_a_neutral_nonempty_explanation(self):
+        _, out = _run(
+            make_scoring_guardrail(),
+            scoring_rationale=(
+                "The calibration anchor for PEM electrolysers (TRL 7, MRL 6) "
+                "sets the reference point."
+            ),
+        )
+        self.assertIn("displayed dimension scores", out["scoring_rationale"])
+        self.assertNotIn("PEM", out["scoring_rationale"])
+
+    def test_nonempty_patent_registry_cannot_be_described_as_empty(self):
+        ok, message = _run(
+            make_scoring_guardrail(known_source_ids=_KNOWN),
+            patent_rationale=(
+                "No patent records were retrieved, so the patent registry is empty."
+            ),
+        )
+        self.assertFalse(ok)
+        self.assertIn("P-prefixed sources exist", message)
+
+    def test_empty_patent_registry_may_be_reported_when_no_patents_exist(self):
+        ok, _out = _run(
+            make_scoring_guardrail(
+                known_source_ids=frozenset({"A1", "M1"})
+            ),
+            patent_rationale=(
+                "No patent records were retrieved from the bounded public search."
+            ),
+            patent_source_ids=[],
+            evidence_source_ids=["A1", "M1"],
+        )
+        self.assertTrue(ok)
+
+    def test_first_mover_patent_claim_is_rejected(self):
+        ok, message = _run(
+            make_scoring_guardrail(known_source_ids=_KNOWN),
+            key_opportunities=[
+                "The results establish a first-mover patent opportunity."
+            ],
+        )
+        self.assertFalse(ok)
+        self.assertIn("first-mover", message)
+
+
+
+    def test_bounded_patent_gap_and_fto_caveat_are_allowed(self):
+        ok, _out = _run(
+            make_scoring_guardrail(known_source_ids=_KNOWN),
+            patent_rationale=(
+                "The bounded search did not identify competing patents and "
+                "cannot establish clear freedom-to-operate without claims review."
+            ),
+        )
+        self.assertTrue(ok)
+
+    def test_positive_freedom_to_operate_claim_is_rejected(self):
+        ok, message = _run(
+            make_scoring_guardrail(known_source_ids=_KNOWN),
+            patent_rationale=(
+                "The results confirm clear freedom-to-operate for deployment."
+            ),
+        )
+        self.assertFalse(ok)
+        self.assertIn("freedom to operate", message.lower())
+# ---------------------------------------------------------------------------
 # Evidence-confidence floor
 # ---------------------------------------------------------------------------
 

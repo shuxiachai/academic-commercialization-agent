@@ -89,8 +89,8 @@ that every possible form of hallucination has been eliminated.
 |---|---|---|
 | Agents | 2 (researcher + reporting_analyst) | 6 (specialized roles) |
 | Tasks | 2 | 6 (sequential + guardrail validation) |
-| Tools | None | OpenAlex + Semantic Scholar + SerperDevTool + Crossref |
-| Source collection | None | Structured pre-run retrieval with topic planning and URL reachability checks |
+| Tools | None | OpenAlex + PubMed + arXiv + Semantic Scholar + Lens + Serper/Tavily + Crossref |
+| Source collection | None | Structured pre-run retrieval with topic planning, provenance tiers, authority coverage, and a rejection audit |
 | Output format | Free-form text | Markdown report with `[A1][P2][M3]` inline citations + References block + JSON scorecard |
 | Output management | Fixed filename (overwritten) | Unique run ID per execution, stored in `outputs/` |
 | Data quality | None | Structured evidence + citation integrity check + minimum summary length filter + auto-retry |
@@ -103,15 +103,17 @@ that every possible form of hallucination has been eliminated.
 
 ```
 Agent 1: Academic Literature Analyst
-         Sources: OpenAlex / Semantic Scholar papers (pre-validated in Step 0)
+         Sources: OpenAlex / PubMed / arXiv / Semantic Scholar papers (pre-validated in Step 0)
          Output:  Structured EvidenceReport JSON — maturity, breakthroughs, citations (A1/A2/…)
 
 Agent 2: Patent Landscape Analyst
-         Sources: Google Patents / WIPO records (Serper search + URL validation)
+         Sources: Structured Lens records plus allowlisted WIPO / EPO / aggregator records;
+                  the source tier retains which path supplied the record
          Output:  Structured EvidenceReport JSON — holders, white spaces (P1/P2/…)
 
 Agent 3: Market & Competitive Intelligence Analyst
-         Sources: Domain-allowlisted market reports (Serper search)
+         Sources: Domain-allowlisted market and authority records; applicable clinical topics
+                  query regulators and trial registries directly
          Output:  Structured EvidenceReport JSON — players, target industries, opportunities (M1/M2/…)
 
 Agent 4: Technology Commercialization Report Writer
@@ -122,8 +124,10 @@ Agent 4: Technology Commercialization Report Writer
 Agent 5: Report Reviewer
          Tools:   None (uses Agent 4 draft as input)
          Rules:   6 rules — citation integrity, unsupported numeric claims, overconfident
-                  language, patent legal framing, evidence consistency, TRL label consistency
-         Output:  Corrected final report; Reviewer Notes saved separately (only actual changes logged)
+                  language, patent legal framing, evidence consistency, narrative TRL removal
+         Output:  Bounded JSON correction plan; code applies exact edits to the validated draft
+                  and saves actual changes as Reviewer Notes. If review cannot complete, the
+                  validated draft ships unchanged and the reliability panel records the fallback.
 
 Agent 6: Commercialization Readiness Scorer
          Tools:   None (reads Tasks 1–3 evidence JSON directly, independent of the report)
@@ -143,12 +147,15 @@ Step 0  Source collection & validation (subprocess, before the six agents)
         Input:    free-form request → concise English search topic + equivalent aliases;
                   the original wording remains the report's display topic
         Academic: OpenAlex Works API (filter=title.search, sorted by citation count)
-                  → Semantic Scholar supplement (when OpenAlex count is below target)
+                  → PubMed / arXiv domain supplements and Semantic Scholar fallback
                   → DOI deduplication; summaries < 100 chars auto-rejected
                   → Concurrent Crossref citation-count backfill (ThreadPoolExecutor)
-        Patent:   Serper (3-attempt retry with exponential backoff) → Google Patents / WIPO;
-                  URL reachability verified; patent hosts short-circuited
-        Market:   Serper + domain allowlist (30+ approved institutions); low-quality sites removed
+        Patent:   Lens structured API when configured; otherwise Serper/Tavily →
+                  allowlisted WIPO / EPO / aggregator records. Official WIPO/EPO web
+                  records are high tier; secondary web extracts are medium tier
+        Market:   Serper/Tavily + domain allowlist; low-quality sites removed.
+                  Clinical-product topics prepend FDA, EMA, and ClinicalTrials.gov queries;
+                  missing authority categories become a non-blocking reliability warning
         Metadata: Crossref API for DOI, journal name, publication date
         Output:   validated_sources.json + status.json passed to subprocess pipeline
         Failure:  retrieval_diagnostics.json preserves the search plan and rejection audit
@@ -299,6 +306,9 @@ the API — no build step and no framework, so what is in `web/` is what runs.
 - **Result**: scorecard, report and sources as three tabs, loaded on demand.
   Citation markers are styled distinctly — they are what makes the report
   auditable. Download as Markdown or PDF (CJK glyphs embedded)
+- **Reliability**: a separate panel distinguishes a failed retrieval domain,
+  incomplete clinical-authority coverage, a check that could not run, and a
+  check that ran without finding a problem — silence is never rendered as pass
 - **Attach a paper**: drop a PDF on the composer and it becomes source A1; the
   pipeline then searches around that paper's specific contribution. Its DOI
   and URL were read out of the PDF by a model, so they are resolved before
@@ -345,10 +355,10 @@ same worker, so a run started from one is visible to the other.
 **Option C — Command line**
 
 ```bash
-uv run crewai run
+uv run academic_agent --topic "solid-state batteries for electric vehicles"
 ```
 
-Set the topic via `_DEFAULT_TOPIC` in `src/academic_agent/main.py`.
+Pass a different value to `--topic` for each run; no source edit is required.
 
 #### 4. Output
 
@@ -709,10 +719,13 @@ academic_agent/
 
 - **Framework**: CrewAI 1.14.x
 - **LLM**: DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — auto-detected from API key, or set `LLM_PROVIDER` explicitly
-- **Academic sources**: OpenAlex Works API (primary) + Semantic Scholar Academic Graph API (supplement)
-- **Patent / market search**: Serper or Tavily (3-attempt retry with exponential backoff), auto-selected by which API key is set — see "Deploying publicly" for why there are two
+- **Academic sources**: OpenAlex Works API (primary) + PubMed / arXiv domain supplements + Semantic Scholar fallback
+- **Patent sources**: optional structured Lens API plus allowlisted WIPO / EPO and aggregator discovery records with provenance-aware credibility
+- **Patent / market web search**: Serper or Tavily (3-attempt retry with exponential backoff), auto-selected by which API key is set — see "Deploying publicly" for why there are two
+- **Clinical authority coverage**: direct FDA / EMA / ClinicalTrials.gov query planning for applicable topics, surfaced as a non-blocking reliability state
 - **Academic metadata**: Crossref API (DOI verification and abstract retrieval)
 - **Data validation**: Pydantic v2 + custom guardrails (source structure, citation integrity, report structure, scoring formula, hallucinated source ID detection)
+- **Agent observability**: OpenTelemetry + OpenInference instrumentors with redacted content and optional Arize Phoenix OTLP export
 - **Web client**: static HTML, CSS and ES modules served by FastAPI — no build step, no framework
 - **HTTP API**: FastAPI + Uvicorn, serving both the client and the JSON API (OpenAPI docs at `/docs`)
 - **PDF export**: reportlab Platypus (embedded TTFont for CJK; falls back to CID fonts)
@@ -825,9 +838,9 @@ TRL 校准将评分卡与基于公开里程碑建立、可独立核查的区间�
 |---|---|---|
 | Agent 数量 | 2（researcher + reporting_analyst） | 6（专职分工） |
 | Task 数量 | 2（research_task + reporting_task） | 6（顺序执行 + guardrail 验证） |
-| 工具 | 无 | OpenAlex + Semantic Scholar + SerperDevTool + Crossref |
+| 工具 | 无 | OpenAlex + PubMed + arXiv + Semantic Scholar + Lens + Serper/Tavily + Crossref |
 | 输入变量 | topic + current_year | research_topic |
-| 来源收集 | 无 | 运行前结构化检索，含主题规划与 URL 可达性验证 |
+| 来源收集 | 无 | 运行前结构化检索，含主题规划、来源分级、临床权威覆盖与候选拒绝审计 |
 | 输出格式 | 自由文本报告 | 带 [A1][P2][M3] 行内引用 + References 区块的 Markdown 报告 + JSON 评分卡 |
 | 输出管理 | 固定文件名（覆盖） | 每次运行生成唯一 ID，存入 outputs/ 目录 |
 | 数据质量保障 | 无 | 结构化证据 + 引用完整性校验 + 来源最低字数过滤 + 自动重试 |
@@ -840,15 +853,17 @@ TRL 校准将评分卡与基于公开里程碑建立、可独立核查的区间�
 
 ```
 Agent 1: Academic Literature Analyst（学术前沿分析师）
-         来源：Step 0 预验证的 OpenAlex / Semantic Scholar 学术论文
+         来源：Step 0 预验证的 OpenAlex / PubMed / arXiv / Semantic Scholar 学术论文
          输出：结构化 EvidenceReport JSON，含技术成熟度、研究突破、引用来源（A1/A2/…）
 
 Agent 2: Patent Landscape Analyst（专利图谱分析师）
-         来源：Google Patents / WIPO 专利记录（经 Serper 检索 + URL 验证）
+         来源：Lens 结构化记录，以及白名单内的 WIPO / EPO / 聚合站记录；
+               可信度等级保留记录来自哪条路径
          输出：结构化 EvidenceReport JSON，含专利持有人、空白领域（P1/P2/…）
 
 Agent 3: Market & Competitive Intelligence Analyst（市场情报分析师）
-         来源：域名白名单过滤的市场报告（Serper 检索）
+         来源：域名白名单内的市场与权威记录；适用的临床主题会直接检索
+               监管机构与临床试验注册库
          输出：结构化 EvidenceReport JSON，含商业玩家、目标行业、市场机会（M1/M2/…）
 
 Agent 4: Technology Commercialization Report Writer（报告撰写师）
@@ -859,8 +874,9 @@ Agent 4: Technology Commercialization Report Writer（报告撰写师）
 Agent 5: Report Reviewer（质量审查员）
          工具：无（以 Agent 4 草稿作为输入）
          规则：6 条规则——引用完整性、无来源数字声明、过度乐观语言、
-               专利法律免责措辞、证据一致性、TRL 标签与正文一致性
-         输出：修正后的最终报告；Reviewer Notes 仅记录实际修改条目，自动保存至 reviewer_notes.md
+               专利法律免责措辞、证据一致性、移除正文中的 TRL 数字标签
+         输出：有限 JSON 修订计划；代码对已校验草稿应用精确替换，并将实际修改保存至
+               reviewer_notes.md。若审查未完成，则原样交付已校验草稿，并在可靠性面板标记回退。
 
 Agent 6: Commercialization Readiness Scorer（量化评分员）
          工具：无（以 Task 1/2/3 结构化证据为输入，独立于报告流程）
@@ -879,11 +895,14 @@ Step 0  来源收集与验证（子进程，在六智能体启动前完成）
         输入：自由描述 → 简洁的英文学术检索主题 + 等价检索短语；
               报告展示仍保留用户原始表述
         学术：OpenAlex Works API（filter=title.search，按引用数降序）
-              → Semantic Scholar 补充（当 OpenAlex 不足最大来源数时触发）
+              → PubMed / arXiv 领域补充与 Semantic Scholar 回退
               → 按 DOI 去重，摘要 <100 字符的记录自动剔除
               → 并发 Crossref 引用数补全（ThreadPoolExecutor）
-        专利：Serper（3 次重试 + 指数退避）→ Google Patents / WIPO，验证 URL 可达性
-        市场：Serper 检索 + 域名白名单过滤（30+ 认可机构），剔除低质量站点
+        专利：配置 Key 时优先使用 Lens 结构化 API，否则 Serper/Tavily →
+              白名单内 WIPO / EPO / 聚合站记录；WIPO/EPO 网页记录为 high，
+              二级聚合网页摘录为 medium
+        市场：Serper/Tavily + 域名白名单，剔除低质量站点；临床产品主题优先
+              检索 FDA、EMA 与 ClinicalTrials.gov，缺失类别以非阻断警告展示
         元数据：Crossref API 补充 DOI、期刊名、发表日期
         输出 validated_sources.json + status.json 传入子进程流水线
         失败：retrieval_diagnostics.json 保留检索规划与候选拒绝审计
@@ -1019,9 +1038,10 @@ uv run uvicorn api.main:app --port 8000
 - **附加论文**：把 PDF 拖到输入框即成为来源 A1，流水线随后围绕该论文的具体贡献检索证据。论文的 DOI 和 URL 是模型从 PDF 正文里读出来的，因此在被当作引用之前会先做一次解析校验——解析不通过的定位符会被丢弃而不是照样印进参考文献，同时这条来源的可信度降为 `medium` 以如实反映"读者无法自行核查"
 
 界面功能：
+- **可靠性面板**：明确区分检索域失败、临床权威来源覆盖不完整、检查未能运行与检查后未发现问题，不把沉默显示成通过
 - **实时进度**：Phase 1 并行三个 Agent 的独立状态行 + 已用时间
 - **评分卡**：综合分（0–100）+ 五维雷达图 + 条形图，每个维度展示支撑来源 ID 标签（如 `A2` `M1`）；Weight Profile 徽章显示当前使用的评分权重方案
-- **来源警告**：任一域名来源不足时显示橙色提示横幅
+- **来源与权威覆盖**：检索域失败或适用临床主题缺少监管/试验注册来源时显示警告，但不把“没检索到”写成“不存在”
 - **报告**：Markdown 全文渲染 + `.md` / `.pdf` 双格式下载（PDF 后台生成，报告立即显示）
 - **History 标签页**：浏览所有历史运行；点击任意行自动填入 Run ID；包含 Run ID 列便于复制
 
@@ -1063,10 +1083,10 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
 **方式三：命令行**
 
 ```bash
-uv run crewai run
+uv run academic_agent --topic "用于电动汽车的固态电池"
 ```
 
-研究主题在 `src/academic_agent/main.py` 中修改 `_DEFAULT_TOPIC` 字段。
+每次运行通过 `--topic` 传入研究主题，不需要修改源代码。
 
 #### 4. 查看报告
 
@@ -1286,10 +1306,13 @@ academic_agent/
 
 - **框架**：CrewAI 1.14.x
 - **LLM**：DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — 自动从 API Key 检测，或通过 `LLM_PROVIDER` 显式指定
-- **学术来源**：OpenAlex Works API（主力）+ Semantic Scholar Academic Graph API（补充）
-- **专利 / 市场搜索**：Serper 或 Tavily（3 次重试 + 指数退避），按配置了哪个 Key 自动选择——原因见"公网部署"一节
+- **学术来源**：OpenAlex Works API（主力）+ PubMed / arXiv 领域补充 + Semantic Scholar 回退
+- **专利来源**：可选 Lens 结构化 API，以及白名单内 WIPO / EPO 与聚合站发现记录，可信度保留来源路径
+- **专利 / 市场网页搜索**：Serper 或 Tavily（3 次重试 + 指数退避），按配置了哪个 Key 自动选择——原因见"公网部署"一节
+- **临床权威覆盖**：适用主题直接规划 FDA / EMA / ClinicalTrials.gov 查询，以非阻断可靠性状态到达网页
 - **学术元数据**：Crossref API（DOI 验证与摘要检索）+ 并发引用数补全
 - **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、幻觉来源 ID 检测、评分算法验证）
+- **Agent 可观测性**：OpenTelemetry + OpenInference 自动埋点，内容脱敏，可选导出到 Arize Phoenix OTLP 后端
 - **网页客户端**：静态 HTML / CSS / ES 模块，由 FastAPI 托管——无构建步骤、无框架
 - **HTTP API**：FastAPI + Uvicorn（OpenAPI 文档位于 `/docs`）
 - **PDF 导出**：reportlab Platypus（嵌入式 TTFont，支持 CJK；回退至 CID 字体）

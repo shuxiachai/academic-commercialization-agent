@@ -485,6 +485,31 @@ class FailedDomainReportingTests(unittest.TestCase):
     def test_a_healthy_run_records_no_failure(self):
         self.assertEqual(self._collection().failed_domains, {})
 
+    def test_scope_warning_reaches_the_report_writer(self):
+        """Persisting the warning is not enough if no prompt consumes it."""
+        warning = "TOPIC SCOPE -- state which indications are assessed."
+        notice = self._collection(scope_warning=warning).crew_inputs()[
+            "retrieval_notice"
+        ]
+        self.assertIn(warning, notice)
+
+    def test_missing_component_reaches_the_report_writer(self):
+        """Persisting component coverage is useless unless Task 4 receives it."""
+        notice = self._collection(
+            search_components=["mycelium materials", "edge AI inference"],
+            component_coverage={
+                "status": "incomplete",
+                "components": ["mycelium materials", "edge AI inference"],
+                "covered_source_ids": {"mycelium materials": ["A1"]},
+                "missing_components": ["edge AI inference"],
+                "unchecked_components": [],
+            },
+        ).crew_inputs()["retrieval_notice"]
+
+        self.assertIn("COMPOUND TOPIC COVERAGE", notice)
+        self.assertIn("edge AI inference", notice)
+        self.assertIn("not proof", notice)
+
     def test_the_report_writer_is_told_which_domain_failed(self):
         inputs = self._collection(
             failed_domains={"market": "Tavily search failed: HTTP 432"},

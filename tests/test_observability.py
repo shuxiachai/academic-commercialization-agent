@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from openinference.instrumentation import TracerProvider
@@ -20,6 +21,34 @@ from academic_agent.observability.tracing import _instrument_provider
 
 
 class ObservabilityConfigurationTests(unittest.TestCase):
+
+    def test_cloud_space_endpoint_resolves_to_the_space_trace_route(self) -> None:
+        """The SDK must retain the tenant path shown on Phoenix's Spaces page."""
+        from phoenix.otel.otel import _normalized_endpoint
+
+        env = {
+            "PHOENIX_COLLECTOR_ENDPOINT": (
+                "https://app.phoenix.arize.com/s/example-space"
+            )
+        }
+        with patch.dict(os.environ, env, clear=True):
+            _, endpoint = _normalized_endpoint(None, use_http=True)
+
+        self.assertEqual(
+            endpoint,
+            "https://app.phoenix.arize.com/s/example-space/v1/traces",
+        )
+
+    def test_cloud_examples_do_not_drop_the_space_route(self) -> None:
+        """Executable setup and operator prose must teach the same tenant URL."""
+        root = Path(__file__).resolve().parent.parent
+        expected = "https://app.phoenix.arize.com/s/<space-name>"
+        wrong_root = "https://app.phoenix.arize.com/v1/traces"
+        for relative in (".env.example", "docs/observability.md"):
+            with self.subTest(relative=relative):
+                text = (root / relative).read_text(encoding="utf-8")
+                self.assertIn(expected, text)
+                self.assertNotIn(f"PHOENIX_COLLECTOR_ENDPOINT={wrong_root}", text)
 
     def test_disabled_is_explicit_and_imports_no_backend(self) -> None:
         with patch.dict(os.environ, {}, clear=True), \

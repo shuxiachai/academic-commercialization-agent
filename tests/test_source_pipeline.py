@@ -515,6 +515,86 @@ class SourcePipelineTests(TestCase):
                 self.assertEqual(source.credibility_tier, expected_tier)
                 self.assertGreaterEqual(len(source.credibility_reason), 10)
 
+    def test_market_snippet_year_is_not_treated_as_publication_metadata(self) -> None:
+        source, reason = _web_source(
+            {
+                "title": "Company commercialization update",
+                "link": "https://www.reuters.com/technology/example-update",
+                "snippet": (
+                    "The company was founded in 2018 and now reports a commercial "
+                    "pilot with customers in several industrial markets."
+                ),
+            },
+            "M1",
+            "market",
+            date(2026, 7, 2),
+            lambda _url: (True, ""),
+        )
+        self.assertEqual(reason, "")
+        self.assertIsNone(source.published_date)
+
+    def test_explicit_market_result_date_is_preserved(self) -> None:
+        source, reason = _web_source(
+            {
+                "title": "Company commercialization update",
+                "link": "https://www.reuters.com/technology/example-update",
+                "date": "Jun 24, 2025",
+                "snippet": (
+                    "The company reports a commercial pilot with customers in "
+                    "several industrial markets and a planned production line."
+                ),
+            },
+            "M1",
+            "market",
+            date(2026, 7, 2),
+            lambda _url: (True, ""),
+        )
+        self.assertEqual(reason, "")
+        self.assertEqual(source.published_date, date(2025, 6, 24))
+
+    def test_old_explicit_market_report_date_triggers_staleness_penalty(self) -> None:
+        source, reason = _web_source(
+            {
+                "title": "Historical market forecast",
+                "link": (
+                    "https://www.grandviewresearch.com/industry-analysis/"
+                    "historical-example"
+                ),
+                "date": "2020-01-02",
+                "snippet": (
+                    "The report estimates market demand and supplier activity "
+                    "using a documented commercial forecasting methodology."
+                ),
+            },
+            "M1",
+            "market",
+            date(2026, 7, 2),
+            lambda _url: (True, ""),
+        )
+        self.assertEqual(reason, "")
+        self.assertEqual(source.published_date, date(2020, 1, 2))
+        self.assertEqual(source.credibility_tier, "low")
+        self.assertIn("Stale market data", source.credibility_reason)
+
+    def test_future_explicit_market_date_is_left_unknown(self) -> None:
+        source, reason = _web_source(
+            {
+                "title": "Company commercialization update",
+                "link": "https://www.reuters.com/technology/example-update",
+                "date": "2030-01-01",
+                "snippet": (
+                    "The company reports a commercial pilot with customers in "
+                    "several industrial markets and a planned production line."
+                ),
+            },
+            "M1",
+            "market",
+            date(2026, 7, 2),
+            lambda _url: (True, ""),
+        )
+        self.assertEqual(reason, "")
+        self.assertIsNone(source.published_date)
+
     def test_academic_publishers_are_not_reused_as_market_sources(self) -> None:
         source, reason = _web_source(
             {
@@ -585,7 +665,7 @@ class SourcePipelineTests(TestCase):
         )
         self.assertTrue(
             all(
-                source.credibility_tier == "high"
+                source.credibility_tier == "medium"
                 for source in collection.patent_sources
             )
         )
@@ -937,3 +1017,289 @@ class MarketQueryRecencyTests(TestCase):
                     f"{sorted(years - current)} is a fixed year in a market query; "
                     "use _recent_years() so the window moves with the clock",
                 )
+
+class ComponentQueryPlanningTests(TestCase):
+    """Each building block gets a bounded query that cannot be crowded out."""
+
+    def test_each_component_gets_an_independent_query_in_every_domain(self):
+        from academic_agent.source_pipeline import _queries
+
+        components = (
+            "mycelium composite packaging",
+            "distributed environmental sensors",
+            "edge AI inference",
+        )
+        planned = _queries(
+            "mycelium packaging with sensor networks and edge AI",
+            components=components,
+        )
+
+        self.assertEqual(len(planned["patent"]), 6)
+        self.assertFalse(any(" OR " in query for query in planned["patent"]))
+        for component in components:
+            with self.subTest(component=component):
+                self.assertEqual(
+                    sum(
+                        query.startswith(f'"{component}"')
+                        for query in planned["patent"]
+                    ),
+                    1,
+                )
+                self.assertTrue(any(
+                    query.startswith(component) for query in planned["market"]
+                ))
+                self.assertTrue(any(
+                    query.startswith(component) for query in planned["academic"]
+                ))
+
+
+class AuthorityQueryPlanningTests(TestCase):
+    """Clinical-product searches must ask authority systems directly."""
+
+    def test_gene_editing_queries_regulators_and_the_trial_registry_first(self):
+        from academic_agent.source_pipeline import _queries
+
+        market = _queries(
+            "CRISPR gene editing for genetic diseases",
+            weight_profile="biomedical",
+        )["market"]
+        self.assertIn("site:fda.gov", market[0])
+        self.assertIn("site:ema.europa.eu", market[1])
+        self.assertIn("site:clinicaltrials.gov", market[2])
+
+    def test_nonclinical_biomedical_methods_do_not_require_clinical_authorities(self):
+        from academic_agent.source_pipeline import _queries
+
+        topics = (
+            "quantum computing for drug discovery",
+            "CRISPR gene editing for drought-resistant crops",
+        )
+        for topic in topics:
+            with self.subTest(topic=topic):
+                market = _queries(topic, weight_profile="biomedical")["market"]
+                self.assertFalse(any("site:fda.gov" in query for query in market))
+                self.assertFalse(
+                    any("site:clinicaltrials.gov" in query for query in market)
+                )
+
+    def test_the_wider_biomedical_profile_does_not_imply_clinical_authorities(self):
+        from academic_agent.source_pipeline import _queries
+
+        market = _queries(
+            "cultivated meat for food industry",
+            weight_profile="biomedical",
+        )["market"]
+        self.assertFalse(any("fda.gov" in query for query in market))
+        self.assertFalse(any("clinicaltrials.gov" in query for query in market))
+
+
+class AuthoritySourceClassificationTests(TestCase):
+    """Nested EU regulator hosts used to fall through as company pages."""
+
+    def test_ema_is_an_official_regulator(self):
+        from academic_agent.source_pipeline import _market_source_profile
+
+        profile = _market_source_profile(
+            "https://www.ema.europa.eu/en/medicines/human/example",
+            "www.ema.europa.eu",
+        )
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile[:2], ("government", "high"))
+
+    def test_clinicaltrials_is_an_official_registry(self):
+        from academic_agent.source_pipeline import _market_source_profile
+
+        profile = _market_source_profile(
+            "https://clinicaltrials.gov/study/NCT00000000",
+            "clinicaltrials.gov",
+        )
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile[:2], ("research_institute", "high"))
+
+
+class AuthorityCoverageTests(TestCase):
+    @staticmethod
+    def _source(source_id: str, url: str):
+        from academic_agent.evidence import EvidenceSource
+
+        return EvidenceSource(
+            source_id=source_id,
+            title="Official clinical authority record",
+            url=url,
+            publisher="Official Registry",
+            accessed_date=date.today(),
+            source_type="government",
+            credibility_tier="high",
+            credibility_reason="Official authority record for the stated jurisdiction.",
+            evidence_summary=(
+                "This official record describes the approval or registered clinical "
+                "study status for the technology and indication named in the topic."
+            ),
+        )
+
+    def test_complete_means_both_required_categories_are_present(self):
+        from academic_agent.source_pipeline import _measure_authority_coverage
+
+        coverage = _measure_authority_coverage(
+            "CRISPR gene editing for genetic diseases",
+            "biomedical",
+            [
+                self._source("M1", "https://www.fda.gov/vaccines-blood-biologics/example"),
+                self._source("M2", "https://clinicaltrials.gov/study/NCT00000000"),
+            ],
+        )
+        self.assertEqual(coverage.status, "complete")
+        self.assertEqual(coverage.covered_source_ids["regulatory"], ["M1"])
+        self.assertEqual(coverage.covered_source_ids["clinical_registry"], ["M2"])
+
+    def test_missing_registry_is_incomplete_not_a_claim_that_no_trial_exists(self):
+        from academic_agent.source_pipeline import _measure_authority_coverage
+
+        coverage = _measure_authority_coverage(
+            "CRISPR gene editing for genetic diseases",
+            "biomedical",
+            [self._source("M1", "https://www.fda.gov/medical-products/example")],
+        )
+        self.assertEqual(coverage.status, "incomplete")
+        self.assertEqual(coverage.missing_categories, ["clinical_registry"])
+
+    def test_nonclinical_topics_are_explicitly_not_applicable(self):
+        from academic_agent.source_pipeline import _measure_authority_coverage
+
+        coverage = _measure_authority_coverage(
+            "solid-state batteries for electric vehicles", "material_science", []
+        )
+        self.assertEqual(coverage.status, "not_applicable")
+        self.assertEqual(coverage.required_categories, [])
+
+
+class ComponentCoverageTests(TestCase):
+    """Compound-topic coverage is explicit, advisory, and honest about silence."""
+
+    @staticmethod
+    def _source(source_id: str, title: str):
+        from academic_agent.evidence import EvidenceSource
+
+        return EvidenceSource(
+            source_id=source_id,
+            title=title,
+            publisher="Peer-reviewed Journal",
+            url=f"https://example.org/{source_id.lower()}",
+            accessed_date=date.today(),
+            source_type="academic_paper",
+            credibility_tier="high",
+            credibility_reason="Peer-reviewed record with traceable publication metadata.",
+            evidence_summary=(
+                f"{title} is evaluated with reproducible methods and reports "
+                "technical performance relevant to the stated research component."
+            ),
+        )
+
+    def test_complete_requires_every_planned_component_to_appear(self):
+        from academic_agent.source_pipeline import _measure_component_coverage
+
+        components = (
+            "mycelium composite packaging",
+            "distributed environmental sensors",
+            "edge AI inference",
+        )
+        coverage = _measure_component_coverage(
+            components,
+            [
+                self._source("A1", "Mycelium composite packaging materials"),
+                self._source("A2", "Distributed environmental sensor networks"),
+                self._source("A3", "Edge AI inference for embedded devices"),
+            ],
+        )
+
+        self.assertEqual(coverage.status, "complete")
+        self.assertEqual(set(coverage.covered_source_ids), set(components))
+
+    def test_missing_component_is_a_warning_not_an_absence_claim(self):
+        from academic_agent.source_pipeline import _measure_component_coverage
+
+        coverage = _measure_component_coverage(
+            (
+                "mycelium composite packaging",
+                "distributed environmental sensors",
+                "edge AI inference",
+            ),
+            [
+                self._source("A1", "Mycelium composite packaging materials"),
+                self._source("A2", "Distributed environmental sensor networks"),
+            ],
+        )
+
+        self.assertEqual(coverage.status, "incomplete")
+        self.assertEqual(coverage.missing_components, ["edge AI inference"])
+
+    def test_non_discriminating_components_are_unchecked_not_complete(self):
+        from academic_agent.source_pipeline import _measure_component_coverage
+
+        coverage = _measure_component_coverage(
+            ("artificial intelligence systems", "advanced methods"),
+            [],
+        )
+
+        self.assertEqual(coverage.status, "unchecked")
+        self.assertEqual(len(coverage.unchecked_components), 2)
+
+    def test_single_technology_is_explicitly_not_applicable(self):
+        from academic_agent.source_pipeline import _measure_component_coverage
+
+        coverage = _measure_component_coverage(("solid-state batteries",), [])
+        self.assertEqual(coverage.status, "not_applicable")
+
+
+class BroadClinicalScopeTests(TestCase):
+    def test_obviously_cross_indication_topic_gets_a_nonblocking_scope_instruction(self):
+        from academic_agent.source_pipeline import _clinical_scope_warning
+
+        warning = _clinical_scope_warning(
+            "CRISPR gene editing for genetic diseases", "biomedical"
+        )
+        self.assertIsNotNone(warning)
+        self.assertIn("multiple", warning)
+        self.assertIn("MUST state the scope", warning)
+
+    def test_specific_indication_is_not_flagged(self):
+        from academic_agent.source_pipeline import _clinical_scope_warning
+
+        self.assertIsNone(
+            _clinical_scope_warning(
+                "CAR-T cell therapy for relapsed B-cell lymphoma", "biomedical"
+            )
+        )
+
+
+class PatentHostCredibilityTests(TestCase):
+    """Patent discovery hosts must not all be described as official registries."""
+
+    @staticmethod
+    def _source(host: str):
+        return _web_source(
+            {
+                "title": "Patent record for a commercial technology",
+                "link": f"https://{host}/patent/WO2026123456A1/en",
+                "snippet": (
+                    "The patent record describes an invention, its applicants, "
+                    "publication status, and claimed commercial technology use."
+                ),
+            },
+            "P1",
+            "patent",
+            date.today(),
+            lambda _url: (True, ""),
+        )[0]
+
+    def test_wipo_record_is_high_tier_and_official(self):
+        source = self._source("patentscope.wipo.int")
+        self.assertIsNotNone(source)
+        self.assertEqual(source.credibility_tier, "high")
+        self.assertIn("Official WIPO or EPO", source.credibility_reason)
+
+    def test_google_patents_record_is_medium_tier_and_requires_verification(self):
+        source = self._source("patents.google.com")
+        self.assertIsNotNone(source)
+        self.assertEqual(source.credibility_tier, "medium")
+        self.assertIn("Secondary patent aggregator", source.credibility_reason)

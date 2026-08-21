@@ -92,3 +92,7 @@ def run() -> None:
 # removed rather than fixed: each called a _build_collection() helper that never
 # existed, so every one raised NameError on invocation — they had never been
 # run. `benchmark.py` covers the evaluation need this project actually has.
+
+
+if __name__ == "__main__":
+    run()
