@@ -100,6 +100,7 @@ class HealthTests(_ApiTestCase):
     def test_reports_capacity(self):
         body = self.client.get("/health").json()
         self.assertEqual(body["active_runs"], 0)
+        self.assertEqual(body["active_paid_operations"], 0)
         self.assertEqual(body["max_concurrent"], runs.MAX_CONCURRENT)
 
     # Patched where api.main looks it up, not where it is defined. The
@@ -125,7 +126,9 @@ class HealthTests(_ApiTestCase):
     def test_active_run_counted(self, mock_popen):
         mock_popen.return_value = self._live_proc()
         self.client.post("/api/runs", json={"topic": "counted topic"})
-        self.assertEqual(self.client.get("/health").json()["active_runs"], 1)
+        capacity = self.client.get("/health").json()
+        self.assertEqual(capacity["active_runs"], 1)
+        self.assertEqual(capacity["active_paid_operations"], 1)
 
 
 # ---------------------------------------------------------------------------
@@ -514,8 +517,8 @@ class SecurityHeaderTests(_ApiTestCase):
 
 class RateLimitTests(_ApiTestCase):
     """Bounds request volume, which the concurrency and daily caps do not:
-    those count runs, and the endpoints reachable without a code cost nothing
-    to serve but are unbounded without this."""
+    those count paid operations, while cheap capability polling and access
+    checks remain unbounded without this."""
 
     def setUp(self):
         super().setUp()
@@ -558,6 +561,40 @@ class RateLimitTests(_ApiTestCase):
             fresh = self.client.get("/api/runs", headers={"X-Access-Code": "bob"})
         self.assertEqual(spent.status_code, 429)
         self.assertEqual(fresh.status_code, 200)
+
+    def test_invalid_codes_cannot_mint_fresh_budgets(self):
+        """A caller must not bypass the limiter by changing a wrong code.
+
+        A capability URL deliberately bypasses the access gate, so its request
+        still reaches the limiter with whatever code header the caller chose.
+        The limiter must validate that value before using it as an identity;
+        hashing arbitrary text gives an attacker unlimited fresh buckets.
+        """
+        self.main._RATE_LIMIT_REQUESTS = 1
+        with patch.object(access, "ACCESS_CODE", "the-real-code"):
+            first = self.client.get(
+                "/api/runs/not-a-real-run",
+                headers={"X-Access-Code": "wrong-one"},
+            )
+            second = self.client.get(
+                "/api/runs/not-a-real-run",
+                headers={"X-Access-Code": "wrong-two"},
+            )
+        self.assertEqual(first.status_code, 404)
+        self.assertEqual(second.status_code, 429)
+
+    def test_forwarded_for_is_not_a_client_chosen_bucket(self):
+        """Proxy trust belongs at the server boundary, not in an HTTP header.
+
+        Uvicorn can replace ``request.client`` after validating its trusted
+        proxy configuration. Reading X-Forwarded-For again in application
+        code trusts a value a direct caller can change for every request.
+        """
+        self.main._RATE_LIMIT_REQUESTS = 1
+        first = self.client.get("/api/runs", headers={"X-Forwarded-For": "198.51.100.1"})
+        second = self.client.get("/api/runs", headers={"X-Forwarded-For": "198.51.100.2"})
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
 
     def test_zero_disables_the_limit(self):
         self.main._RATE_LIMIT_REQUESTS = 0

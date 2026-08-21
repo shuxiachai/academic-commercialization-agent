@@ -277,7 +277,15 @@ class RunList(BaseModel):
 
 class HealthStatus(BaseModel):
     status: Literal["ok"]
-    active_runs: int
+    active_runs: int = Field(
+        description="Worker subprocesses currently running. Kept separately "
+                    "from active_paid_operations for API compatibility and "
+                    "run-specific operational diagnostics.",
+    )
+    active_paid_operations: int = Field(
+        description="All operations occupying the shared paid-provider/host "
+                    "capacity: worker runs plus inline PDF extraction.",
+    )
     max_concurrent: int
     retention_days: int = Field(
         default=0,

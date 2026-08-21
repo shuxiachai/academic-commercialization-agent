@@ -37,9 +37,10 @@ Running on Railway — nothing to install. The gate offers two ways in:
 - **Access code** — runs on the deployment's own keys. Codes are handed out
   privately; without one, use the BYOK option above.
 
-A run takes roughly 3 minutes and costs a few cents of LLM plus about 9 search
-queries, so the deployment caps concurrency and daily runs per code. See
-[Deploying publicly](#deploying-publicly) for how the two entrances work.
+A full run takes roughly 3 minutes and costs a few cents of LLM plus about 9
+search queries. The deployment therefore caps shared paid-operation concurrency
+and daily operator-funded admissions per code, including PDF extraction. See
+[Deploying publicly](#deploying-publicly) for the exact boundary.
 
 ---
 
@@ -337,17 +338,19 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/health` | Liveness, active-run count, resolved LLM provider |
-| `POST` | `/api/runs` | Queue an assessment (`202`, or `429` at capacity) |
+| `GET` | `/health` | Liveness, active-run and shared paid-operation capacity, resolved LLM provider |
+| `POST` | `/api/papers` | Upload a PDF and extract its contribution (`429` at shared paid capacity) |
+| `POST` | `/api/runs` | Queue an assessment (`202`, or `429` at shared paid capacity) |
 | `GET` | `/api/runs` | List runs, newest first |
 | `GET` | `/api/runs/{id}` | Stage, state, elapsed time, available artifacts |
 | `DELETE` | `/api/runs/{id}` | Terminate a running assessment |
 | `GET` | `/api/runs/{id}/report` | Final report as Markdown |
 | `GET` | `/api/runs/{id}/{artifact}` | Run artifacts, including `scores`, `sources`, checks, and failed-run `retrieval` diagnostics |
 
-Concurrency is capped at 2 runs (`API_MAX_CONCURRENT` to change) — the binding
-constraint is upstream API rate limits, not local CPU. Runs exceeding 30 minutes
-are terminated automatically.
+Concurrency is capped at 2 paid operations (`API_MAX_CONCURRENT` to change),
+shared by worker runs and inline PDF extraction — the binding constraint is
+upstream provider capacity, not local CPU. Runs exceeding 30 minutes are
+terminated automatically; extraction releases its slot on every exit path.
 
 The web client and the JSON API share the same `outputs/` directory and launch the
 same worker, so a run started from one is visible to the other.
@@ -417,36 +420,38 @@ state. API keys come from `.env` at runtime and are never baked into a layer.
 
 ### Deploying publicly
 
-Anything reachable on the open internet at `/api/runs` triggers real, billed
-calls — the pipeline makes six LLM calls and dozens of search-API calls per
-run. For a link shared with a specific, small audience (e.g. reviewers
-looking at this project) rather than the general public, two settings in
-`.env` close that off without building a login system:
+Both `/api/runs` and `/api/papers` can trigger real, billed calls — a full
+pipeline makes six LLM calls plus search-API calls, while PDF contribution
+extraction makes an inline LLM call. For a link shared with a specific, small
+audience (e.g. reviewers) rather than the general public, two settings in
+`.env` close those paths without building a login system:
 
 ```bash
-ACCESS_CODE=choose-a-long-random-string   # gates every /api/ route
-API_DAILY_RUN_CAP=3                       # hard ceiling, in case the code leaks
+ACCESS_CODE=choose-a-long-random-string        # gates every /api/ route
+API_DAILY_PAID_OPERATION_CAP=3                 # per-code provider admissions
 ```
 
 `ACCESS_CODE` (or `ACCESS_CODES` — see below) is checked by a middleware in
-`api/main.py` against an `X-Access-Code` header; the web client prompts for
-it once and remembers it in `localStorage` from then on. `/health` stays
-open regardless — platform load balancers poll it without a header, and
-serving it costs nothing. Leaving both unset (the default) makes the gate
-inert: local development sees no difference from before it existed.
+`api/main.py` against an `X-Access-Code` header; the web client prompts once
+and remembers it in `localStorage`. `/health` stays open for platform probes.
+Leaving every access-code setting unset (the default) makes the gate inert, so
+local development sees no difference.
 
-`API_DAILY_RUN_CAP` is a second, independent line of defence: the
-concurrency cap only limits how many runs execute at once, so a leaked code
-could still trigger hundreds of runs one after another over a day. This caps
-the total regardless of pacing. 0 (default) disables it.
+`API_DAILY_PAID_OPERATION_CAP` is an independent, per-process wallet guard. A
+full assessment and a PDF extraction each consume one operator-funded unit, so
+an upload-then-run journey consumes two. It is applied separately to each
+validated code (including the admin code); BYOK operations are exempt because
+the visitor pays. 0 disables it. The old `API_DAILY_RUN_CAP` name remains a
+backward-compatible fallback when the new variable is unset. Because the ledger
+is in memory, UTC midnight and a process restart reset it; durable multi-replica
+accounting would require an external store.
 
-Size it against your **search** quota rather than your LLM bill. Measured
-over 30 runs, one run issues a median of 9 web searches (range 5-15) — fewer
-than the ~22 queries it builds, because collection stops early once a domain
-has enough sources and because academic retrieval goes to OpenAlex/PubMed/arXiv
-rather than the search API. Tavily's 1000-per-month free tier is therefore
-roughly 110 runs in total across every code. Note the cap is per code, so it bounds what any one leaked code
-can do, not what every code can do put together.
+Size the value against the stricter of your **LLM and search** budgets. Across
+30 measured runs, one full assessment issues a median of 9 web searches (range
+5-15); PDF extraction adds one LLM call but no search call. Tavily's
+1000-per-month free tier is therefore roughly 110 full runs in total across all
+codes. The per-code cap bounds one leaked credential, not the aggregate of every
+code.
 
 **Two more settings worth turning on before a link goes public**, both
 default-off so local use is unaffected:
@@ -456,13 +461,13 @@ API_RATE_LIMIT_PER_MINUTE=300   # requests per client per minute
 RUN_RETENTION_DAYS=30           # delete finished runs after N days
 ```
 
-The rate limit counts *requests*, which neither cap above does — those count
-runs. It matters because the endpoints reachable without a code are the cheap
-ones: a run id is a capability URL, so whoever holds one can poll it freely,
-and the gate check itself must stay open in order to reject wrong codes at
-all. Charged per access code where one is present and per address otherwise,
-so several people behind one campus NAT are not throttled as a single client.
-`/health` is exempt — a throttled health check reads as the service being down.
+The rate limit counts *HTTP requests*; the caps above count *paid operations*.
+A capability URL can be polled without a code, so cheap routes still need a
+bound. A validated access code receives its own bucket; all other callers use
+the peer address resolved by the ASGI server. The application deliberately does
+not trust raw `X-Forwarded-For` or arbitrary code text as identity — trusted
+proxy handling belongs in Uvicorn/deployment configuration. `/health` is exempt,
+because a throttled health check reads as the service being down.
 
 Retention matters *because* run links are shareable. Reading a run needs only
 its id, so a shared link lives exactly as long as the run does, and a visitor
@@ -504,12 +509,12 @@ id or raw topic, and exposes its `trace_id` and explicit
 disabled/active/degraded state through both run endpoints. See
 [Agent observability](docs/observability.md) for setup and the data contract.
 
-`API_BYOK_MAX_CONCURRENT` bounds how many of those slots visitors using their
-own keys may hold at once; it defaults to one below `API_MAX_CONCURRENT`.
-Bring-your-own-key runs skip the daily cap since the visitor pays for their
-own tokens, and that exemption is what let anonymous traffic — including
-submissions failing on a bad key — fill every slot and lock out the people
-holding a code.
+`API_BYOK_MAX_CONCURRENT` bounds the BYOK share of the shared slots across both
+full runs and PDF extraction; it defaults to one below `API_MAX_CONCURRENT`.
+BYOK operations skip the daily wallet cap because the visitor pays, but still
+consume finite host/provider capacity. This prevents anonymous traffic —
+including bad-key failures — from filling every slot and locking out code
+holders.
 
 **Handing out a separate code per person:** `ACCESS_CODES` accepts a
 comma-separated list instead of one shared value — `ACCESS_CODES=for-alice,
@@ -521,14 +526,11 @@ process, one `outputs/` directory, codes just partition what `GET /api/runs`
 returns. `ACCESS_CODE` (singular) still works for the original one-code-for-
 everyone setup; both may be set together.
 
-`ACCESS_CODE_ADMIN` is one further code that authorizes runs like any
-other (its own owner tag, its own daily-cap budget) but is exempt from that
-same filter, so its holder sees every code's history combined — a way to
-check who has actually used their code without checking each one
-individually. `API_DAILY_RUN_CAP` is likewise applied per code (including
-the admin one), not as one shared total — otherwise one enthusiastic
-tester could exhaust the day's budget for everyone else holding a
-different code.
+`ACCESS_CODE_ADMIN` is one further code that authorizes runs like any other
+(its own owner tag and paid-operation budget) but is exempt from that same
+history filter, so its holder sees every code's runs combined. The daily cap
+is likewise per code, including the admin one, rather than one shared total
+that an enthusiastic tester could exhaust for everyone else.
 
 **A second, open entrance:** `POST /api/runs` also accepts `llm_provider` /
 `llm_api_key` / `serper_api_key` in the body as an alternative to any access
@@ -543,7 +545,10 @@ A BYOK run gets no code tag at all, so it never appears in any code's
 history server-side; the web client instead keeps a session-only list of
 the visitor's own runs (in `sessionStorage`) so their sidebar still shows
 what they submitted — gone the moment the tab closes, complete for as long
-as it's open.
+as it's open. `POST /api/papers` accepts the same BYOK LLM provider/key pair
+(the extractor does not need a search key); both upload extraction and full
+runs enter the shared paid-operation admission boundary before calling a
+provider.
 
 `GET /api/runs` (the run-history list) always stays behind a code
 regardless of any of this — opening it up would show every visitor's topics
@@ -730,7 +735,7 @@ academic_agent/
 - **HTTP API**: FastAPI + Uvicorn, serving both the client and the JSON API (OpenAPI docs at `/docs`)
 - **PDF export**: reportlab Platypus (embedded TTFont for CJK; falls back to CID fonts)
 - **Container**: Docker multi-stage build (dependency layer cached separately from source), `tini` as PID 1 for subprocess reaping, non-root user, build-time CJK font verification
-- **Access control**: optional shared-secret middleware (`ACCESS_CODE`) plus a daily run cap, for exposing a demo link without an open API bill — with an open bring-your-own-key path alongside it, so a visitor without the code can still run it on their own keys
+- **Paid-operation boundary**: validated-code access control, shared concurrency across runs/PDF extraction, per-code daily wallet cap, launch-failure refunds, and a separately bounded BYOK path
 - **Python**: 3.11+
 
 Invalid or unreachable URLs/DOIs, mismatched citation IDs, References inconsistencies, malformed report sections, hallucinated source IDs in scoring, and scoring JSON format errors all block the task and trigger automatic retries.
@@ -1067,16 +1072,16 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
-| `GET` | `/health` | 存活检查、当前运行数、已解析的 LLM provider |
-| `POST` | `/api/runs` | 提交评估任务（`202`，达到并发上限时 `429`） |
+| `GET` | `/health` | 存活检查、运行数、共享付费操作容量、已解析的 LLM provider |
+| `POST` | `/api/papers` | 上传 PDF 并提取贡献（共享付费容量满时返回 `429`） |
+| `POST` | `/api/runs` | 提交评估任务（共享付费容量满时返回 `429`） |
 | `GET` | `/api/runs` | 列出历史运行，最新在前 |
 | `GET` | `/api/runs/{id}` | 阶段、状态、已用时长、可用产物清单 |
 | `DELETE` | `/api/runs/{id}` | 终止运行中的任务 |
 | `GET` | `/api/runs/{id}/report` | Markdown 格式的最终报告 |
 | `GET` | `/api/runs/{id}/{artifact}` | 运行产物，包括 `scores`、`sources`、自动检查及失败运行的 `retrieval` 诊断 |
 
-并发上限默认为 2（通过 `API_MAX_CONCURRENT` 调整）——真正的瓶颈是上游 API 限速而非本机 CPU。
-超过 30 分钟的运行会被自动终止。
+共享付费操作并发上限默认为 2（通过 `API_MAX_CONCURRENT` 调整），完整运行与 PDF 在线提取共用这组槽位——真正的瓶颈是上游 Provider 容量而非本机 CPU。超过 30 分钟的运行会被自动终止；PDF 提取无论成功或失败都会释放槽位。
 
 网页客户端与 JSON API 共享同一个 `outputs/` 目录、启动同一个 worker，因此从任一入口发起的运行在另一侧都可见。
 
@@ -1141,18 +1146,18 @@ CI 每次提交都会构建镜像并断言 PID 1 是 tini、容器非 root 运�
 
 ### 公网部署
 
-只要 `/api/runs` 能被公网访问到，任何人都能触发真实计费的调用——一次运行会调六次 LLM，再加几十次检索 API。如果只是把链接发给特定的少数人看（比如给面试官看这个项目），而不是面向公众开放，`.env` 里两个开关就能把这个口子堵上，不用做一整套登录系统：
+`/api/runs` 与 `/api/papers` 都可能触发真实计费：完整流水线会调用六次 LLM 与检索 API，PDF 核心贡献提取则会在线调用一次 LLM。如果只把链接发给少数面试官或评审，而不是公开运营，`.env` 里的两个开关可以同时封住这两条路径：
 
 ```bash
-ACCESS_CODE=换成一串足够长的随机字符串     # 拦截所有 /api/ 路由
-API_DAILY_RUN_CAP=3                       # 硬上限，万一口令泄漏出去兜底
+ACCESS_CODE=换成一串足够长的随机字符串          # 拦截所有 /api/ 路由
+API_DAILY_PAID_OPERATION_CAP=3                  # 每个口令的付费操作额度
 ```
 
-`ACCESS_CODE`（或下面的 `ACCESS_CODES`）由 `api/main.py` 里的中间件校验请求头 `X-Access-Code`；网页客户端只在第一次访问时弹窗询问，之后记在 `localStorage` 里不用重复输入。`/health` 不受影响——云平台的健康检查不会带请求头，这个接口本身也不花钱。两个都不设置（默认）时门禁完全不生效，本地开发和之前没有任何区别。
+`ACCESS_CODE`（或下面的 `ACCESS_CODES`）由 `api/main.py` 中间件校验请求头 `X-Access-Code`；网页只在首次访问时询问并记入 `localStorage`。`/health` 仍对云平台探针开放。所有口令设置都留空（默认）时，门禁完全不生效，本地开发不受影响。
 
-`API_DAILY_RUN_CAP` 是第二道独立防线：并发上限只管同时跑几个，管不住口令泄漏后被人在一天内前后接力刷上百次；这个直接卡总数，与节奏无关。**按每个口令各自计数**，不是所有口令共用一个池子——不然一个人测得起劲，会把其他持有不同口令的人当天的额度全部用光。默认 0 表示不限制。
+`API_DAILY_PAID_OPERATION_CAP` 是独立的**单进程账单保险丝**：完整评估和 PDF 提取各消耗一个由部署方付费的单位，因此“上传论文再运行”会消耗两个。额度按每个已验证口令分别计算（包括管理员口令）；BYOK 因访客自行付费而豁免。0 表示关闭。旧变量 `API_DAILY_RUN_CAP` 在新变量未设置时仍作为兼容回退。这个账本保存在内存中，因此 UTC 零点或进程重启都会清零；要支持多副本持久计数，需要外部存储。
 
-**这个值要对着检索额度定，而不是对着 LLM 账单定。** 实测 30 次运行：单次运行消耗的网页检索**中位数是 9 次**（区间 5–15），远少于它构造出来的约 22 条 query——因为某个域凑够来源后会提前终止，而且学术检索走的是 OpenAlex/PubMed/arXiv，不消耗检索 API 额度。所以 Tavily 每月 1000 次的免费额度，换算下来是**所有口令加起来**约 110 次运行。另外注意这个上限是按口令算的，它兜住的是"单个口令泄漏能造成多大损失"，不是"所有口令加起来最多花多少"。
+这个值应按 **LLM 与检索预算中更严格的一项**确定。30 次实测中，完整评估的网页检索中位数为 9 次（区间 5–15）；PDF 提取增加一次 LLM 调用，但不使用搜索 API。Tavily 每月 1000 次免费额度约对应所有口令合计 110 次完整运行；每口令上限兜住的是单个泄漏凭证，而不是所有口令的总花费。
 
 **链接公开之前还值得打开的两个设置**，两个都默认关闭，本地使用不受影响：
 
@@ -1161,7 +1166,7 @@ API_RATE_LIMIT_PER_MINUTE=300   # 每个客户端每分钟请求数
 RUN_RETENTION_DAYS=30           # N 天后自动删除已完成的运行
 ```
 
-请求限流计的是**请求数**，上面两个上限计的都是**运行数**——这不是一回事。之所以需要，恰恰是因为不需要口令就能到达的接口最便宜：`run_id` 是能力 URL，持有者可以随意轮询；门禁校验接口本身也必须开放（拒绝错误口令正是它的用途）。有口令时按口令计额度、否则按地址计，这样同一个校园或公司出口 IP 后面的多个人不会被当成一个客户端限流。`/health` 豁免——被限流的健康检查会被平台读成服务已宕机。
+请求限流计的是 **HTTP 请求数**，上面的容量与每日上限计的是**付费操作**。能力 URL 无需口令即可轮询，所以便宜接口同样需要边界。只有校验成功的访问口令才拥有独立桶；其他请求按 ASGI 服务器解析出的对端地址计数。应用层刻意不直接信任原始 `X-Forwarded-For`，也不会让任意错误口令生成新桶；可信代理应在 Uvicorn/部署层配置。`/health` 豁免，否则限流会被平台误判为宕机。
 
 保留期之所以重要，**正是因为运行链接可以分享**：读取一个运行只需要 id，所以分享出去的链接活多久，取决于那次运行活多久；而一个上传了未发表论文的访客，会把论文内容、提取出的核心贡献、以及据此写成的评估长期留在你的服务器上。计龄用的是 run_id 自带的时间戳而不是目录 mtime，这样首次下载时渲染 PDF 不会给"正在被人打开的运行"偷偷续期；正在执行的运行永不删除。`/health` 会上报保留窗口、前端会显示——没被告知的删除读起来是数据丢失，不是策略。
 
@@ -1173,11 +1178,11 @@ token 是测出来的，成本不是：它需要一份本程序无法验证的�
 
 **可选的 Agent 链路追踪。** 项目现在可以显式启用 OpenTelemetry/OpenInference：一次运行会把来源采集、六个 CrewAI 任务、模型 Provider SDK 调用和运行后质量检查串成同一条脱敏 Trace，Phoenix 只是可替换的 OTLP 后端。`outputs/<run_id>/` 中的文件仍是事实来源；Collector 不可用只会把可观测性标成 `degraded`，不会让已经付费的报告失败。Trace 不增加 LLM/检索调用，也不上传作为能力令牌的完整 run id、原始话题、Prompt 或模型输出；两个运行接口都会返回同一个 `trace_id` 及 disabled/active/degraded 状态。配置与数据边界见 [Agent observability](docs/observability.md)。
 
-`API_BYOK_MAX_CONCURRENT` 限制自带 Key 的访客最多能同时占用几个并发槽位，默认比 `API_MAX_CONCURRENT` 少一个。自带 Key 的运行不计入每日额度（token 由访客自己付），而正是这个豁免让匿名流量——包括那些因为 Key 填错、几秒就失败的提交——可以占满全部槽位，把持有口令的人挡在外面。
+`API_BYOK_MAX_CONCURRENT` 限制 BYOK 流量在完整运行与 PDF 提取之间合计最多占用多少共享槽位，默认比 `API_MAX_CONCURRENT` 少一个。BYOK 不计每日账单额度，因为 token 由访客支付；但它仍消耗有限的主机与 Provider 容量，因此错误 Key 等匿名请求也不能占满所有槽位、挡住口令持有者。
 
 **给每个人发不同的口令：** `ACCESS_CODES` 接受逗号分隔的多个值，而不是一个共用口令——`ACCESS_CODES=给alice的口令,给bob的口令`。每个口令的运行历史都只属于它自己：持有"给alice的口令"的人，侧栏永远只看得到用这个口令跑过的记录，看不到"给bob的口令"跑过的。这只是运行时打的一个标记（口令的哈希值，写进每次运行的目录里），不是给每个人单独跑一套部署——还是一个进程、一个 `outputs/` 目录，口令只是决定 `GET /api/runs` 返回哪些。`ACCESS_CODE`（单数）还是照常可用，对应原来那种所有人共用一个口令的设置；两者可以同时设置。
 
-**第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为任意访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要配置了口令，网页客户端就会在门禁弹窗里自动多出这个选项；不设口令时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。BYOK 提交的运行不会被打上任何口令标记，所以服务端不会把它记进任何一个口令的历史里；网页客户端转而在 `sessionStorage` 里维护一份访客自己这次会话提交过的运行列表，让侧栏依然能显示自己提交过什么——标签页一关就消失，标签页开着的时候完整可见。
+**第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为任意访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要配置了口令，网页客户端就会在门禁弹窗里自动多出这个选项；不设口令时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。BYOK 提交的运行不会被打上任何口令标记，所以服务端不会把它记进任何一个口令的历史里；网页客户端转而在 `sessionStorage` 里维护一份访客自己这次会话提交过的运行列表，让侧栏依然能显示自己提交过什么——标签页一关就消失，标签页开着的时候完整可见。`POST /api/papers` 同样接受 BYOK 的 LLM provider/key（提取不需要搜索 Key）；PDF 提取与完整运行都会在调用 Provider 前进入同一付费操作准入边界。
 
 `GET /api/runs`（运行历史列表）无论如何都始终留在口令后面——开放的话会把每个访客的话题暴露给所有其他访客。按 `run_id` 读取或取消某一次具体的运行则不需要口令——`run_id` 本身带 128 位随机性，用的是和"分享一份已完成报告的链接"同一套能力令牌信任模型。
 
@@ -1317,7 +1322,7 @@ academic_agent/
 - **HTTP API**：FastAPI + Uvicorn（OpenAPI 文档位于 `/docs`）
 - **PDF 导出**：reportlab Platypus（嵌入式 TTFont，支持 CJK；回退至 CID 字体）
 - **容器化**：Docker 多阶段构建（依赖层与源码层分离缓存），`tini` 作 PID 1 回收子进程，非 root 运行，构建期 CJK 字体校验
-- **访问控制**：可选的共享口令中间件（`ACCESS_CODE`）+ 每日运行次数熔断，用于对外发布演示链接而不暴露一张空白账单；旁边还留了一条开放的"自带 Key"通道，没有口令的访客也能用自己的 Key 跑起来
+- **付费操作边界**：已验证口令门禁、运行/PDF 提取共享并发、按口令每日账单熔断、启动失败额度回滚，以及独立限额的 BYOK 通道
 - **Python**：3.11+
 
 URL/DOI 无效或不可达、引用编号错误、References 不一致、报告结构错误、幻觉来源 ID 和评分 JSON 格式错误都会阻止任务并触发重试。

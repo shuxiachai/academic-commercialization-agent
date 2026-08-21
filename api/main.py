@@ -33,7 +33,10 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from academic_agent.llm_config import _detect_provider  # noqa: E402
-from academic_agent.pdf_extractor import extract_paper_contribution  # noqa: E402
+from academic_agent.pdf_extractor import (  # noqa: E402
+    PaperContribution,
+    extract_paper_contribution,
+)
 from api import access, papers, runs  # noqa: E402  — must follow load_dotenv
 from api.models import (  # noqa: E402
     HealthStatus,
@@ -130,9 +133,9 @@ _SECURITY_HEADERS = {
 
 # Per-client request budget, refilled continuously (token bucket).
 #
-# Distinct from the concurrency cap and the daily run cap, which both count
-# *runs*: this counts *requests*, and exists because the endpoints that cost
-# nothing to serve are the ones an unauthenticated caller can reach. A run id
+# Distinct from the paid-operation concurrency and daily caps: this counts
+# *requests*, and exists because the endpoints that cost nothing to serve are
+# the ones an unauthenticated caller can reach. A run id
 # is a capability URL, so anyone holding one can poll a run as fast as they
 # like; the gate itself (/api/access/check) is likewise open by construction,
 # since rejecting a wrong code is what it is for. Neither is expensive per
@@ -152,20 +155,17 @@ _rate_lock = threading.Lock()
 def _client_key(request: Request) -> str:
     """Who to charge for this request.
 
-    Prefers the access code over the address: several people behind one
-    campus or corporate NAT share an IP, and throttling them as one client
-    would penalise the exact audience this deployment is for. A code holder
-    is charged individually; everyone else falls back to the peer address.
+    A *validated* access code gets its own bucket so people behind one campus
+    NAT do not throttle each other. Arbitrary header text must never become an
+    identity: changing an invalid code would otherwise mint a fresh bucket.
 
-    X-Forwarded-For is read because the app sits behind Railway's proxy, and
-    only its first entry — the rest are appendable by the caller.
+    The address comes from request.client, after any trusted-proxy handling by
+    the ASGI server. Reading X-Forwarded-For again here would bypass that trust
+    decision and let a direct caller choose a new address on every request.
     """
-    code = request.headers.get("x-access-code")
-    if code:
-        return f"code:{access.owner_id(code)}"
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return f"ip:{forwarded.split(',')[0].strip()}"
+    matched = access.matching_code(request.headers.get("x-access-code"))
+    if matched:
+        return f"code:{access.owner_id(matched)}"
     return f"ip:{request.client.host if request.client else 'unknown'}"
 
 
@@ -341,7 +341,7 @@ if _WEB_ROOT.is_dir():
 
 @app.get("/health", response_model=HealthStatus, tags=["meta"])
 def health() -> HealthStatus:
-    """Liveness check, current capacity, and the resolved LLM provider.
+    """Liveness, shared paid-operation capacity, and resolved LLM provider.
 
     `llm_provider` is null when no key is configured — a run submitted in that
     state will start but fail inside the worker, so check this first.
@@ -354,9 +354,18 @@ def health() -> HealthStatus:
     except RuntimeError:
         provider = None
 
+    # One locked snapshot prevents a worker finishing between two reads from
+    # producing the impossible-looking state
+    # active_paid_operations < active_runs.
+    active_runs, active_paid_operations = runs.capacity_counts()
     return HealthStatus(
         status="ok",
-        active_runs=runs.active_count(),
+        # Keep active_runs for clients and operators that specifically care
+        # about subprocesses. Capacity indicators must use the broader value:
+        # an inline PDF extraction holds the same slot even though it has no
+        # run id and never appears in the worker registry.
+        active_runs=active_runs,
+        active_paid_operations=active_paid_operations,
         max_concurrent=runs.MAX_CONCURRENT,
         retention_days=runs.RUN_RETENTION_DAYS,
         llm_provider=provider,
@@ -442,7 +451,7 @@ def health_ready(response: Response) -> ReadinessStatus:
     tags=["runs"],
     responses={
         401: {"description": "Neither the access code nor complete bring-your-own-key credentials were provided"},
-        429: {"description": "Concurrency limit or daily run cap reached"},
+        429: {"description": "Concurrency or daily paid-operation limit reached"},
     },
 )
 def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
@@ -493,12 +502,12 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
     except runs.ConcurrencyLimitReached as exc:
         raise HTTPException(
             status_code=429,
-            detail=f"{exc}. Retry once a run finishes.",
+            detail=f"{exc}. Retry once another paid operation finishes.",
         ) from exc
     except runs.DailyCapReached as exc:
         raise HTTPException(
             status_code=429,
-            detail=f"{exc}. The daily run budget resets at 00:00 UTC.",
+            detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
         ) from exc
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Failed to start worker: {exc}") from exc
@@ -689,12 +698,36 @@ async def _read_capped(file: UploadFile, limit: int) -> bytes:
     return b"".join(chunks)
 
 
+def _extract_paper_with_paid_reservation(
+    pdf_path: str,
+    *,
+    owner: str | None,
+    byok: bool,
+    llm_provider: str | None,
+    llm_api_key: str | None,
+) -> PaperContribution:
+    """Extract while the actual worker thread owns the paid-operation slot.
+
+    asyncio cancellation stops awaiting ``to_thread`` but cannot stop its
+    underlying thread. Keeping the reservation in the request coroutine would
+    therefore publish a free slot while the provider call was still running.
+    The worker thread instead releases it only when extraction really exits.
+    """
+    with runs.reserve_inline_paid_operation(owner=owner, byok=byok):
+        return extract_paper_contribution(
+            pdf_path,
+            llm_provider=llm_provider if byok else None,
+            llm_api_key=llm_api_key if byok else None,
+        )
+
+
 @app.post(
     "/api/papers",
     response_model=PaperExtraction,
     tags=["papers"],
     responses={
         413: {"description": "File exceeds the size limit"},
+        429: {"description": "Concurrency or daily paid-operation limit reached"},
         422: {"description": "PDF could not be parsed into a contribution"},
     },
 )
@@ -727,6 +760,7 @@ async def upload_paper(
             status_code=401,
             detail="Provide the access code, or your own llm_provider/llm_api_key.",
         )
+    owner = access.owner_id(matched) if matched else None
 
     try:
         data = await _read_capped(file, papers.MAX_UPLOAD_BYTES)
@@ -741,10 +775,25 @@ async def upload_paper(
 
     try:
         contribution = await asyncio.to_thread(
-            extract_paper_contribution, str(pdf_path),
-            llm_provider=llm_provider if byok else None,
-            llm_api_key=llm_api_key if byok else None,
+            _extract_paper_with_paid_reservation,
+            str(pdf_path),
+            owner=owner,
+            byok=byok,
+            llm_provider=llm_provider,
+            llm_api_key=llm_api_key,
         )
+    except runs.ConcurrencyLimitReached as exc:
+        papers.discard(paper_id)
+        raise HTTPException(
+            status_code=429,
+            detail=f"{exc}. Retry once another paid operation finishes.",
+        ) from exc
+    except runs.DailyCapReached as exc:
+        papers.discard(paper_id)
+        raise HTTPException(
+            status_code=429,
+            detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
+        ) from exc
     except Exception as exc:  # noqa: BLE001 - surface the reason to the client
         # The upload is unreachable from here on — no paper_id reaches the
         # client, so no run can name it — and it is somebody's unpublished
