@@ -198,6 +198,33 @@ class ReviewerCorrectionPlanTests(unittest.TestCase):
         self.assertIn("[P1] Source P1", result)
         self.assertIn("Qualified an unsupported absolute deployment claim.", result)
 
+    def test_noop_correction_is_treated_as_an_empty_plan(self):
+        """A model saying "no change needed" must not discard a paid report.
+
+        The corrected ablation pilot returned an exact find/replace pair whose
+        strings were identical, twice. Retrying cannot improve a semantically
+        harmless operation, so the safe boundary behavior is to preserve the
+        validated draft and record that no correction was required.
+        """
+        draft = _complete_report()
+        unchanged = "Findings are supported by [A1][P1][M1]."
+
+        ok, result = _run(
+            _plan(
+                {
+                    "find": unchanged,
+                    "replace": unchanged,
+                    "reason": "No change needed; citation is present and correct.",
+                }
+            ),
+            draft=draft,
+            context_tasks=_EVIDENCE_TASKS,
+        )
+
+        self.assertTrue(ok)
+        self.assertIn(unchanged, result)
+        self.assertIn("## Reviewer Notes\n\nNo corrections required.", result)
+
     def test_ambiguous_target_is_rejected_instead_of_patching_first_match(self):
         ok, message = _run(
             _plan(

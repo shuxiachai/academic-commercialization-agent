@@ -270,3 +270,28 @@ first attempt. P2 and the common full-arm quality outcomes are unavailable
 because the reviewer stopped the full arm. The four-node arm used 55.3% of the
 failed full arm's tokens and 62.3% of its observed cost, but the full arm never
 reached its scorer, so those differences are diagnostic only.
+
+### Post-pilot reliability fixes - 2026-08-21
+
+The three pilot defects were reproduced at their delivery or metric seams before
+implementation: the new focused selection failed three tests while the explicit
+EUR amount and contrast-clause patent overclaim controls still passed.
+
+The reviewer now treats an identical `find`/`replace` pair as an empty
+correction rather than spending its only retry on a harmless representation of
+"no change." Real edits in the same plan still follow the exact-match rules,
+and the preserved draft still passes the complete delivered-report validation.
+Alphabetic numeric units now require a token boundary, so "2013 European" is a
+year and adjective while "2013 EUR" remains a checkable amount. Patent-framing
+detection recognises a locally negated disclaimer but ends that exemption at
+punctuation or a contrast such as "but," preserving positive-overclaim checks.
+
+A zero-network re-analysis with the project functions leaves the monolith's 12
+contract findings and one unsupported numeric claim unchanged. The four-node
+report moves from three to two contract findings because the negated patent
+disclaimer is no longer misclassified, and its grounding changes from one
+unsupported line out of seven checked to zero out of six: the removed line is
+the publication-year false positive. The genuine monolith `1,000+` automotive
+cycle-life threshold remains unsupported. The failed full cell cannot be
+reconstructed from persisted artifacts, so a successful three-cell paid rerun
+is still required before Stage 2 can be considered.
