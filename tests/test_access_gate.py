@@ -17,7 +17,7 @@ import io
 import json
 import os
 import threading
-from datetime import date, timedelta
+from datetime import date
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -401,7 +401,10 @@ class DailyCapTests(_RunLifecycleTestBase):
 
     def test_cap_resets_on_a_new_utc_day(self):
         with patch.object(runs, "DAILY_CAP", 1):
-            runs._daily_date = date.today() - timedelta(days=1)
+            # date.min is unambiguously outside the active UTC window. Using
+            # date.today() here made the test depend on the runner's local
+            # timezone during the interval between local and UTC midnight.
+            runs._daily_date = date.min
             runs._daily_counts[None] = 1     # yesterday's budget, fully spent
 
             with patch("api.runs.subprocess.Popen", _FakeProc):

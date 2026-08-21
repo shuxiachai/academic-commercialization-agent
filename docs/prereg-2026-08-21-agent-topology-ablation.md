@@ -295,3 +295,57 @@ the publication-year false positive. The genuine monolith `1,000+` automotive
 cycle-life threshold remains unsupported. The failed full cell cannot be
 reconstructed from persisted artifacts, so a successful three-cell paid rerun
 is still required before Stage 2 can be considered.
+
+## Successful Stage 1 re-pilot - 2026-08-21
+
+The approved three-cell pilot was rerun from merge commit `ae3dbfa9` against
+the same frozen case 03 and fixture digest `8643e7369b337b9b`. The persisted
+experiment is `outputs/ablation/20260821T135547Z-ae3dbfa9`.
+
+| Arm | Status | Requests | Tokens | Observed cost | Elapsed | Contract findings | Checked / unsupported |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Monolith | success | 1 | 16,022 | $0.007764 | 48.683 s | 1 | 9 / 0 |
+| Specialists + writer | success | 4 | 35,024 | $0.015531 | 52.163 s | 0 | 4 / 0 |
+| Full | success | 6 | 81,694 | $0.031038 | 79.092 s | 1 | 5 / 0 |
+
+Total observed spend was $0.054333, below the approved $0.20 soft ceiling.
+All three cells completed, persisted their final reports, used the same frozen
+evidence, represented all three source domains, and attributed every request to
+a priced model. Grounding was non-vacuous in every arm. Runtime instrumentation
+recorded one successful call and no retry for each task guardrail that ran,
+including the reviewer and scorer in the full arm. The pilot therefore satisfies
+the pre-registered Stage 1 execution and accounting checks.
+
+Manual review of the two contract findings is important because the contract
+count alone overstates the observed quality difference. The monolith finding is
+a false positive: a milestone table explicitly says that a manufacturing target
+below USD 100/kWh is "not evidenced in registry - evidence gap," but the numeric
+citation rule still flags the target. The full-arm finding is a boundary case:
+an uncited recommendation synthesises the three cited technical barriers in the
+immediately preceding paragraph. It is not an unsupported factual assertion,
+although a stricter inline-citation policy can reasonably ask the recommendation
+to repeat those citations. Neither one justifies changing a precision-first
+heuristic from a single pilot observation.
+
+The full reviewer completed without applying a correction and retained 99.9985%
+of the draft, while its request consumed 23,999 tokens and $0.008057. This is a
+useful cost signal, but one no-change review cannot establish that the reviewer
+is generally redundant. The full study must measure reviewer corrections and
+draft retention across all topics before that node is removed or gated.
+
+The single-case observations are consistent with some, but not all, registered
+predictions:
+
+- P1 is not supported in this pilot because both the monolith and four-node
+  reports passed their report guardrail on the first attempt.
+- P2 is supported in this pilot: the full and four-node arms each had zero
+  unsupported checked numeric claims.
+- P3 is supported in this pilot: relative to the full arm, the four-node arm
+  used 57.13% fewer tokens, cost 49.96% less, and completed 34.05% faster.
+- P4 is supported in this pilot: the monolith was cheapest, while the four-node
+  arm had the better raw contract result. The manual classification above makes
+  clear why the contract difference must not be treated as decisive by itself.
+
+These are pilot observations at `n = 1`, not architecture conclusions. Stage 2
+is now technically eligible for separate approval, but no ninety-cell execution
+is implied or authorised by this result.
