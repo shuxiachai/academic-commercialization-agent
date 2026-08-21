@@ -152,7 +152,14 @@ def analyse_numeric_grounding(
             continue
 
         checkable = [source for source in cited if _source_is_checkable(source)]
-        if not checkable:
+        if len(checkable) != len(cited):
+            # A report line may contain several clauses and citations. Pooling
+            # the line lets an abstract or patent make the line "checkable"
+            # while the actual number belongs to a search-snippet citation.
+            # Without clause-level attribution, marking that number unsupported
+            # is a false accusation. Treat the whole mixed-provenance line as
+            # unverifiable: this deliberately gives up recall to preserve the
+            # experiment's pre-registered precision-first interpretation.
             unverifiable_lines += 1
             continue
 
