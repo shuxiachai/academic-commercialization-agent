@@ -83,6 +83,30 @@ _NUMERIC_CLAIM_PATTERN = re.compile(
     r"(?:\s?(?:%|x|×|USD|AUD|EUR|million|billion|trillion|M|B))?\b",
     re.IGNORECASE,
 )
+_CHINESE_USD_AMOUNT_PATTERN = re.compile(
+    r"(?P<value>\d[\d,]*(?:\.\d+)?)\s*(?P<scale>万|亿)\s*美元"
+)
+_SOURCE_USD_AMOUNT_PATTERNS = (
+    re.compile(
+        r"(?:USD|US\$|\$)\s*(?P<value>\d[\d,]*(?:\.\d+)?)\s*"
+        r"(?P<scale>million|billion|mn|bn|m|b)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?P<value>\d[\d,]*(?:\.\d+)?)\s*"
+        r"(?P<scale>million|billion|mn|bn)\s*"
+        r"(?:USD|US dollars?|dollars?)\b",
+        re.IGNORECASE,
+    ),
+)
+_SOURCE_USD_SCALE_TO_MILLIONS = {
+    "million": 1.0,
+    "mn": 1.0,
+    "m": 1.0,
+    "billion": 1000.0,
+    "bn": 1000.0,
+    "b": 1000.0,
+}
 _PLACEHOLDER_HOSTS = {
     "example.com",
     "www.example.com",
@@ -1142,6 +1166,114 @@ def _is_substantive_claim_line(
     return len(words) >= 5 or cjk_chars >= 10
 
 
+def _source_usd_amounts_million(source: EvidenceSource) -> list[float]:
+    """Read only explicitly scaled USD values from a validated source summary."""
+
+    text = f"{source.title} {source.evidence_summary}"
+    values: list[float] = []
+    for pattern in _SOURCE_USD_AMOUNT_PATTERNS:
+        for match in pattern.finditer(text):
+            raw_value = match.group("value").replace(",", "")
+            try:
+                value = float(raw_value)
+            except ValueError:
+                continue
+            scale = _SOURCE_USD_SCALE_TO_MILLIONS[match.group("scale").lower()]
+            values.append(value * scale)
+    return values
+
+
+def _currency_amounts_close(left: float, right: float) -> bool:
+    """Allow ordinary display rounding while keeping a 10x slip unmistakable."""
+
+    return abs(left - right) <= max(0.5, 0.02 * max(left, right))
+
+
+def _validate_currency_unit_contradictions(
+    body: str,
+    allowed_sources: dict[str, EvidenceSource],
+) -> list[str]:
+    """Catch an anchored Chinese USD unit slip without guessing from snippets.
+
+    A paid Chinese run rendered one cited USD 3500 million forecast as both
+    3.5亿美元 and 35亿美元. Citation integrity could not see the difference,
+    and blocking every amount absent from a search snippet would create false
+    positives. This check therefore fires only when the same report provides a
+    second, source-consistent rendering for the same cited market source. It
+    intentionally misses an isolated suspicious conversion: precision is more
+    important than recall for a guardrail that can discard a paid run.
+    """
+
+    source_values = {
+        source_id: _source_usd_amounts_million(source)
+        for source_id, source in allowed_sources.items()
+        if source_id.startswith("M")
+    }
+    occurrences: list[tuple[int, str, float, list[str]]] = []
+    for line_number, line in enumerate(body.splitlines(), start=1):
+        line_ids, citation_errors = parse_citation_ids(line)
+        if citation_errors:
+            continue
+        market_ids = [
+            source_id for source_id in line_ids if source_id in source_values
+        ]
+        if not market_ids:
+            continue
+        for match in _CHINESE_USD_AMOUNT_PATTERN.finditer(line):
+            value = float(match.group("value").replace(",", ""))
+            value_million = value * (100.0 if match.group("scale") == "亿" else 0.01)
+            occurrences.append(
+                (line_number, match.group(0), value_million, market_ids)
+            )
+
+    errors: list[str] = []
+    for line_number, rendered, value_million, market_ids in occurrences:
+        cited_values = [
+            source_value
+            for source_id in market_ids
+            for source_value in source_values[source_id]
+        ]
+        if any(
+            _currency_amounts_close(value_million, source_value)
+            for source_value in cited_values
+        ):
+            continue
+
+        found = False
+        for source_id in market_ids:
+            for source_value in source_values[source_id]:
+                one_decimal_shift = (
+                    _currency_amounts_close(source_value, value_million * 10)
+                    or _currency_amounts_close(value_million, source_value * 10)
+                )
+                if not one_decimal_shift:
+                    continue
+                anchor = next(
+                    (
+                        other_line
+                        for other_line, _other_rendered, other_value, other_ids
+                        in occurrences
+                        if other_line != line_number
+                        and source_id in other_ids
+                        and _currency_amounts_close(other_value, source_value)
+                    ),
+                    None,
+                )
+                if anchor is None:
+                    continue
+                errors.append(
+                    f"Currency unit contradiction on report line {line_number}: "
+                    f"{rendered} is 10x away from the USD {source_value:g} million "
+                    f"value in cited [{source_id}], while report line {anchor} "
+                    "renders that cited value consistently."
+                )
+                found = True
+                break
+            if found:
+                break
+    return errors
+
+
 def _validate_high_risk_claims(
     body: str,
     allowed_sources: dict[str, EvidenceSource],
@@ -1369,6 +1501,7 @@ def validate_final_report(
         )
 
     errors.extend(_validate_high_risk_claims(body, allowed_sources))
+    errors.extend(_validate_currency_unit_contradictions(body, allowed_sources))
 
     return errors
 
@@ -1721,6 +1854,7 @@ _CRITICAL_REPORT_ERROR_PREFIXES = (
     "Cross-prefix citation range",
     "Citation range is invalid",
     "The report must state that patent analysis",
+    "Currency unit contradiction on report line",
 )
 
 

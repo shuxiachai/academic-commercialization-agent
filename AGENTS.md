@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1168 tests (545 subtests), CI green on Linux + Windows × Python
+Current state: 1172 tests (545 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -22,7 +22,7 @@ Current state: 1168 tests (545 subtests), CI green on Linux + Windows × Python
 uv run pytest -q                       # the whole suite; ~7s, zero network
 uv run --with ruff ruff check .        # CI uses latest ruff, the local pin is older
 uv run uvicorn api.main:app --reload   # web client on :8000
-uv run python -m academic_agent.main "<topic>"   # one run from the CLI
+uv run academic_agent --topic "<topic>"          # one run from the CLI
 ```
 
 `uv run --with ruff` is deliberate. The pinned local ruff is 0.12.0 and CI

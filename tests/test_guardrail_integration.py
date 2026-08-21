@@ -309,6 +309,70 @@ def test_final_guardrail_normalizes_parenthetical_source_ids() -> None:
     assert "documented evidence (A1)." not in validated.raw
 
 
+def _currency_guardrail_result(markdown: str, market_summary: str):
+    context = [_context_task(prefix) for prefix in ("A", "P", "M")]
+    market_report = context[2].output.pydantic
+    market_report.sources[0].evidence_summary = market_summary
+    output = TaskOutput(description="final report", raw=markdown, agent="writer")
+    return make_final_report_guardrail(context)(output)
+
+
+def test_final_guardrail_blocks_anchored_chinese_usd_scale_contradiction() -> None:
+    """A paid run rendered USD 3500 million once as 3.5 and once as 35 亿.
+
+    The wrong sentence still had a real citation, so citation-presence checks
+    and the reviewer both accepted it. The second, source-consistent rendering
+    is the high-precision anchor that makes this a contradiction rather than a
+    speculative currency conversion.
+    """
+    markdown = _final_markdown().replace(
+        "The target use case is grounded in market evidence [M1].",
+        "市场预测到2035年达到3.5亿美元 [M1].",
+    ).replace(
+        "The competitive assessment is bounded by public evidence [M1].",
+        "同一市场预测在建议部分写为到2035年达到35亿美元 [M1].",
+    )
+
+    success, message = _currency_guardrail_result(
+        markdown,
+        "The market is projected to reach USD 3500 million by 2035.",
+    )
+
+    assert success is False
+    assert "Currency unit contradiction" in message
+    assert "3.5亿美元" in message
+
+
+def test_final_guardrail_accepts_source_consistent_chinese_usd_conversion() -> None:
+    markdown = _final_markdown().replace(
+        "The target use case is grounded in market evidence [M1].",
+        "市场预测到2035年达到35亿美元 [M1].",
+    )
+
+    success, validated = _currency_guardrail_result(
+        markdown,
+        "The market is projected to reach USD 3500 million by 2035.",
+    )
+
+    assert success is True
+    assert "35亿美元" in validated.raw
+
+
+def test_final_guardrail_does_not_guess_without_a_source_consistent_anchor() -> None:
+    """Precision wins over recall when a snippet may omit another estimate."""
+    markdown = _final_markdown().replace(
+        "The target use case is grounded in market evidence [M1].",
+        "市场预测到2035年达到3.5亿美元 [M1].",
+    )
+
+    success, _validated = _currency_guardrail_result(
+        markdown,
+        "The market is projected to reach USD 3500 million by 2035.",
+    )
+
+    assert success is True
+
+
 def test_report_prompt_does_not_seed_unrelated_fleet_examples() -> None:
     """A topic-agnostic prompt example leaked its vocabulary into reports."""
     repository_root = Path(__file__).resolve().parent.parent

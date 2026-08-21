@@ -355,10 +355,10 @@ same worker, so a run started from one is visible to the other.
 **Option C — Command line**
 
 ```bash
-uv run crewai run
+uv run academic_agent --topic "solid-state batteries for electric vehicles"
 ```
 
-Set the topic via `_DEFAULT_TOPIC` in `src/academic_agent/main.py`.
+Pass a different value to `--topic` for each run; no source edit is required.
 
 #### 4. Output
 
@@ -1083,10 +1083,10 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
 **方式三：命令行**
 
 ```bash
-uv run crewai run
+uv run academic_agent --topic "用于电动汽车的固态电池"
 ```
 
-研究主题在 `src/academic_agent/main.py` 中修改 `_DEFAULT_TOPIC` 字段。
+每次运行通过 `--topic` 传入研究主题，不需要修改源代码。
 
 #### 4. 查看报告
 

@@ -27,6 +27,25 @@ def _args(**over) -> argparse.Namespace:
     return argparse.Namespace(**base)
 
 
+class ModuleExecutionTests(TestCase):
+    def test_python_module_execution_reaches_the_parser(self):
+        """The documented module command used to exit zero without running.
+
+        Python module execution runs top-level code rather than the console
+        script registered in pyproject.toml. Exercising --help proves the
+        module seam reaches run() without starting a paid worker.
+        """
+        completed = subprocess.run(
+            [sys.executable, "-m", "academic_agent.main", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        self.assertEqual(completed.returncode, 0)
+        self.assertIn("--topic", completed.stdout)
+
+
 class CommandConstructionTests(TestCase):
 
     def test_it_launches_the_worker_module(self):
