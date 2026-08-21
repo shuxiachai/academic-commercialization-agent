@@ -206,7 +206,7 @@ def test_monolith_guardrail_delegates_to_the_production_report_policy(
 
 
 def test_guardrail_recorder_preserves_return_values_and_counts_retries() -> None:
-    """Instrumentation at the Task seam must not alter CrewAI retry semantics."""
+    """Instrumentation must wrap CrewAI's private seam without changing retries."""
 
     calls = 0
 
@@ -231,6 +231,18 @@ def test_guardrail_recorder_preserves_return_values_and_counts_retries() -> None
     assert summary["failures"] == 1
     assert summary["retries"] == 1
     assert summary["attempts"][0]["before_sha256_16"] != ""
+
+    task = SimpleNamespace(
+        name="runtime",
+        guardrail=guardrail,
+        _guardrail=guardrail,
+    )
+    runtime_recorder = GuardrailRecorder()
+    runtime_recorder.instrument([task])
+    third = SimpleNamespace(raw="delivered report")
+    assert task._guardrail(third) == (True, third)
+    assert task.guardrail is task._guardrail
+    assert runtime_recorder.task_summary("runtime")["calls"] == 1
 
 
 def test_report_selection_asserts_the_delivered_artifact_boundary() -> None:
@@ -264,7 +276,7 @@ def test_numeric_grounding_distinguishes_pass_fail_and_not_checked() -> None:
 
 
 def test_snippet_absence_is_unverifiable_not_unsupported() -> None:
-    """A search fragment cannot disprove a figure that may exist off-screen."""
+    """A snippet stays unverifiable even when a checkable source shares its line."""
 
     snippet = _source(
         "M1",
@@ -280,6 +292,16 @@ def test_snippet_absence_is_unverifiable_not_unsupported() -> None:
     assert result.checked_claim_lines == 0
     assert result.unsupported_claim_lines == 0
     assert result.unverifiable_claim_lines == 1
+
+    mixed = analyse_numeric_grounding(
+        "Laboratory efficiency improved [A1]. Market revenue reached "
+        "$37.4 million [M1].",
+        {"A1": _source("A1"), "M1": snippet},
+    )
+    assert mixed.status == "not_checked"
+    assert mixed.checked_claim_lines == 0
+    assert mixed.unsupported_claim_lines == 0
+    assert mixed.unverifiable_claim_lines == 1
 
 
 def test_summary_boundary_carries_every_declared_column() -> None:

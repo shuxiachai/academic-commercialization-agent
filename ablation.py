@@ -114,7 +114,17 @@ class GuardrailRecorder:
             if not callable(guardrail):
                 continue
             task_name = str(getattr(task, "name", "") or f"task_{index}")
-            task.guardrail = self.wrap(task_name, guardrail)
+            recorded = self.wrap(task_name, guardrail)
+            task.guardrail = recorded
+            # CrewAI 1.14.7 copies the validated public field into this private
+            # execution slot during Task construction. Assignment validation
+            # does not refresh it later, so wrapping only ``task.guardrail``
+            # produces convincing metadata with zero attempts while the
+            # original private callable still runs. Keep both views aligned;
+            # patching CrewAI's invocation method would be broader and would
+            # make the experiment depend on framework internals elsewhere.
+            if hasattr(task, "_guardrail"):
+                task._guardrail = recorded
 
     def task_summary(self, task_name: str) -> dict[str, Any]:
         attempts = self.attempts.get(task_name, [])

@@ -184,3 +184,41 @@ This experiment does not change the scoring formula, evidence-confidence
 floor, TRL rubric, maturity-language screen, uncited-claim blocking policy,
 prompt caching, source-summary retrieval, or CrewAI version. The production
 six-node arm is the unmodified control.
+
+## Stage 1 pilot outcome - 2026-08-21
+
+The three approved paid cells ran from commit `e532eb80` against frozen case
+03 (`solid-state batteries for electric vehicles`). The persisted experiment
+is `outputs/ablation/20260821T114329Z-e532eb80`.
+
+| Arm | Status | Requests | Tokens | Observed cost | Elapsed |
+|---|---:|---:|---:|---:|---:|
+| Monolith | success | 1 | 15,535 | $0.009123 | 43.935 s |
+| Specialists + writer | success | 4 | 37,130 | $0.019728 | 61.739 s |
+| Full | success | 6 | 79,143 | $0.028989 | 74.257 s |
+
+All three final reports reached disk, used the same fixture digest, represented
+all three source domains, and had complete model pricing. Total observed spend
+was $0.057840.
+
+The pilot nevertheless hit the pre-registered stop rule. CrewAI 1.14.7 executes
+the private `Task._guardrail` callable captured during construction, while the
+recorder had replaced only the later public `Task.guardrail` field. Production
+guardrails still ran, but all attempt counts were therefore falsely recorded as
+zero and P1 could not be evaluated.
+
+A second measurement defect was exposed by the saved reports. A line containing
+both a checkable academic or patent citation and a non-checkable search-snippet
+market citation was treated as wholly checkable. Market figures that appeared
+verbatim in M4 and M5 were then compared only with the unrelated checkable
+sources and falsely marked unsupported. The precision-first correction treats
+mixed-provenance lines as unverifiable unless every cited source is checkable.
+
+With that correction, offline re-analysis reports zero unsupported numeric lines
+for all three arms; checked/unverifiable lines are 6/30, 5/12, and 4/14 for the
+monolith, four-node, and full arms respectively. This re-analysis diagnoses the
+saved output but does not repair the missing runtime guardrail-attempt history.
+
+The one-run cost differences are descriptive pilot observations, not an
+architecture decision. The paid pilot must be rerun from the corrected commit
+before the ninety-cell study can be considered.
