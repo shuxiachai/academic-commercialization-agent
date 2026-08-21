@@ -57,11 +57,14 @@ def test_evidence_pipeline_is_connected(monkeypatch) -> None:
     assert report_task.markdown is True
     assert len(report_task.context or []) == 3
 
-    # Task 4: quality reviewer — markdown mode, guardrail, context = Task 3 + Tasks 0-2
+    # Task 4: reviewer emits a bounded JSON correction plan. Code applies the
+    # exact edits to Task 3, so the model cannot truncate or drop report sections.
     reviewer_task = crew.tasks[4]
+    assert reviewer_task.agent is not None
+    assert reviewer_task.agent.llm.response_format == {"type": "json_object"}
     assert reviewer_task.guardrail is not None
     assert reviewer_task.guardrail_max_retries == 1
-    assert reviewer_task.markdown is True
+    assert reviewer_task.markdown is False
     assert len(reviewer_task.context or []) == 4  # report + academic + patent + market
 
     # Task 5: scoring — JSON-mode LLM, guardrail, max 2 retries, context = Tasks 0-2

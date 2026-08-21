@@ -124,8 +124,10 @@ Agent 4: Technology Commercialization Report Writer
 Agent 5: Report Reviewer
          Tools:   None (uses Agent 4 draft as input)
          Rules:   6 rules — citation integrity, unsupported numeric claims, overconfident
-                  language, patent legal framing, evidence consistency, TRL label consistency
-         Output:  Corrected final report; Reviewer Notes saved separately (only actual changes logged)
+                  language, patent legal framing, evidence consistency, narrative TRL removal
+         Output:  Bounded JSON correction plan; code applies exact edits to the validated draft
+                  and saves actual changes as Reviewer Notes. If review cannot complete, the
+                  validated draft ships unchanged and the reliability panel records the fallback.
 
 Agent 6: Commercialization Readiness Scorer
          Tools:   None (reads Tasks 1–3 evidence JSON directly, independent of the report)
@@ -872,8 +874,9 @@ Agent 4: Technology Commercialization Report Writer（报告撰写师）
 Agent 5: Report Reviewer（质量审查员）
          工具：无（以 Agent 4 草稿作为输入）
          规则：6 条规则——引用完整性、无来源数字声明、过度乐观语言、
-               专利法律免责措辞、证据一致性、TRL 标签与正文一致性
-         输出：修正后的最终报告；Reviewer Notes 仅记录实际修改条目，自动保存至 reviewer_notes.md
+               专利法律免责措辞、证据一致性、移除正文中的 TRL 数字标签
+         输出：有限 JSON 修订计划；代码对已校验草稿应用精确替换，并将实际修改保存至
+               reviewer_notes.md。若审查未完成，则原样交付已校验草稿，并在可靠性面板标记回退。
 
 Agent 6: Commercialization Readiness Scorer（量化评分员）
          工具：无（以 Task 1/2/3 结构化证据为输入，独立于报告流程）

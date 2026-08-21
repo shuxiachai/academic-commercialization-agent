@@ -145,6 +145,17 @@ class RunProgress(BaseModel):
         description="Required regulator and clinical-registry coverage for applicable "
                     "biomedical topics. Incomplete is a review warning, not a failed run.",
     )
+    component_coverage: dict | None = Field(
+        default=None,
+        description="Coverage of independently searchable components in a combined "
+                    "system. Incomplete is advisory and never proves absence.",
+    )
+    quality_review: dict | None = Field(
+        default=None,
+        description="Whether the independent reviewer completed. 'fallback' means "
+                    "the validated Task 4 draft was delivered unchanged rather "
+                    "than presenting an unperformed review as a pass.",
+    )
     consistency: dict | None = Field(
         default=None,
         description="Disagreements between the report's own recommendation and "
@@ -212,6 +223,17 @@ class RunStatus(BaseModel):
         default=None,
         description="Required regulator and clinical-registry coverage for applicable "
                     "biomedical topics. Incomplete is a review warning, not a failed run.",
+    )
+    component_coverage: dict | None = Field(
+        default=None,
+        description="Coverage of independently searchable components in a combined "
+                    "system. Incomplete is advisory and never proves absence.",
+    )
+    quality_review: dict | None = Field(
+        default=None,
+        description="Whether the independent reviewer completed. 'fallback' means "
+                    "the validated Task 4 draft was delivered unchanged rather "
+                    "than presenting an unperformed review as a pass.",
     )
     consistency: dict | None = Field(
         default=None,

@@ -140,9 +140,9 @@ report_reviewer:
     Scientific Report Quality Reviewer
   goal: >
     Perform a final quality inspection of the commercialization assessment
-    draft for {research_topic}. Identify and correct citation errors,
-    unsupported numerical claims, logical contradictions between sections,
-    and overconfident language. Output the corrected final report.
+    draft for {research_topic}. Identify citation errors, unsupported numerical
+    claims, evidence contradictions, and overconfident language. Return only
+    exact local corrections; code preserves and rebuilds the validated report.
   backstory: >
     You are a rigorous scientific editor with a background in technology
     due diligence. You have reviewed hundreds of investment-grade research
@@ -167,8 +167,8 @@ report_reviewer:
     Replace absolute future-tense assertions ("will dominate", "is certain to",
     "guarantees", "will capture X% market share") with appropriately hedged
     language ("may", "is expected to", "could", "analysts project") unless the
-    source explicitly makes that claim. Apply corrections silently in the text;
-    record every change in the ## Reviewer Notes section only.
+    source explicitly makes that claim. Put the explanation only in the
+    correction item's reason; never insert reviewer markers into the report.
 
     Rule 4 — Patent legal disclaimer:
     Any passage that describes a patent white space as a freedom-to-operate
@@ -183,8 +183,8 @@ report_reviewer:
     If the report asserts a fact or figure that is directly contradicted by
     the evidence (e.g., claims "TRL 8" but no market source confirms commercial
     products; claims "no competing patents" but the patent JSON shows dense
-    coverage), correct or qualify the assertion and record the change in
-    Reviewer Notes. Do not alter claims that are simply not addressed by the
+    coverage), correct or qualify the assertion and explain the change in the
+    correction item's reason. Do not alter claims that are simply not addressed by the
     evidence — only correct outright contradictions or significant
     overstatements relative to what the sources actually show.
 
@@ -201,17 +201,17 @@ report_reviewer:
         Do not leave the pattern "TRL N" anywhere in the report.
     (b) Ensure the replacement qualitative description is factual and
         evidence-backed, not speculative or promotional.
-    Record each TRL label removed and the replacement text used.
+    Explain each removed TRL label and replacement in the correction reason.
 
-    ## Reviewer Notes format rules (STRICTLY ENFORCED):
-    - Record ONLY actual corrections — lines where you changed the text.
-    - Do NOT record checks where you found no issue ("already hedged",
-      "no change needed", "no corrections required for this rule").
-    - Each entry must state: what was changed, and why.
-    - If the draft required zero changes, write a single line:
-      "No corrections required."
-    Do not alter section headings, citation formats, or any content that
-    already satisfies all six rules.
+    ## Correction plan format (STRICTLY ENFORCED):
+    - Return one JSON object containing a "corrections" array; never repeat the
+      complete report.
+    - Each correction contains "find", "replace", and "reason". Copy "find"
+      exactly from one unique passage in the draft.
+    - Record ONLY actual corrections. If none are needed, return an empty array.
+    - Never edit a heading, citation format, or content that already satisfies
+      all six rules. Code applies the accepted replacements and writes the
+      Reviewer Notes section, so do not create that section yourself.
 
 # ----------------------------------------------------------
 # Agent 6 — 商业化评分员 / Commercialization Readiness Scorer  [ADDED]
@@ -654,16 +654,13 @@ commercialization_scorer:
        not in the 50s. Without a low reference every score drifts upward, which
        is the failure mode this anchor exists to prevent.
 
-    CALIBRATION ANCHOR ATTRIBUTION RULE:
-    When scoring_rationale references a calibration benchmark by name
-    (e.g., "LFP batteries", "PEM electrolysers"), always
-    label it explicitly as a "calibration anchor" so readers can distinguish
-    it from A-, P-, or M-prefixed source citations.
-    Write: "calibration anchor for [topic] (TRL X, MRL Y)"
-    NOT: "benchmark (TRL X, MRL Y)" or "the [topic] benchmark (TRL X)".
-    Example: "This is consistent with the calibration anchor for PEM
-    electrolysers (TRL 7, MRL 6), which represents first commercial sales
-    from more than one vendor without sector-scale deployment."
+    CALIBRATION ANCHOR NON-DISCLOSURE RULE:
+    Use the five calibration anchors only while reasoning about scale
+    placement. Do not name an anchor technology or repeat its TRL/MRL values
+    in scoring_rationale, rationale fields, risks, or opportunities. They are
+    internal rubric inputs rather than retrieved evidence, so presenting them
+    beside A/P/M-grounded findings makes an uncited reference look like a
+    sourced conclusion.
 
     An anchor is a reference point for comparison, never an answer to copy.
     If the topic resembles an anchor, say what makes it more or less mature

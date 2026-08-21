@@ -127,6 +127,38 @@ def test_conversational_chinese_input_becomes_one_canonical_search_plan():
     assert call.call_count == 1
     assert raw in call.call_args.args[0]
 
+def test_compound_topic_keeps_independently_searchable_components():
+    response = (
+        "SEARCH_TOPIC: mycelium composites with embedded sensors and edge AI\n"
+        "ALIAS: fungal biomaterials for intelligent structural monitoring\n"
+        "COMPONENT: mycelium composite materials\n"
+        "COMPONENT: embedded environmental sensors\n"
+        "COMPONENT: edge AI anomaly detection"
+    )
+    with patch("academic_agent.language._llm_call", return_value=response):
+        plan = plan_topic_search(
+            "mycelium packaging with sensors and edge AI for cold-chain monitoring"
+        )
+
+    assert plan.components == (
+        "mycelium composite materials",
+        "embedded environmental sensors",
+        "edge AI anomaly detection",
+    )
+
+
+def test_a_single_component_line_is_ignored_as_an_eager_alias():
+    response = (
+        "SEARCH_TOPIC: direct air capture sorbents\n"
+        "ALIAS: carbon dioxide adsorption materials\n"
+        "COMPONENT: porous sorbent materials"
+    )
+    with patch("academic_agent.language._llm_call", return_value=response):
+        plan = plan_topic_search("direct air capture sorbents")
+
+    assert plan.components == ()
+
+
 
 def test_topic_plan_marks_an_input_without_an_identifiable_technology_unresolved():
     with patch(

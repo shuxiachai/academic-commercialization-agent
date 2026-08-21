@@ -136,7 +136,9 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["report_reviewer"],  # type: ignore[index]
-            llm=create_llm(),  # 自由文本模式 / Free-text mode
+            # The reviewer returns a bounded correction plan rather than
+            # repeating a report large enough to hit provider output limits.
+            llm=create_llm(json_mode=True, temperature=0.0),
             verbose=True,
         )
 
@@ -249,15 +251,12 @@ class AcademicAgent:
 
     @task
     def report_review_task(self) -> Task:
-        """Task 5 — 报告质量审查 / Report Quality Review  [ADDED]
-        以 Task 4 的草稿报告 + Tasks 1/2/3 原始证据 JSON 作为上下文。
-        Takes Task 4 draft + Tasks 1/2/3 raw evidence JSON as context.
-        Reviewer 可以将报告结论与原始证据交叉核验，捕获事实性偏差。
-        Reviewer can cross-check report conclusions against raw evidence.
-        输出为修正后的最终报告，末尾附 Reviewer Notes 列出所有修改。
-        Outputs corrected final report with Reviewer Notes section appended.
-        Guardrail 防止审查员意外截断报告或删除引用标注。
-        Guardrail prevents accidental truncation or citation removal.
+        """Task 5 — Report Quality Review.
+
+        Takes Task 4's validated draft plus Tasks 1-3 evidence JSON as context
+        so the reviewer can cross-check conclusions against raw evidence. It
+        returns a bounded JSON correction plan; the guardrail deterministically
+        rebuilds the final report from the already validated draft.
         """
         report_task = self.commercialization_report_task()
         return Task(
@@ -286,7 +285,6 @@ class AcademicAgent:
                 output_language=self.source_collection.output_language,
             ),
             guardrail_max_retries=1,
-            markdown=True,
         )
 
     @task

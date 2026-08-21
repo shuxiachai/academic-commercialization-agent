@@ -1,14 +1,14 @@
 """Tests for the reviewer guardrail — regression protection on Task 5.
 
 Task 4 produces a report that has already passed structural and citation
-validation. Task 5's job is to correct it, but correction can itself do
-damage: summarising instead of editing, dropping a section, or stripping
-citation markers while rewording a sentence.
+validation. Task 5 now returns exact local replacements rather than repeating
+that report. The guardrail applies the replacements to Task 4's draft, so a
+bounded review cannot truncate the report, drop a section, or strip unrelated
+citation markers.
 
-This guardrail treats the Task 4 output as a baseline and refuses any review
-that lost ground against it. Nothing else in the pipeline re-checks Task 5, so
-a failure here reaches the user directly — pipeline_worker persists this task's
-text, not Task 4's.
+Legacy full-report output remains covered during rolling deployment. Nothing
+else in the pipeline re-checks Task 5, so both paths must preserve or improve
+the validated baseline before pipeline_worker persists it.
 
 That last point is why the guardrail also re-runs Task 4's citation and
 disclaimer validation when the evidence tasks are supplied: the baseline checks
@@ -17,6 +17,7 @@ only cover what the reviewer removed, and say nothing about what it added.
 
 from __future__ import annotations
 
+import json
 import unittest
 from datetime import date
 
@@ -66,6 +67,9 @@ def _run(reviewed: str, draft: str = _DRAFT, **kw):
     guardrail = make_reviewer_guardrail(_Task(draft), **kw)
     ok, result = guardrail(_Output(reviewed))
     return ok, (result.raw if ok else result)
+
+def _plan(*corrections: dict[str, str]) -> str:
+    return json.dumps({"corrections": list(corrections)}, ensure_ascii=False)
 
 
 class _EvidenceTask:
@@ -145,6 +149,107 @@ def _complete_report(citations: str = "[A1][P1][M1]") -> str:
         "- [P1] Source P1 https://records.test-domain.org/p1\n"
         "- [M1] Source M1 https://records.test-domain.org/m1\n"
     )
+
+
+class ReviewerCorrectionPlanTests(unittest.TestCase):
+    """The production path patches a validated draft instead of regenerating it."""
+
+    def test_empty_plan_preserves_every_required_heading(self):
+        """Regression: a full-report review once dropped a required heading."""
+        draft = _complete_report()
+        ok, result = _run(_plan(), draft=draft, context_tasks=_EVIDENCE_TASKS)
+
+        self.assertTrue(ok)
+        for heading in (
+            "# Academic Commercialization Assessment:",
+            "## Executive Summary",
+            "## 1. Technology Overview & Maturity",
+            "## 2. Patent Landscape & White Spaces",
+            "## 3. Target Industries & Use Cases",
+            "## 4. Competitive Landscape",
+            "## 5. Commercialization Opportunities & Recommendations",
+            "## Evidence Limitations",
+            "## References",
+        ):
+            self.assertIn(heading, result)
+        self.assertIn("## Reviewer Notes\n\nNo corrections required.", result)
+
+    def test_exact_local_correction_preserves_unrelated_report_text(self):
+        draft = _complete_report()
+        unique_find = "Single-source market estimates."
+        unique_replace = "The market estimate relies on a single public source."
+
+        ok, result = _run(
+            _plan(
+                {
+                    "find": unique_find,
+                    "replace": unique_replace,
+                    "reason": "Qualified an unsupported absolute deployment claim.",
+                }
+            ),
+            draft=draft,
+            context_tasks=_EVIDENCE_TASKS,
+        )
+
+        self.assertTrue(ok)
+        self.assertIn(unique_replace, result)
+        self.assertNotIn(unique_find, result)
+        self.assertIn("## 2. Patent Landscape & White Spaces", result)
+        self.assertIn("[P1] Source P1", result)
+        self.assertIn("Qualified an unsupported absolute deployment claim.", result)
+
+    def test_ambiguous_target_is_rejected_instead_of_patching_first_match(self):
+        ok, message = _run(
+            _plan(
+                {
+                    "find": "Evidence indicates commercial deployment is underway.",
+                    "replace": "Evidence suggests deployment may be underway.",
+                    "reason": "Hedge the claim.",
+                }
+            ),
+            draft=_complete_report(),
+        )
+        self.assertFalse(ok)
+        self.assertIn("occurs", message)
+        self.assertIn("exactly one", message)
+
+    def test_heading_edit_is_rejected_before_report_validation(self):
+        ok, message = _run(
+            _plan(
+                {
+                    "find": "## Executive Summary",
+                    "replace": "## Investment Summary",
+                    "reason": "Rename the section.",
+                }
+            ),
+            draft=_complete_report(),
+        )
+        self.assertFalse(ok)
+        self.assertIn("heading", message)
+
+    def test_correction_cannot_invent_a_source_id(self):
+        draft = _complete_report()
+        ok, message = _run(
+            _plan(
+                {
+                    "find": "Findings are supported by [A1][P1][M1].",
+                    "replace": "Findings are supported by [A1][P1][M1][A99].",
+                    "reason": "Add support.",
+                }
+            ),
+            draft=draft,
+            context_tasks=_EVIDENCE_TASKS,
+        )
+        self.assertFalse(ok)
+        self.assertIn("A99", message)
+
+    def test_plan_without_a_validated_draft_fails_explicitly(self):
+        guardrail = make_reviewer_guardrail(None)
+        ok, message = guardrail(_Output(_plan()))
+        self.assertFalse(ok)
+        self.assertIn("draft is unavailable", message)
+
+
 
 
 class ReviewerAddedContentTests(unittest.TestCase):

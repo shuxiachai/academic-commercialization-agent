@@ -699,6 +699,16 @@ def get_state(run_id: str) -> dict:
         # It is deliberately advisory so a temporary registry gap does not
         # discard a paid report.
         "authority_coverage": status.get("authority_coverage"),
+        # A combined topic can retrieve abundant evidence for one component
+        # while silently missing another. This advisory field exposes that
+        # bounded-set coverage without turning it into an absence claim.
+        "component_coverage": status.get("component_coverage"),
+
+        # Review is a separate model pass after the draft's deterministic
+        # validation. A fallback remains a completed run, but it must not look
+        # indistinguishable from an inspection that actually happened.
+        "quality_review": status.get("quality_review"),
+
         # Where the report's own advice disagrees with its own
         # scorecard. Nothing in the pipeline compares them: the
         # reviewer never sees the scorecard, the scorer never sees

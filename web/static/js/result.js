@@ -564,11 +564,25 @@ export function reliabilityRows(progress) {
     rows.push({ id: "consistency", tone: "ok",
                 label: t("rel_consistency"), detail: t("rel_consistency_ok") });
   }
+  const review = progress.quality_review;
+  if (review?.status === "fallback") {
+    rows.push({ id: "review", tone: "warn", label: t("rel_review"),
+                detail: t("rel_review_fallback") });
+  } else if (review?.status === "passed") {
+    rows.push({ id: "review", tone: "ok", label: t("rel_review"),
+                detail: t("rel_review_passed") });
+  } else if (progress.source_counts) {
+    // Runs produced before this field existed did not record whether the
+    // reviewer completed. Absence cannot be upgraded to a historical pass.
+    rows.push({ id: "review", tone: "muted", label: t("rel_review"),
+                detail: t("rel_review_unknown") });
+  }
 
   const grounding = progress.claim_grounding;
   if (grounding != null) {
     const ungrounded = grounding.ungrounded ?? 0;
     const checked = grounding.checked ?? 0;
+    const unverifiable = grounding.unverifiable ?? 0;
     if (ungrounded > 0) {
       rows.push({ id: "grounding", tone: "warn", label: t("rel_grounding"),
                   detail: t("rel_grounding_flagged").replace("{count}", ungrounded) });
@@ -578,6 +592,13 @@ export function reliabilityRows(progress) {
       // statements that produce the same pair of numbers.
       rows.push({ id: "grounding", tone: "muted",
                   label: t("rel_grounding"), detail: t("rel_grounding_none") });
+    } else if (unverifiable > 0) {
+      // Some matches do not make the unchecked remainder disappear. Calling
+      // this a pass was the same silence-as-success bug in a less obvious shape.
+      rows.push({ id: "grounding", tone: "muted", label: t("rel_grounding"),
+                  detail: t("rel_grounding_partial")
+                    .replace("{checked}", checked)
+                    .replace("{unverifiable}", unverifiable) });
     } else {
       rows.push({ id: "grounding", tone: "ok", label: t("rel_grounding"),
                   detail: t("rel_grounding_ok").replace("{count}", checked) });
@@ -608,6 +629,27 @@ export function reliabilityRows(progress) {
     rows.push({ id: "authority", tone: "muted", label: t("rel_authority"),
                 detail: t("rel_authority_unchecked") });
   }
+  const components = progress.component_coverage;
+  if (components?.status === "incomplete") {
+    const missing = (components.missing_components ?? []).join(", ");
+    let detail = t("rel_components_missing").replace("{components}", missing);
+    const unchecked = (components.unchecked_components ?? []).join(", ");
+    if (unchecked) {
+      detail += " " + t("rel_components_unchecked")
+        .replace("{components}", unchecked);
+    }
+    rows.push({ id: "components", tone: "warn", label: t("rel_components"),
+                detail });
+  } else if (components?.status === "complete") {
+    rows.push({ id: "components", tone: "ok", label: t("rel_components"),
+                detail: t("rel_components_complete") });
+  } else if (["partial", "unchecked"].includes(components?.status)) {
+    const unchecked = (components.unchecked_components ?? []).join(", ");
+    rows.push({ id: "components", tone: "muted", label: t("rel_components"),
+                detail: t("rel_components_unchecked")
+                  .replace("{components}", unchecked) });
+  }
+
 
   if (progress.evidence_incomplete) {
     rows.push({ id: "trail", tone: "warn",

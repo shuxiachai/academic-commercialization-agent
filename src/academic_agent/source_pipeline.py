@@ -498,10 +498,30 @@ class AuthorityCoverage(BaseModel):
     missing_categories: list[str] = Field(default_factory=list)
 
 
+class ComponentCoverage(BaseModel):
+    """How well validated evidence represents a genuinely combined system.
+
+    This is deliberately an advisory retrieval diagnostic. A component can be
+    absent from the bounded accepted set even when evidence exists elsewhere,
+    so an incomplete result scopes the report but never rejects a paid run.
+    Components without a discriminating keyword remain explicitly unchecked
+    instead of being silently upgraded to covered.
+    """
+
+    status: Literal[
+        "not_applicable", "complete", "incomplete", "partial", "unchecked"
+    ] = "not_applicable"
+    components: list[str] = Field(default_factory=list)
+    covered_source_ids: dict[str, list[str]] = Field(default_factory=dict)
+    missing_components: list[str] = Field(default_factory=list)
+    unchecked_components: list[str] = Field(default_factory=list)
+
+
 class SourceCollection(BaseModel):
     topic: str                          # English topic used for search APIs
     display_topic: str = ""             # Original topic in user's language (for report title)
     search_aliases: list[str] = Field(default_factory=list)  # Equivalent English phrases used for retrieval
+    search_components: list[str] = Field(default_factory=list)
     output_language: str = "English"    # Human-readable language name passed to LLM
     localized_headings: list[str] = Field(default_factory=list)  # Translated section headings
     weight_profile: str = "industrial"  # Scoring weight profile: industrial | biomedical | material_science
@@ -515,6 +535,7 @@ class SourceCollection(BaseModel):
     market_queries: list[str] = Field(min_length=1)
     audit: list[SearchAudit] = Field(default_factory=list)
     authority_coverage: AuthorityCoverage = Field(default_factory=AuthorityCoverage)
+    component_coverage: ComponentCoverage = Field(default_factory=ComponentCoverage)
     # Broad clinical platform questions are allowed to run. The warning travels
     # with the source artifact and into the report prompt so the output scopes
     # its conclusion instead of pretending all indications share one maturity.
@@ -598,6 +619,30 @@ class SourceCollection(BaseModel):
             )
         if self.scope_warning:
             retrieval_notice = f"{retrieval_notice}\n\n{self.scope_warning}"
+
+        coverage = self.component_coverage
+        if coverage.status == "incomplete":
+            missing = ", ".join(coverage.missing_components)
+            retrieval_notice = (
+                f"{retrieval_notice}\n\nCOMPOUND TOPIC COVERAGE — no validated "
+                f"source in this bounded retrieval set explicitly represented: "
+                f"{missing}. This is a coverage limitation, not proof that no "
+                "evidence exists. State it in Evidence Limitations and do not "
+                "generalize evidence from the covered components to the missing ones."
+            )
+            if coverage.unchecked_components:
+                unchecked = ", ".join(coverage.unchecked_components)
+                retrieval_notice = (
+                    f"{retrieval_notice} Coverage also could not be checked "
+                    f"reliably for: {unchecked}."
+                )
+        elif coverage.status in {"partial", "unchecked"}:
+            unchecked = ", ".join(coverage.unchecked_components)
+            retrieval_notice = (
+                f"{retrieval_notice}\n\nCOMPOUND TOPIC COVERAGE — coverage could "
+                f"not be checked reliably for: {unchecked}. State this as an "
+                "unassessed retrieval limitation rather than a successful check."
+            )
 
         return {
             "research_topic":  self.topic,
@@ -1557,13 +1602,13 @@ def _market_source_profile(
 
 
 def _parse_patent_year(url: str, snippet: str = "") -> int | None:
-    """Extract approximate publication year from a patent URL or Serper snippet.
+    """Extract an approximate patent publication year.
 
-    Reliable formats (from patent number in URL path):
-      WO{YYYY}...   — PCT/WIPO (always 4-digit year after WO)
-      EP{YYYY}{6+}  — European Patent Office (year-based numbering)
-      KR{YYYY}...   — Korean patent (year-based numbering)
-    Fallback: first plausible 4-digit year (1990–current) in the snippet text.
+    Patent identifiers encode publication years for several offices. The
+    snippet fallback remains patent-only: patent search excerpts commonly
+    state publication or priority metadata. Reusing it for market results was
+    unsafe because a company page mentioning "founded in 2018" was then
+    represented as though the page itself had been published in 2018.
     """
     current_year = date.today().year
     path = urlsplit(url).path
@@ -1581,12 +1626,53 @@ def _parse_patent_year(url: str, snippet: str = "") -> int | None:
                 year = int(pm.group(1))
                 if 1990 <= year <= current_year + 1:
                     return year
-    # Fallback: find first 4-digit year token in snippet that is not a future
-    # forecast year (market snippets commonly include "by 2030" projections).
+    # Patent search excerpts place publication or priority metadata before
+    # years that may appear later in the abstract, so keep the first valid year.
     for m2 in re.finditer(r"\b(20[0-2]\d|199\d)\b", snippet):
         year = int(m2.group(1))
         if 1990 <= year <= current_year:
             return year
+    return None
+
+
+def _explicit_search_result_date(
+    result: dict[str, Any],
+    accessed_date: date,
+) -> date | None:
+    """Parse only a search API's explicit publication-date metadata.
+
+    Snippet prose is evidence content, not bibliographic metadata. The parser
+    intentionally accepts a short allowlist of unambiguous absolute formats;
+    relative or locale-ambiguous values remain unknown rather than receiving a
+    confident but invented date. Future metadata is ignored as malformed.
+    """
+    raw = next(
+        (
+            str(result.get(key) or "").strip()
+            for key in ("date", "published_date", "publication_date")
+            if str(result.get(key) or "").strip()
+        ),
+        "",
+    )
+    if not raw:
+        return None
+
+    for fmt in (
+        "%Y-%m-%d",
+        "%b %d, %Y",
+        "%B %d, %Y",
+        "%d %b %Y",
+        "%d %B %Y",
+    ):
+        try:
+            parsed = datetime.strptime(raw[:32], fmt).date()
+        except ValueError:
+            continue
+        return parsed if parsed <= accessed_date else None
+
+    if re.fullmatch(r"(?:19|20)\d{2}", raw):
+        parsed = date(int(raw), 1, 1)
+        return parsed if parsed <= accessed_date else None
     return None
 
 
@@ -1884,9 +1970,7 @@ def _web_source(
     if domain == "patent" and patent_year:
         published_date = date(patent_year, 1, 1)
     elif domain == "market":
-        market_year = _parse_patent_year("", snippet)
-        if market_year:
-            published_date = date(market_year, 1, 1)
+        published_date = _explicit_search_result_date(result, accessed_date)
 
     # B2: Staleness penalty for commercial market reports.
     # Market size estimates older than 3 years have low reliability.
@@ -1999,6 +2083,66 @@ def _measure_authority_coverage(
     )
 
 
+def _measure_component_coverage(
+    components: Sequence[str],
+    sources: Sequence[EvidenceSource],
+) -> ComponentCoverage:
+    """Measure compound-topic coverage without claiming evidence absence.
+
+    A match needs only one discriminating component term. That intentionally
+    favours recall inside this diagnostic: false warnings are more damaging
+    than missed warnings, while a false match merely suppresses an advisory
+    message and cannot alter the score or accept a source.
+    """
+    normalized = list(dict.fromkeys(
+        " ".join(component.split())
+        for component in components[:4]
+        if len(" ".join(component.split())) >= 3
+    ))
+    if len(normalized) < 2:
+        return ComponentCoverage()
+
+    source_terms = {
+        source.source_id: _topic_keywords(
+            f"{source.title} {source.evidence_summary}"
+        )
+        for source in sources
+    }
+    covered: dict[str, list[str]] = {}
+    missing: list[str] = []
+    unchecked: list[str] = []
+    for component in normalized:
+        keywords = _topic_keywords(component) - _GENERIC_TECH_TERMS
+        if not keywords:
+            unchecked.append(component)
+            continue
+        matches = [
+            source_id
+            for source_id, terms in source_terms.items()
+            if terms & keywords
+        ]
+        if matches:
+            covered[component] = matches
+        else:
+            missing.append(component)
+
+    if missing:
+        status = "incomplete"
+    elif unchecked and covered:
+        status = "partial"
+    elif unchecked:
+        status = "unchecked"
+    else:
+        status = "complete"
+    return ComponentCoverage(
+        status=status,
+        components=normalized,
+        covered_source_ids=covered,
+        missing_components=missing,
+        unchecked_components=unchecked,
+    )
+
+
 def _clinical_scope_warning(topic: str, weight_profile: str) -> str | None:
     """Return a conservative prompt warning for obviously broad clinical topics."""
     if weight_profile != "biomedical":
@@ -2019,6 +2163,7 @@ def _queries(
     native_topic: str | None = None,
     patent_cc: str = "",
     weight_profile: str = "industrial",
+    components: Sequence[str] = (),
 ) -> dict[Domain, list[str]]:
     # Short-form topic for patent/market search: strip parenthetical qualifiers
     # and take the first N words so queries are search-engine-friendly.
@@ -2028,6 +2173,11 @@ def _queries(
     # without including metric clauses (e.g. "improving X by 12.1%") that
     # appear in no market report.
     _mkt_short = " ".join(_pat_clean.split()[:6])
+    component_terms = [
+        " ".join(component.split())
+        for component in components[:4]
+        if len(" ".join(component.split())) >= 3
+    ]
     patent: list[str] = [
         f"{topic} site:patents.google.com/patent",
         f"{topic} site:patentscope.wipo.int",
@@ -2036,6 +2186,17 @@ def _queries(
         f"{_pat_short} site:patents.google.com/patent",
         f"{_pat_short} site:patentscope.wipo.int",
     ]
+    if component_terms:
+        # Reserve one independent Google Patents query per component. An OR
+        # query was considered, but its first high-volume component can still
+        # consume every result slot and recreate the exact coverage failure
+        # this branch is meant to prevent. Full-topic queries fill the remaining
+        # slots, so the total patent-query budget remains six.
+        full_topic_slots = len(patent) - len(component_terms)
+        patent = patent[:full_topic_slots] + [
+            f'"{component}" site:patents.google.com/patent'
+            for component in component_terms
+        ]
     if patent_cc:
         # Prioritise country-specific patents when input language implies a country.
         patent.insert(0, f"{topic} {patent_cc} site:patents.google.com/patent")
@@ -2055,7 +2216,7 @@ def _queries(
         market.append(
             f"{topic} trial results status site:clinicaltrials.gov"
         )
-    market.extend([
+    market_templates = [
         # Short-form queries first: more likely to match market/industry reports
         # than the full metric-laden topic string.
         f"{_mkt_short} market size revenue commercial manufacturer {_years}",
@@ -2066,20 +2227,35 @@ def _queries(
         f"{topic} commercial scale production manufacturer press release",
         f"{topic} manufacturing commercialization company",
         f"{topic} government standards policy commercialization",
-    ])
+    ]
+    if component_terms:
+        component_market = [
+            f"{component} company product commercial deployment {_years}"
+            for component in component_terms
+        ]
+        market_templates = (component_market + market_templates)[:8]
+    market.extend(market_templates)
     if native_topic and native_topic != topic:
         # One native-language query so the native Serper pass has a base query.
         market.append(native_topic)
 
+    academic_templates = [
+        f"{topic} peer reviewed DOI journal",
+        f"{topic} systematic review meta-analysis",
+        f"{topic} site:scholar.google.com",
+        f"{topic} Nature Science Cell Lancet article",
+        f"{topic} review journal",
+        f"{topic} efficiency stability commercialization",
+    ]
+    if component_terms:
+        component_academic = [
+            f"{component} peer reviewed DOI journal"
+            for component in component_terms
+        ]
+        academic_templates = (component_academic + academic_templates)[:6]
+
     return {
-        "academic": [
-            f"{topic} peer reviewed DOI journal",
-            f"{topic} systematic review meta-analysis",
-            f"{topic} site:scholar.google.com",
-            f"{topic} Nature Science Cell Lancet article",
-            f"{topic} review journal",
-            f"{topic} efficiency stability commercialization",
-        ],
+        "academic": academic_templates,
         "patent": patent,
         "market": market,
     }
@@ -2757,6 +2933,7 @@ def collect_source_collection(
         native_topic=native_topic,
         patent_cc=patent_cc,
         weight_profile=weight_profile,
+        components=plan.components,
     )
     if extra_market_queries:
         # Prepend broader domain queries so they run before the topic-specific ones.
@@ -3217,6 +3394,7 @@ def collect_source_collection(
         topic=normalized_topic,
         display_topic=display_topic,
         search_aliases=topic_synonyms,
+        search_components=list(plan.components),
         output_language=lang_info["name"],
         localized_headings=localized_headings,
         weight_profile=weight_profile,
@@ -3230,6 +3408,10 @@ def collect_source_collection(
         market_queries=query_map["market"],
         authority_coverage=_measure_authority_coverage(
             normalized_topic, weight_profile, market
+        ),
+        component_coverage=_measure_component_coverage(
+            plan.components,
+            (*academic, *patents, *market),
         ),
         scope_warning=_clinical_scope_warning(
             normalized_topic, weight_profile

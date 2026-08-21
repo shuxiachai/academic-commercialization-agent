@@ -515,6 +515,86 @@ class SourcePipelineTests(TestCase):
                 self.assertEqual(source.credibility_tier, expected_tier)
                 self.assertGreaterEqual(len(source.credibility_reason), 10)
 
+    def test_market_snippet_year_is_not_treated_as_publication_metadata(self) -> None:
+        source, reason = _web_source(
+            {
+                "title": "Company commercialization update",
+                "link": "https://www.reuters.com/technology/example-update",
+                "snippet": (
+                    "The company was founded in 2018 and now reports a commercial "
+                    "pilot with customers in several industrial markets."
+                ),
+            },
+            "M1",
+            "market",
+            date(2026, 7, 2),
+            lambda _url: (True, ""),
+        )
+        self.assertEqual(reason, "")
+        self.assertIsNone(source.published_date)
+
+    def test_explicit_market_result_date_is_preserved(self) -> None:
+        source, reason = _web_source(
+            {
+                "title": "Company commercialization update",
+                "link": "https://www.reuters.com/technology/example-update",
+                "date": "Jun 24, 2025",
+                "snippet": (
+                    "The company reports a commercial pilot with customers in "
+                    "several industrial markets and a planned production line."
+                ),
+            },
+            "M1",
+            "market",
+            date(2026, 7, 2),
+            lambda _url: (True, ""),
+        )
+        self.assertEqual(reason, "")
+        self.assertEqual(source.published_date, date(2025, 6, 24))
+
+    def test_old_explicit_market_report_date_triggers_staleness_penalty(self) -> None:
+        source, reason = _web_source(
+            {
+                "title": "Historical market forecast",
+                "link": (
+                    "https://www.grandviewresearch.com/industry-analysis/"
+                    "historical-example"
+                ),
+                "date": "2020-01-02",
+                "snippet": (
+                    "The report estimates market demand and supplier activity "
+                    "using a documented commercial forecasting methodology."
+                ),
+            },
+            "M1",
+            "market",
+            date(2026, 7, 2),
+            lambda _url: (True, ""),
+        )
+        self.assertEqual(reason, "")
+        self.assertEqual(source.published_date, date(2020, 1, 2))
+        self.assertEqual(source.credibility_tier, "low")
+        self.assertIn("Stale market data", source.credibility_reason)
+
+    def test_future_explicit_market_date_is_left_unknown(self) -> None:
+        source, reason = _web_source(
+            {
+                "title": "Company commercialization update",
+                "link": "https://www.reuters.com/technology/example-update",
+                "date": "2030-01-01",
+                "snippet": (
+                    "The company reports a commercial pilot with customers in "
+                    "several industrial markets and a planned production line."
+                ),
+            },
+            "M1",
+            "market",
+            date(2026, 7, 2),
+            lambda _url: (True, ""),
+        )
+        self.assertEqual(reason, "")
+        self.assertIsNone(source.published_date)
+
     def test_academic_publishers_are_not_reused_as_market_sources(self) -> None:
         source, reason = _web_source(
             {
@@ -938,6 +1018,41 @@ class MarketQueryRecencyTests(TestCase):
                     "use _recent_years() so the window moves with the clock",
                 )
 
+class ComponentQueryPlanningTests(TestCase):
+    """Each building block gets a bounded query that cannot be crowded out."""
+
+    def test_each_component_gets_an_independent_query_in_every_domain(self):
+        from academic_agent.source_pipeline import _queries
+
+        components = (
+            "mycelium composite packaging",
+            "distributed environmental sensors",
+            "edge AI inference",
+        )
+        planned = _queries(
+            "mycelium packaging with sensor networks and edge AI",
+            components=components,
+        )
+
+        self.assertEqual(len(planned["patent"]), 6)
+        self.assertFalse(any(" OR " in query for query in planned["patent"]))
+        for component in components:
+            with self.subTest(component=component):
+                self.assertEqual(
+                    sum(
+                        query.startswith(f'"{component}"')
+                        for query in planned["patent"]
+                    ),
+                    1,
+                )
+                self.assertTrue(any(
+                    query.startswith(component) for query in planned["market"]
+                ))
+                self.assertTrue(any(
+                    query.startswith(component) for query in planned["academic"]
+                ))
+
+
 class AuthorityQueryPlanningTests(TestCase):
     """Clinical-product searches must ask authority systems directly."""
 
@@ -1056,6 +1171,84 @@ class AuthorityCoverageTests(TestCase):
         )
         self.assertEqual(coverage.status, "not_applicable")
         self.assertEqual(coverage.required_categories, [])
+
+
+class ComponentCoverageTests(TestCase):
+    """Compound-topic coverage is explicit, advisory, and honest about silence."""
+
+    @staticmethod
+    def _source(source_id: str, title: str):
+        from academic_agent.evidence import EvidenceSource
+
+        return EvidenceSource(
+            source_id=source_id,
+            title=title,
+            publisher="Peer-reviewed Journal",
+            url=f"https://example.org/{source_id.lower()}",
+            accessed_date=date.today(),
+            source_type="academic_paper",
+            credibility_tier="high",
+            credibility_reason="Peer-reviewed record with traceable publication metadata.",
+            evidence_summary=(
+                f"{title} is evaluated with reproducible methods and reports "
+                "technical performance relevant to the stated research component."
+            ),
+        )
+
+    def test_complete_requires_every_planned_component_to_appear(self):
+        from academic_agent.source_pipeline import _measure_component_coverage
+
+        components = (
+            "mycelium composite packaging",
+            "distributed environmental sensors",
+            "edge AI inference",
+        )
+        coverage = _measure_component_coverage(
+            components,
+            [
+                self._source("A1", "Mycelium composite packaging materials"),
+                self._source("A2", "Distributed environmental sensor networks"),
+                self._source("A3", "Edge AI inference for embedded devices"),
+            ],
+        )
+
+        self.assertEqual(coverage.status, "complete")
+        self.assertEqual(set(coverage.covered_source_ids), set(components))
+
+    def test_missing_component_is_a_warning_not_an_absence_claim(self):
+        from academic_agent.source_pipeline import _measure_component_coverage
+
+        coverage = _measure_component_coverage(
+            (
+                "mycelium composite packaging",
+                "distributed environmental sensors",
+                "edge AI inference",
+            ),
+            [
+                self._source("A1", "Mycelium composite packaging materials"),
+                self._source("A2", "Distributed environmental sensor networks"),
+            ],
+        )
+
+        self.assertEqual(coverage.status, "incomplete")
+        self.assertEqual(coverage.missing_components, ["edge AI inference"])
+
+    def test_non_discriminating_components_are_unchecked_not_complete(self):
+        from academic_agent.source_pipeline import _measure_component_coverage
+
+        coverage = _measure_component_coverage(
+            ("artificial intelligence systems", "advanced methods"),
+            [],
+        )
+
+        self.assertEqual(coverage.status, "unchecked")
+        self.assertEqual(len(coverage.unchecked_components), 2)
+
+    def test_single_technology_is_explicitly_not_applicable(self):
+        from academic_agent.source_pipeline import _measure_component_coverage
+
+        coverage = _measure_component_coverage(("solid-state batteries",), [])
+        self.assertEqual(coverage.status, "not_applicable")
 
 
 class BroadClinicalScopeTests(TestCase):
