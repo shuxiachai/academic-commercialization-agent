@@ -93,6 +93,30 @@ justify removing the production Scorer: Reviewer value still awaits a blinded
 [topology ablation](docs/prereg-2026-08-21-agent-topology-ablation.md) and
 [Reviewer audit](docs/prereg-2026-08-22-reviewer-value-audit.md) documents.
 
+A separate human-label audit is now prepared for a retrieval question that the
+structural benchmark cannot answer: whether patents accepted by the pipeline
+are actually topically relevant. The frozen packet contains all **75** patent
+records from the 10 public benchmark fixtures plus all **6** records from one
+post-hoc sodium-ion grid-storage challenge run. The two corpora will be reported
+separately; the challenge set is not held out. No human labels or relevance-rate
+claims exist yet. The pre-registered protocol is in
+[`docs/prereg-2026-08-22-patent-relevance-audit.md`](docs/prereg-2026-08-22-patent-relevance-audit.md).
+
+```bash
+uv run python patent_relevance_eval.py prepare benchmark_fixtures \
+  outputs/patent-relevance-audit/packet \
+  --challenge evals/patent_relevance/sodium-ion-grid-storage-challenge.json
+
+uv run python patent_relevance_eval.py summarize \
+  outputs/patent-relevance-audit/packet/labels.csv \
+  outputs/patent-relevance-audit/packet/manifest.json \
+  outputs/patent-relevance-audit/summary.json
+```
+
+The summarizer refuses partial or drifting label sets and returns an explicit
+`incomplete` state with no metrics until all 81 rows are judged. It measures
+accepted-source relevance, not global retrieval recall.
+
 ---
 
 ### What's different from the CrewAI starter template

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "corpus": "sodium_ion_grid_storage_challenge",
+  "source_run_id": "20260707T012519Z-6e9d3f0d66",
+  "topic": "sodium-ion batteries for grid energy storage",
+  "collected_at": "2026-07-07T01:27:03.527118Z",
+  "selection_note": "Post-hoc challenge containing every accepted patent from the latest locally retained sodium-ion grid-storage run; selected after weak relevance was observed and reported separately from benchmark_core.",
+  "patent_sources": [
+    {
+      "source_id": "P1",
+      "title": "WO2016027082A1 - Storage and/or transportation of sodium-ion cells",
+      "url": "https://patents.google.com/patent/WO2016027082A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-07-07",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The present invention relates to a process for making sodium-ion cells, for example rechargeable sodium-ion cells, which are capable of being safely transported ..."
+    },
+    {
+      "source_id": "P2",
+      "title": "US8835041B2 - Electrode materials for sodium batteries",
+      "url": "https://patents.google.com/patent/US8835041B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-07-07",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "This invention relates to electrodes for sodium and sodium-ion cells and batteries comprising sodium/transition metal oxide electrode materials ..."
+    },
+    {
+      "source_id": "P3",
+      "title": "US20020192553A1 - Sodium ion batteries - Google Patents",
+      "url": "https://patents.google.com/patent/US20020192553A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-07-07",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "Sodium ion cells comprise an anode, cathode and an electrolyte. The cells were constructed using a NaVPO[0292] 4F active material cathode. The cathode material ..."
+    },
+    {
+      "source_id": "P4",
+      "title": "WO2017060718A1 - X/hard carbon composite material and method ...",
+      "url": "https://patents.google.com/patent/WO2017060718A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-07-07",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The aim of the present invention is to provide novel hard carbon composite materials for use as anode-active materials in alkali metal-ion energy storage ..."
+    },
+    {
+      "source_id": "P5",
+      "title": "Molten inorganic electrolytes for low temperature sodium batteries",
+      "url": "https://patents.google.com/patent/US11258096B2/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-07-07",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "In particular, molten sodium batteries are promising candidates for high energy density, low cost grid-scale energy storage that could be enabled by effective ..."
+    },
+    {
+      "source_id": "P6",
+      "title": "US20170373310A1 - Kvopo4 cathode for sodium ion batteries",
+      "url": "https://patents.google.com/patent/US20170373310A1/en",
+      "doi": null,
+      "publisher": "Google",
+      "published_date": null,
+      "accessed_date": "2026-07-07",
+      "source_type": "patent",
+      "credibility_tier": "high",
+      "credibility_reason": "Official patent registry record; legal scope still requires claim review.",
+      "evidence_summary": "The present technology makes it possible for the cathode material to store more than one sodium ion in each single charge/discharge process, ..."
+    }
+  ]
+}

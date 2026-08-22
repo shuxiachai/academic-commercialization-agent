@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1218 tests (545 subtests), CI green on Linux + Windows × Python
+Current state: 1230 tests (545 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -143,7 +143,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  50 Python files, organised by subject under test
+tests/                  51 Python files, organised by subject under test
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 ops_report.py           what real runs actually did, vs what the benchmark covers
 ```
@@ -161,6 +161,10 @@ A run URL is a capability — the id is the credential.
   the assertions differ completely.
 - Code-package analysis (the other half of "upload a paper or a code package")
   is unbuilt.
+- Patent topical relevance now has a pre-registered, frozen 81-case human audit
+  and a strict summarizer, but **0/81 cases have human labels**. Until the packet
+  is completed, the project has no measured accepted-patent relevance rate and
+  must not present the prepared protocol as a result.
 - **No evidence exists that the output is *useful*.** Everything the project
   can currently demonstrate is that it does not lie — citations check out,
   formulas are right, hallucination rate is 0. Whether a TTO officer would act
