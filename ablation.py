@@ -407,6 +407,61 @@ def draft_retention_ratio(draft: str | None, delivered: str | None) -> float | N
     return round(SequenceMatcher(None, draft, final_body, autojunk=False).ratio(), 6)
 
 
+def persist_successful_reviewer_plan(
+    cell_dir: Path,
+    recorder: GuardrailRecorder,
+    expected_corrections: int,
+) -> Path | None:
+    """Persist only the accepted structured plan used to build the final report.
+
+    Hashes and final prose cannot reconstruct exact patch boundaries. Failed
+    plans remain hash-only to preserve the pre-registered anti-cherry-picking
+    boundary; the final successful plan is different because it is the causal
+    record of what the Reviewer changed.
+    """
+
+    attempts = recorder.attempts.get("report_review_task", [])
+    successful = [
+        attempt
+        for attempt in attempts
+        if attempt.passed and attempt.raw_before.lstrip().startswith("{")
+    ]
+    if not successful:
+        if expected_corrections:
+            raise RuntimeError(
+                "Reviewer corrections were delivered without a persisted JSON plan"
+            )
+        return None
+
+    raw_plan = json.loads(successful[-1].raw_before)
+    raw_corrections = raw_plan.get("corrections")
+    if not isinstance(raw_corrections, list):
+        raise RuntimeError("successful Reviewer plan has no corrections list")
+    corrections = [
+        correction
+        for correction in raw_corrections
+        if isinstance(correction, dict)
+        and correction.get("find") != correction.get("replace")
+    ]
+    if len(corrections) != expected_corrections:
+        raise RuntimeError(
+            "Reviewer plan/report correction count mismatch: "
+            f"{len(corrections)} plan items vs {expected_corrections} notes"
+        )
+
+    path = cell_dir / "reviewer_correction_plan.json"
+    path.write_text(
+        json.dumps(
+            {"schema_version": 1, "corrections": corrections},
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def _task_filename(index: int, output: Any) -> str:
     name = str(getattr(output, "name", "") or f"task-{index}").lower()
     safe = re.sub(r"[^a-z0-9]+", "-", name).strip("-") or f"task-{index}"
@@ -542,6 +597,12 @@ def run_cell(
         meta["reviewer_corrections"] = (
             reviewer_correction_count(delivered) if cell.variant == "full" else None
         )
+        if cell.variant == "full":
+            persist_successful_reviewer_plan(
+                cell_dir,
+                recorder,
+                meta["reviewer_corrections"],
+            )
         meta["draft_retention_ratio"] = (
             draft_retention_ratio(draft, delivered) if cell.variant == "full" else None
         )
