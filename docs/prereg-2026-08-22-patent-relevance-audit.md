@@ -115,3 +115,33 @@ uv run python patent_relevance_eval.py summarize \
 `prepare` refuses to overwrite an existing packet so a started human audit
 cannot be silently reset. The manifest stores a SHA-256 hash for every case
 card, and `summarize` requires the exact manifest case-ID set.
+
+## Results — added after labeling on 2026-08-22
+
+All 81 rows passed the locked completeness and case-ID checks. The project owner
+attested that every label and rationale was checked by a human and corrected
+AI-authorship text that had been accidentally pasted into the packet's source
+declaration. The public archive preserves that correction and describes the
+result as one completed human label set, not an independent expert panel.
+
+| Corpus | Relevant | Weak | Irrelevant | Usable relevance |
+|---|---:|---:|---:|---:|
+| Benchmark core | 64/75 (85.3%) | 9/75 (12.0%) | 2/75 (2.7%) | 73/75 (97.3%) |
+| Sodium-ion challenge | 5/6 (83.3%) | 1/6 (16.7%) | 0/6 | 6/6 (100%) |
+| Combined | 69/81 (85.2%) | 10/81 (12.3%) | 2/81 (2.5%) | 79/81 (97.5%) |
+
+No case was labelled `UNCERTAIN`. Mean confidence was 4.85/5 overall, but a
+reviewer's confidence is not an external accuracy measure. The clearest
+concentrated failure was `quantum computing for drug discovery`: all four
+accepted patents were `WEAK`, because drug discovery appeared only in generic
+application lists for quantum hardware or cloud systems. The two `IRRELEVANT`
+cases were a plant-disease CRISPR patent and an adhesive polymer patent matched
+through “room temperature”.
+
+The result characterizes the current accepted set; it does not measure recall
+or validate a new filter. Production retrieval remains unchanged. The next
+experiment must freeze a candidate relevance rule and compare its decisions
+against these same labels, with false rejection reported explicitly.
+
+Artifacts, hashes, corrected provenance, and the reproducible summary are in
+[`evals/patent_relevance/human-review-2026-08-22/`](../evals/patent_relevance/human-review-2026-08-22/).

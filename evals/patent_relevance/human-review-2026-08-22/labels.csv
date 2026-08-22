@@ -1,0 +1,82 @@
+case_id,label,confidence,rationale
+PR-BFFFE4FD5EFB,WEAK,4,"Anti-LYPD3 CAR-T is directed at solid tumors (squamous cell carcinoma), with blood cancers mentioned only as background context."
+PR-914FA53B6CE2,WEAK,4,"Anti-ALPP CAR-T therapy targets solid tumors (ovarian, endometrial, testicular, etc.) rather than hematological/blood cancers."
+PR-C2E9DCA827A3,RELEVANT,4,237 CAR-T cell therapy targeting Tn-glycopeptides demonstrates specific antitumor activity against leukemia (Jurkat) cells.
+PR-7A27B5AE90C2,RELEVANT,5,"Directly covers manufacturing of anti-BCMA CAR-T cells, a primary therapy for hematologic malignancies (multiple myeloma)."
+PR-590B7CFCD565,RELEVANT,5,Directly claims engineered CAR-T cells with inactivated CBL/CBL-B to improve efficacy in hematological malignancies including B-cell leukemia.
+PR-FBE9CBE3E7CD,RELEVANT,5,"Directly claims enhanced CAR-T cell therapies targeting CD19 for acute and chronic leukemias (BALL, TALL, ALL, CLL)."
+PR-2A04A0E02B9C,RELEVANT,5,"Claims CD74-targeted CAR-T cell therapy specifically for treating lymphoma, a blood cancer."
+PR-DE04261CBD34,RELEVANT,5,Directly claims bispecific CD19/CD22 CAR-T cell therapy for high-risk and relapsed pediatric acute lymphoblastic leukemia (ALL).
+PR-4B9A8B5D855E,RELEVANT,5,Claims bolt-on equipment for cost-effective capture of CO2 and multi-pollutant emissions from industrial flue gases.
+PR-20BABA8B0FB1,RELEVANT,5,Directly claims integrated energy storage and cryogenic carbon capture systems for power plant flue gases and industrial process streams.
+PR-CA514E5A2C89,RELEVANT,5,Directly claims electrolytic carbon dioxide capture and mineral storage methods for industrial emissions from power and industrial plants.
+PR-05031DEF513F,RELEVANT,5,Directly claims rare-earth based chemical separation and capture of carbon dioxide integrated into fossil fuel and industrial plants.
+PR-F0ABADB3534C,RELEVANT,5,Directly claims carbon capture and storage (CCS) methods using metal oxide solutions to remove CO2 from flue gas and vent streams.
+PR-7B212833281D,WEAK,4,Focuses on direct air capture (DAC) integrated into building infrastructure rather than point-source industrial emission capture.
+PR-5A8662DBB591,RELEVANT,5,"Directly covers post-combustion calcium looping carbon capture systems integrated with industrial flue gases from power, lime, and cement plants."
+PR-18847CE7A43B,RELEVANT,5,Directly claims industrial-scale CO2 capture coupled with compressed air energy storage systems from mixed gas streams.
+PR-FF320E3146E7,RELEVANT,5,Directly claims CRISPR/Cas gene-editing systems for preventing and treating autosomal dominant genetic diseases and single-nucleotide mutations.
+PR-7447D8BDAC98,RELEVANT,5,Directly claims CRISPR-Cas mediated genetic correction of mutated genes for treating monogenic disorders like Duchenne muscular dystrophy.
+PR-0A97C1A8E8E6,RELEVANT,4,Claims a bacterial delivery platform for introducing CRISPR/Cas gene-editing systems into eukaryotic cells to treat genetic disorders.
+PR-5B2F757DA285,IRRELEVANT,5,"Keyword false match on 'diseases'; claims CRISPR editing in citrus crops against plant bacterial infection (Huanglongbing), unrelated to human genetic disease."
+PR-7DC03252DC00,RELEVANT,5,Directly claims in vivo CRISPR gene editing complexes for correcting BAG3 gene mutations to treat genetic myopathies.
+PR-E4CD959B00B5,WEAK,4,Broad platform patent covering CRISPR guide RNA architecture and viral polynucleotide cleavage without specific targeting of genetic diseases.
+PR-40BCB4AF042E,RELEVANT,5,Foundational patent claiming eukaryotic CRISPR-Cas systems for altering gene expression to treat extensive classes of genetic diseases.
+PR-A49EC063ABBB,RELEVANT,5,Directly claims nuclear CRISPR/Cas9 editing to correct transcripts associated with specific genetic disorders such as Cystic Fibrosis and Hurler syndrome.
+PR-A9EA0E8213B1,RELEVANT,5,Directly claims hybrid food products containing cultivated animal cells and methods of production for the food industry.
+PR-A1181409B306,RELEVANT,5,Directly claims mixed food compositions and preparations incorporating cell-cultured meat to enhance nutritional and organoleptic properties.
+PR-32DF7220F833,RELEVANT,5,Directly claims packed-bed bioreactor systems and methods specifically designed for producing cultivated meat mass for food products.
+PR-0ACC84C9E9D3,RELEVANT,5,Directly claims cultured meat-containing hybrid food formulations (such as cultured chicken sausages) for food industry consumption.
+PR-394E760787A4,RELEVANT,5,Directly claims extruded food compositions comprising cultivated animal cells and industrial methods for producing cultured meat foods.
+PR-8F37ECA6A118,RELEVANT,5,Directly claims cultured meat-containing hybrid foodstuffs with tailored organoleptic properties and myoglobin content.
+PR-328914FE78C7,RELEVANT,5,Directly claims methods for producing hybrid food products by combining plant substances with cultivated animal cells.
+PR-DF747D89F44A,RELEVANT,5,Directly claims inkjet printing methods for graphene-based conductive films on flexible substrates for flexible electronics.
+PR-EDD88890B876,RELEVANT,5,Directly claims graphene-based flexible electronic devices with liquid metal interconnects to prevent interfacial cracking.
+PR-BE0DD5F48B8C,RELEVANT,5,Directly covers wearable devices incorporating printed graphene circuitry and flexible sensors for physiological monitoring.
+PR-A8FA15380803,RELEVANT,5,"Directly claims highly flexible, electrically conductive graphene films for flexible electronic sensor and optoelectronic applications."
+PR-20B8B305276A,RELEVANT,5,Directly claims graphene-based multi-junction photovoltaic devices fabricated on flexible conductive substrates.
+PR-71B8444ECAFC,RELEVANT,5,Directly claims high-resolution screen and gravure printing methods for graphene films dedicated to flexible printed electronics.
+PR-16A6620E09C0,RELEVANT,4,Claims laser-assisted preparation of graphene and nanohybrid films for use as electrodes in flexible electronic devices.
+PR-C39FC36C8752,RELEVANT,5,Directly claims methods for transferring CVD monolayer graphene onto flexible glass substrates for flexible electronics.
+PR-C7383F67A81B,RELEVANT,5,Directly claims modified mRNA vaccine compositions and delivery systems configured to induce anti-tumor immune responses.
+PR-99C6F837BC29,RELEVANT,5,Directly claims chemically generated tumor-antigen mRNA vaccines for dendritic cell stimulation and cancer immunotherapy.
+PR-604AF317A77A,RELEVANT,5,Directly claims mRNA cancer vaccine constructs encoding tumor antigens to induce robust cellular and humoral anti-tumor responses.
+PR-182D85DF4F8E,RELEVANT,5,Directly claims personalized LNP-formulated multi-neoantigen mRNA vaccines tailored to tumor mutational profiles for cancer immunotherapy.
+PR-CE0F90A47335,RELEVANT,5,Directly claims personalized mRNA cancer vaccines encoding multiple mutanome neoantigens tailored to subject HLA types.
+PR-83D58944CB97,RELEVANT,5,Directly claims therapeutic regimens and dosing methods for administering lipid nanoparticle-formulated mRNA cancer vaccines.
+PR-B8A08EE9F438,RELEVANT,5,Directly covers mRNA cancer vaccines and combination regimens with other therapeutic agents to enhance anti-tumor immunity.
+PR-2D34C45E36BB,RELEVANT,5,Directly claims mRNA cancer vaccines formulated for combination therapy with other anti-cancer therapeutic agents.
+PR-422DCBCFD732,RELEVANT,5,Directly claims halide perovskite solar cell architectures and low-cost scalable synthesis for utility-scale power generation.
+PR-C4BA496745CB,RELEVANT,5,"Directly claims large-area perovskite solar cell modules, interconnection, and grid-connection packaging for power generation."
+PR-5105648F232B,RELEVANT,5,Directly claims encapsulated perovskite solar cells with maximum power point tracking control circuitry for power generation.
+PR-514327886233,WEAK,4,Focuses on ultralight perovskite photovoltaic tiles specifically designed for space-based satellite solar power (SBSP) rather than terrestrial utility grid power.
+PR-0D3FDB30A6E1,RELEVANT,5,Directly claims fundamental lead-halide perovskite solar cell compositions and methods for photoelectric power generation.
+PR-266EEBF71F4A,RELEVANT,5,Directly claims self-assembled monolayer interfacial engineering to enhance operational stability (T80) and efficiency in perovskite solar cells.
+PR-51B1B88BB280,RELEVANT,5,"Directly claims scalable vapor-assisted fabrication methods for high-efficiency, large-area perovskite solar cells for practical power generation."
+PR-3F4AD1180A70,RELEVANT,5,Directly claims double composite heterojunction perovskite solar cell device structures and preparation methods to enhance power conversion.
+PR-1BB4671B0B45,WEAK,4,Claims general nanofiber quantum computing hardware; mentions drug discovery only as part of a generic boilerplate list of potential applications.
+PR-DAEB7C95B9B7,WEAK,4,"Claims general cloud access and scheduling systems for quantum computers, listing drug discovery only in an expansive boilerplate list of user use cases."
+PR-8C955511C7D9,WEAK,4,Broad cloud quantum computing management system mentioning drug discovery only as a generic example alongside weather forecasting and astronomy.
+PR-5971FBC69708,WEAK,4,"Focuses on modular quantum hardware interconnects and optical links, mentioning drug discovery only in a generic list of prospective applications."
+PR-DD8686F1562F,RELEVANT,5,Directly claims material structures and methods for achieving Type II superconductivity above room temperature at ambient pressure.
+PR-3780AEEA3B3A,RELEVANT,5,Directly claims modified lead-apatite ceramic compounds (LK-99) exhibiting superconductivity at room temperature and normal atmospheric pressure.
+PR-86155826D859,RELEVANT,5,Directly claims chemical formula and preparation methods for room-temperature and ambient-pressure superconducting ceramics.
+PR-A85E64F34331,RELEVANT,5,Directly claims room-temperature atmospheric-pressure superconducting ceramic compounds and lattice stress mechanisms.
+PR-D004173A96BF,RELEVANT,5,Directly claims piezoelectricity-induced room-temperature superconductor materials and manipulation methods at ambient conditions.
+PR-0B0670CC6D32,RELEVANT,5,"Directly claims composition and synthesis methods for room-temperature, atmospheric-pressure superconducting ceramic compounds."
+PR-FBAC56630041,RELEVANT,5,Directly claims superconducting ceramic compositions and manufacturing methods for room temperature and normal pressure operation.
+PR-5F05C3F50C3D,IRRELEVANT,5,"Keyword false match on 'room temperature'; claims friction-activated adhesive glue polymers, completely unrelated to superconductors."
+PR-926D07248ADD,RELEVANT,5,Directly claims battery cells with solid-state electrolytes specifically configured for electric vehicles.
+PR-E237018D23A7,RELEVANT,5,Directly claims solid-state battery cells and fabrication methods with low impedance scalable for electric vehicles.
+PR-D5164ED08C3A,RELEVANT,5,Directly claims lithium metal anodes for solid-state lithium batteries targeting high energy density and safety in electric vehicles.
+PR-59F5E6D3A94C,RELEVANT,5,Directly claims 3D structured solid-state electrolyte rechargeable batteries intended for powering electric vehicles.
+PR-7016F81A41BD,RELEVANT,5,Directly claims an all-solid-state battery system equipped with a pressurizing device for electric and hybrid vehicle applications.
+PR-620895C53C47,RELEVANT,5,Directly claims all-solid-state lithium-ion battery structures and preparation methods for electric vehicles.
+PR-8ADEA96DBE08,RELEVANT,5,Directly claims all-solid-state lithium batteries utilizing solid electrolytes for electric and hybrid motor vehicles.
+PR-4BF697FC2183,RELEVANT,5,Directly claims sulfide solid electrolyte materials and all-solid-state batteries for electric vehicle power supplies.
+PR-D0149705F550,WEAK,5,Concerns safe shipping and warehouse storage of sodium-ion battery cells; 'storage' refers to logistics rather than grid energy storage applications.
+PR-49401807269C,RELEVANT,5,Directly claims sodium transition metal oxide electrode materials for sodium-ion batteries.
+PR-2A0B537AF9C4,RELEVANT,5,Directly claims sodium-ion battery cell structures and NaVPO4F cathode active materials.
+PR-05D6EC4CBBB1,RELEVANT,5,Directly claims hard carbon composite anode-active materials for alkali metal-ion (sodium-ion) energy storage batteries.
+PR-743300884C1D,RELEVANT,5,Directly claims electrolytes for sodium batteries specifically designed for low-cost grid-scale energy storage.
+PR-E476FD491EA1,RELEVANT,5,Directly claims polyanionic KVOPO4 cathode materials enabling multi-ion transfer in sodium-ion batteries.
