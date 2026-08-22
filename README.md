@@ -82,6 +82,17 @@ blinded held-out accuracy score: the ranges were revised after earlier scores
 had been observed. The numeric-line check is a citation-risk proxy, not a claim
 that every possible form of hallucination has been eliminated.
 
+A separate pre-registered topology ablation held evidence, model and report
+contract constant across **1-node, 4-node and 6-node workflows** for 10 topics
+with 3 repetitions each (90 paid cells). The 4-node workflow used **54.89% fewer
+median tokens and 47.03% lower median cost** than the production 6-node workflow,
+while substantially reducing contract violations and unsupported numeric lines
+relative to the monolith. This supports domain decomposition, but does not yet
+justify removing the production Scorer: Reviewer value still awaits a blinded
+9-pair human audit. Protocol, limitations and full results are recorded in the
+[topology ablation](docs/prereg-2026-08-21-agent-topology-ablation.md) and
+[Reviewer audit](docs/prereg-2026-08-22-reviewer-value-audit.md) documents.
+
 ---
 
 ### What's different from the CrewAI starter template
@@ -709,6 +720,8 @@ academic_agent/
 ├── tests/                   # Unit tests and integration tests
 ├── benchmark.py             # 10-topic benchmark runner
 ├── benchmark_check.py       # Benchmark result analyzer (CSV + terminal table)
+├── ablation.py              # Frozen-evidence 1/4/6-node topology experiment
+├── reviewer_audit.py        # Blinded A/B packet preparation and unblinding
 ├── outputs/
 │   ├── <run_id>/            # Per-run output directory
 │   └── benchmark/           # benchmark.py outputs (benchmark_summary.csv, and
@@ -832,6 +845,15 @@ TRL 校准将评分卡与基于公开里程碑建立、可独立核查的区间�
 校准证据，而不是盲测准确率：这些区间是在观察过早期评分后修订的。
 “无引用数值行”也是引用风险代理指标，并不代表系统已经消除了所有形式的
 大模型幻觉。
+
+另有一组预注册拓扑消融，在证据、模型和报告合同完全相同的条件下比较
+**单节点、四节点和六节点工作流**，覆盖 10 个主题、每个重复 3 次，共 90 个
+付费单元。四节点相对生产六节点的 token 中位数降低 **54.89%**、成本中位数
+降低 **47.03%**，同时相对单节点显著减少合同违规和无证据数字。这支持领域
+分解，但尚不足以删除生产 Scorer：Reviewer 的价值还在等待 9 组报告级人工
+盲评。预注册规则、限制和完整结果见
+[拓扑消融文档](docs/prereg-2026-08-21-agent-topology-ablation.md)与
+[Reviewer 盲评文档](docs/prereg-2026-08-22-reviewer-value-audit.md)。
 
 ---
 
@@ -1297,6 +1319,8 @@ academic_agent/
 ├── tests/                   # 单元测试与集成测试
 ├── benchmark.py             # 10 话题基准测试运行器
 ├── benchmark_check.py       # 基准结果分析器（生成 CSV + 终端表格）
+├── ablation.py              # 冻结证据的 1/4/6 节点拓扑实验
+├── reviewer_audit.py        # 随机 A/B 盲评包生成与揭盲汇总
 ├── outputs/
 │   ├── <run_id>/            # 每次正常运行的输出目录
 │   └── benchmark/           # benchmark.py 输出目录（含 benchmark_summary.csv）
