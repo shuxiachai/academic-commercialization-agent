@@ -93,6 +93,14 @@ justify removing the production Scorer: Reviewer value still awaits a blinded
 [topology ablation](docs/prereg-2026-08-21-agent-topology-ablation.md) and
 [Reviewer audit](docs/prereg-2026-08-22-reviewer-value-audit.md) documents.
 
+A separate small-panel user-utility audit is now **pre-registered and
+prepared, not completed**. It reuses ten matched full/monolith pairs over
+identical frozen evidence, distributes the primary round across 3–5 reviewers,
+and requires no new model calls. As of 2026-08-22 it has **0 eligible human
+judgments**, so the repository still makes no claim that target users find the
+reports useful. Recruitment, distribution, and claim boundaries are documented
+in the [small-panel audit guide](docs/user-utility-audit-guide.md).
+
 A separate human-label audit now answers a retrieval question that the
 structural benchmark cannot: whether patents accepted by the pipeline are
 actually topically relevant. The frozen packet contains all **75** patent
@@ -764,6 +772,7 @@ academic_agent/
 ├── benchmark_check.py       # Benchmark result analyzer (CSV + terminal table)
 ├── ablation.py              # Frozen-evidence 1/4/6-node topology experiment
 ├── reviewer_audit.py        # Blinded A/B packet preparation and unblinding
+├── user_utility_audit.py    # 3–5 reviewer utility packet and strict summarizer
 ├── outputs/
 │   ├── <run_id>/            # Per-run output directory
 │   └── benchmark/           # benchmark.py outputs (benchmark_summary.csv, and
@@ -896,6 +905,12 @@ TRL 校准将评分卡与基于公开里程碑建立、可独立核查的区间�
 盲评。预注册规则、限制和完整结果见
 [拓扑消融文档](docs/prereg-2026-08-21-agent-topology-ablation.md)与
 [Reviewer 盲评文档](docs/prereg-2026-08-22-reviewer-value-audit.md)。
+
+另有一组小样本用户效用盲评已经**预注册并完成材料准备，但尚未完成评审**。
+它复用同一冻结证据下的 10 组完整工作流 / 单节点配对报告，将第一轮分摊给
+3–5 名评审者，不产生新的模型费用。截至 2026-08-22，符合条件的人类判断仍为
+**0 条**，因此项目尚不声称目标用户认为报告有用。招募、发放和结论边界见
+[小样本盲评操作指南](docs/user-utility-audit-guide.md)。
 
 另有一组专利来源相关性人工审计，覆盖 10 个公开基准主题的全部 75 条已接受
 专利，以及 6 条事后构造的钠离子储能 challenge。首组逐项人工标签显示，核心
@@ -1375,6 +1390,7 @@ academic_agent/
 ├── benchmark_check.py       # 基准结果分析器（生成 CSV + 终端表格）
 ├── ablation.py              # 冻结证据的 1/4/6 节点拓扑实验
 ├── reviewer_audit.py        # 随机 A/B 盲评包生成与揭盲汇总
+├── user_utility_audit.py    # 3–5 人用户效用盲评包与严格汇总器
 ├── outputs/
 │   ├── <run_id>/            # 每次正常运行的输出目录
 │   └── benchmark/           # benchmark.py 输出目录（含 benchmark_summary.csv）
