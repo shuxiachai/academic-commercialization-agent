@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1242 tests (545 subtests), CI green on Linux + Windows × Python
+Current state: 1255 tests (545 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -62,7 +62,7 @@ is, in this order:
 | Why does this test exist? | Its docstring names the specific failure it caught |
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 3,989 lines, 54 write-ups. Ask the user for access if you need it |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,014 lines, 55 write-ups. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's
@@ -143,11 +143,12 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  54 test modules plus conftest, organised by subject
+tests/                  55 test modules plus conftest, organised by subject
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering
 ops_report.py           what real runs actually did, vs what the benchmark covers
+user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 ```
 
 Runs are subprocesses writing to `outputs/<run_id>/`; the API, the browser and
@@ -170,7 +171,9 @@ A run URL is a capability — the id is the credential.
   compared and rejected: it falsely dropped 6 relevant patents and sent 36/81
   cases to review. Production filtering remains unchanged. The next method must
   be semantic/claim-scope with abstention and must face an unseen challenge.
-- **No evidence exists that the output is *useful*.** Everything the project
-  can currently demonstrate is that it does not lie — citations check out,
-  formulas are right, hallucination rate is 0. Whether a TTO officer would act
-  on a report is unmeasured, and it is the gap that matters most.
+- **No evidence exists yet that the output is *useful*.** A pre-registered
+  3–5-reviewer protocol, ten matched report pairs, distributable packets, and a
+  strict summarizer now exist, but 0 eligible human judgments have been
+  collected. Everything the project can currently demonstrate is that it does
+  not lie — citations check out, formulas are right, hallucination rate is 0.
+  Whether a TTO officer would act on a report remains the gap that matters most.
