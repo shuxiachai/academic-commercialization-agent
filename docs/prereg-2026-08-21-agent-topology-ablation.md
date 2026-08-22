@@ -349,3 +349,113 @@ predictions:
 These are pilot observations at `n = 1`, not architecture conclusions. Stage 2
 is now technically eligible for separate approval, but no ninety-cell execution
 is implied or authorised by this result.
+
+## Stage 2 full-study outcome - 2026-08-22
+
+The separately authorised full study ran from merge commit `7dd894ef` with
+DeepSeek against all ten frozen benchmark fixtures. The persisted experiment is
+`outputs/ablation/20260821T234300Z-7dd894ef`. It contains the pre-registered 90
+serial cells: ten topics, three repetitions, and three topology arms in the
+fixed Latin-square order. All fixture digests, commit identities, model usage,
+cost records, and report/guardrail seams passed the offline integrity check.
+
+Eighty-nine cells completed successfully. The one failure was
+`09-r2/full`: both reviewer attempts returned truncated JSON, so the reviewer
+guardrail exhausted its single retry before the scorer or final report could
+run. The failure is retained as an outcome rather than silently rerun. A
+separate operational interruption occurred before cell 56 had written metadata;
+the process was stopped after an unusually long period without progress and
+resumed under the same experiment ID. The first 55 successful cells were
+reused, and cell 56 then completed normally. Persisted usage totals therefore
+cover every terminal cell but cannot include any provider charge from that
+interrupted, unpersisted attempt.
+
+Persisted spend was $1.801559: $0.226546 for the monolith, $0.556032 for the
+four-node arm, and $1.018981 for the full arm. This stayed below the authorised
+$2.00 soft ceiling. The study spanned 2.728 wall-clock hours including the
+interruption, resume, and serial pauses.
+
+### Common outcomes
+
+`Finding-free` below means that the offline report-contract screen returned no
+finding. It is not a claim of expert-verified correctness: nearly all findings
+were the deliberately non-blocking citation-policy heuristic, and qualitative
+claim correctness remains outside this study. Grounding counts are likewise the
+high-precision numeric screen only. Denominators for report outcomes include
+successful cells, so the full arm has 29 rather than 30 delivered reports.
+
+| Arm | Completed | Finding-free | Contract findings | Grounding checked lines / unsupported lines / not-checked runs | Median tokens | Median cost | Median elapsed |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Monolith | 30/30 | 9/30 | 119 | 134 / 29 / 2 | 14,364 | $0.007178 | 45.264 s |
+| Specialists + writer | 30/30 | 19/30 | 24 | 89 / 5 / 8 | 35,884.5 | $0.017349 | 62.279 s |
+| Full | 29/30 | 11/29 | 39 | 67 / 2 / 10 | 79,559 | $0.032756 | 94.153 s |
+
+The finding difference is concentrated rather than structural: there were no
+missing headings, unknown source IDs, or missing evidence domains in successful
+reports. The monolith produced 115 uncited substantive/numeric-claim findings,
+the four-node arm 24, and the full arm 38, plus one full-arm patent-framing
+finding. In paired monolith-versus-four comparisons, four nodes had fewer
+contract findings in 18 blocks, the monolith in four, with eight ties. Four
+nodes had fewer unsupported numeric lines in 12 blocks, the monolith in one,
+with 17 ties.
+
+Long-tail latency is material even though the medians are moderate. P95/max
+elapsed time was 70.475/84.735 seconds for the monolith, 156.382/350.420 seconds
+for four nodes, and 145.258/473.252 seconds for successful full runs. The
+Latin-square order prevents one arm from systematically occupying a favourable
+position, but this study does not identify whether the largest tails came from
+the provider, CrewAI, or local execution.
+
+### Registered predictions
+
+- **P1 falsified.** The four-node writer had five first-attempt report-guardrail
+  failures, versus one for the monolith. Paired results were one block favouring
+  four nodes, five favouring the monolith, and 24 ties. All six affected cells
+  recovered and completed, so this is retry pressure rather than completion
+  loss.
+- **P2 supported within the screen's scope.** Successful full reports contained
+  two unsupported checked numeric lines, versus five for four nodes. Across the
+  29 successful pairs, full was better twice and tied 27 times; it was never
+  worse. Full nevertheless checked fewer lines and had more `not_checked` runs,
+  so this does not establish broader semantic correctness.
+- **P3 supported.** Comparing arm medians, four nodes used 54.89% fewer tokens
+  and cost 47.03% less than six. Paired median reductions were 57.16% for tokens
+  (IQR 54.91%-61.31%) and 47.01% for cost (IQR 42.67%-55.18%). The paired median
+  latency reduction was 37.71% (IQR 25.95%-46.02%), also above the registered
+  practical-effect threshold.
+- **P4 supported, with a cost trade-off.** The monolith was cheapest, but the
+  four-node arm substantially reduced both citation-contract findings and
+  unsupported checked numeric lines. The four-node arm did not dominate every
+  reliability outcome: it had more first-attempt writer-guardrail failures and
+  its median cost was 2.42 times the monolith's.
+
+### Reviewer diagnostics and architecture decision
+
+The reviewer accepted 34 corrections across nine of 29 successful full runs.
+Median draft retention was 99.9983%, with a 99.3310% minimum. Activity alone is
+not evidence that those edits improved correctness. The reviewer guardrail ran
+38 times, failed on a first attempt in eight runs, retried eight times, and
+caused the study's only terminal failure when the retry also returned truncated
+JSON.
+
+Against the four-node arm, the full arm had fewer contract findings in four
+successful pairs, more in 14, and tied in 11. It improved the numeric screen in
+two pairs and tied in 27, but delivered one fewer report and cost materially
+more. The full topology therefore does not establish that reviewer plus scorer
+are necessary for report generation. This result does **not** justify deleting
+the production scorer: scoring was intentionally absent from both simpler arms,
+so score availability and calibration were not common outcomes.
+
+The evidence supports the four-node topology as the strongest report-generation
+candidate, not an immediate production rewrite. Before changing production,
+the accepted reviewer edits need blinded manual adjudication, and a separately
+pre-registered comparison should isolate the scorer from the reviewer (for
+example four nodes plus scorer versus the current six). Until then, the current
+six-node workflow remains the production control and these results are an
+architecture decision record, not authorisation to change scoring, guardrail
+policy, prompts, or CrewAI.
+
+This study did not touch any item in `Do not redo these`: the scoring formula,
+evidence-confidence floor, TRL rubric, maturity-language screen, uncited-claim
+blocking policy, prompt caching, source-summary retrieval, and CrewAI version
+all remained fixed.
