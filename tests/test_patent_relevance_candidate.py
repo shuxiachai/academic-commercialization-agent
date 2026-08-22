@@ -232,3 +232,54 @@ def test_writer_refuses_to_replace_a_previous_candidate_result(tmp_path: Path) -
 
     with pytest.raises(candidate.PatentCandidateError, match="overwrite"):
         candidate.write_evaluation(output, {}, [])
+def test_committed_candidate_result_reaches_the_public_artifact_boundary(
+    tmp_path: Path,
+) -> None:
+    """Every frozen decision and aggregate must survive recomputation."""
+
+    root = Path(__file__).resolve().parents[1]
+    review = root / "evals" / "patent_relevance" / "human-review-2026-08-22"
+    committed = (
+        root
+        / "evals"
+        / "patent_relevance"
+        / "candidate-screen-v1-2026-08-22"
+    )
+    result, rows = candidate.evaluate_candidate(
+        root / "benchmark_fixtures",
+        review / "labels.csv",
+        review / "manifest.json",
+        challenge_paths=[
+            root
+            / "evals"
+            / "patent_relevance"
+            / "sodium-ion-grid-storage-challenge.json"
+        ],
+    )
+    with (committed / "decisions.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        delivered_rows = list(csv.DictReader(handle))
+    delivered_result = json.loads(
+        (committed / "result.json").read_text(encoding="utf-8")
+    )
+    expected_rows = [
+        {
+            field: value if isinstance(value, str) else str(value)
+            for field, value in row.items()
+        }
+        for row in rows
+    ]
+
+    assert delivered_rows == expected_rows
+    assert delivered_result == result
+    assert result["metrics"]["action_counts"] == {
+        "KEEP": 37,
+        "REVIEW": 36,
+        "DROP": 8,
+    }
+    assert result["metrics"]["relevant_drop_count"] == 6
+    assert result["metrics"]["weak_review_or_drop_count"] == 8
+    assert result["metrics"]["irrelevant_review_or_drop_count"] == 2
+    assert not result["qualified_for_held_out_challenge"]
+    assert not result["production_change_authorized"]

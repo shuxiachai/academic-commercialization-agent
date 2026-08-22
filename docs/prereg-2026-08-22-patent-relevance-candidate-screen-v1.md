@@ -112,3 +112,32 @@ seam test must fail before the artifact is restored.
 
 The implementation and final result will be added below only after this frozen
 document has its own Git commit.
+## Result — added after the frozen run
+
+The pre-registration was committed as `b011f86`; the label-blind candidate and
+its synthetic contracts were then committed as `aeb3d18`. Only after both
+commits existed was the complete 81-case evaluation run.
+
+The candidate failed two gates:
+
+- `KEEP` direct precision increased from 85.2% to 35/37 (94.6%), a 9.4-point
+  improvement, but six human-labelled relevant patents were sent to `DROP`;
+- 36/81 cases (44.4%) were sent to `REVIEW`, above the 20/81 ceiling.
+
+It passed the remaining gates: both irrelevant cases and 8/10 weak cases left
+`KEEP`, and all 81 case hashes matched. The benchmark core and sodium challenge
+remain separate in `result.json`; the diagnostic challenge itself had one
+relevant and one weak patent sent to `DROP`.
+
+The six relevant auto-drops demonstrate that a final technology token is not a
+safe ontology: valid cases used treatment/manufacturing instead of therapy,
+sequestration instead of storage, altering expression instead of editing, a
+specific flexible solar-cell form instead of electronics, and energy-storage
+material instead of battery. The review rule also routed 28 relevant patents to
+manual work. Two weak quantum patents still remained in `KEEP`, showing that a
+search snippet can phrase an illustrative application as if it were focused
+support.
+
+No threshold or marker was changed after measurement. The candidate is rejected
+for held-out qualification and production use. Full artifacts are in
+[`evals/patent_relevance/candidate-screen-v1-2026-08-22/`](../evals/patent_relevance/candidate-screen-v1-2026-08-22/).
