@@ -143,5 +143,10 @@ or validate a new filter. Production retrieval remains unchanged. The next
 experiment must freeze a candidate relevance rule and compare its decisions
 against these same labels, with false rejection reported explicitly.
 
+That next experiment is now complete. The first frozen lexical candidate failed
+the zero-false-drop and review-load gates, so production remains unchanged. Its
+pre-registration and complete decisions are preserved in
+[`evals/patent_relevance/candidate-screen-v1-2026-08-22/`](../evals/patent_relevance/candidate-screen-v1-2026-08-22/).
+
 Artifacts, hashes, corrected provenance, and the reproducible summary are in
 [`evals/patent_relevance/human-review-2026-08-22/`](../evals/patent_relevance/human-review-2026-08-22/).

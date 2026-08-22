@@ -93,13 +93,12 @@ justify removing the production Scorer: Reviewer value still awaits a blinded
 [topology ablation](docs/prereg-2026-08-21-agent-topology-ablation.md) and
 [Reviewer audit](docs/prereg-2026-08-22-reviewer-value-audit.md) documents.
 
-A separate human-label audit is now prepared for a retrieval question that the
-structural benchmark cannot answer: whether patents accepted by the pipeline
-are actually topically relevant. The frozen packet contains all **75** patent
+A separate human-label audit now answers a retrieval question that the
+structural benchmark cannot: whether patents accepted by the pipeline are
+actually topically relevant. The frozen packet contains all **75** patent
 records from the 10 public benchmark fixtures plus all **6** records from one
-post-hoc sodium-ion grid-storage challenge run. The two corpora will be reported
-separately; the challenge set is not held out. No human labels or relevance-rate
-claims exist yet. The pre-registered protocol is in
+post-hoc sodium-ion grid-storage challenge run. The two corpora are reported
+separately; the challenge set is not held out. The pre-registered protocol is in
 [`docs/prereg-2026-08-22-patent-relevance-audit.md`](docs/prereg-2026-08-22-patent-relevance-audit.md).
 
 ```bash
@@ -125,7 +124,16 @@ record. All four quantum-computing-for-drug-discovery patents were only weakly
 relevant, exposing a concentrated pattern where generic application lists drove
 retrieval. This is a [single-human audit](evals/patent_relevance/human-review-2026-08-22/README.md),
 not an expert-panel or inter-rater result, and it does not justify a production
-filter without evaluating a frozen candidate against the same labels.
+filter by itself.
+
+The first pre-registered frozen candidate has also been evaluated. Its lexical
+topic-slot screen raised direct relevance among auto-kept patents from **85.2%
+to 94.6%**, but falsely dropped **6 RELEVANT** patents and sent **36/81** cases
+to manual review. It therefore failed the zero-false-drop and review-load gates,
+is not qualified for a held-out challenge, and made no production change. The
+[pre-registration](docs/prereg-2026-08-22-patent-relevance-candidate-screen-v1.md)
+and [complete 81-case result](evals/patent_relevance/candidate-screen-v1-2026-08-22/README.md)
+preserve the failed experiment rather than tuning it after seeing the labels.
 
 ---
 
@@ -888,6 +896,18 @@ TRL 校准将评分卡与基于公开里程碑建立、可独立核查的区间�
 盲评。预注册规则、限制和完整结果见
 [拓扑消融文档](docs/prereg-2026-08-21-agent-topology-ablation.md)与
 [Reviewer 盲评文档](docs/prereg-2026-08-22-reviewer-value-audit.md)。
+
+另有一组专利来源相关性人工审计，覆盖 10 个公开基准主题的全部 75 条已接受
+专利，以及 6 条事后构造的钠离子储能 challenge。首组逐项人工标签显示，核心
+基准中 64/75（85.3%）直接相关、73/75（97.3%）至少弱相关；它只衡量已接受
+来源的 precision，不代表全局 recall、FTO 完整性或多人评审一致性。
+
+首个预注册冻结候选也已完成对照。词法“双槽位”规则把自动保留集直接相关率
+从 85.2% 提到 94.6%，但误删 6 条真正相关专利，并把 36/81 交给人工复核，
+违反零误删与复核工作量门槛，因此没有进入生产。项目保留了
+[预注册](docs/prereg-2026-08-22-patent-relevance-candidate-screen-v1.md)和
+[完整 81 条结果](evals/patent_relevance/candidate-screen-v1-2026-08-22/README.md)，
+而没有在看到标签后调参把失败包装成成功。
 
 ---
 
