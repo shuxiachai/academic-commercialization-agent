@@ -117,6 +117,16 @@ The summarizer refuses partial or drifting label sets and returns an explicit
 `incomplete` state with no metrics until all 81 rows are judged. It measures
 accepted-source relevance, not global retrieval recall.
 
+The first label set is now complete. In the 75-case benchmark core, **64/75
+(85.3%)** patents were directly relevant, **9/75 (12.0%)** were weakly relevant,
+and **2/75 (2.7%)** were irrelevant; usable relevance was **73/75 (97.3%)**. The
+separate post-hoc sodium-ion challenge contained 5 directly relevant and 1 weak
+record. All four quantum-computing-for-drug-discovery patents were only weakly
+relevant, exposing a concentrated pattern where generic application lists drove
+retrieval. This is a [single-human audit](evals/patent_relevance/human-review-2026-08-22/README.md),
+not an expert-panel or inter-rater result, and it does not justify a production
+filter without evaluating a frozen candidate against the same labels.
+
 ---
 
 ### What's different from the CrewAI starter template

@@ -1,0 +1,756 @@
+{
+  "schema_version": 1,
+  "audit_unit": "accepted_patent_topic_pair",
+  "source_mode": "frozen evidence; zero network",
+  "prepared_at": "2026-08-22T05:41:36+00:00",
+  "case_count": 81,
+  "corpus_counts": {
+    "benchmark_core": 75,
+    "sodium_ion_grid_storage_challenge": 6
+  },
+  "topic_counts": {
+    "CAR-T cell therapy for blood cancers": 8,
+    "CRISPR gene editing for genetic diseases": 8,
+    "carbon capture and storage for industrial emissions": 8,
+    "cultivated meat for food industry": 7,
+    "graphene-based flexible electronics": 8,
+    "mRNA vaccines for cancer immunotherapy": 8,
+    "perovskite solar cells for utility-scale power generation": 8,
+    "quantum computing for drug discovery": 4,
+    "room temperature ambient pressure superconductors": 8,
+    "sodium-ion batteries for grid energy storage": 6,
+    "solid-state batteries for electric vehicles": 8
+  },
+  "cases": [
+    {
+      "case_id": "PR-BFFFE4FD5EFB",
+      "corpus": "benchmark_core",
+      "topic": "CAR-T cell therapy for blood cancers",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/JP2021530238A/en",
+      "content_sha256": "f0124cbcfcb374bff468e7865c5b16cabccd726ac748d5990e8a229736fde214",
+      "provenance": "benchmark_fixtures/01-car-t-cell-therapy-for-blood-cancers.json"
+    },
+    {
+      "case_id": "PR-914FA53B6CE2",
+      "corpus": "benchmark_core",
+      "topic": "CAR-T cell therapy for blood cancers",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/US20220125845A1/en",
+      "content_sha256": "dae2017b7369f0a22c8d692a9546d4c2d637866825e676cfdae5370174e86409",
+      "provenance": "benchmark_fixtures/01-car-t-cell-therapy-for-blood-cancers.json"
+    },
+    {
+      "case_id": "PR-C2E9DCA827A3",
+      "corpus": "benchmark_core",
+      "topic": "CAR-T cell therapy for blood cancers",
+      "source_id": "P3",
+      "url": "https://patents.google.com/patent/US20220047631A1/en",
+      "content_sha256": "50f297cf9ae17866364e0f9b338026e5b06a8ec1a8fd4d9992917e9b8000395a",
+      "provenance": "benchmark_fixtures/01-car-t-cell-therapy-for-blood-cancers.json"
+    },
+    {
+      "case_id": "PR-7A27B5AE90C2",
+      "corpus": "benchmark_core",
+      "topic": "CAR-T cell therapy for blood cancers",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/AU2020254699A1/en",
+      "content_sha256": "f8bae77c5c771d19e5cda1eca7a655ca6411a2a49abec31782f513458d270154",
+      "provenance": "benchmark_fixtures/01-car-t-cell-therapy-for-blood-cancers.json"
+    },
+    {
+      "case_id": "PR-590B7CFCD565",
+      "corpus": "benchmark_core",
+      "topic": "CAR-T cell therapy for blood cancers",
+      "source_id": "P5",
+      "url": "https://patents.justia.com/patent/12187780",
+      "content_sha256": "29589372386c6037f36d621c1a2b197c5db5d4a0d2752b3aeda9d04822bdbe70",
+      "provenance": "benchmark_fixtures/01-car-t-cell-therapy-for-blood-cancers.json"
+    },
+    {
+      "case_id": "PR-FBE9CBE3E7CD",
+      "corpus": "benchmark_core",
+      "topic": "CAR-T cell therapy for blood cancers",
+      "source_id": "P6",
+      "url": "https://patents.google.com/patent/EP3784351A1/en",
+      "content_sha256": "dcf8ede29b2563877497b86ab4ddc0fd5c91bcef7ce8a7411834b334b9da26aa",
+      "provenance": "benchmark_fixtures/01-car-t-cell-therapy-for-blood-cancers.json"
+    },
+    {
+      "case_id": "PR-2A04A0E02B9C",
+      "corpus": "benchmark_core",
+      "topic": "CAR-T cell therapy for blood cancers",
+      "source_id": "P7",
+      "url": "https://patentscope.wipo.int/search/en/WO2024259186",
+      "content_sha256": "0a48a98764fc5965b856e23e86e749d2a6b8cb8fa0de303bf986a4482c49ef1c",
+      "provenance": "benchmark_fixtures/01-car-t-cell-therapy-for-blood-cancers.json"
+    },
+    {
+      "case_id": "PR-DE04261CBD34",
+      "corpus": "benchmark_core",
+      "topic": "CAR-T cell therapy for blood cancers",
+      "source_id": "P8",
+      "url": "https://patentscope.wipo.int/search/en/WO2023218381",
+      "content_sha256": "09ca366149a32e4814e7cf3c6d1bb7c3cf61a8248177472337e79b9c790f671b",
+      "provenance": "benchmark_fixtures/01-car-t-cell-therapy-for-blood-cancers.json"
+    },
+    {
+      "case_id": "PR-4B9A8B5D855E",
+      "corpus": "benchmark_core",
+      "topic": "carbon capture and storage for industrial emissions",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/US10670334B2/en",
+      "content_sha256": "bed8a29413dba8d08338858b03e49e974b475e4d671acb655444a95d76cc6556",
+      "provenance": "benchmark_fixtures/06-carbon-capture-and-storage-for-industrial-emi.json"
+    },
+    {
+      "case_id": "PR-20BABA8B0FB1",
+      "corpus": "benchmark_core",
+      "topic": "carbon capture and storage for industrial emissions",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/US20130139543A1/en",
+      "content_sha256": "bc2b8c4f0aa3a517dcfc952863276c3d71faaed5a75fb539313f693ff324d74b",
+      "provenance": "benchmark_fixtures/06-carbon-capture-and-storage-for-industrial-emi.json"
+    },
+    {
+      "case_id": "PR-CA514E5A2C89",
+      "corpus": "benchmark_core",
+      "topic": "carbon capture and storage for industrial emissions",
+      "source_id": "P3",
+      "url": "https://patents.google.com/patent/US20160362800A1/en",
+      "content_sha256": "8aecfaa10a0dbb3603e4d1b2457c86630fda27e932b326f214031cee62a826f0",
+      "provenance": "benchmark_fixtures/06-carbon-capture-and-storage-for-industrial-emi.json"
+    },
+    {
+      "case_id": "PR-05031DEF513F",
+      "corpus": "benchmark_core",
+      "topic": "carbon capture and storage for industrial emissions",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/WO2010096871A1/en",
+      "content_sha256": "844400e02e7e0ec511e83137c6bc8be776b9ad7f108b37a4a1167923b4f5b2c2",
+      "provenance": "benchmark_fixtures/06-carbon-capture-and-storage-for-industrial-emi.json"
+    },
+    {
+      "case_id": "PR-F0ABADB3534C",
+      "corpus": "benchmark_core",
+      "topic": "carbon capture and storage for industrial emissions",
+      "source_id": "P5",
+      "url": "https://patents.google.com/patent/EP3012273A1/en",
+      "content_sha256": "4e68643274cccd1636bb25d496da876aed18051b0acffc8896b29b89f302c000",
+      "provenance": "benchmark_fixtures/06-carbon-capture-and-storage-for-industrial-emi.json"
+    },
+    {
+      "case_id": "PR-7B212833281D",
+      "corpus": "benchmark_core",
+      "topic": "carbon capture and storage for industrial emissions",
+      "source_id": "P6",
+      "url": "https://patents.google.com/patent/WO2023076393A1/en",
+      "content_sha256": "35bbefec312060649187658a66eaafbf21e368d289d57ea45a3c9420d5d5018e",
+      "provenance": "benchmark_fixtures/06-carbon-capture-and-storage-for-industrial-emi.json"
+    },
+    {
+      "case_id": "PR-5A8662DBB591",
+      "corpus": "benchmark_core",
+      "topic": "carbon capture and storage for industrial emissions",
+      "source_id": "P7",
+      "url": "https://patents.google.com/patent/US11285437B2/en",
+      "content_sha256": "5919d17748ec37ef0b3ce4c0f3a50f4be7cf62080d8bc2f47cf4b52f021ecb60",
+      "provenance": "benchmark_fixtures/06-carbon-capture-and-storage-for-industrial-emi.json"
+    },
+    {
+      "case_id": "PR-18847CE7A43B",
+      "corpus": "benchmark_core",
+      "topic": "carbon capture and storage for industrial emissions",
+      "source_id": "P8",
+      "url": "https://patents.google.com/patent/US8156725B2/en",
+      "content_sha256": "33488c39eaea5f9fae4058b3dbb5f99350c6fa8eb8d897806d1725258909d29f",
+      "provenance": "benchmark_fixtures/06-carbon-capture-and-storage-for-industrial-emi.json"
+    },
+    {
+      "case_id": "PR-FF320E3146E7",
+      "corpus": "benchmark_core",
+      "topic": "CRISPR gene editing for genetic diseases",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/WO2020225754A1/en",
+      "content_sha256": "c7b80c969830b5450a186e8e88b01221e405e34ac9dcc0b54aeb95a2ce7a4369",
+      "provenance": "benchmark_fixtures/05-crispr-gene-editing-for-genetic-diseases.json"
+    },
+    {
+      "case_id": "PR-7447D8BDAC98",
+      "corpus": "benchmark_core",
+      "topic": "CRISPR gene editing for genetic diseases",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/US11976307B2/en",
+      "content_sha256": "a1d20d4c8457dc2c7a222cab77cc5ccfc74434cfa42a32e98bbaea0a2922e2d5",
+      "provenance": "benchmark_fixtures/05-crispr-gene-editing-for-genetic-diseases.json"
+    },
+    {
+      "case_id": "PR-0A97C1A8E8E6",
+      "corpus": "benchmark_core",
+      "topic": "CRISPR gene editing for genetic diseases",
+      "source_id": "P3",
+      "url": "https://patents.google.com/patent/WO2020247321A1/en",
+      "content_sha256": "ce5b289af0063770252ed11f3322fd10f42549b5a4c839b3c8d46b6a86448c82",
+      "provenance": "benchmark_fixtures/05-crispr-gene-editing-for-genetic-diseases.json"
+    },
+    {
+      "case_id": "PR-5B2F757DA285",
+      "corpus": "benchmark_core",
+      "topic": "CRISPR gene editing for genetic diseases",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/WO2021026081A2/en",
+      "content_sha256": "cefc894537fd26a12a4f041dc7086dc49ebda81796c452a5a736ca75b5fd07be",
+      "provenance": "benchmark_fixtures/05-crispr-gene-editing-for-genetic-diseases.json"
+    },
+    {
+      "case_id": "PR-7DC03252DC00",
+      "corpus": "benchmark_core",
+      "topic": "CRISPR gene editing for genetic diseases",
+      "source_id": "P5",
+      "url": "https://patentscope.wipo.int/search/en/WO2023147558",
+      "content_sha256": "303852ec0bfcff9134f115fca11cefe992c4a1a4c1860fc1ddd889bba4c766e2",
+      "provenance": "benchmark_fixtures/05-crispr-gene-editing-for-genetic-diseases.json"
+    },
+    {
+      "case_id": "PR-E4CD959B00B5",
+      "corpus": "benchmark_core",
+      "topic": "CRISPR gene editing for genetic diseases",
+      "source_id": "P6",
+      "url": "https://patents.justia.com/patent/20220010337",
+      "content_sha256": "0433a6985bfe6d1358537c682ee94b0e76f09ee1245d9d3eefc29ef0aa06d69a",
+      "provenance": "benchmark_fixtures/05-crispr-gene-editing-for-genetic-diseases.json"
+    },
+    {
+      "case_id": "PR-40BCB4AF042E",
+      "corpus": "benchmark_core",
+      "topic": "CRISPR gene editing for genetic diseases",
+      "source_id": "P7",
+      "url": "https://patents.google.com/patent/US8697359B1/en",
+      "content_sha256": "8abbd27246eec2fb54fd375d9557fe29b39ae62a09c4eeb17da1bf7004e06f77",
+      "provenance": "benchmark_fixtures/05-crispr-gene-editing-for-genetic-diseases.json"
+    },
+    {
+      "case_id": "PR-A49EC063ABBB",
+      "corpus": "benchmark_core",
+      "topic": "CRISPR gene editing for genetic diseases",
+      "source_id": "P8",
+      "url": "https://patents.justia.com/patent/11453891",
+      "content_sha256": "7f87d526fe725f5c1f1eee7f7f8ba788f56489604510a406fcc05dad38fd07e5",
+      "provenance": "benchmark_fixtures/05-crispr-gene-editing-for-genetic-diseases.json"
+    },
+    {
+      "case_id": "PR-A9EA0E8213B1",
+      "corpus": "benchmark_core",
+      "topic": "cultivated meat for food industry",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/US20200100525A1/en",
+      "content_sha256": "397792335cacde4b3ac78856984e8d0c73fe6789723c2745128a7d956a1f3ae5",
+      "provenance": "benchmark_fixtures/07-cultivated-meat-for-food-industry.json"
+    },
+    {
+      "case_id": "PR-A1181409B306",
+      "corpus": "benchmark_core",
+      "topic": "cultivated meat for food industry",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/CN110730615A/en",
+      "content_sha256": "dd0c0b5e79b4743bbe46ea413b5c63533d451bc3d3f7fcd98edd13f59cb4c226",
+      "provenance": "benchmark_fixtures/07-cultivated-meat-for-food-industry.json"
+    },
+    {
+      "case_id": "PR-32DF7220F833",
+      "corpus": "benchmark_core",
+      "topic": "cultivated meat for food industry",
+      "source_id": "P3",
+      "url": "https://patentscope.wipo.int/search/en/WO2025012910",
+      "content_sha256": "230854645f7f425ae5c821ec916a4e5512aedc39cfe64ec618dd8529ddd263d6",
+      "provenance": "benchmark_fixtures/07-cultivated-meat-for-food-industry.json"
+    },
+    {
+      "case_id": "PR-0ACC84C9E9D3",
+      "corpus": "benchmark_core",
+      "topic": "cultivated meat for food industry",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/EP3609344A1/en",
+      "content_sha256": "ecd6c132b602fb8696dc5ffd49e55becfcb6cc3cc6d7dcccd67b3618b3684a34",
+      "provenance": "benchmark_fixtures/07-cultivated-meat-for-food-industry.json"
+    },
+    {
+      "case_id": "PR-394E760787A4",
+      "corpus": "benchmark_core",
+      "topic": "cultivated meat for food industry",
+      "source_id": "P5",
+      "url": "https://patents.justia.com/patent/20220079194",
+      "content_sha256": "0752b7c185b752d472a3701f3bbf8d8be67acb300bc2313495790e3a5527bc66",
+      "provenance": "benchmark_fixtures/07-cultivated-meat-for-food-industry.json"
+    },
+    {
+      "case_id": "PR-8F37ECA6A118",
+      "corpus": "benchmark_core",
+      "topic": "cultivated meat for food industry",
+      "source_id": "P6",
+      "url": "https://patents.google.com/patent/WO2018189738A1/en",
+      "content_sha256": "af74174167109d848c55a580467ed7159a14fb80b6acebdd33ced0ade1a2dd68",
+      "provenance": "benchmark_fixtures/07-cultivated-meat-for-food-industry.json"
+    },
+    {
+      "case_id": "PR-328914FE78C7",
+      "corpus": "benchmark_core",
+      "topic": "cultivated meat for food industry",
+      "source_id": "P7",
+      "url": "https://patentscope.wipo.int/search/en/WO2018189738",
+      "content_sha256": "6e92d6b271960bc13a3508b7c86769b935fb7183ce9ca00afb591ba613abebcb",
+      "provenance": "benchmark_fixtures/07-cultivated-meat-for-food-industry.json"
+    },
+    {
+      "case_id": "PR-DF747D89F44A",
+      "corpus": "benchmark_core",
+      "topic": "graphene-based flexible electronics",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/WO2022093005A1/en",
+      "content_sha256": "ddf6085b86362cdece6dfcb6087ff67b63d27d390dad2d49da2d5297ff86788f",
+      "provenance": "benchmark_fixtures/09-graphene-based-flexible-electronics.json"
+    },
+    {
+      "case_id": "PR-EDD88890B876",
+      "corpus": "benchmark_core",
+      "topic": "graphene-based flexible electronics",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/US9704964B1/en",
+      "content_sha256": "36513e53cc42aa4035d9d662273bf57c54c4a07d7f6519e83fddeb34ab3c1e34",
+      "provenance": "benchmark_fixtures/09-graphene-based-flexible-electronics.json"
+    },
+    {
+      "case_id": "PR-BE0DD5F48B8C",
+      "corpus": "benchmark_core",
+      "topic": "graphene-based flexible electronics",
+      "source_id": "P3",
+      "url": "https://patents.justia.com/patent/11832971",
+      "content_sha256": "df2910f619a9e67fa366dfdad76e55f1e098a97a021cf65f7c11eec9d15c2842",
+      "provenance": "benchmark_fixtures/09-graphene-based-flexible-electronics.json"
+    },
+    {
+      "case_id": "PR-A8FA15380803",
+      "corpus": "benchmark_core",
+      "topic": "graphene-based flexible electronics",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/US9178129B2/en",
+      "content_sha256": "abe7bb2c09bfefcfd5771b7e32147c3c3a243cdf728bc8e67972bb231d4c2592",
+      "provenance": "benchmark_fixtures/09-graphene-based-flexible-electronics.json"
+    },
+    {
+      "case_id": "PR-20B8B305276A",
+      "corpus": "benchmark_core",
+      "topic": "graphene-based flexible electronics",
+      "source_id": "P5",
+      "url": "https://patents.google.com/patent/US9249016B2/en",
+      "content_sha256": "700b56b6ece747341f43bbee2d1f2608a2e5557228ef947776f7bdc558ad8075",
+      "provenance": "benchmark_fixtures/09-graphene-based-flexible-electronics.json"
+    },
+    {
+      "case_id": "PR-71B8444ECAFC",
+      "corpus": "benchmark_core",
+      "topic": "graphene-based flexible electronics",
+      "source_id": "P6",
+      "url": "https://patents.google.com/patent/WO2015168308A1/en",
+      "content_sha256": "59c4f73917d869e46162e8403723f6ea4abf16c9daf59dc8318ed17aa137f0ab",
+      "provenance": "benchmark_fixtures/09-graphene-based-flexible-electronics.json"
+    },
+    {
+      "case_id": "PR-16A6620E09C0",
+      "corpus": "benchmark_core",
+      "topic": "graphene-based flexible electronics",
+      "source_id": "P7",
+      "url": "https://patentscope.wipo.int/search/en/WO2022238722",
+      "content_sha256": "e1e392d0ba2bc6fe7967f04716b6245430efc4c6986b3b2457e92c9f3e90486c",
+      "provenance": "benchmark_fixtures/09-graphene-based-flexible-electronics.json"
+    },
+    {
+      "case_id": "PR-C39FC36C8752",
+      "corpus": "benchmark_core",
+      "topic": "graphene-based flexible electronics",
+      "source_id": "P8",
+      "url": "https://patents.google.com/patent/WO2016106039A1/en",
+      "content_sha256": "4d97f45c90d4f493f1dffd9e79873b0718e6217bf4aabf89f1ef204921806b4a",
+      "provenance": "benchmark_fixtures/09-graphene-based-flexible-electronics.json"
+    },
+    {
+      "case_id": "PR-C7383F67A81B",
+      "corpus": "benchmark_core",
+      "topic": "mRNA vaccines for cancer immunotherapy",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/WO2019036670A2/en",
+      "content_sha256": "92cfb73c92f029ca3b17c898a0ba8c90f86c8afa24866781c60eadabda8fdbf2",
+      "provenance": "benchmark_fixtures/02-mrna-vaccines-for-cancer-immunotherapy.json"
+    },
+    {
+      "case_id": "PR-99C6F837BC29",
+      "corpus": "benchmark_core",
+      "topic": "mRNA vaccines for cancer immunotherapy",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/US20170246207A1/en",
+      "content_sha256": "5b361bec6bed7088a35222aee791f733384c6244c584c7a6547fcc260de6693f",
+      "provenance": "benchmark_fixtures/02-mrna-vaccines-for-cancer-immunotherapy.json"
+    },
+    {
+      "case_id": "PR-604AF317A77A",
+      "corpus": "benchmark_core",
+      "topic": "mRNA vaccines for cancer immunotherapy",
+      "source_id": "P3",
+      "url": "https://patents.google.com/patent/WO2017070618A1/en",
+      "content_sha256": "dc6e579148fb4c041b6978aa07b22c7ad37a8b2bddcf3b302a2143b6579e94ff",
+      "provenance": "benchmark_fixtures/02-mrna-vaccines-for-cancer-immunotherapy.json"
+    },
+    {
+      "case_id": "PR-182D85DF4F8E",
+      "corpus": "benchmark_core",
+      "topic": "mRNA vaccines for cancer immunotherapy",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/WO2020097291A1/en",
+      "content_sha256": "fe38eb0eeb4cfdb22049a4ca9549ef2f93265c750b99f3f7a9be07a7b725d9f9",
+      "provenance": "benchmark_fixtures/02-mrna-vaccines-for-cancer-immunotherapy.json"
+    },
+    {
+      "case_id": "PR-CE0F90A47335",
+      "corpus": "benchmark_core",
+      "topic": "mRNA vaccines for cancer immunotherapy",
+      "source_id": "P5",
+      "url": "https://patents.google.com/patent/WO2024151811A1/en",
+      "content_sha256": "a84ae664c9d4bf577784fcc0d3d22e024b3a6d960fa54230064b88267a28a6c2",
+      "provenance": "benchmark_fixtures/02-mrna-vaccines-for-cancer-immunotherapy.json"
+    },
+    {
+      "case_id": "PR-83D58944CB97",
+      "corpus": "benchmark_core",
+      "topic": "mRNA vaccines for cancer immunotherapy",
+      "source_id": "P6",
+      "url": "https://patentscope.wipo.int/search/en/WO2020097291",
+      "content_sha256": "0362d9102e06e2c25f45b00fe2e49ee62d5319161e1399ad5fac2393b65bc04c",
+      "provenance": "benchmark_fixtures/02-mrna-vaccines-for-cancer-immunotherapy.json"
+    },
+    {
+      "case_id": "PR-B8A08EE9F438",
+      "corpus": "benchmark_core",
+      "topic": "mRNA vaccines for cancer immunotherapy",
+      "source_id": "P7",
+      "url": "https://patents.google.com/patent/WO2018144082A1/en",
+      "content_sha256": "9e9696288146c44cf7e7c55098cf1bd22a4511ff014af3880d22fc58fceea440",
+      "provenance": "benchmark_fixtures/02-mrna-vaccines-for-cancer-immunotherapy.json"
+    },
+    {
+      "case_id": "PR-2D34C45E36BB",
+      "corpus": "benchmark_core",
+      "topic": "mRNA vaccines for cancer immunotherapy",
+      "source_id": "P8",
+      "url": "https://patents.google.com/patent/US20190351040A1/en",
+      "content_sha256": "0609ce09ed734fc5b3639a7c413437eb57581d6cf1bb11329d69014b1ec33c30",
+      "provenance": "benchmark_fixtures/02-mrna-vaccines-for-cancer-immunotherapy.json"
+    },
+    {
+      "case_id": "PR-422DCBCFD732",
+      "corpus": "benchmark_core",
+      "topic": "perovskite solar cells for utility-scale power generation",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/US11764001B2/en",
+      "content_sha256": "b7c595ed78bf5a0a09e99aba3dad837b01219aecf6217b26a0059c539bae477f",
+      "provenance": "benchmark_fixtures/04-perovskite-solar-cells-for-utility-scale-powe.json"
+    },
+    {
+      "case_id": "PR-C4BA496745CB",
+      "corpus": "benchmark_core",
+      "topic": "perovskite solar cells for utility-scale power generation",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/CN111261785A/en",
+      "content_sha256": "faa73d5ad3a7ccaa28e90330d340b6224202d96ab6a6e03cb2059c72c428b7a8",
+      "provenance": "benchmark_fixtures/04-perovskite-solar-cells-for-utility-scale-powe.json"
+    },
+    {
+      "case_id": "PR-5105648F232B",
+      "corpus": "benchmark_core",
+      "topic": "perovskite solar cells for utility-scale power generation",
+      "source_id": "P3",
+      "url": "https://patents.google.com/patent/WO2018156987A1/en",
+      "content_sha256": "079e66e9550da155cd1d5fa26e55720b76aaa6f01e6c30c1f0261be3c8a61c9a",
+      "provenance": "benchmark_fixtures/04-perovskite-solar-cells-for-utility-scale-powe.json"
+    },
+    {
+      "case_id": "PR-514327886233",
+      "corpus": "benchmark_core",
+      "topic": "perovskite solar cells for utility-scale power generation",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/US20180315877A1/en",
+      "content_sha256": "a96ba4d5fc87729a9f6f667b4e29e7f553c6aa695a6b13e0a9aae4f6db9b0673",
+      "provenance": "benchmark_fixtures/04-perovskite-solar-cells-for-utility-scale-powe.json"
+    },
+    {
+      "case_id": "PR-0D3FDB30A6E1",
+      "corpus": "benchmark_core",
+      "topic": "perovskite solar cells for utility-scale power generation",
+      "source_id": "P5",
+      "url": "https://patents.google.com/patent/US20150279573A1/en",
+      "content_sha256": "9630a4556f9dacba970d83d49392d2b4669b6ea1b2c809c15e119ce54309deb4",
+      "provenance": "benchmark_fixtures/04-perovskite-solar-cells-for-utility-scale-powe.json"
+    },
+    {
+      "case_id": "PR-266EEBF71F4A",
+      "corpus": "benchmark_core",
+      "topic": "perovskite solar cells for utility-scale power generation",
+      "source_id": "P6",
+      "url": "https://patents.google.com/patent/US20240188313A1/en?oq=18%2F286%2C109",
+      "content_sha256": "954d84726d025e9b246da37cc520ead5a84f8d37f1e0fd675a50bf666b551b95",
+      "provenance": "benchmark_fixtures/04-perovskite-solar-cells-for-utility-scale-powe.json"
+    },
+    {
+      "case_id": "PR-51B1B88BB280",
+      "corpus": "benchmark_core",
+      "topic": "perovskite solar cells for utility-scale power generation",
+      "source_id": "P7",
+      "url": "https://patents.google.com/patent/EP3223323A1/zh",
+      "content_sha256": "a856c3545c0d62ef4f882f3a73df1c35c52f9271cbd9223a4af35f989f11c3a8",
+      "provenance": "benchmark_fixtures/04-perovskite-solar-cells-for-utility-scale-powe.json"
+    },
+    {
+      "case_id": "PR-3F4AD1180A70",
+      "corpus": "benchmark_core",
+      "topic": "perovskite solar cells for utility-scale power generation",
+      "source_id": "P8",
+      "url": "https://patents.google.com/patent/CN103746078A/en",
+      "content_sha256": "25f2220ea89c56cd66497a811e4d26478d041e2397953545044559a53d5e2210",
+      "provenance": "benchmark_fixtures/04-perovskite-solar-cells-for-utility-scale-powe.json"
+    },
+    {
+      "case_id": "PR-1BB4671B0B45",
+      "corpus": "benchmark_core",
+      "topic": "quantum computing for drug discovery",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/US20240403682A1/en",
+      "content_sha256": "e439affba778f4432c12bf412eb52f560df43d374e32a786abad76cd4ee1c233",
+      "provenance": "benchmark_fixtures/08-quantum-computing-for-drug-discovery.json"
+    },
+    {
+      "case_id": "PR-DAEB7C95B9B7",
+      "corpus": "benchmark_core",
+      "topic": "quantum computing for drug discovery",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/US10044638B2/en",
+      "content_sha256": "367848795ddd449c0e79b791a22c87881c64574f6bf4786ff6a201224722047f",
+      "provenance": "benchmark_fixtures/08-quantum-computing-for-drug-discovery.json"
+    },
+    {
+      "case_id": "PR-8C955511C7D9",
+      "corpus": "benchmark_core",
+      "topic": "quantum computing for drug discovery",
+      "source_id": "P3",
+      "url": "https://patents.google.com/patent/US20180091440A1/en",
+      "content_sha256": "7581e68566b0da7cb2a00aa6edcc3a36963a9931d91a0ecfef7eddf8c2f65b75",
+      "provenance": "benchmark_fixtures/08-quantum-computing-for-drug-discovery.json"
+    },
+    {
+      "case_id": "PR-5971FBC69708",
+      "corpus": "benchmark_core",
+      "topic": "quantum computing for drug discovery",
+      "source_id": "P4",
+      "url": "https://patents.justia.com/patent/20260178959",
+      "content_sha256": "e7b979a2130e340750f003258c0cda2f1db23053485fe6b9380f3c1920efe50d",
+      "provenance": "benchmark_fixtures/08-quantum-computing-for-drug-discovery.json"
+    },
+    {
+      "case_id": "PR-DD8686F1562F",
+      "corpus": "benchmark_core",
+      "topic": "room temperature ambient pressure superconductors",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/US11710584B2/en",
+      "content_sha256": "b5a347edcf700366996f7a715d4dc8a98d1975d43085b4e4a57099fcca2c96f3",
+      "provenance": "benchmark_fixtures/10-room-temperature-ambient-pressure-superconduc.json"
+    },
+    {
+      "case_id": "PR-3780AEEA3B3A",
+      "corpus": "benchmark_core",
+      "topic": "room temperature ambient pressure superconductors",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/WO2023027536A1/en",
+      "content_sha256": "d5afd13ca58bd2453e2d67281d9362f0a296628c4bd249c033f4a61289df5e1d",
+      "provenance": "benchmark_fixtures/10-room-temperature-ambient-pressure-superconduc.json"
+    },
+    {
+      "case_id": "PR-86155826D859",
+      "corpus": "benchmark_core",
+      "topic": "room temperature ambient pressure superconductors",
+      "source_id": "P3",
+      "url": "https://patents.google.com/patent/ZA202401582B/en",
+      "content_sha256": "3085b0f43e26bebb278f11c2755bdc2a4668ecffca3fcad357815bd999766b75",
+      "provenance": "benchmark_fixtures/10-room-temperature-ambient-pressure-superconduc.json"
+    },
+    {
+      "case_id": "PR-A85E64F34331",
+      "corpus": "benchmark_core",
+      "topic": "room temperature ambient pressure superconductors",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/WO2023027537A1/en",
+      "content_sha256": "dd302c3a77f2bb490a47eb40f13ea7148d50fbf54c41f22b1c0ecf923a664f88",
+      "provenance": "benchmark_fixtures/10-room-temperature-ambient-pressure-superconduc.json"
+    },
+    {
+      "case_id": "PR-D004173A96BF",
+      "corpus": "benchmark_core",
+      "topic": "room temperature ambient pressure superconductors",
+      "source_id": "P5",
+      "url": "https://patents.google.com/patent/US20190058105A1/en",
+      "content_sha256": "a2f667129a62c531231ab59c49367ee7a920c78505b6c9cd16db03490a309120",
+      "provenance": "benchmark_fixtures/10-room-temperature-ambient-pressure-superconduc.json"
+    },
+    {
+      "case_id": "PR-0B0670CC6D32",
+      "corpus": "benchmark_core",
+      "topic": "room temperature ambient pressure superconductors",
+      "source_id": "P6",
+      "url": "https://patentscope.wipo.int/search/en/WO2023027537",
+      "content_sha256": "4af781a76868d16498b88d967703a6b599e90d629aefad320754172a114155f1",
+      "provenance": "benchmark_fixtures/10-room-temperature-ambient-pressure-superconduc.json"
+    },
+    {
+      "case_id": "PR-FBAC56630041",
+      "corpus": "benchmark_core",
+      "topic": "room temperature ambient pressure superconductors",
+      "source_id": "P7",
+      "url": "https://patentscope.wipo.int/search/en/WO2023027536",
+      "content_sha256": "a4d67db9455d224ed1362cbc86d9aa6504745b442e0f8a8790bda7a24841916f",
+      "provenance": "benchmark_fixtures/10-room-temperature-ambient-pressure-superconduc.json"
+    },
+    {
+      "case_id": "PR-5F05C3F50C3D",
+      "corpus": "benchmark_core",
+      "topic": "room temperature ambient pressure superconductors",
+      "source_id": "P8",
+      "url": "https://patentscope.wipo.int/search/en/WO1999028404",
+      "content_sha256": "dbcfa923c0264774867f742fc666dd43a07911ab9cf57f38cf6a91f6f0148877",
+      "provenance": "benchmark_fixtures/10-room-temperature-ambient-pressure-superconduc.json"
+    },
+    {
+      "case_id": "PR-926D07248ADD",
+      "corpus": "benchmark_core",
+      "topic": "solid-state batteries for electric vehicles",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/US20180233752A1/en",
+      "content_sha256": "3d971de9097e79677c1b6b1e989ba1db3d421603d3e9f912874cd9aa3f08db88",
+      "provenance": "benchmark_fixtures/03-solid-state-batteries-for-electric-vehicles.json"
+    },
+    {
+      "case_id": "PR-E237018D23A7",
+      "corpus": "benchmark_core",
+      "topic": "solid-state batteries for electric vehicles",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/EP3168914A1/en",
+      "content_sha256": "8d58dfccdfca9886dbe90b168ae6612fdcd3763c3cd1b36f252a23b284918c4e",
+      "provenance": "benchmark_fixtures/03-solid-state-batteries-for-electric-vehicles.json"
+    },
+    {
+      "case_id": "PR-D5164ED08C3A",
+      "corpus": "benchmark_core",
+      "topic": "solid-state batteries for electric vehicles",
+      "source_id": "P3",
+      "url": "https://patents.google.com/patent/US11742494B2/de",
+      "content_sha256": "4782a6dcc89facdb20935a4c2ec065dd8743ac0e594242b4c1db1a8248abd335",
+      "provenance": "benchmark_fixtures/03-solid-state-batteries-for-electric-vehicles.json"
+    },
+    {
+      "case_id": "PR-59F5E6D3A94C",
+      "corpus": "benchmark_core",
+      "topic": "solid-state batteries for electric vehicles",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/US11444347B2/en",
+      "content_sha256": "9c8682b27e70afce478d1fc2b3f4cf05a705e98a52b6bda351c6412c580df0bd",
+      "provenance": "benchmark_fixtures/03-solid-state-batteries-for-electric-vehicles.json"
+    },
+    {
+      "case_id": "PR-7016F81A41BD",
+      "corpus": "benchmark_core",
+      "topic": "solid-state batteries for electric vehicles",
+      "source_id": "P5",
+      "url": "https://patents.google.com/patent/US20230420764A1/en",
+      "content_sha256": "cf572b5e54689050c854efa9562d83476b26abc7c8b32476b3caae8229dc18e4",
+      "provenance": "benchmark_fixtures/03-solid-state-batteries-for-electric-vehicles.json"
+    },
+    {
+      "case_id": "PR-620895C53C47",
+      "corpus": "benchmark_core",
+      "topic": "solid-state batteries for electric vehicles",
+      "source_id": "P6",
+      "url": "https://patents.google.com/patent/WO2018123967A1/en",
+      "content_sha256": "0579ec4ef3c63589dc7a708b93e6720ed66a6b18b16339f28c47aae180a57f79",
+      "provenance": "benchmark_fixtures/03-solid-state-batteries-for-electric-vehicles.json"
+    },
+    {
+      "case_id": "PR-8ADEA96DBE08",
+      "corpus": "benchmark_core",
+      "topic": "solid-state batteries for electric vehicles",
+      "source_id": "P7",
+      "url": "https://patents.google.com/patent/US20100273062A1/en",
+      "content_sha256": "43cc791db72f0162b669cead5f79ad4aad9ed1240bb92b5c0c23a4650fb2b52b",
+      "provenance": "benchmark_fixtures/03-solid-state-batteries-for-electric-vehicles.json"
+    },
+    {
+      "case_id": "PR-4BF697FC2183",
+      "corpus": "benchmark_core",
+      "topic": "solid-state batteries for electric vehicles",
+      "source_id": "P8",
+      "url": "https://patents.google.com/patent/WO2017123026A1/en",
+      "content_sha256": "6e2cb4159d10dcbfb7a8ed84fb8dd66894fa3ececa3d92fd3d5a4a0f429e143e",
+      "provenance": "benchmark_fixtures/03-solid-state-batteries-for-electric-vehicles.json"
+    },
+    {
+      "case_id": "PR-D0149705F550",
+      "corpus": "sodium_ion_grid_storage_challenge",
+      "topic": "sodium-ion batteries for grid energy storage",
+      "source_id": "P1",
+      "url": "https://patents.google.com/patent/WO2016027082A1/en",
+      "content_sha256": "089f9b3fd1893d0c530af611756e3c431d5f312d9337aaf47bf6beff6a8abc89",
+      "provenance": "evals/patent_relevance/sodium-ion-grid-storage-challenge.json"
+    },
+    {
+      "case_id": "PR-49401807269C",
+      "corpus": "sodium_ion_grid_storage_challenge",
+      "topic": "sodium-ion batteries for grid energy storage",
+      "source_id": "P2",
+      "url": "https://patents.google.com/patent/US8835041B2/en",
+      "content_sha256": "3f08a111c84210e30dcb8e81741a5f90f6df89c132023dd5a178fc81910be882",
+      "provenance": "evals/patent_relevance/sodium-ion-grid-storage-challenge.json"
+    },
+    {
+      "case_id": "PR-2A0B537AF9C4",
+      "corpus": "sodium_ion_grid_storage_challenge",
+      "topic": "sodium-ion batteries for grid energy storage",
+      "source_id": "P3",
+      "url": "https://patents.google.com/patent/US20020192553A1/en",
+      "content_sha256": "0a9ad98494fc86f6cf2c26e42fd307f16d92df73113a608c9ba35d196a868e10",
+      "provenance": "evals/patent_relevance/sodium-ion-grid-storage-challenge.json"
+    },
+    {
+      "case_id": "PR-05D6EC4CBBB1",
+      "corpus": "sodium_ion_grid_storage_challenge",
+      "topic": "sodium-ion batteries for grid energy storage",
+      "source_id": "P4",
+      "url": "https://patents.google.com/patent/WO2017060718A1/en",
+      "content_sha256": "f856dd81139180dbc072ced9e355c23b1e1722edb2283b074d749bcf5defee33",
+      "provenance": "evals/patent_relevance/sodium-ion-grid-storage-challenge.json"
+    },
+    {
+      "case_id": "PR-743300884C1D",
+      "corpus": "sodium_ion_grid_storage_challenge",
+      "topic": "sodium-ion batteries for grid energy storage",
+      "source_id": "P5",
+      "url": "https://patents.google.com/patent/US11258096B2/en",
+      "content_sha256": "05dbb0bbf4b7b9903f47cd8074f73c3f772caf96869e3093820e2a16c5d39031",
+      "provenance": "evals/patent_relevance/sodium-ion-grid-storage-challenge.json"
+    },
+    {
+      "case_id": "PR-E476FD491EA1",
+      "corpus": "sodium_ion_grid_storage_challenge",
+      "topic": "sodium-ion batteries for grid energy storage",
+      "source_id": "P6",
+      "url": "https://patents.google.com/patent/US20170373310A1/en",
+      "content_sha256": "26a90310a6ab38b3941277b28327e9f64c46542e15ce3a1d9291c9d338f733a3",
+      "provenance": "evals/patent_relevance/sodium-ion-grid-storage-challenge.json"
+    }
+  ],
+  "measurement_limit": "Accepted sources support relevance-rate measurement, not global retrieval recall."
+}

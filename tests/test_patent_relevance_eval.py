@@ -69,6 +69,44 @@ def test_preregistered_public_census_remains_75_core_plus_6_challenge() -> None:
     assert len({case.topic for case in cases}) == 11
 
 
+def test_committed_human_review_matches_frozen_cases_and_summary() -> None:
+    """A result is not reproducible if labels drift from their reviewed evidence."""
+
+    root = Path(__file__).resolve().parents[1]
+    review_dir = (
+        root / "evals" / "patent_relevance" / "human-review-2026-08-22"
+    )
+    manifest = json.loads((review_dir / "manifest.json").read_text(encoding="utf-8"))
+    cases = patent_eval.discover_cases(
+        root / "benchmark_fixtures",
+        [
+            root
+            / "evals"
+            / "patent_relevance"
+            / "sodium-ion-grid-storage-challenge.json"
+        ],
+    )
+
+    frozen_hashes = {
+        case["case_id"]: case["content_sha256"] for case in manifest["cases"]
+    }
+    current_hashes = {case.case_id: case.content_sha256 for case in cases}
+    assert current_hashes == frozen_hashes
+
+    actual = patent_eval.summarize_labels(
+        review_dir / "labels.csv", review_dir / "manifest.json"
+    )
+    expected = json.loads((review_dir / "summary.json").read_text(encoding="utf-8"))
+    assert actual == expected
+    assert actual["protocol_status"] == "complete"
+    assert actual["metrics"]["label_counts"] == {
+        "IRRELEVANT": 2,
+        "RELEVANT": 69,
+        "UNCERTAIN": 0,
+        "WEAK": 10,
+    }
+
+
 def _packet(tmp_path: Path) -> Path:
     fixtures = tmp_path / "fixtures"
     _write_payload(

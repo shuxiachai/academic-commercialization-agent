@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1230 tests (545 subtests), CI green on Linux + Windows × Python
+Current state: 1231 tests (545 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -62,7 +62,7 @@ is, in this order:
 | Why does this test exist? | Its docstring names the specific failure it caught |
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 3,963 lines, 53 write-ups. Ask the user for access if you need it |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 3,965 lines, 53 write-ups. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's
@@ -161,10 +161,11 @@ A run URL is a capability — the id is the credential.
   the assertions differ completely.
 - Code-package analysis (the other half of "upload a paper or a code package")
   is unbuilt.
-- Patent topical relevance now has a pre-registered, frozen 81-case human audit
-  and a strict summarizer, but **0/81 cases have human labels**. Until the packet
-  is completed, the project has no measured accepted-patent relevance rate and
-  must not present the prepared protocol as a result.
+- Patent topical relevance has one completed human label set over the frozen
+  81-case audit. Benchmark-core direct relevance is 64/75 (85.3%) and usable
+  relevance is 73/75 (97.3%). This is not an expert panel: there is no second
+  reviewer or inter-rater agreement. Production filtering remains unchanged
+  until a frozen candidate rule is compared against the same labels.
 - **No evidence exists that the output is *useful*.** Everything the project
   can currently demonstrate is that it does not lie — citations check out,
   formulas are right, hallucination rate is 0. Whether a TTO officer would act

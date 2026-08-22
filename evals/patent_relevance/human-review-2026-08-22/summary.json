@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "protocol_status": "complete",
+  "case_count": 81,
+  "completed_case_count": 81,
+  "incomplete_case_ids": [],
+  "metrics": {
+    "case_count": 81,
+    "label_counts": {
+      "IRRELEVANT": 2,
+      "RELEVANT": 69,
+      "UNCERTAIN": 0,
+      "WEAK": 10
+    },
+    "direct_relevance_rate": 0.8518518518518519,
+    "usable_relevance_rate": 0.9753086419753086,
+    "weak_rate": 0.12345679012345678,
+    "irrelevant_rate": 0.024691358024691357,
+    "uncertain_rate": 0.0,
+    "mean_confidence": 4.851851851851852
+  },
+  "by_corpus": {
+    "benchmark_core": {
+      "case_count": 75,
+      "label_counts": {
+        "IRRELEVANT": 2,
+        "RELEVANT": 64,
+        "UNCERTAIN": 0,
+        "WEAK": 9
+      },
+      "direct_relevance_rate": 0.8533333333333334,
+      "usable_relevance_rate": 0.9733333333333334,
+      "weak_rate": 0.12,
+      "irrelevant_rate": 0.02666666666666667,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 4.84
+    },
+    "sodium_ion_grid_storage_challenge": {
+      "case_count": 6,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 5,
+        "UNCERTAIN": 0,
+        "WEAK": 1
+      },
+      "direct_relevance_rate": 0.8333333333333334,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 0.16666666666666666,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 5.0
+    }
+  },
+  "by_topic": {
+    "CAR-T cell therapy for blood cancers": {
+      "case_count": 8,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 6,
+        "UNCERTAIN": 0,
+        "WEAK": 2
+      },
+      "direct_relevance_rate": 0.75,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 0.25,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 4.625
+    },
+    "CRISPR gene editing for genetic diseases": {
+      "case_count": 8,
+      "label_counts": {
+        "IRRELEVANT": 1,
+        "RELEVANT": 6,
+        "UNCERTAIN": 0,
+        "WEAK": 1
+      },
+      "direct_relevance_rate": 0.75,
+      "usable_relevance_rate": 0.875,
+      "weak_rate": 0.125,
+      "irrelevant_rate": 0.125,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 4.75
+    },
+    "carbon capture and storage for industrial emissions": {
+      "case_count": 8,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 7,
+        "UNCERTAIN": 0,
+        "WEAK": 1
+      },
+      "direct_relevance_rate": 0.875,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 0.125,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 4.875
+    },
+    "cultivated meat for food industry": {
+      "case_count": 7,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 7,
+        "UNCERTAIN": 0,
+        "WEAK": 0
+      },
+      "direct_relevance_rate": 1.0,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 0.0,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 5.0
+    },
+    "graphene-based flexible electronics": {
+      "case_count": 8,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 8,
+        "UNCERTAIN": 0,
+        "WEAK": 0
+      },
+      "direct_relevance_rate": 1.0,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 0.0,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 4.875
+    },
+    "mRNA vaccines for cancer immunotherapy": {
+      "case_count": 8,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 8,
+        "UNCERTAIN": 0,
+        "WEAK": 0
+      },
+      "direct_relevance_rate": 1.0,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 0.0,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 5.0
+    },
+    "perovskite solar cells for utility-scale power generation": {
+      "case_count": 8,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 7,
+        "UNCERTAIN": 0,
+        "WEAK": 1
+      },
+      "direct_relevance_rate": 0.875,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 0.125,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 4.875
+    },
+    "quantum computing for drug discovery": {
+      "case_count": 4,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 0,
+        "UNCERTAIN": 0,
+        "WEAK": 4
+      },
+      "direct_relevance_rate": 0.0,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 1.0,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 4.0
+    },
+    "room temperature ambient pressure superconductors": {
+      "case_count": 8,
+      "label_counts": {
+        "IRRELEVANT": 1,
+        "RELEVANT": 7,
+        "UNCERTAIN": 0,
+        "WEAK": 0
+      },
+      "direct_relevance_rate": 0.875,
+      "usable_relevance_rate": 0.875,
+      "weak_rate": 0.0,
+      "irrelevant_rate": 0.125,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 5.0
+    },
+    "sodium-ion batteries for grid energy storage": {
+      "case_count": 6,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 5,
+        "UNCERTAIN": 0,
+        "WEAK": 1
+      },
+      "direct_relevance_rate": 0.8333333333333334,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 0.16666666666666666,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 5.0
+    },
+    "solid-state batteries for electric vehicles": {
+      "case_count": 8,
+      "label_counts": {
+        "IRRELEVANT": 0,
+        "RELEVANT": 8,
+        "UNCERTAIN": 0,
+        "WEAK": 0
+      },
+      "direct_relevance_rate": 1.0,
+      "usable_relevance_rate": 1.0,
+      "weak_rate": 0.0,
+      "irrelevant_rate": 0.0,
+      "uncertain_rate": 0.0,
+      "mean_confidence": 5.0
+    }
+  },
+  "measurement_limit": "Accepted sources support relevance-rate measurement, not global retrieval recall."
+}
