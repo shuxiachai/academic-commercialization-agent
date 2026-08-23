@@ -360,3 +360,40 @@ class CheckpointStore:
             return CheckpointInspection("mismatch", mismatches, manifest)
 
         return CheckpointInspection("reusable", (), manifest, payload)
+
+    def inspect_existing(self, node_id: NodeId) -> CheckpointInspection:
+        """Validate an existing commit without asserting current-run freshness.
+
+        Admission code needs a narrower question than the worker does: is there
+        an intact checkpoint worth starting a recovery attempt from at all?
+        Reconstructing an expected identity from current settings here would
+        wrongly reject an older, valid run that the worker is designed to treat
+        as a visible cold start. Conversely, checking only that manifest.json
+        exists admits truncated manifests and missing payloads, charging for a
+        child before discovering that no committed root exists.
+
+        The manifest is read once to obtain its claimed identity and then fed
+        through ``inspect``. That second read is deliberate: if a concurrent
+        writer changes the commit between reads, the identity comparison turns
+        the race into ``mismatch`` rather than blessing whichever bytes won.
+        """
+
+        manifest_path = self._manifest_path(node_id)
+        try:
+            raw_manifest = manifest_path.read_bytes()
+        except FileNotFoundError:
+            return CheckpointInspection("missing", ("manifest",))
+        except OSError as exc:
+            return CheckpointInspection(
+                "corrupt", (f"manifest_read:{type(exc).__name__}",)
+            )
+
+        try:
+            manifest = CheckpointManifest.model_validate_json(raw_manifest)
+        except (ValidationError, ValueError) as exc:
+            return CheckpointInspection(
+                "corrupt", (f"manifest_parse:{type(exc).__name__}",)
+            )
+        if manifest.identity.node_id != node_id:
+            return CheckpointInspection("corrupt", ("identity.node_id",), manifest)
+        return self.inspect(manifest.identity)

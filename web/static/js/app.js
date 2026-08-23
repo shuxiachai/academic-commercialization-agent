@@ -607,9 +607,8 @@ let byokMode = false;
 
 function applyByokMode() {
   byokMode = true;
+  api.setAccessCode(null);
   $("#byok-badge").hidden = false;
-  attachBtn.disabled = true;
-  attachBtn.title = t("byok_no_attach");
 }
 
 $("#byok-exit").addEventListener("click", () => {

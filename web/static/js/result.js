@@ -580,12 +580,24 @@ export function reliabilityRows(progress) {
 
   const grounding = progress.claim_grounding;
   if (grounding != null) {
+    const status = grounding.status;
     const ungrounded = grounding.ungrounded ?? 0;
     const checked = grounding.checked ?? 0;
     const unverifiable = grounding.unverifiable ?? 0;
-    if (ungrounded > 0) {
+    const unavailableDomains = grounding.unavailable_domains ?? [];
+    if (status === "failed" || status === "unavailable") {
+      rows.push({ id: "grounding", tone: "muted", label: t("rel_grounding"),
+                  detail: t("rel_grounding_unavailable") });
+    } else if (status === "not_applicable") {
+      rows.push({ id: "grounding", tone: "muted",
+                  label: t("rel_grounding"), detail: t("rel_grounding_not_applicable") });
+    } else if (ungrounded > 0) {
       rows.push({ id: "grounding", tone: "warn", label: t("rel_grounding"),
                   detail: t("rel_grounding_flagged").replace("{count}", ungrounded) });
+    } else if (status === "partial") {
+      rows.push({ id: "grounding", tone: "muted", label: t("rel_grounding"),
+                  detail: t("rel_grounding_degraded")
+                    .replace("{domains}", unavailableDomains.join(", ")) });
     } else if (checked === 0) {
       // Zero unsupported out of zero checked. Shown as "nothing could be
       // checked" rather than as a clean result, because the two are opposite
@@ -603,6 +615,9 @@ export function reliabilityRows(progress) {
       rows.push({ id: "grounding", tone: "ok", label: t("rel_grounding"),
                   detail: t("rel_grounding_ok").replace("{count}", checked) });
     }
+  } else if (progress.source_counts) {
+    rows.push({ id: "grounding", tone: "muted", label: t("rel_grounding"),
+                detail: t("rel_grounding_unknown") });
   }
 
   const failed = progress.failed_domains ?? [];

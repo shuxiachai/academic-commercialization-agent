@@ -43,3 +43,44 @@ def test_ci_javascript_actions_use_reviewed_node24_refs() -> None:
             f"{action} must use reviewed ref {reviewed_ref} so every CI job "
             "runs on a resolvable Node 24 action runtime"
         )
+
+
+def test_ci_fails_instead_of_silently_skipping_node_backed_tests() -> None:
+    """The local skip is ergonomic; the four CI test jobs require the runtime."""
+
+    workflow = _WORKFLOW.read_text(encoding="utf-8")
+    preflight_name = "- name: Require Node for web contract tests"
+    preflight_command = "run: node --version"
+    pytest_command = "pytest tests/ -v --tb=short"
+
+    assert workflow.count(preflight_name) == 2
+    assert workflow.count(preflight_command) == 2
+    assert workflow.count(pytest_command) == 1
+    assert workflow.index(preflight_name) < workflow.index(preflight_command)
+    assert workflow.index(preflight_command) < workflow.index(pytest_command), (
+        "Node must be required inside the test job before pytest can convert "
+        "missing JavaScript coverage into unittest skips"
+    )
+
+
+def test_ci_enforces_the_measured_coverage_floor_in_one_canonical_job() -> None:
+    """The resume's coverage number must stay executable, not aspirational.
+
+    The gate is intentionally single-platform. Repeating it across the matrix
+    would let defensive OS branches create four subtly different project
+    metrics, while adding no new functional coverage beyond the matrix itself.
+    """
+
+    workflow = _WORKFLOW.read_text(encoding="utf-8")
+    coverage_start = workflow.index("  coverage:")
+    coverage_end = workflow.index("  docker:")
+    coverage_job = workflow[coverage_start:coverage_end]
+
+    assert workflow.count("--cov-fail-under=85") == 1
+    assert "--cov=src/academic_agent" in coverage_job
+    assert "--cov=api" in coverage_job
+    assert "--cov=ui" in coverage_job
+    assert "--cov-report=term-missing" in coverage_job
+    assert coverage_job.index("run: node --version") < coverage_job.index(
+        "--cov-fail-under=85"
+    )

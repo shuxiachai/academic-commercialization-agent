@@ -376,9 +376,10 @@ class GeneratePdfTests(unittest.TestCase):
         which rendered the PDF during a run and could hide a download button
         when it failed. The only caller now is the report.pdf endpoint, which
         runs because someone asked for the download — nothing is left to hide,
-        and swallowing the error made that endpoint's own "report the reason"
-        handler unreachable, so every failure surfaced as a bare "PDF
-        rendering produced no file".
+        and swallowing the error made that endpoint's own handler unreachable,
+        so every failure surfaced as a bare "PDF rendering produced no file".
+        The endpoint now logs the internal cause while returning stable public
+        prose rather than reflecting renderer paths or configuration details.
         """
         with patch("ui.pdf_export.markdown_to_story", side_effect=RuntimeError("boom")):
             with self.assertRaises(RuntimeError) as caught:

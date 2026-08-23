@@ -114,13 +114,44 @@ class WhatMakesItNotReadyTests(_ReadinessBase):
 
     def test_every_failing_check_names_itself(self):
         """An operator watching a deploy refuse to go healthy needs to know
-        which of the three, not how many."""
+        which checks failed, not merely how many."""
         status = self._readiness({})
         failing = [name for name, value in status.checks.items() if value != "ok"]
         self.assertEqual(sorted(failing), ["llm", "search"])
         for name in failing:
             with self.subTest(check=name):
                 self.assertGreater(len(status.checks[name]), 10)
+
+    def test_corrupt_enabled_paid_ledger_is_not_ready(self):
+        """Admission already fails closed on this file. Readiness must expose
+        the same boundary before a visitor spends time preparing a run."""
+        ledger = Path(self._tmp.name) / runs._DAILY_LEDGER_FILENAME
+        ledger.write_text("{broken", encoding="utf-8")
+
+        with mock.patch.object(runs, "DAILY_CAP", 3):
+            status = self._readiness(_WORKING)
+
+        self.assertFalse(status.ready)
+        self.assertNotEqual(status.checks["paid_accounting"], "ok")
+        self.assertNotIn(str(ledger), status.checks["paid_accounting"])
+
+    def test_enabled_paid_ledger_needs_no_preexisting_file(self):
+        """A first deployment has not admitted paid work and has no ledger."""
+        with mock.patch.object(runs, "DAILY_CAP", 3):
+            status = self._readiness(_WORKING)
+
+        self.assertTrue(status.ready, status.checks)
+        self.assertEqual(status.checks["paid_accounting"], "ok")
+
+    def test_corrupt_ledger_is_irrelevant_when_daily_cap_is_disabled(self):
+        ledger = Path(self._tmp.name) / runs._DAILY_LEDGER_FILENAME
+        ledger.write_text("{broken", encoding="utf-8")
+
+        with mock.patch.object(runs, "DAILY_CAP", 0):
+            status = self._readiness(_WORKING)
+
+        self.assertTrue(status.ready, status.checks)
+        self.assertNotIn("paid_accounting", status.checks)
 
 
 class WhatMustNotMakeItUnhealthyTests(_ReadinessBase):
@@ -180,6 +211,20 @@ class EndpointTests(_ReadinessBase):
             with TestClient(app) as client:
                 self.assertEqual(client.get("/health").status_code, 200)
                 self.assertEqual(client.get("/health/ready").status_code, 503)
+
+    def test_corrupt_paid_ledger_reaches_the_http_boundary(self):
+        """The field and 503 must survive response-model serialization."""
+        ledger = Path(self._tmp.name) / runs._DAILY_LEDGER_FILENAME
+        ledger.write_text("{broken", encoding="utf-8")
+
+        with mock.patch.object(runs, "DAILY_CAP", 3), _only(_WORKING):
+            with TestClient(app) as client:
+                response = client.get("/health/ready")
+
+        self.assertEqual(response.status_code, 503)
+        body = response.json()
+        self.assertFalse(body["ready"])
+        self.assertNotEqual(body["checks"]["paid_accounting"], "ok")
 
     def test_readiness_needs_no_access_code(self):
         """Gated, it would report every deployment with a code as unhealthy

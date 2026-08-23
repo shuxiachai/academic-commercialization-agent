@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import os
 import threading
 import time
@@ -39,6 +40,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
 )
 from api import access, papers, runs  # noqa: E402  — must follow load_dotenv
 from api.models import (  # noqa: E402
+    BYOK_PROVIDERS,
     HealthStatus,
     PaperExtraction,
     ReadinessStatus,
@@ -51,6 +53,7 @@ from api.models import (  # noqa: E402
     StepEvent,
 )
 
+_LOGGER = logging.getLogger(__name__)
 _REAP_INTERVAL_SECONDS = 30
 
 
@@ -64,8 +67,9 @@ async def _reaper() -> None:
         await asyncio.sleep(_REAP_INTERVAL_SECONDS)
         for run_id in runs.reap_timeouts():
             print(f"[api] run {run_id} killed: exceeded {runs.TIMEOUT_SECONDS}s")
-        # Uploaded PDFs that were never run would otherwise accumulate; they
-        # are only useful until the run that consumes them starts.
+        # Pending paper records would otherwise accumulate independently of
+        # run retention. Raw PDFs are already removed after extraction; this
+        # bounds the lifetime of the short-lived extraction capability.
         removed = papers.prune_old()
         if removed:
             print(f"[api] pruned {removed} expired paper upload(s)")
@@ -297,7 +301,17 @@ def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
     if matched is not None and access.is_admin(matched):
         return
 
-    owner = runs.owner_of(run_id)
+    try:
+        owner = runs.owner_of(run_id)
+    except runs.OwnerMarkerUnreadable as exc:
+        # Missing means an intentionally ownerless capability; unreadable means
+        # authorization could not be established. Returning 503 keeps those
+        # states distinct without reflecting the filesystem error or marker.
+        _LOGGER.exception("Run ownership metadata could not be read for %s", run_id)
+        raise HTTPException(
+            status_code=503,
+            detail="Run authorization is temporarily unavailable. Retry later.",
+        ) from exc
     if owner is None:
         # A BYOK run carries no owner tag by design, and its submitter holds
         # no code to prove ownership with — the id is the only credential
@@ -378,7 +392,7 @@ def readiness() -> ReadinessStatus:
 
     Split out of the endpoint so the checks can be exercised without HTTP, and
     so each one is a named string rather than a count — an operator staring at
-    a deploy that will not go healthy needs to know which of the three.
+    a deploy that will not go healthy needs to know which check failed.
     """
     # _detect_provider is imported at module scope, not here. Importing
     # llm_config pulls in crewai, which calls load_dotenv() as a side effect —
@@ -415,6 +429,21 @@ def readiness() -> ReadinessStatus:
         checks["outputs"] = "ok"
     except OSError as exc:
         checks["outputs"] = f"outputs directory is not writable: {exc}"
+
+    # A malformed paid-operation ledger makes every operator-funded request
+    # fail closed at admission. Treating that state as ready would route users
+    # to an instance that cannot do its primary job. The check is conditional:
+    # when the daily cap is disabled there is no ledger contract to satisfy.
+    if runs.DAILY_CAP:
+        try:
+            runs.validate_paid_ledger()
+            checks["paid_accounting"] = "ok"
+        except runs.PaidLedgerUnavailable:
+            # Do not expose the output path or parser details. Operators need
+            # the failed boundary; clients do not need filesystem internals.
+            checks["paid_accounting"] = (
+                "paid-operation accounting is unavailable; paid work is blocked"
+            )
 
     return ReadinessStatus(
         ready=all(v == "ok" for v in checks.values()),
@@ -477,12 +506,14 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
     # BYOK runs get no owner tag at all — never recorded in anyone's history,
     # billed to the requester, gone once the tab closes (frontend keeps its
     # own session-only list; see web/static/js/app.js).
-    owner = access.owner_id(matched) if matched else None
+    owner = access.owner_id(matched) if matched and not request.byok else None
 
     paper_json_path: str | None = None
     if request.paper_id:
         try:
-            paper_json_path = str(papers.extraction_path_for_run(request.paper_id))
+            paper_json_path = str(
+                papers.extraction_path_for_run(request.paper_id, owner=owner)
+            )
         except papers.PaperNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -510,8 +541,21 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
             status_code=429,
             detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
         ) from exc
+    except runs.PaidLedgerUnavailable as exc:
+        _LOGGER.exception("Paid-operation accounting blocked run admission")
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Paid-operation accounting is temporarily unavailable. "
+                "No provider call was started; retry later."
+            ),
+        ) from exc
     except OSError as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to start worker: {exc}") from exc
+        _LOGGER.exception("Failed to start analysis worker")
+        raise HTTPException(
+            status_code=500,
+            detail="The analysis worker could not be started. Retry later.",
+        ) from exc
 
     return RunAccepted(run_id=run_id, state="running", topic=request.topic)
 
@@ -547,7 +591,7 @@ def resume_run(
             status_code=401,
             detail="Provide the access code, or fresh BYOK credentials to resume.",
         )
-    owner = access.owner_id(matched) if matched else None
+    owner = access.owner_id(matched) if matched and not request.byok else None
     byok = (
         runs.BYOKCredentials(
             request.llm_provider, request.llm_api_key, request.serper_api_key
@@ -574,8 +618,23 @@ def resume_run(
             status_code=429,
             detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
         ) from exc
+    except runs.PaidLedgerUnavailable as exc:
+        _LOGGER.exception(
+            "Paid-operation accounting blocked resume for run %s", run_id
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Paid-operation accounting is temporarily unavailable. "
+                "No provider call was started; retry later."
+            ),
+        ) from exc
     except OSError as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to resume worker: {exc}") from exc
+        _LOGGER.exception("Failed to resume analysis worker for run %s", run_id)
+        raise HTTPException(
+            status_code=500,
+            detail="The analysis worker could not be resumed. Retry later.",
+        ) from exc
 
     # Read from the child's frozen contract rather than trusting status.json;
     # the worker may not have produced its first status write before this 202.
@@ -599,7 +658,19 @@ def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200
     both are always set (owner to None when the gate is disabled entirely,
     meaning no filter).
     """
-    summaries, total = runs.list_runs(limit=limit, owner=http_request.state.owner)
+    try:
+        summaries, total = runs.list_runs(
+            limit=limit, owner=http_request.state.owner
+        )
+    except runs.OwnerMarkerUnreadable as exc:
+        # Omitting the affected entry would make a protected run look absent;
+        # labelling it ownerless would expose it to the admin view incorrectly.
+        # Fail the snapshot explicitly and preserve the storage detail in logs.
+        _LOGGER.exception("Run history ownership metadata could not be read")
+        raise HTTPException(
+            status_code=503,
+            detail="Run history is temporarily unavailable. Retry later.",
+        ) from exc
     if http_request.state.is_admin:
         # An unlabelled merge of everyone's history answers "what ran" but
         # not "who ran it" — the entire reason to hold the admin code
@@ -665,7 +736,11 @@ def delete_run(run_id: str, http_request: Request) -> dict:
     except runs.RunStillActive as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except OSError as exc:
-        raise HTTPException(status_code=500, detail=f"Could not delete run: {exc}") from exc
+        _LOGGER.exception("Failed to delete run %s", run_id)
+        raise HTTPException(
+            status_code=500,
+            detail="The run could not be deleted. Retry later.",
+        ) from exc
     return {"run_id": run_id, "action": "deleted"}
 
 
@@ -829,21 +904,32 @@ async def upload_paper(
     Runs the extractor in a worker thread: it makes an LLM call and would
     otherwise block the event loop for several seconds.
     """
-    byok = bool(llm_provider and llm_api_key)
+    credential_fields = (llm_provider, llm_api_key)
+    if any(credential_fields) and not all(credential_fields):
+        raise HTTPException(
+            status_code=422,
+            detail="llm_provider and llm_api_key must be provided together or both omitted.",
+        )
+    if llm_provider is not None and llm_provider not in BYOK_PROVIDERS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"llm_provider must be one of {BYOK_PROVIDERS}.",
+        )
+    byok = bool(llm_provider)
     matched = access.matching_code(http_request.headers.get("x-access-code"))
     if matched is None and not byok and access.gate_enabled():
         raise HTTPException(
             status_code=401,
             detail="Provide the access code, or your own llm_provider/llm_api_key.",
         )
-    owner = access.owner_id(matched) if matched else None
+    owner = access.owner_id(matched) if matched and not byok else None
 
     try:
         data = await _read_capped(file, papers.MAX_UPLOAD_BYTES)
     except papers.PaperTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
     try:
-        paper_id, pdf_path = papers.save_upload(file.filename or "paper.pdf", data)
+        paper_id, pdf_path = papers.save_upload(data, owner=owner)
     except papers.PaperTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
     except papers.PaperNotAPdf as exc:
@@ -870,18 +956,42 @@ async def upload_paper(
             status_code=429,
             detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
         ) from exc
-    except Exception as exc:  # noqa: BLE001 - surface the reason to the client
+    except runs.PaidLedgerUnavailable as exc:
+        papers.discard(paper_id)
+        _LOGGER.exception("Paid-operation accounting blocked paper %s", paper_id)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Paid-operation accounting is temporarily unavailable. "
+                "No provider call was started; retry later."
+            ),
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 - provider failures vary by SDK
         # The upload is unreachable from here on — no paper_id reaches the
         # client, so no run can name it — and it is somebody's unpublished
         # paper. Deleted now rather than left for the day-long pruner.
         papers.discard(paper_id)
+        _LOGGER.exception("Paper contribution extraction failed for %s", paper_id)
         raise HTTPException(
             status_code=422,
-            detail=f"Could not extract a contribution from this PDF: {exc}",
+            detail=(
+                "The paper could not be converted into a structured contribution. "
+                "Retry or use another PDF."
+            ),
         ) from exc
 
     payload = contribution.model_dump()
-    papers.save_extraction(paper_id, payload)
+    try:
+        papers.save_extraction(paper_id, payload)
+    except OSError as exc:
+        # A successful response promises the raw PDF has been deleted. If the
+        # atomic extraction write or privacy cleanup failed, remove the whole
+        # capability instead of returning an id with ambiguous retention.
+        papers.discard(paper_id)
+        _LOGGER.exception("Paper extraction storage failed for %s", paper_id)
+        raise HTTPException(
+            status_code=500, detail="Could not safely store the paper extraction."
+        ) from exc
     return PaperExtraction(paper_id=paper_id, **payload)
 
 
@@ -923,9 +1033,14 @@ def get_report_pdf(run_id: str) -> FileResponse:
                 markdown_path.parent,
                 output_language=state.get("output_language", "English"),
             )
-        except Exception as exc:  # noqa: BLE001 - report the reason
+        except Exception as exc:  # noqa: BLE001 - renderer failures vary by backend
+            _LOGGER.exception("Report PDF rendering failed for run %s", run_id)
             raise HTTPException(
-                status_code=500, detail=f"Could not render the PDF: {exc}"
+                status_code=500,
+                detail=(
+                    "The report PDF could not be rendered. "
+                    "The Markdown report is still available."
+                ),
             ) from exc
 
     if not pdf_path.exists():

@@ -209,10 +209,28 @@ class SubmitRunTests(_ApiTestCase):
             r = self.client.post("/api/runs", json={"topic": "topic"})
             self.assertEqual(r.status_code, 202)
 
-    @patch("api.runs.subprocess.Popen", side_effect=OSError("cannot spawn"))
+    @patch(
+        "api.runs.subprocess.Popen",
+        side_effect=OSError(r"cannot spawn C:\private\operator-token"),
+    )
     def test_spawn_failure_returns_500(self, _mock_popen):
         r = self.client.post("/api/runs", json={"topic": "valid topic here"})
         self.assertEqual(r.status_code, 500)
+        self.assertEqual(
+            r.json()["detail"],
+            "The analysis worker could not be started. Retry later.",
+        )
+        self.assertNotIn("operator-token", r.text)
+
+    @patch(
+        "api.runs.start_run",
+        side_effect=runs.PaidLedgerUnavailable(r"bad ledger C:\private\wallet.json"),
+    )
+    def test_paid_ledger_failure_returns_safe_503(self, _start_run):
+        r = self.client.post("/api/runs", json={"topic": "valid topic here"})
+        self.assertEqual(r.status_code, 503)
+        self.assertIn("accounting is temporarily unavailable", r.json()["detail"])
+        self.assertNotIn("wallet.json", r.text)
 
 
 # ---------------------------------------------------------------------------
@@ -245,10 +263,26 @@ class RunStateTests(_ApiTestCase):
         self.assertFalse(self.client.get(f"/api/runs/{rid}").json()["evidence_incomplete"])
 
     def test_failed_state_from_status_error(self):
-        rid = self._make_run(status={"done": False, "error": "LLM refused"})
-        body = self.client.get(f"/api/runs/{rid}").json()
-        self.assertEqual(body["state"], "failed")
-        self.assertIn("LLM refused", body["error"])
+        private = r"authentication failed for top-secret at C:\private\provider.json"
+        rid = self._make_run(status={"done": False, "error": private})
+        direct = self.client.get(f"/api/runs/{rid}").json()
+        listed = next(
+            item for item in self.client.get("/api/runs").json()["runs"]
+            if item["run_id"] == rid
+        )
+
+        # The detail response carries a safe category. The list response
+        # deliberately omits error altogether; both seams must keep raw
+        # worker/provider diagnostics inside the run directory.
+        self.assertEqual(direct["state"], "failed")
+        self.assertIn("rejected authentication", direct["error"])
+        self.assertNotIn("top-secret", direct["error"])
+        self.assertNotIn("provider.json", direct["error"])
+        self.assertEqual(listed["state"], "failed")
+        self.assertNotIn("error", listed)
+        listed_payload = json.dumps(listed)
+        self.assertNotIn("top-secret", listed_payload)
+        self.assertNotIn("provider.json", listed_payload)
 
     def test_cancelled_state(self):
         rid = self._make_run(status={"done": False}, cancelled=True)
@@ -258,13 +292,20 @@ class RunStateTests(_ApiTestCase):
         rid = self._make_run(
             status={"done": False}, error_log="Analysis timed out after 30 minutes."
         )
-        self.assertEqual(self.client.get(f"/api/runs/{rid}").json()["state"], "timeout")
+        body = self.client.get(f"/api/runs/{rid}").json()
+        self.assertEqual(body["state"], "timeout")
+        self.assertIn("exceeded its time limit", body["error"])
 
     def test_crashed_worker_reports_failed_with_reason(self):
-        rid = self._make_run(status={"done": False}, error_log="Traceback: boom")
+        private = r"Traceback: boom; key=top-secret; C:\private\worker.py"
+        rid = self._make_run(status={"done": False}, error_log=private)
         body = self.client.get(f"/api/runs/{rid}").json()
         self.assertEqual(body["state"], "failed")
-        self.assertIn("boom", body["error"])
+        self.assertEqual(
+            body["error"],
+            "The analysis failed. Retry or contact the operator with the run ID.",
+        )
+        self.assertNotIn("top-secret", body["error"])
 
     @patch("api.runs.subprocess.Popen")
     def test_live_run_reports_running_with_elapsed(self, mock_popen):
@@ -410,6 +451,19 @@ class DeleteRunTests(_ApiTestCase):
         self.client.delete(f"/api/runs/{rid}")
         body = self.client.get("/api/runs").json()
         self.assertNotIn(rid, [r["run_id"] for r in body["runs"]])
+
+    def test_delete_failure_does_not_expose_filesystem_details(self):
+        rid = self._make_run(status={"done": True})
+        private = OSError(r"denied C:\private\operator\outputs")
+        with patch("api.runs.delete_run", side_effect=private):
+            response = self.client.delete(f"/api/runs/{rid}")
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.json()["detail"],
+            "The run could not be deleted. Retry later.",
+        )
+        self.assertNotIn("operator", response.text)
 
     def test_delete_already_deleted_run_returns_404(self):
         rid = self._make_run(status={"done": True})

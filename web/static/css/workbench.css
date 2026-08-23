@@ -508,6 +508,13 @@
   color: var(--text-secondary);
 }
 
+.composer__privacy {
+  margin: 0 var(--space-3) var(--space-3);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
 /* Extraction makes an LLM call and takes several seconds. A static line of
    text is indistinguishable from a hang, so the row shimmers and carries the
    same pulsing dot the run stages use — one vocabulary for "working", not a

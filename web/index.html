@@ -145,6 +145,9 @@
 
               <input type="file" id="pdf-input" accept=".pdf,application/pdf" class="visually-hidden">
               <div class="composer__attachment" id="attachment" hidden></div>
+              <p class="composer__privacy" data-i18n="paper_privacy">
+                Selected PDF text is sent to the configured model provider. The raw PDF is deleted after successful extraction; extracted metadata expires within 24 hours if no run uses it.
+              </p>
             </div>
           </form>
 
@@ -209,10 +212,10 @@
          whoever fills this in rather than to the deployment owner. -->
     <form id="byok-form" hidden>
       <h2 class="gate__title" data-i18n="byok_title">Use your own API keys</h2>
-      <p class="gate__sub" data-i18n="byok_sub">Your keys go to this run's worker process and nowhere else, and are gone from this browser once you close the tab.</p>
+      <p class="gate__sub" data-i18n="byok_sub">Your keys are sent to this server and the selected providers only for operations you start. They are not written to run artifacts and disappear from this browser when the tab closes.</p>
       <!-- Filled from /health when this form is opened, because the number is
            the deployment's, not the page's. The sentence above is about the
-           keys; this one is about the assessment and the uploaded paper, which
+           keys; this one is about extracted metadata and the assessment, which
            do stay on the server. Keeping them apart is the point: one line
            covering both was read as a promise it did not make. -->
       <p class="gate__sub gate__sub--retention" id="byok-retention"></p>

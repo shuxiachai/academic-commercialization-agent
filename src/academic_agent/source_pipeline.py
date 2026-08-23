@@ -148,7 +148,6 @@ _AUTHORITATIVE_RESEARCH_DOMAINS = {
     "weforum.org",       # World Economic Forum
     "oecd.org",          # OECD
     "irena.org",         # International Renewable Energy Agency
-    "energy.gov",        # US DOE (caught by .gov rule too, but explicit for clarity)
 }
 _REGULATORY_AUTHORITY_DOMAINS = {
     "fda.gov",
@@ -163,6 +162,22 @@ _CLINICAL_REGISTRY_DOMAINS = {
     "euclinicaltrials.eu",
     "isrctn.com",
     "anzctr.org.au",
+}
+# Host identity, not a substring such as "standards.", establishes authority.
+# The old substring rule promoted standards.attacker.example and
+# iso.org.attacker.example to high credibility. Keep this list deliberately
+# narrow: an omitted standards body can still enter through another market
+# category, while a false high-authority label misstates provenance.
+_STANDARDS_BODY_DOMAINS = {
+    "iso.org",
+    "iec.ch",
+    "ansi.org",
+    "astm.org",
+    "bsigroup.com",
+    "din.de",
+    "cencenelec.eu",
+    "standards.org.au",
+    "standards.ieee.org",
 }
 _NONPROFIT_RESEARCH_DOMAINS = {
     "carbon180.org",
@@ -1554,7 +1569,7 @@ def _market_source_profile(
             "University or academic institution; credible for research outputs, "
             "verify for commercial claims.",
         )
-    if any(marker in host for marker in ("iso.org", "iec.ch", "standards.")):
+    if _host_matches(host, _STANDARDS_BODY_DOMAINS):
         return (
             "standards_body",
             "high",

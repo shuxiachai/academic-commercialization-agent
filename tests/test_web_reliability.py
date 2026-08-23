@@ -264,6 +264,37 @@ class ReliabilityPanelTests(unittest.TestCase):
         )
         self.assertEqual(panel["verdict"]["tone"], "warn")
 
+    def test_grounding_audit_failure_is_visible_and_never_a_pass(self):
+        panel = self._panel(
+            claim_grounding={"status": "failed", "checked": 0, "ungrounded": 0}
+        )
+        row = self._row(panel, "grounding")
+        self.assertEqual(row["tone"], "muted")
+        self.assertIn("no result", row["detail"].lower())
+
+    def test_no_quantitative_claim_is_distinct_from_a_clean_check(self):
+        panel = self._panel(claim_grounding={"status": "not_applicable"})
+        row = self._row(panel, "grounding")
+        self.assertEqual(row["tone"], "muted")
+        self.assertIn("no distinctive", row["detail"].lower())
+
+    def test_partial_grounding_names_the_domain_that_could_not_be_checked(self):
+        panel = self._panel(
+            claim_grounding={
+                "status": "partial", "checked": 2, "ungrounded": 0,
+                "unavailable_domains": ["patent"],
+            }
+        )
+        row = self._row(panel, "grounding")
+        self.assertEqual(row["tone"], "muted")
+        self.assertIn("patent", row["detail"])
+
+    def test_old_run_without_grounding_status_is_explicitly_unknown(self):
+        panel = self._panel(source_counts={"academic": 8, "patent": 8, "market": 8})
+        row = self._row(panel, "grounding")
+        self.assertEqual(row["tone"], "muted")
+        self.assertIn("not recorded", row["detail"].lower())
+
 
 @unittest.skipUnless(_node(), "node not installed")
 class ConsistencyTabWiringTests(unittest.TestCase):

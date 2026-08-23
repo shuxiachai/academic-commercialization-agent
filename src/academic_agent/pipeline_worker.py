@@ -855,7 +855,7 @@ def main() -> None:
             grounding = save_claim_grounding(
                 tasks_output, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
         if grounding:
-            print(f"[grounding] {grounding['checked']} checkable claims, "
+            print(f"[grounding] {grounding['status']}: {grounding['checked']} checkable claims, "
                   f"{grounding['ungrounded']} with a figure absent from the cited "
                   f"source, {grounding['unverifiable']} unverifiable", flush=True)
 

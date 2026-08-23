@@ -172,11 +172,13 @@ def save_claim_grounding(
     tasks_output: Sequence[Any],
     run_id: str,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
-) -> dict | None:
+) -> dict:
     """Screen the evidence tasks' claims against the sources they cite.
 
     Writes claim_grounding.json beside the evidence files and returns a
-    summary for status.json, or None when there was nothing to screen.
+    summary for status.json. The summary always names whether the screen
+    completed, was inapplicable, was only partial, or failed; absence is
+    reserved for runs created before this contract existed.
 
     Deliberately not a guardrail. The existing guardrails block and retry, and
     this check is a heuristic: a false positive would fail a sound run and
@@ -203,21 +205,30 @@ def save_claim_grounding(
         # about the evidence, not a shortfall in the screen. One number cannot
         # say both things.
         per_domain: dict[str, dict[str, int]] = {}
+        screened_domains: list[str] = []
+        unavailable_domains: list[str] = []
 
         for index, filename in EVIDENCE_ARTIFACTS:
+            domain = filename.split("_")[0]
             if index >= len(tasks_output):
+                unavailable_domains.append(domain)
                 continue
             raw = getattr(tasks_output[index], "raw", None)
             if not raw:
+                unavailable_domains.append(domain)
                 continue
             try:
                 report = EvidenceReport.model_validate_json(raw)
             except Exception:  # noqa: BLE001 - unparseable output is the
-                # guardrail's business, not this screen's; skipping keeps the
-                # two failures from being reported as one.
+                # guardrail's business, but the audit still records that this
+                # domain could not be checked instead of disappearing as a pass.
+                unavailable_domains.append(domain)
                 continue
             result = check_report(report)
-            domain = filename.split("_")[0]
+            if result.error:
+                unavailable_domains.append(domain)
+                continue
+            screened_domains.append(domain)
             totals["checked"] += result.checked_count
             totals["ungrounded"] += result.ungrounded_count
             totals["unverifiable"] += result.unverifiable_count
@@ -232,18 +243,44 @@ def save_claim_grounding(
                 if check.status != "grounded":
                     combined.append({"domain": domain, **check.as_dict()})
 
-        if not any(totals.values()):
-            return None
+        if unavailable_domains:
+            status = "partial" if screened_domains else "unavailable"
+        elif not any(totals.values()):
+            # Valid evidence reports with no distinctive quantitative claim are
+            # not a failed audit and not a clean citation result.
+            status = "not_applicable"
+        else:
+            status = "completed"
 
-        payload = {**totals, "by_domain": per_domain, "findings": combined}
+        payload = {
+            "status": status,
+            **totals,
+            "by_domain": per_domain,
+            "screened_domains": screened_domains,
+            "unavailable_domains": unavailable_domains,
+            "findings": combined,
+        }
         run_directory.mkdir(parents=True, exist_ok=True)
         (run_directory / "claim_grounding.json").write_text(
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
         )
-        return {**totals, "by_domain": per_domain}
+        return {key: value for key, value in payload.items() if key != "findings"}
     except Exception as exc:  # noqa: BLE001 - see the docstring
         warnings.warn(f"claim grounding screen failed: {type(exc).__name__}: {exc}")
-        return None
+        # The caller can still persist this stable state in status.json even
+        # when the detailed artifact itself could not be written. Never return
+        # None here: old runs, no applicable claims, and an audit failure are
+        # three different facts.
+        return {
+            "status": "failed",
+            "checked": 0,
+            "ungrounded": 0,
+            "unverifiable": 0,
+            "duplicates_collapsed": 0,
+            "by_domain": {},
+            "screened_domains": [],
+            "unavailable_domains": [],
+        }
 
 
 def save_consistency(
