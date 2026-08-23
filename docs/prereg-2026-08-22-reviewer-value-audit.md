@@ -3,6 +3,11 @@
 **Registered:** 2026-08-22, before any human preference labels were collected
 **Cost:** zero API calls; existing topology-ablation artifacts only
 
+> **Status (2026-08-23): complete.** Two evaluator forms completed all nine
+> report pairs and independently passed the frozen criterion. See the
+> [result report](results-2026-08-23-reviewer-value-audit.md). The thresholds
+> below remain unchanged from registration.
+
 ## Question
 
 The full topology's Reviewer accepted 34 corrections across 9 of 29 successful

@@ -62,7 +62,7 @@ is, in this order:
 | Why does this test exist? | Its docstring names the specific failure it caught |
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,053 lines, 56 write-ups. Ask the user for access if you need it |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,095 lines, 57 write-ups. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's
@@ -171,6 +171,17 @@ A run URL is a capability — the id is the credential.
   compared and rejected: it falsely dropped 6 relevant patents and sent 36/81
   cases to review. Production filtering remains unchanged. The next method must
   be semantic/claim-scope with abstention and must face an unseen challenge.
+- **The first report-level Reviewer audit is complete, but is not a general
+  utility result.** Both evaluator forms completed 9/9 pairs and passed the
+  frozen retention criterion. Exact agreement was 9/9 on overall preference,
+  8/9 on citation support, 3/9 on decision usefulness, and 7/9 on harm. Neither
+  evaluator opened external sources, so this measures report-internal support,
+  not source truth. One evaluator's method declaration was corrected by the
+  study owner after return; the result retains that form with explicit
+  disclosure rather than presenting the provenance as cleaner than it is. See
+  `docs/results-2026-08-23-reviewer-value-audit.md`. A stronger claim needs a
+  larger independently recruited sample and preferably correction-level plans
+  persisted by a future experiment.
 - **The first user-utility result is complete, and it did not prove the
   six-stage advantage.** Five reviewers returned 20/20 eligible blinded
   judgments over two rounds. Both rounds preferred the full workflow 6:4 for
