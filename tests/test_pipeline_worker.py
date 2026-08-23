@@ -386,6 +386,11 @@ class MainEndToEndTests(unittest.TestCase):
         status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
         self.assertEqual(status["stage"], "Error")
         self.assertEqual(status["topic"], "a topic")
+        self.assertEqual(status["checkpointing"]["state"], "partial")
+        self.assertEqual(
+            status["checkpointing"]["committed_nodes"], ["retrieval"]
+        )
+        self.assertEqual(status["recovery"]["state"], "not_requested")
 
     def test_partial_completion_still_saves_the_report(self):
         """Five tasks: the reviewer produced a report, the scorer never ran.

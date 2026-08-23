@@ -43,12 +43,15 @@ const STRINGS = {
 
     // Run pane
     cancel: "Cancel",
+    resume: "Resume from checkpoint",
     delete_run: "Delete",
     confirm_delete_run: "Delete this run permanently? The report and every other artifact will be gone for good.",
     confirm_broad_topic: "This topic may be too broad for reliable academic, patent, and market retrieval. Add a specific technology and use case for a stronger report.\n\nRun it anyway?",
     msg_deleted: "Run deleted.",
     download_report: "Report",
     sources_suffix: "sources",
+    recovery_reused_short: "{count} checkpoint stages reused",
+    recovery_degraded_short: "checkpointing degraded",
     academic: "academic",
     patent: "patent",
     market: "market",
@@ -151,6 +154,7 @@ const STRINGS = {
     // Messages
     msg_complete: "Analysis complete.",
     msg_cancelled: "Run cancelled.",
+    msg_resumed: "Recovery run started with fresh credentials.",
     msg_busy: "Both run slots are busy. Try again when one finishes.",
     msg_paper_attached: "Paper attached.",
     msg_not_pdf: "That is not a PDF.",
@@ -220,12 +224,15 @@ const STRINGS = {
     stage_scoring: "评估商业化就绪度",
 
     cancel: "取消",
+    resume: "从检查点续跑",
     delete_run: "删除",
     confirm_delete_run: "确定要永久删除这条记录吗？报告和其他所有产出文件都会一并清除，无法恢复。",
     confirm_broad_topic: "这个主题可能过于宽泛，难以稳定检索学术、专利和市场证据。建议补充具体技术与应用场景，以获得更可靠的报告。\n\n仍要继续运行吗？",
     msg_deleted: "记录已删除。",
     download_report: "报告",
     sources_suffix: "条来源",
+    recovery_reused_short: "已复用 {count} 个检查点阶段",
+    recovery_degraded_short: "检查点持久化已降级",
     academic: "学术",
     patent: "专利",
     market: "市场",
@@ -312,6 +319,7 @@ const STRINGS = {
 
     msg_complete: "分析完成。",
     msg_cancelled: "运行已取消。",
+    msg_resumed: "已使用新凭据启动恢复运行。",
     msg_busy: "两个运行槽位都在忙，等一个结束后再试。",
     msg_paper_attached: "论文已附加。",
     msg_not_pdf: "这不是 PDF 文件。",

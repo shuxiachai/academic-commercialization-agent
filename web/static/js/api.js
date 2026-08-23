@@ -151,6 +151,19 @@ export const startRun = ({ topic, language, weight_profile, paper_id }) => {
   }));
 };
 
+export const resumeRun = (runId) => {
+  // Credentials are intentionally supplied again. The source run retains no
+  // BYOK secret, and an access-code run is authorized by the normal header.
+  const byok = getByok();
+  return request(`/api/runs/${runId}/resume`, json({
+    ...(byok ? {
+      llm_provider: byok.provider,
+      llm_api_key: byok.llmKey,
+      serper_api_key: byok.serperKey,
+    } : {}),
+  }));
+};
+
 export const getRun = (runId) => request(`/api/runs/${runId}`);
 
 export const getProgress = (runId, since = 0) =>

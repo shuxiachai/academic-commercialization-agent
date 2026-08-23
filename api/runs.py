@@ -29,6 +29,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
+from academic_agent.run_spec import RESUME_SNAPSHOT_DIRECTORY, RunSpec
 
 # A run is killed after this long. The bound belongs to the worker contract,
 # not to whichever client submitted or polls the run.
@@ -263,6 +264,10 @@ class RunStillActive(Exception):
     """Raised when delete_run is asked to remove a run that has not stopped."""
 
 
+class RunNotResumable(Exception):
+    """Raised when a run has no safe checkpoint recovery contract."""
+
+
 _registry: dict[str, _Handle] = {}
 
 # Inline paid operations live in the API process rather than a subprocess, so
@@ -424,13 +429,12 @@ def _is_valid_run_id(run_id: str) -> bool:
     )
 
 
-def start_run(
-    topic: str,
-    language: str | None = None,
-    weight_profile: str | None = None,
-    paper_json_path: str | None = None,
+def _start_run_from_spec(
+    spec: RunSpec,
+    *,
     byok: BYOKCredentials | None = None,
     owner: str | None = None,
+    resume_from: str | None = None,
 ) -> tuple[str, Path]:
     """Launch a worker subprocess. Returns (run_id, run_dir).
 
@@ -464,7 +468,7 @@ def start_run(
         )
         try:
             _registry[run_id] = _Handle(
-                run_id=run_id, topic=topic, proc=_PendingProcess(), log_file=None,
+                run_id=run_id, topic=spec.topic, proc=_PendingProcess(), log_file=None,
                 byok=byok is not None,
             )
         except BaseException:
@@ -482,16 +486,44 @@ def start_run(
     # it short of restarting the process.
     try:
         run_dir.mkdir(parents=True, exist_ok=True)
+        spec_path = spec.save(run_dir)
         if owner is not None:
             (run_dir / _OWNER_FILE).write_text(owner, encoding="utf-8")
+        if resume_from is not None:
+            # Snapshot before Popen. The source can be deleted manually or by
+            # retention while the child is starting; making the worker read
+            # it later would turn a valid recovery request into a race. The
+            # child copy contains only manifests and non-secret outputs.
+            if not _is_valid_run_id(resume_from):
+                raise RunNotFound(f"Invalid run id: {resume_from!r}")
+            source_directory = run_dir_for(resume_from).resolve(strict=True)
+            output_root = DEFAULT_OUTPUT_ROOT.resolve()
+            if source_directory.parent != output_root:
+                raise RunNotFound(f"No run with id {resume_from}")
+            source_checkpoints = (source_directory / "checkpoints").resolve(strict=True)
+            if source_checkpoints.parent != source_directory:
+                raise OSError("Source checkpoint directory escaped its run directory.")
+            snapshot_root = run_dir / RESUME_SNAPSHOT_DIRECTORY
+            shutil.copytree(source_checkpoints, snapshot_root / "checkpoints")
 
-        cmd = [sys.executable, "-m", "academic_agent.pipeline_worker", run_id, topic.strip()]
-        if language:
-            cmd += ["--language", language]
-        if weight_profile:
-            cmd += ["--weight-profile", weight_profile]
-        if paper_json_path and Path(paper_json_path).exists():
-            cmd += ["--paper-json", paper_json_path]
+
+        cmd = [
+            sys.executable, "-m", "academic_agent.pipeline_worker",
+            run_id, spec.topic, "--run-spec", str(spec_path),
+        ]
+        # Keep the explicit flags for CLI/process introspection and backwards
+        # compatibility, while RunSpec remains the worker's authoritative
+        # contract. The worker verifies and then overwrites these values from
+        # the frozen spec, so duplicated argv cannot cause identity drift.
+        if spec.language is not None:
+            cmd += ["--language", spec.language]
+        if spec.weight_profile is not None:
+            cmd += ["--weight-profile", spec.weight_profile]
+
+        if resume_from is not None:
+            # The id remains provenance; the worker reads the immutable local
+            # snapshot above rather than racing the source directory.
+            cmd += ["--resume-from", resume_from]
 
         # BYOK credentials travel as env, never as argv: command-line arguments
         # are visible to any other process on the same host via `ps`/the process
@@ -519,10 +551,104 @@ def start_run(
         # the process actually started — so the limit would only ever see runs
         # that had not launched yet, which is to say none of them.
         _registry[run_id] = _Handle(
-            run_id=run_id, topic=topic, proc=proc, log_file=log_file,
+            run_id=run_id, topic=spec.topic, proc=proc, log_file=log_file,
             byok=byok is not None,
         )
     return run_id, run_dir
+
+def _spec_from_submission(
+    topic: str,
+    language: str | None,
+    weight_profile: str | None,
+    paper_json_path: str | None,
+) -> RunSpec:
+    """Freeze a submission before reserving money or starting its worker."""
+
+    paper_contribution = None
+    if paper_json_path is not None:
+        path = Path(paper_json_path)
+        if not path.is_file():
+            raise OSError(f"Paper contribution no longer exists: {path.name}")
+        try:
+            candidate = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise OSError(f"Could not read paper contribution: {exc}") from exc
+        if not isinstance(candidate, dict):
+            raise OSError("Paper contribution must be a JSON object.")
+        paper_contribution = candidate
+
+    return RunSpec(
+        topic=topic,
+        language=language,
+        weight_profile=weight_profile,
+        paper_contribution=paper_contribution,
+    )
+
+
+def start_run(
+    topic: str,
+    language: str | None = None,
+    weight_profile: str | None = None,
+    paper_json_path: str | None = None,
+    byok: BYOKCredentials | None = None,
+    owner: str | None = None,
+) -> tuple[str, Path]:
+    """Launch a new worker from a durable, non-secret input contract."""
+
+    spec = _spec_from_submission(topic, language, weight_profile, paper_json_path)
+    return _start_run_from_spec(spec, byok=byok, owner=owner)
+
+
+def resume_run(
+    source_run_id: str,
+    *,
+    byok: BYOKCredentials | None = None,
+    owner: str | None = None,
+) -> tuple[str, Path]:
+    """Launch an immutable child run that may reuse the source's checkpoints.
+
+    The failed source directory is never rewritten.  That preserves the crash
+    evidence and avoids a restarted worker racing a reader of the original
+    capability URL.  The child receives fresh credentials through the normal
+    subprocess boundary and copies each reused checkpoint into its own run.
+    """
+
+    if not _is_valid_run_id(source_run_id):
+        raise RunNotFound(f"Invalid run id: {source_run_id!r}")
+    source_directory = run_dir_for(source_run_id)
+    if not source_directory.is_dir():
+        raise RunNotFound(f"No run with id {source_run_id}")
+
+    state = get_state(source_run_id)["state"]
+    if state not in {"failed", "cancelled", "timeout"}:
+        if state == "running":
+            raise RunNotResumable("A running assessment cannot be resumed.")
+        if state == "completed":
+            raise RunNotResumable("A completed assessment has no unfinished work to resume.")
+        raise RunNotResumable(
+            "An assessment with unreadable state cannot be resumed safely."
+        )
+
+    try:
+        spec = RunSpec.load(source_directory)
+    except (OSError, ValueError) as exc:
+        raise RunNotResumable(
+            "This run predates durable input contracts or its contract is unreadable."
+        ) from exc
+
+    # Retrieval is the root of every task identity.  Starting a paid child
+    # without even that commit could only produce a full rerun while claiming
+    # to be recovery, so old/pre-checkpoint runs fail explicitly instead.
+    retrieval_manifest = source_directory / "checkpoints" / "retrieval" / "manifest.json"
+    if not retrieval_manifest.is_file():
+        raise RunNotResumable("This run has no validated retrieval checkpoint to resume.")
+
+    return _start_run_from_spec(
+        spec,
+        byok=byok,
+        owner=owner,
+        resume_from=source_run_id,
+    )
 
 
 def cancel_run(run_id: str) -> None:
@@ -810,6 +936,12 @@ def get_state(run_id: str) -> dict:
         # collector persisted a span because OTLP gives this process no such
         # acknowledgement.
         "observability": status.get("observability"),
+        # Persisting a node and reusing it are different claims. Both remain
+        # explicit so a failed auxiliary write cannot look like successful
+        # recovery, and a cold start cannot look like a cache hit simply
+        # because checkpointing itself was healthy.
+        "checkpointing": status.get("checkpointing"),
+        "recovery": status.get("recovery"),
         "artifacts": available_artifacts(run_dir),
     }
 
