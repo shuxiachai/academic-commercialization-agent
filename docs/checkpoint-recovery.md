@@ -135,6 +135,15 @@ The zero-network suite covers the storage and client seams separately:
 - propagation of checkpoint and recovery state through both API responses and
   the shipped browser.
 
-The tests prove recovery mechanics without network or model spend. They do not
-yet establish a production recovery-rate, token-saving, or cost-saving claim;
-those numbers require controlled fault injection over real paid runs.
+The tests prove individual recovery seams without network or model spend. A
+separate [pre-registered process fault audit](prereg-2026-08-23-checkpoint-fault-recovery.md)
+then exercised the complete worker boundary over ten frozen evidence inputs and
+three post-commit crash points. Its [result](results-2026-08-23-checkpoint-fault-recovery.md)
+was 30/30 recovered children, 90 committed task executions skipped by children,
+and zero duplicated task executions. Parent run-id paths were absent while the
+children ran, and all detached parent tree hashes remained unchanged.
+
+That audit used deterministic local task outputs. It establishes the offline
+mechanics, not a production recovery rate, provider token/cost reduction,
+latency improvement, Railway SLO, or exactly-once execution. Those claims still
+require a separately authorized paid fault injection.
