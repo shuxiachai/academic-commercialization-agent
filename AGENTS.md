@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1266 tests (545 subtests), CI green on Linux + Windows × Python
+Current state: 1280 tests (551 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -62,6 +62,7 @@ is, in this order:
 | Why does this test exist? | Its docstring names the specific failure it caught |
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
+| How does crash recovery work? | `docs/checkpoint-recovery.md` — identity, persistence, authorization, observable states, and the at-least-once boundary |
 | Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,095 lines, 57 write-ups. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
@@ -140,10 +141,14 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
   source_pipeline.py    ~2,900 lines, retrieval for all three domains
   evidence.py           models, guardrails, scoring rubric
   pipeline_worker.py    the subprocess one run executes in
+  checkpoint_runtime.py
+                        CrewAI hydration, task identity, and post-guardrail commits
+  run_spec.py           immutable, non-secret input contract for child recovery
+  checkpoints.py        atomic content-addressed storage and inspection states
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  55 test modules plus conftest, organised by subject
+tests/                  60 test modules plus conftest, organised by subject
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering
@@ -153,11 +158,20 @@ user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 
 Runs are subprocesses writing to `outputs/<run_id>/`; the API, the browser and
 the CLI all observe the same run through those files rather than shared memory.
-A run URL is a capability — the id is the credential.
+A run URL is a read capability. Mutating a code-owned run additionally requires
+its owner/admin code; an ownerless BYOK run has no second server-side identity.
+Failed, cancelled, or timed-out runs with a retrieval checkpoint can start an
+immutable child from the longest validated prefix. The child snapshots its
+parent before launch, requires fresh credentials, and reports persistence and
+reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
 
 ## Things that are known-open
 
 - Blocking on uncited claims (above) — needs the detector tighter first.
+- Node-level recovery mechanics are covered by zero-network fault/restart tests,
+  but there is no paid production fault-injection result yet. Do not claim a
+  recovery-rate, token reduction, cost reduction, or exactly-once provider
+  execution until those values have been measured.
 - The benchmark's input distribution misses the shapes real traffic has:
   Chinese topics, very short inputs, non-technical topics. Before adding them,
   decide whether each is a "should succeed" or a "should fail gracefully" case;

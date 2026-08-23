@@ -91,7 +91,9 @@ function startClock(fromSeconds) {
   clock = setInterval(paint, 1000);
 }
 
-function paintHeader({ topic, state, elapsed_seconds, source_counts, usage }) {
+function paintHeader({
+  topic, state, elapsed_seconds, source_counts, usage, checkpointing, recovery,
+}) {
   if (topic) $("#run-title").textContent = topic;
 
   const pill = $("#run-pill");
@@ -115,9 +117,26 @@ function paintHeader({ topic, state, elapsed_seconds, source_counts, usage }) {
   const spendEl = $("#run-usage");
   spendEl.textContent = spend ? `· ${spend}` : "";
   spendEl.title = spend ? runView.usageTitle(usage) : "";
+
+  const recoveryEl = $("#run-recovery");
+  const reused = recovery?.reused_nodes?.length ?? 0;
+  const badges = [];
+  const details = [];
+  if (recovery?.state === "reused" && reused > 0) {
+    badges.push(t("recovery_reused_short").replace("{count}", String(reused)));
+    if (recovery.source_run_id) details.push(recovery.source_run_id);
+  }
+  // Reuse and a failed child-side checkpoint write can coexist. Showing only
+  // the cache hit would turn degraded recoverability into an apparent pass.
+  if (checkpointing?.state === "degraded") {
+    badges.push(t("recovery_degraded_short"));
+    details.push(...(checkpointing.errors ?? []));
+  }
+  recoveryEl.textContent = badges.length ? `· ${badges.join(" · ")}` : "";
+  recoveryEl.title = details.join("\n");
 }
 
-function paintActions(state) {
+function paintActions(state, checkpointing = null) {
   const actions = $("#run-actions");
   actions.innerHTML = "";
 
@@ -165,6 +184,31 @@ function paintActions(state) {
     }
   }
 
+  const canResume = (
+    new Set(["failed", "cancelled", "timeout"]).has(state)
+    && checkpointing?.committed_nodes?.includes("retrieval")
+  );
+  if (canResume) {
+    const sourceRunId = activeRunId;
+    const resume = document.createElement("button");
+    resume.type = "button";
+    resume.className = "btn btn--secondary";
+    resume.textContent = t("resume");
+    resume.addEventListener("click", async () => {
+      resume.disabled = true;
+      try {
+        const accepted = await api.resumeRun(sourceRunId);
+        if (byokMode) api.addByokRun(accepted.run_id, accepted.topic);
+        toast(t("msg_resumed"), "success");
+        openRun(accepted.run_id, { known: accepted });
+      } catch (err) {
+        resume.disabled = false;
+        toast(err.message, "error");
+      }
+    });
+    actions.append(resume);
+  }
+
   // Every terminal state — completed, failed, cancelled, timeout — can be
   // permanently removed; only a still-running one (handled above, which
   // already returned) cannot.
@@ -183,18 +227,18 @@ async function openRun(runId, { known } = {}) {
   const body = $("#run-body");
   body.innerHTML = "";
   paintHeader({ topic: known?.topic ?? "…", state: known?.state ?? "running" });
-  paintActions(known?.state ?? "running");
+  paintActions(known?.state ?? "running", known?.checkpointing);
   history.pushState({}, "", `/run/${runId}`);
 
   follower = runView.follow(runId, {
     onUpdate(progress) {
       paintHeader(progress);
-      paintActions(progress.state);
+      paintActions(progress.state, progress.checkpointing);
       runView.renderStages(body, runView.stageStates(progress.stage, progress.state));
     },
     onDone(progress) {
       paintHeader(progress);
-      paintActions(progress.state);
+      paintActions(progress.state, progress.checkpointing);
       runView.renderStages(body, runView.stageStates(progress.stage, progress.state));
       refreshSidebar();
 

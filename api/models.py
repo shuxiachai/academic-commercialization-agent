@@ -62,6 +62,36 @@ class RunRequest(BaseModel):
     def byok(self) -> bool:
         return self.llm_provider is not None
 
+class ResumeRunRequest(BaseModel):
+    """Fresh credentials for POST /api/runs/{run_id}/resume."""
+
+    # Recovery never persists credentials from the source run. A BYOK caller
+    # must supply a complete fresh set, while an access-code caller leaves the
+    # body empty and uses the deployment's configured providers.
+    llm_provider: str | None = Field(
+        default=None,
+        description=f"Bring-your-own-key provider: one of {BYOK_PROVIDERS}.",
+    )
+    llm_api_key: str | None = Field(default=None, description="Fresh LLM API key.")
+    serper_api_key: str | None = Field(default=None, description="Fresh Serper API key.")
+
+    @model_validator(mode="after")
+    def _byok_is_all_or_nothing(self) -> "ResumeRunRequest":
+        fields = (self.llm_provider, self.llm_api_key, self.serper_api_key)
+        if any(fields) and not all(fields):
+            raise ValueError(
+                "llm_provider, llm_api_key and serper_api_key must be provided together, "
+                "or all omitted to use the deployment's own keys."
+            )
+        if self.llm_provider is not None and self.llm_provider not in BYOK_PROVIDERS:
+            raise ValueError(f"llm_provider must be one of {BYOK_PROVIDERS}.")
+        return self
+
+    @property
+    def byok(self) -> bool:
+        return self.llm_provider is not None
+
+
 
 class PaperExtraction(BaseModel):
     """Structured contribution extracted from an uploaded PDF.
@@ -169,6 +199,17 @@ class RunProgress(BaseModel):
                     "an attempt because OTLP provides no persistence "
                     "acknowledgement. Absent for runs created before tracing.",
     )
+    checkpointing: dict | None = Field(
+        default=None,
+        description="Durable node-output persistence state. 'degraded' means the "
+                    "assessment may still finish but a later process cannot safely "
+                    "reuse every validated node.",
+    )
+    recovery: dict | None = Field(
+        default=None,
+        description="Whether recovery was requested, which validated nodes were "
+                    "reused, and the first node that still had to execute.",
+    )
     output_language: str = "English"
     steps: list[StepEvent] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
@@ -180,6 +221,7 @@ class RunAccepted(BaseModel):
     run_id: str
     state: RunState
     topic: str
+    resumed_from: str | None = None
 
 
 class RunStatus(BaseModel):
@@ -247,6 +289,17 @@ class RunStatus(BaseModel):
                     "run. 'active' means configured, while delivery remains "
                     "an attempt because OTLP provides no persistence "
                     "acknowledgement. Absent for runs created before tracing.",
+    )
+    checkpointing: dict | None = Field(
+        default=None,
+        description="Durable node-output persistence state. 'degraded' means the "
+                    "assessment may still finish but a later process cannot safely "
+                    "reuse every validated node.",
+    )
+    recovery: dict | None = Field(
+        default=None,
+        description="Whether recovery was requested, which validated nodes were "
+                    "reused, and the first node that still had to execute.",
     )
     artifacts: list[str] = Field(
         default_factory=list,

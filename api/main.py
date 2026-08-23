@@ -42,6 +42,7 @@ from api.models import (  # noqa: E402
     HealthStatus,
     PaperExtraction,
     ReadinessStatus,
+    ResumeRunRequest,
     RunAccepted,
     RunList,
     RunProgress,
@@ -245,12 +246,12 @@ async def _access_gate(request: Request, call_next):
       decision needs the parsed body, which a middleware does not cheaply
       have — for /api/papers the body is a multipart upload, less cheaply
       still.
-    - GET/DELETE /api/runs/{id}/... — a specific run, addressed by its id, is
-      a capability URL: the id itself (128 bits of randomness, see
-      create_run_id) is the credential, the same trust model already used for
-      sharing a finished report's link. Reading or cancelling one run costs
-      nothing further, unlike GET /api/runs (no id), which lists every run on
-      the deployment and stays gated.
+    - /api/runs/{id}/... routes bypass this global list gate because reads
+      use the run id as a capability. Their mutating handlers independently
+      verify ownership before cancellation, deletion, or a paid child resume.
+      Keeping that decision in the handler also lets resume parse fresh BYOK
+      credentials without consuming and rebuilding the request body here.
+      GET /api/runs itself stays gated because it lists deployment history.
     """
     path = request.url.path
     if not path.startswith("/api/"):
@@ -277,13 +278,13 @@ async def _access_gate(request: Request, call_next):
     return await call_next(request)
 
 
-def _authorize_destructive(run_id: str, http_request: Request) -> None:
-    """Require the code that owns this run before cancelling or deleting it.
+def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
+    """Require proof of ownership before mutating or restarting a run.
 
     The access-gate middleware exempts /api/runs/{id}/... so a report link
-    can be shared without handing over the access code. That exemption is
-    right for reads and wrong for destructive calls, which is why this check
-    lives in the handler rather than the middleware.
+    can be shared without an access code. That exemption is right for reads
+    and insufficient for cancellation, deletion, or a paid recovery child,
+    which is why each mutating handler calls this check explicitly.
 
     Raises 404 rather than 403 on a mismatch: a distinct "forbidden" would
     confirm to a caller probing ids that a given run exists. Capability URLs
@@ -514,6 +515,79 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
 
     return RunAccepted(run_id=run_id, state="running", topic=request.topic)
 
+@app.post(
+    "/api/runs/{run_id}/resume",
+    response_model=RunAccepted,
+    status_code=202,
+    tags=["runs"],
+    responses={
+        401: {"description": "Fresh access-code or BYOK credentials are required"},
+        404: {"description": "Unknown run_id or caller does not own the source run"},
+        409: {"description": "Run is active, completed, or has no resumable checkpoint"},
+        429: {"description": "Concurrency or daily paid-operation limit reached"},
+    },
+)
+def resume_run(
+    run_id: str,
+    request: ResumeRunRequest,
+    http_request: Request,
+) -> RunAccepted:
+    """Start an immutable child that reuses only validated source checkpoints.
+
+    A resume is a new paid operation, not an in-place process restart. The
+    failed source remains untouched for audit, fresh credentials cross the
+    subprocess boundary, and the worker independently validates every content
+    hash before skipping a node. A stale or corrupt prefix therefore falls
+    back to execution rather than becoming an unearned successful recovery.
+    """
+    _authorize_run_mutation(run_id, http_request)
+    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    if matched is None and not request.byok and access.gate_enabled():
+        raise HTTPException(
+            status_code=401,
+            detail="Provide the access code, or fresh BYOK credentials to resume.",
+        )
+    owner = access.owner_id(matched) if matched else None
+    byok = (
+        runs.BYOKCredentials(
+            request.llm_provider, request.llm_api_key, request.serper_api_key
+        )
+        if request.byok
+        else None
+    )
+
+    try:
+        child_id, child_directory = runs.resume_run(
+            run_id, byok=byok, owner=owner
+        )
+    except runs.RunNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except runs.RunNotResumable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except runs.ConcurrencyLimitReached as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=f"{exc}. Retry once another paid operation finishes.",
+        ) from exc
+    except runs.DailyCapReached as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
+        ) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to resume worker: {exc}") from exc
+
+    # Read from the child's frozen contract rather than trusting status.json;
+    # the worker may not have produced its first status write before this 202.
+    topic = runs.RunSpec.load(child_directory).topic
+    return RunAccepted(
+        run_id=child_id,
+        state="running",
+        topic=topic,
+        resumed_from=run_id,
+    )
+
+
 
 @app.get("/api/runs", response_model=RunList, tags=["runs"])
 def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200)) -> RunList:
@@ -576,7 +650,7 @@ def delete_run(run_id: str, http_request: Request) -> dict:
     links, and a reader who was handed a report link should not thereby be
     able to delete it out from under its owner.
     """
-    _authorize_destructive(run_id, http_request)
+    _authorize_run_mutation(run_id, http_request)
 
     try:
         runs.cancel_run(run_id)
@@ -669,6 +743,8 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         quality_review=state.get("quality_review"),
         consistency=state.get("consistency"),
         observability=state.get("observability"),
+        checkpointing=state.get("checkpointing"),
+        recovery=state.get("recovery"),
         steps=[StepEvent(**s) for s in runs.read_steps(run_id, since=since)],
         artifacts=state.get("artifacts", []),
     )

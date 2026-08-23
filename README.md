@@ -242,6 +242,15 @@ Step 6     Agent 6 — Quantitative scoring  (independent of report; formula aut
 
 The pipeline runs in a **subprocess** (`pipeline_worker.py`) so a run can be cancelled immediately via `proc.terminate()` rather than waiting for the current agent to finish.
 
+Every post-guardrail node output is also published as a non-secret,
+content-addressed checkpoint. A failed, cancelled, or timed-out run can start
+an immutable child that validates and reuses the longest matching task prefix;
+the original run remains untouched for audit. Recovery uses fresh credentials,
+shares the normal paid-operation limits, and is at-least-once—not
+exactly-once—at the external Provider boundary. See
+[Node-level checkpoint recovery](docs/checkpoint-recovery.md) for the complete
+identity, authorization, failure, and observability contract.
+
 ---
 
 ### Report structure
@@ -383,6 +392,10 @@ the API — no build step and no framework, so what is in `web/` is what runs.
 - **Reliability**: a separate panel distinguishes a failed retrieval domain,
   incomplete clinical-authority coverage, a check that could not run, and a
   check that ran without finding a problem — silence is never rendered as pass
+- **Crash recovery**: terminal failures with a durable retrieval checkpoint can
+  start an immutable child run. The header reports reused stages or degraded
+  checkpointing; fresh BYOK credentials are sent again and never recovered
+  from disk
 - **Attach a paper**: drop a PDF on the composer and it becomes source A1; the
   pipeline then searches around that paper's specific contribution. Its DOI
   and URL were read out of the PDF by a model, so they are resolved before
@@ -407,6 +420,10 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5
 
 # Fetch the report once state is "completed"
 curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
+
+# Resume a failed/cancelled/timed-out run as an immutable child
+curl -X POST http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/resume \
+     -H 'Content-Type: application/json' -d '{}'
 ```
 
 | Method | Path | Purpose |
@@ -414,6 +431,7 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
 | `GET` | `/health` | Liveness, active-run and shared paid-operation capacity, resolved LLM provider |
 | `POST` | `/api/papers` | Upload a PDF and extract its contribution (`429` at shared paid capacity) |
 | `POST` | `/api/runs` | Queue an assessment (`202`, or `429` at shared paid capacity) |
+| `POST` | `/api/runs/{id}/resume` | Start a recovery child from validated checkpoints (`202`) |
 | `GET` | `/api/runs` | List runs, newest first |
 | `GET` | `/api/runs/{id}` | Stage, state, elapsed time, available artifacts |
 | `DELETE` | `/api/runs/{id}` | Terminate a running assessment |
@@ -623,12 +641,15 @@ as it's open. `POST /api/papers` accepts the same BYOK LLM provider/key pair
 runs enter the shared paid-operation admission boundary before calling a
 provider.
 
-`GET /api/runs` (the run-history list) always stays behind a code
-regardless of any of this — opening it up would show every visitor's topics
-to every other visitor. Reading or cancelling one specific run by its id
-needs no code either way — the id itself carries 128 bits of randomness, the
-same capability-URL trust model already used for sharing a finished
-report's link.
+`GET /api/runs` (the run-history list) always stays behind a code regardless
+of any of this — opening it up would show every visitor's topics to every
+other visitor. Reading one specific run still uses an id carrying 128 bits of randomness
+as a capability URL. Mutation is stricter: cancelling, deleting, or resuming a
+code-owned run requires the same owner code (or the admin code). Ownerless
+BYOK runs have no second server-side identity, so their id remains the
+mutation capability; recovery nevertheless requires a fresh complete BYOK
+credential set. A resume creates a new child and enters the same concurrency
+and paid-operation admission boundary as a new run.
 
 **Deploying to Railway specifically:** the Dockerfile builds cleanly with
 plain `docker build`/`docker-compose`, but Railway's builder is stricter
@@ -757,6 +778,9 @@ academic_agent/
 ├── src/academic_agent/
 │   ├── crew.py              # Crew definition (6 agents / tasks wired together)
 │   ├── pipeline_worker.py   # Subprocess worker: runs pipeline, writes status.json + steps.jsonl
+│   ├── checkpoint_runtime.py # CrewAI adapter: validates and restores a contiguous task prefix
+│   ├── checkpoints.py       # Atomic, content-addressed node checkpoint contracts
+│   ├── run_spec.py          # Frozen non-secret run inputs used by recovery
 │   ├── main.py              # CLI entry point (--topic "your topic" flag)
 │   ├── evidence.py          # Evidence models, guardrail validators, CommercializationScore
 │   ├── source_pipeline.py   # Structured pre-agent source collection & validation
@@ -807,6 +831,7 @@ academic_agent/
 - **Academic metadata**: Crossref API (DOI verification and abstract retrieval)
 - **Data validation**: Pydantic v2 + custom guardrails (source structure, citation integrity, report structure, scoring formula, hallucinated source ID detection)
 - **Agent observability**: OpenTelemetry + OpenInference instrumentors with redacted content and optional Arize Phoenix OTLP export
+- **Durable recovery**: content-addressed node checkpoints keyed by input, evidence, configuration, and pipeline hashes; immutable child runs reuse only a validated contiguous prefix and require fresh BYOK credentials
 - **Web client**: static HTML, CSS and ES modules served by FastAPI — no build step, no framework
 - **HTTP API**: FastAPI + Uvicorn, serving both the client and the JSON API (OpenAPI docs at `/docs`)
 - **PDF export**: reportlab Platypus (embedded TTFont for CJK; falls back to CID fonts)
@@ -1030,6 +1055,13 @@ Step 6     Agent 6 — 量化评分（独立于报告；公式自动修正）
 
 流水线在 **子进程**（`pipeline_worker.py`）中运行，可通过 `proc.terminate()` 即时取消，无需等待当前智能体结束。
 
+每个通过 guardrail 的节点输出还会发布为不含密钥、按内容寻址的检查点。失败、
+取消或超时的运行可创建一个不可变子运行，逐项验证并复用最长连续匹配前缀；
+原运行保持不变以便审计。恢复必须使用新凭据、共用正常付费操作限额，而且在
+外部 Provider 边界提供的是 at-least-once，而不是 exactly-once。完整的身份、
+授权、失败和可观测性契约见
+[节点级检查点恢复](docs/checkpoint-recovery.md)。
+
 ---
 
 ### 报告结构
@@ -1157,6 +1189,7 @@ uv run uvicorn api.main:app --port 8000
 - **实时进度**：Phase 1 并行三个 Agent 的独立状态行 + 已用时间
 - **评分卡**：综合分（0–100）+ 五维雷达图 + 条形图，每个维度展示支撑来源 ID 标签（如 `A2` `M1`）；Weight Profile 徽章显示当前使用的评分权重方案
 - **来源与权威覆盖**：检索域失败或适用临床主题缺少监管/试验注册来源时显示警告，但不把“没检索到”写成“不存在”
+- **崩溃恢复**：已持久化检索检查点的失败运行可创建不可变子运行；标题栏显示复用阶段数或检查点降级状态，BYOK 凭据必须重新提供且不会从磁盘恢复
 - **报告**：Markdown 全文渲染 + `.md` / `.pdf` 双格式下载（PDF 后台生成，报告立即显示）
 - **History 标签页**：浏览所有历史运行；点击任意行自动填入 Run ID；包含 Run ID 列便于复制
 
@@ -1178,6 +1211,10 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5
 
 # state 变为 completed 后获取报告
 curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
+
+# 将失败/取消/超时运行恢复为一个不可变子运行
+curl -X POST http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/resume \
+     -H 'Content-Type: application/json' -d '{}'
 ```
 
 | 方法 | 路径 | 用途 |
@@ -1185,6 +1222,7 @@ curl http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/report
 | `GET` | `/health` | 存活检查、运行数、共享付费操作容量、已解析的 LLM provider |
 | `POST` | `/api/papers` | 上传 PDF 并提取贡献（共享付费容量满时返回 `429`） |
 | `POST` | `/api/runs` | 提交评估任务（共享付费容量满时返回 `429`） |
+| `POST` | `/api/runs/{id}/resume` | 从已验证检查点创建恢复子运行（`202`） |
 | `GET` | `/api/runs` | 列出历史运行，最新在前 |
 | `GET` | `/api/runs/{id}` | 阶段、状态、已用时长、可用产物清单 |
 | `DELETE` | `/api/runs/{id}` | 终止运行中的任务 |
@@ -1294,7 +1332,7 @@ token 是测出来的，成本不是：它需要一份本程序无法验证的�
 
 **第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为任意访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要配置了口令，网页客户端就会在门禁弹窗里自动多出这个选项；不设口令时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。BYOK 提交的运行不会被打上任何口令标记，所以服务端不会把它记进任何一个口令的历史里；网页客户端转而在 `sessionStorage` 里维护一份访客自己这次会话提交过的运行列表，让侧栏依然能显示自己提交过什么——标签页一关就消失，标签页开着的时候完整可见。`POST /api/papers` 同样接受 BYOK 的 LLM provider/key（提取不需要搜索 Key）；PDF 提取与完整运行都会在调用 Provider 前进入同一付费操作准入边界。
 
-`GET /api/runs`（运行历史列表）无论如何都始终留在口令后面——开放的话会把每个访客的话题暴露给所有其他访客。按 `run_id` 读取或取消某一次具体的运行则不需要口令——`run_id` 本身带 128 位随机性，用的是和"分享一份已完成报告的链接"同一套能力令牌信任模型。
+`GET /api/runs`（运行历史列表）无论如何都始终留在口令后面——开放的话会把每个访客的话题暴露给所有其他访客。按 `run_id` 读取单次运行仍依赖 128 位随机性，并采用能力 URL；写操作更严格：取消、删除或恢复带归属标记的运行必须提供同一归属口令（或管理员口令）。BYOK 运行没有第二份服务端身份，因此其 `run_id` 仍是写操作能力，但恢复时仍必须重新提供完整 BYOK 凭据。恢复会创建新子运行，并与新运行共用相同的并发和付费操作准入边界。
 
 **`ACCESS_CODE_ADMIN`** 是再多的一个口令，授权运行的方式和其他口令完全一样（有自己的归属标记、自己的每日额度），但它不受历史列表过滤的限制——持有这个口令的人能看到所有口令的历史合在一起，用来确认"到底哪几个口令真的被用过"而不用一个个去查。
 
@@ -1383,6 +1421,9 @@ academic_agent/
 ├── src/academic_agent/
 │   ├── crew.py              # Crew 定义（6 个 Agent / Task 接线）
 │   ├── pipeline_worker.py   # 子进程 Worker：运行流水线，写入 status.json + steps.jsonl
+│   ├── checkpoint_runtime.py # CrewAI 适配层：校验并恢复连续任务前缀
+│   ├── checkpoints.py       # 原子写入、内容寻址的节点 Checkpoint 契约
+│   ├── run_spec.py          # 恢复使用的冻结、非敏感运行输入
 │   ├── main.py              # 命令行入口（支持 --topic 参数）
 │   ├── evidence.py          # 证据模型、guardrail 校验、CommercializationScore 模型
 │   ├── source_pipeline.py   # 六智能体启动前的结构化来源收集与验证
@@ -1431,6 +1472,7 @@ academic_agent/
 - **学术元数据**：Crossref API（DOI 验证与摘要检索）+ 并发引用数补全
 - **数据校验**：Pydantic v2 + 自定义 guardrail（来源结构、引用完整性、报告结构、幻觉来源 ID 检测、评分算法验证）
 - **Agent 可观测性**：OpenTelemetry + OpenInference 自动埋点，内容脱敏，可选导出到 Arize Phoenix OTLP 后端
+- **持久化恢复**：按输入、证据、配置与流水线哈希寻址的节点级 Checkpoint；不可变子运行仅复用已验证的连续前缀，BYOK 恢复必须重新提供凭据
 - **网页客户端**：静态 HTML / CSS / ES 模块，由 FastAPI 托管——无构建步骤、无框架
 - **HTTP API**：FastAPI + Uvicorn（OpenAPI 文档位于 `/docs`）
 - **PDF 导出**：reportlab Platypus（嵌入式 TTFont，支持 CJK；回退至 CID 字体）
