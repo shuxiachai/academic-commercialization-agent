@@ -93,13 +93,18 @@ justify removing the production Scorer: Reviewer value still awaits a blinded
 [topology ablation](docs/prereg-2026-08-21-agent-topology-ablation.md) and
 [Reviewer audit](docs/prereg-2026-08-22-reviewer-value-audit.md) documents.
 
-A separate small-panel user-utility audit is now **pre-registered and
-prepared, not completed**. It reuses ten matched full/monolith pairs over
-identical frozen evidence, distributes the primary round across 3–5 reviewers,
-and requires no new model calls. As of 2026-08-22 it has **0 eligible human
-judgments**, so the repository still makes no claim that target users find the
-reports useful. Recruitment, distribution, and claim boundaries are documented
-in the [small-panel audit guide](docs/user-utility-audit-guide.md).
+A separate pre-registered user-utility audit is now complete: five reviewers
+made **20 eligible blinded judgments** over ten matched full/monolith pairs and
+two independently assigned rounds, with no new model calls. Both rounds
+reproduced a 6/10 versus 4/10 full-workflow advantage in overall preference and
+decision usefulness, but both **failed the pre-registered criterion** because
+the monolith was allowed at most 2/10 wins. Across both rounds the monolith led
+information gain 11/20 to 5/20, and only 2/10 topics selected the same topology
+across reviewers. The result is a small proxy-user study with one target user,
+not adoption or proof that six agents are necessary. See the
+[protocol](docs/prereg-2026-08-22-user-utility-audit.md),
+[audit guide](docs/user-utility-audit-guide.md), and
+[full result](docs/results-2026-08-23-user-utility-audit.md).
 
 A separate human-label audit now answers a retrieval question that the
 structural benchmark cannot: whether patents accepted by the pipeline are
@@ -906,11 +911,14 @@ TRL 校准将评分卡与基于公开里程碑建立、可独立核查的区间�
 [拓扑消融文档](docs/prereg-2026-08-21-agent-topology-ablation.md)与
 [Reviewer 盲评文档](docs/prereg-2026-08-22-reviewer-value-audit.md)。
 
-另有一组小样本用户效用盲评已经**预注册并完成材料准备，但尚未完成评审**。
-它复用同一冻结证据下的 10 组完整工作流 / 单节点配对报告，将第一轮分摊给
-3–5 名评审者，不产生新的模型费用。截至 2026-08-22，符合条件的人类判断仍为
-**0 条**，因此项目尚不声称目标用户认为报告有用。招募、发放和结论边界见
-[小样本盲评操作指南](docs/user-utility-audit-guide.md)。
+另有一组预注册用户效用盲评已经完成：5 名评审者对同一冻结证据下的 10 组
+完整工作流 / 单节点报告完成两轮交叉分配，共得到 **20 条合格匿名判断**，且
+没有新增模型调用。两轮的总体偏好和决策价值均复现为完整工作流 6/10、单节点
+4/10，但都因单节点超过预注册最多 2/10 的上限而**未通过成功标准**；两轮合计
+信息增量反而由单节点以 11/20 对 5/20 领先，同一主题跨评审仅 2/10 选择相同
+架构。评审构成只有 1 名目标用户，因此结果是小样本代理用户证据，不是采用率、
+ROI 或“六 Agent 必要性”证明。详见[预注册](docs/prereg-2026-08-22-user-utility-audit.md)、
+[操作指南](docs/user-utility-audit-guide.md)和[完整结果](docs/results-2026-08-23-user-utility-audit.md)。
 
 另有一组专利来源相关性人工审计，覆盖 10 个公开基准主题的全部 75 条已接受
 专利，以及 6 条事后构造的钠离子储能 challenge。首组逐项人工标签显示，核心

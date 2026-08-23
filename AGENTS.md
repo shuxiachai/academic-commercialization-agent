@@ -62,7 +62,7 @@ is, in this order:
 | Why does this test exist? | Its docstring names the specific failure it caught |
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,014 lines, 55 write-ups. Ask the user for access if you need it |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,053 lines, 56 write-ups. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's
@@ -171,9 +171,14 @@ A run URL is a capability — the id is the credential.
   compared and rejected: it falsely dropped 6 relevant patents and sent 36/81
   cases to review. Production filtering remains unchanged. The next method must
   be semantic/claim-scope with abstention and must face an unseen challenge.
-- **No evidence exists yet that the output is *useful*.** A pre-registered
-  3–5-reviewer protocol, ten matched report pairs, distributable packets, and a
-  strict summarizer now exist, but 0 eligible human judgments have been
-  collected. Everything the project can currently demonstrate is that it does
-  not lie — citations check out, formulas are right, hallucination rate is 0.
-  Whether a TTO officer would act on a report remains the gap that matters most.
+- **The first user-utility result is complete, and it did not prove the
+  six-stage advantage.** Five reviewers returned 20/20 eligible blinded
+  judgments over two rounds. Both rounds preferred the full workflow 6:4 for
+  decision usefulness, but both failed the pre-registered rule because the
+  monolith was allowed at most two wins. Across both rounds the monolith won
+  information gain 11:5, and topic-level agreement was only 2/10. The panel had
+  one target user, one technical proxy, and three other reviewers; several
+  returned enums required disclosed post-return coding. This is small proxy-user
+  evidence, not adoption, ROI, accuracy, or proof that six agents are necessary.
+  See docs/results-2026-08-23-user-utility-audit.md. The largest remaining gap
+  is independent utility evidence from more actual target users.
