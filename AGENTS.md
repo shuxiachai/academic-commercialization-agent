@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1284 tests (551 subtests), CI green on Linux + Windows × Python
+Current state: 1285 tests (551 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -63,7 +63,7 @@ is, in this order:
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
 | How does crash recovery work? | `docs/checkpoint-recovery.md` — identity, persistence, authorization, observable states, the 30/30 offline process audit, and the at-least-once boundary |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,212 lines, 58 write-ups. Ask the user for access if you need it |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,217 lines, 58 write-ups. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's
@@ -148,7 +148,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  61 test modules plus conftest, organised by subject
+tests/                  62 test modules plus conftest, organised by subject
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Every JavaScript action below deliberately uses a major whose official
+# action.yml declares Node 24.  Older majors still appear to pass because
+# GitHub temporarily forces them onto Node 24, but that compatibility shim emits
+# a deprecation warning and is not a stable runtime contract.
 jobs:
   test:
     name: pytest (${{ matrix.os }}, py${{ matrix.python-version }})
@@ -20,10 +24,10 @@ jobs:
         python-version: ["3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v10
         with:
           version: "latest"
           python-version: ${{ matrix.python-version }}
@@ -40,9 +44,9 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v10
         with:
           version: "latest"
           python-version: "3.12"
@@ -66,9 +70,9 @@ jobs:
     name: docker build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # The image build runs scripts/verify_container_fonts.py, and that check
       # is the point of this job. The font the exporter needs is decided by two
@@ -83,7 +87,7 @@ jobs:
       # Nothing in the test suite can catch that: it depends on which font
       # files the base image happens to contain.
       - name: Build image (runs the CJK font check)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
