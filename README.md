@@ -113,6 +113,17 @@ not adoption or proof that six agents are necessary. See the
 [audit guide](docs/user-utility-audit-guide.md), and
 [full result](docs/results-2026-08-23-user-utility-audit.md).
 
+A separate pre-registered checkpoint audit hard-terminated **30 worker
+processes** across ten frozen evidence collections and three post-commit
+boundaries. All 30 immutable children reached `Done`, reused exactly the
+expected contiguous prefix, and executed exactly the remaining suffix; **90
+committed task executions were skipped with 0 duplicate task executions**.
+This is zero-network evidence for recovery mechanics, not a real-provider cost,
+latency, exactly-once, or Railway SLO result. See the
+[protocol](docs/prereg-2026-08-23-checkpoint-fault-recovery.md),
+[result](docs/results-2026-08-23-checkpoint-fault-recovery.md), and
+[sanitized 30-row evidence](evals/checkpoint_recovery/checkpoint-fault-recovery-offline-v1.csv).
+
 A separate human-label audit now answers a retrieval question that the
 structural benchmark cannot: whether patents accepted by the pipeline are
 actually topically relevant. The frozen packet contains all **75** patent
@@ -955,6 +966,14 @@ Reviewer 版本。整体偏好的精确一致率为 9/9，引用支持为 8/9，
 架构。评审构成只有 1 名目标用户，因此结果是小样本代理用户证据，不是采用率、
 ROI 或“六 Agent 必要性”证明。详见[预注册](docs/prereg-2026-08-22-user-utility-audit.md)、
 [操作指南](docs/user-utility-audit-guide.md)和[完整结果](docs/results-2026-08-23-user-utility-audit.md)。
+
+另有一组预注册 Checkpoint 故障恢复实验，在 10 份冻结证据和 3 个提交后边界上
+硬终止 **30 个 worker 进程**。30/30 个不可变子运行均到达 `Done`，精确复用预期
+连续前缀并只执行剩余后缀；子运行共跳过 **90 次已提交任务执行**，重复执行为
+**0**。该结果只证明零网络条件下的恢复机制，不代表真实供应商成本/时延、
+exactly-once 或 Railway SLO。详见[预注册](docs/prereg-2026-08-23-checkpoint-fault-recovery.md)、
+[结果](docs/results-2026-08-23-checkpoint-fault-recovery.md)和
+[30 行脱敏证据](evals/checkpoint_recovery/checkpoint-fault-recovery-offline-v1.csv)。
 
 另有一组专利来源相关性人工审计，覆盖 10 个公开基准主题的全部 75 条已接受
 专利，以及 6 条事后构造的钠离子储能 challenge。首组逐项人工标签显示，核心

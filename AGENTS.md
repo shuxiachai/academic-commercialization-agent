@@ -13,13 +13,13 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1280 tests (551 subtests), CI green on Linux + Windows × Python
+Current state: 1284 tests (551 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
 
 ```bash
-uv run pytest -q                       # the whole suite; ~7s, zero network
+uv run pytest -q                       # the whole suite; ~24s on Windows, zero network
 uv run --with ruff ruff check .        # CI uses latest ruff, the local pin is older
 uv run uvicorn api.main:app --reload   # web client on :8000
 uv run academic_agent --topic "<topic>"          # one run from the CLI
@@ -62,8 +62,8 @@ is, in this order:
 | Why does this test exist? | Its docstring names the specific failure it caught |
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
-| How does crash recovery work? | `docs/checkpoint-recovery.md` — identity, persistence, authorization, observable states, and the at-least-once boundary |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,095 lines, 57 write-ups. Ask the user for access if you need it |
+| How does crash recovery work? | `docs/checkpoint-recovery.md` — identity, persistence, authorization, observable states, the 30/30 offline process audit, and the at-least-once boundary |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,212 lines, 58 write-ups. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's
@@ -148,12 +148,14 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  60 test modules plus conftest, organised by subject
+tests/                  61 test modules plus conftest, organised by subject
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
+checkpoint_fault_audit.py
+                        pre-registered hard-kill/restart matrix and strict checker
 ```
 
 Runs are subprocesses writing to `outputs/<run_id>/`; the API, the browser and
@@ -168,10 +170,13 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
 ## Things that are known-open
 
 - Blocking on uncited claims (above) — needs the detector tighter first.
-- Node-level recovery mechanics are covered by zero-network fault/restart tests,
-  but there is no paid production fault-injection result yet. Do not claim a
-  recovery-rate, token reduction, cost reduction, or exactly-once provider
-  execution until those values have been measured.
+- The pre-registered offline process audit recovered 30/30 immutable children
+  across ten frozen evidence collections and three post-commit boundaries. It
+  skipped 90 committed task executions with zero duplicate task executions.
+  This closes the offline mechanics question only: there is still no paid
+  provider or production Railway fault-injection result. Do not turn it into a
+  token reduction, cost reduction, latency, production-SLO, or exactly-once
+  claim. See `docs/results-2026-08-23-checkpoint-fault-recovery.md`.
 - The benchmark's input distribution misses the shapes real traffic has:
   Chinese topics, very short inputs, non-technical topics. Before adding them,
   decide whether each is a "should succeed" or a "should fail gracefully" case;

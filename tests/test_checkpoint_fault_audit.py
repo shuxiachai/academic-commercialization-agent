@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import copy
 import hashlib
 from datetime import UTC, date, datetime
@@ -129,3 +130,28 @@ def test_checker_does_not_treat_an_uninspectable_study_as_zero_failures(
     assert summary["observed_unit_records"] == 0
     assert summary["passing_units"] == 0
     assert summary["study_errors"]
+
+
+def test_published_result_matches_the_frozen_30_unit_claim() -> None:
+    """Keep the public row evidence and aggregate README claim on one seam."""
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "evals"
+        / "checkpoint_recovery"
+        / "checkpoint-fault-recovery-offline-v1.csv"
+    )
+    with path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert len(rows) == 30
+    assert len({row["unit_id"] for row in rows}) == 30
+    assert {row["scenario_id"] for row in rows} == {
+        "after_academic",
+        "after_market",
+        "after_reviewer",
+    }
+    assert all(row["passed"] == "true" for row in rows)
+    assert sum(int(row["parent_task_count"]) for row in rows) == 90
+    assert sum(int(row["child_task_count"]) for row in rows) == 90
+    assert sum(int(row["duplicate_task_count"]) for row in rows) == 0
