@@ -4,6 +4,13 @@ This guide operationalizes the protocol frozen in
 [`prereg-2026-08-22-user-utility-audit.md`](prereg-2026-08-22-user-utility-audit.md).
 It does not change the pre-registered estimand or thresholds.
 
+> **Status (2026-08-23):** both rounds are complete: five reviewers returned
+> 20/20 eligible judgments. The primary criterion and its replication both
+> failed. See the
+> [result report](results-2026-08-23-user-utility-audit.md). The instructions
+> below are retained as the frozen collection procedure, not as an open call to
+> add labels to the completed denominator.
+
 ## The sample is ten report pairs, not ten reviewers
 
 Use **three to five independent reviewers**. Round 1 assigns each of the ten
