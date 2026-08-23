@@ -87,11 +87,18 @@ contract constant across **1-node, 4-node and 6-node workflows** for 10 topics
 with 3 repetitions each (90 paid cells). The 4-node workflow used **54.89% fewer
 median tokens and 47.03% lower median cost** than the production 6-node workflow,
 while substantially reducing contract violations and unsupported numeric lines
-relative to the monolith. This supports domain decomposition, but does not yet
-justify removing the production Scorer: Reviewer value still awaits a blinded
-9-pair human audit. Protocol, limitations and full results are recorded in the
-[topology ablation](docs/prereg-2026-08-21-agent-topology-ablation.md) and
-[Reviewer audit](docs/prereg-2026-08-22-reviewer-value-audit.md) documents.
+relative to the monolith. This supports domain decomposition, but does not by
+itself justify every production stage. The follow-up blinded Reviewer audit is
+now complete: both evaluator forms passed the frozen criterion across all nine
+report pairs. Each preferred the reviewed report in 7/9 pairs; exact agreement
+was 9/9 for overall preference, 8/9 for citation support, 3/9 for decision
+usefulness, and 7/9 for the harmful-version label. This provisionally supports
+retaining Reviewer, while the low decision-usefulness agreement and method
+limitations rule out a broader user-value claim. Protocols, results, and full
+caveats are in the
+[topology ablation](docs/prereg-2026-08-21-agent-topology-ablation.md),
+[Reviewer pre-registration](docs/prereg-2026-08-22-reviewer-value-audit.md), and
+[Reviewer result](docs/results-2026-08-23-reviewer-value-audit.md) documents.
 
 A separate pre-registered user-utility audit is now complete: five reviewers
 made **20 eligible blinded judgments** over ten matched full/monolith pairs and
@@ -906,10 +913,14 @@ TRL 校准将评分卡与基于公开里程碑建立、可独立核查的区间�
 **单节点、四节点和六节点工作流**，覆盖 10 个主题、每个重复 3 次，共 90 个
 付费单元。四节点相对生产六节点的 token 中位数降低 **54.89%**、成本中位数
 降低 **47.03%**，同时相对单节点显著减少合同违规和无证据数字。这支持领域
-分解，但尚不足以删除生产 Scorer：Reviewer 的价值还在等待 9 组报告级人工
-盲评。预注册规则、限制和完整结果见
-[拓扑消融文档](docs/prereg-2026-08-21-agent-topology-ablation.md)与
-[Reviewer 盲评文档](docs/prereg-2026-08-22-reviewer-value-audit.md)。
+分解，但这本身不足以证明每一个生产阶段都必要。后续 Reviewer 盲评现已完成：
+两份评审表均完成全部 9 组并通过冻结判据；两位评审者都在 7/9 组中偏好
+Reviewer 版本。整体偏好的精确一致率为 9/9，引用支持为 8/9，决策价值仅为
+3/9，有害版本判断为 7/9。因此结果仅初步支持保留 Reviewer；较低的决策价值
+一致率和方法学限制不支持把它扩大解释为普遍用户价值。完整协议、结果与限制见
+[拓扑消融文档](docs/prereg-2026-08-21-agent-topology-ablation.md)、
+[Reviewer 盲评预注册](docs/prereg-2026-08-22-reviewer-value-audit.md)和
+[Reviewer 盲评结果](docs/results-2026-08-23-reviewer-value-audit.md)。
 
 另有一组预注册用户效用盲评已经完成：5 名评审者对同一冻结证据下的 10 组
 完整工作流 / 单节点报告完成两轮交叉分配，共得到 **20 条合格匿名判断**，且
