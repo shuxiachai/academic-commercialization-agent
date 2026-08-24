@@ -124,6 +124,17 @@ latency, exactly-once, or Railway SLO result. See the
 [result](docs/results-2026-08-23-checkpoint-fault-recovery.md), and
 [sanitized 30-row evidence](evals/checkpoint_recovery/checkpoint-fault-recovery-offline-v1.csv).
 
+A later pre-registered Railway canary reached a same-revision four-node prefix
+and restarted the production service without a rebuild. The failed source
+retained that exact prefix, but the only recovery request was rejected by the
+three-operation daily paid cap before a child or provider call began. This is a
+**non-pass**, not evidence of paid checkpoint reuse: it verifies production
+restart persistence and fail-closed admission only. The source checkpoint
+manifests stored no usage values, so partial tokens and cost remain
+`not_inspectable`. See the
+[protocol](docs/prereg-2026-08-24-paid-same-revision-recovery.md) and
+[result](docs/results-2026-08-24-paid-same-revision-recovery.md).
+
 The zero-network operational audit reads the run directories already on disk:
 
 ```bash
@@ -998,6 +1009,15 @@ ROI 或“六 Agent 必要性”证明。详见[预注册](docs/prereg-2026-08-2
 exactly-once 或 Railway SLO。详见[预注册](docs/prereg-2026-08-23-checkpoint-fault-recovery.md)、
 [结果](docs/results-2026-08-23-checkpoint-fault-recovery.md)和
 [30 行脱敏证据](evals/checkpoint_recovery/checkpoint-fault-recovery-offline-v1.csv)。
+
+后续一组预注册 Railway canary 在同一代码版本下到达四节点连续前缀，并在不
+重新构建的情况下重启生产服务。失败的源运行完整保留该前缀，但唯一一次恢复
+请求在创建子运行或调用供应商之前，被每日 3 次付费操作上限拒绝。因此本次
+结果是**未通过**，不能作为真实付费 Checkpoint 复用证据；它只验证生产重启后
+持久化正常，以及付费准入能够 fail closed。源运行的 Checkpoint manifest 未
+记录 usage，部分 Token 与成本只能标记为 `not_inspectable`。详见
+[预注册](docs/prereg-2026-08-24-paid-same-revision-recovery.md)和
+[结果](docs/results-2026-08-24-paid-same-revision-recovery.md)。
 
 零网络运维审计直接读取磁盘上已有的运行目录：
 

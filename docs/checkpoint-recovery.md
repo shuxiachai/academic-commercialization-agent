@@ -162,3 +162,24 @@ cross-revision invalidation. It does not close paid checkpoint reuse or
 production fault injection. The exact run ids, artifact checks, and limits
 are recorded in
 [the production follow-up result](results-2026-08-24-production-checkpoint-follow-up.md).
+
+### Production observation: same-revision restart preserved the prefix
+
+A second pre-registered Railway canary reached a four-node prefix
+(`retrieval`, `academic`, `patent`, and `market`) while the source was
+still running, then restarted the service without a rebuild. Railway returned
+the same deployment, image, instance, and `f9e3b61` revision. After readiness
+returned, the interrupted source was failed and both public status surfaces
+still reported the exact prefix with no checkpoint errors.
+
+The only recovery request was rejected with HTTP 429 before child creation
+because the owner had reached the configured three-operation daily paid cap.
+No alternate code, BYOK bypass, replacement source, or retry was used. The
+result is therefore a **non-pass** for paid same-revision reuse: it establishes
+real restart persistence and fail-closed paid admission, but no child executed
+the remaining suffix. The four manifests also stored `usage=null`, so source
+tokens and cost are not inspectable and must not be presented as zero.
+
+The frozen protocol, exact timeline, run and deployment identities, and claim
+limits are recorded in
+[the same-revision canary result](results-2026-08-24-paid-same-revision-recovery.md).

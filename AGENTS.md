@@ -176,12 +176,18 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   One authorized Railway resume on 2026-08-24 then completed the paid workflow,
   but `identity.pipeline_revision` differed across PR #24 and PR #25, so the
   child correctly reported `cold_start` and reused zero nodes. This closes the
-  post-fix paid startup path and fail-safe cross-revision invalidation only:
-  there is still no paid same-revision reuse or production fault injection.
-  Do not turn either result into token reduction, cost reduction, latency,
+  post-fix paid startup path and fail-safe cross-revision invalidation only.
+  A later pre-registered production canary reached a four-node checkpoint
+  prefix and restarted the same Railway revision successfully. The source
+  became failed with that prefix intact, but the only child admission was
+  rejected before provider work by the three-operation daily cap. This is a
+  non-pass, not paid same-revision reuse evidence; all source checkpoint
+  `usage` fields were null, so partial tokens and cost are not inspectable.
+  Do not turn these results into token reduction, cost reduction, latency,
   production-SLO, or exactly-once claims. See
   `docs/results-2026-08-23-checkpoint-fault-recovery.md` and
-  `docs/results-2026-08-24-production-checkpoint-follow-up.md`.
+  `docs/results-2026-08-24-production-checkpoint-follow-up.md`, plus
+  `docs/results-2026-08-24-paid-same-revision-recovery.md`.
 - The 30-run calibration benchmark still has no report-output evidence for
   Chinese, very short, or non-technical topics. A pre-registered zero-network
   public-boundary contract now distinguishes them: specific Chinese input is
