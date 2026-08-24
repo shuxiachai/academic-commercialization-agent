@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 #: "unknown" means the status file could not be read, not that the run
 #: failed. It is deliberately not terminal: a client should retry rather than
@@ -45,6 +45,19 @@ class RunRequest(BaseModel):
     )
     llm_api_key: str | None = Field(default=None, description="Bring-your-own LLM API key.")
     serper_api_key: str | None = Field(default=None, description="Bring-your-own Serper API key.")
+
+    @field_validator("topic", mode="before")
+    @classmethod
+    def _normalise_topic_before_length_check(cls, value: object) -> object:
+        """Make the public request and durable RunSpec observe one topic.
+
+        Browsers trim this field, but direct API clients bypass that seam and
+        Pydantic's ``min_length`` counts whitespace as ordinary characters.
+        Letting ``"   "`` through used to defer the rejection to RunSpec and
+        turn malformed input into an internal 500.  Only strings are touched
+        here so Pydantic still owns type and length errors.
+        """
+        return value.strip() if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def _byok_is_all_or_nothing(self) -> "RunRequest":

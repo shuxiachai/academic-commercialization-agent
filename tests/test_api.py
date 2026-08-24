@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 
 from api import access, runs
 from api.main import app
+from academic_agent.run_spec import RunSpec
 
 
 def _run_id(suffix: str = "abcdef0123") -> str:
@@ -154,6 +155,36 @@ class SubmitRunTests(_ApiTestCase):
         self.assertIn("perovskite solar cells", cmd)
 
     @patch("api.runs.subprocess.Popen")
+    def test_chinese_topic_is_normalized_across_the_paid_boundary(self, mock_popen):
+        """One value must reach the response, durable spec, and worker."""
+        mock_popen.return_value = self._live_proc()
+        topic = "钠离子电池在低成本储能系统中的商业化应用"
+
+        response = self.client.post(
+            "/api/runs",
+            json={"topic": f"  {topic}  "},
+        )
+
+        self.assertEqual(response.status_code, 202, response.text)
+        self.assertEqual(response.json()["topic"], topic)
+        run_directory = self.tmp / response.json()["run_id"]
+        self.assertEqual(RunSpec.load(run_directory).topic, topic)
+        command = mock_popen.call_args.args[0]
+        self.assertIn(topic, command)
+        self.assertNotIn(f"  {topic}  ", command)
+
+    @patch("api.runs.subprocess.Popen")
+    def test_non_research_warning_remains_overridable_at_the_api(self, mock_popen):
+        """The browser asks for confirmation; the API does not become a classifier."""
+        mock_popen.return_value = self._live_proc()
+        topic = "Write me a birthday poem"
+
+        response = self.client.post("/api/runs", json={"topic": topic})
+
+        self.assertEqual(response.status_code, 202, response.text)
+        self.assertEqual(response.json()["topic"], topic)
+
+    @patch("api.runs.subprocess.Popen")
     def test_language_flag_forwarded(self, mock_popen):
         mock_popen.return_value = self._live_proc()
         self.client.post(
@@ -183,9 +214,25 @@ class SubmitRunTests(_ApiTestCase):
         self.assertNotIn("--language", cmd)
         self.assertNotIn("--weight-profile", cmd)
 
-    def test_short_topic_rejected(self):
+    @patch(
+        "api.runs.start_run",
+        return_value=("20260824T000000Z-should-not-start", Path("unused")),
+    )
+    def test_short_topic_rejected_before_paid_admission(self, start_run):
         r = self.client.post("/api/runs", json={"topic": "ab"})
         self.assertEqual(r.status_code, 422)
+        start_run.assert_not_called()
+
+    @patch(
+        "api.runs.start_run",
+        return_value=("20260824T000000Z-should-not-start", Path("unused")),
+    )
+    def test_whitespace_topic_rejected_before_paid_admission(self, start_run):
+        """Pydantic used to count whitespace and the RunSpec later raised a 500."""
+        response = self.client.post("/api/runs", json={"topic": " \t \n "})
+
+        self.assertEqual(response.status_code, 422, response.text)
+        start_run.assert_not_called()
 
     def test_missing_topic_rejected(self):
         self.assertEqual(self.client.post("/api/runs", json={}).status_code, 422)
