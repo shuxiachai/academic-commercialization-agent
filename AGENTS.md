@@ -188,6 +188,16 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-23-checkpoint-fault-recovery.md` and
   `docs/results-2026-08-24-production-checkpoint-follow-up.md`, plus
   `docs/results-2026-08-24-paid-same-revision-recovery.md`.
+  A separately pre-registered second-code follow-up then admitted a child on
+  the same revision and reused the exact four-node prefix with byte-identical
+  output hashes. The three reused evidence agents made zero new child
+  requests. The child still failed: hydration restored `TaskOutput.raw` but
+  not the typed `EvidenceReport`, while the Writer guardrail builds its source
+  registry only from `TaskOutput.pydantic`. Both Writer attempts were rejected
+  as having no validated evidence context. Paid same-revision reuse is now
+  observed, but end-to-end paid recovery is not; source usage remains null, so
+  total cost is also uninspectable. See
+  `docs/results-2026-08-24-paid-same-revision-recovery-follow-up.md`.
 - The 30-run calibration benchmark still has no report-output evidence for
   Chinese, very short, or non-technical topics. A pre-registered zero-network
   public-boundary contract now distinguishes them: specific Chinese input is

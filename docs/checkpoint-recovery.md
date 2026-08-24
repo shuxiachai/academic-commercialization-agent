@@ -183,3 +183,27 @@ tokens and cost are not inspectable and must not be presented as zero.
 The frozen protocol, exact timeline, run and deployment identities, and claim
 limits are recorded in
 [the same-revision canary result](results-2026-08-24-paid-same-revision-recovery.md).
+
+### Production observation: reuse exposed a typed-context seam
+
+An independently pre-registered follow-up used a second validated owner code
+for both a new source and its immutable child. After another same-revision
+restart, the child reported `recovery.state=reused` with the exact four-node
+prefix and `next_node=writer`. Source and child output hashes matched for
+every reused node. Child usage recorded zero requests for the academic, patent,
+and market agents, then two Writer requests.
+
+The child did not complete. Both Writer attempts failed the final-report
+guardrail with `No validated evidence sources are available in task context.`
+The live evidence guardrails populate `TaskOutput.pydantic` with validated
+`EvidenceReport` objects. Recovery restored the same validated JSON into
+`TaskOutput.raw` but did not reconstruct those typed values, while the
+final-report guardrail deliberately trusts only typed evidence when building
+its allowed-source registry. Raw model context was therefore present, but
+guardrail context was empty.
+
+This is a non-pass for end-to-end paid recovery, despite directly observing
+paid same-revision prefix reuse and zero repeated evidence-agent requests.
+Source checkpoint usage remained null, so total experiment cost is also
+uninspectable. A fix needs a typed-hydration seam test before any new paid
+canary. See the

@@ -135,6 +135,19 @@ manifests stored no usage values, so partial tokens and cost remain
 [protocol](docs/prereg-2026-08-24-paid-same-revision-recovery.md) and
 [result](docs/results-2026-08-24-paid-same-revision-recovery.md).
 
+An independently pre-registered second-code follow-up then admitted a child on
+the same revision and reused the exact four-node prefix. The three evidence
+agents made **0 new child requests**; only the Writer ran. The child still
+failed because recovery restored validated evidence JSON into
+`TaskOutput.raw` without reconstructing the typed `EvidenceReport` values
+that the report guardrail uses to build its source registry. This is direct
+paid evidence for prefix reuse, but another **non-pass** for complete recovery.
+The child used 31,642 tokens across two Writer requests at an estimated
+$0.014576; interrupted-source usage is uninspectable, so this is not a total
+cost or savings claim. See the
+[follow-up protocol](docs/prereg-2026-08-24-paid-same-revision-recovery-follow-up.md)
+and [result](docs/results-2026-08-24-paid-same-revision-recovery-follow-up.md).
+
 The zero-network operational audit reads the run directories already on disk:
 
 ```bash
@@ -1018,6 +1031,16 @@ exactly-once 或 Railway SLO。详见[预注册](docs/prereg-2026-08-23-checkpoi
 记录 usage，部分 Token 与成本只能标记为 `not_inspectable`。详见
 [预注册](docs/prereg-2026-08-24-paid-same-revision-recovery.md)和
 [结果](docs/results-2026-08-24-paid-same-revision-recovery.md)。
+
+随后一组独立预注册、使用第二口令的实验在同一版本上成功创建子运行，并精确
+复用了四节点连续前缀。三个证据 Agent 在子运行中产生 **0 次新请求**，只有
+Writer 被执行。但恢复逻辑只把已验证证据 JSON 还原到 `TaskOutput.raw`，没有
+重建报告 Guardrail 用来建立来源注册表的 `EvidenceReport` 类型值，因此
+Writer 最终失败。这是前缀真实付费复用的直接证据，但完整恢复依然**未通过**。
+子运行的两次 Writer 请求共 31,642 Token，估算 $0.014576；中断源运行的 usage
+不可检查，因此这不是实验总成本或节省结论。详见
+[后续预注册](docs/prereg-2026-08-24-paid-same-revision-recovery-follow-up.md)和
+[完整结果](docs/results-2026-08-24-paid-same-revision-recovery-follow-up.md)。
 
 零网络运维审计直接读取磁盘上已有的运行目录：
 
