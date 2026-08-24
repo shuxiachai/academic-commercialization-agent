@@ -228,3 +228,16 @@ guardrail, and separately proves that schema-invalid JSON stops reuse as
 paid canary has completed the remaining suffix. See the
 [frozen production result](results-2026-08-24-paid-same-revision-recovery-follow-up.md)
 for the original observation and its claim limits.
+
+### Pending observation: post-fix end-to-end suffix
+
+The next production observation is frozen in the
+[post-fix same-revision protocol](prereg-2026-08-24-paid-same-revision-recovery-post-fix.md).
+It allows one source and at most one immutable child under a `$0.10` soft
+spending stop. The deployed revision and owner identity must remain constant,
+and a failed or rejected action cannot be retried. Total interrupted-source
+usage may remain uninspectable, so cost is an operational bound rather than a
+functional pass criterion.
+
+This protocol has not run. It grants no spending or restart authorization and
+does not change the two frozen non-pass results above.
