@@ -178,3 +178,16 @@ the remaining Writer, Reviewer, and Scorer suffix.
 This result does not support general token, cost, or latency savings; a
 production recovery rate or SLO; exactly-once execution; report correctness; or
 six-stage necessity.
+
+## Post-result repair status
+
+After this frozen non-pass, the recovery adapter was changed to reconstruct
+each reused academic, patent, and market payload as an `EvidenceReport` only
+after repeating schema and node-prefix evidence-integrity validation. The
+regression test feeds three restored production-shaped reports into the actual
+Writer guardrail and reaches its short-report check; removing the typed value
+reproduces the exact no-validated-sources failure. A second test proves that
+schema-invalid JSON is reported as a corrupt checkpoint and stops reuse.
+
+These are zero-network code and seam-test results. They do not rewrite the
+production outcome above, and no post-fix paid canary result is claimed here.

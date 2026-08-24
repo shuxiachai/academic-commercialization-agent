@@ -43,6 +43,7 @@ from academic_agent.checkpoints import (
     hash_json,
     hash_text,
 )
+from academic_agent.evidence import EvidenceReport, validate_evidence_report
 from academic_agent.run_spec import RunSpec
 
 
@@ -55,6 +56,11 @@ TASK_NODES: Final[tuple[NodeId, ...]] = (
     "scorer",
 )
 _ALL_NODES: Final[tuple[NodeId, ...]] = ("retrieval", *TASK_NODES)
+_EVIDENCE_PREFIXES: Final[dict[NodeId, str]] = {
+    "academic": "A",
+    "patent": "P",
+    "market": "M",
+}
 _OUTPUT_FORMATS: Final[dict[NodeId, OutputFormat]] = {
     "retrieval": "json",
     "academic": "json",
@@ -258,6 +264,19 @@ def _validated_payload(text: str, output_format: OutputFormat) -> bool:
     return True
 
 
+def _restore_evidence_report(node: NodeId, text: str) -> EvidenceReport | None:
+    """Rebuild only the typed values attached by live evidence guardrails."""
+
+    prefix = _EVIDENCE_PREFIXES.get(node)
+    if prefix is None:
+        return None
+
+    report = EvidenceReport.model_validate_json(text)
+    if validate_evidence_report(report, prefix):
+        raise ValueError("restored evidence failed post-guardrail validation")
+    return report
+
+
 class CheckpointRuntime:
     """Commit validated task outputs and hydrate a safe prior-run prefix."""
 
@@ -391,19 +410,28 @@ class CheckpointRuntime:
                         "reasons": ["payload_format"],
                     }
                     break
+                try:
+                    pydantic_output = _restore_evidence_report(node, text)
+                except ValueError:
+                    self._inspections[node] = {
+                        "state": "corrupt",
+                        "reasons": ["payload_schema"],
+                    }
+                    break
 
                 task.output = TaskOutput(
                     description=str(getattr(task, "description", "")),
                     expected_output=str(getattr(task, "expected_output", "")),
                     raw=text,
                     agent=str(getattr(getattr(task, "agent", None), "role", "")),
+                    pydantic=pydantic_output,
                 )
-                # CrewAI Task has no output_format before execution in 1.14.7,
-                # and these production tasks consume exact post-guardrail raw
-                # text. Inferring CrewAI JSON from the checkpoint's storage
-                # format would make TaskOutput.__str__ prefer json_dict and
-                # change the downstream context bytes. RAW is its default and
-                # faithfully preserves the validated text.
+                # CrewAI 1.14.7 aggregates ``TaskOutput.raw`` for model context,
+                # so attaching the same typed object created by the live evidence
+                # guardrail does not alter prompt bytes. The deterministic Writer
+                # guardrail reads ``pydantic`` instead: raw-only hydration would
+                # reuse checkpoints yet reject both paid Writer attempts as having
+                # no validated sources.
                 self._output_hashes[node] = inspection.manifest.output_sha256
                 self._reused.append(node)
                 self._reused_prefix += 1

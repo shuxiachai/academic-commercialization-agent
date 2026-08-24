@@ -148,6 +148,14 @@ cost or savings claim. See the
 [follow-up protocol](docs/prereg-2026-08-24-paid-same-revision-recovery-follow-up.md)
 and [result](docs/results-2026-08-24-paid-same-revision-recovery-follow-up.md).
 
+The recovery adapter now reconstructs reused evidence JSON as typed
+`EvidenceReport` objects only after repeating schema and evidence-integrity
+validation. Two zero-network regressions exercise the actual Writer guardrail
+seam and fail closed on schema-invalid evidence checkpoints. This repairs the
+observed raw-only hydration path without changing CrewAI's raw model context,
+but no separately pre-registered post-fix paid canary has completed the suffix;
+end-to-end paid recovery therefore remains unproven.
+
 The zero-network operational audit reads the run directories already on disk:
 
 ```bash
@@ -1041,6 +1049,13 @@ Writer 最终失败。这是前缀真实付费复用的直接证据，但完整�
 不可检查，因此这不是实验总成本或节省结论。详见
 [后续预注册](docs/prereg-2026-08-24-paid-same-revision-recovery-follow-up.md)和
 [完整结果](docs/results-2026-08-24-paid-same-revision-recovery-follow-up.md)。
+
+恢复适配器现已在重复执行 Schema 与证据完整性校验后，把复用的证据 JSON 重建为
+`EvidenceReport` 类型对象。两条零网络回归测试分别覆盖真实 Writer Guardrail
+接缝，以及结构错误证据 Checkpoint 的 fail-closed 行为；CrewAI 发送给模型的
+原始上下文字节保持不变。该修改修复了已观测到的 raw-only 恢复路径，但尚未
+执行另一次独立预注册的修复后付费 canary，因此完整的端到端付费恢复仍未得到
+证明。
 
 零网络运维审计直接读取磁盘上已有的运行目录：
 

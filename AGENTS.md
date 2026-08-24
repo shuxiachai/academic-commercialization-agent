@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1339 tests (578 subtests), CI green on Linux + Windows × Python
+Current state: 1341 tests (578 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -198,6 +198,13 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   observed, but end-to-end paid recovery is not; source usage remains null, so
   total cost is also uninspectable. See
   `docs/results-2026-08-24-paid-same-revision-recovery-follow-up.md`.
+  Recovery now reconstructs reused evidence JSON as `EvidenceReport` only
+  after repeating schema and evidence-integrity validation. A real Writer
+  guardrail seam test reaches the short-report check, and schema-invalid JSON
+  is exposed as `corrupt` instead of being reused as raw-only context. This is
+  zero-network repair evidence, not a completed production recovery. A
+  separately pre-registered post-fix paid child still has to complete the
+  Writer/Reviewer/Scorer suffix before end-to-end paid recovery can be claimed.
 - The 30-run calibration benchmark still has no report-output evidence for
   Chinese, very short, or non-technical topics. A pre-registered zero-network
   public-boundary contract now distinguishes them: specific Chinese input is

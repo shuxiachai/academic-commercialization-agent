@@ -22,6 +22,12 @@ from pydantic import BaseModel
 
 from academic_agent.checkpoint_runtime import CheckpointRuntime, TASK_NODES
 from academic_agent.checkpoints import CheckpointStore
+from academic_agent.evidence import (
+    EvidenceFinding,
+    EvidenceReport,
+    EvidenceSource,
+    make_final_report_guardrail,
+)
 from academic_agent.run_spec import RunSpec
 
 
@@ -43,12 +49,58 @@ class _ExplodingLLM(BaseLLM):
         raise AssertionError("provider must not be called for a hydrated task")
 
 
-def _task_output(node: str) -> TaskOutput:
-    raw = (
-        json.dumps({"node": node, "finding": "validated"}, sort_keys=True)
-        if node in {"academic", "patent", "market", "scorer"}
-        else f"# {node.title()}\n\nValidated output."
+def _evidence_report(prefix: str) -> EvidenceReport:
+    """Build the post-guardrail shape persisted by a production evidence task."""
+
+    sources = [
+        EvidenceSource(
+            source_id=f"{prefix}{index}",
+            title=f"Checkpoint source {prefix}{index}",
+            url=f"https://records.test-domain.org/{prefix.lower()}{index}",
+            publisher="Research Publisher",
+            published_date=date(2026, 1, index),
+            accessed_date=_TEST_DATE,
+            source_type="academic_paper",
+            evidence_summary=(
+                "This source directly supports the corresponding finding with "
+                "relevant experimental data and reported measurements."
+            ),
+        )
+        for index in range(1, 4)
+    ]
+    findings = [
+        EvidenceFinding(
+            finding_id=f"{prefix}F{index}",
+            category="technology maturity",
+            claim=(
+                "A sufficiently detailed and externally supportable research "
+                f"conclusion for checkpoint case {index}."
+            ),
+            claim_type="observed_fact",
+            source_ids=[f"{prefix}{index}"],
+            confidence="high",
+            commercial_implication="This affects the commercialization pathway.",
+        )
+        for index in range(1, 4)
+    ]
+    return EvidenceReport(
+        topic="Checkpoint recovery test",
+        scope_summary="A bounded review of technical maturity and published evidence.",
+        search_queries=["checkpoint recovery commercial maturity"],
+        findings=findings,
+        sources=sources,
+        limitations=["Publicly available evidence may omit private deployments."],
     )
+
+
+def _task_output(node: str) -> TaskOutput:
+    if node in {"academic", "patent", "market"}:
+        prefix = {"academic": "A", "patent": "P", "market": "M"}[node]
+        raw = _evidence_report(prefix).model_dump_json()
+    elif node == "scorer":
+        raw = json.dumps({"node": node, "finding": "validated"}, sort_keys=True)
+    else:
+        raw = f"# {node.title()}\n\nValidated output."
     output_format = (
         CrewOutputFormat.JSON if node in {"academic", "patent", "market", "scorer"} else CrewOutputFormat.RAW
     )
@@ -227,6 +279,86 @@ def test_runtime_restores_and_republishes_only_the_validated_prefix(
     assert runtime.snapshot()["recovery"]["reused_nodes"] == ["academic", "patent", "market", "writer"]
     for node in TASK_NODES[:4]:
         assert (child_run / "checkpoints" / node / "manifest.json").is_file()
+
+
+def test_restored_evidence_reaches_the_real_writer_guardrail(tmp_path: Path) -> None:
+    """Catch raw-only hydration that charged Writer but hid all source objects.
+
+    CrewAI sends ``TaskOutput.raw`` to the model, while the deterministic Writer
+    guardrail intentionally trusts only ``TaskOutput.pydantic``. A production
+    resume reused three valid evidence checkpoints but restored only their raw
+    JSON, so Writer made two paid calls before both attempts were rejected as
+    having no validated sources. Exercising the real guardrail proves the
+    typed value crosses the recovery seam instead of merely existing on disk.
+    """
+
+    source_run = tmp_path / "source"
+    source, retrieval_sha256 = _seed_validated_prefix(source_run, count=3)
+    tasks = _fake_tasks()
+    runtime = _runtime(
+        tmp_path / "child",
+        tasks=tasks,
+        source=source,
+        retrieval_sha256=retrieval_sha256,
+        resume_directory=source_run,
+    )
+
+    reused = runtime.restore_contiguous_prefix()
+    success, message = make_final_report_guardrail(tasks[:3])(
+        TaskOutput(
+            description="writer description",
+            expected_output="writer expected",
+            raw="Too short",
+            agent="writer agent",
+        )
+    )
+
+    assert reused == 3
+    assert success is False
+    assert message == "Final report is too short to be usable."
+    assert all(
+        isinstance(task.output.pydantic, EvidenceReport) for task in tasks[:3]
+    )
+
+
+def test_schema_invalid_evidence_checkpoint_stops_reuse(tmp_path: Path) -> None:
+    """Treat valid JSON without the post-guardrail schema as corrupt."""
+
+    source_run = tmp_path / "source"
+    source, retrieval_sha256 = _seed_validated_prefix(source_run, count=0)
+    source_runtime = _runtime(
+        source_run,
+        tasks=_fake_tasks(),
+        source=source,
+        retrieval_sha256=retrieval_sha256,
+    )
+    source_runtime.install_task_callbacks()
+    callback = source_runtime.tasks[0].callback
+    assert callback is not None
+    callback(
+        TaskOutput(
+            description="academic description",
+            expected_output="academic expected",
+            raw=json.dumps({"node": "academic", "finding": "not a report"}),
+            agent="academic agent",
+        )
+    )
+
+    tasks = _fake_tasks()
+    runtime = _runtime(
+        tmp_path / "child",
+        tasks=tasks,
+        source=source,
+        retrieval_sha256=retrieval_sha256,
+        resume_directory=source_run,
+    )
+
+    reused = runtime.restore_contiguous_prefix()
+    recovery = runtime.snapshot()["recovery"]
+
+    assert reused == 0
+    assert recovery["inspections"]["academic"]["state"] == "corrupt"
+    assert recovery["inspections"]["academic"]["reasons"] == ["payload_schema"]
 
 
 def test_first_mismatch_stops_before_a_later_reusable_checkpoint(
