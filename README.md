@@ -152,16 +152,19 @@ The recovery adapter now reconstructs reused evidence JSON as typed
 `EvidenceReport` objects only after repeating schema and evidence-integrity
 validation. Two zero-network regressions exercise the actual Writer guardrail
 seam and fail closed on schema-invalid evidence checkpoints. This repairs the
-observed raw-only hydration path without changing CrewAI's raw model context,
-but no separately pre-registered post-fix paid canary has completed the suffix;
-end-to-end paid recovery therefore remains unproven.
+observed raw-only hydration path without changing CrewAI's raw model context.
 
-The next observation is now frozen in a
-[post-fix protocol](docs/prereg-2026-08-24-paid-same-revision-recovery-post-fix.md).
-It permits one source and at most one immutable child under a $0.10 soft stop,
-requires a constant deployed revision, and forbids retries or identity
-substitution. It has **not run yet**: the protocol is not a paid result, and
-the interrupted source's total usage may remain uninspectable.
+A separately pre-registered post-fix Railway canary has now completed the
+end-to-end path. After the same deployed revision was restarted with a
+four-node prefix, the only immutable child reported `recovery.state=reused`,
+made **0 new evidence-agent requests**, completed Writer, Reviewer, and Scorer,
+served a 33,081-byte report, and committed all seven checkpoints without an
+error. The child recorded 88,780 tokens across four suffix requests at an
+estimated $0.033593. Interrupted-source usage remains `not_inspectable`, so
+that value is neither total experiment cost nor a general savings claim. This
+is one successful production canary, not a recovery rate, SLO, or exactly-once
+result. See the [post-fix protocol](docs/prereg-2026-08-24-paid-same-revision-recovery-post-fix.md)
+and [result](docs/results-2026-08-24-paid-same-revision-recovery-post-fix.md).
 
 The zero-network operational audit reads the run directories already on disk:
 
@@ -1060,14 +1063,16 @@ Writer 最终失败。这是前缀真实付费复用的直接证据，但完整�
 恢复适配器现已在重复执行 Schema 与证据完整性校验后，把复用的证据 JSON 重建为
 `EvidenceReport` 类型对象。两条零网络回归测试分别覆盖真实 Writer Guardrail
 接缝，以及结构错误证据 Checkpoint 的 fail-closed 行为；CrewAI 发送给模型的
-原始上下文字节保持不变。该修改修复了已观测到的 raw-only 恢复路径，但尚未
-执行另一次独立预注册的修复后付费 canary，因此完整的端到端付费恢复仍未得到
-证明。
+原始上下文字节保持不变。该修改修复了已观测到的 raw-only 恢复路径。
 
-下一次生产观察现已通过[修复后预注册协议](docs/prereg-2026-08-24-paid-same-revision-recovery-post-fix.md)
-冻结：最多一个源运行和一个不可变子运行，软停止线为 $0.10，部署版本必须保持
-一致，且禁止重试或替换身份。该实验**尚未执行**；预注册不是付费结果，中断源
-运行的总 usage 仍可能无法检查。
+一组独立预注册的修复后 Railway canary 现已完成端到端路径：同一部署版本在持有
+四节点前缀时重启，唯一的不可变子运行报告 `recovery.state=reused`，三个证据
+Agent 产生 **0 次新请求**，随后完成 Writer、Reviewer 和 Scorer，提供 33,081
+字节报告并无错误提交全部七个 Checkpoint。子运行四次后缀请求共 88,780 Token，
+估算 $0.033593；中断源运行的 usage 仍为 `not_inspectable`，所以这既不是实验
+总成本，也不能泛化为节省比例。该结果只是一例生产 canary，不代表恢复率、SLO
+或 exactly-once。详见[修复后预注册](docs/prereg-2026-08-24-paid-same-revision-recovery-post-fix.md)
+和[完整结果](docs/results-2026-08-24-paid-same-revision-recovery-post-fix.md)。
 
 零网络运维审计直接读取磁盘上已有的运行目录：
 
