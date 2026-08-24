@@ -156,6 +156,13 @@ observed raw-only hydration path without changing CrewAI's raw model context,
 but no separately pre-registered post-fix paid canary has completed the suffix;
 end-to-end paid recovery therefore remains unproven.
 
+The next observation is now frozen in a
+[post-fix protocol](docs/prereg-2026-08-24-paid-same-revision-recovery-post-fix.md).
+It permits one source and at most one immutable child under a $0.10 soft stop,
+requires a constant deployed revision, and forbids retries or identity
+substitution. It has **not run yet**: the protocol is not a paid result, and
+the interrupted source's total usage may remain uninspectable.
+
 The zero-network operational audit reads the run directories already on disk:
 
 ```bash
@@ -1056,6 +1063,11 @@ Writer 最终失败。这是前缀真实付费复用的直接证据，但完整�
 原始上下文字节保持不变。该修改修复了已观测到的 raw-only 恢复路径，但尚未
 执行另一次独立预注册的修复后付费 canary，因此完整的端到端付费恢复仍未得到
 证明。
+
+下一次生产观察现已通过[修复后预注册协议](docs/prereg-2026-08-24-paid-same-revision-recovery-post-fix.md)
+冻结：最多一个源运行和一个不可变子运行，软停止线为 $0.10，部署版本必须保持
+一致，且禁止重试或替换身份。该实验**尚未执行**；预注册不是付费结果，中断源
+运行的总 usage 仍可能无法检查。
 
 零网络运维审计直接读取磁盘上已有的运行目录：
 

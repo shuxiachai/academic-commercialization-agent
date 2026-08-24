@@ -205,6 +205,10 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   zero-network repair evidence, not a completed production recovery. A
   separately pre-registered post-fix paid child still has to complete the
   Writer/Reviewer/Scorer suffix before end-to-end paid recovery can be claimed.
+  That next observation is frozen in
+  `docs/prereg-2026-08-24-paid-same-revision-recovery-post-fix.md`: one source,
+  at most one child, a `$0.10` soft stop, no retry, and no paid request without
+  separate user authorization. The protocol is pending, not a result.
 - The 30-run calibration benchmark still has no report-output evidence for
   Chinese, very short, or non-technical topics. A pre-registered zero-network
   public-boundary contract now distinguishes them: specific Chinese input is
