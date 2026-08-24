@@ -120,6 +120,7 @@ _ARTIFACTS = {
     # Present only when collection failed before validated_sources.json could
     # exist; preserves the search plan, candidate counts, and rejection audit.
     "retrieval": "retrieval_diagnostics.json",
+    "gap-shadow": "evidence_gap_shadow.json",
 }
 
 
@@ -1184,6 +1185,10 @@ def get_state(run_id: str) -> dict:
         # while silently missing another. This advisory field exposes that
         # bounded-set coverage without turning it into an absence claim.
         "component_coverage": status.get("component_coverage"),
+        # Zero-call phase-1 eligibility audit. None means the run predates the
+        # feature; disabled, checked, and failed states remain explicit inside
+        # the object so an unperformed planner never reads as a passing check.
+        "evidence_gap_shadow": status.get("evidence_gap_shadow"),
 
         # Review is a separate model pass after the draft's deterministic
         # validation. A fallback remains a completed run, but it must not look

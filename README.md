@@ -345,6 +345,18 @@ identity, authorization, failure, and observability contract.
 
 The scorecard (`commercialization_scores.json`) additionally contains: TRL score, patent strength, market accessibility, evidence confidence, overall score, key risks, and key opportunities.
 
+**Evidence-gap planning is currently phase-1 shadow instrumentation, not
+production Tool Calling.** With `EVIDENCE_GAP_SHADOW_ENABLED=true`, retrieval
+records whether explicit authority, compound-component, or failed-domain gaps
+make the run eligible for later planning. It invokes no planner model, executes
+zero supplementary searches, does not change `validated_sources.json`, and
+surfaces disabled / checked / failed states separately. The strict proposal
+schema, two-intent ceiling, trigger authorization and local idempotency keys are
+implemented for offline injection tests only. Reproduce the 30-run zero-network
+mechanics audit with `uv run python evidence_gap_audit.py outputs/benchmark
+outputs/evidence-gap-shadow-phase1 --expected-count 30`; see the
+[frozen protocol](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md).
+
 See the [`examples/`](examples/) folder for three complete real reports across different industries.
 
 ---
@@ -540,6 +552,7 @@ outputs/
     ├── academic_evidence.json         # Task 1 findings, with source IDs and claim types
     ├── patent_evidence.json           # Task 2 findings
     ├── market_evidence.json           # Task 3 findings
+    ├── evidence_gap_shadow.json       # Zero-call gap eligibility audit (phase 1)
     ├── reviewer_notes.md              # Reviewer change log (separated from main report)
     ├── status.json                    # Pipeline stage + source counts (polled by UI)
     └── steps.jsonl                    # Per-agent step events (polled for live progress)
@@ -1218,6 +1231,16 @@ Step 6     Agent 6 — 量化评分（独立于报告；公式自动修正）
 
 评分卡（`commercialization_scores.json`）额外包含：TRL 评分、专利强度、市场可及性、证据置信度、综合评分、关键风险和机遇列表。
 
+**证据缺口规划目前仅为第一阶段影子观测，并非已上线的 Tool Calling。** 设置
+`EVIDENCE_GAP_SHADOW_ENABLED=true` 后，检索层只记录当前证据是否存在明确的
+权威来源、复合组件或失败领域缺口；它不会调用 Planner 模型，不会追加搜索，
+不会改变 `validated_sources.json`，并将“关闭 / 已检查 / 检查失败”分别呈现。
+严格 Proposal Schema、最多两个意图、触发授权和本地幂等键目前只供离线注入
+测试。可用 `uv run python evidence_gap_audit.py outputs/benchmark
+outputs/evidence-gap-shadow-phase1 --expected-count 30` 复现 30 次零网络机制审计；
+设计边界与后续上线阈值见
+[冻结协议](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md)。
+
 完整报告示例见 [`examples/`](examples/) 文件夹（钙钛矿太阳能 / CAR-T 疗法 / 固态电池，三个行业）。
 
 ---
@@ -1389,6 +1412,7 @@ outputs/
     ├── academic_evidence.json        # Task 1 的发现，含来源 ID 与论断类型
     ├── patent_evidence.json          # Task 2 的发现
     ├── market_evidence.json          # Task 3 的发现
+    ├── evidence_gap_shadow.json      # 零调用证据缺口资格审计（第一阶段）
     ├── reviewer_notes.md             # 审查员修改记录（与正文分离）
     ├── status.json                   # 流水线阶段 + 来源数量（UI 轮询用）
     └── steps.jsonl                   # 每个 Agent 的步骤事件（实时进度用）

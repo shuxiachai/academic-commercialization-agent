@@ -815,6 +815,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         claim_grounding=state.get("claim_grounding"),
         authority_coverage=state.get("authority_coverage"),
         component_coverage=state.get("component_coverage"),
+        evidence_gap_shadow=state.get("evidence_gap_shadow"),
         quality_review=state.get("quality_review"),
         consistency=state.get("consistency"),
         observability=state.get("observability"),

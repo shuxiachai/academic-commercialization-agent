@@ -62,6 +62,14 @@ _STATUS = {
         "missing_components": ["edge AI inference"],
         "unchecked_components": [],
     },
+    "evidence_gap_shadow": {
+        "gate_state": "eligible",
+        "planner_state": "not_run",
+        "checked": True,
+        "proposed_call_count": 0,
+        "executed_call_count": 0,
+        "persistence_state": "written",
+    },
     "quality_review": {"status": "fallback", "failure_type": "RuntimeError"},
     "observability": {"state": "active", "backend": "phoenix",
                       "trace_id": "0123456789abcdef0123456789abcdef",
@@ -80,6 +88,9 @@ class _Run:
         directory.mkdir()
         (directory / "status.json").write_text(json.dumps(_STATUS), encoding="utf-8")
         (directory / "commercialization_report.md").write_text("# r", encoding="utf-8")
+        (directory / "evidence_gap_shadow.json").write_text(
+            json.dumps(_STATUS["evidence_gap_shadow"]), encoding="utf-8"
+        )
 
     def close(self) -> None:
         self._tmp.cleanup()
@@ -127,6 +138,9 @@ class StateReachesTheClientTests(unittest.TestCase):
         self.assertEqual(
             body["observability"]["trace_id"], _STATUS["observability"]["trace_id"]
         )
+        self.assertEqual(
+            body["evidence_gap_shadow"]["gate_state"], "eligible"
+        )
 
     def test_the_progress_endpoint_returns_them_with_their_values(self):
         """This endpoint names each field in its constructor, so it is the one
@@ -140,6 +154,17 @@ class StateReachesTheClientTests(unittest.TestCase):
         self.assertEqual(
             body["observability"]["trace_id"], _STATUS["observability"]["trace_id"]
         )
+        self.assertEqual(
+            body["evidence_gap_shadow"]["gate_state"], "eligible"
+        )
+
+    def test_shadow_state_matches_the_downloadable_artifact(self):
+        """A persisted audit must reach the client through its advertised name."""
+        status = self.client.get(f"/api/runs/{self.run.run_id}").json()
+        artifact = self.client.get(f"/api/runs/{self.run.run_id}/gap-shadow")
+        self.assertEqual(artifact.status_code, 200)
+        self.assertEqual(artifact.json(), status["evidence_gap_shadow"])
+        self.assertIn("gap-shadow", status["artifacts"])
 
     def test_the_two_endpoints_do_not_disagree(self):
         """They are built differently — one splats get_state(), one names every
@@ -188,6 +213,10 @@ class AbsentDataTests(unittest.TestCase):
     def test_a_run_before_component_coverage_reports_unknown_not_complete(self):
         body = self.client.get(f"/api/runs/{self.run_id}").json()
         self.assertIsNone(body["component_coverage"])
+
+    def test_a_run_before_gap_shadow_reports_unknown_not_checked(self):
+        body = self.client.get(f"/api/runs/{self.run_id}").json()
+        self.assertIsNone(body["evidence_gap_shadow"])
 
     def test_null_is_distinguishable_from_zero(self):
         """A run with no usage recorded is not a run that cost nothing. The

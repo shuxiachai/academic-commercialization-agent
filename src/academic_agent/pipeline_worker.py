@@ -280,7 +280,7 @@ def _merge_status_fields(
     for sticky in (
         "topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
         "claim_grounding", "consistency", "observability", "authority_coverage",
-        "component_coverage",
+        "component_coverage", "evidence_gap_shadow",
         "quality_review",
         "checkpointing", "recovery",
     ):
@@ -330,6 +330,11 @@ def main() -> None:
         task_node,
     )
     from academic_agent.checkpoints import CheckpointStore, hash_text
+    from academic_agent.evidence_gap import (
+        persist_shadow_audit,
+        run_shadow_assessment,
+        shadow_configuration_from_environment,
+    )
     from academic_agent.run_spec import (
         RESUME_SNAPSHOT_DIRECTORY, RUN_SPEC_FILENAME, RunSpec,
     )
@@ -375,6 +380,7 @@ def main() -> None:
         consistency: dict | None = None,
         authority_coverage: dict | None = None,
         component_coverage: dict | None = None,
+        evidence_gap_shadow: dict | None = None,
         checkpointing: dict | None = None,
         recovery: dict | None = None,
         quality_review: dict | None = None,
@@ -405,6 +411,8 @@ def main() -> None:
                 data["authority_coverage"] = authority_coverage
             if component_coverage is not None:
                 data["component_coverage"] = component_coverage
+            if evidence_gap_shadow is not None:
+                data["evidence_gap_shadow"] = evidence_gap_shadow
             if quality_review is not None:
                 data["quality_review"] = quality_review
             if checkpointing is not None:
@@ -623,6 +631,27 @@ def main() -> None:
                     )
                     if translated_topic and translated_topic != source_collection.display_topic:
                         source_collection.display_topic = translated_topic
+        # Phase 1 stops at observation. The worker intentionally injects no
+        # planner callback, so even an eligible run proposes and executes zero
+        # searches. Keeping this between retrieval and source serialization
+        # lets the audit hash the exact collection the Crew will receive while
+        # leaving the retrieval checkpoint contract unchanged.
+        gap_shadow = run_shadow_assessment(
+            source_collection,
+            configuration=shadow_configuration_from_environment(),
+        )
+        gap_shadow = persist_shadow_audit(run_dir, gap_shadow)
+        telemetry.set_attributes({
+            "academic_agent.evidence_gap.gate_state": gap_shadow.gate_state,
+            "academic_agent.evidence_gap.planner_state": gap_shadow.planner_state,
+            "academic_agent.evidence_gap.signal_count": (
+                len(gap_shadow.context.signals) if gap_shadow.context else 0
+            ),
+            "academic_agent.evidence_gap.executed_calls": (
+                gap_shadow.executed_call_count
+            ),
+        })
+
         source_json = source_collection.model_dump_json(indent=2)
         if not retrieval_payload:
             retrieval_payload = source_json
@@ -683,6 +712,7 @@ def main() -> None:
             component_coverage=source_collection.component_coverage.model_dump(
                 mode="json"
             ),
+            evidence_gap_shadow=gap_shadow.model_dump(mode="json"),
             **checkpoint_snapshot,
         )
 
