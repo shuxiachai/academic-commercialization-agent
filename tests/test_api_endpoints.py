@@ -143,11 +143,19 @@ class ReportPdfTests(_EndpointTestBase):
         run_id, directory = self._run_dir()
         (directory / "commercialization_report.md").write_text("# R", encoding="utf-8")
 
-        with patch("ui.pdf_export._generate_pdf", side_effect=RuntimeError("no font")):
+        private = RuntimeError(r"no font at C:\private\fonts token=top-secret")
+        with patch(
+            "ui.pdf_export._generate_pdf", side_effect=private
+        ):
             r = self.client.get(f"/api/runs/{run_id}/report.pdf")
 
         self.assertEqual(r.status_code, 500)
-        self.assertIn("no font", r.json()["detail"])
+        self.assertEqual(
+            r.json()["detail"],
+            "The report PDF could not be rendered. The Markdown report is still available.",
+        )
+        self.assertNotIn("top-secret", r.text)
+        self.assertNotIn("private", r.text)
 
     def test_silent_render_failure_is_still_an_error(self):
         """A renderer that returns without writing must not yield a 200."""

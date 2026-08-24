@@ -485,7 +485,7 @@ class SourcePipelineTests(TestCase):
             ),
             (
                 "https://energy.gov/news/example",
-                "research_institute",  # energy.gov hits _AUTHORITATIVE_RESEARCH_DOMAINS before the .gov rule
+                "government",
                 "high",
             ),
             (
@@ -1094,7 +1094,7 @@ class AuthorityQueryPlanningTests(TestCase):
 
 
 class AuthoritySourceClassificationTests(TestCase):
-    """Nested EU regulator hosts used to fall through as company pages."""
+    """Authority labels require the real institution's DNS boundary."""
 
     def test_ema_is_an_official_regulator(self):
         from academic_agent.source_pipeline import _market_source_profile
@@ -1115,6 +1115,44 @@ class AuthoritySourceClassificationTests(TestCase):
         )
         self.assertIsNotNone(profile)
         self.assertEqual(profile[:2], ("research_institute", "high"))
+
+    def test_energy_department_is_government_not_a_research_institute(self):
+        from academic_agent.source_pipeline import _market_source_profile
+
+        profile = _market_source_profile(
+            "https://www.energy.gov/eere/example",
+            "www.energy.gov",
+        )
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile[:2], ("government", "high"))
+
+    def test_official_standards_hosts_receive_the_authority_label(self):
+        from academic_agent.source_pipeline import _market_source_profile
+
+        cases = (
+            ("https://www.iso.org/standard/12345.html", "www.iso.org"),
+            ("https://webstore.iec.ch/publication/12345", "webstore.iec.ch"),
+            (
+                "https://standards.ieee.org/standard/1234-2026.html",
+                "standards.ieee.org",
+            ),
+        )
+        for url, host in cases:
+            with self.subTest(host=host):
+                profile = _market_source_profile(url, host)
+                self.assertIsNotNone(profile)
+                self.assertEqual(profile[:2], ("standards_body", "high"))
+
+    def test_standards_looking_attacker_hosts_are_not_authoritative(self):
+        from academic_agent.source_pipeline import _market_source_profile
+
+        for host in ("iso.org.attacker.example", "standards.attacker.example"):
+            with self.subTest(host=host):
+                profile = _market_source_profile(
+                    f"https://{host}/catalog/item",
+                    host,
+                )
+                self.assertIsNone(profile)
 
 
 class AuthorityCoverageTests(TestCase):

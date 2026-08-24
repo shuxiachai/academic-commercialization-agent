@@ -461,3 +461,69 @@ class PerDomainReportingTests(TestCase):
                 (Path(tmp) / "r" / "claim_grounding.json").read_text(encoding="utf-8"))
         self.assertIn("by_domain", payload)
         self.assertEqual(payload["checked"], 1)
+
+    def test_no_distinctive_figures_is_recorded_as_not_applicable(self):
+        import json
+        import tempfile
+
+        from academic_agent.run_output import save_claim_grounding
+
+        tasks = self._tasks()
+        for task in tasks:
+            payload = json.loads(task.raw)
+            for finding in payload["findings"]:
+                finding["claim"] = "The source describes a qualitative outcome."
+            task.raw = json.dumps(payload)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            summary = save_claim_grounding(
+                tasks, run_id="r", output_root=Path(tmp)
+            )
+            artifact = json.loads(
+                (Path(tmp) / "r" / "claim_grounding.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        self.assertEqual(summary["status"], "not_applicable")
+        self.assertEqual(artifact["status"], "not_applicable")
+        self.assertEqual(set(summary["screened_domains"]), {"academic", "patent", "market"})
+        self.assertEqual(summary["unavailable_domains"], [])
+
+    def test_missing_evidence_outputs_are_recorded_as_unavailable(self):
+        import json
+        import tempfile
+
+        from academic_agent.run_output import save_claim_grounding
+
+        with tempfile.TemporaryDirectory() as tmp:
+            summary = save_claim_grounding(
+                [object(), object(), object()], run_id="r", output_root=Path(tmp)
+            )
+            artifact = json.loads(
+                (Path(tmp) / "r" / "claim_grounding.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        self.assertEqual(summary["status"], "unavailable")
+        self.assertEqual(artifact["status"], "unavailable")
+        self.assertEqual(
+            set(summary["unavailable_domains"]), {"academic", "patent", "market"}
+        )
+
+    def test_artifact_write_failure_returns_a_visible_failed_state(self):
+        import tempfile
+        from unittest.mock import patch
+
+        from academic_agent.run_output import save_claim_grounding
+
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch("pathlib.Path.write_text", side_effect=OSError("private disk path")):
+            with self.assertWarnsRegex(UserWarning, "claim grounding screen failed"):
+                summary = save_claim_grounding(
+                    self._tasks(), run_id="r", output_root=Path(tmp)
+                )
+
+        self.assertEqual(summary["status"], "failed")
+        self.assertNotIn("private disk path", str(summary))

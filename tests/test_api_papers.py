@@ -44,6 +44,8 @@ class PaperIdValidationTests(_PapersTestBase):
         "..",
         "",
         "./x",
+        "paper-0123456789ab",
+        "paper-not-a-capability",
     ]
 
     def test_load_extraction_rejects_traversal(self):
@@ -74,6 +76,7 @@ class PaperIdValidationTests(_PapersTestBase):
 
     def test_generated_ids_are_accepted(self):
         paper_id = papers.create_paper_id()
+        self.assertRegex(paper_id, r"^paper-[0-9a-f]{32}$")
         papers.save_extraction(paper_id, {"title": "t"})
         self.assertTrue(papers.extraction_path_for_run(paper_id).exists())
 
@@ -81,36 +84,40 @@ class PaperIdValidationTests(_PapersTestBase):
 class UploadTests(_PapersTestBase):
 
     def test_upload_is_stored_under_a_generated_id(self):
-        paper_id, pdf_path = papers.save_upload("paper.pdf", b"%PDF-1.4 body")
+        paper_id, pdf_path = papers.save_upload(b"%PDF-1.4 body")
         self.assertTrue(pdf_path.exists())
         self.assertEqual(pdf_path.read_bytes(), b"%PDF-1.4 body")
         self.assertEqual(pdf_path.parent.name, paper_id)
 
-    def test_client_filename_is_never_a_path_component(self):
-        """The stored name is fixed, so a hostile filename cannot direct it."""
-        _paper_id, pdf_path = papers.save_upload("../../evil.pdf", b"%PDF-1.4")
+    def test_only_the_fixed_pdf_name_is_persisted(self):
+        """Client filenames are not needed after multipart parsing."""
+        _paper_id, pdf_path = papers.save_upload(b"%PDF-1.4")
         self.assertEqual(pdf_path.name, "paper.pdf")
         self.assertEqual(pdf_path.parent.parent, self.root)
+        self.assertEqual(
+            {path.name for path in pdf_path.parent.iterdir()},
+            {"paper.pdf"},
+        )
 
     def test_oversized_upload_rejected(self):
         oversized = b"%PDF-1.4" + b"x" * (papers.MAX_UPLOAD_BYTES + 1)
         with self.assertRaises(papers.PaperTooLarge):
-            papers.save_upload("big.pdf", oversized)
+            papers.save_upload(oversized)
 
     def test_upload_at_the_limit_is_accepted(self):
         """Exactly at the ceiling is allowed; the check is > not >=."""
         at_limit = b"%PDF-1.4" + b"x" * (papers.MAX_UPLOAD_BYTES - 8)
-        paper_id, _ = papers.save_upload("big.pdf", at_limit)
+        paper_id, _ = papers.save_upload(at_limit)
         self.assertTrue(papers.paper_dir(paper_id).is_dir())
 
     def test_rejected_upload_leaves_nothing_behind(self):
         with self.assertRaises(papers.PaperTooLarge):
-            papers.save_upload("big.pdf", b"%PDF-1.4" + b"x" * papers.MAX_UPLOAD_BYTES)
+            papers.save_upload(b"%PDF-1.4" + b"x" * papers.MAX_UPLOAD_BYTES)
         self.assertFalse(self.root.exists() and any(self.root.iterdir()))
 
     def test_two_uploads_do_not_collide(self):
-        a, _ = papers.save_upload("p.pdf", b"%PDF-1.4 a")
-        b, _ = papers.save_upload("p.pdf", b"%PDF-1.4 b")
+        a, _ = papers.save_upload(b"%PDF-1.4 a")
+        b, _ = papers.save_upload(b"%PDF-1.4 b")
         self.assertNotEqual(a, b)
 
 
@@ -125,7 +132,7 @@ class DiscardTests(_PapersTestBase):
     """
 
     def test_a_discarded_upload_is_gone(self):
-        paper_id, pdf_path = papers.save_upload("p.pdf", b"%PDF-1.4 body")
+        paper_id, pdf_path = papers.save_upload(b"%PDF-1.4 body")
         papers.discard(paper_id)
         self.assertFalse(pdf_path.exists())
         self.assertFalse(papers.paper_dir(paper_id).exists())
@@ -151,7 +158,7 @@ class DiscardTests(_PapersTestBase):
         from api.main import app
 
         with patch("api.main.extract_paper_contribution",
-                   side_effect=ValueError("not a paper")):
+                   side_effect=ValueError(r"not a paper C:\private\top-secret")):
             with TestClient(app) as client:
                 response = client.post(
                     "/api/papers",
@@ -159,12 +166,44 @@ class DiscardTests(_PapersTestBase):
                 )
 
         self.assertEqual(response.status_code, 422)
+        self.assertEqual(
+            response.json()["detail"],
+            "The paper could not be converted into a structured contribution. Retry or use another PDF.",
+        )
+        self.assertNotIn("top-secret", response.text)
         remaining = list(self.root.iterdir()) if self.root.exists() else []
         self.assertEqual(remaining, [], "the upload outlived the request that made it")
 
-    def test_a_successful_extraction_keeps_the_upload(self):
-        """The other half. A cleanup that fires on the happy path would delete
-        the PDF the run is about to be anchored on."""
+    def test_ledger_failure_returns_safe_503_and_deletes_the_upload(self):
+        """Accounting errors happen before provider work and are not bad PDFs."""
+        from fastapi.testclient import TestClient
+
+        from api.main import app
+
+        private = runs.PaidLedgerUnavailable(
+            r"corrupt C:\private\wallet.json token=top-secret"
+        )
+        with patch(
+            "api.main._extract_paper_with_paid_reservation",
+            side_effect=private,
+        ):
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/papers",
+                    files={"file": ("p.pdf", b"%PDF-1.4 body", "application/pdf")},
+                )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn(
+            "accounting is temporarily unavailable", response.json()["detail"]
+        )
+        self.assertNotIn("wallet.json", response.text)
+        remaining = list(self.root.iterdir()) if self.root.exists() else []
+        self.assertEqual(remaining, [])
+
+    def test_a_successful_extraction_deletes_only_the_raw_upload(self):
+        """Runs consume extraction.json, so retaining paper.pdf after this
+        boundary has no runtime purpose and violates the privacy disclosure."""
         from fastapi.testclient import TestClient
 
         from academic_agent.pdf_extractor import PaperContribution
@@ -184,7 +223,9 @@ class DiscardTests(_PapersTestBase):
 
         self.assertEqual(response.status_code, 200)
         paper_id = response.json()["paper_id"]
-        self.assertTrue((papers.paper_dir(paper_id) / "paper.pdf").exists())
+        self.assertFalse((papers.paper_dir(paper_id) / "paper.pdf").exists())
+        self.assertFalse((papers.paper_dir(paper_id) / "original_name.txt").exists())
+        self.assertTrue((papers.paper_dir(paper_id) / "extraction.json").exists())
 
 
 class ExtractionRoundTripTests(_PapersTestBase):
@@ -212,6 +253,68 @@ class ExtractionRoundTripTests(_PapersTestBase):
 
         with self.assertRaises(papers.PaperNotFound):
             papers.load_extraction(paper_id)
+
+
+class PaperOwnershipTests(_PapersTestBase):
+    """The capability crosses upload and run requests; ownership must too."""
+
+    def _saved(self, owner: str | None) -> str:
+        paper_id, _ = papers.save_upload(b"%PDF-1.4 body", owner=owner)
+        papers.save_extraction(paper_id, {"title": "Bound paper"})
+        return paper_id
+
+    def test_matching_owner_can_consume_the_extraction(self):
+        paper_id = self._saved("alice-hash")
+        self.assertTrue(
+            papers.extraction_path_for_run(paper_id, owner="alice-hash").is_file()
+        )
+
+    def test_a_different_owner_and_no_owner_are_both_denied(self):
+        paper_id = self._saved("alice-hash")
+        for owner in ("bob-hash", None):
+            with self.subTest(owner=owner), self.assertRaises(papers.PaperNotFound):
+                papers.extraction_path_for_run(paper_id, owner=owner)
+
+    def test_an_ownerless_capability_is_not_available_to_a_code(self):
+        paper_id = self._saved(None)
+        self.assertTrue(papers.extraction_path_for_run(paper_id).is_file())
+        with self.assertRaises(papers.PaperNotFound):
+            papers.extraction_path_for_run(paper_id, owner="alice-hash")
+
+    def test_http_submission_carries_the_code_owner_across_the_seam(self):
+        """A unit test on extraction_path_for_run would miss main.py passing
+        owner=None, the same computed-but-never-delivered failure seen before."""
+        from fastapi.testclient import TestClient
+
+        from api import access
+        from api.main import app
+
+        paper_id = self._saved(access.owner_id("alice-code"))
+        fake_run_id = "20260824T000000Z-0123456789"
+        with patch.object(access, "ACCESS_CODE", None), \
+             patch.object(access, "ACCESS_CODES", "alice-code,bob-code"), \
+             patch.object(access, "ADMIN_CODE", None), \
+             patch.object(runs, "start_run", return_value=(fake_run_id, self.root)) as start:
+            with TestClient(app) as client:
+                denied = client.post(
+                    "/api/runs",
+                    headers={"X-Access-Code": "bob-code"},
+                    json={"topic": "a valid research topic", "paper_id": paper_id},
+                )
+                accepted = client.post(
+                    "/api/runs",
+                    headers={"X-Access-Code": "alice-code"},
+                    json={"topic": "a valid research topic", "paper_id": paper_id},
+                )
+
+        self.assertEqual(denied.status_code, 404)
+        self.assertEqual(accepted.status_code, 202)
+        self.assertEqual(start.call_count, 1)
+        self.assertEqual(start.call_args.kwargs["owner"], access.owner_id("alice-code"))
+        self.assertEqual(
+            Path(start.call_args.kwargs["paper_json_path"]),
+            papers.paper_dir(paper_id) / "extraction.json",
+        )
 
 
 class PruneTests(_PapersTestBase):
@@ -256,11 +359,10 @@ if __name__ == "__main__":
 class RunRetentionTests(unittest.TestCase):
     """Runs are deleted after RUN_RETENTION_DAYS.
 
-    Uploads already expired after a day; runs did not, and a run holds far
-    more of the visitor's material than the upload does — the paper's
-    contents, the contribution extracted from it, and the assessment written
-    about it. Reading a run needs only its id, so a shared link stays live for
-    as long as the run does; retention is what bounds that.
+    Pending paper records already expire after a day; runs did not, and a run
+    retains the contribution extracted from a paper plus the assessment
+    written about it. Reading a run needs only its id, so a shared link stays
+    live for as long as the run does; retention is what bounds that.
     """
 
     def setUp(self):
@@ -333,14 +435,14 @@ class UploadShapeTests(unittest.TestCase):
         archive should be refused here rather than several layers in, by
         pypdfium2, on a path with no HTTP status to return."""
         with self.assertRaises(papers.PaperNotAPdf):
-            papers.save_upload("paper.pdf", b"PK this is a zip")
+            papers.save_upload(b"PK this is a zip")
 
     def test_an_empty_body_is_refused(self):
         with self.assertRaises(papers.PaperNotAPdf):
-            papers.save_upload("paper.pdf", b"")
+            papers.save_upload(b"")
 
     def test_a_real_pdf_header_passes(self):
-        paper_id, path = papers.save_upload("paper.pdf", b"%PDF-1.7 content")
+        paper_id, path = papers.save_upload(b"%PDF-1.7 content")
         self.assertTrue(path.exists())
         self.assertTrue(paper_id)
 
@@ -381,3 +483,17 @@ class CappedReadTests(unittest.IsolatedAsyncioTestCase):
         body = self._Body(3 * 1024 * 1024)
         data = await _read_capped(body, papers.MAX_UPLOAD_BYTES)
         self.assertEqual(len(data), 3 * 1024 * 1024)
+
+
+class PaperOwnerCorruptionTests(_PapersTestBase):
+    """A damaged owner marker must never become an ownerless capability."""
+
+    def test_blank_existing_owner_marker_fails_closed(self):
+        paper_id, _ = papers.save_upload(b"%PDF-1.4 body", owner="alice-hash")
+        papers.save_extraction(paper_id, {"title": "Bound paper"})
+        marker = papers.paper_dir(paper_id) / papers._OWNER_FILE
+        marker.write_text("", encoding="utf-8")
+
+        for owner in (None, "alice-hash"):
+            with self.subTest(owner=owner), self.assertRaises(papers.PaperNotFound):
+                papers.extraction_path_for_run(paper_id, owner=owner)

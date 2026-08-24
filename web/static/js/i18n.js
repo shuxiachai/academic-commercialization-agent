@@ -31,6 +31,7 @@ const STRINGS = {
     compose_sub: "Six agents gather academic, patent, and market evidence, then score commercialization readiness. Every claim carries a citation.",
     topic_placeholder: "perovskite solar cells for utility-scale power generation",
     attach: "Paper",
+    paper_privacy: "Selected PDF text is sent to the configured model provider. The raw PDF is deleted after successful extraction; extracted metadata expires within 24 hours if no run uses it.",
     auto_lang: "Auto language",
     auto_profile: "Auto profile",
 
@@ -118,6 +119,10 @@ const STRINGS = {
     rel_grounding_ok: "{count} figures matched the sources cited for them",
     rel_grounding_partial: "{checked} figures matched; {unverifiable} others could not be checked",
     rel_grounding_none: "No figure could be checked — the retrieved source text is too short",
+    rel_grounding_unavailable: "Citation check did not complete — no result is claimed",
+    rel_grounding_not_applicable: "No distinctive quantitative claim was present to check",
+    rel_grounding_degraded: "Citation check could not inspect: {domains}",
+    rel_grounding_unknown: "Citation-check status was not recorded for this run",
     rel_sources: "Source coverage",
     rel_sources_failed: "Assessed without {domains} — retrieval for it failed",
     rel_sources_ok: "All three evidence domains returned sources",
@@ -173,15 +178,12 @@ const STRINGS = {
 
     // Bring-your-own-key
     byok_title: "Use your own API keys",
-    // Says "your keys", not "nothing". The old sentence was written about the
-    // credentials and was true of them, but a visitor about to upload an
-    // unpublished paper reads it as a statement about everything they are
-    // handing over — and the assessment, along with the uploaded PDF, stays on
-    // this server for the retention window. The second line below carries that
-    // half, with the actual number.
-    byok_sub: "Your keys go to this run's worker process and nowhere else, and are gone from this browser once you close the tab.",
-    byok_retention: "The assessment itself is stored on this server for {days} days, then deleted automatically.",
-    byok_retention_forever: "The assessment itself is stored on this server until it is deleted.",
+    // Keep credential handling distinct from artifact retention. A visitor
+    // uploading unpublished work needs both boundaries stated explicitly;
+    // the second line below supplies the deployment's actual retention value.
+    byok_sub: "Your keys are sent to this server and the selected providers only for operations you start. They are not written to run artifacts and disappear from this browser when the tab closes.",
+    byok_retention: "Extracted paper metadata and the assessment are stored on this server for {days} days, then deleted automatically.",
+    byok_retention_forever: "Extracted paper metadata and the assessment are stored on this server until deleted.",
     byok_llm_placeholder: "LLM API key",
     byok_serper_placeholder: "Serper API key",
     byok_hint: "Keys: platform.deepseek.com/api-keys · platform.openai.com/api-keys · console.anthropic.com — and serper.dev/api-key for search (free tier available).",
@@ -190,7 +192,6 @@ const STRINGS = {
     byok_badge: "Using your own API keys",
     byok_exit: "Exit",
     byok_no_history: "No runs yet this session. Runs you start will stay listed here until you close this tab.",
-    byok_no_attach: "Paper upload needs an access code",
     code_badge: "Signed in with an access code",
     code_exit: "Log out",
   },
@@ -214,6 +215,7 @@ const STRINGS = {
     compose_sub: "六个智能体收集学术、专利与市场证据，评估商业化就绪度。每条结论都附带可核查的引用。",
     topic_placeholder: "钙钛矿太阳能电池在公用事业级发电中的应用",
     attach: "论文",
+    paper_privacy: "PDF 中选取的文本会发送给已配置的模型服务商。提取成功后立即删除原始 PDF；若未发起运行，提取元数据会在 24 小时内过期。",
     auto_lang: "自动语言",
     auto_profile: "自动方案",
 
@@ -285,6 +287,10 @@ const STRINGS = {
     rel_grounding_ok: "{count} 个数字与其引用的来源一致",
     rel_grounding_partial: "{checked} 个数字核对一致；另有 {unverifiable} 个无法核对",
     rel_grounding_none: "没有数字可核对——检索到的来源正文过短",
+    rel_grounding_unavailable: "引用核查未能完成——不对结果作出判断",
+    rel_grounding_not_applicable: "报告中没有可供核查的明确量化结论",
+    rel_grounding_degraded: "以下证据域未能完成引用核查：{domains}",
+    rel_grounding_unknown: "本次运行未记录引用核查状态",
     rel_sources: "来源覆盖",
     rel_sources_failed: "本次评估未包含 {domains}——该域检索失败",
     rel_sources_ok: "三个证据域均返回了来源",
@@ -336,9 +342,9 @@ const STRINGS = {
     gate_no_code: "没有口令？改用自己的 API Key",
 
     byok_title: "使用自己的 API Key",
-    byok_sub: "密钥只会传给这次运行的工作进程，关闭标签页后就从浏览器中消失。",
-    byok_retention: "评估结果本身会保存在本服务器上 {days} 天，之后自动删除。",
-    byok_retention_forever: "评估结果本身会保存在本服务器上，直到被删除。",
+    byok_sub: "密钥只会为你发起的操作发送到本服务器及所选服务商，不会写入运行产物；关闭标签页后会从浏览器中消失。",
+    byok_retention: "论文提取元数据和评估结果会在本服务器保存 {days} 天，之后自动删除。",
+    byok_retention_forever: "论文提取元数据和评估结果会保存在本服务器上，直到被删除。",
     byok_llm_placeholder: "LLM API Key",
     byok_serper_placeholder: "Serper API Key",
     byok_hint: "获取密钥：platform.deepseek.com/api-keys · platform.openai.com/api-keys · console.anthropic.com；检索用的 serper.dev/api-key 有免费额度。",
@@ -347,7 +353,6 @@ const STRINGS = {
     byok_badge: "正在使用自己的 API Key",
     byok_exit: "退出",
     byok_no_history: "本次会话还没有运行记录。你提交的运行会一直显示在这里，直到关闭这个标签页。",
-    byok_no_attach: "上传论文需要访问口令",
     code_badge: "已通过访问口令登录",
     code_exit: "退出登录",
   },

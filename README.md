@@ -124,6 +124,25 @@ latency, exactly-once, or Railway SLO result. See the
 [result](docs/results-2026-08-23-checkpoint-fault-recovery.md), and
 [sanitized 30-row evidence](evals/checkpoint_recovery/checkpoint-fault-recovery-offline-v1.csv).
 
+The zero-network operational audit reads the run directories already on disk:
+
+```bash
+uv run python ops_report.py
+uv run python ops_report.py --since 2026-08-01
+```
+
+It reports five outcomes separately: completed, failed, timed out, cancelled,
+and unknown. Resolved success rates exclude user cancellations and unknown
+directories; unknown is never promoted to success merely because no error
+could be read. Legacy directories without `status.json` remain visible when
+a report or error artifact proves their terminal outcome. The same output
+lists whether claim grounding, checkpointing, review, and recovery were
+actually recorded, so “not checked” cannot look like “passed.”
+
+This audit describes only the supplied `outputs/` sample. It does not read
+Railway platform metrics and is not a production availability, p95 latency, or
+SLO claim.
+
 A separate human-label audit now answers a retrieval question that the
 structural benchmark cannot: whether patents accepted by the pipeline are
 actually topically relevant. The frozen packet contains all **75** patent
@@ -544,9 +563,12 @@ full assessment and a PDF extraction each consume one operator-funded unit, so
 an upload-then-run journey consumes two. It is applied separately to each
 validated code (including the admin code); BYOK operations are exempt because
 the visitor pays. 0 disables it. The old `API_DAILY_RUN_CAP` name remains a
-backward-compatible fallback when the new variable is unset. Because the ledger
-is in memory, UTC midnight and a process restart reset it; durable multi-replica
-accounting would require an external store.
+backward-compatible fallback when the new variable is unset. When enabled, the
+UTC-day counts are atomically committed to `outputs/.paid-operation-ledger.json`,
+so a process restart does not reopen that day's budget. An unreadable ledger
+fails closed before provider work starts. This is still a **single-process**
+consistency boundary: multiple replicas require an external store with an
+atomic increment/check transaction.
 
 Size the value against the stricter of your **LLM and search** budgets. Across
 30 measured runs, one full assessment issues a median of 9 web searches (range
@@ -572,9 +594,11 @@ proxy handling belongs in Uvicorn/deployment configuration. `/health` is exempt,
 because a throttled health check reads as the service being down.
 
 Retention matters *because* run links are shareable. Reading a run needs only
-its id, so a shared link lives exactly as long as the run does, and a visitor
-who uploads an unpublished paper otherwise leaves its contents, the extracted
-contribution and the resulting assessment on your server indefinitely. Age is
+its id, so a shared link lives exactly as long as the run does. The raw PDF is
+deleted immediately after successful extraction, and a failed upload that
+returns no `paper_id` is discarded immediately. The bounded extraction and
+the resulting assessment still remain on the server, so they need an explicit
+retention window. Age is
 taken from the run id's timestamp rather than the directory mtime, so
 rendering a PDF on first download does not quietly extend the life of the runs
 people are actually opening; live runs are never deleted. `/health` reports
@@ -975,6 +999,22 @@ exactly-once 或 Railway SLO。详见[预注册](docs/prereg-2026-08-23-checkpoi
 [结果](docs/results-2026-08-23-checkpoint-fault-recovery.md)和
 [30 行脱敏证据](evals/checkpoint_recovery/checkpoint-fault-recovery-offline-v1.csv)。
 
+零网络运维审计直接读取磁盘上已有的运行目录：
+
+```bash
+uv run python ops_report.py
+uv run python ops_report.py --since 2026-08-01
+```
+
+它分别报告完成、失败、超时、取消和未知五种结果。已解析成功率不把用户取消
+和未知目录计入分母；系统不会仅因读不到错误就把未知任务算作成功。对于没有
+`status.json` 的旧目录，只要报告或错误产物能够证明终态，仍会纳入统计。
+输出还会分别列出 claim grounding、checkpointing、review 和 recovery 是否
+真正留下记录，避免把“未检查”展示成“已通过”。
+
+该审计只描述传入的 `outputs/` 样本，不读取 Railway 平台指标，因此不能
+作为生产可用率、p95 时延或 SLO 证据。
+
 另有一组专利来源相关性人工审计，覆盖 10 个公开基准主题的全部 75 条已接受
 专利，以及 6 条事后构造的钠离子储能 challenge。首组逐项人工标签显示，核心
 基准中 64/75（85.3%）直接相关、73/75（97.3%）至少弱相关；它只衡量已接受
@@ -1322,7 +1362,7 @@ API_DAILY_PAID_OPERATION_CAP=3                  # 每个口令的付费操作额
 
 `ACCESS_CODE`（或下面的 `ACCESS_CODES`）由 `api/main.py` 中间件校验请求头 `X-Access-Code`；网页只在首次访问时询问并记入 `localStorage`。`/health` 仍对云平台探针开放。所有口令设置都留空（默认）时，门禁完全不生效，本地开发不受影响。
 
-`API_DAILY_PAID_OPERATION_CAP` 是独立的**单进程账单保险丝**：完整评估和 PDF 提取各消耗一个由部署方付费的单位，因此“上传论文再运行”会消耗两个。额度按每个已验证口令分别计算（包括管理员口令）；BYOK 因访客自行付费而豁免。0 表示关闭。旧变量 `API_DAILY_RUN_CAP` 在新变量未设置时仍作为兼容回退。这个账本保存在内存中，因此 UTC 零点或进程重启都会清零；要支持多副本持久计数，需要外部存储。
+`API_DAILY_PAID_OPERATION_CAP` 是独立的**单进程账单保险丝**：完整评估和 PDF 提取各消耗一个由部署方付费的单位，因此“上传论文再运行”会消耗两个。额度按每个已验证口令分别计算（包括管理员口令）；BYOK 因访客自行付费而豁免。0 表示关闭。旧变量 `API_DAILY_RUN_CAP` 在新变量未设置时仍作为兼容回退。启用后，按口令哈希计数的 UTC 日账本会原子写入 `outputs/.paid-operation-ledger.json`，所以服务进程重启不会重新放开当天预算；账本损坏或无法落盘时，准入会在 Provider 调用前失败关闭。它仍然只保证**单个 API 进程**内的一致性：多个 Railway 副本会竞争同一文件或各持一份卷，横向扩展前必须换成支持原子增量的外部存储。
 
 这个值应按 **LLM 与检索预算中更严格的一项**确定。30 次实测中，完整评估的网页检索中位数为 9 次（区间 5–15）；PDF 提取增加一次 LLM 调用，但不使用搜索 API。Tavily 每月 1000 次免费额度约对应所有口令合计 110 次完整运行；每口令上限兜住的是单个泄漏凭证，而不是所有口令的总花费。
 
@@ -1335,7 +1375,7 @@ RUN_RETENTION_DAYS=30           # N 天后自动删除已完成的运行
 
 请求限流计的是 **HTTP 请求数**，上面的容量与每日上限计的是**付费操作**。能力 URL 无需口令即可轮询，所以便宜接口同样需要边界。只有校验成功的访问口令才拥有独立桶；其他请求按 ASGI 服务器解析出的对端地址计数。应用层刻意不直接信任原始 `X-Forwarded-For`，也不会让任意错误口令生成新桶；可信代理应在 Uvicorn/部署层配置。`/health` 豁免，否则限流会被平台误判为宕机。
 
-保留期之所以重要，**正是因为运行链接可以分享**：读取一个运行只需要 id，所以分享出去的链接活多久，取决于那次运行活多久；而一个上传了未发表论文的访客，会把论文内容、提取出的核心贡献、以及据此写成的评估长期留在你的服务器上。计龄用的是 run_id 自带的时间戳而不是目录 mtime，这样首次下载时渲染 PDF 不会给"正在被人打开的运行"偷偷续期；正在执行的运行永不删除。`/health` 会上报保留窗口、前端会显示——没被告知的删除读起来是数据丢失，不是策略。
+保留期之所以重要，**正是因为运行链接可以分享**：读取一个运行只需要 id，所以分享出去的链接活多久，取决于那次运行活多久。论文提取成功后，原始 PDF 会立即删除；失败且不会返回 `paper_id` 的上传也会立即丢弃。但提取出的核心贡献以及据此生成的评估仍会留在服务器上，因此仍需明确保留窗口。计龄用的是 run_id 自带的时间戳而不是目录 mtime，这样首次下载时渲染 PDF 不会给"正在被人打开的运行"偷偷续期；正在执行的运行永不删除。`/health` 会上报保留窗口、前端会显示——没被告知的删除读起来是数据丢失，不是策略。
 
 此外每个响应都带 `Content-Security-Policy`、`X-Content-Type-Options`、`Referrer-Policy` 和 `Cross-Origin-Opener-Policy`。这套策略不需要任何 `unsafe-inline`：前端没有内联脚本、没有内联样式、没有 `on*` 属性，样式通过 CSSOM 逐属性设置。报告正文是模型输出加第三方标题、最终会进入 innerHTML，所以这一层限定的是"万一某处转义漏了，能造成多大后果"。**刻意没有加 HSTS**——Railway 在这个进程之前就终结了 TLS，一个应用给自己并不掌控的域名下发 `max-age`，可能比它的证书方案活得更久。
 

@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+from academic_agent.checkpoints import CheckpointStore, hash_json
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
 from academic_agent.run_spec import RESUME_SNAPSHOT_DIRECTORY, RunSpec
 
@@ -77,6 +78,9 @@ _DAILY_CAP_ENV = os.getenv("API_DAILY_PAID_OPERATION_CAP")
 if _DAILY_CAP_ENV is None:
     _DAILY_CAP_ENV = os.getenv("API_DAILY_RUN_CAP", "0")
 DAILY_CAP = int(_DAILY_CAP_ENV)
+_DAILY_LEDGER_SCHEMA_VERSION = 1
+_DAILY_LEDGER_FILENAME = ".paid-operation-ledger.json"
+_DAILY_LEDGER_OWNERLESS_KEY = "__ownerless__"
 
 # Days a finished run is kept before it is deleted automatically. 0 (the
 # default) keeps runs forever, which is right for local development where the
@@ -84,10 +88,10 @@ DAILY_CAP = int(_DAILY_CAP_ENV)
 #
 # A public deployment is a different situation. Reading a run needs only its
 # id — that is the deliberate report-sharing model — so a link stays live for
-# as long as the run does, and a visitor who uploads an unpublished paper
-# leaves its contents, its extracted contribution and the resulting assessment
-# on someone else's server indefinitely. Retention is the bound on that, and
-# the reason it matters more once links are shareable rather than less.
+# as long as the run does. An uploaded paper's bounded extraction is copied
+# into that run contract, while the raw PDF is deleted immediately after
+# successful extraction. Retention bounds the durable extraction and resulting
+# assessment, and matters more once links are shareable rather than less.
 RUN_RETENTION_DAYS = int(os.getenv("RUN_RETENTION_DAYS", "0"))
 
 # Run directories are named <UTC timestamp>-<hex>; see create_run_id().
@@ -256,6 +260,14 @@ class DailyCapReached(Exception):
     """Raised when the day's operator-funded paid-operation budget is exhausted."""
 
 
+class PaidLedgerUnavailable(OSError):
+    """Raised when the daily wallet ledger cannot be read or committed safely."""
+
+
+class OwnerMarkerUnreadable(OSError):
+    """Raised when persisted ownership cannot be distinguished from ownerless."""
+
+
 class RunNotFound(Exception):
     """Raised for an unknown run_id."""
 
@@ -276,10 +288,12 @@ _registry: dict[str, _Handle] = {}
 # context manager; the bool records whether it consumes the BYOK share.
 _inline_paid_operations: dict[object, bool] = {}
 
-# Operator-funded paid operations admitted so far today (UTC), per owner, and
-# the date the counts apply. Reset lazily on the next admission rather than by
-# a scheduled task. Keyed by owner so ten separate access codes do not exhaust
-# one shared pool. BYOK is exempt before this counter is consulted.
+# In-process cache of the durable UTC-day ledger. The atomic file survives an
+# application restart, closing the easiest way to reset a leaked code's wallet
+# cap. _registry_lock makes read/check/write one decision inside this process;
+# it is deliberately not described as a distributed lock. Multiple replicas
+# still need one external transactional store. Keys are already one-way owner
+# ids, and BYOK is exempt before this ledger is consulted.
 _daily_counts: dict[str | None, int] = {}
 _daily_date: date | None = None
 
@@ -333,13 +347,131 @@ def active_paid_operation_count() -> int:
     return capacity_counts()[1]
 
 
+def _daily_ledger_path() -> Path:
+    """Location follows DEFAULT_OUTPUT_ROOT so tests and deployments share policy."""
+    return DEFAULT_OUTPUT_ROOT / _DAILY_LEDGER_FILENAME
+
+
+def _read_daily_ledger_locked(today: date) -> dict[str | None, int]:
+    """Load the active counts; malformed state fails closed before a paid call."""
+    path = _daily_ledger_path()
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PaidLedgerUnavailable(
+            "The paid-operation ledger is unreadable."
+        ) from exc
+
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema_version") != _DAILY_LEDGER_SCHEMA_VERSION
+        or not isinstance(payload.get("date"), str)
+    ):
+        raise PaidLedgerUnavailable(
+            "The paid-operation ledger has an unsupported format."
+        )
+    if payload["date"] != today.isoformat():
+        return {}
+
+    encoded_counts = payload.get("counts")
+    if not isinstance(encoded_counts, dict):
+        raise PaidLedgerUnavailable("The paid-operation ledger counts are invalid.")
+
+    counts: dict[str | None, int] = {}
+    for encoded_owner, count in encoded_counts.items():
+        if (
+            not isinstance(encoded_owner, str)
+            or isinstance(count, bool)
+            or not isinstance(count, int)
+            or count < 0
+        ):
+            raise PaidLedgerUnavailable(
+                "The paid-operation ledger contains an invalid entry."
+            )
+        owner = (
+            None
+            if encoded_owner == _DAILY_LEDGER_OWNERLESS_KEY
+            else encoded_owner
+        )
+        counts[owner] = count
+    return counts
+
+
+def validate_paid_ledger() -> None:
+    """Validate enabled accounting state without changing admission caches.
+
+    Readiness must consult the file directly even after this process cached a
+    valid day. Otherwise an operator could replace or corrupt the ledger and
+    the deployment would keep claiming it can admit paid work until restart.
+    A missing ledger is the expected first-boot state and therefore valid.
+    """
+    if not DAILY_CAP:
+        return
+    with _registry_lock:
+        _read_daily_ledger_locked(datetime.now(UTC).date())
+
+
+def _write_daily_ledger_locked(today: date) -> None:
+    """Atomically commit the cached counts before provider work is admitted."""
+    path = _daily_ledger_path()
+    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    encoded_counts = {
+        (_DAILY_LEDGER_OWNERLESS_KEY if owner is None else owner): count
+        for owner, count in _daily_counts.items()
+        if count > 0
+    }
+    payload = {
+        "schema_version": _DAILY_LEDGER_SCHEMA_VERSION,
+        "date": today.isoformat(),
+        "counts": encoded_counts,
+    }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+            json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except OSError as exc:
+        raise PaidLedgerUnavailable(
+            "The paid-operation ledger could not be committed."
+        ) from exc
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            # A committed ledger or the admission failure above is the useful
+            # outcome; an unreferenced temporary file must not replace it.
+            pass
+
+
+def _charge_daily_ledger_locked(owner: str | None, charged_on: date) -> None:
+    """Increment durably, rolling memory back when the commit fails."""
+    previous = _daily_counts.get(owner, 0)
+    _daily_counts[owner] = previous + 1
+    try:
+        _write_daily_ledger_locked(charged_on)
+    except PaidLedgerUnavailable:
+        if previous:
+            _daily_counts[owner] = previous
+        else:
+            _daily_counts.pop(owner, None)
+        raise
+
+
 def _daily_window_locked() -> date:
-    """Reset the per-owner ledger at UTC midnight; caller holds the lock."""
+    """Load today's durable ledger once per process; caller holds the lock."""
     global _daily_date
     today = datetime.now(UTC).date()
     if _daily_date != today:
-        _daily_date = today
+        counts = _read_daily_ledger_locked(today)
         _daily_counts.clear()
+        _daily_counts.update(counts)
+        # Publish the cache date only after a successful read. A corrupt
+        # ledger must be retried and remain fail-closed on every admission.
+        _daily_date = today
     return today
 
 
@@ -353,10 +485,10 @@ def _admit_paid_operation_locked(*, owner: str | None, byok: bool) -> date | Non
     is always released.
     """
     charged_on: date | None = None
-    if not byok:
+    if not byok and DAILY_CAP:
         charged_on = _daily_window_locked()
         owner_count = _daily_counts.get(owner, 0)
-        if DAILY_CAP and owner_count >= DAILY_CAP:
+        if owner_count >= DAILY_CAP:
             raise DailyCapReached(
                 f"Daily limit reached: {DAILY_CAP} operator-funded paid "
                 "operations already admitted today"
@@ -378,19 +510,32 @@ def _admit_paid_operation_locked(*, owner: str | None, byok: bool) -> date | Non
             )
 
     if charged_on is not None:
-        _daily_counts[owner] = _daily_counts.get(owner, 0) + 1
+        _charge_daily_ledger_locked(owner, charged_on)
     return charged_on
 
 
-def _refund_daily_charge_locked(owner: str | None, charged_on: date | None) -> None:
-    """Refund a pre-provider launch failure without touching a new UTC day."""
+def _refund_daily_charge_locked(
+    owner: str | None, charged_on: date | None
+) -> bool:
+    """Persist a safe pre-provider refund; False means the charge remains."""
     if charged_on is None or _daily_date != charged_on:
-        return
+        return True
     remaining = _daily_counts.get(owner, 0)
-    if remaining <= 1:
+    if remaining <= 0:
+        return True
+    if remaining == 1:
         _daily_counts.pop(owner, None)
     else:
         _daily_counts[owner] = remaining - 1
+    try:
+        _write_daily_ledger_locked(charged_on)
+    except PaidLedgerUnavailable:
+        # Do not replace the worker-launch exception with a refund error.
+        # Restore memory to the still-charged durable state and tell the
+        # caller to emit an operator-visible diagnostic.
+        _daily_counts[owner] = remaining
+        return False
+    return True
 
 
 @contextmanager
@@ -472,7 +617,11 @@ def _start_run_from_spec(
                 byok=byok is not None,
             )
         except BaseException:
-            _refund_daily_charge_locked(owner, charged_on)
+            if not _refund_daily_charge_locked(owner, charged_on):
+                print(
+                    "[api] paid-operation refund could not be persisted; charge retained",
+                    file=sys.stderr,
+                )
             raise
 
     run_dir = run_dir_for(run_id)
@@ -542,7 +691,11 @@ def _start_run_from_spec(
             # No worker exists, so no LLM/search provider could have been
             # reached. Unlike a failed running worker, this attempt is safe
             # to refund rather than silently consuming the user's day.
-            _refund_daily_charge_locked(owner, charged_on)
+            if not _refund_daily_charge_locked(owner, charged_on):
+                print(
+                    "[api] paid-operation refund could not be persisted; charge retained",
+                    file=sys.stderr,
+                )
         raise
 
     with _registry_lock:
@@ -637,11 +790,24 @@ def resume_run(
         ) from exc
 
     # Retrieval is the root of every task identity.  Starting a paid child
-    # without even that commit could only produce a full rerun while claiming
-    # to be recovery, so old/pre-checkpoint runs fail explicitly instead.
-    retrieval_manifest = source_directory / "checkpoints" / "retrieval" / "manifest.json"
-    if not retrieval_manifest.is_file():
-        raise RunNotResumable("This run has no validated retrieval checkpoint to resume.")
+    # without an intact commit could only produce a full rerun while claiming
+    # to be recovery. Existence alone is insufficient: a truncated manifest or
+    # missing content-addressed payload used to pass this endpoint, consume a
+    # daily charge, and reach the worker before being discovered as corrupt.
+    retrieval = CheckpointStore(source_directory).inspect_existing("retrieval")
+    if retrieval.state != "reusable" or retrieval.manifest is None:
+        raise RunNotResumable(
+            "This run has no intact retrieval checkpoint to resume."
+        )
+
+    # Bind the root checkpoint to the durable input contract before admitting
+    # paid work. Revision and date are intentionally left to the worker: a
+    # valid-but-stale checkpoint is an explicit cold start, while a checkpoint
+    # copied from another input is not evidence that this run can be resumed.
+    if retrieval.manifest.identity.input_sha256 != hash_json(spec):
+        raise RunNotResumable(
+            "The retrieval checkpoint does not match this run's input contract."
+        )
 
     return _start_run_from_spec(
         spec,
@@ -792,7 +958,12 @@ def read_steps(run_id: str, since: int = 0) -> list[dict]:
 
 
 def _failure_reason(run_dir: Path) -> str:
-    """Best available explanation for a run that did not complete."""
+    """Best internal explanation for a run that did not complete.
+
+    This text comes from provider responses and worker stderr. It stays in
+    the run directory for operators and must pass through
+    _public_failure_reason() before crossing an HTTP response boundary.
+    """
     try:
         msg = (run_dir / "error.log").read_text(encoding="utf-8", errors="replace").strip()
         if msg:
@@ -802,10 +973,103 @@ def _failure_reason(run_dir: Path) -> str:
     try:
         log = (run_dir / "process.log").read_text(encoding="utf-8", errors="replace").strip()
         if log:
-            return "Worker stderr:\n" + log[-800:]
+            return log[-800:]
     except OSError:
         pass
-    return "The worker exited without completing. Check API keys and network, then retry."
+    return ""
+
+
+_TIMEOUT_FAILURE_MARKERS = ("timed out", "timeout", "deadline exceeded")
+_PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str], ...] = (
+    (
+        _TIMEOUT_FAILURE_MARKERS,
+        "The analysis exceeded its time limit. Retry with a narrower topic.",
+    ),
+    (
+        (
+            "invalid api key",
+            "incorrect api key",
+            "authentication failed",
+            "authentication error",
+            "unauthorized",
+            "error code: 401",
+        ),
+        "An upstream provider rejected authentication. "
+        "Check the configured credentials.",
+    ),
+    (
+        (
+            "rate limit",
+            "rate_limit",
+            "insufficient_quota",
+            "quota exceeded",
+            "error code: 429",
+        ),
+        "An upstream provider rate or quota limit was reached. Retry later.",
+    ),
+    (
+        (
+            "validated sources",
+            "sourcecollectionerror",
+            "source collection",
+            "retrieval produced",
+        ),
+        "The system could not collect enough validated evidence for this topic. "
+        "Retry later or refine the topic.",
+    ),
+    (
+        (
+            "response_format",
+            "failed to convert text into a pydantic model",
+            "not json serializable",
+            "jsondecodeerror",
+            "invalid json",
+        ),
+        "An upstream model returned an unsupported response format. "
+        "Retry the analysis.",
+    ),
+    (
+        (
+            "guardrail",
+            "blocking validation errors",
+            "evidence validation failed",
+            "final report validation failed",
+        ),
+        "The generated analysis did not pass the evidence-quality checks. "
+        "Retry the analysis.",
+    ),
+    (
+        (
+            "connection error",
+            "connection refused",
+            "connection reset",
+            "network error",
+            "name resolution",
+            "temporarily unavailable",
+            "service unavailable",
+        ),
+        "An upstream service could not be reached. Retry later.",
+    ),
+)
+
+
+def _is_timeout_failure(raw_reason: object) -> bool:
+    lowered = str(raw_reason).lower()
+    return any(marker in lowered for marker in _TIMEOUT_FAILURE_MARKERS)
+
+
+def _public_failure_reason(raw_reason: object) -> str:
+    """Map untrusted diagnostics to a stable client-safe category.
+
+    Error artifacts remain untouched for operator debugging. Returning only
+    allowlisted prose here prevents provider bodies, credentials, prompts,
+    and host paths from being reflected by status and list endpoints.
+    """
+    lowered = str(raw_reason).lower()
+    for markers, message in _PUBLIC_FAILURE_CATEGORIES:
+        if any(marker in lowered for marker in markers):
+            return message
+    return "The analysis failed. Retry or contact the operator with the run ID."
 
 
 def artifact_names() -> list[str]:
@@ -866,7 +1130,7 @@ def get_state(run_id: str) -> dict:
         if (run_dir / _CANCEL_MARKER).exists():
             state, error = "cancelled", "Cancelled by request."
         elif status.get("error"):
-            state, error = "failed", str(status["error"])
+            state, error = "failed", _public_failure_reason(status["error"])
         elif status.get("done"):
             state, error = "completed", None
         elif not status_readable:
@@ -875,8 +1139,8 @@ def get_state(run_id: str) -> dict:
                      "have completed. Retry in a moment.")
         else:
             reason = _failure_reason(run_dir)
-            state = "timeout" if "timed out" in reason.lower() else "failed"
-            error = reason
+            state = "timeout" if _is_timeout_failure(reason) else "failed"
+            error = _public_failure_reason(reason)
 
     return {
         "run_id": run_id,
@@ -1032,20 +1296,31 @@ def prune_expired_runs(retention_days: int | None = None) -> list[str]:
 
 
 def _read_owner(run_dir: Path) -> str | None:
-    try:
-        return (run_dir / _OWNER_FILE).read_text(encoding="utf-8").strip() or None
-    except OSError:
+    marker = run_dir / _OWNER_FILE
+    if not marker.exists():
         return None
+    try:
+        owner = marker.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        # The absence of a marker deliberately means an ownerless BYOK/local
+        # run. An unreadable marker says ownership could not be established;
+        # collapsing those cases lets a storage fault erase authorization.
+        raise OwnerMarkerUnreadable("Run ownership metadata is unreadable") from exc
+    if not owner:
+        # A partially written or externally damaged marker is not evidence
+        # that the original run was ownerless. Fail closed for the same reason
+        # as a read error instead of converting corruption into permission.
+        raise OwnerMarkerUnreadable("Run ownership metadata is empty")
+    return owner
 
 
 def owner_of(run_id: str) -> str | None:
     """The access.owner_id() that created this run, or None if it has no owner.
 
-    None covers three distinct cases the caller must not conflate: a BYOK run
-    (deliberately untagged), a run created on a deployment with no access code
-    configured, and a run directory that does not exist. Callers deciding
-    authorization should check existence separately rather than reading None
-    as "unowned, therefore fair game".
+    None covers a BYOK/local run (deliberately untagged) and a run directory
+    that does not exist. Callers deciding authorization still check existence
+    separately. A marker that exists but cannot be read raises instead of
+    becoming None, because that conversion would fail open at mutation routes.
     """
     if not _is_valid_run_id(run_id):
         return None

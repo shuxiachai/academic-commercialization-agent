@@ -117,6 +117,24 @@ def test_resume_endpoint_snapshots_parent_before_starting_worker(
     assert snapshot_manifest.is_file()
 
 
+def test_resume_worker_failure_does_not_expose_internal_details(
+    recovery_client: TestClient,
+    tmp_path: Path,
+) -> None:
+    source_id, _, _ = _failed_source(tmp_path, suffix="resumefailure")
+    private = OSError(r"cannot spawn C:\private\operator-token")
+
+    with patch("api.runs.resume_run", side_effect=private):
+        response = recovery_client.post(f"/api/runs/{source_id}/resume", json={})
+
+    assert response.status_code == 500
+    assert (
+        response.json()["detail"]
+        == "The analysis worker could not be resumed. Retry later."
+    )
+    assert "operator-token" not in response.text
+
+
 def test_resume_rejects_completed_unknown_or_pre_checkpoint_runs_without_spawning(
     recovery_client: TestClient,
     tmp_path: Path,
@@ -242,3 +260,80 @@ def test_owned_source_cannot_be_resumed_from_a_leaked_capability_url(
     assert denied.status_code == 404
     assert allowed.status_code == 202
     popen.assert_called_once()
+
+
+@pytest.mark.parametrize("damage", ["manifest", "payload", "input_contract"])
+def test_resume_rejects_damaged_root_before_paid_admission(
+    recovery_client: TestClient,
+    tmp_path: Path,
+    damage: str,
+) -> None:
+    """Recovery admission requires a real commit, not a filename-shaped promise.
+
+    This assertion is on the paid-operation seam. A missing payload used to
+    pass the API's ``manifest.is_file()`` check and consume quota before the
+    worker classified it as corrupt and performed a full cold run.
+    """
+    source_id, source_directory, spec = _failed_source(
+        tmp_path, suffix=f"damaged{damage.replace('_', '')}"
+    )
+    manifest_path = source_directory / "checkpoints" / "retrieval" / "manifest.json"
+
+    if damage == "manifest":
+        manifest_path.write_text("{", encoding="utf-8")
+    elif damage == "payload":
+        stored = json.loads(manifest_path.read_text(encoding="utf-8"))
+        (manifest_path.parent / stored["output_file"]).unlink()
+    else:
+        RunSpec(
+            topic=f"{spec.topic} with a different durable input",
+            language=spec.language,
+            weight_profile=spec.weight_profile,
+        ).save(source_directory)
+
+    with patch("api.runs._admit_paid_operation_locked") as admit, \
+         patch("api.runs.subprocess.Popen") as popen:
+        response = recovery_client.post(f"/api/runs/{source_id}/resume", json={})
+
+    assert response.status_code == 409
+    admit.assert_not_called()
+    popen.assert_not_called()
+
+
+def test_unreadable_owner_metadata_denies_paid_resume_without_leaking_detail(
+    recovery_client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_id, source_directory, _ = _failed_source(
+        tmp_path, suffix="blankownermarker"
+    )
+    (source_directory / runs._OWNER_FILE).write_text("", encoding="utf-8")
+    monkeypatch.setattr(access, "ACCESS_CODE", "alice-code")
+    monkeypatch.setattr(access, "ACCESS_CODES", None)
+    body = {
+        "llm_provider": "deepseek",
+        "llm_api_key": "attacker-key",
+        "serper_api_key": "attacker-search",
+    }
+
+    with patch("api.runs.subprocess.Popen") as popen:
+        response = recovery_client.post(f"/api/runs/{source_id}/resume", json=body)
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Run authorization is temporarily unavailable. Retry later."
+    )
+    assert "metadata is empty" not in response.text
+    popen.assert_not_called()
+
+
+def test_run_list_reports_owner_metadata_failure_instead_of_omitting_the_run(
+    recovery_client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_id, source_directory, _ = _failed_source(
+        tmp_path, suffix="blankownerlist"
+    )
+    (source_directory / runs._OWNER_FILE).write_text("", encoding="utf-8")

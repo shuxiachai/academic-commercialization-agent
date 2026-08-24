@@ -35,6 +35,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --python ${{ matrix.python-version }}
 
+      # Several browser-contract tests execute the real client JavaScript and
+      # skip locally when Node is unavailable. CI must not turn a missing
+      # runtime into a green job with those assertions silently absent.
+      - name: Require Node for web contract tests
+        run: node --version
+
       - name: Run tests
         # Warning filters live in pyproject.toml so this command is identical
         # on both shells — see the filterwarnings comment there.
@@ -65,6 +71,42 @@ jobs:
           --disable=all
           --enable=bad-except-order,unreachable,used-before-assignment,undefined-variable
           --score=n
+
+  coverage:
+    name: coverage floor (Ubuntu, py3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "latest"
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --python 3.12
+
+      # This job runs the same Node-backed browser contracts as the matrix.
+      # A missing runtime must not reduce the measured denominator and make
+      # Python coverage look healthier by silently skipping client seams.
+      - name: Require Node for web contract tests
+        run: node --version
+
+      - name: Enforce measured coverage floor
+        # A fresh full run measured 87% on 2026-08-24. 85% is deliberately a
+        # floor rather than the observed value: it catches material regressions
+        # while leaving two points for platform-specific defensive branches.
+        # One canonical Ubuntu job owns the number; repeating the gate across
+        # four OS/Python cells would turn harmless branch variation into four
+        # different definitions of the same project metric.
+        run: >
+          uv run pytest tests/ -q --tb=short
+          --cov=src/academic_agent
+          --cov=api
+          --cov=ui
+          --cov-report=term-missing
+          --cov-fail-under=85
 
   docker:
     name: docker build

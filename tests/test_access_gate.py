@@ -377,6 +377,7 @@ class DailyCapTests(_RunLifecycleTestBase):
              patch("api.runs.subprocess.Popen", _FakeProc):
             for _ in range(5):
                 runs.start_run("topic")   # must not raise DailyCapReached
+        self.assertFalse(runs._daily_ledger_path().exists())
 
     def test_cap_rejects_the_run_after_the_limit(self):
         with patch.object(runs, "DAILY_CAP", 2), \
@@ -385,6 +386,31 @@ class DailyCapTests(_RunLifecycleTestBase):
             runs.start_run("t2")
             with self.assertRaises(runs.DailyCapReached):
                 runs.start_run("t3")
+
+    def test_cap_survives_a_process_restart(self):
+        """A restart may clear RAM but must not restore operator-funded budget."""
+        with patch.object(runs, "DAILY_CAP", 1), \
+             patch.object(runs, "MAX_CONCURRENT", 100), \
+             patch("api.runs.subprocess.Popen", _FakeProc):
+            runs.start_run("alice's first run", owner="alice-hash")
+
+            # Simulate a fresh interpreter while leaving durable output state.
+            runs._daily_counts = {}
+            runs._daily_date = None
+            with self.assertRaises(runs.DailyCapReached):
+                runs.start_run("alice's second run", owner="alice-hash")
+
+    def test_corrupt_ledger_fails_closed_before_process_launch(self):
+        """Unreadable accounting must never silently reopen the paid path."""
+        ledger = runs._daily_ledger_path()
+        ledger.parent.mkdir(parents=True, exist_ok=True)
+        ledger.write_text("{not-json", encoding="utf-8")
+
+        with patch.object(runs, "DAILY_CAP", 1), \
+             patch("api.runs.subprocess.Popen") as popen:
+            with self.assertRaises(runs.PaidLedgerUnavailable):
+                runs.start_run("must stay local", owner="alice-hash")
+        popen.assert_not_called()
 
     def test_each_owner_has_an_independent_budget(self):
         """The reason this is per-owner at all: one code exhausting its
@@ -419,6 +445,7 @@ class DailyCapTests(_RunLifecycleTestBase):
             byok = runs.BYOKCredentials("deepseek", "k", "s")
             for _ in range(5):
                 runs.start_run("topic", byok=byok)     # must not raise
+            self.assertFalse(runs._daily_ledger_path().exists())
 
             runs.start_run("owner's run")              # spends the day's only slot
             with self.assertRaises(runs.DailyCapReached):
@@ -438,6 +465,9 @@ class DailyCapTests(_RunLifecycleTestBase):
                 with self.assertRaises(OSError):
                     runs.start_run("never launched", owner="alice")
 
+            # A persisted refund, not the old in-memory value, must reopen it.
+            runs._daily_counts = {}
+            runs._daily_date = None
             with patch("api.runs.subprocess.Popen", _FakeProc):
                 runs.start_run("first billable attempt", owner="alice")
 
@@ -703,6 +733,18 @@ class BYOKSubmissionTests(_RunLifecycleTestBase):
         with patch.object(access, "ACCESS_CODE", "secret123"):
             r = self.client.post("/api/runs", json=self._byok_body())
         self.assertEqual(r.status_code, 202)
+
+    def test_byok_takes_precedence_over_a_stale_valid_code_header(self):
+        """The browser used to retain both credentials when switching modes.
+        Billing used BYOK while ownership used the stale code, making the run
+        appear in code history and contradicting the session-only contract."""
+        with patch.object(access, "ACCESS_CODE", "secret123"):
+            response = self.client.post(
+                "/api/runs", json=self._byok_body(),
+                headers={"X-Access-Code": "secret123"},
+            )
+        self.assertEqual(response.status_code, 202)
+        self.assertIsNone(runs.owner_of(response.json()["run_id"]))
 
     def test_no_code_and_no_byok_is_rejected(self):
         with patch.object(access, "ACCESS_CODE", "secret123"):

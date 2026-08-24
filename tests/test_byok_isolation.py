@@ -318,7 +318,7 @@ class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
 
         with mock.patch.object(access, "ACCESS_CODE", "secret"):
             self.assertEqual(
-                self._post({"llm_provider": "openai"}).status_code, 401)
+                self._post({"llm_provider": "openai"}).status_code, 422)
 
     def test_a_code_holder_uploads_on_the_deployments_keys(self):
         """The existing path, unchanged: no credentials in the form means the
@@ -373,3 +373,16 @@ class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
         self.assertIn('form.append("llm_provider"', upload)
         self.assertIn('form.append("llm_api_key"', upload)
         self.assertNotIn('form.append("serper_api_key"', upload)
+
+    def test_byok_mode_keeps_the_paper_control_reachable(self):
+        """api.js already sent the right key while app.js disabled the only
+        button that could call it. Assert the browser-facing seam, not one half."""
+        source = (Path(__file__).resolve().parent.parent
+                  / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        start = source.index("function applyByokMode()")
+        end = source.index('$("#byok-exit")', start)
+        byok_mode = source[start:end]
+
+        self.assertNotIn("attachBtn.disabled", byok_mode)
+        self.assertNotIn("byok_no_attach", byok_mode)
+        self.assertIn("api.setAccessCode(null)", byok_mode)

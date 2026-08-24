@@ -168,7 +168,9 @@ class RunProgress(BaseModel):
                     "checked against the text of the sources they cite, how "
                     "many cited a figure absent from it, and how many could "
                     "not be checked at all. The last number bounds what the "
-                    "other two mean.",
+                    "other two mean. Status distinguishes completed, partial, "
+                    "not-applicable, unavailable, and failed checks; None is "
+                    "reserved for runs created before status was recorded.",
     )
     authority_coverage: dict | None = Field(
         default=None,
@@ -259,7 +261,9 @@ class RunStatus(BaseModel):
                     "checked against the text of the sources they cite, how "
                     "many cited a figure absent from it, and how many could "
                     "not be checked at all. The last number bounds what the "
-                    "other two mean.",
+                    "other two mean. Status distinguishes completed, partial, "
+                    "not-applicable, unavailable, and failed checks; None is "
+                    "reserved for runs created before status was recorded.",
     )
     authority_coverage: dict | None = Field(
         default=None,
@@ -343,9 +347,10 @@ class HealthStatus(BaseModel):
     retention_days: int = Field(
         default=0,
         description="Days a finished run is kept before automatic deletion; "
-                    "0 means runs are kept indefinitely. Reported so a visitor "
-                    "can see how long their uploaded paper and its assessment "
-                    "will live on this deployment.",
+                    "0 means runs are kept indefinitely. Reported so a visitor can "
+                    "see how long a run's extracted paper metadata and assessment "
+                    "will live on this deployment. Raw PDFs are deleted immediately "
+                    "after successful extraction.",
     )
     llm_provider: str | None = None
 
