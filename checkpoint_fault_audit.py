@@ -22,13 +22,18 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Final
 from unittest.mock import patch
 
 from academic_agent.checkpoint_runtime import TASK_NODES
+from academic_agent.evidence import (
+    EvidenceFinding,
+    EvidenceReport,
+    EvidenceSource,
+)
 from academic_agent.run_spec import RESUME_SNAPSHOT_DIRECTORY, RUN_SPEC_FILENAME
 
 
@@ -264,18 +269,61 @@ class _OfflineTelemetry:
         return {"state": "disabled", "reason": "offline_checkpoint_fault_audit"}
 
 
+def _evidence_output(prefix: str) -> str:
+    """Return the post-guardrail JSON shape required by typed recovery."""
+    source_id = f"{prefix}1"
+    source_types = {
+        "A": "academic_paper",
+        "P": "patent",
+        "M": "market_report",
+    }
+    source = EvidenceSource(
+        source_id=source_id,
+        title=f"Deterministic checkpoint source {source_id}",
+        url=f"https://example.com/checkpoint-{source_id.lower()}",
+        publisher="Example Research Institute",
+        published_date=date(2026, 1, 10),
+        accessed_date=date(2026, 8, 23),
+        source_type=source_types[prefix],
+        evidence_summary=(
+            "This deterministic source summary represents already validated "
+            "evidence at the offline checkpoint worker boundary."
+        ),
+    )
+    findings = [
+        EvidenceFinding(
+            finding_id=f"{prefix}F{index}",
+            category="technology maturity",
+            claim="A deterministic checkpoint finding that remains supportable.",
+            claim_type="observed_fact",
+            source_ids=[source_id],
+            confidence="high",
+            commercial_implication="This affects the commercialization pathway.",
+        )
+        for index in range(1, 4)
+    ]
+    report = EvidenceReport(
+        topic="solid-state battery recycling",
+        scope_summary="A bounded deterministic review for checkpoint recovery.",
+        search_queries=["solid-state battery recycling commercial maturity"],
+        findings=findings,
+        sources=[source],
+        limitations=["The fixture replaces every external provider boundary."],
+    )
+    return report.model_dump_json()
+
+
 def _task_output(node: str):
     from crewai.tasks.task_output import OutputFormat as CrewOutputFormat
     from crewai.tasks.task_output import TaskOutput
 
-    raw = (
-        json.dumps(
-            {"node": node, "findings": [], "audit_payload": True},
-            sort_keys=True,
-        )
-        if node in {"academic", "patent", "market", "scorer"}
-        else f"# {node.title()}\n\nValidated offline checkpoint audit output."
-    )
+    if node in {"academic", "patent", "market"}:
+        prefix = {"academic": "A", "patent": "P", "market": "M"}[node]
+        raw = _evidence_output(prefix)
+    elif node == "scorer":
+        raw = json.dumps({"node": node, "audit_payload": True}, sort_keys=True)
+    else:
+        raw = f"# {node.title()}\n\nValidated offline checkpoint audit output."
     return TaskOutput(
         description=f"{node} description",
         expected_output=f"{node} expected",

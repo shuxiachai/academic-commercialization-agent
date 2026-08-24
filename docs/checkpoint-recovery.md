@@ -56,6 +56,16 @@ non-contiguous reuse was rejected because CrewAI 1.14.7 has no supported
 scheduler contract for it and reproducing callback, context, tracing, and
 rate-limit semantics would require a second executor.
 
+For the academic, patent, and market nodes, recovery also reconstructs the
+`EvidenceReport` object that the live evidence guardrail attaches. It repeats
+both Pydantic schema validation and the node-prefix evidence-integrity checks,
+while preserving the checkpoint text in `TaskOutput.raw`; CrewAI therefore
+receives byte-identical model context and the deterministic Writer guardrail
+receives the trusted typed source registry it expects. A JSON payload that
+passes storage-format checks but fails this typed validation is reported as
+`corrupt` with `payload_schema`, and reuse stops at that node rather than
+silently presenting unvalidated raw text as evidence.
+
 Every reused checkpoint is republished into the child, making the child
 independently resumable. A Reviewer fallback that merely ships the Writer's
 validated draft is not recorded as a Reviewer checkpoint: the review did not
@@ -128,6 +138,9 @@ The zero-network suite covers the storage and client seams separately:
 - contiguous-prefix restoration and child republishing;
 - a real pinned CrewAI kickoff whose provider double raises if hydration is
   ignored;
+- restored evidence reaches the real Writer guardrail as typed source context;
+- schema-invalid evidence JSON fails closed as a corrupt checkpoint instead of
+  being reused;
 - fresh BYOK isolation and code-owner authorization;
 - parent deletion immediately after the API returns `202`;
 - a complete worker fault/restart path in which the child executes zero of six
@@ -162,3 +175,56 @@ cross-revision invalidation. It does not close paid checkpoint reuse or
 production fault injection. The exact run ids, artifact checks, and limits
 are recorded in
 [the production follow-up result](results-2026-08-24-production-checkpoint-follow-up.md).
+
+### Production observation: same-revision restart preserved the prefix
+
+A second pre-registered Railway canary reached a four-node prefix
+(`retrieval`, `academic`, `patent`, and `market`) while the source was
+still running, then restarted the service without a rebuild. Railway returned
+the same deployment, image, instance, and `f9e3b61` revision. After readiness
+returned, the interrupted source was failed and both public status surfaces
+still reported the exact prefix with no checkpoint errors.
+
+The only recovery request was rejected with HTTP 429 before child creation
+because the owner had reached the configured three-operation daily paid cap.
+No alternate code, BYOK bypass, replacement source, or retry was used. The
+result is therefore a **non-pass** for paid same-revision reuse: it establishes
+real restart persistence and fail-closed paid admission, but no child executed
+the remaining suffix. The four manifests also stored `usage=null`, so source
+tokens and cost are not inspectable and must not be presented as zero.
+
+The frozen protocol, exact timeline, run and deployment identities, and claim
+limits are recorded in
+[the same-revision canary result](results-2026-08-24-paid-same-revision-recovery.md).
+
+### Production observation: reuse exposed a typed-context seam
+
+An independently pre-registered follow-up used a second validated owner code
+for both a new source and its immutable child. After another same-revision
+restart, the child reported `recovery.state=reused` with the exact four-node
+prefix and `next_node=writer`. Source and child output hashes matched for
+every reused node. Child usage recorded zero requests for the academic, patent,
+and market agents, then two Writer requests.
+
+The child did not complete. Both Writer attempts failed the final-report
+guardrail with `No validated evidence sources are available in task context.`
+The live evidence guardrails populate `TaskOutput.pydantic` with validated
+`EvidenceReport` objects. Recovery restored the same validated JSON into
+`TaskOutput.raw` but did not reconstruct those typed values, while the
+final-report guardrail deliberately trusts only typed evidence when building
+its allowed-source registry. Raw model context was therefore present, but
+guardrail context was empty.
+
+This remains a non-pass for end-to-end paid recovery, despite directly
+observing same-revision prefix reuse and zero repeated evidence-agent requests.
+Source checkpoint usage remained null, so total experiment cost is also
+uninspectable.
+
+The recovery adapter subsequently added typed hydration with repeated schema
+and evidence-integrity validation. The regression suite now feeds three
+restored production-shaped `EvidenceReport` values into the actual Writer
+guardrail, and separately proves that schema-invalid JSON stops reuse as
+`corrupt`. This is code-level, zero-network repair evidence only; no post-fix
+paid canary has completed the remaining suffix. See the
+[frozen production result](results-2026-08-24-paid-same-revision-recovery-follow-up.md)
+for the original observation and its claim limits.

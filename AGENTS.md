@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1339 tests (578 subtests), CI green on Linux + Windows × Python
+Current state: 1341 tests (578 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -176,12 +176,35 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   One authorized Railway resume on 2026-08-24 then completed the paid workflow,
   but `identity.pipeline_revision` differed across PR #24 and PR #25, so the
   child correctly reported `cold_start` and reused zero nodes. This closes the
-  post-fix paid startup path and fail-safe cross-revision invalidation only:
-  there is still no paid same-revision reuse or production fault injection.
-  Do not turn either result into token reduction, cost reduction, latency,
+  post-fix paid startup path and fail-safe cross-revision invalidation only.
+  A later pre-registered production canary reached a four-node checkpoint
+  prefix and restarted the same Railway revision successfully. The source
+  became failed with that prefix intact, but the only child admission was
+  rejected before provider work by the three-operation daily cap. This is a
+  non-pass, not paid same-revision reuse evidence; all source checkpoint
+  `usage` fields were null, so partial tokens and cost are not inspectable.
+  Do not turn these results into token reduction, cost reduction, latency,
   production-SLO, or exactly-once claims. See
   `docs/results-2026-08-23-checkpoint-fault-recovery.md` and
-  `docs/results-2026-08-24-production-checkpoint-follow-up.md`.
+  `docs/results-2026-08-24-production-checkpoint-follow-up.md`, plus
+  `docs/results-2026-08-24-paid-same-revision-recovery.md`.
+  A separately pre-registered second-code follow-up then admitted a child on
+  the same revision and reused the exact four-node prefix with byte-identical
+  output hashes. The three reused evidence agents made zero new child
+  requests. The child still failed: hydration restored `TaskOutput.raw` but
+  not the typed `EvidenceReport`, while the Writer guardrail builds its source
+  registry only from `TaskOutput.pydantic`. Both Writer attempts were rejected
+  as having no validated evidence context. Paid same-revision reuse is now
+  observed, but end-to-end paid recovery is not; source usage remains null, so
+  total cost is also uninspectable. See
+  `docs/results-2026-08-24-paid-same-revision-recovery-follow-up.md`.
+  Recovery now reconstructs reused evidence JSON as `EvidenceReport` only
+  after repeating schema and evidence-integrity validation. A real Writer
+  guardrail seam test reaches the short-report check, and schema-invalid JSON
+  is exposed as `corrupt` instead of being reused as raw-only context. This is
+  zero-network repair evidence, not a completed production recovery. A
+  separately pre-registered post-fix paid child still has to complete the
+  Writer/Reviewer/Scorer suffix before end-to-end paid recovery can be claimed.
 - The 30-run calibration benchmark still has no report-output evidence for
   Chinese, very short, or non-technical topics. A pre-registered zero-network
   public-boundary contract now distinguishes them: specific Chinese input is
