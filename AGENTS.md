@@ -63,7 +63,7 @@ is, in this order:
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
 | How does crash recovery work? | `docs/checkpoint-recovery.md` — identity, persistence, authorization, observable states, the 30/30 offline process audit, and the at-least-once boundary |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,000+ lines with 59 numbered postmortems and supporting decision records. Ask the user for access if you need it |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,000+ lines with 61 numbered postmortems and supporting decision records. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's
