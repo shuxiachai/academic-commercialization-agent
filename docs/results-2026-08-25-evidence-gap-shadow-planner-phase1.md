@@ -39,13 +39,16 @@ the executable checker travel with the repository.
 
 ## Verification
 
-- Full zero-network suite: **1,369 passed and 592 subtests passed**.
+- Full zero-network suite: **1,370 passed and 592 subtests passed**.
 - CI-equivalent coverage: **86.92%**, above the frozen 85% threshold.
 - Latest Ruff and the CI-specific Pylint exception-order checks passed.
 - A deliberate change from the two-intent ceiling to three made the targeted
   contract test fail; restoring the ceiling made it pass again. This confirms
   that the test detects the original boundary rather than merely exercising
   the happy path.
+- The CI-caught Sydney/UTC fixture defect was reintroduced; the dedicated
+  regression test failed under a simulated UTC date and passed after the
+  historical fixture date was restored.
 
 ## What this establishes
 

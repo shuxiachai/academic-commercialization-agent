@@ -7,7 +7,7 @@ import unittest
 from datetime import UTC, date, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from pydantic import ValidationError
 
@@ -44,7 +44,9 @@ def _source(source_id: str, source_type: str, url: str) -> EvidenceSource:
         title=f"Validated source record {source_id}",
         url=url,
         publisher="Example Publisher",
-        accessed_date=date(2026, 8, 25),
+        # A historical date keeps the synthetic fixture valid when Sydney has
+        # crossed midnight but GitHub's UTC runners have not.
+        accessed_date=date(2025, 1, 1),
         source_type=source_type,
         evidence_summary=_SUMMARY,
     )
@@ -63,7 +65,7 @@ def _collection(
         display_topic=topic,
         search_components=list((components or ComponentCoverage()).components),
         weight_profile=profile,
-        collected_at=datetime(2026, 8, 25, tzinfo=UTC),
+        collected_at=datetime(2025, 1, 1, tzinfo=UTC),
         academic_sources=[_source("A1", "academic_paper", "https://doi.org/10.1000/example")],
         patent_sources=[_source("P1", "patent", "https://patents.google.com/patent/US123")],
         market_sources=[_source("M1", "market_report", "https://example.com/market")],
@@ -87,6 +89,24 @@ def _eligible_collection() -> SourceCollection:
             missing_categories=["clinical_registry"],
         ),
     )
+
+
+class SyntheticFixtureDateTests(unittest.TestCase):
+    def test_fixture_is_valid_when_sydney_is_one_day_ahead_of_utc(self):
+        """A local calendar date must not make the UTC CI fixture future-dated."""
+
+        class UtcRunnerDate(date):
+            @classmethod
+            def today(cls):
+                return cls(2026, 8, 24)
+
+        with patch("academic_agent.evidence.date", UtcRunnerDate):
+            collection = _collection()
+
+        self.assertEqual(
+            collection.academic_sources[0].accessed_date,
+            date(2025, 1, 1),
+        )
 
 
 class ShadowConfigurationTests(unittest.TestCase):
