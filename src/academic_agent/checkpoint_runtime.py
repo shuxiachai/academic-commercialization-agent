@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any, Final, cast
 
 from crewai.tasks.task_output import TaskOutput
+from crewai.utilities.constants import NOT_SPECIFIED
 
 from academic_agent.checkpoints import (
     CheckpointIdentity,
@@ -214,7 +215,16 @@ def _task_config(task: Any, task_indices: Mapping[int, int]) -> dict[str, Any]:
     """
 
     agent = getattr(task, "agent", None)
-    context = list(getattr(task, "context", None) or [])
+    raw_context = getattr(task, "context", None)
+    # CrewAI 1.14.7 deliberately distinguishes an omitted context from an
+    # explicit None with this singleton. Both mean "no upstream task" to the
+    # scheduler, so they must produce the same checkpoint identity. Checking
+    # the exported singleton by identity keeps malformed context values loud.
+    context = (
+        []
+        if raw_context is None or raw_context is NOT_SPECIFIED
+        else list(raw_context)
+    )
     tools = list(getattr(task, "tools", None) or getattr(agent, "tools", None) or [])
     return {
         "description": str(getattr(task, "description", "")),
