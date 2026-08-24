@@ -161,6 +161,49 @@ def _seed_validated_prefix(
     return source, retrieval.output_sha256
 
 
+def test_runtime_accepts_crewai_omitted_context_default(tmp_path: Path) -> None:
+    """Catch the production crash caused by treating NOT_SPECIFIED as iterable.
+
+    CrewAI 1.14.7 preserves a private sentinel when ``context`` is omitted,
+    which is how the three independent evidence tasks are constructed from the
+    production YAML. Passing ``context=None`` here would hide that integration
+    seam and repeat the Railway failure before the first paid model request.
+    """
+
+    llm = _ExplodingLLM(model="never-called", temperature=0)
+    agent = Agent(
+        role="checkpoint identity agent",
+        goal="Provide a model identity without making a provider call",
+        backstory="This agent exists only at the CrewAI checkpoint boundary.",
+        llm=llm,
+        allow_delegation=False,
+        verbose=False,
+    )
+    tasks: list[Task] = []
+    for node in TASK_NODES:
+        task_kwargs: dict[str, Any] = {
+            "description": f"{node} description",
+            "expected_output": f"{node} expected",
+            "agent": agent,
+            "async_execution": node in {"academic", "patent", "market"},
+        }
+        if node in {"writer", "scorer"}:
+            task_kwargs["context"] = tasks[:3]
+        elif node == "reviewer":
+            task_kwargs["context"] = tasks[:4]
+        tasks.append(Task(**task_kwargs))
+
+    runtime = _runtime(
+        tmp_path,
+        tasks=tasks,
+        source=_SourceCollection(),
+        retrieval_sha256="0" * 64,
+    )
+
+    assert runtime.enabled is True
+    assert runtime.snapshot()["checkpointing"]["errors"] == []
+
+
 def test_runtime_restores_and_republishes_only_the_validated_prefix(
     tmp_path: Path,
 ) -> None:
