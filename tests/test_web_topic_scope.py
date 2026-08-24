@@ -18,6 +18,7 @@ from tempfile import TemporaryDirectory
 _REPO = Path(__file__).resolve().parent.parent
 _TOPIC_JS = _REPO / "web" / "static" / "js" / "topic.js"
 _APP_JS = _REPO / "web" / "static" / "js" / "app.js"
+_BENCHMARK_MANIFEST = _REPO / "benchmark_fixtures" / "manifest.json"
 
 
 def _node() -> str | None:
@@ -76,8 +77,30 @@ class TopicScopeTests(unittest.TestCase):
     def test_specific_chinese_topic_is_not_warned(self):
         self.assertFalse(self._warns("钠离子电池在低成本储能系统中的商业化应用"))
 
+    def test_explicit_non_research_requests_get_an_advisory_warning(self):
+        for topic in ("Write me a birthday poem", "帮我写一首生日诗"):
+            with self.subTest(topic=topic):
+                self.assertTrue(self._warns(topic))
+
+    def test_adjacent_creative_technology_topics_are_not_warned(self):
+        for topic in (
+            "AI-assisted poetry generation models for creative industries",
+            "生成式人工智能在音乐创作产业中的商业化应用",
+        ):
+            with self.subTest(topic=topic):
+                self.assertFalse(self._warns(topic))
+
+    def test_frozen_benchmark_topics_are_not_warned(self):
+        manifest = json.loads(_BENCHMARK_MANIFEST.read_text(encoding="utf-8"))
+        for case_id, case in manifest["fixtures"].items():
+            with self.subTest(case_id=case_id, topic=case["topic"]):
+                self.assertFalse(self._warns(case["topic"]))
+
     def test_attached_paper_supplies_scope(self):
         self.assertFalse(self._warns("AI education", has_paper=True))
+
+    def test_attached_paper_does_not_hide_an_explicit_non_research_request(self):
+        self.assertTrue(self._warns("Write me a birthday poem", has_paper=True))
 
     def test_warning_is_wired_before_the_paid_request(self):
         """A correct helper that never reaches submit protects no quota."""

@@ -68,4 +68,3 @@ The change is rejected or narrowed if any of the following occurs:
   and worker launch;
 - an explicit non-research request is blocked rather than merely confirmed;
 - the full zero-network suite, Ruff, or the narrow Pylint check fails.
-

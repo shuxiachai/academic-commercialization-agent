@@ -147,3 +147,18 @@ That audit used deterministic local task outputs. It establishes the offline
 mechanics, not a production recovery rate, provider token/cost reduction,
 latency improvement, Railway SLO, or exactly-once execution. Those claims still
 require a separately authorized paid fault injection.
+
+### Production observation: cross-revision resume is a cold start
+
+A separately authorized Railway follow-up on 2026-08-24 created one child
+from the failed pre-PR-25 run. The child completed the paid workflow, but its
+retrieval inspection rejected reuse because `identity.pipeline_revision` did
+not match. It therefore reported `cold_start`, reused zero nodes, recollected
+8/8/8 sources, and completed in 208 seconds with 102,485 tokens and an
+estimated cost of $0.044635.
+
+This closes the post-fix paid startup question and demonstrates fail-safe
+cross-revision invalidation. It does not close paid checkpoint reuse or
+production fault injection. The exact run ids, artifact checks, and limits
+are recorded in
+[the production follow-up result](results-2026-08-24-production-checkpoint-follow-up.md).

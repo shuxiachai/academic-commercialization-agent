@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1332 tests (564 subtests), CI green on Linux + Windows × Python
+Current state: 1339 tests (578 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -63,7 +63,7 @@ is, in this order:
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
 | How does crash recovery work? | `docs/checkpoint-recovery.md` — identity, persistence, authorization, observable states, the 30/30 offline process audit, and the at-least-once boundary |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,217 lines, 58 write-ups. Ask the user for access if you need it |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,327 lines, 60 write-ups. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's
@@ -173,14 +173,24 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
 - The pre-registered offline process audit recovered 30/30 immutable children
   across ten frozen evidence collections and three post-commit boundaries. It
   skipped 90 committed task executions with zero duplicate task executions.
-  This closes the offline mechanics question only: there is still no paid
-  provider or production Railway fault-injection result. Do not turn it into a
-  token reduction, cost reduction, latency, production-SLO, or exactly-once
-  claim. See `docs/results-2026-08-23-checkpoint-fault-recovery.md`.
-- The benchmark's input distribution misses the shapes real traffic has:
-  Chinese topics, very short inputs, non-technical topics. Before adding them,
-  decide whether each is a "should succeed" or a "should fail gracefully" case;
-  the assertions differ completely.
+  One authorized Railway resume on 2026-08-24 then completed the paid workflow,
+  but `identity.pipeline_revision` differed across PR #24 and PR #25, so the
+  child correctly reported `cold_start` and reused zero nodes. This closes the
+  post-fix paid startup path and fail-safe cross-revision invalidation only:
+  there is still no paid same-revision reuse or production fault injection.
+  Do not turn either result into token reduction, cost reduction, latency,
+  production-SLO, or exactly-once claims. See
+  `docs/results-2026-08-23-checkpoint-fault-recovery.md` and
+  `docs/results-2026-08-24-production-checkpoint-follow-up.md`.
+- The 30-run calibration benchmark still has no report-output evidence for
+  Chinese, very short, or non-technical topics. A pre-registered zero-network
+  public-boundary contract now distinguishes them: specific Chinese input is
+  preserved, invalid short input is rejected before paid admission, and
+  explicit non-research requests receive an overridable, high-precision
+  confirmation. That tests admission and warning behavior, not report quality.
+  Any future model-output cases must still declare "should succeed" versus
+  "should fail gracefully" before execution and must not rewrite the existing
+  calibration baseline.
 - Code-package analysis (the other half of "upload a paper or a code package")
   is unbuilt.
 - Patent topical relevance has one completed human label set over the frozen
