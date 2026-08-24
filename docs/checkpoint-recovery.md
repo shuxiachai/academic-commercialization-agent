@@ -229,15 +229,28 @@ paid canary has completed the remaining suffix. See the
 [frozen production result](results-2026-08-24-paid-same-revision-recovery-follow-up.md)
 for the original observation and its claim limits.
 
-### Pending observation: post-fix end-to-end suffix
+### Production observation: repaired suffix completed end to end
 
-The next production observation is frozen in the
-[post-fix same-revision protocol](prereg-2026-08-24-paid-same-revision-recovery-post-fix.md).
-It allows one source and at most one immutable child under a `$0.10` soft
-spending stop. The deployed revision and owner identity must remain constant,
-and a failed or rejected action cannot be retried. Total interrupted-source
-usage may remain uninspectable, so cost is an operational bound rather than a
-functional pass criterion.
+The independently frozen
+[post-fix same-revision protocol](prereg-2026-08-24-paid-same-revision-recovery-post-fix.md)
+was executed once against frozen production revision `682c892`. The source reached the
+same four-node prefix and Railway restarted the existing deployment without a
+rebuild. The only immutable child reported `recovery.state=reused`, four
+reusable inspections, and `next_node=writer`. Its academic, patent, and market
+agents each recorded zero requests and zero tokens.
 
-This protocol has not run. It grants no spending or restart authorization and
-does not change the two frozen non-pass results above.
+The repaired typed hydration reached the real Writer guardrail. Writer,
+Reviewer, and Scorer then completed; the child served a 33,081-byte report and
+committed all seven checkpoints with no persistence error. Child usage was
+88,780 tokens across four suffix requests at an estimated `$0.033593`.
+Interrupted-source usage was null, so total experiment cost remains
+`not_inspectable` and no percentage saving is claimed.
+
+This is one provider-backed **pass** for the repaired same-revision path, not a
+production recovery rate, SLO, exactly-once guarantee, latency result, or
+general cost reduction. The retained audit bundle contains both public status
+surfaces and per-node recovery inspections but not raw files exported from the
+Railway checkpoint volume, so external hash recomputation is also outside the
+evidence boundary. The exact timeline, criteria, quality observations, and
+claim limits are recorded in the
+[post-fix result](results-2026-08-24-paid-same-revision-recovery-post-fix.md).

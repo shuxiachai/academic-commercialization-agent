@@ -63,7 +63,7 @@ is, in this order:
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
 | How does crash recovery work? | `docs/checkpoint-recovery.md` — identity, persistence, authorization, observable states, the 30/30 offline process audit, and the at-least-once boundary |
-| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,327 lines, 60 write-ups. Ask the user for access if you need it |
+| Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,000+ lines with 61 numbered postmortems and supporting decision records. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
 the task definitions — read `docs/crewai-reference.md`. That is the vendor's
@@ -201,14 +201,18 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   Recovery now reconstructs reused evidence JSON as `EvidenceReport` only
   after repeating schema and evidence-integrity validation. A real Writer
   guardrail seam test reaches the short-report check, and schema-invalid JSON
-  is exposed as `corrupt` instead of being reused as raw-only context. This is
-  zero-network repair evidence, not a completed production recovery. A
-  separately pre-registered post-fix paid child still has to complete the
-  Writer/Reviewer/Scorer suffix before end-to-end paid recovery can be claimed.
-  That next observation is frozen in
-  `docs/prereg-2026-08-24-paid-same-revision-recovery-post-fix.md`: one source,
-  at most one child, a `$0.10` soft stop, no retry, and no paid request without
-  separate user authorization. The protocol is pending, not a result.
+  is exposed as `corrupt` instead of being reused as raw-only context. A
+  separately pre-registered post-fix Railway canary then passed: one immutable
+  child reused the exact four-node prefix, the three evidence agents made zero
+  child provider requests, Writer/Reviewer/Scorer completed, the report served
+  at HTTP 200, and all seven checkpoints committed without error. Child usage
+  was 88,780 tokens and `$0.033593`; interrupted-source usage remained null, so
+  total cost is `not_inspectable`. This is one end-to-end provider-backed
+  observation, not a recovery rate, SLO, exactly-once, latency, or general
+  savings result. Raw Railway checkpoint files were not exported, so retained
+  evidence supports runtime validation and public inspections rather than
+  independent hash recomputation. See
+  `docs/results-2026-08-24-paid-same-revision-recovery-post-fix.md`.
 - The 30-run calibration benchmark still has no report-output evidence for
   Chinese, very short, or non-technical topics. A pre-registered zero-network
   public-boundary contract now distinguishes them: specific Chinese input is
