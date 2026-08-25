@@ -375,11 +375,16 @@ controls, and one attacker-suffix scope control. The deterministic candidate
 matched **29/29** expected actions while preserving **23/23** clean titles byte
 for byte. Production now recovers only a neutral identifier label from an exact
 FDA 510(k) or ClinicalTrials.gov URL and rejects unsupported broken titles; it
-does not guess a document name or repair Unicode semantically. A paid
-post-integration canary remains unrun, so this is not title-truth, production
-precision/recall, or report-quality evidence. See the
+does not guess a document name or repair Unicode semantically. One paid
+post-integration canary completed for `$0.032665`, but no supported structural
+defect recurred, so the primary recovery criterion was `not_observed`. The run
+instead exposed a structurally plausible FDA title that had lost its device
+entity, a different class of defect that the frozen detector intentionally does
+not guess at. This remains neither title-truth, production precision/recall, nor
+report-quality evidence. See the
 [pre-registration](docs/prereg-2026-08-25-regulator-title-recovery-candidate.md)
-and [result](docs/results-2026-08-25-regulator-title-recovery-candidate.md).
+and [development result](docs/results-2026-08-25-regulator-title-recovery-candidate.md),
+plus the [paid canary result](docs/results-2026-08-25-regulator-title-recovery-paid-canary.md).
 
 See the [`examples/`](examples/) folder for three complete real reports across different industries.
 
@@ -1280,10 +1285,14 @@ benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **
 正向控制和 1 条攻击者后缀范围控制。确定性候选匹配 **29/29** 个预期动作，并
 逐字保留 **23/23** 条干净标题。生产路径现在只允许从精确的 FDA 510(k) 或
 ClinicalTrials.gov URL 提取标识符形成中性标签；无法支持的坏标题直接拒绝，
-不会猜测文档名或做语义 Unicode 修复。付费的集成后 canary 尚未运行，因此这些
-数字不代表标题真值、生产 precision/recall 或报告质量改善。详见
+不会猜测文档名或做语义 Unicode 修复。一次付费的集成后 canary 以
+`$0.032665` 完成，但没有再次出现支持范围内的结构性坏标题，因此核心恢复条件为
+`not_observed`。该运行反而发现了一条结构看似正常、却丢失设备实体的 FDA 标题，
+属于冻结检测器刻意不猜测的另一类问题。这些数字仍不代表标题真值、生产
+precision/recall 或报告质量改善。详见
 [预注册](docs/prereg-2026-08-25-regulator-title-recovery-candidate.md)与
-[结果](docs/results-2026-08-25-regulator-title-recovery-candidate.md)。
+[开发结果](docs/results-2026-08-25-regulator-title-recovery-candidate.md)，以及
+[付费 canary 结果](docs/results-2026-08-25-regulator-title-recovery-paid-canary.md)。
 
 完整报告示例见 [`examples/`](examples/) 文件夹（钙钛矿太阳能 / CAR-T 疗法 / 固态电池，三个行业）。
 

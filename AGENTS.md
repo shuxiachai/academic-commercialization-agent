@@ -182,11 +182,17 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   candidate then matched 29/29 disclosed cases while preserving 23/23 clean
   official API titles byte for byte. It may derive only a neutral identifier
   label from an exact FDA 510(k) or ClinicalTrials.gov URL; unsupported broken
-  official titles are rejected. No provider-backed post-integration canary has
-  run yet, so do not present this as title truth, real-world precision/recall,
-  report-quality improvement, or production success evidence. See
+  official titles are rejected. One provider-backed post-integration canary
+  completed for `$0.032665`, but no supported structural defect recurred, so
+  the primary recovery criterion was `not_observed`. The run instead exposed a
+  structurally plausible FDA title that lost its device entity and passed the
+  frozen structural detector. Do not turn either observation into title truth,
+  real-world precision/recall, report-quality improvement, or production
+  recovery success. See
   `docs/prereg-2026-08-25-regulator-title-recovery-candidate.md` and
-  `docs/results-2026-08-25-regulator-title-recovery-candidate.md`.
+  `docs/results-2026-08-25-regulator-title-recovery-candidate.md`, plus
+  `docs/prereg-2026-08-25-regulator-title-recovery-paid-canary.md` and
+  `docs/results-2026-08-25-regulator-title-recovery-paid-canary.md`.
 - The pre-registered offline process audit recovered 30/30 immutable children
   across ten frozen evidence collections and three post-commit boundaries. It
   skipped 90 committed task executions with zero duplicate task executions.
