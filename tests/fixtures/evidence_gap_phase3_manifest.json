@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "provider": "tavily",
+  "usd_per_credit": 0.008,
+  "maximum_requests": 5,
+  "cases": [
+    {
+      "case_id": "L01",
+      "tool": "academic_search",
+      "topic": "Engineered cutinases for enzymatic PET textile recycling",
+      "gap_code": "retrieval_domain_failed",
+      "gap_subject": "academic",
+      "query": "engineered cutinases enzymatic PET textile recycling academic performance study",
+      "result_limit": 5,
+      "expected_collection_sha256": "29c5f4d7950a1b922181b80d5a030d4f6195fe3e36914eba98516477b8b60e0e",
+      "expected_plan_sha256": "edf5fa01ef2602e4784a1c142280a7b1cfb89b8eaba6d7e4d0aa6095bcce2fdc"
+    },
+    {
+      "case_id": "L02",
+      "tool": "patent_search",
+      "topic": "Closed-pore hard-carbon anodes for sodium-ion batteries",
+      "gap_code": "retrieval_domain_failed",
+      "gap_subject": "patent",
+      "query": "closed-pore hard-carbon anodes sodium-ion battery patent claims",
+      "result_limit": 5,
+      "expected_collection_sha256": "eb89323dce3f4cd26eeba6c65ca6615192c2d77e5770a01f84292ce34c52e602",
+      "expected_plan_sha256": "ebe2eafb2d4edb15bfab92a5ce410682438e29383505f5bf637fc239f6b0af02"
+    },
+    {
+      "case_id": "L03",
+      "tool": "market_search",
+      "topic": "Solid-state transformers for medium-voltage data centres",
+      "gap_code": "retrieval_domain_failed",
+      "gap_subject": "market",
+      "query": "solid-state transformers medium-voltage data centres market deployment adoption",
+      "result_limit": 5,
+      "expected_collection_sha256": "5d43335e8573f5339b6dcb9082338404cb48b5cc39427864233f4ecbb83269fc",
+      "expected_plan_sha256": "77f1799658dfd8eb38ca7e7bbe7b6e07f5cfc4f2092a616014fd79cd7f53e0df"
+    },
+    {
+      "case_id": "L04",
+      "tool": "authority_search",
+      "topic": "AI-enabled retinal screening medical devices",
+      "gap_code": "authority_category_missing",
+      "gap_subject": "regulatory",
+      "query": "AI-enabled retinal screening medical devices FDA regulatory clearance",
+      "result_limit": 5,
+      "expected_collection_sha256": "b2602e731706f72a391868c59cf52e10fa90c8d24213f57f39edca111a192412",
+      "expected_plan_sha256": "24f47b475c9c2ceea18933c5db5e0d9dd7bcc630f2de56877a9cf524edaf4d09"
+    },
+    {
+      "case_id": "L05",
+      "tool": "authority_search",
+      "topic": "Personalised neoantigen mRNA vaccines for pancreatic cancer",
+      "gap_code": "authority_category_missing",
+      "gap_subject": "clinical_registry",
+      "query": "personalised neoantigen mRNA vaccines pancreatic cancer clinical trial registry",
+      "result_limit": 5,
+      "expected_collection_sha256": "bf90f23ee209a5047877c6ac613c202fc383e5b29462211dc50cf8d8b9ec1f88",
+      "expected_plan_sha256": "6eeb08af683cf1b2a18c312fee0eb7e30c40db88c747299315dd724ac57f3dde"
+    }
+  ]
+}

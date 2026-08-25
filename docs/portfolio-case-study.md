@@ -65,7 +65,8 @@ source of truth.
 | Blinded utility audit | Five reviewers returned 20/20 eligible judgments; both rounds preferred the full workflow 6:4 for decision usefulness | The pre-registered success rule failed; the monolith led information gain 11:5, so this is not proof of six-stage superiority or adoption |
 | Offline fault injection | 30/30 immutable children completed; 90 committed task executions were skipped with 0 duplicate task executions | Zero-network process evidence, not an exactly-once, latency, cost-saving, or production-SLO claim |
 | Provider-backed recovery canary | One same-revision child reused a four-node prefix, made 0 new evidence-agent requests, and completed the remaining workflow | One observation only; interrupted-source usage was unavailable, so total cost and general savings are not inspectable |
-| Test and CI contract | 1,391 tests plus 627 subtests; Linux/Windows × Python 3.11/3.12; 87.01% measured coverage above an 85% floor | Most CI tests are intentionally zero-network and do not replace provider or browser canaries |
+| Bounded Tool Calling contracts | Phase 2 passed 14/14 frozen execution cases; Phase 3 validated 5/5 collection/plan identities and 46/46 adapter/audit/executor tests | Production remains zero-call shadow mode; no live Tavily quality, evidence-yield, cost, or report-improvement result exists |
+| Test and CI contract | 1,444 tests plus 627 subtests; Linux/Windows × Python 3.11/3.12; 87.07% measured coverage above an 85% floor | Most CI tests are intentionally zero-network and do not replace provider or browser canaries |
 
 The negative results are retained deliberately. For example, the first patent
 relevance candidate raised auto-kept precision to 94.6% but falsely removed six
@@ -99,8 +100,9 @@ project's engineering argument: evaluation should be capable of saying no.
 - Run state, quotas, and artifacts are designed for one application replica;
   horizontal scaling requires shared transactional storage and a distributed
   work queue.
-- Evidence-gap planning is shadow-only instrumentation. It records whether a
-  bounded tool call would be justified but does not issue production searches.
+- Evidence-gap production planning remains shadow-only and issues zero
+  supplementary searches. A disconnected phase-2 executor and phase-3
+  single-request adapter exist, but no live Tavily pilot has run.
 - Code-package analysis is not implemented, and patent relevance has no second
   independent reviewer or inter-rater estimate.
 

@@ -39,10 +39,12 @@ from academic_agent.source_pipeline import (
     _topic_keywords,
 )
 from academic_agent.tools.evidence_search import (
+    ProviderResultRejection,
     ReadOnlySearchAdapter,
     ToolAdapterFailure,
     ToolAdapterResponse,
     ToolEvidenceCandidate,
+    ToolProviderUsage,
 )
 
 
@@ -121,6 +123,15 @@ class GapToolCallAudit(BaseModel):
         le=MAX_OUTBOUND_SEARCH_ATTEMPTS,
     )
     raw_candidate_count: int = Field(default=0, ge=0, le=10)
+    candidate_records: tuple[ToolEvidenceCandidate, ...] = Field(
+        default=(),
+        max_length=10,
+    )
+    provider_usage: ToolProviderUsage | None = None
+    provider_rejections: tuple[ProviderResultRejection, ...] = Field(
+        default=(),
+        max_length=10,
+    )
     accepted_source_ids: tuple[str, ...] = ()
     rejections: tuple[CandidateRejection, ...] = ()
     latency_ms: float = Field(ge=0.0)
@@ -143,6 +154,29 @@ class GapToolCallAudit(BaseModel):
             raise ValueError(f"{self.state} requires a failure type")
         if self.state not in {"failed", "budget_exhausted"} and self.failure_type:
             raise ValueError("only failed calls may carry a failure type")
+        if self.raw_candidate_count != len(self.candidate_records) + len(
+            self.provider_rejections
+        ):
+            raise ValueError(
+                "raw candidate count must cover provider candidates and rejections"
+            )
+        if self.provider_usage is None:
+            if self.provider_rejections:
+                raise ValueError("provider rejections require provider usage")
+        elif self.provider_usage.result_count != self.raw_candidate_count:
+            raise ValueError("provider usage result count must reach the call audit")
+        if self.state not in {"failed", "budget_exhausted"}:
+            if len(self.accepted_source_ids) + len(self.rejections) != len(
+                self.candidate_records
+            ):
+                raise ValueError(
+                    "every candidate must reach acceptance or local quarantine"
+                )
+            rejection_indices = [item.candidate_index for item in self.rejections]
+            if len(rejection_indices) != len(set(rejection_indices)) or any(
+                index >= len(self.candidate_records) for index in rejection_indices
+            ):
+                raise ValueError("candidate rejection indices must be unique and valid")
         return self
 
 
@@ -159,6 +193,11 @@ class EvidenceGapExecutionAudit(BaseModel):
     source_collection_sha256_before: str = Field(pattern=r"^[0-9a-f]{64}$")
     source_collection_sha256_after: str = Field(pattern=r"^[0-9a-f]{64}$")
     plan_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    outbound_attempt_limit: int = Field(
+        default=MAX_OUTBOUND_SEARCH_ATTEMPTS,
+        ge=1,
+        le=MAX_OUTBOUND_SEARCH_ATTEMPTS,
+    )
     outbound_attempt_count: int = Field(
         ge=0,
         le=MAX_OUTBOUND_SEARCH_ATTEMPTS,
@@ -175,6 +214,8 @@ class EvidenceGapExecutionAudit(BaseModel):
         attempts = sum(call.outbound_attempt_count for call in self.call_audits)
         if attempts != self.outbound_attempt_count:
             raise ValueError("outbound_attempt_count must equal the call-audit total")
+        if attempts > self.outbound_attempt_limit:
+            raise ValueError("outbound attempts exceed the declared execution limit")
         accepted_ids = tuple(
             source_id
             for call in self.call_audits
@@ -579,6 +620,7 @@ def _non_search_result(
     collection_hash: str,
     plan: ValidatedGapPlan,
     trace_id: str,
+    outbound_attempt_limit: int,
 ) -> EvidenceGapExecutionAudit:
     return EvidenceGapExecutionAudit(
         decision=plan.decision,
@@ -588,6 +630,7 @@ def _non_search_result(
         source_collection_sha256_before=collection_hash,
         source_collection_sha256_after=collection_hash,
         plan_sha256=_plan_sha256(plan),
+        outbound_attempt_limit=outbound_attempt_limit,
         outbound_attempt_count=0,
         trace_id=trace_id,
     )
@@ -600,8 +643,14 @@ def execute_gap_plan(
     plan: ValidatedGapPlan,
     adapters: Mapping[GapToolName, ReadOnlySearchAdapter],
     trace_id: str,
+    outbound_attempt_limit: int = MAX_OUTBOUND_SEARCH_ATTEMPTS,
 ) -> EvidenceGapExecutionAudit:
-    """Execute a validated search plan under one global two-attempt budget."""
+    """Execute a validated search plan under one explicit global attempt budget."""
+
+    if not 1 <= outbound_attempt_limit <= MAX_OUTBOUND_SEARCH_ATTEMPTS:
+        raise EvidenceGapExecutionError(
+            "outbound_attempt_limit must be between one and two"
+        )
 
     before_hash = source_collection_sha256(collection)
     if context.source_collection_sha256 != before_hash:
@@ -614,6 +663,7 @@ def execute_gap_plan(
             collection_hash=before_hash,
             plan=plan,
             trace_id=trace_id,
+            outbound_attempt_limit=outbound_attempt_limit,
         )
 
     next_numbers = _next_source_numbers(collection)
@@ -647,9 +697,7 @@ def execute_gap_plan(
             continue
 
         remaining_calls = len(plan.calls) - call_index - 1
-        attempts_available = (
-            MAX_OUTBOUND_SEARCH_ATTEMPTS - total_attempts
-        )
+        attempts_available = outbound_attempt_limit - total_attempts
         # Reserve one attempt for each later planned call. A single-call plan
         # may retry once; a two-call plan cannot spend the second call's slot.
         attempts_for_call = max(
@@ -697,7 +745,12 @@ def execute_gap_plan(
                     raise EvidenceGapExecutionError(
                         "adapter returned a mismatched idempotency key"
                     )
-                if len(response.candidates) > call.result_limit:
+                raw_result_count = (
+                    response.provider_usage.result_count
+                    if response.provider_usage is not None
+                    else len(response.candidates)
+                )
+                if raw_result_count > call.result_limit:
                     failure_type = "result_limit_exceeded"
                     response = None
                 break
@@ -778,9 +831,14 @@ def execute_gap_plan(
             elif rejection is not None:
                 rejections.append(rejection)
 
+        raw_result_count = (
+            response.provider_usage.result_count
+            if response.provider_usage is not None
+            else len(response.candidates)
+        )
         if accepted_for_call:
             state: CallState = "accepted"
-        elif response.candidates:
+        elif raw_result_count:
             state = "rejected"
         else:
             state = "empty"
@@ -793,7 +851,10 @@ def execute_gap_plan(
                 idempotency_key=call.idempotency_key,
                 state=state,
                 outbound_attempt_count=attempt_count,
-                raw_candidate_count=len(response.candidates),
+                raw_candidate_count=raw_result_count,
+                candidate_records=response.candidates,
+                provider_usage=response.provider_usage,
+                provider_rejections=response.provider_rejections,
                 accepted_source_ids=tuple(accepted_for_call),
                 rejections=tuple(rejections),
                 latency_ms=(time.perf_counter() - started) * 1000,
@@ -826,6 +887,7 @@ def execute_gap_plan(
             source_collection_sha256_before=before_hash,
             source_collection_sha256_after=after_hash,
             plan_sha256=_plan_sha256(plan),
+            outbound_attempt_limit=outbound_attempt_limit,
             outbound_attempt_count=total_attempts,
             call_audits=sanitized_calls,
             incremental_search_cost_usd=total_cost,
@@ -842,6 +904,7 @@ def execute_gap_plan(
         source_collection_sha256_before=before_hash,
         source_collection_sha256_after=after_hash,
         plan_sha256=_plan_sha256(plan),
+        outbound_attempt_limit=outbound_attempt_limit,
         outbound_attempt_count=total_attempts,
         call_audits=tuple(call_audits),
         accepted_sources=tuple(accepted_sources),
