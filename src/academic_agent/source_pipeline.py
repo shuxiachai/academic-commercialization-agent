@@ -17,6 +17,7 @@ from urllib.request import Request, urlopen
 from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
+from academic_agent.source_title_recovery import recover_official_source_title
 
 from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
     SourceCollectionError,
@@ -1919,7 +1920,7 @@ def _web_source(
     title = _clean_text(str(result.get("title", "")))
     link = str(result.get("link", "")).strip()
     snippet = str(result.get("snippet", ""))
-    if len(title) < 5 or not link:
+    if not link:
         return None, "search result lacks a usable title or URL"
     try:
         canonical = _canonical_url(link)
@@ -1928,6 +1929,8 @@ def _web_source(
         return None, f"invalid URL: {exc}"
 
     if domain == "patent":
+        if len(title) < 5:
+            return None, "search result lacks a usable title or URL"
         if host not in _PATENT_HOSTS:
             return None, f"non-primary patent host: {host}"
         source_type = "patent"
@@ -1952,6 +1955,32 @@ def _web_source(
         if profile is None:
             return None, f"market host is blocked or not approved: {host}"
         source_type, credibility_tier, credibility_reason = profile
+        authority_category = _authority_category_for_url(canonical)
+        title_decision = recover_official_source_title(
+            title,
+            canonical,
+            authority_category=authority_category,
+        )
+        if title_decision.action == "reject":
+            reasons = ", ".join(title_decision.reason_codes)
+            return None, (
+                "official source title is structurally unusable "
+                f"({reasons}) and its URL has no supported identifier"
+            )
+        if title_decision.action == "recover":
+            # The helper can recover only when it has an identifier-derived
+            # neutral label.  Keeping the defensive fallback makes this seam
+            # fail closed if that contract is weakened in a future refactor.
+            if title_decision.title is None:
+                return None, "official source title recovery returned no label"
+            title = title_decision.title
+            credibility_reason += (
+                " Search-result title was structurally unusable "
+                f"({', '.join(title_decision.reason_codes)}); the display label "
+                "contains only the identifier from the validated official URL."
+            )
+        if len(title) < 5:
+            return None, "search result lacks a usable title or URL"
 
     # Search-result patent hosts are allowlisted before this point. Avoiding a
     # second request keeps collection predictable, but this transport shortcut

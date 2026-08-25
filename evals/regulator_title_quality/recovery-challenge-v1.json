@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "protocol": "regulator-title-recovery-candidate-v1",
+  "collected_at": "2026-08-25",
+  "measurement_design": "official_api_development_controls_plus_disclosed_positive_and_scope_controls",
+  "collections": [
+    {
+      "source": "clinicaltrials_v2",
+      "request_url": "https://clinicaltrials.gov/api/v2/studies?format=json&pageSize=12&query.term=medical%20device",
+      "raw_response_sha256": "20d71d973a6a08bfcecf3a7f566b712d2a0df46e09c314c69058b38dd3735a88",
+      "selection": "first 12 usable records in API order; officialTitle preferred over briefTitle",
+      "selected_count": 12
+    },
+    {
+      "source": "openfda_510k",
+      "request_url": "https://api.fda.gov/device/510k.json?search=decision_date:%5B20240101+TO+20241231%5D&sort=decision_date:desc&limit=12",
+      "raw_response_sha256": "7ff22718b11cec8fe92246fa994baa762a563fec6629afb6ab7d260678d57404",
+      "selection": "first 12 usable records sorted by decision_date descending",
+      "selected_count": 12
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "ct-clean-01",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT05463081",
+      "url": "https://clinicaltrials.gov/study/NCT05463081",
+      "input_title": "Clinical Trial of the Safety and Efficacy of Medical Device \"Laser Medical Device \"Magic Gyno\"\"",
+      "expected_action": "preserve",
+      "expected_title": "Clinical Trial of the Safety and Efficacy of Medical Device \"Laser Medical Device \"Magic Gyno\"\"",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-02",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT02705781",
+      "url": "https://clinicaltrials.gov/study/NCT02705781",
+      "input_title": "Functionality and Accuracy of the smARTrack System in Real-Life ICU Settings",
+      "expected_action": "preserve",
+      "expected_title": "Functionality and Accuracy of the smARTrack System in Real-Life ICU Settings",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-03",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT06811519",
+      "url": "https://clinicaltrials.gov/study/NCT06811519",
+      "input_title": "AI-based Prediction of Cardiac Function Using Echocardiography and Body Composition Data (ECHO-FIT Study)",
+      "expected_action": "preserve",
+      "expected_title": "AI-based Prediction of Cardiac Function Using Echocardiography and Body Composition Data (ECHO-FIT Study)",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-04",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT06793930",
+      "url": "https://clinicaltrials.gov/study/NCT06793930",
+      "input_title": "The Effects of a Tailored, Optimised, and Person-centred Critical Pathway to Promote Lifestyle Modification in People With Metabolic Syndrome: A Mixed-methods Study",
+      "expected_action": "preserve",
+      "expected_title": "The Effects of a Tailored, Optimised, and Person-centred Critical Pathway to Promote Lifestyle Modification in People With Metabolic Syndrome: A Mixed-methods Study",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-05",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT05005000",
+      "url": "https://clinicaltrials.gov/study/NCT05005000",
+      "input_title": "Autologous Intra-Articular Micro-Fragmented Adipose Transfer for the Treatment of Thumb Carpometacarpal Joint Arthritis",
+      "expected_action": "preserve",
+      "expected_title": "Autologous Intra-Articular Micro-Fragmented Adipose Transfer for the Treatment of Thumb Carpometacarpal Joint Arthritis",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-06",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT03455400",
+      "url": "https://clinicaltrials.gov/study/NCT03455400",
+      "input_title": "Ventilation Distribution Observed With Electrical Impedance Tomography (EIT) During Spontaneous Breathing in Healthy Newborn Infants",
+      "expected_action": "preserve",
+      "expected_title": "Ventilation Distribution Observed With Electrical Impedance Tomography (EIT) During Spontaneous Breathing in Healthy Newborn Infants",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-07",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT06560307",
+      "url": "https://clinicaltrials.gov/study/NCT06560307",
+      "input_title": "Examination of Programming with the Enterra® Therapy System in a Double-Blinded, Randomized, Prospective Study in the Treatment of Nausea and Vomiting Symptoms Using Gastric Electrical Stimulation",
+      "expected_action": "preserve",
+      "expected_title": "Examination of Programming with the Enterra® Therapy System in a Double-Blinded, Randomized, Prospective Study in the Treatment of Nausea and Vomiting Symptoms Using Gastric Electrical Stimulation",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-08",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT03339492",
+      "url": "https://clinicaltrials.gov/study/NCT03339492",
+      "input_title": "Prospective, Randomized, Double-Blind, Placebo Controlled Study to Evaluate the Safety and Efficacy of Pulsed Electromagnetic Field (PEMF) Therapy as an Adjunctive Treatment to Surgical Repair of Full Thickness Rotator Cuff Tears",
+      "expected_action": "preserve",
+      "expected_title": "Prospective, Randomized, Double-Blind, Placebo Controlled Study to Evaluate the Safety and Efficacy of Pulsed Electromagnetic Field (PEMF) Therapy as an Adjunctive Treatment to Surgical Repair of Full Thickness Rotator Cuff Tears",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-09",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT07742592",
+      "url": "https://clinicaltrials.gov/study/NCT07742592",
+      "input_title": "Retrospective Real-World Data Collection of the Conformable GORE® TAG® Thoracic Endoprosthesis When Used in Frozen Elephant Trunk Procedures for Treatment of Aortic Aneurysms and Dissections",
+      "expected_action": "preserve",
+      "expected_title": "Retrospective Real-World Data Collection of the Conformable GORE® TAG® Thoracic Endoprosthesis When Used in Frozen Elephant Trunk Procedures for Treatment of Aortic Aneurysms and Dissections",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-10",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT06655636",
+      "url": "https://clinicaltrials.gov/study/NCT06655636",
+      "input_title": "Assisting Stroke Survivors With Engineering Technology (ASSET): Design Project D3: Exoskeletal Networks for Forearm Supination",
+      "expected_action": "preserve",
+      "expected_title": "Assisting Stroke Survivors With Engineering Technology (ASSET): Design Project D3: Exoskeletal Networks for Forearm Supination",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-11",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT05459636",
+      "url": "https://clinicaltrials.gov/study/NCT05459636",
+      "input_title": "Time-Efficient Inspiratory Muscle Strength Training as a New Approach to Lower Blood Pressure, Improve Respiratory Function, and Reduce Exertional Dyspnea in Adults With Obesity",
+      "expected_action": "preserve",
+      "expected_title": "Time-Efficient Inspiratory Muscle Strength Training as a New Approach to Lower Blood Pressure, Improve Respiratory Function, and Reduce Exertional Dyspnea in Adults With Obesity",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "ct-clean-12",
+      "source": "clinicaltrials_v2",
+      "record_id": "NCT06351436",
+      "url": "https://clinicaltrials.gov/study/NCT06351436",
+      "input_title": "Using Mindfulness With Immersive Virtual Reality Cave Experience in Promoting Mental Well-Being: A Feasibility Study",
+      "expected_action": "preserve",
+      "expected_title": "Using Mindfulness With Immersive Virtual Reality Cave Experience in Promoting Mental Well-Being: A Feasibility Study",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-01",
+      "source": "openfda_510k",
+      "record_id": "K241852",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K241852.pdf",
+      "input_title": "Nasal Aspirator (NS 13)",
+      "expected_action": "preserve",
+      "expected_title": "Nasal Aspirator (NS 13)",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-02",
+      "source": "openfda_510k",
+      "record_id": "K242468",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K242468.pdf",
+      "input_title": "Power Wheelchair (D10, D12, D15, D17, D20, D37)",
+      "expected_action": "preserve",
+      "expected_title": "Power Wheelchair (D10, D12, D15, D17, D20, D37)",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-03",
+      "source": "openfda_510k",
+      "record_id": "K243225",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K243225.pdf",
+      "input_title": "Nasal Pillow Mask - Small (NNPM-01/ Nefes S); Nasal Pillow Mask - Medium (NNPM-02/ Nefes M); Nasal Pillow Mask - Large (NNPM-03/ Nefes L)",
+      "expected_action": "preserve",
+      "expected_title": "Nasal Pillow Mask - Small (NNPM-01/ Nefes S); Nasal Pillow Mask - Medium (NNPM-02/ Nefes M); Nasal Pillow Mask - Large (NNPM-03/ Nefes L)",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-observed-encoding-01",
+      "source": "openfda_510k",
+      "record_id": "K243224",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K243224.pdf",
+      "input_title": "MitraClip\u0099 G5 Steerable Guide Catheter (SGC0801); TriClip\u0099 G5 Steerable Guide Catheter (TSGC0801)",
+      "expected_action": "recover",
+      "expected_title": "FDA 510(k) record K243224",
+      "label_provenance": "official_api_observed_encoding_anomaly"
+    },
+    {
+      "case_id": "fda-clean-04",
+      "source": "openfda_510k",
+      "record_id": "K241338",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K241338.pdf",
+      "input_title": "Peak Flow Meter",
+      "expected_action": "preserve",
+      "expected_title": "Peak Flow Meter",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-05",
+      "source": "openfda_510k",
+      "record_id": "K242989",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K242989.pdf",
+      "input_title": "Electric Wheelchair (MODEL H)",
+      "expected_action": "preserve",
+      "expected_title": "Electric Wheelchair (MODEL H)",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-06",
+      "source": "openfda_510k",
+      "record_id": "K243670",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K243670.pdf",
+      "input_title": "Idys® LIF",
+      "expected_action": "preserve",
+      "expected_title": "Idys® LIF",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-07",
+      "source": "openfda_510k",
+      "record_id": "K243445",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K243445.pdf",
+      "input_title": "Splendor X (Alex, Alex2, Nd:YAG, Alex+Nd:YAG)",
+      "expected_action": "preserve",
+      "expected_title": "Splendor X (Alex, Alex2, Nd:YAG, Alex+Nd:YAG)",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-08",
+      "source": "openfda_510k",
+      "record_id": "K242376",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K242376.pdf",
+      "input_title": "Next Generation Access Platform",
+      "expected_action": "preserve",
+      "expected_title": "Next Generation Access Platform",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-09",
+      "source": "openfda_510k",
+      "record_id": "K243394",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K243394.pdf",
+      "input_title": "AF531 Oro-Nasal SE Face Mask",
+      "expected_action": "preserve",
+      "expected_title": "AF531 Oro-Nasal SE Face Mask",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-10",
+      "source": "openfda_510k",
+      "record_id": "K242804",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K242804.pdf",
+      "input_title": "PAL Aspiration System",
+      "expected_action": "preserve",
+      "expected_title": "PAL Aspiration System",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "fda-clean-11",
+      "source": "openfda_510k",
+      "record_id": "K233119",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K233119.pdf",
+      "input_title": "8MP Color LCD Displays C811W, C811WT, PA27 and PA27T",
+      "expected_action": "preserve",
+      "expected_title": "8MP Color LCD Displays C811W, C811WT, PA27 and PA27T",
+      "label_provenance": "official_api_clean_control"
+    },
+    {
+      "case_id": "production-fda-fragmented-k222658",
+      "source": "production_observation",
+      "record_id": "K222658",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K222658.pdf",
+      "input_title": "'b, , 4 , I 'b, I - accessdata.fda.gov",
+      "expected_action": "recover",
+      "expected_title": "FDA 510(k) record K222658",
+      "label_provenance": "observed_production_failure"
+    },
+    {
+      "case_id": "synthetic-ct-replacement-character",
+      "source": "synthetic_control",
+      "record_id": "NCT02705781",
+      "url": "https://clinicaltrials.gov/study/NCT02705781",
+      "input_title": "Functionality � Accuracy",
+      "expected_action": "recover",
+      "expected_title": "ClinicalTrials.gov study NCT02705781",
+      "label_provenance": "synthetic_positive_control"
+    },
+    {
+      "case_id": "synthetic-fda-host-only",
+      "source": "synthetic_control",
+      "record_id": "K241852",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K241852.pdf",
+      "input_title": "accessdata.fda.gov",
+      "expected_action": "recover",
+      "expected_title": "FDA 510(k) record K241852",
+      "label_provenance": "synthetic_positive_control"
+    },
+    {
+      "case_id": "synthetic-official-unsupported-path",
+      "source": "synthetic_control",
+      "record_id": "",
+      "url": "https://www.fda.gov/medical-devices/example",
+      "input_title": "�",
+      "expected_action": "reject",
+      "expected_title": null,
+      "label_provenance": "synthetic_positive_control"
+    },
+    {
+      "case_id": "synthetic-attacker-suffix",
+      "source": "synthetic_control",
+      "record_id": "K241852",
+      "url": "https://accessdata.fda.gov.attacker.example/CDRH510K/K241852.pdf",
+      "input_title": "�",
+      "expected_action": "out_of_scope",
+      "expected_title": null,
+      "label_provenance": "synthetic_scope_control"
+    }
+  ]
+}
