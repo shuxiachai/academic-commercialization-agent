@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1446 tests (627 subtests), CI green on Linux + Windows × Python
+Current state: 1463 tests (627 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -155,7 +155,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  70 test modules plus conftest, organised by subject
+tests/                  71 test modules plus conftest, organised by subject
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering
@@ -167,6 +167,8 @@ evidence_gap_phase2_audit.py
                         frozen zero-network Tool Calling contract replay
 evidence_gap_phase3_audit.py
                         frozen five-case Tavily harness; dry-run is zero-network
+evidence_gap_phase3_review.py
+                        provenance-locked zero-network human-review intake
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -201,17 +203,22 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   the canonical committed bytes before JSON parsing or case expansion.
   A fresh authorization on deployed revision `adde83d` then completed the exact
   five-case pilot: five single-attempt requests, five inspectable credits, USD
-  0.040 conservative cost, and 25 unique policy-valid rows reached the blank
-  human-review packet. Production and report connections remained false. All
-  automated provider-compatibility criteria passed, but all 25 relevance and
-  novelty labels remain blank, so wrong-source rate and novel evidence yield
-  are `not_inspected`.
+  0.040 conservative cost, and 25 unique policy-valid rows reached the frozen
+  blank review artifact. Production and report connections remained false. A
+  separate zero-network human-review packet now freezes all 25 full row
+  identities and strictly validates labels plus reviewer provenance. Its
+  initial summary is `incomplete / not_evaluated`: all labels and the
+  declaration remain blank, so wrong-source rate and novel evidence yield are
+  still not inspected.
   The paid work and UTF-8 artifacts completed before the Windows GBK stdout
   projection raised on U+2005 and returned exit code 1. The CLI now emits
   reversible ASCII-safe JSON without changing authoritative UTF-8 artifacts.
   The adapter/audit/executor subset passed 53/53 tests; temporary fixture-
   identity, hidden-second-request, provider-row-under-count, and GBK-output
-  defects made their seam tests fail before restoration.
+  defects made their seam tests fail before restoration. The separate review
+  intake passed 17/17 targeted tests; temporary full-row identity and
+  `UNVERIFIABLE`-state defects also made their seam tests fail before
+  restoration.
   The compatibility pass does not establish source truth, evidence yield,
   report improvement, reliability, or planner precision. Every accepted row
   still requires complete human review. Even a value-threshold pass would not
@@ -220,8 +227,9 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   Keep `pipeline_worker.py` disconnected from both executor and adapter.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
   `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
-  `docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md`, and
-  `docs/results-2026-08-25-evidence-gap-live-provider-phase3.md`.
+  `docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md`,
+  `docs/results-2026-08-25-evidence-gap-live-provider-phase3.md`, and
+  `docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
