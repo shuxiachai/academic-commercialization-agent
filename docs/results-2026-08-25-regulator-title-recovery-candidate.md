@@ -144,7 +144,11 @@ All test runs were zero-network; no provider token was consumed.
 
 This result does not establish title truth, real-world prevalence, report
 quality, production success rate, latency, cost reduction, or regulatory
-coverage. A provider-backed canary remains unrun and requires separate paid
-authorization. Until then, the strongest accurate statement is that the
-candidate passed one frozen development challenge and one defect-reinjection
-test.
+coverage. A later provider-backed canary completed within budget, but the
+primary malformed-title trigger did not recur and therefore remained
+`not_observed`. That run also exposed a different, structurally plausible title
+that had lost its device entity; it was outside this detector's frozen contract.
+The strongest accurate statement remains that the candidate passed one frozen
+development challenge and one defect-reinjection test. See the
+[paid canary result](results-2026-08-25-regulator-title-recovery-paid-canary.md)
+for the production boundary and the new observation.
