@@ -67,8 +67,9 @@ investment advice.
   3.11/3.12 CI, and 87.01% measured coverage above an 85% floor.
 
 The protocols, row-level artifacts, failed candidates, and caveats are linked
-from the [README](../README.md) and summarized in the
-[portfolio case study](portfolio-case-study.md).
+from the [README](https://github.com/shuxiachai/academic-commercialization-agent/blob/v2.0.0/README.md)
+and summarized in the
+[portfolio case study](https://github.com/shuxiachai/academic-commercialization-agent/blob/v2.0.0/docs/portfolio-case-study.md).
 
 ## Breaking changes from v1.0.0
 
@@ -109,6 +110,6 @@ and one search-provider key; the test suite is zero-network.
 ## Portfolio material
 
 - [Live application](https://academic-commercialization-agent.up.railway.app)
-- [One-page case study](portfolio-case-study.md)
-- [90-second demo recording guide](demo-script-90s.md)
-- [Full README](../README.md)
+- [One-page case study](https://github.com/shuxiachai/academic-commercialization-agent/blob/v2.0.0/docs/portfolio-case-study.md)
+- [90-second demo recording guide](https://github.com/shuxiachai/academic-commercialization-agent/blob/v2.0.0/docs/demo-script-90s.md)
+- [Full README](https://github.com/shuxiachai/academic-commercialization-agent/blob/v2.0.0/README.md)
