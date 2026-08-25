@@ -5,7 +5,9 @@ from __future__ import annotations
 import csv
 import hashlib
 import inspect
+import io
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -334,6 +336,55 @@ def test_invalid_budget_existing_output_and_missing_key_fail_before_request(
             soft_stop_usd=0.04,
         )
     assert not missing_key_output.exists()
+
+
+def test_live_cli_projection_survives_strict_gbk_stdout(tmp_path, monkeypatch):
+    """The paid pilot completed before a U+2005 stdout encoding crash."""
+
+    payload = {
+        "mode": "phase3_live_provider_compatibility",
+        "evidence_summary": "releasing 91\u2005mg per hour",
+    }
+
+    class UnicodeArtifact:
+        def model_dump(self, *, mode):
+            assert mode == "json"
+            return payload
+
+        def model_dump_json(self, *, indent):
+            # This mirrors the production defect closely enough that restoring
+            # the old main() call reaches the strict stream and raises there.
+            return json.dumps(payload, ensure_ascii=False, indent=indent)
+
+    captured = {}
+
+    def fake_execute_live_pilot(**kwargs):
+        captured.update(kwargs)
+        return UnicodeArtifact()
+
+    monkeypatch.setattr(phase3, "execute_live_pilot", fake_execute_live_pilot)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "evidence_gap_phase3_audit.py",
+            "--execute-live",
+            "--output-dir",
+            str(tmp_path / "unused"),
+            "--soft-stop-usd",
+            "0.04",
+        ],
+    )
+    sink = io.BytesIO()
+    strict_gbk = io.TextIOWrapper(sink, encoding="gbk", errors="strict")
+    monkeypatch.setattr(sys, "stdout", strict_gbk)
+
+    assert phase3.main() == 0
+    strict_gbk.flush()
+    rendered = sink.getvalue().decode("gbk")
+    assert "\\u2005" in rendered
+    assert json.loads(rendered) == payload
+    assert captured["soft_stop_usd"] == pytest.approx(0.04)
 
 
 def test_phase3_executor_and_adapter_remain_disconnected_from_worker():
