@@ -42,7 +42,7 @@ _BIOMEDICAL_MARKERS: tuple[str, ...] = (
     "drug ", "therapy", "vaccine", "clinical trial", "pharmaceutical",
     "diagnostic", "implant", "surgical", "gene editing", "cell therapy",
     "gene therapy", "medical device", "antibody", "in vitro", "in vivo",
-    "oncology", "cancer treatment", "immunotherapy",
+    "oncology", "cancer treatment", "immunotherapy", "blood pressure",
     # Bioprocess / cellular agriculture — manufacturing maturity is the key gate
     "cultivated meat", "cultured meat", "cell-based meat", "cellular agriculture",
     "tissue engineering", "stem cell", "bioprocessing", "bioreactor scale",
@@ -59,6 +59,11 @@ _REGULATED_BIOMEDICAL_MARKERS: tuple[str, ...] = (
     "surgical", "cell therapy", "gene therapy", "medical device",
     "cancer treatment", "immunotherapy", "genetic disease",
     "drug candidate", "drug treatment", "patient treatment",
+    # The phrase is intentionally narrower than "clinical" or "monitoring".
+    # A production canary showed that a cuffless blood-pressure product reached
+    # an industrial score profile and skipped regulator retrieval, while either
+    # generic term would also catch non-product workflow and factory topics.
+    "blood pressure monitor",
 )
 _CLINICAL_REGISTRY_MARKERS: tuple[str, ...] = (
     "therapy", "vaccine", "clinical trial", "cell therapy", "gene therapy",
@@ -212,7 +217,13 @@ _OFFICIAL_PATENT_HOSTS = frozenset({
 })
 # Publishers/journal-name fragments known to appear on Beall's predatory list or
 # widely flagged by the academic community.  Matched case-insensitively as
-# substrings of the publisher field returned by search APIs.
+# substrings of the publisher field returned by search APIs.  A generic
+# "American Journal of" title prefix is deliberately absent: APIs sometimes put
+# the venue title in this field, and the prefix alone says nothing about the
+# publisher.  It misclassified the official ASPC/Elsevier American Journal of
+# Preventive Cardiology in a paid production canary.  Unknown titles now remain
+# unclassified instead of receiving a low-confidence label, preserving the
+# project's precision-first policy.
 _PREDATORY_PUBLISHER_FRAGMENTS: frozenset[str] = frozenset({
     "fringe global",
     "omics publishing",
@@ -221,7 +232,6 @@ _PREDATORY_PUBLISHER_FRAGMENTS: frozenset[str] = frozenset({
     "scirp",
     "hindawi",                     # acquired many low-quality journals post-2021
     "science publishing group",
-    "american journal of",         # many predatory clones use this prefix
     "international journal of innovation",
     "global journal of",
     "world journal of",
@@ -245,33 +255,6 @@ _PREDATORY_PUBLISHER_FRAGMENTS: frozenset[str] = frozenset({
     "innovationinfo",
 })
 
-# Legitimate journals whose names contain a predatory fragment — checked first
-# to prevent false positives (e.g. "american journal of medicine" starts with
-# the "american journal of" predatory-clone prefix).
-_PREDATORY_PUBLISHER_WHITELIST: frozenset[str] = frozenset({
-    "american journal of medicine",
-    "american journal of epidemiology",
-    "american journal of public health",
-    "american journal of respiratory",
-    "american journal of clinical",
-    "american journal of obstetrics",
-    "american journal of surgery",
-    "american journal of cardiology",
-    "american journal of psychiatry",
-    "american journal of roentgenology",
-    "american journal of gastroenterology",
-    "american journal of kidney",
-    "american journal of hematology",
-    "american journal of sports medicine",
-    "american journal of neuroradiology",
-    "american journal of human genetics",
-    "american journal of botany",
-    "american journal of physics",
-    "american journal of mathematics",
-    "american journal of nursing",
-    "american journal of law",
-})
-
 # Borderline publishers: flagged for volume/speed issues but operate many
 # legitimate peer-reviewed journals — downgrade to "medium" rather than "low".
 _BORDERLINE_PUBLISHER_FRAGMENTS: frozenset[str] = frozenset({
@@ -282,8 +265,6 @@ _BORDERLINE_PUBLISHER_FRAGMENTS: frozenset[str] = frozenset({
 def _is_predatory_publisher(publisher: str) -> bool:
     """Return True if the publisher name is definitively predatory (→ low tier)."""
     lowered = publisher.lower()
-    if any(safe in lowered for safe in _PREDATORY_PUBLISHER_WHITELIST):
-        return False
     return any(frag in lowered for frag in _PREDATORY_PUBLISHER_FRAGMENTS)
 
 

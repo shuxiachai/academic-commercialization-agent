@@ -355,7 +355,12 @@ schema, two-intent ceiling, trigger authorization and local idempotency keys are
 implemented for offline injection tests only. Reproduce the 30-run zero-network
 mechanics audit with `uv run python evidence_gap_audit.py outputs/benchmark
 outputs/evidence-gap-shadow-phase1 --expected-count 30`; see the
-[frozen protocol](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md).
+[frozen protocol](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md). The
+first paid production canary verified artifact persistence and zero evidence
+mutation, while also exposing a clinical-device authority false negative and a
+journal-title credibility false positive. The narrow correction and its
+remaining post-deployment observation boundary are recorded in the
+[canary result](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md).
 
 See the [`examples/`](examples/) folder for three complete real reports across different industries.
 
@@ -1239,7 +1244,10 @@ Step 6     Agent 6 — 量化评分（独立于报告；公式自动修正）
 测试。可用 `uv run python evidence_gap_audit.py outputs/benchmark
 outputs/evidence-gap-shadow-phase1 --expected-count 30` 复现 30 次零网络机制审计；
 设计边界与后续上线阈值见
-[冻结协议](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md)。
+[冻结协议](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md)。首次付费生产
+canary 已验证影子产物持久化且未改变证据，同时暴露了临床设备权威来源漏检和
+期刊标题可信度误判；窄范围修正及仍待部署后观察的边界记录在
+[canary 结果](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)。
 
 完整报告示例见 [`examples/`](examples/) 文件夹（钙钛矿太阳能 / CAR-T 疗法 / 固态电池，三个行业）。
 
