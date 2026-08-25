@@ -358,9 +358,12 @@ outputs/evidence-gap-shadow-phase1 --expected-count 30`; see the
 [frozen protocol](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md). The
 first paid production canary verified artifact persistence and zero evidence
 mutation, while also exposing a clinical-device authority false negative and a
-journal-title credibility false positive. The narrow correction and its
-remaining post-deployment observation boundary are recorded in the
-[canary result](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md).
+journal-title credibility false positive. A separately pre-registered post-fix
+run then observed the biomedical profile, official-regulator coverage, high
+credibility for the legitimate journal, zero supplementary calls, and a
+matching source hash for `$0.035442`. This is one repeated-topic observation,
+not phase-2 Tool Calling evidence; see the [phase-1 result](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)
+and [post-fix canary](docs/results-2026-08-25-evidence-gap-shadow-post-fix-canary.md).
 
 See the [`examples/`](examples/) folder for three complete real reports across different industries.
 
@@ -1246,8 +1249,11 @@ outputs/evidence-gap-shadow-phase1 --expected-count 30` 复现 30 次零网络�
 设计边界与后续上线阈值见
 [冻结协议](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md)。首次付费生产
 canary 已验证影子产物持久化且未改变证据，同时暴露了临床设备权威来源漏检和
-期刊标题可信度误判；窄范围修正及仍待部署后观察的边界记录在
-[canary 结果](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)。
+期刊标题可信度误判。随后预注册的 post-fix 运行观察到 biomedical profile、
+官方监管覆盖、正规期刊保持高可信、零补充调用及一致的来源哈希，成本为
+`$0.035442`。这只是一项重复主题观察，并非第二阶段 Tool Calling 证据；详见
+[第一阶段结果](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)与
+[修复后 canary](docs/results-2026-08-25-evidence-gap-shadow-post-fix-canary.md)。
 
 完整报告示例见 [`examples/`](examples/) 文件夹（钙钛矿太阳能 / CAR-T 疗法 / 固态电池，三个行业）。
 

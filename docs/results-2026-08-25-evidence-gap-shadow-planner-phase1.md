@@ -108,7 +108,15 @@ The follow-up correction remains deliberately narrow:
 
 The proposed phrases change zero of the ten topics and zero of the 30 runs in
 the frozen calibration benchmark. No second paid run was used during the code
-fix, so production post-fix behavior remains to be observed after deployment.
+fix.
+
+A [separately pre-registered post-fix canary](results-2026-08-25-evidence-gap-shadow-post-fix-canary.md)
+later observed the deployed correction on the same topic. It selected the
+biomedical profile, required regulator evidence, retained the legitimate
+journal at high credibility, executed zero planner/search calls, and reproduced
+the unchanged source hash. Retrieval accepted an official FDA record, so the
+frozen `complete + no_gap` branch passed; the missing-regulator `eligible`
+branch remains covered by offline seam tests rather than this production run.
 
 Post-fix local gates passed: 1,374 zero-network tests and 594 subtests, Ruff,
 the CI exception-order Pylint checks, and 86.91% measured coverage against the
