@@ -961,6 +961,21 @@ class WeightProfileDetectionTests(TestCase):
         self.assertEqual(_detect_weight_profile("CAR-T cell therapy manufacturing"), "biomedical")
         self.assertEqual(_detect_weight_profile("antibody drug conjugate"), "biomedical")
 
+    def test_blood_pressure_monitoring_is_biomedical(self):
+        """The production canary's exact class must not fall through to industrial."""
+        self.assertEqual(
+            _detect_weight_profile(
+                "Wearable continuous blood pressure monitoring via photoplethysmography"
+            ),
+            "biomedical",
+        )
+        # The fix is the biomedical measurement, not the generic word
+        # "pressure"; industrial pressure monitoring must retain its profile.
+        self.assertEqual(
+            _detect_weight_profile("pipeline pressure monitoring for chemical plants"),
+            "industrial",
+        )
+
     def test_biomedical_bioprocess(self):
         # Food biotech / cellular agriculture markers added for cultivated-meat topics
         self.assertEqual(_detect_weight_profile("cultivated meat bioreactor scale-up"), "biomedical")
@@ -1066,6 +1081,16 @@ class AuthorityQueryPlanningTests(TestCase):
         self.assertIn("site:fda.gov", market[0])
         self.assertIn("site:ema.europa.eu", market[1])
         self.assertIn("site:clinicaltrials.gov", market[2])
+
+    def test_blood_pressure_monitor_queries_regulators_but_not_trial_registry(self):
+        """A marketed monitor needs regulator evidence, not an invented trial duty."""
+        from academic_agent.source_pipeline import _queries
+
+        topic = "Wearable continuous blood pressure monitoring via photoplethysmography"
+        market = _queries(topic, weight_profile=_detect_weight_profile(topic))["market"]
+        self.assertIn("site:fda.gov", market[0])
+        self.assertIn("site:ema.europa.eu", market[1])
+        self.assertFalse(any("clinicaltrials.gov" in query for query in market))
 
     def test_nonclinical_biomedical_methods_do_not_require_clinical_authorities(self):
         from academic_agent.source_pipeline import _queries
@@ -1200,6 +1225,20 @@ class AuthorityCoverageTests(TestCase):
         )
         self.assertEqual(coverage.status, "incomplete")
         self.assertEqual(coverage.missing_categories, ["clinical_registry"])
+
+    def test_blood_pressure_monitor_without_official_record_is_incomplete(self):
+        """Market-page clearance claims do not satisfy official regulator coverage."""
+        from academic_agent.source_pipeline import _measure_authority_coverage
+
+        topic = "Wearable continuous blood pressure monitoring via photoplethysmography"
+        coverage = _measure_authority_coverage(
+            topic,
+            _detect_weight_profile(topic),
+            [],
+        )
+        self.assertEqual(coverage.status, "incomplete")
+        self.assertEqual(coverage.required_categories, ["regulatory"])
+        self.assertEqual(coverage.missing_categories, ["regulatory"])
 
     def test_nonclinical_topics_are_explicitly_not_applicable(self):
         from academic_agent.source_pipeline import _measure_authority_coverage

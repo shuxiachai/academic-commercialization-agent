@@ -29,6 +29,8 @@ from academic_agent.source_pipeline import (
     AuthorityCoverage,
     ComponentCoverage,
     SourceCollection,
+    _detect_weight_profile,
+    _measure_authority_coverage,
 )
 
 
@@ -137,6 +139,35 @@ class GapGateTests(unittest.TestCase):
         self.assertEqual(signal.subject, "clinical_registry")
         self.assertEqual(signal.scope, "market")
         self.assertEqual(signal.allowed_tools, ("authority_search",))
+
+    def test_clinical_monitoring_topic_reaches_enabled_shadow_boundary(self):
+        """The live false negative must be caught across classification and gate seams."""
+        topic = "Wearable continuous blood pressure monitoring via photoplethysmography"
+        profile = _detect_weight_profile(topic)
+        collection = _collection(topic=topic, profile=profile)
+        collection.authority_coverage = _measure_authority_coverage(
+            topic,
+            profile,
+            [
+                *collection.academic_sources,
+                *collection.patent_sources,
+                *collection.market_sources,
+            ],
+        )
+
+        audit = run_shadow_assessment(
+            collection,
+            configuration=parse_shadow_configuration("true"),
+        )
+
+        self.assertEqual(profile, "biomedical")
+        self.assertEqual(audit.gate_state, "eligible")
+        self.assertTrue(audit.checked)
+        self.assertEqual(
+            [(signal.code, signal.subject) for signal in audit.context.signals],
+            [("authority_category_missing", "regulatory")],
+        )
+        self.assertEqual(audit.executed_call_count, 0)
 
     def test_only_explicitly_incomplete_components_trigger(self):
         for status in ("partial", "unchecked"):

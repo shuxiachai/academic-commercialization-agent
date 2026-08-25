@@ -182,19 +182,25 @@ class PredatoryPublisherTests(TestCase):
                     f"Expected '{publisher}' NOT to be flagged as predatory",
                 )
 
-    def test_whitelist_prevents_false_positive(self) -> None:
-        """Legitimate 'American Journal of X' titles must not be flagged."""
+    def test_ambiguous_journal_title_prefix_is_not_publisher_identity(self) -> None:
+        """A generic venue prefix must never be enough for a low-confidence label."""
         cases = [
+            # This exact production source is the official ASPC journal,
+            # published by Elsevier; the old finite whitelist omitted it.
+            "American Journal of Preventive Cardiology",
             "American Journal of Medicine",
             "American Journal of Epidemiology",
             "American Journal of Public Health",
             "American Journal of Cardiology",
+            # Precision is preferable to inventing a publisher classification
+            # for a title the detector does not know.
+            "American Journal of Unclassified Research",
         ]
         for publisher in cases:
             with self.subTest(publisher=publisher):
                 self.assertFalse(
                     _is_predatory_publisher(publisher),
-                    f"Whitelist should prevent '{publisher}' from being flagged",
+                    f"A title prefix alone must not flag '{publisher}'",
                 )
 
     def test_borderline_publishers_detected(self) -> None:
