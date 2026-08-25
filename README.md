@@ -396,19 +396,27 @@ requests and zero cost. The runner now checks the canonical raw-byte identity
 before parsing or case expansion. A fresh authorization on deployed revision
 `adde83d` then completed the exact pilot: 5/5 cases, five single-attempt
 requests, five inspectable credits, USD 0.040 conservative cost, and 25 unique
-policy-valid rows reached a blank human-review packet. Automated provider
-compatibility passed, but relevance and novelty remain `not_inspected`.
+policy-valid rows reached the frozen blank review artifact. Automated provider
+compatibility passed. A separate zero-network human-review packet now freezes
+every full row identity and strictly validates returned labels plus reviewer
+provenance. Its initial state is `incomplete / not_evaluated`: all 25 labels
+and the declaration remain blank, so relevance and novelty are still not
+inspected.
 The paid work and UTF-8 artifacts completed before a Windows GBK stdout
 projection failed on U+2005; the CLI now emits reversible ASCII-safe JSON while
 preserving original artifact text. The adapter/audit/executor subset passed
 **53/53** tests, including deliberate fixture-identity, hidden-retry,
-row-accounting, non-finite pricing, and GBK-output defect re-injection. This
+row-accounting, non-finite pricing, and GBK-output defect re-injection. The
+separate human-review intake passed **17/17** targeted tests, including full-
+identity and `UNVERIFIABLE` state defect re-injection. This
 does not establish source truth, evidence gain, report improvement, or planner
 precision. See the
 [phase-3 protocol](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md),
 the [implementation result](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md),
 the [fixture-identity erratum](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md),
-and the [live-provider result](docs/results-2026-08-25-evidence-gap-live-provider-phase3.md).
+the [live-provider result](docs/results-2026-08-25-evidence-gap-live-provider-phase3.md),
+the [human-review protocol](docs/prereg-2026-08-25-evidence-gap-human-review-phase3.md),
+and the [packet-readiness result](docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md).
 Production remains phase-1 zero-call shadow mode.
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
@@ -1345,16 +1353,22 @@ evidence_gap_phase3_audit.py` 仍是零网络身份检查，已验证 5/5 集合
 已提交产物；系统在构造适配器前停止，供应商请求和成本均为 0。runner 现在会在
 解析 JSON 或展开案例前校验规范的原始字节身份。修复部署后获得新的明确授权，
 精确五案例 pilot 完成 5/5 案例、5 次单次尝试请求、5 个可检查 credits 和
-USD 0.040 保守成本；25 个唯一且通过策略校验的 URL 进入空白人审表。自动供应商
-兼容性标准通过，但相关性和新颖性仍为 `not_inspected`。付费工作与 UTF-8 产物
+USD 0.040 保守成本；25 个唯一且通过策略校验的 URL 进入冻结空白人审表。自动
+供应商兼容性标准通过。现已另行生成零网络人工评审包，冻结每一行的完整身份，
+并严格校验回收标签与评审者声明。初始状态为 `incomplete / not_evaluated`：25 个
+标签和声明仍为空，因此相关性与新颖性依然未检查。付费工作与 UTF-8 产物
 完成后，Windows GBK stdout 在 U+2005 上打印失败；CLI 现改为可逆的 ASCII-safe
 JSON，原始 UTF-8 产物不变。适配器、审计和执行器子集 **53/53** 通过，并通过
 临时回注夹具身份、隐藏重试、行数漏记、非有限计费和 GBK 输出缺陷证明测试会
-真实变红。这些结果不代表来源真值、证据增量、报告改善或 Planner 精度。详见
+真实变红。独立人审 intake 子集 **17/17** 通过，并回注完整行身份与
+`UNVERIFIABLE` 状态缺陷验证测试会变红。这些结果不代表来源真值、证据增量、
+报告改善或 Planner 精度。详见
 [第三阶段协议](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md)、
 [实现结果](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md)、
-[夹具身份勘误](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md)
-和[真实供应商结果](docs/results-2026-08-25-evidence-gap-live-provider-phase3.md)。
+[夹具身份勘误](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md)、
+[真实供应商结果](docs/results-2026-08-25-evidence-gap-live-provider-phase3.md)、
+[人工评审协议](docs/prereg-2026-08-25-evidence-gap-human-review-phase3.md)和
+[评审包就绪结果](docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md)。
 生产环境仍保持第一阶段零补充调用的影子模式。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次

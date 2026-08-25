@@ -154,3 +154,11 @@ The supported claim is:
 > One production-disconnected five-case Tavily compatibility pilot completed
 > five single-attempt requests with complete request and credit accounting at a
 > conservative USD 0.04; evidence value remains not inspected.
+
+## Zero-network human-review follow-up
+
+A separate provenance-locked packet and strict label intake were prepared
+without modifying this result or making another provider request. Its initial
+state is `incomplete / not_evaluated`, not a human-value pass. See the
+[frozen protocol](prereg-2026-08-25-evidence-gap-human-review-phase3.md) and
+[packet-readiness result](results-2026-08-25-evidence-gap-human-review-packet-phase3.md).
