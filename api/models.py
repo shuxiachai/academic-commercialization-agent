@@ -195,6 +195,12 @@ class RunProgress(BaseModel):
         description="Coverage of independently searchable components in a combined "
                     "system. Incomplete is advisory and never proves absence.",
     )
+    evidence_gap_shadow: dict | None = Field(
+        default=None,
+        description="Zero-call phase-1 evidence-gap eligibility audit. States "
+                    "distinguish disabled, checked, and failed evaluation; no "
+                    "supplementary search is executed.",
+    )
     quality_review: dict | None = Field(
         default=None,
         description="Whether the independent reviewer completed. 'fallback' means "
@@ -287,6 +293,12 @@ class RunStatus(BaseModel):
         default=None,
         description="Coverage of independently searchable components in a combined "
                     "system. Incomplete is advisory and never proves absence.",
+    )
+    evidence_gap_shadow: dict | None = Field(
+        default=None,
+        description="Zero-call phase-1 evidence-gap eligibility audit. States "
+                    "distinguish disabled, checked, and failed evaluation; no "
+                    "supplementary search is executed.",
     )
     quality_review: dict | None = Field(
         default=None,

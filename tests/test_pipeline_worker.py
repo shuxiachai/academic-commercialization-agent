@@ -232,6 +232,11 @@ class MergeStatusFieldsTests(unittest.TestCase):
         data = self._merge(existing, stage="Agent 4")
         self.assertEqual(data["component_coverage"], existing["component_coverage"])
 
+    def test_evidence_gap_shadow_survives_every_stage_write(self):
+        existing = {"evidence_gap_shadow": {"gate_state": "eligible"}}
+        data = self._merge(existing, stage="Agent 4")
+        self.assertEqual(data["evidence_gap_shadow"], existing["evidence_gap_shadow"])
+
     def test_a_new_value_overwrites_the_sticky_one(self):
         existing = {"topic": "old topic"}
         data = self._merge(existing, topic="new topic")
@@ -272,12 +277,15 @@ class MainEndToEndTests(unittest.TestCase):
         self._source_collection.output_language = "English"
         self._source_collection.localized_headings = []
         self._source_collection.display_topic = "a topic"
+        self._source_collection.topic = "a topic"
+        self._source_collection.failed_domains = {}
         self._source_collection.authority_coverage.model_dump.return_value = {
             "status": "not_applicable",
             "required_categories": [],
             "covered_source_ids": {},
             "missing_categories": [],
         }
+        self._source_collection.authority_coverage.missing_categories = []
         self._source_collection.component_coverage.model_dump.return_value = {
             "status": "incomplete",
             "components": ["sensor networks", "edge AI inference"],
@@ -286,6 +294,9 @@ class MainEndToEndTests(unittest.TestCase):
             "unchecked_components": [],
         }
         self._source_collection.model_dump_json.return_value = "{}"
+        self._source_collection.component_coverage.status = "incomplete"
+        self._source_collection.component_coverage.missing_components = ["edge AI inference"]
+        self._source_collection.model_dump.return_value = {}
         self._source_collection.crew_inputs.return_value = {}
 
     def _run(self, run_id="20260101T000000Z-abcdef01"):
@@ -326,6 +337,35 @@ class MainEndToEndTests(unittest.TestCase):
             ["edge AI inference"],
         )
         self.assertTrue((run_dir / "commercialization_scores.json").exists())
+
+        self.assertEqual(status["evidence_gap_shadow"]["gate_state"], "disabled")
+        self.assertEqual(
+            status["evidence_gap_shadow"]["persistence_state"], "written"
+        )
+        self.assertEqual(status["evidence_gap_shadow"]["executed_call_count"], 0)
+        self.assertTrue((run_dir / "evidence_gap_shadow.json").exists())
+
+    def test_enabled_shadow_records_eligibility_without_search_calls(self):
+        crew = MagicMock()
+        crew.agents = []
+        crew.kickoff.return_value = self._crew_result()
+
+        with patch.dict(
+            "os.environ", {"EVIDENCE_GAP_SHADOW_ENABLED": "true"}
+        ), patch("academic_agent.crew.AcademicAgent") as agent_cls:
+            agent_cls.return_value.crew.return_value = crew
+            run_dir = self._run()
+
+        status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+        shadow = status["evidence_gap_shadow"]
+        self.assertEqual(shadow["gate_state"], "eligible")
+        self.assertEqual(shadow["planner_state"], "not_run")
+        self.assertTrue(shadow["checked"])
+        self.assertEqual(shadow["proposed_call_count"], 0)
+        self.assertEqual(shadow["executed_call_count"], 0)
+        self.assertEqual(shadow["added_search_cost_usd"], 0.0)
+        self.assertFalse(shadow["evidence_changed"])
+        crew.kickoff.assert_called_once()
 
     def test_source_collection_failure_writes_error_not_a_crash(self):
         with patch("academic_agent.source_pipeline.collect_source_collection",
