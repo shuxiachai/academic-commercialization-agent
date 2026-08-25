@@ -47,11 +47,14 @@ value was never published.
 
 ## Experiment status
 
-The live-provider pilot remains **not run**. The earlier authorization applied
-to revision `5be937e`, whose preflight exposed this defect, and is not silently
-carried to a corrected revision. After the correction merges and CI/deployment
-checks pass, live execution requires a new explicit authorization with the same
-five-request maximum and USD 0.04 soft stop.
+At publication, the live-provider pilot remained **not run**. The earlier
+authorization applied to revision `5be937e`, whose preflight exposed this
+defect, and was not silently carried to a corrected revision.
+
+After the correction merged, the study owner issued a fresh authorization for
+deployed revision `adde83d`. The exact five-case run then completed five
+requests and five credits at a conservative USD 0.04. See the
+[live-provider result](results-2026-08-25-evidence-gap-live-provider-phase3.md).
 
 No other acceptance threshold changes:
 

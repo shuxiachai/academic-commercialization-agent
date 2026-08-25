@@ -393,14 +393,22 @@ The first authorized post-merge preflight then found that the implementation
 result had recorded a pre-commit draft's fixture SHA instead of the first
 committed artifact; it stopped before adapter construction with zero provider
 requests and zero cost. The runner now checks the canonical raw-byte identity
-before parsing or case expansion. The adapter/audit/executor subset passed
-**52/52** tests, including deliberate fixture-identity, hidden-retry,
-row-accounting, and non-finite pricing defect re-injection. **No live Tavily
-pilot has run yet**, so this is implementation evidence rather than source
-quality, evidence gain, cost or report improvement. See the
+before parsing or case expansion. A fresh authorization on deployed revision
+`adde83d` then completed the exact pilot: 5/5 cases, five single-attempt
+requests, five inspectable credits, USD 0.040 conservative cost, and 25 unique
+policy-valid rows reached a blank human-review packet. Automated provider
+compatibility passed, but relevance and novelty remain `not_inspected`.
+The paid work and UTF-8 artifacts completed before a Windows GBK stdout
+projection failed on U+2005; the CLI now emits reversible ASCII-safe JSON while
+preserving original artifact text. The adapter/audit/executor subset passed
+**53/53** tests, including deliberate fixture-identity, hidden-retry,
+row-accounting, non-finite pricing, and GBK-output defect re-injection. This
+does not establish source truth, evidence gain, report improvement, or planner
+precision. See the
 [phase-3 protocol](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md),
 the [implementation result](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md),
-and the [fixture-identity erratum](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md).
+the [fixture-identity erratum](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md),
+and the [live-provider result](docs/results-2026-08-25-evidence-gap-live-provider-phase3.md).
 Production remains phase-1 zero-call shadow mode.
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
@@ -1335,12 +1343,18 @@ usage 记账，不包含隐藏重试、重定向跟随、正文提取或结果�
 evidence_gap_phase3_audit.py` 仍是零网络身份检查，已验证 5/5 集合及计划哈希；
 首次获授权的合并后预检发现，实现结果误记了提交前草稿的夹具 SHA，而不是首个
 已提交产物；系统在构造适配器前停止，供应商请求和成本均为 0。runner 现在会在
-解析 JSON 或展开案例前校验规范的原始字节身份。适配器、审计和执行器子集
-**52/52** 通过，并通过临时回注夹具身份、隐藏重试、行数漏记与非有限计费配置
-证明测试会真实变红。**目前尚未运行真实 Tavily pilot**，因此这些结果不代表来源
-质量、证据增量、真实成本或报告改善。详见[第三阶段协议](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md)、
-[实现结果](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md)
-和[夹具身份勘误](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md)。
+解析 JSON 或展开案例前校验规范的原始字节身份。修复部署后获得新的明确授权，
+精确五案例 pilot 完成 5/5 案例、5 次单次尝试请求、5 个可检查 credits 和
+USD 0.040 保守成本；25 个唯一且通过策略校验的 URL 进入空白人审表。自动供应商
+兼容性标准通过，但相关性和新颖性仍为 `not_inspected`。付费工作与 UTF-8 产物
+完成后，Windows GBK stdout 在 U+2005 上打印失败；CLI 现改为可逆的 ASCII-safe
+JSON，原始 UTF-8 产物不变。适配器、审计和执行器子集 **53/53** 通过，并通过
+临时回注夹具身份、隐藏重试、行数漏记、非有限计费和 GBK 输出缺陷证明测试会
+真实变红。这些结果不代表来源真值、证据增量、报告改善或 Planner 精度。详见
+[第三阶段协议](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md)、
+[实现结果](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md)、
+[夹具身份勘误](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md)
+和[真实供应商结果](docs/results-2026-08-25-evidence-gap-live-provider-phase3.md)。
 生产环境仍保持第一阶段零补充调用的影子模式。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次

@@ -651,6 +651,16 @@ def write_artifacts(
     _write_new(output_dir / "review.csv", _csv_text(_REVIEW_COLUMNS, reviews))
 
 
+def _stdout_json(value: object, *, sort_keys: bool = False) -> str:
+    """Render reversible CLI JSON independently of the caller's locale."""
+
+    # Write-once artifacts preserve the provider's original UTF-8 text. Stdout
+    # is only a projection and may be strict GBK or another legacy codec, so
+    # escaping non-ASCII code points prevents a completed paid run from being
+    # reported as failed after its artifacts have already been committed.
+    return json.dumps(value, ensure_ascii=True, indent=2, sort_keys=sort_keys)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST_PATH)
@@ -663,7 +673,7 @@ def _parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = _parser().parse_args()
     if not args.execute_live:
-        print(json.dumps(dry_run(args.manifest), indent=2, sort_keys=True))
+        print(_stdout_json(dry_run(args.manifest), sort_keys=True))
         return 0
     if args.output_dir is None or args.soft_stop_usd is None:
         raise SystemExit(
@@ -674,7 +684,7 @@ def main() -> int:
         soft_stop_usd=args.soft_stop_usd,
         manifest_path=args.manifest,
     )
-    print(artifact.model_dump_json(indent=2))
+    print(_stdout_json(artifact.model_dump(mode="json")))
     return 0
 
 

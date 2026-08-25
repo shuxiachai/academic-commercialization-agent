@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1445 tests (627 subtests), CI green on Linux + Windows × Python
+Current state: 1446 tests (627 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -198,22 +198,30 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   found that the implementation result had recorded a pre-commit draft's raw
   fixture hash rather than the first committed artifact. It stopped before
   adapter construction with zero requests and zero cost. The runner now checks
-  the canonical committed bytes before JSON parsing or case expansion. The
-  adapter/audit/executor subset passed 52/52 tests; temporary fixture-identity,
-  hidden-second-request and provider-row-under-count defects made their seam
-  tests fail before restoration.
-  No live Tavily request has run, so no provider compatibility, evidence yield,
-  wrong-source rate, real cost, latency, report-quality improvement, reliability
-  or planner-precision result exists. A separately authorized live pilot is
-  required, and every accepted row must then receive complete relevance and
-  novelty review. Even a pilot pass would not authorize production connection:
-  planner trigger precision and disabled-path thresholds remain unsatisfied.
+  the canonical committed bytes before JSON parsing or case expansion.
+  A fresh authorization on deployed revision `adde83d` then completed the exact
+  five-case pilot: five single-attempt requests, five inspectable credits, USD
+  0.040 conservative cost, and 25 unique policy-valid rows reached the blank
+  human-review packet. Production and report connections remained false. All
+  automated provider-compatibility criteria passed, but all 25 relevance and
+  novelty labels remain blank, so wrong-source rate and novel evidence yield
+  are `not_inspected`.
+  The paid work and UTF-8 artifacts completed before the Windows GBK stdout
+  projection raised on U+2005 and returned exit code 1. The CLI now emits
+  reversible ASCII-safe JSON without changing authoritative UTF-8 artifacts.
+  The adapter/audit/executor subset passed 53/53 tests; temporary fixture-
+  identity, hidden-second-request, provider-row-under-count, and GBK-output
+  defects made their seam tests fail before restoration.
+  The compatibility pass does not establish source truth, evidence yield,
+  report improvement, reliability, or planner precision. Every accepted row
+  still requires complete human review. Even a value-threshold pass would not
+  authorize production connection: planner trigger precision and disabled-path
+  thresholds remain unsatisfied.
   Keep `pipeline_worker.py` disconnected from both executor and adapter.
-  See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`
-  and
+  See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
   `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
-  plus
-  `docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md`.
+  `docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md`, and
+  `docs/results-2026-08-25-evidence-gap-live-provider-phase3.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The

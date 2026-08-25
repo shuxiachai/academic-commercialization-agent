@@ -11,6 +11,13 @@ live provider pilot not run**
 > and fail-closed correction are documented in the
 > [fixture-identity erratum](errata-2026-08-25-evidence-gap-phase3-fixture-identity.md).
 
+> **Post-correction follow-up (2026-08-25):** a fresh authorization on deployed
+> revision `adde83d` completed the exact five-case pilot with five requests,
+> five credits, and USD 0.040 conservative cost. Automated provider
+> compatibility passed; all 25 relevance and novelty labels remain blank. A
+> post-artifact Windows GBK stdout defect is disclosed in the
+> [live-provider result](results-2026-08-25-evidence-gap-live-provider-phase3.md).
+
 ## Frozen question
 
 Can the phase-2 executor call Tavily through an adapter that performs exactly
