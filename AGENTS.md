@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1391 tests (627 subtests), CI green on Linux + Windows × Python
+Current state: 1418 tests (627 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -142,6 +142,11 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
   source_title_recovery.py
                         precision-first neutral labels for broken official titles
   evidence.py           models, guardrails, scoring rubric
+  evidence_gap.py       phase-1 gap signals and strict plan authorization
+  evidence_gap_execution.py
+                        phase-2 bounded executor; disconnected from production
+  tools/evidence_search.py
+                        one-request read-only adapter response contract
   pipeline_worker.py    the subprocess one run executes in
   checkpoint_runtime.py
                         CrewAI hydration, task identity, and post-guardrail commits
@@ -150,7 +155,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  65 test modules plus conftest, organised by subject
+tests/                  67 test modules plus conftest, organised by subject
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering
@@ -158,6 +163,8 @@ regulator_title_audit.py
                         zero-network title census; zero denominator is not a pass
 regulator_title_recovery_candidate.py
                         frozen title-recovery comparison; never performs retrieval
+evidence_gap_phase2_audit.py
+                        frozen zero-network Tool Calling contract replay
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -176,6 +183,21 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
 ## Things that are known-open
 
 - Blocking on uncited claims (above) — needs the detector tighter first.
+- Evidence-gap Tool Calling has a phase-2 execution kernel, but production is
+  still phase-1 zero-call shadow mode. The frozen 14-case synthetic challenge
+  passed 14/14 exact dispositions and 14/14 deterministic replays outside
+  wall-clock latency. No case exceeded two simulated adapter attempts; six
+  valid rows entered a separate evidence delta and zero unexpected rows did.
+  Query authorization requires both original-topic overlap and the specific
+  component or authority category. URL/domain/relevance/deduplication checks,
+  idempotency, retry accounting, cost inspection states, and input-mutation
+  detection are exercised offline. This is execution-contract evidence only:
+  no live planner, search provider, production evidence gain, report-quality
+  improvement, latency, cost, or reliability result exists. Do not connect the
+  executor to `pipeline_worker.py` until a separately pre-registered live
+  experiment meets the phase-1 trigger-precision, evidence-yield, wrong-source,
+  budget, accounting, and disabled-path regression thresholds. See
+  `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The

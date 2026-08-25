@@ -1,0 +1,683 @@
+{
+  "schema_version": 1,
+  "challenge_id": "evidence-gap-tool-execution-phase2",
+  "measurement_design": "synthetic_adversarial_contract_not_production",
+  "topic": "battery-free wearable glucose biosensor for remote monitoring",
+  "cases": [
+    {
+      "case_id": "C01-valid-academic",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "academic_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.015,
+            "candidates": [
+              {
+                "title": "Battery-free wearable glucose biosensor remote monitoring evidence",
+                "url": "https://doi.org/10.1000/novel",
+                "doi": "10.1000/novel",
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "augmented",
+        "outbound_attempt_count": 1,
+        "accepted_count": 1,
+        "call_states": [
+          "accepted"
+        ],
+        "rejection_codes": [],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.015,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C02-registry-duplicates",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "academic_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.01,
+            "candidates": [
+              {
+                "title": "Distinct battery-free wearable glucose biosensor URL row",
+                "url": "https://doi.org/10.1000/existing",
+                "doi": null,
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              },
+              {
+                "title": "Distinct battery-free wearable glucose biosensor DOI row",
+                "url": "https://openalex.org/W123456",
+                "doi": "10.1000/existing",
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              },
+              {
+                "title": "Battery-free wearable glucose biosensor baseline study",
+                "url": "https://doi.org/10.1000/title-only",
+                "doi": "10.1000/title-only",
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "incomplete",
+        "outbound_attempt_count": 1,
+        "accepted_count": 0,
+        "call_states": [
+          "rejected"
+        ],
+        "rejection_codes": [
+          "duplicate_url",
+          "duplicate_doi",
+          "duplicate_title"
+        ],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.01,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C03-url-and-domain-policy",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "academic_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.01,
+            "candidates": [
+              {
+                "title": "Private battery-free glucose evidence",
+                "url": "http://127.0.0.1/private",
+                "doi": null,
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              },
+              {
+                "title": "Credentialed battery-free glucose evidence",
+                "url": "https://user:secret@doi.org/10.1000/private",
+                "doi": null,
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              },
+              {
+                "title": "Local file battery-free glucose evidence",
+                "url": "file:///etc/passwd",
+                "doi": null,
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              },
+              {
+                "title": "Untrusted battery-free glucose evidence",
+                "url": "https://untrusted.example/paper",
+                "doi": null,
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              },
+              {
+                "title": "Wrong-domain battery-free glucose evidence",
+                "url": "https://patents.google.com/patent/US2025000999A1",
+                "doi": null,
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "incomplete",
+        "outbound_attempt_count": 1,
+        "accepted_count": 0,
+        "call_states": [
+          "rejected"
+        ],
+        "rejection_codes": [
+          "non_public_literal_host",
+          "credentialed_url",
+          "unsupported_url",
+          "host_not_allowlisted",
+          "host_not_allowlisted"
+        ],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.01,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C04-off-topic",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "academic_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.01,
+            "candidates": [
+              {
+                "title": "Marine archaeology pottery isotope reconstruction",
+                "url": "https://doi.org/10.1000/off-topic",
+                "doi": "10.1000/off-topic",
+                "publisher": "Evidence Index",
+                "evidence_summary": "This archaeology paper studies pottery isotope reconstruction and ancient maritime exchange routes.",
+                "summary_source": "abstract"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "incomplete",
+        "outbound_attempt_count": 1,
+        "accepted_count": 0,
+        "call_states": [
+          "rejected"
+        ],
+        "rejection_codes": [
+          "off_topic"
+        ],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.01,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C05-valid-patent",
+      "calls": [
+        {
+          "tool": "patent_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "patent",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "patent_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.012,
+            "candidates": [
+              {
+                "title": "Battery-free wearable glucose biosensor telemetry system",
+                "url": "https://patents.google.com/patent/US2025000001A1",
+                "doi": null,
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "search_snippet"
+              },
+              {
+                "title": "Wrong-domain battery-free wearable glucose biosensor study",
+                "url": "https://doi.org/10.1000/patent-wrong-domain",
+                "doi": "10.1000/patent-wrong-domain",
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "augmented",
+        "outbound_attempt_count": 1,
+        "accepted_count": 1,
+        "call_states": [
+          "accepted"
+        ],
+        "rejection_codes": [
+          "wrong_evidence_domain"
+        ],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.012,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C06-valid-market",
+      "calls": [
+        {
+          "tool": "market_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "market",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "market_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.013,
+            "candidates": [
+              {
+                "title": "Battery-free wearable glucose monitoring deployment grows",
+                "url": "https://www.reuters.com/technology/battery-free-glucose-monitoring/",
+                "doi": null,
+                "publisher": "Reuters",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "search_snippet"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "augmented",
+        "outbound_attempt_count": 1,
+        "accepted_count": 1,
+        "call_states": [
+          "accepted"
+        ],
+        "rejection_codes": [],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.013,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C07-valid-regulatory-authority",
+      "calls": [
+        {
+          "tool": "authority_search",
+          "trigger_code": "authority_category_missing",
+          "trigger_subject": "regulatory",
+          "result_limit": 5,
+          "query": "battery-free wearable glucose biosensor for remote monitoring FDA regulatory record"
+        }
+      ],
+      "adapters": {
+        "authority_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.014,
+            "candidates": [
+              {
+                "title": "FDA battery-free wearable glucose biosensor device record",
+                "url": "https://www.fda.gov/medical-devices/battery-free-glucose-biosensor",
+                "doi": null,
+                "publisher": "US FDA",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "search_snippet"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "augmented",
+        "outbound_attempt_count": 1,
+        "accepted_count": 1,
+        "call_states": [
+          "accepted"
+        ],
+        "rejection_codes": [],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.014,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C08-wrong-authority-category",
+      "calls": [
+        {
+          "tool": "authority_search",
+          "trigger_code": "authority_category_missing",
+          "trigger_subject": "regulatory",
+          "result_limit": 5,
+          "query": "battery-free wearable glucose biosensor for remote monitoring FDA regulatory record"
+        }
+      ],
+      "adapters": {
+        "authority_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.01,
+            "candidates": [
+              {
+                "title": "Clinical trial for battery-free wearable glucose biosensor remote monitoring",
+                "url": "https://clinicaltrials.gov/study/NCT01234567",
+                "doi": null,
+                "publisher": "ClinicalTrials.gov",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "search_snippet"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "incomplete",
+        "outbound_attempt_count": 1,
+        "accepted_count": 0,
+        "call_states": [
+          "rejected"
+        ],
+        "rejection_codes": [
+          "wrong_authority_category"
+        ],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.01,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C09-retry-then-success",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "academic_search": [
+          {
+            "type": "failure",
+            "retryable": true,
+            "failure_type": "provider_timeout",
+            "search_cost_usd": 0.004
+          },
+          {
+            "type": "response",
+            "search_cost_usd": 0.006,
+            "candidates": [
+              {
+                "title": "Battery-free wearable glucose biosensor remote monitoring evidence",
+                "url": "https://doi.org/10.1000/novel",
+                "doi": "10.1000/novel",
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "augmented",
+        "outbound_attempt_count": 2,
+        "accepted_count": 1,
+        "call_states": [
+          "accepted"
+        ],
+        "rejection_codes": [],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.01,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C10-clean-empty",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "academic_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.002,
+            "candidates": []
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "incomplete",
+        "outbound_attempt_count": 1,
+        "accepted_count": 0,
+        "call_states": [
+          "empty"
+        ],
+        "rejection_codes": [],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.002,
+        "failure_type": null,
+        "call_failure_types": [
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C11-malformed-response",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "academic_search": [
+          {
+            "type": "malformed"
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "incomplete",
+        "outbound_attempt_count": 1,
+        "accepted_count": 0,
+        "call_states": [
+          "failed"
+        ],
+        "rejection_codes": [],
+        "cost_state": "uninspectable",
+        "incremental_search_cost_usd": null,
+        "failure_type": null,
+        "call_failure_types": [
+          "adapter_contract_ValidationError"
+        ]
+      }
+    },
+    {
+      "case_id": "C12-missing-adapter",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {},
+      "expected": {
+        "evidence_delta_state": "incomplete",
+        "outbound_attempt_count": 0,
+        "accepted_count": 0,
+        "call_states": [
+          "failed"
+        ],
+        "rejection_codes": [],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0,
+        "failure_type": null,
+        "call_failure_types": [
+          "adapter_unavailable"
+        ]
+      }
+    },
+    {
+      "case_id": "C13-two-call-budget-fairness",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        },
+        {
+          "tool": "patent_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "patent",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "academic_search": [
+          {
+            "type": "failure",
+            "retryable": true,
+            "failure_type": "provider_timeout",
+            "search_cost_usd": 0.002
+          }
+        ],
+        "patent_search": [
+          {
+            "type": "response",
+            "search_cost_usd": 0.003,
+            "candidates": [
+              {
+                "title": "Battery-free wearable glucose biosensor telemetry system",
+                "url": "https://patents.google.com/patent/US2025000001A1",
+                "doi": null,
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "search_snippet"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "augmented",
+        "outbound_attempt_count": 2,
+        "accepted_count": 1,
+        "call_states": [
+          "failed",
+          "accepted"
+        ],
+        "rejection_codes": [],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.005,
+        "failure_type": null,
+        "call_failure_types": [
+          "provider_timeout",
+          null
+        ]
+      }
+    },
+    {
+      "case_id": "C14-input-mutation-quarantine",
+      "calls": [
+        {
+          "tool": "academic_search",
+          "trigger_code": "retrieval_domain_failed",
+          "trigger_subject": "academic",
+          "result_limit": 5
+        }
+      ],
+      "adapters": {
+        "academic_search": [
+          {
+            "type": "mutation",
+            "search_cost_usd": 0.01,
+            "candidates": [
+              {
+                "title": "Battery-free wearable glucose biosensor remote monitoring evidence",
+                "url": "https://doi.org/10.1000/novel",
+                "doi": "10.1000/novel",
+                "publisher": "Evidence Index",
+                "evidence_summary": "This source provides detailed topic-specific evidence about battery-free wearable glucose biosensors for remote monitoring.",
+                "summary_source": "abstract"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "evidence_delta_state": "failed",
+        "outbound_attempt_count": 1,
+        "accepted_count": 0,
+        "call_states": [
+          "failed"
+        ],
+        "rejection_codes": [],
+        "cost_state": "known",
+        "incremental_search_cost_usd": 0.01,
+        "failure_type": "source_collection_mutated",
+        "call_failure_types": [
+          "source_collection_mutated"
+        ]
+      }
+    }
+  ]
+}

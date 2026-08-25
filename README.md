@@ -347,15 +347,16 @@ identity, authorization, failure, and observability contract.
 
 The scorecard (`commercialization_scores.json`) additionally contains: TRL score, patent strength, market accessibility, evidence confidence, overall score, key risks, and key opportunities.
 
-**Evidence-gap planning is currently phase-1 shadow instrumentation, not
-production Tool Calling.** With `EVIDENCE_GAP_SHADOW_ENABLED=true`, retrieval
-records whether explicit authority, compound-component, or failed-domain gaps
-make the run eligible for later planning. It invokes no planner model, executes
-zero supplementary searches, does not change `validated_sources.json`, and
-surfaces disabled / checked / failed states separately. The strict proposal
-schema, two-intent ceiling, trigger authorization and local idempotency keys are
-implemented for offline injection tests only. Reproduce the 30-run zero-network
-mechanics audit with `uv run python evidence_gap_audit.py outputs/benchmark
+**Production evidence-gap planning remains phase-1 shadow
+instrumentation, not enabled Tool Calling.** With
+`EVIDENCE_GAP_SHADOW_ENABLED=true`, retrieval records whether explicit
+authority, compound-component, or failed-domain gaps make the run eligible for
+later planning. It invokes no planner model, executes zero supplementary
+searches, does not change `validated_sources.json`, and surfaces disabled /
+checked / failed states separately. The strict proposal schema, two-intent
+ceiling, trigger authorization and local idempotency keys are implemented for
+offline injection tests. Reproduce the 30-run zero-network mechanics audit with
+`uv run python evidence_gap_audit.py outputs/benchmark
 outputs/evidence-gap-shadow-phase1 --expected-count 30`; see the
 [frozen protocol](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md). The
 first paid production canary verified artifact persistence and zero evidence
@@ -366,6 +367,20 @@ credibility for the legitimate journal, zero supplementary calls, and a
 matching source hash for `$0.035442`. This is one repeated-topic observation,
 not phase-2 Tool Calling evidence; see the [phase-1 result](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)
 and [post-fix canary](docs/results-2026-08-25-evidence-gap-shadow-post-fix-canary.md).
+
+Phase 2 adds a **production-disconnected bounded execution kernel**: four named
+read-only capabilities, topic-and-gap query authorization, a global two-attempt
+budget, strict adapter responses, URL/domain/relevance/deduplication quarantine,
+idempotency identities, and explicit latency/cost/trace accounting. Its frozen
+14-case zero-network challenge passed **14/14** exact dispositions and **14/14**
+deterministic replays, with at most two simulated attempts, six valid sources
+retained in a separate delta, and zero unexpected sources retained. Reproduce
+it with `uv run python evidence_gap_phase2_audit.py --fixture
+tests/fixtures/evidence_gap_phase2_challenge.json --output <new-directory>`.
+See the [phase-2 protocol](docs/prereg-2026-08-25-evidence-gap-tool-execution-phase2.md)
+and [result](docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md).
+These are synthetic contract results, not live search value: the production
+worker still instantiates no planner or supplementary adapter.
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1264,14 +1279,14 @@ Step 6     Agent 6 — 量化评分（独立于报告；公式自动修正）
 
 评分卡（`commercialization_scores.json`）额外包含：TRL 评分、专利强度、市场可及性、证据置信度、综合评分、关键风险和机遇列表。
 
-**证据缺口规划目前仅为第一阶段影子观测，并非已上线的 Tool Calling。** 设置
-`EVIDENCE_GAP_SHADOW_ENABLED=true` 后，检索层只记录当前证据是否存在明确的
-权威来源、复合组件或失败领域缺口；它不会调用 Planner 模型，不会追加搜索，
-不会改变 `validated_sources.json`，并将“关闭 / 已检查 / 检查失败”分别呈现。
-严格 Proposal Schema、最多两个意图、触发授权和本地幂等键目前只供离线注入
-测试。可用 `uv run python evidence_gap_audit.py outputs/benchmark
-outputs/evidence-gap-shadow-phase1 --expected-count 30` 复现 30 次零网络机制审计；
-设计边界与后续上线阈值见
+**生产环境的证据缺口规划仍停留在第一阶段影子观测，并未启用 Tool
+Calling。** 设置 `EVIDENCE_GAP_SHADOW_ENABLED=true` 后，检索层只记录当前
+证据是否存在明确的权威来源、复合组件或失败领域缺口；它不会调用 Planner
+模型，不会追加搜索，不会改变 `validated_sources.json`，并将“关闭 / 已检查 /
+检查失败”分别呈现。严格 Proposal Schema、最多两个意图、触发授权和本地幂等键
+目前用于离线注入测试。可用 `uv run python evidence_gap_audit.py
+outputs/benchmark outputs/evidence-gap-shadow-phase1 --expected-count 30`
+复现 30 次零网络机制审计；设计边界与后续上线阈值见
 [冻结协议](docs/prereg-2026-08-25-evidence-gap-shadow-planner.md)。首次付费生产
 canary 已验证影子产物持久化且未改变证据，同时暴露了临床设备权威来源漏检和
 期刊标题可信度误判。随后预注册的 post-fix 运行观察到 biomedical profile、
@@ -1279,6 +1294,18 @@ canary 已验证影子产物持久化且未改变证据，同时暴露了临床�
 `$0.035442`。这只是一项重复主题观察，并非第二阶段 Tool Calling 证据；详见
 [第一阶段结果](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)与
 [修复后 canary](docs/results-2026-08-25-evidence-gap-shadow-post-fix-canary.md)。
+
+第二阶段新增了一个**与生产路径断开的受控执行内核**：仅允许四个命名只读
+能力，查询必须同时命中原主题和具体缺口，全局最多两次尝试；适配器返回经过
+严格 Schema、URL/域名/相关性/去重隔离，并记录幂等标识、延迟、成本与 Trace。
+冻结的 14 案例零网络 challenge 得到 **14/14** 精确结果和 **14/14** 确定性
+重放；任一案例最多两次模拟请求，6 条有效来源进入独立 delta，0 条意外来源
+进入。可用 `uv run python evidence_gap_phase2_audit.py --fixture
+tests/fixtures/evidence_gap_phase2_challenge.json --output <new-directory>`
+复现。详见[第二阶段协议](docs/prereg-2026-08-25-evidence-gap-tool-execution-phase2.md)
+和[结果](docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md)。这些是
+合成执行契约证据，不是线上搜索收益；生产 worker 仍不会实例化 Planner 或
+补充搜索适配器。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
