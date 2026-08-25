@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1381 tests (602 subtests), CI green on Linux + Windows × Python
+Current state: 1391 tests (627 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -139,6 +139,8 @@ These are not style preferences; each came from a specific failure.
 src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
                         evidence models + guardrails, scoring, worker
   source_pipeline.py    ~3,400 lines, retrieval for all three domains
+  source_title_recovery.py
+                        precision-first neutral labels for broken official titles
   evidence.py           models, guardrails, scoring rubric
   pipeline_worker.py    the subprocess one run executes in
   checkpoint_runtime.py
@@ -148,12 +150,14 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  64 test modules plus conftest, organised by subject
+tests/                  65 test modules plus conftest, organised by subject
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering
 regulator_title_audit.py
                         zero-network title census; zero denominator is not a pass
+regulator_title_recovery_candidate.py
+                        frozen title-recovery comparison; never performs retrieval
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -172,6 +176,17 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
 ## Things that are known-open
 
 - Blocking on uncited claims (above) — needs the detector tighter first.
+- Regulator title recovery is integrated from one frozen development challenge,
+  not a production-rate estimate. A zero-network census of 95 historical runs
+  found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
+  candidate then matched 29/29 disclosed cases while preserving 23/23 clean
+  official API titles byte for byte. It may derive only a neutral identifier
+  label from an exact FDA 510(k) or ClinicalTrials.gov URL; unsupported broken
+  official titles are rejected. No provider-backed post-integration canary has
+  run yet, so do not present this as title truth, real-world precision/recall,
+  report-quality improvement, or production success evidence. See
+  `docs/prereg-2026-08-25-regulator-title-recovery-candidate.md` and
+  `docs/results-2026-08-25-regulator-title-recovery-candidate.md`.
 - The pre-registered offline process audit recovered 30/30 immutable children
   across ten frozen evidence collections and three post-commit boundaries. It
   skipped 90 committed task executions with zero duplicate task executions.

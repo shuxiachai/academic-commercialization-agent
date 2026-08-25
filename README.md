@@ -365,18 +365,21 @@ matching source hash for `$0.035442`. This is one repeated-topic observation,
 not phase-2 Tool Calling evidence; see the [phase-1 result](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)
 and [post-fix canary](docs/results-2026-08-25-evidence-gap-shadow-post-fix-canary.md).
 
-The canary's garbled FDA PDF title was measured before any cleanup rule was
-added. A zero-network census found **0 in-scope regulator or registry titles in
-30/30 stored benchmark runs** (and 0 in the ten tracked topic fixtures), so the
-result is explicitly `not_assessable_zero_denominator`, not a clean pass. A
-separate disclosed five-case challenge catches the exact production title while
-leaving plausible FDA and ClinicalTrials.gov controls clean. No production
-normalizer was enabled; reproduce the audit with `uv run python
-regulator_title_audit.py outputs/benchmark outputs/regulator-title-audit
---expected-count 30 --challenge
-evals/regulator_title_quality/challenge-v1.json`. See the
-[protocol](docs/protocol-2026-08-25-regulator-title-quality-audit.md) and
-[result](docs/results-2026-08-25-regulator-title-quality-audit.md).
+The canary's garbled FDA PDF title was measured before any recovery rule was
+written. The original 30-run benchmark had a zero denominator; a wider
+zero-network census of **95 historical runs** found only **3 in-scope rows over
+2 unique ClinicalTrials.gov URLs**, still too small for a prevalence or accuracy
+claim. A pre-registered 29-case development challenge therefore combines 24
+official API records, the observed production failure, three disclosed positive
+controls, and one attacker-suffix scope control. The deterministic candidate
+matched **29/29** expected actions while preserving **23/23** clean titles byte
+for byte. Production now recovers only a neutral identifier label from an exact
+FDA 510(k) or ClinicalTrials.gov URL and rejects unsupported broken titles; it
+does not guess a document name or repair Unicode semantically. A paid
+post-integration canary remains unrun, so this is not title-truth, production
+precision/recall, or report-quality evidence. See the
+[pre-registration](docs/prereg-2026-08-25-regulator-title-recovery-candidate.md)
+and [result](docs/results-2026-08-25-regulator-title-recovery-candidate.md).
 
 See the [`examples/`](examples/) folder for three complete real reports across different industries.
 
@@ -895,6 +898,7 @@ academic_agent/
 │   ├── main.py              # CLI entry point (--topic "your topic" flag)
 │   ├── evidence.py          # Evidence models, guardrail validators, CommercializationScore
 │   ├── source_pipeline.py   # Structured pre-agent source collection & validation
+│   ├── source_title_recovery.py # Precision-first official-title recovery
 │   ├── source_clients.py    # API clients (OpenAlex, S2, PubMed, arXiv, Lens, Crossref, Serper)
 │   ├── pdf_extractor.py     # Uploaded-paper contribution extraction
 │   ├── language.py          # Language detection, free-form search planning, localization
@@ -920,6 +924,7 @@ academic_agent/
 ├── ablation.py              # Frozen-evidence 1/4/6-node topology experiment
 ├── reviewer_audit.py        # Blinded A/B packet preparation and unblinding
 ├── user_utility_audit.py    # 3–5 reviewer utility packet and strict summarizer
+├── regulator_title_recovery_candidate.py # Frozen title-recovery comparison
 ├── outputs/
 │   ├── <run_id>/            # Per-run output directory
 │   └── benchmark/           # benchmark.py outputs (benchmark_summary.csv, and
@@ -1268,17 +1273,17 @@ canary 已验证影子产物持久化且未改变证据，同时暴露了临床�
 [第一阶段结果](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)与
 [修复后 canary](docs/results-2026-08-25-evidence-gap-shadow-post-fix-canary.md)。
 
-针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、未直接增加清洗规则。
-零网络普查发现 30/30 次本地 benchmark 中符合范围的监管/临床注册标题为 **0**
-（仓库内 10 份话题 fixture 同样为 0），因此结果明确记为
-`not_assessable_zero_denominator`，而不是“检查通过”。另用 5 条公开说明的
-challenge 验证：精确的线上错例会被标记，合理的 FDA 与 ClinicalTrials.gov
-标题保持 clean。生产标题规范化仍未启用；可运行 `uv run python
-regulator_title_audit.py outputs/benchmark outputs/regulator-title-audit
---expected-count 30 --challenge
-evals/regulator_title_quality/challenge-v1.json` 复现，详见
-[协议](docs/protocol-2026-08-25-regulator-title-quality-audit.md)与
-[结果](docs/results-2026-08-25-regulator-title-quality-audit.md)。
+针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
+benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
+2 个唯一 ClinicalTrials.gov URL**，仍不足以估计真实发生率或准确率。因此预注册
+的 29 条开发 challenge 使用 24 条官方 API 记录、1 条线上错例、3 条公开说明的
+正向控制和 1 条攻击者后缀范围控制。确定性候选匹配 **29/29** 个预期动作，并
+逐字保留 **23/23** 条干净标题。生产路径现在只允许从精确的 FDA 510(k) 或
+ClinicalTrials.gov URL 提取标识符形成中性标签；无法支持的坏标题直接拒绝，
+不会猜测文档名或做语义 Unicode 修复。付费的集成后 canary 尚未运行，因此这些
+数字不代表标题真值、生产 precision/recall 或报告质量改善。详见
+[预注册](docs/prereg-2026-08-25-regulator-title-recovery-candidate.md)与
+[结果](docs/results-2026-08-25-regulator-title-recovery-candidate.md)。
 
 完整报告示例见 [`examples/`](examples/) 文件夹（钙钛矿太阳能 / CAR-T 疗法 / 固态电池，三个行业）。
 
@@ -1624,6 +1629,7 @@ academic_agent/
 │   ├── main.py              # 命令行入口（支持 --topic 参数）
 │   ├── evidence.py          # 证据模型、guardrail 校验、CommercializationScore 模型
 │   ├── source_pipeline.py   # 六智能体启动前的结构化来源收集与验证
+│   ├── source_title_recovery.py # 精度优先的官方来源标题恢复
 │   ├── source_clients.py    # API 客户端（OpenAlex / S2 / PubMed / arXiv / Lens / Crossref / Serper）
 │   ├── pdf_extractor.py     # 上传论文的核心贡献提取
 │   ├── language.py          # 语言检测、自由描述检索规划、本地化
@@ -1648,6 +1654,7 @@ academic_agent/
 ├── ablation.py              # 冻结证据的 1/4/6 节点拓扑实验
 ├── reviewer_audit.py        # 随机 A/B 盲评包生成与揭盲汇总
 ├── user_utility_audit.py    # 3–5 人用户效用盲评包与严格汇总器
+├── regulator_title_recovery_candidate.py # 冻结标题恢复候选对比
 ├── outputs/
 │   ├── <run_id>/            # 每次正常运行的输出目录
 │   └── benchmark/           # benchmark.py 输出目录（含 benchmark_summary.csv）

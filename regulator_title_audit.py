@@ -197,20 +197,26 @@ def discover_collections(fixtures: Path) -> list[Path]:
     A clean clone retains ten equivalent SourceCollection snapshots as direct
     JSON files. Supporting both layouts lets the 30-run census use the original
     artifacts while CI can exercise the same parser over tracked evidence.
+
+    The layouts are alternatives, not additive. A live ``outputs/`` root also
+    contains JSON ledgers and operational state. Once run artifacts are present,
+    treating every top-level JSON file as another collection both changes the
+    denominator and fails on valid non-collection state.
     """
 
     run_artifacts = sorted(fixtures.glob("*/validated_sources.json"))
+    if run_artifacts:
+        return run_artifacts
     flat_fixtures = sorted(
         path
         for path in fixtures.glob("*.json")
         if path.name != "manifest.json"
     )
-    paths = run_artifacts + flat_fixtures
-    if not paths:
+    if not flat_fixtures:
         raise RegulatorTitleAuditError(
             f"no source collections found directly under {fixtures}"
         )
-    return paths
+    return flat_fixtures
 
 
 def _fixture_name(fixtures: Path, path: Path) -> str:
