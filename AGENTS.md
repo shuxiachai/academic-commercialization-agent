@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1374 tests (594 subtests), CI green on Linux + Windows × Python
+Current state: 1381 tests (602 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -138,7 +138,7 @@ These are not style preferences; each came from a specific failure.
 ```
 src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
                         evidence models + guardrails, scoring, worker
-  source_pipeline.py    ~2,900 lines, retrieval for all three domains
+  source_pipeline.py    ~3,400 lines, retrieval for all three domains
   evidence.py           models, guardrails, scoring rubric
   pipeline_worker.py    the subprocess one run executes in
   checkpoint_runtime.py
@@ -148,10 +148,12 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  63 test modules plus conftest, organised by subject
+tests/                  64 test modules plus conftest, organised by subject
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering
+regulator_title_audit.py
+                        zero-network title census; zero denominator is not a pass
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "measurement_design": "one_observed_production_failure_plus_disclosed_synthetic_controls",
+  "cases": [
+    {
+      "case_id": "production-m7-fragmented-title",
+      "provenance": "observed_production",
+      "run_id": "20260825T024919Z-d8c43b0ba3479dc46227b4bfaa82f0a4",
+      "source_id": "M7",
+      "title": "'b, , 4 , I 'b, I - accessdata.fda.gov",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K222658.pdf",
+      "expected_scope": "regulatory",
+      "expected_status": "review_required",
+      "expected_reason_codes": [
+        "fragmented_single_letter_tokens"
+      ]
+    },
+    {
+      "case_id": "control-fda-510k-title",
+      "provenance": "synthetic_negative_control",
+      "run_id": null,
+      "source_id": "M1",
+      "title": "K222658 - Accurate 24 - 510(k) Premarket Notification",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K222658.pdf",
+      "expected_scope": "regulatory",
+      "expected_status": "clean",
+      "expected_reason_codes": []
+    },
+    {
+      "case_id": "control-clinical-registry-title",
+      "provenance": "synthetic_negative_control",
+      "run_id": null,
+      "source_id": "M2",
+      "title": "NCT01234567: Continuous Blood Pressure Monitoring Study",
+      "url": "https://clinicaltrials.gov/study/NCT01234567",
+      "expected_scope": "clinical_registry",
+      "expected_status": "clean",
+      "expected_reason_codes": []
+    },
+    {
+      "case_id": "control-attacker-host",
+      "provenance": "synthetic_scope_control",
+      "run_id": null,
+      "source_id": "M3",
+      "title": "A B C D - fda.gov.attacker.example",
+      "url": "https://fda.gov.attacker.example/fake.pdf",
+      "expected_scope": "out_of_scope",
+      "expected_status": "out_of_scope",
+      "expected_reason_codes": []
+    },
+    {
+      "case_id": "control-decoding-loss",
+      "provenance": "synthetic_positive_control",
+      "run_id": null,
+      "source_id": "M4",
+      "title": "Device Summary � K123456",
+      "url": "https://www.accessdata.fda.gov/CDRH510K/K123456.pdf",
+      "expected_scope": "regulatory",
+      "expected_status": "review_required",
+      "expected_reason_codes": [
+        "encoding_replacement_character"
+      ]
+    }
+  ]
+}

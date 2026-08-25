@@ -365,6 +365,19 @@ matching source hash for `$0.035442`. This is one repeated-topic observation,
 not phase-2 Tool Calling evidence; see the [phase-1 result](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)
 and [post-fix canary](docs/results-2026-08-25-evidence-gap-shadow-post-fix-canary.md).
 
+The canary's garbled FDA PDF title was measured before any cleanup rule was
+added. A zero-network census found **0 in-scope regulator or registry titles in
+30/30 stored benchmark runs** (and 0 in the ten tracked topic fixtures), so the
+result is explicitly `not_assessable_zero_denominator`, not a clean pass. A
+separate disclosed five-case challenge catches the exact production title while
+leaving plausible FDA and ClinicalTrials.gov controls clean. No production
+normalizer was enabled; reproduce the audit with `uv run python
+regulator_title_audit.py outputs/benchmark outputs/regulator-title-audit
+--expected-count 30 --challenge
+evals/regulator_title_quality/challenge-v1.json`. See the
+[protocol](docs/protocol-2026-08-25-regulator-title-quality-audit.md) and
+[result](docs/results-2026-08-25-regulator-title-quality-audit.md).
+
 See the [`examples/`](examples/) folder for three complete real reports across different industries.
 
 ---
@@ -1254,6 +1267,18 @@ canary 已验证影子产物持久化且未改变证据，同时暴露了临床�
 `$0.035442`。这只是一项重复主题观察，并非第二阶段 Tool Calling 证据；详见
 [第一阶段结果](docs/results-2026-08-25-evidence-gap-shadow-planner-phase1.md)与
 [修复后 canary](docs/results-2026-08-25-evidence-gap-shadow-post-fix-canary.md)。
+
+针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、未直接增加清洗规则。
+零网络普查发现 30/30 次本地 benchmark 中符合范围的监管/临床注册标题为 **0**
+（仓库内 10 份话题 fixture 同样为 0），因此结果明确记为
+`not_assessable_zero_denominator`，而不是“检查通过”。另用 5 条公开说明的
+challenge 验证：精确的线上错例会被标记，合理的 FDA 与 ClinicalTrials.gov
+标题保持 clean。生产标题规范化仍未启用；可运行 `uv run python
+regulator_title_audit.py outputs/benchmark outputs/regulator-title-audit
+--expected-count 30 --challenge
+evals/regulator_title_quality/challenge-v1.json` 复现，详见
+[协议](docs/protocol-2026-08-25-regulator-title-quality-audit.md)与
+[结果](docs/results-2026-08-25-regulator-title-quality-audit.md)。
 
 完整报告示例见 [`examples/`](examples/) 文件夹（钙钛矿太阳能 / CAR-T 疗法 / 固态电池，三个行业）。
 
