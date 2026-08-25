@@ -259,6 +259,61 @@ class GapPlanContractTests(unittest.TestCase):
                 self._proposal(self._intent(tool="academic_search")),
             )
 
+    def test_query_must_remain_inside_topic_and_trigger_scope(self):
+        with self.assertRaisesRegex(EvidenceGapError, "topic scope"):
+            validate_gap_plan(
+                self.context,
+                self._proposal(
+                    self._intent(query="quantum sensor market forecast")
+                ),
+            )
+        with self.assertRaisesRegex(EvidenceGapError, "missing category"):
+            validate_gap_plan(
+                self.context,
+                self._proposal(
+                    self._intent(
+                        query="CAR-T blood cancer commercial news"
+                    )
+                ),
+            )
+
+    def test_component_query_must_name_the_authorizing_missing_component(self):
+        component_context = build_gap_context(
+            _collection(
+                components=ComponentCoverage(
+                    status="incomplete",
+                    components=["edge AI inference"],
+                    missing_components=["edge AI inference"],
+                )
+            )
+        )
+        component_trigger = next(
+            signal.signal_id
+            for signal in component_context.signals
+            if signal.code == "component_missing"
+        )
+
+        def proposal(query: str) -> GapPlanProposal:
+            return self._proposal(
+                GapSearchIntent(
+                    tool="academic_search",
+                    query=query,
+                    trigger_ids=(component_trigger,),
+                )
+            )
+
+        with self.assertRaisesRegex(EvidenceGapError, "missing component"):
+            validate_gap_plan(
+                component_context,
+                proposal("solid-state batteries academic evidence"),
+            )
+
+        plan = validate_gap_plan(
+            component_context,
+            proposal("solid-state batteries edge AI inference evidence"),
+        )
+        self.assertEqual(plan.calls[0].tool, "academic_search")
+
     def test_eligible_context_must_search_or_explicitly_abstain(self):
         proposal = GapPlanProposal(
             decision="no_gap",

@@ -62,6 +62,30 @@ _TOOL_TO_DOMAIN: dict[GapToolName, EvidenceDomain] = {
     "authority_search": "market",
 }
 _HEX_64 = re.compile(r"^[0-9a-f]{64}$")
+_SCOPE_TOKEN = re.compile(r"[^\W_]+", re.UNICODE)
+_SCOPE_STOP_WORDS = frozenset(
+    {
+        "and",
+        "for",
+        "from",
+        "into",
+        "of",
+        "on",
+        "the",
+        "to",
+        "using",
+        "via",
+        "with",
+    }
+)
+_AUTHORITY_SCOPE_TERMS = {
+    "regulatory": frozenset(
+        {"approval", "authorization", "ema", "fda", "regulatory"}
+    ),
+    "clinical_registry": frozenset(
+        {"clinical", "clinicaltrials", "registry", "trial"}
+    ),
+}
 
 
 class EvidenceGapError(ValueError):
@@ -376,6 +400,47 @@ def build_gap_context(collection: SourceCollection) -> GapContext:
     )
 
 
+def _scope_tokens(value: str) -> frozenset[str]:
+    return frozenset(
+        token
+        for token in _SCOPE_TOKEN.findall(value.casefold())
+        if token not in _SCOPE_STOP_WORDS
+    )
+
+
+def _validate_query_scope(
+    context: GapContext,
+    intent: GapSearchIntent,
+    signal_by_id: dict[str, GapSignal],
+) -> None:
+    """Keep a valid tool name from becoming an arbitrary-search capability."""
+
+    query_tokens = _scope_tokens(intent.query)
+    topic_tokens = _scope_tokens(context.topic)
+    required_topic_overlap = min(2, len(topic_tokens))
+    if (
+        required_topic_overlap
+        and len(query_tokens & topic_tokens) < required_topic_overlap
+    ):
+        raise EvidenceGapError(
+            "search query is outside the authorized topic scope"
+        )
+
+    for trigger_id in intent.trigger_ids:
+        signal = signal_by_id[trigger_id]
+        if signal.code == "component_missing":
+            if not query_tokens & _scope_tokens(signal.subject):
+                raise EvidenceGapError(
+                    "component search query does not name its missing component"
+                )
+        elif signal.code == "authority_category_missing":
+            category_terms = _AUTHORITY_SCOPE_TERMS[signal.subject]
+            if not query_tokens & category_terms:
+                raise EvidenceGapError(
+                    "authority search query does not name its missing category"
+                )
+
+
 def validate_gap_plan(
     context: GapContext,
     proposal: GapPlanProposal | dict[str, Any],
@@ -408,6 +473,8 @@ def validate_gap_plan(
             raise EvidenceGapError(
                 f"tool {intent.tool} is not authorized by triggers {unauthorized}"
             )
+
+        _validate_query_scope(context, intent, signal_by_id)
 
         normalized_query = " ".join(intent.query.split()).casefold()
         normalized_triggers = tuple(sorted(intent.trigger_ids))
