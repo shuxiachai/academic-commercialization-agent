@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1444 tests (627 subtests), CI green on Linux + Windows × Python
+Current state: 1445 tests (627 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -194,9 +194,14 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   adapter forces basic search, code-owned domains, no redirects or internal
   retry, and requires provider request/credit accounting. Candidates, malformed
   result rows, local quarantine decisions, cost, latency and trace data reach
-  write-once JSON/CSV artifacts. The adapter/audit/executor subset passed 46/46
-  tests; temporary hidden-second-request and provider-row-under-count defects
-  both made their seam tests fail before restoration.
+  write-once JSON/CSV artifacts. The first authorized post-merge preflight
+  found that the implementation result had recorded a pre-commit draft's raw
+  fixture hash rather than the first committed artifact. It stopped before
+  adapter construction with zero requests and zero cost. The runner now checks
+  the canonical committed bytes before JSON parsing or case expansion. The
+  adapter/audit/executor subset passed 52/52 tests; temporary fixture-identity,
+  hidden-second-request and provider-row-under-count defects made their seam
+  tests fail before restoration.
   No live Tavily request has run, so no provider compatibility, evidence yield,
   wrong-source rate, real cost, latency, report-quality improvement, reliability
   or planner-precision result exists. A separately authorized live pilot is
@@ -206,7 +211,9 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   Keep `pipeline_worker.py` disconnected from both executor and adapter.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`
   and
-  `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`.
+  `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
+  plus
+  `docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
