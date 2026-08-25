@@ -162,3 +162,9 @@ without modifying this result or making another provider request. Its initial
 state is `incomplete / not_evaluated`, not a human-value pass. See the
 [frozen protocol](prereg-2026-08-25-evidence-gap-human-review-phase3.md) and
 [packet-readiness result](results-2026-08-25-evidence-gap-human-review-packet-phase3.md).
+
+The form was subsequently returned with 25/25 labels. Its declared substantive
+AI use excludes it from the human-value headline, and a method audit found that
+packet schema v1 did not expose the frozen novelty baseline. See the
+[returned-form result](results-2026-08-26-evidence-gap-human-review-phase3.md).
+Production remains disconnected.

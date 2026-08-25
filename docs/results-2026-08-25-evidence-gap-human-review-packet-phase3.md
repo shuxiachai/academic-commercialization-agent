@@ -122,3 +122,12 @@ completes with `protocol_status=complete` and `decision=pass`.
 > A zero-network, provenance-locked review packet now carries all 25 live
 > Tavily candidates through an immutable human-label intake; the packet is
 > ready, but no human evidence-value result exists yet.
+
+## Post-return status (2026-08-26)
+
+The returned form later completed 25/25 rows, but its declaration recorded
+`MOST_OR_ALL` substantive AI use and packet schema v1 had not exposed the
+frozen baseline collection. The strict result is therefore
+`excluded_substantive_ai / not_evaluated`; the generic adapter remains
+disconnected. See the
+[returned-form result](results-2026-08-26-evidence-gap-human-review-phase3.md).

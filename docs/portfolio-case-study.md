@@ -65,8 +65,8 @@ source of truth.
 | Blinded utility audit | Five reviewers returned 20/20 eligible judgments; both rounds preferred the full workflow 6:4 for decision usefulness | The pre-registered success rule failed; the monolith led information gain 11:5, so this is not proof of six-stage superiority or adoption |
 | Offline fault injection | 30/30 immutable children completed; 90 committed task executions were skipped with 0 duplicate task executions | Zero-network process evidence, not an exactly-once, latency, cost-saving, or production-SLO claim |
 | Provider-backed recovery canary | One same-revision child reused a four-node prefix, made 0 new evidence-agent requests, and completed the remaining workflow | One observation only; interrupted-source usage was unavailable, so total cost and general savings are not inspectable |
-| Bounded Tool Calling contracts | Phase 2 passed 14/14 frozen execution cases; one Phase 3 live pilot completed 5/5 single-attempt requests, 5 credits and USD 0.040 conservative cost, with 25 rows reaching a provenance-locked human packet; the adapter/audit/executor subset passed 53/53 and the review intake passed 17/17 | Production remains zero-call shadow mode; the strict initial summary is `incomplete / not_evaluated` because all 25 labels and the reviewer declaration remain blank, so source quality, evidence yield, and report improvement are not inspected |
-| Test and CI contract | 1,463 tests plus 627 subtests; Linux/Windows × Python 3.11/3.12; 87.07% measured coverage above an 85% floor | Most CI tests are intentionally zero-network and do not replace provider or browser canaries |
+| Bounded Tool Calling contracts | Phase 2 passed 14/14 frozen execution cases; one disconnected Phase 3 pilot completed 5/5 requests at USD 0.040; review intake passes 19/19 and the returned form contains 25/25 labels | Production remains zero-call shadow mode: the form declared substantive AI use and only 5/25 candidates relevant, so the strict result is `excluded_substantive_ai / not_evaluated`; the generic adapter failed its value gate |
+| Test and CI contract | 1,465 tests plus 627 subtests; Linux/Windows × Python 3.11/3.12; 87.07% measured coverage above an 85% floor | Most CI tests are intentionally zero-network and do not replace provider or browser canaries |
 
 The negative results are retained deliberately. For example, the first patent
 relevance candidate raised auto-kept precision to 94.6% but falsely removed six
@@ -101,11 +101,11 @@ project's engineering argument: evaluation should be capable of saying no.
   horizontal scaling requires shared transactional storage and a distributed
   work queue.
 - Evidence-gap production planning remains shadow-only and issues zero
-  supplementary searches. A disconnected phase-2 executor and phase-3
-  single-request adapter exist. One five-case live pilot passed the automated
-  compatibility thresholds at USD 0.040, but all 25 relevance and novelty
-  labels remain blank. It therefore establishes neither evidence value nor
-  permission to connect the adapter to reports.
+  supplementary searches. A disconnected five-case pilot passed provider
+  compatibility at USD 0.040, but its returned form declared substantive AI
+  use and labeled only 5/25 candidates directly relevant. Packet v1 also hid
+  the frozen novelty baseline from the reviewer; schema v2 fixes that seam,
+  but the old result remains excluded and does not authorize production.
 - Code-package analysis is not implemented, and patent relevance has no second
   independent reviewer or inter-rater estimate.
 

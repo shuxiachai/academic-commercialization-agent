@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1463 tests (627 subtests), CI green on Linux + Windows × Python
+Current state: 1465 tests (627 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -204,32 +204,33 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   A fresh authorization on deployed revision `adde83d` then completed the exact
   five-case pilot: five single-attempt requests, five inspectable credits, USD
   0.040 conservative cost, and 25 unique policy-valid rows reached the frozen
-  blank review artifact. Production and report connections remained false. A
-  separate zero-network human-review packet now freezes all 25 full row
-  identities and strictly validates labels plus reviewer provenance. Its
-  initial summary is `incomplete / not_evaluated`: all labels and the
-  declaration remain blank, so wrong-source rate and novel evidence yield are
-  still not inspected.
-  The paid work and UTF-8 artifacts completed before the Windows GBK stdout
-  projection raised on U+2005 and returned exit code 1. The CLI now emits
-  reversible ASCII-safe JSON without changing authoritative UTF-8 artifacts.
-  The adapter/audit/executor subset passed 53/53 tests; temporary fixture-
-  identity, hidden-second-request, provider-row-under-count, and GBK-output
-  defects made their seam tests fail before restoration. The separate review
-  intake passed 17/17 targeted tests; temporary full-row identity and
-  `UNVERIFIABLE`-state defects also made their seam tests fail before
-  restoration.
-  The compatibility pass does not establish source truth, evidence yield,
-  report improvement, reliability, or planner precision. Every accepted row
-  still requires complete human review. Even a value-threshold pass would not
-  authorize production connection: planner trigger precision and disabled-path
-  thresholds remain unsatisfied.
+  blank review artifact. Production and report connections remained false. The
+  separate review packet later returned 25/25 source-grounded rows and declared
+  every URL attempted, but its own provenance records `MOST_OR_ALL` substantive
+  AI use. The strict result is `excluded_substantive_ai / not_evaluated`, not a
+  human-value pass. The observed form contains 5 relevant and 20 not-relevant
+  candidates across the five cases. Three cases contain at least one
+  `YES/YES`; these are descriptive labels only. Even if treated as eligible,
+  the implied 80% wrong-source rate would fail the frozen 5% maximum.
+  Intake also found that packet schema v1 did not expose the frozen baseline
+  against which it asked the reviewer to judge novelty. Schema v2 now carries
+  and revalidates the collection identity, gap state and source summaries.
+  Legacy packets remain inspectable as history but explicitly report
+  `baseline_context_not_exposed_to_reviewer`; they cannot silently produce an
+  eligible novelty headline. The hardened review intake passes 19/19 targeted
+  tests, including baseline-drift and legacy-state seams.
+  This result does not establish source truth, general provider precision,
+  report improvement, reliability, or planner precision. The current generic
+  adapter missed its candidate-value gate and remains disconnected. A future
+  value study must use domain-specific retrieval on an unseen challenge before
+  planner-trigger precision is worth measuring.
   Keep `pipeline_worker.py` disconnected from both executor and adapter.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
   `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
   `docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md`,
   `docs/results-2026-08-25-evidence-gap-live-provider-phase3.md`, and
-  `docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md`.
+  `docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md`, and
+  `docs/results-2026-08-26-evidence-gap-human-review-phase3.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
