@@ -4,6 +4,13 @@
 **Status:** **PASS for the production-disconnected adapter and audit contract;
 live provider pilot not run**
 
+> **Post-publication correction (2026-08-25):** the first authorized live
+> preflight found that this result had recorded a pre-commit draft's manifest
+> SHA-256 instead of the first committed Git artifact. It stopped before
+> adapter construction and made zero provider requests. The canonical value
+> and fail-closed correction are documented in the
+> [fixture-identity erratum](errata-2026-08-25-evidence-gap-phase3-fixture-identity.md).
+
 ## Frozen question
 
 Can the phase-2 executor call Tavily through an adapter that performs exactly
@@ -22,7 +29,9 @@ The disclosed five-case compatibility manifest is:
 
 - `tests/fixtures/evidence_gap_phase3_manifest.json`
 - fixture SHA-256:
-  `4ee79ec8295c5e51a14fcef78180788be09aaa5102e8e0c6096e0944528339b2`
+  `4f216d5a7ad0f44db0b973a10087fc6075ac1a2dddddde0430faf62595ca377f`
+  (the previously published `4ee79e...` value identified an uncommitted draft
+  and is retracted; see the erratum above)
 - maximum provider requests: **5**
 - request limit per case: **1**
 - conservative accounting rate: **USD 0.008 per observed credit**
@@ -85,7 +94,7 @@ The runner keeps these states distinct:
 
 ## Defect re-injection
 
-Three implementation defects were temporarily reintroduced after the tests were
+Four implementation defects were temporarily reintroduced after the tests were
 written:
 
 1. A second call to the injected transport made
@@ -98,11 +107,15 @@ written:
 3. Removing the finite accounting-rate check made the `NaN` and infinity cases
    in `test_invalid_accounting_rate_fails_before_transport` fail before the
    defect was removed.
+4. Removing the raw fixture-identity gate made
+   `test_manifest_raw_identity_drift_fails_before_case_expansion` enter case
+   expansion and fail on L01 instead of rejecting the changed bytes.
 
 
-All three defects were removed. The adapter, phase-3 audit, and phase-2 executor
-subset then returned to **46/46 passing**. The complete zero-network suite
-passed **1444 tests plus 627 subtests**. CI-equivalent coverage measured
+All four defects were removed. The current adapter, phase-3 audit, and phase-2
+executor subset, including five executor tests added after the original result,
+returned to **52/52 passing**. The complete zero-network suite passed **1445
+tests plus 627 subtests**. CI-equivalent coverage measured
 **87.07%**, above the frozen 85% floor. Latest Ruff and the narrow CI Pylint
 checks for exception order, unreachable code and undefined names also returned
 clean.

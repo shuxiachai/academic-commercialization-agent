@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import inspect
 import json
 from pathlib import Path
@@ -20,6 +21,7 @@ from academic_agent.tools.evidence_search import (
 )
 from evidence_gap_phase3_audit import (
     DEFAULT_MANIFEST_PATH,
+    EXPECTED_FIXTURE_SHA256,
     Phase3AuditError,
     Phase3ExecutionArtifact,
     Phase3Manifest,
@@ -121,6 +123,7 @@ def test_dry_run_validates_five_frozen_identities_without_constructing_adapter(
     assert result["maximum_request_count"] == 5
     assert result["production_connected"] is False
     assert result["real_network_calls_performed"] is False
+    assert result["fixture_sha256"] == EXPECTED_FIXTURE_SHA256
     assert [case["case_id"] for case in result["cases"]] == [
         "L01",
         "L02",
@@ -130,11 +133,35 @@ def test_dry_run_validates_five_frozen_identities_without_constructing_adapter(
     ]
 
 
-def test_manifest_identity_drift_fails_before_any_adapter_is_needed(tmp_path):
+def test_manifest_raw_identity_drift_fails_before_case_expansion(
+    tmp_path,
+    monkeypatch,
+):
+    changed = tmp_path / "whitespace-changed.json"
+    changed.write_bytes(DEFAULT_MANIFEST_PATH.read_bytes() + b"\n")
+
+    def forbidden_build_case(spec):
+        raise AssertionError(f"case expansion must not run for {spec.case_id}")
+
+    monkeypatch.setattr(phase3, "build_case", forbidden_build_case)
+
+    with pytest.raises(Phase3AuditError, match="fixture byte identity drifted"):
+        load_frozen_cases(changed)
+
+
+def test_manifest_semantic_identity_drift_still_fails_after_raw_hash_gate(
+    tmp_path,
+    monkeypatch,
+):
     payload = json.loads(DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8"))
     payload["cases"][0]["topic"] += " changed"
     changed = tmp_path / "changed.json"
     changed.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(
+        phase3,
+        "EXPECTED_FIXTURE_SHA256",
+        hashlib.sha256(changed.read_bytes()).hexdigest(),
+    )
 
     with pytest.raises(Phase3AuditError, match="source collection identity drifted"):
         load_frozen_cases(changed)

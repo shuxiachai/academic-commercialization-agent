@@ -44,6 +44,12 @@ from academic_agent.tools.tavily_evidence_search import (
 
 _ROOT = Path(__file__).resolve().parent
 DEFAULT_MANIFEST_PATH = _ROOT / "tests/fixtures/evidence_gap_phase3_manifest.json"
+# This is the SHA-256 of the bytes stored by the manifest's first committed Git
+# blob, not the pre-commit working-tree draft. A live pilot must bind to bytes
+# another reviewer can reproduce from the repository.
+EXPECTED_FIXTURE_SHA256 = (
+    "4f216d5a7ad0f44db0b973a10087fc6075ac1a2dddddde0430faf62595ca377f"
+)
 _COLLECTED_AT = datetime(2026, 8, 25, tzinfo=UTC)
 _ACCESSED_DATE = date(2026, 8, 25)
 _EXPECTED_CASE_TOOLS = {
@@ -353,6 +359,14 @@ def load_frozen_cases(
     enforce_hashes: bool = True,
 ) -> tuple[str, tuple[PreparedPhase3Case, ...]]:
     raw = manifest_path.read_bytes()
+    fixture_sha256 = _sha256_bytes(raw)
+    if enforce_hashes and fixture_sha256 != EXPECTED_FIXTURE_SHA256:
+        # Check raw identity before parsing or expanding cases. Schema-valid
+        # JSON with only whitespace changed is still a different frozen input.
+        raise Phase3AuditError(
+            "phase-3 fixture byte identity drifted: "
+            f"expected {EXPECTED_FIXTURE_SHA256}, got {fixture_sha256}"
+        )
     manifest = Phase3Manifest.model_validate_json(raw)
     prepared = tuple(build_case(spec) for spec in manifest.cases)
     if enforce_hashes:
@@ -365,7 +379,7 @@ def load_frozen_cases(
                 raise Phase3AuditError(
                     f"{case.spec.case_id}: validated plan identity drifted"
                 )
-    return _sha256_bytes(raw), prepared
+    return fixture_sha256, prepared
 
 
 def dry_run(manifest_path: Path = DEFAULT_MANIFEST_PATH) -> dict:

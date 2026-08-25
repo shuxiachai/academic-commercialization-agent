@@ -389,12 +389,18 @@ redirect follow, extraction or result-page fetch. Malformed provider rows and
 local quarantine decisions reach write-once JSON/CSV artifacts separately. The
 default command, `uv run python evidence_gap_phase3_audit.py`, is a zero-network
 identity check; its frozen dry-run validated all 5 collection and plan hashes.
-The adapter/audit/executor subset passed **46/46** tests, including deliberate
-hidden-retry, row-accounting, and non-finite pricing defect re-injection. **No live Tavily pilot has
-run yet**, so this is implementation evidence rather than source quality,
-evidence gain, cost or report improvement. See the
-[phase-3 protocol](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md)
-and [implementation result](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md).
+The first authorized post-merge preflight then found that the implementation
+result had recorded a pre-commit draft's fixture SHA instead of the first
+committed artifact; it stopped before adapter construction with zero provider
+requests and zero cost. The runner now checks the canonical raw-byte identity
+before parsing or case expansion. The adapter/audit/executor subset passed
+**52/52** tests, including deliberate fixture-identity, hidden-retry,
+row-accounting, and non-finite pricing defect re-injection. **No live Tavily
+pilot has run yet**, so this is implementation evidence rather than source
+quality, evidence gain, cost or report improvement. See the
+[phase-3 protocol](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md),
+the [implementation result](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md),
+and the [fixture-identity erratum](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md).
 Production remains phase-1 zero-call shadow mode.
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
@@ -1327,10 +1333,14 @@ tests/fixtures/evidence_gap_phase2_challenge.json --output <new-directory>`
 usage 记账，不包含隐藏重试、重定向跟随、正文提取或结果页抓取；格式错误的供应商
 行和本地隔离结果会分别进入 write-once JSON/CSV 产物。默认命令 `uv run python
 evidence_gap_phase3_audit.py` 仍是零网络身份检查，已验证 5/5 集合及计划哈希；
-适配器、审计和执行器子集 **46/46** 通过，并通过临时回注隐藏重试、行数漏记与非有限计费配置
+首次获授权的合并后预检发现，实现结果误记了提交前草稿的夹具 SHA，而不是首个
+已提交产物；系统在构造适配器前停止，供应商请求和成本均为 0。runner 现在会在
+解析 JSON 或展开案例前校验规范的原始字节身份。适配器、审计和执行器子集
+**52/52** 通过，并通过临时回注夹具身份、隐藏重试、行数漏记与非有限计费配置
 证明测试会真实变红。**目前尚未运行真实 Tavily pilot**，因此这些结果不代表来源
-质量、证据增量、真实成本或报告改善。详见[第三阶段协议](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md)
-和[实现结果](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md)。
+质量、证据增量、真实成本或报告改善。详见[第三阶段协议](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md)、
+[实现结果](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md)
+和[夹具身份勘误](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md)。
 生产环境仍保持第一阶段零补充调用的影子模式。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
