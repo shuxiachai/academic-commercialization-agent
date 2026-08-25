@@ -382,6 +382,21 @@ and [result](docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md).
 These are synthetic contract results, not live search value: the production
 worker still instantiates no planner or supplementary adapter.
 
+Phase 3 adds a **production-disconnected, single-request Tavily adapter** and a
+frozen five-case provider-compatibility runner. The adapter forces basic search,
+code-owned domains and provider usage accounting; it performs no hidden retry,
+redirect follow, extraction or result-page fetch. Malformed provider rows and
+local quarantine decisions reach write-once JSON/CSV artifacts separately. The
+default command, `uv run python evidence_gap_phase3_audit.py`, is a zero-network
+identity check; its frozen dry-run validated all 5 collection and plan hashes.
+The adapter/audit/executor subset passed **46/46** tests, including deliberate
+hidden-retry, row-accounting, and non-finite pricing defect re-injection. **No live Tavily pilot has
+run yet**, so this is implementation evidence rather than source quality,
+evidence gain, cost or report improvement. See the
+[phase-3 protocol](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md)
+and [implementation result](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md).
+Production remains phase-1 zero-call shadow mode.
+
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
 zero-network census of **95 historical runs** found only **3 in-scope rows over
@@ -1306,6 +1321,17 @@ tests/fixtures/evidence_gap_phase2_challenge.json --output <new-directory>`
 和[结果](docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md)。这些是
 合成执行契约证据，不是线上搜索收益；生产 worker 仍不会实例化 Planner 或
 补充搜索适配器。
+
+第三阶段新增了一个**与生产路径断开、单次请求的 Tavily 适配器**和冻结的五案例
+供应商兼容性 runner。适配器固定使用 basic search、代码自有域名白名单和供应商
+usage 记账，不包含隐藏重试、重定向跟随、正文提取或结果页抓取；格式错误的供应商
+行和本地隔离结果会分别进入 write-once JSON/CSV 产物。默认命令 `uv run python
+evidence_gap_phase3_audit.py` 仍是零网络身份检查，已验证 5/5 集合及计划哈希；
+适配器、审计和执行器子集 **46/46** 通过，并通过临时回注隐藏重试、行数漏记与非有限计费配置
+证明测试会真实变红。**目前尚未运行真实 Tavily pilot**，因此这些结果不代表来源
+质量、证据增量、真实成本或报告改善。详见[第三阶段协议](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md)
+和[实现结果](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md)。
+生产环境仍保持第一阶段零补充调用的影子模式。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
