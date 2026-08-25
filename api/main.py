@@ -100,7 +100,7 @@ app = FastAPI(
         "Submit a research topic, poll for progress, retrieve the report and "
         "scorecard. The web client and CLI execute the same six-agent pipeline."
     ),
-    version="1.0.0",
+    version="2.0.0",
     lifespan=_lifespan,
 )
 

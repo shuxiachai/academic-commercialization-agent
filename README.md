@@ -9,6 +9,8 @@
 
 [![Live demo](https://img.shields.io/badge/live%20demo-try%20it-brightgreen.svg)](https://academic-commercialization-agent.up.railway.app)
 
+[Portfolio case study](docs/portfolio-case-study.md) | [90-second demo guide](docs/demo-script-90s.md) | [v2.0.0 release notes](docs/release-v2.0.0.md)
+
 [English](#english) | [中文](#chinese)
 
 ---
