@@ -21,6 +21,9 @@ dist/
 *.log
 .coverage
 htmlcov/
+# The real-browser smoke keeps a screenshot only when it fails. CI uploads it
+# before the workspace disappears; local failures must not dirty the project.
+output/playwright/
 # Personal write-up. Its own private repo (academic-agent-notes) lives in
 # notes/ — this repo is public and that file is a first-person job-search
 # narrative, not project documentation. Kept under the working tree rather

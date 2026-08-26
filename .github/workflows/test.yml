@@ -108,6 +108,40 @@ jobs:
           --cov-report=term-missing
           --cov-fail-under=85
 
+  browser-smoke:
+    name: browser smoke (Chromium, zero-provider)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "latest"
+          python-version: "3.12"
+
+      # One canonical Linux job owns the real-browser contract. Installing a
+      # browser in every pytest matrix cell would multiply a large download
+      # without adding a new application boundary: this smoke checks the same
+      # production SPA, FastAPI routes and disk-backed run reader each time.
+      - name: Install the opt-in E2E dependency group
+        run: uv sync --python 3.12 --group e2e
+
+      - name: Install Chromium and system dependencies
+        run: uv run --python 3.12 --group e2e playwright install --with-deps chromium
+
+      - name: Exercise the zero-provider browser journey
+        run: uv run --python 3.12 --group e2e python -m e2e.browser_smoke
+
+      - name: Upload the failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: browser-smoke-failure
+          path: output/playwright/
+          if-no-files-found: ignore
+          retention-days: 7
+
   docker:
     name: docker build
     runs-on: ubuntu-latest

@@ -20,6 +20,7 @@ _ACTION_REF = re.compile(
 # up a job.
 _REVIEWED_NODE24_REFS = {
     "actions/checkout": "v7",
+    "actions/upload-artifact": "v6",
     "astral-sh/setup-uv": "v10.0.1",
     "docker/build-push-action": "v7",
     "docker/setup-buildx-action": "v4",
@@ -73,7 +74,7 @@ def test_ci_enforces_the_measured_coverage_floor_in_one_canonical_job() -> None:
 
     workflow = _WORKFLOW.read_text(encoding="utf-8")
     coverage_start = workflow.index("  coverage:")
-    coverage_end = workflow.index("  docker:")
+    coverage_end = workflow.index("  browser-smoke:")
     coverage_job = workflow[coverage_start:coverage_end]
 
     assert workflow.count("--cov-fail-under=85") == 1

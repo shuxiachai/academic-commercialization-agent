@@ -21,6 +21,9 @@ Current state: 1515 tests (627 subtests), CI green on Linux + Windows × Python
 ```bash
 uv run pytest -q                       # the whole suite; ~24s on Windows, zero network
 uv run --with ruff ruff check .        # CI uses latest ruff, the local pin is older
+uv sync --group e2e                    # opt-in real-browser dependency; not part of the default suite
+uv run --group e2e playwright install chromium
+uv run --group e2e python -m e2e.browser_smoke   # loopback only; zero provider calls
 uv run uvicorn api.main:app --reload   # web client on :8000
 uv run academic_agent --topic "<topic>"          # one run from the CLI
 ```
@@ -156,6 +159,8 @@ api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
 tests/                  75 test modules plus conftest, organised by subject
+e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
+                        and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering
