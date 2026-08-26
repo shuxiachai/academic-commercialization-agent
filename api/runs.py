@@ -149,7 +149,7 @@ _OPERATOR_BILLED_ENV: frozenset[str] = frozenset({
     "OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL", "OPENAI_MODEL_NAME",
     "ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE", "ANTHROPIC_MODEL",
     "SERPER_API_KEY", "TAVILY_API_KEY",
-    "LENS_API_KEY",
+    "LENS_API_KEY", "OPENALEX_API_KEY",
 })
 
 #: Kept for a BYOK run. These are free-tier keys that raise a rate limit

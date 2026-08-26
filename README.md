@@ -428,6 +428,23 @@ the [packet-readiness result](docs/results-2026-08-25-evidence-gap-human-review-
 and the [returned-form result](docs/results-2026-08-26-evidence-gap-human-review-phase3.md).
 Production remains phase-1 zero-call shadow mode.
 
+Phase 4 replaces the failed generic academic/patent strategy with two
+**production-disconnected, source-native one-request adapters**: OpenAlex Works
+for academic gaps and claim-oriented Lens Patent Search for patent gaps. An
+eight-case challenge and its 5% wrong-source/3-of-4 case gates were committed
+before implementation. The zero-network dry-run validates 8/8 frozen
+collection, plan and idempotency identities. Provider accounting now separates
+provider-owned from client-generated request ids, credit cost, reported USD and
+uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
+provider row reaches a candidate or rejection index, and OpenAlex query-string
+credentials are suppressed from complete exception tracebacks. Both a hidden
+retry and missing-row-accounting defect were re-injected and caught. The full
+suite passes **1,488 tests plus 627 subtests** at **87.07% coverage**. No live
+OpenAlex/Lens request has run and production still imports neither adapter, so
+candidate precision, novel-evidence yield and report benefit remain unobserved.
+See the [Phase 4 protocol](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)
+and [offline implementation result](docs/results-2026-08-26-evidence-gap-domain-adapters-phase4-implementation.md).
+
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
 zero-network census of **95 historical runs** found only **3 in-scope rows over
@@ -1387,6 +1404,20 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 [评审包就绪结果](docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md)和
 [回收表结果](docs/results-2026-08-26-evidence-gap-human-review-phase3.md)。
 生产环境仍保持第一阶段零补充调用的影子模式。
+
+第四阶段没有把失败的通用搜索直接接入生产，而是新增两个**与生产路径断开、来源原生、
+每次仅一次请求的适配器**：学术缺口使用 OpenAlex Works，专利缺口使用面向 claim
+的 Lens Patent Search。8 个未在第三阶段使用的案例、5% 错源率上限和每类 3/4
+案例至少一条相关新证据的门槛都在实现前冻结。零网络 dry-run 已验证 8/8 集合、
+计划和幂等身份；供应商记账会区分供应商 ID 与客户端生成 ID、credits、供应商报告
+美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
+候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
+项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
+后，全量 **1,488 项测试与 627 个 subtests** 通过，覆盖率 **87.07%**。目前尚未
+发起任何 OpenAlex/Lens 真实请求，生产 worker 也不会导入这两个适配器，因此不能
+宣称候选精度、新证据收益或报告质量改善。详见
+[第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与
+[离线实现结果](docs/results-2026-08-26-evidence-gap-domain-adapters-phase4-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
