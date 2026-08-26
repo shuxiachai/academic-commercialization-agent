@@ -1968,11 +1968,13 @@ _REVIEWER_REQUIRED_HEADINGS = (
     "## references",
 )
 
+_REVIEWER_UNAPPLIED_NOTE_PREFIX = "Not applied (exact target absent):"
+
 
 def _apply_reviewer_corrections(
     raw_plan: str,
     draft: str,
-) -> tuple[str | None, list[str], str | None]:
+) -> tuple[str | None, list[str], list[str], str | None]:
     """Apply a bounded reviewer patch plan to an already validated draft.
 
     A full-report reviewer has to reproduce 25-35 kB of valid Markdown before
@@ -1990,13 +1992,14 @@ def _apply_reviewer_corrections(
     try:
         plan = ReviewerCorrectionPlan.model_validate_json(raw_plan)
     except ValidationError as exc:
-        return None, [], f"Reviewer patch plan is invalid JSON: {exc}"
+        return None, [], [], f"Reviewer patch plan is invalid JSON: {exc}"
 
     if not draft.strip():
-        return None, [], "The validated Task 4 draft is unavailable."
+        return None, [], [], "The validated Task 4 draft is unavailable."
 
     report = draft.strip()
     reasons: list[str] = []
+    unapplied_reasons: list[str] = []
     for index, correction in enumerate(plan.corrections, start=1):
         if correction.find == correction.replace:
             # A no-op cannot alter the validated draft. Rejecting it spends the
@@ -2006,12 +2009,28 @@ def _apply_reviewer_corrections(
             # correction; real edits in the same plan still pass through below.
             continue
         if re.search(r"(?m)^#{1,6}\s", correction.find + "\n" + correction.replace):
-            return None, [], f"Correction {index} attempts to edit a section heading."
+            return (
+                None,
+                [],
+                [],
+                f"Correction {index} attempts to edit a section heading.",
+            )
 
         occurrences = report.count(correction.find)
+        if occurrences == 0:
+            # A missing target cannot mutate the already validated Writer
+            # draft. Failing the entire Reviewer here used to discard exact
+            # corrections from the same plan and spend a retry without making
+            # the delivered report safer. Keep the passage unchanged and make
+            # the skipped correction explicit in the delivery status instead.
+            unapplied_reasons.append(
+                f"Correction {index}: {' '.join(correction.reason.split())}"
+            )
+            continue
         if occurrences != 1:
             return (
                 None,
+                [],
                 [],
                 f"Correction {index} target occurs {occurrences} times; "
                 "each find value must identify exactly one passage.",
@@ -2019,7 +2038,26 @@ def _apply_reviewer_corrections(
         report = report.replace(correction.find, correction.replace, 1)
         reasons.append(" ".join(correction.reason.split()))
 
-    return report, reasons, None
+    return report, reasons, unapplied_reasons, None
+
+
+def reviewer_quality_summary(report: str) -> dict[str, str | int]:
+    """Derive delivery-safe review state from deterministic Reviewer Notes.
+
+    The worker derives this from the completed output rather than mutable
+    guardrail state. That keeps restored checkpoints and fresh completions on
+    the same seam, and prevents an unapplied correction from being surfaced as
+    a clean review after the notes are split from the report.
+    """
+    _body, marker, notes = report.rpartition("\n## Reviewer Notes\n")
+    if not marker:
+        return {"status": "passed", "unapplied_corrections": 0}
+
+    prefix = f"- {_REVIEWER_UNAPPLIED_NOTE_PREFIX} "
+    unapplied = sum(line.startswith(prefix) for line in notes.splitlines())
+    if unapplied:
+        return {"status": "partial", "unapplied_corrections": unapplied}
+    return {"status": "passed", "unapplied_corrections": 0}
 
 
 def make_reviewer_guardrail(
@@ -2059,9 +2097,10 @@ def make_reviewer_guardrail(
 
         raw_review = output.raw.strip()
         plan_reasons: list[str] | None = None
+        unapplied_reasons: list[str] | None = None
         if raw_review.startswith("{"):
-            reviewed, plan_reasons, plan_error = _apply_reviewer_corrections(
-                raw_review, task4_text
+            reviewed, plan_reasons, unapplied_reasons, plan_error = (
+                _apply_reviewer_corrections(raw_review, task4_text)
             )
             if plan_error or reviewed is None:
                 return (
@@ -2180,10 +2219,13 @@ def make_reviewer_guardrail(
                     break
 
         if plan_reasons is not None:
+            note_lines = [f"- Applied: {reason}" for reason in plan_reasons]
+            note_lines.extend(
+                f"- {_REVIEWER_UNAPPLIED_NOTE_PREFIX} {reason}"
+                for reason in (unapplied_reasons or [])
+            )
             notes = (
-                "\n".join(f"- {reason}" for reason in plan_reasons)
-                if plan_reasons
-                else "No corrections required."
+                "\n".join(note_lines) if note_lines else "No corrections required."
             )
             output.raw = output.raw.rstrip() + f"\n\n## Reviewer Notes\n\n{notes}"
 

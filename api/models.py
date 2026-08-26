@@ -219,9 +219,10 @@ class RunProgress(BaseModel):
     )
     quality_review: dict | None = Field(
         default=None,
-        description="Whether the independent reviewer completed. 'fallback' means "
-                    "the validated Task 4 draft was delivered unchanged rather "
-                    "than presenting an unperformed review as a pass.",
+        description="Whether the independent reviewer completed. 'partial' means "
+                    "one or more exact targets were absent and those validated "
+                    "draft passages were preserved; 'fallback' means the whole "
+                    "review was unavailable rather than presenting it as a pass.",
     )
     consistency: dict | None = Field(
         default=None,
@@ -324,9 +325,10 @@ class RunStatus(BaseModel):
     )
     quality_review: dict | None = Field(
         default=None,
-        description="Whether the independent reviewer completed. 'fallback' means "
-                    "the validated Task 4 draft was delivered unchanged rather "
-                    "than presenting an unperformed review as a pass.",
+        description="Whether the independent reviewer completed. 'partial' means "
+                    "one or more exact targets were absent and those validated "
+                    "draft passages were preserved; 'fallback' means the whole "
+                    "review was unavailable rather than presenting it as a pass.",
     )
     consistency: dict | None = Field(
         default=None,

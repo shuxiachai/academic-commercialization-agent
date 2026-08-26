@@ -88,6 +88,12 @@ checkpoint was produced. The underlying exception is intentionally absent from
 the public response, and no operator log was exported into this study, so its
 root cause is `not_inspectable`; it must not be guessed from the fallback state.
 
+A 2026-08-27 operator follow-up later obtained the persisted process log and
+identified a Reviewer correction whose exact target occurred zero times. That
+post-study diagnosis and its zero-network repair are recorded separately in
+[the dated erratum](errata-2026-08-27-decision-context-reviewer-zero-target.md).
+It does not change this frozen result or make the canary a pass.
+
 Claim-grounding screens completed but checked zero claims in all three reports.
 They recorded 2, 1, and 5 unverifiable quantitative claims respectively. That
 is neither a grounding pass nor evidence of hallucination: the check ran, but
@@ -105,8 +111,8 @@ mode. The canary measures each mode's contract independently.
 No production behavior changed during this result capture. The next work should
 be narrow and evidence-led:
 
-1. obtain the operator-side `DC01` exception and reproduce it offline before
-   changing Reviewer behavior;
+1. the operator-side `DC01` exception and offline red/green reproduction are
+   complete in the dated erratum; no paid rerun has been performed;
 2. expose a non-secret immutable `pipeline_revision` at both status endpoints
    so a future run can report its own execution identity rather than relying on
    an external deployment timestamp;

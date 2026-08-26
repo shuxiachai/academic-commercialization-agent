@@ -172,6 +172,19 @@ class ReliabilityPanelTests(unittest.TestCase):
         self.assertEqual(row["tone"], "warn")
         self.assertEqual(panel["verdict"]["tone"], "warn")
 
+    def test_partial_review_is_visible_as_a_warning(self):
+        panel = self._panel(
+            quality_review={"status": "partial", "unapplied_corrections": 1}
+        )
+        row = self._row(panel, "review")
+        self.assertEqual(row["tone"], "warn")
+        self.assertIn("1", row["detail"])
+        self.assertEqual(panel["verdict"]["tone"], "warn")
+
+    def test_unavailable_review_is_visible_without_source_counts(self):
+        panel = self._panel(quality_review={"status": "unavailable"})
+        self.assertEqual(self._row(panel, "review")["tone"], "muted")
+
     def test_missing_review_status_is_not_invented_as_a_pass(self):
         panel = self._panel(source_counts={"academic": 8, "patent": 8, "market": 8})
         self.assertEqual(self._row(panel, "review")["tone"], "muted")

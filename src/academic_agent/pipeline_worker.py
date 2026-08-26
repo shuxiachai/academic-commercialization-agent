@@ -80,6 +80,32 @@ def _select_report_and_scores(
     return fallback_raw, None
 
 
+def _review_quality_from_outputs(tasks_output: list[Any]) -> dict[str, Any]:
+    """Report whether the Reviewer completed every proposed exact correction.
+
+    A successful Crew kickoff is not itself proof that review was complete.
+    Deriving this at the task-output seam keeps the status truthful for both
+    fresh outputs and hydrated checkpoints before Reviewer Notes are separated
+    from the delivered report.
+    """
+    if len(tasks_output) <= _IDX_REVIEW:
+        return {
+            "status": "unavailable",
+            "reason": "Reviewer output was absent after crew completion.",
+        }
+
+    raw = str(getattr(tasks_output[_IDX_REVIEW], "raw", "") or "")
+    if not raw.strip():
+        return {
+            "status": "unavailable",
+            "reason": "Reviewer output was empty after crew completion.",
+        }
+
+    from academic_agent.evidence import reviewer_quality_summary
+
+    return reviewer_quality_summary(raw)
+
+
 def _recover_from_reviewer_failure(
     crew_obj: Any,
     error: Exception,
@@ -799,7 +825,10 @@ def main() -> None:
         _sf = open(steps_path, "a", encoding="utf-8")
         _steps_fh = _sf
         result = None
-        quality_review = {"status": "passed"}
+        quality_review = {
+            "status": "unavailable",
+            "reason": "Reviewer output was not yet available.",
+        }
         try:
             with crewai_event_bus.scoped_handlers():
 
@@ -856,6 +885,7 @@ def main() -> None:
                 ):
                     result = crew_obj.kickoff(inputs=crew_inputs)
             tasks_output = getattr(result, "tasks_output", None) or []
+            quality_review = _review_quality_from_outputs(tasks_output)
         except Exception as crew_error:  # noqa: BLE001 - narrow recovery below
             recovered = _recover_from_reviewer_failure(
                 crew_obj,

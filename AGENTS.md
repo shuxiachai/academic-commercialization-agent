@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1545 tests (632 subtests), CI green on Linux + Windows × Python
+Current state: 1551 tests (632 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -401,7 +401,13 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   criteria passed. `DC01` fell back to the Writer draft and committed 6/7
   checkpoints; `DC03` humanized the frozen mode token; and `DC02` supplied an
   unqualified commercial pass threshold that the incomplete context had not
-  established. The public run response also did not expose its own
+  established. A dated operator follow-up later recovered DC01's persisted
+  process log: correction 2 targeted text that occurred zero times. The narrow
+  repair leaves that item unapplied, preserves other exact corrections, and
+  exposes `quality_review.status=partial` rather than a false pass; ambiguous
+  multi-match targets and all report-integrity failures remain blocking. This
+  is a zero-network regression repair with no paid post-fix effectiveness
+  observation. The public run response also did not expose its own
   `pipeline_revision`, so exact deployment identity was externally verified but
   the per-run field remained `not_inspectable`. This is prompt-compliance and
   operational evidence only: source truth, decision correctness, usefulness,
@@ -409,5 +415,6 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   decision-quality result or rerun it as post-fix evidence. See
   `docs/prereg-2026-08-26-decision-context-report-contract.md`,
   `docs/results-2026-08-26-decision-context-report-contract.md`,
-  `docs/prereg-2026-08-26-decision-context-paid-canary.md`, and
-  `docs/results-2026-08-26-decision-context-paid-canary.md`.
+  `docs/prereg-2026-08-26-decision-context-paid-canary.md`,
+  `docs/results-2026-08-26-decision-context-paid-canary.md`, and
+  `docs/errata-2026-08-27-decision-context-reviewer-zero-target.md`.
