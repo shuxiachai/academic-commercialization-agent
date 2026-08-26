@@ -122,10 +122,16 @@ baseline decision, and confidence before the coordinator can materialize one
 frozen report; the second stage then records whether the report changed the
 decision, what evidence was useful, and how much review time it required.
 Source checking, substantive AI use, consent, and incomplete observations are
-represented as distinct states. No response has been returned yet, so this is
-a measurement contract—not a user-value result. See the
+represented as distinct states. Both target users have returned complete
+pre-report baselines and independently selected topic 08. Their schema-v1
+natural-language enums are preserved and owner-coded with explicit disclosure;
+follow-up schema v2 now records AI use again after report exposure. Both Stage
+2 packets have been materialized, but neither follow-up has returned, so the
+completed-observation count remains zero. This is still a measurement contract,
+not a user-value result. See the
 [pre-registration](docs/prereg-2026-08-26-target-user-decision-pilot.md) and
-[operator guide](docs/target-user-decision-pilot-guide.md).
+[operator guide](docs/target-user-decision-pilot-guide.md), plus the
+[form-timing erratum](docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md).
 
 A separate pre-registered checkpoint audit hard-terminated **30 worker
 processes** across ten frozen evidence collections and three post-commit
@@ -1185,9 +1191,13 @@ ROI 或“六 Agent 必要性”证明。详见[预注册](docs/prereg-2026-08-2
 **双席位目标用户决策试点**，全程不调用模型或搜索供应商。评审者必须先填写自身
 角色、初始判断和信心，协调者才会生成一份冻结报告；第二阶段再记录报告是否改变
 判断、哪些证据有用以及实际审阅耗时。外部来源核验、实质性 AI 使用、公开同意和
-未完成观察均被区分记录。目前尚未收到任何返回，因此它只是评测合同，不是用户
-价值结果。详见[预注册](docs/prereg-2026-08-26-target-user-decision-pilot.md)和
-[操作指南](docs/target-user-decision-pilot-guide.md)。
+未完成观察均被区分记录。两位目标用户现已返回完整的报告前基线，并在报告暴露前
+独立选择主题 08；schema v1 的自然语言枚举被原样保留并做披露式编码，schema v2
+会在报告暴露后重新记录 AI 使用。两份第二阶段材料已经物化，但跟进表均未返回，
+完整观察数仍为 0，因此它依旧只是评测合同，不是用户价值结果。详见
+[预注册](docs/prereg-2026-08-26-target-user-decision-pilot.md)、
+[操作指南](docs/target-user-decision-pilot-guide.md)和
+[表单时序勘误](docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)。
 
 另有一组预注册 Checkpoint 故障恢复实验，在 10 份冻结证据和 3 个提交后边界上
 硬终止 **30 个 worker 进程**。30/30 个不可变子运行均到达 `Done`，精确复用预期

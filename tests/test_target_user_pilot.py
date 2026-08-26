@@ -9,9 +9,18 @@ from pathlib import Path
 import pytest
 
 from target_user_pilot import (
+    AI_USE_LABELS,
     BASELINE_FIELDS,
+    BLOCKING_ERROR_LABELS,
+    CITATION_CHECK_LABELS,
+    DECISION_LABELS,
+    EXPERIENCE_LABELS,
+    FACT_ERROR_LABELS,
     FOLLOWUP_FIELDS,
+    FOLLOWUP_SCHEMA_VERSION,
     PROFILE_FIELDS,
+    REUSE_LABELS,
+    ROLE_LABELS,
     SLOT_FIELDS,
     TargetUserPilotError,
     discover_reports,
@@ -139,11 +148,18 @@ def _fill_followup(
     usefulness: int = 4,
     citation_check: str = "NONE",
     factual_error_state: str = "NOT_CHECKED",
+    ai_use: str = "NONE",
 ) -> None:
     path = packet / "stage-2" / reviewer_id / "followup_form.csv"
     row = _read_csv(path)[0]
     row.update(
         {
+            "generative_ai_use": ai_use,
+            "generative_ai_notes": (
+                "AI generated substantive judgments."
+                if ai_use == "SUBSTANTIVE"
+                else ""
+            ),
             "post_report_decision": "GO",
             "post_report_confidence": "4",
             "decision_usefulness": str(usefulness),
@@ -196,6 +212,11 @@ def test_prepare_freezes_sources_and_keeps_stage_one_report_free(tmp_path: Path)
         )
         assert "FROZEN_REPORT_" not in stage_one_text
         assert "commercialization_report.md" not in stage_one_text
+        readme = (stage_one / "README.md").read_text(encoding="utf-8")
+        for option in ROLE_LABELS | EXPERIENCE_LABELS | AI_USE_LABELS | DECISION_LABELS:
+            assert f"`{option}`" in readme
+        assert "`initial_confidence`" in readme
+        assert "整数 `1`–`5`" in readme
 
     with pytest.raises(TargetUserPilotError, match="must not already exist"):
         prepare_pilot(experiment, packet, source_lock)
@@ -234,6 +255,13 @@ def test_materialize_requires_baseline_and_delivers_only_the_selected_report(tmp
     assert "FROZEN_REPORT_03" in delivered
     assert "FROZEN_REPORT_01" not in delivered
     assert snapshot["source_report_sha256"] == snapshot["delivered_report_sha256"]
+    assert snapshot["schema_version"] == FOLLOWUP_SCHEMA_VERSION
+    assert snapshot["followup_schema_version"] == FOLLOWUP_SCHEMA_VERSION
+    readme = (packet / "stage-2" / "T01" / "README.md").read_text(encoding="utf-8")
+    followup_options = AI_USE_LABELS | DECISION_LABELS | REUSE_LABELS
+    followup_options |= CITATION_CHECK_LABELS | FACT_ERROR_LABELS | BLOCKING_ERROR_LABELS
+    for option in followup_options:
+        assert f"`{option}`" in readme
     assert not (packet / "stage-2" / "T02").exists()
 
     with pytest.raises(TargetUserPilotError, match="already exists"):
@@ -286,7 +314,10 @@ def test_two_target_users_complete_but_public_projection_respects_consent(tmp_pa
     assert public["closed_slot_count"] == 0
     assert public["incomplete_slot_count"] == 0
     assert public["reportable_role_mix"] == {"TTO_COMMERCIALIZATION": 1}
-    assert public["reportable_ai_use"] == {"NONE": 1}
+    assert public["reportable_ai_use"] == {
+        "stage_1": {"NONE": 1},
+        "stage_2": {"NONE": 1},
+    }
     assert public["reportable_selected_topics"] == [
         {"topic_num": "01", "topic": "Commercialization topic 01"}
     ]
@@ -300,23 +331,31 @@ def test_two_target_users_complete_but_public_projection_respects_consent(tmp_pa
 
 def test_proxy_and_substantive_ai_rows_do_not_become_target_user_evidence(tmp_path: Path) -> None:
     experiment, packet, source_lock = _prepare(tmp_path)
-    _fill_intake(packet, "T01", topic_num="01", role="PROXY")
-    _fill_intake(packet, "T02", topic_num="02", ai_use="SUBSTANTIVE")
+    _fill_intake(packet, "T01", topic_num="01", role="PROXY", ai_use="SUBSTANTIVE")
+    _fill_intake(packet, "T02", topic_num="02")
     for reviewer_id in ("T01", "T02"):
         materialize_followup(experiment, packet, source_lock, reviewer_id)
-        _fill_followup(packet, reviewer_id)
+        _fill_followup(packet, reviewer_id, ai_use="SUBSTANTIVE" if reviewer_id == "T02" else "NONE")
 
     result = summarize_pilot(experiment, packet, source_lock)
     assert result["status"] == "no_eligible_target_user_observation"
     assert result["eligible_target_user_count"] == 0
     assert result["proxy_completed_count"] == 1
-    assert result["substantive_ai_excluded_count"] == 1
+    assert result["substantive_ai_excluded_count"] == 2
 
 
 def test_unchecked_sources_cannot_be_reported_as_zero_errors(tmp_path: Path) -> None:
     experiment, packet, source_lock = _prepare(tmp_path)
     _fill_intake(packet, "T01", topic_num="01")
     materialize_followup(experiment, packet, source_lock, "T01")
+    _fill_followup(packet, "T01", ai_use="TRANSLATION_OR_CLERICAL")
+    followup_path = packet / "stage-2" / "T01" / "followup_form.csv"
+    followup = _read_csv(followup_path)[0]
+    followup["generative_ai_notes"] = ""
+    _write_csv(followup_path, FOLLOWUP_FIELDS, [followup])
+    with pytest.raises(TargetUserPilotError, match="must describe non-NONE Stage 2"):
+        summarize_pilot(experiment, packet, source_lock)
+
     _fill_followup(packet, "T01", citation_check="NONE", factual_error_state="NONE_FOUND")
 
     with pytest.raises(TargetUserPilotError, match="without source checking"):

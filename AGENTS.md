@@ -373,8 +373,14 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   baseline decision without seeing a report; only then does the coordinator
   materialize one frozen report and collect a post-report decision. The packet
   makes source checking, AI assistance, consent, and unusable observations
-  explicit, and its public projection excludes non-consented free text. There
-  are currently zero returned observations, so this is an implemented
-  measurement contract rather than user-value evidence. See
+  explicit, and its public projection excludes non-consented free text. Both
+  registered target users have now returned complete Stage 1 baselines; both
+  independently selected topic 08 before report exposure. Schema-v1 packets
+  did not expose the legal enums, so the raw forms are retained privately and
+  every natural-language-to-enum mapping is disclosed. Follow-up schema v2
+  separately records Stage 2 AI use. Both Stage 2 packets are materialized,
+  but neither follow-up has returned: completed observations remain zero, so
+  this is still measurement readiness rather than user-value evidence. See
   `docs/prereg-2026-08-26-target-user-decision-pilot.md` and
-  `docs/target-user-decision-pilot-guide.md`.
+  `docs/target-user-decision-pilot-guide.md`, plus
+  `docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md`.

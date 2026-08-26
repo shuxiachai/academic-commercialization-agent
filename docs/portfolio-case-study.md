@@ -110,8 +110,10 @@ project's engineering argument: evaluation should be capable of saying no.
   independent reviewer or inter-rater estimate.
 - The completed user-utility audit included only one actual target user. A
   separate two-slot target-user decision pilot is prepared with a pre-report
-  baseline and post-report decision, but it currently has zero returned
-  observations and therefore contributes no user-value evidence yet.
+  baseline and post-report decision. Both Stage 1 baselines have returned and
+  both reviewers selected topic 08; owner-coded enum normalization is disclosed
+  and Stage 2 AI use is collected separately. Neither Stage 2 follow-up has
+  returned, so completed observations and user-value evidence remain zero.
 
 ## Reproduce or inspect
 
@@ -121,6 +123,7 @@ project's engineering argument: evaluation should be capable of saying no.
 - [User-utility result](results-2026-08-23-user-utility-audit.md)
 - [Target-user pilot pre-registration](prereg-2026-08-26-target-user-decision-pilot.md)
 - [Target-user pilot operator guide](target-user-decision-pilot-guide.md)
+- [Target-user pilot form-timing erratum](errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)
 - [Checkpoint recovery design](checkpoint-recovery.md)
 - [Production recovery canary](results-2026-08-24-paid-same-revision-recovery-post-fix.md)
 

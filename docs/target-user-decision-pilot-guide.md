@@ -59,6 +59,13 @@ This is an information barrier, not a convenience split. If a reviewer sees a
 report before returning the baseline, do not reconstruct their initial answer
 from memory; archive the slot as protocol-deviating.
 
+The generated README lists every legal enum and numeric scale. If a legacy
+schema-v1 packet is returned with natural-language equivalents, do not silently
+overwrite it. Preserve the returned directory byte for byte, create a separate
+owner-coded copy, record every original-to-enum mapping and its reason, and do
+all coding before report exposure. See
+[`errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md`](errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md).
+
 ## Lock intake and materialize Stage 2
 
 Copy the returned `reviewer_profile.csv` and `baseline_form.csv` into the same
@@ -78,6 +85,10 @@ second materialization. Send only the new `stage-2/T01/` directory. It contains
 the exact selected report, a follow-up form, and a selection snapshot binding
 the source, baseline, and delivered report hashes.
 
+The current follow-up schema is v2. Its snapshot records that version, and the
+form asks about generative-AI use during Stage 2 separately from the profile
+completed before report exposure. Do not copy the Stage 1 declaration forward.
+
 If an untouched slot cannot be recruited, edit only
 `coordinator/slot_status.csv`: set it to `CLOSED_NO_RESPONSE` or `WITHDREW` and
 write a short reason. Never close a slot that already contains participant
@@ -88,6 +99,9 @@ data, and do not add a third slot after seeing a follow-up.
 - `citation_check=NONE` requires `factual_error_state=NOT_CHECKED`.
 - `NONE_FOUND` means external sources were actually opened and no error was
   found among what was checked; it never means the report is proven correct.
+- Stage 2 `generative_ai_use` must describe work performed after report
+  exposure. `TRANSLATION_OR_CLERICAL` and `SUBSTANTIVE` require notes;
+  substantive use at either stage excludes the row from target-user evidence.
 - `blocking_error=YES` requires details describing how the issue could change a
   commercialization decision.
 - Substantive AI-generated judgment is retained but excluded.
