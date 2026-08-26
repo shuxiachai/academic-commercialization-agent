@@ -83,3 +83,10 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7,<8",
 ]
+e2e = [
+    # Kept out of the default dev group because the Python package is only
+    # half of the dependency: Chromium is a separate ~200 MB download. The
+    # ordinary zero-network suite must remain installable and runnable without
+    # silently acquiring a browser it never launches.
+    "playwright>=1.50,<2",
+]

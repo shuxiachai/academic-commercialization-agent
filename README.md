@@ -1014,6 +1014,7 @@ academic_agent/
 │   ├── runs.py              # Worker process registry, concurrency cap, state derivation
 │   └── models.py            # Request / response schemas
 ├── tests/                   # Unit tests and integration tests
+├── e2e/                     # Opt-in Playwright Chromium web/API seam
 ├── benchmark.py             # 10-topic benchmark runner
 ├── benchmark_check.py       # Benchmark result analyzer (CSV + terminal table)
 ├── ablation.py              # Frozen-evidence 1/4/6-node topology experiment
@@ -1044,6 +1045,7 @@ academic_agent/
 - **Agent observability**: OpenTelemetry + OpenInference instrumentors with redacted content and optional Arize Phoenix OTLP export
 - **Durable recovery**: content-addressed node checkpoints keyed by input, evidence, configuration, and pipeline hashes; immutable child runs reuse only a validated contiguous prefix and require fresh BYOK credentials
 - **Web client**: static HTML, CSS and ES modules served by FastAPI — no build step, no framework
+- **Browser E2E**: Playwright Chromium on the real FastAPI/DOM seam; loopback-only route policy blocks external and mutating requests so CI cannot start paid work
 - **HTTP API**: FastAPI + Uvicorn, serving both the client and the JSON API (OpenAPI docs at `/docs`)
 - **PDF export**: reportlab Platypus (embedded TTFont for CJK; falls back to CID fonts)
 - **Container**: Docker multi-stage build (dependency layer cached separately from source), `tini` as PID 1 for subprocess reaping, non-root user, build-time CJK font verification
@@ -1818,6 +1820,7 @@ academic_agent/
 │   ├── runs.py              # Worker 进程注册表、并发控制、状态推导
 │   └── models.py            # 请求 / 响应模型
 ├── tests/                   # 单元测试与集成测试
+├── e2e/                     # 可选 Playwright Chromium 网页/API 接缝测试
 ├── benchmark.py             # 10 话题基准测试运行器
 ├── benchmark_check.py       # 基准结果分析器（生成 CSV + 终端表格）
 ├── ablation.py              # 冻结证据的 1/4/6 节点拓扑实验
@@ -1847,6 +1850,7 @@ academic_agent/
 - **Agent 可观测性**：OpenTelemetry + OpenInference 自动埋点，内容脱敏，可选导出到 Arize Phoenix OTLP 后端
 - **持久化恢复**：按输入、证据、配置与流水线哈希寻址的节点级 Checkpoint；不可变子运行仅复用已验证的连续前缀，BYOK 恢复必须重新提供凭据
 - **网页客户端**：静态 HTML / CSS / ES 模块，由 FastAPI 托管——无构建步骤、无框架
+- **浏览器 E2E**：Playwright Chromium 真实验证 FastAPI/DOM 接缝；仅允许本机只读请求，从机制上阻止 CI 发起付费操作
 - **HTTP API**：FastAPI + Uvicorn（OpenAPI 文档位于 `/docs`）
 - **PDF 导出**：reportlab Platypus（嵌入式 TTFont，支持 CJK；回退至 CID 字体）
 - **容器化**：Docker 多阶段构建（依赖层与源码层分离缓存），`tini` 作 PID 1 回收子进程，非 root 运行，构建期 CJK 字体校验
