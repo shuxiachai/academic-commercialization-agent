@@ -225,6 +225,44 @@ class ReviewerCorrectionPlanTests(unittest.TestCase):
         self.assertIn(unchanged, result)
         self.assertIn("## Reviewer Notes\n\nNo corrections required.", result)
 
+    def test_absent_target_does_not_discard_an_exact_correction(self):
+        """Regression: DC01 lost the whole review after one absent target.
+
+        The Writer draft has already passed the blocking report guardrail.  A
+        correction whose target occurs zero times cannot mutate that draft, so
+        failing the Reviewer throws away every exact correction in the same
+        plan and pays for a retry without making the delivered text safer.
+        The unapplied item must remain visible rather than being reported as a
+        clean review.
+        """
+        draft = _complete_report()
+        exact_find = "Single-source market estimates."
+        exact_replace = "The market estimate relies on one public source."
+
+        ok, result = _run(
+            _plan(
+                {
+                    "find": exact_find,
+                    "replace": exact_replace,
+                    "reason": "Qualify the market evidence boundary.",
+                },
+                {
+                    "find": "A sentence that is not present in the validated draft.",
+                    "replace": "A qualified sentence.",
+                    "reason": "Qualify an unsupported statement.",
+                },
+            ),
+            draft=draft,
+            context_tasks=_EVIDENCE_TASKS,
+        )
+
+        self.assertTrue(ok)
+        self.assertIn(exact_replace, result)
+        self.assertNotIn(exact_find, result)
+        self.assertIn("Not applied (exact target absent)", result)
+        self.assertIn("Qualify an unsupported statement.", result)
+
+
     def test_ambiguous_target_is_rejected_instead_of_patching_first_match(self):
         ok, message = _run(
             _plan(

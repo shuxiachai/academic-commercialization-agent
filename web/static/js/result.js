@@ -568,10 +568,14 @@ export function reliabilityRows(progress) {
   if (review?.status === "fallback") {
     rows.push({ id: "review", tone: "warn", label: t("rel_review"),
                 detail: t("rel_review_fallback") });
+  } else if (review?.status === "partial") {
+    rows.push({ id: "review", tone: "warn", label: t("rel_review"),
+                detail: t("rel_review_partial")
+                  .replace("{count}", review.unapplied_corrections ?? 0) });
   } else if (review?.status === "passed") {
     rows.push({ id: "review", tone: "ok", label: t("rel_review"),
                 detail: t("rel_review_passed") });
-  } else if (progress.source_counts) {
+  } else if (review?.status === "unavailable" || progress.source_counts) {
     // Runs produced before this field existed did not record whether the
     // reviewer completed. Absence cannot be upgraded to a historical pass.
     rows.push({ id: "review", tone: "muted", label: t("rel_review"),

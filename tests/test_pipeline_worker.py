@@ -24,6 +24,7 @@ from academic_agent.pipeline_worker import (
     _IDX_SCORING,
     _merge_status_fields,
     _recover_from_reviewer_failure,
+    _review_quality_from_outputs,
     _select_report_and_scores,
 )
 from academic_agent.run_spec import DecisionContext, RunSpec
@@ -84,6 +85,39 @@ class SelectReportAndScoresTests(unittest.TestCase):
         report, scores = _select_report_and_scores(tasks, fallback_raw="unused")
         self.assertEqual(report, "t4")
         self.assertEqual(scores, "t5")
+
+
+class ReviewQualityTests(unittest.TestCase):
+    """Review completion must survive the task-output to status seam."""
+
+    def test_unapplied_exact_target_is_partial_not_passed(self):
+        tasks = [_task(f"t{i}") for i in range(4)]
+        tasks.append(
+            _task(
+                "reviewed report\n\n## Reviewer Notes\n\n"
+                "- Not applied (exact target absent): Correction 2: "
+                "Qualify an unsupported statement."
+            )
+        )
+
+        quality = _review_quality_from_outputs(tasks)
+
+        self.assertEqual(quality["status"], "partial")
+        self.assertEqual(quality["unapplied_corrections"], 1)
+
+    def test_missing_reviewer_output_is_unavailable_not_passed(self):
+        quality = _review_quality_from_outputs([_task(f"t{i}") for i in range(4)])
+
+        self.assertEqual(quality["status"], "unavailable")
+
+    def test_empty_reviewer_output_is_unavailable_not_passed(self):
+        tasks = [_task(f"t{i}") for i in range(4)] + [_task("")]
+
+        quality = _review_quality_from_outputs(tasks)
+
+        self.assertEqual(quality["status"], "unavailable")
+
+
 class ReviewerFallbackTests(unittest.TestCase):
     """Recovery is allowed only at the Task 4 → Task 5 seam."""
 
@@ -339,6 +373,10 @@ class MainEndToEndTests(unittest.TestCase):
         status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
         self.assertEqual(status["stage"], "Done")
         self.assertTrue(status["done"])
+        self.assertEqual(
+            status["quality_review"],
+            {"status": "passed", "unapplied_corrections": 0},
+        )
         self.assertEqual(status["observability"]["state"], "disabled")
         self.assertEqual(status["observability"]["delivery"], "not_configured")
         self.assertTrue((run_dir / "commercialization_report.md").exists())

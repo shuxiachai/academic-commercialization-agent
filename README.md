@@ -482,7 +482,7 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,540 tests plus 632 subtests** at **87.23% coverage**. No live
+suite passes **1,551 tests plus 632 subtests** at **87.26% coverage**. No live
 OpenAlex/Lens request has run and production still imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
 See the [Phase 4 protocol](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)
@@ -1504,7 +1504,7 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
-后，全量 **1,540 项测试与 632 个 subtests** 通过，覆盖率 **87.23%**。目前尚未
+后，全量 **1,551 项测试与 632 个 subtests** 通过，覆盖率 **87.26%**。目前尚未
 发起任何 OpenAlex/Lens 真实请求，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与
