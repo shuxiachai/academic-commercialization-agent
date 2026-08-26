@@ -280,7 +280,7 @@ def _merge_status_fields(
     for sticky in (
         "topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
         "claim_grounding", "consistency", "observability", "authority_coverage",
-        "component_coverage", "evidence_gap_shadow",
+        "component_coverage", "evidence_gap_shadow", "decision_gate",
         "quality_review",
         "checkpointing", "recovery",
     ):
@@ -381,6 +381,7 @@ def main() -> None:
         authority_coverage: dict | None = None,
         component_coverage: dict | None = None,
         evidence_gap_shadow: dict | None = None,
+        decision_gate: dict | None = None,
         checkpointing: dict | None = None,
         recovery: dict | None = None,
         quality_review: dict | None = None,
@@ -413,6 +414,8 @@ def main() -> None:
                 data["component_coverage"] = component_coverage
             if evidence_gap_shadow is not None:
                 data["evidence_gap_shadow"] = evidence_gap_shadow
+            if decision_gate is not None:
+                data["decision_gate"] = decision_gate
             if quality_review is not None:
                 data["quality_review"] = quality_review
             if checkpointing is not None:
@@ -492,6 +495,10 @@ def main() -> None:
         # argv, is the source of truth for both normal execution and recovery.
         args.language = spec.language or ""
         args.weight_profile = spec.weight_profile or ""
+        # Publish the code-derived mode as soon as the durable contract is
+        # known. Later stage writes keep it sticky, including failures before
+        # the Crew is constructed.
+        write_status(_STAGE_INITIAL, decision_gate=spec.decision_gate())
         revision = pipeline_revision()
         checkpoint_date = datetime.now(UTC).date()
         retrieval_contract = retrieval_identity(
@@ -753,6 +760,10 @@ def main() -> None:
             task_callback=on_task_complete,
         ).crew()
         crew_inputs = source_collection.crew_inputs()
+        # Decision context does not alter retrieval or scoring. It enters only
+        # the Writer/Reviewer placeholders, while remaining part of the exact
+        # checkpoint input hash so recovery cannot cross decision owners.
+        crew_inputs.update(spec.decision_crew_inputs())
         checkpoint_runtime = CheckpointRuntime(
             crew=crew_obj,
             source_collection=source_collection,

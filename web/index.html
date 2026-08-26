@@ -149,6 +149,68 @@
                 Selected PDF text is sent to the configured model provider. The raw PDF is deleted after successful extraction; extracted metadata expires within 24 hours if no run uses it.
               </p>
             </div>
+
+            <details class="decision-context" id="decision-context">
+              <summary>
+                <span data-i18n="decision_context_title">Add decision context</span>
+                <span class="decision-context__optional" data-i18n="optional">Optional</span>
+              </summary>
+              <p class="decision-context__lede" data-i18n="decision_context_lede">
+                Complete the first four fields for actor-specific decision support. Partial or
+                empty context still runs, but the report will not claim a GO/NO_GO decision.
+              </p>
+              <div class="decision-context__grid">
+                <label>
+                  <span data-i18n="decision_asset">Asset or research output *</span>
+                  <textarea id="decision-asset" data-context-field="asset_description"
+                            maxlength="500" rows="2"
+                            data-i18n-placeholder="decision_asset_placeholder"
+                            placeholder="Prototype, paper result, patent family, or code package"></textarea>
+                </label>
+                <label>
+                  <span data-i18n="decision_application">Target application *</span>
+                  <textarea id="decision-application" data-context-field="target_application"
+                            maxlength="500" rows="2"
+                            data-i18n-placeholder="decision_application_placeholder"
+                            placeholder="Specific customer problem and operating setting"></textarea>
+                </label>
+                <label>
+                  <span data-i18n="decision_owner">Decision owner *</span>
+                  <input id="decision-owner" data-context-field="decision_owner"
+                         maxlength="300" data-i18n-placeholder="decision_owner_placeholder"
+                         placeholder="TTO manager, founder, investor, R&amp;D lead">
+                </label>
+                <label>
+                  <span data-i18n="decision_type">Decision to make *</span>
+                  <input id="decision-type" data-context-field="decision_type"
+                         maxlength="300" data-i18n-placeholder="decision_type_placeholder"
+                         placeholder="License, spin out, pilot, invest, or stop">
+                </label>
+                <label>
+                  <span data-i18n="decision_jurisdiction">Jurisdiction</span>
+                  <input id="decision-jurisdiction" data-context-field="jurisdiction"
+                         maxlength="300" data-i18n-placeholder="decision_jurisdiction_placeholder"
+                         placeholder="Country or regulatory market">
+                </label>
+                <label>
+                  <span data-i18n="decision_horizon">Time horizon</span>
+                  <input id="decision-horizon" data-context-field="time_horizon"
+                         maxlength="300" data-i18n-placeholder="decision_horizon_placeholder"
+                         placeholder="Decision deadline or planning window">
+                </label>
+                <label class="decision-context__wide">
+                  <span data-i18n="decision_constraints">Known constraints</span>
+                  <textarea id="decision-constraints" data-context-field="constraints"
+                            maxlength="1200" rows="3"
+                            data-i18n-placeholder="decision_constraints_placeholder"
+                            placeholder="Budget, evidence threshold, manufacturing, policy, or risk limits"></textarea>
+                </label>
+              </div>
+              <p class="decision-context__note" data-i18n="decision_context_note">
+                This context is sent to the configured model provider and stored with the run.
+                Unsupported budgets, timelines, and thresholds must remain “not established”.
+              </p>
+            </details>
           </form>
 
           <div class="starters" id="starters">

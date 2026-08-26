@@ -70,6 +70,14 @@ _STATUS = {
         "executed_call_count": 0,
         "persistence_state": "written",
     },
+    "decision_gate": {
+        "status": "checked",
+        "mode": "decision_support",
+        "provided_fields": ["asset_description", "target_application",
+                            "decision_owner", "decision_type"],
+        "missing_core_fields": [],
+        "go_no_go_allowed": True,
+    },
     "quality_review": {"status": "fallback", "failure_type": "RuntimeError"},
     "observability": {"state": "active", "backend": "phoenix",
                       "trace_id": "0123456789abcdef0123456789abcdef",
@@ -141,6 +149,7 @@ class StateReachesTheClientTests(unittest.TestCase):
         self.assertEqual(
             body["evidence_gap_shadow"]["gate_state"], "eligible"
         )
+        self.assertEqual(body["decision_gate"]["mode"], "decision_support")
 
     def test_the_progress_endpoint_returns_them_with_their_values(self):
         """This endpoint names each field in its constructor, so it is the one
@@ -157,6 +166,7 @@ class StateReachesTheClientTests(unittest.TestCase):
         self.assertEqual(
             body["evidence_gap_shadow"]["gate_state"], "eligible"
         )
+        self.assertEqual(body["decision_gate"]["mode"], "decision_support")
 
     def test_shadow_state_matches_the_downloadable_artifact(self):
         """A persisted audit must reach the client through its advertised name."""
@@ -217,6 +227,10 @@ class AbsentDataTests(unittest.TestCase):
     def test_a_run_before_gap_shadow_reports_unknown_not_checked(self):
         body = self.client.get(f"/api/runs/{self.run_id}").json()
         self.assertIsNone(body["evidence_gap_shadow"])
+    def test_a_run_before_decision_context_reports_unknown_not_orientation(self):
+        """An absent gate means it was not evaluated, not that context was empty."""
+        body = self.client.get(f"/api/runs/{self.run_id}").json()
+        self.assertIsNone(body["decision_gate"])
 
     def test_null_is_distinguishable_from_zero(self):
         """A run with no usage recorded is not a run that cost nothing. The

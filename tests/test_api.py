@@ -46,6 +46,18 @@ class _ApiTestCase(unittest.TestCase):
         self._access_codes_patcher = patch.object(access, "ACCESS_CODES", None)
         self._access_codes_patcher.start()
         runs._registry.clear()
+        # start_run mutates both durable accounting and this per-process cache.
+        # DEFAULT_OUTPUT_ROOT is unique per test, so retaining the previous
+        # cache date would skip loading that empty ledger and leak another
+        # test's paid admissions into this one.
+        self._daily_counts = dict(runs._daily_counts)
+        self._daily_date = runs._daily_date
+        self._inline_paid_operations = dict(runs._inline_paid_operations)
+        self._daily_cap = runs.DAILY_CAP
+        runs.DAILY_CAP = 0
+        runs._daily_counts = {}
+        runs._daily_date = None
+        runs._inline_paid_operations = {}
         self.client = TestClient(app)
 
     def tearDown(self) -> None:
@@ -53,6 +65,10 @@ class _ApiTestCase(unittest.TestCase):
         self._access_code_patcher.stop()
         self._access_codes_patcher.stop()
         runs._registry.clear()
+        runs._daily_counts = self._daily_counts
+        runs._daily_date = self._daily_date
+        runs._inline_paid_operations = self._inline_paid_operations
+        runs.DAILY_CAP = self._daily_cap
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _make_run(
@@ -145,6 +161,44 @@ class SubmitRunTests(_ApiTestCase):
         self.assertEqual(r.status_code, 202)
         self.assertTrue(r.json()["run_id"])
         self.assertEqual(r.json()["state"], "running")
+        self.assertEqual(r.json()["assessment_mode"], "orientation")
+
+    @patch("api.runs.subprocess.Popen")
+    def test_decision_context_reaches_spec_without_entering_worker_argv(
+        self, mock_popen
+    ):
+        """Persist private context, but keep it out of process listings."""
+        mock_popen.return_value = self._live_proc()
+        context = {
+            "asset_description": "A benchtop nitrate-removal prototype",
+            "target_application": "Small municipal water treatment plants",
+            "decision_owner": "  University\n technology transfer manager  ",
+            "decision_type": "Whether to fund a six-month field pilot",
+            "constraints": "Board approval required before capital spend",
+        }
+        normalized_context = {
+            **context,
+            "decision_owner": "University technology transfer manager",
+        }
+
+        response = self.client.post(
+            "/api/runs",
+            json={
+                "topic": "electrochemical nitrate removal",
+                "decision_context": context,
+            },
+        )
+
+        self.assertEqual(response.status_code, 202, response.text)
+        self.assertEqual(response.json()["assessment_mode"], "decision_support")
+        spec = RunSpec.load(self.tmp / response.json()["run_id"])
+        self.assertEqual(
+            spec.decision_context.model_dump(exclude_none=True), normalized_context
+        )
+        command = mock_popen.call_args.args[0]
+        self.assertIn("--run-spec", command)
+        for value in context.values():
+            self.assertNotIn(value, command)
 
     @patch("api.runs.subprocess.Popen")
     def test_worker_invoked_with_topic(self, mock_popen):
@@ -236,6 +290,26 @@ class SubmitRunTests(_ApiTestCase):
 
     def test_missing_topic_rejected(self):
         self.assertEqual(self.client.post("/api/runs", json={}).status_code, 422)
+
+    @patch(
+        "api.runs.start_run",
+        return_value=("20260826T000000Z-should-not-start", Path("unused")),
+    )
+    def test_invalid_decision_context_is_rejected_before_paid_admission(
+        self, start_run
+    ):
+        invalid_contexts = ({"advice": "buy"}, {"asset_description": "x" * 501})
+        for decision_context in invalid_contexts:
+            with self.subTest(decision_context=decision_context):
+                response = self.client.post(
+                    "/api/runs",
+                    json={
+                        "topic": "battery recycling",
+                        "decision_context": decision_context,
+                    },
+                )
+                self.assertEqual(response.status_code, 422, response.text)
+        start_run.assert_not_called()
 
     @patch("api.runs.subprocess.Popen")
     def test_concurrency_limit_returns_429(self, mock_popen):

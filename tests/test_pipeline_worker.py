@@ -26,6 +26,7 @@ from academic_agent.pipeline_worker import (
     _recover_from_reviewer_failure,
     _select_report_and_scores,
 )
+from academic_agent.run_spec import DecisionContext, RunSpec
 from academic_agent.source_clients import SourceCollectionError
 
 
@@ -237,6 +238,11 @@ class MergeStatusFieldsTests(unittest.TestCase):
         data = self._merge(existing, stage="Agent 4")
         self.assertEqual(data["evidence_gap_shadow"], existing["evidence_gap_shadow"])
 
+    def test_decision_gate_survives_every_stage_write(self):
+        existing = {"decision_gate": {"status": "checked", "mode": "orientation"}}
+        data = self._merge(existing, stage="Agent 4")
+        self.assertEqual(data["decision_gate"], existing["decision_gate"])
+
     def test_a_new_value_overwrites_the_sticky_one(self):
         existing = {"topic": "old topic"}
         data = self._merge(existing, topic="new topic")
@@ -299,8 +305,13 @@ class MainEndToEndTests(unittest.TestCase):
         self._source_collection.model_dump.return_value = {}
         self._source_collection.crew_inputs.return_value = {}
 
-    def _run(self, run_id="20260101T000000Z-abcdef01"):
+    def _run(self, run_id="20260101T000000Z-abcdef01", *, spec=None):
         argv = ["pipeline_worker.py", run_id, "a topic"]
+        if spec is not None:
+            run_dir = self.output_root / run_id
+            run_dir.mkdir(parents=True, exist_ok=True)
+            spec_path = spec.save(run_dir)
+            argv.extend(["--run-spec", str(spec_path)])
         with patch.object(sys, "argv", argv), \
              patch("academic_agent.run_output.DEFAULT_OUTPUT_ROOT", self.output_root), \
              patch("academic_agent.source_pipeline.collect_source_collection",
@@ -344,6 +355,40 @@ class MainEndToEndTests(unittest.TestCase):
         )
         self.assertEqual(status["evidence_gap_shadow"]["executed_call_count"], 0)
         self.assertTrue((run_dir / "evidence_gap_shadow.json").exists())
+
+    def test_decision_context_reaches_crew_kickoff_and_public_status(self):
+        """The durable field must reach execution, not merely survive storage."""
+        crew = MagicMock()
+        crew.agents = []
+        crew.kickoff.return_value = self._crew_result()
+        context = DecisionContext(
+            asset_description="A benchtop nitrate-removal prototype",
+            target_application="Small municipal water treatment plants",
+            decision_owner="University technology transfer manager",
+            decision_type="Whether to fund a six-month field pilot",
+            constraints="Board approval required before capital spend",
+        )
+        spec = RunSpec(topic="a topic", decision_context=context)
+
+        with patch("academic_agent.crew.AcademicAgent") as agent_cls:
+            agent_cls.return_value.crew.return_value = crew
+            run_dir = self._run(spec=spec)
+
+        inputs = crew.kickoff.call_args.kwargs["inputs"]
+        self.assertEqual(inputs["assessment_mode"], "decision_support")
+        prompt_context = json.loads(inputs["decision_context_json"])
+        self.assertEqual(
+            prompt_context["decision_owner"],
+            "University technology transfer manager",
+        )
+        self.assertNotIn("jurisdiction", prompt_context)
+        status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+        self.assertEqual(status["decision_gate"]["status"], "checked")
+        self.assertEqual(status["decision_gate"]["mode"], "decision_support")
+        self.assertEqual(
+            status["decision_gate"]["provided_fields"],
+            list(context.provided_fields),
+        )
 
     def test_enabled_shadow_records_eligibility_without_search_calls(self):
         crew = MagicMock()

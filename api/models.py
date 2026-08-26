@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from academic_agent.run_spec import AssessmentMode, DecisionContext
+
 #: "unknown" means the status file could not be read, not that the run
 #: failed. It is deliberately not terminal: a client should retry rather than
 #: tell the user their run died, because it may well have finished.
@@ -32,6 +34,11 @@ class RunRequest(BaseModel):
         default=None,
         description="Id returned by POST /api/papers, to anchor the run on an "
                     "uploaded paper rather than on the topic alone",
+    )
+    decision_context: DecisionContext | None = Field(
+        default=None,
+        description="Optional actor, asset, and decision gate. Omission produces "
+                    "an orientation brief rather than actor-specific advice.",
     )
 
     # Bring-your-own-key: an alternative to the access code for a visitor who
@@ -70,6 +77,10 @@ class RunRequest(BaseModel):
         if self.llm_provider is not None and self.llm_provider not in BYOK_PROVIDERS:
             raise ValueError(f"llm_provider must be one of {BYOK_PROVIDERS}.")
         return self
+
+    @property
+    def assessment_mode(self) -> AssessmentMode:
+        return (self.decision_context or DecisionContext()).assessment_mode
 
     @property
     def byok(self) -> bool:
@@ -201,6 +212,11 @@ class RunProgress(BaseModel):
                     "distinguish disabled, checked, and failed evaluation; no "
                     "supplementary search is executed.",
     )
+    decision_gate: dict | None = Field(
+        default=None,
+        description="Code-derived orientation, incomplete-context, or decision-support "
+                    "state. None means the run predates this gate; it is not a pass.",
+    )
     quality_review: dict | None = Field(
         default=None,
         description="Whether the independent reviewer completed. 'fallback' means "
@@ -242,6 +258,7 @@ class RunAccepted(BaseModel):
     run_id: str
     state: RunState
     topic: str
+    assessment_mode: AssessmentMode
     resumed_from: str | None = None
 
 
@@ -299,6 +316,11 @@ class RunStatus(BaseModel):
         description="Zero-call phase-1 evidence-gap eligibility audit. States "
                     "distinguish disabled, checked, and failed evaluation; no "
                     "supplementary search is executed.",
+    )
+    decision_gate: dict | None = Field(
+        default=None,
+        description="Code-derived orientation, incomplete-context, or decision-support "
+                    "state. None means the run predates this gate; it is not a pass.",
     )
     quality_review: dict | None = Field(
         default=None,

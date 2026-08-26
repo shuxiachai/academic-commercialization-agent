@@ -33,6 +33,12 @@ persists a frozen source registry. The LLM workflow then runs:
 6. A Scorer produces a traceable scorecard, while deterministic code validates
    source IDs and recalculates the weighted total.
 
+An optional seven-field Decision Context is normalized into the immutable run
+identity and derives one of three applicability modes. Topic-only and partial
+context submissions still run, but the Writer/Reviewer contract must withhold
+actor-specific GO/NO_GO framing until asset, application, owner, and decision
+are all supplied.
+
 FastAPI serves the same run artifacts to a build-free HTML/CSS/ES-module client
 and the CLI. Each run executes in a subprocess and writes auditable state under
 outputs/<run_id>/, so the API, browser, CLI, and recovery path observe the same
@@ -66,7 +72,8 @@ source of truth.
 | Offline fault injection | 30/30 immutable children completed; 90 committed task executions were skipped with 0 duplicate task executions | Zero-network process evidence, not an exactly-once, latency, cost-saving, or production-SLO claim |
 | Provider-backed recovery canary | One same-revision child reused a four-node prefix, made 0 new evidence-agent requests, and completed the remaining workflow | One observation only; interrupted-source usage was unavailable, so total cost and general savings are not inspectable |
 | Bounded Tool Calling contracts | Phase 2 passed 14/14 frozen execution cases; the disconnected Phase 3 generic pilot completed 5/5 requests; Phase 4 passes a 71/71 adapter/executor seam set plus a 50/50 live-runner and source-locked Schema v2 review subset over eight OpenAlex/Lens cases | Production remains zero-call shadow mode: the Phase 3 form declared substantive AI use and only 5/25 candidates relevant; the Phase 4 runner has made no live request, so compatibility, precision and evidence gain remain unobserved |
-| Test and CI contract | 1,524 tests plus 627 subtests; Linux/Windows × Python 3.11/3.12; 87.07% measured coverage above an 85% floor; a dedicated Chromium journey exercises the access gate, client admission, run history and report DOM | The browser smoke is loopback-only and blocks mutating requests, so it proves the shipped client/API seam without claiming provider compatibility or deployed-service availability |
+| Decision-context contract | Seven bounded fields cross the browser, API, immutable RunSpec, checkpoint identity, Crew input and both public status endpoints; all frozen offline seams passed with 0 provider calls | This establishes applicability plumbing, not model compliance, decision correctness, or user value |
+| Test and CI contract | 1,540 tests plus 632 subtests; Linux/Windows × Python 3.11/3.12; 87.23% measured coverage above an 85% floor; a dedicated Chromium journey exercises the access gate, client admission, run history and report DOM | The browser smoke is loopback-only and blocks mutating requests, so it proves the shipped client/API seam without claiming provider compatibility or deployed-service availability |
 
 The negative results are retained deliberately. For example, the first patent
 relevance candidate raised auto-kept precision to 94.6% but falsely removed six
@@ -89,6 +96,10 @@ project's engineering argument: evaluation should be capable of saying no.
 - **Precision before blocking:** heuristic screens report conservatively. The
   uncited-claim detector remains non-blocking because the stored baseline shows
   that its false-positive burden is still too high.
+- **Applicability before decisiveness:** Decision Context is optional, but code
+  derives whether actor-specific advice is allowed. Missing context remains a
+  usable orientation run instead of being silently promoted to a decision
+  recommendation.
 - **Recovery is at-least-once at provider boundaries:** committed local nodes can
   be reused safely, but an interrupted external request cannot be claimed as
   exactly once without provider-supported idempotency.
@@ -116,6 +127,9 @@ project's engineering argument: evaluation should be capable of saying no.
   2/5. Both answered `MAYBE` to reuse and estimated substantial correction
   work. Neither checked external sources, so this is not source-truth evidence
   or product validation.
+- Decision Context has only offline contract evidence. No provider-backed report
+  has yet tested Writer/Reviewer compliance across the three modes, and no
+  target user has judged whether the new framing improves a real decision.
 
 ## Reproduce or inspect
 
@@ -127,6 +141,8 @@ project's engineering argument: evaluation should be capable of saying no.
 - [Target-user pilot operator guide](target-user-decision-pilot-guide.md)
 - [Target-user pilot form-timing erratum](errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)
 - [Target-user pilot result](results-2026-08-26-target-user-decision-pilot.md)
+- [Decision Context protocol](prereg-2026-08-26-decision-context-report-contract.md)
+- [Decision Context implementation result](results-2026-08-26-decision-context-report-contract.md)
 - [Checkpoint recovery design](checkpoint-recovery.md)
 - [Production recovery canary](results-2026-08-24-paid-same-revision-recovery-post-fix.md)
 

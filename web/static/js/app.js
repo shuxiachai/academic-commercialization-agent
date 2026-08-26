@@ -357,6 +357,23 @@ const topic = $("#topic");
 const count = $("#topic-count");
 const runBtn = $("#run-btn");
 const composer = $("#composer");
+const decisionContextInputs = $$('[data-context-field]');
+
+function readDecisionContext() {
+  const context = {};
+  for (const input of decisionContextInputs) {
+    const value = input.value.trim();
+    if (value) context[input.dataset.contextField] = value;
+  }
+  // Null and an empty object must share one durable identity. Sending null
+  // makes that boundary explicit to direct API clients and the browser alike.
+  return Object.keys(context).length ? context : null;
+}
+
+function clearDecisionContext() {
+  for (const input of decisionContextInputs) input.value = "";
+}
+
 
 function autosize() {
   topic.style.height = "auto";
@@ -401,12 +418,14 @@ $("#compose-form").addEventListener("submit", async (e) => {
       language: $("#language").value,
       weight_profile: $("#profile").value,
       paper_id: attachedPaper?.paper_id,
+      decision_context: readDecisionContext(),
     });
     // BYOK runs get no server-side history (see api/access.py) — this is
     // the only place that ever learns the run happened, so the sidebar has
     // something to show for the rest of the session.
     if (byokMode) api.addByokRun(accepted.run_id, accepted.topic);
     topic.value = "";
+    clearDecisionContext();
     clearAttachment();
     syncComposer();
     openRun(accepted.run_id, { known: accepted });

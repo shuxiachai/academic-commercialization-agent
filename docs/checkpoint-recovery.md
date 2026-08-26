@@ -13,9 +13,13 @@ the benchmark baseline.
 ## Contract
 
 Every API run writes a non-secret `.run-spec.json` before its worker starts.
-The contract freezes the topic, requested language, weight profile, and the
-bounded paper contribution (when present). Provider credentials are never
-fields in this file; a resumed BYOK run must supply fresh credentials.
+The contract freezes the topic, requested language, weight profile, the bounded
+paper contribution (when present), and normalized optional Decision Context.
+That context contributes to checkpoint identity because changing the decision
+owner or intended decision changes which output is safe to reuse. Legacy
+version-1 specs remain readable and derive orientation mode. Provider
+credentials are never fields in this file; a resumed BYOK run must supply
+fresh credentials.
 
 After validation, each node publishes a content-addressed payload and a
 manifest under `outputs/<run_id>/checkpoints/<node>/`:

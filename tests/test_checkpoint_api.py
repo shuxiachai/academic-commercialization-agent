@@ -36,12 +36,20 @@ def recovery_client(
     monkeypatch.setattr(runs, "DEFAULT_OUTPUT_ROOT", tmp_path)
     monkeypatch.setattr(access, "ACCESS_CODE", None)
     monkeypatch.setattr(access, "ACCESS_CODES", None)
+    monkeypatch.setattr(runs, "DAILY_CAP", 0)
     runs._registry.clear()
-    runs._inline_paid_operations.clear()
+    previous_counts = dict(runs._daily_counts)
+    previous_date = runs._daily_date
+    previous_inline = dict(runs._inline_paid_operations)
+    runs._daily_counts = {}
+    runs._daily_date = None
+    runs._inline_paid_operations = {}
     yield TestClient(app)
     runs.shutdown_all()
     runs._registry.clear()
-    runs._inline_paid_operations.clear()
+    runs._daily_counts = previous_counts
+    runs._daily_date = previous_date
+    runs._inline_paid_operations = previous_inline
 
 
 def _failed_source(
