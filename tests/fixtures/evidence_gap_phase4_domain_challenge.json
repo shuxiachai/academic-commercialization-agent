@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "mode": "phase4_domain_adapter_challenge",
+  "production_connected": false,
+  "maximum_requests": 8,
+  "cases": [
+    {
+      "case_id": "D01",
+      "provider": "openalex",
+      "tool": "academic_search",
+      "topic": "Low-temperature plasma-assisted ammonia synthesis using non-thermal catalysts",
+      "query": "non-thermal plasma ammonia synthesis catalyst energy efficiency experimental",
+      "result_limit": 5
+    },
+    {
+      "case_id": "D02",
+      "provider": "openalex",
+      "tool": "academic_search",
+      "topic": "Self-healing conductive hydrogels for implantable neural interfaces",
+      "query": "self-healing conductive hydrogel implantable neural interface electrochemical stability",
+      "result_limit": 5
+    },
+    {
+      "case_id": "D03",
+      "provider": "openalex",
+      "tool": "academic_search",
+      "topic": "Cell-free enzymatic carbon dioxide fixation using synthetic metabolic pathways",
+      "query": "cell-free enzymatic carbon dioxide fixation synthetic metabolic pathway productivity",
+      "result_limit": 5
+    },
+    {
+      "case_id": "D04",
+      "provider": "openalex",
+      "tool": "academic_search",
+      "topic": "Perovskite-silicon tandem photovoltaic module degradation under damp heat",
+      "query": "perovskite silicon tandem photovoltaic module damp heat outdoor degradation stability",
+      "result_limit": 5
+    },
+    {
+      "case_id": "D05",
+      "provider": "lens",
+      "tool": "patent_search",
+      "topic": "Fluoride-ion batteries using lanthanum-fluoride solid electrolytes",
+      "query": "fluoride-ion battery lanthanum fluoride solid electrolyte conductivity",
+      "result_limit": 5
+    },
+    {
+      "case_id": "D06",
+      "provider": "lens",
+      "tool": "patent_search",
+      "topic": "Acoustic microfluidic exosome isolation for liquid biopsy",
+      "query": "acoustic microfluidic exosome isolation liquid biopsy surface acoustic wave",
+      "result_limit": 5
+    },
+    {
+      "case_id": "D07",
+      "provider": "lens",
+      "tool": "patent_search",
+      "topic": "Direct lithium extraction from geothermal brine using manganese-oxide ion sieves",
+      "query": "manganese oxide ion-sieve direct lithium extraction geothermal brine",
+      "result_limit": 5
+    },
+    {
+      "case_id": "D08",
+      "provider": "lens",
+      "tool": "patent_search",
+      "topic": "Reversible adhesives using dynamic covalent polymers for electronics disassembly",
+      "query": "dynamic covalent polymer reversible adhesive electronics disassembly",
+      "result_limit": 5
+    }
+  ]
+}
