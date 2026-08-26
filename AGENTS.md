@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1488 tests (627 subtests), CI green on Linux + Windows × Python
+Current state: 1515 tests (627 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -155,7 +155,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  73 test modules plus conftest, organised by subject
+tests/                  75 test modules plus conftest, organised by subject
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
 patent_relevance_candidate.py
                         offline frozen candidate screen; never production filtering
@@ -171,6 +171,10 @@ evidence_gap_phase3_review.py
                         provenance-locked zero-network human-review intake
 evidence_gap_phase4_audit.py
                         frozen eight-case domain-adapter preflight; zero-network only
+evidence_gap_phase4_live.py
+                        frozen live runner; explicit authorization, never production
+evidence_gap_phase4_review.py
+                        source lock plus provenance-checked Schema v2 human review
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -232,20 +236,32 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   including explicit provider-versus-client request identity, row-complete
   accounting, OpenAlex reported USD, Lens uninspectable cost, credential-safe
   tracebacks and BYOK key scrubbing. Hidden-retry and missing-row-accounting
-  defects were each re-injected and made their seam tests fail. No live
-  OpenAlex/Lens request has run, so provider compatibility, wrong-source rate,
-  novel-evidence yield and report value are all not observed. Do not connect
-  these adapters until a separately authorized frozen run and schema-v2 human
-  review meet both provider-specific value gates.
-  Keep `pipeline_worker.py` disconnected from both executor and adapter.
+  defects were each re-injected and made their seam tests fail.
+  A separately pre-registered live-value harness now freezes the exact fixture
+  and implementation hashes before credentials, output reservation or live
+  provider adapters. It permits exactly one request per attempted case and
+  commits each case journal before a later request. Human labels pass through a
+  separate source lock and Schema v2 packet that exposes the frozen baseline
+  context, rejects lineage or method-limit drift, distinguishes incomplete or
+  ineligible review from a pass, and always keeps
+  `production_connection_authorized=false`. The runner/review/adapter subset
+  passes 50/50 zero-network tests. No live OpenAlex/Lens request has run, so
+  provider compatibility, wrong-source rate, novel-evidence yield and report
+  value are all not observed. Do not connect these adapters until a separately
+  authorized frozen run and eligible Schema v2 human review meet both
+  provider-specific value gates.
+  Keep `pipeline_worker.py` disconnected from the executor, adapters, live
+  runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
   `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
   `docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md`,
   `docs/results-2026-08-25-evidence-gap-live-provider-phase3.md`, and
   `docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md`, and
   `docs/results-2026-08-26-evidence-gap-human-review-phase3.md`,
-  `docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md`, and
-  `docs/results-2026-08-26-evidence-gap-domain-adapters-phase4-implementation.md`.
+  `docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md`,
+  `docs/results-2026-08-26-evidence-gap-domain-adapters-phase4-implementation.md`,
+  `docs/prereg-2026-08-26-evidence-gap-domain-live-phase4.md`, and
+  `docs/results-2026-08-26-evidence-gap-domain-live-phase4-implementation.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The

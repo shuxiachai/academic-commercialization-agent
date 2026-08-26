@@ -101,3 +101,5 @@ def test_phase4_executor_and_domain_adapters_remain_disconnected_from_worker():
     assert "OpenAlexEvidenceSearchAdapter" not in source
     assert "LensEvidenceSearchAdapter" not in source
     assert "execute_gap_plan" not in source
+    assert "evidence_gap_phase4_live" not in source
+    assert "evidence_gap_phase4_review" not in source

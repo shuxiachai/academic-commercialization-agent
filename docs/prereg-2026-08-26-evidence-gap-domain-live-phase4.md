@@ -195,4 +195,3 @@ Implementation tests or a later live result do not establish autonomous Agent
 tool choice, planner precision, source truth, provider-wide precision, report
 improvement, user utility, cost savings, latency, an SLO, or permission to
 connect Tool Calling to production reports.
-
