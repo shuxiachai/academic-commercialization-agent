@@ -23,6 +23,11 @@ A multi-agent system built on [CrewAI](https://github.com/crewAIInc/crewAI) that
 
 Input a research direction or paper topic. Six specialized AI agents automatically gather evidence from academic literature, patent databases, and market intelligence sources, then produce a structured commercialization assessment report with verifiable citations and a quantitative scorecard.
 
+An optional Decision Context adds the asset, application, decision owner and
+decision being considered. Topic-only and partial-context runs remain valid,
+but explicitly stay in orientation mode instead of presenting actor-specific
+GO/NO_GO advice as if the missing decision boundary had been established.
+
 ---
 
 ### Try it online
@@ -132,6 +137,15 @@ accuracy, or population-level product validation. See the
 [operator guide](docs/target-user-decision-pilot-guide.md), plus the
 [form-timing erratum](docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)
 and [full result](docs/results-2026-08-26-target-user-decision-pilot.md).
+
+That feedback led to a separately pre-registered, zero-provider Decision
+Context implementation. Seven bounded fields now flow through the browser,
+API, immutable RunSpec, checkpoint identity, Crew input, and public status. The
+code distinguishes orientation, incomplete context, and decision support;
+Writer/Reviewer must withhold actor-specific GO/NO_GO when the four core fields
+are absent. This is an offline contract result, not evidence that a generated
+decision is correct or useful. See the [protocol](docs/prereg-2026-08-26-decision-context-report-contract.md)
+and [implementation result](docs/results-2026-08-26-decision-context-report-contract.md).
 
 A separate pre-registered checkpoint audit hard-terminated **30 worker
 processes** across ten frozen evidence collections and three post-commit
@@ -289,8 +303,9 @@ Agent 4: Technology Commercialization Report Writer
 
 Agent 5: Report Reviewer
          Tools:   None (uses Agent 4 draft as input)
-         Rules:   6 rules — citation integrity, unsupported numeric claims, overconfident
-                  language, patent legal framing, evidence consistency, narrative TRL removal
+         Rules:   7 rules — citation integrity, unsupported numeric claims, overconfident
+                  language, patent legal framing, evidence consistency, narrative TRL removal,
+                  and decision applicability
          Output:  Bounded JSON correction plan; code applies exact edits to the validated draft
                   and saves actual changes as Reviewer Notes. If review cannot complete, the
                   validated draft ships unchanged and the reliability panel records the fallback.
@@ -457,7 +472,7 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,524 tests plus 627 subtests** at **87.07% coverage**. No live
+suite passes **1,540 tests plus 632 subtests** at **87.23% coverage**. No live
 OpenAlex/Lens request has run and production still imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
 See the [Phase 4 protocol](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)
@@ -1116,6 +1131,10 @@ Each dimension records its supporting source IDs, shown on the scorecard and tra
 
 输入一个研究方向或论文主题，系统将自动调度多个专职 AI Agent，从学术文献、专利图谱、市场竞争三个维度完成分析，最终生成一份带可验证引用的结构化商业化评估报告和量化评分卡。
 
+可选的“决策上下文”可补充具体成果、应用场景、决策负责人和待作决策。只输入主题或<
+只填写部分上下文仍能运行，但系统会明确保持在方向梳理模式，不会把缺少决策边界的<
+报告包装成针对具体主体的 GO/NO_GO 建议。<
+
 ### 在线体验
 
 **https://academic-commercialization-agent.up.railway.app**
@@ -1201,6 +1220,14 @@ ROI 或“六 Agent 必要性”证明。详见[预注册](docs/prereg-2026-08-2
 [操作指南](docs/target-user-decision-pilot-guide.md)和
 [表单时序勘误](docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)，以及
 [完整结果](docs/results-2026-08-26-target-user-decision-pilot.md)。
+
+针对这组反馈，项目另行预注册并完成了零供应商调用的“决策上下文”实现。7 个有界
+字段现已贯通浏览器、API、不可变 RunSpec、检查点身份、Crew 输入与公开状态；代码
+区分方向梳理、上下文不完整和决策支持三种模式，缺少 4 个核心字段时 Writer/Reviewer
+不得输出针对具体主体的 GO/NO_GO。该结果只证明离线输入与执行合同，不证明模型
+生成的决策正确或有用。详见
+[预注册](docs/prereg-2026-08-26-decision-context-report-contract.md)和
+[实现结果](docs/results-2026-08-26-decision-context-report-contract.md)。
 
 另有一组预注册 Checkpoint 故障恢复实验，在 10 份冻结证据和 3 个提交后边界上
 硬终止 **30 个 worker 进程**。30/30 个不可变子运行均到达 `Done`，精确复用预期
@@ -1316,8 +1343,9 @@ Agent 4: Technology Commercialization Report Writer（报告撰写师）
 
 Agent 5: Report Reviewer（质量审查员）
          工具：无（以 Agent 4 草稿作为输入）
-         规则：6 条规则——引用完整性、无来源数字声明、过度乐观语言、
-               专利法律免责措辞、证据一致性、移除正文中的 TRL 数字标签
+         规则：7 条规则——引用完整性、无来源数字声明、过度乐观语言、
+               专利法律免责措辞、证据一致性、移除正文中的 TRL 数字标签、
+               决策适用性
          输出：有限 JSON 修订计划；代码对已校验草稿应用精确替换，并将实际修改保存至
                reviewer_notes.md。若审查未完成，则原样交付已校验草稿，并在可靠性面板标记回退。
 
@@ -1458,7 +1486,7 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
-后，全量 **1,524 项测试与 627 个 subtests** 通过，覆盖率 **87.07%**。目前尚未
+后，全量 **1,540 项测试与 632 个 subtests** 通过，覆盖率 **87.23%**。目前尚未
 发起任何 OpenAlex/Lens 真实请求，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与

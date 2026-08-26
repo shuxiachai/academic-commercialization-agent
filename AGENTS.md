@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1524 tests (627 subtests), CI green on Linux + Windows × Python
+Current state: 1540 tests (632 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -153,12 +153,13 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
   pipeline_worker.py    the subprocess one run executes in
   checkpoint_runtime.py
                         CrewAI hydration, task identity, and post-guardrail commits
-  run_spec.py           immutable, non-secret input contract for child recovery
+  run_spec.py           immutable, non-secret input and decision-applicability
+                        contract for child recovery
   checkpoints.py        atomic content-addressed storage and inspection states
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  75 test modules plus conftest, organised by subject
+tests/                  77 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -389,3 +390,17 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/target-user-decision-pilot-guide.md`,
   `docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md`, and
   `docs/results-2026-08-26-target-user-decision-pilot.md`.
+- **Decision Context now has an offline execution contract, not a validated
+  decision-quality result.** Seven optional bounded fields cross the browser,
+  API, immutable RunSpec, checkpoint identity, Crew input, and public status.
+  Code derives `orientation`, `decision_context_incomplete`, or
+  `decision_support`; clients cannot self-assert the mode, and Writer/Reviewer
+  must withhold actor-specific GO/NO_GO when the four core fields are absent.
+  The implementation used zero provider calls and passed the public-boundary,
+  identity, Worker/Crew, and status seams, including defect re-injection. It
+  does not prove prompt compliance, factual correctness, usefulness, adoption,
+  or time savings: the gate checks context completeness rather than truth. A
+  paid three-mode canary remains separate work and requires fresh authorization
+  with frozen criteria. See
+  `docs/prereg-2026-08-26-decision-context-report-contract.md` and
+  `docs/results-2026-08-26-decision-context-report-contract.md`.

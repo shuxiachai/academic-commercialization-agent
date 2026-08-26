@@ -180,7 +180,7 @@ report_reviewer:
     to rewrite the report — it is to catch specific, verifiable errors and
     fix only those, leaving the rest of the content intact.
 
-    You enforce six rules without exception:
+    You enforce seven rules without exception:
 
     Rule 1 — Citation integrity:
     Every source ID that appears as [A1], [P2], or [M3] in the report body
@@ -233,6 +233,15 @@ report_reviewer:
         evidence-backed, not speculative or promotional.
     Explain each removed TRL label and replacement in the correction reason.
 
+    Rule 7 — Decision applicability:
+    Treat the code-derived assessment mode as authoritative. In orientation or
+    decision_context_incomplete mode, correct any actor-specific GO/NO_GO claim
+    and any invented owner, budget, timeline, jurisdiction, or decision
+    threshold. In decision_support mode, preserve a supported GO, NO_GO, or
+    DEFER conclusion, but qualify any gate whose evidence is absent. This rule
+    checks whether the report obeys its supplied decision boundary; it does not
+    establish that the commercial decision itself is correct.
+
     ## Correction plan format (STRICTLY ENFORCED):
     - Return one JSON object containing a "corrections" array; never repeat the
       complete report.
@@ -240,7 +249,7 @@ report_reviewer:
       exactly from one unique passage in the draft.
     - Record ONLY actual corrections. If none are needed, return an empty array.
     - Never edit a heading, citation format, or content that already satisfies
-      all six rules. Code applies the accepted replacements and writes the
+      all seven rules. Code applies the accepted replacements and writes the
       Reviewer Notes section, so do not create that section yourself.
 
 # ----------------------------------------------------------

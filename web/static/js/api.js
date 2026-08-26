@@ -132,7 +132,13 @@ export const checkAccess = (code) =>
 
 export const listRuns = (limit = 50) => request(`/api/runs?limit=${limit}`);
 
-export const startRun = ({ topic, language, weight_profile, paper_id }) => {
+export const startRun = ({
+  topic,
+  language,
+  weight_profile,
+  paper_id,
+  decision_context,
+}) => {
   const byok = getByok();
   return request("/api/runs", json({
     topic,
@@ -141,6 +147,7 @@ export const startRun = ({ topic, language, weight_profile, paper_id }) => {
     language: language || null,
     weight_profile: weight_profile || null,
     paper_id: paper_id || null,
+    decision_context: decision_context || null,
     // Present only in BYOK mode — omitted (not null) so a plain run without
     // these keys still authorizes on the access code alone server-side.
     ...(byok ? {

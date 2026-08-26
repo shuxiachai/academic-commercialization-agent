@@ -528,6 +528,7 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
             language=request.language,
             weight_profile=request.weight_profile,
             paper_json_path=paper_json_path,
+            decision_context=request.decision_context,
             byok=byok,
             owner=owner,
         )
@@ -557,7 +558,12 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
             detail="The analysis worker could not be started. Retry later.",
         ) from exc
 
-    return RunAccepted(run_id=run_id, state="running", topic=request.topic)
+    return RunAccepted(
+        run_id=run_id,
+        state="running",
+        topic=request.topic,
+        assessment_mode=request.assessment_mode,
+    )
 
 @app.post(
     "/api/runs/{run_id}/resume",
@@ -638,11 +644,12 @@ def resume_run(
 
     # Read from the child's frozen contract rather than trusting status.json;
     # the worker may not have produced its first status write before this 202.
-    topic = runs.RunSpec.load(child_directory).topic
+    child_spec = runs.RunSpec.load(child_directory)
     return RunAccepted(
         run_id=child_id,
         state="running",
-        topic=topic,
+        topic=child_spec.topic,
+        assessment_mode=child_spec.assessment_mode,
         resumed_from=run_id,
     )
 
@@ -816,6 +823,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         authority_coverage=state.get("authority_coverage"),
         component_coverage=state.get("component_coverage"),
         evidence_gap_shadow=state.get("evidence_gap_shadow"),
+        decision_gate=state.get("decision_gate"),
         quality_review=state.get("quality_review"),
         consistency=state.get("consistency"),
         observability=state.get("observability"),

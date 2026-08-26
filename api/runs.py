@@ -30,7 +30,11 @@ from pathlib import Path
 
 from academic_agent.checkpoints import CheckpointStore, hash_json
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
-from academic_agent.run_spec import RESUME_SNAPSHOT_DIRECTORY, RunSpec
+from academic_agent.run_spec import (
+    RESUME_SNAPSHOT_DIRECTORY,
+    DecisionContext,
+    RunSpec,
+)
 
 # A run is killed after this long. The bound belongs to the worker contract,
 # not to whichever client submitted or polls the run.
@@ -715,6 +719,7 @@ def _spec_from_submission(
     language: str | None,
     weight_profile: str | None,
     paper_json_path: str | None,
+    decision_context: DecisionContext | None,
 ) -> RunSpec:
     """Freeze a submission before reserving money or starting its worker."""
 
@@ -736,6 +741,7 @@ def _spec_from_submission(
         language=language,
         weight_profile=weight_profile,
         paper_contribution=paper_contribution,
+        decision_context=decision_context,
     )
 
 
@@ -744,12 +750,19 @@ def start_run(
     language: str | None = None,
     weight_profile: str | None = None,
     paper_json_path: str | None = None,
+    decision_context: DecisionContext | None = None,
     byok: BYOKCredentials | None = None,
     owner: str | None = None,
 ) -> tuple[str, Path]:
     """Launch a new worker from a durable, non-secret input contract."""
 
-    spec = _spec_from_submission(topic, language, weight_profile, paper_json_path)
+    spec = _spec_from_submission(
+        topic,
+        language,
+        weight_profile,
+        paper_json_path,
+        decision_context,
+    )
     return _start_run_from_spec(spec, byok=byok, owner=owner)
 
 
@@ -1149,6 +1162,7 @@ def get_state(run_id: str) -> dict:
         "stage": status.get("stage", ""),
         "topic": status.get("topic") or (handle.topic if handle else ""),
         "output_language": status.get("output_language") or "English",
+        "decision_gate": status.get("decision_gate"),
         "error": error,
         "elapsed_seconds": elapsed,
         "source_counts": status.get("source_counts"),
