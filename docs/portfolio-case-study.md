@@ -127,9 +127,11 @@ project's engineering argument: evaluation should be capable of saying no.
   2/5. Both answered `MAYBE` to reuse and estimated substantial correction
   work. Neither checked external sources, so this is not source-truth evidence
   or product validation.
-- Decision Context has only offline contract evidence. No provider-backed report
-  has yet tested Writer/Reviewer compliance across the three modes, and no
-  target user has judged whether the new framing improves a real decision.
+- Decision Context has only offline contract evidence. A three-mode production
+  canary now has frozen requests, criteria, and cost boundaries, but it has not
+  been authorized or run. No provider-backed report has therefore tested
+  Writer/Reviewer compliance across the modes, and no target user has judged
+  whether the new framing improves a real decision.
 
 ## Reproduce or inspect
 
@@ -143,6 +145,7 @@ project's engineering argument: evaluation should be capable of saying no.
 - [Target-user pilot result](results-2026-08-26-target-user-decision-pilot.md)
 - [Decision Context protocol](prereg-2026-08-26-decision-context-report-contract.md)
 - [Decision Context implementation result](results-2026-08-26-decision-context-report-contract.md)
+- [Decision Context three-mode paid-canary protocol](prereg-2026-08-26-decision-context-paid-canary.md)
 - [Checkpoint recovery design](checkpoint-recovery.md)
 - [Production recovery canary](results-2026-08-24-paid-same-revision-recovery-post-fix.md)
 

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "experiment_id": "decision-context-three-mode-paid-canary-2026-08-26",
+  "topic_selection": {
+    "topic": "quantum computing for drug discovery",
+    "benchmark_case": "08",
+    "selection_basis": "The frozen benchmark completed 3/3 runs at TRL 4, and both target-user pilot observations independently selected this topic before report exposure."
+  },
+  "cases": [
+    {
+      "case_id": "DC01",
+      "expected_assessment_mode": "orientation",
+      "request": {
+        "topic": "quantum computing for drug discovery"
+      },
+      "expected_gate": {
+        "status": "checked",
+        "mode": "orientation",
+        "provided_fields": [],
+        "missing_core_fields": [
+          "asset_description",
+          "target_application",
+          "decision_owner",
+          "decision_type"
+        ],
+        "go_no_go_allowed": false
+      }
+    },
+    {
+      "case_id": "DC02",
+      "expected_assessment_mode": "decision_context_incomplete",
+      "request": {
+        "topic": "quantum computing for drug discovery",
+        "decision_context": {
+          "asset_description": "A university-owned error-mitigated quantum chemistry workflow demonstrated only on small-molecule binding-energy benchmarks",
+          "jurisdiction": "United States"
+        }
+      },
+      "expected_gate": {
+        "status": "checked",
+        "mode": "decision_context_incomplete",
+        "provided_fields": [
+          "asset_description",
+          "jurisdiction"
+        ],
+        "missing_core_fields": [
+          "target_application",
+          "decision_owner",
+          "decision_type"
+        ],
+        "go_no_go_allowed": false
+      }
+    },
+    {
+      "case_id": "DC03",
+      "expected_assessment_mode": "decision_support",
+      "request": {
+        "topic": "quantum computing for drug discovery",
+        "decision_context": {
+          "asset_description": "A university-owned error-mitigated quantum chemistry workflow demonstrated only on small-molecule binding-energy benchmarks",
+          "target_application": "Prioritizing kinase inhibitor candidates before wet-lab validation for an oncology discovery program",
+          "decision_owner": "Pharmaceutical R&D portfolio committee",
+          "decision_type": "GO, DEFER, or NO_GO on funding a limited validation pilot",
+          "jurisdiction": "United States",
+          "time_horizon": "Make the funding decision within 90 days and evaluate pilot results within 12 months",
+          "constraints": "No budget amount or success threshold has been approved. Require a same-workload comparison against classical baselines, wet-lab validation for prioritized candidates, and patent counsel before any FTO conclusion."
+        }
+      },
+      "expected_gate": {
+        "status": "checked",
+        "mode": "decision_support",
+        "provided_fields": [
+          "asset_description",
+          "target_application",
+          "decision_owner",
+          "decision_type",
+          "jurisdiction",
+          "time_horizon",
+          "constraints"
+        ],
+        "missing_core_fields": [],
+        "go_no_go_allowed": true
+      }
+    }
+  ],
+  "execution_bounds": {
+    "maximum_root_runs": 3,
+    "maximum_runs_per_case": 1,
+    "maximum_resumes": 0,
+    "maximum_supplementary_search_calls": 0,
+    "soft_stop_usd_per_run": 0.05,
+    "soft_stop_usd_total": 0.12
+  }
+}
