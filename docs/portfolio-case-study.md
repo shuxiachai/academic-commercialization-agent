@@ -109,11 +109,13 @@ project's engineering argument: evaluation should be capable of saying no.
 - Code-package analysis is not implemented, and patent relevance has no second
   independent reviewer or inter-rater estimate.
 - The completed user-utility audit included only one actual target user. A
-  separate two-slot target-user decision pilot is prepared with a pre-report
-  baseline and post-report decision. Both Stage 1 baselines have returned and
-  both reviewers selected topic 08; owner-coded enum normalization is disclosed
-  and Stage 2 AI use is collected separately. Neither Stage 2 follow-up has
-  returned, so completed observations and user-value evidence remain zero.
+  separate two-slot target-user decision pilot is now complete with a pre-report
+  baseline and post-report decision. Both target users retained `DEFER`, raised
+  confidence from 3/5 to 4/5, and rated median usefulness and information gain
+  3/5 while actionability, evidence trust, and recommendation acceptance were
+  2/5. Both answered `MAYBE` to reuse and estimated substantial correction
+  work. Neither checked external sources, so this is not source-truth evidence
+  or product validation.
 
 ## Reproduce or inspect
 
@@ -124,6 +126,7 @@ project's engineering argument: evaluation should be capable of saying no.
 - [Target-user pilot pre-registration](prereg-2026-08-26-target-user-decision-pilot.md)
 - [Target-user pilot operator guide](target-user-decision-pilot-guide.md)
 - [Target-user pilot form-timing erratum](errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)
+- [Target-user pilot result](results-2026-08-26-target-user-decision-pilot.md)
 - [Checkpoint recovery design](checkpoint-recovery.md)
 - [Production recovery canary](results-2026-08-24-paid-same-revision-recovery-post-fix.md)
 

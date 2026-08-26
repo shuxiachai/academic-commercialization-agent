@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "study_id": "target-user-decision-pilot-20260826",
+  "status": "descriptive_pilot_complete",
+  "publication_status": "all_eligible_observations_public",
+  "registered_slots": 2,
+  "complete_observation_count": 2,
+  "closed_slot_count": 0,
+  "incomplete_slot_count": 0,
+  "publicly_reportable_count": 2,
+  "reportable_role_mix": {
+    "OTHER_COMMERCIALIZATION_DECISION_MAKER": 1,
+    "TTO_COMMERCIALIZATION": 1
+  },
+  "reportable_ai_use": {
+    "stage_1": {
+      "NONE": 2
+    },
+    "stage_2": {
+      "NONE": 2
+    }
+  },
+  "reportable_selected_topics": [
+    {
+      "topic_num": "08",
+      "topic": "quantum computing for drug discovery"
+    },
+    {
+      "topic_num": "08",
+      "topic": "quantum computing for drug discovery"
+    }
+  ],
+  "source_material": {
+    "report_generation_date": "2026-08-21",
+    "evidence_state": "frozen_historical",
+    "fresh_retrieval": false,
+    "topic_assignment": "reviewer_self_selected_before_report"
+  },
+  "decision_changed_count": 0,
+  "would_use_again": {
+    "MAYBE": 2,
+    "NO": 0,
+    "YES": 0
+  },
+  "citation_check": {
+    "ALL": 0,
+    "NONE": 2,
+    "SOME": 0
+  },
+  "blocking_error": {
+    "NO": 1,
+    "UNCERTAIN": 0,
+    "YES": 1
+  },
+  "eligible_medians": {
+    "decision_usefulness": 3.0,
+    "information_gain": 3.0,
+    "actionability": 2.0,
+    "evidence_trust": 2.0,
+    "recommendation_acceptance": 2.0,
+    "reading_minutes": 57.5,
+    "estimated_revision_minutes": 420.0
+  },
+  "claim_boundary": "descriptive target-user observations only; not adoption, ROI, decision accuracy, hallucination rate, or population-level product validation"
+}
