@@ -65,15 +65,65 @@ class ProviderResultRejection(BaseModel):
 
 
 class ToolProviderUsage(BaseModel):
-    """Provider-owned request identity and conservative credit accounting."""
+    """Request lineage and provider-specific cost accounting.
+
+    Tavily returns both a provider request id and credits. OpenAlex reports a
+    dollar cost but no request id, while Lens exposes neither a request id nor
+    a trustworthy per-request price in the response used by this experiment.
+    Keeping those states explicit avoids inventing provider ownership or
+    silently turning an uninspectable request into zero cost.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    provider: Literal["tavily"]
+    provider: Literal["tavily", "openalex", "lens"]
     request_id: str = Field(min_length=3, max_length=300)
+    request_id_source: Literal["provider", "client_generated"] = "provider"
     result_count: int = Field(ge=0, le=20)
-    credit_count: float = Field(ge=0.0, allow_inf_nan=False)
-    usd_per_credit: float = Field(ge=0.0, allow_inf_nan=False)
+    cost_basis: Literal["credits", "reported_usd", "uninspectable"] = "credits"
+    credit_count: float | None = Field(
+        default=None,
+        ge=0.0,
+        allow_inf_nan=False,
+    )
+    usd_per_credit: float | None = Field(
+        default=None,
+        ge=0.0,
+        allow_inf_nan=False,
+    )
+    reported_cost_usd: float | None = Field(
+        default=None,
+        ge=0.0,
+        allow_inf_nan=False,
+    )
+
+    @model_validator(mode="after")
+    def _validate_cost_shape(self) -> "ToolProviderUsage":
+        if self.cost_basis == "credits":
+            if self.credit_count is None or self.usd_per_credit is None:
+                raise ValueError("credit accounting requires count and unit cost")
+            if self.reported_cost_usd is not None:
+                raise ValueError("credit accounting cannot carry reported USD")
+        elif self.cost_basis == "reported_usd":
+            if self.reported_cost_usd is None:
+                raise ValueError("reported-USD accounting requires provider cost")
+            if self.credit_count is not None or self.usd_per_credit is not None:
+                raise ValueError("reported USD cannot also carry credit accounting")
+        elif any(
+            value is not None
+            for value in (
+                self.credit_count,
+                self.usd_per_credit,
+                self.reported_cost_usd,
+            )
+        ):
+            raise ValueError("uninspectable cost cannot carry numeric accounting")
+
+        if self.provider == "tavily" and (
+            self.request_id_source != "provider" or self.cost_basis != "credits"
+        ):
+            raise ValueError("Tavily accounting requires provider credits and id")
+        return self
 
 
 class ToolAdapterResponse(BaseModel):
@@ -91,7 +141,11 @@ class ToolAdapterResponse(BaseModel):
     idempotency_key: str = Field(pattern=r"^[0-9a-f]{64}$")
     outbound_request_count: Literal[1] = 1
     candidates: tuple[ToolEvidenceCandidate, ...] = Field(default=(), max_length=10)
-    search_cost_usd: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
+    search_cost_usd: float | None = Field(
+        default=0.0,
+        ge=0.0,
+        allow_inf_nan=False,
+    )
     provider_request_id: str | None = Field(default=None, max_length=300)
     provider_usage: ToolProviderUsage | None = None
     provider_rejections: tuple[ProviderResultRejection, ...] = Field(
@@ -136,15 +190,26 @@ class ToolAdapterResponse(BaseModel):
             raise ValueError(
                 "provider result indices must cover every returned row once"
             )
-        expected_cost = usage.credit_count * usage.usd_per_credit
-        if not math.isclose(
+        if usage.cost_basis == "credits":
+            if usage.credit_count is None or usage.usd_per_credit is None:
+                raise ValueError("credit accounting disappeared after validation")
+            expected_cost = usage.credit_count * usage.usd_per_credit
+        elif usage.cost_basis == "reported_usd":
+            if usage.reported_cost_usd is None:
+                raise ValueError("reported cost disappeared after validation")
+            expected_cost = usage.reported_cost_usd
+        else:
+            if self.search_cost_usd is not None:
+                raise ValueError("uninspectable provider cost must remain null")
+            return self
+        if self.search_cost_usd is None or not math.isclose(
             self.search_cost_usd,
             expected_cost,
             rel_tol=1e-9,
             abs_tol=1e-12,
         ):
             raise ValueError(
-                "search cost must equal provider credits times unit cost"
+                "search cost must equal provider accounting"
             )
         return self
 

@@ -48,6 +48,7 @@ _OPERATOR_ENV = {
     "TAVILY_API_KEY": "operator-tavily",
     "LENS_API_KEY": "operator-lens",
     "NCBI_API_KEY": "operator-ncbi",
+    "OPENALEX_API_KEY": "operator-openalex",
     "SEMANTIC_SCHOLAR_API_KEY": "operator-s2",
 }
 
