@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1540 tests (632 subtests), CI green on Linux + Windows × Python
+Current state: 1545 tests (632 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -401,6 +401,10 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   does not prove prompt compliance, factual correctness, usefulness, adoption,
   or time savings: the gate checks context completeness rather than truth. A
   paid three-mode canary remains separate work and requires fresh authorization
-  with frozen criteria. See
+  with frozen criteria. Its protocol now binds three requests on benchmark case
+  08 to an exact manifest, sequential stop rules, structural verdicts, and a
+  `$0.12` soft study boundary. No provider call is authorized or completed by
+  that pre-registration, so the limitation remains open. See
   `docs/prereg-2026-08-26-decision-context-report-contract.md` and
-  `docs/results-2026-08-26-decision-context-report-contract.md`.
+  `docs/results-2026-08-26-decision-context-report-contract.md`, plus
+  `docs/prereg-2026-08-26-decision-context-paid-canary.md`.

@@ -146,6 +146,10 @@ Writer/Reviewer must withhold actor-specific GO/NO_GO when the four core fields
 are absent. This is an offline contract result, not evidence that a generated
 decision is correct or useful. See the [protocol](docs/prereg-2026-08-26-decision-context-report-contract.md)
 and [implementation result](docs/results-2026-08-26-decision-context-report-contract.md).
+A separate [three-mode production canary](docs/prereg-2026-08-26-decision-context-paid-canary.md)
+now freezes one topic, three public request bodies, structural criteria, and a
+USD 0.12 soft study boundary. It has not been authorized or run, so no
+provider-backed compliance result is claimed.
 
 A separate pre-registered checkpoint audit hard-terminated **30 worker
 processes** across ten frozen evidence collections and three post-commit
@@ -1227,7 +1231,10 @@ ROI 或“六 Agent 必要性”证明。详见[预注册](docs/prereg-2026-08-2
 不得输出针对具体主体的 GO/NO_GO。该结果只证明离线输入与执行合同，不证明模型
 生成的决策正确或有用。详见
 [预注册](docs/prereg-2026-08-26-decision-context-report-contract.md)和
-[实现结果](docs/results-2026-08-26-decision-context-report-contract.md)。
+[实现结果](docs/results-2026-08-26-decision-context-report-contract.md)。另有一份
+[三模式生产 canary 预注册](docs/prereg-2026-08-26-decision-context-paid-canary.md)
+已经冻结同一主题下的 3 个公开请求、结构判定标准和 0.12 美元研究软停止线；目前
+尚未获得付费执行授权，也尚未运行，因此不声称已有供应商支持的合同遵循结果。
 
 另有一组预注册 Checkpoint 故障恢复实验，在 10 份冻结证据和 3 个提交后边界上
 硬终止 **30 个 worker 进程**。30/30 个不可变子运行均到达 `Done`，精确复用预期
