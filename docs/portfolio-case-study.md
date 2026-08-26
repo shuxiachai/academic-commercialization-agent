@@ -73,7 +73,7 @@ source of truth.
 | Provider-backed recovery canary | One same-revision child reused a four-node prefix, made 0 new evidence-agent requests, and completed the remaining workflow | One observation only; interrupted-source usage was unavailable, so total cost and general savings are not inspectable |
 | Bounded Tool Calling contracts | Phase 2 passed 14/14 frozen execution cases; the disconnected Phase 3 generic pilot completed 5/5 requests; Phase 4 passes a 71/71 adapter/executor seam set plus a 50/50 live-runner and source-locked Schema v2 review subset over eight OpenAlex/Lens cases | Production remains zero-call shadow mode: the Phase 3 form declared substantive AI use and only 5/25 candidates relevant; the Phase 4 runner has made no live request, so compatibility, precision and evidence gain remain unobserved |
 | Decision-context contract | Seven bounded fields cross the browser, API, immutable RunSpec, checkpoint identity, Crew input and both public status endpoints; all frozen offline seams passed with 0 provider calls | This establishes applicability plumbing, not model compliance, decision correctness, or user value |
-| Test and CI contract | 1,540 tests plus 632 subtests; Linux/Windows × Python 3.11/3.12; 87.23% measured coverage above an 85% floor; a dedicated Chromium journey exercises the access gate, client admission, run history and report DOM | The browser smoke is loopback-only and blocks mutating requests, so it proves the shipped client/API seam without claiming provider compatibility or deployed-service availability |
+| Test and CI contract | 1,545 tests plus 632 subtests; Linux/Windows × Python 3.11/3.12; 87.23% measured coverage above an 85% floor; a dedicated Chromium journey exercises the access gate, client admission, run history and report DOM | The browser smoke is loopback-only and blocks mutating requests, so it proves the shipped client/API seam without claiming provider compatibility or deployed-service availability |
 
 The negative results are retained deliberately. For example, the first patent
 relevance candidate raised auto-kept precision to 94.6% but falsely removed six
@@ -127,11 +127,13 @@ project's engineering argument: evaluation should be capable of saying no.
   2/5. Both answered `MAYBE` to reuse and estimated substantial correction
   work. Neither checked external sources, so this is not source-truth evidence
   or product validation.
-- Decision Context has only offline contract evidence. A three-mode production
-  canary now has frozen requests, criteria, and cost boundaries, but it has not
-  been authorized or run. No provider-backed report has therefore tested
-  Writer/Reviewer compliance across the modes, and no target user has judged
-  whether the new framing improves a real decision.
+- The three-mode Decision Context production canary completed for $0.109342,
+  but failed its frozen primary criterion 7/10. One run used Reviewer fallback,
+  one report humanized the required mode token, and one incomplete-context
+  report introduced an unqualified commercial threshold. The result measures
+  prompt compliance and operational behavior only: source truth, decision
+  correctness, target-user value, and whether the framing improves a real
+  decision remain unmeasured.
 
 ## Reproduce or inspect
 
@@ -146,6 +148,7 @@ project's engineering argument: evaluation should be capable of saying no.
 - [Decision Context protocol](prereg-2026-08-26-decision-context-report-contract.md)
 - [Decision Context implementation result](results-2026-08-26-decision-context-report-contract.md)
 - [Decision Context three-mode paid-canary protocol](prereg-2026-08-26-decision-context-paid-canary.md)
+- [Decision Context three-mode paid-canary result](results-2026-08-26-decision-context-paid-canary.md)
 - [Checkpoint recovery design](checkpoint-recovery.md)
 - [Production recovery canary](results-2026-08-24-paid-same-revision-recovery-post-fix.md)
 
