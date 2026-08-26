@@ -805,6 +805,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         state=state["state"],
         stage=state.get("stage", ""),
         topic=state.get("topic", ""),
+        pipeline_revision=state.get("pipeline_revision"),
         done=state["state"] != "running",
         error=state.get("error"),
         elapsed_seconds=state.get("elapsed_seconds"),

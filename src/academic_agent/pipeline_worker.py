@@ -281,14 +281,16 @@ def _merge_status_fields(
     output_language: str | None,
     source_counts: dict | None,
     topic: str | None,
+    pipeline_revision: str | None = None,
 ) -> dict:
     """Build the next status.json payload from the previous one plus updates.
 
     status.json is rewritten wholesale on every stage transition, but topic
-    and source_counts are set once early on and must survive every later call
-    that does not pass them again — otherwise a client polling mid-run would
-    see the topic disappear the moment the pipeline moved past the stage that
-    first reported it.
+    and source_counts are set once early on and must survive every later call.
+    pipeline_revision is stricter: it identifies the code that began this run,
+    so the first persisted value wins even if a later caller accidentally
+    offers the identity of a newer deployment. Deriving it in the API would
+    mislabel historical runs after each deploy.
     """
     data: dict = {"stage": stage, "done": done, "error": error}
     if output_language is not None:
@@ -309,9 +311,12 @@ def _merge_status_fields(
         "component_coverage", "evidence_gap_shadow", "decision_gate",
         "quality_review",
         "checkpointing", "recovery",
+        "pipeline_revision",
     ):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
+    if pipeline_revision is not None and existing.get("pipeline_revision") is None:
+        data["pipeline_revision"] = pipeline_revision
     if source_counts is not None:
         data["source_counts"] = source_counts
     if topic is not None:
@@ -398,6 +403,7 @@ def main() -> None:
         output_language: str | None = None,
         source_counts: dict | None = None,
         topic: str | None = None,
+        pipeline_revision: str | None = None,
         evidence_incomplete: bool | None = None,
         failed_domains: list[str] | None = None,
         usage: dict | None = None,
@@ -420,7 +426,10 @@ def main() -> None:
                 existing = {}
             data = _merge_status_fields(
                 existing, stage=stage, done=done, error=error,
-                output_language=output_language, source_counts=source_counts, topic=topic,
+                output_language=output_language,
+                source_counts=source_counts,
+                topic=topic,
+                pipeline_revision=pipeline_revision,
             )
             if evidence_incomplete is not None:
                 data["evidence_incomplete"] = evidence_incomplete
@@ -462,12 +471,19 @@ def main() -> None:
         except Exception as _e:
             print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
 
-    # Start after write_status exists so configuration failures can be made
-    # visible, but before source collection so topic planning and retrieval
+    # Execution identity belongs to the worker that actually runs the paid
+    # workflow, not to whichever API deployment later serves its files. Capture
+    # it before the first durable status write so configuration failures remain
+    # attributable too; later rewrites preserve this first value.
+    revision = pipeline_revision()
+
+    # Start tracing after write_status exists so configuration failures can be
+    # made visible, but before source collection so topic planning and retrieval
     # belong to the same root Trace as the six CrewAI tasks.
     telemetry = start_run_telemetry(args.run_id, topic_length=len(args.topic))
     write_status(
-        _STAGE_INITIAL, topic=args.topic, observability=telemetry.snapshot()
+        _STAGE_INITIAL, topic=args.topic, pipeline_revision=revision,
+        observability=telemetry.snapshot(),
     )
 
     # Bound before the try so the failure path can still account for a run
@@ -525,7 +541,6 @@ def main() -> None:
         # known. Later stage writes keep it sticky, including failures before
         # the Crew is constructed.
         write_status(_STAGE_INITIAL, decision_gate=spec.decision_gate())
-        revision = pipeline_revision()
         checkpoint_date = datetime.now(UTC).date()
         retrieval_contract = retrieval_identity(
             spec, revision=revision, as_of_date=checkpoint_date

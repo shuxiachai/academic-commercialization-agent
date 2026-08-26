@@ -164,6 +164,13 @@ class RunProgress(BaseModel):
     # Carried here so a client that opens a run from a list has a title on
     # the first response rather than a placeholder until it guesses one.
     topic: str = ""
+    pipeline_revision: str | None = Field(
+        default=None,
+        description="Immutable code identity recorded by the worker that executed "
+                    "this run. None means the run predates revision persistence or "
+                    "failed before identity could be recorded; it is never "
+                    "backfilled from the current server deployment.",
+    )
     done: bool = False
     error: str | None = None
     elapsed_seconds: int | None = None
@@ -270,6 +277,13 @@ class RunStatus(BaseModel):
     state: RunState
     stage: str = ""
     topic: str = ""
+    pipeline_revision: str | None = Field(
+        default=None,
+        description="Immutable code identity recorded by the worker that executed "
+                    "this run. None means the run predates revision persistence or "
+                    "failed before identity could be recorded; it is never "
+                    "backfilled from the current server deployment.",
+    )
     output_language: str = "English"
     error: str | None = None
     elapsed_seconds: int | None = None

@@ -113,9 +113,11 @@ be narrow and evidence-led:
 
 1. the operator-side `DC01` exception and offline red/green reproduction are
    complete in the dated erratum; no paid rerun has been performed;
-2. expose a non-secret immutable `pipeline_revision` at both status endpoints
-   so a future run can report its own execution identity rather than relying on
-   an external deployment timestamp;
+2. a zero-network follow-up now persists a non-secret immutable
+   `pipeline_revision` and exposes it at both status endpoints. Historical runs
+   remain `null`, so this does not retrospectively identify these three canary
+   runs; see the
+   [boundary result](results-2026-08-27-public-pipeline-revision-seam.md);
 3. make the report's applicability label deterministic at the delivery seam,
    and distinguish supplied/approved success thresholds from explicitly
    labelled analyst proposals; and

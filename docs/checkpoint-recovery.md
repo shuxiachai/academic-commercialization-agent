@@ -97,6 +97,13 @@ For BYOK, send a fresh complete credential set in the JSON body:
 
 Credentials cross only the child subprocess environment. They are absent from
 argv, RunSpec, checkpoint manifests, checkpoint payloads, and status files.
+Both run-status endpoints expose the non-secret `pipeline_revision` persisted
+by the worker that began that run. The value is first-write-wins and is never
+derived from the API process serving the response, because that process may be
+a newer deployment. Runs created before revision persistence return `null`;
+that means execution identity is unknown, not that they used the current
+revision. This public field mirrors the revision dimension already used by
+checkpoint identity without changing reuse eligibility.
 Code-owned runs require the same owner code (or the admin code) for mutation;
 sharing a read-only capability URL does not grant recovery or deletion rights.
 Ownerless BYOK runs have no separate server-side identity, so their random run

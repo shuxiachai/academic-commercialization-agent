@@ -40,6 +40,7 @@ _STATUS = {
     "stage": "Done",
     "done": True,
     "error": None,
+    "pipeline_revision": "git:0123456789abcdef0123456789abcdef01234567",
     "output_language": "English",
     "topic": "solid-state batteries",
     "source_counts": {"academic": 5, "patent": 8, "market": 8},
@@ -185,6 +186,23 @@ class StateReachesTheClientTests(unittest.TestCase):
             with self.subTest(field=key):
                 self.assertEqual(status[key], progress[key])
 
+    def test_the_worker_revision_reaches_both_public_endpoints(self):
+        """Execution identity must cross the disk/API seam byte-for-byte.
+
+        Reading the current server revision here would mislabel historical runs
+        after a deployment, so the only admissible value is the one persisted by
+        the worker that actually executed this run.
+        """
+        for path in (
+            f"/api/runs/{self.run.run_id}",
+            f"/api/runs/{self.run.run_id}/progress",
+        ):
+            with self.subTest(path=path):
+                body = self.client.get(path).json()
+                self.assertEqual(
+                    body["pipeline_revision"], _STATUS["pipeline_revision"]
+                )
+
 
 class AbsentDataTests(unittest.TestCase):
     """Runs that predate a feature must not break the endpoint that now
@@ -231,6 +249,16 @@ class AbsentDataTests(unittest.TestCase):
         """An absent gate means it was not evaluated, not that context was empty."""
         body = self.client.get(f"/api/runs/{self.run_id}").json()
         self.assertIsNone(body["decision_gate"])
+
+    def test_a_run_before_revision_persistence_reports_unknown(self):
+        """Missing historical identity must remain unknown, never be backfilled
+        from whichever deployment happens to serve the old run today."""
+        for path in (
+            f"/api/runs/{self.run_id}",
+            f"/api/runs/{self.run_id}/progress",
+        ):
+            with self.subTest(path=path):
+                self.assertIsNone(self.client.get(path).json()["pipeline_revision"])
 
     def test_null_is_distinguishable_from_zero(self):
         """A run with no usage recorded is not a run that cost nothing. The
