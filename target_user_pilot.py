@@ -22,6 +22,7 @@ from typing import Any
 
 STUDY_ID = "target-user-decision-pilot-20260826"
 SOURCE_REPORT_DATE = "2026-08-21"
+FOLLOWUP_SCHEMA_VERSION = 2
 REVIEWER_IDS = ("T01", "T02")
 TARGET_ROLES = {
     "TTO_COMMERCIALIZATION",
@@ -70,6 +71,8 @@ FOLLOWUP_FIELDS = (
     "selected_topic_num",
     "selected_topic",
     "report_sha256",
+    "generative_ai_use",
+    "generative_ai_notes",
     "post_report_decision",
     "post_report_confidence",
     "decision_usefulness",
@@ -91,7 +94,9 @@ FOLLOWUP_FIELDS = (
 )
 SLOT_FIELDS = ("reviewer_id", "slot_status", "closure_reason")
 FOLLOWUP_REQUIRED_FIELDS = tuple(
-    field for field in FOLLOWUP_FIELDS[4:] if field != "blocking_error_details"
+    field
+    for field in FOLLOWUP_FIELDS[4:]
+    if field not in {"blocking_error_details", "generative_ai_notes"}
 )
 
 
@@ -232,7 +237,23 @@ def _source_rows(reports: list[FrozenReport]) -> list[dict[str, str]]:
     return rows
 
 
+def _option_line(field: str, values: set[str]) -> str:
+    """Render legal CSV enums from the validator's own source of truth."""
+
+    return f"- `{field}`: " + ", ".join(f"`{value}`" for value in sorted(values))
+
+
 def _stage_one_readme(reviewer_id: str) -> str:
+    options = "\n".join(
+        (
+            _option_line("role_category", ROLE_LABELS),
+            _option_line("experience_band", EXPERIENCE_LABELS),
+            _option_line("generative_ai_use", AI_USE_LABELS),
+            _option_line("anonymous_aggregate_consent", CONSENT_LABELS),
+            _option_line("compensation", COMPENSATION_LABELS),
+            _option_line("initial_decision", DECISION_LABELS),
+        )
+    )
     return f"""# 目标用户决策试点：第一阶段
 
 评审编号：`{reviewer_id}`
@@ -246,6 +267,16 @@ def _stage_one_readme(reviewer_id: str) -> str:
 请不要搜索或向他人询问系统对这些主题的既有结论。可以查阅你正常工作中
 本来就会使用的资料，但请在 `current_workflow_summary` 中如实说明。不要使用生成式
 AI 代替实质判断；翻译或表格整理用途必须在 profile 中披露。
+
+以下字段只能填写列出的固定值，不要写同义词、百分数或解释句：
+
+{options}
+- `initial_confidence`：整数 `1`–`5`
+- `expected_research_minutes`：大于 `0` 的整数分钟
+
+判断理由写入 `selection_reason`、`current_workflow_summary` 或
+`information_needed`，不要把理由写进 `initial_decision`。非固定文本字段也必须
+填写；确实没有内容时写 `NONE`，不要留空。
 
 请只修改两个 CSV，不要改动主题目录。完成后把整个文件夹原样返还。第二阶段会在
 这份基线锁定后才发送一份与你所选主题对应的历史报告。
@@ -267,6 +298,16 @@ slot cannot be recruited, set its coordinator status to `CLOSED_NO_RESPONSE`.
 
 
 def _stage_two_readme(reviewer_id: str, topic: str) -> str:
+    options = "\n".join(
+        (
+            _option_line("generative_ai_use", AI_USE_LABELS),
+            _option_line("post_report_decision", DECISION_LABELS),
+            _option_line("would_use_again", REUSE_LABELS),
+            _option_line("citation_check", CITATION_CHECK_LABELS),
+            _option_line("factual_error_state", FACT_ERROR_LABELS),
+            _option_line("blocking_error", BLOCKING_ERROR_LABELS),
+        )
+    )
     return f"""# 目标用户决策试点：第二阶段
 
 - 评审编号：`{reviewer_id}`
@@ -279,6 +320,19 @@ def _stage_two_readme(reviewer_id: str, topic: str) -> str:
 不要求逐个打开引用；但如果没有打开任何外部来源，`citation_check` 必须填写
 `NONE`，`factual_error_state` 必须填写 `NOT_CHECKED`。这代表“没有核查”，不是
 “没有错误”。不要使用生成式 AI 代替你的实质判断。
+
+以下字段只能填写列出的固定值：
+
+{options}
+- `post_report_confidence`、`decision_usefulness`、`information_gain`、
+  `actionability`、`evidence_trust`、`recommendation_acceptance`：整数 `1`–`5`
+- `reading_minutes`：大于 `0` 的整数分钟
+- `estimated_revision_minutes`：大于等于 `0` 的整数分钟
+
+`generative_ai_use` 只声明本阶段实际发生的使用；第一阶段填写的 `NONE` 不能代替
+第二阶段声明。选择 `TRANSLATION_OR_CLERICAL` 或 `SUBSTANTIVE` 时必须在
+`generative_ai_notes` 说明用途。`blocking_error=YES` 时必须填写详情。四个自由文本
+评价字段也必须填写；确实没有内容时写 `NONE`，不要留空或改动前四个身份字段。
 
 请只修改 `followup_form.csv`，不要修改报告或 selection snapshot。完成后原样返还
 整个文件夹。
@@ -356,6 +410,8 @@ def _verify_base(
     _assert_separate(packet_dir, source_lock_path)
     manifest = _read_json(packet_dir / "manifest.json")
     source_lock = _read_json(source_lock_path)
+    if manifest.get("schema_version") != 1 or source_lock.get("schema_version") != 1:
+        raise TargetUserPilotError("packet or source lock has an unsupported schema version")
     if manifest.get("study_id") != STUDY_ID or source_lock.get("study_id") != STUDY_ID:
         raise TargetUserPilotError("packet or source lock belongs to a different study")
     if manifest.get("reviewer_ids") != list(REVIEWER_IDS) or source_lock.get("reviewer_ids") != list(REVIEWER_IDS):
@@ -535,7 +591,8 @@ def materialize_followup(
     )
     (stage_two / "report.md").write_bytes(report_bytes)
     snapshot = {
-        "schema_version": 1,
+        "schema_version": FOLLOWUP_SCHEMA_VERSION,
+        "followup_schema_version": FOLLOWUP_SCHEMA_VERSION,
         "study_id": STUDY_ID,
         "reviewer_id": reviewer_id,
         "selected_topic_num": report.topic_num,
@@ -579,11 +636,14 @@ def _validate_followup(
         return None
     _require_complete(row, FOLLOWUP_REQUIRED_FIELDS, context=f"{reviewer_id} follow-up")
 
+    ai_use = row["generative_ai_use"].strip().upper()
     decision = row["post_report_decision"].strip().upper()
     reuse = row["would_use_again"].strip().upper()
     citation_check = row["citation_check"].strip().upper()
     factual = row["factual_error_state"].strip().upper()
     blocking = row["blocking_error"].strip().upper()
+    if ai_use not in AI_USE_LABELS:
+        raise TargetUserPilotError(f"{reviewer_id} has invalid Stage 2 generative_ai_use")
     if decision not in DECISION_LABELS:
         raise TargetUserPilotError(f"{reviewer_id} has invalid post_report_decision")
     if reuse not in REUSE_LABELS:
@@ -594,6 +654,10 @@ def _validate_followup(
         raise TargetUserPilotError(f"{reviewer_id} has invalid factual_error_state")
     if blocking not in BLOCKING_ERROR_LABELS:
         raise TargetUserPilotError(f"{reviewer_id} has invalid blocking_error")
+    if ai_use != "NONE" and not row["generative_ai_notes"].strip():
+        raise TargetUserPilotError(
+            f"{reviewer_id} must describe non-NONE Stage 2 generative AI use"
+        )
     if citation_check == "NONE" and factual != "NOT_CHECKED":
         raise TargetUserPilotError(f"{reviewer_id} cannot report factual errors without source checking")
     if citation_check != "NONE" and factual == "NOT_CHECKED":
@@ -603,6 +667,7 @@ def _validate_followup(
 
     parsed: dict[str, Any] = {
         **row,
+        "generative_ai_use": ai_use,
         "post_report_decision": decision,
         "would_use_again": reuse,
         "citation_check": citation_check,
@@ -662,6 +727,8 @@ def _verify_stage_two(
 ) -> dict[str, Any] | None:
     snapshot = _read_json(stage_two / "selection_snapshot.json")
     expected = {
+        "schema_version": FOLLOWUP_SCHEMA_VERSION,
+        "followup_schema_version": FOLLOWUP_SCHEMA_VERSION,
         "study_id": STUDY_ID,
         "reviewer_id": reviewer_id,
         "selected_topic_num": report.topic_num,
@@ -768,7 +835,10 @@ def summarize_pilot(experiment_dir: Path, packet_dir: Path, source_lock_path: Pa
             continue
 
         is_target = profile["role_category"] in TARGET_ROLES
-        ai_excluded = profile["generative_ai_use"] == "SUBSTANTIVE"
+        ai_excluded = (
+            profile["generative_ai_use"] == "SUBSTANTIVE"
+            or followup["generative_ai_use"] == "SUBSTANTIVE"
+        )
         eligible = is_target and not ai_excluded
         reviewers.append(
             {
@@ -821,9 +891,16 @@ def summarize_pilot(experiment_dir: Path, packet_dir: Path, source_lock_path: Pa
         if any(row["profile"]["role_category"] == label for row in public_rows)
     }
     reportable_ai_use = {
-        label: sum(1 for row in public_rows if row["profile"]["generative_ai_use"] == label)
-        for label in sorted(AI_USE_LABELS)
-        if any(row["profile"]["generative_ai_use"] == label for row in public_rows)
+        "stage_1": {
+            label: sum(1 for row in public_rows if row["profile"]["generative_ai_use"] == label)
+            for label in sorted(AI_USE_LABELS)
+            if any(row["profile"]["generative_ai_use"] == label for row in public_rows)
+        },
+        "stage_2": {
+            label: sum(1 for row in public_rows if row["followup"]["generative_ai_use"] == label)
+            for label in sorted(AI_USE_LABELS)
+            if any(row["followup"]["generative_ai_use"] == label for row in public_rows)
+        },
     }
     closed_states = {"closed_no_response", "withdrew"}
     closed_count = sum(1 for row in reviewers if row["status"] in closed_states)
@@ -874,6 +951,7 @@ def summarize_pilot(experiment_dir: Path, packet_dir: Path, source_lock_path: Pa
             1
             for row in completed
             if row["profile"]["generative_ai_use"] == "SUBSTANTIVE"
+            or row["followup"]["generative_ai_use"] == "SUBSTANTIVE"
         ),
         "proxy_completed_count": sum(
             1 for row in completed if row["profile"]["role_category"] == "PROXY"
