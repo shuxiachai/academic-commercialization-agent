@@ -116,22 +116,22 @@ not adoption or proof that six agents are necessary. See the
 [full result](docs/results-2026-08-23-user-utility-audit.md).
 
 Because that denominator is closed and contained only one actual target user,
-a separate **two-slot target-user decision pilot** is now pre-registered and
-implemented without any provider calls. A reviewer must record their role,
-baseline decision, and confidence before the coordinator can materialize one
-frozen report; the second stage then records whether the report changed the
-decision, what evidence was useful, and how much review time it required.
-Source checking, substantive AI use, consent, and incomplete observations are
-represented as distinct states. Both target users have returned complete
-pre-report baselines and independently selected topic 08. Their schema-v1
-natural-language enums are preserved and owner-coded with explicit disclosure;
-follow-up schema v2 now records AI use again after report exposure. Both Stage
-2 packets have been materialized, but neither follow-up has returned, so the
-completed-observation count remains zero. This is still a measurement contract,
-not a user-value result. See the
+a separate **two-slot target-user decision pilot** was pre-registered and has
+now completed without any provider calls. Both eligible target users selected
+topic 08 before seeing a report, read the same frozen 2026-08-21 artifact, and
+consented to anonymous aggregate publication. Both retained `DEFER` while
+confidence rose from 3/5 to 4/5. Median decision usefulness and information
+gain were 3/5; actionability, evidence trust, and recommendation acceptance were
+2/5. Both answered `MAYBE` to reuse, estimated 420 minutes of revision work at
+the median, and disagreed on whether the report contained a decision-blocking
+error. Neither opened external sources, so source truth remains not evaluated.
+The raw Stage 2 value `no` was preserved and owner-coded to schema value `NONE`
+for both reviewers. These are two descriptive observations, not adoption, ROI,
+accuracy, or population-level product validation. See the
 [pre-registration](docs/prereg-2026-08-26-target-user-decision-pilot.md) and
 [operator guide](docs/target-user-decision-pilot-guide.md), plus the
-[form-timing erratum](docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md).
+[form-timing erratum](docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)
+and [full result](docs/results-2026-08-26-target-user-decision-pilot.md).
 
 A separate pre-registered checkpoint audit hard-terminated **30 worker
 processes** across ten frozen evidence collections and three post-commit
@@ -1038,6 +1038,7 @@ academic_agent/
 ├── ablation.py              # Frozen-evidence 1/4/6-node topology experiment
 ├── reviewer_audit.py        # Blinded A/B packet preparation and unblinding
 ├── user_utility_audit.py    # 3–5 reviewer utility packet and strict summarizer
+├── target_user_pilot.py     # Two-stage target-user baseline/follow-up pilot
 ├── regulator_title_recovery_candidate.py # Frozen title-recovery comparison
 ├── outputs/
 │   ├── <run_id>/            # Per-run output directory
@@ -1187,17 +1188,19 @@ Reviewer 版本。整体偏好的精确一致率为 9/9，引用支持为 8/9，
 ROI 或“六 Agent 必要性”证明。详见[预注册](docs/prereg-2026-08-22-user-utility-audit.md)、
 [操作指南](docs/user-utility-audit-guide.md)和[完整结果](docs/results-2026-08-23-user-utility-audit.md)。
 
-由于该盲评的分母已经封闭且只有 1 名真实目标用户，项目另行预注册并实现了一项
-**双席位目标用户决策试点**，全程不调用模型或搜索供应商。评审者必须先填写自身
-角色、初始判断和信心，协调者才会生成一份冻结报告；第二阶段再记录报告是否改变
-判断、哪些证据有用以及实际审阅耗时。外部来源核验、实质性 AI 使用、公开同意和
-未完成观察均被区分记录。两位目标用户现已返回完整的报告前基线，并在报告暴露前
-独立选择主题 08；schema v1 的自然语言枚举被原样保留并做披露式编码，schema v2
-会在报告暴露后重新记录 AI 使用。两份第二阶段材料已经物化，但跟进表均未返回，
-完整观察数仍为 0，因此它依旧只是评测合同，不是用户价值结果。详见
+由于该盲评的分母已经封闭且只有 1 名真实目标用户，项目另行预注册的
+**双席位目标用户决策试点**现已完成，全程未调用模型或搜索供应商。两位合格目标
+用户都在看到报告前独立选择主题 08，随后阅读同一份 2026-08-21 冻结报告并同意匿名
+汇总公开。两人的判断均保持为 `DEFER`，信心由 3/5 升至 4/5；决策有用性与信息
+增量中位数为 3/5，可行动性、证据信任和建议接受度均为 2/5。两人都只选择
+`MAYBE` 再次使用，预计修订时间中位数为 420 分钟；一人报告阻断性错误，一人
+没有。两人均未打开外部来源，因此来源事实正确性仍为未评估。第二阶段原始值
+`no` 被原样保留，并披露式编码为 schema 值 `NONE`。这只是两条描述性观察，
+不能写成采用率、ROI、准确率或总体产品验证。详见
 [预注册](docs/prereg-2026-08-26-target-user-decision-pilot.md)、
 [操作指南](docs/target-user-decision-pilot-guide.md)和
-[表单时序勘误](docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)。
+[表单时序勘误](docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)，以及
+[完整结果](docs/results-2026-08-26-target-user-decision-pilot.md)。
 
 另有一组预注册 Checkpoint 故障恢复实验，在 10 份冻结证据和 3 个提交后边界上
 硬终止 **30 个 worker 进程**。30/30 个不可变子运行均到达 `Done`，精确复用预期
@@ -1856,6 +1859,7 @@ academic_agent/
 ├── ablation.py              # 冻结证据的 1/4/6 节点拓扑实验
 ├── reviewer_audit.py        # 随机 A/B 盲评包生成与揭盲汇总
 ├── user_utility_audit.py    # 3–5 人用户效用盲评包与严格汇总器
+├── target_user_pilot.py     # 两阶段目标用户基线/报告后判断试点
 ├── regulator_title_recovery_candidate.py # 冻结标题恢复候选对比
 ├── outputs/
 │   ├── <run_id>/            # 每次正常运行的输出目录

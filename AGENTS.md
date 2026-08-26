@@ -365,22 +365,27 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   one target user, one technical proxy, and three other reviewers; several
   returned enums required disclosed post-return coding. This is small proxy-user
   evidence, not adoption, ROI, accuracy, or proof that six agents are necessary.
-  See docs/results-2026-08-23-user-utility-audit.md. The largest remaining gap
-  is independent utility evidence from more actual target users.
-- **A separate two-slot target-user decision pilot is prepared, not
-  completed.** It deliberately does not append new responses to the closed
-  five-reviewer audit. Each recruited target user first records their role and
-  baseline decision without seeing a report; only then does the coordinator
-  materialize one frozen report and collect a post-report decision. The packet
-  makes source checking, AI assistance, consent, and unusable observations
-  explicit, and its public projection excludes non-consented free text. Both
-  registered target users have now returned complete Stage 1 baselines; both
-  independently selected topic 08 before report exposure. Schema-v1 packets
-  did not expose the legal enums, so the raw forms are retained privately and
-  every natural-language-to-enum mapping is disclosed. Follow-up schema v2
-  separately records Stage 2 AI use. Both Stage 2 packets are materialized,
-  but neither follow-up has returned: completed observations remain zero, so
-  this is still measurement readiness rather than user-value evidence. See
-  `docs/prereg-2026-08-26-target-user-decision-pilot.md` and
-  `docs/target-user-decision-pilot-guide.md`, plus
-  `docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md`.
+  See docs/results-2026-08-23-user-utility-audit.md. The remaining product gap
+  is a larger independent target-user sample and longitudinal adoption evidence.
+- **The separate two-slot target-user decision pilot is complete, but it is
+  descriptive rather than product validation.** It deliberately did not append
+  new responses to the closed five-reviewer audit. Each recruited target user
+  first recorded their role and baseline decision without seeing a report; only
+  then did the coordinator materialize one frozen report and collect a
+  post-report decision. The packet makes source checking, AI assistance,
+  consent, and unusable observations explicit, and its public projection
+  excludes free text. Both registered reviewers qualified as target users,
+  selected topic 08 before report exposure, completed the same frozen report,
+  consented to aggregate publication, and declared no substantive AI use in
+  either stage. Both retained `DEFER` while confidence increased from 3/5 to
+  4/5. Median usefulness and information gain were 3/5; actionability, evidence
+  trust, and recommendation acceptance were 2/5. Both answered `MAYBE` to
+  reuse and estimated 420 minutes of revision at the median; one reported a
+  blocking error and one did not. Neither opened an external source, so source
+  truth is `not_evaluated`. Their raw Stage 2 `no` values are retained
+  privately and owner-coded to `NONE` with disclosure. These two observations
+  do not establish adoption, ROI, accuracy, time savings, or population-level
+  value. See `docs/prereg-2026-08-26-target-user-decision-pilot.md`,
+  `docs/target-user-decision-pilot-guide.md`,
+  `docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md`, and
+  `docs/results-2026-08-26-target-user-decision-pilot.md`.
