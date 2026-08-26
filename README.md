@@ -397,26 +397,35 @@ before parsing or case expansion. A fresh authorization on deployed revision
 `adde83d` then completed the exact pilot: 5/5 cases, five single-attempt
 requests, five inspectable credits, USD 0.040 conservative cost, and 25 unique
 policy-valid rows reached the frozen blank review artifact. Automated provider
-compatibility passed. A separate zero-network human-review packet now freezes
-every full row identity and strictly validates returned labels plus reviewer
-provenance. Its initial state is `incomplete / not_evaluated`: all 25 labels
-and the declaration remain blank, so relevance and novelty are still not
-inspected.
-The paid work and UTF-8 artifacts completed before a Windows GBK stdout
-projection failed on U+2005; the CLI now emits reversible ASCII-safe JSON while
-preserving original artifact text. The adapter/audit/executor subset passed
-**53/53** tests, including deliberate fixture-identity, hidden-retry,
-row-accounting, non-finite pricing, and GBK-output defect re-injection. The
-separate human-review intake passed **17/17** targeted tests, including full-
-identity and `UNVERIFIABLE` state defect re-injection. This
-does not establish source truth, evidence gain, report improvement, or planner
-precision. See the
+compatibility passed. A separate zero-network human-review packet froze every
+full row identity and strictly validated returned labels plus reviewer
+provenance. Its initial state was `incomplete / not_evaluated`. The returned
+form later completed 25/25 rows and declared all URLs attempted, but it also
+declared `MOST_OR_ALL` substantive AI use. The strict result is therefore
+`excluded_substantive_ai / not_evaluated`, not a human-value pass. The observed
+form contains 5 relevant and 20 not-relevant candidates; three of five cases
+have at least one `YES/YES`. Those are descriptive labels only. Even if treated
+as eligible, the implied 80% wrong-source rate would fail the frozen 5% gate.
+
+Intake also found that packet schema v1 asked for novelty against a frozen
+baseline without exposing that collection to the reviewer. Schema v2 now
+carries and revalidates the baseline identity, gap state and source summaries;
+legacy packets remain readable but explicitly report
+`baseline_context_not_exposed_to_reviewer`. The paid work and UTF-8 artifacts
+completed before a Windows GBK stdout projection failed on U+2005; the CLI now
+emits reversible ASCII-safe JSON while preserving original artifact text. The
+adapter/audit/executor subset passed **53/53** tests. The hardened review intake
+passed **19/19** targeted tests, including full identity, baseline drift,
+legacy-baseline visibility and `UNVERIFIABLE` state seams. This does not
+establish source truth, general provider precision, report improvement, or
+planner precision. See the
 [phase-3 protocol](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md),
 the [implementation result](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md),
 the [fixture-identity erratum](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md),
 the [live-provider result](docs/results-2026-08-25-evidence-gap-live-provider-phase3.md),
 the [human-review protocol](docs/prereg-2026-08-25-evidence-gap-human-review-phase3.md),
-and the [packet-readiness result](docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md).
+the [packet-readiness result](docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md),
+and the [returned-form result](docs/results-2026-08-26-evidence-gap-human-review-phase3.md).
 Production remains phase-1 zero-call shadow mode.
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
@@ -1354,21 +1363,29 @@ evidence_gap_phase3_audit.py` 仍是零网络身份检查，已验证 5/5 集合
 解析 JSON 或展开案例前校验规范的原始字节身份。修复部署后获得新的明确授权，
 精确五案例 pilot 完成 5/5 案例、5 次单次尝试请求、5 个可检查 credits 和
 USD 0.040 保守成本；25 个唯一且通过策略校验的 URL 进入冻结空白人审表。自动
-供应商兼容性标准通过。现已另行生成零网络人工评审包，冻结每一行的完整身份，
-并严格校验回收标签与评审者声明。初始状态为 `incomplete / not_evaluated`：25 个
-标签和声明仍为空，因此相关性与新颖性依然未检查。付费工作与 UTF-8 产物
-完成后，Windows GBK stdout 在 U+2005 上打印失败；CLI 现改为可逆的 ASCII-safe
-JSON，原始 UTF-8 产物不变。适配器、审计和执行器子集 **53/53** 通过，并通过
-临时回注夹具身份、隐藏重试、行数漏记、非有限计费和 GBK 输出缺陷证明测试会
-真实变红。独立人审 intake 子集 **17/17** 通过，并回注完整行身份与
-`UNVERIFIABLE` 状态缺陷验证测试会变红。这些结果不代表来源真值、证据增量、
-报告改善或 Planner 精度。详见
+供应商兼容性标准通过。另行生成的零网络人工评审包冻结了每一行完整身份并严格
+校验标签与声明。回收表后来完成 25/25 行并声明逐个尝试 URL，但同时声明实质判断
+由生成式 AI `MOST_OR_ALL` 完成，因此严格结果是
+`excluded_substantive_ai / not_evaluated`，不能成为人工价值标题。表面标签为
+5 条相关、20 条不相关，3/5 案例至少有一条 `YES/YES`；这些仅是描述性结果。
+即使暂按合格评审计算，80% 错源率也会远超冻结的 5% 上限。
+
+回收还暴露了 packet schema v1 的接缝问题：它要求对照冻结基线判断 novelty，
+却没有把基线集合展示给评审者。schema v2 现会携带并重新校验集合身份、缺口状态
+和来源摘要；旧包仍可读取，但会明确报告
+`baseline_context_not_exposed_to_reviewer`。付费工作与 UTF-8 产物完成后，
+Windows GBK stdout 在 U+2005 上打印失败；CLI 已改为可逆的 ASCII-safe JSON，
+原始 UTF-8 产物不变。适配器、审计和执行器子集 **53/53** 通过；加固后的人审
+intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基线不可见和
+`UNVERIFIABLE` 状态接缝。这些结果不代表来源真值、通用供应商精度、报告改善
+或 Planner 精度。详见
 [第三阶段协议](docs/prereg-2026-08-25-evidence-gap-live-adapter-phase3.md)、
 [实现结果](docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md)、
 [夹具身份勘误](docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md)、
 [真实供应商结果](docs/results-2026-08-25-evidence-gap-live-provider-phase3.md)、
-[人工评审协议](docs/prereg-2026-08-25-evidence-gap-human-review-phase3.md)和
-[评审包就绪结果](docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md)。
+[人工评审协议](docs/prereg-2026-08-25-evidence-gap-human-review-phase3.md)、
+[评审包就绪结果](docs/results-2026-08-25-evidence-gap-human-review-packet-phase3.md)和
+[回收表结果](docs/results-2026-08-26-evidence-gap-human-review-phase3.md)。
 生产环境仍保持第一阶段零补充调用的影子模式。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次

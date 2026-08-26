@@ -145,6 +145,7 @@ class SourceSnapshot:
 
     file_hashes: dict[str, str]
     candidates: tuple[ReviewCandidate, ...]
+    baseline_contexts: tuple[dict[str, Any], ...]
 
 
 def _sha256_bytes(value: bytes) -> str:
@@ -210,7 +211,67 @@ def _expected_hashes(value: Mapping[str, str] | None) -> dict[str, str]:
     return hashes
 
 
-def _validate_source_cases(manifest: dict[str, Any]) -> None:
+def _baseline_context(
+    case_id: str,
+    item: Mapping[str, Any],
+    context: Mapping[str, str],
+) -> dict[str, Any]:
+    """Project the frozen pre-search evidence into reviewer-visible data."""
+
+    collection_sha256 = item.get("collection_sha256")
+    if not isinstance(collection_sha256, str) or len(collection_sha256) != 64:
+        raise Phase3ReviewError(f"{case_id}: baseline collection identity is missing")
+    source_collection = item.get("source_collection")
+    if not isinstance(source_collection, dict):
+        raise Phase3ReviewError(f"{case_id}: source manifest is missing its baseline collection")
+
+    failed_domains = source_collection.get("failed_domains")
+    authority_coverage = source_collection.get("authority_coverage")
+    if not isinstance(failed_domains, dict) or not isinstance(authority_coverage, dict):
+        raise Phase3ReviewError(f"{case_id}: baseline gap state is not inspectable")
+
+    gap_subject = context["gap_subject"]
+    if context["gap_code"] == "retrieval_domain_failed":
+        failure_reason = failed_domains.get(gap_subject)
+        if not isinstance(failure_reason, str) or not failure_reason.strip():
+            raise Phase3ReviewError(f"{case_id}: frozen retrieval failure is missing")
+        gap_state = f"{gap_subject} retrieval failed: {failure_reason.strip()}"
+    else:
+        missing = authority_coverage.get("missing_categories")
+        if not isinstance(missing, list) or gap_subject not in missing:
+            raise Phase3ReviewError(f"{case_id}: frozen authority gap is missing")
+        gap_state = f"{gap_subject} authority category is absent from the baseline"
+
+    baseline_sources: list[dict[str, str]] = []
+    for domain in ("academic", "patent", "market"):
+        rows = source_collection.get(f"{domain}_sources")
+        if not isinstance(rows, list):
+            raise Phase3ReviewError(f"{case_id}: baseline {domain} sources are missing")
+        for row in rows:
+            if not isinstance(row, dict):
+                raise Phase3ReviewError(f"{case_id}: baseline source must be an object")
+            projected = {
+                "domain": domain,
+                "source_id": str(row.get("source_id", "")).strip(),
+                "title": str(row.get("title", "")).strip(),
+                "url": str(row.get("url", "")).strip(),
+                "evidence_summary": str(row.get("evidence_summary", "")).strip(),
+            }
+            if not all(projected.values()):
+                raise Phase3ReviewError(f"{case_id}: baseline source projection is incomplete")
+            baseline_sources.append(projected)
+
+    return {
+        "case_id": case_id,
+        "collection_sha256": collection_sha256,
+        "gap_code": context["gap_code"],
+        "gap_subject": gap_subject,
+        "gap_state": gap_state,
+        "baseline_sources": baseline_sources,
+    }
+
+
+def _validate_source_cases(manifest: dict[str, Any]) -> tuple[dict[str, Any], ...]:
     if manifest.get("mode") != "phase3_frozen_provider_compatibility":
         raise Phase3ReviewError("source manifest has the wrong mode")
     if manifest.get("production_connected") is not False:
@@ -220,6 +281,7 @@ def _validate_source_cases(manifest: dict[str, Any]) -> None:
         raise Phase3ReviewError("source manifest must contain the five frozen cases")
 
     observed: dict[str, dict[str, str]] = {}
+    items_by_case: dict[str, dict[str, Any]] = {}
     for item in cases:
         if not isinstance(item, dict) or not isinstance(item.get("spec"), dict):
             raise Phase3ReviewError("every source manifest case must contain a spec object")
@@ -233,8 +295,14 @@ def _validate_source_cases(manifest: dict[str, Any]) -> None:
             "gap_subject": str(spec.get("gap_subject", "")),
             "query": str(spec.get("query", "")),
         }
+        items_by_case[case_id] = item
     if observed != FROZEN_CASES:
         raise Phase3ReviewError("source manifest case definitions drifted from the preregistration")
+
+    return tuple(
+        _baseline_context(case_id, items_by_case[case_id], context)
+        for case_id, context in FROZEN_CASES.items()
+    )
 
 
 def _validate_execution(execution: dict[str, Any]) -> None:
@@ -288,7 +356,7 @@ def validate_source_artifacts(
         }
         raise Phase3ReviewError(f"source artifact identity drifted: {drift}")
 
-    _validate_source_cases(_read_json_object(source_dir / "manifest.json"))
+    baseline_contexts = _validate_source_cases(_read_json_object(source_dir / "manifest.json"))
     _validate_execution(_read_json_object(source_dir / "execution.json"))
     candidate_rows = _read_csv(source_dir / "candidates.csv", CANDIDATE_FIELDS)
     review_rows = _read_csv(source_dir / "review.csv", REVIEW_FIELDS)
@@ -332,13 +400,21 @@ def validate_source_artifacts(
         raise Phase3ReviewError(f"every frozen case must contain five candidates, got {dict(case_counts)}")
 
     ordered = tuple(review_by_key[key] for key in sorted(review_by_key))
-    return SourceSnapshot(file_hashes=file_hashes, candidates=ordered)
+    return SourceSnapshot(
+        file_hashes=file_hashes,
+        candidates=ordered,
+        baseline_contexts=baseline_contexts,
+    )
 
 
-def _packet_readme() -> str:
+def _packet_readme(baseline_contexts: tuple[dict[str, Any], ...]) -> str:
     rows = "\n".join(
         f"| {case_id} | {case['topic']} | {case['gap_subject']} | {case['query']} |"
         for case_id, case in FROZEN_CASES.items()
+    )
+    baseline_rows = "\n".join(
+        f"| {context['case_id']} | {context['gap_state']} | {len(context['baseline_sources'])} |"
+        for context in baseline_contexts
     )
     return f"""# Phase 3 evidence-gap human review packet
 
@@ -354,6 +430,20 @@ IDs, accepted source IDs, titles, or URLs.
 | Case | Topic | Gap | Search target |
 |---|---|---|---|
 {rows}
+
+## Frozen baseline visible to the reviewer
+
+| Case | Frozen gap state | Baseline sources |
+|---|---|---:|
+{baseline_rows}
+
+The full baseline source identities and evidence summaries are frozen under
+`baseline_contexts` in `packet_manifest.json`. Inspect them before assigning
+`novel`. These fixtures record the target domain or authority category as
+absent, so a directly relevant candidate will normally be `YES/YES`; use
+`YES/NO` only if the candidate's material evidence is already present in the
+listed baseline. This establishes novelty only relative to this synthetic
+collection, not novelty in the wider literature, patent landscape, or market.
 
 Judge relevance against the named gap, not broad topic overlap. Attempt every
 URL and inspect the abstract, claims, market evidence, regulatory document, or
@@ -387,7 +477,7 @@ unmeasured.
 
 def _packet_manifest(snapshot: SourceSnapshot) -> dict[str, Any]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "mode": "phase3_human_value_review_packet",
         "prepared_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "source_mode": "frozen live-provider artifacts; zero network",
@@ -396,6 +486,7 @@ def _packet_manifest(snapshot: SourceSnapshot) -> dict[str, Any]:
             {"case_id": case_id, **context} for case_id, context in FROZEN_CASES.items()
         ],
         "row_count": len(snapshot.candidates),
+        "baseline_contexts": list(snapshot.baseline_contexts),
         "rows": [
             {
                 "case_id": candidate.case_id,
@@ -451,7 +542,7 @@ def prepare_packet(
     ]
     _write_csv_new(packet_dir / "labels.csv", REVIEW_FIELDS, label_rows)
     _write_csv_new(packet_dir / "reviewer_declaration.csv", DECLARATION_FIELDS, [{}])
-    _write_text_new(packet_dir / "README.md", _packet_readme())
+    _write_text_new(packet_dir / "README.md", _packet_readme(snapshot.baseline_contexts))
     _write_text_new(
         packet_dir / "packet_manifest.json",
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -459,13 +550,24 @@ def prepare_packet(
     return manifest
 
 
-def _manifest_candidates(manifest: dict[str, Any]) -> dict[tuple[str, str], ReviewCandidate]:
-    if manifest.get("schema_version") != 1 or manifest.get("mode") != "phase3_human_value_review_packet":
+def _manifest_candidates(
+    manifest: dict[str, Any],
+    expected_baseline_contexts: tuple[dict[str, Any], ...],
+) -> tuple[dict[tuple[str, str], ReviewCandidate], bool]:
+    schema_version = manifest.get("schema_version")
+    if schema_version not in {1, 2} or manifest.get("mode") != "phase3_human_value_review_packet":
         raise Phase3ReviewError("packet manifest has an unsupported schema or mode")
     if manifest.get("production_connected") is not False:
         raise Phase3ReviewError("packet manifest must remain production-disconnected")
     if manifest.get("source_file_sha256") is None:
         raise Phase3ReviewError("packet manifest is missing source artifact identities")
+    baseline_context_exposed = schema_version == 2
+    if baseline_context_exposed and manifest.get("baseline_contexts") != list(
+        expected_baseline_contexts
+    ):
+        raise Phase3ReviewError(
+            "packet baseline contexts do not match the frozen source manifest"
+        )
     if manifest.get("case_contexts") != [
         {"case_id": case_id, **context} for case_id, context in FROZEN_CASES.items()
     ]:
@@ -494,25 +596,27 @@ def _manifest_candidates(manifest: dict[str, Any]) -> dict[tuple[str, str], Revi
         if key in candidates:
             raise Phase3ReviewError(f"packet manifest contains duplicate identity {candidate.row_id}")
         candidates[key] = candidate
-    return candidates
+    return candidates, baseline_context_exposed
 
 
 def _validate_packet_provenance(
     packet_dir: Path,
     snapshot: SourceSnapshot,
-) -> tuple[dict[str, Any], dict[tuple[str, str], ReviewCandidate]]:
+) -> tuple[dict[str, Any], dict[tuple[str, str], ReviewCandidate], bool]:
     manifest_path = packet_dir / "packet_manifest.json"
     manifest = _read_json_object(manifest_path)
     if manifest.get("source_file_sha256") != snapshot.file_hashes:
         raise Phase3ReviewError("packet source hashes do not match the frozen source directory")
-    manifest_candidates = _manifest_candidates(manifest)
+    manifest_candidates, baseline_context_exposed = _manifest_candidates(
+        manifest, snapshot.baseline_contexts
+    )
     source_candidates = {
         (candidate.case_id, candidate.accepted_source_id): candidate
         for candidate in snapshot.candidates
     }
     if manifest_candidates != source_candidates:
         raise Phase3ReviewError("packet candidate identities do not match the frozen source artifacts")
-    return manifest, manifest_candidates
+    return manifest, manifest_candidates, baseline_context_exposed
 
 
 def _validated_label(
@@ -606,7 +710,9 @@ def summarize_packet(
     if not packet_dir.is_dir():
         raise Phase3ReviewError(f"packet directory does not exist: {packet_dir}")
     snapshot = validate_source_artifacts(source_dir, expected_hashes=expected_hashes)
-    manifest, expected_candidates = _validate_packet_provenance(packet_dir, snapshot)
+    manifest, expected_candidates, baseline_context_exposed = (
+        _validate_packet_provenance(packet_dir, snapshot)
+    )
 
     label_rows = _read_csv(packet_dir / "labels.csv", REVIEW_FIELDS)
     observed_keys = [
@@ -654,6 +760,8 @@ def summarize_packet(
         }
 
     method_issues: list[str] = []
+    if not baseline_context_exposed:
+        method_issues.append("baseline_context_not_exposed_to_reviewer")
     if declaration is not None:
         if declaration["reviewed_all"] != "YES":
             method_issues.append("reviewer_did_not_confirm_all_rows")
@@ -709,6 +817,7 @@ def summarize_packet(
         "source_file_sha256": snapshot.file_hashes,
         "packet_manifest_sha256": _file_sha256(packet_dir / "packet_manifest.json"),
         "protocol_status": protocol_status,
+        "baseline_context_exposed_to_reviewer": baseline_context_exposed,
         "decision": decision,
         "row_count": len(expected_candidates),
         "completed_row_count": len(completed),
