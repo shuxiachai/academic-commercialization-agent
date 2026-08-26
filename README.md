@@ -439,11 +439,21 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,488 tests plus 627 subtests** at **87.07% coverage**. No live
+suite passes **1,515 tests plus 627 subtests** at **87.07% coverage**. No live
 OpenAlex/Lens request has run and production still imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
 See the [Phase 4 protocol](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)
 and [offline implementation result](docs/results-2026-08-26-evidence-gap-domain-adapters-phase4-implementation.md).
+
+A separately pre-registered live-value harness now freezes the eight cases
+and all implementation hashes before provider construction, enforces exactly
+one request per attempted case, persists write-once case journals, and creates
+a source-locked Schema v2 human-review packet with visible baseline context.
+Lineage, packet-method and incomplete-review failures remain distinguishable,
+and every result keeps `production_connection_authorized=false`. This harness
+measures provider-specific source value; no live request has run yet. See the
+[live-study protocol](docs/prereg-2026-08-26-evidence-gap-domain-live-phase4.md)
+and [implementation result](docs/results-2026-08-26-evidence-gap-domain-live-phase4-implementation.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1413,11 +1423,20 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
-后，全量 **1,488 项测试与 627 个 subtests** 通过，覆盖率 **87.07%**。目前尚未
+后，全量 **1,515 项测试与 627 个 subtests** 通过，覆盖率 **87.07%**。目前尚未
 发起任何 OpenAlex/Lens 真实请求，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与
 [离线实现结果](docs/results-2026-08-26-evidence-gap-domain-adapters-phase4-implementation.md)。
+
+另一个单独预注册的真实价值实验工具会在构造供应商适配器前锁定 8 个案例与全部
+实现哈希，要求每个已尝试案例严格对应一次请求，逐案例写入不可覆盖的 journal，
+并生成带可见基线上下文、独立来源锁的 Schema v2 人工评审包。来源链路错误、方法
+边界漂移、未完成评审和合格评审不会被混成同一种“通过”；所有结果都固定保留
+`production_connection_authorized=false`。这套工具只用于测量不同供应商的来源
+价值，目前仍未发起真实请求。详见
+[真实价值实验协议](docs/prereg-2026-08-26-evidence-gap-domain-live-phase4.md)与
+[实验工具实现结果](docs/results-2026-08-26-evidence-gap-domain-live-phase4-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
