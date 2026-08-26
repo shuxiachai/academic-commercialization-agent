@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1515 tests (627 subtests), CI green on Linux + Windows × Python
+Current state: 1524 tests (627 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -367,3 +367,14 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   evidence, not adoption, ROI, accuracy, or proof that six agents are necessary.
   See docs/results-2026-08-23-user-utility-audit.md. The largest remaining gap
   is independent utility evidence from more actual target users.
+- **A separate two-slot target-user decision pilot is prepared, not
+  completed.** It deliberately does not append new responses to the closed
+  five-reviewer audit. Each recruited target user first records their role and
+  baseline decision without seeing a report; only then does the coordinator
+  materialize one frozen report and collect a post-report decision. The packet
+  makes source checking, AI assistance, consent, and unusable observations
+  explicit, and its public projection excludes non-consented free text. There
+  are currently zero returned observations, so this is an implemented
+  measurement contract rather than user-value evidence. See
+  `docs/prereg-2026-08-26-target-user-decision-pilot.md` and
+  `docs/target-user-decision-pilot-guide.md`.

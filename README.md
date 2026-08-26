@@ -115,6 +115,18 @@ not adoption or proof that six agents are necessary. See the
 [audit guide](docs/user-utility-audit-guide.md), and
 [full result](docs/results-2026-08-23-user-utility-audit.md).
 
+Because that denominator is closed and contained only one actual target user,
+a separate **two-slot target-user decision pilot** is now pre-registered and
+implemented without any provider calls. A reviewer must record their role,
+baseline decision, and confidence before the coordinator can materialize one
+frozen report; the second stage then records whether the report changed the
+decision, what evidence was useful, and how much review time it required.
+Source checking, substantive AI use, consent, and incomplete observations are
+represented as distinct states. No response has been returned yet, so this is
+a measurement contract—not a user-value result. See the
+[pre-registration](docs/prereg-2026-08-26-target-user-decision-pilot.md) and
+[operator guide](docs/target-user-decision-pilot-guide.md).
+
 A separate pre-registered checkpoint audit hard-terminated **30 worker
 processes** across ten frozen evidence collections and three post-commit
 boundaries. All 30 immutable children reached `Done`, reused exactly the
@@ -439,7 +451,7 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,515 tests plus 627 subtests** at **87.07% coverage**. No live
+suite passes **1,524 tests plus 627 subtests** at **87.07% coverage**. No live
 OpenAlex/Lens request has run and production still imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
 See the [Phase 4 protocol](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)
@@ -1169,6 +1181,14 @@ Reviewer 版本。整体偏好的精确一致率为 9/9，引用支持为 8/9，
 ROI 或“六 Agent 必要性”证明。详见[预注册](docs/prereg-2026-08-22-user-utility-audit.md)、
 [操作指南](docs/user-utility-audit-guide.md)和[完整结果](docs/results-2026-08-23-user-utility-audit.md)。
 
+由于该盲评的分母已经封闭且只有 1 名真实目标用户，项目另行预注册并实现了一项
+**双席位目标用户决策试点**，全程不调用模型或搜索供应商。评审者必须先填写自身
+角色、初始判断和信心，协调者才会生成一份冻结报告；第二阶段再记录报告是否改变
+判断、哪些证据有用以及实际审阅耗时。外部来源核验、实质性 AI 使用、公开同意和
+未完成观察均被区分记录。目前尚未收到任何返回，因此它只是评测合同，不是用户
+价值结果。详见[预注册](docs/prereg-2026-08-26-target-user-decision-pilot.md)和
+[操作指南](docs/target-user-decision-pilot-guide.md)。
+
 另有一组预注册 Checkpoint 故障恢复实验，在 10 份冻结证据和 3 个提交后边界上
 硬终止 **30 个 worker 进程**。30/30 个不可变子运行均到达 `Done`，精确复用预期
 连续前缀并只执行剩余后缀；子运行共跳过 **90 次已提交任务执行**，重复执行为
@@ -1425,7 +1445,7 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
-后，全量 **1,515 项测试与 627 个 subtests** 通过，覆盖率 **87.07%**。目前尚未
+后，全量 **1,524 项测试与 627 个 subtests** 通过，覆盖率 **87.07%**。目前尚未
 发起任何 OpenAlex/Lens 真实请求，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与

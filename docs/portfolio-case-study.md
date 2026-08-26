@@ -66,7 +66,7 @@ source of truth.
 | Offline fault injection | 30/30 immutable children completed; 90 committed task executions were skipped with 0 duplicate task executions | Zero-network process evidence, not an exactly-once, latency, cost-saving, or production-SLO claim |
 | Provider-backed recovery canary | One same-revision child reused a four-node prefix, made 0 new evidence-agent requests, and completed the remaining workflow | One observation only; interrupted-source usage was unavailable, so total cost and general savings are not inspectable |
 | Bounded Tool Calling contracts | Phase 2 passed 14/14 frozen execution cases; the disconnected Phase 3 generic pilot completed 5/5 requests; Phase 4 passes a 71/71 adapter/executor seam set plus a 50/50 live-runner and source-locked Schema v2 review subset over eight OpenAlex/Lens cases | Production remains zero-call shadow mode: the Phase 3 form declared substantive AI use and only 5/25 candidates relevant; the Phase 4 runner has made no live request, so compatibility, precision and evidence gain remain unobserved |
-| Test and CI contract | 1,515 tests plus 627 subtests; Linux/Windows × Python 3.11/3.12; 87.07% measured coverage above an 85% floor; a dedicated Chromium journey exercises the access gate, client admission, run history and report DOM | The browser smoke is loopback-only and blocks mutating requests, so it proves the shipped client/API seam without claiming provider compatibility or deployed-service availability |
+| Test and CI contract | 1,524 tests plus 627 subtests; Linux/Windows × Python 3.11/3.12; 87.07% measured coverage above an 85% floor; a dedicated Chromium journey exercises the access gate, client admission, run history and report DOM | The browser smoke is loopback-only and blocks mutating requests, so it proves the shipped client/API seam without claiming provider compatibility or deployed-service availability |
 
 The negative results are retained deliberately. For example, the first patent
 relevance candidate raised auto-kept precision to 94.6% but falsely removed six
@@ -108,6 +108,10 @@ project's engineering argument: evaluation should be capable of saying no.
   but the old result remains excluded and does not authorize production.
 - Code-package analysis is not implemented, and patent relevance has no second
   independent reviewer or inter-rater estimate.
+- The completed user-utility audit included only one actual target user. A
+  separate two-slot target-user decision pilot is prepared with a pre-report
+  baseline and post-report decision, but it currently has zero returned
+  observations and therefore contributes no user-value evidence yet.
 
 ## Reproduce or inspect
 
@@ -115,6 +119,8 @@ project's engineering argument: evaluation should be capable of saying no.
 - [Architecture and full documentation](../README.md)
 - [Topology ablation protocol and result](prereg-2026-08-21-agent-topology-ablation.md)
 - [User-utility result](results-2026-08-23-user-utility-audit.md)
+- [Target-user pilot pre-registration](prereg-2026-08-26-target-user-decision-pilot.md)
+- [Target-user pilot operator guide](target-user-decision-pilot-guide.md)
 - [Checkpoint recovery design](checkpoint-recovery.md)
 - [Production recovery canary](results-2026-08-24-paid-same-revision-recovery-post-fix.md)
 
