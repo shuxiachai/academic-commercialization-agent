@@ -147,9 +147,15 @@ are absent. This is an offline contract result, not evidence that a generated
 decision is correct or useful. See the [protocol](docs/prereg-2026-08-26-decision-context-report-contract.md)
 and [implementation result](docs/results-2026-08-26-decision-context-report-contract.md).
 A separate [three-mode production canary](docs/prereg-2026-08-26-decision-context-paid-canary.md)
-now freezes one topic, three public request bodies, structural criteria, and a
-USD 0.12 soft study boundary. It has not been authorized or run, so no
-provider-backed compliance result is claimed.
+then completed three sequential root runs for **$0.109342**, 266,648 tokens,
+and 21 provider requests. All reached `completed`, exposed the expected public
+mode gates, created no child, and made zero evidence-gap tool calls. The frozen
+primary criterion nevertheless **failed 7/10**: `DC01` used Reviewer fallback
+and committed 6/7 checkpoints, `DC03` humanized the required mode token, and
+`DC02` introduced an unqualified commercial pass threshold that its incomplete
+context had not established. This is provider-backed prompt-compliance and
+operational evidence, not source truth, decision correctness, or user value.
+See the [full canary result](docs/results-2026-08-26-decision-context-paid-canary.md).
 
 A separate pre-registered checkpoint audit hard-terminated **30 worker
 processes** across ten frozen evidence collections and three post-commit
@@ -1232,9 +1238,14 @@ ROI 或“六 Agent 必要性”证明。详见[预注册](docs/prereg-2026-08-2
 生成的决策正确或有用。详见
 [预注册](docs/prereg-2026-08-26-decision-context-report-contract.md)和
 [实现结果](docs/results-2026-08-26-decision-context-report-contract.md)。另有一份
-[三模式生产 canary 预注册](docs/prereg-2026-08-26-decision-context-paid-canary.md)
-已经冻结同一主题下的 3 个公开请求、结构判定标准和 0.12 美元研究软停止线；目前
-尚未获得付费执行授权，也尚未运行，因此不声称已有供应商支持的合同遵循结果。
+[三模式生产 canary](docs/prereg-2026-08-26-decision-context-paid-canary.md)
+随后完成 3 次顺序根运行，合计 **0.109342 美元**、266,648 Token 和 21 次供应商
+请求；三次均到达 `completed`，公开状态返回预期模式，没有子运行，也没有触发
+Evidence-gap 工具调用。但冻结主标准仍以 **7/10 未通过**：`DC01` 发生 Reviewer
+回退且只提交 6/7 个 Checkpoint，`DC03` 把要求的模式字面量改写成自然语言，
+`DC02` 则在上下文不完整时给出未标注为提案/未批准的商业通过阈值。该结果只提供
+真实供应商下的 Prompt 遵循与运行证据，不证明来源真值、决策正确性或用户价值。
+详见[完整 canary 结果](docs/results-2026-08-26-decision-context-paid-canary.md)。
 
 另有一组预注册 Checkpoint 故障恢复实验，在 10 份冻结证据和 3 个提交后边界上
 硬终止 **30 个 worker 进程**。30/30 个不可变子运行均到达 `Done`，精确复用预期

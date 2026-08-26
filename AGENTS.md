@@ -159,7 +159,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  77 test modules plus conftest, organised by subject
+tests/                  78 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -390,21 +390,24 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/target-user-decision-pilot-guide.md`,
   `docs/errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md`, and
   `docs/results-2026-08-26-target-user-decision-pilot.md`.
-- **Decision Context now has an offline execution contract, not a validated
-  decision-quality result.** Seven optional bounded fields cross the browser,
+- **Decision Context has one completed production canary, and it failed its
+  frozen all-mode criterion.** Seven optional bounded fields cross the browser,
   API, immutable RunSpec, checkpoint identity, Crew input, and public status.
   Code derives `orientation`, `decision_context_incomplete`, or
-  `decision_support`; clients cannot self-assert the mode, and Writer/Reviewer
-  must withhold actor-specific GO/NO_GO when the four core fields are absent.
-  The implementation used zero provider calls and passed the public-boundary,
-  identity, Worker/Crew, and status seams, including defect re-injection. It
-  does not prove prompt compliance, factual correctness, usefulness, adoption,
-  or time savings: the gate checks context completeness rather than truth. A
-  paid three-mode canary remains separate work and requires fresh authorization
-  with frozen criteria. Its protocol now binds three requests on benchmark case
-  08 to an exact manifest, sequential stop rules, structural verdicts, and a
-  `$0.12` soft study boundary. No provider call is authorized or completed by
-  that pre-registration, so the limitation remains open. See
-  `docs/prereg-2026-08-26-decision-context-report-contract.md` and
-  `docs/results-2026-08-26-decision-context-report-contract.md`, plus
-  `docs/prereg-2026-08-26-decision-context-paid-canary.md`.
+  `decision_support`, and clients cannot self-assert that mode. Three authorized
+  root runs then completed sequentially for `$0.109342` / 266,648 tokens / 21
+  requests, with exact status/progress gates, no child, zero evidence-gap tool
+  calls, and no supplementary-search cost. Seven of ten report/execution
+  criteria passed. `DC01` fell back to the Writer draft and committed 6/7
+  checkpoints; `DC03` humanized the frozen mode token; and `DC02` supplied an
+  unqualified commercial pass threshold that the incomplete context had not
+  established. The public run response also did not expose its own
+  `pipeline_revision`, so exact deployment identity was externally verified but
+  the per-run field remained `not_inspectable`. This is prompt-compliance and
+  operational evidence only: source truth, decision correctness, usefulness,
+  adoption, and time savings remain unmeasured. Do not call it a validated
+  decision-quality result or rerun it as post-fix evidence. See
+  `docs/prereg-2026-08-26-decision-context-report-contract.md`,
+  `docs/results-2026-08-26-decision-context-report-contract.md`,
+  `docs/prereg-2026-08-26-decision-context-paid-canary.md`, and
+  `docs/results-2026-08-26-decision-context-paid-canary.md`.
