@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1596 tests (609 subtests), CI green on Linux + Windows × Python
+Current state: 1614 tests (609 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -189,6 +189,10 @@ evidence_gap_openalex_live.py
                         anonymous four-case OpenAlex study; never production
 evidence_gap_openalex_review.py
                         exact-run source lock plus Schema v2 human review
+openalex_precision_unseen.py
+                        frozen U01-U08 profile/identity preflight; zero-network
+openalex_precision_live.py
+                        disconnected unseen runner; CLI defaults to dry-run
 openalex_precision_audit.py
                         label-blind frozen development replay; zero-network only
 ops_report.py           what real runs actually did, vs what the benchmark covers
@@ -296,9 +300,15 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   emits `ACCEPT` or `ABSTAIN`. Its label-blind replay checked every source and
   journal hash before opening labels, accepted all 5/5 relevant development
   rows, abstained all 4/4 known wrong rows and retained relevant evidence in
-  4/4 cases. This is development-set qualification only. The frozen U01-U08
-  unseen harness has not run, no live request is authorized, and production
-  remains disconnected. Do not rerun or connect the original adapter.
+  4/4 cases. This is development-set qualification only. A source-locked
+  U01-U08 harness is now implemented: its zero-network dry-run verifies the
+  unchanged fixture, a separately locked pre-provider duplicate-phrase
+  correction, all eight collection/plan/profile identities, implementation
+  hashes, and the request/cost gates before adapter construction. Its 19/19
+  focused seams pass, including a re-injected broad-acceptance defect at the
+  review-output boundary. The unseen harness has not made a live request, no
+  execution is authorized, and production remains disconnected. Do not rerun
+  or connect the original adapter.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -317,8 +327,10 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md`,
   `docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md`,
   `docs/errata-2026-08-27-anonymous-openalex-review-declaration.md`,
-  `docs/prereg-2026-08-27-openalex-precision-v2.md`, and
-  `docs/results-2026-08-27-openalex-precision-v2-development.md`.
+  `docs/prereg-2026-08-27-openalex-precision-v2.md`,
+  `docs/results-2026-08-27-openalex-precision-v2-development.md`,
+  `docs/errata-2026-08-27-openalex-precision-v2-unseen-fixture.md`, and
+  `docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
