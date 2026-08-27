@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "mode": "openalex_precision_v2_unseen_correction_lock",
+  "production_connected": false,
+  "source_fixture_sha256": "355782bbe40278f44cb76f650d57fbb13be6b9097bfecb6e101815a24c47ea8b",
+  "maximum_live_requests": 8,
+  "corrections": [
+    {
+      "case_id": "U02",
+      "group_kind": "supporting_groups",
+      "group_id": "rare_earth_free",
+      "expected_phrases": [
+        "rare earth free",
+        "rare earth-free",
+        "lanthanide free"
+      ],
+      "replacement_phrases": [
+        "rare earth free",
+        "lanthanide free"
+      ],
+      "reason": "NFKC tokenization makes the first two phrases identical; the hyphenated duplicate is removed before any provider request or unseen decision."
+    }
+  ]
+}
