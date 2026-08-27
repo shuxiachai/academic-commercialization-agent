@@ -255,8 +255,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   context, rejects lineage or method-limit drift, distinguishes incomplete or
   ineligible review from a pass, and always keeps
   `production_connection_authorized=false`. The runner/review/adapter subset
-  passes 50/50 zero-network tests. No live OpenAlex/Lens request has run, so
-  provider compatibility, wrong-source rate, novel-evidence yield and report
+  passes 50/50 zero-network tests. No credentialed Phase 4 OpenAlex/Lens run has
+  executed, so provider compatibility, wrong-source rate, novel-evidence yield and report
   value are all not observed. Do not connect these adapters until a separately
   authorized frozen run and eligible Schema v2 human review meet both
   provider-specific value gates.
@@ -268,9 +268,16 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   provider-reported usage, and writes the same candidate/rejection review seam.
   The anonymous adapter/runner adds 15 focused tests; the 33/33 combined
   adapter/runner subset and full 1,569-test suite pass, including a re-injected
-  key-leak defect at the outbound boundary. No anonymous live request has run,
-  so compatibility and evidence value remain `not_evaluated`. A future live
-  run still needs separate authorization for an exact merged revision.
+  key-leak defect at the outbound boundary. A separately authorized run on
+  merged revision `7bfe4ead` then completed D01-D04 with four single-attempt
+  requests and USD 0.004 of provider-reported anonymous-budget usage. Twenty
+  provider rows became seven provider rejections, four local rejections and
+  nine quarantine-accepted review rows; every case retained at least one. All
+  four aggregate hashes match and production/report connections remained
+  false. This observes one live compatibility path only. No reviewer has opened
+  the URLs or compared them with the frozen baseline, so wrong-source rate,
+  novel-evidence yield and source value remain `not_evaluated`. Do not rerun
+  the provider study; the next gate is a source-locked eligible human review.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -283,8 +290,9 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-26-evidence-gap-domain-adapters-phase4-implementation.md`,
   `docs/prereg-2026-08-26-evidence-gap-domain-live-phase4.md`,
   `docs/results-2026-08-26-evidence-gap-domain-live-phase4-implementation.md`,
-  `docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md`, and
-  `docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md`.
+  `docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md`,
+  `docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md`,
+  and `docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The

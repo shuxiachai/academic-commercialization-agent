@@ -489,8 +489,9 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,569 tests plus 639 subtests** at **87.28% coverage**. No live
-OpenAlex/Lens request has run and production still imports neither adapter, so
+suite passes **1,569 tests plus 639 subtests** at **87.28% coverage**. No
+credentialed Phase 4 OpenAlex/Lens run has executed and production still
+imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
 See the [Phase 4 protocol](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)
 and [offline implementation result](docs/results-2026-08-26-evidence-gap-domain-adapters-phase4-implementation.md).
@@ -512,10 +513,17 @@ request contains no `api_key`; execution refuses a configured key, permits at
 most four one-request cases, applies a USD 0.01 provider-reported soft stop,
 and remains disconnected from production reports. Fifteen focused tests were
 added, and the combined adapter/runner subset passes 33/33 after a deliberately
-re-injected key-leak defect made the outbound-boundary test fail. No anonymous
-request has run, so provider compatibility and candidate value remain
-`not_evaluated`. See the [anonymous protocol](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md)
-and [implementation-only result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md).
+re-injected key-leak defect made the outbound-boundary test fail. One
+separately authorized run on merged revision `7bfe4ead` then completed all four
+single-attempt cases for USD 0.004 of provider-reported anonymous-budget usage.
+Of 20 provider rows, seven failed provider parsing, four more failed the local
+relevance quarantine, and nine reached the blank review boundary; every case
+retained at least one candidate. This observes live compatibility only. No
+reviewer has opened the sources or compared them with the frozen baseline, so
+wrong-source rate, novel-evidence yield and candidate value remain
+`not_evaluated`. See the [anonymous protocol](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md),
+[implementation-only result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md),
+and [live result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1529,7 +1537,7 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
 后，全量 **1,569 项测试与 639 个 subtests** 通过，覆盖率 **87.28%**。目前尚未
-发起任何 OpenAlex/Lens 真实请求，生产 worker 也不会导入这两个适配器，因此不能
+发起带凭证的第四阶段 OpenAlex/Lens 运行，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与
 [离线实现结果](docs/results-2026-08-26-evidence-gap-domain-adapters-phase4-implementation.md)。
@@ -1548,10 +1556,14 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 网络边界的 URL 不含 `api_key`，检测到已配置 key 会拒绝启动，每个案例最多一次请求，
 整次实验最多 4 次，并受供应商报告的 `$0.01` 软停止线约束。新增 15 项定向测试，
 适配器与运行器组合测试 33/33 通过；重新注入 key 泄漏后，网络边界测试会准确失败。
-目前尚未发起匿名真实请求，因此供应商兼容性与候选证据价值仍为 `not_evaluated`，
-且该路径仍与生产报告完全断开。详见
-[匿名实验协议](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md)与
-[仅实现结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md)。
+随后，一次单独授权的合并版本 `7bfe4ead` 真实实验完成 4/4 个单次请求案例，供应商
+报告的匿名额度用量为 `$0.004`。20 条供应商行中，7 条在供应商解析层被拒绝，4 条
+未通过本地相关性隔离，9 条进入空白人工评审表；每个案例至少保留 1 条。这只证明
+一次真实兼容性路径可用。尚无评审者打开来源或与冻结基线比较，因此错源率、新证据
+收益与候选价值仍为 `not_evaluated`，该路径也仍与生产报告完全断开。详见
+[匿名实验协议](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md)、
+[仅实现结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md)与
+[真实运行结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
