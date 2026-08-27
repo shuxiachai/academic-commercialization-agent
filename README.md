@@ -546,13 +546,19 @@ evidence in 4/4 cases. This qualifies only the frozen U01-U08 unseen harness.
 That disconnected harness is now implemented: its zero-network dry-run locks
 the original fixture, a separately recorded pre-provider duplicate-phrase
 correction, all eight collection/plan/profile identities and the implementation
-hashes before adapter construction. Its 19/19 focused seams pass, but no unseen
-request has run, no live execution is authorized, and production remains
-disconnected. See the
+hashes before adapter construction. Its 19/19 focused seams pass. A separately
+authorized run on merged revision `9f84a9f` then completed all eight one-attempt
+anonymous requests for USD 0.008 of provider-reported budget usage. Forty rows
+became nine provider rejections, eight legacy-quarantine rejections and 23
+precision decisions; precision v2 accepted five candidates across only 3/8
+cases. That is below the frozen 6/8 coverage floor, so no later label could make
+the all-gates rule pass. The study stopped before human review, source value
+remains `not_evaluated`, and production remains disconnected. See the
 [precision-v2 protocol](docs/prereg-2026-08-27-openalex-precision-v2.md) and
 [development result](docs/results-2026-08-27-openalex-precision-v2-development.md),
 plus the [fixture erratum](docs/errata-2026-08-27-openalex-precision-v2-unseen-fixture.md)
-and [unseen-harness implementation result](docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md).
+and [unseen-harness implementation result](docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md),
+followed by the [unseen live result](docs/results-2026-08-27-openalex-precision-v2-unseen-live.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1610,12 +1616,17 @@ Schema v2 评审包展示 4 组冻结基线并逐条保留 9 个候选身份。�
 开发候选、弃权 4/4 条已知错源，并在 4/4 个案例中保留相关证据。该结果只允许继续
 冻结的 U01-U08 未见挑战。该独立 harness 现已完成实现：零网络 dry-run 会在构造
 适配器前锁定原始 fixture、单独记录的供应商请求前重复短语勘误、8 组
-collection/plan/profile 身份和实现哈希，19/19 个聚焦接缝测试通过；但尚未发起未见
-请求、未授权真实运行，生产仍完全断开。详见
+collection/plan/profile 身份和实现哈希，19/19 个聚焦接缝测试通过。随后，一次针对
+合并版本 `9f84a9f` 的独立授权运行完成 8 个单次匿名请求，供应商报告匿名额度用量为
+`$0.008`。40 条供应商行中 9 条在解析层被拒绝、8 条被原有隔离规则拒绝，23 条进入
+precision-v2 判断；最终仅在 3/8 个案例中接受 5 条候选，低于冻结的 6/8 覆盖门槛。
+后续人工标签不可能挽救该门槛，因此实验没有继续消耗评审时间，来源价值保持
+`not_evaluated`，生产仍完全断开。详见
 [precision-v2 协议](docs/prereg-2026-08-27-openalex-precision-v2.md)、
 [开发集结果](docs/results-2026-08-27-openalex-precision-v2-development.md)、
 [fixture 勘误](docs/errata-2026-08-27-openalex-precision-v2-unseen-fixture.md)与
-[未见 harness 实现结果](docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md)。
+[未见 harness 实现结果](docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md)，以及
+[未见真实运行结果](docs/results-2026-08-27-openalex-precision-v2-unseen-live.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
