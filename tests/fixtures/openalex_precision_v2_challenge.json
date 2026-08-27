@@ -38,7 +38,7 @@
       "supporting_groups": [
         {"group_id": "repairability", "phrases": ["self healing", "self heal", "shape memory"]},
         {"group_id": "conductivity", "phrases": ["conductive", "conductivity", "electrical", "electrochemical"]},
-        {"group_id": "implant_or_neural", "phrases": ["implantable", "implant", "neural", "stimulation", "recording"]},
+        {"group_id": "recording_or_stimulation", "phrases": ["stimulation", "recording", "neural recording", "electrical stimulation"]},
         {"group_id": "stability", "phrases": ["stability", "stable", "long term"]}
       ],
       "minimum_supporting_groups": 2,
@@ -67,7 +67,7 @@
       "supporting_groups": [
         {"group_id": "silicon_or_tandem", "phrases": ["tandem", "silicon cell", "si cell", "silicon based", "si based"]},
         {"group_id": "module", "phrases": ["module", "modules", "mini module"]},
-        {"group_id": "environmental_stress", "phrases": ["damp heat", "humidity", "85 rh", "outdoor"]},
+        {"group_id": "environmental_stress", "phrases": ["humidity", "85 rh", "outdoor"]},
         {"group_id": "standard_or_result", "phrases": ["iec", "isos", "no decay", "retention", "hours"]}
       ],
       "minimum_supporting_groups": 2,

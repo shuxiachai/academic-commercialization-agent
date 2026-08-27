@@ -8,7 +8,15 @@ making any request for the unseen challenge
 `tests/fixtures/openalex_precision_v2_challenge.json`
 
 **Raw fixture SHA-256:**
+`355782bbe40278f44cb76f650d57fbb13be6b9097bfecb6e101815a24c47ea8b`
+
+**Pre-implementation correction:** The first fixture commit repeated
+`implantable`/`neural` and `damp heat` across required and supporting groups.
+That would let one phrase count as two independent concepts. Before candidate
+code, decisions or requests existed, those repetitions were removed and the
+fixture was re-frozen at the hash above. The superseded raw hash
 `dd1dde0f47a884c5f811684b3b4efe4e0408af5e175d5d698cc272d14bff527e`
+remains in Git history; no topic, case, gate or development label changed.
 
 **Production connection authorized:** no
 
