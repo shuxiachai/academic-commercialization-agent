@@ -583,13 +583,19 @@ in 7/8 cases. The exact manifest, aggregate, artifact index and eight journals
 passed mechanical validation. This demonstrates bounded provider compatibility
 and accounting, not source truth. A separate 16-test source-lock and Schema v2
 review boundary exposes every frozen baseline, profile, source abstract,
-aboutness signal and exact decision provenance. No eligible human review has
-returned, so precision and source value remain `not_evaluated`, and production
+aboutness signal and exact decision provenance. One eligible human review later
+completed all 13 rows, attempted every source and declared no substantive
+generative-AI use. Twelve candidates were directly relevant and
+baseline-novel; one V08 candidate was outside the declared biomass-aerogel
+scope. Accepted-case and novel-relevant coverage both passed at 7/8, but the
+1/13 wrong-source rate was 7.69%, above the frozen 5% maximum. The strict result
+is `complete / fail`: planner-trigger study eligibility is false and production
 remains disconnected. See the [v3 protocol](docs/prereg-2026-08-27-openalex-claim-scope-v3.md),
 [candidate implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md),
 [live-harness implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md),
 [live result](docs/results-2026-08-27-openalex-claim-scope-v3-live.md), and
-[review-boundary implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md).
+[review-boundary implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md),
+plus the [human source-value result](docs/results-2026-08-27-openalex-claim-scope-v3-review.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1675,13 +1681,18 @@ collection/plan/profile/幂等身份，16/16 个聚焦测试通过；临时注�
 一条候选；manifest、汇总、artifact index 与 8 份案例 journal 的精确字节均通过机械
 校验。这只能证明冻结 harness 的供应商兼容性与有界记账，不能证明来源真实或相关。
 另一套包含 16 个聚焦测试的 source-lock 与 Schema v2 评审边界现已实现，会向评审者
-展示每个冻结基线、profile、来源摘要、aboutness 信号与精确决策依据。目前尚无合格的
-人工来源评审返回，因此精度和来源价值仍为 `not_evaluated`，生产路径保持断开。详见
+展示每个冻结基线、profile、来源摘要、aboutness 信号与精确决策依据。随后一名合格的
+人工评审者完成 13/13 行、逐条尝试来源并声明没有生成式 AI 代做实质判断：12 条为
+`YES/YES`，1 条 V08 候选因材料实际是石墨烯/纤维素纳米晶/三聚氰胺体系而不属于
+声明的生物质气凝胶范围，标为 `NO/N/A`。候选案例覆盖和基线外相关证据覆盖均为
+7/8，通过冻结 6/8 门槛；但错源率为 1/13，即 7.69%，超过冻结 5% 上限。因此正式
+结论为 `complete / fail`，Planner 触发实验资格仍为 false，生产路径保持断开。详见
 [v3 协议](docs/prereg-2026-08-27-openalex-claim-scope-v3.md)、
 [候选实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md)、
 [live harness 实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md)、
 [真实运行结果](docs/results-2026-08-27-openalex-claim-scope-v3-live.md)与
-[评审边界实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md)。
+[评审边界实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md)，以及
+[人工来源价值结果](docs/results-2026-08-27-openalex-claim-scope-v3-review.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
