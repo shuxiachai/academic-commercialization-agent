@@ -597,6 +597,22 @@ remains disconnected. See the [v3 protocol](docs/prereg-2026-08-27-openalex-clai
 [review-boundary implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md),
 plus the [human source-value result](docs/results-2026-08-27-openalex-claim-scope-v3-review.md).
 
+The failed v3 row showed that a generic process/performance match could still
+substitute for a topic-defining material, route or operating context. A
+separately pre-registered **scope-link v4** candidate therefore assigns those
+concepts an independent source-text-only role and requires an exact required
+concept and scope concept in the same title or abstract sentence. Provider
+topics/keywords may bridge at most one required group but cannot establish
+scope, support or the relation itself. The raw-byte-locked W01-W08 preflight
+expands eight distinct collection/plan/profile/idempotency identities with zero
+network calls; 15/15 focused tests pass, including a re-injected whole-abstract
+defect that makes the cross-sentence seam fail. The complete test directory now
+passes **1,678 tests plus 609 subtests**. No W01-W08 provider request has been
+made, no live runner is implemented or authorized, and source value remains
+`not_evaluated`; production is still disconnected. See the
+[v4 protocol](docs/prereg-2026-08-27-openalex-scope-link-v4.md) and
+[zero-network implementation result](docs/results-2026-08-27-openalex-scope-link-v4-implementation.md).
+
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
 zero-network census of **95 historical runs** found only **3 in-scope rows over
@@ -1693,6 +1709,21 @@ collection/plan/profile/幂等身份，16/16 个聚焦测试通过；临时注�
 [真实运行结果](docs/results-2026-08-27-openalex-claim-scope-v3-live.md)与
 [评审边界实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md)，以及
 [人工来源价值结果](docs/results-2026-08-27-openalex-claim-scope-v3-review.md)。
+
+v3 的错误条目表明，通用的过程/性能命中仍可能替代
+主题定义中的材料、路线或运行语境。项目因此另行预注册了
+**scope-link v4** 候选：它将这些概念设为独立的“仅来源文本”
+角色，并要求至少一组精确的 required/scope 概念同时出现在同一
+标题或同一摘要句中。供应商 topics/keywords 最多只能补足一个
+required 概念，不能建立 scope、support 或它们的关系。
+原始字节锁定的 W01-W08 预检在零网络下展开 8 组唯一的
+collection/plan/profile/幂等身份，15/15 个聚焦测试通过；临时将整段
+摘要当成一句后，跨句接缝测试会准确失败。当前完整测试目录为
+**1,678 项测试与 609 个 subtests**。W01-W08 尚未请求供应商，
+live runner 未实现也未授权，来源价值仍为 `not_evaluated`，
+生产路径保持断开。详见
+[v4 协议](docs/prereg-2026-08-27-openalex-scope-link-v4.md)与
+[零网络实现结果](docs/results-2026-08-27-openalex-scope-link-v4-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
