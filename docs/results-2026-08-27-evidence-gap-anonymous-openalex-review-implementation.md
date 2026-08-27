@@ -7,7 +7,13 @@
 
 **Production connection authorized:** no
 
-**Human value result:** not evaluated; the packet is blank
+**Returned review:**
+[`results-2026-08-27-evidence-gap-anonymous-openalex-review.md`](results-2026-08-27-evidence-gap-anonymous-openalex-review.md)
+
+**Declaration erratum:**
+[`errata-2026-08-27-anonymous-openalex-review-declaration.md`](errata-2026-08-27-anonymous-openalex-review-declaration.md)
+
+**Human value result:** complete; the frozen source-value decision is fail
 
 ## Outcome
 
@@ -87,20 +93,19 @@ The reviewer packet is local and gitignored at
 `outputs/evidence-gap-openalex-anonymous-review-20260827/reviewer-packet/`.
 Raw labels and declarations will not be committed to the public repository.
 
-## Next gate
+## Result and next gate
 
-One eligible human reviewer must now complete the nine rows. Only a returned,
-source-grounded packet can measure the two remaining frozen gates:
+The first declaration row was copied from an unrelated AI-assisted review and
+produced the correct initial state `excluded_substantive_ai / not_evaluated`.
+The owner-relayed human correction is preserved in a separate erratum and makes
+the frozen gates evaluable. Accepted-case coverage passed at 4/4 and novel-
+relevant coverage passed at 4/4, but four of nine accepted candidates were
+directly irrelevant. The 44.4% wrong-source rate failed the frozen 5% maximum,
+so the overall source-value decision is `fail`.
 
-- directly irrelevant candidates must be no more than 5% of all nine accepted
-  rows; and
-- directly relevant, materially baseline-absent evidence must occur in at least
-  three of four cases.
-
-With nine rows, one directly irrelevant source already yields 11.1% and fails
-the first gate. Even if both gates pass, the result authorizes only a separately
-pre-registered planner-trigger precision study. It does not connect Tool
-Calling to production.
+The current anonymous adapter does not advance to a planner-trigger precision
+study and does not connect Tool Calling to production. A future method must use
+an unseen frozen challenge rather than tune and validate on these nine rows.
 
 ## Explicit non-claims
 
