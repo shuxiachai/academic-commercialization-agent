@@ -306,9 +306,16 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   correction, all eight collection/plan/profile identities, implementation
   hashes, and the request/cost gates before adapter construction. Its 19/19
   focused seams pass, including a re-injected broad-acceptance defect at the
-  review-output boundary. The unseen harness has not made a live request, no
-  execution is authorized, and production remains disconnected. Do not rerun
-  or connect the original adapter.
+  review-output boundary. A separately authorized run on merged revision
+  `9f84a9f` completed all eight one-attempt anonymous requests for USD 0.008 of
+  provider-reported usage. Forty provider rows became nine provider
+  rejections, eight legacy-quarantine rejections and 23 precision decisions;
+  precision v2 accepted five candidates across only 3/8 cases. The frozen
+  coverage gate requires at least 6/8, so no later human label could make the
+  all-gates rule pass. The study stopped before review; source value remains
+  `not_evaluated`, not zero-error. Do not rerun, tune on U01-U08 and call it
+  validation, or connect either the original adapter or precision v2. Any next
+  method must freeze a different unseen challenge first.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -329,8 +336,9 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/errata-2026-08-27-anonymous-openalex-review-declaration.md`,
   `docs/prereg-2026-08-27-openalex-precision-v2.md`,
   `docs/results-2026-08-27-openalex-precision-v2-development.md`,
-  `docs/errata-2026-08-27-openalex-precision-v2-unseen-fixture.md`, and
-  `docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md`.
+  `docs/errata-2026-08-27-openalex-precision-v2-unseen-fixture.md`,
+  `docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md`, and
+  `docs/results-2026-08-27-openalex-precision-v2-unseen-live.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
