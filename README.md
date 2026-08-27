@@ -489,7 +489,7 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,647 tests plus 609 subtests** at **87.43% coverage**. No
+suite passes **1,663 tests plus 609 subtests** at **87.43% coverage**. No
 credentialed Phase 4 OpenAlex/Lens run has executed and production still
 imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
@@ -575,12 +575,21 @@ the full manifest before constructing an adapter, commits each one-request
 case journal before a later request, and keeps provider, accounting, cost,
 latency and human-review states distinct. Its 17/17 focused seams pass;
 deliberately moving manifest persistence after adapter construction made the
-request-boundary test fail before the correct order was restored. No V01-V08
-request or human review has run, so provider compatibility, precision and
-source value remain `not_evaluated`, and
-production remains disconnected. See the [v3 protocol](docs/prereg-2026-08-27-openalex-claim-scope-v3.md)
-and [candidate implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md),
-plus the [live-harness implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md).
+request-boundary test fail before the correct order was restored. A separately
+authorized run on merged revision `ad70d721` then completed all eight anonymous
+requests for USD 0.008 of provider-reported usage. Sixty-four provider rows
+became 13 ACCEPT and 51 ABSTAIN decisions, with at least one candidate retained
+in 7/8 cases. The exact manifest, aggregate, artifact index and eight journals
+passed mechanical validation. This demonstrates bounded provider compatibility
+and accounting, not source truth. A separate 16-test source-lock and Schema v2
+review boundary exposes every frozen baseline, profile, source abstract,
+aboutness signal and exact decision provenance. No eligible human review has
+returned, so precision and source value remain `not_evaluated`, and production
+remains disconnected. See the [v3 protocol](docs/prereg-2026-08-27-openalex-claim-scope-v3.md),
+[candidate implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md),
+[live-harness implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md),
+[live result](docs/results-2026-08-27-openalex-claim-scope-v3-live.md), and
+[review-boundary implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1593,7 +1602,7 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
-后，全量 **1,647 项测试与 609 个 subtests** 通过，覆盖率 **87.43%**。目前尚未
+后，全量 **1,663 项测试与 609 个 subtests** 通过，覆盖率 **87.43%**。目前尚未
 发起带凭证的第四阶段 OpenAlex/Lens 运行，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与
@@ -1660,12 +1669,19 @@ collection/plan/profile/幂等身份，16/16 个聚焦测试通过；临时注�
 与 8 个实现哈希，在构造适配器前写入完整 manifest，并在允许下一次请求前提交当前案例
 的一次请求 journal；供应商失败、记账异常、成本不可检查、逐调用时延和人工未评审会分别记录。
 该 runner 的 17/17 个聚焦接缝测试通过；临时把 manifest 持久化移动到适配器构造之后，
-请求边界测试会准确失败，恢复正确顺序后重新全绿。目前没有发起 V01-V08 供应商请求，
-也没有人工来源真值评审，
-所以兼容性、精度和来源价值仍为 `not_evaluated`，生产路径保持断开。详见
-[v3 协议](docs/prereg-2026-08-27-openalex-claim-scope-v3.md)与
-[候选实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md)，以及
-[live harness 实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md)。
+请求边界测试会准确失败，恢复正确顺序后重新全绿。随后，一次针对合并版本
+`ad70d721` 的独立授权运行完成 8 个单次匿名请求，供应商报告用量为 `$0.008`。
+64 条供应商结果被确定性判为 13 条 `ACCEPT` 与 51 条 `ABSTAIN`，7/8 个案例至少保留
+一条候选；manifest、汇总、artifact index 与 8 份案例 journal 的精确字节均通过机械
+校验。这只能证明冻结 harness 的供应商兼容性与有界记账，不能证明来源真实或相关。
+另一套包含 16 个聚焦测试的 source-lock 与 Schema v2 评审边界现已实现，会向评审者
+展示每个冻结基线、profile、来源摘要、aboutness 信号与精确决策依据。目前尚无合格的
+人工来源评审返回，因此精度和来源价值仍为 `not_evaluated`，生产路径保持断开。详见
+[v3 协议](docs/prereg-2026-08-27-openalex-claim-scope-v3.md)、
+[候选实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md)、
+[live harness 实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md)、
+[真实运行结果](docs/results-2026-08-27-openalex-claim-scope-v3-live.md)与
+[评审边界实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
