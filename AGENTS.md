@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1630 tests (609 subtests), CI green on Linux + Windows × Python
+Current state: 1647 tests (609 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -167,7 +167,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  86 test modules plus conftest, organised by subject
+tests/                  89 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -201,6 +201,8 @@ openalex_precision_audit.py
                         label-blind frozen development replay; zero-network only
 openalex_claim_scope_unseen.py
                         frozen V01-V08 claim-scope preflight; zero-network only
+openalex_claim_scope_live.py
+                        write-once V01-V08 runner; CLI defaults to dry-run
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -330,10 +332,18 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   preflight expands eight distinct collection/plan/profile/idempotency
   identities, and the new decision/adapter/preflight subset passes 16/16 tests.
   A deliberately wrong outbound filter made the transport-seam test fail before
-  being reverted. The complete suite now passes 1,630 tests plus 609 subtests at
-  87.43% statement coverage. No V01-V08 provider request or human review has
-  run, so compatibility, precision, source value and report value remain
-  `not_evaluated`. Do not connect or advertise v3 as completed Tool Calling.
+  being reverted. A separate write-once live runner now locks the fixture and
+  eight implementation hashes before output reservation, writes the complete
+  manifest before adapter construction, commits each one-request case journal
+  before a later request, distinguishes provider/accounting/cost states, records
+  per-request latency, and emits only ACCEPT rows to a blank review boundary.
+  Its 17/17 focused seams pass; moving manifest persistence after adapter
+  construction made the request
+  boundary test fail before the correct order was restored. The complete suite
+  now passes 1,647 tests plus 609 subtests at 87.43% statement coverage. No
+  V01-V08 provider request or human review has run, so compatibility,
+  precision, source value and report value remain `not_evaluated`. Do not
+  connect or advertise v3 as completed Tool Calling.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -358,7 +368,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md`, and
   `docs/results-2026-08-27-openalex-precision-v2-unseen-live.md`, plus
   `docs/prereg-2026-08-27-openalex-claim-scope-v3.md` and
-  `docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md`.
+  `docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md`, plus
+  `docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
