@@ -523,13 +523,17 @@ A separate zero-network source lock now binds the exact four aggregate files,
 artifact index and D01-D04 journals. Its Schema v2 packet exposes all four
 frozen baselines and preserves all nine candidate identities. Fifteen focused
 review tests pass, including a deliberately re-injected baseline-drift defect.
-The real blank-packet preflight is `incomplete / not_evaluated`, so this still
-observes compatibility rather than candidate value. No reviewer has yet opened
-the sources or compared them with the baseline. See the
+The real blank-packet preflight is `incomplete / not_evaluated`. A later return
+completed 9/9 rows and declared every URL attempted, but also declared
+`generative_ai_use=MOST_OR_ALL`; its strict result is
+`excluded_substantive_ai / not_evaluated`. The five relevant and four irrelevant
+labels are descriptive only. Even if treated as eligible, the implied 44.4%
+wrong-source rate would fail the frozen 5% maximum. See the
 [anonymous protocol](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md),
 [adapter implementation](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md),
 [live result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md),
-and [review-boundary result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md).
+[review-boundary result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md),
+and [returned-review result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1569,12 +1573,15 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 独立的零网络来源锁现已绑定 4 个聚合文件、artifact index 与 D01-D04 journals；
 Schema v2 评审包展示 4 组冻结基线并逐条保留 9 个候选身份。新增 15 项评审边界测试，
 重新注入基线漂移缺陷后测试会准确失败。真实空白包预检结果为
-`incomplete / not_evaluated`，因此目前仍只证明兼容性，不证明候选价值。尚无评审者
-打开来源并与冻结基线比较，该路径也仍与生产报告完全断开。详见
+`incomplete / not_evaluated`。随后回收表完成 9/9 行并声明逐个尝试 URL，但同时声明
+`generative_ai_use=MOST_OR_ALL`，严格结果为
+`excluded_substantive_ai / not_evaluated`。表面标签为 5 条相关、4 条不相关；即使暂按
+合格评审计算，44.4% 错源率也会超过冻结的 5% 上限。该路径仍与生产报告完全断开。详见
 [匿名实验协议](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md)、
 [适配器实现结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md)、
-[真实运行结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md)与
-[评审边界结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md)。
+[真实运行结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md)、
+[评审边界结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md)与
+[回收表结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、

@@ -7,7 +7,11 @@
 
 **Production connection authorized:** no
 
-**Human value result:** not evaluated; the packet is blank
+**Returned review:**
+[`results-2026-08-27-evidence-gap-anonymous-openalex-review.md`](results-2026-08-27-evidence-gap-anonymous-openalex-review.md)
+
+**Human value result:** not evaluated; the returned packet declared substantive
+AI use and is excluded
 
 ## Outcome
 
@@ -89,8 +93,11 @@ Raw labels and declarations will not be committed to the public repository.
 
 ## Next gate
 
-One eligible human reviewer must now complete the nine rows. Only a returned,
-source-grounded packet can measure the two remaining frozen gates:
+The first returned packet completed all nine rows but declared
+`generative_ai_use=MOST_OR_ALL`, so its strict state is
+`excluded_substantive_ai / not_evaluated`. One eligible human reviewer must now
+complete the same nine locked rows. Only an eligible, source-grounded packet can
+measure the two remaining frozen gates:
 
 - directly irrelevant candidates must be no more than 5% of all nine accepted
   rows; and

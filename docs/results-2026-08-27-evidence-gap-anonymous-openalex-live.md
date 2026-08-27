@@ -24,9 +24,10 @@ budget value, not evidence that a payment was charged. All request identities
 were client-generated because the response did not expose a provider request
 id.
 
-This establishes one exact live compatibility and accounting observation. It
-does not establish evidence value: no reviewer has opened the returned sources
-or compared them with the frozen baseline.
+This establishes one exact live compatibility and accounting observation. A
+later return completed all nine review rows, but declared substantive AI use
+and was excluded by the frozen protocol. It therefore did not establish human
+evidence value.
 
 ## Execution and disposition audit
 
@@ -84,9 +85,15 @@ The zero-network source-lock and Schema v2 review-packet path is now implemented
 for this exact four-case artifact. It binds all four aggregate files, the index
 and four case journals; exposes the frozen baseline; preserves all nine
 candidate identities; and requires every URL to be attempted. Its blank-packet
-preflight reports `incomplete / not_evaluated`, not a pass. The human review is
-still pending, and no repeat provider run is needed. See
-[`results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md`](results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md).
+preflight reports `incomplete / not_evaluated`, not a pass. The first returned
+packet later completed 9/9 rows and declared every URL attempted, but also
+declared `generative_ai_use=MOST_OR_ALL`. Its strict state is
+`excluded_substantive_ai / not_evaluated`; the five relevant and four irrelevant
+labels are descriptive only. Even if treated as eligible, the implied 44.4%
+wrong-source rate would fail the frozen 5% maximum. No repeat provider run is
+needed. See the
+[`review-boundary result`](results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md)
+and [`returned-review result`](results-2026-08-27-evidence-gap-anonymous-openalex-review.md).
 
 Only an eligible human review meeting both remaining frozen value gates would
 make a separately pre-registered planner-trigger precision study worth
@@ -104,5 +111,6 @@ production Tool Calling readiness.
 > On one frozen four-case study, the no-key OpenAlex adapter completed four
 > single-attempt requests, retained nine candidates from twenty provider rows,
 > reported USD 0.004 of anonymous-budget usage, and preserved write-once
-> accounting with no production connection. Candidate relevance and novelty
-> still require source-grounded human review.
+> accounting with no production connection. The first returned review was
+> excluded for substantive AI use, so candidate relevance and novelty still
+> require an eligible source-grounded human review.
