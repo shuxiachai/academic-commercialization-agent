@@ -351,9 +351,17 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   separate source-lock and Schema v2 review boundary now exposes every frozen
   baseline, profile, source abstract, aboutness signal and exact decision
   provenance without importing production code. Its 16/16 focused seams pass,
-  including a re-injected valid-JSON byte-drift defect. No eligible human source
-  review has returned, so precision, source value and report value remain
-  `not_evaluated`. Do not connect or advertise v3 as completed Tool Calling.
+  including a re-injected valid-JSON byte-drift defect. One eligible human
+  source review later completed 13/13 rows, declared no substantive generative
+  AI use, and attempted every source. Twelve candidates were directly relevant
+  and baseline-novel; one V08 row was directly irrelevant because its
+  graphene/cellulose/melamine construction was outside the declared
+  biomass-aerogel scope. Accepted-case and novel-relevant coverage both passed
+  at 7/8, but the 1/13 wrong-source rate was 7.69%, above the frozen 5% maximum.
+  The strict result is therefore `complete / fail`, and planner-trigger study
+  eligibility remains false. The returned date `2026/8/27` was normalized to
+  ISO `2026-08-27` only after preserving the raw declaration privately. Do not
+  tune on or rerun V01-V08, connect v3, or advertise completed Tool Calling.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -381,7 +389,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md`, plus
   `docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md`,
   `docs/results-2026-08-27-openalex-claim-scope-v3-live.md`, and
-  `docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md`.
+  `docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md`,
+  plus `docs/results-2026-08-27-openalex-claim-scope-v3-review.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
