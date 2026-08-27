@@ -489,7 +489,7 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,569 tests plus 639 subtests** at **87.28% coverage**. No
+suite passes **1,584 tests plus 639 subtests** at **87.28% coverage**. No
 credentialed Phase 4 OpenAlex/Lens run has executed and production still
 imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
@@ -511,19 +511,25 @@ Because this deployment does not configure OpenAlex or Lens keys, a narrower
 cases without changing the credentialed Phase 4 adapter. The actual outbound
 request contains no `api_key`; execution refuses a configured key, permits at
 most four one-request cases, applies a USD 0.01 provider-reported soft stop,
-and remains disconnected from production reports. Fifteen focused tests were
-added, and the combined adapter/runner subset passes 33/33 after a deliberately
-re-injected key-leak defect made the outbound-boundary test fail. One
-separately authorized run on merged revision `7bfe4ead` then completed all four
-single-attempt cases for USD 0.004 of provider-reported anonymous-budget usage.
-Of 20 provider rows, seven failed provider parsing, four more failed the local
-relevance quarantine, and nine reached the blank review boundary; every case
-retained at least one candidate. This observes live compatibility only. No
-reviewer has opened the sources or compared them with the frozen baseline, so
-wrong-source rate, novel-evidence yield and candidate value remain
-`not_evaluated`. See the [anonymous protocol](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md),
-[implementation-only result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md),
-and [live result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md).
+and remains disconnected from production reports. Fifteen focused adapter and
+runner tests pass after a deliberately re-injected key-leak defect made the
+outbound-boundary test fail. One separately authorized run on merged revision
+`7bfe4ead` then completed all four single-attempt cases for USD 0.004 of
+provider-reported anonymous-budget usage. Of 20 provider rows, seven failed
+provider parsing, four more failed the local relevance quarantine, and nine
+reached the review boundary; every case retained at least one candidate.
+
+A separate zero-network source lock now binds the exact four aggregate files,
+artifact index and D01-D04 journals. Its Schema v2 packet exposes all four
+frozen baselines and preserves all nine candidate identities. Fifteen focused
+review tests pass, including a deliberately re-injected baseline-drift defect.
+The real blank-packet preflight is `incomplete / not_evaluated`, so this still
+observes compatibility rather than candidate value. No reviewer has yet opened
+the sources or compared them with the baseline. See the
+[anonymous protocol](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md),
+[adapter implementation](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md),
+[live result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md),
+and [review-boundary result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1536,7 +1542,7 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
-后，全量 **1,569 项测试与 639 个 subtests** 通过，覆盖率 **87.28%**。目前尚未
+后，全量 **1,584 项测试与 639 个 subtests** 通过，覆盖率 **87.28%**。目前尚未
 发起带凭证的第四阶段 OpenAlex/Lens 运行，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与
@@ -1554,16 +1560,21 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 由于当前部署不配置 OpenAlex 或 Lens key，项目又增加了一条更窄的**匿名 OpenAlex
 测量路径**：它只复用 4 个冻结的学术案例，不改动已冻结的凭证版适配器；真正到达
 网络边界的 URL 不含 `api_key`，检测到已配置 key 会拒绝启动，每个案例最多一次请求，
-整次实验最多 4 次，并受供应商报告的 `$0.01` 软停止线约束。新增 15 项定向测试，
-适配器与运行器组合测试 33/33 通过；重新注入 key 泄漏后，网络边界测试会准确失败。
-随后，一次单独授权的合并版本 `7bfe4ead` 真实实验完成 4/4 个单次请求案例，供应商
-报告的匿名额度用量为 `$0.004`。20 条供应商行中，7 条在供应商解析层被拒绝，4 条
-未通过本地相关性隔离，9 条进入空白人工评审表；每个案例至少保留 1 条。这只证明
-一次真实兼容性路径可用。尚无评审者打开来源或与冻结基线比较，因此错源率、新证据
-收益与候选价值仍为 `not_evaluated`，该路径也仍与生产报告完全断开。详见
+整次实验最多 4 次，并受供应商报告的 `$0.01` 软停止线约束。15 项适配器与运行器
+定向测试通过；重新注入 key 泄漏后，网络边界测试会准确失败。随后，一次单独授权的
+合并版本 `7bfe4ead` 真实实验完成 4/4 个单次请求案例，供应商报告的匿名额度用量为
+`$0.004`。20 条供应商行中，7 条在供应商解析层被拒绝，4 条未通过本地相关性
+隔离，9 条进入人工评审边界；每个案例至少保留 1 条。
+
+独立的零网络来源锁现已绑定 4 个聚合文件、artifact index 与 D01-D04 journals；
+Schema v2 评审包展示 4 组冻结基线并逐条保留 9 个候选身份。新增 15 项评审边界测试，
+重新注入基线漂移缺陷后测试会准确失败。真实空白包预检结果为
+`incomplete / not_evaluated`，因此目前仍只证明兼容性，不证明候选价值。尚无评审者
+打开来源并与冻结基线比较，该路径也仍与生产报告完全断开。详见
 [匿名实验协议](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md)、
-[仅实现结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md)与
-[真实运行结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md)。
+[适配器实现结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md)、
+[真实运行结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md)与
+[评审边界结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、

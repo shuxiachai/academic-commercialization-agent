@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1569 tests (639 subtests), CI green on Linux + Windows × Python
+Current state: 1584 tests (639 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -185,6 +185,8 @@ evidence_gap_phase4_review.py
                         source lock plus provenance-checked Schema v2 human review
 evidence_gap_openalex_live.py
                         anonymous four-case OpenAlex study; never production
+evidence_gap_openalex_review.py
+                        exact-run source lock plus Schema v2 human review
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -267,17 +269,20 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   configured, caps execution at four one-request cases and USD 0.01 of
   provider-reported usage, and writes the same candidate/rejection review seam.
   The anonymous adapter/runner adds 15 focused tests; the 33/33 combined
-  adapter/runner subset and full 1,569-test suite pass, including a re-injected
-  key-leak defect at the outbound boundary. A separately authorized run on
-  merged revision `7bfe4ead` then completed D01-D04 with four single-attempt
-  requests and USD 0.004 of provider-reported anonymous-budget usage. Twenty
-  provider rows became seven provider rejections, four local rejections and
-  nine quarantine-accepted review rows; every case retained at least one. All
-  four aggregate hashes match and production/report connections remained
-  false. This observes one live compatibility path only. No reviewer has opened
-  the URLs or compared them with the frozen baseline, so wrong-source rate,
-  novel-evidence yield and source value remain `not_evaluated`. Do not rerun
-  the provider study; the next gate is a source-locked eligible human review.
+  adapter/runner subset passes, including a re-injected key-leak defect at the
+  outbound boundary. A separately authorized run on merged revision `7bfe4ead`
+  then completed D01-D04 with four single-attempt requests and USD 0.004 of
+  provider-reported anonymous-budget usage. Twenty provider rows became seven
+  provider rejections, four local rejections and nine quarantine-accepted
+  review rows; every case retained at least one. Production/report connections
+  remained false. A separate 15-test review boundary now locks the exact four
+  aggregates, artifact index and four case journals; its Schema v2 packet
+  exposes all four frozen baselines and all nine candidate identities. A
+  re-injected baseline-drift defect made its seam test fail. The real blank
+  packet preflight is `incomplete / not_evaluated`. No reviewer has yet opened
+  the URLs, so wrong-source rate, novel-evidence yield and source value remain
+  `not_evaluated`. Do not rerun the provider study; the next gate is the
+  returned, source-grounded eligible human review.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -292,7 +297,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-26-evidence-gap-domain-live-phase4-implementation.md`,
   `docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md`,
   `docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md`,
-  and `docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md`.
+  `docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md`, and
+  `docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The

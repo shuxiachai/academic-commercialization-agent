@@ -80,10 +80,13 @@ Anonymous OpenAlex compatibility passed for this exact four-case execution.
 Production Tool Calling remains ineligible because source value is still
 unknown.
 
-The next step is a zero-network source-lock and Schema v2 review-packet path for
-this four-case artifact. It must expose the frozen baseline, preserve all nine
-candidate identities, require every URL to be attempted, and distinguish an
-incomplete or ineligible review from a pass. No repeat provider run is needed.
+The zero-network source-lock and Schema v2 review-packet path is now implemented
+for this exact four-case artifact. It binds all four aggregate files, the index
+and four case journals; exposes the frozen baseline; preserves all nine
+candidate identities; and requires every URL to be attempted. Its blank-packet
+preflight reports `incomplete / not_evaluated`, not a pass. The human review is
+still pending, and no repeat provider run is needed. See
+[`results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md`](results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md).
 
 Only an eligible human review meeting both remaining frozen value gates would
 make a separately pre-registered planner-trigger precision study worth
