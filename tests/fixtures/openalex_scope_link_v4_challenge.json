@@ -1,0 +1,434 @@
+{
+  "schema_version": 1,
+  "mode": "openalex_scope_link_v4_unseen_challenge",
+  "production_connected": false,
+  "report_workflow_connected": false,
+  "maximum_live_requests": 8,
+  "request_contract": {
+    "result_limit": 8,
+    "filter": "has_abstract:true",
+    "aboutness_fields": ["topics", "keywords"],
+    "redirects": false,
+    "internal_retries": false
+  },
+  "development_observation": {
+    "source_document": "docs/results-2026-08-27-openalex-claim-scope-v3-review.md",
+    "reviewed_candidate_count": 13,
+    "relevant_candidate_count": 12,
+    "wrong_source_count": 1,
+    "wrong_source_rate": 0.07692307692307693,
+    "accepted_case_count": 7,
+    "novel_relevant_case_count": 7,
+    "source_truth_state": "complete_fail",
+    "reuse_for_v4_tuning": false
+  },
+  "challenge_cases": [
+    {
+      "case_id": "W01",
+      "topic": "Sodium-ion batteries using agricultural-waste hard-carbon anodes for stationary grid storage",
+      "query": "sodium ion battery hard carbon agricultural waste anode grid storage cycling capacity",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "sodium_ion_battery",
+            "text_phrases": ["sodium ion battery", "sodium ion batteries"],
+            "provider_terms": ["sodium ion batteries", "sodium battery"]
+          },
+          {
+            "group_id": "hard_carbon_anode",
+            "text_phrases": ["hard carbon anode", "hard carbon anodes"],
+            "provider_terms": ["hard carbon anodes", "hard carbon"]
+          }
+        ],
+        "scope_groups": [
+          {
+            "group_id": "agricultural_waste",
+            "text_phrases": ["agricultural waste", "crop residue", "rice husk", "corn cob", "waste biomass"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "electrochemical_performance",
+            "text_phrases": ["specific capacity", "cycling stability", "coulombic efficiency", "cycle life"]
+          },
+          {
+            "group_id": "carbon_structure",
+            "text_phrases": ["porous carbon", "carbonization temperature", "pore structure", "graphitic structure"]
+          },
+          {
+            "group_id": "stationary_storage",
+            "text_phrases": ["stationary storage", "grid storage", "energy storage system"]
+          }
+        ],
+        "minimum_exact_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "minimum_scope_groups": 1,
+        "minimum_linked_scope_groups": 1,
+        "minimum_supporting_groups": 1,
+        "minimum_title_anchor_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "W02",
+      "topic": "Continuous-flow enzymatic synthesis of rare human-milk oligosaccharides using cell-free multi-enzyme cascades",
+      "query": "continuous flow enzymatic synthesis human milk oligosaccharide cell free enzyme cascade",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "human_milk_oligosaccharide",
+            "text_phrases": ["human milk oligosaccharide", "human milk oligosaccharides", "hmo"],
+            "provider_terms": ["human milk oligosaccharides", "milk oligosaccharides"]
+          },
+          {
+            "group_id": "enzymatic_synthesis",
+            "text_phrases": ["enzymatic synthesis", "biocatalytic synthesis", "enzyme catalyzed synthesis"],
+            "provider_terms": ["enzymatic synthesis", "biocatalysis"]
+          }
+        ],
+        "scope_groups": [
+          {
+            "group_id": "continuous_flow",
+            "text_phrases": ["continuous flow", "flow reactor", "flow biocatalysis"]
+          },
+          {
+            "group_id": "cell_free_cascade",
+            "text_phrases": ["cell free", "multi enzyme cascade", "enzyme cascade"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "rare_product",
+            "text_phrases": ["fucosylated oligosaccharide", "sialylated oligosaccharide", "rare oligosaccharide"]
+          },
+          {
+            "group_id": "process_performance",
+            "text_phrases": ["space time yield", "productivity", "conversion yield", "residence time"]
+          },
+          {
+            "group_id": "enzyme_immobilization",
+            "text_phrases": ["immobilized enzyme", "enzyme immobilization"]
+          }
+        ],
+        "minimum_exact_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "minimum_scope_groups": 1,
+        "minimum_linked_scope_groups": 1,
+        "minimum_supporting_groups": 1,
+        "minimum_title_anchor_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "W03",
+      "topic": "Low-temperature plasma-assisted ammonia cracking for hydrogen release using earth-abundant catalysts",
+      "query": "plasma assisted ammonia cracking hydrogen earth abundant catalyst low temperature",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "ammonia_cracking",
+            "text_phrases": ["ammonia cracking", "ammonia decomposition"],
+            "provider_terms": ["ammonia decomposition", "ammonia cracking"]
+          },
+          {
+            "group_id": "hydrogen_release",
+            "text_phrases": ["hydrogen release", "hydrogen production", "hydrogen generation"],
+            "provider_terms": ["hydrogen production", "hydrogen generation"]
+          }
+        ],
+        "scope_groups": [
+          {
+            "group_id": "plasma_assistance",
+            "text_phrases": ["plasma assisted", "non thermal plasma", "plasma catalysis", "plasma driven"]
+          },
+          {
+            "group_id": "earth_abundant_catalyst",
+            "text_phrases": ["earth abundant catalyst", "non noble catalyst", "base metal catalyst", "iron catalyst", "nickel catalyst"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "low_temperature",
+            "text_phrases": ["low temperature", "mild temperature", "room temperature"]
+          },
+          {
+            "group_id": "conversion_performance",
+            "text_phrases": ["ammonia conversion", "hydrogen yield", "energy efficiency"]
+          },
+          {
+            "group_id": "catalyst_stability",
+            "text_phrases": ["catalyst stability", "long term stability", "cycling stability"]
+          }
+        ],
+        "minimum_exact_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "minimum_scope_groups": 1,
+        "minimum_linked_scope_groups": 1,
+        "minimum_supporting_groups": 1,
+        "minimum_title_anchor_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "W04",
+      "topic": "Scaffold-free acoustic bioprinting of vascularized organoids using multicellular spheroids",
+      "query": "acoustic bioprinting vascularized organoid scaffold free multicellular spheroid",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "acoustic_bioprinting",
+            "text_phrases": ["acoustic bioprinting", "acoustic printing", "acoustic assembly"],
+            "provider_terms": ["acoustic bioprinting", "acoustic manipulation"]
+          },
+          {
+            "group_id": "vascular_organoid",
+            "text_phrases": ["vascularized organoid", "vascular organoid", "organoid vascularization", "vascularized tissue"],
+            "provider_terms": ["organoid vascularization", "vascularized organoids"]
+          }
+        ],
+        "scope_groups": [
+          {
+            "group_id": "scaffold_free",
+            "text_phrases": ["scaffold free", "without scaffold", "scaffoldless"]
+          },
+          {
+            "group_id": "cell_spheroid",
+            "text_phrases": ["cell spheroid", "cell spheroids", "multicellular spheroid"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "cell_viability",
+            "text_phrases": ["cell viability", "viability", "cell survival"]
+          },
+          {
+            "group_id": "vascular_perfusion",
+            "text_phrases": ["perfusion", "microvasculature", "vascular network"]
+          },
+          {
+            "group_id": "spatial_positioning",
+            "text_phrases": ["cell positioning", "spatial patterning", "droplet placement"]
+          }
+        ],
+        "minimum_exact_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "minimum_scope_groups": 1,
+        "minimum_linked_scope_groups": 1,
+        "minimum_supporting_groups": 1,
+        "minimum_title_anchor_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "W05",
+      "topic": "Electrochemical nitrate reduction to ammonia in wastewater using copper-free catalysts",
+      "query": "electrochemical nitrate reduction ammonia wastewater copper free catalyst",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "nitrate_reduction",
+            "text_phrases": ["nitrate reduction", "electrochemical nitrate reduction", "nitrate electroreduction"],
+            "provider_terms": ["nitrate reduction", "electrocatalytic nitrate reduction"]
+          },
+          {
+            "group_id": "ammonia_product",
+            "text_phrases": ["ammonia production", "ammonia synthesis", "nh3 production"],
+            "provider_terms": ["ammonia production", "electrochemical ammonia synthesis"]
+          }
+        ],
+        "scope_groups": [
+          {
+            "group_id": "wastewater_context",
+            "text_phrases": ["wastewater", "waste water", "nitrate contaminated water", "sewage"]
+          },
+          {
+            "group_id": "copper_free_catalyst",
+            "text_phrases": ["copper free catalyst", "non copper catalyst", "copper-free electrocatalyst"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "product_selectivity",
+            "text_phrases": ["faradaic efficiency", "ammonia selectivity", "nh3 selectivity"]
+          },
+          {
+            "group_id": "production_rate",
+            "text_phrases": ["current density", "production rate", "yield rate"]
+          },
+          {
+            "group_id": "electrolysis_durability",
+            "text_phrases": ["stability test", "long term electrolysis", "durability"]
+          }
+        ],
+        "minimum_exact_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "minimum_scope_groups": 1,
+        "minimum_linked_scope_groups": 1,
+        "minimum_supporting_groups": 1,
+        "minimum_title_anchor_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "W06",
+      "topic": "Marine-degradable polyhydroxyalkanoate barrier coatings for paper-based food packaging",
+      "query": "polyhydroxyalkanoate barrier coating paper food packaging marine biodegradable",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "pha_material",
+            "text_phrases": ["polyhydroxyalkanoate", "polyhydroxyalkanoates", "pha biopolymer"],
+            "provider_terms": ["polyhydroxyalkanoates", "biopolymer"]
+          },
+          {
+            "group_id": "barrier_coating",
+            "text_phrases": ["barrier coating", "coated paper", "paper coating"],
+            "provider_terms": ["barrier coatings", "paper coating"]
+          }
+        ],
+        "scope_groups": [
+          {
+            "group_id": "marine_degradation",
+            "text_phrases": ["marine biodegradable", "marine degradation", "seawater biodegradation", "ocean degradable"]
+          },
+          {
+            "group_id": "paper_food_packaging",
+            "text_phrases": ["paper food packaging", "food packaging paper", "paperboard packaging"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "moisture_barrier",
+            "text_phrases": ["water vapor barrier", "moisture barrier", "water resistance"]
+          },
+          {
+            "group_id": "oxygen_barrier",
+            "text_phrases": ["oxygen barrier", "gas barrier", "oxygen permeability"]
+          },
+          {
+            "group_id": "food_safety",
+            "text_phrases": ["food contact", "migration test", "compostability"]
+          }
+        ],
+        "minimum_exact_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "minimum_scope_groups": 1,
+        "minimum_linked_scope_groups": 1,
+        "minimum_supporting_groups": 1,
+        "minimum_title_anchor_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "W07",
+      "topic": "Event-camera-guided robotic harvesting of soft fruit with tactile grippers",
+      "query": "event camera robotic harvesting soft fruit tactile gripper damage",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "robotic_harvesting",
+            "text_phrases": ["robotic harvesting", "robot harvest", "harvesting robot", "fruit picking robot"],
+            "provider_terms": ["robotic harvesting", "agricultural robots"]
+          },
+          {
+            "group_id": "soft_fruit",
+            "text_phrases": ["soft fruit", "strawberry", "raspberry", "tomato harvesting"],
+            "provider_terms": ["soft fruit harvesting", "fruit harvesting"]
+          }
+        ],
+        "scope_groups": [
+          {
+            "group_id": "event_camera",
+            "text_phrases": ["event camera", "event based vision", "neuromorphic vision"]
+          },
+          {
+            "group_id": "tactile_gripper",
+            "text_phrases": ["tactile gripper", "tactile sensing", "force sensing gripper", "soft gripper"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "fruit_damage",
+            "text_phrases": ["fruit damage", "bruise", "grasp damage", "damage rate"]
+          },
+          {
+            "group_id": "target_localization",
+            "text_phrases": ["fruit detection", "pose estimation", "target localization"]
+          },
+          {
+            "group_id": "field_performance",
+            "text_phrases": ["field trial", "orchard", "greenhouse", "harvest success rate"]
+          }
+        ],
+        "minimum_exact_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "minimum_scope_groups": 1,
+        "minimum_linked_scope_groups": 1,
+        "minimum_supporting_groups": 1,
+        "minimum_title_anchor_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "W08",
+      "topic": "Bioleaching-based selective recovery of rare-earth elements from coal fly ash",
+      "query": "bioleaching rare earth recovery coal fly ash selective extraction",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "rare_earth_recovery",
+            "text_phrases": ["rare earth recovery", "rare earth element recovery", "recover rare earth", "rare earth extraction"],
+            "provider_terms": ["rare earth element recovery", "rare earth extraction"]
+          },
+          {
+            "group_id": "coal_fly_ash",
+            "text_phrases": ["coal fly ash", "fly ash", "coal ash"],
+            "provider_terms": ["coal fly ash", "fly ash"]
+          }
+        ],
+        "scope_groups": [
+          {
+            "group_id": "bioleaching_route",
+            "text_phrases": ["bioleaching", "microbial leaching", "biological leaching"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "microorganism",
+            "text_phrases": ["acidithiobacillus", "fungal leaching", "bacteria", "microorganism"]
+          },
+          {
+            "group_id": "selective_extraction",
+            "text_phrases": ["selective recovery", "leaching efficiency", "extraction yield"]
+          },
+          {
+            "group_id": "downstream_separation",
+            "text_phrases": ["solvent extraction", "precipitation", "ion exchange"]
+          }
+        ],
+        "minimum_exact_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "minimum_scope_groups": 1,
+        "minimum_linked_scope_groups": 1,
+        "minimum_supporting_groups": 1,
+        "minimum_title_anchor_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    }
+  ],
+  "source_value_gates": {
+    "accepted_case_count_min": 6,
+    "novel_relevant_case_count_min": 6,
+    "wrong_source_rate_max": 0.05,
+    "all_attempted_sources_reviewed": true,
+    "substantive_generative_ai_allowed": false
+  }
+}

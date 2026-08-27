@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1663 tests (609 subtests), CI green on Linux + Windows × Python
+Current state: 1678 tests (609 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -152,6 +152,8 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
                         conjunctive ACCEPT/ABSTAIN source gate; experimental only
   openalex_claim_scope.py
                         provider-assisted source gate; experimental only
+  openalex_scope_link.py
+                        role-structured same-segment gate; experimental only
   tools/evidence_search.py
                         one-request read-only adapter response contract
   tools/anonymous_openalex_search.py
@@ -167,7 +169,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  90 test modules plus conftest, organised by subject
+tests/                  92 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -205,6 +207,8 @@ openalex_claim_scope_live.py
                         write-once V01-V08 runner; CLI defaults to dry-run
 openalex_claim_scope_review.py
                         exact-run source lock plus Schema v2 human review
+openalex_scope_link_unseen.py
+                        frozen W01-W08 scope-link preflight; zero-network only
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -362,8 +366,21 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   eligibility remains false. The returned date `2026/8/27` was normalized to
   ISO `2026-08-27` only after preserving the raw declaration privately. Do not
   tune on or rerun V01-V08, connect v3, or advertise completed Tool Calling.
-  Keep `pipeline_worker.py` disconnected from the executor, adapters, live
-  runner and review module.
+  A separately pre-registered scope-link v4 candidate now addresses that
+  failure class without moving the provider threshold: required technology
+  concepts, source-text-only scope concepts and source-text-only supporting
+  concepts have distinct roles, and at least one exact required/scope pair
+  must occur in the same title or abstract sentence. Provider metadata may
+  still bridge at most one required group but cannot establish scope, support
+  or a relation. The raw-byte-locked W01-W08 preflight expands eight unique
+  collection/plan/profile/idempotency identities with zero sockets. Its 15/15
+  focused seams pass; combining the whole abstract into one relation segment
+  was re-injected and made the cross-sentence test fail before restoration.
+  No W01-W08 provider request or source review has occurred, so provider
+  compatibility, coverage, wrong-source rate and source value are all
+  `not_evaluated`. A live runner is not implemented or authorized. Keep
+  `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4
+  candidates, live runners and review modules.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
   `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
   `docs/errata-2026-08-25-evidence-gap-phase3-fixture-identity.md`,
@@ -390,7 +407,9 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md`,
   `docs/results-2026-08-27-openalex-claim-scope-v3-live.md`, and
   `docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md`,
-  plus `docs/results-2026-08-27-openalex-claim-scope-v3-review.md`.
+  plus `docs/results-2026-08-27-openalex-claim-scope-v3-review.md`, and
+  `docs/prereg-2026-08-27-openalex-scope-link-v4.md` plus
+  `docs/results-2026-08-27-openalex-scope-link-v4-implementation.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
