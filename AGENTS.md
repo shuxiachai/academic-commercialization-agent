@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1647 tests (609 subtests), CI green on Linux + Windows × Python
+Current state: 1663 tests (609 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -167,7 +167,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  89 test modules plus conftest, organised by subject
+tests/                  90 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -203,6 +203,8 @@ openalex_claim_scope_unseen.py
                         frozen V01-V08 claim-scope preflight; zero-network only
 openalex_claim_scope_live.py
                         write-once V01-V08 runner; CLI defaults to dry-run
+openalex_claim_scope_review.py
+                        exact-run source lock plus Schema v2 human review
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -339,11 +341,19 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   per-request latency, and emits only ACCEPT rows to a blank review boundary.
   Its 17/17 focused seams pass; moving manifest persistence after adapter
   construction made the request
-  boundary test fail before the correct order was restored. The complete suite
-  now passes 1,647 tests plus 609 subtests at 87.43% statement coverage. No
-  V01-V08 provider request or human review has run, so compatibility,
-  precision, source value and report value remain `not_evaluated`. Do not
-  connect or advertise v3 as completed Tool Calling.
+  boundary test fail before the correct order was restored. A separately
+  authorized run on merged revision `ad70d721` then completed all eight
+  anonymous requests for USD 0.008 of provider-reported usage. Sixty-four
+  provider rows became 13 ACCEPT and 51 ABSTAIN decisions; 7/8 cases retained
+  at least one candidate. The exact manifest, aggregate, artifact index and
+  eight case journals passed mechanical validation. This establishes the
+  frozen harness's provider compatibility and bounded accounting only. A
+  separate source-lock and Schema v2 review boundary now exposes every frozen
+  baseline, profile, source abstract, aboutness signal and exact decision
+  provenance without importing production code. Its 16/16 focused seams pass,
+  including a re-injected valid-JSON byte-drift defect. No eligible human source
+  review has returned, so precision, source value and report value remain
+  `not_evaluated`. Do not connect or advertise v3 as completed Tool Calling.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -369,7 +379,9 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-openalex-precision-v2-unseen-live.md`, plus
   `docs/prereg-2026-08-27-openalex-claim-scope-v3.md` and
   `docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md`, plus
-  `docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md`.
+  `docs/results-2026-08-27-openalex-claim-scope-v3-live-implementation.md`,
+  `docs/results-2026-08-27-openalex-claim-scope-v3-live.md`, and
+  `docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
