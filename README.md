@@ -489,7 +489,7 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,584 tests plus 639 subtests** at **87.28% coverage**. No
+suite passes **1,596 tests plus 609 subtests** at **87.31% coverage**. No
 credentialed Phase 4 OpenAlex/Lens run has executed and production still
 imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
@@ -536,6 +536,17 @@ wrong-source rate failed the frozen 5% maximum. See the
 [review-boundary result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md),
 [returned-review result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md),
 and [declaration erratum](docs/errata-2026-08-27-anonymous-openalex-review-declaration.md).
+
+A separately pre-registered **precision-v2 conjunctive gate** now requires
+code-owned core concepts, independent supporting concepts and a title anchor;
+it emits only `ACCEPT` or `ABSTAIN`. A label-blind replay verified every frozen
+source and journal hash before opening labels, accepted all 5/5 relevant
+development rows, abstained all 4/4 known wrong rows, and retained relevant
+evidence in 4/4 cases. This qualifies only the frozen U01-U08 unseen harness.
+No unseen request has run, no live execution is authorized, and production
+remains disconnected. See the
+[precision-v2 protocol](docs/prereg-2026-08-27-openalex-precision-v2.md) and
+[development result](docs/results-2026-08-27-openalex-precision-v2-development.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1548,7 +1559,7 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
-后，全量 **1,584 项测试与 639 个 subtests** 通过，覆盖率 **87.28%**。目前尚未
+后，全量 **1,596 项测试与 609 个 subtests** 通过，覆盖率 **87.31%**。目前尚未
 发起带凭证的第四阶段 OpenAlex/Lens 运行，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与
@@ -1586,6 +1597,14 @@ Schema v2 评审包展示 4 组冻结基线并逐条保留 9 个候选身份。�
 [评审边界结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md)、
 [回收表结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md)与
 [声明勘误](docs/errata-2026-08-27-anonymous-openalex-review-declaration.md)。
+
+项目随后预注册了 **precision-v2 合取证据门**：只有代码所有的核心概念组、足够多的
+独立支持概念组和标题锚点同时满足时才输出 `ACCEPT`，否则明确 `ABSTAIN`。标签盲化
+回放在打开人工标签前先核验全部冻结来源与 case journal 哈希，最终接受 5/5 条相关
+开发候选、弃权 4/4 条已知错源，并在 4/4 个案例中保留相关证据。该结果只允许继续
+冻结的 U01-U08 未见挑战；尚未发起未见请求、未授权真实运行，生产仍完全断开。详见
+[precision-v2 协议](docs/prereg-2026-08-27-openalex-precision-v2.md)与
+[开发集结果](docs/results-2026-08-27-openalex-precision-v2-development.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、

@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "mode": "openalex_precision_v2_unseen_challenge",
+  "production_connected": false,
+  "maximum_live_requests": 8,
+  "development_source": {
+    "labels_sha256": "aaff469be0e10698a5464611343823e91b4f7256b8a881ed6361f3b27d56b296",
+    "candidate_rows_sha256": "91d148f97320582fe29987ff2ef139f7e3cb3d53ab2473ef1ac4ad3119805006",
+    "row_count": 9,
+    "case_execution_sha256": {
+      "D01": "afeaca1f650a165f94889c24e09d1b1ed42fb9fb949bb1bbff6417ed3c596a2e",
+      "D02": "5a665b7349453a4ed03c19543307276108e5e7fa32191a5fc193faf64138cd6a",
+      "D03": "8fa921e959e5b2904360e1577b501a1b5ab082c35f37b6b6367e9e2a2a8d50d6",
+      "D04": "b2e1ae2909786d3a72aa2bdc91bb02f513b7566ca5820dd26b96add719940ade"
+    }
+  },
+  "development_profiles": [
+    {
+      "case_id": "D01",
+      "required_groups": [
+        {"group_id": "plasma_route", "phrases": ["plasma", "non thermal plasma", "plasma electrolytic"]},
+        {"group_id": "ammonia_product", "phrases": ["ammonia", "nh3"]}
+      ],
+      "supporting_groups": [
+        {"group_id": "synthesis_or_formation", "phrases": ["synthesis", "formation", "production", "produce"]},
+        {"group_id": "performance_measure", "phrases": ["efficiency", "selectivity", "yield", "energy", "power"]},
+        {"group_id": "catalyst_context", "phrases": ["catalyst", "catalytic", "catalyst free"]}
+      ],
+      "minimum_supporting_groups": 2,
+      "minimum_title_required_groups": 1
+    },
+    {
+      "case_id": "D02",
+      "required_groups": [
+        {"group_id": "hydrogel_material", "phrases": ["hydrogel", "hydrogels"]},
+        {"group_id": "bioelectronic_interface", "phrases": ["bioelectronic", "bioelectronics", "neural", "electrode", "implantable"]}
+      ],
+      "supporting_groups": [
+        {"group_id": "repairability", "phrases": ["self healing", "self heal", "shape memory"]},
+        {"group_id": "conductivity", "phrases": ["conductive", "conductivity", "electrical", "electrochemical"]},
+        {"group_id": "recording_or_stimulation", "phrases": ["stimulation", "recording", "neural recording", "electrical stimulation"]},
+        {"group_id": "stability", "phrases": ["stability", "stable", "long term"]}
+      ],
+      "minimum_supporting_groups": 2,
+      "minimum_title_required_groups": 1
+    },
+    {
+      "case_id": "D03",
+      "required_groups": [
+        {"group_id": "carbon_fixation", "phrases": ["carbon fixation", "co2 fixation", "carbon dioxide fixation"]},
+        {"group_id": "noncellular_route", "phrases": ["cell free", "in vitro", "enzymatic"]}
+      ],
+      "supporting_groups": [
+        {"group_id": "synthetic_engineering", "phrases": ["synthetic", "engineered", "redesign"]},
+        {"group_id": "pathway", "phrases": ["pathway", "pathways", "cycle", "metabolic"]},
+        {"group_id": "performance", "phrases": ["productivity", "rate", "yield", "efficient"]}
+      ],
+      "minimum_supporting_groups": 1,
+      "minimum_title_required_groups": 1
+    },
+    {
+      "case_id": "D04",
+      "required_groups": [
+        {"group_id": "perovskite_device", "phrases": ["perovskite", "perovskites"]},
+        {"group_id": "reliability", "phrases": ["degradation", "stability", "reliability", "damp heat"]}
+      ],
+      "supporting_groups": [
+        {"group_id": "silicon_or_tandem", "phrases": ["tandem", "silicon cell", "si cell", "silicon based", "si based"]},
+        {"group_id": "module", "phrases": ["module", "modules", "mini module"]},
+        {"group_id": "environmental_stress", "phrases": ["humidity", "85 rh", "outdoor"]},
+        {"group_id": "standard_or_result", "phrases": ["iec", "isos", "no decay", "retention", "hours"]}
+      ],
+      "minimum_supporting_groups": 2,
+      "minimum_title_required_groups": 1
+    }
+  ],
+  "challenge_cases": [
+    {
+      "case_id": "U01",
+      "topic": "Enzymatic PET depolymerization in continuous-flow reactors at industrially relevant temperatures",
+      "query": "enzymatic PET depolymerization continuous flow reactor industrial temperature conversion rate",
+      "result_limit": 5,
+      "profile": {
+        "required_groups": [
+          {"group_id": "pet_polymer", "phrases": ["pet", "polyethylene terephthalate"]},
+          {"group_id": "depolymerization", "phrases": ["depolymerization", "depolymerisation", "hydrolysis", "degradation"]}
+        ],
+        "supporting_groups": [
+          {"group_id": "enzyme", "phrases": ["enzyme", "enzymatic", "petase", "cutinase"]},
+          {"group_id": "continuous_flow", "phrases": ["continuous flow", "flow reactor", "packed bed"]},
+          {"group_id": "industrial_conditions", "phrases": ["industrial", "temperature", "thermostable", "high temperature"]},
+          {"group_id": "performance", "phrases": ["conversion", "yield", "rate", "productivity"]}
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_title_required_groups": 1
+      }
+    },
+    {
+      "case_id": "U02",
+      "topic": "Magnetocaloric hydrogen liquefaction using rare-earth-free alloys",
+      "query": "magnetocaloric hydrogen liquefaction rare earth free alloy cooling efficiency",
+      "result_limit": 5,
+      "profile": {
+        "required_groups": [
+          {"group_id": "magnetocaloric", "phrases": ["magnetocaloric", "magnetic refrigeration"]},
+          {"group_id": "hydrogen_liquefaction", "phrases": ["hydrogen liquefaction", "liquid hydrogen", "hydrogen cooling"]}
+        ],
+        "supporting_groups": [
+          {"group_id": "rare_earth_free", "phrases": ["rare earth free", "rare earth-free", "lanthanide free"]},
+          {"group_id": "alloy_or_material", "phrases": ["alloy", "material", "compound"]},
+          {"group_id": "cryogenic_cooling", "phrases": ["cryogenic", "cooling", "refrigeration"]},
+          {"group_id": "performance", "phrases": ["efficiency", "cooling power", "entropy change", "cop"]}
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_title_required_groups": 1
+      }
+    },
+    {
+      "case_id": "U03",
+      "topic": "Electrochemical direct ocean carbon capture using bipolar membrane electrodialysis",
+      "query": "electrochemical ocean carbon capture bipolar membrane electrodialysis energy removal",
+      "result_limit": 5,
+      "profile": {
+        "required_groups": [
+          {"group_id": "ocean_or_seawater", "phrases": ["ocean", "seawater", "sea water", "marine"]},
+          {"group_id": "carbon_capture", "phrases": ["carbon capture", "co2 capture", "carbon dioxide removal", "direct ocean capture"]}
+        ],
+        "supporting_groups": [
+          {"group_id": "electrochemical", "phrases": ["electrochemical", "electrolysis"]},
+          {"group_id": "membrane_process", "phrases": ["bipolar membrane", "electrodialysis", "ion exchange membrane"]},
+          {"group_id": "energy", "phrases": ["energy", "voltage", "current", "power"]},
+          {"group_id": "removal_performance", "phrases": ["removal", "capture rate", "flux", "efficiency"]}
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_title_required_groups": 1
+      }
+    },
+    {
+      "case_id": "U04",
+      "topic": "Colloidal quantum-dot short-wave infrared photodetectors integrated with silicon readout circuits",
+      "query": "colloidal quantum dot short wave infrared photodetector silicon readout circuit detectivity",
+      "result_limit": 5,
+      "profile": {
+        "required_groups": [
+          {"group_id": "quantum_dot", "phrases": ["quantum dot", "quantum dots", "colloidal quantum"]},
+          {"group_id": "short_wave_infrared", "phrases": ["short wave infrared", "shortwave infrared", "swir"]}
+        ],
+        "supporting_groups": [
+          {"group_id": "photodetector", "phrases": ["photodetector", "photodetectors", "photodiode"]},
+          {"group_id": "silicon_readout", "phrases": ["silicon readout", "readout circuit", "cmos", "silicon integrated"]},
+          {"group_id": "performance", "phrases": ["detectivity", "responsivity", "noise", "sensitivity"]},
+          {"group_id": "integration", "phrases": ["integrated", "integration", "focal plane array"]}
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_title_required_groups": 1
+      }
+    },
+    {
+      "case_id": "U05",
+      "topic": "Thermostable microneedle patches for measles vaccine delivery",
+      "query": "thermostable microneedle patch measles vaccine delivery immunogenicity",
+      "result_limit": 5,
+      "profile": {
+        "required_groups": [
+          {"group_id": "microneedle", "phrases": ["microneedle", "microneedles", "micro needle"]},
+          {"group_id": "measles_vaccine", "phrases": ["measles vaccine", "measles immunization", "measles immunisation"]}
+        ],
+        "supporting_groups": [
+          {"group_id": "thermostability", "phrases": ["thermostable", "thermal stability", "heat stable", "temperature stable"]},
+          {"group_id": "patch_delivery", "phrases": ["patch", "dissolving", "transdermal", "delivery"]},
+          {"group_id": "immune_response", "phrases": ["immunogenicity", "antibody", "immune response", "seroconversion"]},
+          {"group_id": "storage", "phrases": ["storage", "cold chain", "shelf life"]}
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_title_required_groups": 1
+      }
+    },
+    {
+      "case_id": "U06",
+      "topic": "Carbon-dioxide-cured recycled concrete aggregate for low-carbon structural concrete",
+      "query": "carbon dioxide cured recycled concrete aggregate structural concrete strength sequestration",
+      "result_limit": 5,
+      "profile": {
+        "required_groups": [
+          {"group_id": "recycled_aggregate", "phrases": ["recycled concrete aggregate", "recycled aggregate", "demolition aggregate"]},
+          {"group_id": "carbonation_curing", "phrases": ["carbon dioxide curing", "co2 curing", "carbonation curing", "carbon mineralization"]}
+        ],
+        "supporting_groups": [
+          {"group_id": "structural_concrete", "phrases": ["structural concrete", "concrete mixture", "concrete mix"]},
+          {"group_id": "mechanical_performance", "phrases": ["strength", "compressive", "durability", "modulus"]},
+          {"group_id": "carbon_uptake", "phrases": ["sequestration", "carbon uptake", "co2 uptake", "stored carbon"]},
+          {"group_id": "curing_process", "phrases": ["curing", "carbonation", "mineralisation", "mineralization"]}
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_title_required_groups": 1
+      }
+    },
+    {
+      "case_id": "U07",
+      "topic": "Federated learning for arrhythmia detection on wearable ECG devices",
+      "query": "federated learning arrhythmia detection wearable ECG privacy classification accuracy",
+      "result_limit": 5,
+      "profile": {
+        "required_groups": [
+          {"group_id": "federated_learning", "phrases": ["federated learning", "federated machine learning"]},
+          {"group_id": "arrhythmia_ecg", "phrases": ["arrhythmia", "electrocardiogram", "ecg"]}
+        ],
+        "supporting_groups": [
+          {"group_id": "wearable_or_edge", "phrases": ["wearable", "on device", "edge device", "mobile"]},
+          {"group_id": "privacy", "phrases": ["privacy", "private", "decentralized", "decentralised"]},
+          {"group_id": "detection", "phrases": ["detection", "classification", "diagnosis", "recognition"]},
+          {"group_id": "performance", "phrases": ["accuracy", "sensitivity", "specificity", "f1 score"]}
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_title_required_groups": 1
+      }
+    },
+    {
+      "case_id": "U08",
+      "topic": "Biodegradable transient zinc electronics for postoperative wound monitoring",
+      "query": "biodegradable transient zinc electronics postoperative wound monitoring sensor biocompatibility",
+      "result_limit": 5,
+      "profile": {
+        "required_groups": [
+          {"group_id": "transient_electronics", "phrases": ["transient electronics", "biodegradable electronics", "bioresorbable electronics"]},
+          {"group_id": "zinc_material", "phrases": ["zinc", "zn electrode", "zn metal"]}
+        ],
+        "supporting_groups": [
+          {"group_id": "wound_or_postoperative", "phrases": ["wound", "postoperative", "post operative", "surgical"]},
+          {"group_id": "monitoring_sensor", "phrases": ["monitoring", "sensor", "sensing", "diagnostic"]},
+          {"group_id": "biocompatibility", "phrases": ["biocompatibility", "biocompatible", "bioresorption", "resorbable"]},
+          {"group_id": "wireless", "phrases": ["wireless", "telemetry", "remote"]}
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_title_required_groups": 1
+      }
+    }
+  ],
+  "source_value_gates": {
+    "accepted_case_count_min": 6,
+    "novel_relevant_case_count_min": 6,
+    "wrong_source_rate_max": 0.05,
+    "all_attempted_sources_reviewed": true,
+    "substantive_generative_ai_allowed": false
+  }
+}
