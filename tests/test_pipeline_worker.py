@@ -240,6 +240,22 @@ class MergeStatusFieldsTests(unittest.TestCase):
         self.assertEqual(data["source_counts"], {"academic": 5})
         self.assertEqual(data["stage"], "Phase 2")
 
+    def test_pipeline_revision_is_first_write_wins(self):
+        """A deployment cannot rewrite the identity of an already-started run.
+
+        Status is rewritten at every stage, so both omission and an accidental
+        conflicting update must preserve the worker revision recorded first.
+        """
+        original = "git:0123456789abcdef0123456789abcdef01234567"
+        data = self._merge({"pipeline_revision": original}, stage="Agent 4")
+        self.assertEqual(data["pipeline_revision"], original)
+
+        conflicting = "git:fedcba9876543210fedcba9876543210fedcba98"
+        data = self._merge(
+            {"pipeline_revision": original}, pipeline_revision=conflicting
+        )
+        self.assertEqual(data["pipeline_revision"], original)
+
     def test_evidence_incomplete_warning_survives_later_writes(self):
         """It is set once, mid-run, by the only code that can discover it —
         every later status write would otherwise erase the warning."""
@@ -366,13 +382,18 @@ class MainEndToEndTests(unittest.TestCase):
         crew.agents = []
         crew.kickoff.return_value = self._crew_result()
 
-        with patch("academic_agent.crew.AcademicAgent") as agent_cls:
+        revision = "git:0123456789abcdef0123456789abcdef01234567"
+        with patch(
+            "academic_agent.checkpoint_runtime.pipeline_revision",
+            return_value=revision,
+        ), patch("academic_agent.crew.AcademicAgent") as agent_cls:
             agent_cls.return_value.crew.return_value = crew
             run_dir = self._run()
 
         status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
         self.assertEqual(status["stage"], "Done")
         self.assertTrue(status["done"])
+        self.assertEqual(status["pipeline_revision"], revision)
         self.assertEqual(
             status["quality_review"],
             {"status": "passed", "unapplied_corrections": 0},

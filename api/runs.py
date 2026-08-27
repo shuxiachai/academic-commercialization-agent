@@ -1162,6 +1162,12 @@ def get_state(run_id: str) -> dict:
         "stage": status.get("stage", ""),
         "topic": status.get("topic") or (handle.topic if handle else ""),
         "output_language": status.get("output_language") or "English",
+        # This is the immutable identity persisted by the executing worker.
+        # Never backfill it from the live API process: an old run served after
+        # a deploy would otherwise be attributed to code that never executed it.
+        # None therefore means unknown (principally historical runs), not the
+        # current deployment.
+        "pipeline_revision": status.get("pipeline_revision"),
         "decision_gate": status.get("decision_gate"),
         "error": error,
         "elapsed_seconds": elapsed,

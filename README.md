@@ -157,6 +157,13 @@ context had not established. This is provider-backed prompt-compliance and
 operational evidence, not source truth, decision correctness, or user value.
 See the [full canary result](docs/results-2026-08-26-decision-context-paid-canary.md).
 
+A zero-network follow-up now persists the immutable worker
+`pipeline_revision` in each new run and exposes that exact value through both
+status endpoints. Historical runs return `null`; the API never backfills them
+from the currently serving deployment. This repairs future execution
+attribution but does not retrospectively identify or change the frozen canary.
+See the [boundary result](docs/results-2026-08-27-public-pipeline-revision-seam.md).
+
 A separate pre-registered checkpoint audit hard-terminated **30 worker
 processes** across ten frozen evidence collections and three post-commit
 boundaries. All 30 immutable children reached `Done`, reused exactly the
@@ -482,7 +489,7 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,551 tests plus 632 subtests** at **87.26% coverage**. No live
+suite passes **1,554 tests plus 639 subtests** at **87.26% coverage**. No live
 OpenAlex/Lens request has run and production still imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
 See the [Phase 4 protocol](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)
@@ -679,7 +686,7 @@ curl -X POST http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/resume \
 | `POST` | `/api/runs` | Queue an assessment (`202`, or `429` at shared paid capacity) |
 | `POST` | `/api/runs/{id}/resume` | Start a recovery child from validated checkpoints (`202`) |
 | `GET` | `/api/runs` | List runs, newest first |
-| `GET` | `/api/runs/{id}` | Stage, state, elapsed time, available artifacts |
+| `GET` | `/api/runs/{id}` | Stage, state, elapsed time, immutable execution revision, available artifacts |
 | `DELETE` | `/api/runs/{id}` | Terminate a running assessment |
 | `GET` | `/api/runs/{id}/report` | Final report as Markdown |
 | `GET` | `/api/runs/{id}/{artifact}` | Run artifacts, including `scores`, `sources`, checks, and failed-run `retrieval` diagnostics |
@@ -1247,6 +1254,11 @@ Evidence-gap 工具调用。但冻结主标准仍以 **7/10 未通过**：`DC01`
 真实供应商下的 Prompt 遵循与运行证据，不证明来源真值、决策正确性或用户价值。
 详见[完整 canary 结果](docs/results-2026-08-26-decision-context-paid-canary.md)。
 
+随后完成的零网络修复会把不可变的 Worker `pipeline_revision` 持久化到每个新运行，
+并由两个状态端点逐字节返回。缺少该字段的历史运行保持 `null`，API 不会用当前部署
+替它们补写身份。该修改只修复未来运行的归因接缝，不会反向识别或改变上述冻结
+canary。详见[接缝结果](docs/results-2026-08-27-public-pipeline-revision-seam.md)。
+
 另有一组预注册 Checkpoint 故障恢复实验，在 10 份冻结证据和 3 个提交后边界上
 硬终止 **30 个 worker 进程**。30/30 个不可变子运行均到达 `Done`，精确复用预期
 连续前缀并只执行剩余后缀；子运行共跳过 **90 次已提交任务执行**，重复执行为
@@ -1504,7 +1516,7 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
-后，全量 **1,551 项测试与 632 个 subtests** 通过，覆盖率 **87.26%**。目前尚未
+后，全量 **1,554 项测试与 639 个 subtests** 通过，覆盖率 **87.26%**。目前尚未
 发起任何 OpenAlex/Lens 真实请求，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与
