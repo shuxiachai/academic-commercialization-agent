@@ -25,9 +25,9 @@ were client-generated because the response did not expose a provider request
 id.
 
 This establishes one exact live compatibility and accounting observation. A
-later return completed all nine review rows, but declared substantive AI use
-and was excluded by the frozen protocol. It therefore did not establish human
-evidence value.
+later eligible human review completed all nine rows after a copied declaration
+error was corrected with disclosure. It passed both case-coverage gates but
+failed the frozen wrong-source ceiling, so the source-value decision is fail.
 
 ## Execution and disposition audit
 
@@ -45,16 +45,13 @@ frozen relevance quarantine then rejected four of the thirteen parsed
 candidates and retained nine sources for human review.
 
 Every case retained at least one candidate, so the first mechanical frozen gate
-is met in 4/4 cases. The other two gates remain `not_evaluated`:
+passed at 4/4. The corrected human review made the other two gates evaluable:
+five candidates were directly relevant and baseline-absent across all four
+cases, so novel-relevant coverage passed at 4/4; four candidates were directly
+irrelevant, so the `4/9 = 44.4%` wrong-source rate failed the frozen 5% maximum.
 
-- wrong-source rate among the nine retained candidates requires a reviewer to
-  inspect every URL; and
-- novel-evidence yield requires the same reviewer to compare each relevant
-  source with the baseline context frozen in the manifest.
-
-The blank review artifact contains exactly nine rows, one for every retained
-source. A non-empty denominator therefore exists, but an unfilled form is not a
-pass.
+The blank review artifact contained exactly nine rows, one for every retained
+source. The returned labels preserve that denominator unchanged.
 
 ## Persistence and integrity
 
@@ -77,27 +74,18 @@ directory is independently available.
 
 ## Decision
 
-Anonymous OpenAlex compatibility passed for this exact four-case execution.
-Production Tool Calling remains ineligible because source value is still
-unknown.
+Anonymous OpenAlex compatibility passed for this exact four-case execution, but
+the corrected human source-value decision failed. The first declaration row was
+copied from an unrelated AI-assisted review; the original excluded intake and
+the owner-relayed correction are both retained in the
+[`declaration erratum`](errata-2026-08-27-anonymous-openalex-review-declaration.md).
 
-The zero-network source-lock and Schema v2 review-packet path is now implemented
-for this exact four-case artifact. It binds all four aggregate files, the index
-and four case journals; exposes the frozen baseline; preserves all nine
-candidate identities; and requires every URL to be attempted. Its blank-packet
-preflight reports `incomplete / not_evaluated`, not a pass. The first returned
-packet later completed 9/9 rows and declared every URL attempted, but also
-declared `generative_ai_use=MOST_OR_ALL`. Its strict state is
-`excluded_substantive_ai / not_evaluated`; the five relevant and four irrelevant
-labels are descriptive only. Even if treated as eligible, the implied 44.4%
-wrong-source rate would fail the frozen 5% maximum. No repeat provider run is
-needed. See the
+The eligible result is `complete / fail`: accepted-case coverage is 4/4,
+novel-relevant coverage is 4/4, and wrong-source rate is 4/9 (44.4%). No repeat
+provider run is needed. The current adapter does not advance to planner-trigger
+measurement and production Tool Calling remains disconnected. See the
 [`review-boundary result`](results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md)
 and [`returned-review result`](results-2026-08-27-evidence-gap-anonymous-openalex-review.md).
-
-Only an eligible human review meeting both remaining frozen value gates would
-make a separately pre-registered planner-trigger precision study worth
-considering. It would still not authorize production connection.
 
 ## Explicit non-claims
 
@@ -111,6 +99,7 @@ production Tool Calling readiness.
 > On one frozen four-case study, the no-key OpenAlex adapter completed four
 > single-attempt requests, retained nine candidates from twenty provider rows,
 > reported USD 0.004 of anonymous-budget usage, and preserved write-once
-> accounting with no production connection. The first returned review was
-> excluded for substantive AI use, so candidate relevance and novelty still
-> require an eligible source-grounded human review.
+> accounting with no production connection. After a copied declaration error
+> was corrected with disclosure, one eligible human review found five relevant
+> and four irrelevant candidates; the 44.4% wrong-source rate failed the frozen
+> 5% source-value gate, so the adapter remains disconnected.

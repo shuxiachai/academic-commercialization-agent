@@ -524,16 +524,18 @@ artifact index and D01-D04 journals. Its Schema v2 packet exposes all four
 frozen baselines and preserves all nine candidate identities. Fifteen focused
 review tests pass, including a deliberately re-injected baseline-drift defect.
 The real blank-packet preflight is `incomplete / not_evaluated`. A later return
-completed 9/9 rows and declared every URL attempted, but also declared
-`generative_ai_use=MOST_OR_ALL`; its strict result is
-`excluded_substantive_ai / not_evaluated`. The five relevant and four irrelevant
-labels are descriptive only. Even if treated as eligible, the implied 44.4%
-wrong-source rate would fail the frozen 5% maximum. See the
+completed 9/9 rows; its declaration was copied from an unrelated AI-assisted
+review, so the initial intake was correctly excluded. After the owner relayed
+the human reviewer's corrected `generative_ai_use=NONE` declaration, the strict
+result became `complete / fail`: accepted-case and novel-relevant coverage each
+passed at 4/4, while four of nine candidates were irrelevant and the 44.4%
+wrong-source rate failed the frozen 5% maximum. See the
 [anonymous protocol](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md),
 [adapter implementation](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md),
 [live result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md),
 [review-boundary result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md),
-and [returned-review result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md).
+[returned-review result](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md),
+and [declaration erratum](docs/errata-2026-08-27-anonymous-openalex-review-declaration.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1573,15 +1575,17 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 独立的零网络来源锁现已绑定 4 个聚合文件、artifact index 与 D01-D04 journals；
 Schema v2 评审包展示 4 组冻结基线并逐条保留 9 个候选身份。新增 15 项评审边界测试，
 重新注入基线漂移缺陷后测试会准确失败。真实空白包预检结果为
-`incomplete / not_evaluated`。随后回收表完成 9/9 行并声明逐个尝试 URL，但同时声明
-`generative_ai_use=MOST_OR_ALL`，严格结果为
-`excluded_substantive_ai / not_evaluated`。表面标签为 5 条相关、4 条不相关；即使暂按
-合格评审计算，44.4% 错源率也会超过冻结的 5% 上限。该路径仍与生产报告完全断开。详见
+`incomplete / not_evaluated`。随后回收表完成 9/9 行；首份声明误复制自另一份 AI 辅助
+评审，因此首次 intake 被正确排除。项目负责人转达人工评审者更正后的
+`generative_ai_use=NONE` 声明后，严格结果为 `complete / fail`：候选覆盖和基线外相关
+证据覆盖均为 4/4 并通过，但 9 条候选中 4 条不相关，44.4% 错源率超过冻结的 5% 上限。
+该路径仍与生产报告完全断开。详见
 [匿名实验协议](docs/prereg-2026-08-27-evidence-gap-anonymous-openalex.md)、
 [适配器实现结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md)、
 [真实运行结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md)、
-[评审边界结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md)与
-[回收表结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md)。
+[评审边界结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md)、
+[回收表结果](docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md)与
+[声明勘误](docs/errata-2026-08-27-anonymous-openalex-review-declaration.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、

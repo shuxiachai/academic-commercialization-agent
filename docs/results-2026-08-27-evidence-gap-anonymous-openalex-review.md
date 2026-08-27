@@ -8,9 +8,12 @@
 **Review boundary:**
 [`results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md`](results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md)
 
-**Protocol status:** `excluded_substantive_ai`
+**Declaration erratum:**
+[`errata-2026-08-27-anonymous-openalex-review-declaration.md`](errata-2026-08-27-anonymous-openalex-review-declaration.md)
 
-**Decision:** `not_evaluated`
+**Protocol status:** `complete`
+
+**Decision:** `fail`
 
 **Production connection authorized:** no
 
@@ -21,34 +24,38 @@ four baseline contexts and all nine candidate identities. All nine rows were
 completed, every URL was declared attempted, and the strict intake found no
 incomplete row, uninspectable row, method-coverage issue or identity drift.
 
-The declaration also identified the reviewer as an AI system and recorded
-`generative_ai_use=MOST_OR_ALL`. The protocol was frozen before the packet was
-returned and allows no substantive generated judgment in an eligible human
-value review. The strict result is therefore
-`excluded_substantive_ai / not_evaluated`; completion and source attempts do not
-override that exclusion.
+The first declaration row was copied from an unrelated AI-assisted review, so
+the initial strict intake correctly returned
+`excluded_substantive_ai / not_evaluated`. The study owner then relayed the
+human reviewer's corrected declaration: `reviewed_all=YES`,
+`generative_ai_use=NONE`, `external_sources_checked=ALL_ATTEMPTED`, and 20
+minutes elapsed. The original bytes and result remain preserved, while the
+superseding strict intake is `complete / fail`.
 
 The returned files remain gitignored. Their audit identities are:
 
 | Artifact | SHA-256 |
 |---|---|
-| `labels.csv` | `aaff469be0e10698a5464611343823e91b4f7256b8a881ed6361f3b27d56b296` |
-| `reviewer_declaration.csv` | `eef2fd542819be3709fb322ae8dd0f9828a857b072e64496a7051e809f87e939` |
-| strict result JSON | `d6e1b372a2d8bd2e0039068678a25acde7f6072543653a14c93d197ad20d9d62` |
+| unchanged `labels.csv` | `aaff469be0e10698a5464611343823e91b4f7256b8a881ed6361f3b27d56b296` |
+| superseded copied declaration | `eef2fd542819be3709fb322ae8dd0f9828a857b072e64496a7051e809f87e939` |
+| superseded strict result | `d6e1b372a2d8bd2e0039068678a25acde7f6072543653a14c93d197ad20d9d62` |
+| corrected declaration | `531cdd7b568855208d7fe60f697c2f9791850b962b9c996beec7a9aff1ad9de0` |
+| correction record | `449eb9b9da9d916abec6db28ee5e01635a0c8dcfdb0c8610cdac6f29dee3ecdf` |
+| corrected strict result | `637a0a5bd1cce17287f56a9822d24582d22efaeb42f3a4c2d859d186c7dc74be` |
 
-## Descriptive labels only
+## Source-value gates
 
-The ineligible form labelled five of nine candidates directly relevant and
-four directly irrelevant. All five relevant rows were also labelled materially
-absent from the frozen baseline, spanning D01-D04. These counts are retained as
-diagnostic observations, not as a human-value result.
+The corrected declaration makes all frozen gates evaluable:
 
-If the labels were counterfactually treated as eligible, the implied
-wrong-source rate would be `4/9 = 44.4%`, far above the frozen 5% maximum, even
-though all four cases would contain at least one `YES/YES` row. The real strict
-summary intentionally does not compute those gates: all three threshold results
-remain `not_evaluated`, `planner_trigger_study_eligible=false`, and production
-authorization remains false.
+| Gate | Observed | Frozen rule | Result |
+|---|---:|---:|---|
+| Cases with accepted candidates | 4/4 | at least 3/4 | pass |
+| Directly irrelevant accepted candidates | 4/9 (44.4%) | at most 5% | fail |
+| Cases with relevant, baseline-absent evidence | 4/4 | at least 3/4 | pass |
+
+All gates had to pass, so the provider decision is `fail`.
+`planner_trigger_study_eligible=false` and production authorization remains
+false.
 
 ## Declared limitation
 
@@ -60,16 +67,18 @@ or provider-precision claim.
 
 ## Decision
 
-Retain the returned packet and strict result as transparent negative evidence.
-Do not rerun the four provider requests: the exact candidate set is already
-locked. The next valid gate remains one independently completed, source-grounded
-review whose declaration satisfies the frozen human-review eligibility rules.
-Only then may the wrong-source and novel-evidence gates be evaluated. Even a
-pass would authorize only a separately pre-registered planner-trigger precision
-study, not production Tool Calling.
+Retain the declaration correction, returned packet and both strict results as
+transparent evidence. Do not rerun the four provider requests: the exact
+candidate set is already locked. The anonymous OpenAlex path missed its source-
+value gate and must not advance to planner-trigger measurement or production.
+
+Any future retrieval or quarantine method must treat these nine labels as
+development evidence, freeze a different unseen challenge before evaluation,
+and preserve the existing production disconnection. Tuning on these rows and
+reporting the same rows as validation would not be an independent result.
 
 ## Explicit non-claims
 
-This return does not establish human source review, source truth, OpenAlex-wide
-precision, novel-evidence yield, planner precision, report improvement, user
+This single human review does not establish independent source truth,
+inter-reviewer agreement, OpenAlex-wide precision, report improvement, user
 utility, adoption, cost savings, an SLO or production Tool Calling readiness.

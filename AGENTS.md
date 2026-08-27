@@ -280,13 +280,15 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   exposes all four frozen baselines and all nine candidate identities. A
   re-injected baseline-drift defect made its seam test fail. The real blank
   packet preflight is `incomplete / not_evaluated`. A later return completed
-  9/9 rows and declared every URL attempted, but identified an AI reviewer and
-  `generative_ai_use=MOST_OR_ALL`; the strict result is therefore
-  `excluded_substantive_ai / not_evaluated`. Its descriptive labels contain
-  five relevant and four irrelevant candidates across all four cases. Even if
-  treated as eligible, the implied 44.4% wrong-source rate would fail the frozen
-  5% maximum. Do not rerun the provider study; the next gate remains a returned,
-  source-grounded eligible human review.
+  9/9 rows and declared every URL attempted. Its first declaration row was
+  copied from an unrelated AI-assisted review, so the initial strict result was
+  correctly `excluded_substantive_ai / not_evaluated`. The owner then relayed
+  the human reviewer's corrected `generative_ai_use=NONE` declaration; both
+  versions and an erratum are retained. The superseding result is
+  `complete / fail`: accepted-case and novel-relevant coverage each passed at
+  4/4, while four of nine candidates were directly irrelevant and the 44.4%
+  wrong-source rate failed the frozen 5% maximum. Do not rerun or connect this
+  adapter. Any next method must face an unseen frozen challenge.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -303,7 +305,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md`,
   `docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md`,
   `docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md`,
-  and `docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md`.
+  `docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md`, and
+  `docs/errata-2026-08-27-anonymous-openalex-review-declaration.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
