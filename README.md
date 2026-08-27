@@ -489,7 +489,7 @@ uninspectable cost; Lens is explicitly uninspectable rather than `$0`. Every
 provider row reaches a candidate or rejection index, and OpenAlex query-string
 credentials are suppressed from complete exception tracebacks. Both a hidden
 retry and missing-row-accounting defect were re-injected and caught. The full
-suite passes **1,614 tests plus 609 subtests** at **87.31% coverage**. No
+suite passes **1,630 tests plus 609 subtests** at **87.43% coverage**. No
 credentialed Phase 4 OpenAlex/Lens run has executed and production still
 imports neither adapter, so
 candidate precision, novel-evidence yield and report benefit remain unobserved.
@@ -559,6 +559,20 @@ remains `not_evaluated`, and production remains disconnected. See the
 plus the [fixture erratum](docs/errata-2026-08-27-openalex-precision-v2-unseen-fixture.md)
 and [unseen-harness implementation result](docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md),
 followed by the [unseen live result](docs/results-2026-08-27-openalex-precision-v2-unseen-live.md).
+
+A different **provider-assisted claim-scope v3** candidate is now frozen
+against V01-V08 rather than tuned on the failed U01-U08 challenge. Its
+one-request adapter asks OpenAlex only for abstract-bearing Works and preserves
+scored topics/keywords as auditable aboutness signals. Provider metadata may
+bridge at most one required concept; at least one required concept must still
+match source text and one must match the title, so provider labels alone cannot
+authorize a source. The byte-locked zero-network preflight expands eight
+distinct collection/plan/profile/idempotency identities, 16/16 focused tests
+pass, and an intentionally wrong outbound filter made the transport-seam test
+fail before it was reverted. No V01-V08 request or human review has run, so
+provider compatibility, precision and source value remain `not_evaluated`, and
+production remains disconnected. See the [v3 protocol](docs/prereg-2026-08-27-openalex-claim-scope-v3.md)
+and [implementation result](docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1571,7 +1585,7 @@ intake 子集 **19/19** 通过，覆盖完整身份、基线漂移、旧包基�
 美元成本和不可检查成本，Lens 不会被误报为 `$0`。每一条供应商返回行必须进入
 候选或拒绝索引，OpenAlex 查询参数中的 key 也不会出现在完整异常 traceback 中。
 项目重新注入了隐藏重试和漏记供应商行两个缺陷，新测试均能准确变红；恢复正确实现
-后，全量 **1,614 项测试与 609 个 subtests** 通过，覆盖率 **87.31%**。目前尚未
+后，全量 **1,630 项测试与 609 个 subtests** 通过，覆盖率 **87.43%**。目前尚未
 发起带凭证的第四阶段 OpenAlex/Lens 运行，生产 worker 也不会导入这两个适配器，因此不能
 宣称候选精度、新证据收益或报告质量改善。详见
 [第四阶段协议](docs/prereg-2026-08-26-evidence-gap-domain-adapters-phase4.md)与
@@ -1627,6 +1641,17 @@ precision-v2 判断；最终仅在 3/8 个案例中接受 5 条候选，低于�
 [fixture 勘误](docs/errata-2026-08-27-openalex-precision-v2-unseen-fixture.md)与
 [未见 harness 实现结果](docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md)，以及
 [未见真实运行结果](docs/results-2026-08-27-openalex-precision-v2-unseen-live.md)。
+
+项目没有在失败的 U01-U08 上放宽阈值，而是另行冻结了 V01-V08，并实现一个不同的
+**供应商辅助 claim-scope v3** 候选。它的单请求适配器只请求有摘要的 OpenAlex Works，
+同时保留带分数的 topics/keywords 作为可审计的 aboutness 信号。供应商元数据最多只能
+补足一个必需概念；仍要求至少一个必需概念出现在来源文本中、至少一个出现在标题中，
+因此供应商标签不能单独放行来源。原始字节锁定的零网络预检已展开 8 组不同的
+collection/plan/profile/幂等身份，16/16 个聚焦测试通过；临时注入错误的出站过滤参数后，
+传输接缝测试会准确失败。目前没有发起 V01-V08 供应商请求，也没有人工来源真值评审，
+所以兼容性、精度和来源价值仍为 `not_evaluated`，生产路径保持断开。详见
+[v3 协议](docs/prereg-2026-08-27-openalex-claim-scope-v3.md)与
+[实现结果](docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、

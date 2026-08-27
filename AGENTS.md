@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1614 tests (609 subtests), CI green on Linux + Windows × Python
+Current state: 1630 tests (609 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -150,10 +150,14 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
                         phase-2 bounded executor; disconnected from production
   openalex_precision.py
                         conjunctive ACCEPT/ABSTAIN source gate; experimental only
+  openalex_claim_scope.py
+                        provider-assisted source gate; experimental only
   tools/evidence_search.py
                         one-request read-only adapter response contract
   tools/anonymous_openalex_search.py
                         key-free experimental wrapper; never production imported
+  tools/openalex_claim_scope_search.py
+                        abstract-filtered aboutness adapter; never production imported
   pipeline_worker.py    the subprocess one run executes in
   checkpoint_runtime.py
                         CrewAI hydration, task identity, and post-guardrail commits
@@ -163,7 +167,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  83 test modules plus conftest, organised by subject
+tests/                  86 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -195,6 +199,8 @@ openalex_precision_live.py
                         disconnected unseen runner; CLI defaults to dry-run
 openalex_precision_audit.py
                         label-blind frozen development replay; zero-network only
+openalex_claim_scope_unseen.py
+                        frozen V01-V08 claim-scope preflight; zero-network only
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -314,8 +320,20 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   coverage gate requires at least 6/8, so no later human label could make the
   all-gates rule pass. The study stopped before review; source value remains
   `not_evaluated`, not zero-error. Do not rerun, tune on U01-U08 and call it
-  validation, or connect either the original adapter or precision v2. Any next
-  method must freeze a different unseen challenge first.
+  validation, or connect either the original adapter or precision v2. A
+  provider-assisted claim-scope v3 method is now implemented against a
+  different, byte-frozen V01-V08 challenge. It requests only abstract-bearing
+  Works and preserves OpenAlex topics/keywords as scored aboutness metadata.
+  Provider metadata may bridge at most one required concept; at least one
+  required concept must still match source text and one must match the title.
+  Provider labels alone therefore cannot authorize a source. The zero-network
+  preflight expands eight distinct collection/plan/profile/idempotency
+  identities, and the new decision/adapter/preflight subset passes 16/16 tests.
+  A deliberately wrong outbound filter made the transport-seam test fail before
+  being reverted. The complete suite now passes 1,630 tests plus 609 subtests at
+  87.43% statement coverage. No V01-V08 provider request or human review has
+  run, so compatibility, precision, source value and report value remain
+  `not_evaluated`. Do not connect or advertise v3 as completed Tool Calling.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -338,7 +356,9 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-openalex-precision-v2-development.md`,
   `docs/errata-2026-08-27-openalex-precision-v2-unseen-fixture.md`,
   `docs/results-2026-08-27-openalex-precision-v2-unseen-implementation.md`, and
-  `docs/results-2026-08-27-openalex-precision-v2-unseen-live.md`.
+  `docs/results-2026-08-27-openalex-precision-v2-unseen-live.md`, plus
+  `docs/prereg-2026-08-27-openalex-claim-scope-v3.md` and
+  `docs/results-2026-08-27-openalex-claim-scope-v3-implementation.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
