@@ -1,0 +1,411 @@
+{
+  "schema_version": 1,
+  "mode": "openalex_claim_scope_v3_unseen_challenge",
+  "production_connected": false,
+  "report_workflow_connected": false,
+  "maximum_live_requests": 8,
+  "request_contract": {
+    "result_limit": 8,
+    "filter": "has_abstract:true",
+    "aboutness_fields": ["topics", "keywords"],
+    "redirects": false,
+    "internal_retries": false
+  },
+  "development_observation": {
+    "source_document": "docs/results-2026-08-27-openalex-precision-v2-unseen-live.md",
+    "provider_rows": 40,
+    "provider_rejections": 9,
+    "legacy_quarantine_rejections": 8,
+    "precision_evaluated_rows": 23,
+    "precision_v2_accepts": 5,
+    "precision_v2_abstains": 18,
+    "abstains_with_missing_required_groups": 18,
+    "accepted_case_count": 3,
+    "source_truth_state": "not_evaluated"
+  },
+  "challenge_cases": [
+    {
+      "case_id": "V01",
+      "topic": "Near-field thermophotovoltaic energy conversion using nanophotonic gap control",
+      "query": "near field thermophotovoltaic nanophotonic vacuum gap energy conversion efficiency",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "near_field_transfer",
+            "text_phrases": ["near field", "evanescent wave"],
+            "provider_terms": ["near-field radiative heat transfer", "near-field optics"]
+          },
+          {
+            "group_id": "thermophotovoltaic",
+            "text_phrases": ["thermophotovoltaic", "thermo photovoltaic", "tpv"],
+            "provider_terms": ["thermophotovoltaic energy conversion", "thermophotovoltaics"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "nanoscale_gap",
+            "text_phrases": ["nanoscale gap", "vacuum gap", "nanogap"],
+            "provider_terms": ["nanoscale heat transfer", "nanophotonic gap"]
+          },
+          {
+            "group_id": "photovoltaic_cell",
+            "text_phrases": ["photovoltaic cell", "photovoltaic diode", "pv cell"],
+            "provider_terms": ["photovoltaic devices", "photovoltaic cells"]
+          },
+          {
+            "group_id": "thermal_emitter",
+            "text_phrases": ["thermal emitter", "selective emitter", "radiator"],
+            "provider_terms": ["thermal emitters", "selective thermal emission"]
+          },
+          {
+            "group_id": "conversion_performance",
+            "text_phrases": ["conversion efficiency", "power density", "electrical power"],
+            "provider_terms": ["energy conversion efficiency", "power conversion"]
+          }
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_exact_required_groups": 1,
+        "minimum_title_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "V02",
+      "topic": "Photocatalytic methane coupling to ethylene under ambient reaction conditions",
+      "query": "photocatalytic methane coupling ethylene ambient conditions selectivity catalyst",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "methane_coupling",
+            "text_phrases": ["methane coupling", "methane conversion", "coupling of methane"],
+            "provider_terms": ["oxidative coupling of methane", "methane conversion"]
+          },
+          {
+            "group_id": "ethylene_product",
+            "text_phrases": ["ethylene", "ethene"],
+            "provider_terms": ["ethylene production", "ethylene synthesis"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "photocatalysis",
+            "text_phrases": ["photocatalytic", "photocatalysis", "light driven"],
+            "provider_terms": ["photocatalysis", "photochemical reactions"]
+          },
+          {
+            "group_id": "ambient_conditions",
+            "text_phrases": ["ambient conditions", "room temperature", "atmospheric pressure"],
+            "provider_terms": ["ambient temperature", "mild reaction conditions"]
+          },
+          {
+            "group_id": "selectivity",
+            "text_phrases": ["selectivity", "selective conversion", "product distribution"],
+            "provider_terms": ["reaction selectivity", "product selectivity"]
+          },
+          {
+            "group_id": "catalyst_material",
+            "text_phrases": ["catalyst", "catalytic", "photocatalyst"],
+            "provider_terms": ["heterogeneous catalysis", "photocatalysts"]
+          }
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_exact_required_groups": 1,
+        "minimum_title_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "V03",
+      "topic": "Focused-ultrasound drug delivery across the blood-brain barrier using microbubbles",
+      "query": "focused ultrasound microbubble blood brain barrier drug delivery permeability safety",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "blood_brain_barrier",
+            "text_phrases": ["blood brain barrier", "bbb"],
+            "provider_terms": ["blood-brain barrier", "brain drug delivery"]
+          },
+          {
+            "group_id": "ultrasound_microbubble",
+            "text_phrases": ["focused ultrasound", "microbubble", "microbubbles"],
+            "provider_terms": ["focused ultrasound", "ultrasound contrast agents"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "drug_delivery",
+            "text_phrases": ["drug delivery", "therapeutic delivery", "cargo delivery"],
+            "provider_terms": ["targeted drug delivery", "central nervous system delivery"]
+          },
+          {
+            "group_id": "barrier_opening",
+            "text_phrases": ["barrier opening", "permeability", "barrier disruption"],
+            "provider_terms": ["barrier permeability", "blood-brain barrier opening"]
+          },
+          {
+            "group_id": "safety",
+            "text_phrases": ["safety", "tissue damage", "hemorrhage"],
+            "provider_terms": ["treatment safety", "adverse effects"]
+          },
+          {
+            "group_id": "in_vivo",
+            "text_phrases": ["in vivo", "animal model", "clinical"],
+            "provider_terms": ["in vivo studies", "clinical translation"]
+          }
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_exact_required_groups": 1,
+        "minimum_title_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "V04",
+      "topic": "Silicon-photonic frequency-modulated continuous-wave LiDAR with integrated lasers",
+      "query": "silicon photonic FMCW lidar integrated laser coherent ranging resolution",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "fmcw_lidar",
+            "text_phrases": ["fmcw lidar", "frequency modulated continuous wave lidar", "coherent lidar"],
+            "provider_terms": ["frequency-modulated continuous-wave lidar", "coherent laser ranging"]
+          },
+          {
+            "group_id": "silicon_photonics",
+            "text_phrases": ["silicon photonic", "silicon photonics", "silicon on insulator"],
+            "provider_terms": ["silicon photonics", "photonic integrated circuits"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "integrated_laser",
+            "text_phrases": ["integrated laser", "on chip laser", "laser integration"],
+            "provider_terms": ["integrated lasers", "semiconductor laser integration"]
+          },
+          {
+            "group_id": "ranging",
+            "text_phrases": ["ranging", "distance measurement", "range measurement"],
+            "provider_terms": ["laser ranging", "distance sensing"]
+          },
+          {
+            "group_id": "coherent_detection",
+            "text_phrases": ["coherent detection", "heterodyne detection", "optical coherence"],
+            "provider_terms": ["coherent detection", "optical heterodyne detection"]
+          },
+          {
+            "group_id": "lidar_performance",
+            "text_phrases": ["range resolution", "velocity resolution", "signal to noise"],
+            "provider_terms": ["lidar performance", "range resolution"]
+          }
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_exact_required_groups": 1,
+        "minimum_title_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "V05",
+      "topic": "Electrochemical lithium extraction from geothermal brines using ion-selective membranes",
+      "query": "electrochemical lithium extraction geothermal brine ion selective membrane selectivity cycling",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "lithium_extraction",
+            "text_phrases": ["lithium extraction", "lithium recovery", "extract lithium"],
+            "provider_terms": ["lithium extraction", "direct lithium extraction"]
+          },
+          {
+            "group_id": "geothermal_brine",
+            "text_phrases": ["geothermal brine", "geothermal water", "geothermal fluid"],
+            "provider_terms": ["geothermal brines", "geothermal resources"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "electrochemical_route",
+            "text_phrases": ["electrochemical", "electrosorption", "electrodialysis"],
+            "provider_terms": ["electrochemical separation", "electrochemical extraction"]
+          },
+          {
+            "group_id": "selective_membrane",
+            "text_phrases": ["ion selective membrane", "selective membrane", "membrane separation"],
+            "provider_terms": ["ion-selective membranes", "membrane separation"]
+          },
+          {
+            "group_id": "ion_selectivity",
+            "text_phrases": ["selectivity", "separation factor", "selective transport"],
+            "provider_terms": ["ion selectivity", "selective ion transport"]
+          },
+          {
+            "group_id": "cycling_stability",
+            "text_phrases": ["cycling stability", "regeneration", "cycle life"],
+            "provider_terms": ["electrochemical cycling", "material regeneration"]
+          }
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_exact_required_groups": 1,
+        "minimum_title_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "V06",
+      "topic": "Passive-radiative-cooling textiles for personal thermal management",
+      "query": "passive radiative cooling textile personal thermal management infrared solar reflectance",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "radiative_cooling",
+            "text_phrases": ["radiative cooling", "passive cooling", "thermal radiation cooling"],
+            "provider_terms": ["passive radiative cooling", "radiative cooling"]
+          },
+          {
+            "group_id": "textile_material",
+            "text_phrases": ["textile", "fabric", "clothing"],
+            "provider_terms": ["functional textiles", "smart textiles"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "infrared_emission",
+            "text_phrases": ["infrared emission", "thermal emissivity", "mid infrared"],
+            "provider_terms": ["infrared emissivity", "thermal radiation"]
+          },
+          {
+            "group_id": "solar_reflectance",
+            "text_phrases": ["solar reflectance", "solar reflection", "reflect sunlight"],
+            "provider_terms": ["solar reflectivity", "solar radiation reflection"]
+          },
+          {
+            "group_id": "wearable_context",
+            "text_phrases": ["wearable", "personal thermal", "human body"],
+            "provider_terms": ["wearable technology", "personal thermal management"]
+          },
+          {
+            "group_id": "cooling_performance",
+            "text_phrases": ["temperature reduction", "cooling power", "thermal comfort"],
+            "provider_terms": ["cooling performance", "thermal comfort"]
+          }
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_exact_required_groups": 1,
+        "minimum_title_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "V07",
+      "topic": "Spray-induced RNA silencing for fungal disease control in crops",
+      "query": "spray induced gene silencing dsRNA fungal crop disease control efficacy delivery",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "spray_rna_silencing",
+            "text_phrases": ["spray induced gene silencing", "sigs", "rna spray"],
+            "provider_terms": ["spray-induced gene silencing", "rna interference"]
+          },
+          {
+            "group_id": "fungal_crop_disease",
+            "text_phrases": ["fungal disease", "fungal pathogen", "plant fungus"],
+            "provider_terms": ["plant fungal diseases", "crop disease control"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "double_stranded_rna",
+            "text_phrases": ["double stranded rna", "dsrna", "small interfering rna"],
+            "provider_terms": ["double-stranded rna", "small interfering rna"]
+          },
+          {
+            "group_id": "topical_delivery",
+            "text_phrases": ["topical application", "foliar spray", "spray delivery"],
+            "provider_terms": ["topical delivery", "foliar application"]
+          },
+          {
+            "group_id": "disease_efficacy",
+            "text_phrases": ["disease reduction", "disease control", "antifungal efficacy"],
+            "provider_terms": ["plant disease resistance", "fungal control efficacy"]
+          },
+          {
+            "group_id": "crop_context",
+            "text_phrases": ["crop", "plant", "field trial"],
+            "provider_terms": ["crop protection", "plant pathology"]
+          }
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_exact_required_groups": 1,
+        "minimum_title_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    },
+    {
+      "case_id": "V08",
+      "topic": "Solar-driven interfacial evaporation using biomass-derived aerogels for desalination",
+      "query": "solar interfacial evaporation biomass aerogel desalination evaporation rate salt resistance",
+      "result_limit": 8,
+      "profile": {
+        "required_groups": [
+          {
+            "group_id": "interfacial_evaporation",
+            "text_phrases": ["interfacial evaporation", "interfacial steam generation", "solar evaporation"],
+            "provider_terms": ["solar interfacial evaporation", "interfacial solar steam generation"]
+          },
+          {
+            "group_id": "desalination",
+            "text_phrases": ["desalination", "seawater purification", "saltwater purification"],
+            "provider_terms": ["solar desalination", "water desalination"]
+          }
+        ],
+        "supporting_groups": [
+          {
+            "group_id": "biomass_aerogel",
+            "text_phrases": ["biomass aerogel", "cellulose aerogel", "bio derived aerogel"],
+            "provider_terms": ["biomass-derived aerogels", "cellulose aerogels"]
+          },
+          {
+            "group_id": "solar_absorption",
+            "text_phrases": ["solar absorption", "photothermal", "light absorption"],
+            "provider_terms": ["photothermal conversion", "solar energy absorption"]
+          },
+          {
+            "group_id": "evaporation_performance",
+            "text_phrases": ["evaporation rate", "evaporation efficiency", "water production"],
+            "provider_terms": ["water evaporation rate", "solar steam efficiency"]
+          },
+          {
+            "group_id": "salt_resistance",
+            "text_phrases": ["salt resistance", "salt rejection", "salt accumulation"],
+            "provider_terms": ["salt rejection", "anti-salt fouling"]
+          }
+        ],
+        "minimum_supporting_groups": 2,
+        "minimum_exact_required_groups": 1,
+        "minimum_title_required_groups": 1,
+        "maximum_provider_only_required_groups": 1,
+        "provider_score_floor": 0.55
+      }
+    }
+  ],
+  "source_value_gates": {
+    "accepted_case_count_min": 6,
+    "novel_relevant_case_count_min": 6,
+    "wrong_source_rate_max": 0.05,
+    "all_attempted_sources_reviewed": true,
+    "substantive_generative_ai_allowed": false
+  }
+}
