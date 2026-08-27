@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1584 tests (639 subtests), CI green on Linux + Windows × Python
+Current state: 1596 tests (609 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -148,6 +148,8 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
   evidence_gap.py       phase-1 gap signals and strict plan authorization
   evidence_gap_execution.py
                         phase-2 bounded executor; disconnected from production
+  openalex_precision.py
+                        conjunctive ACCEPT/ABSTAIN source gate; experimental only
   tools/evidence_search.py
                         one-request read-only adapter response contract
   tools/anonymous_openalex_search.py
@@ -161,7 +163,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  80 test modules plus conftest, organised by subject
+tests/                  83 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -187,6 +189,8 @@ evidence_gap_openalex_live.py
                         anonymous four-case OpenAlex study; never production
 evidence_gap_openalex_review.py
                         exact-run source lock plus Schema v2 human review
+openalex_precision_audit.py
+                        label-blind frozen development replay; zero-network only
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -287,8 +291,14 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   versions and an erratum are retained. The superseding result is
   `complete / fail`: accepted-case and novel-relevant coverage each passed at
   4/4, while four of nine candidates were directly irrelevant and the 44.4%
-  wrong-source rate failed the frozen 5% maximum. Do not rerun or connect this
-  adapter. Any next method must face an unseen frozen challenge.
+  wrong-source rate failed the frozen 5% maximum. A separately pre-registered
+  precision-v2 method now uses code-owned conjunctive concept groups and only
+  emits `ACCEPT` or `ABSTAIN`. Its label-blind replay checked every source and
+  journal hash before opening labels, accepted all 5/5 relevant development
+  rows, abstained all 4/4 known wrong rows and retained relevant evidence in
+  4/4 cases. This is development-set qualification only. The frozen U01-U08
+  unseen harness has not run, no live request is authorized, and production
+  remains disconnected. Do not rerun or connect the original adapter.
   Keep `pipeline_worker.py` disconnected from the executor, adapters, live
   runner and review module.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -305,8 +315,10 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-evidence-gap-anonymous-openalex-implementation.md`,
   `docs/results-2026-08-27-evidence-gap-anonymous-openalex-live.md`,
   `docs/results-2026-08-27-evidence-gap-anonymous-openalex-review-implementation.md`,
-  `docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md`, and
-  `docs/errata-2026-08-27-anonymous-openalex-review-declaration.md`.
+  `docs/results-2026-08-27-evidence-gap-anonymous-openalex-review.md`,
+  `docs/errata-2026-08-27-anonymous-openalex-review-declaration.md`,
+  `docs/prereg-2026-08-27-openalex-precision-v2.md`, and
+  `docs/results-2026-08-27-openalex-precision-v2-development.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
