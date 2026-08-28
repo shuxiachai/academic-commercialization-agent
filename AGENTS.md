@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1678 tests (609 subtests), CI green on Linux + Windows × Python
+Current state: 1695 tests (609 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -209,6 +209,8 @@ openalex_claim_scope_review.py
                         exact-run source lock plus Schema v2 human review
 openalex_scope_link_unseen.py
                         frozen W01-W08 scope-link preflight; zero-network only
+openalex_scope_link_live.py
+                        write-once W01-W08 runner; CLI defaults to dry-run
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -376,9 +378,18 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   collection/plan/profile/idempotency identities with zero sockets. Its 15/15
   focused seams pass; combining the whole abstract into one relation segment
   was re-injected and made the cross-sentence test fail before restoration.
+  A separately pre-registered write-once live runner now locks the fixture and
+  nine decision/transport dependency hashes before output reservation, records
+  its observed self-hash without creating a recursive lock, persists the full
+  manifest before adapter construction, and commits each one-attempt case
+  journal before a later request. Every provider candidate or rejection reaches
+  the aggregate CSV, with required/scope/support/link provenance kept distinct;
+  only ACCEPT rows reach a blank review boundary. Its 17/17 runner seams pass,
+  and dropping link evidence after a correct internal decision was re-injected
+  and made the client-boundary test fail. The combined v4 subset passes 32/32.
   No W01-W08 provider request or source review has occurred, so provider
-  compatibility, coverage, wrong-source rate and source value are all
-  `not_evaluated`. A live runner is not implemented or authorized. Keep
+  compatibility, coverage, wrong-source rate and source value remain
+  `not_evaluated`. The runner is implemented but not live-authorized. Keep
   `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4
   candidates, live runners and review modules.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -409,7 +420,9 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-openalex-claim-scope-v3-review-implementation.md`,
   plus `docs/results-2026-08-27-openalex-claim-scope-v3-review.md`, and
   `docs/prereg-2026-08-27-openalex-scope-link-v4.md` plus
-  `docs/results-2026-08-27-openalex-scope-link-v4-implementation.md`.
+  `docs/results-2026-08-27-openalex-scope-link-v4-implementation.md`, plus
+  `docs/prereg-2026-08-28-openalex-scope-link-v4-live.md` and
+  `docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
