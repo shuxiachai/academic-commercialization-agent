@@ -606,12 +606,20 @@ topics/keywords may bridge at most one required group but cannot establish
 scope, support or the relation itself. The raw-byte-locked W01-W08 preflight
 expands eight distinct collection/plan/profile/idempotency identities with zero
 network calls; 15/15 focused tests pass, including a re-injected whole-abstract
-defect that makes the cross-sentence seam fail. The complete test directory now
-passes **1,678 tests plus 609 subtests**. No W01-W08 provider request has been
-made, no live runner is implemented or authorized, and source value remains
-`not_evaluated`; production is still disconnected. See the
+defect that makes the cross-sentence seam fail. A separately pre-registered
+write-once live runner now records the frozen method and its observed self-hash
+before constructing an adapter, then commits each one-request case journal
+before a later request. Every provider row reaches the aggregate artifact, and
+only v4 `ACCEPT` rows reach a blank human-review boundary. The combined v4
+decision, preflight and runner subset passes 32/32 tests, including a
+re-injected computed-but-undelivered relation-provenance defect. The complete
+repository now passes **1,695 tests plus 609 subtests**. No W01-W08 provider
+request has been made, the live runner is not authorized, and source value
+remains `not_evaluated`; production is still disconnected. See the
 [v4 protocol](docs/prereg-2026-08-27-openalex-scope-link-v4.md) and
-[zero-network implementation result](docs/results-2026-08-27-openalex-scope-link-v4-implementation.md).
+[zero-network implementation result](docs/results-2026-08-27-openalex-scope-link-v4-implementation.md),
+plus the [live-runner protocol](docs/prereg-2026-08-28-openalex-scope-link-v4-live.md)
+and [live-runner implementation result](docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1718,12 +1726,18 @@ v3 的错误条目表明，通用的过程/性能命中仍可能替代
 required 概念，不能建立 scope、support 或它们的关系。
 原始字节锁定的 W01-W08 预检在零网络下展开 8 组唯一的
 collection/plan/profile/幂等身份，15/15 个聚焦测试通过；临时将整段
-摘要当成一句后，跨句接缝测试会准确失败。当前完整测试目录为
-**1,678 项测试与 609 个 subtests**。W01-W08 尚未请求供应商，
-live runner 未实现也未授权，来源价值仍为 `not_evaluated`，
-生产路径保持断开。详见
+摘要当成一句后，跨句接缝测试会准确失败。另行预注册的写一次 live
+runner 已实现：它在构造适配器前记录冻结方法与自身观测哈希，并在发起
+下一次请求前先提交当前单请求 case journal。每一条供应商返回行都会到达
+聚合产物，只有 v4 `ACCEPT` 行会进入空白人工评审边界。v4 决策、预检与
+runner 组合测试为 32/32；临时移除内部已算出的 relation provenance 后，
+客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,695 项测试与 609 个
+subtests**。W01-W08 尚未请求供应商，live runner 尚未获得运行授权，
+来源价值仍为 `not_evaluated`，生产路径保持断开。详见
 [v4 协议](docs/prereg-2026-08-27-openalex-scope-link-v4.md)与
-[零网络实现结果](docs/results-2026-08-27-openalex-scope-link-v4-implementation.md)。
+[零网络实现结果](docs/results-2026-08-27-openalex-scope-link-v4-implementation.md)，
+以及 [live runner 协议](docs/prereg-2026-08-28-openalex-scope-link-v4-live.md)与
+[live runner 实现结果](docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
