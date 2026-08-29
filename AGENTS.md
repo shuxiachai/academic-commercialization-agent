@@ -405,11 +405,19 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   cases, exposes none of the v4 action or match-provenance fields, and its blank
   summary is incomplete / not_evaluated with zero metrics. Sixteen focused
   tests pass, including a re-injected decision-field leak and a Windows GBK
-  stdout regression. No human label exists yet. This diagnostic may explain
-  the failure shape but cannot rescue v4, validate v5, reopen W01-W08, or
-  authorize production. See
+  stdout regression. One eligible human reviewer later completed 64/64 rows
+  without substantive generative-AI use or external-source checks. The strict
+  result is complete / evaluated as a diagnostic only: 28/64 rows were directly
+  relevant from the frozen title and abstract, 36/64 were retrieval noise, all
+  8/8 cases retained relevant and baseline-novel evidence, and v4 missed four
+  of five human-inferred semantic links. This identifies both retrieval noise
+  and lexical relation recall as contributors; it does not establish source
+  truth or inter-rater agreement. It cannot rescue v4, validate v5, reopen
+  W01-W08, or authorize production. See
   docs/prereg-2026-08-29-openalex-scope-link-v4-abstention-diagnostic.md and
-  docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md.
+  docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md,
+  plus
+  docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md.
   Keep
   `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4
   candidates, live runners and review modules.

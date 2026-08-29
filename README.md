@@ -633,13 +633,19 @@ rule that was too strict, a separate post-outcome diagnostic was pre-registered
 without reopening the v4 result. It locks all 64 abstentions, exposes the
 frozen baseline plus title/abstract text in a label-blind packet, and withholds
 the v4 action, reasons and match provenance until summary. The real 64-row
-packet spans 8/8 cases and its untouched summary is
-**incomplete / not_evaluated** with zero calculated metrics. Sixteen focused
-tests include a re-injected decision leak and a Windows legacy-console output
-failure. No human labels exist yet: this work cannot rescue v4, validate a
-successor on W01-W08, or authorize production. See the
+packet spans 8/8 cases. One eligible human reviewer later completed 64/64 rows
+without substantive generative-AI use or external-source checks, producing
+**complete / evaluated** as a diagnostic only. From the frozen titles and
+abstracts, 28/64 rows were directly relevant and 36/64 were retrieval noise;
+all 8 cases retained at least one relevant, baseline-novel source. The reviewer
+inferred the target semantic link in five rows, and v4 missed four of those
+five. Sixteen focused tests include a re-injected decision leak and a Windows
+legacy-console output failure. This title/abstract-only, single-reviewer result
+explains the failure shape but cannot rescue v4, validate a successor on
+W01-W08, establish source truth, or authorize production. See the
 [diagnostic protocol](docs/prereg-2026-08-29-openalex-scope-link-v4-abstention-diagnostic.md)
-and [blank-packet implementation result](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md).
+and [blank-packet implementation result](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md),
+plus the [completed human diagnostic](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1767,12 +1773,17 @@ v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结
 由于机械失败本身无法区分“来源无关”和“规则过严”，项目在不重开 v4 结论的
 前提下另行预注册了事后诊断。它锁定全部 64 条 abstention，只在盲评包中展示
 冻结基线以及标题/摘要文本，并将 v4 动作、原因和匹配来源隐藏到汇总阶段。
-真实评审包覆盖 8/8 个案例、共 64 行；未填写时明确返回
-**incomplete / not_evaluated**，不计算任何指标。16 个聚焦测试覆盖了临时回注的
-决策字段泄露和 Windows 旧编码终端输出失败。目前尚无人工标签，因此该诊断不能
-挽救 v4、不能在 W01-W08 上验证后继方法，也不能授权生产接入。详见
+真实评审包覆盖 8/8 个案例、共 64 行。随后一名合格人工评审者在未使用实质性
+生成式 AI、未检查外部来源的条件下完成 64/64 行，严格汇总状态为仅诊断用途的
+**complete / evaluated**。基于冻结标题和摘要，28/64 行被判断为直接相关，36/64
+行为检索噪声；8/8 个案例均至少保留一条相关且相对冻结基线有新增信息的来源。
+评审者在 5 行中能够推断目标语义关系，而 v4 漏掉其中 4 行。16 个聚焦测试覆盖了
+临时回注的决策字段泄露和 Windows 旧编码终端输出失败。该单评审者、仅标题摘要的
+结果可以解释失败形态，但不能挽救 v4、不能在 W01-W08 上验证后继方法、不能建立
+来源真值，也不能授权生产接入。详见
 [诊断协议](docs/prereg-2026-08-29-openalex-scope-link-v4-abstention-diagnostic.md)与
-[空白评审包实现结果](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md)。
+[空白评审包实现结果](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md)，
+以及[已完成人工诊断结果](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、

@@ -135,10 +135,20 @@ checks also pass. The project-local temporary directory is necessary only
 because this Windows account has a pre-existing inaccessible pytest directory
 under the user temp path; it changes no collected test or assertion.
 
-## Next decision
+## Next decision at implementation time
 
 One eligible human reviewer may now label the 64-row packet. The result must be
 reported as post-outcome failure analysis. It may justify designing a different
 method on newly frozen cases, but it must not be used to tune v4 on W01-W08,
 claim v4 source precision, rerun W01-W08 as validation, or advertise completed
 production Tool Calling.
+
+## Human-review follow-up
+
+An eligible human return later completed all 64 rows and passed the strict
+source and packet locks. The diagnostic is now **complete / evaluated**: 28
+rows were directly relevant from the frozen text, 36 were retrieval noise, and
+four of five human-inferred semantic links were missed by v4. No external
+sources were checked, so this is title/abstract interpretation rather than
+source-truth validation. See the
+[completed diagnostic result](results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md).
