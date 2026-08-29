@@ -613,13 +613,20 @@ before a later request. Every provider row reaches the aggregate artifact, and
 only v4 `ACCEPT` rows reach a blank human-review boundary. The combined v4
 decision, preflight and runner subset passes 32/32 tests, including a
 re-injected computed-but-undelivered relation-provenance defect. The complete
-repository now passes **1,695 tests plus 609 subtests**. No W01-W08 provider
-request has been made, the live runner is not authorized, and source value
-remains `not_evaluated`; production is still disconnected. See the
+repository now passes **1,695 tests plus 609 subtests**. A separately
+authorized run on merged revision `678254d` completed all eight one-attempt
+anonymous requests for USD 0.008 of provider-reported usage. All 64 provider
+rows reached the v4 decision seam, but the method accepted zero candidates
+across 0/8 cases, below the frozen 6/8 coverage gate. The strict mechanical
+result is therefore `mechanical_gate_failed`; no source lock or human-review
+packet was created, source value remains `not_evaluated`, and production is
+still disconnected. Do not tune on or rerun W01-W08 and call it validation.
+See the
 [v4 protocol](docs/prereg-2026-08-27-openalex-scope-link-v4.md) and
 [zero-network implementation result](docs/results-2026-08-27-openalex-scope-link-v4-implementation.md),
 plus the [live-runner protocol](docs/prereg-2026-08-28-openalex-scope-link-v4-live.md)
-and [live-runner implementation result](docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md).
+and [live-runner implementation result](docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md),
+and the [frozen live result](docs/results-2026-08-29-openalex-scope-link-v4-live.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1732,12 +1739,17 @@ runner 已实现：它在构造适配器前记录冻结方法与自身观测哈�
 聚合产物，只有 v4 `ACCEPT` 行会进入空白人工评审边界。v4 决策、预检与
 runner 组合测试为 32/32；临时移除内部已算出的 relation provenance 后，
 客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,695 项测试与 609 个
-subtests**。W01-W08 尚未请求供应商，live runner 尚未获得运行授权，
-来源价值仍为 `not_evaluated`，生产路径保持断开。详见
+subtests**。随后在合并版本 `678254d` 上单独授权的真实实验完成了 8 次匿名、
+不重试的顺序请求，供应商记账成本为 0.008 美元。64 条供应商候选全部到达
+v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结的 6/8 门槛。
+严格机械结论因此是 `mechanical_gate_failed`；没有创建来源锁或人工评审包，
+来源价值仍为 `not_evaluated`，生产路径继续断开。不得在 W01-W08 上调参、重跑
+后再把结果称为验证。详见
 [v4 协议](docs/prereg-2026-08-27-openalex-scope-link-v4.md)与
 [零网络实现结果](docs/results-2026-08-27-openalex-scope-link-v4-implementation.md)，
 以及 [live runner 协议](docs/prereg-2026-08-28-openalex-scope-link-v4-live.md)与
-[live runner 实现结果](docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md)。
+[live runner 实现结果](docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md)，
+以及[冻结真实实验结果](docs/results-2026-08-29-openalex-scope-link-v4-live.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
