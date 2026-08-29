@@ -647,6 +647,17 @@ W01-W08, establish source truth, or authorize production. See the
 and [blank-packet implementation result](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md),
 plus the [completed human diagnostic](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md).
 
+That diagnostic now supports a separately frozen **quote-grounded evidence-set
+v5** hypothesis. Instead of asking one paper to state the whole topic in one
+sentence, a label-blind DeepSeek judge must propose source roles with
+mechanically verifiable title/abstract quotes in two order-reversed passes; a
+deterministic selector may then combine at most three complementary sources.
+W01-W08 are development evidence only. X01-X08 are raw-byte-locked as the
+unseen challenge, and every provider row must receive human review even after a
+mechanical failure. No v5 implementation, model call or OpenAlex request has
+occurred, and production remains disconnected. See the
+[v5 pre-registration](docs/prereg-2026-08-29-openalex-evidence-set-v5.md).
+
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
 zero-network census of **95 historical runs** found only **3 in-scope rows over
@@ -1784,6 +1795,14 @@ v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结
 [诊断协议](docs/prereg-2026-08-29-openalex-scope-link-v4-abstention-diagnostic.md)与
 [空白评审包实现结果](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md)，
 以及[已完成人工诊断结果](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md)。
+
+该诊断现已支持一项另行冻结的 **quote-grounded evidence-set v5** 假设。
+它不再要求一篇论文在同一句中完整表述整个主题，而是让标签盲化的 DeepSeek
+裁判以两次顺序相反的判断提出带标题/摘要原文片段的来源角色，再由确定性选择器
+组合至多三条互补来源。W01-W08 只能作为开发证据；X01-X08 已按原始字节锁定为
+未见挑战。即使机械门槛失败，全部供应商候选也必须进入人工评审。当前尚未实现
+v5、没有发生模型或 OpenAlex 请求，生产路径仍保持断开。详见
+[v5 预注册协议](docs/prereg-2026-08-29-openalex-evidence-set-v5.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
