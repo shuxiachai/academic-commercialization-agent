@@ -31,6 +31,13 @@ type = "crew"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+# Runtime outputs and assistant worktrees may contain byte-frozen or stale
+# repository snapshots. They are evidence/tool artifacts, not another copy of
+# the live test suite; collecting them makes identical module names shadow the
+# canonical tests after real studies have run. Excluding those ignored
+# boundaries keeps the documented command equivalent between a used workspace
+# and CI.
+norecursedirs = [".claude", ".git", ".venv", "outputs", "__pycache__"]
 # Turning UserWarning into an error is what stops a test from quietly calling a
 # real API: those paths warn and fall back rather than raising, so a leak would
 # otherwise pass. Configured here rather than on the CI command line because the

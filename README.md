@@ -613,7 +613,7 @@ before a later request. Every provider row reaches the aggregate artifact, and
 only v4 `ACCEPT` rows reach a blank human-review boundary. The combined v4
 decision, preflight and runner subset passes 32/32 tests, including a
 re-injected computed-but-undelivered relation-provenance defect. The complete
-repository now passes **1,695 tests plus 609 subtests**. A separately
+repository now passes **1,712 tests plus 639 subtests**. A separately
 authorized run on merged revision `678254d` completed all eight one-attempt
 anonymous requests for USD 0.008 of provider-reported usage. All 64 provider
 rows reached the v4 decision seam, but the method accepted zero candidates
@@ -627,6 +627,19 @@ See the
 plus the [live-runner protocol](docs/prereg-2026-08-28-openalex-scope-link-v4-live.md)
 and [live-runner implementation result](docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md),
 and the [frozen live result](docs/results-2026-08-29-openalex-scope-link-v4-live.md).
+
+Because the mechanical failure could not distinguish irrelevant sources from a
+rule that was too strict, a separate post-outcome diagnostic was pre-registered
+without reopening the v4 result. It locks all 64 abstentions, exposes the
+frozen baseline plus title/abstract text in a label-blind packet, and withholds
+the v4 action, reasons and match provenance until summary. The real 64-row
+packet spans 8/8 cases and its untouched summary is
+**incomplete / not_evaluated** with zero calculated metrics. Sixteen focused
+tests include a re-injected decision leak and a Windows legacy-console output
+failure. No human labels exist yet: this work cannot rescue v4, validate a
+successor on W01-W08, or authorize production. See the
+[diagnostic protocol](docs/prereg-2026-08-29-openalex-scope-link-v4-abstention-diagnostic.md)
+and [blank-packet implementation result](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1738,7 +1751,7 @@ runner 已实现：它在构造适配器前记录冻结方法与自身观测哈�
 下一次请求前先提交当前单请求 case journal。每一条供应商返回行都会到达
 聚合产物，只有 v4 `ACCEPT` 行会进入空白人工评审边界。v4 决策、预检与
 runner 组合测试为 32/32；临时移除内部已算出的 relation provenance 后，
-客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,695 项测试与 609 个
+客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,712 项测试与 639 个
 subtests**。随后在合并版本 `678254d` 上单独授权的真实实验完成了 8 次匿名、
 不重试的顺序请求，供应商记账成本为 0.008 美元。64 条供应商候选全部到达
 v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结的 6/8 门槛。
@@ -1750,6 +1763,16 @@ v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结
 以及 [live runner 协议](docs/prereg-2026-08-28-openalex-scope-link-v4-live.md)与
 [live runner 实现结果](docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md)，
 以及[冻结真实实验结果](docs/results-2026-08-29-openalex-scope-link-v4-live.md)。
+
+由于机械失败本身无法区分“来源无关”和“规则过严”，项目在不重开 v4 结论的
+前提下另行预注册了事后诊断。它锁定全部 64 条 abstention，只在盲评包中展示
+冻结基线以及标题/摘要文本，并将 v4 动作、原因和匹配来源隐藏到汇总阶段。
+真实评审包覆盖 8/8 个案例、共 64 行；未填写时明确返回
+**incomplete / not_evaluated**，不计算任何指标。16 个聚焦测试覆盖了临时回注的
+决策字段泄露和 Windows 旧编码终端输出失败。目前尚无人工标签，因此该诊断不能
+挽救 v4、不能在 W01-W08 上验证后继方法，也不能授权生产接入。详见
+[诊断协议](docs/prereg-2026-08-29-openalex-scope-link-v4-abstention-diagnostic.md)与
+[空白评审包实现结果](docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
