@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1695 tests (609 subtests), CI green on Linux + Windows × Python
+Current state: 1712 tests (639 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -211,6 +211,8 @@ openalex_scope_link_unseen.py
                         frozen W01-W08 scope-link preflight; zero-network only
 openalex_scope_link_live.py
                         write-once W01-W08 runner; CLI defaults to dry-run
+openalex_scope_link_abstention_review.py
+                        post-outcome W01-W08 label-blind diagnostic; zero-network
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -396,7 +398,27 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `not_evaluated`. Sixty-three decisions record `missing_scope_link`, which is
   a deterministic trace observation rather than a source-relevance label.
   W01-W08 are now consumed evaluation cases: do not tune on them, rerun them
-  and call the result validation, or connect v4. Keep
+  and call the result validation, or connect v4.
+  A separately pre-registered post-outcome diagnostic now locks the exact 64
+  abstentions and emits a label-blind packet containing only the frozen
+  baseline context and source text. The real packet has 64/64 rows across 8/8
+  cases, exposes none of the v4 action or match-provenance fields, and its blank
+  summary is incomplete / not_evaluated with zero metrics. Sixteen focused
+  tests pass, including a re-injected decision-field leak and a Windows GBK
+  stdout regression. One eligible human reviewer later completed 64/64 rows
+  without substantive generative-AI use or external-source checks. The strict
+  result is complete / evaluated as a diagnostic only: 28/64 rows were directly
+  relevant from the frozen title and abstract, 36/64 were retrieval noise, all
+  8/8 cases retained relevant and baseline-novel evidence, and v4 missed four
+  of five human-inferred semantic links. This identifies both retrieval noise
+  and lexical relation recall as contributors; it does not establish source
+  truth or inter-rater agreement. It cannot rescue v4, validate v5, reopen
+  W01-W08, or authorize production. See
+  docs/prereg-2026-08-29-openalex-scope-link-v4-abstention-diagnostic.md and
+  docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md,
+  plus
+  docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md.
+  Keep
   `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4
   candidates, live runners and review modules.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
