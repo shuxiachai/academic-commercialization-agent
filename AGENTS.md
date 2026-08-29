@@ -387,9 +387,16 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   only ACCEPT rows reach a blank review boundary. Its 17/17 runner seams pass,
   and dropping link evidence after a correct internal decision was re-injected
   and made the client-boundary test fail. The combined v4 subset passes 32/32.
-  No W01-W08 provider request or source review has occurred, so provider
-  compatibility, coverage, wrong-source rate and source value remain
-  `not_evaluated`. The runner is implemented but not live-authorized. Keep
+  A separately authorized run on merged revision `678254d` completed all eight
+  anonymous one-attempt requests for USD 0.008 of provider-reported usage. All
+  64 candidates reached the v4 decision seam, but every candidate was
+  `ABSTAIN` and 0/8 cases retained an accepted row, below the frozen 6/8
+  coverage gate. The runner correctly emitted `mechanical_gate_failed`; no
+  source lock or human-review packet was created, and source value remains
+  `not_evaluated`. Sixty-three decisions record `missing_scope_link`, which is
+  a deterministic trace observation rather than a source-relevance label.
+  W01-W08 are now consumed evaluation cases: do not tune on them, rerun them
+  and call the result validation, or connect v4. Keep
   `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4
   candidates, live runners and review modules.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
@@ -422,7 +429,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/prereg-2026-08-27-openalex-scope-link-v4.md` plus
   `docs/results-2026-08-27-openalex-scope-link-v4-implementation.md`, plus
   `docs/prereg-2026-08-28-openalex-scope-link-v4-live.md` and
-  `docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md`.
+  `docs/results-2026-08-28-openalex-scope-link-v4-live-implementation.md`, plus
+  `docs/results-2026-08-29-openalex-scope-link-v4-live.md`.
 - Regulator title recovery is integrated from one frozen development challenge,
   not a production-rate estimate. A zero-network census of 95 historical runs
   found only 3 in-scope rows across 2 unique ClinicalTrials.gov URLs. The
