@@ -1,0 +1,390 @@
+{
+  "schema_version": 1,
+  "mode": "openalex_quote_grounded_evidence_set_v5_unseen_challenge",
+  "production_connected": false,
+  "report_workflow_connected": false,
+  "planner_trigger_connected": false,
+  "maximum_live_search_requests": 8,
+  "maximum_live_judge_calls": 16,
+  "request_contract": {
+    "result_limit": 8,
+    "filter": "has_abstract:true",
+    "aboutness_fields": ["topics", "keywords"],
+    "aboutness_admissible_for_selection": false,
+    "redirects": false,
+    "internal_retries": false,
+    "supplementary_fetches": false
+  },
+  "semantic_judge_contract": {
+    "provider": "deepseek",
+    "requested_model": "deepseek-chat",
+    "api_base": "https://api.deepseek.com",
+    "passes_per_case": 2,
+    "first_pass_order": "provider_order",
+    "second_pass_order": "reverse_provider_order",
+    "temperature": 0.0,
+    "allowed_candidate_fields": ["candidate_sha256", "title", "abstract"],
+    "hidden_fields": [
+      "provider_topics",
+      "provider_keywords",
+      "provider_scores",
+      "v4_action",
+      "v4_reasons",
+      "human_labels",
+      "human_notes"
+    ],
+    "candidate_dispositions": ["KEEP", "ABSTAIN"],
+    "consensus_rule": "both_passes_keep_with_same_role_ids",
+    "quote_rule": "every_role_requires_a_verbatim_title_or_abstract_span_in_both_passes",
+    "disagreement_rule": "abstain",
+    "malformed_or_unverifiable_rule": "abstain",
+    "maximum_selected_sources_per_case": 3,
+    "selection_rule": "deterministic_minimum_set_cover_then_provider_index_then_candidate_sha256"
+  },
+  "development_observation": {
+    "source_document": "docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md",
+    "case_ids": ["W01", "W02", "W03", "W04", "W05", "W06", "W07", "W08"],
+    "candidate_count": 64,
+    "direct_relevant_count": 28,
+    "retrieval_noise_count": 36,
+    "human_semantic_link_count": 5,
+    "v4_semantic_link_miss_count": 4,
+    "relevant_case_count": 8,
+    "novel_relevant_case_count": 8,
+    "reuse_for_v5_development": true,
+    "reuse_for_v5_validation": false
+  },
+  "challenge_cases": [
+    {
+      "case_id": "X01",
+      "topic": "Redox-active polymer electrodes for electrochemical carbon dioxide capture from flue gas",
+      "query": "electrochemical carbon dioxide capture redox active polymer electrode flue gas",
+      "result_limit": 8,
+      "role_profile": {
+        "required_roles": [
+          {
+            "role_id": "electrochemical_carbon_capture",
+            "description": "reversible electrochemical capture or release of carbon dioxide"
+          },
+          {
+            "role_id": "redox_polymer_electrode",
+            "description": "a redox-active polymer electrode or polymer-bound redox carrier"
+          }
+        ],
+        "scope_roles": [
+          {
+            "role_id": "flue_or_industrial_gas",
+            "description": "capture from flue gas or another dilute industrial carbon-dioxide stream"
+          }
+        ],
+        "supporting_roles": [
+          {
+            "role_id": "regeneration_energy",
+            "description": "energy demand, electrochemical regeneration, or release efficiency"
+          },
+          {
+            "role_id": "capture_performance",
+            "description": "carbon-dioxide capacity, selectivity, uptake rate, or separation performance"
+          },
+          {
+            "role_id": "cycling_stability",
+            "description": "repeated capture-release cycling or electrode stability"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "X02",
+      "topic": "DNA-origami nanopores for single-molecule protein sensing",
+      "query": "DNA origami nanopore single molecule protein sensing",
+      "result_limit": 8,
+      "role_profile": {
+        "required_roles": [
+          {
+            "role_id": "dna_origami_nanopore",
+            "description": "a nanopore or membrane channel constructed or positioned using DNA origami"
+          },
+          {
+            "role_id": "single_molecule_protein_sensing",
+            "description": "electrical or ionic-current sensing of individual proteins or peptides"
+          }
+        ],
+        "scope_roles": [
+          {
+            "role_id": "protein_translocation",
+            "description": "protein or peptide capture, passage, discrimination, or translocation through the pore"
+          }
+        ],
+        "supporting_roles": [
+          {
+            "role_id": "signal_resolution",
+            "description": "current blockade, signal-to-noise ratio, event resolution, or molecular identification"
+          },
+          {
+            "role_id": "pore_assembly",
+            "description": "membrane insertion, pore assembly, structural stability, or nanostructure fabrication"
+          },
+          {
+            "role_id": "multiplexed_detection",
+            "description": "parallel, multiplexed, or high-throughput single-molecule measurement"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "X03",
+      "topic": "Rare-earth-free magnetocaloric materials for hydrogen liquefaction",
+      "query": "rare earth free magnetocaloric material hydrogen liquefaction refrigeration",
+      "result_limit": 8,
+      "role_profile": {
+        "required_roles": [
+          {
+            "role_id": "magnetocaloric_refrigeration",
+            "description": "magnetocaloric cooling or magnetic refrigeration"
+          },
+          {
+            "role_id": "hydrogen_liquefaction",
+            "description": "cooling hydrogen toward liquefaction or operation in the hydrogen-liquefaction temperature range"
+          }
+        ],
+        "scope_roles": [
+          {
+            "role_id": "rare_earth_free_material",
+            "description": "a magnetocaloric composition that avoids rare-earth elements"
+          }
+        ],
+        "supporting_roles": [
+          {
+            "role_id": "low_temperature_performance",
+            "description": "entropy change, adiabatic temperature change, or cooling power at cryogenic temperature"
+          },
+          {
+            "role_id": "cyclic_refrigeration",
+            "description": "active magnetic regeneration, repeated thermal cycling, or refrigeration-cycle performance"
+          },
+          {
+            "role_id": "materials_engineering",
+            "description": "composition, phase transition, hysteresis, manufacturability, or material stability"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "X04",
+      "topic": "Electrochemical ocean alkalinity enhancement for durable carbon dioxide removal",
+      "query": "electrochemical ocean alkalinity enhancement carbon dioxide removal seawater",
+      "result_limit": 8,
+      "role_profile": {
+        "required_roles": [
+          {
+            "role_id": "electrochemical_alkalinity_generation",
+            "description": "electrochemical production or restoration of alkalinity"
+          },
+          {
+            "role_id": "carbon_dioxide_removal",
+            "description": "net atmospheric or dissolved carbon-dioxide removal and durable storage"
+          }
+        ],
+        "scope_roles": [
+          {
+            "role_id": "ocean_or_seawater_context",
+            "description": "operation in seawater, brine, or an ocean-alkalinity-enhancement pathway"
+          }
+        ],
+        "supporting_roles": [
+          {
+            "role_id": "energy_intensity",
+            "description": "electrical energy use, voltage, current efficiency, or process energy balance"
+          },
+          {
+            "role_id": "marine_side_effects",
+            "description": "chlorine evolution, mineral scaling, acid handling, or marine environmental effects"
+          },
+          {
+            "role_id": "durability_or_mrv",
+            "description": "carbon permanence, air-sea equilibration, monitoring, reporting, or verification"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "X05",
+      "topic": "Reprocessable vitrimer composites for recyclable wind-turbine blades",
+      "query": "vitrimer composite recyclable wind turbine blade reprocessing",
+      "result_limit": 8,
+      "role_profile": {
+        "required_roles": [
+          {
+            "role_id": "vitrimer_composite",
+            "description": "a fibre-reinforced composite using a vitrimer or dynamic covalent polymer matrix"
+          },
+          {
+            "role_id": "wind_turbine_blade",
+            "description": "materials, structures, manufacturing, repair, or end-of-life treatment for wind-turbine blades"
+          }
+        ],
+        "scope_roles": [
+          {
+            "role_id": "reprocess_or_recycle",
+            "description": "reprocessing, reshaping, repair, recycling, or material recovery enabled by reversible bonding"
+          }
+        ],
+        "supporting_roles": [
+          {
+            "role_id": "mechanical_retention",
+            "description": "strength, fatigue, fracture, interfacial, or mechanical-property retention"
+          },
+          {
+            "role_id": "bond_exchange",
+            "description": "dynamic bond exchange, topology rearrangement, or healing mechanism"
+          },
+          {
+            "role_id": "lifecycle_benefit",
+            "description": "reduced waste, circularity, lifecycle impact, or economic recovery"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "X06",
+      "topic": "Microbial electrosynthesis of acetate from industrial carbon dioxide emissions",
+      "query": "microbial electrosynthesis acetate carbon dioxide industrial emissions gas",
+      "result_limit": 8,
+      "role_profile": {
+        "required_roles": [
+          {
+            "role_id": "microbial_electrosynthesis",
+            "description": "microorganisms using cathodic electrons in a bioelectrochemical synthesis process"
+          },
+          {
+            "role_id": "acetate_from_carbon_dioxide",
+            "description": "conversion of carbon dioxide or bicarbonate into acetate"
+          }
+        ],
+        "scope_roles": [
+          {
+            "role_id": "industrial_emission_stream",
+            "description": "industrial exhaust, flue gas, off-gas, or another impure carbon-dioxide feed"
+          }
+        ],
+        "supporting_roles": [
+          {
+            "role_id": "production_performance",
+            "description": "acetate titre, productivity, coulombic efficiency, or carbon conversion"
+          },
+          {
+            "role_id": "electron_transfer",
+            "description": "electron-transfer pathway, cathode interaction, hydrogen mediation, or microbial mechanism"
+          },
+          {
+            "role_id": "reactor_stability",
+            "description": "continuous operation, scale-up, gas tolerance, or long-term reactor performance"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "X07",
+      "topic": "Chip-scale optomechanical accelerometers for inertial navigation",
+      "query": "chip scale optomechanical accelerometer inertial navigation",
+      "result_limit": 8,
+      "role_profile": {
+        "required_roles": [
+          {
+            "role_id": "optomechanical_accelerometer",
+            "description": "acceleration sensing through an optical or cavity-optomechanical mechanical resonator"
+          },
+          {
+            "role_id": "inertial_navigation",
+            "description": "inertial navigation, dead reckoning, inertial measurement, or navigation-grade acceleration"
+          }
+        ],
+        "scope_roles": [
+          {
+            "role_id": "chip_scale_integration",
+            "description": "chip-scale, integrated, microfabricated, MEMS, or photonic-platform implementation"
+          }
+        ],
+        "supporting_roles": [
+          {
+            "role_id": "noise_floor",
+            "description": "acceleration sensitivity, noise floor, resolution, or bias instability"
+          },
+          {
+            "role_id": "dynamic_range",
+            "description": "bandwidth, dynamic range, shock tolerance, or resonator response"
+          },
+          {
+            "role_id": "calibration_stability",
+            "description": "self-calibration, traceability, drift control, or long-term stability"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "X08",
+      "topic": "Cold-plasma seed priming for drought-resilient cereal crops",
+      "query": "cold plasma seed priming drought cereal crop resilience",
+      "result_limit": 8,
+      "role_profile": {
+        "required_roles": [
+          {
+            "role_id": "cold_plasma_seed_treatment",
+            "description": "non-thermal or cold-plasma exposure used to prime or treat seeds"
+          },
+          {
+            "role_id": "drought_resilience",
+            "description": "improved drought tolerance, water-stress response, or performance under water deficit"
+          }
+        ],
+        "scope_roles": [
+          {
+            "role_id": "cereal_crop",
+            "description": "wheat, rice, maize, barley, sorghum, or another cereal crop"
+          }
+        ],
+        "supporting_roles": [
+          {
+            "role_id": "germination_or_establishment",
+            "description": "germination, emergence, seedling vigour, or early establishment"
+          },
+          {
+            "role_id": "stress_physiology",
+            "description": "antioxidant response, water-use efficiency, osmotic adjustment, or drought physiology"
+          },
+          {
+            "role_id": "yield_or_field_performance",
+            "description": "field performance, biomass, grain yield, or agronomic outcome"
+          }
+        ]
+      }
+    }
+  ],
+  "collection_coverage_contract": {
+    "required_roles_covered": "all",
+    "minimum_scope_roles": 1,
+    "minimum_supporting_roles": 1,
+    "maximum_selected_sources_per_case": 3,
+    "minimum_candidate_required_roles": 1,
+    "minimum_candidate_context_roles": 1,
+    "minimum_candidate_title_anchor_roles": 1
+  },
+  "development_qualification_gates": {
+    "candidate_disposition_agreement_min": 0.9,
+    "semantic_link_rows_retained_min": 4,
+    "relevant_novel_case_count_min": 6,
+    "selected_directly_irrelevant_count_max": 1,
+    "all_decisions_persisted": true
+  },
+  "unseen_value_gates": {
+    "selected_case_count_min": 6,
+    "relevant_novel_case_count_min": 6,
+    "human_set_coverage_case_count_min": 6,
+    "selected_wrong_source_rate_max": 0.05,
+    "unsupported_selected_role_rate_max": 0.05,
+    "candidate_disposition_agreement_min": 0.9,
+    "all_provider_rows_reviewed": true,
+    "all_attempted_sources_opened": true,
+    "substantive_generative_ai_allowed": false
+  }
+}

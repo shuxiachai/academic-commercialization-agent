@@ -418,8 +418,17 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-implementation.md,
   plus
   docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md.
+  A separately pre-registered quote-grounded evidence-set v5 hypothesis uses
+  that diagnostic only for development qualification. A label-blind
+  `deepseek-chat` judge must produce mechanically verified title/abstract
+  quotes in two order-reversed passes, and a deterministic set-cover step may
+  combine at most three complementary sources. W01-W08 remain consumed
+  development evidence; raw-byte-locked X01-X08 are the unseen challenge. All
+  provider rows require human review even after a mechanical failure. No v5
+  implementation, model call, OpenAlex request or production connection has
+  occurred. See docs/prereg-2026-08-29-openalex-evidence-set-v5.md.
   Keep
-  `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4
+  `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4/v5
   candidates, live runners and review modules.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
   `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
