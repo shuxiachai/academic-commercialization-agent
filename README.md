@@ -613,7 +613,7 @@ before a later request. Every provider row reaches the aggregate artifact, and
 only v4 `ACCEPT` rows reach a blank human-review boundary. The combined v4
 decision, preflight and runner subset passes 32/32 tests, including a
 re-injected computed-but-undelivered relation-provenance defect. The complete
-repository now passes **1,712 tests plus 639 subtests**. A separately
+repository now passes **1,733 tests plus 639 subtests**. A separately
 authorized run on merged revision `678254d` completed all eight one-attempt
 anonymous requests for USD 0.008 of provider-reported usage. All 64 provider
 rows reached the v4 decision seam, but the method accepted zero candidates
@@ -654,9 +654,14 @@ mechanically verifiable title/abstract quotes in two order-reversed passes; a
 deterministic selector may then combine at most three complementary sources.
 W01-W08 are development evidence only. X01-X08 are raw-byte-locked as the
 unseen challenge, and every provider row must receive human review even after a
-mechanical failure. No v5 implementation, model call or OpenAlex request has
-occurred, and production remains disconnected. See the
-[v5 pre-registration](docs/prereg-2026-08-29-openalex-evidence-set-v5.md).
+mechanical failure. The zero-network v5 kernel and unseen preflight now pass
+21/21 focused tests: model inputs exclude provider and label metadata, quotes
+are verified against source text in both passes, and a validated final seam
+prevents computed roles from disappearing during serialization. The full suite
+passes **1,733 tests plus 639 subtests**. No model call, OpenAlex request,
+private-label access or production connection has occurred. See the
+[v5 pre-registration](docs/prereg-2026-08-29-openalex-evidence-set-v5.md) and
+[implementation result](docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1768,7 +1773,7 @@ runner 已实现：它在构造适配器前记录冻结方法与自身观测哈�
 下一次请求前先提交当前单请求 case journal。每一条供应商返回行都会到达
 聚合产物，只有 v4 `ACCEPT` 行会进入空白人工评审边界。v4 决策、预检与
 runner 组合测试为 32/32；临时移除内部已算出的 relation provenance 后，
-客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,712 项测试与 639 个
+客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,733 项测试与 639 个
 subtests**。随后在合并版本 `678254d` 上单独授权的真实实验完成了 8 次匿名、
 不重试的顺序请求，供应商记账成本为 0.008 美元。64 条供应商候选全部到达
 v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结的 6/8 门槛。
@@ -1800,9 +1805,13 @@ v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结
 它不再要求一篇论文在同一句中完整表述整个主题，而是让标签盲化的 DeepSeek
 裁判以两次顺序相反的判断提出带标题/摘要原文片段的来源角色，再由确定性选择器
 组合至多三条互补来源。W01-W08 只能作为开发证据；X01-X08 已按原始字节锁定为
-未见挑战。即使机械门槛失败，全部供应商候选也必须进入人工评审。当前尚未实现
-v5、没有发生模型或 OpenAlex 请求，生产路径仍保持断开。详见
-[v5 预注册协议](docs/prereg-2026-08-29-openalex-evidence-set-v5.md)。
+未见挑战。即使机械门槛失败，全部供应商候选也必须进入人工评审。v5 零网络
+执行内核与未见预检现已通过 21/21 项定向测试：模型输入排除供应商元数据和人工
+标签，两次判断中的原文片段都必须机械验证，最终 Pydantic 接缝会阻止已计算的
+role 在序列化时丢失。当前全仓通过 **1,733 项测试与 639 个 subtests**。尚未发生
+模型调用、OpenAlex 请求、私有标签读取或生产接入。详见
+[v5 预注册协议](docs/prereg-2026-08-29-openalex-evidence-set-v5.md)和
+[实现结果](docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、
