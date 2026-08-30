@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1768 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1771 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -242,11 +242,20 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   sentinels, so CrewAI's import-time dotenv load cannot restore operator keys.
   A real CrewAI request-body seam confirms that `enable_thinking=false`
   reaches OpenAI SDK `extra_body`; putting it at top level was re-injected and
-  made the test fail. This is zero-network implementation evidence only: no
-  paid Qwen request has executed, so live compatibility, report quality,
-  latency and realised cost remain unobserved. The frozen DeepSeek evidence-set
-  v5 provider contract is unchanged. See
-  `docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md`.
+  made the test fail. One authorized single-topic paid canary later completed
+  on merged revision `ff8732d`: all recorded role identities were exactly
+  `qwen3.5-plus`; seven requests used 79,261 tokens with a conservative USD
+  0.075657 estimate, all three retrieval domains retained 8 sources, and no
+  retrieval domain failed. That observes one live transport/accounting path,
+  not general report quality, stable latency/cost or DeepSeek equivalence.
+  The run exposed two Qwen-specific internal-x10 score phrases at the client
+  prose seam. Narrow normalization now covers only bounded rating forms and
+  preserves percentages and counts; removing it made both regression tests
+  fail before restoration. A separate invented-threshold and citation-
+  entailment finding remains open and was not folded into this regex fix.
+  The frozen DeepSeek evidence-set v5 provider contract is unchanged. See
+  `docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md` and
+  `docs/results-2026-08-30-qwen35-plus-first-paid-canary.md`.
 - Evidence-gap Tool Calling now has a phase-2 execution kernel and a phase-3
   production-disconnected Tavily adapter; the production workflow is still
   phase-1 zero-call shadow mode. The phase-2 frozen 14-case synthetic
