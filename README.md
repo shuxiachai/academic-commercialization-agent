@@ -613,7 +613,7 @@ before a later request. Every provider row reaches the aggregate artifact, and
 only v4 `ACCEPT` rows reach a blank human-review boundary. The combined v4
 decision, preflight and runner subset passes 32/32 tests, including a
 re-injected computed-but-undelivered relation-provenance defect. The complete
-repository now passes **1,748 tests plus 639 subtests**. A separately
+repository now passes **1,751 tests plus 639 subtests**. A separately
 authorized run on merged revision `678254d` completed all eight one-attempt
 anonymous requests for USD 0.008 of provider-reported usage. All 64 provider
 rows reached the v4 decision seam, but the method accepted zero candidates
@@ -662,14 +662,31 @@ now locks the exact packet, source lock, completed human labels and declaration
 before parsing only the label-blind packet. It derives roles mechanically from
 frozen v4 text groups, writes the manifest before client construction, and
 commits every response, usage record and case decision before later paid work.
-Its strict one-request DeepSeek adapter and runner pass 15/15 focused tests. A
-real zero-network preflight verified 8/8 cases, 64/64 candidates and 16 unique
-prompt identities. The full suite passes **1,748 tests plus 639 subtests**. No
-model call, OpenAlex request, human-label parse or production connection has
-occurred. See the
+Its strict one-request DeepSeek adapter and runner now pass 16/16 focused tests.
+The first separately authorized development execution on merged revision
+`5f6526b` made one potentially billable request and stopped without retry when
+the provider-returned model identity did not equal the frozen legacy
+`deepseek-chat` alias. The strict result is `partial / not_evaluated`: zero
+calls completed, zero cases or candidate decisions completed, cost is
+`uninspectable` rather than zero, no raw semantic response was retained, and
+no OpenAlex request, human-label parse or production connection occurred.
+
+A separately frozen provider-contract amendment now requests exact
+`deepseek-v4-flash` with thinking explicitly disabled, preserves exact identity
+rejection, and carries safe failed-call usage through the write-once journal
+and aggregate execution boundary without carrying semantic output. It uses
+DeepSeek's dated peak V4 Flash rates so the fixed soft stop is conservative.
+The updated real zero-network preflight again verified 8/8 cases, 64/64
+candidates and 16 unique prompt identities; the complete suite passes **1,751
+tests plus 639 subtests**. Removing the disabled-thinking field made the
+outbound seam test fail before the correct implementation was restored. No
+later paid request is authorized or has occurred. See the
 [v5 pre-registration](docs/prereg-2026-08-29-openalex-evidence-set-v5.md),
 [kernel result](docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md),
-and [development-runner result](docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md).
+[development-runner result](docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md),
+[first provider-stop result](docs/results-2026-08-30-openalex-evidence-set-v5-development-provider-drift.md),
+[provider-contract amendment](docs/prereg-2026-08-30-openalex-evidence-set-v5-provider-contract-amendment.md),
+and [amendment implementation result](docs/results-2026-08-30-openalex-evidence-set-v5-provider-contract-amendment-implementation.md).
 
 The canary's garbled FDA PDF title was measured before any recovery rule was
 written. The original 30-run benchmark had a zero denominator; a wider
@@ -1781,7 +1798,7 @@ runner 已实现：它在构造适配器前记录冻结方法与自身观测哈�
 下一次请求前先提交当前单请求 case journal。每一条供应商返回行都会到达
 聚合产物，只有 v4 `ACCEPT` 行会进入空白人工评审边界。v4 决策、预检与
 runner 组合测试为 32/32；临时移除内部已算出的 relation provenance 后，
-客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,748 项测试与 639 个
+客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,751 项测试与 639 个
 subtests**。随后在合并版本 `678254d` 上单独授权的真实实验完成了 8 次匿名、
 不重试的顺序请求，供应商记账成本为 0.008 美元。64 条供应商候选全部到达
 v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结的 6/8 门槛。
@@ -1820,13 +1837,26 @@ v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结
 已完成人工标签和声明，只解析标签盲化的来源包；角色描述由冻结的 v4 文本组机械
 生成。严格的单请求 DeepSeek 适配器不重定向、不重试，并拒绝模型身份、usage 或
 费用不可检查的结果。runner 会在构造客户端前写 manifest，在后续付费调用前写入
-当前响应和 usage，并在下一案例前写入完整确定性决策。适配器与 runner 的 15/15
-项定向测试全绿；真实零网络预检验证了 8/8 案例、64/64 候选和 16 个唯一 prompt
-身份。当前全仓通过 **1,748 项测试与 639 个 subtests**。尚未发生模型调用、
-OpenAlex 请求、人工标签解析或生产接入。详见
+当前响应和 usage，并在下一案例前写入完整确定性决策。适配器与 runner 的定向
+测试在修订后为 16/16。首次另行授权的开发执行在合并版本 `5f6526b` 上只
+发出 1 个可能计费的请求；供应商返回身份与冻结的旧 `deepseek-chat` 别名不一致，
+严格适配器因此不重试并立即停止。结论是 `partial / not_evaluated`：完成 0 次调用、
+0 个案例和 0 条候选决策，费用为 `uninspectable` 而不是零，且没有保留原始语义
+响应、发起 OpenAlex 请求、解析人工标签或接入生产。
+
+另行冻结的供应商契约修订现在精确请求 `deepseek-v4-flash` 并显式关闭 thinking，
+继续拒绝任何返回身份漂移；失败响应只允许安全的模型名与 usage 穿过 write-once
+journal 和聚合执行接缝，不允许语义内容穿过。固定预算按带日期的 V4 Flash 峰值
+费率保守估算。更新后的真实零网络预检再次验证 8/8 案例、64/64 候选和 16 个
+prompt 身份；当前全仓通过 **1,751 项测试与 639 个 subtests**。临时移除
+`thinking.disabled` 后，出站接缝测试会准确失败，随后已恢复正确实现。尚未授权或
+执行后续付费请求。详见
 [v5 预注册协议](docs/prereg-2026-08-29-openalex-evidence-set-v5.md)、
 [内核实现结果](docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md)和
-[开发 runner 实现结果](docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md)。
+[开发 runner 实现结果](docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md)，
+以及[首次供应商停止结果](docs/results-2026-08-30-openalex-evidence-set-v5-development-provider-drift.md)、
+[供应商契约修订](docs/prereg-2026-08-30-openalex-evidence-set-v5-provider-contract-amendment.md)和
+[修订实现结果](docs/results-2026-08-30-openalex-evidence-set-v5-provider-contract-amendment-implementation.md)。
 
 针对该 canary 中出现的 FDA PDF 标题乱码，项目先计量、再冻结规则。原 30 次
 benchmark 的分母为 0；扩展到 **95 次历史运行**后，也只找到 **3 条范围内记录、

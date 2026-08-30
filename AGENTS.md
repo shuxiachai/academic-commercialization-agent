@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1748 tests (639 subtests), CI green on Linux + Windows × Python
+Current state: 1751 tests (639 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -421,8 +421,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   plus
   docs/results-2026-08-29-openalex-scope-link-v4-abstention-diagnostic-review.md.
   A separately pre-registered quote-grounded evidence-set v5 hypothesis uses
-  that diagnostic only for development qualification. A label-blind
-  `deepseek-chat` judge must produce mechanically verified title/abstract
+  that diagnostic only for development qualification. The originally frozen
+  label-blind `deepseek-chat` judge must produce mechanically verified source
   quotes in two order-reversed passes, and a deterministic set-cover step may
   combine at most three complementary sources. W01-W08 remain consumed
   development evidence; raw-byte-locked X01-X08 are the unseen challenge. All
@@ -440,13 +440,33 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   usage identity drift, and uninspectable cost. The runner writes its complete
   manifest before client construction, each response and usage before a later
   call, and each deterministic case decision before a later case. The focused
-  runner/adapter suite passes 15/15 tests, including a temporarily re-injected
-  manifest-order defect. The real zero-network preflight verified 8/8 cases,
-  64/64 candidate identities and 16 distinct prompt identities. No model call
-  or OpenAlex request occurred; human bytes were hashed but never parsed.
+  runner/adapter suite now passes 16/16 tests. The first authorized execution
+  on merged revision `5f6526b` made one potentially billable request and then
+  stopped without retry because the returned model identity did not equal the
+  frozen legacy alias. It is `partial / not_evaluated`: zero completed calls,
+  cases and candidate decisions; its cost is uninspectable, not zero; and no
+  raw semantic response was persisted. It made zero OpenAlex requests, parsed
+  no human labels and remained disconnected from production.
+  A separately frozen amendment now requests exact `deepseek-v4-flash` with
+  thinking explicitly disabled, keeps exact model rejection, and persists
+  only safe returned-model and usage observations when semantic output is
+  rejected. Aggregate tokens and cost are checked against the call journals;
+  one uninspectable potentially spending call makes the whole cost
+  uninspectable. Conservative V4 Flash peak rates carry their own 2026-08-30
+  basis date. The real zero-network preflight again verified 8/8 cases, 64/64
+  candidate identities, 16 prompt identities and all implementation hashes.
+  Removing `thinking.disabled` made the outbound seam test fail before the
+  correct implementation was restored. No later paid request is authorized or
+  has occurred. W01-W08 remain consumed development evidence, and this
+  transport amendment does not reopen their semantic method or gates.
   See docs/prereg-2026-08-29-openalex-evidence-set-v5.md,
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
-  docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md.
+  docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
+  plus
+  docs/results-2026-08-30-openalex-evidence-set-v5-development-provider-drift.md,
+  docs/prereg-2026-08-30-openalex-evidence-set-v5-provider-contract-amendment.md,
+  and
+  docs/results-2026-08-30-openalex-evidence-set-v5-provider-contract-amendment-implementation.md.
   Keep
   `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4/v5
   candidates, live runners and review modules.
