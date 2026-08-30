@@ -1,11 +1,12 @@
-"""LLM provider configuration — supports DeepSeek, OpenAI, and Anthropic.
+"""LLM provider configuration for DeepSeek, Qwen, OpenAI, and Anthropic.
 
 Provider resolution order:
-  1. LLM_PROVIDER env var (explicit: "deepseek" | "openai" | "anthropic")
+  1. LLM_PROVIDER env var (explicit provider selection)
   2. First matching API key found:
-       DEEPSEEK_API_KEY  → deepseek
-       ANTHROPIC_API_KEY → anthropic
-       OPENAI_API_KEY    → openai
+       DEEPSEEK_API_KEY  -> deepseek
+       DASHSCOPE_API_KEY -> qwen
+       ANTHROPIC_API_KEY -> anthropic
+       OPENAI_API_KEY    -> endpoint/model-aware legacy detection, then openai
 """
 
 import functools
@@ -15,9 +16,18 @@ import time
 
 from crewai import LLM
 
+_SUPPORTED_PROVIDERS = ("deepseek", "qwen", "openai", "anthropic")
+
+# Qwen3.5 Plus is exposed through Alibaba Model Studio's OpenAI-compatible
+# chat endpoint, but remains a logical provider here. That distinction lets
+# the API use the official DASHSCOPE_API_KEY name, pin a safe BYOK endpoint,
+# and apply provider-specific accounting without labelling the request OpenAI.
+_QWEN_MODEL = "qwen3.5-plus"
+_QWEN_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
 # Providers that support response_format={"type": "json_object"}.
 # Anthropic does not — it relies on prompt instructions + guardrail validation.
-_JSON_MODE_PROVIDERS = {"deepseek", "openai"}
+_JSON_MODE_PROVIDERS = {"deepseek", "qwen", "openai"}
 
 
 def _detect_provider() -> str:
@@ -26,22 +36,46 @@ def _detect_provider() -> str:
         return explicit
     if os.getenv("DEEPSEEK_API_KEY"):
         return "deepseek"
+    if os.getenv("DASHSCOPE_API_KEY"):
+        return "qwen"
     if os.getenv("ANTHROPIC_API_KEY"):
         return "anthropic"
     if os.getenv("OPENAI_API_KEY"):
-        # Legacy setup: OPENAI_API_KEY pointing at DeepSeek via OPENAI_API_BASE
-        base = os.getenv("OPENAI_API_BASE", "")
-        model = os.getenv("OPENAI_MODEL_NAME", "")
-        if "deepseek" in base.lower() or "deepseek" in model.lower():
+        # Older deployments expressed OpenAI-compatible providers entirely
+        # through OPENAI_* variables. Preserve that path while still assigning
+        # the logical provider needed for request and cost policy.
+        base = os.getenv("OPENAI_API_BASE", "").lower()
+        model = os.getenv("OPENAI_MODEL_NAME", "").lower()
+        if "deepseek" in base or "deepseek" in model:
             return "deepseek"
+        if (
+            "dashscope" in base
+            or ".maas.aliyuncs.com" in base
+            or "qwen" in model
+        ):
+            return "qwen"
         return "openai"
     raise RuntimeError(
         "No LLM API key found. Set one of:\n"
-        "  DEEPSEEK_API_KEY   → DeepSeek  (default model: deepseek-chat)\n"
-        "  ANTHROPIC_API_KEY  → Anthropic (default model: claude-sonnet-5)\n"
-        "  OPENAI_API_KEY     → OpenAI    (default model: gpt-4o)\n"
+        "  DEEPSEEK_API_KEY  -> DeepSeek  (default model: deepseek-chat)\n"
+        "  DASHSCOPE_API_KEY -> Qwen      (default model: qwen3.5-plus)\n"
+        "  ANTHROPIC_API_KEY -> Anthropic (default model: claude-sonnet-5)\n"
+        "  OPENAI_API_KEY    -> OpenAI    (default model: gpt-4o)\n"
         "Or set LLM_PROVIDER explicitly to override auto-detection."
     )
+
+
+def _qwen_additional_params() -> dict[str, object]:
+    """Return a fresh OpenAI SDK extension body for Qwen JSON calls.
+
+    Qwen3.5 Plus enables thinking by default. Alibaba's Chat Completions
+    contract requires non-thinking mode for reliable JSON Object output, and
+    ``enable_thinking`` is not an OpenAI SDK keyword. CrewAI 1.14.7 expands
+    ``additional_params`` into ``chat.completions.create`` arguments, so the
+    provider extension must sit under ``extra_body`` rather than at top level.
+    """
+
+    return {"extra_body": {"enable_thinking": False}}
 
 
 # Retry only failures that a retry can fix.
@@ -137,30 +171,37 @@ def create_llm(
     kwargs: dict = {}
 
     if provider and api_key:
-        provider = provider.lower().strip()
-        kwargs["provider"] = provider
+        logical_provider = provider.lower().strip()
+        kwargs["provider"] = (
+            "openai" if logical_provider == "qwen" else logical_provider
+        )
         kwargs["api_key"] = api_key
         kwargs["model"] = {
             "deepseek": "deepseek-chat",
+            "qwen": _QWEN_MODEL,
             "openai": "gpt-4o",
             "anthropic": "claude-sonnet-5",
-        }.get(provider, "")
-        if provider == "deepseek":
+        }.get(logical_provider, "")
+        if logical_provider == "deepseek":
             kwargs["base_url"] = "https://api.deepseek.com"
+        elif logical_provider == "qwen":
+            kwargs["base_url"] = _QWEN_API_BASE
+            kwargs["additional_params"] = _qwen_additional_params()
         if not kwargs["model"]:
+            supported = ", ".join(_SUPPORTED_PROVIDERS)
             raise RuntimeError(
-                f"Unknown LLM provider: {provider!r}. "
-                "Supported values: deepseek, openai, anthropic."
+                f"Unknown LLM provider: {logical_provider!r}. "
+                f"Supported values: {supported}."
             )
-        if json_mode and provider in _JSON_MODE_PROVIDERS:
+        if json_mode and logical_provider in _JSON_MODE_PROVIDERS:
             kwargs["response_format"] = {"type": "json_object"}
         if temperature is not None:
             kwargs["temperature"] = temperature
         return _wrap_with_retry(LLM(**kwargs))
 
-    provider = _detect_provider()
+    logical_provider = _detect_provider()
 
-    if provider == "deepseek":
+    if logical_provider == "deepseek":
         kwargs["provider"] = "deepseek"
         kwargs["model"] = (
             os.getenv("DEEPSEEK_MODEL")
@@ -176,7 +217,24 @@ def create_llm(
             or "https://api.deepseek.com"
         )
 
-    elif provider == "openai":
+    elif logical_provider == "qwen":
+        kwargs["provider"] = "openai"
+        kwargs["model"] = (
+            os.getenv("QWEN_MODEL")
+            or os.getenv("OPENAI_MODEL_NAME")
+            or _QWEN_MODEL
+        )
+        kwargs["api_key"] = (
+            os.getenv("DASHSCOPE_API_KEY") or os.getenv("OPENAI_API_KEY")
+        )
+        kwargs["base_url"] = (
+            os.getenv("QWEN_API_BASE")
+            or os.getenv("OPENAI_API_BASE")
+            or _QWEN_API_BASE
+        )
+        kwargs["additional_params"] = _qwen_additional_params()
+
+    elif logical_provider == "openai":
         kwargs["provider"] = "openai"
         kwargs["model"] = os.getenv("OPENAI_MODEL") or "gpt-4o"
         kwargs["api_key"] = os.getenv("OPENAI_API_KEY")
@@ -184,18 +242,19 @@ def create_llm(
         if base:
             kwargs["base_url"] = base
 
-    elif provider == "anthropic":
+    elif logical_provider == "anthropic":
         kwargs["provider"] = "anthropic"
         kwargs["model"] = os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5"
         kwargs["api_key"] = os.getenv("ANTHROPIC_API_KEY")
 
     else:
+        supported = ", ".join(_SUPPORTED_PROVIDERS)
         raise RuntimeError(
-            f"Unknown LLM_PROVIDER: {provider!r}. "
-            "Supported values: deepseek, openai, anthropic."
+            f"Unknown LLM_PROVIDER: {logical_provider!r}. "
+            f"Supported values: {supported}."
         )
 
-    if json_mode and provider in _JSON_MODE_PROVIDERS:
+    if json_mode and logical_provider in _JSON_MODE_PROVIDERS:
         kwargs["response_format"] = {"type": "json_object"}
 
     if temperature is not None:

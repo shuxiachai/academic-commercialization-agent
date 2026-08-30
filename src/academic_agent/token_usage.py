@@ -18,8 +18,8 @@ price would be the worst possible output: a confident number that reads as
 merges every provider into one UsageMetrics shape, but fills it from APIs that
 disagree:
 
-    OpenAI / DeepSeek   prompt_tokens is the whole input, and
-                        cached_prompt_tokens is a *subset* of it
+    OpenAI / DeepSeek / Qwen  prompt_tokens is the whole input, and
+                              cached_prompt_tokens is a *subset* of it
     Anthropic           input_tokens *excludes* cache reads and cache writes,
                         which are reported as separate disjoint counters
 
@@ -54,6 +54,10 @@ _PRICING: dict[str, tuple[float, float, float]] = {
     # soft stop never understates a request made during the expensive window.
     "deepseek-v4-flash":  (0.44, 0.014, 1.32),
     "gpt-4o":             (2.50, 1.25, 10.00),
+    # Qwen3.5 Plus is tiered by context length and region. Use the highest
+    # published China/global standard tier so a soft stop cannot understate a
+    # long request; deployments can replace it with LLM_PRICE_PER_MTOK.
+    "qwen3.5-plus":       (0.573, 0.115, 3.44),
     "gpt-4o-mini":        (0.15, 0.075, 0.60),
     "gpt-4.1":            (2.00, 0.50, 8.00),
     "gpt-4.1-mini":       (0.40, 0.10, 1.60),
@@ -64,6 +68,7 @@ _PRICING: dict[str, tuple[float, float, float]] = {
 
 _PRICING_BASIS_OVERRIDES = {
     "deepseek-v4-flash": "built-in DeepSeek peak table (as of 2026-08-30)",
+    "qwen3.5-plus": "built-in Qwen3.5 Plus peak tier (as of 2026-08-30)",
 }
 
 # Anthropic bills a cache *write* above the normal input rate. Cache reads are

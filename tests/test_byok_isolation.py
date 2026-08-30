@@ -40,6 +40,9 @@ _OPERATOR_ENV = {
     "PATH": "/usr/bin",
     "LLM_PROVIDER": "deepseek",
     "DEEPSEEK_API_KEY": "operator-deepseek",
+    "DASHSCOPE_API_KEY": "operator-dashscope",
+    "QWEN_API_BASE": "https://operator.invalid/v1",
+    "QWEN_MODEL": "operator-qwen-model",
     "OPENAI_API_KEY": "operator-openai",
     "OPENAI_API_BASE": "https://api.deepseek.com",
     "OPENAI_MODEL_NAME": "deepseek-chat",
@@ -59,6 +62,12 @@ _GUEST = BYOKCredentials(
 )
 
 
+_QWEN_GUEST = BYOKCredentials(
+    llm_provider="qwen",
+    llm_api_key="guest-qwen-key",
+    serper_api_key="guest-serper-key",
+)
+
 class NoOperatorCredentialSurvivesTests(unittest.TestCase):
 
     def test_no_operator_secret_appears_anywhere_in_the_subprocess_env(self):
@@ -73,13 +82,18 @@ class NoOperatorCredentialSurvivesTests(unittest.TestCase):
         )
         self.assertEqual(leaked, [])
 
-    def test_every_billed_variable_is_gone(self):
+    def test_every_billed_variable_is_neutralized_or_replaced(self):
+        """Empty sentinels block dotenv from restoring a removed operator key."""
+
         env = _GUEST.as_env(_OPERATOR_ENV)
-        survivors = sorted(
-            name for name in _OPERATOR_BILLED_ENV
-            if name in env and env[name] == _OPERATOR_ENV.get(name)
-        )
-        self.assertEqual(survivors, [])
+        expected = {
+            "LLM_PROVIDER": "openai",
+            "OPENAI_API_KEY": "guest-openai-key",
+            "SERPER_API_KEY": "guest-serper-key",
+        }
+        for name in _OPERATOR_BILLED_ENV:
+            with self.subTest(name=name):
+                self.assertEqual(env[name], expected.get(name, ""))
 
     def test_unrelated_environment_is_left_alone(self):
         """Scrubbing is targeted. A subprocess still needs PATH to start."""
@@ -97,8 +111,30 @@ class NoOperatorCredentialSurvivesTests(unittest.TestCase):
 
 
 class GuestCredentialsAreTheOnesUsedTests(unittest.TestCase):
-    """Removing the operator's keys is only half of it — the visitor's have to
-    be what the run then picks up."""
+
+    def test_crewai_dotenv_side_effect_cannot_restore_operator_keys(self):
+        """The child import must not repopulate names scrubbed before launch."""
+
+        from dotenv import load_dotenv
+
+        env = _GUEST.as_env(_OPERATOR_ENV)
+        with TemporaryDirectory() as directory:
+            dotenv_path = Path(directory) / ".env"
+            dotenv_path.write_text(
+                "TAVILY_API_KEY=operator-reloaded-tavily\n"
+                "DASHSCOPE_API_KEY=operator-reloaded-qwen\n"
+                "QWEN_API_BASE=https://operator-reloaded.invalid/v1\n",
+                encoding="utf-8",
+            )
+            with mock.patch.dict(os.environ, env, clear=True):
+                load_dotenv(dotenv_path, override=False)
+                self.assertEqual(os.environ["TAVILY_API_KEY"], "")
+                self.assertEqual(os.environ["DASHSCOPE_API_KEY"], "")
+                self.assertEqual(os.environ["QWEN_API_BASE"], "")
+                self.assertEqual(
+                    os.environ["OPENAI_API_KEY"], "guest-openai-key"
+                )
+    """Neutralizing operator keys is only half — the visitor's must be used."""
 
     def test_the_search_client_resolves_to_the_guest_provider(self):
         """The bug expressed as behaviour. With the operator's Tavily key in
@@ -144,6 +180,39 @@ class _FakeProc:
 
     launched: list[dict | None] = []
 
+
+    def test_qwen_uses_official_key_name_and_fixed_request_contract(self):
+        """Pin the environment-to-client seam to Alibaba's real key name."""
+
+        from academic_agent import llm_config
+
+        env = _QWEN_GUEST.as_env(_OPERATOR_ENV)
+        self.assertEqual(env["DASHSCOPE_API_KEY"], "guest-qwen-key")
+        self.assertNotIn("QWEN_API_KEY", env)
+
+        captured: dict = {}
+        with (
+            mock.patch.dict(os.environ, env, clear=True),
+            mock.patch.object(
+                llm_config, "LLM", lambda **kw: captured.update(kw)
+            ),
+            mock.patch.object(llm_config, "_wrap_with_retry", lambda x: x),
+        ):
+            llm_config.create_llm(json_mode=True, temperature=0.0)
+
+        self.assertEqual(captured["provider"], "openai")
+        self.assertEqual(captured["model"], "qwen3.5-plus")
+        self.assertEqual(captured["api_key"], "guest-qwen-key")
+        self.assertEqual(
+            captured["base_url"],
+            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        )
+        self.assertEqual(
+            captured["additional_params"],
+            {"extra_body": {"enable_thinking": False}},
+        )
+        self.assertEqual(captured["temperature"], 0.0)
+        self.assertNotIn("operator-", str(captured))
     def __init__(self, *args, **kwargs):
         type(self).launched.append(kwargs.get("env"))
 
@@ -204,8 +273,8 @@ class LaunchedEnvironmentTests(unittest.TestCase):
 
         env = _FakeProc.launched[0]
         self.assertIsNotNone(env, "a BYOK run must never inherit the environment")
-        self.assertNotIn("TAVILY_API_KEY", env)
-        self.assertNotIn("OPENAI_API_BASE", env)
+        self.assertEqual(env["TAVILY_API_KEY"], "")
+        self.assertEqual(env["OPENAI_API_BASE"], "")
         self.assertEqual(env["SERPER_API_KEY"], "guest-serper-key")
         self.assertEqual(env["OPENAI_API_KEY"], "guest-openai-key")
 
@@ -214,6 +283,19 @@ class EveryCredentialIsClassifiedTests(unittest.TestCase):
     """The guard that outlives this change.
 
     A denylist is only correct on the day it is written. The next paid API
+
+    def test_a_qwen_byok_run_launches_with_only_the_dashscope_key(self):
+        with mock.patch.dict(os.environ, _OPERATOR_ENV, clear=True), \
+                mock.patch.object(self._runs.subprocess, "Popen", _FakeProc):
+            self._runs.start_run("a topic", byok=_QWEN_GUEST)
+
+        env = _FakeProc.launched[0]
+        self.assertEqual(env["DASHSCOPE_API_KEY"], "guest-qwen-key")
+        self.assertNotIn("QWEN_API_KEY", env)
+        self.assertEqual(env["OPENAI_API_KEY"], "")
+        self.assertEqual(env["QWEN_MODEL"], "")
+        self.assertEqual(env["QWEN_API_BASE"], "")
+        self.assertEqual(env["SERPER_API_KEY"], "guest-serper-key")
     gets read with os.getenv like all the others, and nothing about adding it
     would prompt anyone to come back here — which is exactly how TAVILY_API_KEY
     came to be missing from the override in the first place.
@@ -314,6 +396,26 @@ class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
         with mock.patch.object(access, "ACCESS_CODE", "secret"):
             self.assertEqual(self._post().status_code, 401)
 
+    def test_a_qwen_visitor_with_their_own_key_can_upload(self):
+        from api import access
+
+        captured: dict = {}
+
+        def _extract(path, **kwargs):
+            captured.update(kwargs)
+            raise ValueError("stop here; the model call is not under test")
+
+        credentials = dict(self._CREDS)
+        credentials["llm_provider"] = "qwen"
+        credentials["llm_api_key"] = "guest-qwen-key"
+        with mock.patch.object(access, "ACCESS_CODE", "secret"), \
+                mock.patch("api.main.extract_paper_contribution", _extract):
+            response = self._post(credentials)
+
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(captured["llm_provider"], "qwen")
+        self.assertEqual(captured["llm_api_key"], "guest-qwen-key")
+
     def test_half_the_credentials_is_not_credentials(self):
         from api import access
 
@@ -387,3 +489,14 @@ class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
         self.assertNotIn("attachBtn.disabled", byok_mode)
         self.assertNotIn("byok_no_attach", byok_mode)
         self.assertIn("api.setAccessCode(null)", byok_mode)
+
+
+class QwenBrowserBoundaryTests(unittest.TestCase):
+
+    def test_the_browser_exposes_the_provider_the_api_accepts(self):
+        """A backend-only provider is unusable for BYOK visitors."""
+
+        source = (
+            Path(__file__).resolve().parent.parent / "web" / "index.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('<option value="qwen">Qwen3.5 Plus</option>', source)

@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1751 tests (639 subtests), CI green on Linux + Windows × Python
+Current state: 1768 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -233,6 +233,20 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
 ## Things that are known-open
 
 - Blocking on uncited claims (above) — needs the detector tighter first.
+- Qwen3.5 Plus is implemented as a logical `qwen` provider over CrewAI's
+  pinned OpenAI-compatible transport. The adapter covers the official
+  `DASHSCOPE_API_KEY`, default and operator-overridden endpoints, model
+  selection, non-thinking JSON Object contract, OpenAI-shaped cached-token
+  accounting, conservative peak-tier pricing, readiness, PDF extraction and
+  browser/API BYOK seams. BYOK child environments use explicit empty
+  sentinels, so CrewAI's import-time dotenv load cannot restore operator keys.
+  A real CrewAI request-body seam confirms that `enable_thinking=false`
+  reaches OpenAI SDK `extra_body`; putting it at top level was re-injected and
+  made the test fail. This is zero-network implementation evidence only: no
+  paid Qwen request has executed, so live compatibility, report quality,
+  latency and realised cost remain unobserved. The frozen DeepSeek evidence-set
+  v5 provider contract is unchanged. See
+  `docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md`.
 - Evidence-gap Tool Calling now has a phase-2 execution kernel and a phase-3
   production-disconnected Tavily adapter; the production workflow is still
   phase-1 zero-call shadow mode. The phase-2 frozen 14-case synthetic
