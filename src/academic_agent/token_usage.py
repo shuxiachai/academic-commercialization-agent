@@ -18,7 +18,8 @@ price would be the worst possible output: a confident number that reads as
 merges every provider into one UsageMetrics shape, but fills it from APIs that
 disagree:
 
-    OpenAI / DeepSeek   prompt_tokens is the whole input, and
+    OpenAI / DeepSeek / Kimi
+                        prompt_tokens is the whole input, and
                         cached_prompt_tokens is a *subset* of it
     Anthropic           input_tokens *excludes* cache reads and cache writes,
                         which are reported as separate disjoint counters
@@ -53,6 +54,7 @@ _PRICING: dict[str, tuple[float, float, float]] = {
     # DeepSeek V4 pricing varies by time. Use published peak rates so a fixed
     # soft stop never understates a request made during the expensive window.
     "deepseek-v4-flash":  (0.44, 0.014, 1.32),
+    "kimi-k3":              (3.00, 0.30, 15.00),
     "gpt-4o":             (2.50, 1.25, 10.00),
     "gpt-4o-mini":        (0.15, 0.075, 0.60),
     "gpt-4.1":            (2.00, 0.50, 8.00),
@@ -64,6 +66,7 @@ _PRICING: dict[str, tuple[float, float, float]] = {
 
 _PRICING_BASIS_OVERRIDES = {
     "deepseek-v4-flash": "built-in DeepSeek peak table (as of 2026-08-30)",
+    "kimi-k3": "built-in Kimi K3 table (as of 2026-08-30)",
 }
 
 # Anthropic bills a cache *write* above the normal input rate. Cache reads are

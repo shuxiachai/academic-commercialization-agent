@@ -3,7 +3,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from academic_agent.llm_config import _detect_provider, create_deepseek_llm, create_llm
+from academic_agent.llm_config import (
+    _detect_provider,
+    _wrap_kimi_usage,
+    create_deepseek_llm,
+    create_llm,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -217,3 +222,154 @@ def test_backward_compat_alias():
             assert kw["provider"] == "deepseek"
             assert kw.get("response_format") == {"type": "json_object"}
             assert kw["temperature"] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Kimi K3 — logical provider over CrewAI's OpenAI-compatible transport
+# ---------------------------------------------------------------------------
+
+def test_detect_kimi_explicit():
+    with patch.dict("os.environ", {"LLM_PROVIDER": "kimi"}, clear=False):
+        assert _detect_provider() == "kimi"
+
+
+def test_detect_kimi_from_official_api_key():
+    env = {
+        "DEEPSEEK_API_KEY": "",
+        "MOONSHOT_API_KEY": "sk-kimi",
+        "ANTHROPIC_API_KEY": "",
+        "OPENAI_API_KEY": "",
+    }
+    with patch.dict("os.environ", env, clear=False):
+        assert _detect_provider() == "kimi"
+
+
+def test_detect_kimi_before_anthropic_and_openai():
+    """Stale fallback keys must not steal an explicitly configured Kimi deployment."""
+
+    env = {
+        "MOONSHOT_API_KEY": "sk-kimi",
+        "ANTHROPIC_API_KEY": "sk-ant",
+        "OPENAI_API_KEY": "sk-openai",
+    }
+    with patch.dict("os.environ", env, clear=False):
+        assert _detect_provider() == "kimi"
+
+
+@pytest.mark.parametrize(
+    ("base", "model"),
+    [
+        ("https://api.moonshot.ai/v1", ""),
+        ("", "kimi-k3"),
+    ],
+)
+def test_detect_legacy_kimi_from_openai_compatible_settings(base, model):
+    env = {
+        "DEEPSEEK_API_KEY": "",
+        "MOONSHOT_API_KEY": "",
+        "ANTHROPIC_API_KEY": "",
+        "OPENAI_API_KEY": "sk-legacy",
+        "OPENAI_API_BASE": base,
+        "OPENAI_MODEL_NAME": model,
+    }
+    with patch.dict("os.environ", env, clear=False):
+        assert _detect_provider() == "kimi"
+
+
+def test_kimi_default_contract_uses_official_endpoint_and_low_reasoning():
+    kw = _make_llm({"MOONSHOT_API_KEY": "sk-kimi"})
+    assert kw["provider"] == "openai"
+    assert kw["model"] == "kimi-k3"
+    assert kw["api_key"] == "sk-kimi"
+    assert kw["base_url"] == "https://api.moonshot.ai/v1"
+    assert kw["additional_params"] == {"reasoning_effort": "low"}
+
+
+def test_kimi_custom_contract_is_explicit_and_json_capable():
+    env = {
+        "MOONSHOT_API_KEY": "sk-kimi",
+        "KIMI_MODEL": "kimi-k3",
+        "KIMI_API_BASE": "https://proxy.example/v1",
+        "KIMI_REASONING_EFFORT": "high",
+    }
+    kw = _make_llm(env, json_mode=True)
+    assert kw["model"] == "kimi-k3"
+    assert kw["base_url"] == "https://proxy.example/v1"
+    assert kw["additional_params"] == {"reasoning_effort": "high"}
+    assert kw["response_format"] == {"type": "json_object"}
+
+
+def test_kimi_rejects_unknown_reasoning_before_client_construction():
+    env = {
+        "LLM_PROVIDER": "kimi",
+        "MOONSHOT_API_KEY": "sk-kimi",
+        "KIMI_REASONING_EFFORT": "turbo",
+    }
+    with patch.dict("os.environ", env, clear=False):
+        with patch("academic_agent.llm_config.LLM") as mock_llm:
+            with pytest.raises(RuntimeError, match="KIMI_REASONING_EFFORT"):
+                create_llm()
+            mock_llm.assert_not_called()
+
+
+def test_kimi_omits_temperature_instead_of_forwarding_zero():
+    kw = _make_llm({"MOONSHOT_API_KEY": "sk-kimi"}, temperature=0.0)
+    assert "temperature" not in kw
+
+
+def test_kimi_byok_ignores_operator_endpoint_model_and_reasoning():
+    env = {
+        "KIMI_API_BASE": "https://operator.invalid/v1",
+        "KIMI_MODEL": "operator-model",
+        "KIMI_REASONING_EFFORT": "max",
+    }
+    with patch.dict("os.environ", env, clear=False):
+        with patch("academic_agent.llm_config.LLM") as mock_llm:
+            mock_llm.return_value = MagicMock()
+            create_llm(provider="kimi", api_key="guest-kimi", temperature=0.0)
+            kw = mock_llm.call_args.kwargs
+    assert kw["provider"] == "openai"
+    assert kw["api_key"] == "guest-kimi"
+    assert kw["model"] == "kimi-k3"
+    assert kw["base_url"] == "https://api.moonshot.ai/v1"
+    assert kw["additional_params"] == {"reasoning_effort": "low"}
+    assert "temperature" not in kw
+    assert "operator" not in str(kw)
+
+
+def test_kimi_top_level_cached_tokens_reach_crewai_metrics():
+    class _Usage:
+        cached_tokens = 40
+
+    class _Response:
+        usage = _Usage()
+
+    class _LLM:
+        @staticmethod
+        def _extract_openai_token_usage(_response):
+            return {
+                "prompt_tokens": 100,
+                "completion_tokens": 20,
+                "total_tokens": 120,
+            }
+
+    llm = _wrap_kimi_usage(_LLM())
+    metrics = llm._extract_openai_token_usage(_Response())
+    assert metrics["cached_prompt_tokens"] == 40
+
+
+def test_kimi_missing_cached_tokens_keeps_conservative_metrics():
+    class _Usage:
+        pass
+
+    class _Response:
+        usage = _Usage()
+
+    class _LLM:
+        @staticmethod
+        def _extract_openai_token_usage(_response):
+            return {"prompt_tokens": 100, "total_tokens": 100}
+
+    llm = _wrap_kimi_usage(_LLM())
+    metrics = llm._extract_openai_token_usage(_Response())
+    assert "cached_prompt_tokens" not in metrics

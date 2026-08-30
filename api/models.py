@@ -14,7 +14,7 @@ from academic_agent.run_spec import AssessmentMode, DecisionContext
 RunState = Literal["running", "completed", "failed", "cancelled", "timeout",
                    "unknown"]
 
-BYOK_PROVIDERS = ("deepseek", "openai", "anthropic")
+BYOK_PROVIDERS = ("deepseek", "kimi", "openai", "anthropic")
 
 
 class RunRequest(BaseModel):

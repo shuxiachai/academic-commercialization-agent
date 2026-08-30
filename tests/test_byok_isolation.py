@@ -40,6 +40,10 @@ _OPERATOR_ENV = {
     "PATH": "/usr/bin",
     "LLM_PROVIDER": "deepseek",
     "DEEPSEEK_API_KEY": "operator-deepseek",
+    "MOONSHOT_API_KEY": "operator-moonshot",
+    "KIMI_API_BASE": "https://operator.invalid/v1",
+    "KIMI_MODEL": "operator-kimi-model",
+    "KIMI_REASONING_EFFORT": "max",
     "OPENAI_API_KEY": "operator-openai",
     "OPENAI_API_BASE": "https://api.deepseek.com",
     "OPENAI_MODEL_NAME": "deepseek-chat",
@@ -58,6 +62,12 @@ _GUEST = BYOKCredentials(
     serper_api_key="guest-serper-key",
 )
 
+_KIMI_GUEST = BYOKCredentials(
+    llm_provider="kimi",
+    llm_api_key="guest-kimi-key",
+    serper_api_key="guest-serper-key",
+)
+
 
 class NoOperatorCredentialSurvivesTests(unittest.TestCase):
 
@@ -73,13 +83,18 @@ class NoOperatorCredentialSurvivesTests(unittest.TestCase):
         )
         self.assertEqual(leaked, [])
 
-    def test_every_billed_variable_is_gone(self):
+    def test_every_billed_variable_is_neutralized_or_replaced(self):
+        """Empty sentinels block dotenv from restoring a removed operator key."""
+
         env = _GUEST.as_env(_OPERATOR_ENV)
-        survivors = sorted(
-            name for name in _OPERATOR_BILLED_ENV
-            if name in env and env[name] == _OPERATOR_ENV.get(name)
-        )
-        self.assertEqual(survivors, [])
+        expected = {
+            "LLM_PROVIDER": "openai",
+            "OPENAI_API_KEY": "guest-openai-key",
+            "SERPER_API_KEY": "guest-serper-key",
+        }
+        for name in _OPERATOR_BILLED_ENV:
+            with self.subTest(name=name):
+                self.assertEqual(env[name], expected.get(name, ""))
 
     def test_unrelated_environment_is_left_alone(self):
         """Scrubbing is targeted. A subprocess still needs PATH to start."""
@@ -94,6 +109,31 @@ class NoOperatorCredentialSurvivesTests(unittest.TestCase):
         for name in _FREE_TO_SHARE_ENV:
             with self.subTest(name=name):
                 self.assertEqual(env[name], _OPERATOR_ENV[name])
+
+    def test_crewai_dotenv_side_effect_cannot_restore_operator_keys(self):
+        """The child imports CrewAI after launch. Its dotenv import must see
+        explicit empty values, otherwise deleted names are silently reloaded
+        from the repository's real .env after the isolation check passed."""
+
+        from dotenv import load_dotenv
+
+        env = _GUEST.as_env(_OPERATOR_ENV)
+        with TemporaryDirectory() as directory:
+            dotenv_path = Path(directory) / ".env"
+            dotenv_path.write_text(
+                "TAVILY_API_KEY=operator-reloaded-tavily\n"
+                "MOONSHOT_API_KEY=operator-reloaded-kimi\n"
+                "KIMI_API_BASE=https://operator-reloaded.invalid/v1\n",
+                encoding="utf-8",
+            )
+            with mock.patch.dict(os.environ, env, clear=True):
+                load_dotenv(dotenv_path, override=False)
+                self.assertEqual(os.environ["TAVILY_API_KEY"], "")
+                self.assertEqual(os.environ["MOONSHOT_API_KEY"], "")
+                self.assertEqual(os.environ["KIMI_API_BASE"], "")
+                self.assertEqual(
+                    os.environ["OPENAI_API_KEY"], "guest-openai-key"
+                )
 
 
 class GuestCredentialsAreTheOnesUsedTests(unittest.TestCase):
@@ -137,6 +177,35 @@ class GuestCredentialsAreTheOnesUsedTests(unittest.TestCase):
         env = _GUEST.as_env(_OPERATOR_ENV)
         with mock.patch.dict(os.environ, env, clear=True):
             self.assertEqual(_detect_provider(), "openai")
+
+    def test_kimi_uses_official_key_name_and_fixed_request_contract(self):
+        """Pin the environment-to-client seam to Moonshot's real key name."""
+
+        from academic_agent import llm_config
+
+        env = _KIMI_GUEST.as_env(_OPERATOR_ENV)
+        self.assertEqual(env["MOONSHOT_API_KEY"], "guest-kimi-key")
+        self.assertNotIn("KIMI_API_KEY", env)
+
+        captured: dict = {}
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(
+                    llm_config, "LLM", lambda **kw: captured.update(kw)
+                ), \
+                mock.patch.object(llm_config, "_wrap_with_retry", lambda x: x):
+            llm_config.create_llm(temperature=0.0)
+
+        self.assertEqual(captured["provider"], "openai")
+        self.assertEqual(captured["model"], "kimi-k3")
+        self.assertEqual(captured["api_key"], "guest-kimi-key")
+        self.assertEqual(
+            captured["base_url"], "https://api.moonshot.ai/v1"
+        )
+        self.assertEqual(
+            captured["additional_params"], {"reasoning_effort": "low"}
+        )
+        self.assertNotIn("temperature", captured)
+        self.assertNotIn("operator-", str(captured))
 
 
 class _FakeProc:
@@ -204,10 +273,23 @@ class LaunchedEnvironmentTests(unittest.TestCase):
 
         env = _FakeProc.launched[0]
         self.assertIsNotNone(env, "a BYOK run must never inherit the environment")
-        self.assertNotIn("TAVILY_API_KEY", env)
-        self.assertNotIn("OPENAI_API_BASE", env)
+        self.assertEqual(env["TAVILY_API_KEY"], "")
+        self.assertEqual(env["OPENAI_API_BASE"], "")
         self.assertEqual(env["SERPER_API_KEY"], "guest-serper-key")
         self.assertEqual(env["OPENAI_API_KEY"], "guest-openai-key")
+
+    def test_a_kimi_byok_run_launches_with_only_the_moonshot_key(self):
+        with mock.patch.dict(os.environ, _OPERATOR_ENV, clear=True), \
+                mock.patch.object(self._runs.subprocess, "Popen", _FakeProc):
+            self._runs.start_run("a topic", byok=_KIMI_GUEST)
+
+        env = _FakeProc.launched[0]
+        self.assertEqual(env["MOONSHOT_API_KEY"], "guest-kimi-key")
+        self.assertNotIn("KIMI_API_KEY", env)
+        self.assertEqual(env["OPENAI_API_KEY"], "")
+        self.assertEqual(env["KIMI_MODEL"], "")
+        self.assertEqual(env["KIMI_API_BASE"], "")
+        self.assertEqual(env["KIMI_REASONING_EFFORT"], "")
 
 
 class EveryCredentialIsClassifiedTests(unittest.TestCase):
@@ -306,6 +388,26 @@ class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
         self.assertEqual(captured["llm_provider"], "openai")
         self.assertEqual(captured["llm_api_key"], "guest-openai-key")
 
+    def test_a_kimi_visitor_with_their_own_key_can_upload(self):
+        from api import access
+
+        captured: dict = {}
+
+        def _extract(path, **kwargs):
+            captured.update(kwargs)
+            raise ValueError("stop here; the model call is not under test")
+
+        credentials = dict(self._CREDS)
+        credentials["llm_provider"] = "kimi"
+        credentials["llm_api_key"] = "guest-kimi-key"
+        with mock.patch.object(access, "ACCESS_CODE", "secret"), \
+                mock.patch("api.main.extract_paper_contribution", _extract):
+            response = self._post(credentials)
+
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(captured["llm_provider"], "kimi")
+        self.assertEqual(captured["llm_api_key"], "guest-kimi-key")
+
     def test_without_a_code_or_a_key_it_is_still_refused(self):
         """Opening it outright would let anyone spend the operator's tokens
         by uploading a PDF. Bringing a key is what replaces the code."""
@@ -387,3 +489,14 @@ class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
         self.assertNotIn("attachBtn.disabled", byok_mode)
         self.assertNotIn("byok_no_attach", byok_mode)
         self.assertIn("api.setAccessCode(null)", byok_mode)
+
+
+class KimiBrowserBoundaryTests(unittest.TestCase):
+
+    def test_the_browser_exposes_the_provider_the_api_accepts(self):
+        """A backend-only provider is unusable for BYOK visitors."""
+
+        source = (
+            Path(__file__).resolve().parent.parent / "web" / "index.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('<option value="kimi">Kimi K3</option>', source)

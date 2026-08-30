@@ -35,6 +35,41 @@ from __future__ import annotations
 import pytest
 
 
+_LLM_ENVIRONMENT = (
+    "LLM_PROVIDER",
+    "DEEPSEEK_API_KEY",
+    "DEEPSEEK_API_BASE",
+    "DEEPSEEK_MODEL",
+    "MOONSHOT_API_KEY",
+    "KIMI_API_BASE",
+    "KIMI_MODEL",
+    "KIMI_REASONING_EFFORT",
+    "OPENAI_API_KEY",
+    "OPENAI_API_BASE",
+    "OPENAI_MODEL",
+    "OPENAI_MODEL_NAME",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_API_BASE",
+    "ANTHROPIC_MODEL",
+)
+
+
+@pytest.fixture(autouse=True)
+def no_real_llm_configuration(monkeypatch):
+    """Keep the developer's paid-provider configuration out of every test.
+
+    api.main deliberately loads .env, while many provider unit tests extend
+    rather than replace os.environ so HOME and other process settings survive.
+    Once a real Kimi provider was configured, that combination made unrelated
+    DeepSeek/OpenAI tests resolve Kimi and fail depending on collection order.
+    Deleting every provider selector and credential here gives tests a neutral
+    baseline; a test still opts into exactly the provider values it needs.
+    """
+
+    for name in _LLM_ENVIRONMENT:
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture(autouse=True)
 def no_real_access_codes(monkeypatch):
     """Pin every access-code global to None before each test.

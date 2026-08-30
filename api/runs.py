@@ -145,11 +145,13 @@ _ARTIFACTS = {
 #                    sent to api.deepseek.com. That is not a quota question.
 #   *_MODEL          the visitor pays for whichever model the operator named.
 #
-#: Removed for a BYOK run: billed to the operator, or able to redirect the
-#: visitor's key somewhere they did not choose.
+#: Neutralized for a BYOK run: billed to the operator, or able to redirect
+#: the visitor's key somewhere they did not choose. Empty sentinels are kept
+#: so provider imports cannot repopulate them from the project's .env file.
 _OPERATOR_BILLED_ENV: frozenset[str] = frozenset({
     "LLM_PROVIDER",
     "DEEPSEEK_API_KEY", "DEEPSEEK_API_BASE", "DEEPSEEK_MODEL",
+    "MOONSHOT_API_KEY", "KIMI_API_BASE", "KIMI_MODEL", "KIMI_REASONING_EFFORT",
     "OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL", "OPENAI_MODEL_NAME",
     "ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE", "ANTHROPIC_MODEL",
     "SERPER_API_KEY", "TAVILY_API_KEY",
@@ -190,12 +192,36 @@ class BYOKCredentials:
         environment and overriding three names left every other paid credential
         in place, and the search client, the LLM base URL and the model name are
         all chosen from names that were not among the three — see
-        _OPERATOR_BILLED_ENV. Removing the whole set means a provider added
-        later is excluded by default rather than included by default.
+        _OPERATOR_BILLED_ENV. Empty sentinels keep dotenv from restoring those
+        names inside the child; a provider added later is therefore excluded by
+        default rather than included by default.
         """
-        env = {k: v for k, v in base.items() if k not in _OPERATOR_BILLED_ENV}
+        # Keep an empty sentinel for every scrubbed name. CrewAI imports
+        # python-dotenv as a side effect in the child process; deleting a name
+        # would let that import repopulate the operator's real .env value after
+        # this boundary had apparently removed it.
+        env = dict(base)
+        for name in _OPERATOR_BILLED_ENV:
+            env[name] = ""
         env["LLM_PROVIDER"] = self.llm_provider
-        env[f"{self.llm_provider.upper()}_API_KEY"] = self.llm_api_key
+
+        # Most providers use PROVIDER_API_KEY, but Moonshot's public contract
+        # deliberately names the credential MOONSHOT_API_KEY. An explicit map
+        # keeps a new provider fail-closed instead of inventing a variable that
+        # create_llm never reads and silently falling back to operator state.
+        key_names = {
+            "deepseek": "DEEPSEEK_API_KEY",
+            "kimi": "MOONSHOT_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+        }
+        try:
+            key_name = key_names[self.llm_provider]
+        except KeyError as exc:
+            raise ValueError(
+                f"Unsupported BYOK LLM provider: {self.llm_provider!r}"
+            ) from exc
+        env[key_name] = self.llm_api_key
         env["SERPER_API_KEY"] = self.serper_api_key
         return env
 

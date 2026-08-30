@@ -83,6 +83,17 @@ class WhatMakesItNotReadyTests(_ReadinessBase):
         self.assertEqual(status.llm_provider, "deepseek")
         self.assertEqual(status.search_provider, "serper")
 
+    def test_a_kimi_deployment_is_ready_and_named_as_kimi(self):
+        status = self._readiness(
+            {
+                "LLM_PROVIDER": "kimi",
+                "MOONSHOT_API_KEY": "sk-kimi",
+                "SERPER_API_KEY": "serper-test",
+            }
+        )
+        self.assertTrue(status.ready, status.checks)
+        self.assertEqual(status.llm_provider, "kimi")
+
     def test_no_llm_key_is_not_ready(self):
         """The case /health already reported, as llm_provider: null, beside
         status "ok" and a 200. Nothing acted on it."""

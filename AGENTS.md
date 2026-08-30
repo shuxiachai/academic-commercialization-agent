@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1751 tests (639 subtests), CI green on Linux + Windows × Python
+Current state: 1771 tests (658 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -233,6 +233,16 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
 ## Things that are known-open
 
 - Blocking on uncited claims (above) — needs the detector tighter first.
+- Kimi K3 is implemented as a logical provider over CrewAI's pinned
+  OpenAI-compatible transport. The adapter covers the official key, base,
+  model, reasoning-effort and JSON-mode contract, translates Kimi cache usage
+  into the shared cost ledger, reaches readiness and browser/API BYOK seams,
+  and uses explicit empty child-process sentinels so CrewAI's dotenv import
+  cannot restore operator credentials. This is zero-network implementation
+  evidence only: no paid Kimi request has executed, so live compatibility,
+  report quality, latency and realised cost remain unobserved. The frozen
+  DeepSeek evidence-set v5 provider contract is unchanged. See
+  `docs/results-2026-08-30-kimi-k3-provider-adapter-implementation.md`.
 - Evidence-gap Tool Calling now has a phase-2 execution kernel and a phase-3
   production-disconnected Tavily adapter; the production workflow is still
   phase-1 zero-call shadow mode. The phase-2 frozen 14-case synthetic

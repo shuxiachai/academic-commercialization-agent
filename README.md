@@ -613,7 +613,7 @@ before a later request. Every provider row reaches the aggregate artifact, and
 only v4 `ACCEPT` rows reach a blank human-review boundary. The combined v4
 decision, preflight and runner subset passes 32/32 tests, including a
 re-injected computed-but-undelivered relation-provenance defect. The complete
-repository now passes **1,751 tests plus 639 subtests**. A separately
+repository now passes **1,771 tests plus 658 subtests**. A separately
 authorized run on merged revision `678254d` completed all eight one-attempt
 anonymous requests for USD 0.008 of provider-reported usage. All 64 provider
 rows reached the v4 decision seam, but the method accepted zero candidates
@@ -677,8 +677,8 @@ rejection, and carries safe failed-call usage through the write-once journal
 and aggregate execution boundary without carrying semantic output. It uses
 DeepSeek's dated peak V4 Flash rates so the fixed soft stop is conservative.
 The updated real zero-network preflight again verified 8/8 cases, 64/64
-candidates and 16 unique prompt identities; the complete suite passes **1,751
-tests plus 639 subtests**. Removing the disabled-thinking field made the
+candidates and 16 unique prompt identities; the complete suite passes **1,771
+tests plus 658 subtests**. Removing the disabled-thinking field made the
 outbound seam test fail before the correct implementation was restored. No
 later paid request is authorized or has occurred. See the
 [v5 pre-registration](docs/prereg-2026-08-29-openalex-evidence-set-v5.md),
@@ -708,6 +708,16 @@ report-quality evidence. See the
 [pre-registration](docs/prereg-2026-08-25-regulator-title-recovery-candidate.md)
 and [development result](docs/results-2026-08-25-regulator-title-recovery-candidate.md),
 plus the [paid canary result](docs/results-2026-08-25-regulator-title-recovery-paid-canary.md).
+
+The provider layer now also supports **Kimi K3** through Moonshot's
+OpenAI-compatible chat endpoint. It uses the official `MOONSHOT_API_KEY`
+contract, defaults reasoning to `low`, omits the unsupported `temperature`
+field, translates Kimi's top-level cache usage into the shared cost ledger, and
+keeps BYOK credentials isolated even when CrewAI imports dotenv in the child.
+This is zero-network implementation evidence only: no paid Kimi request has
+been executed, and the frozen DeepSeek evidence-set v5 study remains unchanged.
+See the
+[Kimi K3 adapter result](docs/results-2026-08-30-kimi-k3-provider-adapter-implementation.md).
 
 See the [`examples/`](examples/) folder for three complete real reports across different industries.
 
@@ -777,6 +787,7 @@ LLM — pick **one** of:
 | Variable | Provider | Default model |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | DeepSeek ([get key](https://platform.deepseek.com/api-keys)) | `deepseek-chat` |
+| `MOONSHOT_API_KEY` | Kimi ([get key](https://platform.kimi.ai/)) | `kimi-k3` |
 | `ANTHROPIC_API_KEY` | Anthropic Claude ([get key](https://console.anthropic.com/)) | `claude-sonnet-5` |
 | `OPENAI_API_KEY` | OpenAI ([get key](https://platform.openai.com/api-keys)) | `gpt-4o` |
 
@@ -798,8 +809,9 @@ Optional:
 
 | Variable | Purpose |
 |---|---|
-| `LLM_PROVIDER` | Override auto-detection: `deepseek` / `anthropic` / `openai` |
-| `MAX_RPM` | API requests per minute (default `6`; raise to `20`+ for OpenAI/Anthropic) |
+| `LLM_PROVIDER` | Override auto-detection: `deepseek` / `kimi` / `anthropic` / `openai` |
+| `KIMI_REASONING_EFFORT` | Kimi K3 reasoning profile: `low` / `high` / `max` (default `low`) |
+| `MAX_RPM` | API requests per minute (default `6`; raise only when the selected provider quota allows it) |
 | `SEMANTIC_SCHOLAR_API_KEY` | Raises S2 rate limit from 1 req/s → 10 req/s; system works without it |
 
 #### 3. Run
@@ -1073,7 +1085,10 @@ automatically once a code is configured (the gate modal offers it as a
 second option), and stays invisible when the gate is off, since there is
 nothing to bypass. The credentials go straight into that one run's
 subprocess environment — never to disk, never merged into the server's own
-environment — so concurrent runs, BYOK or not, cannot see each other's keys.
+environment. Before adding guest values, the child explicitly shadows every
+operator-paid variable with an empty sentinel; this prevents CrewAI's
+import-time dotenv loading from restoring an operator key that the parent meant
+to remove. Concurrent runs, BYOK or not, therefore cannot see each other's keys.
 A BYOK run gets no code tag at all, so it never appears in any code's
 history server-side; the web client instead keeps a session-only list of
 the visitor's own runs (in `sessionStorage`) so their sidebar still shows
@@ -1230,7 +1245,7 @@ academic_agent/
 │   ├── source_clients.py    # API clients (OpenAlex, S2, PubMed, arXiv, Lens, Crossref, Serper)
 │   ├── pdf_extractor.py     # Uploaded-paper contribution extraction
 │   ├── language.py          # Language detection, free-form search planning, localization
-│   ├── llm_config.py        # Multi-LLM config (DeepSeek / OpenAI / Anthropic; JSON mode)
+│   ├── llm_config.py        # Multi-LLM config (DeepSeek / Kimi / OpenAI / Anthropic; JSON mode)
 │   ├── run_output.py        # Run ID, report & scorecard persistence; StepEntry TypedDict
 │   └── config/
 │       ├── agents.yaml      # Agent role definitions + scoring rubrics (6 agents)
@@ -1269,7 +1284,7 @@ academic_agent/
 ### Tech stack
 
 - **Framework**: CrewAI 1.14.x
-- **LLM**: DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — auto-detected from API key, or set `LLM_PROVIDER` explicitly
+- **LLM**: DeepSeek-V3 / Kimi K3 / OpenAI GPT-4o / Anthropic Claude — auto-detected from API key, or set `LLM_PROVIDER` explicitly
 - **Academic sources**: OpenAlex Works API (primary) + PubMed / arXiv domain supplements + Semantic Scholar fallback
 - **Patent sources**: optional structured Lens API plus allowlisted WIPO / EPO and aggregator discovery records with provenance-aware credibility
 - **Patent / market web search**: Serper or Tavily (3-attempt retry with exponential backoff), auto-selected by which API key is set — see "Deploying publicly" for why there are two
@@ -1798,7 +1813,7 @@ runner 已实现：它在构造适配器前记录冻结方法与自身观测哈�
 下一次请求前先提交当前单请求 case journal。每一条供应商返回行都会到达
 聚合产物，只有 v4 `ACCEPT` 行会进入空白人工评审边界。v4 决策、预检与
 runner 组合测试为 32/32；临时移除内部已算出的 relation provenance 后，
-客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,751 项测试与 639 个
+客户端 CSV 接缝测试会准确失败。当前全仓通过 **1,771 项测试与 658 个
 subtests**。随后在合并版本 `678254d` 上单独授权的真实实验完成了 8 次匿名、
 不重试的顺序请求，供应商记账成本为 0.008 美元。64 条供应商候选全部到达
 v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结的 6/8 门槛。
@@ -1848,7 +1863,7 @@ v4 决策接缝，但该方法接受 0 条、覆盖 0/8 个案例，低于冻结
 继续拒绝任何返回身份漂移；失败响应只允许安全的模型名与 usage 穿过 write-once
 journal 和聚合执行接缝，不允许语义内容穿过。固定预算按带日期的 V4 Flash 峰值
 费率保守估算。更新后的真实零网络预检再次验证 8/8 案例、64/64 候选和 16 个
-prompt 身份；当前全仓通过 **1,751 项测试与 639 个 subtests**。临时移除
+prompt 身份；当前全仓通过 **1,771 项测试与 658 个 subtests**。临时移除
 `thinking.disabled` 后，出站接缝测试会准确失败，随后已恢复正确实现。尚未授权或
 执行后续付费请求。详见
 [v5 预注册协议](docs/prereg-2026-08-29-openalex-evidence-set-v5.md)、
@@ -1873,6 +1888,14 @@ precision/recall 或报告质量改善。详见
 [预注册](docs/prereg-2026-08-25-regulator-title-recovery-candidate.md)与
 [开发结果](docs/results-2026-08-25-regulator-title-recovery-candidate.md)，以及
 [付费 canary 结果](docs/results-2026-08-25-regulator-title-recovery-paid-canary.md)。
+
+Provider 层现在也通过 Moonshot 的 OpenAI 兼容 Chat 端点支持 **Kimi K3**。
+实现使用官方 `MOONSHOT_API_KEY` 键名，默认 `low` 推理档位，不发送 K3
+当前契约未支持的 `temperature` 字段，把 Kimi 顶层缓存 token 归一化到统一
+成本账本，并在 CrewAI 子进程导入 dotenv 时继续隔离 BYOK 凭据。这里目前只有
+零网络实现证据：尚未执行任何付费 Kimi 请求，也没有改写已冻结的 DeepSeek
+evidence-set v5 实验。详见
+[Kimi K3 适配实现结果](docs/results-2026-08-30-kimi-k3-provider-adapter-implementation.md)。
 
 完整报告示例见 [`examples/`](examples/) 文件夹（钙钛矿太阳能 / CAR-T 疗法 / 固态电池，三个行业）。
 
@@ -1931,11 +1954,12 @@ uv sync
 cp .env.example .env
 ```
 
-LLM — 三选一填入：
+LLM — 四选一填入：
 
 | 变量 | Provider | 默认模型 |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | DeepSeek（[申请](https://platform.deepseek.com/api-keys)） | `deepseek-chat` |
+| `MOONSHOT_API_KEY` | Kimi（[申请](https://platform.kimi.ai/)） | `kimi-k3` |
 | `ANTHROPIC_API_KEY` | Anthropic Claude（[申请](https://console.anthropic.com/)） | `claude-sonnet-5` |
 | `OPENAI_API_KEY` | OpenAI（[申请](https://platform.openai.com/api-keys)） | `gpt-4o` |
 
@@ -1952,8 +1976,9 @@ LLM — 三选一填入：
 
 | 变量 | 用途 |
 |---|---|
-| `LLM_PROVIDER` | 手动指定 provider：`deepseek` / `anthropic` / `openai` |
-| `MAX_RPM` | API 每分钟请求数（默认 `6`；使用 OpenAI/Anthropic 可调高至 `20`+） |
+| `LLM_PROVIDER` | 手动指定 provider：`deepseek` / `kimi` / `anthropic` / `openai` |
+| `KIMI_REASONING_EFFORT` | Kimi K3 推理档位：`low` / `high` / `max`（默认 `low`） |
+| `MAX_RPM` | API 每分钟请求数（默认 `6`；仅在所选 Provider 配额允许时调高） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 将 S2 速率限制从 1 req/s 提升至 10 req/s；不填也可正常运行 |
 
 #### 3. 运行
@@ -2121,7 +2146,7 @@ token 是测出来的，成本不是：它需要一份本程序无法验证的�
 
 **给每个人发不同的口令：** `ACCESS_CODES` 接受逗号分隔的多个值，而不是一个共用口令——`ACCESS_CODES=给alice的口令,给bob的口令`。每个口令的运行历史都只属于它自己：持有"给alice的口令"的人，侧栏永远只看得到用这个口令跑过的记录，看不到"给bob的口令"跑过的。这只是运行时打的一个标记（口令的哈希值，写进每次运行的目录里），不是给每个人单独跑一套部署——还是一个进程、一个 `outputs/` 目录，口令只是决定 `GET /api/runs` 返回哪些。`ACCESS_CODE`（单数）还是照常可用，对应原来那种所有人共用一个口令的设置；两者可以同时设置。
 
-**第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为任意访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要配置了口令，网页客户端就会在门禁弹窗里自动多出这个选项；不设口令时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境——所以无论是不是 BYOK，并发的运行之间互相看不到对方的密钥。BYOK 提交的运行不会被打上任何口令标记，所以服务端不会把它记进任何一个口令的历史里；网页客户端转而在 `sessionStorage` 里维护一份访客自己这次会话提交过的运行列表，让侧栏依然能显示自己提交过什么——标签页一关就消失，标签页开着的时候完整可见。`POST /api/papers` 同样接受 BYOK 的 LLM provider/key（提取不需要搜索 Key）；PDF 提取与完整运行都会在调用 Provider 前进入同一付费操作准入边界。
+**第二个开放入口：** `POST /api/runs` 的请求体里也可以带 `llm_provider` / `llm_api_key` / `serper_api_key`，作为任意访问口令的替代——用访客自己的 Key，花费算在他们自己头上，不算在部署方头上。这条路不需要额外的服务端配置：只要配置了口令，网页客户端就会在门禁弹窗里自动多出这个选项；不设口令时它也不会出现，因为没有什么需要绕过。密钥直接进入这一次运行的子进程环境变量——不落盘、不并入服务端自身的环境。注入访客值之前，子进程会先用空哨兵覆盖所有部署方付费变量，防止 CrewAI 在导入 dotenv 时把父进程刻意移除的部署方 Key 重新加载回来；因此无论是不是 BYOK，并发运行之间都看不到对方的密钥。BYOK 提交的运行不会被打上任何口令标记，所以服务端不会把它记进任何一个口令的历史里；网页客户端转而在 `sessionStorage` 里维护一份访客自己这次会话提交过的运行列表，让侧栏依然能显示自己提交过什么——标签页一关就消失，标签页开着的时候完整可见。`POST /api/papers` 同样接受 BYOK 的 LLM provider/key（提取不需要搜索 Key）；PDF 提取与完整运行都会在调用 Provider 前进入同一付费操作准入边界。
 
 `GET /api/runs`（运行历史列表）无论如何都始终留在口令后面——开放的话会把每个访客的话题暴露给所有其他访客。按 `run_id` 读取单次运行仍依赖 128 位随机性，并采用能力 URL；写操作更严格：取消、删除或恢复带归属标记的运行必须提供同一归属口令（或管理员口令）。BYOK 运行没有第二份服务端身份，因此其 `run_id` 仍是写操作能力，但恢复时仍必须重新提供完整 BYOK 凭据。恢复会创建新子运行，并与新运行共用相同的并发和付费操作准入边界。
 
@@ -2222,7 +2247,7 @@ academic_agent/
 │   ├── source_clients.py    # API 客户端（OpenAlex / S2 / PubMed / arXiv / Lens / Crossref / Serper）
 │   ├── pdf_extractor.py     # 上传论文的核心贡献提取
 │   ├── language.py          # 语言检测、自由描述检索规划、本地化
-│   ├── llm_config.py        # 多 LLM 配置（DeepSeek / OpenAI / Anthropic；JSON 模式）
+│   ├── llm_config.py        # 多 LLM 配置（DeepSeek / Kimi / OpenAI / Anthropic；JSON 模式）
 │   ├── run_output.py        # 运行 ID、报告与评分 JSON 持久化；StepEntry TypedDict
 │   └── config/
 │       ├── agents.yaml      # Agent 角色配置 + 评分 rubric（6 个）
@@ -2259,7 +2284,7 @@ academic_agent/
 ### 技术栈
 
 - **框架**：CrewAI 1.14.x
-- **LLM**：DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — 自动从 API Key 检测，或通过 `LLM_PROVIDER` 显式指定
+- **LLM**：DeepSeek-V3 / Kimi K3 / OpenAI GPT-4o / Anthropic Claude — 自动从 API Key 检测，或通过 `LLM_PROVIDER` 显式指定
 - **学术来源**：OpenAlex Works API（主力）+ PubMed / arXiv 领域补充 + Semantic Scholar 回退
 - **专利来源**：可选 Lens 结构化 API，以及白名单内 WIPO / EPO 与聚合站发现记录，可信度保留来源路径
 - **专利 / 市场网页搜索**：Serper 或 Tavily（3 次重试 + 指数退避），按配置了哪个 Key 自动选择——原因见"公网部署"一节

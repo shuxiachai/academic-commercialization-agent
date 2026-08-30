@@ -333,3 +333,32 @@ class SerialisationTests(TestCase):
 
     def test_empty_run_usage_serialises(self):
         self.assertEqual(RunUsage().as_dict()["total_tokens"], 0)
+
+
+class KimiK3PricingTests(TestCase):
+
+    def test_kimi_k3_uses_the_provider_rates_and_own_basis_date(self):
+        with _clean_env():
+            price = price_for("kimi-k3")
+        self.assertEqual(
+            (price.input, price.cached, price.output),
+            (3.00, 0.30, 15.00),
+        )
+        self.assertIn("Kimi K3", price.basis)
+        self.assertIn("2026-08-30", price.basis)
+        self.assertNotIn(PRICES_AS_OF, price.basis)
+
+    def test_kimi_cache_is_a_subset_of_prompt_input(self):
+        """Kimi reports cached_tokens at usage top level, but billing follows
+        the OpenAI-shaped subset convention after llm_config translates it."""
+
+        with _clean_env():
+            cost = cost_for(
+                "kimi-k3",
+                _Metrics(
+                    prompt=1_000_000,
+                    cached=250_000,
+                    completion=100_000,
+                ),
+            )
+        self.assertAlmostEqual(cost, 3.825, places=6)
