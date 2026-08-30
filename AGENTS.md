@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1733 tests (639 subtests), CI green on Linux + Windows × Python
+Current state: 1748 tests (639 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -431,10 +431,22 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   focused tests. They mechanically verify both passes' quotes, fail closed on
   disagreement or malformed rows, select at most three sources, and validate
   that every computed role reaches the serialized audit boundary. Both
-  protocol-mandated defects were re-injected and caught. No model call,
-  OpenAlex request, private-label access or production connection has occurred.
-  See docs/prereg-2026-08-29-openalex-evidence-set-v5.md and
-  docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md.
+  protocol-mandated defects were re-injected and caught.
+  A production-disconnected W01-W08 development runner now locks the exact
+  source packet, source lock, completed human labels and reviewer declaration
+  before parsing only the label-blind packet. Role descriptions are derived
+  mechanically from the earlier frozen v4 source-text groups, not from labels.
+  Its strict one-request DeepSeek adapter rejects redirects, retries, model or
+  usage identity drift, and uninspectable cost. The runner writes its complete
+  manifest before client construction, each response and usage before a later
+  call, and each deterministic case decision before a later case. The focused
+  runner/adapter suite passes 15/15 tests, including a temporarily re-injected
+  manifest-order defect. The real zero-network preflight verified 8/8 cases,
+  64/64 candidate identities and 16 distinct prompt identities. No model call
+  or OpenAlex request occurred; human bytes were hashed but never parsed.
+  See docs/prereg-2026-08-29-openalex-evidence-set-v5.md,
+  docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
+  docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md.
   Keep
   `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4/v5
   candidates, live runners and review modules.
