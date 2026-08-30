@@ -283,6 +283,7 @@
       <p class="gate__sub gate__sub--retention" id="byok-retention"></p>
       <select class="gate__input" id="byok-provider" aria-label="LLM provider">
         <option value="deepseek">DeepSeek</option>
+        <option value="qwen">Qwen3.5 Plus</option>
         <option value="openai">OpenAI</option>
         <option value="anthropic">Anthropic</option>
       </select>
@@ -291,8 +292,8 @@
       <input class="gate__input" id="byok-serper-key" type="password" autocomplete="off"
              data-i18n-placeholder="byok_serper_placeholder" placeholder="Serper API key">
       <p class="gate__hint" data-i18n="byok_hint">
-        Keys: platform.deepseek.com/api-keys · platform.openai.com/api-keys ·
-        console.anthropic.com — and serper.dev/api-key for search (free tier available).
+        Keys: platform.deepseek.com/api-keys · bailian.console.aliyun.com (China Qwen) ·
+        platform.openai.com/api-keys · console.anthropic.com — plus serper.dev/api-key for search.
       </p>
       <button type="submit" class="btn btn--primary" id="byok-submit" data-i18n="byok_submit">Start</button>
       <button type="button" class="gate__switch" id="byok-to-gate" data-i18n="byok_have_code">I have an access code</button>

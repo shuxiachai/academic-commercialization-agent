@@ -756,6 +756,25 @@ LNP-mediated liver delivery for in vivo base editing is actively patented by Bea
 
 ---
 
+### Qwen3.5 Plus provider adapter
+
+Qwen3.5 Plus is available as a logical `qwen` provider over CrewAI's pinned
+OpenAI-compatible transport. The adapter uses Alibaba's official
+`DASHSCOPE_API_KEY`, model `qwen3.5-plus`, and a fixed official Beijing BYOK
+endpoint; an operator may select a workspace/region endpoint with
+`QWEN_API_BASE`. Because five pipeline nodes require synchronous JSON Object
+output, the adapter fixes `enable_thinking=false` under the OpenAI SDK's
+`extra_body` extension instead of exposing a toggle that could invalidate the
+structured-output contract. DashScope's nested cached-token usage reaches the
+existing ledger unchanged, and the built-in estimate uses the highest
+published China/global context tier so budget stops remain conservative.
+
+This is **zero-network implementation evidence only**: no paid Qwen request has
+been made, so live compatibility, report quality, latency, and realised cost
+remain unobserved. See the [implementation record](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md).
+Local verification passes **1,768 tests plus 657 subtests**, latest Ruff, the
+narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
+
 ### Quick start
 
 #### 1. Install dependencies
@@ -776,6 +795,7 @@ LLM — pick **one** of:
 
 | Variable | Provider | Default model |
 |---|---|---|
+| `DASHSCOPE_API_KEY` | Alibaba Qwen ([China-region BYOK key](https://bailian.console.aliyun.com/?tab=model#/api-key)) | `qwen3.5-plus` |
 | `DEEPSEEK_API_KEY` | DeepSeek ([get key](https://platform.deepseek.com/api-keys)) | `deepseek-chat` |
 | `ANTHROPIC_API_KEY` | Anthropic Claude ([get key](https://console.anthropic.com/)) | `claude-sonnet-5` |
 | `OPENAI_API_KEY` | OpenAI ([get key](https://platform.openai.com/api-keys)) | `gpt-4o` |
@@ -798,7 +818,7 @@ Optional:
 
 | Variable | Purpose |
 |---|---|
-| `LLM_PROVIDER` | Override auto-detection: `deepseek` / `anthropic` / `openai` |
+| `LLM_PROVIDER` | Override auto-detection: `deepseek` / `qwen` / `anthropic` / `openai` |
 | `MAX_RPM` | API requests per minute (default `6`; raise to `20`+ for OpenAI/Anthropic) |
 | `SEMANTIC_SCHOLAR_API_KEY` | Raises S2 rate limit from 1 req/s → 10 req/s; system works without it |
 
@@ -1230,7 +1250,7 @@ academic_agent/
 │   ├── source_clients.py    # API clients (OpenAlex, S2, PubMed, arXiv, Lens, Crossref, Serper)
 │   ├── pdf_extractor.py     # Uploaded-paper contribution extraction
 │   ├── language.py          # Language detection, free-form search planning, localization
-│   ├── llm_config.py        # Multi-LLM config (DeepSeek / OpenAI / Anthropic; JSON mode)
+│   ├── llm_config.py        # Multi-LLM config (DeepSeek / Qwen / OpenAI / Anthropic; JSON mode)
 │   ├── run_output.py        # Run ID, report & scorecard persistence; StepEntry TypedDict
 │   └── config/
 │       ├── agents.yaml      # Agent role definitions + scoring rubrics (6 agents)
@@ -1269,7 +1289,7 @@ academic_agent/
 ### Tech stack
 
 - **Framework**: CrewAI 1.14.x
-- **LLM**: DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — auto-detected from API key, or set `LLM_PROVIDER` explicitly
+- **LLM**: DeepSeek-V3 / Qwen3.5 Plus / OpenAI GPT-4o / Anthropic Claude — auto-detected from API key, or set `LLM_PROVIDER` explicitly
 - **Academic sources**: OpenAlex Works API (primary) + PubMed / arXiv domain supplements + Semantic Scholar fallback
 - **Patent sources**: optional structured Lens API plus allowlisted WIPO / EPO and aggregator discovery records with provenance-aware credibility
 - **Patent / market web search**: Serper or Tavily (3-attempt retry with exponential backoff), auto-selected by which API key is set — see "Deploying publicly" for why there are two
@@ -1915,6 +1935,22 @@ LNP 体内碱基编辑递送领域专利竞争激烈，Beam Therapeutics、Intel
 
 ---
 
+### Qwen3.5 Plus Provider 适配层
+
+项目已把 Qwen3.5 Plus 作为逻辑 `qwen` Provider 接入 CrewAI 固定版本的
+OpenAI-compatible 传输层。适配层读取官方 `DASHSCOPE_API_KEY`，默认模型为
+`qwen3.5-plus`；BYOK 固定使用官方北京端点，部署者可通过 `QWEN_API_BASE`
+选择自己的 Workspace/地域端点。由于五个流水线节点依赖同步 JSON Object
+输出，适配层在 OpenAI SDK 的 `extra_body` 中固定发送
+`enable_thinking=false`，不开放可能破坏结构化输出契约的切换开关。缓存
+Token 沿用 DashScope 的 OpenAI 兼容统计格式，成本估算采用已公布的最高
+上下文档位，避免低估预算。
+
+目前只有**零网络实现证据**，尚未执行付费 Qwen 请求，因此不能宣称已经
+验证线上兼容性、报告质量、延迟或实际成本。详见[实现记录](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)。
+本地验证通过 **1,768 项测试与 657 个 subtests**、最新版 Ruff、CI 同款窄范围
+Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
+
 ### 快速开始
 
 #### 1. 安装依赖
@@ -1931,12 +1967,13 @@ uv sync
 cp .env.example .env
 ```
 
-LLM — 三选一填入：
+LLM — 四选一填入：
 
 | 变量 | Provider | 默认模型 |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | DeepSeek（[申请](https://platform.deepseek.com/api-keys)） | `deepseek-chat` |
 | `ANTHROPIC_API_KEY` | Anthropic Claude（[申请](https://console.anthropic.com/)） | `claude-sonnet-5` |
+| `DASHSCOPE_API_KEY` | 阿里云 Qwen（[中国区 BYOK Key](https://bailian.console.aliyun.com/?tab=model#/api-key)） | `qwen3.5-plus` |
 | `OPENAI_API_KEY` | OpenAI（[申请](https://platform.openai.com/api-keys)） | `gpt-4o` |
 
 必填——二选一：
@@ -1952,7 +1989,7 @@ LLM — 三选一填入：
 
 | 变量 | 用途 |
 |---|---|
-| `LLM_PROVIDER` | 手动指定 provider：`deepseek` / `anthropic` / `openai` |
+| `LLM_PROVIDER` | 手动指定 provider：`deepseek` / `qwen` / `anthropic` / `openai` |
 | `MAX_RPM` | API 每分钟请求数（默认 `6`；使用 OpenAI/Anthropic 可调高至 `20`+） |
 | `SEMANTIC_SCHOLAR_API_KEY` | 将 S2 速率限制从 1 req/s 提升至 10 req/s；不填也可正常运行 |
 
@@ -2222,7 +2259,7 @@ academic_agent/
 │   ├── source_clients.py    # API 客户端（OpenAlex / S2 / PubMed / arXiv / Lens / Crossref / Serper）
 │   ├── pdf_extractor.py     # 上传论文的核心贡献提取
 │   ├── language.py          # 语言检测、自由描述检索规划、本地化
-│   ├── llm_config.py        # 多 LLM 配置（DeepSeek / OpenAI / Anthropic；JSON 模式）
+│   ├── llm_config.py        # 多 LLM 配置（DeepSeek / Qwen / OpenAI / Anthropic；JSON 模式）
 │   ├── run_output.py        # 运行 ID、报告与评分 JSON 持久化；StepEntry TypedDict
 │   └── config/
 │       ├── agents.yaml      # Agent 角色配置 + 评分 rubric（6 个）
@@ -2259,7 +2296,7 @@ academic_agent/
 ### 技术栈
 
 - **框架**：CrewAI 1.14.x
-- **LLM**：DeepSeek-V3 / OpenAI GPT-4o / Anthropic Claude — 自动从 API Key 检测，或通过 `LLM_PROVIDER` 显式指定
+- **LLM**：DeepSeek-V3 / Qwen3.5 Plus / OpenAI GPT-4o / Anthropic Claude — 自动从 API Key 检测，或通过 `LLM_PROVIDER` 显式指定
 - **学术来源**：OpenAlex Works API（主力）+ PubMed / arXiv 领域补充 + Semantic Scholar 回退
 - **专利来源**：可选 Lens 结构化 API，以及白名单内 WIPO / EPO 与聚合站发现记录，可信度保留来源路径
 - **专利 / 市场网页搜索**：Serper 或 Tavily（3 次重试 + 指数退避），按配置了哪个 Key 自动选择——原因见"公网部署"一节

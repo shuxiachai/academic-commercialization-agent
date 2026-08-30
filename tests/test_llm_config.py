@@ -217,3 +217,142 @@ def test_backward_compat_alias():
             assert kw["provider"] == "deepseek"
             assert kw.get("response_format") == {"type": "json_object"}
             assert kw["temperature"] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Qwen3.5 Plus — logical provider over CrewAI's OpenAI-compatible transport
+# ---------------------------------------------------------------------------
+
+def test_detect_qwen_explicit():
+    with patch.dict("os.environ", {"LLM_PROVIDER": "qwen"}, clear=False):
+        assert _detect_provider() == "qwen"
+
+
+def test_detect_qwen_from_official_api_key():
+    env = {
+        "DEEPSEEK_API_KEY": "",
+        "DASHSCOPE_API_KEY": "sk-qwen",
+        "ANTHROPIC_API_KEY": "",
+        "OPENAI_API_KEY": "",
+    }
+    with patch.dict("os.environ", env, clear=False):
+        assert _detect_provider() == "qwen"
+
+
+def test_detect_qwen_before_anthropic_and_openai():
+    """Stale fallback keys must not steal an explicitly configured Qwen deployment."""
+
+    env = {
+        "DASHSCOPE_API_KEY": "sk-qwen",
+        "ANTHROPIC_API_KEY": "sk-ant",
+        "OPENAI_API_KEY": "sk-openai",
+    }
+    with patch.dict("os.environ", env, clear=False):
+        assert _detect_provider() == "qwen"
+
+
+@pytest.mark.parametrize(
+    ("base", "model"),
+    [
+        ("https://dashscope.aliyuncs.com/compatible-mode/v1", ""),
+        ("https://dashscope-intl.aliyuncs.com/compatible-mode/v1", ""),
+        ("https://workspace.cn-beijing.maas.aliyuncs.com/compatible-mode/v1", ""),
+        ("", "qwen3.5-plus"),
+    ],
+)
+def test_detect_legacy_qwen_from_openai_compatible_settings(base, model):
+    env = {
+        "DEEPSEEK_API_KEY": "",
+        "DASHSCOPE_API_KEY": "",
+        "ANTHROPIC_API_KEY": "",
+        "OPENAI_API_KEY": "sk-legacy",
+        "OPENAI_API_BASE": base,
+        "OPENAI_MODEL_NAME": model,
+    }
+    with patch.dict("os.environ", env, clear=False):
+        assert _detect_provider() == "qwen"
+
+
+def test_qwen_default_contract_uses_official_endpoint_and_non_thinking_mode():
+    kw = _make_llm(
+        {
+            "DASHSCOPE_API_KEY": "sk-qwen",
+            "QWEN_MODEL": "",
+            "QWEN_API_BASE": "",
+        }
+    )
+    assert kw["provider"] == "openai"
+    assert kw["model"] == "qwen3.5-plus"
+    assert kw["api_key"] == "sk-qwen"
+    assert kw["base_url"] == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    assert kw["additional_params"] == {
+        "extra_body": {"enable_thinking": False}
+    }
+
+
+def test_qwen_custom_endpoint_and_model_keep_the_json_contract():
+    env = {
+        "DASHSCOPE_API_KEY": "sk-qwen",
+        "QWEN_MODEL": "qwen3.5-plus-2026-02-15",
+        "QWEN_API_BASE": (
+            "https://workspace.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+        ),
+    }
+    kw = _make_llm(env, json_mode=True, temperature=0.0)
+    assert kw["model"] == "qwen3.5-plus-2026-02-15"
+    assert kw["base_url"].startswith("https://workspace.cn-beijing.maas.aliyuncs.com")
+    assert kw["additional_params"] == {
+        "extra_body": {"enable_thinking": False}
+    }
+    assert kw["response_format"] == {"type": "json_object"}
+    assert kw["temperature"] == 0.0
+
+
+def test_qwen_byok_ignores_operator_endpoint_and_model():
+    env = {
+        "QWEN_API_BASE": "https://operator.invalid/v1",
+        "QWEN_MODEL": "operator-model",
+    }
+    with patch.dict("os.environ", env, clear=False):
+        with patch("academic_agent.llm_config.LLM") as mock_llm:
+            mock_llm.return_value = MagicMock()
+            create_llm(
+                provider="qwen",
+                api_key="guest-qwen",
+                json_mode=True,
+                temperature=0.0,
+            )
+            kw = mock_llm.call_args.kwargs
+    assert kw["provider"] == "openai"
+    assert kw["api_key"] == "guest-qwen"
+    assert kw["model"] == "qwen3.5-plus"
+    assert kw["base_url"] == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    assert kw["additional_params"] == {
+        "extra_body": {"enable_thinking": False}
+    }
+    assert kw["response_format"] == {"type": "json_object"}
+    assert kw["temperature"] == 0.0
+    assert "operator" not in str(kw)
+
+
+def test_qwen_extension_reaches_the_real_crewai_chat_request_body():
+    """Pin the config-to-SDK seam, not merely our constructor dictionary.
+
+    CrewAI expands additional_params into OpenAI SDK arguments. Putting
+    enable_thinking directly at that level would make the SDK reject the paid
+    request; Alibaba requires it under extra_body.
+    """
+
+    llm = create_llm(
+        provider="qwen",
+        api_key="not-a-real-key",
+        json_mode=True,
+        temperature=0.0,
+    )
+    params = llm._prepare_completion_params(
+        [{"role": "user", "content": "offline request-body probe"}]
+    )
+    assert params["extra_body"] == {"enable_thinking": False}
+    assert "enable_thinking" not in params
+    assert params["response_format"] == {"type": "json_object"}
+    assert params["temperature"] == 0.0

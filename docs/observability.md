@@ -20,7 +20,8 @@ The adapter adds three things without changing the six-agent pipeline:
 - project-owned spans for source collection, crew execution, claim grounding,
   and report/score consistency;
 - OpenInference auto-instrumentation for CrewAI tasks and the provider SDKs
-  actually used by CrewAI 1.14.7 (OpenAI-compatible and optional Anthropic).
+  actually used by CrewAI 1.14.7 (OpenAI-compatible, including Qwen, and
+  optional Anthropic).
 
 The implementation lives in `src/academic_agent/observability/`. Phoenix is a
 backend selected through configuration; the application code is coupled to

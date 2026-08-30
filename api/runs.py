@@ -129,8 +129,9 @@ _ARTIFACTS = {
 
 
 # Environment variables that spend the operator's money or point a key at a
-# host the visitor did not choose. Every one of these is removed before a BYOK
-# subprocess starts, and only the visitor's own values are put back.
+# host the visitor did not choose. Every one is neutralized before a BYOK
+# subprocess starts, and only the visitor's own values are put back. Explicit
+# empty sentinels prevent an import-time dotenv load from restoring a secret.
 #
 # Overriding the three keys was not enough, because none of these three
 # mechanisms goes through the key that was overridden:
@@ -145,12 +146,14 @@ _ARTIFACTS = {
 #                    sent to api.deepseek.com. That is not a quota question.
 #   *_MODEL          the visitor pays for whichever model the operator named.
 #
-#: Removed for a BYOK run: billed to the operator, or able to redirect the
-#: visitor's key somewhere they did not choose.
+#: Neutralized for a BYOK run: billed to the operator, or able to redirect
+#: the visitor's key somewhere they did not choose. Empty sentinels are kept
+#: so provider imports cannot repopulate them from the project's .env file.
 _OPERATOR_BILLED_ENV: frozenset[str] = frozenset({
     "LLM_PROVIDER",
     "DEEPSEEK_API_KEY", "DEEPSEEK_API_BASE", "DEEPSEEK_MODEL",
     "OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL", "OPENAI_MODEL_NAME",
+    "DASHSCOPE_API_KEY", "QWEN_API_BASE", "QWEN_MODEL",
     "ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE", "ANTHROPIC_MODEL",
     "SERPER_API_KEY", "TAVILY_API_KEY",
     "LENS_API_KEY", "OPENALEX_API_KEY",
@@ -190,12 +193,36 @@ class BYOKCredentials:
         environment and overriding three names left every other paid credential
         in place, and the search client, the LLM base URL and the model name are
         all chosen from names that were not among the three — see
-        _OPERATOR_BILLED_ENV. Removing the whole set means a provider added
-        later is excluded by default rather than included by default.
+        _OPERATOR_BILLED_ENV. Empty sentinels keep dotenv from restoring those
+        names inside the child; a provider added later is therefore excluded by
+        default rather than included by default.
         """
-        env = {k: v for k, v in base.items() if k not in _OPERATOR_BILLED_ENV}
+        # Keep an empty sentinel for every scrubbed name. CrewAI imports
+        # python-dotenv as a side effect in the child process; deleting a name
+        # would let that import repopulate the operator's real .env value after
+        # this boundary had apparently removed it.
+        env = dict(base)
+        for name in _OPERATOR_BILLED_ENV:
+            env[name] = ""
         env["LLM_PROVIDER"] = self.llm_provider
-        env[f"{self.llm_provider.upper()}_API_KEY"] = self.llm_api_key
+
+        # Most providers use PROVIDER_API_KEY, but Alibaba's public contract
+        # names the credential DASHSCOPE_API_KEY. An explicit map keeps a new
+        # provider fail-closed instead of inventing a name that create_llm
+        # never reads and silently falling back to operator state.
+        key_names = {
+            "deepseek": "DEEPSEEK_API_KEY",
+            "qwen": "DASHSCOPE_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+        }
+        try:
+            key_name = key_names[self.llm_provider]
+        except KeyError as exc:
+            raise ValueError(
+                f"Unsupported BYOK LLM provider: {self.llm_provider!r}"
+            ) from exc
+        env[key_name] = self.llm_api_key
         env["SERPER_API_KEY"] = self.serper_api_key
         return env
 

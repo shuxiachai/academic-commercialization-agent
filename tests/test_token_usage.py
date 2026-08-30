@@ -333,3 +333,36 @@ class SerialisationTests(TestCase):
 
     def test_empty_run_usage_serialises(self):
         self.assertEqual(RunUsage().as_dict()["total_tokens"], 0)
+
+
+class Qwen35PlusPricingTests(TestCase):
+
+    def test_qwen_uses_conservative_peak_rates_and_its_own_basis_date(self):
+        with _clean_env():
+            price = price_for("qwen3.5-plus")
+        self.assertEqual(
+            (price.input, price.cached, price.output),
+            (0.573, 0.115, 3.44),
+        )
+        self.assertIn("Qwen3.5 Plus", price.basis)
+        self.assertIn("2026-08-30", price.basis)
+        self.assertNotIn(PRICES_AS_OF, price.basis)
+
+    def test_qwen_cached_tokens_are_a_subset_of_prompt_input(self):
+        """DashScope follows the OpenAI nested cached-token convention.
+
+        Full-rate input therefore excludes the cached subset rather than
+        double-billing it. The table uses the peak published context tier so
+        a budget stop remains conservative for shorter requests too.
+        """
+
+        with _clean_env():
+            cost = cost_for(
+                "qwen3.5-plus",
+                _Metrics(
+                    prompt=1_000_000,
+                    cached=250_000,
+                    completion=100_000,
+                ),
+            )
+        self.assertAlmostEqual(cost, 0.8025, places=6)
