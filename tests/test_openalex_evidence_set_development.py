@@ -15,6 +15,7 @@ from academic_agent.tools.deepseek_evidence_judge import (
     DeepSeekJudgeRequest,
     DeepSeekJudgeResponse,
     DeepSeekJudgeUsage,
+    DeepSeekJudgeUsageObservation,
 )
 
 
@@ -167,8 +168,8 @@ def _response(
         request_sha256=hashlib.sha256(request.body()).hexdigest(),
         batch_input_sha256=request.batch_input_sha256,
         prompt_sha256=prompt_sha256 or request.prompt_sha256,
-        requested_model="deepseek-chat",
-        returned_model="deepseek-chat",
+        requested_model="deepseek-v4-flash",
+        returned_model="deepseek-v4-flash",
         provider_response_id=f"response-{request.trace_id}",
         provider_request_id=f"request-{request.trace_id}",
         finish_reason="stop",
@@ -267,6 +268,7 @@ def test_full_execution_persists_each_call_and_case_before_the_next(tmp_path):
 
     assert factory.call_count == 1
     assert len(adapter.requests) == 16
+    assert result.schema_version == 2
     assert result.overall_state == "completed"
     assert result.stop_reason == "completed"
     assert result.attempted_model_call_count == 16
@@ -292,6 +294,8 @@ def test_manifest_and_model_boundary_exclude_baseline_urls_and_human_bytes(tmp_p
     assert "DO_NOT_SEND_REVIEWER_DECLARATION" not in manifest
     assert "openalex.org" not in manifest
     parsed = json.loads(manifest)
+    assert parsed["schema_version"] == 2
+    assert parsed["requested_model"] == "deepseek-v4-flash"
     for case in parsed["cases"]:
         first = case["first_request"]["user_prompt"]
         second = case["second_request"]["user_prompt"]
@@ -373,13 +377,18 @@ def test_response_identity_drift_is_persisted_and_no_retry_occurs(tmp_path):
 
     assert adapter.call_count == 1
     assert result.stop_reason == "response_identity_mismatch"
-    assert result.cost_state == "uninspectable"
+    assert result.cost_state == "known"
+    assert result.cost_usd == pytest.approx(0.001)
+    assert result.total_tokens == 12
     journal = json.loads(
         (output / "judge-calls/W01-pass-1.json").read_text(encoding="utf-8")
     )
     assert journal["state"] == "failed"
     assert journal["failure_type"] == "adapter_response_identity_mismatch"
     assert "prompt_sha256" in journal["failure_detail"]
+    assert journal["observed_returned_model"] == "deepseek-v4-flash"
+    assert journal["observed_usage"]["cost_usd"] == pytest.approx(0.001)
+    assert "raw_content" not in journal
 
 
 class FailureAdapter:
@@ -413,9 +422,59 @@ def test_adapter_failure_is_one_attempt_and_not_a_silent_pass(tmp_path):
     assert adapter.call_count == 1
     assert result.stop_reason == "adapter_failed"
     assert result.completed_model_call_count == 0
+    assert result.cost_state == "uninspectable"
     assert result.disposition_agreement is None
     assert result.mechanical_agreement_gate_passed is None
     assert result.development_gate_state == "not_evaluated"
+
+
+class MeteredIdentityFailureAdapter:
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def __call__(self, request):  # noqa: ANN001, ANN204
+        del request
+        self.call_count += 1
+        raise DeepSeekJudgeAdapterError(
+            "provider returned a different canonical model",
+            failure_type="provider_model_identity_mismatch",
+            retryable=False,
+            request_may_have_spent=True,
+            observed_returned_model="deepseek-v4-flash-0731",
+            observed_usage=DeepSeekJudgeUsageObservation(
+                prompt_tokens=100,
+                cached_prompt_tokens=20,
+                completion_tokens=10,
+                total_tokens=110,
+                cost_usd=0.002,
+                cost_basis="frozen test price basis",
+            ),
+        )
+
+
+def test_failed_identity_call_preserves_safe_usage_at_execution_boundary(tmp_path):
+    bundle = _source_bundle(tmp_path)
+    output = tmp_path / "result"
+    adapter = MeteredIdentityFailureAdapter()
+
+    result = development.execute_development_study(
+        output_dir=output,
+        soft_stop_usd=0.05,
+        acknowledge_model_budget=True,
+        adapter_factory=lambda: adapter,
+        **_common(bundle),
+    )
+
+    assert adapter.call_count == 1
+    assert result.completed_model_call_count == 0
+    assert result.total_tokens == 110
+    assert result.cost_state == "known"
+    assert result.cost_usd == pytest.approx(0.002)
+    serialized = json.loads((output / "execution.json").read_text(encoding="utf-8"))
+    assert serialized["total_tokens"] == 110
+    assert serialized["cost_usd"] == pytest.approx(0.002)
+    assert serialized["calls"][0]["observed_usage"]["prompt_tokens"] == 100
+    assert "raw_content" not in serialized["calls"][0]
 
 
 def test_existing_output_and_missing_budget_acknowledgement_fail_closed(tmp_path):

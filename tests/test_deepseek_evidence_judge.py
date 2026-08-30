@@ -30,7 +30,7 @@ def _request() -> DeepSeekJudgeRequest:
     )
 
 
-def _provider_body(*, model: str = "deepseek-chat") -> bytes:
+def _provider_body(*, model: str = "deepseek-v4-flash") -> bytes:
     return json.dumps(
         {
             "id": "response-123",
@@ -65,7 +65,9 @@ class RecordingTransport:
         )
 
 
-def test_adapter_sends_one_fixed_endpoint_request_without_leaking_key():
+def test_adapter_sends_one_fixed_endpoint_request_without_leaking_key(monkeypatch):
+    # Production may override prices; this frozen experiment must not.
+    monkeypatch.setenv("LLM_PRICE_PER_MTOK", "99:99:99")
     transport = RecordingTransport()
     adapter = DeepSeekEvidenceJudgeAdapter(
         api_key="secret-deepseek-key",
@@ -82,21 +84,26 @@ def test_adapter_sends_one_fixed_endpoint_request_without_leaking_key():
     assert call["headers"]["Authorization"] == "Bearer secret-deepseek-key"
     assert b"secret-deepseek-key" not in call["body"]
     payload = json.loads(call["body"])
-    assert payload["model"] == "deepseek-chat"
+    assert payload["model"] == "deepseek-v4-flash"
+    assert payload["thinking"] == {"type": "disabled"}
     assert payload["temperature"] == 0.0
     assert payload["stream"] is False
     assert payload["response_format"] == {"type": "json_object"}
-    assert response.returned_model == "deepseek-chat"
+    assert response.returned_model == "deepseek-v4-flash"
     assert response.provider_request_id == "provider-request-456"
     assert response.latency_ms == pytest.approx(250.0)
     assert response.usage.cached_prompt_tokens == 20
     assert response.usage.cost_usd > 0
-    assert "built-in table" in response.usage.cost_basis
+    assert "built-in" in response.usage.cost_basis
+    assert "peak" in response.usage.cost_basis
+    assert "env" not in response.usage.cost_basis
     assert response.request_sha256 == hashlib.sha256(call["body"]).hexdigest()
 
 
 def test_model_identity_mismatch_is_terminal_and_never_retried():
-    transport = RecordingTransport(_provider_body(model="deepseek-reasoner"))
+    transport = RecordingTransport(
+        _provider_body(model="deepseek-v4-flash-0731")
+    )
     adapter = DeepSeekEvidenceJudgeAdapter(
         api_key="secret",
         transport=transport,
@@ -111,6 +118,12 @@ def test_model_identity_mismatch_is_terminal_and_never_retried():
     assert caught.value.failure_type == "provider_model_identity_mismatch"
     assert caught.value.retryable is False
     assert caught.value.request_may_have_spent is True
+    assert caught.value.observed_returned_model == "deepseek-v4-flash-0731"
+    assert caught.value.observed_usage.prompt_tokens == 100
+    assert caught.value.observed_usage.cost_usd is not None
+    # A failed identity check may retain accounting, never the provider's
+    # semantic content that could be used to tune a consumed experiment.
+    assert not hasattr(caught.value, "raw_content")
     assert len(transport.calls) == 1
 
 

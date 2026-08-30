@@ -40,14 +40,19 @@ from typing import Any
 #
 # NOT AUTHORITATIVE. Provider prices change, and a stale entry here reports a
 # confident wrong number rather than failing — the exact failure mode this
-# module exists to avoid. So every estimate is stamped with PRICES_AS_OF, and
-# LLM_PRICE_PER_MTOK overrides the table without a code change. Verify against
-# the provider's pricing page before quoting a figure from this project.
+# module exists to avoid. Most estimates are stamped with PRICES_AS_OF; models
+# added after that shared census carry their own date rather than falsely
+# restamping every older row. LLM_PRICE_PER_MTOK overrides the table without a
+# code change. Verify against the provider's pricing page before quoting a
+# figure from this project.
 PRICES_AS_OF = "2026-05"
 
 _PRICING: dict[str, tuple[float, float, float]] = {
     "deepseek-chat":      (0.27, 0.07, 1.10),
     "deepseek-reasoner":  (0.55, 0.14, 2.19),
+    # DeepSeek V4 pricing varies by time. Use published peak rates so a fixed
+    # soft stop never understates a request made during the expensive window.
+    "deepseek-v4-flash":  (0.44, 0.014, 1.32),
     "gpt-4o":             (2.50, 1.25, 10.00),
     "gpt-4o-mini":        (0.15, 0.075, 0.60),
     "gpt-4.1":            (2.00, 0.50, 8.00),
@@ -55,6 +60,10 @@ _PRICING: dict[str, tuple[float, float, float]] = {
     "claude-opus-4":      (15.00, 1.50, 75.00),
     "claude-sonnet-4":    (3.00, 0.30, 15.00),
     "claude-haiku-4":     (0.80, 0.08, 4.00),
+}
+
+_PRICING_BASIS_OVERRIDES = {
+    "deepseek-v4-flash": "built-in DeepSeek peak table (as of 2026-08-30)",
 }
 
 # Anthropic bills a cache *write* above the normal input rate. Cache reads are
@@ -107,23 +116,36 @@ def _price_from_env() -> _Price | None:
     return _Price(input_, cached, output, "env LLM_PRICE_PER_MTOK")
 
 
-def price_for(model: str) -> _Price | None:
+def price_for(
+    model: str,
+    *,
+    allow_env_override: bool = True,
+) -> _Price | None:
     """Rates for `model`, or None when the model is not priced.
 
     None is a real answer here, not an error: it makes the caller report
     tokens without a dollar figure instead of inventing one.
     """
-    env = _price_from_env()
-    if env is not None:
-        return env
+    if allow_env_override:
+        env = _price_from_env()
+        if env is not None:
+            return env
     name = _normalize_model(model)
     if name in _PRICING:
-        return _Price(*_PRICING[name], basis=f"built-in table (as of {PRICES_AS_OF})")
+        basis = _PRICING_BASIS_OVERRIDES.get(
+            name,
+            f"built-in table (as of {PRICES_AS_OF})",
+        )
+        return _Price(*_PRICING[name], basis=basis)
     # Longest prefix wins so "claude-sonnet-4-20250514" prefers the
     # "claude-sonnet-4" row over a hypothetical shorter "claude" one.
     for key in sorted(_PRICING, key=len, reverse=True):
         if name.startswith(key):
-            return _Price(*_PRICING[key], basis=f"built-in table (as of {PRICES_AS_OF})")
+            basis = _PRICING_BASIS_OVERRIDES.get(
+                key,
+                f"built-in table (as of {PRICES_AS_OF})",
+            )
+            return _Price(*_PRICING[key], basis=basis)
     return None
 
 
@@ -218,9 +240,15 @@ class RunUsage:
         return data
 
 
-def cost_for(model: str, metrics: Any, *, llm: Any = None) -> float | None:
+def cost_for(
+    model: str,
+    metrics: Any,
+    *,
+    llm: Any = None,
+    allow_env_override: bool = True,
+) -> float | None:
     """USD for one agent's usage, or None when the model has no price."""
-    price = price_for(model)
+    price = price_for(model, allow_env_override=allow_env_override)
     if price is None:
         return None
 

@@ -31,7 +31,7 @@ from academic_agent.token_usage import cost_for, price_for
 DEEPSEEK_CHAT_COMPLETIONS_ENDPOINT = (
     "https://api.deepseek.com/chat/completions"
 )
-REQUESTED_MODEL = "deepseek-chat"
+REQUESTED_MODEL = "deepseek-v4-flash"
 _MAX_RESPONSE_BYTES = 1_000_000
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 
@@ -46,11 +46,18 @@ class DeepSeekJudgeAdapterError(RuntimeError):
         failure_type: str,
         retryable: bool,
         request_may_have_spent: bool,
+        observed_returned_model: str | None = None,
+        observed_usage: DeepSeekJudgeUsageObservation | None = None,
     ) -> None:
         super().__init__(message)
         self.failure_type = failure_type
         self.retryable = retryable
         self.request_may_have_spent = request_may_have_spent
+        # A terminal identity failure must not retain semantic output, but the
+        # provider's non-secret model and usage fields are still needed to
+        # distinguish an unknown bill from a measured failed request.
+        self.observed_returned_model = observed_returned_model
+        self.observed_usage = observed_usage
 
 
 class DeepSeekJudgeRequest(BaseModel):
@@ -59,7 +66,7 @@ class DeepSeekJudgeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     trace_id: str = Field(pattern=r"^openalex-v5-w0[1-8]-pass-[12]$")
-    requested_model: Literal["deepseek-chat"] = "deepseek-chat"
+    requested_model: Literal["deepseek-v4-flash"] = "deepseek-v4-flash"
     system_prompt: str = Field(min_length=20, max_length=20_000)
     user_prompt: str = Field(min_length=20, max_length=250_000)
     batch_input_sha256: str = Field(pattern=_SHA256_PATTERN)
@@ -92,6 +99,11 @@ class DeepSeekJudgeRequest(BaseModel):
                 "response_format": {"type": "json_object"},
                 "stream": False,
                 "temperature": self.temperature,
+                # DeepSeek V4 enables thinking by default.  The original
+                # frozen `deepseek-chat` contract meant non-thinking mode, so
+                # this explicit toggle preserves that method after the legacy
+                # alias was retired instead of silently changing the judge.
+                "thinking": {"type": "disabled"},
             },
             ensure_ascii=True,
             separators=(",", ":"),
@@ -99,8 +111,8 @@ class DeepSeekJudgeRequest(BaseModel):
         ).encode("utf-8")
 
 
-class DeepSeekJudgeUsage(BaseModel):
-    """Provider usage and locally reproducible cost for one request."""
+class DeepSeekJudgeUsageObservation(BaseModel):
+    """Safe provider accounting retained even when semantic output is rejected."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -108,16 +120,25 @@ class DeepSeekJudgeUsage(BaseModel):
     cached_prompt_tokens: int = Field(ge=0)
     completion_tokens: int = Field(ge=0)
     total_tokens: int = Field(ge=0)
-    cost_usd: float = Field(ge=0.0, allow_inf_nan=False)
-    cost_basis: str = Field(min_length=5, max_length=300)
+    cost_usd: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+    cost_basis: str | None = Field(default=None, min_length=5, max_length=300)
 
     @model_validator(mode="after")
-    def _validate_token_accounting(self) -> "DeepSeekJudgeUsage":
+    def _validate_token_accounting(self) -> "DeepSeekJudgeUsageObservation":
         if self.cached_prompt_tokens > self.prompt_tokens:
             raise ValueError("cached tokens cannot exceed prompt tokens")
         if self.total_tokens != self.prompt_tokens + self.completion_tokens:
             raise ValueError("total tokens do not match prompt plus completion")
+        if (self.cost_usd is None) != (self.cost_basis is None):
+            raise ValueError("cost and cost basis must be known or unknown together")
         return self
+
+
+class DeepSeekJudgeUsage(DeepSeekJudgeUsageObservation):
+    """Provider usage with the locally reproducible cost required for success."""
+
+    cost_usd: float = Field(ge=0.0, allow_inf_nan=False)
+    cost_basis: str = Field(min_length=5, max_length=300)
 
 
 class DeepSeekJudgeResponse(BaseModel):
@@ -129,8 +150,8 @@ class DeepSeekJudgeResponse(BaseModel):
     request_sha256: str = Field(pattern=_SHA256_PATTERN)
     batch_input_sha256: str = Field(pattern=_SHA256_PATTERN)
     prompt_sha256: str = Field(pattern=_SHA256_PATTERN)
-    requested_model: Literal["deepseek-chat"] = "deepseek-chat"
-    returned_model: Literal["deepseek-chat"]
+    requested_model: Literal["deepseek-v4-flash"] = "deepseek-v4-flash"
+    returned_model: Literal["deepseek-v4-flash"]
     provider_response_id: str = Field(min_length=3, max_length=300)
     provider_request_id: str | None = Field(default=None, max_length=300)
     finish_reason: str = Field(min_length=1, max_length=100)
@@ -270,6 +291,39 @@ def _safe_validation_detail(exc: ValidationError) -> str:
     return "; ".join(details)[:500] or "provider response schema invalid"
 
 
+def _usage_observation(envelope: _ProviderEnvelope) -> DeepSeekJudgeUsageObservation:
+    """Validate provider counters before deciding whether output is admissible."""
+
+    metrics = SimpleNamespace(
+        prompt_tokens=envelope.usage.prompt_tokens,
+        cached_prompt_tokens=envelope.usage.prompt_cache_hit_tokens,
+        cache_creation_tokens=0,
+        completion_tokens=envelope.usage.completion_tokens,
+    )
+    # General application accounting intentionally supports an environment
+    # price override. This pre-registered study does not: an unrecorded deploy
+    # variable must not change a frozen soft-stop calculation. The token-usage
+    # implementation hash and dated built-in basis are both in the manifest.
+    price = price_for(envelope.model, allow_env_override=False)
+    cost = (
+        cost_for(
+            envelope.model,
+            metrics,
+            allow_env_override=False,
+        )
+        if price is not None
+        else None
+    )
+    return DeepSeekJudgeUsageObservation(
+        prompt_tokens=envelope.usage.prompt_tokens,
+        cached_prompt_tokens=envelope.usage.prompt_cache_hit_tokens,
+        completion_tokens=envelope.usage.completion_tokens,
+        total_tokens=envelope.usage.total_tokens,
+        cost_usd=cost,
+        cost_basis=price.basis if price is not None else None,
+    )
+
+
 class DeepSeekEvidenceJudgeAdapter:
     """Perform exactly one fixed-model JSON request with strict accounting."""
 
@@ -349,36 +403,38 @@ class DeepSeekEvidenceJudgeAdapter:
                 request_may_have_spent=True,
             ) from exc
 
+        try:
+            observed_usage = _usage_observation(envelope)
+        except ValidationError as exc:
+            raise DeepSeekJudgeAdapterError(
+                "DeepSeek usage accounting failed schema validation",
+                failure_type="provider_usage_invalid",
+                retryable=False,
+                request_may_have_spent=True,
+                observed_returned_model=envelope.model,
+            ) from exc
+
         if envelope.model != request.requested_model:
             raise DeepSeekJudgeAdapterError(
                 "DeepSeek returned a model identity inconsistent with the request",
                 failure_type="provider_model_identity_mismatch",
                 retryable=False,
                 request_may_have_spent=True,
+                observed_returned_model=envelope.model,
+                observed_usage=observed_usage,
             )
-        metrics = SimpleNamespace(
-            prompt_tokens=envelope.usage.prompt_tokens,
-            cached_prompt_tokens=envelope.usage.prompt_cache_hit_tokens,
-            cache_creation_tokens=0,
-            completion_tokens=envelope.usage.completion_tokens,
-        )
-        cost = cost_for(envelope.model, metrics)
-        price = price_for(envelope.model)
-        if cost is None or price is None:
+        if observed_usage.cost_usd is None or observed_usage.cost_basis is None:
             raise DeepSeekJudgeAdapterError(
                 "DeepSeek token cost is not inspectable for the returned model",
                 failure_type="provider_cost_uninspectable",
                 retryable=False,
                 request_may_have_spent=True,
+                observed_returned_model=envelope.model,
+                observed_usage=observed_usage,
             )
         try:
-            usage = DeepSeekJudgeUsage(
-                prompt_tokens=envelope.usage.prompt_tokens,
-                cached_prompt_tokens=envelope.usage.prompt_cache_hit_tokens,
-                completion_tokens=envelope.usage.completion_tokens,
-                total_tokens=envelope.usage.total_tokens,
-                cost_usd=cost,
-                cost_basis=price.basis,
+            usage = DeepSeekJudgeUsage.model_validate(
+                observed_usage.model_dump(mode="python")
             )
         except ValidationError as exc:
             raise DeepSeekJudgeAdapterError(
@@ -386,6 +442,7 @@ class DeepSeekEvidenceJudgeAdapter:
                 failure_type="provider_usage_invalid",
                 retryable=False,
                 request_may_have_spent=True,
+                observed_returned_model=envelope.model,
             ) from exc
         choice = envelope.choices[0]
         return DeepSeekJudgeResponse(

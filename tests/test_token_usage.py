@@ -92,6 +92,31 @@ class PricingLookupTests(TestCase):
         with _clean_env():
             self.assertIn(PRICES_AS_OF, price_for("deepseek-chat").basis)
 
+    def test_deepseek_v4_flash_uses_conservative_peak_rates_and_own_date(self):
+        """A later row must not falsely refresh every older provider price."""
+        with _clean_env():
+            price = price_for("deepseek-v4-flash")
+        self.assertEqual(
+            (price.input, price.cached, price.output),
+            (0.44, 0.014, 1.32),
+        )
+        self.assertIn("peak", price.basis)
+        self.assertIn("2026-08-30", price.basis)
+        self.assertNotIn(PRICES_AS_OF, price.basis)
+
+    def test_deepseek_v4_flash_cost_uses_openai_cache_shape(self):
+        """Cached input is a subset of prompt input for DeepSeek's API."""
+        with _clean_env():
+            cost = cost_for(
+                "deepseek-v4-flash",
+                _Metrics(
+                    prompt=1_000_000,
+                    cached=250_000,
+                    completion=100_000,
+                ),
+            )
+        self.assertAlmostEqual(cost, 0.4655, places=6)
+
     def test_env_override_wins_over_the_table(self):
         with mock.patch.dict(os.environ, {"LLM_PRICE_PER_MTOK": "1.0:2.0"}):
             price = price_for("deepseek-chat")

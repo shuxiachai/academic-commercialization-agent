@@ -42,6 +42,7 @@ from academic_agent.tools.deepseek_evidence_judge import (
     DeepSeekJudgeAdapterError,
     DeepSeekJudgeRequest,
     DeepSeekJudgeResponse,
+    DeepSeekJudgeUsageObservation,
     prompt_sha256,
 )
 from academic_agent.tools.evidence_search import ToolEvidenceCandidate
@@ -104,7 +105,7 @@ _IMPLEMENTATION_PATHS = {
 # merged Git revision, while this map locks every behavior-bearing dependency.
 EXPECTED_IMPLEMENTATION_SHA256 = {
     "deepseek_evidence_judge.py": (
-        "2228d4933df066d9ced0dd4b067a85f7377ad5456f33b52005f7a996bc4cbd50"
+        "fa912d12a74c273857b363979e841298a9ca94e8599cc7dd31b4b33a47cecc8f"
     ),
     "evidence_search.py": (
         "2721debe3bb193b8971f8a89db0f4c91342944cb232f1829c02dd8d3780422d0"
@@ -119,7 +120,7 @@ EXPECTED_IMPLEMENTATION_SHA256 = {
         "1e3c0b15c9608cf83b414ee52ac2da7540728149970fa45ab9e6306773ef4749"
     ),
     "token_usage.py": (
-        "81d7fab7d2c9258e8d56fddacff114c2c06585530d2591d004cf3bb19d78defd"
+        "b2a8cb6df7e6b40efc0b354965c83a205b18297002010299c9aedd0bc56a1e13"
     ),
 }
 
@@ -247,7 +248,7 @@ class DevelopmentManifest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     mode: Literal["openalex_evidence_set_v5_development_manifest"] = (
         "openalex_evidence_set_v5_development_manifest"
     )
@@ -264,7 +265,7 @@ class DevelopmentManifest(BaseModel):
     selection_contract: EvidenceSetSelectionContract
     selection_contract_sha256: str = Field(pattern=_SHA256_PATTERN)
     requested_provider: Literal["deepseek"] = "deepseek"
-    requested_model: Literal["deepseek-chat"] = "deepseek-chat"
+    requested_model: Literal["deepseek-v4-flash"] = "deepseek-v4-flash"
     api_base: Literal["https://api.deepseek.com"] = "https://api.deepseek.com"
     maximum_model_call_count: Literal[16] = 16
     soft_stop_usd: float = Field(gt=0.0, le=MAXIMUM_SOFT_STOP_USD)
@@ -310,6 +311,8 @@ class JudgeCallJournal(BaseModel):
     state: CallState
     request: DeepSeekJudgeRequest
     response: DeepSeekJudgeResponse | None = None
+    observed_returned_model: str | None = Field(default=None, max_length=200)
+    observed_usage: DeepSeekJudgeUsageObservation | None = None
     failure_type: str | None = Field(default=None, max_length=100)
     failure_detail: str | None = Field(default=None, max_length=500)
     failure_retryable: bool | None = None
@@ -322,11 +325,23 @@ class JudgeCallJournal(BaseModel):
             self.failure_detail,
             self.failure_retryable,
         )
+        observations = (self.observed_returned_model, self.observed_usage)
         if self.state == "completed":
-            if self.response is None or any(value is not None for value in failures):
+            if (
+                self.response is None
+                or any(value is not None for value in failures)
+                or any(value is not None for value in observations)
+                or not self.request_may_have_spent
+            ):
                 raise ValueError("completed call requires only a response")
         elif self.response is not None or any(value is None for value in failures):
             raise ValueError("failed call requires only failure metadata")
+        if self.observed_usage is not None and self.observed_returned_model is None:
+            raise ValueError("observed usage requires a returned model identity")
+        if not self.request_may_have_spent and any(
+            value is not None for value in observations
+        ):
+            raise ValueError("a non-spending failure cannot carry provider usage")
         if self.request.trace_id != (
             f"openalex-v5-{self.case_id.casefold()}-pass-{self.pass_number}"
         ):
@@ -334,12 +349,22 @@ class JudgeCallJournal(BaseModel):
         return self
 
 
+def _journal_usage(
+    call: JudgeCallJournal,
+) -> DeepSeekJudgeUsageObservation | None:
+    """Return measured usage regardless of semantic-output admissibility."""
+
+    if call.response is not None:
+        return call.response.usage
+    return call.observed_usage
+
+
 class DevelopmentExecution(BaseModel):
     """Final mechanical artifact; human-value gates remain unevaluated."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     mode: Literal["openalex_evidence_set_v5_development_execution"] = (
         "openalex_evidence_set_v5_development_execution"
     )
@@ -388,6 +413,46 @@ class DevelopmentExecution(BaseModel):
         )
         if self.persisted_candidate_decision_count != candidate_count:
             raise ValueError("candidate decision count drifted from case audits")
+        measured = tuple(
+            usage for call in self.calls if (usage := _journal_usage(call)) is not None
+        )
+        observed_tokens = (
+            sum(usage.prompt_tokens for usage in measured),
+            sum(usage.cached_prompt_tokens for usage in measured),
+            sum(usage.completion_tokens for usage in measured),
+            sum(usage.total_tokens for usage in measured),
+        )
+        if observed_tokens != (
+            self.prompt_tokens,
+            self.cached_prompt_tokens,
+            self.completion_tokens,
+            self.total_tokens,
+        ):
+            raise ValueError("aggregate token usage drifted from call journals")
+        cost_known = all(
+            not call.request_may_have_spent
+            or (
+                (usage := _journal_usage(call)) is not None
+                and usage.cost_usd is not None
+            )
+            for call in self.calls
+        )
+        expected_cost = (
+            sum(usage.cost_usd for usage in measured if usage.cost_usd is not None)
+            if cost_known
+            else None
+        )
+        if (self.cost_state == "known") != cost_known:
+            raise ValueError("aggregate cost state drifted from call journals")
+        if cost_known:
+            if self.cost_usd is None or not math.isclose(
+                self.cost_usd,
+                expected_cost or 0.0,
+                abs_tol=1e-12,
+            ):
+                raise ValueError("aggregate cost drifted from call journals")
+        elif self.cost_usd is not None:
+            raise ValueError("uninspectable cost cannot carry a dollar total")
         if self.disposition_agreement_denominator:
             expected = (
                 self.disposition_agreement_numerator
@@ -802,12 +867,16 @@ def _failed_journal(
     failure_detail: str,
     failure_retryable: bool,
     request_may_have_spent: bool,
+    observed_returned_model: str | None = None,
+    observed_usage: DeepSeekJudgeUsageObservation | None = None,
 ) -> JudgeCallJournal:
     return JudgeCallJournal(
         case_id=case_id,
         pass_number=int(request.trace_id[-1]),
         state="failed",
         request=request,
+        observed_returned_model=observed_returned_model,
+        observed_usage=observed_usage,
         failure_type=failure_type,
         failure_detail=failure_detail[:500],
         failure_retryable=failure_retryable,
@@ -879,9 +948,19 @@ def _execution_artifact(
         for call in calls
         if call.state == "completed" and call.response is not None
     )
-    cost_known = len(completed_responses) == len(calls)
+    measured = tuple(
+        usage for call in calls if (usage := _journal_usage(call)) is not None
+    )
+    cost_known = all(
+        not call.request_may_have_spent
+        or (
+            (usage := _journal_usage(call)) is not None
+            and usage.cost_usd is not None
+        )
+        for call in calls
+    )
     cost = (
-        sum(response.usage.cost_usd for response in completed_responses)
+        sum(usage.cost_usd for usage in measured if usage.cost_usd is not None)
         if cost_known
         else None
     )
@@ -902,18 +981,10 @@ def _execution_artifact(
         completed_model_call_count=len(completed_responses),
         completed_case_count=len(decisions),
         persisted_candidate_decision_count=candidate_count,
-        prompt_tokens=sum(
-            response.usage.prompt_tokens for response in completed_responses
-        ),
-        cached_prompt_tokens=sum(
-            response.usage.cached_prompt_tokens for response in completed_responses
-        ),
-        completion_tokens=sum(
-            response.usage.completion_tokens for response in completed_responses
-        ),
-        total_tokens=sum(
-            response.usage.total_tokens for response in completed_responses
-        ),
+        prompt_tokens=sum(usage.prompt_tokens for usage in measured),
+        cached_prompt_tokens=sum(usage.cached_prompt_tokens for usage in measured),
+        completion_tokens=sum(usage.completion_tokens for usage in measured),
+        total_tokens=sum(usage.total_tokens for usage in measured),
         cost_usd=cost,
         cost_state="known" if cost_known else "uninspectable",
         disposition_agreement_numerator=numerator,
@@ -1045,6 +1116,8 @@ def execute_development_study(
                     failure_detail=str(exc),
                     failure_retryable=exc.retryable,
                     request_may_have_spent=exc.request_may_have_spent,
+                    observed_returned_model=exc.observed_returned_model,
+                    observed_usage=exc.observed_usage,
                 )
                 stop_reason = "adapter_failed"
             except ValidationError as exc:
@@ -1069,6 +1142,8 @@ def execute_development_study(
                         ),
                         failure_retryable=False,
                         request_may_have_spent=True,
+                        observed_returned_model=response.returned_model,
+                        observed_usage=response.usage,
                     )
                     stop_reason = "response_identity_mismatch"
                 else:
