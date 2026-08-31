@@ -785,10 +785,15 @@ and [paid canary record](docs/results-2026-08-30-qwen35-plus-first-paid-canary.m
 
 Separately, the production-disconnected v5 evidence judge now has a strict
 one-request Qwen raw-HTTP profile. Its zero-network preflight verified 8 frozen
-cases, 64 candidates and 16 prompt identities; no paid v5 Qwen call has been
-authorized, and production remains in zero-call shadow mode. See the
-[pre-registration](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md)
-and [implementation result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md).
+cases, 64 candidates and 16 prompt identities. A later authorized execution on
+merged revision `d9adfa4` completed one W01 pass, then stopped without retry
+when the reversed pass exceeded the frozen 60-second timeout. The aggregate
+cost is uninspectable because the timed-out request may have spent without
+returning usage; zero cases and development gates completed. Production remains
+in zero-call shadow mode. See the
+[pre-registration](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md),
+the [implementation result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md),
+and the [paid timeout result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md).
 Local verification now passes **1,782 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
@@ -1976,9 +1981,13 @@ Token 沿用 DashScope 的 OpenAI 兼容统计格式，成本估算采用已公�
 
 此外，生产隔离的 v5 Evidence Judge 已增加严格的 Qwen 单请求原始 HTTP
 Profile。零网络预检验证了 8 个冻结案例、64 个候选和 16 个 Prompt 身份；
-目前没有授权任何 v5 Qwen 付费调用，生产仍保持零调用 Shadow Mode。详见
+随后在合并版本 `d9adfa4` 上执行了一次获授权的付费开发运行：W01 第一遍完成，
+逆序第二遍超过冻结的 60 秒超时后无重试停止。由于在途请求可能已经产生费用却
+没有返回 usage，聚合成本必须记为不可检查；0 个案例和开发门完成，生产仍保持
+零调用 Shadow Mode。详见
 [预注册](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md)
-和[实现结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md)。
+、[实现结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md)
+和[付费超时结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md)。
 本地验证现通过 **1,782 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
