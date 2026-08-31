@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,6 +17,14 @@ from academic_agent.tools.deepseek_evidence_judge import (
     DeepSeekJudgeResponse,
     DeepSeekJudgeUsage,
     DeepSeekJudgeUsageObservation,
+)
+from academic_agent.tools.qwen_evidence_judge import (
+    QWEN_CHAT_COMPLETIONS_ENDPOINT,
+    QwenJudgeAdapterError,
+    QwenJudgeRequest,
+    QwenJudgeResponse,
+    QwenJudgeUsage,
+    QwenJudgeUsageObservation,
 )
 
 
@@ -123,6 +132,13 @@ def _implementation_hashes() -> dict[str, str]:
     }
 
 
+def _qwen_implementation_hashes() -> dict[str, str]:
+    return {
+        name: development._file_sha256(path)  # noqa: SLF001
+        for name, path in development._QWEN_IMPLEMENTATION_PATHS.items()  # noqa: SLF001
+    }
+
+
 def _common(bundle: SourceBundle) -> dict[str, object]:
     return {
         "source_lock_path": bundle.source_lock,
@@ -136,7 +152,7 @@ def _common(bundle: SourceBundle) -> dict[str, object]:
     }
 
 
-def _abstain_content(request: DeepSeekJudgeRequest) -> str:
+def _abstain_content(request: DeepSeekJudgeRequest | QwenJudgeRequest) -> str:
     batch = json.loads(request.user_prompt.split("\nINPUT:\n", 1)[1])
     order = [item["candidate_sha256"] for item in batch["candidates"]]
     return json.dumps(
@@ -512,3 +528,254 @@ def test_production_worker_remains_disconnected_from_runner_and_adapter():
     assert "openalex_evidence_set_development" not in worker
     assert "deepseek_evidence_judge" not in worker
     assert "DeepSeekEvidenceJudgeAdapter" not in worker
+    assert "qwen_evidence_judge" not in worker
+    assert "QwenEvidenceJudgeAdapter" not in worker
+
+
+def _qwen_response(
+    request: QwenJudgeRequest,
+    *,
+    cost_usd: float = 0.001,
+) -> QwenJudgeResponse:
+    content = _abstain_content(request)
+    return QwenJudgeResponse(
+        trace_id=request.trace_id,
+        request_sha256=hashlib.sha256(request.body()).hexdigest(),
+        batch_input_sha256=request.batch_input_sha256,
+        prompt_sha256=request.prompt_sha256,
+        requested_model="qwen3.5-plus",
+        returned_model="qwen3.5-plus",
+        provider_response_id=f"response-{request.trace_id}",
+        provider_request_id=f"request-{request.trace_id}",
+        finish_reason="stop",
+        raw_content=content,
+        raw_content_sha256=hashlib.sha256(content.encode()).hexdigest(),
+        usage=QwenJudgeUsage(
+            prompt_tokens=10,
+            cached_prompt_tokens=1,
+            completion_tokens=2,
+            total_tokens=12,
+            cost_usd=cost_usd,
+            cost_basis="frozen Qwen test price basis",
+        ),
+        latency_ms=10.0,
+    )
+
+
+class QwenOrderedAdapter:
+    """Assert the same durable ordering at the provider-switched seam."""
+
+    def __init__(self, output_dir: Path) -> None:
+        self.output_dir = output_dir
+        self.requests: list[QwenJudgeRequest] = []
+
+    def __call__(self, request: QwenJudgeRequest) -> QwenJudgeResponse:
+        call_index = len(self.requests)
+        if call_index:
+            previous_case = f"W{((call_index - 1) // 2) + 1:02d}"
+            previous_pass = ((call_index - 1) % 2) + 1
+            assert (
+                self.output_dir
+                / "judge-calls"
+                / f"{previous_case}-pass-{previous_pass}.json"
+            ).is_file()
+        if call_index and call_index % 2 == 0:
+            prior_case = f"W{call_index // 2:02d}"
+            assert (
+                self.output_dir / "case-decisions" / f"{prior_case}.json"
+            ).is_file()
+        self.requests.append(request)
+        return _qwen_response(request)
+
+
+class QwenMeteredFailureAdapter:
+    """Expose safe Qwen usage while withholding rejected semantic content."""
+
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def __call__(self, request):  # noqa: ANN001, ANN204
+        del request
+        self.call_count += 1
+        raise QwenJudgeAdapterError(
+            "provider returned a different canonical model",
+            failure_type="provider_model_identity_mismatch",
+            retryable=False,
+            request_may_have_spent=True,
+            observed_returned_model="qwen3.5-plus-2026-08-01",
+            observed_usage=QwenJudgeUsageObservation(
+                prompt_tokens=100,
+                cached_prompt_tokens=20,
+                completion_tokens=10,
+                total_tokens=110,
+                cost_usd=0.002,
+                cost_basis="frozen Qwen test price basis",
+            ),
+        )
+
+
+def test_qwen_failure_reaches_execution_accounting_without_a_retry(tmp_path):
+    bundle = _source_bundle(tmp_path)
+    common = _common(bundle)
+    common["judge_provider"] = "qwen"
+    common["expected_implementation_sha256"] = _qwen_implementation_hashes()
+    output = tmp_path / "qwen-failure"
+    adapter = QwenMeteredFailureAdapter()
+
+    result = development.execute_development_study(
+        output_dir=output,
+        soft_stop_usd=0.05,
+        acknowledge_model_budget=True,
+        adapter_factory=lambda: adapter,
+        **common,
+    )
+
+    assert adapter.call_count == 1
+    assert result.schema_version == 3
+    assert result.stop_reason == "adapter_failed"
+    assert result.completed_model_call_count == 0
+    assert result.total_tokens == 110
+    assert result.cost_state == "known"
+    assert result.cost_usd == pytest.approx(0.002)
+    journal = json.loads(
+        (output / "judge-calls/W01-pass-1.json").read_text(encoding="utf-8")
+    )
+    assert journal["request"]["requested_provider"] == "qwen"
+    assert journal["observed_returned_model"] == "qwen3.5-plus-2026-08-01"
+    assert "raw_content" not in journal
+
+
+def test_call_journal_rejects_a_response_from_the_other_provider():
+    system = "Return strict JSON for every supplied evidence candidate."
+    user = (
+        "Keep candidate order and classify every supplied row as JSON.\nINPUT:\n"
+        '{"case_id":"W01","candidates":[]}'
+    )
+    digest = development._prompt_sha256(system, user)  # noqa: SLF001
+    qwen_request = QwenJudgeRequest(
+        trace_id="openalex-v5-w01-pass-1",
+        system_prompt=system,
+        user_prompt=user,
+        batch_input_sha256="a" * 64,
+        prompt_sha256=digest,
+    )
+    deepseek_request = DeepSeekJudgeRequest(
+        trace_id="openalex-v5-w01-pass-1",
+        system_prompt=system,
+        user_prompt=user,
+        batch_input_sha256="a" * 64,
+        prompt_sha256=digest,
+    )
+
+    with pytest.raises(ValueError, match="response provider drifted"):
+        development.JudgeCallJournal(
+            case_id="W01",
+            pass_number=1,
+            state="completed",
+            request=qwen_request,
+            response=_response(deepseek_request),
+            request_may_have_spent=True,
+        )
+
+
+def test_live_cli_requires_an_explicit_judge_provider(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "openalex_evidence_set_development.py",
+            "--execute-live",
+            "--output-dir",
+            str(tmp_path / "unused"),
+            "--soft-stop-usd",
+            "0.05",
+            "--acknowledge-model-budget",
+        ],
+    )
+
+    with pytest.raises(SystemExit, match="explicit --judge-provider"):
+        development.main()
+
+
+def test_qwen_dry_run_and_execution_reach_every_persisted_boundary(tmp_path):
+    bundle = _source_bundle(tmp_path)
+    common = _common(bundle)
+    common["judge_provider"] = "qwen"
+    common["expected_implementation_sha256"] = _qwen_implementation_hashes()
+
+    dry_run = development.protocol_dry_run(**common)
+
+    assert dry_run["schema_version"] == 3
+    assert dry_run["requested_provider"] == "qwen"
+    assert dry_run["requested_model"] == "qwen3.5-plus"
+    assert dry_run["api_base"] == (
+        "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    )
+    assert dry_run["case_count"] == 8
+    assert dry_run["candidate_count"] == 64
+
+    output = tmp_path / "qwen-result"
+    adapter = QwenOrderedAdapter(output)
+    factory = ManifestFirstFactory(output, adapter)
+    result = development.execute_development_study(
+        output_dir=output,
+        soft_stop_usd=0.05,
+        acknowledge_model_budget=True,
+        adapter_factory=factory,
+        **common,
+    )
+
+    assert factory.call_count == 1
+    assert len(adapter.requests) == 16
+    assert result.schema_version == 3
+    assert result.overall_state == "completed"
+    assert result.persisted_candidate_decision_count == 64
+    assert result.cost_usd == pytest.approx(0.016)
+
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == 3
+    assert manifest["requested_provider"] == "qwen"
+    assert manifest["requested_model"] == "qwen3.5-plus"
+    assert manifest["api_base"] == (
+        "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    )
+    for case in manifest["cases"]:
+        for request_name in ("first_request", "second_request"):
+            request = case[request_name]
+            assert request["requested_provider"] == "qwen"
+            assert request["requested_model"] == "qwen3.5-plus"
+            assert (
+                request["chat_completions_endpoint"]
+                == QWEN_CHAT_COMPLETIONS_ENDPOINT
+            )
+
+    journal = json.loads(
+        (output / "judge-calls/W01-pass-1.json").read_text(encoding="utf-8")
+    )
+    assert journal["request"]["requested_provider"] == "qwen"
+    assert journal["response"]["returned_model"] == "qwen3.5-plus"
+    assert journal["response"]["usage"]["cached_prompt_tokens"] == 1
+    serialized = json.loads((output / "execution.json").read_text(encoding="utf-8"))
+    assert serialized["schema_version"] == 3
+    assert serialized["calls"][0]["request"]["requested_provider"] == "qwen"
+
+
+def test_manifest_rejects_a_provider_identity_mismatch(tmp_path):
+    bundle = _source_bundle(tmp_path)
+    common = _common(bundle)
+    common["judge_provider"] = "qwen"
+    common["expected_implementation_sha256"] = _qwen_implementation_hashes()
+    output = tmp_path / "qwen-result"
+    adapter = QwenOrderedAdapter(output)
+    development.execute_development_study(
+        output_dir=output,
+        soft_stop_usd=0.05,
+        acknowledge_model_budget=True,
+        adapter_factory=lambda: adapter,
+        **common,
+    )
+    payload = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    payload["requested_provider"] = "deepseek"
+
+    with pytest.raises(ValueError, match="provider contract fields"):
+        development.DevelopmentManifest.model_validate(payload)

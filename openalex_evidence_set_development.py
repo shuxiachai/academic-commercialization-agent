@@ -43,9 +43,15 @@ from academic_agent.tools.deepseek_evidence_judge import (
     DeepSeekJudgeRequest,
     DeepSeekJudgeResponse,
     DeepSeekJudgeUsageObservation,
-    prompt_sha256,
 )
 from academic_agent.tools.evidence_search import ToolEvidenceCandidate
+from academic_agent.tools.qwen_evidence_judge import (
+    QwenEvidenceJudgeAdapter,
+    QwenJudgeAdapterError,
+    QwenJudgeRequest,
+    QwenJudgeResponse,
+    QwenJudgeUsageObservation,
+)
 from openalex_scope_link_unseen import (
     DEFAULT_FIXTURE_PATH as DEFAULT_V4_FIXTURE_PATH,
     EXPECTED_FIXTURE_SHA256 as EXPECTED_V4_FIXTURE_SHA256,
@@ -85,10 +91,7 @@ MAXIMUM_SOFT_STOP_USD = 0.20
 _CASE_ORDER = tuple(f"W{index:02d}" for index in range(1, 9))
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 _RUNNER_PATH = Path(__file__).resolve()
-_IMPLEMENTATION_PATHS = {
-    "deepseek_evidence_judge.py": (
-        _ROOT / "src/academic_agent/tools/deepseek_evidence_judge.py"
-    ),
+_COMMON_IMPLEMENTATION_PATHS = {
     "evidence_search.py": _ROOT / "src/academic_agent/tools/evidence_search.py",
     "openalex_evidence_set.py": (
         _ROOT / "src/academic_agent/openalex_evidence_set.py"
@@ -98,6 +101,18 @@ _IMPLEMENTATION_PATHS = {
     ),
     "openalex_scope_link_unseen.py": _ROOT / "openalex_scope_link_unseen.py",
     "token_usage.py": _ROOT / "src/academic_agent/token_usage.py",
+}
+_IMPLEMENTATION_PATHS = {
+    "deepseek_evidence_judge.py": (
+        _ROOT / "src/academic_agent/tools/deepseek_evidence_judge.py"
+    ),
+    **_COMMON_IMPLEMENTATION_PATHS,
+}
+_QWEN_IMPLEMENTATION_PATHS = {
+    "qwen_evidence_judge.py": (
+        _ROOT / "src/academic_agent/tools/qwen_evidence_judge.py"
+    ),
+    **_COMMON_IMPLEMENTATION_PATHS,
 }
 # These identities are filled from committed implementation bytes.  The runner
 # itself is recorded as an observed hash because embedding its own expected
@@ -123,6 +138,36 @@ EXPECTED_IMPLEMENTATION_SHA256 = {
         "b2a8cb6df7e6b40efc0b354965c83a205b18297002010299c9aedd0bc56a1e13"
     ),
 }
+
+# Keeping this separate from the DeepSeek lock prevents a new provider from
+# silently rewriting the byte identity of the historical contract.
+EXPECTED_QWEN_IMPLEMENTATION_SHA256 = {
+    "qwen_evidence_judge.py": (
+        "6b43ba97049bc51410e9871280b4b67093a09f64290baec360b87abb70a7953e"
+    ),
+    "evidence_search.py": (
+        "2721debe3bb193b8971f8a89db0f4c91342944cb232f1829c02dd8d3780422d0"
+    ),
+    "openalex_evidence_set.py": (
+        "413bf6cea1c555c75bd80aaadae720cbf00886974acfdd443643f6a2f75e992c"
+    ),
+    "openalex_scope_link.py": (
+        "abfb9a6b6af1691411f4ad3689b0f5052c42dfeddfdc30cb2e9e21c7d0ff2667"
+    ),
+    "openalex_scope_link_unseen.py": (
+        "1e3c0b15c9608cf83b414ee52ac2da7540728149970fa45ab9e6306773ef4749"
+    ),
+    "token_usage.py": (
+        "884a314cb6dfa9393afb74e71cdf54e77c22404f647772e88d3845ec89a0acac"
+    ),
+}
+
+JudgeProvider = Literal["deepseek", "qwen"]
+JudgeRequest = DeepSeekJudgeRequest | QwenJudgeRequest
+JudgeResponse = DeepSeekJudgeResponse | QwenJudgeResponse
+JudgeUsageObservation = (
+    DeepSeekJudgeUsageObservation | QwenJudgeUsageObservation
+)
 
 _SYSTEM_PROMPT = """You are a bounded academic-evidence classification component.
 You do not decide commercial viability, novelty, or truth. For each supplied
@@ -225,8 +270,8 @@ class PreparedDevelopmentCase:
     candidates: tuple[LockedEvidenceSetCandidate, ...]
     first_input: JudgeBatchInput
     second_input: JudgeBatchInput
-    first_request: DeepSeekJudgeRequest
-    second_request: DeepSeekJudgeRequest
+    first_request: JudgeRequest
+    second_request: JudgeRequest
 
 
 class FrozenDevelopmentCase(BaseModel):
@@ -239,8 +284,8 @@ class FrozenDevelopmentCase(BaseModel):
     query: str = Field(min_length=20, max_length=500)
     profile: EvidenceSetRoleProfile
     profile_sha256: str = Field(pattern=_SHA256_PATTERN)
-    first_request: DeepSeekJudgeRequest
-    second_request: DeepSeekJudgeRequest
+    first_request: JudgeRequest
+    second_request: JudgeRequest
 
 
 class DevelopmentManifest(BaseModel):
@@ -248,7 +293,7 @@ class DevelopmentManifest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: Literal[2] = 2
+    schema_version: Literal[2, 3] = 2
     mode: Literal["openalex_evidence_set_v5_development_manifest"] = (
         "openalex_evidence_set_v5_development_manifest"
     )
@@ -264,15 +309,43 @@ class DevelopmentManifest(BaseModel):
     runner_sha256: str = Field(pattern=_SHA256_PATTERN)
     selection_contract: EvidenceSetSelectionContract
     selection_contract_sha256: str = Field(pattern=_SHA256_PATTERN)
-    requested_provider: Literal["deepseek"] = "deepseek"
-    requested_model: Literal["deepseek-v4-flash"] = "deepseek-v4-flash"
-    api_base: Literal["https://api.deepseek.com"] = "https://api.deepseek.com"
+    requested_provider: JudgeProvider = "deepseek"
+    requested_model: Literal["deepseek-v4-flash", "qwen3.5-plus"] = (
+        "deepseek-v4-flash"
+    )
+    api_base: Literal[
+        "https://api.deepseek.com",
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    ] = "https://api.deepseek.com"
     maximum_model_call_count: Literal[16] = 16
     soft_stop_usd: float = Field(gt=0.0, le=MAXIMUM_SOFT_STOP_USD)
     cases: tuple[FrozenDevelopmentCase, ...] = Field(min_length=8, max_length=8)
 
     @model_validator(mode="after")
     def _validate_case_contract(self) -> "DevelopmentManifest":
+        expected_contract = {
+            "deepseek": (
+                2,
+                "deepseek-v4-flash",
+                "https://api.deepseek.com",
+                DeepSeekJudgeRequest,
+            ),
+            "qwen": (
+                3,
+                "qwen3.5-plus",
+                "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                QwenJudgeRequest,
+            ),
+        }
+        schema, model, api_base, request_type = expected_contract[
+            self.requested_provider
+        ]
+        if (self.schema_version, self.requested_model, self.api_base) != (
+            schema,
+            model,
+            api_base,
+        ):
+            raise ValueError("manifest provider contract fields are inconsistent")
         if tuple(case.case_id for case in self.cases) != _CASE_ORDER:
             raise ValueError("development manifest cases must remain W01-W08")
         for case in self.cases:
@@ -286,6 +359,16 @@ class DevelopmentManifest(BaseModel):
                 f"openalex-v5-{case.case_id.casefold()}-pass-2"
             ):
                 raise ValueError(f"{case.case_id}: second trace identity drifted")
+            if not isinstance(case.first_request, request_type) or not isinstance(
+                case.second_request,
+                request_type,
+            ):
+                raise ValueError(f"{case.case_id}: request provider type drifted")
+            if (
+                case.first_request.requested_model != self.requested_model
+                or case.second_request.requested_model != self.requested_model
+            ):
+                raise ValueError(f"{case.case_id}: request model drifted")
         if self.selection_contract.sha256() != self.selection_contract_sha256:
             raise ValueError("selection contract identity drifted")
         return self
@@ -309,10 +392,10 @@ class JudgeCallJournal(BaseModel):
     case_id: str = Field(pattern=r"^W0[1-8]$")
     pass_number: Literal[1, 2]
     state: CallState
-    request: DeepSeekJudgeRequest
-    response: DeepSeekJudgeResponse | None = None
+    request: JudgeRequest
+    response: JudgeResponse | None = None
     observed_returned_model: str | None = Field(default=None, max_length=200)
-    observed_usage: DeepSeekJudgeUsageObservation | None = None
+    observed_usage: JudgeUsageObservation | None = None
     failure_type: str | None = Field(default=None, max_length=100)
     failure_detail: str | None = Field(default=None, max_length=500)
     failure_retryable: bool | None = None
@@ -346,12 +429,17 @@ class JudgeCallJournal(BaseModel):
             f"openalex-v5-{self.case_id.casefold()}-pass-{self.pass_number}"
         ):
             raise ValueError("journal trace ID drifted from case and pass")
+        if (
+            self.response is not None
+            and self.response.requested_model != self.request.requested_model
+        ):
+            raise ValueError("journal response provider drifted from request")
         return self
 
 
 def _journal_usage(
     call: JudgeCallJournal,
-) -> DeepSeekJudgeUsageObservation | None:
+) -> JudgeUsageObservation | None:
     """Return measured usage regardless of semantic-output admissibility."""
 
     if call.response is not None:
@@ -364,7 +452,7 @@ class DevelopmentExecution(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: Literal[2] = 2
+    schema_version: Literal[2, 3] = 2
     mode: Literal["openalex_evidence_set_v5_development_execution"] = (
         "openalex_evidence_set_v5_development_execution"
     )
@@ -403,6 +491,13 @@ class DevelopmentExecution(BaseModel):
     def _validate_complete_execution(self) -> "DevelopmentExecution":
         if self.attempted_model_call_count != len(self.calls):
             raise ValueError("attempted call count drifted from journals")
+        expected_model = (
+            "qwen3.5-plus" if self.schema_version == 3 else "deepseek-v4-flash"
+        )
+        if any(
+            call.request.requested_model != expected_model for call in self.calls
+        ):
+            raise ValueError("execution schema drifted from call providers")
         completed_calls = sum(call.state == "completed" for call in self.calls)
         if self.completed_model_call_count != completed_calls:
             raise ValueError("completed call count drifted from journals")
@@ -479,7 +574,7 @@ class DevelopmentExecution(BaseModel):
 
 
 class JudgeAdapter(Protocol):
-    def __call__(self, request: DeepSeekJudgeRequest) -> DeepSeekJudgeResponse: ...
+    def __call__(self, request: JudgeRequest) -> JudgeResponse: ...
 
 
 AdapterFactory = Callable[[], JudgeAdapter]
@@ -491,6 +586,18 @@ def _sha256_bytes(value: bytes) -> str:
 
 def _file_sha256(path: Path) -> str:
     return _sha256_bytes(path.read_bytes())
+
+
+def _prompt_sha256(system_prompt: str, user_prompt: str) -> str:
+    """Bind both messages without importing either provider implementation."""
+
+    canonical = json.dumps(
+        {"system": system_prompt, "user": user_prompt},
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return _sha256_bytes(canonical)
 
 
 def _json_text(value: BaseModel | dict[str, Any] | list[Any]) -> str:
@@ -660,22 +767,30 @@ def _user_prompt(batch: JudgeBatchInput) -> str:
     )
 
 
-def _judge_request(batch: JudgeBatchInput) -> DeepSeekJudgeRequest:
+def _judge_request(
+    batch: JudgeBatchInput,
+    judge_provider: JudgeProvider,
+) -> JudgeRequest:
     user_prompt = _user_prompt(batch)
-    return DeepSeekJudgeRequest(
+    request_type = (
+        QwenJudgeRequest if judge_provider == "qwen" else DeepSeekJudgeRequest
+    )
+    return request_type(
         trace_id=(
             f"openalex-v5-{batch.case_id.casefold()}-pass-{batch.pass_number}"
         ),
         system_prompt=_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         batch_input_sha256=batch.sha256(),
-        prompt_sha256=prompt_sha256(_SYSTEM_PROMPT, user_prompt),
+        prompt_sha256=_prompt_sha256(_SYSTEM_PROMPT, user_prompt),
     )
 
 
 def _prepare_cases(
     packet: DevelopmentPacket,
     v4_cases: tuple[PreparedScopeLinkCase, ...],
+    *,
+    judge_provider: JudgeProvider,
 ) -> tuple[PreparedDevelopmentCase, ...]:
     rows_by_case: defaultdict[str, list[DevelopmentPacketRow]] = defaultdict(list)
     for row in packet.rows:
@@ -710,8 +825,8 @@ def _prepare_cases(
                 candidates=candidates,
                 first_input=first_input,
                 second_input=second_input,
-                first_request=_judge_request(first_input),
-                second_request=_judge_request(second_input),
+                first_request=_judge_request(first_input, judge_provider),
+                second_request=_judge_request(second_input, judge_provider),
             )
         )
     return tuple(prepared)
@@ -719,17 +834,27 @@ def _prepare_cases(
 
 def verify_frozen_implementation(
     expected: Mapping[str, str] | None = None,
+    *,
+    judge_provider: JudgeProvider = "deepseek",
 ) -> dict[str, str]:
     """Reject dependency drift before output reservation or client creation."""
 
-    expected_hashes = dict(expected or EXPECTED_IMPLEMENTATION_SHA256)
-    if set(_IMPLEMENTATION_PATHS) != set(expected_hashes):
+    paths = (
+        _QWEN_IMPLEMENTATION_PATHS
+        if judge_provider == "qwen"
+        else _IMPLEMENTATION_PATHS
+    )
+    frozen_hashes = (
+        EXPECTED_QWEN_IMPLEMENTATION_SHA256
+        if judge_provider == "qwen"
+        else EXPECTED_IMPLEMENTATION_SHA256
+    )
+    expected_hashes = dict(frozen_hashes if expected is None else expected)
+    if set(paths) != set(expected_hashes):
         raise EvidenceSetDevelopmentError(
             "development implementation lock names are inconsistent"
         )
-    observed = {
-        name: _file_sha256(path) for name, path in _IMPLEMENTATION_PATHS.items()
-    }
+    observed = {name: _file_sha256(path) for name, path in paths.items()}
     if observed != expected_hashes:
         changed = sorted(
             name
@@ -751,6 +876,7 @@ def _load_prepared_study(
     v4_fixture_path: Path,
     expected_source_sha256: Mapping[str, str],
     expected_v4_fixture_sha256: str,
+    judge_provider: JudgeProvider,
 ) -> tuple[
     dict[str, str],
     str,
@@ -767,7 +893,11 @@ def _load_prepared_study(
         v4_fixture_path,
         expected_fixture_sha256=expected_v4_fixture_sha256,
     )
-    return source_sha256, fixture_sha256, _prepare_cases(packet, v4_cases)
+    return source_sha256, fixture_sha256, _prepare_cases(
+        packet,
+        v4_cases,
+        judge_provider=judge_provider,
+    )
 
 
 def _manifest(
@@ -778,10 +908,24 @@ def _manifest(
     runner_sha256: str,
     cases: tuple[PreparedDevelopmentCase, ...],
     soft_stop_usd: float,
+    judge_provider: JudgeProvider,
 ) -> DevelopmentManifest:
     selection = _selection_contract()
+    provider_contract = {
+        "deepseek": (2, "deepseek-v4-flash", "https://api.deepseek.com"),
+        "qwen": (
+            3,
+            "qwen3.5-plus",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        ),
+    }
+    schema_version, requested_model, api_base = provider_contract[judge_provider]
     return DevelopmentManifest(
         source_sha256=source_sha256,
+        schema_version=schema_version,
+        requested_provider=judge_provider,
+        requested_model=requested_model,
+        api_base=api_base,
         v4_fixture_sha256=v4_fixture_sha256,
         implementation_sha256=implementation_sha256,
         runner_sha256=runner_sha256,
@@ -813,6 +957,7 @@ def protocol_dry_run(
     expected_source_sha256: Mapping[str, str] = EXPECTED_SOURCE_SHA256,
     expected_v4_fixture_sha256: str = EXPECTED_V4_FIXTURE_SHA256,
     expected_implementation_sha256: Mapping[str, str] | None = None,
+    judge_provider: JudgeProvider = "deepseek",
 ) -> dict[str, Any]:
     """Verify all bytes and prompts while constructing no model client."""
 
@@ -824,13 +969,27 @@ def protocol_dry_run(
         v4_fixture_path=v4_fixture_path,
         expected_source_sha256=expected_source_sha256,
         expected_v4_fixture_sha256=expected_v4_fixture_sha256,
+        judge_provider=judge_provider,
     )
     implementation = verify_frozen_implementation(
-        expected_implementation_sha256
+        expected_implementation_sha256,
+        judge_provider=judge_provider,
     )
     return {
         "mode": "openalex_evidence_set_v5_development_dry_run",
         "production_connected": False,
+        "schema_version": 3 if judge_provider == "qwen" else 2,
+        "requested_provider": judge_provider,
+        "requested_model": (
+            "qwen3.5-plus"
+            if judge_provider == "qwen"
+            else "deepseek-v4-flash"
+        ),
+        "api_base": (
+            "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            if judge_provider == "qwen"
+            else "https://api.deepseek.com"
+        ),
         "report_workflow_connected": False,
         "planner_trigger_connected": False,
         "real_network_calls_performed": False,
@@ -861,14 +1020,14 @@ def protocol_dry_run(
 
 def _failed_journal(
     case_id: str,
-    request: DeepSeekJudgeRequest,
+    request: JudgeRequest,
     *,
     failure_type: str,
     failure_detail: str,
     failure_retryable: bool,
     request_may_have_spent: bool,
     observed_returned_model: str | None = None,
-    observed_usage: DeepSeekJudgeUsageObservation | None = None,
+    observed_usage: JudgeUsageObservation | None = None,
 ) -> JudgeCallJournal:
     return JudgeCallJournal(
         case_id=case_id,
@@ -885,8 +1044,8 @@ def _failed_journal(
 
 
 def _validate_response_identity(
-    request: DeepSeekJudgeRequest,
-    response: DeepSeekJudgeResponse,
+    request: JudgeRequest,
+    response: JudgeResponse,
 ) -> str | None:
     expected = {
         "trace_id": request.trace_id,
@@ -939,6 +1098,7 @@ def _evaluate_case(
 def _execution_artifact(
     *,
     manifest_sha256: str,
+    schema_version: Literal[2, 3],
     stop_reason: StopReason,
     calls: list[JudgeCallJournal],
     decisions: list[EvidenceSetCaseAudit],
@@ -974,6 +1134,7 @@ def _execution_artifact(
     candidate_count = sum(len(case.candidate_decisions) for case in decisions)
     all_persisted = complete and candidate_count == 64
     return DevelopmentExecution(
+        schema_version=schema_version,
         manifest_sha256=manifest_sha256,
         overall_state="completed" if complete else "partial",
         stop_reason=stop_reason,
@@ -1046,6 +1207,7 @@ def execute_development_study(
     expected_source_sha256: Mapping[str, str] = EXPECTED_SOURCE_SHA256,
     expected_v4_fixture_sha256: str = EXPECTED_V4_FIXTURE_SHA256,
     expected_implementation_sha256: Mapping[str, str] | None = None,
+    judge_provider: JudgeProvider = "deepseek",
     adapter_factory: AdapterFactory | None = None,
 ) -> DevelopmentExecution:
     """Run at most 16 label-blind calls under a write-once soft stop."""
@@ -1069,9 +1231,11 @@ def execute_development_study(
         v4_fixture_path=v4_fixture_path,
         expected_source_sha256=expected_source_sha256,
         expected_v4_fixture_sha256=expected_v4_fixture_sha256,
+        judge_provider=judge_provider,
     )
     implementation = verify_frozen_implementation(
-        expected_implementation_sha256
+        expected_implementation_sha256,
+        judge_provider=judge_provider,
     )
     runner_sha256 = _file_sha256(_RUNNER_PATH)
     output_dir.mkdir(parents=True, exist_ok=False)
@@ -1082,6 +1246,7 @@ def execute_development_study(
         runner_sha256=runner_sha256,
         cases=cases,
         soft_stop_usd=soft_stop_usd,
+        judge_provider=judge_provider,
     )
     manifest_text = _json_text(manifest)
     _write_new(output_dir / "manifest.json", manifest_text)
@@ -1089,15 +1254,23 @@ def execute_development_study(
     # This must remain after the manifest write.  Constructing the default
     # adapter resolves a real credential; a future refactor may perform other
     # paid-capable setup there.  The durable method boundary comes first.
+    default_adapter_type = (
+        QwenEvidenceJudgeAdapter
+        if judge_provider == "qwen"
+        else DeepSeekEvidenceJudgeAdapter
+    )
     adapter = (
         adapter_factory()
         if adapter_factory is not None
-        else DeepSeekEvidenceJudgeAdapter()
+        else default_adapter_type()
     )
     calls: list[JudgeCallJournal] = []
     decisions: list[EvidenceSetCaseAudit] = []
     known_cost = 0.0
     stop_reason: StopReason = "completed"
+    response_type = (
+        QwenJudgeResponse if judge_provider == "qwen" else DeepSeekJudgeResponse
+    )
 
     for case in cases:
         raw_responses: list[str] = []
@@ -1107,8 +1280,8 @@ def execute_development_study(
                 break
             try:
                 raw_response = adapter(request)
-                response = DeepSeekJudgeResponse.model_validate(raw_response)
-            except DeepSeekJudgeAdapterError as exc:
+                response = response_type.model_validate(raw_response)
+            except (DeepSeekJudgeAdapterError, QwenJudgeAdapterError) as exc:
                 journal = _failed_journal(
                     case.source_case.spec.case_id,
                     request,
@@ -1174,6 +1347,7 @@ def execute_development_study(
 
     execution = _execution_artifact(
         manifest_sha256=_sha256_bytes(manifest_text.encode("utf-8")),
+        schema_version=3 if judge_provider == "qwen" else 2,
         stop_reason=stop_reason,
         calls=calls,
         decisions=decisions,
@@ -1191,6 +1365,11 @@ def _stdout_json(value: object) -> str:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--execute-live", action="store_true")
+    parser.add_argument(
+        "--judge-provider",
+        choices=("deepseek", "qwen"),
+        help="Required for live execution; dry-run defaults to historical DeepSeek.",
+    )
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--soft-stop-usd", type=float)
     parser.add_argument("--acknowledge-model-budget", action="store_true")
@@ -1207,13 +1386,19 @@ def _parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _parser().parse_args()
+    judge_provider = cast(JudgeProvider, args.judge_provider or "deepseek")
     common = {
         "source_lock_path": args.source_lock,
         "packet_path": args.packet,
         "labels_path": args.labels,
         "declaration_path": args.declaration,
+        "judge_provider": judge_provider,
     }
     if args.execute_live:
+        if args.judge_provider is None:
+            raise SystemExit(
+                "--execute-live requires an explicit --judge-provider"
+            )
         if args.output_dir is None or args.soft_stop_usd is None:
             raise SystemExit("--execute-live requires --output-dir and --soft-stop-usd")
         result = execute_development_study(
