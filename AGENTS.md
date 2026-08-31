@@ -491,11 +491,21 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   The real zero-network preflight verified 8/8 W cases, 64/64 candidates and
   16 prompt identities with no socket or model call. Removing the thinking
   field and the cross-provider journal check independently made their seam
-  tests fail before restoration. No paid Qwen v5 call is authorized, and this
-  implementation does not complete or connect production Tool Calling. See
+  tests fail before restoration. A separately authorized run on merged
+  revision `d9adfa4` then attempted two sequential Qwen calls. W01 pass 1
+  completed in 41.405 seconds with 4,431 tokens and a locally reconstructed
+  USD 0.006358 cost. Pass 2 exceeded the frozen 60-second timeout and stopped
+  without retry. Because that in-flight request may have spent without
+  returning usage, aggregate cost is `uninspectable`, not USD 0.006358 or zero.
+  The strict result is `partial / not_evaluated`: zero cases and candidate
+  decisions completed, none of the five development gates ran, and all
+  production connections remained false. This does not complete or connect
+  production Tool Calling. See
   `docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md`
   and
   `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md`.
+  See also
+  `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md`.
   See docs/prereg-2026-08-29-openalex-evidence-set-v5.md,
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
