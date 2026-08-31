@@ -62,10 +62,10 @@ Current file identities are:
 | File | SHA-256 |
 |---|---|
 | `src/academic_agent/openalex_role_slot.py` | `166eb6d6568a7a187e2f6654c27d3db938a79553c0205501d9328b38437ed8d4` |
-| `openalex_role_slot_unseen.py` | `283ff436b8e4a5383a9f35710f0eb8273da4514aac58c3ebe1ddd47e4707cbe8` |
+| `openalex_role_slot_unseen.py` | `3bd69fa0a6703c1b928c905fbde1ce5639aaa3559c2a54f3356cbdb914800a75` |
 | `tests/fixtures/openalex_role_slot_v6_challenge.json` | `f07c457f81fc5b198cb180874895410a4502b9fe3558c9e21c8b42a1f8240c85` |
 | `tests/test_openalex_role_slot.py` | `dded711c853e0f6c8ba64112ff29af8079a6027e0ea937018d0739489c459149` |
-| `tests/test_openalex_role_slot_unseen.py` | `c5a25172f2c6f8e30be49cdc6ba1443acaf4ff119ef81efe8581c2a9e9c09c7e` |
+| `tests/test_openalex_role_slot_unseen.py` | `ba793a810529dc3596b162aebd32ab8649cf19ae6a0454d5cf3337113e98fea2` |
 
 These hashes describe this offline implementation record. A future runner and
 adapter must freeze their own committed dependency set before any live call;
@@ -76,30 +76,34 @@ this result does not pre-authorise those missing components.
 The focused v6 suite passed:
 
 ```text
-22 passed in 1.58s
+23 passed in 2.03s
 ```
 
 The complete zero-network suite passed:
 
 ```text
-1820 passed, 657 subtests passed in 27.73s
+1821 passed, 657 subtests passed in 35.38s
 ```
 
 Latest Ruff passed the kernel, preflight and both test modules. The CI-matched
 narrow Pylint gate passed the two implementation modules with no output.
 
-Two protocol-mandated defects were re-injected and then reverted:
+Three protocol-mandated defects were re-injected and then reverted:
 
 1. restoring whole-batch invalidation for one malformed candidate changed the
    valid neighbouring row to `pass_unavailable`; the candidate-isolation seam
    failed as required;
 2. serializing only required roles after computing required, scope and
    supporting roles triggered `selected source must deliver every deterministic
-   KEEP role` at the case boundary.
+   KEEP role` at the case boundary; and
+3. restoring the later Sydney `2026-09-01` access date while the validator clock
+   was frozen to UTC `2026-08-31` reproduced the cross-platform CI failure before
+   the globally elapsed UTC date was restored.
 
-After restoration, all 22 focused tests passed again. These checks cover the
-two historical high-risk seams: unrelated values being discarded together,
-and correct internal values never reaching the audit consumer.
+After restoration, all 23 focused tests passed again. These checks cover three
+high-risk seams: unrelated values being discarded together, correct internal
+values never reaching the audit consumer, and deterministic artifact metadata
+changing validity across local and CI calendar zones.
 
 ## What is still missing
 

@@ -835,15 +835,16 @@ emit role IDs: it may only fill fixed `SUPPORTED`/`ABSTAIN` slots with exact
 title-or-abstract quotes. Three candidate orders require two mechanically
 verified observations per role; malformed candidates and slots are isolated
 locally, while deterministic Python derives admission and a three-source
-maximum set cover. The zero-network kernel and preflight pass 22/22 focused
-tests and expose 8 provider plus 24 judge-template identities per cohort. Two
-re-injected defects proved that a bad row cannot erase a neighbour and a
-computed role cannot disappear at serialization. No runner, provider/model
-adapter, live request, private-label read or production connection is included
+maximum set cover. The zero-network kernel and preflight pass 23/23 focused
+tests and expose 8 provider plus 24 judge-template identities per cohort. Three
+re-injected defects proved that a bad row cannot erase a neighbour, a computed
+role cannot disappear at serialization, and a Sydney freeze remains valid on
+the earlier UTC calendar date. No runner, provider/model adapter, live request,
+private-label read or production connection is included
 yet. See the [v6 pre-registration](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md)
 and [offline implementation result](docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md).
 
-Local verification now passes **1,820 tests plus 657 subtests**, latest Ruff,
+Local verification now passes **1,821 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2067,14 +2068,15 @@ v5：未执行 repair，X01–X08 保持未打开，生产仍断开。详见
 也不能输出 role ID；它只能为固定位置槽位返回 `SUPPORTED`/`ABSTAIN` 和
 标题或摘要原文引文。三种候选顺序要求每个角色至少获得 2 次机械验证支持；
 错误候选行和槽位只在本地隔离，候选准入与最多三来源的集合覆盖完全由 Python
-确定。零网络内核与预检通过 22/22 个定向测试，每个 cohort 展开 8 个供应商
-请求身份和 24 个 Judge 模板身份；两次缺陷回注分别证明坏行不能拖垮相邻行，
-已计算角色也不能在序列化时丢失。当前尚未实现 runner 与供应商/模型适配层，
-没有真实请求、私有标签读取或生产连接。详见
+确定。零网络内核与预检通过 23/23 个定向测试，每个 cohort 展开 8 个供应商
+请求身份和 24 个 Judge 模板身份；三次缺陷回注分别证明坏行不能拖垮相邻行、
+已计算角色不能在序列化时丢失，且悉尼冻结日期在前一日 UTC 环境仍然合法。
+当前尚未实现 runner 与供应商/模型适配层，没有真实请求、私有标签读取或
+生产连接。详见
 [v6 预注册](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md)与
 [离线实现结果](docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md)。
 
-本地验证现通过 **1,820 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+本地验证现通过 **1,821 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始

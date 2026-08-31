@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date
 import json
 import socket
 from pathlib import Path
 
 import pytest
 
+import academic_agent.evidence as evidence_module
 import openalex_role_slot_unseen as unseen
 
 
@@ -69,6 +71,23 @@ def test_development_dry_run_expands_all_identities_without_live_authority():
     assert result["production_connected"] is False
     assert result["report_workflow_connected"] is False
     assert result["planner_trigger_connected"] is False
+
+
+def test_frozen_preflight_is_valid_on_the_earlier_utc_calendar_date(monkeypatch):
+    """A Sydney freeze must not become future-dated on the UTC CI runner."""
+
+    class FrozenUtcDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 8, 31)
+
+    # Patch the validator clock, not the preflight constant.  This recreates
+    # the client boundary that failed after local Sydney tests had passed.
+    monkeypatch.setattr(evidence_module, "date", FrozenUtcDate)
+
+    result = unseen.dry_run("development")
+
+    assert result["case_count"] == 8
 
 
 def test_unseen_cohort_has_distinct_frozen_identities_but_no_live_authority():

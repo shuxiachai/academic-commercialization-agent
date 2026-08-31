@@ -45,7 +45,11 @@ EXPECTED_FIXTURE_SHA256 = (
 _DEVELOPMENT_ORDER = tuple(f"Y{index:02d}" for index in range(1, 9))
 _UNSEEN_ORDER = tuple(f"Z{index:02d}" for index in range(1, 9))
 _COLLECTED_AT = datetime(2026, 9, 1, tzinfo=UTC)
-_ACCESSED_DATE = date(2026, 9, 1)
+# The Sydney pre-registration happened while UTC was still 2026-08-31.  The
+# EvidenceSource validator intentionally compares against the process-local
+# calendar date, so freezing the later Sydney date makes the same bytes invalid
+# on CI.  Keep the latest date that had elapsed in both environments instead.
+_ACCESSED_DATE = date(2026, 8, 31)
 
 
 class OpenAlexRoleSlotPreflightError(ValueError):

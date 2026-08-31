@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1820 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1821 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -564,12 +564,13 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   locally, three deterministic candidate orders require two mechanically
   verified observations per role, and Python alone derives candidate admission
   plus a maximum-three-source set cover. The zero-network kernel and preflight
-  pass 22/22 focused tests and expand eight provider request identities plus 24
-  judge-template identities per cohort. Two protocol defects were re-injected:
-  whole-batch invalidation erased a valid neighbour, and dropping computed
-  supporting roles broke the serialized audit boundary; both tests failed
-  before the correct implementations were restored. The full zero-network
-  suite passes 1820 tests plus 657 subtests. This phase has no live runner,
+  pass 23/23 focused tests and expand eight provider request identities plus 24
+  judge-template identities per cohort. Three protocol defects were re-injected:
+  whole-batch invalidation erased a valid neighbour, dropping computed supporting
+  roles broke the serialized audit boundary, and the later Sydney calendar date
+  made the same deterministic preflight invalid on the earlier UTC CI date. All
+  three tests failed before the correct implementations were restored. The full
+  zero-network suite passes 1821 tests plus 657 subtests. This phase has no live runner,
   provider/model adapter, private-label read, OpenAlex or model request, paid
   call, or production connection. Y01-Y08 and Z01-Z08 therefore remain unused.
   Implementing a disconnected runner and exact provider contract is a separate
