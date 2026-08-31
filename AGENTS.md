@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1787 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1798 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -537,6 +537,20 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   consumed set into a pass, lower the threshold, or describe a zero-network
   diagnostic label join as rescuing the conjunctive protocol. See
   `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-schema4-development.md`.
+  A separately frozen post-outcome diagnostic then joined all 64 persisted
+  candidate decisions to the earlier human labels without network, model,
+  retrieval or repair calls. Among 28 human-labelled relevant rows, 12 were
+  exposed to a whole-batch invalid response, nine were stable abstentions,
+  four had role-set instability, two had action instability and one failed a
+  post-consensus rule; zero were stable KEEP. The two invalid batches had full
+  row coverage but duplicate role IDs, while valid calls also proposed 17/56
+  versus 8/56 KEEP rows by order position. This is a disclosed failure
+  diagnostic, not validation or causality: it rejects both a schema-only and
+  an order-only explanation, leaves v5 sealed, and does not open X01-X08 or
+  production. See
+  `docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md`
+  and
+  `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md`.
   See docs/prereg-2026-08-29-openalex-evidence-set-v5.md,
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,

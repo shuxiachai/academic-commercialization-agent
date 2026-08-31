@@ -815,7 +815,20 @@ passed. The semantic method did not: order-reversed disposition agreement was
 and the join retained 0/64 candidates. W01-W08 are consumed, X01-X08 must
 remain unopened, and v5 remains disconnected from production. See the
 [completed development result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-schema4-development.md).
-Local verification now passes **1,787 tests plus 657 subtests**, latest Ruff,
+
+A separately frozen, zero-network post-outcome diagnostic joined all 64
+persisted decisions to the earlier human labels. Among 28 relevant rows, 12
+were exposed to a whole-batch invalid response, nine were stable abstentions,
+four had role-set instability, two had action instability, one failed after
+consensus, and zero were stable KEEP. The invalid batches had full row coverage
+but duplicate role IDs; valid calls also produced 17/56 versus 8/56 KEEP rows
+by order position. This describes multiple failure surfaces rather than
+rescuing v5: no repair ran, X01-X08 stayed unopened, and production remained
+disconnected. See the
+[diagnostic plan](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md)
+and [aggregate result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md).
+
+Local verification now passes **1,798 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2024,7 +2037,17 @@ Profile。首次获授权的 schema 3 运行在合并版本 `d9adfa4` 上完成 
 （59.375%），低于冻结的 90% 门槛；两遍返回 Schema 无效，确定性合并保留
 0/64 个候选。W01–W08 已被消耗，X01–X08 不得打开，v5 仍不得接入生产。
 详见[完整开发运行结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-schema4-development.md)。
-本地验证现通过 **1,787 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+
+随后另行冻结的零网络事后诊断把 64 条持久化决策与此前人工标签逐行连接。
+28 条人工相关行中，12 条暴露于整批无效响应、9 条稳定弃权、4 条角色集合
+不稳定、2 条动作不稳定、1 条在双遍一致后被确定性规则拒绝，稳定 KEEP 为 0。
+两个无效批次都有完整行覆盖，但候选内部存在重复 role ID；有效调用也显示正序
+位置 17/56 与逆序位置 8/56 的 KEEP 差异。这说明存在多个失败面，而不是挽救
+v5：未执行 repair，X01–X08 保持未打开，生产仍断开。详见
+[诊断计划](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md)
+和[聚合结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md)。
+
+本地验证现通过 **1,798 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始

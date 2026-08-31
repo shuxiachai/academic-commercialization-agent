@@ -61,8 +61,8 @@ the public repository does not contain or discover them. It must lock:
   `68e15abdca46f4a65d33a75aedaa9a0eac2112a90a8b1e6eb1d00e71e59b8616`;
 - completed labels SHA-256:
   `a2a3a16f74d2a7d8790ca90669702c423b0c24a83ccbf779ca5867cbe6338f55`;
-- reviewer declaration SHA-256:
-  `869875cf23004d824395a44d3dc2ea5d6f2866e2108dc24ec2a7862aa91210d5`;
+- normalized reviewer declaration SHA-256:
+  `5c7686d413f4f3050316950899e7f1806ff2a2a0065eacf0bf39e942917d863d`;
 - 64 completed rows with unique `(case_id, candidate_sha256)` identities;
 - `reviewed_all=YES`, `generative_ai_use=NONE`, and
   `external_sources_checked=NONE`; and
@@ -146,3 +146,20 @@ authorize another paid call, or connect Tool Calling to production. Its only
 decision use is choosing whether a separately proposed v6 should investigate
 response-schema robustness, judge abstention, order stability, or whether this
 line of work should stop.
+
+## Input-identity amendment before calculation
+
+The first real invocation validated every mechanical hash and all four private
+hashes, then stopped before label joining or output creation because the raw
+returned declaration encoded `external_sources_checked` as `0`. The existing
+review intake had already preserved that raw file and normalized the owner's
+confirmed meaning to the allowed value `NONE` in
+`reviewer-packet/reviewer_declaration.csv`. This plan initially named the raw
+declaration hash even though the frozen eligibility rule above requires
+`NONE`; those two requirements were inconsistent.
+
+The diagnostic therefore uses the already archived normalized declaration
+whose hash is recorded above. It does not modify the raw return, infer a new
+answer, change any label, or relax declaration eligibility. No diagnostic
+row, aggregate, model call, network request, or output file existed before
+this amendment.
