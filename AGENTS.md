@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1771 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1782 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -171,7 +171,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  92 test modules plus conftest, organised by subject
+tests/                  93 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -482,6 +482,20 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   correct implementation was restored. No later paid request is authorized or
   has occurred. W01-W08 remain consumed development evidence, and this
   transport amendment does not reopen their semantic method or gates.
+  A separately pre-registered Qwen profile is now implemented without editing
+  that historical DeepSeek contract. Its raw one-request adapter fixes exact
+  `qwen3.5-plus`, top-level `enable_thinking=false`, JSON Object mode, nested
+  cached-token accounting and the committed conservative price basis. Qwen
+  uses manifest/execution schema 3, requires an explicit provider for live
+  CLI execution, and reaches every manifest, journal and execution boundary.
+  The real zero-network preflight verified 8/8 W cases, 64/64 candidates and
+  16 prompt identities with no socket or model call. Removing the thinking
+  field and the cross-provider journal check independently made their seam
+  tests fail before restoration. No paid Qwen v5 call is authorized, and this
+  implementation does not complete or connect production Tool Calling. See
+  `docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md`
+  and
+  `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md`.
   See docs/prereg-2026-08-29-openalex-evidence-set-v5.md,
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,

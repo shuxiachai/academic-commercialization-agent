@@ -782,7 +782,14 @@ correct, and the narrow narrative seam is now covered by regression tests.
 A separate invented-threshold/citation-entailment finding remains open. See
 the [implementation record](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)
 and [paid canary record](docs/results-2026-08-30-qwen35-plus-first-paid-canary.md).
-Local verification now passes **1,771 tests plus 657 subtests**, latest Ruff,
+
+Separately, the production-disconnected v5 evidence judge now has a strict
+one-request Qwen raw-HTTP profile. Its zero-network preflight verified 8 frozen
+cases, 64 candidates and 16 prompt identities; no paid v5 Qwen call has been
+authorized, and production remains in zero-call shadow mode. See the
+[pre-registration](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md)
+and [implementation result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md).
+Local verification now passes **1,782 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -1966,7 +1973,13 @@ Token 沿用 DashScope 的 OpenAI 兼容统计格式，成本估算采用已公�
 模型自创决策阈值与引用蕴含问题仍待单独处理。详见
 [实现记录](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)
 和[付费 canary 记录](docs/results-2026-08-30-qwen35-plus-first-paid-canary.md)。
-本地验证现通过 **1,771 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+
+此外，生产隔离的 v5 Evidence Judge 已增加严格的 Qwen 单请求原始 HTTP
+Profile。零网络预检验证了 8 个冻结案例、64 个候选和 16 个 Prompt 身份；
+目前没有授权任何 v5 Qwen 付费调用，生产仍保持零调用 Shadow Mode。详见
+[预注册](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md)
+和[实现结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md)。
+本地验证现通过 **1,782 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
