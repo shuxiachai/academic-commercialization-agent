@@ -769,11 +769,21 @@ structured-output contract. DashScope's nested cached-token usage reaches the
 existing ledger unchanged, and the built-in estimate uses the highest
 published China/global context tier so budget stops remain conservative.
 
-This is **zero-network implementation evidence only**: no paid Qwen request has
-been made, so live compatibility, report quality, latency, and realised cost
-remain unobserved. See the [implementation record](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md).
-Local verification passes **1,768 tests plus 657 subtests**, latest Ruff, the
-narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
+One operator-authorized single-topic paid canary has now completed through the
+deployed API. All recorded role model identities were `qwen3.5-plus`; the run
+used 7 provider requests, 79,261 tokens and a conservative USD 0.075657
+estimate, with 8 academic, 8 patent and 8 market sources and no failed
+retrieval domain.
+
+The canary observed live transport and accounting for one run, not general
+report quality or benchmark equivalence. It exposed two internal-x10 score
+phrases that reached report prose; the deterministic score payload remained
+correct, and the narrow narrative seam is now covered by regression tests.
+A separate invented-threshold/citation-entailment finding remains open. See
+the [implementation record](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)
+and [paid canary record](docs/results-2026-08-30-qwen35-plus-first-paid-canary.md).
+Local verification now passes **1,771 tests plus 657 subtests**, latest Ruff,
+the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
 
@@ -1946,10 +1956,18 @@ OpenAI-compatible 传输层。适配层读取官方 `DASHSCOPE_API_KEY`，默认
 Token 沿用 DashScope 的 OpenAI 兼容统计格式，成本估算采用已公布的最高
 上下文档位，避免低估预算。
 
-目前只有**零网络实现证据**，尚未执行付费 Qwen 请求，因此不能宣称已经
-验证线上兼容性、报告质量、延迟或实际成本。详见[实现记录](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)。
-本地验证通过 **1,768 项测试与 657 个 subtests**、最新版 Ruff、CI 同款窄范围
-Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
+现已完成一次经授权的单主题付费 canary。部署 API 记录的全部角色模型均为
+`qwen3.5-plus`；本次运行包含 7 次供应商请求、79,261 Tokens，保守估算
+成本为 0.075657 美元，学术、专利和市场来源各 8 条，未出现检索域失败。
+
+这只能证明一次真实运行的传输与计费兼容性，不能证明普遍报告质量或与
+冻结 DeepSeek Benchmark 等价。本次运行暴露了两处内部十倍整数分数进入
+报告叙述的问题；确定性数值本身正确，现已用窄范围边界测试覆盖。另有
+模型自创决策阈值与引用蕴含问题仍待单独处理。详见
+[实现记录](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)
+和[付费 canary 记录](docs/results-2026-08-30-qwen35-plus-first-paid-canary.md)。
+本地验证现通过 **1,771 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
 

@@ -109,6 +109,16 @@ a frozen topic and success criteria, a strict request limit, and a cost stop.
 Until then the accurate claim is “Qwen3.5 Plus adapter implemented and verified
 offline,” not “Qwen validated in production.”
 
+## Later live observation
+
+After this implementation-only record was written and the adapter reached
+public `main`, one separately authorized paid canary completed on revision
+`ff8732d604c12a01d437716aa1585eefb933f8bd`. That later run does not change
+the historical claims above. It adds one live compatibility observation and
+documents both a repaired score-rationale seam and separate unresolved
+semantic-quality findings. See
+[Qwen3.5 Plus first paid canary](results-2026-08-30-qwen35-plus-first-paid-canary.md).
+
 ## Official contract references
 
 - [Qwen3.5 Plus model documentation](https://www.alibabacloud.com/help/en/model-studio/qwen3-5-plus)

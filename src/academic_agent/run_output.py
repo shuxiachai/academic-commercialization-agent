@@ -1,6 +1,8 @@
 """Per-run output management for generated commercialization reports."""
 
 import json
+import math
+import re
 import secrets
 import warnings
 from collections.abc import Sequence
@@ -338,6 +340,98 @@ def save_source_collection(
     return source_path
 
 
+_SCORE_RATIONALE_FIELDS = (
+    ("trl_score", "trl_rationale"),
+    ("mrl_score", "mrl_rationale"),
+    ("patent_strength", "patent_rationale"),
+    ("market_accessibility", "market_rationale"),
+    ("evidence_confidence", "evidence_rationale"),
+)
+_SCORE_NOUNS = "score|rating|confidence|accessibility|strength|readiness"
+_RATING_ADJECTIVES = "low|weak|limited|moderate|medium|strong|high"
+
+
+def _delivered_and_raw_score_text(value: Any) -> tuple[str, str] | None:
+    """Return the client-scale value and its exact internal x10 integer."""
+
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    delivered = float(value)
+    raw = delivered * 10
+    if not math.isfinite(delivered) or not raw.is_integer() or not 0 <= raw <= 100:
+        return None
+    return f"{delivered:g}", str(int(raw))
+
+
+def _normalize_qwen_score_phrase(rationale: str, delivered_score: Any) -> str:
+    pair = _delivered_and_raw_score_text(delivered_score)
+    if pair is None:
+        return rationale
+    delivered, raw = pair
+    escaped_raw = re.escape(raw)
+    rated_pattern = re.compile(
+        rf"(?P<prefix>\b(?:{_SCORE_NOUNS})\s+"
+        rf"(?:(?:is|was|remains)\s+)?rated\s+(?:at|as)\s*)"
+        rf"{escaped_raw}(?![\d.%])"
+        rf"(?=\s*(?:[,.;:)]|$|\b(?:because|based|reflecting|given|with)\b))",
+        re.IGNORECASE,
+    )
+    parenthetical_pattern = re.compile(
+        rf"(?P<prefix>\b(?:{_SCORE_NOUNS})\s+"
+        rf"(?:is|was|remains)\s+(?:very\s+)?(?:{_RATING_ADJECTIVES})\s+\(\s*)"
+        rf"{escaped_raw}(?P<suffix>\s*\))(?!\d)",
+        re.IGNORECASE,
+    )
+    normalized = rated_pattern.sub(
+        lambda match: f"{match.group('prefix')}{delivered}", rationale
+    )
+    return parenthetical_pattern.sub(
+        lambda match: f"{match.group('prefix')}{delivered}{match.group('suffix')}",
+        normalized,
+    )
+
+
+def _normalize_delivered_score_rationales(scores_json: str) -> str:
+    """Repair only bounded raw-scale phrases at the persisted client seam.
+
+    The scoring guardrail already handles generic explicit score forms. The
+    first paid Qwen canary used two new phrases that passed that guardrail
+    while the numeric fields were correct. This second defense belongs here:
+    every fresh or restored scorer output reaches this file before API and
+    browser readers do.
+
+    Moving the rule into evidence.py would change byte-locked dependencies of
+    consumed OpenAlex experiments. Updating those historical hashes would
+    falsely rewrite their method identity, so the persistence seam is both
+    the narrowest production fix and the one that preserves experiment lineage.
+    """
+
+    try:
+        payload = json.loads(scores_json)
+    except json.JSONDecodeError:
+        # Persisting the original diagnostic payload preserves save_scores'
+        # pre-existing behavior; validation belongs to the scorer guardrail.
+        return scores_json
+    if not isinstance(payload, dict):
+        return scores_json
+
+    changed = False
+    for score_field, rationale_field in _SCORE_RATIONALE_FIELDS:
+        rationale = payload.get(rationale_field)
+        if not isinstance(rationale, str):
+            continue
+        normalized = _normalize_qwen_score_phrase(
+            rationale, payload.get(score_field)
+        )
+        if normalized != rationale:
+            payload[rationale_field] = normalized
+            changed = True
+
+    if not changed:
+        return scores_json
+    return json.dumps(payload, ensure_ascii=False)
+
+
 def save_scores(
     scores_json: str,
     run_id: str,
@@ -348,7 +442,9 @@ def save_scores(
     run_directory = output_root / run_id
     run_directory.mkdir(parents=True, exist_ok=True)
     scores_path = run_directory / "commercialization_scores.json"
-    scores_path.write_text(scores_json, encoding="utf-8")
+    scores_path.write_text(
+        _normalize_delivered_score_rationales(scores_json), encoding="utf-8"
+    )
     return scores_path
 
 
