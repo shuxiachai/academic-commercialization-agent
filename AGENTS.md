@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1798 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1820 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -156,6 +156,8 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
                         role-structured same-segment gate; experimental only
   openalex_evidence_set.py
                         quote-grounded two-pass set selector; experimental only
+  openalex_role_slot.py
+                        candidate-local three-pass role-slot consensus; experimental only
   tools/evidence_search.py
                         one-request read-only adapter response contract
   tools/anonymous_openalex_search.py
@@ -171,7 +173,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  93 test modules plus conftest, organised by subject
+tests/                  102 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -215,6 +217,8 @@ openalex_scope_link_live.py
                         write-once W01-W08 runner; CLI defaults to dry-run
 openalex_scope_link_abstention_review.py
                         post-outcome W01-W08 label-blind diagnostic; zero-network
+openalex_role_slot_unseen.py
+                        frozen Y/Z role-slot identity preflight; zero-network only
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -552,6 +556,28 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   and
   `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md`.
   See docs/prereg-2026-08-29-openalex-evidence-set-v5.md,
+  A separately pre-registered candidate-local role-slot consensus v6 now starts
+  from new Y01-Y08 development and Z01-Z08 unseen identities; W stays consumed
+  and X stays unopened. The model no longer owns candidate actions or role IDs.
+  It can only fill fixed positional `SUPPORTED`/`ABSTAIN` role slots with exact
+  title-or-abstract quotes. Malformed candidate rows and slots are contained
+  locally, three deterministic candidate orders require two mechanically
+  verified observations per role, and Python alone derives candidate admission
+  plus a maximum-three-source set cover. The zero-network kernel and preflight
+  pass 22/22 focused tests and expand eight provider request identities plus 24
+  judge-template identities per cohort. Two protocol defects were re-injected:
+  whole-batch invalidation erased a valid neighbour, and dropping computed
+  supporting roles broke the serialized audit boundary; both tests failed
+  before the correct implementations were restored. The full zero-network
+  suite passes 1820 tests plus 657 subtests. This phase has no live runner,
+  provider/model adapter, private-label read, OpenAlex or model request, paid
+  call, or production connection. Y01-Y08 and Z01-Z08 therefore remain unused.
+  Implementing a disconnected runner and exact provider contract is a separate
+  later phase; it must preserve the frozen identities and cannot imply semantic
+  validation. See
+  `docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md` and
+  `docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md`.
+
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
@@ -560,7 +586,7 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   and
   docs/results-2026-08-30-openalex-evidence-set-v5-provider-contract-amendment-implementation.md.
   Keep
-  `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4/v5
+  `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4/v5/v6
   candidates, live runners and review modules.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
   `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
