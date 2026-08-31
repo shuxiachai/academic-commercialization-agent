@@ -46,6 +46,8 @@ from academic_agent.tools.deepseek_evidence_judge import (
 )
 from academic_agent.tools.evidence_search import ToolEvidenceCandidate
 from academic_agent.tools.qwen_evidence_judge import (
+    QWEN_V5_AMENDED_TIMEOUT_SECONDS,
+    QWEN_V5_INITIAL_TIMEOUT_SECONDS,
     QwenEvidenceJudgeAdapter,
     QwenJudgeAdapterError,
     QwenJudgeRequest,
@@ -143,7 +145,7 @@ EXPECTED_IMPLEMENTATION_SHA256 = {
 # silently rewriting the byte identity of the historical contract.
 EXPECTED_QWEN_IMPLEMENTATION_SHA256 = {
     "qwen_evidence_judge.py": (
-        "6b43ba97049bc51410e9871280b4b67093a09f64290baec360b87abb70a7953e"
+        "1a4d20a0cfb2f39ffdb4ae4c878929b187f34e77e057ae98d4082fb6d64e67c0"
     ),
     "evidence_search.py": (
         "2721debe3bb193b8971f8a89db0f4c91342944cb232f1829c02dd8d3780422d0"
@@ -293,7 +295,7 @@ class DevelopmentManifest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: Literal[2, 3] = 2
+    schema_version: Literal[2, 3, 4] = 2
     mode: Literal["openalex_evidence_set_v5_development_manifest"] = (
         "openalex_evidence_set_v5_development_manifest"
     )
@@ -317,34 +319,49 @@ class DevelopmentManifest(BaseModel):
         "https://api.deepseek.com",
         "https://dashscope.aliyuncs.com/compatible-mode/v1",
     ] = "https://api.deepseek.com"
+    transport_timeout_seconds: float | None = Field(
+        default=None,
+        gt=0.0,
+        le=QWEN_V5_AMENDED_TIMEOUT_SECONDS,
+    )
     maximum_model_call_count: Literal[16] = 16
     soft_stop_usd: float = Field(gt=0.0, le=MAXIMUM_SOFT_STOP_USD)
     cases: tuple[FrozenDevelopmentCase, ...] = Field(min_length=8, max_length=8)
 
     @model_validator(mode="after")
     def _validate_case_contract(self) -> "DevelopmentManifest":
-        expected_contract = {
-            "deepseek": (
-                2,
-                "deepseek-v4-flash",
-                "https://api.deepseek.com",
-                DeepSeekJudgeRequest,
-            ),
-            "qwen": (
-                3,
-                "qwen3.5-plus",
-                "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                QwenJudgeRequest,
-            ),
-        }
-        schema, model, api_base, request_type = expected_contract[
-            self.requested_provider
-        ]
-        if (self.schema_version, self.requested_model, self.api_base) != (
-            schema,
-            model,
-            api_base,
-        ):
+        if self.requested_provider == "deepseek":
+            schema = 2
+            model = "deepseek-v4-flash"
+            api_base = "https://api.deepseek.com"
+            request_type = DeepSeekJudgeRequest
+            manifest_timeout = None
+            request_timeout = None
+        elif self.schema_version == 3:
+            # Schema 3 remains readable as the historical 60-second Qwen
+            # contract.  It intentionally has no top-level timeout because that
+            # field did not exist when the artifact was written.
+            schema = 3
+            model = "qwen3.5-plus"
+            api_base = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            request_type = QwenJudgeRequest
+            manifest_timeout = None
+            request_timeout = QWEN_V5_INITIAL_TIMEOUT_SECONDS
+        elif self.schema_version == 4:
+            schema = 4
+            model = "qwen3.5-plus"
+            api_base = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            request_type = QwenJudgeRequest
+            manifest_timeout = QWEN_V5_AMENDED_TIMEOUT_SECONDS
+            request_timeout = QWEN_V5_AMENDED_TIMEOUT_SECONDS
+        else:
+            raise ValueError("Qwen manifests require schema version 3 or 4")
+        if (
+            self.schema_version,
+            self.requested_model,
+            self.api_base,
+            self.transport_timeout_seconds,
+        ) != (schema, model, api_base, manifest_timeout):
             raise ValueError("manifest provider contract fields are inconsistent")
         if tuple(case.case_id for case in self.cases) != _CASE_ORDER:
             raise ValueError("development manifest cases must remain W01-W08")
@@ -369,6 +386,16 @@ class DevelopmentManifest(BaseModel):
                 or case.second_request.requested_model != self.requested_model
             ):
                 raise ValueError(f"{case.case_id}: request model drifted")
+            if request_timeout is not None:
+                requests = (case.first_request, case.second_request)
+                if any(
+                    not isinstance(request, QwenJudgeRequest)
+                    or request.transport_timeout_seconds != request_timeout
+                    for request in requests
+                ):
+                    raise ValueError(
+                        f"{case.case_id}: request timeout identity drifted"
+                    )
         if self.selection_contract.sha256() != self.selection_contract_sha256:
             raise ValueError("selection contract identity drifted")
         return self
@@ -396,6 +423,9 @@ class JudgeCallJournal(BaseModel):
     response: JudgeResponse | None = None
     observed_returned_model: str | None = Field(default=None, max_length=200)
     observed_usage: JudgeUsageObservation | None = None
+    observed_latency_ms: float | None = Field(
+        default=None, ge=0.0, allow_inf_nan=False
+    )
     failure_type: str | None = Field(default=None, max_length=100)
     failure_detail: str | None = Field(default=None, max_length=500)
     failure_retryable: bool | None = None
@@ -414,6 +444,7 @@ class JudgeCallJournal(BaseModel):
                 self.response is None
                 or any(value is not None for value in failures)
                 or any(value is not None for value in observations)
+                or self.observed_latency_ms is not None
                 or not self.request_may_have_spent
             ):
                 raise ValueError("completed call requires only a response")
@@ -452,7 +483,7 @@ class DevelopmentExecution(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: Literal[2, 3] = 2
+    schema_version: Literal[2, 3, 4] = 2
     mode: Literal["openalex_evidence_set_v5_development_execution"] = (
         "openalex_evidence_set_v5_development_execution"
     )
@@ -462,6 +493,11 @@ class DevelopmentExecution(BaseModel):
     openalex_request_count: Literal[0] = 0
     private_label_content_parsed: Literal[False] = False
     manifest_sha256: str = Field(pattern=_SHA256_PATTERN)
+    transport_timeout_seconds: float | None = Field(
+        default=None,
+        gt=0.0,
+        le=QWEN_V5_AMENDED_TIMEOUT_SECONDS,
+    )
     overall_state: Literal["completed", "partial"]
     stop_reason: StopReason
     attempted_model_call_count: int = Field(ge=0, le=16)
@@ -491,13 +527,30 @@ class DevelopmentExecution(BaseModel):
     def _validate_complete_execution(self) -> "DevelopmentExecution":
         if self.attempted_model_call_count != len(self.calls):
             raise ValueError("attempted call count drifted from journals")
-        expected_model = (
-            "qwen3.5-plus" if self.schema_version == 3 else "deepseek-v4-flash"
-        )
+        if self.schema_version == 2:
+            expected_model = "deepseek-v4-flash"
+            execution_timeout = None
+            request_timeout = None
+        elif self.schema_version == 3:
+            expected_model = "qwen3.5-plus"
+            execution_timeout = None
+            request_timeout = QWEN_V5_INITIAL_TIMEOUT_SECONDS
+        else:
+            expected_model = "qwen3.5-plus"
+            execution_timeout = QWEN_V5_AMENDED_TIMEOUT_SECONDS
+            request_timeout = QWEN_V5_AMENDED_TIMEOUT_SECONDS
+        if self.transport_timeout_seconds != execution_timeout:
+            raise ValueError("execution timeout drifted from schema contract")
         if any(
             call.request.requested_model != expected_model for call in self.calls
         ):
             raise ValueError("execution schema drifted from call providers")
+        if request_timeout is not None and any(
+            not isinstance(call.request, QwenJudgeRequest)
+            or call.request.transport_timeout_seconds != request_timeout
+            for call in self.calls
+        ):
+            raise ValueError("execution request timeout drifted from schema contract")
         completed_calls = sum(call.state == "completed" for call in self.calls)
         if self.completed_model_call_count != completed_calls:
             raise ValueError("completed call count drifted from journals")
@@ -771,18 +824,27 @@ def _judge_request(
     batch: JudgeBatchInput,
     judge_provider: JudgeProvider,
 ) -> JudgeRequest:
+    trace_id = f"openalex-v5-{batch.case_id.casefold()}-pass-{batch.pass_number}"
     user_prompt = _user_prompt(batch)
-    request_type = (
-        QwenJudgeRequest if judge_provider == "qwen" else DeepSeekJudgeRequest
-    )
-    return request_type(
-        trace_id=(
-            f"openalex-v5-{batch.case_id.casefold()}-pass-{batch.pass_number}"
-        ),
+    prompt_identity = _prompt_sha256(_SYSTEM_PROMPT, user_prompt)
+    if judge_provider == "qwen":
+        # This explicit field creates schema 4 request identities.  Leaving it
+        # at the model default would make a new run indistinguishable from the
+        # historical schema 3 contract that timed out at 60 seconds.
+        return QwenJudgeRequest(
+            trace_id=trace_id,
+            system_prompt=_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            batch_input_sha256=batch.sha256(),
+            prompt_sha256=prompt_identity,
+            transport_timeout_seconds=QWEN_V5_AMENDED_TIMEOUT_SECONDS,
+        )
+    return DeepSeekJudgeRequest(
+        trace_id=trace_id,
         system_prompt=_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         batch_input_sha256=batch.sha256(),
-        prompt_sha256=_prompt_sha256(_SYSTEM_PROMPT, user_prompt),
+        prompt_sha256=prompt_identity,
     )
 
 
@@ -914,7 +976,7 @@ def _manifest(
     provider_contract = {
         "deepseek": (2, "deepseek-v4-flash", "https://api.deepseek.com"),
         "qwen": (
-            3,
+            4,
             "qwen3.5-plus",
             "https://dashscope.aliyuncs.com/compatible-mode/v1",
         ),
@@ -925,6 +987,11 @@ def _manifest(
         schema_version=schema_version,
         requested_provider=judge_provider,
         requested_model=requested_model,
+        transport_timeout_seconds=(
+            QWEN_V5_AMENDED_TIMEOUT_SECONDS
+            if judge_provider == "qwen"
+            else None
+        ),
         api_base=api_base,
         v4_fixture_sha256=v4_fixture_sha256,
         implementation_sha256=implementation_sha256,
@@ -978,7 +1045,7 @@ def protocol_dry_run(
     return {
         "mode": "openalex_evidence_set_v5_development_dry_run",
         "production_connected": False,
-        "schema_version": 3 if judge_provider == "qwen" else 2,
+        "schema_version": 4 if judge_provider == "qwen" else 2,
         "requested_provider": judge_provider,
         "requested_model": (
             "qwen3.5-plus"
@@ -989,6 +1056,11 @@ def protocol_dry_run(
             "https://dashscope.aliyuncs.com/compatible-mode/v1"
             if judge_provider == "qwen"
             else "https://api.deepseek.com"
+        ),
+        "transport_timeout_seconds": (
+            QWEN_V5_AMENDED_TIMEOUT_SECONDS
+            if judge_provider == "qwen"
+            else None
         ),
         "report_workflow_connected": False,
         "planner_trigger_connected": False,
@@ -1012,6 +1084,16 @@ def protocol_dry_run(
                 "second_input_sha256": case.second_input.sha256(),
                 "first_prompt_sha256": case.first_request.prompt_sha256,
                 "second_prompt_sha256": case.second_request.prompt_sha256,
+                "first_transport_timeout_seconds": (
+                    case.first_request.transport_timeout_seconds
+                    if isinstance(case.first_request, QwenJudgeRequest)
+                    else None
+                ),
+                "second_transport_timeout_seconds": (
+                    case.second_request.transport_timeout_seconds
+                    if isinstance(case.second_request, QwenJudgeRequest)
+                    else None
+                ),
             }
             for case in cases
         ],
@@ -1028,6 +1110,7 @@ def _failed_journal(
     request_may_have_spent: bool,
     observed_returned_model: str | None = None,
     observed_usage: JudgeUsageObservation | None = None,
+    observed_latency_ms: float | None = None,
 ) -> JudgeCallJournal:
     return JudgeCallJournal(
         case_id=case_id,
@@ -1036,6 +1119,7 @@ def _failed_journal(
         request=request,
         observed_returned_model=observed_returned_model,
         observed_usage=observed_usage,
+        observed_latency_ms=observed_latency_ms,
         failure_type=failure_type,
         failure_detail=failure_detail[:500],
         failure_retryable=failure_retryable,
@@ -1098,7 +1182,7 @@ def _evaluate_case(
 def _execution_artifact(
     *,
     manifest_sha256: str,
-    schema_version: Literal[2, 3],
+    schema_version: Literal[2, 3, 4],
     stop_reason: StopReason,
     calls: list[JudgeCallJournal],
     decisions: list[EvidenceSetCaseAudit],
@@ -1136,6 +1220,11 @@ def _execution_artifact(
     return DevelopmentExecution(
         schema_version=schema_version,
         manifest_sha256=manifest_sha256,
+        transport_timeout_seconds=(
+            QWEN_V5_AMENDED_TIMEOUT_SECONDS
+            if schema_version == 4
+            else None
+        ),
         overall_state="completed" if complete else "partial",
         stop_reason=stop_reason,
         attempted_model_call_count=len(calls),
@@ -1254,16 +1343,14 @@ def execute_development_study(
     # This must remain after the manifest write.  Constructing the default
     # adapter resolves a real credential; a future refactor may perform other
     # paid-capable setup there.  The durable method boundary comes first.
-    default_adapter_type = (
-        QwenEvidenceJudgeAdapter
-        if judge_provider == "qwen"
-        else DeepSeekEvidenceJudgeAdapter
-    )
-    adapter = (
-        adapter_factory()
-        if adapter_factory is not None
-        else default_adapter_type()
-    )
+    if adapter_factory is not None:
+        adapter = adapter_factory()
+    elif judge_provider == "qwen":
+        adapter = QwenEvidenceJudgeAdapter(
+            timeout=QWEN_V5_AMENDED_TIMEOUT_SECONDS
+        )
+    else:
+        adapter = DeepSeekEvidenceJudgeAdapter()
     calls: list[JudgeCallJournal] = []
     decisions: list[EvidenceSetCaseAudit] = []
     known_cost = 0.0
@@ -1291,6 +1378,7 @@ def execute_development_study(
                     request_may_have_spent=exc.request_may_have_spent,
                     observed_returned_model=exc.observed_returned_model,
                     observed_usage=exc.observed_usage,
+                    observed_latency_ms=getattr(exc, "observed_latency_ms", None),
                 )
                 stop_reason = "adapter_failed"
             except ValidationError as exc:
@@ -1317,6 +1405,7 @@ def execute_development_study(
                         request_may_have_spent=True,
                         observed_returned_model=response.returned_model,
                         observed_usage=response.usage,
+                        observed_latency_ms=response.latency_ms,
                     )
                     stop_reason = "response_identity_mismatch"
                 else:
@@ -1347,7 +1436,7 @@ def execute_development_study(
 
     execution = _execution_artifact(
         manifest_sha256=_sha256_bytes(manifest_text.encode("utf-8")),
-        schema_version=3 if judge_provider == "qwen" else 2,
+        schema_version=4 if judge_provider == "qwen" else 2,
         stop_reason=stop_reason,
         calls=calls,
         decisions=decisions,

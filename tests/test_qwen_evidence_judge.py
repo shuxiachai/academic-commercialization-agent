@@ -10,6 +10,8 @@ import pytest
 
 from academic_agent.tools.qwen_evidence_judge import (
     QWEN_CHAT_COMPLETIONS_ENDPOINT,
+    QWEN_V5_AMENDED_TIMEOUT_SECONDS,
+    QWEN_V5_INITIAL_TIMEOUT_SECONDS,
     QwenEvidenceJudgeAdapter,
     QwenJudgeAdapterError,
     QwenJudgeRequest,
@@ -18,7 +20,9 @@ from academic_agent.tools.qwen_evidence_judge import (
 )
 
 
-def _request() -> QwenJudgeRequest:
+def _request(
+    *, transport_timeout_seconds: float = QWEN_V5_INITIAL_TIMEOUT_SECONDS
+) -> QwenJudgeRequest:
     system = "Classify supplied evidence and return only strict JSON."
     user = "Evaluate all candidates and preserve their exact order in JSON."
     return QwenJudgeRequest(
@@ -27,6 +31,7 @@ def _request() -> QwenJudgeRequest:
         user_prompt=user,
         batch_input_sha256="1" * 64,
         prompt_sha256=prompt_sha256(system, user),
+        transport_timeout_seconds=transport_timeout_seconds,
     )
 
 
@@ -100,6 +105,75 @@ def test_adapter_sends_one_raw_http_request_with_top_level_thinking_disabled(
     assert "built-in Qwen3.5 Plus peak tier" in response.usage.cost_basis
     assert "env" not in response.usage.cost_basis
     assert response.request_sha256 == hashlib.sha256(call["body"]).hexdigest()
+
+
+def test_amended_timeout_reaches_the_actual_transport_seam():
+    transport = RecordingTransport()
+    adapter = QwenEvidenceJudgeAdapter(
+        api_key="secret",
+        timeout=QWEN_V5_AMENDED_TIMEOUT_SECONDS,
+        transport=transport,
+        monotonic_clock=iter((1.0, 1.01)).__next__,
+    )
+    request = _request(
+        transport_timeout_seconds=QWEN_V5_AMENDED_TIMEOUT_SECONDS
+    )
+
+    adapter(request)
+
+    assert len(transport.calls) == 1
+    assert transport.calls[0]["timeout"] == QWEN_V5_AMENDED_TIMEOUT_SECONDS
+    assert request.transport_timeout_seconds == QWEN_V5_AMENDED_TIMEOUT_SECONDS
+    assert "transport_timeout_seconds" not in json.loads(transport.calls[0]["body"])
+
+
+def test_timeout_identity_mismatch_stops_before_transport_invocation():
+    transport = RecordingTransport()
+    adapter = QwenEvidenceJudgeAdapter(api_key="secret", transport=transport)
+
+    with pytest.raises(QwenJudgeAdapterError) as caught:
+        adapter(
+            _request(
+                transport_timeout_seconds=QWEN_V5_AMENDED_TIMEOUT_SECONDS
+            )
+        )
+
+    assert caught.value.failure_type == "request_timeout_identity_mismatch"
+    assert caught.value.request_may_have_spent is False
+    assert caught.value.observed_latency_ms is None
+    assert transport.calls == []
+
+
+class TimeoutTransport:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def __call__(self, **kwargs):  # noqa: ANN003, ANN204
+        self.calls.append(kwargs)
+        raise TimeoutError("simulated bounded timeout")
+
+
+def test_timeout_failure_retains_monotonic_latency_without_retry():
+    transport = TimeoutTransport()
+    adapter = QwenEvidenceJudgeAdapter(
+        api_key="secret",
+        timeout=QWEN_V5_AMENDED_TIMEOUT_SECONDS,
+        transport=transport,
+        monotonic_clock=iter((1.0, 121.25)).__next__,
+    )
+
+    with pytest.raises(QwenJudgeAdapterError) as caught:
+        adapter(
+            _request(
+                transport_timeout_seconds=QWEN_V5_AMENDED_TIMEOUT_SECONDS
+            )
+        )
+
+    assert caught.value.failure_type == "provider_transport"
+    assert caught.value.request_may_have_spent is True
+    assert caught.value.observed_latency_ms == pytest.approx(120_250.0)
+    assert len(transport.calls) == 1
+    assert transport.calls[0]["timeout"] == QWEN_V5_AMENDED_TIMEOUT_SECONDS
 
 
 def test_model_identity_mismatch_is_terminal_and_discards_semantic_content():

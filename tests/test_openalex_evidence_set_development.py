@@ -20,6 +20,8 @@ from academic_agent.tools.deepseek_evidence_judge import (
 )
 from academic_agent.tools.qwen_evidence_judge import (
     QWEN_CHAT_COMPLETIONS_ENDPOINT,
+    QWEN_V5_AMENDED_TIMEOUT_SECONDS,
+    QWEN_V5_INITIAL_TIMEOUT_SECONDS,
     QwenJudgeAdapterError,
     QwenJudgeRequest,
     QwenJudgeResponse,
@@ -611,6 +613,7 @@ class QwenMeteredFailureAdapter:
                 cost_usd=0.002,
                 cost_basis="frozen Qwen test price basis",
             ),
+            observed_latency_ms=65_000.0,
         )
 
 
@@ -631,7 +634,8 @@ def test_qwen_failure_reaches_execution_accounting_without_a_retry(tmp_path):
     )
 
     assert adapter.call_count == 1
-    assert result.schema_version == 3
+    assert result.schema_version == 4
+    assert result.transport_timeout_seconds == QWEN_V5_AMENDED_TIMEOUT_SECONDS
     assert result.stop_reason == "adapter_failed"
     assert result.completed_model_call_count == 0
     assert result.total_tokens == 110
@@ -641,7 +645,9 @@ def test_qwen_failure_reaches_execution_accounting_without_a_retry(tmp_path):
         (output / "judge-calls/W01-pass-1.json").read_text(encoding="utf-8")
     )
     assert journal["request"]["requested_provider"] == "qwen"
+    assert journal["request"]["transport_timeout_seconds"] == 120.0
     assert journal["observed_returned_model"] == "qwen3.5-plus-2026-08-01"
+    assert journal["observed_latency_ms"] == 65_000.0
     assert "raw_content" not in journal
 
 
@@ -705,7 +711,8 @@ def test_qwen_dry_run_and_execution_reach_every_persisted_boundary(tmp_path):
 
     dry_run = development.protocol_dry_run(**common)
 
-    assert dry_run["schema_version"] == 3
+    assert dry_run["schema_version"] == 4
+    assert dry_run["transport_timeout_seconds"] == QWEN_V5_AMENDED_TIMEOUT_SECONDS
     assert dry_run["requested_provider"] == "qwen"
     assert dry_run["requested_model"] == "qwen3.5-plus"
     assert dry_run["api_base"] == (
@@ -713,6 +720,9 @@ def test_qwen_dry_run_and_execution_reach_every_persisted_boundary(tmp_path):
     )
     assert dry_run["case_count"] == 8
     assert dry_run["candidate_count"] == 64
+    for case in dry_run["cases"]:
+        assert case["first_transport_timeout_seconds"] == 120.0
+        assert case["second_transport_timeout_seconds"] == 120.0
 
     output = tmp_path / "qwen-result"
     adapter = QwenOrderedAdapter(output)
@@ -727,13 +737,15 @@ def test_qwen_dry_run_and_execution_reach_every_persisted_boundary(tmp_path):
 
     assert factory.call_count == 1
     assert len(adapter.requests) == 16
-    assert result.schema_version == 3
+    assert result.schema_version == 4
+    assert result.transport_timeout_seconds == QWEN_V5_AMENDED_TIMEOUT_SECONDS
     assert result.overall_state == "completed"
     assert result.persisted_candidate_decision_count == 64
     assert result.cost_usd == pytest.approx(0.016)
 
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["schema_version"] == 3
+    assert manifest["schema_version"] == 4
+    assert manifest["transport_timeout_seconds"] == 120.0
     assert manifest["requested_provider"] == "qwen"
     assert manifest["requested_model"] == "qwen3.5-plus"
     assert manifest["api_base"] == (
@@ -744,6 +756,7 @@ def test_qwen_dry_run_and_execution_reach_every_persisted_boundary(tmp_path):
             request = case[request_name]
             assert request["requested_provider"] == "qwen"
             assert request["requested_model"] == "qwen3.5-plus"
+            assert request["transport_timeout_seconds"] == 120.0
             assert (
                 request["chat_completions_endpoint"]
                 == QWEN_CHAT_COMPLETIONS_ENDPOINT
@@ -753,11 +766,119 @@ def test_qwen_dry_run_and_execution_reach_every_persisted_boundary(tmp_path):
         (output / "judge-calls/W01-pass-1.json").read_text(encoding="utf-8")
     )
     assert journal["request"]["requested_provider"] == "qwen"
+    assert journal["request"]["transport_timeout_seconds"] == 120.0
     assert journal["response"]["returned_model"] == "qwen3.5-plus"
     assert journal["response"]["usage"]["cached_prompt_tokens"] == 1
     serialized = json.loads((output / "execution.json").read_text(encoding="utf-8"))
-    assert serialized["schema_version"] == 3
+    assert serialized["schema_version"] == 4
+    assert serialized["transport_timeout_seconds"] == 120.0
     assert serialized["calls"][0]["request"]["requested_provider"] == "qwen"
+
+
+class QwenTimeoutFailureAdapter:
+    """Simulate one potentially billed timeout without exposing semantics."""
+
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def __call__(self, request):  # noqa: ANN001, ANN204
+        assert request.transport_timeout_seconds == QWEN_V5_AMENDED_TIMEOUT_SECONDS
+        self.call_count += 1
+        raise QwenJudgeAdapterError(
+            "simulated Qwen timeout",
+            failure_type="provider_transport",
+            retryable=True,
+            request_may_have_spent=True,
+            observed_latency_ms=120_250.0,
+        )
+
+
+def test_default_qwen_factory_executes_120_seconds_after_manifest_and_persists_timeout(
+    monkeypatch,
+    tmp_path,
+):
+    bundle = _source_bundle(tmp_path)
+    common = _common(bundle)
+    common["judge_provider"] = "qwen"
+    common["expected_implementation_sha256"] = _qwen_implementation_hashes()
+    output = tmp_path / "qwen-default-timeout"
+    adapter = QwenTimeoutFailureAdapter()
+    constructed_timeouts: list[float] = []
+
+    def construct_adapter(*, timeout):  # noqa: ANN001, ANN202
+        assert (output / "manifest.json").is_file()
+        constructed_timeouts.append(timeout)
+        return adapter
+
+    monkeypatch.setattr(development, "QwenEvidenceJudgeAdapter", construct_adapter)
+
+    result = development.execute_development_study(
+        output_dir=output,
+        soft_stop_usd=0.05,
+        acknowledge_model_budget=True,
+        **common,
+    )
+
+    assert constructed_timeouts == [QWEN_V5_AMENDED_TIMEOUT_SECONDS]
+    assert adapter.call_count == 1
+    assert result.schema_version == 4
+    assert result.cost_state == "uninspectable"
+    journal = json.loads(
+        (output / "judge-calls/W01-pass-1.json").read_text(encoding="utf-8")
+    )
+    assert journal["failure_type"] == "provider_transport"
+    assert journal["observed_latency_ms"] == pytest.approx(120_250.0)
+    assert journal["request"]["transport_timeout_seconds"] == 120.0
+
+
+def test_historical_qwen_schema_3_remains_readable_with_implicit_60_seconds(
+    tmp_path,
+):
+    bundle = _source_bundle(tmp_path)
+    common = _common(bundle)
+    common["judge_provider"] = "qwen"
+    common["expected_implementation_sha256"] = _qwen_implementation_hashes()
+    output = tmp_path / "qwen-schema-3-compatibility"
+    adapter = QwenOrderedAdapter(output)
+    result = development.execute_development_study(
+        output_dir=output,
+        soft_stop_usd=0.05,
+        acknowledge_model_budget=True,
+        adapter_factory=lambda: adapter,
+        **common,
+    )
+
+    manifest_payload = json.loads(
+        (output / "manifest.json").read_text(encoding="utf-8")
+    )
+    manifest_payload["schema_version"] = 3
+    manifest_payload.pop("transport_timeout_seconds")
+    for case in manifest_payload["cases"]:
+        case["first_request"].pop("transport_timeout_seconds")
+        case["second_request"].pop("transport_timeout_seconds")
+    historical_manifest = development.DevelopmentManifest.model_validate(
+        manifest_payload
+    )
+
+    execution_payload = result.model_dump(mode="json")
+    execution_payload["schema_version"] = 3
+    execution_payload.pop("transport_timeout_seconds")
+    for call in execution_payload["calls"]:
+        call["request"].pop("transport_timeout_seconds")
+    historical_execution = development.DevelopmentExecution.model_validate(
+        execution_payload
+    )
+
+    assert historical_manifest.transport_timeout_seconds is None
+    assert (
+        historical_manifest.cases[0].first_request.transport_timeout_seconds
+        == QWEN_V5_INITIAL_TIMEOUT_SECONDS
+    )
+    assert historical_execution.transport_timeout_seconds is None
+    assert (
+        historical_execution.calls[0].request.transport_timeout_seconds
+        == QWEN_V5_INITIAL_TIMEOUT_SECONDS
+    )
 
 
 def test_manifest_rejects_a_provider_identity_mismatch(tmp_path):
