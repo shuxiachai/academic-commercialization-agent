@@ -796,12 +796,25 @@ persisted/actual timeout mismatch before transport, and failed journals retain
 safe monotonic elapsed time. The bound is a pre-existing adapter maximum, not a
 percentile or SLO. Its zero-network preflight verified 8/8 frozen cases, 64/64
 candidates, 16/16 prompt and timeout identities, historical schema-2/3
-compatibility, and zero network/model calls. No later paid call is authorized
-or has occurred; production remains in zero-call shadow mode. See the
+compatibility, and zero network/model calls. At that implementation stage,
+no later paid call had been authorized or had occurred; production remained in
+zero-call shadow mode. See the
 [provider pre-registration](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md),
 [paid timeout result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md),
 [timeout amendment](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment.md),
 and [schema-4 implementation result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment-implementation.md).
+
+A later authorized run on exact merged revision `7a2d73e` completed all 16
+sequential `qwen3.5-plus` calls and all 8 case decisions without retry or
+recovery. It recorded 74,874 tokens, USD 0.113971 of known conservative cost,
+and observed 25.897-49.900-second request latency (29.680-second median); these
+16 observations are not a percentile or SLO. Artifact hashes, schema
+validation, model identity, key isolation, and production-disconnection checks
+passed. The semantic method did not: order-reversed disposition agreement was
+38/64 (59.375%) against the frozen >=90% gate, two passes were schema-invalid,
+and the join retained 0/64 candidates. W01-W08 are consumed, X01-X08 must
+remain unopened, and v5 remains disconnected from production. See the
+[completed development result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-schema4-development.md).
 Local verification now passes **1,787 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
@@ -1996,12 +2009,21 @@ Profile。首次获授权的 schema 3 运行在合并版本 `d9adfa4` 上完成 
 身份、manifest、journal 与 execution；持久化值和实际传输值不一致时会在请求
 前拒绝，失败 journal 会保留安全的单调时钟耗时。120 秒只是适配器原有上限，
 不是统计百分位或 SLO。零网络预检验证了 8/8 个冻结案例、64/64 个候选、16/16
-个 Prompt 与超时身份、历史 schema 2/3 兼容性，以及 0 次网络/模型调用。尚未
-授权或执行后续付费运行，生产仍保持零调用 Shadow Mode。详见
+个 Prompt 与超时身份、历史 schema 2/3 兼容性，以及 0 次网络/模型调用。在该实现
+阶段尚未授权或执行后续付费运行，生产仍保持零调用 Shadow Mode。详见
 [Provider 预注册](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md)、
 [付费超时结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md)、
 [超时修正预注册](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment.md)
 和[schema 4 实现结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment-implementation.md)。
+
+随后在精确合并版本 `7a2d73e` 上获授权的运行无重试、无恢复完成 16/16 次顺序
+`qwen3.5-plus` 调用和 8/8 个案例决策，记录 74,874 Token、已知保守成本
+`$0.113971`；请求耗时观察范围为 25.897–49.900 秒、中位数 29.680 秒，这 16
+个样本不是统计百分位或 SLO。产物哈希、Schema、模型身份、密钥隔离和生产断开
+检查均通过，但语义方法未通过：逆序双遍 disposition 一致性只有 38/64
+（59.375%），低于冻结的 90% 门槛；两遍返回 Schema 无效，确定性合并保留
+0/64 个候选。W01–W08 已被消耗，X01–X08 不得打开，v5 仍不得接入生产。
+详见[完整开发运行结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-schema4-development.md)。
 本地验证现通过 **1,787 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 

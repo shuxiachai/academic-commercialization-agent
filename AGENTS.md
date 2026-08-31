@@ -512,7 +512,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   only the default adapter argument to 60 seconds made the client-seam test
   fail with observed `[60.0]`; restoration returned it to green. The focused
   suite passes 26/26 and the full suite passes 1787 tests plus 657 subtests.
-  No later paid request is authorized or has occurred. This still does not
+  At that implementation stage no later paid request had been authorized. The
+  amendment alone did not
   complete or connect production Tool Calling. See
   `docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md`,
   `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md`,
@@ -520,6 +521,22 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment.md`,
   and
   `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment-implementation.md`.
+
+  A separately authorized run on exact merged revision `7a2d73e` then completed
+  all 16 sequential `qwen3.5-plus` calls and all eight case decisions without
+  retry or recovery. It recorded 74,874 tokens, zero cached tokens, USD
+  0.113971 of known conservative cost, and 25.897-49.900-second observed
+  request latency with a 29.680-second median. All 27 indexed artifact hashes,
+  schema contracts, model identities and key-isolation checks passed; every
+  production/report/planner connection remained false. Transport therefore
+  passed, but the semantic method failed its first frozen gate: reversed-pass
+  disposition agreement was 38/64 (59.375%) against the >=90% requirement,
+  two passes were schema-invalid, the join emitted zero KEEP decisions, and all
+  eight cases abstained. W01-W08 are consumed, X01-X08 must remain unopened,
+  and v5 must not connect to production Tool Calling. Do not tune or replay the
+  consumed set into a pass, lower the threshold, or describe a zero-network
+  diagnostic label join as rescuing the conjunctive protocol. See
+  `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-schema4-development.md`.
   See docs/prereg-2026-08-29-openalex-evidence-set-v5.md,
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
