@@ -783,18 +783,26 @@ A separate invented-threshold/citation-entailment finding remains open. See
 the [implementation record](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)
 and [paid canary record](docs/results-2026-08-30-qwen35-plus-first-paid-canary.md).
 
-Separately, the production-disconnected v5 evidence judge now has a strict
-one-request Qwen raw-HTTP profile. Its zero-network preflight verified 8 frozen
-cases, 64 candidates and 16 prompt identities. A later authorized execution on
+Separately, the production-disconnected v5 evidence judge has a strict
+one-request Qwen raw-HTTP profile. Its first authorized schema-3 execution on
 merged revision `d9adfa4` completed one W01 pass, then stopped without retry
-when the reversed pass exceeded the frozen 60-second timeout. The aggregate
-cost is uninspectable because the timed-out request may have spent without
-returning usage; zero cases and development gates completed. Production remains
-in zero-call shadow mode. See the
-[pre-registration](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md),
-the [implementation result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md),
-and the [paid timeout result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md).
-Local verification now passes **1,782 tests plus 657 subtests**, latest Ruff,
+when the reversed pass exceeded the frozen 60-second timeout. Aggregate cost
+remains uninspectable, zero cases and development gates completed, and that
+historical result remains `partial / not_evaluated`.
+
+A separately pre-registered transport-only amendment now creates schema-4 Qwen
+artifacts with a persisted 120-second request timeout. The adapter rejects a
+persisted/actual timeout mismatch before transport, and failed journals retain
+safe monotonic elapsed time. The bound is a pre-existing adapter maximum, not a
+percentile or SLO. Its zero-network preflight verified 8/8 frozen cases, 64/64
+candidates, 16/16 prompt and timeout identities, historical schema-2/3
+compatibility, and zero network/model calls. No later paid call is authorized
+or has occurred; production remains in zero-call shadow mode. See the
+[provider pre-registration](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md),
+[paid timeout result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md),
+[timeout amendment](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment.md),
+and [schema-4 implementation result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment-implementation.md).
+Local verification now passes **1,787 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -1979,16 +1987,22 @@ Token 沿用 DashScope 的 OpenAI 兼容统计格式，成本估算采用已公�
 [实现记录](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)
 和[付费 canary 记录](docs/results-2026-08-30-qwen35-plus-first-paid-canary.md)。
 
-此外，生产隔离的 v5 Evidence Judge 已增加严格的 Qwen 单请求原始 HTTP
-Profile。零网络预检验证了 8 个冻结案例、64 个候选和 16 个 Prompt 身份；
-随后在合并版本 `d9adfa4` 上执行了一次获授权的付费开发运行：W01 第一遍完成，
-逆序第二遍超过冻结的 60 秒超时后无重试停止。由于在途请求可能已经产生费用却
-没有返回 usage，聚合成本必须记为不可检查；0 个案例和开发门完成，生产仍保持
-零调用 Shadow Mode。详见
-[预注册](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md)
-、[实现结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md)
-和[付费超时结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md)。
-本地验证现通过 **1,782 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+此外，生产隔离的 v5 Evidence Judge 已实现严格的 Qwen 单请求原始 HTTP
+Profile。首次获授权的 schema 3 运行在合并版本 `d9adfa4` 上完成 W01 第一遍，
+逆序第二遍超过冻结的 60 秒超时后无重试停止。聚合成本仍不可检查，0 个案例和
+开发门完成；该历史结果保持为 `partial / not_evaluated`。
+
+另行预注册的纯传输修正现为新 Qwen 运行生成 schema 4：120 秒超时同时写入请求
+身份、manifest、journal 与 execution；持久化值和实际传输值不一致时会在请求
+前拒绝，失败 journal 会保留安全的单调时钟耗时。120 秒只是适配器原有上限，
+不是统计百分位或 SLO。零网络预检验证了 8/8 个冻结案例、64/64 个候选、16/16
+个 Prompt 与超时身份、历史 schema 2/3 兼容性，以及 0 次网络/模型调用。尚未
+授权或执行后续付费运行，生产仍保持零调用 Shadow Mode。详见
+[Provider 预注册](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md)、
+[付费超时结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md)、
+[超时修正预注册](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment.md)
+和[schema 4 实现结果](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment-implementation.md)。
+本地验证现通过 **1,787 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始

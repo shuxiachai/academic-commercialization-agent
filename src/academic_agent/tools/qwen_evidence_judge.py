@@ -32,6 +32,8 @@ QWEN_CHAT_COMPLETIONS_ENDPOINT = (
     "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
 )
 REQUESTED_MODEL = "qwen3.5-plus"
+QWEN_V5_INITIAL_TIMEOUT_SECONDS = 60.0
+QWEN_V5_AMENDED_TIMEOUT_SECONDS = 120.0
 _MAX_RESPONSE_BYTES = 1_000_000
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 
@@ -48,6 +50,7 @@ class QwenJudgeAdapterError(RuntimeError):
         request_may_have_spent: bool,
         observed_returned_model: str | None = None,
         observed_usage: QwenJudgeUsageObservation | None = None,
+        observed_latency_ms: float | None = None,
     ) -> None:
         super().__init__(message)
         self.failure_type = failure_type
@@ -58,6 +61,7 @@ class QwenJudgeAdapterError(RuntimeError):
         # content that could be used to tune a consumed development set.
         self.observed_returned_model = observed_returned_model
         self.observed_usage = observed_usage
+        self.observed_latency_ms = observed_latency_ms
 
 
 class QwenJudgeRequest(BaseModel):
@@ -77,6 +81,14 @@ class QwenJudgeRequest(BaseModel):
     prompt_sha256: str = Field(pattern=_SHA256_PATTERN)
     temperature: Literal[0.0] = 0.0
     max_tokens: int = Field(default=8_000, ge=500, le=12_000)
+    # The timeout is part of the durable request identity even though it is not
+    # a provider-body field.  Otherwise an artifact could claim the amended
+    # contract while the transport silently kept the historical 60-second cap.
+    transport_timeout_seconds: float = Field(
+        default=QWEN_V5_INITIAL_TIMEOUT_SECONDS,
+        gt=0.0,
+        le=QWEN_V5_AMENDED_TIMEOUT_SECONDS,
+    )
 
     @model_validator(mode="after")
     def _validate_prompt_identity(self) -> "QwenJudgeRequest":
@@ -339,14 +351,14 @@ class QwenEvidenceJudgeAdapter:
         self,
         *,
         api_key: str | None = None,
-        timeout: float = 60.0,
+        timeout: float = QWEN_V5_INITIAL_TIMEOUT_SECONDS,
         transport: QwenOneRequestTransport | None = None,
         monotonic_clock=None,  # noqa: ANN001
     ) -> None:
         resolved_key = (api_key or os.getenv("DASHSCOPE_API_KEY") or "").strip()
         if not resolved_key:
             raise ValueError("DASHSCOPE_API_KEY is required for the v5 Qwen judge")
-        if not 0 < timeout <= 120:
+        if not 0 < timeout <= QWEN_V5_AMENDED_TIMEOUT_SECONDS:
             raise ValueError("timeout must be greater than zero and at most 120 seconds")
         self._api_key = resolved_key
         self._timeout = timeout
@@ -356,6 +368,16 @@ class QwenEvidenceJudgeAdapter:
     def __call__(self, request: QwenJudgeRequest) -> QwenJudgeResponse:
         """Send one request; every failure is terminal for this study run."""
 
+        if request.transport_timeout_seconds != self._timeout:
+            # Refuse before body construction or transport invocation.  The
+            # runner and adapter are independent seams, so equality here is
+            # what makes the persisted timeout an executed timeout.
+            raise QwenJudgeAdapterError(
+                "Qwen request timeout identity does not match the adapter",
+                failure_type="request_timeout_identity_mismatch",
+                retryable=False,
+                request_may_have_spent=False,
+            )
         body = request.body()
         request_sha256 = hashlib.sha256(body).hexdigest()
         started_at = self._clock()
@@ -378,6 +400,10 @@ class QwenEvidenceJudgeAdapter:
                 failure_type=("provider_redirect" if is_redirect else "provider_http"),
                 retryable=exc.code in {408, 429} or 500 <= exc.code < 600,
                 request_may_have_spent=not is_redirect,
+                observed_latency_ms=max(
+                    (self._clock() - started_at) * 1000.0,
+                    0.0,
+                ),
             ) from exc
         except (URLError, TimeoutError, OSError) as exc:
             raise QwenJudgeAdapterError(
@@ -385,6 +411,10 @@ class QwenEvidenceJudgeAdapter:
                 failure_type="provider_transport",
                 retryable=True,
                 request_may_have_spent=True,
+                observed_latency_ms=max(
+                    (self._clock() - started_at) * 1000.0,
+                    0.0,
+                ),
             ) from exc
         latency_ms = max((self._clock() - started_at) * 1000.0, 0.0)
 
@@ -394,6 +424,7 @@ class QwenEvidenceJudgeAdapter:
                 failure_type="provider_response_too_large",
                 retryable=False,
                 request_may_have_spent=True,
+                observed_latency_ms=latency_ms,
             )
         try:
             decoded = json.loads(transport_response.body.decode("utf-8"))
@@ -409,6 +440,7 @@ class QwenEvidenceJudgeAdapter:
                 failure_type="provider_response_invalid",
                 retryable=False,
                 request_may_have_spent=True,
+                observed_latency_ms=latency_ms,
             ) from exc
 
         try:
@@ -420,6 +452,7 @@ class QwenEvidenceJudgeAdapter:
                 retryable=False,
                 request_may_have_spent=True,
                 observed_returned_model=envelope.model,
+                observed_latency_ms=latency_ms,
             ) from exc
 
         if envelope.model != request.requested_model:
@@ -430,6 +463,7 @@ class QwenEvidenceJudgeAdapter:
                 request_may_have_spent=True,
                 observed_returned_model=envelope.model,
                 observed_usage=observed_usage,
+                observed_latency_ms=latency_ms,
             )
         if observed_usage.cost_usd is None or observed_usage.cost_basis is None:
             raise QwenJudgeAdapterError(
@@ -439,6 +473,7 @@ class QwenEvidenceJudgeAdapter:
                 request_may_have_spent=True,
                 observed_returned_model=envelope.model,
                 observed_usage=observed_usage,
+                observed_latency_ms=latency_ms,
             )
         try:
             usage = QwenJudgeUsage.model_validate(
@@ -451,6 +486,7 @@ class QwenEvidenceJudgeAdapter:
                 retryable=False,
                 request_may_have_spent=True,
                 observed_returned_model=envelope.model,
+                observed_latency_ms=latency_ms,
             ) from exc
         choice = envelope.choices[0]
         return QwenJudgeResponse(

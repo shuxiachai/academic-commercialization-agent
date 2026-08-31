@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1782 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1787 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -482,30 +482,44 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   correct implementation was restored. No later paid request is authorized or
   has occurred. W01-W08 remain consumed development evidence, and this
   transport amendment does not reopen their semantic method or gates.
-  A separately pre-registered Qwen profile is now implemented without editing
-  that historical DeepSeek contract. Its raw one-request adapter fixes exact
+  A separately pre-registered Qwen profile is implemented without editing that
+  historical DeepSeek contract. Its raw one-request adapter fixes exact
   `qwen3.5-plus`, top-level `enable_thinking=false`, JSON Object mode, nested
-  cached-token accounting and the committed conservative price basis. Qwen
-  uses manifest/execution schema 3, requires an explicit provider for live
-  CLI execution, and reaches every manifest, journal and execution boundary.
-  The real zero-network preflight verified 8/8 W cases, 64/64 candidates and
-  16 prompt identities with no socket or model call. Removing the thinking
-  field and the cross-provider journal check independently made their seam
-  tests fail before restoration. A separately authorized run on merged
-  revision `d9adfa4` then attempted two sequential Qwen calls. W01 pass 1
-  completed in 41.405 seconds with 4,431 tokens and a locally reconstructed
-  USD 0.006358 cost. Pass 2 exceeded the frozen 60-second timeout and stopped
-  without retry. Because that in-flight request may have spent without
-  returning usage, aggregate cost is `uninspectable`, not USD 0.006358 or zero.
-  The strict result is `partial / not_evaluated`: zero cases and candidate
-  decisions completed, none of the five development gates ran, and all
-  production connections remained false. This does not complete or connect
-  production Tool Calling. See
-  `docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md`
+  cached-token accounting and the committed conservative price basis. The
+  historical Qwen contract uses manifest/execution schema 3 and a 60-second
+  timeout. Its real zero-network preflight verified 8/8 W cases, 64/64
+  candidates and 16 prompt identities with no socket or model call. Removing
+  the thinking field and the cross-provider journal check independently made
+  their seam tests fail before restoration. A separately authorized run on
+  merged revision `d9adfa4` then attempted two sequential Qwen calls. W01 pass
+  1 completed in 41.405 seconds with 4,431 tokens and a locally reconstructed
+  USD 0.006358 cost. Pass 2 exceeded 60 seconds and stopped without retry.
+  Because that in-flight request may have spent without returning usage,
+  aggregate cost is `uninspectable`, not USD 0.006358 or zero. The strict
+  result remains `partial / not_evaluated`: zero cases and candidate decisions
+  completed, none of the five development gates ran, and every production
+  connection remained false.
+
+  A later transport-only amendment is now implemented for fresh Qwen
+  development runs. Schema 4 persists a bounded 120-second timeout in all 16
+  request identities, the manifest, each journal and the execution. The
+  adapter rejects persisted/actual timeout drift before transport and records
+  safe monotonic elapsed time on failures. Historical schemas 2 and 3 remain
+  readable with their original behavior. The bound is the adapter's
+  pre-existing maximum, not a measured percentile or SLO. The real zero-network
+  preflight again verified 8/8 cases, 64/64 candidates, 16/16 prompt/timeout
+  identities and all dependency hashes with no socket or model call. Restoring
+  only the default adapter argument to 60 seconds made the client-seam test
+  fail with observed `[60.0]`; restoration returned it to green. The focused
+  suite passes 26/26 and the full suite passes 1787 tests plus 657 subtests.
+  No later paid request is authorized or has occurred. This still does not
+  complete or connect production Tool Calling. See
+  `docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-provider-amendment.md`,
+  `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md`,
+  `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md`,
+  `docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment.md`,
   and
-  `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-provider-implementation.md`.
-  See also
-  `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-development-timeout.md`.
+  `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-timeout-amendment-implementation.md`.
   See docs/prereg-2026-08-29-openalex-evidence-set-v5.md,
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
