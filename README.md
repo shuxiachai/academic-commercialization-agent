@@ -895,8 +895,27 @@ Calling remains disconnected. See the
 [implementation result](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md),
 and [human-review result](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-review.md).
 
+A separately pre-registered **retrieval-first v7** now addresses that measured
+bottleneck without reopening Y or Z. Fresh AA01-AA08 development and AB01-AB08
+unseen cohorts each freeze two code-owned OpenAlex lanes: one binds the core
+technology to application scope, and one binds it to decision evidence. Each
+lane is capped at one read-only request and six rows. Before any semantic model
+can be justified, the merged candidate portfolio must pass frozen relevance,
+human role-coverability, pool-precision, and second-lane incremental-value
+gates.
 
-Local verification now passes **1,851 tests plus 657 subtests**, latest Ruff,
+The raw-byte-locked offline preflight expands 8/8 AA cases, 16/16 unique search
+identities, and 16/16 unique lane contracts while importing no network,
+execution, or model client. Its focused suite passes 10/10, including a
+re-injected boundary defect where the second lane existed internally but did
+not reach serialized output. No provider request or human review has occurred:
+AA is unconsumed, AB is unopened, candidate value is `not_evaluated`, and
+production Tool Calling remains disconnected. See the
+[v7 pre-registration](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md),
+[pre-provider AB05 erratum](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md),
+and [offline implementation result](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md).
+
+Local verification now passes **1,861 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2169,8 +2188,24 @@ metrics 缺失，4 个核心来源哈希与 56 份索引工件全部一致，且
 [实现结果](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md)
 与[人工评审结果](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-review.md)。
 
+项目随后另行预注册了 **retrieval-first v7**，只针对上述已测得的检索瓶颈，
+不重新打开 Y 或 Z。全新的 AA01–AA08 开发集和 AB01–AB08 未见集为每个主题
+冻结两条代码所有的 OpenAlex lane：第一条把核心技术绑定到应用范围，第二条把
+核心技术绑定到决策证据；每条最多一次只读请求和 6 条结果。只有合并候选池通过
+冻结的相关性、人工角色可覆盖性、候选池精度及第二条 lane 增量价值门槛，后续
+语义模型调用才值得考虑。
 
-本地验证现通过 **1,851 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+原始字节锁定的离线预检现已展开 8/8 个 AA 案例、16/16 个唯一检索身份与
+16/16 个唯一 lane 合约，且不导入网络、执行或模型客户端。10/10 个定向测试
+通过，其中包括一次接缝缺陷回注：第二条 lane 在内部存在却没有到达序列化输出
+时，边界测试会失败。目前未发起供应商请求，也未进行人工评审，因此 AA 尚未
+消耗、AB 保持未打开、候选价值为 `not_evaluated`，生产 Tool Calling 仍未
+连接。详见
+[v7 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md)、
+[AB05 供应商调用前勘误](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md)
+与[离线实现结果](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md)。
+
+本地验证现通过 **1,861 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
