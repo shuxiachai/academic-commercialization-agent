@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1851 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1861 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -225,6 +225,8 @@ openalex_role_slot_development.py
                         write-once Y runner; CLI defaults to zero-network dry-run
 openalex_role_slot_failure_review.py
                         label-blind 64-row v6 failure diagnostic; zero-network
+openalex_role_directed_unseen.py
+                        frozen AA/AB two-lane v7 preflight; zero-network only
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -641,6 +643,32 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   plus
   `docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-review.md`.
 
+  A separately pre-registered retrieval-first v7 now tests the bottleneck that
+  the v6 human diagnostic actually measured. It freezes fresh AA01-AA08
+  development and AB01-AB08 unseen cohorts, with one `technology_scope` and
+  one `technology_evidence` OpenAlex query per case. Both queries must target
+  all required roles; the first must target scope and the second supporting
+  evidence. Each query is limited to one read-only request and six rows. No
+  semantic model is permitted until the candidate portfolio passes frozen
+  relevance, role-coverability, pool-precision and second-lane incremental-value
+  gates. Z remains unopened under v6 and is not reused.
+
+  The raw-byte-locked zero-network preflight is now implemented. It expands
+  8/8 AA cases, 16/16 unique call identities and 16/16 unique lane-contract
+  identities, exposes every query and target role at the serialized boundary,
+  and advertises zero model calls and no live authority. One AB05 query was
+  corrected before implementation or any request after a scope audit showed
+  that a weak token had created a formal rather than meaningful overlap; the
+  original commit and erratum remain visible. The focused suite passes 10/10
+  and the full suite passes 1861 tests plus 657 subtests. Dropping every second
+  lane only at serialization was re-injected and made the boundary test fail
+  before restoration. No OpenAlex request or human review has occurred, so AA
+  remains unconsumed, AB remains unopened, and candidate value is
+  `not_evaluated`. See
+  `docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md`,
+  `docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md`, and
+  `docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md`.
+
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
@@ -649,7 +677,7 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   and
   docs/results-2026-08-30-openalex-evidence-set-v5-provider-contract-amendment-implementation.md.
   Keep
-  `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4/v5/v6
+  `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4/v5/v6/v7
   candidates, live runners and review modules.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
   `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
