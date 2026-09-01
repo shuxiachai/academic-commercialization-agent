@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1861 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1878 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -227,6 +227,8 @@ openalex_role_slot_failure_review.py
                         label-blind 64-row v6 failure diagnostic; zero-network
 openalex_role_directed_unseen.py
                         frozen AA/AB two-lane v7 preflight; zero-network only
+openalex_role_directed_live.py
+                        write-once AA v7 runner; CLI defaults to zero-network
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -660,7 +662,7 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   corrected before implementation or any request after a scope audit showed
   that a weak token had created a formal rather than meaningful overlap; the
   original commit and erratum remain visible. The focused suite passes 10/10
-  and the full suite passes 1861 tests plus 657 subtests. Dropping every second
+  and the full suite passes 1878 tests plus 657 subtests. Dropping every second
   lane only at serialization was re-injected and made the boundary test fail
   before restoration. No OpenAlex request or human review has occurred, so AA
   remains unconsumed, AB remains unopened, and candidate value is
@@ -668,6 +670,24 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md`,
   `docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md`, and
   `docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md`.
+
+  A separately pre-registered write-once AA runner is now implemented but has
+  not executed. It locks the fixture and six behavior dependencies before
+  output reservation, writes the complete 16-lane manifest before adapter
+  construction, commits each one-request lane journal before later work, and
+  commits each DOI-first/URL-second deduplicated portfolio before the next
+  case. Raw provider rows, rejections, duplicate occurrences, all lane
+  memberships, unique candidates, blank review rows, cost, latency and trace
+  identities reach hashed artifacts. Its focused suite passes 17/17 and the
+  combined v7 suite passes 27/27. Moving manifest persistence after adapter
+  construction and dropping a duplicate source's second lane membership were
+  each re-injected and made the intended seam test fail before restoration.
+  No OpenAlex request, model call or human review has occurred; AA remains
+  unconsumed, AB remains unopened, candidate value remains `not_evaluated`,
+  and production Tool Calling remains disconnected. See
+  `docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md`
+  and
+  `docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md`.
 
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,

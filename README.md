@@ -908,14 +908,28 @@ The raw-byte-locked offline preflight expands 8/8 AA cases, 16/16 unique search
 identities, and 16/16 unique lane contracts while importing no network,
 execution, or model client. Its focused suite passes 10/10, including a
 re-injected boundary defect where the second lane existed internally but did
-not reach serialized output. No provider request or human review has occurred:
-AA is unconsumed, AB is unopened, candidate value is `not_evaluated`, and
-production Tool Calling remains disconnected. See the
+not reach serialized output.
+
+A separately pre-registered write-once AA runner is now implemented but has not
+been executed. It locks the fixture and six behavior dependencies before output
+reservation, persists the complete 16-lane manifest before adapter
+construction, writes every one-request lane journal before later work, and
+persists each DOI-first/URL-second deduplicated portfolio before the next case.
+Raw provider rows, rejections, duplicate occurrences, all lane memberships,
+unique candidates, blank human-review rows, cost, latency, and trace identities
+reach hashed artifacts. The 17/17 runner suite and 27/27 combined v7 suite pass;
+moving the manifest after adapter construction and dropping a duplicate lane
+membership each made the intended seam test fail before restoration. No
+provider request or human review has occurred: AA is unconsumed, AB is unopened,
+candidate value is `not_evaluated`, and production Tool Calling remains
+disconnected. See the
 [v7 pre-registration](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md),
 [pre-provider AB05 erratum](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md),
-and [offline implementation result](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md).
+the [offline implementation result](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md),
+the [live-runner pre-registration](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md),
+and the [live-runner implementation result](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md).
 
-Local verification now passes **1,861 tests plus 657 subtests**, latest Ruff,
+Local verification now passes **1,878 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2198,14 +2212,24 @@ metrics 缺失，4 个核心来源哈希与 56 份索引工件全部一致，且
 原始字节锁定的离线预检现已展开 8/8 个 AA 案例、16/16 个唯一检索身份与
 16/16 个唯一 lane 合约，且不导入网络、执行或模型客户端。10/10 个定向测试
 通过，其中包括一次接缝缺陷回注：第二条 lane 在内部存在却没有到达序列化输出
-时，边界测试会失败。目前未发起供应商请求，也未进行人工评审，因此 AA 尚未
-消耗、AB 保持未打开、候选价值为 `not_evaluated`，生产 Tool Calling 仍未
-连接。详见
-[v7 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md)、
-[AB05 供应商调用前勘误](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md)
-与[离线实现结果](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md)。
+时，边界测试会失败。
 
-本地验证现通过 **1,861 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+另行预注册的 AA write-once runner 现已实现但尚未执行。它在预留输出目录前
+锁定 fixture 与 6 个行为依赖，在构造 adapter 前持久化完整 16-lane manifest，
+每个单请求 lane 日志落盘后才允许后续工作，并在进入下一案例前持久化按 DOI
+优先、OpenAlex URL 次优去重的双 lane portfolio。原始供应商行、拒绝项、重复
+出现记录、全部 lane 成员关系、唯一候选、空白人工评审行、成本、延迟与 trace
+身份均进入带哈希工件。runner 的 17/17 与 v7 组合 27/27 测试通过；将 manifest
+移到 adapter 构造之后、或丢失重复来源的第二条 lane 成员关系，都会使对应接缝
+测试失败。目前未发起供应商请求，也未进行人工评审，因此 AA 尚未消耗、AB
+保持未打开、候选价值为 `not_evaluated`，生产 Tool Calling 仍未连接。详见
+[v7 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md)、
+[AB05 供应商调用前勘误](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md)、
+[离线实现结果](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md)、
+[live runner 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md)
+与[live runner 实现结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md)。
+
+本地验证现通过 **1,878 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
