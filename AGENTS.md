@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1837 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1851 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -175,7 +175,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  105 test modules plus conftest, organised by subject
+tests/                  106 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -223,6 +223,8 @@ openalex_role_slot_unseen.py
                         frozen Y/Z role-slot identity preflight; zero-network only
 openalex_role_slot_development.py
                         write-once Y runner; CLI defaults to zero-network dry-run
+openalex_role_slot_failure_review.py
+                        label-blind 64-row v6 failure diagnostic; zero-network
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -584,7 +586,7 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
 
   The combined v6 kernel/preflight/adapter/runner subset passes 39/39 tests; the
   new runner/adapter subset passes 16/16, and the full zero-network suite passes
-  1837 tests plus 657 subtests. Moving manifest persistence after adapter
+  1851 tests plus 657 subtests. Moving manifest persistence after adapter
   construction and dropping Y08 only from the final aggregate were each
   re-injected and made their exact seam tests fail before restoration. The
   default CLI remains zero-network dry-run and `pipeline_worker.py` imports none
@@ -609,6 +611,26 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   blind review of all 64 provider candidates after mechanical failure; that
   review is diagnostic only and cannot rescue v6 or authorize production. See
   `docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-live.md`.
+
+  The separately pre-registered post-outcome v6 failure diagnostic is now
+  implemented. Its diagnostic-only owner lock preserves the original
+  `source_lock_readiness=not_ready`, verifies the four exact core hashes and
+  all 56 indexed child artifacts, cross-checks the eight provider journals and
+  eight case executions, and permits review only because the provider boundary
+  is complete at 8/8 cases and 64/64 candidates. It exposes baseline context,
+  code-owned role descriptions, titles and abstracts while hiding all model
+  passes, consensus roles, candidate actions and selected sets. The real local
+  blank packet is `incomplete / not_evaluated` with 0/64 completed rows,
+  `metrics=null`, and no network or model call.
+
+  Its focused suite passes 14/14. Removing the explicit
+  `candidate_action` block and dropping the final candidate only from the
+  labels CSV were each re-injected and made their client-boundary tests fail
+  before restoration. No human label has returned, so retrieval value and role
+  accuracy remain unobserved; the diagnostic cannot rescue v6, open
+  Z01-Z08, validate a successor or connect production. See
+  `docs/prereg-2026-09-01-openalex-role-slot-v6-failure-diagnostic.md` and
+  `docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md`.
 
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,

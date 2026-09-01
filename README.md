@@ -870,7 +870,24 @@ sealed, and production remains disconnected. The required next step is a
 label-blind review of all 64 provider candidates for failure diagnosis only.
 See the [bounded live result](docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-live.md).
 
-Local verification now passes **1,837 tests plus 657 subtests**, latest Ruff,
+The separately pre-registered v6 failure diagnostic and label-blind review
+boundary are now implemented. The packet preserves all 64 frozen Y01-Y08
+provider candidates while hiding model passes, consensus roles, candidate
+actions and selected sets until the post-return summary seam.
+
+The real local blank packet is correctly `incomplete / not_evaluated`: 0/64
+rows are complete, metrics are absent, the four core source hashes and all 56
+indexed artifacts match, and no network or model call occurs. The focused
+suite passes 14/14; one hidden-decision leak and one missing serialized
+candidate were each re-injected and made their boundary tests fail.
+
+No human label has been returned, so source value and role accuracy remain
+unobserved. This diagnostic cannot rescue v6, open Z or authorize production.
+See the [diagnostic pre-registration](docs/prereg-2026-09-01-openalex-role-slot-v6-failure-diagnostic.md)
+and [implementation result](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md).
+
+
+Local verification now passes **1,851 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2123,7 +2140,22 @@ dry-run。详见
 保持未打开，v6 已封存且生产仍断开。下一步只应对全部 64 条候选做标签盲化人工
 评审以诊断失败面。详见[受限真实运行结果](docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-live.md)。
 
-本地验证现通过 **1,837 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+另行预注册的 v6 失败诊断与标签盲化评审边界现已实现。评审包保留全部 64 条
+Y01–Y08 冻结供应商候选，同时在回传后的汇总接缝之前隐藏模型 pass、共识角色、
+候选动作和已选证据集。
+
+真实本地空白包被正确判为 `incomplete / not_evaluated`：完成行为 0/64，
+metrics 缺失，4 个核心来源哈希与 56 份索引工件全部一致，且不发生网络或模型
+调用。14/14 个定向测试通过；隐藏决策泄露和少序列化一条候选两个缺陷均被
+重新注入，并分别使边界测试失败。
+
+目前尚未返回任何人工标签，因此来源价值与角色准确性仍未观测。该诊断不能
+挽救 v6、打开 Z 或授权生产接入。详见
+[诊断预注册](docs/prereg-2026-09-01-openalex-role-slot-v6-failure-diagnostic.md)
+与[实现结果](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md)。
+
+
+本地验证现通过 **1,851 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
