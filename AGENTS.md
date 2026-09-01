@@ -587,18 +587,28 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   1837 tests plus 657 subtests. Moving manifest persistence after adapter
   construction and dropping Y08 only from the final aggregate were each
   re-injected and made their exact seam tests fail before restoration. The
-  default CLI remains zero-network dry-run, `pipeline_worker.py` imports none of
-  v6, and this phase made no OpenAlex or Qwen request, paid call, label read or
-  production connection. Y01-Y08 and Z01-Y08 therefore remain unused. A live Y
-  attempt requires a separate authorization naming an exact merged revision,
-  request ceilings and provider-specific cost stops; Z remains unavailable until
-  every frozen Y gate passes. See
+  default CLI remains zero-network dry-run and `pipeline_worker.py` imports none
+  of v6. See
   `docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md`,
   `docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md`,
   `docs/prereg-2026-09-01-openalex-role-slot-consensus-v6-development-runner.md`,
   `docs/prereg-2026-09-01-openalex-role-slot-consensus-v6-runner-identity-clarification.md`
   and
   `docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-runner-implementation.md`.
+
+  A separately authorized Y run on merged revision `d23ffd5` completed 8/8
+  anonymous OpenAlex requests and 21/24 exact `qwen3.5-plus` calls before the
+  model soft stop. It recorded 64 candidates, 56/56 hash-valid artifacts, USD
+  0.008 OpenAlex cost and USD 0.204363 Qwen cost. The serialized state is
+  correctly `partial / model_soft_stop`: Y08 has a provider journal and model
+  plan but no model call. This is already an irrecoverable v6 failure rather
+  than a reason to buy three more calls. Even perfect Y08 outcomes could raise
+  provisional unanimity only from 34/56 to 42/64 (65.625%), below 80%, and
+  selected-case coverage only from 4/8 to 5/8, below 6/8. Y is consumed, Z stays
+  unopened, and v6 is sealed. The original protocol still requires a label-
+  blind review of all 64 provider candidates after mechanical failure; that
+  review is diagnostic only and cannot rescue v6 or authorize production. See
+  `docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-live.md`.
 
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
