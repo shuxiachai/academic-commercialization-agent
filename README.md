@@ -910,26 +910,31 @@ execution, or model client. Its focused suite passes 10/10, including a
 re-injected boundary defect where the second lane existed internally but did
 not reach serialized output.
 
-A separately pre-registered write-once AA runner is now implemented but has not
-been executed. It locks the fixture and six behavior dependencies before output
-reservation, persists the complete 16-lane manifest before adapter
-construction, writes every one-request lane journal before later work, and
-persists each DOI-first/URL-second deduplicated portfolio before the next case.
-Raw provider rows, rejections, duplicate occurrences, all lane memberships,
-unique candidates, blank human-review rows, cost, latency, and trace identities
-reach hashed artifacts. The 17/17 runner suite and 27/27 combined v7 suite pass;
-moving the manifest after adapter construction and dropping a duplicate lane
-membership each made the intended seam test fail before restoration. No
-provider request or human review has occurred: AA is unconsumed, AB is unopened,
-candidate value is `not_evaluated`, and production Tool Calling remains
-disconnected. See the
+The separately pre-registered write-once AA runner has now completed its one
+permitted development execution on exact merged revision `2a61c32`. Sixteen of
+sixteen one-attempt anonymous OpenAlex requests and 8/8 case portfolios reached
+durable artifacts for provider-reported cost USD 0.016. All 96 provider rows
+(84 candidates and 12 rejections) reached the aggregate boundary; deterministic
+DOI/URL deduplication produced 79 unique blank-review candidates. Independent
+recomputation found zero mismatches across 29 indexed files, and all request
+IDs, idempotency keys, and per-request costs were inspectable. No model call or
+production/report/Planner/recovery connection occurred.
+
+After every artifact had committed, the final Windows GBK stdout projection
+failed on a U+2022 provider-title character. AA was not rerun: a zero-network
+regression reproduced the exception, and stdout now uses reversible ASCII JSON
+escapes while authoritative artifacts retain original UTF-8. AA is consumed,
+AB remains unopened, and candidate value remains `not_evaluated` until an exact
+source lock and eligible human review apply all five frozen gates. Production
+Tool Calling remains disconnected. See the
 [v7 pre-registration](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md),
 [pre-provider AB05 erratum](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md),
 the [offline implementation result](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md),
 the [live-runner pre-registration](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md),
-and the [live-runner implementation result](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md).
+the [live-runner implementation result](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md),
+and the [AA live result](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md).
 
-Local verification now passes **1,878 tests plus 657 subtests**, latest Ruff,
+Local verification now passes **1,879 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2214,22 +2219,26 @@ metrics 缺失，4 个核心来源哈希与 56 份索引工件全部一致，且
 通过，其中包括一次接缝缺陷回注：第二条 lane 在内部存在却没有到达序列化输出
 时，边界测试会失败。
 
-另行预注册的 AA write-once runner 现已实现但尚未执行。它在预留输出目录前
-锁定 fixture 与 6 个行为依赖，在构造 adapter 前持久化完整 16-lane manifest，
-每个单请求 lane 日志落盘后才允许后续工作，并在进入下一案例前持久化按 DOI
-优先、OpenAlex URL 次优去重的双 lane portfolio。原始供应商行、拒绝项、重复
-出现记录、全部 lane 成员关系、唯一候选、空白人工评审行、成本、延迟与 trace
-身份均进入带哈希工件。runner 的 17/17 与 v7 组合 27/27 测试通过；将 manifest
-移到 adapter 构造之后、或丢失重复来源的第二条 lane 成员关系，都会使对应接缝
-测试失败。目前未发起供应商请求，也未进行人工评审，因此 AA 尚未消耗、AB
-保持未打开、候选价值为 `not_evaluated`，生产 Tool Calling 仍未连接。详见
+另行预注册的 AA write-once runner 已在精确合并版本 `2a61c32` 上完成唯一一次
+允许的开发集执行：16/16 次匿名 OpenAlex 单尝试请求与 8/8 个案例 portfolio
+全部落入持久化工件，供应商报告成本为 0.016 美元。96 条供应商行（84 条候选、
+12 条拒绝）均到达聚合边界，按 DOI/URL 确定性去重后得到 79 条唯一空白评审
+候选。独立重算 29 个索引文件得到 0 个哈希不一致，全部请求 ID、幂等键和单请求
+成本可检查；模型、生产、报告、Planner 与恢复连接均为 0。
+
+全部工件提交后，Windows GBK stdout 因供应商标题中的 U+2022 字符在最终打印
+阶段报错。项目没有重跑 AA：零网络回归测试复现了异常，stdout 改用可逆 ASCII
+JSON 转义，而权威工件仍保留原始 UTF-8。AA 现已消费，AB 保持未打开；在精确
+source lock 与合格人工评审应用全部五项冻结门槛前，候选价值仍为
+`not_evaluated`，生产 Tool Calling 继续断开。详见
 [v7 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md)、
 [AB05 供应商调用前勘误](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md)、
 [离线实现结果](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md)、
-[live runner 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md)
-与[live runner 实现结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md)。
+[live runner 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md)、
+[live runner 实现结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md)
+与[AA 真实运行结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md)。
 
-本地验证现通过 **1,878 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+本地验证现通过 **1,879 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始

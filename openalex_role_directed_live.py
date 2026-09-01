@@ -1469,7 +1469,13 @@ def execute_live_study(
 
 
 def _stdout_json(value: object) -> str:
-    return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True)
+    """Render reversible CLI JSON independently of the caller's locale."""
+
+    # Authoritative write-once artifacts preserve original UTF-8 provider text.
+    # Stdout is only a projection and may still be strict GBK on Windows, so
+    # escaping non-ASCII code points prevents a completed live study from being
+    # reported as failed after every auditable artifact has already committed.
+    return json.dumps(value, ensure_ascii=True, indent=2, sort_keys=True)
 
 
 def _parser() -> argparse.ArgumentParser:
