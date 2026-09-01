@@ -852,12 +852,23 @@ The combined v6 subset passes 39/39 focused tests and the new runner/adapter
 subset passes 16/16. Two additional re-injections proved that the manifest must
 precede client construction and that a correctly computed Y08 audit cannot be
 dropped only at the aggregate client artifact. The default CLI remains a
-zero-network dry-run; no live request, private-label read, paid call or
-production connection occurred, so Y01-Y08 and Z01-Z08 remain unused. See the
+zero-network dry-run. See the
 [v6 pre-registration](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md),
 [offline implementation result](docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md),
 [runner amendment](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6-development-runner.md)
 and [runner implementation result](docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-runner-implementation.md).
+
+A separately authorized run on merged revision `d23ffd5` completed all eight
+anonymous OpenAlex requests and 21/24 sequential Qwen calls before the USD 0.20
+model soft stop. It retained 64 provider candidates, exact `qwen3.5-plus`
+identity, 56/56 hash-valid artifacts and USD 0.008 / USD 0.204363 inspectable
+OpenAlex/Qwen cost. The execution is explicitly partial, but extra spending
+cannot rescue it: candidate-disposition unanimity can reach at most 42/64
+(65.625%) against the frozen 80% gate, and selected-case coverage can reach at
+most 5/8 against the frozen 6/8 gate. Y is consumed, Z remains unopened, v6 is
+sealed, and production remains disconnected. The required next step is a
+label-blind review of all 64 provider candidates for failure diagnosis only.
+See the [bounded live result](docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-live.md).
 
 Local verification now passes **1,837 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
@@ -2097,12 +2108,20 @@ write-once manifest 会在客户端构造前冻结 8 个 OpenAlex 请求身份�
 v6 内核、预检、适配器与运行器合计通过 39/39 个定向测试，其中新增运行器与
 适配器为 16/16。两次新增缺陷回注证明 manifest 必须先于客户端构造，且内部
 正确计算并写入单案文件的 Y08 不能只在最终聚合中消失。默认 CLI 仍为零网络
-dry-run；本阶段没有真实请求、私有标签读取、付费调用或生产连接，因此
-Y01–Y08 与 Z01–Z08 仍未使用。详见
+dry-run。详见
 [v6 预注册](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md)、
 [离线实现结果](docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md)、
 [运行器补充预注册](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6-development-runner.md)
 与[运行器实现结果](docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-runner-implementation.md)。
+
+随后在合并版本 `d23ffd5` 上获授权执行的真实运行完成了全部 8 次匿名 OpenAlex
+请求，并在 0.20 美元模型软停止线前完成 21/24 次顺序 Qwen 调用。运行保留
+64 条候选、精确 `qwen3.5-plus` 身份、56/56 份哈希一致工件，以及 OpenAlex
+0.008 美元、Qwen 0.204363 美元的可审计成本。执行状态明确为 partial，且继续
+付费也无法挽救：候选 disposition 一致率最多只能达到 42/64（65.625%），低于
+冻结的 80%；选中证据集的案例最多只能达到 5/8，低于 6/8。Y 已被消耗，Z
+保持未打开，v6 已封存且生产仍断开。下一步只应对全部 64 条候选做标签盲化人工
+评审以诊断失败面。详见[受限真实运行结果](docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-live.md)。
 
 本地验证现通过 **1,837 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
