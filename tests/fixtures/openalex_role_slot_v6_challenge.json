@@ -1,0 +1,568 @@
+{
+  "schema_version": 1,
+  "method_id": "openalex-candidate-local-role-slot-consensus-v6",
+  "provider_contract": {
+    "provider": "anonymous_openalex",
+    "requests_per_case": 1,
+    "result_limit": 8,
+    "require_abstract": true,
+    "allow_redirects": false,
+    "allow_retries": false
+  },
+  "judge_contract": {
+    "provider": "qwen",
+    "model": "qwen3.5-plus",
+    "passes_per_case": 3,
+    "candidate_orders": [
+      "provider_order",
+      "reverse_provider_order",
+      "candidate_sha256_order"
+    ],
+    "temperature": 0.0,
+    "allow_retries": false,
+    "allow_repair": false,
+    "allow_fallback": false,
+    "minimum_verified_passes_per_role": 2
+  },
+  "selection_contract": {
+    "required_roles_covered": "all",
+    "minimum_scope_roles": 1,
+    "minimum_supporting_roles": 1,
+    "maximum_selected_sources_per_case": 3,
+    "minimum_candidate_required_roles": 1,
+    "minimum_candidate_context_roles": 1,
+    "minimum_candidate_title_anchor_roles": 1
+  },
+  "development_cases": [
+    {
+      "case_id": "Y01",
+      "topic": "Lignin-derived carbon fibres for recyclable automotive structural composites",
+      "query": "lignin carbon fiber automotive composite recycling",
+      "roles": {
+        "required": [
+          {
+            "role_id": "lignin_precursor",
+            "description": "Evidence that lignin is used as the material precursor or feedstock."
+          },
+          {
+            "role_id": "carbon_fibre",
+            "description": "Evidence that the work produces or evaluates carbon fibre materials."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "automotive_composite",
+            "description": "Evidence of an automotive or structural composite application context."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "mechanical_performance",
+            "description": "Evidence reporting strength, modulus, toughness, or related mechanical performance."
+          },
+          {
+            "role_id": "recyclable_composite",
+            "description": "Evidence addressing recycling, reuse, or circularity of the resulting composite."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Y02",
+      "topic": "Enzymatic depolymerisation of blended polyester textile waste for closed-loop recycling",
+      "query": "enzymatic polyester textile waste depolymerization recycling",
+      "roles": {
+        "required": [
+          {
+            "role_id": "enzymatic_depolymerisation",
+            "description": "Evidence that enzymes catalyse polymer depolymerisation or hydrolysis."
+          },
+          {
+            "role_id": "polyester_material",
+            "description": "Evidence that polyester or PET is the target polymer material."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "blended_textile_waste",
+            "description": "Evidence that blended fabrics or post-consumer textile waste are treated."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "monomer_recovery",
+            "description": "Evidence of recovered monomers, oligomers, or purified depolymerisation products."
+          },
+          {
+            "role_id": "closed_loop_recycling",
+            "description": "Evidence that recovered material is reused to make polymer or textile products."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Y03",
+      "topic": "Solid-state sodium-sulfur batteries for grid-scale energy storage",
+      "query": "solid state sodium sulfur battery grid energy storage",
+      "roles": {
+        "required": [
+          {
+            "role_id": "sodium_sulfur_battery",
+            "description": "Evidence that the electrochemical system is a sodium-sulfur battery."
+          },
+          {
+            "role_id": "solid_state_electrolyte",
+            "description": "Evidence that a solid electrolyte or all-solid-state architecture is used."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "grid_scale_storage",
+            "description": "Evidence of stationary, grid-scale, or long-duration energy-storage use."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "cycling_performance",
+            "description": "Evidence reporting capacity retention, cycle life, or reversible cycling."
+          },
+          {
+            "role_id": "safety_or_temperature",
+            "description": "Evidence addressing safety or reduced operating-temperature requirements."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Y04",
+      "topic": "Injectable self-healing hydrogels for chronic diabetic wound treatment",
+      "query": "injectable self healing hydrogel diabetic wound treatment",
+      "roles": {
+        "required": [
+          {
+            "role_id": "injectable_hydrogel",
+            "description": "Evidence that the material is an injectable hydrogel."
+          },
+          {
+            "role_id": "self_healing",
+            "description": "Evidence of autonomous self-healing or reversible network recovery."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "diabetic_wound",
+            "description": "Evidence that diabetic or chronic wound treatment is the target context."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "antimicrobial_activity",
+            "description": "Evidence of antibacterial, antimicrobial, or infection-control activity."
+          },
+          {
+            "role_id": "tissue_regeneration",
+            "description": "Evidence of wound closure, angiogenesis, or tissue regeneration outcomes."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Y05",
+      "topic": "Metal-organic framework membranes for low-concentration carbon dioxide capture",
+      "query": "metal organic framework membrane low concentration carbon dioxide capture",
+      "roles": {
+        "required": [
+          {
+            "role_id": "metal_organic_framework",
+            "description": "Evidence that a metal-organic framework is an active separation material."
+          },
+          {
+            "role_id": "membrane_separation",
+            "description": "Evidence that gas separation is performed with a membrane architecture."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "low_concentration_co2",
+            "description": "Evidence involving dilute or low-partial-pressure carbon dioxide streams."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "selectivity_permeability",
+            "description": "Evidence reporting carbon-dioxide selectivity, permeability, or permeance."
+          },
+          {
+            "role_id": "operational_stability",
+            "description": "Evidence addressing humidity, contaminants, aging, or membrane stability."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Y06",
+      "topic": "Indoor perovskite photovoltaics for battery-free wireless sensor networks",
+      "query": "indoor perovskite photovoltaic wireless sensor power",
+      "roles": {
+        "required": [
+          {
+            "role_id": "perovskite_photovoltaic",
+            "description": "Evidence that the energy harvester is a perovskite photovoltaic device."
+          },
+          {
+            "role_id": "indoor_light",
+            "description": "Evidence that device operation or testing uses indoor or low-intensity light."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "wireless_sensor",
+            "description": "Evidence of powering a wireless sensor, Internet-of-Things node, or similar device."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "conversion_efficiency",
+            "description": "Evidence reporting photovoltaic power-conversion efficiency or delivered power."
+          },
+          {
+            "role_id": "device_stability",
+            "description": "Evidence addressing operational lifetime, encapsulation, or device stability."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Y07",
+      "topic": "Cell-free biosynthesis of rare sugars from agricultural residues",
+      "query": "cell free biosynthesis rare sugar agricultural waste",
+      "roles": {
+        "required": [
+          {
+            "role_id": "cell_free_biosynthesis",
+            "description": "Evidence that synthesis uses a cell-free enzyme or lysate system."
+          },
+          {
+            "role_id": "rare_sugar",
+            "description": "Evidence that a rare, uncommon, or specialty sugar is produced."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "agricultural_residue",
+            "description": "Evidence that an agricultural residue or biomass-derived feedstock is used."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "enzyme_cascade",
+            "description": "Evidence of a multi-enzyme cascade or coupled biocatalytic pathway."
+          },
+          {
+            "role_id": "conversion_yield",
+            "description": "Evidence reporting product yield, titre, productivity, or conversion efficiency."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Y08",
+      "topic": "Integrated photonic biosensors for rapid bloodstream infection diagnosis",
+      "query": "integrated photonic biosensor bloodstream infection diagnosis",
+      "roles": {
+        "required": [
+          {
+            "role_id": "integrated_photonics",
+            "description": "Evidence that sensing uses an integrated photonic or on-chip optical platform."
+          },
+          {
+            "role_id": "biosensing",
+            "description": "Evidence of biological detection or biomolecular sensing."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "bloodstream_infection",
+            "description": "Evidence that bloodstream infection, sepsis, or blood-borne pathogens are targeted."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "rapid_detection",
+            "description": "Evidence reporting rapid, real-time, or short-turnaround detection."
+          },
+          {
+            "role_id": "pathogen_identification",
+            "description": "Evidence of identifying, discriminating, or quantifying infectious organisms."
+          }
+        ]
+      }
+    }
+  ],
+  "unseen_cases": [
+    {
+      "case_id": "Z01",
+      "topic": "Electrochemical lithium extraction from geothermal brines using ion-selective electrodes",
+      "query": "electrochemical lithium extraction geothermal brine selective electrode",
+      "roles": {
+        "required": [
+          {
+            "role_id": "electrochemical_lithium_extraction",
+            "description": "Evidence that lithium is recovered through an electrochemical process."
+          },
+          {
+            "role_id": "ion_selective_electrode",
+            "description": "Evidence that an ion-selective electrode or intercalation material provides selectivity."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "geothermal_brine",
+            "description": "Evidence that geothermal brine or a comparable high-salinity brine is treated."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "lithium_selectivity",
+            "description": "Evidence reporting selectivity against sodium, magnesium, calcium, or competing ions."
+          },
+          {
+            "role_id": "regeneration_or_cycles",
+            "description": "Evidence of electrode regeneration, repeated extraction, or cycle stability."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Z02",
+      "topic": "Mycelium-based acoustic insulation panels from agricultural by-products",
+      "query": "mycelium acoustic insulation agricultural waste panel",
+      "roles": {
+        "required": [
+          {
+            "role_id": "mycelium_composite",
+            "description": "Evidence that fungal mycelium forms or binds the composite material."
+          },
+          {
+            "role_id": "acoustic_insulation",
+            "description": "Evidence that sound absorption or acoustic insulation is evaluated."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "agricultural_byproduct",
+            "description": "Evidence that crop residue or another agricultural by-product is the substrate."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "sound_absorption",
+            "description": "Evidence reporting an absorption coefficient or related acoustic performance."
+          },
+          {
+            "role_id": "building_panel",
+            "description": "Evidence of a board, panel, or building-material form factor."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Z03",
+      "topic": "Microfluidic organ-on-chip platforms for personalised chemotherapy selection",
+      "query": "microfluidic organ on chip personalized chemotherapy selection",
+      "roles": {
+        "required": [
+          {
+            "role_id": "organ_on_chip",
+            "description": "Evidence that a microphysiological organ-on-chip model is used."
+          },
+          {
+            "role_id": "microfluidic_platform",
+            "description": "Evidence that the model operates in a microfluidic device."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "personalised_chemotherapy",
+            "description": "Evidence that patient-specific chemotherapy response or treatment selection is targeted."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "patient_derived_cells",
+            "description": "Evidence that patient-derived tumour cells, organoids, or biopsies are used."
+          },
+          {
+            "role_id": "drug_response_prediction",
+            "description": "Evidence that the platform measures or predicts response to anticancer drugs."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Z04",
+      "topic": "Thermochemical heat storage using salt hydrates for industrial waste-heat recovery",
+      "query": "salt hydrate thermochemical heat storage industrial waste heat",
+      "roles": {
+        "required": [
+          {
+            "role_id": "salt_hydrate",
+            "description": "Evidence that a salt hydrate is the thermochemical storage medium."
+          },
+          {
+            "role_id": "thermochemical_storage",
+            "description": "Evidence of reversible chemical heat storage rather than sensible heat alone."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "industrial_waste_heat",
+            "description": "Evidence that industrial waste heat or process-heat recovery is the application."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "energy_density",
+            "description": "Evidence reporting gravimetric or volumetric storage density."
+          },
+          {
+            "role_id": "cycling_stability",
+            "description": "Evidence of hydration-dehydration cycling, reversibility, or material stability."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Z05",
+      "topic": "Bacteriophage-based crop protection against bacterial plant diseases",
+      "query": "bacteriophage crop protection bacterial plant disease",
+      "roles": {
+        "required": [
+          {
+            "role_id": "bacteriophage_therapy",
+            "description": "Evidence that bacteriophages are used to control bacterial infection."
+          },
+          {
+            "role_id": "plant_pathogen",
+            "description": "Evidence that the target is a bacterial pathogen of plants."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "crop_protection",
+            "description": "Evidence of disease management in crops, plants, or agricultural production."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "disease_suppression",
+            "description": "Evidence reporting reduced disease severity, pathogen load, or crop loss."
+          },
+          {
+            "role_id": "field_or_greenhouse",
+            "description": "Evidence from greenhouse, field, or whole-plant testing."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Z06",
+      "topic": "Quantum-dot short-wave infrared image sensors for machine vision",
+      "query": "quantum dot short wave infrared image sensor machine vision",
+      "roles": {
+        "required": [
+          {
+            "role_id": "quantum_dot_detector",
+            "description": "Evidence that quantum dots form the active photodetector material."
+          },
+          {
+            "role_id": "short_wave_infrared",
+            "description": "Evidence of detection or imaging in the short-wave infrared spectral range."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "machine_vision",
+            "description": "Evidence of industrial inspection, robotics, autonomous sensing, or machine vision."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "imaging_array",
+            "description": "Evidence of a pixel array, focal-plane array, or imaging demonstration."
+          },
+          {
+            "role_id": "detector_performance",
+            "description": "Evidence reporting detectivity, responsivity, noise, speed, or spectral response."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Z07",
+      "topic": "Electrospun nanofibre membranes for lithium-ion battery separator safety",
+      "query": "electrospun nanofiber membrane lithium ion battery separator safety",
+      "roles": {
+        "required": [
+          {
+            "role_id": "electrospun_nanofibre",
+            "description": "Evidence that the membrane is fabricated using electrospun nanofibres."
+          },
+          {
+            "role_id": "battery_separator",
+            "description": "Evidence that the membrane functions as a lithium-ion battery separator."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "battery_safety",
+            "description": "Evidence addressing thermal, mechanical, shutdown, or fire safety."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "thermal_stability",
+            "description": "Evidence reporting heat resistance, shrinkage, or dimensional stability."
+          },
+          {
+            "role_id": "electrochemical_performance",
+            "description": "Evidence reporting ionic conductivity, cycling, rate capability, or cell performance."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "Z08",
+      "topic": "Methane-oxidising biocatalysts for greenhouse-gas-to-protein conversion",
+      "query": "methane oxidizing biocatalyst methane to protein conversion",
+      "roles": {
+        "required": [
+          {
+            "role_id": "methane_oxidation",
+            "description": "Evidence that methane is biologically oxidised or assimilated."
+          },
+          {
+            "role_id": "protein_product",
+            "description": "Evidence that microbial protein, single-cell protein, or protein-rich biomass is produced."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "greenhouse_gas_feedstock",
+            "description": "Evidence that methane is treated as a greenhouse-gas or waste-gas feedstock."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "methanotroph",
+            "description": "Evidence involving methane-oxidising microorganisms or methanotrophs."
+          },
+          {
+            "role_id": "protein_yield_or_quality",
+            "description": "Evidence reporting biomass yield, productivity, amino-acid profile, or nutritional quality."
+          }
+        ]
+      }
+    }
+  ]
+}
