@@ -620,17 +620,26 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   is complete at 8/8 cases and 64/64 candidates. It exposes baseline context,
   code-owned role descriptions, titles and abstracts while hiding all model
   passes, consensus roles, candidate actions and selected sets. The real local
-  blank packet is `incomplete / not_evaluated` with 0/64 completed rows,
+  blank packet was `incomplete / not_evaluated` with 0/64 completed rows,
   `metrics=null`, and no network or model call.
 
   Its focused suite passes 14/14. Removing the explicit
   `candidate_action` block and dropping the final candidate only from the
   labels CSV were each re-injected and made their client-boundary tests fail
-  before restoration. No human label has returned, so retrieval value and role
-  accuracy remain unobserved; the diagnostic cannot rescue v6, open
-  Z01-Z08, validate a successor or connect production. See
+  before restoration. One eligible human reviewer later completed 64/64 rows,
+  declared no substantive generative-AI use and did not check external sources.
+  Thirteen candidates were directly relevant and 51 were retrieval noise. Six
+  of eight cases contained baseline-novel relevant evidence, but only Y04-Y06
+  were human-coverable as complete role sets. Candidate admission was 9 TP,
+  7 FP, 38 TN and 2 FN; role-level precision/recall were 86.92%/90.29%.
+  Candidate-pool quality and missing role coverage therefore dominate the
+  failure, while semantic consensus errors remain a secondary contributor.
+  The diagnostic cannot rescue v6, open Z01-Z08, validate a successor or
+  connect production. See
   `docs/prereg-2026-09-01-openalex-role-slot-v6-failure-diagnostic.md` and
-  `docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md`.
+  `docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md`,
+  plus
+  `docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-review.md`.
 
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,

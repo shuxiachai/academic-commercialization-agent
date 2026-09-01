@@ -875,16 +875,25 @@ boundary are now implemented. The packet preserves all 64 frozen Y01-Y08
 provider candidates while hiding model passes, consensus roles, candidate
 actions and selected sets until the post-return summary seam.
 
-The real local blank packet is correctly `incomplete / not_evaluated`: 0/64
-rows are complete, metrics are absent, the four core source hashes and all 56
-indexed artifacts match, and no network or model call occurs. The focused
+The real local blank packet was correctly `incomplete / not_evaluated`: 0/64
+rows were complete, metrics were absent, the four core source hashes and all 56
+indexed artifacts matched, and no network or model call occurred. The focused
 suite passes 14/14; one hidden-decision leak and one missing serialized
 candidate were each re-injected and made their boundary tests fail.
 
-No human label has been returned, so source value and role accuracy remain
-unobserved. This diagnostic cannot rescue v6, open Z or authorize production.
-See the [diagnostic pre-registration](docs/prereg-2026-09-01-openalex-role-slot-v6-failure-diagnostic.md)
-and [implementation result](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md).
+One eligible human reviewer later completed 64/64 rows without substantive
+generative-AI use or external-source checks. Thirteen candidates were directly
+relevant and 51 were retrieval noise; six of eight cases contained at least one
+baseline-novel relevant candidate, but only Y04, Y05 and Y06 had a human-
+coverable role set. Candidate admission therefore produced 9 TP, 7 FP, 38 TN
+and 2 FN, while role-level precision/recall were 86.92%/90.29%. The diagnostic
+attributes the dominant failure to candidate-pool quality and role coverage,
+with semantic consensus errors as a secondary contributor. It is diagnostic
+only: v6 remains failed and sealed, Z remains unopened, and production Tool
+Calling remains disconnected. See the
+[diagnostic pre-registration](docs/prereg-2026-09-01-openalex-role-slot-v6-failure-diagnostic.md),
+[implementation result](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md),
+and [human-review result](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-review.md).
 
 
 Local verification now passes **1,851 tests plus 657 subtests**, latest Ruff,
@@ -2144,15 +2153,21 @@ dry-run。详见
 Y01–Y08 冻结供应商候选，同时在回传后的汇总接缝之前隐藏模型 pass、共识角色、
 候选动作和已选证据集。
 
-真实本地空白包被正确判为 `incomplete / not_evaluated`：完成行为 0/64，
+真实本地空白包曾被正确判为 `incomplete / not_evaluated`：完成行为 0/64，
 metrics 缺失，4 个核心来源哈希与 56 份索引工件全部一致，且不发生网络或模型
 调用。14/14 个定向测试通过；隐藏决策泄露和少序列化一条候选两个缺陷均被
 重新注入，并分别使边界测试失败。
 
-目前尚未返回任何人工标签，因此来源价值与角色准确性仍未观测。该诊断不能
-挽救 v6、打开 Z 或授权生产接入。详见
-[诊断预注册](docs/prereg-2026-09-01-openalex-role-slot-v6-failure-diagnostic.md)
-与[实现结果](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md)。
+随后一名合格人工评审者完成 64/64 条，声明未使用实质生成式 AI、未检查外部
+来源。13 条候选被判为直接相关，51 条属于检索噪声；6/8 个案例至少存在一条
+基线外相关候选，但只有 Y04、Y05、Y06 能由人工组成角色完整的证据集。候选
+准入混淆矩阵为 9 TP、7 FP、38 TN、2 FN，角色级 precision / recall 为
+86.92% / 90.29%。诊断因此把主要失败归因于候选池质量与角色覆盖不足，把语义
+共识误差列为次要因素。该结果只用于归因：v6 仍然失败并封存，Z 保持未打开，
+生产 Tool Calling 继续断开。详见
+[诊断预注册](docs/prereg-2026-09-01-openalex-role-slot-v6-failure-diagnostic.md)、
+[实现结果](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-implementation.md)
+与[人工评审结果](docs/results-2026-09-01-openalex-role-slot-v6-failure-diagnostic-review.md)。
 
 
 本地验证现通过 **1,851 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
