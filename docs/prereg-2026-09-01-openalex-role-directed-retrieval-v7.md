@@ -31,6 +31,10 @@ planner-trigger precision, source truth, production reliability, or user value.
 - Both cohorts, their role definitions, query text, lane targets, order, and
   baseline identities live in
   `tests/fixtures/openalex_role_directed_v7_challenge.json`.
+- One AB05 evidence-lane query was corrected before implementation or any
+  provider request after the zero-network scope audit exposed a weak token
+  overlap. The original committed bytes and the bounded correction are recorded
+  in `docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md`.
 - Y01-Y08 remain consumed diagnostic evidence. Z01-Z08 remain unopened under
   the v6 protocol and must not be repurposed for v7.
 - AA becomes consumed after any provider request. AB must remain unopened until

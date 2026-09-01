@@ -713,7 +713,7 @@
         },
         {
           "lane_id": "technology_evidence",
-          "query": "phage loaded hydrogel pathogen reduction in vivo survival",
+          "query": "bacteriophage loaded hydrogels bacterial fish pathogen reduction survival",
           "target_role_ids": [
             "bacteriophage_delivery",
             "hydrogel_carrier",
