@@ -1,0 +1,886 @@
+{
+  "schema_version": 1,
+  "method_id": "openalex-role-directed-retrieval-portfolio-v7",
+  "provider_contract": {
+    "provider": "anonymous_openalex",
+    "requests_per_case": 2,
+    "result_limit_per_request": 6,
+    "require_abstract": true,
+    "allow_redirects": false,
+    "allow_retries": false
+  },
+  "portfolio_contract": {
+    "lane_order": [
+      "technology_scope",
+      "technology_evidence"
+    ],
+    "deduplicate_by": [
+      "normalized_doi",
+      "canonical_openalex_url"
+    ],
+    "preserve_lane_memberships": true,
+    "preserve_provider_rank": true,
+    "maximum_unique_candidates_per_case": 12,
+    "maximum_cover_sources_per_case": 3,
+    "semantic_filter_before_human_qualification": false
+  },
+  "qualification_contract": {
+    "minimum_cases_with_relevant_novel_candidate": 6,
+    "minimum_human_coverable_cases": 6,
+    "minimum_candidate_pool_precision": 0.25,
+    "minimum_cases_with_unique_evidence_lane_value": 4,
+    "minimum_coverability_gain_over_scope_lane": 2
+  },
+  "development_cases": [
+    {
+      "case_id": "AA01",
+      "topic": "Electrochemical phosphorus recovery from municipal wastewater as struvite using magnesium-air cells",
+      "roles": {
+        "required": [
+          {
+            "role_id": "electrochemical_phosphorus_recovery",
+            "description": "Evidence that phosphorus is recovered through an electrochemical process."
+          },
+          {
+            "role_id": "magnesium_air_cell",
+            "description": "Evidence that a magnesium-air cell supplies magnesium, energy, or both."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "municipal_wastewater",
+            "description": "Evidence that municipal wastewater, sewage, or a comparable wastewater stream is treated."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "struvite_product",
+            "description": "Evidence that recovered phosphorus forms struvite or another reusable phosphate product."
+          },
+          {
+            "role_id": "phosphorus_recovery_performance",
+            "description": "Evidence reporting phosphorus removal, recovery efficiency, purity, or energy demand."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "magnesium air electrochemical phosphorus recovery municipal wastewater",
+          "target_role_ids": [
+            "electrochemical_phosphorus_recovery",
+            "magnesium_air_cell",
+            "municipal_wastewater"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "magnesium air cell phosphorus recovery struvite efficiency",
+          "target_role_ids": [
+            "electrochemical_phosphorus_recovery",
+            "magnesium_air_cell",
+            "struvite_product",
+            "phosphorus_recovery_performance"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AA02",
+      "topic": "Nanobody-functionalized paper microfluidics for rapid aflatoxin detection in grain",
+      "roles": {
+        "required": [
+          {
+            "role_id": "nanobody_recognition",
+            "description": "Evidence that a nanobody or single-domain antibody provides molecular recognition."
+          },
+          {
+            "role_id": "paper_microfluidic",
+            "description": "Evidence that detection occurs on a paper-based microfluidic or lateral-flow platform."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "grain_aflatoxin",
+            "description": "Evidence that aflatoxin in grain, cereal, feed, or a closely related food matrix is targeted."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "rapid_detection",
+            "description": "Evidence reporting rapid, point-of-use, or short-turnaround detection."
+          },
+          {
+            "role_id": "analytical_performance",
+            "description": "Evidence reporting detection limit, selectivity, sensitivity, or recovery."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "nanobody paper microfluidic aflatoxin grain sensor",
+          "target_role_ids": [
+            "nanobody_recognition",
+            "paper_microfluidic",
+            "grain_aflatoxin"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "nanobody paper aflatoxin rapid detection sensitivity limit",
+          "target_role_ids": [
+            "nanobody_recognition",
+            "paper_microfluidic",
+            "rapid_detection",
+            "analytical_performance"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AA03",
+      "topic": "Supercritical-solvent recycling of carbon-fibre epoxy composites for fibre reuse",
+      "roles": {
+        "required": [
+          {
+            "role_id": "supercritical_solvolysis",
+            "description": "Evidence that a supercritical or near-critical solvent depolymerises a thermoset matrix."
+          },
+          {
+            "role_id": "carbon_fibre_epoxy",
+            "description": "Evidence that the treated material is a carbon-fibre epoxy composite."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "fibre_reuse",
+            "description": "Evidence that recovered carbon fibres are intended or demonstrated for reuse."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "resin_depolymerisation",
+            "description": "Evidence reporting resin removal, depolymerisation, or recovered chemical products."
+          },
+          {
+            "role_id": "retained_fibre_properties",
+            "description": "Evidence reporting retained strength, modulus, surface quality, or composite performance."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "supercritical solvent carbon fibre epoxy composite recycling reuse",
+          "target_role_ids": [
+            "supercritical_solvolysis",
+            "carbon_fibre_epoxy",
+            "fibre_reuse"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "supercritical solvolysis carbon fiber epoxy recovered fibre strength",
+          "target_role_ids": [
+            "supercritical_solvolysis",
+            "carbon_fibre_epoxy",
+            "resin_depolymerisation",
+            "retained_fibre_properties"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AA04",
+      "topic": "Organic electrochemical transistor sensors for non-invasive sweat cortisol monitoring",
+      "roles": {
+        "required": [
+          {
+            "role_id": "organic_electrochemical_transistor",
+            "description": "Evidence that sensing uses an organic electrochemical transistor."
+          },
+          {
+            "role_id": "cortisol_sensing",
+            "description": "Evidence that cortisol is the measured analyte."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "sweat_monitoring",
+            "description": "Evidence that cortisol is measured non-invasively in sweat or a wearable sweat sample."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "sensitivity_selectivity",
+            "description": "Evidence reporting sensitivity, selectivity, detection limit, or interference."
+          },
+          {
+            "role_id": "wearable_operation",
+            "description": "Evidence of wearable, continuous, on-body, or real-time operation."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "organic electrochemical transistor cortisol sweat wearable sensor",
+          "target_role_ids": [
+            "organic_electrochemical_transistor",
+            "cortisol_sensing",
+            "sweat_monitoring"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "OECT cortisol sensor sensitivity selectivity wearable monitoring",
+          "target_role_ids": [
+            "organic_electrochemical_transistor",
+            "cortisol_sensing",
+            "sensitivity_selectivity",
+            "wearable_operation"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AA05",
+      "topic": "Bio-based phase-change composites for passive cold-chain food packaging",
+      "roles": {
+        "required": [
+          {
+            "role_id": "bio_based_phase_change_material",
+            "description": "Evidence that the phase-change medium or its encapsulation is bio-based."
+          },
+          {
+            "role_id": "latent_heat_storage",
+            "description": "Evidence that thermal control uses latent-heat phase-change storage."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "cold_chain_food_packaging",
+            "description": "Evidence of food, pharmaceutical, or comparable cold-chain packaging use."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "thermal_buffering",
+            "description": "Evidence reporting temperature buffering, holdover time, or latent heat."
+          },
+          {
+            "role_id": "cycling_or_leakage",
+            "description": "Evidence addressing thermal cycling, leakage, encapsulation, or material stability."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "bio based phase change material cold chain food packaging",
+          "target_role_ids": [
+            "bio_based_phase_change_material",
+            "latent_heat_storage",
+            "cold_chain_food_packaging"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "bio composite phase change cold storage thermal cycling leakage",
+          "target_role_ids": [
+            "bio_based_phase_change_material",
+            "latent_heat_storage",
+            "thermal_buffering",
+            "cycling_or_leakage"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AA06",
+      "topic": "Monovalent-selective electrodialysis for lithium recovery from spent LFP battery leachate",
+      "roles": {
+        "required": [
+          {
+            "role_id": "monovalent_selective_membrane",
+            "description": "Evidence that a monovalent-selective ion-exchange membrane provides separation."
+          },
+          {
+            "role_id": "electrodialysis_lithium_recovery",
+            "description": "Evidence that electrodialysis or an electro-membrane process recovers lithium."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "lfp_battery_leachate",
+            "description": "Evidence that spent lithium-iron-phosphate battery leachate or a comparable battery stream is treated."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "lithium_selectivity",
+            "description": "Evidence reporting lithium selectivity against sodium, magnesium, iron, or other ions."
+          },
+          {
+            "role_id": "recovery_efficiency",
+            "description": "Evidence reporting lithium recovery, purity, current efficiency, or energy use."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "monovalent selective electrodialysis lithium LFP battery leachate",
+          "target_role_ids": [
+            "monovalent_selective_membrane",
+            "electrodialysis_lithium_recovery",
+            "lfp_battery_leachate"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "electrodialysis lithium recovery spent LFP selectivity efficiency",
+          "target_role_ids": [
+            "monovalent_selective_membrane",
+            "electrodialysis_lithium_recovery",
+            "lithium_selectivity",
+            "recovery_efficiency"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AA07",
+      "topic": "Methanotrophic ectoine production from biogas for cosmetic ingredients",
+      "roles": {
+        "required": [
+          {
+            "role_id": "methanotrophic_bioconversion",
+            "description": "Evidence that methane-oxidising microorganisms convert methane or biogas."
+          },
+          {
+            "role_id": "ectoine_production",
+            "description": "Evidence that ectoine or hydroxyectoine is the target product."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "biogas_feedstock",
+            "description": "Evidence that biogas, biomethane, or methane-rich waste gas is used as feedstock."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "product_yield",
+            "description": "Evidence reporting ectoine titre, yield, productivity, or extraction."
+          },
+          {
+            "role_id": "cosmetic_or_high_value_use",
+            "description": "Evidence of cosmetic, dermatological, pharmaceutical, or other high-value product use."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "methanotroph ectoine production biogas methane feedstock",
+          "target_role_ids": [
+            "methanotrophic_bioconversion",
+            "ectoine_production",
+            "biogas_feedstock"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "methane biogas ectoine yield productivity cosmetic",
+          "target_role_ids": [
+            "methanotrophic_bioconversion",
+            "ectoine_production",
+            "product_yield",
+            "cosmetic_or_high_value_use"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AA08",
+      "topic": "Passive daytime radiative-cooling coatings for refrigerated warehouse roofs",
+      "roles": {
+        "required": [
+          {
+            "role_id": "passive_daytime_radiative_cooling",
+            "description": "Evidence that a surface rejects heat through daytime radiative cooling without active power."
+          },
+          {
+            "role_id": "cooling_coating",
+            "description": "Evidence that the cooling material is applied as a coating, paint, or roof surface."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "refrigerated_warehouse_roof",
+            "description": "Evidence of a refrigerated, cold-storage, warehouse, or comparable building-roof application."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "cooling_performance",
+            "description": "Evidence reporting cooling power, surface temperature reduction, or energy savings."
+          },
+          {
+            "role_id": "outdoor_durability",
+            "description": "Evidence addressing weathering, fouling, adhesion, aging, or outdoor durability."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "passive daytime radiative cooling coating warehouse roof cold storage",
+          "target_role_ids": [
+            "passive_daytime_radiative_cooling",
+            "cooling_coating",
+            "refrigerated_warehouse_roof"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "radiative cooling roof coating cooling power outdoor durability",
+          "target_role_ids": [
+            "passive_daytime_radiative_cooling",
+            "cooling_coating",
+            "cooling_performance",
+            "outdoor_durability"
+          ]
+        }
+      ]
+    }
+  ],
+  "unseen_cases": [
+    {
+      "case_id": "AB01",
+      "topic": "Electrocatalytic nitrate conversion from agricultural runoff into ammonium fertilizer",
+      "roles": {
+        "required": [
+          {
+            "role_id": "electrochemical_nitrate_reduction",
+            "description": "Evidence that nitrate is electrochemically reduced."
+          },
+          {
+            "role_id": "ammonium_product",
+            "description": "Evidence that ammonia or ammonium is the intended recovered product."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "agricultural_runoff",
+            "description": "Evidence that agricultural runoff, drainage, or nitrate-rich water is treated."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "selectivity_or_faradaic_efficiency",
+            "description": "Evidence reporting ammonia selectivity, yield, or Faradaic efficiency."
+          },
+          {
+            "role_id": "fertilizer_reuse",
+            "description": "Evidence that recovered nitrogen is reused or assessed as fertilizer."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "electrochemical nitrate reduction agricultural runoff ammonium recovery",
+          "target_role_ids": [
+            "electrochemical_nitrate_reduction",
+            "ammonium_product",
+            "agricultural_runoff"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "electrocatalytic nitrate ammonia Faradaic efficiency fertilizer reuse",
+          "target_role_ids": [
+            "electrochemical_nitrate_reduction",
+            "ammonium_product",
+            "selectivity_or_faradaic_efficiency",
+            "fertilizer_reuse"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AB02",
+      "topic": "Piezoelectric textile insoles for gait monitoring during stroke rehabilitation",
+      "roles": {
+        "required": [
+          {
+            "role_id": "piezoelectric_textile",
+            "description": "Evidence that a textile, fibre, or flexible piezoelectric material senses pressure or motion."
+          },
+          {
+            "role_id": "gait_sensing",
+            "description": "Evidence that the device measures gait, plantar pressure, steps, or walking mechanics."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "stroke_rehabilitation",
+            "description": "Evidence of stroke, neurological, or clinical gait rehabilitation use."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "pressure_mapping",
+            "description": "Evidence reporting spatial or temporal plantar-pressure or gait parameters."
+          },
+          {
+            "role_id": "wearable_validation",
+            "description": "Evidence of on-body testing, patient testing, repeatability, or clinical validation."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "piezoelectric textile insole gait monitoring stroke rehabilitation",
+          "target_role_ids": [
+            "piezoelectric_textile",
+            "gait_sensing",
+            "stroke_rehabilitation"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "piezoelectric smart insole plantar pressure gait clinical validation",
+          "target_role_ids": [
+            "piezoelectric_textile",
+            "gait_sensing",
+            "pressure_mapping",
+            "wearable_validation"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AB03",
+      "topic": "Enzyme-responsive intelligent food packaging for real-time meat spoilage detection",
+      "roles": {
+        "required": [
+          {
+            "role_id": "enzyme_responsive_indicator",
+            "description": "Evidence that an enzyme-mediated or enzyme-responsive reaction changes a spoilage indicator."
+          },
+          {
+            "role_id": "intelligent_packaging",
+            "description": "Evidence that the indicator is integrated into packaging, a label, or a film."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "meat_spoilage",
+            "description": "Evidence that meat, poultry, fish, or comparable protein-food spoilage is monitored."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "freshness_correlation",
+            "description": "Evidence correlating the signal with microbial load, metabolites, pH, or freshness."
+          },
+          {
+            "role_id": "shelf_life_validation",
+            "description": "Evidence of storage trials, shelf-life tracking, or real-time package validation."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "enzyme responsive intelligent packaging meat spoilage indicator",
+          "target_role_ids": [
+            "enzyme_responsive_indicator",
+            "intelligent_packaging",
+            "meat_spoilage"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "enzymatic freshness label food packaging shelf life microbial correlation",
+          "target_role_ids": [
+            "enzyme_responsive_indicator",
+            "intelligent_packaging",
+            "freshness_correlation",
+            "shelf_life_validation"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AB04",
+      "topic": "Metal-organic-framework adsorption heat pumps for low-grade industrial waste-heat cooling",
+      "roles": {
+        "required": [
+          {
+            "role_id": "metal_organic_framework_adsorbent",
+            "description": "Evidence that a metal-organic framework is the active adsorbent."
+          },
+          {
+            "role_id": "adsorption_heat_pump",
+            "description": "Evidence of an adsorption chiller, heat pump, or thermally driven cooling cycle."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "industrial_waste_heat",
+            "description": "Evidence that low-grade industrial waste heat or process heat drives the system."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "cooling_performance",
+            "description": "Evidence reporting coefficient of performance, cooling capacity, or specific cooling power."
+          },
+          {
+            "role_id": "cyclic_stability",
+            "description": "Evidence reporting adsorption cycling, water stability, or long-term material performance."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "metal organic framework adsorption heat pump industrial waste heat",
+          "target_role_ids": [
+            "metal_organic_framework_adsorbent",
+            "adsorption_heat_pump",
+            "industrial_waste_heat"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "MOF adsorption chiller cooling performance cyclic stability",
+          "target_role_ids": [
+            "metal_organic_framework_adsorbent",
+            "adsorption_heat_pump",
+            "cooling_performance",
+            "cyclic_stability"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AB05",
+      "topic": "Bacteriophage-loaded hydrogels for treating bacterial infections in farmed fish",
+      "roles": {
+        "required": [
+          {
+            "role_id": "bacteriophage_delivery",
+            "description": "Evidence that bacteriophages are delivered as the antibacterial agent."
+          },
+          {
+            "role_id": "hydrogel_carrier",
+            "description": "Evidence that a hydrogel or gel matrix carries or releases the phages."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "aquaculture_infection",
+            "description": "Evidence that a bacterial disease of farmed fish or another aquaculture species is treated."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "pathogen_reduction",
+            "description": "Evidence reporting bacterial-load or disease-severity reduction."
+          },
+          {
+            "role_id": "in_vivo_outcome",
+            "description": "Evidence reporting survival, healing, protection, or another in-vivo outcome."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "bacteriophage hydrogel aquaculture fish bacterial infection treatment",
+          "target_role_ids": [
+            "bacteriophage_delivery",
+            "hydrogel_carrier",
+            "aquaculture_infection"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "phage loaded hydrogel pathogen reduction in vivo survival",
+          "target_role_ids": [
+            "bacteriophage_delivery",
+            "hydrogel_carrier",
+            "pathogen_reduction",
+            "in_vivo_outcome"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AB06",
+      "topic": "Membrane-aerated biofilm reactors for nitrous-oxide mitigation in decentralized wastewater treatment",
+      "roles": {
+        "required": [
+          {
+            "role_id": "membrane_aerated_biofilm_reactor",
+            "description": "Evidence that treatment uses a membrane-aerated biofilm reactor."
+          },
+          {
+            "role_id": "nitrous_oxide_mitigation",
+            "description": "Evidence that nitrous-oxide formation, emission, or consumption is measured or controlled."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "decentralized_wastewater",
+            "description": "Evidence of decentralized, small-scale, onsite, or low-energy wastewater treatment."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "nitrogen_removal",
+            "description": "Evidence reporting nitrification, denitrification, or total-nitrogen removal."
+          },
+          {
+            "role_id": "greenhouse_gas_performance",
+            "description": "Evidence reporting emission factors, dissolved gas, carbon footprint, or mitigation efficiency."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "membrane aerated biofilm reactor nitrous oxide decentralized wastewater",
+          "target_role_ids": [
+            "membrane_aerated_biofilm_reactor",
+            "nitrous_oxide_mitigation",
+            "decentralized_wastewater"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "MABR nitrogen removal nitrous oxide greenhouse gas emissions",
+          "target_role_ids": [
+            "membrane_aerated_biofilm_reactor",
+            "nitrous_oxide_mitigation",
+            "nitrogen_removal",
+            "greenhouse_gas_performance"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AB07",
+      "topic": "Printed perovskite X-ray detectors for low-dose dental imaging",
+      "roles": {
+        "required": [
+          {
+            "role_id": "printed_perovskite_detector",
+            "description": "Evidence that a perovskite X-ray detector is fabricated by printing or another scalable coating process."
+          },
+          {
+            "role_id": "xray_detection",
+            "description": "Evidence of direct or indirect X-ray detection."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "dental_imaging",
+            "description": "Evidence of dental, oral, or comparable low-dose medical imaging."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "low_dose_sensitivity",
+            "description": "Evidence reporting sensitivity, detection limit, dose, or signal-to-noise performance."
+          },
+          {
+            "role_id": "imaging_or_stability",
+            "description": "Evidence of image formation, spatial resolution, operational stability, or repeated exposure."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "printed perovskite X ray detector low dose dental imaging",
+          "target_role_ids": [
+            "printed_perovskite_detector",
+            "xray_detection",
+            "dental_imaging"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "printed perovskite X ray detector sensitivity imaging stability",
+          "target_role_ids": [
+            "printed_perovskite_detector",
+            "xray_detection",
+            "low_dose_sensitivity",
+            "imaging_or_stability"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "AB08",
+      "topic": "Hyperspectral-guided laser weeding robots for selective herbicide-free crop management",
+      "roles": {
+        "required": [
+          {
+            "role_id": "hyperspectral_weed_discrimination",
+            "description": "Evidence that hyperspectral or imaging spectroscopy distinguishes crops from weeds."
+          },
+          {
+            "role_id": "robotic_laser_weeding",
+            "description": "Evidence that a robot or automated platform uses laser energy to control weeds."
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "field_crop_management",
+            "description": "Evidence of field, row-crop, horticultural, or comparable crop-management operation."
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "weed_control_accuracy",
+            "description": "Evidence reporting classification, targeting, or weed-kill performance."
+          },
+          {
+            "role_id": "crop_safety_or_throughput",
+            "description": "Evidence reporting crop damage, treatment speed, energy, or field throughput."
+          }
+        ]
+      },
+      "lanes": [
+        {
+          "lane_id": "technology_scope",
+          "query": "hyperspectral crop weed discrimination robotic laser weeding field",
+          "target_role_ids": [
+            "hyperspectral_weed_discrimination",
+            "robotic_laser_weeding",
+            "field_crop_management"
+          ]
+        },
+        {
+          "lane_id": "technology_evidence",
+          "query": "hyperspectral laser weeding robot targeting accuracy crop damage throughput",
+          "target_role_ids": [
+            "hyperspectral_weed_discrimination",
+            "robotic_laser_weeding",
+            "weed_control_accuracy",
+            "crop_safety_or_throughput"
+          ]
+        }
+      ]
+    }
+  ]
+}
