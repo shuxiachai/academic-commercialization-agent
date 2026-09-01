@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1821 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1837 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -158,6 +158,8 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
                         quote-grounded two-pass set selector; experimental only
   openalex_role_slot.py
                         candidate-local three-pass role-slot consensus; experimental only
+  tools/qwen_role_slot_judge.py
+                        strict one-request Qwen v6 judge; never production imported
   tools/evidence_search.py
                         one-request read-only adapter response contract
   tools/anonymous_openalex_search.py
@@ -173,7 +175,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  102 test modules plus conftest, organised by subject
+tests/                  105 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -219,6 +221,8 @@ openalex_scope_link_abstention_review.py
                         post-outcome W01-W08 label-blind diagnostic; zero-network
 openalex_role_slot_unseen.py
                         frozen Y/Z role-slot identity preflight; zero-network only
+openalex_role_slot_development.py
+                        write-once Y runner; CLI defaults to zero-network dry-run
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -556,28 +560,45 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   and
   `docs/results-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md`.
   See docs/prereg-2026-08-29-openalex-evidence-set-v5.md,
-  A separately pre-registered candidate-local role-slot consensus v6 now starts
-  from new Y01-Y08 development and Z01-Z08 unseen identities; W stays consumed
-  and X stays unopened. The model no longer owns candidate actions or role IDs.
-  It can only fill fixed positional `SUPPORTED`/`ABSTAIN` role slots with exact
-  title-or-abstract quotes. Malformed candidate rows and slots are contained
-  locally, three deterministic candidate orders require two mechanically
-  verified observations per role, and Python alone derives candidate admission
-  plus a maximum-three-source set cover. The zero-network kernel and preflight
-  pass 23/23 focused tests and expand eight provider request identities plus 24
-  judge-template identities per cohort. Three protocol defects were re-injected:
-  whole-batch invalidation erased a valid neighbour, dropping computed supporting
-  roles broke the serialized audit boundary, and the later Sydney calendar date
-  made the same deterministic preflight invalid on the earlier UTC CI date. All
-  three tests failed before the correct implementations were restored. The full
-  zero-network suite passes 1821 tests plus 657 subtests. This phase has no live runner,
-  provider/model adapter, private-label read, OpenAlex or model request, paid
-  call, or production connection. Y01-Y08 and Z01-Z08 therefore remain unused.
-  Implementing a disconnected runner and exact provider contract is a separate
-  later phase; it must preserve the frozen identities and cannot imply semantic
-  validation. See
-  `docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md` and
-  `docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md`.
+  A separately pre-registered candidate-local role-slot consensus v6 starts from
+  new Y01-Y08 development and Z01-Z08 unseen identities; W stays consumed and X
+  stays unopened. The model no longer owns candidate actions or role IDs. It can
+  only fill fixed positional `SUPPORTED`/`ABSTAIN` role slots with exact title-
+  or-abstract quotes. Malformed candidate rows and slots are contained locally,
+  three deterministic candidate orders require two mechanically verified
+  observations per role, and Python alone derives candidate admission plus a
+  maximum-three-source set cover.
+
+  The production-disconnected Y development runner and exact
+  `qwen3.5-plus` one-request adapter are now implemented. A global manifest
+  freezes eight OpenAlex request identities, 24 judge-template identities and
+  12 transitive implementation hashes before client construction. Because exact
+  prompts depend on provider-returned source text, each provider journal and its
+  derived three-request model plan are durable before Qwen construction or a
+  model call. OpenAlex and Qwen have separate request ceilings, soft stops, cost
+  states and write-once journals. No candidate means no model client; a paid
+  malformed semantic object becomes an explicit unavailable pass without repair;
+  any uninspectable potentially spending call cannot become zero cost. Every
+  provider row, model request, candidate row and fixed role slot reaches the final
+  serialized boundary.
+
+  The combined v6 kernel/preflight/adapter/runner subset passes 39/39 tests; the
+  new runner/adapter subset passes 16/16, and the full zero-network suite passes
+  1837 tests plus 657 subtests. Moving manifest persistence after adapter
+  construction and dropping Y08 only from the final aggregate were each
+  re-injected and made their exact seam tests fail before restoration. The
+  default CLI remains zero-network dry-run, `pipeline_worker.py` imports none of
+  v6, and this phase made no OpenAlex or Qwen request, paid call, label read or
+  production connection. Y01-Y08 and Z01-Y08 therefore remain unused. A live Y
+  attempt requires a separate authorization naming an exact merged revision,
+  request ceilings and provider-specific cost stops; Z remains unavailable until
+  every frozen Y gate passes. See
+  `docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md`,
+  `docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md`,
+  `docs/prereg-2026-09-01-openalex-role-slot-consensus-v6-development-runner.md`,
+  `docs/prereg-2026-09-01-openalex-role-slot-consensus-v6-runner-identity-clarification.md`
+  and
+  `docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-runner-implementation.md`.
 
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,

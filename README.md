@@ -828,23 +828,38 @@ disconnected. See the
 [diagnostic plan](docs/prereg-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md)
 and [aggregate result](docs/results-2026-08-31-openalex-evidence-set-v5-qwen-failure-diagnostic.md).
 
-A separately pre-registered **candidate-local role-slot consensus v6** now
-starts from new Y01-Y08 development and Z01-Z08 unseen identities rather than
+A separately pre-registered **candidate-local role-slot consensus v6** starts
+from new Y01-Y08 development and Z01-Z08 unseen identities rather than
 replaying W or opening X. The model has no candidate-action field and cannot
 emit role IDs: it may only fill fixed `SUPPORTED`/`ABSTAIN` slots with exact
 title-or-abstract quotes. Three candidate orders require two mechanically
 verified observations per role; malformed candidates and slots are isolated
 locally, while deterministic Python derives admission and a three-source
-maximum set cover. The zero-network kernel and preflight pass 23/23 focused
-tests and expose 8 provider plus 24 judge-template identities per cohort. Three
-re-injected defects proved that a bad row cannot erase a neighbour, a computed
-role cannot disappear at serialization, and a Sydney freeze remains valid on
-the earlier UTC calendar date. No runner, provider/model adapter, live request,
-private-label read or production connection is included
-yet. See the [v6 pre-registration](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md)
-and [offline implementation result](docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md).
+maximum set cover.
 
-Local verification now passes **1,821 tests plus 657 subtests**, latest Ruff,
+The production-disconnected Y runner and exact `qwen3.5-plus` one-request
+adapter are now implemented. A global write-once manifest freezes 8 OpenAlex
+request identities, 24 judge-template identities and 12 transitive code hashes
+before client construction. Each provider journal and its three exact derived
+model requests are durable before Qwen construction or a model call. Separate
+OpenAlex/Qwen request ceilings, cost states and journals prevent a potentially
+spending uninspectable request from becoming zero cost. Empty provider results
+make no model call, and a paid malformed semantic response becomes an explicit
+unavailable pass without repair. Every provider row, model request, candidate
+row and fixed role slot reaches the final artifact boundary.
+
+The combined v6 subset passes 39/39 focused tests and the new runner/adapter
+subset passes 16/16. Two additional re-injections proved that the manifest must
+precede client construction and that a correctly computed Y08 audit cannot be
+dropped only at the aggregate client artifact. The default CLI remains a
+zero-network dry-run; no live request, private-label read, paid call or
+production connection occurred, so Y01-Y08 and Z01-Z08 remain unused. See the
+[v6 pre-registration](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md),
+[offline implementation result](docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md),
+[runner amendment](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6-development-runner.md)
+and [runner implementation result](docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-runner-implementation.md).
+
+Local verification now passes **1,837 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2068,15 +2083,28 @@ v5：未执行 repair，X01–X08 保持未打开，生产仍断开。详见
 也不能输出 role ID；它只能为固定位置槽位返回 `SUPPORTED`/`ABSTAIN` 和
 标题或摘要原文引文。三种候选顺序要求每个角色至少获得 2 次机械验证支持；
 错误候选行和槽位只在本地隔离，候选准入与最多三来源的集合覆盖完全由 Python
-确定。零网络内核与预检通过 23/23 个定向测试，每个 cohort 展开 8 个供应商
-请求身份和 24 个 Judge 模板身份；三次缺陷回注分别证明坏行不能拖垮相邻行、
-已计算角色不能在序列化时丢失，且悉尼冻结日期在前一日 UTC 环境仍然合法。
-当前尚未实现 runner 与供应商/模型适配层，没有真实请求、私有标签读取或
-生产连接。详见
-[v6 预注册](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md)与
-[离线实现结果](docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md)。
+确定。
 
-本地验证现通过 **1,821 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+生产隔离的 Y 开发运行器与精确 `qwen3.5-plus` 单请求适配器现已实现。全局
+write-once manifest 会在客户端构造前冻结 8 个 OpenAlex 请求身份、24 个 Judge
+模板身份和 12 个传递依赖代码哈希；每个供应商日志与该案例派生出的 3 个精确
+模型请求也会在 Qwen 客户端构造或调用前落盘。OpenAlex 与 Qwen 分别维护请求
+上限、成本状态和日志，任何可能产生费用但不可审计的请求都不能被显示为零成本。
+空检索结果不会构造模型客户端；已付费但语义 JSON 损坏的响应会成为明确的
+不可用 pass，不做 repair。所有供应商行、模型请求、候选行和固定角色槽位均会
+到达最终客户端工件。
+
+v6 内核、预检、适配器与运行器合计通过 39/39 个定向测试，其中新增运行器与
+适配器为 16/16。两次新增缺陷回注证明 manifest 必须先于客户端构造，且内部
+正确计算并写入单案文件的 Y08 不能只在最终聚合中消失。默认 CLI 仍为零网络
+dry-run；本阶段没有真实请求、私有标签读取、付费调用或生产连接，因此
+Y01–Y08 与 Z01–Z08 仍未使用。详见
+[v6 预注册](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6.md)、
+[离线实现结果](docs/results-2026-09-01-openalex-role-slot-consensus-v6-offline.md)、
+[运行器补充预注册](docs/prereg-2026-09-01-openalex-role-slot-consensus-v6-development-runner.md)
+与[运行器实现结果](docs/results-2026-09-01-openalex-role-slot-consensus-v6-development-runner-implementation.md)。
+
+本地验证现通过 **1,837 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
