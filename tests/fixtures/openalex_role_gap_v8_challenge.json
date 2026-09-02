@@ -57,7 +57,7 @@
             "role_id": "enzymatic_pet_depolymerization",
             "description": "Evidence that PET is depolymerized or hydrolyzed through an enzymatic process.",
             "signal_groups": [["PET", "depolymerization"], ["polyethylene terephthalate", "hydrolysis"]],
-            "closure_query": "enzymatic PET depolymerization hydrolysis terephthalate monomer recovery"
+            "closure_query": "enzymatic PET depolymerization hydrolysis terephthalate monomer recovery polyester"
           },
           {
             "role_id": "engineered_pet_hydrolase",
@@ -79,13 +79,13 @@
             "role_id": "monomer_yield",
             "description": "Evidence reporting recovered monomer yield, conversion, or product purity.",
             "signal_groups": [["monomer", "yield"], ["terephthalic acid", "recovery"], ["conversion", "purity"]],
-            "closure_query": "PET hydrolase monomer yield terephthalic acid recovery conversion"
+            "closure_query": "PET hydrolase monomer yield terephthalic acid recovery conversion polyester"
           },
           {
             "role_id": "enzyme_thermal_stability",
             "description": "Evidence reporting hydrolase thermostability or activity at industrially relevant temperature.",
             "signal_groups": [["enzyme", "thermostability"], ["thermal stability", "hydrolase"], ["temperature", "PETase"]],
-            "closure_query": "thermostable PET hydrolase PETase cutinase industrial temperature stability"
+            "closure_query": "thermostable PET hydrolase PETase cutinase industrial temperature stability polyester"
           }
         ]
       }
@@ -450,14 +450,14 @@
       "roles": {
         "required": [
           {"role_id": "polyurethane_depolymerization", "description": "Evidence that polyurethane bonds or networks are depolymerized.", "signal_groups": [["polyurethane", "depolymerization"], ["polyurethane", "hydrolysis"]], "closure_query": "polyurethane enzymatic depolymerization hydrolysis recycling"},
-          {"role_id": "polyurethane_hydrolase", "description": "Evidence that an enzyme, esterase, urethanase, or hydrolase performs degradation.", "signal_groups": [["enzyme", "polyurethane"], ["esterase", "polyurethane"], ["urethanase"]], "closure_query": "polyurethane degrading enzyme esterase urethanase hydrolase"}
+          {"role_id": "polyurethane_hydrolase", "description": "Evidence that an enzyme, esterase, urethanase, or hydrolase performs degradation.", "signal_groups": [["enzyme", "polyurethane"], ["esterase", "polyurethane"], ["urethanase"]], "closure_query": "polyurethane degrading enzyme esterase urethanase hydrolase depolymerization"}
         ],
         "scope": [
           {"role_id": "polyol_reuse", "description": "Evidence that recovered polyols or oligomers are reused in new polymer production.", "signal_groups": [["polyol", "reuse"], ["recovered polyol"], ["polyol", "repolymerization"]], "closure_query": "enzymatic polyurethane recycling recovered polyol reuse repolymerization"}
         ],
         "supporting": [
           {"role_id": "depolymerization_yield", "description": "Evidence reporting mass loss, conversion, product yield, or recovered fraction.", "signal_groups": [["conversion", "yield"], ["mass loss"], ["recovered", "fraction"]], "closure_query": "polyurethane enzyme depolymerization conversion yield recovered products"},
-          {"role_id": "enzyme_durability", "description": "Evidence reporting enzyme stability, reuse, immobilization, or operating temperature.", "signal_groups": [["enzyme stability"], ["enzyme reuse"], ["immobilized", "enzyme"], ["operating temperature"]], "closure_query": "polyurethane hydrolase enzyme stability reuse immobilization temperature"}
+          {"role_id": "enzyme_durability", "description": "Evidence reporting enzyme stability, reuse, immobilization, or operating temperature.", "signal_groups": [["enzyme stability"], ["enzyme reuse"], ["immobilized", "enzyme"], ["operating temperature"]], "closure_query": "polyurethane hydrolase enzyme stability reuse immobilization temperature depolymerization"}
         ]
       }
     },
@@ -537,7 +537,7 @@
         ],
         "supporting": [
           {"role_id": "specific_capacitance", "description": "Evidence reporting capacitance, energy density, power density, or rate performance.", "signal_groups": [["specific capacitance"], ["energy density", "power density"], ["rate performance"]], "closure_query": "lignin carbon supercapacitor specific capacitance energy power density"},
-          {"role_id": "cycling_stability", "description": "Evidence reporting capacitance retention or long-cycle durability.", "signal_groups": [["cycling stability"], ["capacitance retention"], ["cycles", "retention"]], "closure_query": "lignin supercapacitor cycling stability capacitance retention cycles"}
+          {"role_id": "cycling_stability", "description": "Evidence reporting capacitance retention or long-cycle durability.", "signal_groups": [["cycling stability"], ["capacitance retention"], ["cycles", "retention"]], "closure_query": "lignin supercapacitor cycling stability capacitance retention cycles carbon"}
         ]
       }
     },

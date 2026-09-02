@@ -952,7 +952,29 @@ the [human-review pre-registration](docs/prereg-2026-09-02-openalex-role-directe
 the [human-review boundary result](docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md),
 and the [human-review result](docs/results-2026-09-02-openalex-role-directed-v7-human-review.md).
 
-Local verification now passes **1,894 tests plus 657 subtests**, latest Ruff,
+A separately pre-registered **adaptive role-gap v8** now targets the measured
+reason v7 failed: its second fixed lane found useful papers but closed none of
+the three missing role sets. Fresh AC01-AC08 development and AD01-AD08 unseen
+cohorts freeze one anchor plus five mutually exclusive role-closure queries per
+case. After the anchor, a deterministic candidate-local screen may select only
+the first missing role in frozen priority order; if no role is missing it must
+explicitly abstain, so a future case can spend one or two searches but never
+more than two.
+
+The corrected raw-byte-locked preflight exposes 48 potential call identities
+per cohort while capping execution at 16 requests and zero model calls. It
+passes 15/15 focused tests. Cross-candidate phrase pooling and a closure option
+lost only at serialization were each re-injected and made their seam test fail.
+The first preflight also caught six frozen queries that failed the existing
+topic-scope authorization because of lexical variants; the safety rule was not
+weakened, and the narrow pre-provider correction preserves both fixture hashes
+in an erratum. No OpenAlex request, model call, human review or production
+connection has occurred, so routing accuracy and source value remain
+`not_evaluated`. See the [v8 protocol](docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md),
+[query-scope erratum](docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md),
+and [offline result](docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md).
+
+Local verification now passes **1,909 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2271,7 +2293,24 @@ scope/union 混用两次缺陷回注。
 [人工评审边界结果](docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md)
 与[人工评审结果](docs/results-2026-09-02-openalex-role-directed-v7-human-review.md)。
 
-本地验证现通过 **1,894 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+项目又另行预注册了 **adaptive role-gap v8**，直接针对 v7 已测得的失败原因：
+第二条固定检索虽能找到有用论文，却没有补齐三个案例中缺失的角色。全新的
+AC01–AC08 开发集和 AD01–AD08 未见集为每个案例冻结一条 anchor 与五条互斥的
+角色补缺查询。anchor 返回后，确定性的候选内信号检查只能按冻结优先级选择第一
+个缺失角色；若不存在缺口则必须显式弃权，因此未来每个案例只能花费一次或两次
+检索，绝不会超过两次。
+
+修正后按原始字节锁定的预检为每个 cohort 暴露 48 个潜在调用身份，同时把可执行
+请求限制为 16 次、模型调用为 0，15/15 个定向测试通过。跨候选拼接信号词和仅在
+序列化时丢失一个 closure option 两项缺陷均被重新注入，并分别使接缝测试失败。
+第一次预检还发现六条冻结查询因词形差异无法通过既有主题范围授权；项目没有放宽
+安全规则，而是以勘误形式保留修正前后哈希并做最小的供应商调用前修正。目前没有
+发生 OpenAlex 请求、模型调用、人工评审或生产连接，因此路由正确率和来源价值仍为
+`not_evaluated`。详见 [v8 预注册](docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md)、
+[查询范围勘误](docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md)与
+[离线结果](docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md)。
+
+本地验证现通过 **1,909 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始

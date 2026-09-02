@@ -31,8 +31,12 @@ truth, recall, user value, latency SLOs, or autonomous model-written tools.
 
 ## Frozen cohorts
 
-- The raw fixture SHA-256 is
-  `ebdaf5da97a941abf7499b87bfcd3602db117a1be054ed3d13ef4ca3906f88f2`.
+- The authoritative corrected raw fixture SHA-256 is
+  `0be98f249bfd1eaf891cd3c20903b9d6ae4cd2d6431282ee32e82298a2d8ecc7`.
+  The original pre-implementation hash and six topic-scope token corrections
+  are preserved in `errata-2026-09-02-openalex-role-gap-v8-query-scope.md`;
+  no provider request, model call, private label, cohort, role, signal,
+  priority, or gate changed.
 - `AC01`-`AC08` are a new development cohort.
 - `AD01`-`AD08` are a new unopened unseen cohort.
 - The exact topics, role descriptions, candidate-local signal groups, anchor
