@@ -687,22 +687,33 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   reversible ASCII JSON escapes while authoritative UTF-8 artifacts remain
   unchanged. AA is consumed and AB is unopened.
 
-  The separately pre-registered zero-network review boundary now binds the 29
+  The separately pre-registered zero-network review boundary binds the 29
   indexed source files plus the artifact index, independently reconstructs all
   16 lane journals, eight portfolios, 96 provider rows and 79 unique
   candidates, and emits a lane-blind Schema v2 packet. The focused suite passes
   15/15 and the full suite passes 1894 tests plus 657 subtests. Leaking lane
   provenance and calculating scope-only coverage from the two-lane union were
-  each re-injected and made their seam test fail before restoration. The real
-  untouched packet is `incomplete / not_evaluated`: no human value gate has
-  run, AB is still unopened, and production remains disconnected. The next
-  allowed work is one eligible human completion of those exact 79 rows; do not
-  rerun or tune on AA, open AB, or connect production. See
+  each re-injected and made their seam test fail before restoration.
+
+  One eligible human return has now completed all 79 rows. Its initial
+  declaration incorrectly recorded `MOST_OR_ALL`, so the strict first intake
+  was correctly `excluded_substantive_ai / not_evaluated`. The owner later
+  relayed that the judgments were human and that the field was a filling error;
+  the original declaration, excluded result, correction record and corrected
+  declaration are retained privately. No label, role or note changed. The
+  superseding strict result is `complete / fail`: relevant-novel coverage
+  passed at 8/8, candidate-pool precision passed at 37/79 (46.84%), and unique
+  evidence-lane value passed at 7/8; role coverability failed at 5/8 and the
+  union-minus-scope coverability gain failed at 0 rather than at least +2.
+  AA is sealed, AB must remain unopened, and production remains disconnected.
+  Do not rerun or tune on AA, open AB, or connect v7. A future successor needs
+  a new pre-registration and fresh development/unseen cohorts. See
   `docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md`,
   `docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md`,
   `docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md`,
-  `docs/prereg-2026-09-02-openalex-role-directed-v7-human-review.md`, and
-  `docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md`.
+  `docs/prereg-2026-09-02-openalex-role-directed-v7-human-review.md`,
+  `docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md`,
+  and `docs/results-2026-09-02-openalex-role-directed-v7-human-review.md`.
 
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
