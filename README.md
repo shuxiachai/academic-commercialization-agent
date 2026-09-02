@@ -974,7 +974,22 @@ connection has occurred, so routing accuracy and source value remain
 [query-scope erratum](docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md),
 and [offline result](docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md).
 
-Local verification now passes **1,909 tests plus 657 subtests**, latest Ruff,
+The separately pre-registered **v8 AC write-once live runner is now
+implemented but has not been executed against OpenAlex**. Its 19/19 focused
+zero-network tests cover both a complete eight-anchor abstention path and a
+complete sixteen-request closure path. The manifest precedes adapter
+construction; each anchor journal precedes routing; each complete route
+precedes an optional closure; and each portfolio precedes the next case.
+Provider rows, all five role observations, the selected closure identity,
+deduplication lineage, cost, latency, and blank candidate/case review seams are
+content-addressed. Moving the manifest after client construction and dropping
+one route only at the aggregate boundary were separately re-injected and made
+the relevant tests fail. AC remains unopened, AD remains unseen, and provider
+compatibility, routing accuracy, and source value remain `not_evaluated`. See
+the [live-runner amendment](docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md)
+and [implementation result](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md).
+
+Local verification now passes **1,928 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2310,7 +2325,18 @@ AC01–AC08 开发集和 AD01–AD08 未见集为每个案例冻结一条 anchor
 [查询范围勘误](docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md)与
 [离线结果](docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md)。
 
-本地验证现通过 **1,909 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+另行预注册的 **v8 AC 写一次 live runner 已完成实现，但尚未对 OpenAlex 执行**。
+19/19 个定向零网络测试同时覆盖了仅用八次 anchor 并全部弃权的完整路径，以及八个
+案例均触发 closure、共十六次请求的完整路径。manifest 必须先于 adapter 构造，
+anchor journal 必须先于路由，完整 route 必须先于可选 closure，每个 portfolio
+必须先于下一案例。provider 行、五项角色观察、所选 closure 身份、去重谱系、成本、
+时延以及候选和案例两类空白人工评审接缝均被内容寻址。将 manifest 移到 client
+构造之后、以及仅在聚合边界丢失一项 route 两个缺陷均被重新注入，并使对应测试
+失败。AC 仍未打开、AD 仍保持未见，供应商兼容性、路由正确率和来源价值均为
+`not_evaluated`。详见 [live runner 补充预注册](docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md)
+与[实现结果](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md)。
+
+本地验证现通过 **1,928 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始

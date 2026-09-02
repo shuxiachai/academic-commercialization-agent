@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1909 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1928 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -231,6 +231,10 @@ openalex_role_directed_live.py
                         write-once AA v7 runner; CLI defaults to zero-network
 openalex_role_directed_review.py
                         exact AA source lock, lane-blind packet + five-gate review
+openalex_role_gap_unseen.py
+                        frozen AC/AD adaptive role-gap identities and router
+openalex_role_gap_live.py
+                        write-once AC adaptive runner; defaults to zero-network
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -733,15 +737,33 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   retained; a narrow pre-provider erratum appended one existing topic token to
   each query and preserves both fixture hashes. Cross-candidate phrase pooling
   and dropping one valid closure only at serialization were separately
-  re-injected and made their seam tests fail before restoration. AC and AD
-  remain unopened; provider compatibility, routing correctness, source value,
-  role coverability and report value are `not_evaluated`. Do not build or run a
-  live AC harness without a separate identity-locked runner and explicit owner
-  authorization, do not open AD before AC passes every frozen gate, and do not
-  connect v8 to production. See
+  re-injected and made their seam tests fail before restoration.
+
+  The separately pre-registered, production-disconnected AC write-once runner
+  is now implemented. Its default CLI path remains zero-network. It locks the
+  fixture and six behavior dependencies before output reservation, persists
+  the complete manifest before adapter construction, the anchor journal before
+  routing, the full five-observation route before an optional closure, and the
+  case portfolio before the next case. Both eight-anchor no-gap completion and
+  sixteen-request closure completion pass in injected tests. Every provider
+  row, rejection, route decision, selected closure, occurrence, deduplication
+  owner, cost and latency reaches content-addressed aggregate and blank-review
+  boundaries. The runner/review seams pass 19/19 focused tests, and the full
+  suite passes 1928 tests plus 657 subtests. Moving manifest persistence after
+  adapter construction and dropping one route only at serialization were
+  separately re-injected and made their tests fail before restoration.
+
+  AC and AD remain unopened; provider compatibility, routing correctness,
+  source value, role coverability and report value are `not_evaluated`. Do not
+  execute AC without separate owner authorization naming the exact merged
+  revision, fixture hash, at most sixteen sequential anonymous OpenAlex
+  requests and a soft stop no greater than USD 0.02. Do not open AD before AC
+  passes every frozen gate, and do not connect v8 to production. See
   `docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md`,
-  `docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md`, and
-  `docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md`.
+  `docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md`,
+  `docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md`,
+  `docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`, and
+  `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`.
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
