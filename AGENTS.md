@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1879 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1894 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -229,6 +229,8 @@ openalex_role_directed_unseen.py
                         frozen AA/AB two-lane v7 preflight; zero-network only
 openalex_role_directed_live.py
                         write-once AA v7 runner; CLI defaults to zero-network
+openalex_role_directed_review.py
+                        exact AA source lock, lane-blind packet + five-gate review
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -683,15 +685,24 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   stdout failed on U+2022 in one title. AA was not rerun: a zero-network test
   reproduced the original exception, and only the stdout projection now uses
   reversible ASCII JSON escapes while authoritative UTF-8 artifacts remain
-  unchanged. AA is consumed, AB is unopened, human review is not prepared,
-  candidate value remains `not_evaluated`, and production Tool Calling remains
-  disconnected. The next allowed work is an exact source lock and eligible
-  label-blind human review; do not rerun or tune on AA, open AB, or connect
-  production. See
+  unchanged. AA is consumed and AB is unopened.
+
+  The separately pre-registered zero-network review boundary now binds the 29
+  indexed source files plus the artifact index, independently reconstructs all
+  16 lane journals, eight portfolios, 96 provider rows and 79 unique
+  candidates, and emits a lane-blind Schema v2 packet. The focused suite passes
+  15/15 and the full suite passes 1894 tests plus 657 subtests. Leaking lane
+  provenance and calculating scope-only coverage from the two-lane union were
+  each re-injected and made their seam test fail before restoration. The real
+  untouched packet is `incomplete / not_evaluated`: no human value gate has
+  run, AB is still unopened, and production remains disconnected. The next
+  allowed work is one eligible human completion of those exact 79 rows; do not
+  rerun or tune on AA, open AB, or connect production. See
   `docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md`,
   `docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md`,
-  and
-  `docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md`.
+  `docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md`,
+  `docs/prereg-2026-09-02-openalex-role-directed-v7-human-review.md`, and
+  `docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md`.
 
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,

@@ -923,18 +923,23 @@ production/report/Planner/recovery connection occurred.
 After every artifact had committed, the final Windows GBK stdout projection
 failed on a U+2022 provider-title character. AA was not rerun: a zero-network
 regression reproduced the exception, and stdout now uses reversible ASCII JSON
-escapes while authoritative artifacts retain original UTF-8. AA is consumed,
-AB remains unopened, and candidate value remains `not_evaluated` until an exact
-source lock and eligible human review apply all five frozen gates. Production
-Tool Calling remains disconnected. See the
+escapes while authoritative artifacts retain original UTF-8. AA is consumed
+and AB remains unopened. A separately pre-registered zero-network review
+boundary has since bound all 30 source files, independently reconstructed all
+79 candidates, and produced a lane-blind Schema v2 packet. Its untouched
+preflight is `incomplete / not_evaluated`: no human gate has been measured and
+production Tool Calling remains disconnected. The focused review suite passes
+15/15, including re-injected lane-leak and scope/union defects. See the
 [v7 pre-registration](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md),
 [pre-provider AB05 erratum](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md),
 the [offline implementation result](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md),
 the [live-runner pre-registration](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md),
 the [live-runner implementation result](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md),
-and the [AA live result](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md).
+the [AA live result](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md),
+the [human-review pre-registration](docs/prereg-2026-09-02-openalex-role-directed-v7-human-review.md),
+and the [human-review boundary result](docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md).
 
-Local verification now passes **1,879 tests plus 657 subtests**, latest Ruff,
+Local verification now passes **1,894 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2228,17 +2233,22 @@ metrics 缺失，4 个核心来源哈希与 56 份索引工件全部一致，且
 
 全部工件提交后，Windows GBK stdout 因供应商标题中的 U+2022 字符在最终打印
 阶段报错。项目没有重跑 AA：零网络回归测试复现了异常，stdout 改用可逆 ASCII
-JSON 转义，而权威工件仍保留原始 UTF-8。AA 现已消费，AB 保持未打开；在精确
-source lock 与合格人工评审应用全部五项冻结门槛前，候选价值仍为
-`not_evaluated`，生产 Tool Calling 继续断开。详见
+JSON 转义，而权威工件仍保留原始 UTF-8。AA 现已消费，AB 保持未打开。随后另行
+预注册并完成的零网络评审边界锁定全部 30 个源文件，独立重构全部 79 条候选，
+并生成隐藏检索 lane 的 Schema v2 盲评包。未填写包的严格状态为
+`incomplete / not_evaluated`：尚未衡量任何人工门槛，生产 Tool Calling 继续
+断开。15/15 个定向测试通过，并完成 lane 泄漏与 scope/union 混用两次缺陷
+回注。详见
 [v7 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md)、
 [AB05 供应商调用前勘误](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md)、
 [离线实现结果](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md)、
 [live runner 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md)、
-[live runner 实现结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md)
-与[AA 真实运行结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md)。
+[live runner 实现结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md)、
+[AA 真实运行结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md)、
+[人工评审预注册](docs/prereg-2026-09-02-openalex-role-directed-v7-human-review.md)
+与[人工评审边界结果](docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md)。
 
-本地验证现通过 **1,879 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+本地验证现通过 **1,894 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
