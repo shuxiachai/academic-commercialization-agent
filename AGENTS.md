@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1894 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1909 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -175,7 +175,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  106 test modules plus conftest, organised by subject
+tests/                  107 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -715,6 +715,33 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md`,
   and `docs/results-2026-09-02-openalex-role-directed-v7-human-review.md`.
 
+
+  A separately pre-registered adaptive role-gap closure v8 now targets the
+  measured v7 failure instead of adding a third fixed broad query. Fresh
+  AC01-AC08 development and AD01-AD08 unseen cohorts each freeze one anchor
+  query, five candidate-local role-signal portfolios, one closure priority and
+  five mutually exclusive role-bound closure queries. The router may select
+  only the first mechanically missing role in frozen priority order, or emit
+  `abstain_no_mechanical_role_gap`; a future case can execute at most one
+  anchor and one closure request, with no model-written query.
+
+  The raw-byte-locked zero-network preflight is implemented and passes 15/15
+  focused tests. It exposes 48 potential call identities per cohort while
+  capping future execution at 16 requests and zero model calls. The first run
+  stopped because six closure queries failed the existing two-token topic-
+  scope authorization through lexical inflection. The authorization rule was
+  retained; a narrow pre-provider erratum appended one existing topic token to
+  each query and preserves both fixture hashes. Cross-candidate phrase pooling
+  and dropping one valid closure only at serialization were separately
+  re-injected and made their seam tests fail before restoration. AC and AD
+  remain unopened; provider compatibility, routing correctness, source value,
+  role coverability and report value are `not_evaluated`. Do not build or run a
+  live AC harness without a separate identity-locked runner and explicit owner
+  authorization, do not open AD before AC passes every frozen gate, and do not
+  connect v8 to production. See
+  `docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md`,
+  `docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md`, and
+  `docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md`.
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
@@ -723,7 +750,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   and
   docs/results-2026-08-30-openalex-evidence-set-v5-provider-contract-amendment-implementation.md.
   Keep
-  `pipeline_worker.py` disconnected from the executor, adapters, v2/v3/v4/v5/v6/v7
+  `pipeline_worker.py` disconnected from the executor, adapters,
+  v2/v3/v4/v5/v6/v7/v8
   candidates, live runners and review modules.
   See `docs/results-2026-08-25-evidence-gap-tool-execution-phase2.md`,
   `docs/results-2026-08-25-evidence-gap-live-adapter-phase3-implementation.md`,
