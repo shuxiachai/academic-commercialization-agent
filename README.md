@@ -925,11 +925,23 @@ failed on a U+2022 provider-title character. AA was not rerun: a zero-network
 regression reproduced the exception, and stdout now uses reversible ASCII JSON
 escapes while authoritative artifacts retain original UTF-8. AA is consumed
 and AB remains unopened. A separately pre-registered zero-network review
-boundary has since bound all 30 source files, independently reconstructed all
-79 candidates, and produced a lane-blind Schema v2 packet. Its untouched
-preflight is `incomplete / not_evaluated`: no human gate has been measured and
-production Tool Calling remains disconnected. The focused review suite passes
-15/15, including re-injected lane-leak and scope/union defects. See the
+boundary then bound all 30 source files, independently reconstructed all 79
+candidates, and produced a lane-blind Schema v2 packet. Its blank preflight was
+`incomplete / not_evaluated`, and the focused suite passes 15/15, including
+re-injected lane-leak and scope/union defects.
+
+One eligible human return has now completed all 79 rows. The first declaration
+mistakenly recorded substantive AI use, so the unchanged strict intake correctly
+excluded it and ran no gate. After the owner relayed that the judgments were
+human and the field was a filling error, the original declaration and excluded
+result were retained privately and a corrected `NONE` declaration was evaluated.
+Thirty-seven of 79 candidates were directly relevant and baseline-novel. Three
+of five frozen gates passed: relevant-novel coverage was 8/8, candidate-pool
+precision was 46.84%, and the evidence lane contributed unique relevant material
+in 7/8 cases. The result still failed because only 5/8 cases were role-coverable
+and union coverage improved on scope-only coverage by 0 cases rather than the
+required +2. The strict result is `complete / fail`; AA is sealed, AB remains
+unopened, and production Tool Calling remains disconnected. See the
 [v7 pre-registration](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md),
 [pre-provider AB05 erratum](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md),
 the [offline implementation result](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md),
@@ -937,7 +949,8 @@ the [live-runner pre-registration](docs/prereg-2026-09-01-openalex-role-directed
 the [live-runner implementation result](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md),
 the [AA live result](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md),
 the [human-review pre-registration](docs/prereg-2026-09-02-openalex-role-directed-v7-human-review.md),
-and the [human-review boundary result](docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md).
+the [human-review boundary result](docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md),
+and the [human-review result](docs/results-2026-09-02-openalex-role-directed-v7-human-review.md).
 
 Local verification now passes **1,894 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
@@ -2235,18 +2248,28 @@ metrics 缺失，4 个核心来源哈希与 56 份索引工件全部一致，且
 阶段报错。项目没有重跑 AA：零网络回归测试复现了异常，stdout 改用可逆 ASCII
 JSON 转义，而权威工件仍保留原始 UTF-8。AA 现已消费，AB 保持未打开。随后另行
 预注册并完成的零网络评审边界锁定全部 30 个源文件，独立重构全部 79 条候选，
-并生成隐藏检索 lane 的 Schema v2 盲评包。未填写包的严格状态为
-`incomplete / not_evaluated`：尚未衡量任何人工门槛，生产 Tool Calling 继续
-断开。15/15 个定向测试通过，并完成 lane 泄漏与 scope/union 混用两次缺陷
-回注。详见
+并生成隐藏检索 lane 的 Schema v2 盲评包。空白预检状态为
+`incomplete / not_evaluated`；15/15 个定向测试通过，并完成 lane 泄漏与
+scope/union 混用两次缺陷回注。
+
+现已有一名合格人工评审者完成 79/79 条。首次返还声明误填为使用实质 AI，因此
+未改动的严格入口正确给出 `excluded_substantive_ai / not_evaluated`，五门均未
+运行；项目所有者随后转述确认判断均由人工完成、该字段属于填写错误。原始声明与
+排除结果在私有审计链中保留，更正为 `NONE` 后才重新评估。79 条中 37 条被判为
+直接相关且为基线外信息。五门通过三门：基线外相关案例 8/8、候选池相关率
+46.84%、evidence lane 在 7/8 个案例提供独有相关材料；但最多三来源的角色完整
+覆盖只有 5/8，且 union 相比 scope-only 的覆盖提升为 0 而不是要求的至少 +2。
+严格结论为 `complete / fail`；AA 封存、AB 不得打开，生产 Tool Calling 继续
+断开。详见
 [v7 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7.md)、
 [AB05 供应商调用前勘误](docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md)、
 [离线实现结果](docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md)、
 [live runner 预注册](docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md)、
 [live runner 实现结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md)、
 [AA 真实运行结果](docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md)、
-[人工评审预注册](docs/prereg-2026-09-02-openalex-role-directed-v7-human-review.md)
-与[人工评审边界结果](docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md)。
+[人工评审预注册](docs/prereg-2026-09-02-openalex-role-directed-v7-human-review.md)、
+[人工评审边界结果](docs/results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md)
+与[人工评审结果](docs/results-2026-09-02-openalex-role-directed-v7-human-review.md)。
 
 本地验证现通过 **1,894 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
