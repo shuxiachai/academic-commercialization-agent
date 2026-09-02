@@ -1,0 +1,608 @@
+{
+  "schema_version": 1,
+  "method_id": "openalex-adaptive-role-gap-closure-v8",
+  "provider_contract": {
+    "provider": "anonymous_openalex",
+    "maximum_requests_per_case": 2,
+    "result_limit_per_request": 6,
+    "require_abstract": true,
+    "allow_redirects": false,
+    "allow_retries": false
+  },
+  "routing_contract": {
+    "anchor_lane_id": "anchor_search",
+    "closure_lane_id": "role_closure",
+    "candidate_local_signals": true,
+    "group_match_requires_all_phrases": true,
+    "provider_metadata_may_establish_role": false,
+    "missing_role_tiebreak": "frozen_case_priority",
+    "closure_query_must_be_frozen": true,
+    "maximum_closure_calls": 1,
+    "stop_when_no_gap": true
+  },
+  "portfolio_contract": {
+    "deduplicate_by": [
+      "normalized_doi",
+      "canonical_openalex_url"
+    ],
+    "preserve_route_provenance": true,
+    "preserve_provider_rank": true,
+    "maximum_unique_candidates_per_case": 12,
+    "maximum_cover_sources_per_case": 3,
+    "semantic_filter_before_human_qualification": false
+  },
+  "qualification_contract": {
+    "minimum_cases_with_relevant_novel_candidate": 6,
+    "minimum_candidate_pool_precision": 0.25,
+    "minimum_human_correct_routing_decisions": 6,
+    "minimum_cases_with_selected_role_closure_value": 4,
+    "minimum_human_coverable_cases": 6,
+    "minimum_coverability_gain_over_anchor": 2
+  },
+  "development_cases": [
+    {
+      "case_id": "AC01",
+      "topic": "Engineered PET hydrolases for closed-loop recycling of polyester textile waste",
+      "anchor_query": "engineered PET hydrolase enzymatic depolymerization polyester textile waste",
+      "closure_priority_role_ids": [
+        "engineered_pet_hydrolase",
+        "polyester_textile_waste",
+        "enzyme_thermal_stability",
+        "enzymatic_pet_depolymerization",
+        "monomer_yield"
+      ],
+      "roles": {
+        "required": [
+          {
+            "role_id": "enzymatic_pet_depolymerization",
+            "description": "Evidence that PET is depolymerized or hydrolyzed through an enzymatic process.",
+            "signal_groups": [["PET", "depolymerization"], ["polyethylene terephthalate", "hydrolysis"]],
+            "closure_query": "enzymatic PET depolymerization hydrolysis terephthalate monomer recovery"
+          },
+          {
+            "role_id": "engineered_pet_hydrolase",
+            "description": "Evidence that an engineered PETase, cutinase, or related PET hydrolase performs the reaction.",
+            "signal_groups": [["engineered", "PETase"], ["engineered", "cutinase"], ["PET hydrolase", "mutant"]],
+            "closure_query": "engineered PETase cutinase PET hydrolase mutant polyester degradation"
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "polyester_textile_waste",
+            "description": "Evidence that polyester textiles, fabric, fibres, or textile waste are treated.",
+            "signal_groups": [["polyester", "textile"], ["PET", "fabric"], ["polyester", "fiber"]],
+            "closure_query": "enzymatic recycling polyester textile waste PET fabric hydrolase"
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "monomer_yield",
+            "description": "Evidence reporting recovered monomer yield, conversion, or product purity.",
+            "signal_groups": [["monomer", "yield"], ["terephthalic acid", "recovery"], ["conversion", "purity"]],
+            "closure_query": "PET hydrolase monomer yield terephthalic acid recovery conversion"
+          },
+          {
+            "role_id": "enzyme_thermal_stability",
+            "description": "Evidence reporting hydrolase thermostability or activity at industrially relevant temperature.",
+            "signal_groups": [["enzyme", "thermostability"], ["thermal stability", "hydrolase"], ["temperature", "PETase"]],
+            "closure_query": "thermostable PET hydrolase PETase cutinase industrial temperature stability"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "AC02",
+      "topic": "Cell-free enzyme cascades for biosynthesis of rare plant alkaloids",
+      "anchor_query": "cell free enzyme cascade biosynthesis rare plant alkaloid",
+      "closure_priority_role_ids": [
+        "rare_plant_alkaloid",
+        "cell_free_biosynthesis",
+        "enzyme_cascade",
+        "product_titer",
+        "pathway_scalability"
+      ],
+      "roles": {
+        "required": [
+          {
+            "role_id": "cell_free_biosynthesis",
+            "description": "Evidence that the target molecule is produced in a cell-free biosynthetic system.",
+            "signal_groups": [["cell free", "biosynthesis"], ["in vitro", "biocatalysis"]],
+            "closure_query": "cell free biosynthesis in vitro biocatalysis plant natural product"
+          },
+          {
+            "role_id": "enzyme_cascade",
+            "description": "Evidence that two or more enzymes form a reaction cascade or reconstructed pathway.",
+            "signal_groups": [["enzyme cascade"], ["multi enzyme", "pathway"], ["enzymatic cascade"]],
+            "closure_query": "multi enzyme cascade reconstructed pathway cell free alkaloid synthesis"
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "rare_plant_alkaloid",
+            "description": "Evidence that a scarce or high-value plant alkaloid is the target product.",
+            "signal_groups": [["plant", "alkaloid"], ["benzylisoquinoline", "alkaloid"], ["tropane", "alkaloid"]],
+            "closure_query": "cell free synthesis rare plant alkaloid benzylisoquinoline tropane"
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "product_titer",
+            "description": "Evidence reporting product titre, yield, conversion, or productivity.",
+            "signal_groups": [["titer"], ["titre"], ["productivity"], ["yield"]],
+            "closure_query": "cell free alkaloid synthesis titer yield productivity enzyme cascade"
+          },
+          {
+            "role_id": "pathway_scalability",
+            "description": "Evidence addressing scale-up, enzyme reuse, cofactor regeneration, or continuous operation.",
+            "signal_groups": [["scale up"], ["cofactor regeneration"], ["enzyme reuse"], ["continuous", "operation"]],
+            "closure_query": "cell free enzyme cascade scale up cofactor regeneration continuous production"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "AC03",
+      "topic": "Gas-diffusion flow cells for electrochemical carbon dioxide conversion to ethylene",
+      "anchor_query": "gas diffusion electrode flow cell electrochemical carbon dioxide ethylene",
+      "closure_priority_role_ids": [
+        "gas_diffusion_electrode",
+        "flow_cell_operation",
+        "long_term_stability",
+        "co2_to_ethylene",
+        "faradaic_efficiency"
+      ],
+      "roles": {
+        "required": [
+          {
+            "role_id": "co2_to_ethylene",
+            "description": "Evidence that electrochemical carbon dioxide reduction produces ethylene.",
+            "signal_groups": [["carbon dioxide", "ethylene"], ["CO2 reduction", "C2H4"]],
+            "closure_query": "electrochemical CO2 reduction ethylene C2H4 copper catalyst"
+          },
+          {
+            "role_id": "gas_diffusion_electrode",
+            "description": "Evidence that a gas-diffusion electrode or gas-fed cathode is used.",
+            "signal_groups": [["gas diffusion electrode"], ["gas fed", "cathode"]],
+            "closure_query": "gas diffusion electrode gas fed cathode CO2 ethylene electrolysis"
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "flow_cell_operation",
+            "description": "Evidence that conversion operates in a flow cell, membrane-electrode assembly, or continuous reactor.",
+            "signal_groups": [["flow cell"], ["membrane electrode assembly"], ["continuous", "electrolyzer"]],
+            "closure_query": "CO2 ethylene flow cell membrane electrode assembly continuous electrolyzer"
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "faradaic_efficiency",
+            "description": "Evidence reporting ethylene Faradaic efficiency, current density, or selectivity.",
+            "signal_groups": [["faradaic efficiency"], ["current density", "ethylene"], ["ethylene", "selectivity"]],
+            "closure_query": "CO2 ethylene Faradaic efficiency current density selectivity flow cell"
+          },
+          {
+            "role_id": "long_term_stability",
+            "description": "Evidence reporting multi-hour stability, durability, flooding, or carbonate management.",
+            "signal_groups": [["long term", "stability"], ["hours", "stable"], ["electrode flooding"], ["carbonate", "durability"]],
+            "closure_query": "CO2 ethylene flow cell long term stability flooding carbonate durability"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "AC04",
+      "topic": "Microneedle patches for continuous glucose monitoring in interstitial fluid",
+      "anchor_query": "microneedle patch glucose sensor continuous interstitial fluid monitoring",
+      "closure_priority_role_ids": [
+        "interstitial_fluid_monitoring",
+        "microneedle_sensor",
+        "wear_duration",
+        "glucose_detection",
+        "analytical_accuracy"
+      ],
+      "roles": {
+        "required": [
+          {
+            "role_id": "microneedle_sensor",
+            "description": "Evidence that a microneedle array or patch performs sensing or sampling.",
+            "signal_groups": [["microneedle", "sensor"], ["microneedle", "patch"]],
+            "closure_query": "microneedle array patch biosensor glucose minimally invasive"
+          },
+          {
+            "role_id": "glucose_detection",
+            "description": "Evidence that glucose concentration is measured.",
+            "signal_groups": [["glucose", "detection"], ["glucose", "sensor"], ["glucose", "monitoring"]],
+            "closure_query": "microneedle glucose detection biosensor continuous monitoring"
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "interstitial_fluid_monitoring",
+            "description": "Evidence that measurements use interstitial fluid in vivo or through skin.",
+            "signal_groups": [["interstitial fluid"], ["dermal", "fluid"], ["in vivo", "microneedle"]],
+            "closure_query": "microneedle glucose interstitial fluid in vivo transdermal monitoring"
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "analytical_accuracy",
+            "description": "Evidence reporting accuracy, sensitivity, detection range, or correlation with blood glucose.",
+            "signal_groups": [["accuracy"], ["sensitivity"], ["detection range"], ["blood glucose", "correlation"]],
+            "closure_query": "microneedle glucose sensor accuracy sensitivity blood correlation"
+          },
+          {
+            "role_id": "wear_duration",
+            "description": "Evidence of continuous, repeated, or multi-hour wearable operation.",
+            "signal_groups": [["continuous", "hours"], ["wearable", "monitoring"], ["long term", "microneedle"]],
+            "closure_query": "wearable microneedle glucose continuous hours long term operation"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "AC05",
+      "topic": "Fungal mycelium composite insulation panels for humid building envelopes",
+      "anchor_query": "mycelium composite thermal insulation panel humid building envelope",
+      "closure_priority_role_ids": [
+        "humid_building_envelope",
+        "moisture_resistance",
+        "mycelium_composite",
+        "thermal_insulation",
+        "fire_or_mechanical_performance"
+      ],
+      "roles": {
+        "required": [
+          {
+            "role_id": "mycelium_composite",
+            "description": "Evidence that fungal mycelium binds or forms a bio-based composite material.",
+            "signal_groups": [["mycelium", "composite"], ["fungal", "composite"]],
+            "closure_query": "fungal mycelium bio composite panel material"
+          },
+          {
+            "role_id": "thermal_insulation",
+            "description": "Evidence that the material provides thermal insulation or low thermal conductivity.",
+            "signal_groups": [["thermal insulation"], ["thermal conductivity"], ["insulation", "panel"]],
+            "closure_query": "mycelium composite thermal insulation conductivity building panel"
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "humid_building_envelope",
+            "description": "Evidence of wall, roof, facade, or building-envelope use under humid or wet conditions.",
+            "signal_groups": [["building envelope", "humidity"], ["wall", "moisture"], ["facade", "humid"]],
+            "closure_query": "mycelium insulation building envelope wall humidity moisture"
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "moisture_resistance",
+            "description": "Evidence reporting water absorption, humidity response, dimensional stability, or fungal durability.",
+            "signal_groups": [["water absorption"], ["moisture resistance"], ["relative humidity", "stability"]],
+            "closure_query": "mycelium composite water absorption moisture resistance humidity durability"
+          },
+          {
+            "role_id": "fire_or_mechanical_performance",
+            "description": "Evidence reporting fire reaction, compressive strength, flexural strength, or structural integrity.",
+            "signal_groups": [["fire resistance"], ["compressive strength"], ["flexural strength"], ["mechanical", "performance"]],
+            "closure_query": "mycelium insulation panel fire resistance compressive mechanical performance"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "AC06",
+      "topic": "Manganese-oxide ion sieves for direct lithium extraction from geothermal brines",
+      "anchor_query": "manganese oxide ion sieve direct lithium extraction geothermal brine",
+      "closure_priority_role_ids": [
+        "manganese_oxide_ion_sieve",
+        "geothermal_brine",
+        "sorbent_regeneration",
+        "lithium_extraction",
+        "lithium_selectivity"
+      ],
+      "roles": {
+        "required": [
+          {
+            "role_id": "manganese_oxide_ion_sieve",
+            "description": "Evidence that a manganese-oxide lithium ion sieve or related spinel sorbent is used.",
+            "signal_groups": [["manganese oxide", "ion sieve"], ["lithium manganese oxide", "sorbent"]],
+            "closure_query": "manganese oxide lithium ion sieve spinel sorbent extraction"
+          },
+          {
+            "role_id": "lithium_extraction",
+            "description": "Evidence that lithium is adsorbed, extracted, recovered, or concentrated.",
+            "signal_groups": [["lithium", "extraction"], ["lithium", "recovery"], ["lithium", "adsorption"]],
+            "closure_query": "ion sieve lithium extraction adsorption recovery brine"
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "geothermal_brine",
+            "description": "Evidence that geothermal water or a comparable high-salinity natural brine is treated.",
+            "signal_groups": [["geothermal", "brine"], ["geothermal water", "lithium"], ["natural brine", "lithium"]],
+            "closure_query": "manganese ion sieve lithium geothermal brine geothermal water"
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "lithium_selectivity",
+            "description": "Evidence reporting lithium selectivity over magnesium, sodium, calcium, or potassium.",
+            "signal_groups": [["lithium selectivity"], ["selective", "magnesium"], ["separation factor", "lithium"]],
+            "closure_query": "manganese ion sieve lithium selectivity magnesium separation factor"
+          },
+          {
+            "role_id": "sorbent_regeneration",
+            "description": "Evidence reporting desorption, regeneration cycles, acid elution, or retained capacity.",
+            "signal_groups": [["sorbent regeneration"], ["desorption", "cycles"], ["acid elution"], ["capacity retention"]],
+            "closure_query": "lithium ion sieve regeneration desorption cycles acid elution capacity"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "AC07",
+      "topic": "CRISPR diagnostics for rapid detection of antimicrobial-resistance genes in wastewater",
+      "anchor_query": "CRISPR diagnostic antimicrobial resistance gene wastewater rapid detection",
+      "closure_priority_role_ids": [
+        "wastewater",
+        "crispr_diagnostic",
+        "amr_gene_detection",
+        "rapid_field_operation",
+        "limit_of_detection"
+      ],
+      "roles": {
+        "required": [
+          {
+            "role_id": "crispr_diagnostic",
+            "description": "Evidence that CRISPR-Cas collateral cleavage or sequence recognition is used for detection.",
+            "signal_groups": [["CRISPR", "detection"], ["Cas12", "diagnostic"], ["Cas13", "diagnostic"]],
+            "closure_query": "CRISPR Cas12 Cas13 diagnostic nucleic acid detection"
+          },
+          {
+            "role_id": "amr_gene_detection",
+            "description": "Evidence that antimicrobial-resistance genes or determinants are detected.",
+            "signal_groups": [["antimicrobial resistance", "gene"], ["antibiotic resistance", "gene"], ["AMR", "detection"]],
+            "closure_query": "CRISPR antimicrobial resistance gene antibiotic resistance detection"
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "wastewater",
+            "description": "Evidence that municipal, hospital, agricultural, or environmental wastewater is sampled.",
+            "signal_groups": [["wastewater"], ["sewage"], ["waste water"]],
+            "closure_query": "CRISPR AMR gene detection wastewater sewage environmental sample"
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "limit_of_detection",
+            "description": "Evidence reporting detection limit, sensitivity, specificity, or analytical recovery.",
+            "signal_groups": [["limit of detection"], ["sensitivity", "specificity"], ["detection limit"]],
+            "closure_query": "CRISPR AMR diagnostic limit of detection sensitivity specificity"
+          },
+          {
+            "role_id": "rapid_field_operation",
+            "description": "Evidence of rapid, portable, point-of-use, or field-compatible operation.",
+            "signal_groups": [["rapid", "detection"], ["point of care"], ["portable", "assay"], ["field", "detection"]],
+            "closure_query": "portable rapid CRISPR AMR assay field wastewater detection"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "AC08",
+      "topic": "Prussian-blue-analogue sodium-ion cathodes for stationary energy storage",
+      "anchor_query": "Prussian blue analogue cathode sodium ion battery stationary storage",
+      "closure_priority_role_ids": [
+        "stationary_energy_storage",
+        "prussian_blue_cathode",
+        "cycle_life",
+        "sodium_ion_battery",
+        "energy_density"
+      ],
+      "roles": {
+        "required": [
+          {
+            "role_id": "prussian_blue_cathode",
+            "description": "Evidence that a Prussian blue or Prussian blue analogue is used as the cathode.",
+            "signal_groups": [["Prussian blue", "cathode"], ["Prussian blue analogue", "positive electrode"]],
+            "closure_query": "Prussian blue analogue cathode positive electrode sodium battery"
+          },
+          {
+            "role_id": "sodium_ion_battery",
+            "description": "Evidence that the electrochemical cell is a sodium-ion battery.",
+            "signal_groups": [["sodium ion battery"], ["sodium ion", "cell"]],
+            "closure_query": "Prussian blue sodium ion battery cell cathode"
+          }
+        ],
+        "scope": [
+          {
+            "role_id": "stationary_energy_storage",
+            "description": "Evidence of grid, stationary, renewable-integration, or long-duration storage use.",
+            "signal_groups": [["stationary", "storage"], ["grid", "storage"], ["renewable", "storage"]],
+            "closure_query": "sodium ion Prussian blue stationary grid energy storage application"
+          }
+        ],
+        "supporting": [
+          {
+            "role_id": "cycle_life",
+            "description": "Evidence reporting cycling stability, capacity retention, or cycle count.",
+            "signal_groups": [["cycle life"], ["capacity retention"], ["cycling stability"]],
+            "closure_query": "Prussian blue sodium cathode cycle life capacity retention stability"
+          },
+          {
+            "role_id": "energy_density",
+            "description": "Evidence reporting capacity, voltage, energy density, or rate capability.",
+            "signal_groups": [["energy density"], ["specific capacity"], ["rate capability"]],
+            "closure_query": "Prussian blue sodium cathode energy density specific capacity voltage"
+          }
+        ]
+      }
+    }
+  ],
+  "unseen_cases": [
+    {
+      "case_id": "AD01",
+      "topic": "Enzymatic polyurethane depolymerization for recovery of reusable polyols",
+      "anchor_query": "enzymatic polyurethane depolymerization recycling reusable polyol recovery",
+      "closure_priority_role_ids": ["polyol_reuse", "polyurethane_hydrolase", "polyurethane_depolymerization", "depolymerization_yield", "enzyme_durability"],
+      "roles": {
+        "required": [
+          {"role_id": "polyurethane_depolymerization", "description": "Evidence that polyurethane bonds or networks are depolymerized.", "signal_groups": [["polyurethane", "depolymerization"], ["polyurethane", "hydrolysis"]], "closure_query": "polyurethane enzymatic depolymerization hydrolysis recycling"},
+          {"role_id": "polyurethane_hydrolase", "description": "Evidence that an enzyme, esterase, urethanase, or hydrolase performs degradation.", "signal_groups": [["enzyme", "polyurethane"], ["esterase", "polyurethane"], ["urethanase"]], "closure_query": "polyurethane degrading enzyme esterase urethanase hydrolase"}
+        ],
+        "scope": [
+          {"role_id": "polyol_reuse", "description": "Evidence that recovered polyols or oligomers are reused in new polymer production.", "signal_groups": [["polyol", "reuse"], ["recovered polyol"], ["polyol", "repolymerization"]], "closure_query": "enzymatic polyurethane recycling recovered polyol reuse repolymerization"}
+        ],
+        "supporting": [
+          {"role_id": "depolymerization_yield", "description": "Evidence reporting mass loss, conversion, product yield, or recovered fraction.", "signal_groups": [["conversion", "yield"], ["mass loss"], ["recovered", "fraction"]], "closure_query": "polyurethane enzyme depolymerization conversion yield recovered products"},
+          {"role_id": "enzyme_durability", "description": "Evidence reporting enzyme stability, reuse, immobilization, or operating temperature.", "signal_groups": [["enzyme stability"], ["enzyme reuse"], ["immobilized", "enzyme"], ["operating temperature"]], "closure_query": "polyurethane hydrolase enzyme stability reuse immobilization temperature"}
+        ]
+      }
+    },
+    {
+      "case_id": "AD02",
+      "topic": "Microbial electrolysis cells for ammonia recovery from source-separated urine",
+      "anchor_query": "microbial electrolysis cell ammonia recovery source separated urine",
+      "closure_priority_role_ids": ["source_separated_urine", "microbial_electrolysis_cell", "ammonia_recovery", "nitrogen_recovery_efficiency", "energy_balance"],
+      "roles": {
+        "required": [
+          {"role_id": "microbial_electrolysis_cell", "description": "Evidence that a microbial electrolysis cell or bioelectrochemical reactor is used.", "signal_groups": [["microbial electrolysis cell"], ["bioelectrochemical", "reactor"]], "closure_query": "microbial electrolysis cell bioelectrochemical ammonia recovery"},
+          {"role_id": "ammonia_recovery", "description": "Evidence that ammonia or ammonium is recovered rather than only removed.", "signal_groups": [["ammonia", "recovery"], ["ammonium", "recovery"]], "closure_query": "bioelectrochemical ammonia ammonium recovery capture"
+          }
+        ],
+        "scope": [
+          {"role_id": "source_separated_urine", "description": "Evidence that human urine or source-separated sanitation liquid is treated.", "signal_groups": [["source separated", "urine"], ["human urine"], ["urine", "sanitation"]], "closure_query": "microbial electrolysis ammonia recovery source separated human urine"}
+        ],
+        "supporting": [
+          {"role_id": "nitrogen_recovery_efficiency", "description": "Evidence reporting nitrogen recovery, flux, concentration, or product purity.", "signal_groups": [["nitrogen recovery", "efficiency"], ["ammonia flux"], ["product purity"]], "closure_query": "microbial electrolysis urine nitrogen recovery efficiency ammonia flux purity"},
+          {"role_id": "energy_balance", "description": "Evidence reporting voltage, energy consumption, energy recovery, or net energy.", "signal_groups": [["energy consumption"], ["applied voltage"], ["energy recovery"]], "closure_query": "microbial electrolysis ammonia recovery energy consumption applied voltage"}
+        ]
+      }
+    },
+    {
+      "case_id": "AD03",
+      "topic": "Perovskite photodetectors for low-dose X-ray medical imaging",
+      "anchor_query": "perovskite photodetector low dose X ray medical imaging",
+      "closure_priority_role_ids": ["medical_xray_imaging", "perovskite_photodetector", "low_dose_detection", "detection_sensitivity", "operational_stability"],
+      "roles": {
+        "required": [
+          {"role_id": "perovskite_photodetector", "description": "Evidence that a metal-halide perovskite directly or indirectly detects X-rays.", "signal_groups": [["perovskite", "X ray detector"], ["perovskite", "photodetector"]], "closure_query": "metal halide perovskite X ray detector photodetector"},
+          {"role_id": "low_dose_detection", "description": "Evidence of X-ray detection at low dose or low dose rate.", "signal_groups": [["low dose", "X ray"], ["low dose rate"], ["detection limit", "X ray"]], "closure_query": "perovskite X ray detector low dose low dose rate detection limit"}
+        ],
+        "scope": [
+          {"role_id": "medical_xray_imaging", "description": "Evidence of radiography, computed tomography, dental, or other medical imaging use.", "signal_groups": [["medical imaging"], ["radiography"], ["computed tomography"], ["dental", "imaging"]], "closure_query": "perovskite X ray detector medical imaging radiography computed tomography"}
+        ],
+        "supporting": [
+          {"role_id": "detection_sensitivity", "description": "Evidence reporting sensitivity, spatial resolution, signal-to-noise, or detection limit.", "signal_groups": [["sensitivity"], ["spatial resolution"], ["signal to noise"]], "closure_query": "perovskite X ray imaging sensitivity spatial resolution signal noise"},
+          {"role_id": "operational_stability", "description": "Evidence reporting radiation, bias, air, or storage stability.", "signal_groups": [["operational stability"], ["radiation stability"], ["bias stability"], ["storage stability"]], "closure_query": "perovskite X ray detector radiation operational stability durability"}
+        ]
+      }
+    },
+    {
+      "case_id": "AD04",
+      "topic": "Hydrogel dressings with on-demand antimicrobial release for diabetic foot ulcers",
+      "anchor_query": "hydrogel dressing on demand antimicrobial release diabetic foot ulcer",
+      "closure_priority_role_ids": ["diabetic_foot_ulcer", "triggered_antimicrobial_release", "hydrogel_dressing", "infection_reduction", "wound_healing"],
+      "roles": {
+        "required": [
+          {"role_id": "hydrogel_dressing", "description": "Evidence that a hydrogel is used as a wound dressing or wound-contact material.", "signal_groups": [["hydrogel", "wound dressing"], ["hydrogel", "wound"]], "closure_query": "hydrogel wound dressing diabetic ulcer biomaterial"},
+          {"role_id": "triggered_antimicrobial_release", "description": "Evidence that antimicrobial release responds to pH, enzymes, light, temperature, or another trigger.", "signal_groups": [["triggered release", "antimicrobial"], ["responsive", "drug release"], ["on demand", "antibacterial"]], "closure_query": "stimuli responsive hydrogel triggered antimicrobial release wound"
+          }
+        ],
+        "scope": [
+          {"role_id": "diabetic_foot_ulcer", "description": "Evidence that diabetic wounds or diabetic foot ulcers are treated.", "signal_groups": [["diabetic foot ulcer"], ["diabetic wound"]], "closure_query": "responsive antimicrobial hydrogel diabetic foot ulcer wound dressing"}
+        ],
+        "supporting": [
+          {"role_id": "infection_reduction", "description": "Evidence reporting bacterial reduction, biofilm disruption, or infection control.", "signal_groups": [["bacterial reduction"], ["biofilm", "inhibition"], ["antibacterial activity"]], "closure_query": "hydrogel diabetic wound antibacterial activity biofilm infection reduction"},
+          {"role_id": "wound_healing", "description": "Evidence reporting closure, epithelialization, angiogenesis, or healing time.", "signal_groups": [["wound closure"], ["epithelialization"], ["angiogenesis"], ["healing time"]], "closure_query": "hydrogel diabetic ulcer wound closure epithelialization healing"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "AD05",
+      "topic": "Lignin-derived porous carbon electrodes from pulp-mill waste for supercapacitors",
+      "anchor_query": "lignin derived porous carbon electrode pulp mill waste supercapacitor",
+      "closure_priority_role_ids": ["pulp_mill_lignin_waste", "lignin_derived_carbon", "supercapacitor_electrode", "specific_capacitance", "cycling_stability"],
+      "roles": {
+        "required": [
+          {"role_id": "lignin_derived_carbon", "description": "Evidence that lignin is converted into porous, activated, or graphitic carbon.", "signal_groups": [["lignin derived", "carbon"], ["lignin", "porous carbon"]], "closure_query": "lignin derived porous activated carbon electrode"
+          },
+          {"role_id": "supercapacitor_electrode", "description": "Evidence that the carbon is used as a supercapacitor or electrochemical-capacitor electrode.", "signal_groups": [["supercapacitor", "electrode"], ["electrochemical capacitor", "electrode"]], "closure_query": "lignin carbon supercapacitor electrode electrochemical capacitor"}
+        ],
+        "scope": [
+          {"role_id": "pulp_mill_lignin_waste", "description": "Evidence that kraft, black-liquor, or pulp-mill lignin is the feedstock.", "signal_groups": [["kraft lignin"], ["black liquor", "lignin"], ["pulp mill", "lignin"]], "closure_query": "kraft black liquor pulp mill lignin carbon supercapacitor"}
+        ],
+        "supporting": [
+          {"role_id": "specific_capacitance", "description": "Evidence reporting capacitance, energy density, power density, or rate performance.", "signal_groups": [["specific capacitance"], ["energy density", "power density"], ["rate performance"]], "closure_query": "lignin carbon supercapacitor specific capacitance energy power density"},
+          {"role_id": "cycling_stability", "description": "Evidence reporting capacitance retention or long-cycle durability.", "signal_groups": [["cycling stability"], ["capacitance retention"], ["cycles", "retention"]], "closure_query": "lignin supercapacitor cycling stability capacitance retention cycles"}
+        ]
+      }
+    },
+    {
+      "case_id": "AD06",
+      "topic": "Selective capacitive deionization for nitrate removal from agricultural groundwater",
+      "anchor_query": "selective capacitive deionization nitrate agricultural groundwater removal",
+      "closure_priority_role_ids": ["agricultural_groundwater", "nitrate_selective_electrode", "capacitive_deionization", "nitrate_selectivity", "energy_or_regeneration"],
+      "roles": {
+        "required": [
+          {"role_id": "capacitive_deionization", "description": "Evidence that capacitive deionization or electrosorption removes ions.", "signal_groups": [["capacitive deionization"], ["electrosorption", "nitrate"]], "closure_query": "capacitive deionization electrosorption nitrate removal"},
+          {"role_id": "nitrate_selective_electrode", "description": "Evidence that electrode chemistry, ion exchange, or functionalization selectively captures nitrate.", "signal_groups": [["nitrate selective", "electrode"], ["selective nitrate", "adsorption"], ["nitrate", "ion exchange electrode"]], "closure_query": "nitrate selective electrode functionalized capacitive deionization"
+          }
+        ],
+        "scope": [
+          {"role_id": "agricultural_groundwater", "description": "Evidence that agricultural groundwater, drainage, or nitrate-contaminated natural water is treated.", "signal_groups": [["agricultural", "groundwater"], ["nitrate contaminated", "groundwater"], ["agricultural drainage"]], "closure_query": "capacitive deionization nitrate agricultural groundwater drainage"
+          }
+        ],
+        "supporting": [
+          {"role_id": "nitrate_selectivity", "description": "Evidence reporting nitrate preference over chloride, sulfate, bicarbonate, or other ions.", "signal_groups": [["nitrate selectivity"], ["selective", "chloride"], ["selectivity coefficient", "nitrate"]], "closure_query": "capacitive deionization nitrate selectivity chloride sulfate bicarbonate"},
+          {"role_id": "energy_or_regeneration", "description": "Evidence reporting energy use, electrode regeneration, desorption, or cycle stability.", "signal_groups": [["energy consumption"], ["electrode regeneration"], ["desorption", "cycles"], ["cycle stability"]], "closure_query": "nitrate capacitive deionization energy regeneration desorption cycles"}
+        ]
+      }
+    },
+    {
+      "case_id": "AD07",
+      "topic": "Magnetically guided stem-cell delivery for myocardial repair after infarction",
+      "anchor_query": "magnetic guided stem cell delivery myocardial infarction repair",
+      "closure_priority_role_ids": ["myocardial_infarction_repair", "magnetic_guidance", "stem_cell_delivery", "cell_retention", "cardiac_function"],
+      "roles": {
+        "required": [
+          {"role_id": "magnetic_guidance", "description": "Evidence that magnetic particles or an external magnetic field guide or retain cells.", "signal_groups": [["magnetic", "cell targeting"], ["magnetic field", "stem cell"], ["magnetic guidance"]], "closure_query": "magnetic guidance targeting stem cell delivery magnetic field"},
+          {"role_id": "stem_cell_delivery", "description": "Evidence that therapeutic stem or progenitor cells are delivered to tissue.", "signal_groups": [["stem cell", "delivery"], ["progenitor cell", "delivery"], ["cell transplantation"]], "closure_query": "magnetically targeted stem cell delivery transplantation"
+          }
+        ],
+        "scope": [
+          {"role_id": "myocardial_infarction_repair", "description": "Evidence of myocardial infarction, ischemic heart injury, or cardiac repair.", "signal_groups": [["myocardial infarction"], ["ischemic heart", "repair"], ["cardiac", "infarction"]], "closure_query": "magnetic stem cell myocardial infarction cardiac repair"
+          }
+        ],
+        "supporting": [
+          {"role_id": "cell_retention", "description": "Evidence reporting homing, retention, engraftment, or biodistribution.", "signal_groups": [["cell retention"], ["cell homing"], ["engraftment"], ["biodistribution"]], "closure_query": "magnetic stem cell myocardial retention homing engraftment"},
+          {"role_id": "cardiac_function", "description": "Evidence reporting ejection fraction, infarct size, perfusion, or functional recovery.", "signal_groups": [["ejection fraction"], ["infarct size"], ["cardiac function"], ["functional recovery"]], "closure_query": "magnetic stem cell myocardial ejection fraction infarct size function"}
+        ]
+      }
+    },
+    {
+      "case_id": "AD08",
+      "topic": "Self-healing anti-corrosion coatings for offshore wind-turbine steel",
+      "anchor_query": "self healing anticorrosion coating offshore wind turbine steel",
+      "closure_priority_role_ids": ["offshore_wind_steel", "self_healing_coating", "corrosion_protection", "healing_efficiency", "marine_durability"],
+      "roles": {
+        "required": [
+          {"role_id": "self_healing_coating", "description": "Evidence that a coating autonomously repairs scratches, cracks, or barrier damage.", "signal_groups": [["self healing", "coating"], ["autonomous healing", "coating"]], "closure_query": "self healing coating autonomous repair scratch corrosion"},
+          {"role_id": "corrosion_protection", "description": "Evidence that the coating protects steel or metal against corrosion.", "signal_groups": [["corrosion protection"], ["anticorrosion", "steel"], ["corrosion resistance"]], "closure_query": "self healing anticorrosion coating steel corrosion resistance"
+          }
+        ],
+        "scope": [
+          {"role_id": "offshore_wind_steel", "description": "Evidence of offshore wind, marine structural steel, or comparable seawater infrastructure.", "signal_groups": [["offshore wind", "steel"], ["marine", "structural steel"], ["wind turbine", "corrosion"]], "closure_query": "self healing coating offshore wind turbine marine steel"
+          }
+        ],
+        "supporting": [
+          {"role_id": "healing_efficiency", "description": "Evidence reporting scratch closure, impedance recovery, inhibitor release, or healing efficiency.", "signal_groups": [["healing efficiency"], ["impedance recovery"], ["scratch", "recovery"], ["inhibitor release"]], "closure_query": "self healing corrosion coating healing efficiency impedance scratch recovery"},
+          {"role_id": "marine_durability", "description": "Evidence reporting salt-spray, seawater, UV, fatigue, adhesion, or long-term durability.", "signal_groups": [["salt spray"], ["seawater", "durability"], ["UV", "adhesion"], ["marine", "aging"]], "closure_query": "offshore anticorrosion self healing coating salt spray seawater durability"}
+        ]
+      }
+    }
+  ]
+}
