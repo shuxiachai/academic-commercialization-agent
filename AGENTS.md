@@ -175,7 +175,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  107 test modules plus conftest, organised by subject
+tests/                  111 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -740,7 +740,7 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   re-injected and made their seam tests fail before restoration.
 
   The separately pre-registered, production-disconnected AC write-once runner
-  is now implemented. Its default CLI path remains zero-network. It locks the
+  is implemented. Its default CLI path remains zero-network. It locks the
   fixture and six behavior dependencies before output reservation, persists
   the complete manifest before adapter construction, the anchor journal before
   routing, the full five-observation route before an optional closure, and the
@@ -753,17 +753,32 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   adapter construction and dropping one route only at serialization were
   separately re-injected and made their tests fail before restoration.
 
-  AC and AD remain unopened; provider compatibility, routing correctness,
-  source value, role coverability and report value are `not_evaluated`. Do not
-  execute AC without separate owner authorization naming the exact merged
-  revision, fixture hash, at most sixteen sequential anonymous OpenAlex
-  requests and a soft stop no greater than USD 0.02. Do not open AD before AC
-  passes every frozen gate, and do not connect v8 to production. See
+  The owner then separately authorized AC execution on exact merged revision
+  `59b5870614d23c0d9c61e7e398fa363026b6a528` and fixture
+  `0be98f249bfd1eaf891cd3c20903b9d6ae4cd2d6431282ee32e82298a2d8ecc7`.
+  The default dry-run passed before the live flag was supplied. The live run
+  completed 15/15 single-attempt anonymous OpenAlex requests: eight anchors,
+  seven role closures and one AC08 no-gap abstention. All 8/8 portfolios were
+  committed. Ninety accounted provider rows became 72 abstract-bearing
+  candidates plus 18 no-abstract schema rejections and 64 unique candidates
+  after deduplication. Provider-reported anonymous-budget usage was USD 0.015.
+  Independent SHA-256 recomputation found 0/38 indexed source-file mismatches.
+  The mechanical state is `eligible_for_source_lock`.
+
+  This is not a source-value pass. All 64 candidate labels and eight case
+  labels remain blank; `human_review_state=not_prepared`,
+  `source_lock_state=not_created` and `source_value_state=not_evaluated`.
+  Routing correctness, source relevance, closure value, role coverability and
+  gain over anchor remain unknown. Next implement a separate source lock and
+  Schema v2 review boundary tied to the exact artifact index. Do not tune on or
+  rerun AC as validation, open AD before every frozen AC gate passes, or
+  connect v8 to the planner or production. See
   `docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md`,
   `docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md`,
   `docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md`,
   `docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`, and
-  `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`.
+  `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`,
+  `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md`.
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
