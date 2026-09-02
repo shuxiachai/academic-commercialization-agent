@@ -107,11 +107,16 @@ lineage serialization, zero model calls, and production isolation were all
 observed for this one AA run. This does not pass a human candidate-value gate.
 
 AA01-AA08 are now consumed development evidence and may not be tuned on or
-rerun as validation. AB01-AB08 remain unopened. The next permitted step is a
-separately implemented source lock and eligible label-blind human review of the
-79 frozen candidates. Only if all five pre-registered human gates pass may a
-separate AB evaluation be considered. This result does not authorize a semantic
-judge, Planner trigger study, report connection, or production Tool Calling.
+rerun as validation. AB01-AB08 remain unopened. A later separately
+pre-registered source-lock and lane-blind human-review boundary has now bound
+the exact 79 frozen candidates and produced an untouched review packet. Its
+blank preflight is correctly `incomplete / not_evaluated`; no human gate has
+yet been measured. See the
+[human-review boundary result](results-2026-09-02-openalex-role-directed-v7-human-review-boundary.md).
+Only if one eligible completion passes all five pre-registered human gates may
+a separate AB evaluation be considered. This result does not authorize a
+semantic judge, Planner trigger study, report connection, or production Tool
+Calling.
 
 ## Explicit non-claims
 
