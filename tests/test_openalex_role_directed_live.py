@@ -526,6 +526,18 @@ def test_artifacts_expose_no_key_or_unrelated_process_secret(tmp_path, monkeypat
     assert '"api_key_used": false' in rendered
 
 
+def test_cli_json_projection_survives_strict_gbk_stdout():
+    """The completed AA run reached disk before a bullet broke GBK stdout."""
+
+    payload = {"title": "Role-directed evidence • completed"}
+
+    rendered = live._stdout_json(payload)
+    encoded = rendered.encode("gbk", errors="strict")
+
+    assert "\\u2022" in rendered
+    assert json.loads(encoded.decode("gbk")) == payload
+
+
 def test_production_worker_does_not_import_role_directed_components():
     worker = Path("src/academic_agent/pipeline_worker.py").read_text(encoding="utf-8")
 

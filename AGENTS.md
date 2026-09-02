@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1878 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1879 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -671,23 +671,27 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/errata-2026-09-01-openalex-role-directed-v7-ab05-query.md`, and
   `docs/results-2026-09-01-openalex-role-directed-retrieval-v7-offline.md`.
 
-  A separately pre-registered write-once AA runner is now implemented but has
-  not executed. It locks the fixture and six behavior dependencies before
-  output reservation, writes the complete 16-lane manifest before adapter
-  construction, commits each one-request lane journal before later work, and
-  commits each DOI-first/URL-second deduplicated portfolio before the next
-  case. Raw provider rows, rejections, duplicate occurrences, all lane
-  memberships, unique candidates, blank review rows, cost, latency and trace
-  identities reach hashed artifacts. Its focused suite passes 17/17 and the
-  combined v7 suite passes 27/27. Moving manifest persistence after adapter
-  construction and dropping a duplicate source's second lane membership were
-  each re-injected and made the intended seam test fail before restoration.
-  No OpenAlex request, model call or human review has occurred; AA remains
-  unconsumed, AB remains unopened, candidate value remains `not_evaluated`,
-  and production Tool Calling remains disconnected. See
-  `docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md`
+  The separately pre-registered write-once AA runner has now completed its one
+  permitted development execution on exact merged revision `2a61c32`. Sixteen
+  of sixteen one-attempt anonymous OpenAlex requests and all eight portfolios
+  committed for USD 0.016 of provider-reported cost. All 96 provider rows (84
+  candidates and 12 rejections) reached the aggregate boundary, producing 79
+  DOI/URL-deduplicated blank-review candidates. Independent recomputation found
+  zero mismatches across 29 indexed files; all request IDs, idempotency keys,
+  and costs were inspectable. No model or production/report/Planner/recovery
+  connection occurred. After every artifact committed, strict Windows GBK
+  stdout failed on U+2022 in one title. AA was not rerun: a zero-network test
+  reproduced the original exception, and only the stdout projection now uses
+  reversible ASCII JSON escapes while authoritative UTF-8 artifacts remain
+  unchanged. AA is consumed, AB is unopened, human review is not prepared,
+  candidate value remains `not_evaluated`, and production Tool Calling remains
+  disconnected. The next allowed work is an exact source lock and eligible
+  label-blind human review; do not rerun or tune on AA, open AB, or connect
+  production. See
+  `docs/prereg-2026-09-01-openalex-role-directed-retrieval-v7-live-runner.md`,
+  `docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md`,
   and
-  `docs/results-2026-09-02-openalex-role-directed-retrieval-v7-live-runner.md`.
+  `docs/results-2026-09-02-openalex-role-directed-retrieval-v7-development-live.md`.
 
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
