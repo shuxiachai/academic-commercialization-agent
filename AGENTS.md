@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1928 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1943 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -175,7 +175,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  111 test modules plus conftest, organised by subject
+tests/                  112 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -235,6 +235,8 @@ openalex_role_gap_unseen.py
                         frozen AC/AD adaptive role-gap identities and router
 openalex_role_gap_live.py
                         write-once AC adaptive runner; defaults to zero-network
+openalex_role_gap_review.py
+                        exact AC source lock, route/lane-blind Schema v2 review
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -765,20 +767,30 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   Independent SHA-256 recomputation found 0/38 indexed source-file mismatches.
   The mechanical state is `eligible_for_source_lock`.
 
-  This is not a source-value pass. All 64 candidate labels and eight case
-  labels remain blank; `human_review_state=not_prepared`,
-  `source_lock_state=not_created` and `source_value_state=not_evaluated`.
-  Routing correctness, source relevance, closure value, role coverability and
-  gain over anchor remain unknown. Next implement a separate source lock and
-  Schema v2 review boundary tied to the exact artifact index. Do not tune on or
-  rerun AC as validation, open AD before every frozen AC gate passes, or
-  connect v8 to the planner or production. See
+  A separate zero-network source lock and route/lane-blind Schema v2 human-
+  review boundary now bind that exact artifact index. The validator rebuilds
+  all 39 files, 15 request journals, eight route journals, eight portfolios and
+  64 deduplicated candidates before emitting review material. The blank packet
+  is `incomplete / not_evaluated`: 0/64 labels, no hidden-provenance join and
+  no scored gate. Its source-lock SHA-256 is
+  `237a9b901d055a4d325316042e7ae343c465659e1428d209be35d4f4e0607659`.
+  Fifteen focused seams and the 1943-test / 657-subtest suite pass; injecting a
+  route decision into the blind projection made the boundary test fail.
+
+  This is still not a source-value pass. An eligible independent reviewer must
+  label all 64 rows before the six frozen relevance, precision, routing,
+  closure-value, union-cover and cover-gain gates can be evaluated. Until then,
+  AD remains unopened and v8 remains disconnected. Do not tune on or rerun AC
+  as validation, open AD before every frozen AC gate passes, or connect v8 to
+  the planner or production. See
   `docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md`,
   `docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md`,
   `docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md`,
   `docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`, and
   `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`,
-  `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md`.
+  `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md`,
+  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`, and
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md`.
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus

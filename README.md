@@ -991,7 +991,19 @@ the [live-runner amendment](docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8
 the [implementation result](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md),
 and the [AC live-provider result](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md).
 
-Local verification now passes **1,928 tests plus 657 subtests**, latest Ruff,
+A separate zero-network **v8 AC human-review boundary** now locks that exact
+provider run before exposing any labels. It independently reconstructs all 39
+files, 15 request journals, eight route journals and 64 unique candidates,
+then emits a route- and lane-blind Schema v2 packet. The blank packet correctly
+reports `incomplete / not_evaluated`: no hidden provenance is joined and none
+of the six frozen value gates is scored until all 64 labels and an eligible
+reviewer declaration validate. The source lock and packet are private because
+they contain the working review material; their SHA-256 identities are recorded
+publicly. AD remains sealed and production remains disconnected. See the
+[human-review pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md)
+and [boundary result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md).
+
+Local verification now passes **1,943 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2339,7 +2351,16 @@ Provider 实验**。15 次匿名 OpenAlex 单尝试请求全部完成，其中�
 [实现结果](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md)与
 [AC 真实 Provider 结果](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md)。
 
-本地验证现通过 **1,928 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+独立的零网络 **v8 AC 人工评审边界**现已锁定上述精确 Provider 运行，并在任何
+标签暴露前独立重建 39 个文件、15 份请求日志、8 份路由日志和 64 条唯一候选。
+Schema v2 评审包隐藏 route 与 lane；空白包严格返回 `incomplete / not_evaluated`，
+只有 64 条标签和合格评审者声明全部通过后才会连接隐藏谱系并计算六项冻结价值门。
+source lock 与工作评审包因包含私有评审材料而保存在私有仓库，但其 SHA-256 身份已
+公开记录。AD 继续封存，生产继续断开。详见
+[人工评审预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md)与
+[边界实现结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md)。
+
+本地验证现通过 **1,943 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
