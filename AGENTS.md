@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1980 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 2009 tests (660 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -1068,10 +1068,32 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   is prompt-compliance and operational evidence only: source truth, decision
   correctness, usefulness, adoption, and time savings remain unmeasured. Do not
   call it a validated decision-quality result or rerun it as post-fix evidence.
+
+  A subsequent zero-network P1 change closes the two observed delivery seams
+  without rerunning that consumed canary. Decision Context now records optional
+  success criteria separately from an explicit owner-approval declaration and
+  derives `not_established`, `user_supplied_unapproved`, or `owner_approved`.
+  The authority state changes checkpoint identity, while the public gate omits
+  the criteria text. A localized code-owned block writes the exact mode,
+  GO/NO_GO applicability and threshold provenance into delivered Markdown.
+
+  A separate non-blocking audit now checks only pre-measured narrow decision-
+  threshold phrases and electrolyte-family citation contradictions. The broad
+  vocabulary that matched legitimate facts in 9/30 baseline reports remains
+  excluded. The 30-report baseline has zero threshold findings and zero
+  mismatches among 23 checkable segments; the known Qwen sulfide/oxide example
+  produces the intended finding. Uncheckable and non-English content is
+  explicitly partial or unavailable, never a pass. Full findings persist in
+  `report_audit.json`; bounded state reaches both APIs and the browser. Defect
+  reinjection caught both a dropped applicability block and a swallowed source-
+  scope mismatch. This remains advisory and does not change scoring, block a
+  report, or connect production Tool Calling.
   See
   `docs/prereg-2026-08-26-decision-context-report-contract.md`,
   `docs/results-2026-08-26-decision-context-report-contract.md`,
   `docs/prereg-2026-08-26-decision-context-paid-canary.md`,
   `docs/results-2026-08-26-decision-context-paid-canary.md`, and
   `docs/errata-2026-08-27-decision-context-reviewer-zero-target.md`, plus
-  `docs/results-2026-08-27-public-pipeline-revision-seam.md`.
+  `docs/results-2026-08-27-public-pipeline-revision-seam.md`,
+  `docs/prereg-2026-09-03-report-decision-and-citation-seams.md`, and
+  `docs/results-2026-09-03-report-decision-and-citation-seams.md`.

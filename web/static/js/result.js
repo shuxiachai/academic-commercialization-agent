@@ -195,6 +195,38 @@ function renderScorecard(scores) {
   return wrap;
 }
 
+export function decisionApplicability(gate) {
+  if (!gate) return null;
+  const provenance = gate.threshold_provenance?.status ?? "unknown";
+  return {
+    mode: gate.mode ?? "unknown",
+    provenance,
+    applicability: t(
+      gate.go_no_go_allowed ? "decision_go_allowed" : "decision_go_not_allowed",
+    ),
+  };
+}
+
+function renderDecisionApplicability(gate) {
+  const summary = decisionApplicability(gate);
+  if (!summary) return null;
+  const wrap = el("section", "decision-applicability");
+  wrap.append(el("span", "decision-applicability__title", t("decision_applicability_title")));
+  const details = el("p", "decision-applicability__detail");
+  details.append(
+    document.createTextNode(t("decision_mode") + ": "),
+    el("code", null, summary.mode),
+    document.createTextNode(". "),
+  );
+  details.append(
+    document.createTextNode(summary.applicability + " "),
+    document.createTextNode(t("decision_threshold_provenance") + ": "),
+    el("code", null, summary.provenance),
+  );
+  wrap.append(details);
+  return wrap;
+}
+
 /* ── Public ────────────────────────────────────────────────────────── */
 
 export async function render(container, runId, progress) {
@@ -214,6 +246,8 @@ export async function render(container, runId, progress) {
     views.push({ id: "consistency", label: t("tab_consistency") });
   if (artifacts.includes("retrieval"))
     views.push({ id: "retrieval", label: t("tab_retrieval") });
+  if (artifacts.includes("report-audit"))
+    views.push({ id: "report-audit", label: t("tab_report_audit") });
 
   if (!views.length) {
     container.append(el("p", "empty-note", t("no_artifacts")));
@@ -225,6 +259,8 @@ export async function render(container, runId, progress) {
   // score — so a reader has to meet them before the number, not after
   // choosing to go looking in a tab.
   const reliability = renderReliability(progress);
+  const applicability = renderDecisionApplicability(progress.decision_gate);
+  if (applicability) container.append(applicability);
   if (reliability) container.append(reliability);
 
   for (const view of views) {
@@ -274,6 +310,10 @@ export async function render(container, runId, progress) {
         const diagnostics = await api.getArtifact(runId, "retrieval");
         panel.innerHTML = "";
         panel.append(renderRetrievalDiagnostics(diagnostics));
+      } else if (id === "report-audit") {
+        const audit = await api.getArtifact(runId, "report-audit");
+        panel.innerHTML = "";
+        panel.append(renderReportAudit(audit));
       } else {
         const sources = await api.getArtifact(runId, "sources");
         panel.innerHTML = "";
@@ -488,6 +528,40 @@ function renderSources(collection) {
   return wrap;
 }
 
+/* ── Narrow, non-blocking report-delivery audit ────────────────────────
+ * Findings expose inspectable excerpts; an unavailable audit is not a pass. */
+export function renderReportAudit(data) {
+  const wrap = el("div", "consistency");
+  wrap.append(el("p", "grounding__lede", t("report_audit_lede")));
+  const findings = data.findings ?? [];
+  if (!findings.length) {
+    const message = ["failed", "unavailable"].includes(data.status)
+      ? t("report_audit_unavailable")
+      : t("report_audit_clear");
+    wrap.append(el("p", "consistency__clear", message));
+    return wrap;
+  }
+
+  const list = el("ul", "consistency__list");
+  for (const finding of findings) {
+    const item = el("li", "consistency__item consistency__item--warning");
+    const label = finding.check === "decision_threshold_provenance"
+      ? t("report_audit_threshold_finding")
+      : t("report_audit_material_finding");
+    item.append(el("p", "consistency__detail", label));
+    if (finding.excerpt) {
+      const quote = el("blockquote", "consistency__excerpt");
+      quote.append(
+        el("span", "consistency__excerpt-label", t("consistency_excerpt")),
+        el("q", null, finding.excerpt),
+      );
+      item.append(quote);
+    }
+    list.append(item);
+  }
+  wrap.append(list);
+  return wrap;
+}
 /* ── Report vs scorecard ───────────────────────────────────────────────
  * A report can urge moving quickly to market beside a scorecard reading 40,
  * and until this check existed nothing in the pipeline compared them: the
@@ -625,6 +699,30 @@ export function reliabilityRows(progress) {
   }
 
   const failed = progress.failed_domains ?? [];
+  const reportAudit = progress.report_audit;
+  if (reportAudit == null && progress.source_counts) {
+    rows.push({ id: "report-audit", tone: "muted", label: t("rel_report_audit"),
+                detail: t("rel_report_audit_unknown") });
+  } else if (["failed", "unavailable"].includes(reportAudit?.status)) {
+    rows.push({ id: "report-audit", tone: "muted", label: t("rel_report_audit"),
+                detail: t("rel_report_audit_unavailable") });
+  } else if ((reportAudit?.findings ?? 0) > 0) {
+    rows.push({ id: "report-audit", tone: "warn", label: t("rel_report_audit"),
+                detail: t("rel_report_audit_flagged").replace("{count}", reportAudit.findings) });
+  } else if (reportAudit?.status === "partial") {
+    rows.push({ id: "report-audit", tone: "muted", label: t("rel_report_audit"),
+                detail: t("rel_report_audit_partial")
+                  .replace("{checked}", reportAudit.citation_scope_checked ?? 0)
+                  .replace("{unverifiable}", reportAudit.citation_scope_unverifiable ?? 0) });
+  } else if (reportAudit?.status === "not_applicable") {
+    rows.push({ id: "report-audit", tone: "muted", label: t("rel_report_audit"),
+                detail: t("rel_report_audit_not_applicable") });
+  } else if (reportAudit?.status === "completed") {
+    rows.push({ id: "report-audit", tone: "ok", label: t("rel_report_audit"),
+                detail: t("rel_report_audit_clear")
+                  .replace("{count}", reportAudit.citation_scope_checked ?? 0) });
+  }
+
   if (failed.length) {
     rows.push({ id: "sources", tone: "warn", label: t("rel_sources"),
                 detail: t("rel_sources_failed").replace("{domains}", failed.join(", ")) });

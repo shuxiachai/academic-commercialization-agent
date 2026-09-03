@@ -243,6 +243,7 @@ class ReliabilityPanelTests(unittest.TestCase):
             source_counts={"academic": 8, "patent": 5, "market": 6},
             authority_coverage={"status": "not_applicable"},
             component_coverage={"status": "not_applicable"},
+            report_audit={"status": "completed", "findings": 0},
         )
         self.assertEqual(panel["verdict"]["tone"], "ok")
         self.assertNotIn("verified", panel["verdict"]["label"].lower())
@@ -307,6 +308,36 @@ class ReliabilityPanelTests(unittest.TestCase):
         row = self._row(panel, "grounding")
         self.assertEqual(row["tone"], "muted")
         self.assertIn("not recorded", row["detail"].lower())
+
+    def test_report_audit_findings_are_visible_as_a_warning(self):
+        panel = self._panel(report_audit={"status": "completed", "findings": 2})
+        row = self._row(panel, "report-audit")
+        self.assertEqual(row["tone"], "warn")
+        self.assertIn("2", row["detail"])
+
+    def test_partially_unverifiable_report_audit_is_not_called_clean(self):
+        panel = self._panel(
+            report_audit={
+                "status": "partial",
+                "findings": 0,
+                "citation_scope_checked": 1,
+                "citation_scope_unverifiable": 4,
+            }
+        )
+        row = self._row(panel, "report-audit")
+        self.assertEqual(row["tone"], "muted")
+        self.assertIn("4", row["detail"])
+
+    def test_unavailable_report_audit_is_not_presented_as_a_pass(self):
+        panel = self._panel(report_audit={"status": "unavailable", "findings": 0})
+        row = self._row(panel, "report-audit")
+        self.assertEqual(row["tone"], "muted")
+        self.assertIn("no result", row["detail"].lower())
+
+    def test_old_run_without_report_audit_is_explicitly_unknown(self):
+        panel = self._panel(source_counts={"academic": 8, "patent": 8, "market": 8})
+        row = self._row(panel, "report-audit")
+        self.assertEqual(row["tone"], "muted")
 
 
 @unittest.skipUnless(_node(), "node not installed")

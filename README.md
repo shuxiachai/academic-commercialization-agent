@@ -27,6 +27,11 @@ An optional Decision Context adds the asset, application, decision owner and
 decision being considered. Topic-only and partial-context runs remain valid,
 but explicitly stay in orientation mode instead of presenting actor-specific
 GO/NO_GO advice as if the missing decision boundary had been established.
+Optional success criteria carry a separate authority state: absent,
+user-supplied but not owner-approved, or explicitly owner-approved. The exact
+state is derived by code, participates in checkpoint identity, and appears in
+the delivered report without repeating the user's private criteria in the
+public status payload.
 
 ---
 
@@ -362,6 +367,10 @@ Steps 1–3  Agents 1/2/3 — Academic / Patent / Market analysis  (parallel)
 Step 4     Agent 4 — Comprehensive report writing  (guardrail validates citations)
 Step 5     Agent 5 — Quality review  (Reviewer Notes saved separately)
 Step 6     Agent 6 — Quantitative scoring  (independent of report; formula auto-corrected)
+Delivery   Code injects the exact decision-applicability and threshold-provenance
+           state into the Markdown, then writes a narrow non-blocking threshold /
+           electrolyte citation-scope audit to report_audit.json and both status APIs
+
 ```
 
 The pipeline runs in a **subprocess** (`pipeline_worker.py`) so a run can be cancelled immediately via `proc.terminate()` rather than waiting for the current agent to finish.
@@ -1596,7 +1605,8 @@ academic_agent/
 - **Patent / market web search**: Serper or Tavily (3-attempt retry with exponential backoff), auto-selected by which API key is set — see "Deploying publicly" for why there are two
 - **Clinical authority coverage**: direct FDA / EMA / ClinicalTrials.gov query planning for applicable topics, surfaced as a non-blocking reliability state
 - **Academic metadata**: Crossref API (DOI verification and abstract retrieval)
-- **Data validation**: Pydantic v2 + custom guardrails (source structure, citation integrity, report structure, scoring formula, hallucinated source ID detection)
+- **Data validation**: Pydantic v2 + blocking guardrails (source structure, citation integrity, report structure, scoring formula, hallucinated source IDs) plus a precision-first non-blocking report audit for threshold provenance and electrolyte-family citation contradictions
+- **Decision applicability**: immutable context completeness and success-criteria provenance cross checkpoint identity, report Markdown, both status endpoints, and the browser without exposing the private criteria text in public status
 - **Agent observability**: OpenTelemetry + OpenInference instrumentors with redacted content and optional Arize Phoenix OTLP export
 - **Durable recovery**: content-addressed node checkpoints keyed by input, evidence, configuration, and pipeline hashes; immutable child runs reuse only a validated contiguous prefix and require fresh BYOK credentials
 - **Web client**: static HTML, CSS and ES modules served by FastAPI — no build step, no framework

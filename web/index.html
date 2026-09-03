@@ -205,10 +205,25 @@
                             data-i18n-placeholder="decision_constraints_placeholder"
                             placeholder="Budget, evidence threshold, manufacturing, policy, or risk limits"></textarea>
                 </label>
+                <label class="decision-context__wide">
+                  <span data-i18n="decision_success_criteria">Success criteria or decision thresholds</span>
+                  <textarea id="decision-success-criteria" data-context-field="success_criteria"
+                            maxlength="1200" rows="3"
+                            data-i18n-placeholder="decision_success_criteria_placeholder"
+                            placeholder="Exact measures the decision owner will use, if already defined"></textarea>
+                </label>
+                <label>
+                  <span data-i18n="decision_success_authority">Criteria authority</span>
+                  <select id="decision-success-authority" data-context-field="success_criteria_authority">
+                    <option value="" data-i18n="decision_success_unconfirmed">Not confirmed by the decision owner</option>
+                    <option value="owner_approved" data-i18n="decision_success_approved">Explicitly approved by the decision owner</option>
+                  </select>
+                </label>
               </div>
               <p class="decision-context__note" data-i18n="decision_context_note">
                 This context is sent to the configured model provider and stored with the run.
-                Unsupported budgets, timelines, and thresholds must remain “not established”.
+                Criteria are treated as owner-approved only when you explicitly select that status;
+                external benchmarks do not imply approval.
               </p>
             </details>
           </form>

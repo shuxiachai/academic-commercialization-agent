@@ -571,7 +571,8 @@
   font-weight: 600;
 }
 .decision-context__grid input,
-.decision-context__grid textarea {
+.decision-context__grid textarea,
+.decision-context__grid select {
   width: 100%;
   min-width: 0;
   padding: var(--space-2) var(--space-3);
@@ -587,7 +588,8 @@
 .decision-context__grid input::placeholder,
 .decision-context__grid textarea::placeholder { color: var(--text-disabled); }
 .decision-context__grid input:focus,
-.decision-context__grid textarea:focus {
+.decision-context__grid textarea:focus,
+.decision-context__grid select:focus {
   border-color: var(--accent);
   outline: none;
   box-shadow: 0 0 0 2px var(--accent-subtle);

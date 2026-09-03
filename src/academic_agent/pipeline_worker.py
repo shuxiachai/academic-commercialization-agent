@@ -308,7 +308,7 @@ def _merge_status_fields(
     for sticky in (
         "topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
         "claim_grounding", "consistency", "observability", "authority_coverage",
-        "component_coverage", "evidence_gap_shadow", "decision_gate",
+        "component_coverage", "evidence_gap_shadow", "decision_gate", "report_audit",
         "quality_review",
         "checkpointing", "recovery",
         "pipeline_revision",
@@ -366,6 +366,7 @@ def main() -> None:
         run_shadow_assessment,
         shadow_configuration_from_environment,
     )
+    from academic_agent.report_audit import save_report_audit
     from academic_agent.run_spec import (
         RESUME_SNAPSHOT_DIRECTORY, RUN_SPEC_FILENAME, RunSpec,
     )
@@ -414,6 +415,7 @@ def main() -> None:
         component_coverage: dict | None = None,
         evidence_gap_shadow: dict | None = None,
         decision_gate: dict | None = None,
+        report_audit: dict | None = None,
         checkpointing: dict | None = None,
         recovery: dict | None = None,
         quality_review: dict | None = None,
@@ -451,6 +453,8 @@ def main() -> None:
                 data["evidence_gap_shadow"] = evidence_gap_shadow
             if decision_gate is not None:
                 data["decision_gate"] = decision_gate
+            if report_audit is not None:
+                data["report_audit"] = report_audit
             if quality_review is not None:
                 data["quality_review"] = quality_review
             if checkpointing is not None:
@@ -956,8 +960,44 @@ def main() -> None:
             )
             report_raw = report_raw[: m_rev.start()].rstrip()
 
+        report_audit = {
+            "status": "unavailable",
+            "non_blocking": True,
+            "reason": "No report was available for post-generation audit.",
+        }
         if report_raw is not None:
-            save_report(report_raw, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
+            try:
+                with telemetry.span("report_delivery_audit", "EVALUATOR"):
+                    report_audit = save_report_audit(
+                        report_raw,
+                        collection=source_collection,
+                        decision_gate=spec.decision_gate(),
+                        output_language=source_collection.output_language,
+                        run_id=args.run_id,
+                        output_root=DEFAULT_OUTPUT_ROOT,
+                    )
+            except Exception as exc:  # noqa: BLE001 - advisory audit
+                # A persistence or heuristic failure must remain visible, but
+                # it must not discard a report that already passed the paid
+                # writer and reviewer stages.
+                report_audit = {
+                    "status": "failed",
+                    "non_blocking": True,
+                    "reason": f"Report audit failed: {type(exc).__name__}",
+                }
+                print(
+                    "[report-audit] failed without blocking delivery: "
+                    f"{type(exc).__name__}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            save_report(
+                report_raw,
+                run_id=args.run_id,
+                output_root=DEFAULT_OUTPUT_ROOT,
+                decision_gate=spec.decision_gate(),
+                output_language=source_collection.output_language,
+            )
 
         if scores_raw:
             save_scores(scores_raw, run_id=args.run_id, output_root=DEFAULT_OUTPUT_ROOT)
@@ -995,6 +1035,7 @@ def main() -> None:
             "Done", done=True,
             output_language=source_collection.output_language,
             evidence_incomplete=not evidence_saved,
+            report_audit=report_audit,
             usage=final_usage,
             claim_grounding=grounding,
             consistency=consistency,

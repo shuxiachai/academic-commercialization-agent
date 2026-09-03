@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 RUN_SPEC_FILENAME = ".run-spec.json"
@@ -34,6 +34,11 @@ AssessmentMode = Literal[
     "decision_context_incomplete",
     "decision_support",
 ]
+ThresholdProvenance = Literal[
+    "not_established",
+    "user_supplied_unapproved",
+    "owner_approved",
+]
 
 _DECISION_CONTEXT_FIELDS = (
     "asset_description",
@@ -43,6 +48,8 @@ _DECISION_CONTEXT_FIELDS = (
     "jurisdiction",
     "time_horizon",
     "constraints",
+    "success_criteria",
+    "success_criteria_authority",
 )
 _DECISION_CONTEXT_CORE_FIELDS = _DECISION_CONTEXT_FIELDS[:4]
 
@@ -66,6 +73,9 @@ class DecisionContext(BaseModel):
     time_horizon: str | None = Field(default=None, max_length=300)
     constraints: str | None = Field(default=None, max_length=1200)
 
+    success_criteria: str | None = Field(default=None, max_length=1200)
+    success_criteria_authority: Literal["owner_approved"] | None = None
+
     @field_validator(*_DECISION_CONTEXT_FIELDS, mode="before")
     @classmethod
     def _normalise_optional_text(cls, value: object) -> object:
@@ -75,6 +85,22 @@ class DecisionContext(BaseModel):
             return value
         normalized = " ".join(value.split())
         return normalized or None
+
+    @model_validator(mode="after")
+    def _approval_requires_criteria(self) -> "DecisionContext":
+        """Do not let a bare checkbox manufacture an approved threshold.
+
+        The authority flag is deliberately not a general confidence control.
+        It describes only the success criteria supplied in the same immutable
+        request, so persisting it without those criteria would create an
+        approval claim with no object.
+        """
+
+        if self.success_criteria_authority and self.success_criteria is None:
+            raise ValueError(
+                "success_criteria_authority requires supplied success_criteria"
+            )
+        return self
 
     @property
     def provided_fields(self) -> tuple[str, ...]:
@@ -98,8 +124,16 @@ class DecisionContext(BaseModel):
             return "decision_context_incomplete"
         return "decision_support"
 
+    @property
+    def threshold_provenance(self) -> ThresholdProvenance:
+        if self.success_criteria is None:
+            return "not_established"
+        if self.success_criteria_authority == "owner_approved":
+            return "owner_approved"
+        return "user_supplied_unapproved"
+
     def gate_snapshot(self) -> dict[str, object]:
-        """Expose coverage, not duplicated user prose, at the public boundary."""
+        """Expose coverage and authority, not duplicated user prose."""
 
         mode = self.assessment_mode
         return {
@@ -108,6 +142,13 @@ class DecisionContext(BaseModel):
             "provided_fields": list(self.provided_fields),
             "missing_core_fields": list(self.missing_core_fields),
             "go_no_go_allowed": mode == "decision_support",
+            "threshold_provenance": {
+                "status": self.threshold_provenance,
+                "criteria_supplied": self.success_criteria is not None,
+                "owner_approval_declared": (
+                    self.success_criteria_authority == "owner_approved"
+                ),
+            },
         }
 
     def crew_inputs(self) -> dict[str, str]:
@@ -136,6 +177,28 @@ class DecisionContext(BaseModel):
                 "bounded by retrieved evidence; write 'not established' for unsupported "
                 "cost, time, jurisdiction, or threshold details."
             )
+        if self.threshold_provenance == "owner_approved":
+            threshold_guidance = (
+                "The supplied success criteria were explicitly declared "
+                "owner-approved. Preserve their meaning exactly and identify "
+                "them as owner-approved; do not add or silently tighten them."
+            )
+        elif self.threshold_provenance == "user_supplied_unapproved":
+            threshold_guidance = (
+                "Success criteria were supplied without an owner-approval "
+                "declaration. Identify them as user-supplied and pending "
+                "approval; never call them approved."
+            )
+        else:
+            threshold_guidance = (
+                "No success criteria were supplied. Any threshold introduced "
+                "by the report must be explicitly labelled an analyst proposal "
+                "requiring owner confirmation, never a mandatory gate."
+            )
+        guidance = (
+            f"{guidance} {threshold_guidance} A cited external benchmark is "
+            "evidence, not proof that a decision owner approved it as a gate."
+        )
         return {
             "assessment_mode": mode,
             "decision_context_json": json.dumps(
@@ -154,9 +217,10 @@ class RunSpec(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     # Version 1 remains readable so old failed runs can still be inspected and
-    # resumed as orientation runs. New publications use version 2 because the
-    # decision context is now part of the immutable input identity.
-    schema_version: Literal[1, 2] = 2
+    # resumed as orientation runs. Version 2 introduced decision context;
+    # version 3 distinguishes user-supplied success criteria from an explicit
+    # owner-approval declaration, so recovery cannot silently change authority.
+    schema_version: Literal[1, 2, 3] = 3
     topic: str = Field(min_length=1, max_length=300)
     language: str | None = Field(default=None, max_length=100)
     weight_profile: str | None = Field(default=None, max_length=100)
