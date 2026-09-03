@@ -133,5 +133,6 @@ from a pass, and calculate all six gates only after every required label is
 present.
 
 AD01-AD08 remain unopened. This completed provider run does not authorize
-tuning on AC, rerunning AC as validation, opening AD, connecting v8 to the
+tuning on AC, rerunning AC as validation, opening AD before a source-locked
+blind review has passed every frozen gate, connecting v8 to the
 planner, or connecting Tool Calling to production.
