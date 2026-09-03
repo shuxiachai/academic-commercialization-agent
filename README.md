@@ -1050,10 +1050,28 @@ now implemented under the separately frozen protocol. The private packet
 contains all 67 candidates and eight baseline/role contexts while hiding the
 mechanical route and retrieval provenance. Its blank summary is correctly
 `incomplete / not_evaluated`: 0/67 labels, no unblinded route assessment and no
-gate metrics. Human review is still pending, so AD generalization and source
-value remain unmeasured. See the
-[review pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md)
-and [boundary result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md).
+gate metrics.
+
+One eligible human review later completed all 67 rows. The first declaration
+mistakenly recorded substantive AI use, so the strict intake preserved the
+return as `excluded_substantive_ai / not_evaluated`. After the owner confirmed
+the judgments were human-completed, correcting only that field exposed one
+explicitly unverifiable row and correctly remained
+`not_inspectable / not_evaluated`. The reviewer then inspected that row's
+publisher full text, revised only its label, roles and note, and declared
+`external_sources_checked=SOME`; hidden route provenance remained unavailable
+until this clarification validated.
+
+The final strict result is `complete / fail`. Relevant novel evidence covered
+8/8 cases, candidate precision was 33/67 (49.25%), and union role coverability
+reached 6/8, so three gates passed. Human-correct routing was only 5/8,
+selected-role closure value only 2/7, and union coverability improved on the
+anchor by only +1 case (6 versus 5), so the other three gates failed. Adaptive
+role-gap v8 is sealed, AD is consumed, and production Tool Calling remains
+disconnected. See the
+[review pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md),
+the [boundary result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md),
+and the [final human-review result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md).
 
 Local verification now passes **1,980 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.

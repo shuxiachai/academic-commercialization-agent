@@ -839,8 +839,25 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   route decision into the blind projection were each re-injected and made the
   intended seam test fail before restoration. The full suite passes 1980 tests
   plus 657 subtests; Ruff, narrow Pylint and Chromium smoke are green locally.
-  Human review remains pending, so AD source value, route accuracy and role
-  coverability are not evaluated.
+
+  One human reviewer then completed 67/67 rows. The first declaration recorded
+  `MOST_OR_ALL`, so the strict first intake correctly preserved
+  `excluded_substantive_ai / not_evaluated` without joining hidden provenance.
+  The owner confirmed the judgments were human-completed and that no generative
+  AI was used; only that field was corrected to `NONE`. The unchanged labels
+  still contained one explicit `UNVERIFIABLE` row, so the second intake
+  correctly remained `not_inspectable / not_evaluated`. The reviewer then
+  inspected the publisher full text for that single row, revised its label,
+  visible roles and note, and updated the declaration to
+  `external_sources_checked=SOME`. The other 66 judgments were unchanged.
+
+  The final eligible result is `complete / fail`. Relevant novel evidence
+  covered 8/8 cases, candidate precision was 33/67 (49.25%), and union role
+  coverability reached 6/8. Human-correct routing was only 5/8, selected-role
+  closure value only 2/7, and union coverability gained only +1 case over the
+  anchor (6 versus 5). Three of six conjunctive gates therefore failed. AD is
+  consumed, adaptive role-gap v8 is sealed, and planner-trigger, report and
+  production Tool Calling connections remain false.
 
   Do not tune on or rerun AC or AD as validation, infer source value from the
   blank packet, or connect v8 to the planner or production. See
@@ -856,8 +873,10 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md`,
   `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-runner-implementation.md`,
   `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-live.md`,
-  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md`, and
-  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md`.
+  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md`,
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md`,
+  and
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md`.
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
