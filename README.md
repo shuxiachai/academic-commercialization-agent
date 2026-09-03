@@ -1033,14 +1033,29 @@ lineage through the final artifact index and blank-review boundaries. Its
 pre-registered defects were re-injected: allowing `development` made the cohort
 authority test fail, and dropping one route only at serialization made the
 client-boundary test fail. Both were restored before the suite returned green.
-
-No AD provider request, model call, human review or production connection has
-occurred. AD remains outcome-unseen. A real run still requires a separate owner
-authorization naming the exact merged implementation revision and unchanged
-fixture hash. See the [AD evaluation pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md)
+See the [AD evaluation pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md)
 and [runner implementation result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-runner-implementation.md).
 
-Local verification now passes **1,964 tests plus 657 subtests**, latest Ruff,
+A separately authorized run on merged revision `b54fa22` then completed the
+frozen AD cohort: 15/15 single-attempt anonymous OpenAlex requests, eight
+portfolios, one explicit AD03 abstention, seven closure requests and USD 0.015
+of provider-reported usage. Ninety provider rows produced 73 abstract-bearing
+candidates, 17 provider-schema rejections and 67 deduplicated review rows. All
+38 indexed artifacts recomputed correctly. No model, retry, redirect, recovery
+or production connection occurred. See the
+[AD live result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-live.md).
+
+An AD-specific source lock and route/lane-blind Schema v2 review boundary are
+now implemented under the separately frozen protocol. The private packet
+contains all 67 candidates and eight baseline/role contexts while hiding the
+mechanical route and retrieval provenance. Its blank summary is correctly
+`incomplete / not_evaluated`: 0/67 labels, no unblinded route assessment and no
+gate metrics. Human review is still pending, so AD generalization and source
+value remain unmeasured. See the
+[review pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md)
+and [boundary result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md).
+
+Local verification now passes **1,980 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2417,14 +2432,24 @@ cohort，在保留输出目录或构造网络适配器前锁定原始 fixture、
 测试、657 个 subtests 均通过。项目还按预注册分别回注了两项缺陷：放行 `development`
 会使 cohort 权限测试失败；仅在序列化时丢失一条 route 会使客户端接缝测试失败。
 恢复正确实现后测试重新全绿。
-
-本阶段没有发生 AD Provider 请求、模型调用、人工评审或生产连接，AD 仍保持结果未见。
-真实执行仍需另行授权，并点名精确的合并实现 revision 与未变化的 fixture 哈希。详见
-[AD 评估预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md)与
+详见 [AD 评估预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md)与
 [执行器实现结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-runner-implementation.md)。
 
-本地验证现通过 **1,964 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
-窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
+随后经单独授权，冻结 AD cohort 在合并版本 `b54fa22` 上完成 15/15 次匿名 OpenAlex
+单尝试请求、8 个 portfolio、AD03 一次显式弃权、7 次 closure 与供应商报告的
+`$0.015` 用量。90 条供应商行形成 73 条带摘要候选、17 条 schema 拒绝和 67 条去重
+评审行；38 个索引工件全部重新计算一致。全过程没有模型、重试、重定向、恢复或生产
+连接。详见 [AD 真实运行结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-live.md)。
+
+项目又按另行冻结的协议实现了 AD 专用 source lock 与 route/lane-blind Schema v2 人评
+边界。私有包包含全部 67 条候选和 8 份基线/角色上下文，同时隐藏机械路由与检索谱系。
+空白汇总严格为 `incomplete / not_evaluated`：0/67 标签、无解盲路由判断、无门槛指标。
+人工评审尚未完成，因此 AD 泛化与来源价值仍未测得。详见
+[人评预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md)与
+[边界实现结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md)。
+
+本地验证现通过 **1,980 项测试与 657 个 subtests**、最新版 Ruff、CI 同款窄范围
+Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
 

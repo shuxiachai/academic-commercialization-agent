@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1964 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1980 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -239,6 +239,8 @@ openalex_role_gap_evaluation.py
                         write-once AD unseen runner; defaults to zero-network
 openalex_role_gap_review.py
                         exact AC source lock, route/lane-blind Schema v2 review
+openalex_role_gap_evaluation_review.py
+                        exact AD source lock, route/lane-blind Schema v2 review
 ops_report.py           what real runs actually did, vs what the benchmark covers
 user_utility_audit.py   zero-network 3–5 reviewer packet + strict unblinding
 checkpoint_fault_audit.py
@@ -815,12 +817,33 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   serialization were each re-injected; both made their seam tests fail before
   restoration. Existing AC code and artifacts were not changed.
 
-  This implementation still authorizes no AD provider request. A real request
-  requires separate owner authorization naming the exact merged implementation
-  revision and unchanged fixture hash. AD remains outcome-unseen and production
-  remains disconnected.
-  Do not tune on or rerun AC as validation, execute AD without that later
-  authorization, or connect v8 to the planner or production. See
+  A separately authorized run on merged revision `b54fa22` then completed all
+  eight AD cases. It made fifteen single-attempt anonymous OpenAlex requests:
+  eight anchors and seven selected closures, with AD03 the only explicit
+  abstention. Provider-reported usage was USD 0.015. Ninety provider rows
+  became 73 abstract-bearing candidates, 17 schema rejections and 67
+  DOI/OpenAlex-deduplicated review rows. All 38 indexed files recomputed to the
+  recorded hashes. There were zero model calls, retries, redirects, recovery
+  attempts or production/report/planner connections. This is a mechanical
+  provider-execution pass, not evidence that v8 generalized.
+
+  The AD human-review protocol was separately frozen after that run and before
+  its review implementation or any human label. A dedicated AD-only review
+  module now binds the exact artifact-index digest, rebuilds every journal,
+  portfolio and aggregate row, and emits all 67 candidates plus eight frozen
+  contexts through a route- and lane-blind Schema v2 packet. Its private source
+  lock is `ac4aa302...`; the packet manifest is `f017b1d9...`. The blank result
+  is `incomplete / not_evaluated`, with zero completed labels, no route join and
+  no gate metrics. Sixteen focused tests pass. Replacing the explicit AD
+  closure set with the AC positional `CASE_IDS[:-1]` assumption and leaking a
+  route decision into the blind projection were each re-injected and made the
+  intended seam test fail before restoration. The full suite passes 1980 tests
+  plus 657 subtests; Ruff, narrow Pylint and Chromium smoke are green locally.
+  Human review remains pending, so AD source value, route accuracy and role
+  coverability are not evaluated.
+
+  Do not tune on or rerun AC or AD as validation, infer source value from the
+  blank packet, or connect v8 to the planner or production. See
   `docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md`,
   `docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md`,
   `docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md`,
@@ -830,8 +853,11 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`,
   `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md`,
   `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`,
-  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md`, and
-  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-runner-implementation.md`.
+  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md`,
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-runner-implementation.md`,
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-live.md`,
+  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md`, and
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md`.
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
