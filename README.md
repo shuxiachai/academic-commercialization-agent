@@ -982,11 +982,11 @@ portfolios were committed, ninety provider rows became seventy-two
 abstract-bearing candidates plus eighteen no-abstract schema rejections, and
 deduplication retained sixty-four unique candidates. Provider-reported
 anonymous-budget usage was USD 0.015. Independent recomputation matched all
-38 indexed source-artifact hashes. The mechanical result is
-`eligible_for_source_lock`, but the sixty-four candidate and eight case labels
-remain blank: routing accuracy, source value, closure gain, and coverability
-are still `not_evaluated`. AD remains unseen and production remains
-disconnected. See
+38 indexed source-artifact hashes. The mechanical result was
+`eligible_for_source_lock`; at that stage the sixty-four candidate and eight
+case labels remained blank, so routing accuracy, source value, closure gain,
+and coverability were `not_evaluated`. AD remained unseen and production
+remained disconnected. See
 the [live-runner amendment](docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md)
 the [implementation result](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md),
 and the [AC live-provider result](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md).
@@ -1002,6 +1002,20 @@ they contain the working review material; their SHA-256 identities are recorded
 publicly. AD remains sealed and production remains disconnected. See the
 [human-review pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md)
 and [boundary result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md).
+
+One eligible independent reviewer has now completed all 64 title-and-abstract
+judgments. The first declaration mistakenly recorded substantive AI use, so the
+unchanged strict intake correctly returned
+`excluded_substantive_ai / not_evaluated`. After preserving that declaration
+and result, the owner relayed that the judgments were human-completed and only
+the AI-use field was corrected to `NONE`. The superseding strict result is
+`complete / pass`: 31/64 candidates were directly relevant and baseline-novel,
+all 8/8 cases contained relevant novel evidence, routing was human-correct in
+7/8, selected-role closure value appeared in 5/7 closure cases, and union
+coverability reached 6/8 versus 3/8 from anchors alone. All six frozen gates
+passed. This permits only a separately pre-registered AD01-AD08 unseen
+evaluation; it does not authorize production Tool Calling. See the
+[human-review result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md).
 
 Local verification now passes **1,943 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
@@ -2344,9 +2358,9 @@ Provider 实验**。15 次匿名 OpenAlex 单尝试请求全部完成，其中�
 7 条按角色触发的 closure 和 1 次正确的无缺口弃权；8/8 个案例 portfolio 全部提交。
 90 条供应商行包含 72 条带摘要候选和 18 条无可重建摘要的 schema 拒绝，去重后为
 64 条唯一候选，供应商报告匿名预算使用量为 0.015 美元。独立重算的 38 个源工件
-哈希全部匹配。机械状态达到 `eligible_for_source_lock`，但 64 条候选标签和 8 条
-案例标签仍为空，因此路由正确率、来源价值、closure 增益和 coverability 仍为
-`not_evaluated`。AD 保持未见，生产继续断开。详见
+哈希全部匹配。机械状态达到 `eligible_for_source_lock`；在该阶段 64 条候选标签和
+8 条案例标签仍为空，因此路由正确率、来源价值、closure 增益和 coverability 为
+`not_evaluated`。AD 当时保持未见，生产继续断开。详见
 [live runner 补充预注册](docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md)、
 [实现结果](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md)与
 [AC 真实 Provider 结果](docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md)。
@@ -2359,6 +2373,15 @@ source lock 与工作评审包因包含私有评审材料而保存在私有仓�
 公开记录。AD 继续封存，生产继续断开。详见
 [人工评审预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md)与
 [边界实现结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md)。
+
+现已有一名合格独立评审者完成全部 64 条标题与摘要判断。首次声明误填为实质生成式
+AI 使用，因此未修改的严格入口正确返回 `excluded_substantive_ai / not_evaluated`。
+项目逐字节保留原声明和排除结果后，由所有者转述确认判断为人工完成，仅把 AI-use
+字段更正为 `NONE`。更正后的严格结果是 `complete / pass`：31/64 条候选直接相关且
+基线外，8/8 案例含相关新证据，7/8 路由由人工判定正确，7 个 closure 案例中 5 个
+提供所选角色增量，union coverability 为 6/8，而 anchor 单独只有 3/8，六项冻结门
+全部通过。这只允许另行预注册 AD01–AD08 未见集评估，不授权生产 Tool Calling。
+详见[人工评审结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md)。
 
 本地验证现通过 **1,943 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。

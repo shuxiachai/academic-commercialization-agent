@@ -777,20 +777,38 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   Fifteen focused seams and the 1943-test / 657-subtest suite pass; injecting a
   route decision into the blind projection made the boundary test fail.
 
-  This is still not a source-value pass. An eligible independent reviewer must
-  label all 64 rows before the six frozen relevance, precision, routing,
-  closure-value, union-cover and cover-gain gates can be evaluated. Until then,
-  AD remains unopened and v8 remains disconnected. Do not tune on or rerun AC
-  as validation, open AD before every frozen AC gate passes, or connect v8 to
-  the planner or production. See
+  One independent reviewer later completed all 64 title-and-abstract rows. The
+  first declaration recorded `MOST_OR_ALL`, so the unchanged strict intake
+  correctly returned `excluded_substantive_ai / not_evaluated` without joining
+  hidden provenance or scoring a gate. The owner then relayed that the
+  judgments were human-completed and the AI-use field was a filling error. The
+  original declaration and excluded result remain byte-preserved privately;
+  only that field was corrected to `NONE`, with every label, role, note and
+  other declaration field unchanged.
+
+  The superseding strict result is `complete / pass`. All six frozen gates
+  passed: relevant-novel evidence appeared in 8/8 cases; 31/64 candidates were
+  directly relevant (48.44%); 7/8 routing decisions were human-correct; 5/7
+  closure cases added selected-role value; union coverability reached 6/8; and
+  coverability gained three cases over the anchor's 3/8. AC02 and AC07 remained
+  incomplete, and AC06 was the one human-incorrect route. The review used one
+  reviewer, titles and abstracts only, no external-source checks, and an owner-
+  relayed rather than separately signed declaration correction.
+
+  AC is consumed. This pass permits only a separately pre-registered AD01-AD08
+  unseen evaluation; AD is still unopened and production remains disconnected.
+  Do not tune on or rerun AC as validation, open AD without a new protocol and
+  authorization, or connect v8 to the planner or production. See
   `docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md`,
   `docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md`,
   `docs/results-2026-09-02-openalex-adaptive-role-gap-closure-v8-offline.md`,
-  `docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`, and
+  `docs/prereg-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`,
   `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-live-runner.md`,
   `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md`,
-  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`, and
-  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md`.
+  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`,
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md`,
+  and
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`.
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
