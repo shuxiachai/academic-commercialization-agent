@@ -10,6 +10,8 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
+from academic_agent.report_applicability import add_applicability_block
+
 
 class _StepEntryRequired(TypedDict):
     """Required fields that every steps.jsonl entry must carry."""
@@ -51,13 +53,18 @@ def save_report(
     report: str,
     run_id: str,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
+    decision_gate: dict[str, Any] | None = None,
+    output_language: str = "English",
 ) -> tuple[str, Path]:
     if not run_id:
         raise ValueError(f"run_id must be a non-empty string, got {run_id!r}")
     run_directory = output_root / run_id
     run_directory.mkdir(parents=True, exist_ok=True)
     report_path = run_directory / "commercialization_report.md"
-    report_path.write_text(report, encoding="utf-8")
+    delivered_report = add_applicability_block(
+        report, decision_gate=decision_gate, output_language=output_language
+    )
+    report_path.write_text(delivered_report, encoding="utf-8")
     return run_id, report_path
 
 

@@ -224,6 +224,11 @@ class RunProgress(BaseModel):
         description="Code-derived orientation, incomplete-context, or decision-support "
                     "state. None means the run predates this gate; it is not a pass.",
     )
+    report_audit: dict | None = Field(
+        default=None,
+        description="Non-blocking threshold-provenance and citation material-scope "
+                    "audit. None means the run predates the audit, not that it passed.",
+    )
     quality_review: dict | None = Field(
         default=None,
         description="Whether the independent reviewer completed. 'partial' means "
@@ -336,6 +341,11 @@ class RunStatus(BaseModel):
         default=None,
         description="Code-derived orientation, incomplete-context, or decision-support "
                     "state. None means the run predates this gate; it is not a pass.",
+    )
+    report_audit: dict | None = Field(
+        default=None,
+        description="Non-blocking threshold-provenance and citation material-scope "
+                    "audit. None means the run predates the audit, not that it passed.",
     )
     quality_review: dict | None = Field(
         default=None,

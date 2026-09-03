@@ -49,7 +49,10 @@ def test_every_frozen_payload_reaches_the_public_request_and_gate_seams() -> Non
         context = request.decision_context or DecisionContext()
 
         assert request.assessment_mode == case["expected_assessment_mode"]
-        assert context.gate_snapshot() == case["expected_gate"]
+        actual_gate = context.gate_snapshot()
+        for key, value in case["expected_gate"].items():
+            assert actual_gate[key] == value
+        assert actual_gate["threshold_provenance"]["status"] == "not_established"
         assert request.byok is False
 
 

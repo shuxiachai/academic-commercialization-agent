@@ -125,6 +125,7 @@ _ARTIFACTS = {
     # exist; preserves the search plan, candidate counts, and rejection audit.
     "retrieval": "retrieval_diagnostics.json",
     "gap-shadow": "evidence_gap_shadow.json",
+    "report-audit": "report_audit.json",
 }
 
 
@@ -1236,6 +1237,10 @@ def get_state(run_id: str) -> dict:
         # feature; disabled, checked, and failed states remain explicit inside
         # the object so an unperformed planner never reads as a passing check.
         "evidence_gap_shadow": status.get("evidence_gap_shadow"),
+        # A narrow, advisory post-generation screen. Its status distinguishes
+        # no applicable segment, partial coverage, failure, and a completed
+        # check; absence is reserved for historical runs.
+        "report_audit": status.get("report_audit"),
 
         # Review is a separate model pass after the draft's deterministic
         # validation. A fallback remains a completed run, but it must not look

@@ -233,14 +233,18 @@ report_reviewer:
         evidence-backed, not speculative or promotional.
     Explain each removed TRL label and replacement in the correction reason.
 
-    Rule 7 — Decision applicability:
-    Treat the code-derived assessment mode as authoritative. In orientation or
-    decision_context_incomplete mode, correct any actor-specific GO/NO_GO claim
-    and any invented owner, budget, timeline, jurisdiction, or decision
-    threshold. In decision_support mode, preserve a supported GO, NO_GO, or
-    DEFER conclusion, but qualify any gate whose evidence is absent. This rule
-    checks whether the report obeys its supplied decision boundary; it does not
-    establish that the commercial decision itself is correct.
+    Rule 7 — Decision applicability and threshold authority:
+    Treat the code-derived assessment mode and threshold-provenance guidance as
+    authoritative. In orientation or decision_context_incomplete mode, correct
+    any actor-specific GO/NO_GO claim and any invented owner, budget, timeline,
+    jurisdiction, or mandatory decision threshold. Preserve supplied criteria,
+    but call them owner-approved only when the guidance says so. Every additional
+    threshold must be an explicit analyst proposal requiring owner confirmation;
+    a cited external benchmark does not establish owner approval. In
+    decision_support mode, preserve a supported GO, NO_GO, or DEFER conclusion,
+    but qualify any gate whose evidence is absent. This rule checks whether the
+    report obeys its supplied decision boundary; it does not establish that the
+    commercial decision itself is correct.
 
     ## Correction plan format (STRICTLY ENFORCED):
     - Return one JSON object containing a "corrections" array; never repeat the

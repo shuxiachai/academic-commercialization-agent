@@ -56,6 +56,11 @@ def test_decision_gate_distinguishes_absence_from_complete_context(
         "provided_fields": list(context.provided_fields) if context else [],
         "missing_core_fields": missing,
         "go_no_go_allowed": go_no_go_allowed,
+        "threshold_provenance": {
+            "status": "not_established",
+            "criteria_supplied": False,
+            "owner_approval_declared": False,
+        },
     }
 
 

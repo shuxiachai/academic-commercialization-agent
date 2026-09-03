@@ -221,8 +221,13 @@ commercialization_report_task:
       preferred over the alternatives. Keep alternatives visibly secondary.
     - State the responsible decision owner. If the supplied context does not
       establish one, write "not established"; never infer an owner from the topic.
-    - Give a gated action plan that names the evidence needed, measurable pass
-      thresholds, and explicit stop or kill criteria.
+    - Give a gated action plan that names the evidence needed and its decision
+      criteria. Use measurable pass thresholds and stop or kill criteria as
+      owner-approved gates only when the decision context explicitly declares
+      supplied success criteria owner-approved. Otherwise mark every introduced
+      threshold as an analyst proposal requiring owner confirmation. A cited
+      external benchmark is evidence, not proof that the decision owner approved
+      it as a gate.
     - State cost and time only when supplied by the decision context or supported
       by cited evidence. Otherwise write "not established"; never manufacture a
       budget, capital requirement, schedule, or unit-economics target.
@@ -231,8 +236,10 @@ commercialization_report_task:
     - In orientation or decision_context_incomplete mode, state that actor-specific
       GO/NO_GO is not assessed. General next steps are allowed, but do not turn
       them into a recommendation for an unspecified actor.
-    - Keep observed facts, estimates, and analyst inferences visibly distinct.
-      A threshold proposed by the analyst is not an observed fact.
+    - Keep observed facts, estimates, analyst proposals, user-supplied criteria,
+      and owner-approved criteria visibly distinct. Do not silently convert one
+      provenance into another, and do not use a citation as evidence of owner
+      approval.
 
     Citation rules:
     - Cite every factual, numerical, patent, company, market, and maturity claim
@@ -282,8 +289,9 @@ commercialization_report_task:
     invented, duplicated, or externally added sources. Formatted as Markdown
     without code blocks. All body text must be in {output_language}. The fifth
     top-level section must also contain the assessment mode, one primary route,
-    alternatives, owner state, gated evidence thresholds, cost/time state, stop
-    criteria, and the mode-appropriate decision applicability statement.
+    alternatives, owner state, provenance-qualified decision criteria, cost/time
+    state, stop criteria, and the mode-appropriate decision applicability
+    statement.
   agent: commercialization_report_writer
 
 # ----------------------------------------------------------
