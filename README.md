@@ -1017,6 +1017,15 @@ passed. This permits only a separately pre-registered AD01-AD08 unseen
 evaluation; it does not authorize production Tool Calling. See the
 [human-review result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md).
 
+A separate AD01-AD08 unseen-evaluation protocol is now frozen before an
+AD-capable runner or any AD provider response. It carries forward the same six
+conjunctive gates, permits only eight to sixteen sequential anonymous OpenAlex
+requests under a USD 0.02 soft stop, and forbids retries, query rewriting,
+models, recovery, and production imports. This registration authorizes only
+implementation and zero-network verification; a real run still requires a new
+authorization naming its merged revision and the unchanged fixture hash. See
+the [AD evaluation pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md).
+
 Local verification now passes **1,943 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
@@ -2382,6 +2391,12 @@ AI 使用，因此未修改的严格入口正确返回 `excluded_substantive_ai 
 提供所选角色增量，union coverability 为 6/8，而 anchor 单独只有 3/8，六项冻结门
 全部通过。这只允许另行预注册 AD01–AD08 未见集评估，不授权生产 Tool Calling。
 详见[人工评审结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md)。
+
+现已在 AD runner 实现和任何 AD Provider 返回之前，单独冻结 AD01–AD08 未见集评估
+协议。协议沿用同一组六项合取门，只允许 8–16 次顺序匿名 OpenAlex 请求和不高于
+`$0.02` 的软停止线，禁止重试、改写查询、模型、恢复与生产导入。本次预注册只授权
+实现和零网络验证；真实执行仍需另行授权，并点名合并 revision 与未变化的 fixture
+哈希。详见 [AD 评估预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md)。
 
 本地验证现通过 **1,943 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。

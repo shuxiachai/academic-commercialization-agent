@@ -795,9 +795,16 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   reviewer, titles and abstracts only, no external-source checks, and an owner-
   relayed rather than separately signed declaration correction.
 
-  AC is consumed. This pass permits only a separately pre-registered AD01-AD08
-  unseen evaluation; AD is still unopened and production remains disconnected.
-  Do not tune on or rerun AC as validation, open AD without a new protocol and
+  AC is consumed. A separate AD01-AD08 unseen-evaluation protocol is now frozen
+  on merged base `9121bcc`, before an AD-capable runner or any AD provider
+  response. It preserves the same six conjunctive gates, eight-to-sixteen
+  sequential anonymous OpenAlex request bound and USD 0.02 maximum soft stop;
+  retries, query rewriting, models, recovery and production imports remain
+  forbidden. This registration authorizes implementation and zero-network
+  verification only. A real AD request still requires separate owner
+  authorization naming the merged implementation revision and unchanged
+  fixture hash. AD remains unopened and production remains disconnected.
+  Do not tune on or rerun AC as validation, execute AD without that later
   authorization, or connect v8 to the planner or production. See
   `docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md`,
   `docs/errata-2026-09-02-openalex-role-gap-v8-query-scope.md`,
@@ -807,8 +814,8 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md`,
   `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`,
   `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md`,
-  and
-  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`.
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`, and
+  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md`.
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
