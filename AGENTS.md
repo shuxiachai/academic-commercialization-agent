@@ -1089,15 +1089,23 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   scope mismatch. This remains advisory and does not change scoring, block a
   report, or connect production Tool Calling.
 
-  A separately pre-registered one-root post-fix paid canary now freezes the
-  earlier sulfide-electrolyte topic with a complete synthetic Decision Context
-  and explicitly owner-approved success criteria. Its primary question is
-  whether mode, authority, privacy and report-audit state cross the deployed
-  Markdown/API/browser seams; generated-content quality is classified
-  separately as clean, caught or missed. The protocol permits no request by
-  itself. Execution still requires a fresh authorization naming the exact
-  deployed merge revision, access code and USD 0.10 soft stop, with no retry,
-  recovery, Planner call or supplementary search.
+  A separately pre-registered one-root post-fix paid canary froze the earlier
+  sulfide-electrolyte topic with a complete synthetic Decision Context and
+  explicitly owner-approved success criteria. One authorized root then ran on
+  exact deployed revision `46b93a3c...` and reached the Reviewer after
+  retaining 7/8/8 sources and committing retrieval, all three evidence nodes
+  and Writer. The API's 30-minute watchdog terminated it before Reviewer or
+  Scorer completion. No child, Planner call, supplementary search or second
+  root occurred. Decision-gate identity, authority and raw-criteria privacy
+  agreed across both public endpoints, but the final report, report audit and
+  usage ledger were unavailable. The frozen count is 2/8 pass, 2 fail, 3
+  not-inspectable and 1 not-observed; generated content is not inspectable.
+  The run also exposed that timeout duration is derived from the stale final
+  status write (`1404` seconds) rather than the later watchdog marker, and that
+  an external kill bypasses the worker's final usage snapshot. Do not rerun or
+  resume this consumed canary, call the P1 production seam validated, infer
+  zero cost, or raise the timeout alone. Fix terminal timing/accounting and
+  stage-budget behavior under a separate measured change first.
   See
   `docs/prereg-2026-08-26-decision-context-report-contract.md`,
   `docs/results-2026-08-26-decision-context-report-contract.md`,
@@ -1107,4 +1115,5 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-08-27-public-pipeline-revision-seam.md`,
   `docs/prereg-2026-09-03-report-decision-and-citation-seams.md`, and
   `docs/results-2026-09-03-report-decision-and-citation-seams.md`, plus
-  `docs/prereg-2026-09-04-report-decision-seams-paid-canary.md`.
+  `docs/prereg-2026-09-04-report-decision-seams-paid-canary.md`, and
+  `docs/results-2026-09-04-report-decision-seams-paid-canary.md`.
