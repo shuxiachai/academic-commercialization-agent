@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "experiment_id": "report-decision-seams-post-fix-paid-canary-2026-09-04",
+  "implementation_baseline": "b7a8731dc2a2c984dec058167fb3c1bdb79e3a24",
+  "topic_selection": {
+    "topic": "solid-state sodium-ion batteries using sulfide electrolytes for grid storage commercialization",
+    "selection_basis": "The earlier Qwen production canary on this exact topic exposed both an unqualified decision threshold and a sulfide-claim versus oxide-source citation mismatch. Reusing it here is an explicit regression canary, not an independent quality evaluation."
+  },
+  "cases": [
+    {
+      "case_id": "RDS01",
+      "expected_assessment_mode": "decision_support",
+      "request": {
+        "topic": "solid-state sodium-ion batteries using sulfide electrolytes for grid storage commercialization",
+        "decision_context": {
+          "asset_description": "A university-developed sulfide solid-electrolyte formulation demonstrated at coin-cell scale, with no pilot-line validation",
+          "target_application": "Four-hour stationary sodium-ion battery packs for grid storage",
+          "decision_owner": "Corporate energy-storage R&D investment committee",
+          "decision_type": "GO, DEFER, or NO_GO on funding a twelve-month pilot-scale validation program",
+          "jurisdiction": "Australia",
+          "time_horizon": "Make the funding decision within 90 days and evaluate pilot evidence within 12 months",
+          "constraints": "Treat the asset description and success criteria as supplied decision context rather than retrieved facts. Require independent safety testing, a same-cell chemistry benchmark, and patent counsel before any FTO conclusion.",
+          "success_criteria": "Owner-approved pilot pass thresholds: room-temperature ionic conductivity of at least 5 mS/cm; capacity retention of at least 80% after 200 cycles in the agreed sodium-ion cell; no uncontrolled hydrogen sulfide release during the agreed handling test; at least three reproducible one-kilogram batches; and modeled material cost no more than USD 50/kg. These are synthetic canary inputs, not retrieved facts.",
+          "success_criteria_authority": "owner_approved"
+        }
+      },
+      "expected_gate": {
+        "status": "checked",
+        "mode": "decision_support",
+        "provided_fields": [
+          "asset_description",
+          "target_application",
+          "decision_owner",
+          "decision_type",
+          "jurisdiction",
+          "time_horizon",
+          "constraints",
+          "success_criteria",
+          "success_criteria_authority"
+        ],
+        "missing_core_fields": [],
+        "go_no_go_allowed": true,
+        "threshold_provenance": {
+          "status": "owner_approved",
+          "criteria_supplied": true,
+          "owner_approval_declared": true
+        }
+      }
+    }
+  ],
+  "execution_bounds": {
+    "maximum_root_runs": 1,
+    "maximum_runs_per_case": 1,
+    "maximum_operator_retries": 0,
+    "maximum_resumes": 0,
+    "maximum_planner_calls": 0,
+    "maximum_supplementary_search_calls": 0,
+    "soft_stop_usd_total": 0.1,
+    "allow_one_in_flight_overrun": true
+  }
+}

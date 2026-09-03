@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 2009 tests (660 subtests), CI green on Linux + Windows × Python
+Current state: 2014 tests (660 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -1088,6 +1088,16 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   reinjection caught both a dropped applicability block and a swallowed source-
   scope mismatch. This remains advisory and does not change scoring, block a
   report, or connect production Tool Calling.
+
+  A separately pre-registered one-root post-fix paid canary now freezes the
+  earlier sulfide-electrolyte topic with a complete synthetic Decision Context
+  and explicitly owner-approved success criteria. Its primary question is
+  whether mode, authority, privacy and report-audit state cross the deployed
+  Markdown/API/browser seams; generated-content quality is classified
+  separately as clean, caught or missed. The protocol permits no request by
+  itself. Execution still requires a fresh authorization naming the exact
+  deployed merge revision, access code and USD 0.10 soft stop, with no retry,
+  recovery, Planner call or supplementary search.
   See
   `docs/prereg-2026-08-26-decision-context-report-contract.md`,
   `docs/results-2026-08-26-decision-context-report-contract.md`,
@@ -1096,4 +1106,5 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/errata-2026-08-27-decision-context-reviewer-zero-target.md`, plus
   `docs/results-2026-08-27-public-pipeline-revision-seam.md`,
   `docs/prereg-2026-09-03-report-decision-and-citation-seams.md`, and
-  `docs/results-2026-09-03-report-decision-and-citation-seams.md`.
+  `docs/results-2026-09-03-report-decision-and-citation-seams.md`, plus
+  `docs/prereg-2026-09-04-report-decision-seams-paid-canary.md`.
