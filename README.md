@@ -1017,16 +1017,30 @@ passed. This permits only a separately pre-registered AD01-AD08 unseen
 evaluation; it does not authorize production Tool Calling. See the
 [human-review result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md).
 
-A separate AD01-AD08 unseen-evaluation protocol is now frozen before an
-AD-capable runner or any AD provider response. It carries forward the same six
-conjunctive gates, permits only eight to sixteen sequential anonymous OpenAlex
-requests under a USD 0.02 soft stop, and forbids retries, query rewriting,
-models, recovery, and production imports. This registration authorizes only
-implementation and zero-network verification; a real run still requires a new
-authorization naming its merged revision and the unchanged fixture hash. See
-the [AD evaluation pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md).
+The AD01-AD08 unseen-evaluation protocol was frozen before an AD-capable runner
+or any AD provider response. It carries forward the same six conjunctive gates,
+permits only eight to sixteen sequential anonymous OpenAlex requests under a
+USD 0.02 soft stop, and forbids retries, query rewriting, models, recovery, and
+production imports.
 
-Local verification now passes **1,943 tests plus 657 subtests**, latest Ruff,
+A separately named **v8 AD unseen-evaluation runner is now implemented and
+zero-network verified**. It accepts only the `unseen` cohort, locks the raw
+fixture, all AD identities and behavior dependencies before output reservation
+or adapter construction, persists the manifest before any network-capable
+client, and serializes provider, route, portfolio, cost, latency and candidate
+lineage through the final artifact index and blank-review boundaries. Its
+21/21 focused tests and the complete 1,964-test / 657-subtest suite pass. Two
+pre-registered defects were re-injected: allowing `development` made the cohort
+authority test fail, and dropping one route only at serialization made the
+client-boundary test fail. Both were restored before the suite returned green.
+
+No AD provider request, model call, human review or production connection has
+occurred. AD remains outcome-unseen. A real run still requires a separate owner
+authorization naming the exact merged implementation revision and unchanged
+fixture hash. See the [AD evaluation pre-registration](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md)
+and [runner implementation result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-runner-implementation.md).
+
+Local verification now passes **1,964 tests plus 657 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2392,13 +2406,24 @@ AI 使用，因此未修改的严格入口正确返回 `excluded_substantive_ai 
 全部通过。这只允许另行预注册 AD01–AD08 未见集评估，不授权生产 Tool Calling。
 详见[人工评审结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md)。
 
-现已在 AD runner 实现和任何 AD Provider 返回之前，单独冻结 AD01–AD08 未见集评估
-协议。协议沿用同一组六项合取门，只允许 8–16 次顺序匿名 OpenAlex 请求和不高于
-`$0.02` 的软停止线，禁止重试、改写查询、模型、恢复与生产导入。本次预注册只授权
-实现和零网络验证；真实执行仍需另行授权，并点名合并 revision 与未变化的 fixture
-哈希。详见 [AD 评估预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md)。
+AD01–AD08 未见集评估协议已在 AD runner 和任何 AD Provider 返回之前冻结。协议沿用
+同一组六项合取门，只允许 8–16 次顺序匿名 OpenAlex 请求和不高于 `$0.02` 的软停止
+线，禁止重试、改写查询、模型、恢复与生产导入。
 
-本地验证现通过 **1,943 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
+独立命名的 **v8 AD 未见集执行器现已完成实现和零网络验证**。它只接受 `unseen`
+cohort，在保留输出目录或构造网络适配器前锁定原始 fixture、全部 AD 身份和行为依赖，
+在任何网络客户端前写入完整 manifest，并把供应商行、路由、portfolio、成本、时延与
+候选谱系送达最终 artifact index 和空白评审边界。21/21 个聚焦测试与完整的 1,964 项
+测试、657 个 subtests 均通过。项目还按预注册分别回注了两项缺陷：放行 `development`
+会使 cohort 权限测试失败；仅在序列化时丢失一条 route 会使客户端接缝测试失败。
+恢复正确实现后测试重新全绿。
+
+本阶段没有发生 AD Provider 请求、模型调用、人工评审或生产连接，AD 仍保持结果未见。
+真实执行仍需另行授权，并点名精确的合并实现 revision 与未变化的 fixture 哈希。详见
+[AD 评估预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md)与
+[执行器实现结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-runner-implementation.md)。
+
+本地验证现通过 **1,964 项测试与 657 个 subtests**、最新版 Ruff、CI 同款
 窄范围 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始

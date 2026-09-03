@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 1943 tests (657 subtests), CI green on Linux + Windows × Python
+Current state: 1964 tests (657 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -175,7 +175,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  112 test modules plus conftest, organised by subject
+tests/                  113 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -235,6 +235,8 @@ openalex_role_gap_unseen.py
                         frozen AC/AD adaptive role-gap identities and router
 openalex_role_gap_live.py
                         write-once AC adaptive runner; defaults to zero-network
+openalex_role_gap_evaluation.py
+                        write-once AD unseen runner; defaults to zero-network
 openalex_role_gap_review.py
                         exact AC source lock, route/lane-blind Schema v2 review
 ops_report.py           what real runs actually did, vs what the benchmark covers
@@ -795,15 +797,28 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   reviewer, titles and abstracts only, no external-source checks, and an owner-
   relayed rather than separately signed declaration correction.
 
-  AC is consumed. A separate AD01-AD08 unseen-evaluation protocol is now frozen
-  on merged base `9121bcc`, before an AD-capable runner or any AD provider
-  response. It preserves the same six conjunctive gates, eight-to-sixteen
-  sequential anonymous OpenAlex request bound and USD 0.02 maximum soft stop;
-  retries, query rewriting, models, recovery and production imports remain
-  forbidden. This registration authorizes implementation and zero-network
-  verification only. A real AD request still requires separate owner
-  authorization naming the merged implementation revision and unchanged
-  fixture hash. AD remains unopened and production remains disconnected.
+  AC is consumed. A separate AD01-AD08 unseen-evaluation protocol was frozen on
+  merged base `9121bcc`, before an AD-capable runner or any AD provider response.
+  It preserves the same six conjunctive gates, eight-to-sixteen sequential
+  anonymous OpenAlex request bound and USD 0.02 maximum soft stop; retries,
+  query rewriting, models, recovery and production imports remain forbidden.
+
+  The separately named AD-only runner is now implemented on base `243d23f` and
+  zero-network verified. It accepts only `unseen`, validates the raw fixture,
+  AD identities, contracts and behavior dependencies before output reservation
+  or adapter construction, persists the complete manifest first, and carries
+  provider rows, routes, portfolios, costs, latency and candidate lineage to
+  content-addressed client artifacts. Its dry run exposes eight AD cases,
+  forty-eight potential call identities, a sixteen-request maximum and zero
+  model or network calls. The 21/21 focused suite and complete 1964-test /
+  657-subtest suite pass. Allowing `development` and dropping a route only at
+  serialization were each re-injected; both made their seam tests fail before
+  restoration. Existing AC code and artifacts were not changed.
+
+  This implementation still authorizes no AD provider request. A real request
+  requires separate owner authorization naming the exact merged implementation
+  revision and unchanged fixture hash. AD remains outcome-unseen and production
+  remains disconnected.
   Do not tune on or rerun AC as validation, execute AD without that later
   authorization, or connect v8 to the planner or production. See
   `docs/prereg-2026-09-02-openalex-adaptive-role-gap-closure-v8.md`,
@@ -814,8 +829,9 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/results-2026-09-02-openalex-adaptive-role-gap-v8-ac-live.md`,
   `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`,
   `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review-boundary.md`,
-  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`, and
-  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md`.
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-human-review.md`,
+  `docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-evaluation.md`, and
+  `docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-runner-implementation.md`.
   docs/results-2026-08-29-openalex-evidence-set-v5-implementation.md, and
   docs/results-2026-08-29-openalex-evidence-set-v5-development-runner-implementation.md,
   plus
