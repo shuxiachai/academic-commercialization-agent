@@ -103,7 +103,7 @@ Scorer has completed. The unchanged Writer draft is delivered with an explicit
 own guardrail and earlier deadline. A Writer failure or Scorer failure still
 fails the run.
 
-## Remaining boundary
+## Production observation and remaining boundary
 
 The first separately authorized canary never crossed admission. Its preflight
 confirmed the deployed revision, readiness, API schemas, accounting branches,
@@ -112,20 +112,34 @@ reason or method. It stopped before the paid POST with zero roots, zero
 provider/search requests, and USD 0.00 observed cost. See the
 [zero-request preflight result](results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md).
 
-The browser seam is now implemented and covered by both shipped-JavaScript
-tests and a real loopback Chromium journey whose on-disk fixture contains a
-valid immutable terminal record. The original topic remains unconsumed because
-no run existed. A replacement study is frozen in the
+The browser seam is covered by both shipped-JavaScript tests and a real loopback
+Chromium journey whose on-disk fixture contains a valid immutable terminal
+record. A replacement study was frozen in the
 [post-browser-seam pre-registration](prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)
-under a new RTI02 identity, one root, zero operator
-retry/resume/cancellation, a USD 0.10 soft stop, and explicit outcome lanes.
-The protocol authorizes zero provider calls by itself and the earlier
-authorization cannot carry across changed code.
+under a new RTI02 identity.
 
-Until a fresh authorization names the new merged and deployed revision,
-production behavior remains unobserved. A normal completion still cannot
-validate Reviewer fallback or external-timeout accounting; either path remains
-`not_observed` unless it actually occurs. The consumed earlier 2026-09-04
+One separately authorized root then completed on exact deployed revision
+`522094a4330133c33aba2c3059bfd646be80b792`. The schema-1 terminal record,
+status, progress, and real browser agreed on `completed`,
+`worker_completed`, `worker_exit`, timezone-aware timestamps, 885 seconds,
+and the 1,800-second timeout. Six `qwen3.5-plus` requests used 69,932 tokens
+with a complete USD 0.067922 estimate. All seven checkpoints committed,
+Reviewer passed, every observed cumulative counter was nondecreasing, and the
+orientation gate remained non-binding. The browser visibly rendered
+`worker completed` and preserved the raw reason and method in its tooltip.
+The primary gate passed 12/12. See the
+[paid result](results-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md).
+
+The observer also records a minor protocol deviation rather than hiding it:
+two of 88 read-only polling intervals were 9.984 seconds, 16 milliseconds
+earlier than the frozen ten-second minimum. It did not change provider work,
+cost, or any primary assertion. RTI02 is consumed and must not be rerun to
+erase that qualifier.
+
+This normal completion still cannot validate Reviewer fallback or external-
+timeout accounting; either path remains `not_observed` unless it actually
+occurs. It establishes no latency SLO: this run took 885 seconds while an
+earlier Qwen completion took 306 seconds. The consumed earlier 2026-09-04
 Decision Context canary must not be rerun or reclassified.
 
 An operating-system or host loss that bypasses both worker cleanup and the API

@@ -178,7 +178,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  121 test modules plus conftest, organised by subject
+tests/                  122 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -1135,19 +1135,34 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   commits schema-1 terminal bytes and asserts disk-to-API-to-DOM delivery; a
   dropped DOM assignment was re-injected and made that journey fail.
 
-  Because no RTI01 run existed, the same topic remains unconsumed. A new RTI02
-  protocol freezes one root, USD 0.10 soft stop, zero operator retries,
-  resumes, cancellations, Planner calls or supplementary searches, and
-  outcome-specific semantics that cannot promote timeout, unavailable, or
-  API-only presence to a pass. It authorizes zero provider calls and requires
-  fresh authorization naming the new merged deployment; the old authorization
-  cannot carry across changed code. This still does not establish production
-  success or exact interrupted-request billing. See
+  A separately authorized RTI02 root then completed on exact deployed revision
+  `522094a4330133c33aba2c3059bfd646be80b792`. Status, progress, the immutable
+  terminal record and real Chromium agreed on `completed`,
+  `worker_completed`, `worker_exit`, timestamps, 885 seconds and the
+  1,800-second timeout. Six exact `qwen3.5-plus` requests used 69,932 tokens
+  with a complete USD 0.067922 estimate; all seven checkpoints committed,
+  Reviewer passed, every observed cumulative usage counter was nondecreasing,
+  and the orientation gate remained non-binding. No retry, resume,
+  cancellation, Planner call or supplementary search occurred. The primary
+  gate passed 12/12.
+
+  Two of 88 read-only polling intervals were 9.984 seconds, 16 milliseconds
+  earlier than the frozen cadence. That observer-only deviation did not change
+  provider work, cost or any primary assertion, but the result retains the
+  qualifier rather than claiming perfect protocol conformance. RTI02 is
+  consumed and must not be rerun to erase it. This ordinary completion does
+  not validate Reviewer fallback, hard-timeout behavior, interrupted-request
+  billing, report accuracy or a latency SLO. It also exposed three separate
+  measurement candidates: stale absolute time promises, likely false-positive
+  proposed-threshold audit warnings, and clinical authority applicability.
+  Measure those on existing artifacts before changing code. See
   `docs/runtime-terminal-integrity.md`,
   `docs/results-2026-09-04-runtime-terminal-integrity-implementation.md`,
   `docs/results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md`,
   and
-  `docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md`.
+  `docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md`,
+  plus
+  `docs/results-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md`.
 
   See
   `docs/prereg-2026-08-26-decision-context-report-contract.md`,
