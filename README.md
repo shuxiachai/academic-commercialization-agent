@@ -803,11 +803,18 @@ falls back to a stale status-file timestamp. This is not yet a production
 validation result: one separately authorized post-deployment canary is still
 required. See the [runtime contract](docs/runtime-terminal-integrity.md) and
 [implementation result](docs/results-2026-09-04-runtime-terminal-integrity-implementation.md).
+That canary now has a frozen, previously unused handheld-ultrasound request,
+exact runtime-policy and manifest identities, one-root/zero-retry bounds, a USD
+0.10 soft stop, and outcome lanes that keep ordinary completion, Reviewer
+fallback, timeout and unavailable observations distinct. The pre-registration
+authorizes zero provider calls; a fresh authorization naming the merged and
+deployed revision is still required before execution. See the
+[pre-registration](docs/prereg-2026-09-04-runtime-terminal-integrity-paid-canary.md).
 
-The canary observed live transport and accounting for one run, not general
-report quality or benchmark equivalence. It exposed two internal-x10 score
-phrases that reached report prose; the deterministic score payload remained
-correct, and the narrow narrative seam is now covered by regression tests.
+The earlier completed Qwen provider canary observed live transport and
+accounting for one run, not general report quality or benchmark equivalence.
+It exposed two internal-x10 score phrases that reached report prose; the
+deterministic score payload remained correct, and the narrative seam is tested.
 A separate invented-threshold/citation-entailment finding remains open. See
 the [implementation record](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)
 and [paid canary record](docs/results-2026-08-30-qwen35-plus-first-paid-canary.md).

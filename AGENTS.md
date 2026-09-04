@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 2043 tests (674 subtests), CI green on Linux + Windows × Python
+Current state: 2049 tests (674 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -178,7 +178,7 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  120 test modules plus conftest, organised by subject
+tests/                  121 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -1125,10 +1125,17 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   accounting state is explicitly `lower_bound` or `unavailable`. Both public
   endpoints and the browser expose the distinction. Three defect reinjections
   proved the provider-call, callback-to-disk and disk-to-client seams. This does
-  not establish production success or exact interrupted-request billing; a new
-  separately authorized canary is still required. See
+  not establish production success or exact interrupted-request billing.
+  A new one-root production canary is now separately pre-registered against a
+  previously unused handheld-ultrasound topic. It freezes the deployed runtime
+  policy, one orientation request, USD 0.10 soft stop, zero operator retries,
+  resumes, cancellations, Planner calls or supplementary searches, and
+  outcome-specific semantics that cannot promote a timeout or unavailable seam
+  to a pass. The protocol itself authorizes zero provider calls; execution still
+  requires a fresh user authorization naming the merged deployed revision. See
   `docs/runtime-terminal-integrity.md` and
-  `docs/results-2026-09-04-runtime-terminal-integrity-implementation.md`.
+  `docs/results-2026-09-04-runtime-terminal-integrity-implementation.md`, plus
+  `docs/prereg-2026-09-04-runtime-terminal-integrity-paid-canary.md`.
 
   See
   `docs/prereg-2026-08-26-decision-context-report-contract.md`,
