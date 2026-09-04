@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "experiment_id": "runtime-terminal-integrity-post-browser-seam-paid-canary-2026-09-04",
+  "implementation_baseline": "67399495477d8651d0004c7b8e26b4e453e4ff91",
+  "predecessor": {
+    "manifest": "tests/fixtures/runtime_terminal_integrity_paid_canary_manifest.json",
+    "manifest_sha256": "4aaa13f6f2fba30ffd479a086b0f192c86bfb5c2ce87c49d77f4728671a5a2b5",
+    "deployed_revision": "67399495477d8651d0004c7b8e26b4e453e4ff91",
+    "result": "docs/results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md",
+    "outcome": "not_started / preflight_failed",
+    "root_runs_submitted": 0,
+    "provider_or_search_requests": 0,
+    "cost_usd": 0.0
+  },
+  "topic_selection": {
+    "topic": "AI-assisted handheld ultrasound for heart-failure screening in rural clinics commercialization",
+    "selection_basis": "RTI01 stopped before its paid POST because the deployed browser bundle did not consume terminal reason and method. No root run, provider request, generated output, or source retrieval exists for the topic, so RTI02 preserves the original question without reusing a consumed evaluation outcome."
+  },
+  "cases": [
+    {
+      "case_id": "RTI02",
+      "expected_assessment_mode": "orientation",
+      "request": {
+        "topic": "AI-assisted handheld ultrasound for heart-failure screening in rural clinics commercialization"
+      },
+      "expected_gate": {
+        "status": "checked",
+        "mode": "orientation",
+        "provided_fields": [],
+        "missing_core_fields": [
+          "asset_description",
+          "target_application",
+          "decision_owner",
+          "decision_type"
+        ],
+        "go_no_go_allowed": false,
+        "threshold_provenance": {
+          "status": "not_established",
+          "criteria_supplied": false,
+          "owner_approval_declared": false
+        }
+      }
+    }
+  ],
+  "runtime_contract": {
+    "hard_timeout_seconds": 1800,
+    "request_timeout_seconds": 150,
+    "reviewer_reserve_seconds": 240,
+    "finalization_reserve_seconds": 60,
+    "terminal_schema_version": 1,
+    "terminal_states": [
+      "completed",
+      "failed",
+      "cancelled",
+      "timeout"
+    ],
+    "termination_methods": [
+      "worker_exit",
+      "terminate",
+      "kill",
+      "already_exited"
+    ],
+    "usage_accounting_states": [
+      "complete",
+      "lower_bound",
+      "unavailable"
+    ]
+  },
+  "browser_contract": {
+    "element_id": "run-terminal",
+    "known_reason_labels": {
+      "worker_completed": "worker completed",
+      "worker_exception": "worker failed",
+      "user_cancelled": "cancelled by user",
+      "hard_timeout": "hard timeout"
+    },
+    "unknown_reason_policy": "preserve_verbatim",
+    "missing_terminal_on_terminal_state": "terminal details unavailable",
+    "unreadable_record": "terminal record unreadable",
+    "tooltip_fields": [
+      "reason_code",
+      "termination_method"
+    ]
+  },
+  "primary_acceptance": {
+    "required_terminal_state": "completed",
+    "required_reason_code": "worker_completed",
+    "required_termination_method": "worker_exit",
+    "required_usage_accounting_state": "complete",
+    "required_runtime_budget_state": "active",
+    "required_artifacts": [
+      "terminal"
+    ],
+    "required_public_seams": [
+      "status",
+      "progress",
+      "browser"
+    ],
+    "required_browser_observations": [
+      "translated_reason",
+      "raw_reason_code",
+      "raw_termination_method"
+    ],
+    "nonpassing_terminal_states": [
+      "failed",
+      "cancelled",
+      "timeout"
+    ]
+  },
+  "outcome_lanes": {
+    "completed_reviewed": "The run completed with a non-fallback quality-review state; only the ordinary completion path was observed.",
+    "completed_reviewer_fallback": "The run completed with quality_review.status=fallback; the early Reviewer deadline and validated-Writer fallback path were observed.",
+    "failed": "The worker committed a failed terminal record; terminal observability may be assessed, but the paid canary does not pass.",
+    "timeout": "The API committed a hard-timeout terminal record; lower-bound or unavailable usage semantics may be assessed, but the paid canary does not pass.",
+    "cancelled": "The run was externally cancelled; this is protocol interruption and the paid canary does not pass.",
+    "not_inspectable": "A required artifact, response seam, revision identity, accounting state, or browser terminal field could not be inspected; silence is not a pass."
+  },
+  "execution_bounds": {
+    "maximum_root_runs": 1,
+    "maximum_runs_per_case": 1,
+    "maximum_operator_retries": 0,
+    "maximum_resumes": 0,
+    "maximum_operator_cancellations": 0,
+    "maximum_planner_calls": 0,
+    "maximum_supplementary_search_calls": 0,
+    "soft_stop_usd_total": 0.1,
+    "allow_one_in_flight_overrun": true,
+    "poll_interval_seconds": 10,
+    "maximum_observation_seconds": 1900
+  }
+}

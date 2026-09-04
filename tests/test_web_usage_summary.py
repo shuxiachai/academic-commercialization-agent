@@ -25,6 +25,7 @@ _REPO = Path(__file__).resolve().parent.parent
 _RUN_JS = _REPO / "web" / "static" / "js" / "run.js"
 _I18N_JS = _REPO / "web" / "static" / "js" / "i18n.js"
 _APP_JS = _REPO / "web" / "static" / "js" / "app.js"
+_INDEX_HTML = _REPO / "web" / "index.html"
 
 
 def _node() -> str | None:
@@ -54,13 +55,19 @@ class UsageSummaryTests(unittest.TestCase):
         # do not depend on whatever language a developer last selected.
         (work / "harness.mjs").write_text(textwrap.dedent("""
             globalThis.localStorage = { getItem: () => null, setItem: () => {} };
-            const { usageSummary, usageTitle } = await import("./run.mjs");
+            const {
+                terminalSummary, terminalTitle, usageSummary, usageTitle,
+            } = await import("./run.mjs");
             const payload = JSON.parse(process.argv[2]);
             const usage = payload?.usage ?? null;
             const accounting = payload?.accounting ?? null;
+            const terminal = payload?.terminal ?? null;
+            const state = payload?.state ?? "";
             console.log(JSON.stringify({
                 summary: usageSummary(usage, accounting),
                 title: usageTitle(usage, accounting),
+                terminalSummary: terminalSummary(terminal, state),
+                terminalTitle: terminalTitle(terminal, state),
             }));
         """), encoding="utf-8")
         cls._work = work
@@ -78,8 +85,20 @@ class UsageSummaryTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._tmp.cleanup()
 
-    def _render(self, usage, accounting=None) -> dict:
-        payload = {"usage": usage, "accounting": accounting}
+    def _render(
+        self,
+        usage,
+        accounting=None,
+        *,
+        terminal=None,
+        state: str = "",
+    ) -> dict:
+        payload = {
+            "usage": usage,
+            "accounting": accounting,
+            "terminal": terminal,
+            "state": state,
+        }
         result = subprocess.run(
             [_node(), str(self._work / "harness.mjs"), json.dumps(payload)],
             capture_output=True, text=True, encoding="utf-8", timeout=120, cwd=self._work,
@@ -189,6 +208,90 @@ class UsageSummaryTests(unittest.TestCase):
         source = _APP_JS.read_text(encoding="utf-8")
         self.assertIn("usageSummary(usage, usage_accounting)", source)
         self.assertIn("usageTitle(usage, usage_accounting)", source)
+
+    def test_known_terminal_reason_and_method_are_inspectable(self):
+        """The worker's reason must survive the final JavaScript formatter."""
+
+        out = self._render(
+            None,
+            terminal={
+                "record_state": "committed",
+                "reason_code": "worker_completed",
+                "termination_method": "worker_exit",
+            },
+            state="completed",
+        )
+
+        self.assertEqual(out["terminalSummary"], "worker completed")
+        self.assertIn("Reason: worker_completed", out["terminalTitle"])
+        self.assertIn("Termination: worker_exit", out["terminalTitle"])
+
+    def test_every_frozen_terminal_reason_has_a_distinct_summary(self):
+        expected = {
+            "worker_completed": "worker completed",
+            "worker_exception": "worker failed",
+            "user_cancelled": "cancelled by user",
+            "hard_timeout": "hard timeout",
+        }
+
+        for reason, summary in expected.items():
+            with self.subTest(reason=reason):
+                out = self._render(
+                    None,
+                    terminal={
+                        "record_state": "committed",
+                        "reason_code": reason,
+                        "termination_method": "worker_exit",
+                    },
+                    state="completed",
+                )
+                self.assertEqual(out["terminalSummary"], summary)
+
+    def test_future_terminal_reason_is_preserved_verbatim(self):
+        """Unknown codes are evidence, not a reason to fall back to silence."""
+
+        out = self._render(
+            None,
+            terminal={
+                "record_state": "committed",
+                "reason_code": "future_supervisor_stop",
+                "termination_method": "kill",
+            },
+            state="failed",
+        )
+
+        self.assertIn("future_supervisor_stop", out["terminalSummary"])
+        self.assertIn("future_supervisor_stop", out["terminalTitle"])
+        self.assertIn("kill", out["terminalTitle"])
+
+    def test_missing_and_unreadable_terminal_records_do_not_look_clean(self):
+        missing = self._render(None, terminal=None, state="completed")
+        unreadable = self._render(
+            None,
+            terminal={"record_state": "unreadable"},
+            state="failed",
+        )
+
+        self.assertEqual(missing["terminalSummary"], "terminal details unavailable")
+        self.assertIn("no inspectable", missing["terminalTitle"])
+        self.assertEqual(unreadable["terminalSummary"], "terminal record unreadable")
+        self.assertIn("could not be validated", unreadable["terminalTitle"])
+
+    def test_live_run_without_terminal_record_remains_silent(self):
+        out = self._render(None, terminal=None, state="running")
+
+        self.assertEqual(out["terminalSummary"], "")
+        self.assertEqual(out["terminalTitle"], "")
+
+    def test_app_delivers_terminal_projection_to_a_dedicated_dom_seam(self):
+        """A correct formatter is useless if app.js or HTML drops its output."""
+
+        source = _APP_JS.read_text(encoding="utf-8")
+        markup = _INDEX_HTML.read_text(encoding="utf-8")
+
+        self.assertIn("terminalSummary(terminal, state)", source)
+        self.assertIn("terminalTitle(terminal, state)", source)
+        self.assertIn('id="run-terminal"', markup)
 
 
 @unittest.skipUnless(_node(), "node not installed")

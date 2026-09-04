@@ -179,6 +179,55 @@ export function usageTitle(usage, accounting = null) {
   return lines.join("\n");
 }
 
+/**
+ * Human-readable cause for an immutable terminal outcome.
+ *
+ * The state pill already says completed/failed/cancelled/timeout, but that is
+ * only a lifecycle category.  The terminal record says *why* the process
+ * entered it.  Keep the known reasons translated and preserve an unknown
+ * code verbatim: hiding a future reason behind a generic state would make the
+ * browser less inspectable than the API, while textContent keeps it inert.
+ */
+export function terminalSummary(terminal, state = "") {
+  const terminalStates = new Set(["completed", "failed", "cancelled", "timeout"]);
+  if (!terminal) {
+    return terminalStates.has(state) ? t("terminal_missing") : "";
+  }
+  if (terminal.record_state === "unreadable") return t("terminal_unreadable");
+
+  const known = {
+    worker_completed: "terminal_worker_completed",
+    worker_exception: "terminal_worker_exception",
+    user_cancelled: "terminal_user_cancelled",
+    hard_timeout: "terminal_hard_timeout",
+  };
+  const key = known[terminal.reason_code];
+  if (key) return t(key);
+  if (terminal.reason_code) {
+    return t("terminal_other_reason").replace("{reason}", terminal.reason_code);
+  }
+  return t("terminal_missing");
+}
+
+/** Raw reason and stop method for the run-header tooltip and audit inspection. */
+export function terminalTitle(terminal, state = "") {
+  if (!terminal) {
+    return new Set(["completed", "failed", "cancelled", "timeout"]).has(state)
+      ? t("terminal_missing_detail")
+      : "";
+  }
+  if (terminal.record_state === "unreadable") return t("terminal_unreadable_detail");
+
+  const lines = [];
+  if (terminal.reason_code) {
+    lines.push(t("terminal_reason_detail").replace("{reason}", terminal.reason_code));
+  }
+  if (terminal.termination_method) {
+    lines.push(t("terminal_method_detail").replace("{method}", terminal.termination_method));
+  }
+  return lines.join("\n");
+}
+
 /* ── Rendering ─────────────────────────────────────────────────────── */
 
 export function renderStages(container, stages) {
