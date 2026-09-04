@@ -64,8 +64,11 @@ retain their existing derivation rules. An invalid file is exposed as
 `terminal.record_state=unreadable`, not silently treated as absent.
 
 Both `/api/runs/{id}` and `/api/runs/{id}/progress` expose the same terminal
-projection and use its elapsed time. The downloadable `terminal` artifact
-contains the full non-secret record.
+projection and use its elapsed time. The browser renders the translated reason
+and preserves raw `reason_code` and `termination_method` in an inspection
+tooltip. A missing or unreadable immutable record after a terminal state is
+explicitly labelled rather than looking like an ordinary clean finish. The
+downloadable `terminal` artifact contains the full non-secret record.
 
 ## Usage states
 
@@ -102,14 +105,26 @@ fails the run.
 
 ## Remaining boundary
 
-This implementation has zero-network test evidence only. A fresh, separately
-authorized paid canary is required after deployment to observe whether the
-runtime contract survives real provider execution. That canary is now frozen
-in [its pre-registration](prereg-2026-09-04-runtime-terminal-integrity-paid-canary.md)
-with a new topic, one root, zero operator retry/resume/cancellation, a USD 0.10
-soft stop, and explicit outcome lanes. The protocol authorizes zero provider
-calls by itself. A normal completion cannot be used to claim that Reviewer
-fallback or external-timeout accounting was observed; either path remains
+The first separately authorized canary never crossed admission. Its preflight
+confirmed the deployed revision, readiness, API schemas, accounting branches,
+and access boundary, then found that the browser did not consume terminal
+reason or method. It stopped before the paid POST with zero roots, zero
+provider/search requests, and USD 0.00 observed cost. See the
+[zero-request preflight result](results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md).
+
+The browser seam is now implemented and covered by both shipped-JavaScript
+tests and a real loopback Chromium journey whose on-disk fixture contains a
+valid immutable terminal record. The original topic remains unconsumed because
+no run existed. A replacement study is frozen in the
+[post-browser-seam pre-registration](prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)
+under a new RTI02 identity, one root, zero operator
+retry/resume/cancellation, a USD 0.10 soft stop, and explicit outcome lanes.
+The protocol authorizes zero provider calls by itself and the earlier
+authorization cannot carry across changed code.
+
+Until a fresh authorization names the new merged and deployed revision,
+production behavior remains unobserved. A normal completion still cannot
+validate Reviewer fallback or external-timeout accounting; either path remains
 `not_observed` unless it actually occurs. The consumed earlier 2026-09-04
 Decision Context canary must not be rerun or reclassified.
 

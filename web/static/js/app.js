@@ -93,7 +93,7 @@ function startClock(fromSeconds) {
 
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting,
-  checkpointing, recovery,
+  terminal, checkpointing, recovery,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -118,6 +118,15 @@ function paintHeader({
   const spendEl = $("#run-usage");
   spendEl.textContent = spend ? `· ${spend}` : "";
   spendEl.title = spend ? runView.usageTitle(usage, usage_accounting) : "";
+
+  // State alone cannot distinguish a worker failure from a watchdog stop, and
+  // a missing/unreadable terminal record must not look like an ordinary clean
+  // finish.  Consume the same projection returned by both public endpoints so
+  // the last API-to-browser seam preserves the process reason as well.
+  const terminalEl = $("#run-terminal");
+  const terminalSummary = runView.terminalSummary(terminal, state);
+  terminalEl.textContent = terminalSummary ? `· ${terminalSummary}` : "";
+  terminalEl.title = runView.terminalTitle(terminal, state);
 
   const recoveryEl = $("#run-recovery");
   const reused = recovery?.reused_nodes?.length ?? 0;

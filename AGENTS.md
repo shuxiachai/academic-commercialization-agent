@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 2049 tests (674 subtests), CI green on Linux + Windows × Python
+Current state: 2062 tests (678 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -1116,26 +1116,38 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   resume this consumed canary, call the P1 production seam validated, infer
   zero cost, or raise the timeout alone. Fix terminal timing/accounting and
   stage-budget behavior under a separate measured change first.
-  That P0 change is now implemented and zero-network validated: API workers
+  That P0 change is implemented and zero-network validated: API workers
   receive one hard-deadline identity, provider requests are bounded at 150
   seconds with hidden SDK retries disabled, Reviewer reserves 240 seconds for
   the existing validated-Writer fallback, and other paid work reserves 60
   seconds for finalization. Every completed-node callback persists monotonic
   usage; externally stopped runs commit an immutable terminal record whose
-  accounting state is explicitly `lower_bound` or `unavailable`. Both public
-  endpoints and the browser expose the distinction. Three defect reinjections
-  proved the provider-call, callback-to-disk and disk-to-client seams. This does
-  not establish production success or exact interrupted-request billing.
-  A new one-root production canary is now separately pre-registered against a
-  previously unused handheld-ultrasound topic. It freezes the deployed runtime
-  policy, one orientation request, USD 0.10 soft stop, zero operator retries,
+  accounting state is explicitly `lower_bound` or `unavailable`.
+
+  The first separately authorized handheld-ultrasound canary stopped before
+  its paid POST. Revision, readiness, schemas, accounting branches and access
+  passed, but the deployed browser omitted terminal reason and method. The
+  strict result is `not_started / preflight_failed`: zero roots, zero
+  provider/search requests and USD 0.00 cost. This is fail-closed admission
+  evidence, not runtime-provider validation. The browser now renders the
+  translated reason, preserves raw reason/method in a tooltip, and distinctly
+  labels missing or unreadable terminal records. A real Chromium fixture
+  commits schema-1 terminal bytes and asserts disk-to-API-to-DOM delivery; a
+  dropped DOM assignment was re-injected and made that journey fail.
+
+  Because no RTI01 run existed, the same topic remains unconsumed. A new RTI02
+  protocol freezes one root, USD 0.10 soft stop, zero operator retries,
   resumes, cancellations, Planner calls or supplementary searches, and
-  outcome-specific semantics that cannot promote a timeout or unavailable seam
-  to a pass. The protocol itself authorizes zero provider calls; execution still
-  requires a fresh user authorization naming the merged deployed revision. See
-  `docs/runtime-terminal-integrity.md` and
-  `docs/results-2026-09-04-runtime-terminal-integrity-implementation.md`, plus
-  `docs/prereg-2026-09-04-runtime-terminal-integrity-paid-canary.md`.
+  outcome-specific semantics that cannot promote timeout, unavailable, or
+  API-only presence to a pass. It authorizes zero provider calls and requires
+  fresh authorization naming the new merged deployment; the old authorization
+  cannot carry across changed code. This still does not establish production
+  success or exact interrupted-request billing. See
+  `docs/runtime-terminal-integrity.md`,
+  `docs/results-2026-09-04-runtime-terminal-integrity-implementation.md`,
+  `docs/results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md`,
+  and
+  `docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md`.
 
   See
   `docs/prereg-2026-08-26-decision-context-report-contract.md`,

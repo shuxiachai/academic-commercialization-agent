@@ -72,3 +72,23 @@ must say “implemented and zero-network validated,” not “production validat
 
 See [the runtime contract](runtime-terminal-integrity.md) and the
 [triggering canary result](results-2026-09-04-report-decision-seams-paid-canary.md).
+
+## Post-deployment admission follow-up
+
+The first authorized RTI01 attempt stopped before submission because the
+deployed browser did not consume `terminal.reason_code` or
+`terminal.termination_method`. The result was zero roots, zero
+provider/search requests, and USD 0.00 cost. This exposed a fourth delivery
+seam rather than invalidating the runtime record itself.
+
+The browser now renders a translated reason and a raw reason/method tooltip,
+with explicit missing and unreadable terminal states. The loopback Chromium
+fixture commits a real terminal record and follows it through disk, FastAPI,
+JavaScript, and the DOM. Removing the final DOM assignment made that browser
+journey fail before the correct code was restored. The expanded zero-network
+suite passes 2,062 tests plus 678 subtests; latest Ruff, the CI-matching narrow
+Pylint gate, and the loopback Chromium smoke also pass. The replacement paid study
+remains separately authorized work; see the
+[preflight result](results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md)
+and
+[RTI02 pre-registration](prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md).

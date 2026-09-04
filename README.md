@@ -793,23 +793,32 @@ result is a production timeout/accounting observation, not a report-quality verd
 or evidence that the post-fix delivery seam works. See the
 [failed canary record](docs/results-2026-09-04-report-decision-seams-paid-canary.md).
 
-The resulting P0 runtime fix is now implemented and zero-network validated.
+The resulting P0 runtime fix is implemented and zero-network validated.
 API workers persist monotonic usage after every completed node, reserve a
 bounded Reviewer fallback/finalization window, disable hidden SDK retries, and
 commit an immutable `terminal.json` even when the API watchdog must stop the
 process. Both status endpoints and the browser distinguish complete usage from
 a lower bound or an unavailable measurement; terminal elapsed time no longer
-falls back to a stale status-file timestamp. This is not yet a production
-validation result: one separately authorized post-deployment canary is still
-required. See the [runtime contract](docs/runtime-terminal-integrity.md) and
+falls back to a stale status-file timestamp. See the
+[runtime contract](docs/runtime-terminal-integrity.md) and
 [implementation result](docs/results-2026-09-04-runtime-terminal-integrity-implementation.md).
-That canary now has a frozen, previously unused handheld-ultrasound request,
-exact runtime-policy and manifest identities, one-root/zero-retry bounds, a USD
-0.10 soft stop, and outcome lanes that keep ordinary completion, Reviewer
-fallback, timeout and unavailable observations distinct. The pre-registration
-authorizes zero provider calls; a fresh authorization naming the merged and
-deployed revision is still required before execution. See the
-[pre-registration](docs/prereg-2026-09-04-runtime-terminal-integrity-paid-canary.md).
+
+The first separately authorized production canary correctly stopped before
+its paid POST: the deployed APIs exposed terminal reason and method, but the
+browser bundle did not consume either field. The strict outcome is
+`not_started / preflight_failed`, with zero roots, zero provider/search
+requests, and USD 0.00 observed cost. The browser now renders a translated
+reason plus raw reason/method inspection, and the real loopback Chromium job
+asserts the disk-to-API-to-DOM seam. See the
+[zero-request result](docs/results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md).
+
+Because the topic was never submitted, a replacement RTI02 protocol preserves
+the same handheld-ultrasound request under a new identity. It keeps one-root,
+zero-retry/resume/cancellation/Planner/supplementary-search bounds and a USD
+0.10 soft stop. The protocol authorizes zero provider calls; execution still
+requires a fresh authorization naming the new merged and deployed revision.
+See the
+[post-browser-seam pre-registration](docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md).
 
 The earlier completed Qwen provider canary observed live transport and
 accounting for one run, not general report quality or benchmark equivalence.
@@ -1109,7 +1118,7 @@ disconnected. See the
 the [boundary result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md),
 and the [final human-review result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md).
 
-Local verification now passes **1,980 tests plus 657 subtests**, latest Ruff,
+Local verification now passes **2,062 tests plus 678 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2311,6 +2320,26 @@ Token 沿用 DashScope 的 OpenAI 兼容统计格式，成本估算采用已公�
 [实现记录](docs/results-2026-08-30-qwen35-plus-provider-adapter-implementation.md)
 和[付费 canary 记录](docs/results-2026-08-30-qwen35-plus-first-paid-canary.md)。
 
+随后另行预注册的 Decision Context 交付 canary 未能完成：唯一根运行在保留
+7/8/8 个来源并提交 Writer 检查点后，于 Reviewer 阶段触发 30 分钟 API
+watchdog。该故障暴露了旧状态时间与最终用量在外部终止后的完整性缺口。现在的
+P0 修复会在每个节点后持久化单调用量，预留 Reviewer/finalization 时间，并用
+不可变 `terminal.json` 区分完整、下限与不可用计费状态。
+
+第一次另行授权的 RTI01 生产预检在付费 POST 前正确停止：部署 API 已暴露终态
+原因和终止方式，但浏览器没有消费这两个字段。因此严格结果是
+`not_started / preflight_failed`，根运行、供应商/搜索请求均为 0，观测成本
+为 0.00 美元。现在浏览器会显示翻译后的终态原因，并在 tooltip 保留原始原因和
+终止方式；真实 loopback Chromium 测试覆盖从磁盘经 FastAPI 到 DOM 的完整接缝。
+详见[零请求结果](docs/results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md)。
+
+由于该主题从未提交，新的 RTI02 协议仍使用同一手持超声主题，但拥有新的冻结
+身份。它继续限制为一个根运行、0 次重试/恢复/取消/Planner/补充搜索与 0.10 美元
+软停止线。协议本身不授权任何调用；必须在新版本合并部署后，由用户重新授权精确
+SHA 才能执行。详见
+[运行时契约](docs/runtime-terminal-integrity.md)与
+[修复后预注册](docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)。
+
 此外，生产隔离的 v5 Evidence Judge 已实现严格的 Qwen 单请求原始 HTTP
 Profile。首次获授权的 schema 3 运行在合并版本 `d9adfa4` 上完成 W01 第一遍，
 逆序第二遍超过冻结的 60 秒超时后无重试停止。聚合成本仍不可检查，0 个案例和
@@ -2519,7 +2548,7 @@ cohort，在保留输出目录或构造网络适配器前锁定原始 fixture、
 [人评预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md)与
 [边界实现结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md)。
 
-本地验证现通过 **1,980 项测试与 657 个 subtests**、最新版 Ruff、CI 同款窄范围
+本地验证现通过 **2,062 项测试与 678 个 subtests**、最新版 Ruff、CI 同款窄范围
 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始

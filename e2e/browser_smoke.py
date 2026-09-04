@@ -21,6 +21,7 @@ import sys
 import threading
 import time
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
@@ -29,6 +30,11 @@ import uvicorn
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
 from academic_agent.run_output import create_run_id
+from academic_agent.run_terminal import (
+    TerminalRecord,
+    UsageAccounting,
+    commit_terminal_record,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -96,6 +102,40 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
         f"{REPORT_SENTINEL}\n\n"
         "This report is a local fixture; no model or search provider produced it.\n",
         encoding="utf-8",
+    )
+    # A report plus ``done=true`` exercises only the historical fallback path.
+    # Commit the current immutable record as well so this browser job covers
+    # the complete disk -> FastAPI projection -> JavaScript -> DOM seam that a
+    # paid run uses. The explicit zero snapshot means "observed zero calls";
+    # None would mean accounting failed and is invalid for a completed run.
+    started_at = datetime.now(UTC).replace(microsecond=0)
+    ended_at = started_at + timedelta(seconds=7)
+    accounting = UsageAccounting(
+        state="complete",
+        snapshot_at=ended_at,
+        through_stage="Done",
+        run_complete=True,
+        in_flight_request_may_have_spent=False,
+    )
+    commit_terminal_record(
+        run_dir,
+        TerminalRecord(
+            state="completed",
+            reason_code="worker_completed",
+            termination_method="worker_exit",
+            started_at=started_at,
+            ended_at=ended_at,
+            elapsed_seconds=7,
+            last_stage="Done",
+            timeout_seconds=1800,
+            usage={
+                "total_tokens": 0,
+                "cost_usd": 0.0,
+                "cost_complete": True,
+                "agents": [],
+            },
+            usage_accounting=accounting,
+        ),
     )
     return run_id
 
@@ -240,12 +280,19 @@ def _exercise_browser(base_url: str, run_id: str) -> dict[str, int]:
             expect(page).to_have_url(f"{base_url}/run/{run_id}")
             expect(page.locator("#run-title")).to_have_text(FIXTURE_TOPIC)
             expect(page.locator("#run-pill")).to_have_text("completed")
+            terminal = page.locator("#run-terminal")
+            expect(terminal).to_have_text("· worker completed")
+            expect(terminal).to_have_attribute(
+                "title",
+                "Reason: worker_completed\nTermination: worker_exit",
+            )
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
 
             # A direct route is a separate seam from client-side navigation.
             # Reloading proves the server returns the SPA at /run/{id}, the
             # stored code re-authorizes, and the report reaches the DOM again.
             page.reload(wait_until="domcontentloaded")
+            expect(page.locator("#run-terminal")).to_have_text("· worker completed")
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
 
             assert not external_requests, (
