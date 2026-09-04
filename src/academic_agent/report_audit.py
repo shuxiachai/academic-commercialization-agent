@@ -32,15 +32,31 @@ _DECISION_THRESHOLD = re.compile(
     r"|\b(?:kill|stop)\s+criteria\b",
     re.IGNORECASE,
 )
+# A decision-gate noun phrase is ambiguous without label punctuation: for
+# example, a comparison table can describe an examination's "pass threshold"
+# as a source fact.  The explicit "must be met" sentence remains actionable on
+# its own; every shorter noun phrase must be shaped like a report label.  Both
+# common Markdown placements of the closing emphasis marker are accepted.
+_THRESHOLD_LABEL_SUFFIX = re.compile(r"^(?:[*_]{1,2})?\s*:\s*(?:[*_]{1,2})?")
+_EXPLICIT_THRESHOLD_REQUIREMENT = re.compile(
+    r"\bthresholds?\s+must\s+be\s+met\b",
+    re.IGNORECASE,
+)
 _THRESHOLD_QUALIFIER = re.compile(
     r"\b(?:owner[- ]approved|approved by (?:the )?(?:owner|user)|"
     r"user[- ]supplied|supplied (?:success )?criteri(?:on|a)|"
-    r"analyst (?:proposal|proposed|inference)|proposed by (?:the )?analyst|"
-    r"illustrative|requires? (?:owner )?confirmation|to be confirmed|"
+    r"analyst (?:proposals?|proposed|inference)|proposed by (?:the )?analyst|"
+    r"illustrative|requir(?:es?|ing) (?:owner )?confirmation|to be confirmed|"
     r"pending (?:owner )?approval|external benchmark|source benchmark|"
     r"evidence benchmark|not established)\b",
     re.IGNORECASE,
 )
+_SCOPED_THRESHOLD_DECLARATION = re.compile(
+    r"\ball\s+(?:the\s+)?(?:(?:pass|evidence|decision)\s+)?"
+    r"thresholds?\s+(?:listed\s+)?(?:below|in\s+(?:this|the)\s+section)\b",
+    re.IGNORECASE,
+)
+_MARKDOWN_HEADING = re.compile(r"^\s{0,3}#{1,6}\s+")
 
 # These are intentionally electrolyte-specific rather than a generic material
 # ontology.  Generic "oxide" and "polymer" comparisons cross too many domains
@@ -91,6 +107,17 @@ def _source_registry(collection: "SourceCollection") -> dict[str, EvidenceSource
     return {source.source_id: source for source in sources}
 
 
+def _is_decision_threshold_candidate(line: str) -> bool:
+    """Require actionable grammar instead of a source-fact noun phrase."""
+
+    if _EXPLICIT_THRESHOLD_REQUIREMENT.search(line):
+        return True
+    for match in _DECISION_THRESHOLD.finditer(line):
+        if _THRESHOLD_LABEL_SUFFIX.match(line[match.end():]):
+            return True
+    return False
+
+
 def _audit_thresholds(
     report: str,
     *,
@@ -110,15 +137,30 @@ def _audit_thresholds(
     candidates = 0
     findings: list[dict[str, Any]] = []
     lines = report.splitlines()
+    section_declares_proposal_scope = False
     for index, line in enumerate(lines):
-        if not _DECISION_THRESHOLD.search(line):
+        # A forward declaration is allowed to cover a long gate list, but only
+        # when it explicitly scopes *all* thresholds below.  Resetting at every
+        # heading prevents a generic caveat from laundering later sections.
+        if _MARKDOWN_HEADING.match(line):
+            section_declares_proposal_scope = False
+        if (
+            _SCOPED_THRESHOLD_DECLARATION.search(line)
+            and _THRESHOLD_QUALIFIER.search(line)
+        ):
+            section_declares_proposal_scope = True
+
+        if not _is_decision_threshold_candidate(line):
             continue
         candidates += 1
         # A label may be immediately preceded by a qualifier heading. Looking
         # farther away would let an unrelated disclaimer qualify the whole
         # report, recreating the ambiguity this check is intended to expose.
         local_context = " ".join(lines[max(0, index - 1): index + 1])
-        if _THRESHOLD_QUALIFIER.search(local_context):
+        if (
+            section_declares_proposal_scope
+            or _THRESHOLD_QUALIFIER.search(local_context)
+        ):
             continue
         cited_ids, _errors = parse_citation_ids(line)
         findings.append(

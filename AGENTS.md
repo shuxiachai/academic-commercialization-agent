@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 2062 tests (678 subtests), CI green on Linux + Windows × Python
+Current state: 2066 tests (678 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -1098,6 +1098,24 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   reinjection caught both a dropped applicability block and a swallowed source-
   scope mismatch. This remains advisory and does not change scoring, block a
   report, or connect production Tool Calling.
+
+  RTI02 later exposed a precision defect in the threshold half of that audit:
+  six labelled gates were warned even though the same Markdown section had
+  explicitly declared every following threshold to be an analyst proposal
+  requiring owner confirmation. A zero-network replay measured the shipped
+  rule on 110 preserved reports before changing it: eight candidate lines
+  produced seven warnings, and internal context coding classified all seven as
+  false positives. The frozen 30-report benchmark contributed no candidate, so
+  there is no precision denominator and no 100% claim. Candidate detection now
+  requires either label punctuation or the explicit `threshold(s) must be met`
+  sentence form, while a forward proposal declaration applies only within its
+  current Markdown section. The same corpus now retains six qualified RTI02
+  candidates and emits zero warnings; the known unqualified fixture remains
+  detectable. Both the broad noun-phrase matcher and a missing heading reset
+  were re-injected and made their seam tests fail. This remains a diagnostic
+  removal of known false positives, not evidence of unseen precision or recall.
+  See `docs/prereg-2026-09-04-decision-threshold-warning-precision.md` and
+  `docs/results-2026-09-04-decision-threshold-warning-precision.md`.
 
   A separately pre-registered one-root post-fix paid canary froze the earlier
   sulfide-electrolyte topic with a complete synthetic Decision Context and

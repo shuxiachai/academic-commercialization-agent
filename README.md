@@ -828,6 +828,20 @@ or hard-timeout accounting. See the
 [pre-registration](docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)
 and [paid result](docs/results-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md).
 
+RTI02 also exposed six false-positive threshold-provenance warnings: the audit
+matched each labelled gate but did not understand the same section's explicit
+statement that all following thresholds were analyst proposals requiring owner
+confirmation. Before changing code, the shipped rule was replayed over 110
+preserved reports: eight candidate lines produced seven warnings, all seven
+were internally coded as false positives, and the 30-report benchmark had no
+candidate denominator. The precision-first fix now requires label punctuation
+or the explicit `threshold(s) must be met` form and bounds a forward proposal
+declaration to its Markdown section. The same corpus retains six qualified
+RTI02 candidates and emits zero warnings; this removes the observed false
+positives but is not reported as a measured precision or recall rate. See the
+[pre-registration](docs/prereg-2026-09-04-decision-threshold-warning-precision.md)
+and [zero-network result](docs/results-2026-09-04-decision-threshold-warning-precision.md).
+
 The earlier completed Qwen provider canary observed live transport and
 accounting for one run, not general report quality or benchmark equivalence.
 It exposed two internal-x10 score phrases that reached report prose; the
@@ -1126,7 +1140,7 @@ disconnected. See the
 the [boundary result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md),
 and the [final human-review result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md).
 
-Local verification now passes **2,062 tests plus 678 subtests**, latest Ruff,
+Local verification now passes **2,066 tests plus 678 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2352,6 +2366,16 @@ P0 修复会在每个节点后持久化单调用量，预留 Reviewer/finalizati
 [修复后预注册](docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)与
 [付费结果](docs/results-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)。
 
+RTI02 还暴露出 6 条决策阈值来源告警误报：审计能识别各条门槛标签，却没有理解
+同一 Markdown 章节已明确声明后续全部阈值均为分析者提案，仍需决策所有者确认。
+改代码前先对磁盘上 110 份保留报告回放原规则：8 条候选产生 7 条告警，内部逐条
+上下文编码认为 7 条均为误报；30 份冻结基准没有候选，因此不存在可发布的精度
+分母。精度优先修复现在只接受带标签冒号或明确 `threshold(s) must be met` 句式的
+候选，并把前向提案声明严格限制在当前 Markdown 章节。相同语料仍保留 RTI02 的
+6 条合格候选且不再告警。这证明已知误报被消除，不代表已测得未知样本上的精度或
+召回率。详见[预注册](docs/prereg-2026-09-04-decision-threshold-warning-precision.md)
+和[零网络结果](docs/results-2026-09-04-decision-threshold-warning-precision.md)。
+
 此外，生产隔离的 v5 Evidence Judge 已实现严格的 Qwen 单请求原始 HTTP
 Profile。首次获授权的 schema 3 运行在合并版本 `d9adfa4` 上完成 W01 第一遍，
 逆序第二遍超过冻结的 60 秒超时后无重试停止。聚合成本仍不可检查，0 个案例和
@@ -2560,7 +2584,7 @@ cohort，在保留输出目录或构造网络适配器前锁定原始 fixture、
 [人评预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md)与
 [边界实现结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md)。
 
-本地验证现通过 **2,062 项测试与 678 个 subtests**、最新版 Ruff、CI 同款窄范围
+本地验证现通过 **2,066 项测试与 678 个 subtests**、最新版 Ruff、CI 同款窄范围
 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始
