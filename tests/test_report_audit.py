@@ -112,6 +112,90 @@ def test_broad_minimum_language_is_not_reclassified_as_a_decision_threshold() ->
     assert result["decision_thresholds"]["unqualified"] == 0
 
 
+def test_source_fact_pass_threshold_without_label_colon_is_not_a_candidate() -> None:
+    """A factual USMLE comparison exposed the old noun-phrase false positive."""
+
+    result = audit_report(
+        "# Report\n\n"
+        "| Provider | Evidence |\n"
+        "| OpenAI | USMLE pass threshold; broad clinical knowledge [A1] |",
+        collection=_collection(_source("A1", "oxide")),
+        decision_gate=_gate(),
+        output_language="English",
+    )
+
+    thresholds = result["decision_thresholds"]
+    assert thresholds["status"] == "not_applicable"
+    assert thresholds["candidate_lines"] == 0
+    assert thresholds["unqualified"] == 0
+
+
+def test_markdown_label_and_explicit_requirement_remain_candidates() -> None:
+    """Precision narrowing must preserve both actionable threshold forms."""
+
+    result = audit_report(
+        "# Report\n\n"
+        "**Pass Threshold**: reproduce the result independently.\n"
+        "The evidence thresholds must be met before proceeding.",
+        collection=_collection(),
+        decision_gate=_gate(),
+        output_language="English",
+    )
+
+    thresholds = result["decision_thresholds"]
+    assert thresholds["status"] == "completed"
+    assert thresholds["candidate_lines"] == 2
+    assert thresholds["unqualified"] == 2
+
+
+def test_explicit_section_scope_qualifies_all_following_gate_labels() -> None:
+    """RTI02's bounded declaration must reach every gate in its section."""
+
+    result = audit_report(
+        "# Report\n\n"
+        "## Commercialization plan\n"
+        "All thresholds listed below are analyst proposals requiring confirmation "
+        "by the eventual decision owner.\n\n"
+        "1. **Gate one**\n"
+        "   * **Proposed Pass Threshold:** complete two field pilots.\n"
+        "   * **Stop/Kill Criteria:** stop when both pilots fail.\n\n"
+        "2. **Gate two**\n"
+        "   * **Proposed Pass Threshold:** secure one payer agreement.\n"
+        "   * **Stop/Kill Criteria:** stop when reimbursement is unavailable.",
+        collection=_collection(),
+        decision_gate=_gate(),
+        output_language="English",
+    )
+
+    thresholds = result["decision_thresholds"]
+    assert thresholds["status"] == "completed"
+    assert thresholds["candidate_lines"] == 4
+    assert thresholds["unqualified"] == 0
+
+
+def test_section_scope_expires_before_a_later_markdown_heading() -> None:
+    """A proposal note must never qualify a decision label in another section."""
+
+    result = audit_report(
+        "# Report\n\n"
+        "## Proposed experiments\n"
+        "All thresholds below are analyst proposals requiring confirmation.\n"
+        "**Pass Threshold:** reproduce the result.\n\n"
+        "## Investment decision\n"
+        "**Pass Threshold:** approve the investment.",
+        collection=_collection(),
+        decision_gate=_gate(),
+        output_language="English",
+    )
+
+    thresholds = result["decision_thresholds"]
+    assert thresholds["candidate_lines"] == 2
+    assert thresholds["unqualified"] == 1
+    assert thresholds["findings"][0]["excerpt"] == (
+        "**Pass Threshold:** approve the investment."
+    )
+
+
 def test_one_matching_citation_prevents_a_mixed_source_false_positive() -> None:
     result = audit_report(
         "# Report\n\nThe sulfide electrolyte layer remains the target [A1, A2].",
