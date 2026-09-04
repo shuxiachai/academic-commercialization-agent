@@ -48,6 +48,16 @@ _STATUS = {
     "failed_domains": [],
     "usage": {"total_tokens": 77819, "total_requests": 6, "cost_usd": 0.0333,
               "cost_complete": True, "agents": []},
+    "usage_accounting": {
+        "state": "complete", "snapshot_at": "2026-08-14T00:28:30+00:00",
+        "through_stage": "Done", "run_complete": True,
+        "in_flight_request_may_have_spent": False,
+    },
+    "runtime_budget": {
+        "state": "active", "hard_timeout_seconds": 1800,
+        "request_timeout_seconds": 150, "reviewer_reserve_seconds": 240,
+        "finalization_reserve_seconds": 60,
+    },
     "claim_grounding": {"checked": 2, "ungrounded": 0, "unverifiable": 2,
                         "by_domain": {}},
     "authority_coverage": {
@@ -151,6 +161,8 @@ class StateReachesTheClientTests(unittest.TestCase):
             body["evidence_gap_shadow"]["gate_state"], "eligible"
         )
         self.assertEqual(body["decision_gate"]["mode"], "decision_support")
+        self.assertEqual(body["usage_accounting"]["state"], "complete")
+        self.assertEqual(body["runtime_budget"]["request_timeout_seconds"], 150)
 
     def test_the_progress_endpoint_returns_them_with_their_values(self):
         """This endpoint names each field in its constructor, so it is the one
@@ -168,6 +180,8 @@ class StateReachesTheClientTests(unittest.TestCase):
             body["evidence_gap_shadow"]["gate_state"], "eligible"
         )
         self.assertEqual(body["decision_gate"]["mode"], "decision_support")
+        self.assertEqual(body["usage_accounting"]["state"], "complete")
+        self.assertEqual(body["runtime_budget"]["request_timeout_seconds"], 150)
 
     def test_shadow_state_matches_the_downloadable_artifact(self):
         """A persisted audit must reach the client through its advertised name."""

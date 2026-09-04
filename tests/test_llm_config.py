@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from academic_agent.llm_config import _detect_provider, create_deepseek_llm, create_llm
+from academic_agent.runtime_budget import WORKER_LLM_TIMEOUT_ENV
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +200,34 @@ def test_temperature_omitted_when_none():
     env = {"DEEPSEEK_API_KEY": "sk-ds"}
     kw = _make_llm(env, temperature=None)
     assert "temperature" not in kw
+
+
+def test_worker_transport_disables_sdk_retries_and_sets_timeout():
+    """The project wrapper, not a hidden SDK loop, owns retry accounting."""
+
+    env = {
+        "DEEPSEEK_API_KEY": "sk-ds",
+        WORKER_LLM_TIMEOUT_ENV: "150",
+    }
+    kw = _make_llm(env)
+    assert kw["timeout"] == 150.0
+    assert kw["max_retries"] == 0
+
+
+def test_non_worker_llm_does_not_inherit_runtime_transport_policy():
+    env = {
+        "DEEPSEEK_API_KEY": "sk-ds",
+        WORKER_LLM_TIMEOUT_ENV: "",
+    }
+    kw = _make_llm(env)
+    assert "timeout" not in kw
+    assert "max_retries" not in kw
+
+
+def test_invalid_worker_timeout_fails_before_provider_construction():
+    env = {"DEEPSEEK_API_KEY": "sk-ds", WORKER_LLM_TIMEOUT_ENV: "zero"}
+    with pytest.raises(RuntimeError, match=WORKER_LLM_TIMEOUT_ENV):
+        _make_llm(env)
 
 
 # ---------------------------------------------------------------------------

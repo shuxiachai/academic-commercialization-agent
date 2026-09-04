@@ -4,7 +4,7 @@ Invoked as:
     python -m academic_agent.pipeline_worker <run_id> <topic>
 
 Writes status.json for stage progress and steps.jsonl for the live agent
-log, both polled by the parent process (app.py) without shared memory.
+log; API and CLI readers observe both files without shared memory.
 """
 import argparse
 import copy
@@ -13,11 +13,19 @@ import os
 import re
 import sys
 import threading
+import time
 import traceback
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from academic_agent.run_terminal import (
+    TerminalRecord,
+    UsageAccounting,
+    commit_terminal_record,
+)
+from academic_agent.runtime_budget import RuntimeBudget, WORKER_LLM_TIMEOUT_ENV
 
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
@@ -272,6 +280,129 @@ class ProgressTracker:
             return finished, stage, (nxt if nxt < self._total else None)
 
 
+
+
+_USAGE_COUNTER_FIELDS = (
+    "prompt_tokens",
+    "cached_prompt_tokens",
+    "cache_creation_tokens",
+    "completion_tokens",
+    "reasoning_tokens",
+    "total_tokens",
+    "requests",
+)
+
+
+def _merge_usage_snapshots(
+    previous: dict[str, Any] | None,
+    current: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Merge provider counters monotonically at every completed-node seam.
+
+    CrewAI's counters are cumulative, but the first three callbacks originate
+    from parallel threads. Serializing status writes prevents torn JSON; this
+    per-agent maximum additionally prevents a later observation from erasing
+    an already persisted counter if a provider updates its summary slightly
+    after invoking the task callback.
+    """
+
+    if previous is None:
+        return dict(current) if current is not None else None
+    if current is None:
+        return dict(previous)
+
+    merged_agents: dict[tuple[str, str], dict[str, Any]] = {}
+    order: list[tuple[str, str]] = []
+    for snapshot in (previous, current):
+        for candidate in snapshot.get("agents") or []:
+            if not isinstance(candidate, dict):
+                continue
+            key = (str(candidate.get("role") or ""), str(candidate.get("model") or ""))
+            if key not in merged_agents:
+                merged_agents[key] = dict(candidate)
+                order.append(key)
+                continue
+            target = merged_agents[key]
+            for field in _USAGE_COUNTER_FIELDS:
+                target[field] = max(
+                    int(target.get(field) or 0), int(candidate.get(field) or 0)
+                )
+            costs = [
+                value
+                for value in (target.get("cost_usd"), candidate.get("cost_usd"))
+                if isinstance(value, (int, float)) and not isinstance(value, bool)
+            ]
+            target["cost_usd"] = max(costs) if costs else None
+
+    agents = [merged_agents[key] for key in order]
+    merged = dict(previous)
+    merged.update(current)
+    merged["agents"] = agents
+    if agents:
+        merged["total_tokens"] = sum(int(a.get("total_tokens") or 0) for a in agents)
+        merged["total_requests"] = sum(int(a.get("requests") or 0) for a in agents)
+        known_costs = [a.get("cost_usd") for a in agents if a.get("cost_usd") is not None]
+        merged["cost_usd"] = round(sum(known_costs), 6) if known_costs else None
+    else:
+        merged["total_tokens"] = max(
+            int(previous.get("total_tokens") or 0), int(current.get("total_tokens") or 0)
+        )
+        merged["total_requests"] = max(
+            int(previous.get("total_requests") or 0), int(current.get("total_requests") or 0)
+        )
+        costs = [
+            value
+            for value in (previous.get("cost_usd"), current.get("cost_usd"))
+            if isinstance(value, (int, float)) and not isinstance(value, bool)
+        ]
+        merged["cost_usd"] = max(costs) if costs else None
+
+    merged["cost_complete"] = bool(previous.get("cost_complete", True)) and bool(
+        current.get("cost_complete", True)
+    )
+    merged["unpriced_models"] = sorted(
+        set(previous.get("unpriced_models") or ())
+        | set(current.get("unpriced_models") or ())
+    )
+    bases = [
+        str(value)
+        for value in (previous.get("price_basis"), current.get("price_basis"))
+        if value
+    ]
+    merged["price_basis"] = " + ".join(dict.fromkeys(bases))
+    if current.get("collection_error") or previous.get("collection_error"):
+        merged["collection_error"] = (
+            current.get("collection_error") or previous.get("collection_error")
+        )
+    return merged
+
+
+def _usage_accounting_snapshot(
+    usage: dict[str, Any] | None,
+    *,
+    stage: str,
+    run_complete: bool,
+    in_flight_request_may_have_spent: bool,
+) -> dict[str, Any]:
+    """Serialize temporal completeness separately from price completeness."""
+
+    # A collector error is not an observed zero. Preserve its diagnostic in
+    # ``usage`` while making the accounting state explicitly unavailable.
+    if usage is None or usage.get("collection_error"):
+        state = "unavailable"
+    elif run_complete:
+        state = "complete"
+    else:
+        state = "lower_bound"
+    return UsageAccounting(
+        state=state,
+        snapshot_at=datetime.now(UTC),
+        through_stage=stage,
+        run_complete=run_complete,
+        in_flight_request_may_have_spent=in_flight_request_may_have_spent,
+    ).model_dump(mode="json")
+
+
 def _merge_status_fields(
     existing: dict,
     *,
@@ -307,6 +438,7 @@ def _merge_status_fields(
     # later status write would otherwise erase the warning it carries.
     for sticky in (
         "topic", "source_counts", "evidence_incomplete", "failed_domains", "usage",
+        "usage_accounting", "runtime_budget",
         "claim_grounding", "consistency", "observability", "authority_coverage",
         "component_coverage", "evidence_gap_shadow", "decision_gate", "report_audit",
         "quality_review",
@@ -325,6 +457,8 @@ def _merge_status_fields(
 
 
 def main() -> None:
+    worker_started_at = datetime.now(UTC)
+    worker_started_monotonic = time.monotonic()
     parser = argparse.ArgumentParser()
     parser.add_argument("run_id")
     parser.add_argument("topic")
@@ -339,7 +473,29 @@ def main() -> None:
         "--resume-from", default="",
         help="Prior run id whose validated checkpoint prefix may be reused",
     )
+    parser.add_argument(
+        "--hard-deadline-epoch",
+        type=float,
+        default=None,
+        help="API-owned wall deadline converted once to a monotonic worker budget",
+    )
+    parser.add_argument(
+        "--hard-timeout-seconds",
+        type=int,
+        default=None,
+        help="Public watchdog duration recorded in the immutable terminal outcome",
+    )
     args = parser.parse_args()
+    runtime_budget = RuntimeBudget.from_wall_deadline(
+        args.hard_deadline_epoch,
+        args.hard_timeout_seconds,
+    )
+    if runtime_budget.active:
+        os.environ[WORKER_LLM_TIMEOUT_ENV] = str(runtime_budget.request_timeout_seconds)
+    else:
+        # This is a private parent-to-worker contract, not an operator setting.
+        # Removing an inherited stale value keeps direct CLI runs unbounded.
+        os.environ.pop(WORKER_LLM_TIMEOUT_ENV, None)
 
     _max_rpm_env = os.getenv("MAX_RPM", "6")
     try:
@@ -361,6 +517,7 @@ def main() -> None:
         task_node,
     )
     from academic_agent.checkpoints import CheckpointStore, hash_text
+    from academic_agent.llm_config import configure_llm_deadline
     from academic_agent.evidence_gap import (
         persist_shadow_audit,
         run_shadow_assessment,
@@ -395,6 +552,9 @@ def main() -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     status_path = run_dir / "status.json"
     steps_path  = run_dir / "steps.jsonl"
+    status_lock = threading.RLock()
+    usage_lock = threading.Lock()
+    usage_snapshot: dict[str, Any] | None = None
 
     def write_status(
         stage: str,
@@ -408,6 +568,8 @@ def main() -> None:
         evidence_incomplete: bool | None = None,
         failed_domains: list[str] | None = None,
         usage: dict | None = None,
+        usage_accounting: dict | None = None,
+        runtime_budget: dict | None = None,
         claim_grounding: dict | None = None,
         observability: dict | None = None,
         consistency: dict | None = None,
@@ -420,6 +582,7 @@ def main() -> None:
         recovery: dict | None = None,
         quality_review: dict | None = None,
     ) -> None:
+        status_lock.acquire()
         try:
             try:
                 existing = json.loads(status_path.read_text(encoding="utf-8"))
@@ -439,6 +602,10 @@ def main() -> None:
                 data["failed_domains"] = failed_domains
             if usage is not None:
                 data["usage"] = usage
+            if usage_accounting is not None:
+                data["usage_accounting"] = usage_accounting
+            if runtime_budget is not None:
+                data["runtime_budget"] = runtime_budget
             if claim_grounding is not None:
                 data["claim_grounding"] = claim_grounding
             if consistency is not None:
@@ -474,6 +641,48 @@ def main() -> None:
             os.replace(tmp_path, status_path)
         except Exception as _e:
             print(f"[worker] write_status failed (stage={stage!r}): {_e}", file=sys.stderr)
+        finally:
+            status_lock.release()
+
+    def commit_worker_terminal(
+        *,
+        state: str,
+        reason_code: str,
+        stage: str,
+        usage: dict[str, Any] | None,
+        usage_accounting: dict[str, Any],
+        checkpoint_state: dict[str, Any],
+    ) -> None:
+        """Publish one worker-owned outcome after the final live status write."""
+
+        ended_at = datetime.now(UTC)
+        record = TerminalRecord(
+            state=state,
+            reason_code=reason_code,
+            termination_method="worker_exit",
+            started_at=worker_started_at,
+            ended_at=ended_at,
+            elapsed_seconds=max(
+                0, int(time.monotonic() - worker_started_monotonic)
+            ),
+            last_stage=stage,
+            timeout_seconds=args.hard_timeout_seconds,
+            usage=usage,
+            usage_accounting=UsageAccounting.model_validate(usage_accounting),
+            checkpointing=checkpoint_state.get("checkpointing"),
+            recovery=checkpoint_state.get("recovery"),
+        )
+        try:
+            commit_terminal_record(run_dir, record)
+        except (OSError, ValueError) as terminal_error:
+            # status.json remains a usable compatibility path. Do not rewrite
+            # a completed report as failed merely because its stronger audit
+            # record could not be published; surface the persistence fault.
+            print(
+                f"[worker] terminal record failed: {terminal_error}",
+                file=sys.stderr,
+                flush=True,
+            )
 
     # Execution identity belongs to the worker that actually runs the paid
     # workflow, not to whichever API deployment later serves its files. Capture
@@ -488,6 +697,7 @@ def main() -> None:
     write_status(
         _STAGE_INITIAL, topic=args.topic, pipeline_revision=revision,
         observability=telemetry.snapshot(),
+        runtime_budget=runtime_budget.public_snapshot(),
     )
 
     # Bound before the try so the failure path can still account for a run
@@ -498,18 +708,29 @@ def main() -> None:
     checkpoint_runtime = None
     checkpoint_snapshot: dict[str, Any] = {}
 
-    def snapshot_usage() -> dict | None:
-        if crew_obj is None:
-            return None
-        usage = collect_usage(crew_obj)
-        if not usage.agents and usage.collection_error is None:
-            return None
-        cost = "unknown" if usage.cost_usd is None else f"${usage.cost_usd:.4f}"
-        if not usage.cost_complete:
-            cost += f" (at least; unpriced: {', '.join(usage.unpriced_models)})"
-        print(f"[usage] {usage.total_tokens} tokens over {usage.total_requests} "
-              f"requests, {cost}", flush=True)
-        return usage.as_dict()
+    def snapshot_usage(*, emit: bool = False) -> dict[str, Any] | None:
+        nonlocal usage_snapshot
+        with usage_lock:
+            if crew_obj is not None:
+                observed = collect_usage(crew_obj)
+                candidate = None
+                if observed.agents or observed.collection_error is not None:
+                    candidate = observed.as_dict()
+                usage_snapshot = _merge_usage_snapshots(usage_snapshot, candidate)
+            if usage_snapshot is None:
+                return None
+            if emit:
+                cost = usage_snapshot.get("cost_usd")
+                cost_text = "unknown" if cost is None else f"${float(cost):.4f}"
+                if not usage_snapshot.get("cost_complete", True):
+                    unpriced = ", ".join(usage_snapshot.get("unpriced_models") or ())
+                    cost_text += f" (at least; unpriced: {unpriced})"
+                print(
+                    f"[usage] {usage_snapshot.get('total_tokens', 0)} tokens over "
+                    f"{usage_snapshot.get('total_requests', 0)} requests, {cost_text}",
+                    flush=True,
+                )
+            return copy.deepcopy(usage_snapshot)
 
     try:
         if args.run_spec:
@@ -794,9 +1015,20 @@ def main() -> None:
                 checkpoint_runtime.snapshot()
                 if checkpoint_runtime is not None else checkpoint_snapshot
             )
+            current_usage = snapshot_usage()
+            current_accounting = _usage_accounting_snapshot(
+                current_usage,
+                stage=stage,
+                run_complete=False,
+                # Parallel nodes or the next sequential node may already have
+                # entered a provider call when this callback takes its view.
+                in_flight_request_may_have_spent=True,
+            )
             write_status(
                 stage,
                 output_language=source_collection.output_language,
+                usage=current_usage,
+                usage_accounting=current_accounting,
                 **current_checkpoint_snapshot,
             )
 
@@ -804,6 +1036,18 @@ def main() -> None:
             source_collection,
             task_callback=on_task_complete,
         ).crew()
+        if runtime_budget.active:
+            for index, agent in enumerate(crew_obj.agents):
+                # Agent instances are constructed before the API deadline is
+                # available to their wrapped call methods. Configure that
+                # mutable seam once, before either checkpoint hydration or
+                # paid execution can invoke a provider.
+                configure_llm_deadline(
+                    agent.llm,
+                    deadline_monotonic=runtime_budget.deadline_for_agent(index),
+                    stage=str(agent.role or f"Agent {index + 1}"),
+                    request_timeout_seconds=runtime_budget.request_timeout_seconds,
+                )
         crew_inputs = source_collection.crew_inputs()
         # Decision context does not alter retrieval or scoring. It enters only
         # the Writer/Reviewer placeholders, while remaining part of the exact
@@ -1014,7 +1258,13 @@ def main() -> None:
                   f"report's recommendation disagrees with its own scorecard",
                   flush=True)
 
-        final_usage = snapshot_usage()
+        final_usage = snapshot_usage(emit=True)
+        final_accounting = _usage_accounting_snapshot(
+            final_usage,
+            stage="Done",
+            run_complete=True,
+            in_flight_request_may_have_spent=False,
+        )
         telemetry.set_attributes({
             "academic_agent.usage.total_tokens": (
                 final_usage.get("total_tokens") if final_usage else None
@@ -1037,11 +1287,20 @@ def main() -> None:
             evidence_incomplete=not evidence_saved,
             report_audit=report_audit,
             usage=final_usage,
+            usage_accounting=final_accounting,
             claim_grounding=grounding,
             consistency=consistency,
             observability=telemetry.snapshot(),
             quality_review=quality_review,
             **checkpoint_snapshot,
+        )
+        commit_worker_terminal(
+            state="completed",
+            reason_code="worker_completed",
+            stage="Done",
+            usage=final_usage,
+            usage_accounting=final_accounting,
+            checkpoint_state=checkpoint_snapshot,
         )
 
     except Exception as exc:
@@ -1065,7 +1324,16 @@ def main() -> None:
         except Exception as _save_err:
             print(f"[worker] save_error failed: {_save_err}", file=sys.stderr)
         print(error_details, file=sys.stderr, flush=True)
-        error_usage = snapshot_usage()
+        error_usage = snapshot_usage(emit=True)
+        error_accounting = _usage_accounting_snapshot(
+            error_usage,
+            stage="Error",
+            run_complete=False,
+            # Before Crew construction no LLM request can have started. Once
+            # it exists, fail conservatively because a transport error may
+            # have reached the provider without returning usage counters.
+            in_flight_request_may_have_spent=crew_obj is not None,
+        )
         telemetry.finish(exc)
         checkpoint_snapshot = (
             checkpoint_runtime.snapshot()
@@ -1074,8 +1342,17 @@ def main() -> None:
         write_status(
             "Error", done=True, error=str(exc)[:400],
             usage=error_usage,
+            usage_accounting=error_accounting,
             observability=telemetry.snapshot(),
             **checkpoint_snapshot,
+        )
+        commit_worker_terminal(
+            state="failed",
+            reason_code="worker_exception",
+            stage="Error",
+            usage=error_usage,
+            usage_accounting=error_accounting,
+            checkpoint_state=checkpoint_snapshot,
         )
         sys.exit(1)
 

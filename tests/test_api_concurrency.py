@@ -11,6 +11,7 @@ The load test below fails against the unlocked version.
 
 from __future__ import annotations
 
+import json
 import threading
 import unittest
 from pathlib import Path
@@ -145,6 +146,14 @@ class ConcurrencyCapTests(_ConcurrencyTestBase):
             self.assertEqual(runs.active_count(), 1)
             runs.cancel_run(run_id)
             self.assertEqual(runs.active_count(), 0)
+
+        terminal = json.loads(
+            (runs.run_dir_for(run_id) / "terminal.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(terminal["state"], "cancelled")
+        self.assertEqual(terminal["reason_code"], "user_cancelled")
+        self.assertEqual(terminal["usage_accounting"]["state"], "unavailable")
+        self.assertTrue(terminal["usage_accounting"]["in_flight_request_may_have_spent"])
 
     def test_concurrent_cancels_do_not_both_succeed(self):
         """Exactly one caller owns a given run."""
