@@ -784,6 +784,15 @@ used 7 provider requests, 79,261 tokens and a conservative USD 0.075657
 estimate, with 8 academic, 8 patent and 8 market sources and no failed
 retrieval domain.
 
+A later, separately pre-registered Decision Context delivery canary on Qwen did
+not complete. Its only root reached Reviewer after 7/8/8 sources and a
+validated Writer checkpoint, then hit the API's 30-minute watchdog. No final
+report, report audit or inspectable partial usage reached the public boundary;
+no operator retry, recovery, Planner call or supplementary search occurred. The
+result is a production timeout/accounting observation, not a report-quality verdict
+or evidence that the post-fix delivery seam works. See the
+[failed canary record](docs/results-2026-09-04-report-decision-seams-paid-canary.md).
+
 The canary observed live transport and accounting for one run, not general
 report quality or benchmark equivalence. It exposed two internal-x10 score
 phrases that reached report prose; the deterministic score payload remained
