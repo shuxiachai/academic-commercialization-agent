@@ -842,6 +842,17 @@ positives but is not reported as a measured precision or recall rate. See the
 [pre-registration](docs/prereg-2026-09-04-decision-threshold-warning-precision.md)
 and [zero-network result](docs/results-2026-09-04-decision-threshold-warning-precision.md).
 
+RTI02's clinical-authority applicability observation has now been measured
+against 110 preserved reports representing 73 unique normalized topics. The
+precision-first correction recognizes only the exact `handheld ultrasound`
+product phrase, requires regulator evidence without inventing a trial-registry
+duty, and changes exactly RTI02; all 30 frozen benchmark reports and the other
+79 reports remain unchanged. An industrial-ultrasound negative control remains
+nonclinical, while a missing regulator now reaches the enabled Tool Calling
+shadow gate as `eligible` with zero executed calls. This is an in-sample
+correction, not a general medical-device classifier or held-out accuracy result.
+See the [zero-network result](docs/results-2026-09-04-handheld-ultrasound-authority-applicability.md).
+
 The earlier completed Qwen provider canary observed live transport and
 accounting for one run, not general report quality or benchmark equivalence.
 It exposed two internal-x10 score phrases that reached report prose; the
@@ -1140,7 +1151,7 @@ disconnected. See the
 the [boundary result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md),
 and the [final human-review result](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md).
 
-Local verification now passes **2,066 tests plus 678 subtests**, latest Ruff,
+Local verification now passes **2,071 tests plus 678 subtests**, latest Ruff,
 the narrow CI Pylint gate, and the zero-provider-call Chromium smoke journey.
 
 ### Quick start
@@ -2376,6 +2387,14 @@ RTI02 还暴露出 6 条决策阈值来源告警误报：审计能识别各条�
 召回率。详见[预注册](docs/prereg-2026-09-04-decision-threshold-warning-precision.md)
 和[零网络结果](docs/results-2026-09-04-decision-threshold-warning-precision.md)。
 
+RTI02 暴露的临床监管适用性问题现已在 110 份保留报告、73 个唯一标准化主题上完成
+零网络测量。精度优先修复只识别完整产品短语 `handheld ultrasound`，要求监管机构
+证据但不虚构普遍的临床试验注册义务；110 份报告中只有 RTI02 改变，30 份冻结基准及
+其余 79 份报告均不变。工业超声负例仍保持非临床；缺少监管来源时，现有 Tool Calling
+Shadow Gate 会以 `eligible` 明确呈现该缺口，同时执行调用数仍为 0。这是已观察
+短语的样本内修正，不是通用医疗器械分类器或未见集准确率结论。详见
+[零网络结果](docs/results-2026-09-04-handheld-ultrasound-authority-applicability.md)。
+
 此外，生产隔离的 v5 Evidence Judge 已实现严格的 Qwen 单请求原始 HTTP
 Profile。首次获授权的 schema 3 运行在合并版本 `d9adfa4` 上完成 W01 第一遍，
 逆序第二遍超过冻结的 60 秒超时后无重试停止。聚合成本仍不可检查，0 个案例和
@@ -2584,7 +2603,7 @@ cohort，在保留输出目录或构造网络适配器前锁定原始 fixture、
 [人评预注册](docs/prereg-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md)与
 [边界实现结果](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review-boundary.md)。
 
-本地验证现通过 **2,066 项测试与 678 个 subtests**、最新版 Ruff、CI 同款窄范围
+本地验证现通过 **2,071 项测试与 678 个 subtests**、最新版 Ruff、CI 同款窄范围
 Pylint，以及零供应商调用的 Chromium 冒烟用户旅程。
 
 ### 快速开始

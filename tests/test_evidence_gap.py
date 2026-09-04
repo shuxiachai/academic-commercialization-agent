@@ -169,6 +169,35 @@ class GapGateTests(unittest.TestCase):
         )
         self.assertEqual(audit.executed_call_count, 0)
 
+    def test_handheld_ultrasound_reaches_enabled_shadow_boundary(self):
+        """The authority fix must reach the serialized Tool Calling gate context."""
+        topic = "AI-assisted handheld ultrasound for heart-failure screening"
+        profile = _detect_weight_profile(topic)
+        collection = _collection(topic=topic, profile=profile)
+        collection.authority_coverage = _measure_authority_coverage(
+            topic,
+            profile,
+            [
+                *collection.academic_sources,
+                *collection.patent_sources,
+                *collection.market_sources,
+            ],
+        )
+
+        audit = run_shadow_assessment(
+            collection,
+            configuration=parse_shadow_configuration("true"),
+        )
+
+        self.assertEqual(profile, "biomedical")
+        self.assertEqual(audit.gate_state, "eligible")
+        self.assertTrue(audit.checked)
+        self.assertEqual(
+            [(signal.code, signal.subject) for signal in audit.context.signals],
+            [("authority_category_missing", "regulatory")],
+        )
+        self.assertEqual(audit.executed_call_count, 0)
+
     def test_only_explicitly_incomplete_components_trigger(self):
         for status in ("partial", "unchecked"):
             collection = _collection(

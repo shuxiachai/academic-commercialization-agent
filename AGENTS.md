@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 2066 tests (678 subtests), CI green on Linux + Windows × Python
+Current state: 2071 tests (678 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -1181,6 +1181,16 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   `docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md`,
   plus
   `docs/results-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md`.
+
+  The clinical-authority candidate was subsequently replayed over 110 preserved
+  reports before a precision-first correction. The exact `handheld ultrasound`
+  phrase changes only RTI02 from `industrial / not_applicable` to
+  `biomedical / regulatory`; all 30 frozen benchmark reports and the other 79
+  reports remain unchanged, and a generic industrial-ultrasound negative stays
+  nonclinical. Removing either the profile marker or the regulator marker makes
+  all three classification, coverage and serialized shadow-gate seam tests
+  fail. This is an in-sample correction, not a general classifier. See
+  `docs/results-2026-09-04-handheld-ultrasound-authority-applicability.md`.
 
   See
   `docs/prereg-2026-08-26-decision-context-report-contract.md`,
