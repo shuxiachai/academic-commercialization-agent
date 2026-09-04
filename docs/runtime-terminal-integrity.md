@@ -103,10 +103,15 @@ fails the run.
 ## Remaining boundary
 
 This implementation has zero-network test evidence only. A fresh, separately
-pre-registered paid canary is required after deployment to observe whether a
-slow production Reviewer exits early enough for fallback and Scorer, and
-whether partial usage survives a real external timeout. The consumed
-2026-09-04 canary must not be rerun or reclassified.
+authorized paid canary is required after deployment to observe whether the
+runtime contract survives real provider execution. That canary is now frozen
+in [its pre-registration](prereg-2026-09-04-runtime-terminal-integrity-paid-canary.md)
+with a new topic, one root, zero operator retry/resume/cancellation, a USD 0.10
+soft stop, and explicit outcome lanes. The protocol authorizes zero provider
+calls by itself. A normal completion cannot be used to claim that Reviewer
+fallback or external-timeout accounting was observed; either path remains
+`not_observed` unless it actually occurs. The consumed earlier 2026-09-04
+Decision Context canary must not be rerun or reclassified.
 
 An operating-system or host loss that bypasses both worker cleanup and the API
 watchdog can still leave no terminal record. Checkpoints remain the recovery
