@@ -13,8 +13,11 @@ import functools
 import os
 import random
 import time
+from dataclasses import dataclass
 
 from crewai import LLM
+
+from academic_agent.runtime_budget import WORKER_LLM_TIMEOUT_ENV
 
 _SUPPORTED_PROVIDERS = ("deepseek", "qwen", "openai", "anthropic")
 
@@ -96,7 +99,35 @@ _MAX_ATTEMPTS = 3
 _BASE_DELAY_SECONDS = 2.0
 
 
+class RunDeadlineExceeded(TimeoutError):
+    """The run lacks a full bounded window for another provider attempt."""
+
+
+@dataclass
+class _CallBudget:
+    """Mutable because the worker assigns a stage deadline after Crew creation."""
+
+    deadline_monotonic: float | None = None
+    stage: str = "unbounded call"
+    request_timeout_seconds: float = 0.0
+
+    def require_window(self, *, delay_seconds: float = 0.0) -> None:
+        if self.deadline_monotonic is None:
+            return
+        remaining = self.deadline_monotonic - time.monotonic()
+        required = delay_seconds + self.request_timeout_seconds
+        if remaining < required:
+            raise RunDeadlineExceeded(
+                f"{self.stage} has {max(0.0, remaining):.1f}s remaining; "
+                f"a bounded provider attempt requires {required:.1f}s"
+            )
+
+
 def _is_retryable(exc: BaseException) -> bool:
+    # This TimeoutError comes from our run budget, not the transport. Retrying
+    # it can only consume the time reserved for fallback and final persistence.
+    if isinstance(exc, RunDeadlineExceeded):
+        return False
     if isinstance(exc, _RETRYABLE):
         return True
     # CrewAI wraps provider errors in its own types, so the class is often
@@ -121,10 +152,12 @@ def _wrap_with_retry(llm):
     Wrapping the instance the factory built leaves that behaviour intact.
     """
     inner = llm.call
+    budget = _CallBudget()
 
     @functools.wraps(inner)
     def call_with_retry(*args, **kwargs):
         for attempt in range(1, _MAX_ATTEMPTS + 1):
+            budget.require_window()
             try:
                 return inner(*args, **kwargs)
             except BaseException as exc:      # noqa: BLE001 - re-raised below
@@ -134,6 +167,12 @@ def _wrap_with_retry(llm):
                 # return at the same instant.
                 delay = _BASE_DELAY_SECONDS * (2 ** (attempt - 1))
                 delay += random.uniform(0, delay * 0.25)
+                try:
+                    budget.require_window(delay_seconds=delay)
+                except RunDeadlineExceeded as deadline_error:
+                    # Keep the transport error as causal context while making
+                    # the actionable failure type visible to Reviewer fallback.
+                    raise deadline_error from exc
                 print(
                     f"[llm] {type(exc).__name__} on attempt {attempt}/{_MAX_ATTEMPTS}; "
                     f"retrying in {delay:.1f}s",
@@ -142,7 +181,54 @@ def _wrap_with_retry(llm):
                 time.sleep(delay)
 
     llm.call = call_with_retry
+    # A private attribute is the seam between factory-time wrapping and the
+    # worker, which cannot know the concrete provider subclass CrewAI returns.
+    llm._academic_agent_call_budget = budget
     return llm
+
+
+def configure_llm_deadline(
+    llm,
+    *,
+    deadline_monotonic: float | None,
+    stage: str,
+    request_timeout_seconds: float,
+):
+    """Attach one code-owned stage deadline to a wrapped CrewAI provider."""
+
+    budget = getattr(llm, "_academic_agent_call_budget", None)
+    if not isinstance(budget, _CallBudget):
+        raise RuntimeError("LLM was not created through the retry/deadline adapter")
+    if request_timeout_seconds <= 0:
+        raise ValueError("request timeout must be positive")
+    budget.deadline_monotonic = deadline_monotonic
+    budget.stage = stage
+    budget.request_timeout_seconds = request_timeout_seconds
+    return llm
+
+
+def _apply_worker_transport_budget(kwargs: dict) -> None:
+    """Bound SDK calls only inside an API worker, never inline PDF extraction.
+
+    The project's wrapper remains the sole retry owner. CrewAI's compatible
+    clients otherwise perform their own hidden retries inside each of our
+    three visible attempts, which makes neither the time nor request count
+    bounded at the orchestration layer.
+    """
+
+    raw = os.getenv(WORKER_LLM_TIMEOUT_ENV, "").strip()
+    if not raw:
+        return
+    try:
+        timeout = float(raw)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"{WORKER_LLM_TIMEOUT_ENV} must be a positive number"
+        ) from exc
+    if timeout <= 0:
+        raise RuntimeError(f"{WORKER_LLM_TIMEOUT_ENV} must be a positive number")
+    kwargs["timeout"] = timeout
+    kwargs["max_retries"] = 0
 
 
 def create_llm(
@@ -197,6 +283,7 @@ def create_llm(
             kwargs["response_format"] = {"type": "json_object"}
         if temperature is not None:
             kwargs["temperature"] = temperature
+        _apply_worker_transport_budget(kwargs)
         return _wrap_with_retry(LLM(**kwargs))
 
     logical_provider = _detect_provider()
@@ -260,6 +347,7 @@ def create_llm(
     if temperature is not None:
         kwargs["temperature"] = temperature
 
+    _apply_worker_transport_budget(kwargs)
     return _wrap_with_retry(LLM(**kwargs))
 
 

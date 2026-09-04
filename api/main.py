@@ -820,6 +820,9 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         # get_state() reaches one endpoint and silently not the other.
         # test_api_contract.py now fails when they diverge.
         usage=state.get("usage"),
+        usage_accounting=state.get("usage_accounting"),
+        runtime_budget=state.get("runtime_budget"),
+        terminal=state.get("terminal"),
         claim_grounding=state.get("claim_grounding"),
         authority_coverage=state.get("authority_coverage"),
         component_coverage=state.get("component_coverage"),

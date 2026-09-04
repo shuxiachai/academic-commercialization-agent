@@ -793,6 +793,17 @@ result is a production timeout/accounting observation, not a report-quality verd
 or evidence that the post-fix delivery seam works. See the
 [failed canary record](docs/results-2026-09-04-report-decision-seams-paid-canary.md).
 
+The resulting P0 runtime fix is now implemented and zero-network validated.
+API workers persist monotonic usage after every completed node, reserve a
+bounded Reviewer fallback/finalization window, disable hidden SDK retries, and
+commit an immutable `terminal.json` even when the API watchdog must stop the
+process. Both status endpoints and the browser distinguish complete usage from
+a lower bound or an unavailable measurement; terminal elapsed time no longer
+falls back to a stale status-file timestamp. This is not yet a production
+validation result: one separately authorized post-deployment canary is still
+required. See the [runtime contract](docs/runtime-terminal-integrity.md) and
+[implementation result](docs/results-2026-09-04-runtime-terminal-integrity-implementation.md).
+
 The canary observed live transport and accounting for one run, not general
 report quality or benchmark equivalence. It exposed two internal-x10 score
 phrases that reached report prose; the deterministic score payload remained
@@ -1167,6 +1178,10 @@ the API — no build step and no framework, so what is in `web/` is what runs.
 - **Reliability**: a separate panel distinguishes a failed retrieval domain,
   incomplete clinical-authority coverage, a check that could not run, and a
   check that ran without finding a problem — silence is never rendered as pass
+- **Terminal integrity**: completed-node usage is persisted monotonically, and
+  an immutable terminal record distinguishes complete, lower-bound and
+  unavailable accounting after normal or externally stopped exits
+
 - **Crash recovery**: terminal failures with a durable retrieval checkpoint can
   start an immutable child run. The header reports reused stages or degraded
   checkpointing; fresh BYOK credentials are sent again and never recovered
@@ -1213,10 +1228,19 @@ curl -X POST http://localhost:8000/api/runs/20260729T031500Z-a1b2c3d4e5/resume \
 | `GET` | `/api/runs/{id}/report` | Final report as Markdown |
 | `GET` | `/api/runs/{id}/{artifact}` | Run artifacts, including `scores`, `sources`, checks, and failed-run `retrieval` diagnostics |
 
+Terminal state, reason, elapsed time and usage-accounting completeness are
+returned by both the status and progress payloads.
+
 Concurrency is capped at 2 paid operations (`API_MAX_CONCURRENT` to change),
 shared by worker runs and inline PDF extraction — the binding constraint is
 upstream provider capacity, not local CPU. Runs exceeding 30 minutes are
 terminated automatically; extraction releases its slot on every exit path.
+
+API-launched workers bound each provider request, disable transport-hidden
+retries, and reserve time before the hard watchdog edge for the validated
+Writer fallback and independently guarded Scorer. Direct CLI runs remain
+intentionally operator-controlled and do not inherit the API watchdog.
+
 
 The web client and the JSON API share the same `outputs/` directory and launch the
 same worker, so a run started from one is visible to the other.
@@ -1561,6 +1585,8 @@ academic_agent/
 │   ├── pipeline_worker.py   # Subprocess worker: runs pipeline, writes status.json + steps.jsonl
 │   ├── checkpoint_runtime.py # CrewAI adapter: validates and restores a contiguous task prefix
 │   ├── checkpoints.py       # Atomic, content-addressed node checkpoint contracts
+│   ├── runtime_budget.py    # API-worker request deadlines and fallback/finalization reserves
+│   ├── run_terminal.py      # Immutable terminal facts and usage-accounting state
 │   ├── run_spec.py          # Frozen non-secret run inputs used by recovery
 │   ├── main.py              # CLI entry point (--topic "your topic" flag)
 │   ├── evidence.py          # Evidence models, guardrail validators, CommercializationScore
@@ -1618,6 +1644,7 @@ academic_agent/
 - **Decision applicability**: immutable context completeness and success-criteria provenance cross checkpoint identity, report Markdown, both status endpoints, and the browser without exposing the private criteria text in public status
 - **Agent observability**: OpenTelemetry + OpenInference instrumentors with redacted content and optional Arize Phoenix OTLP export
 - **Durable recovery**: content-addressed node checkpoints keyed by input, evidence, configuration, and pipeline hashes; immutable child runs reuse only a validated contiguous prefix and require fresh BYOK credentials
+- **Terminal integrity**: write-once terminal records plus monotonic per-node usage snapshots distinguish complete, lower-bound and unavailable accounting across worker, API and browser seams
 - **Web client**: static HTML, CSS and ES modules served by FastAPI — no build step, no framework
 - **Browser E2E**: Playwright Chromium on the real FastAPI/DOM seam; loopback-only route policy blocks external and mutating requests so CI cannot start paid work
 - **HTTP API**: FastAPI + Uvicorn, serving both the client and the JSON API (OpenAPI docs at `/docs`)

@@ -139,8 +139,14 @@ export function sourceSummary(counts) {
  * price shows its tokens and no dollar figure at all — which is the honest
  * output, and the reason this is not simply `cost ?? 0`.
  */
-export function usageSummary(usage) {
-  if (!usage || !usage.total_tokens) return "";
+export function usageSummary(usage, accounting = null) {
+  if (!usage || !usage.total_tokens) {
+    if (accounting?.state === "unavailable") return t("usage_unavailable");
+    // Zero observed counters can still be a lower bound when a provider
+    // accepted an in-flight request but never returned its usage payload.
+    if (accounting?.state === "lower_bound") return t("usage_partial");
+    return "";
+  }
   const tokens = usage.total_tokens >= 1000
     ? `${(usage.total_tokens / 1000).toFixed(1)}k`
     : String(usage.total_tokens);
@@ -149,13 +155,19 @@ export function usageSummary(usage) {
     const approx = usage.cost_complete ? "" : "~";
     parts.push(`${approx}$${usage.cost_usd.toFixed(4)}`);
   }
+  if (accounting?.state === "lower_bound") parts.push(t("usage_partial"));
   return parts.join(" · ");
 }
 
 /** Tooltip spelling out where the cost figure came from, if anywhere. */
-export function usageTitle(usage) {
-  if (!usage) return "";
+export function usageTitle(usage, accounting = null) {
   const lines = [];
+  if (accounting?.state === "lower_bound") {
+    lines.push(t("usage_partial_detail"));
+  } else if (accounting?.state === "unavailable") {
+    lines.push(t("usage_unavailable_detail"));
+  }
+  if (!usage) return lines.join("\n");
   if (usage.price_basis) lines.push(`${t("price_basis")}: ${usage.price_basis}`);
   if (usage.cost_complete === false && usage.unpriced_models?.length) {
     lines.push(t("cost_partial").replace("{models}", usage.unpriced_models.join(", ")));

@@ -24,6 +24,7 @@ from tempfile import TemporaryDirectory
 _REPO = Path(__file__).resolve().parent.parent
 _RUN_JS = _REPO / "web" / "static" / "js" / "run.js"
 _I18N_JS = _REPO / "web" / "static" / "js" / "i18n.js"
+_APP_JS = _REPO / "web" / "static" / "js" / "app.js"
 
 
 def _node() -> str | None:
@@ -54,10 +55,12 @@ class UsageSummaryTests(unittest.TestCase):
         (work / "harness.mjs").write_text(textwrap.dedent("""
             globalThis.localStorage = { getItem: () => null, setItem: () => {} };
             const { usageSummary, usageTitle } = await import("./run.mjs");
-            const usage = JSON.parse(process.argv[2]);
+            const payload = JSON.parse(process.argv[2]);
+            const usage = payload?.usage ?? null;
+            const accounting = payload?.accounting ?? null;
             console.log(JSON.stringify({
-                summary: usageSummary(usage),
-                title: usageTitle(usage),
+                summary: usageSummary(usage, accounting),
+                title: usageTitle(usage, accounting),
             }));
         """), encoding="utf-8")
         cls._work = work
@@ -75,9 +78,10 @@ class UsageSummaryTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._tmp.cleanup()
 
-    def _render(self, usage) -> dict:
+    def _render(self, usage, accounting=None) -> dict:
+        payload = {"usage": usage, "accounting": accounting}
         result = subprocess.run(
-            [_node(), str(self._work / "harness.mjs"), json.dumps(usage)],
+            [_node(), str(self._work / "harness.mjs"), json.dumps(payload)],
             capture_output=True, text=True, encoding="utf-8", timeout=120, cwd=self._work,
         )
         if result.returncode != 0:
@@ -144,6 +148,47 @@ class UsageSummaryTests(unittest.TestCase):
         for usage in (None, {}, {"total_tokens": 0}):
             with self.subTest(usage=usage):
                 self.assertEqual(self._render(usage)["summary"], "")
+
+    def test_timeout_marks_durable_usage_as_a_lower_bound(self):
+        accounting = {
+            "state": "lower_bound",
+            "in_flight_request_may_have_spent": True,
+        }
+        out = self._render({
+            "total_tokens": 5000,
+            "cost_usd": 0.01,
+            "cost_complete": True,
+            "agents": [],
+        }, accounting)
+        self.assertIn("partial usage", out["summary"])
+        self.assertIn("lower bound", out["title"])
+    def test_zero_observed_tokens_still_exposes_lower_bound_accounting(self):
+        """A durable zero is not an exact bill while a request may be in flight."""
+        accounting = {
+            "state": "lower_bound",
+            "in_flight_request_may_have_spent": True,
+        }
+        out = self._render({"total_tokens": 0, "agents": []}, accounting)
+
+        self.assertEqual(out["summary"], "partial usage")
+        self.assertIn("lower bound", out["title"])
+
+
+    def test_unavailable_accounting_never_looks_like_zero_spend(self):
+        accounting = {
+            "state": "unavailable",
+            "in_flight_request_may_have_spent": True,
+        }
+        out = self._render(None, accounting)
+        self.assertEqual(out["summary"], "usage unavailable")
+        self.assertIn("does not mean zero", out["title"])
+
+    def test_app_passes_accounting_to_both_usage_formatters(self):
+        """Formatting correctly is insufficient if app.js drops the new field."""
+
+        source = _APP_JS.read_text(encoding="utf-8")
+        self.assertIn("usageSummary(usage, usage_accounting)", source)
+        self.assertIn("usageTitle(usage, usage_accounting)", source)
 
 
 @unittest.skipUnless(_node(), "node not installed")

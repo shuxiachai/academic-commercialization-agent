@@ -193,6 +193,24 @@ class RunProgress(BaseModel):
                     "total. Absent for runs that predate cost accounting and "
                     "for runs that failed before the crew started.",
     )
+    usage_accounting: dict | None = Field(
+        default=None,
+        description="Temporal completeness of usage: complete, a durable "
+                    "lower bound, or unavailable. This is independent of "
+                    "whether every model had a known price.",
+    )
+    runtime_budget: dict | None = Field(
+        default=None,
+        description="Code-owned request timeout and finalization reserves "
+                    "applied by this worker. None means the run predates "
+                    "deadline persistence.",
+    )
+    terminal: dict | None = Field(
+        default=None,
+        description="Immutable process outcome metadata. record_state is "
+                    "committed or unreadable; None means a live or historical "
+                    "run without the terminal contract.",
+    )
     claim_grounding: dict | None = Field(
         default=None,
         description="How many of the run's quantitative claims could be "
@@ -310,6 +328,24 @@ class RunStatus(BaseModel):
         description="Tokens and estimated cost for the run, per agent and in "
                     "total. Absent for runs that predate cost accounting and "
                     "for runs that failed before the crew started.",
+    )
+    usage_accounting: dict | None = Field(
+        default=None,
+        description="Temporal completeness of usage: complete, a durable "
+                    "lower bound, or unavailable. This is independent of "
+                    "whether every model had a known price.",
+    )
+    runtime_budget: dict | None = Field(
+        default=None,
+        description="Code-owned request timeout and finalization reserves "
+                    "applied by this worker. None means the run predates "
+                    "deadline persistence.",
+    )
+    terminal: dict | None = Field(
+        default=None,
+        description="Immutable process outcome metadata. record_state is "
+                    "committed or unreadable; None means a live or historical "
+                    "run without the terminal contract.",
     )
     claim_grounding: dict | None = Field(
         default=None,

@@ -13,7 +13,7 @@ from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
 Live at https://academic-commercialization-agent.up.railway.app
 
-Current state: 2014 tests (660 subtests), CI green on Linux + Windows × Python
+Current state: 2043 tests (674 subtests), CI green on Linux + Windows × Python
 3.11/3.12, deployed on Railway.
 
 ## Commands
@@ -66,6 +66,7 @@ is, in this order:
 | Why was this change made? | `git log` — bodies run to ~25 lines and explain the alternative that was rejected |
 | Was this hypothesis tested? | `docs/prereg-*.md` — predictions and falsification criteria registered *before* paid runs |
 | How does crash recovery work? | `docs/checkpoint-recovery.md` — identity, persistence, authorization, observable states, the 30/30 offline process audit, and the at-least-once boundary |
+| How are timeout and partial usage facts preserved? | `docs/runtime-terminal-integrity.md` — deadline ownership, immutable terminal records, monotonic usage snapshots, and complete/lower-bound/unavailable semantics |
 | Full decision history, first person | `notes/简历项目说明.md` — **a separate private repo** (`shuxiachai/academic-agent-notes`), gitignored here. 4,000+ lines with 61 numbered postmortems and supporting decision records. Ask the user for access if you need it |
 
 Before writing or modifying CrewAI code specifically — the crew, the agents,
@@ -172,10 +173,12 @@ src/academic_agent/     pipeline: crew, agents/tasks config, source retrieval,
   run_spec.py           immutable, non-secret input and decision-applicability
                         contract for child recovery
   checkpoints.py        atomic content-addressed storage and inspection states
+  runtime_budget.py     API-worker provider deadlines and reserved closeout windows
+  run_terminal.py       write-once terminal truth and usage-accounting state
 api/                    FastAPI: runs registry, papers, access gate, models
 web/                    vanilla JS client, no build step, strict CSP
 ui/                     shared i18n, run-reader, and PDF-export utilities
-tests/                  113 test modules plus conftest, organised by subject
+tests/                  120 test modules plus conftest, organised by subject
 e2e/browser_smoke.py    real Chromium access/input/report seam; blocks external
                         and mutating requests, so it cannot start paid work
 benchmark.py            paid batch runs; --fixtures replays frozen evidence
@@ -249,6 +252,13 @@ checkpoint_fault_audit.py
 
 Runs are subprocesses writing to `outputs/<run_id>/`; the API, the browser and
 the CLI all observe the same run through those files rather than shared memory.
+A completed, failed, cancelled or timed-out API run also has a write-once
+`terminal.json`. Worker-owned exits commit it directly; the API commits it only
+after an external stop. Monotonic per-node snapshots mean usage is reported as
+`complete`, `lower_bound`, or `unavailable` rather than conflating an interrupted
+request with zero cost. See `docs/runtime-terminal-integrity.md` before changing
+this boundary.
+
 A run URL is a read capability. Mutating a code-owned run additionally requires
 its owner/admin code; an ownerless BYOK run has no second server-side identity.
 Failed, cancelled, or timed-out runs with a retrieval checkpoint can start an
@@ -1106,6 +1116,20 @@ reuse separately. See `docs/checkpoint-recovery.md` before changing this seam.
   resume this consumed canary, call the P1 production seam validated, infer
   zero cost, or raise the timeout alone. Fix terminal timing/accounting and
   stage-budget behavior under a separate measured change first.
+  That P0 change is now implemented and zero-network validated: API workers
+  receive one hard-deadline identity, provider requests are bounded at 150
+  seconds with hidden SDK retries disabled, Reviewer reserves 240 seconds for
+  the existing validated-Writer fallback, and other paid work reserves 60
+  seconds for finalization. Every completed-node callback persists monotonic
+  usage; externally stopped runs commit an immutable terminal record whose
+  accounting state is explicitly `lower_bound` or `unavailable`. Both public
+  endpoints and the browser expose the distinction. Three defect reinjections
+  proved the provider-call, callback-to-disk and disk-to-client seams. This does
+  not establish production success or exact interrupted-request billing; a new
+  separately authorized canary is still required. See
+  `docs/runtime-terminal-integrity.md` and
+  `docs/results-2026-09-04-runtime-terminal-integrity-implementation.md`.
+
   See
   `docs/prereg-2026-08-26-decision-context-report-contract.md`,
   `docs/results-2026-08-26-decision-context-report-contract.md`,

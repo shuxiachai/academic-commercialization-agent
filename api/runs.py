@@ -3,13 +3,14 @@
 Owns the registry of live worker processes, enforces the concurrency cap,
 and derives run state from the artifacts on disk.
 
-State lives in two places by design:
-  • status.json — written by the worker, the source of truth for stage/progress
-  • terminal markers (error.log, cancelled.marker) — written by this module for
-    events the worker cannot know about (cancellation, timeout)
+State is projected through durable files by design:
+  • status.json — mutable worker progress and the latest completed-node usage
+  • terminal.json — immutable worker/API join for the actual process outcome
+  • legacy error/cancellation markers — compatibility for historical readers
 
-Keeping the worker's contract unchanged means the HTTP API and CLI can observe
-the same run through files without sharing process memory.
+The HTTP API, browser and CLI therefore observe the same run without sharing
+process memory. The API writes terminal truth only after an externally stopped
+worker can no longer write it itself.
 """
 
 from __future__ import annotations
@@ -34,6 +35,13 @@ from academic_agent.run_spec import (
     RESUME_SNAPSHOT_DIRECTORY,
     DecisionContext,
     RunSpec,
+)
+from academic_agent.run_terminal import (
+    TerminalRecord,
+    TerminalRecordUnreadable,
+    UsageAccounting,
+    commit_terminal_record,
+    load_terminal_record,
 )
 
 # A run is killed after this long. The bound belongs to the worker contract,
@@ -126,6 +134,7 @@ _ARTIFACTS = {
     "retrieval": "retrieval_diagnostics.json",
     "gap-shadow": "evidence_gap_shadow.json",
     "report-audit": "report_audit.json",
+    "terminal": "terminal.json",
 }
 
 
@@ -258,6 +267,7 @@ class _Handle:
     topic: str
     proc: subprocess.Popen
     started: float = field(default_factory=time.monotonic)
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     log_file: object = None
     #: Billed to the visitor rather than the operator, and therefore capped
     #: separately -- see BYOK_MAX_CONCURRENT.
@@ -270,19 +280,24 @@ class _Handle:
     def alive(self) -> bool:
         return self.proc.poll() is None
 
-    def terminate(self) -> None:
-        """Terminate, then kill if it ignores SIGTERM."""
+    def terminate(self) -> str:
+        """Terminate, then kill if needed, returning the observed method."""
+        method = "already_exited"
         if self.proc.poll() is None:
+            method = "terminate"
             self.proc.terminate()
             try:
                 self.proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
+                method = "kill"
                 self.proc.kill()
+                self.proc.wait(timeout=5)
         if self.log_file is not None:
             try:
                 self.log_file.close()
             except OSError:
                 pass
+        return method
 
 
 class ConcurrencyLimitReached(Exception):
@@ -689,9 +704,17 @@ def _start_run_from_spec(
             shutil.copytree(source_checkpoints, snapshot_root / "checkpoints")
 
 
+        # One deadline travels to both the worker and the parent reaper. The
+        # monotonic handle remains authoritative here; the wall value is
+        # converted once by the child so clock changes cannot extend it.
+        worker_started = time.monotonic()
+        worker_started_at = datetime.now(UTC)
+        hard_deadline_epoch = time.time() + TIMEOUT_SECONDS
         cmd = [
             sys.executable, "-m", "academic_agent.pipeline_worker",
             run_id, spec.topic, "--run-spec", str(spec_path),
+            "--hard-deadline-epoch", repr(hard_deadline_epoch),
+            "--hard-timeout-seconds", str(TIMEOUT_SECONDS),
         ]
         # Keep the explicit flags for CLI/process introspection and backwards
         # compatibility, while RunSpec remains the worker's authoritative
@@ -738,6 +761,8 @@ def _start_run_from_spec(
         # that had not launched yet, which is to say none of them.
         _registry[run_id] = _Handle(
             run_id=run_id, topic=spec.topic, proc=proc, log_file=log_file,
+            started=worker_started,
+            started_at=worker_started_at,
             byok=byok is not None,
         )
     return run_id, run_dir
@@ -868,7 +893,7 @@ def cancel_run(run_id: str) -> None:
         if handle is None or not handle.alive():
             raise RunNotFound(f"No live run with id {run_id}")
         _registry.pop(run_id, None)
-    handle.terminate()
+    method = handle.terminate()
     try:
         (run_dir_for(run_id) / _CANCEL_MARKER).write_text(
             datetime.now(UTC).isoformat(), encoding="utf-8"
@@ -879,6 +904,19 @@ def cancel_run(run_id: str) -> None:
         # the race to remove it — see delete_run's docstring. Nothing left to
         # mark at that point is a fine outcome, not a failure to report.
         pass
+    try:
+        _commit_external_terminal(
+            handle,
+            state="cancelled",
+            reason_code="user_cancelled",
+            termination_method=method,
+            timeout_seconds=TIMEOUT_SECONDS,
+        )
+    except (OSError, ValueError) as exc:
+        # The legacy marker still preserves cancellation if the stronger
+        # audit record cannot be committed; never turn cancel into HTTP 500.
+        print(f"[api] terminal record failed for {run_id}: {exc}", file=sys.stderr)
+
 
 
 def delete_run(run_id: str) -> None:
@@ -920,11 +958,33 @@ def reap_timeouts() -> list[str]:
             _registry.pop(run_id, None)
 
     for run_id, handle in expired:
-        handle.terminate()
-        (run_dir_for(run_id) / "error.log").write_text(
-            f"Analysis timed out after {TIMEOUT_SECONDS // 60} minutes.",
-            encoding="utf-8",
-        )
+        method = handle.terminate()
+        if method == "already_exited":
+            # It won the race with the watchdog; do not relabel it timeout.
+            continue
+        try:
+            (run_dir_for(run_id) / "error.log").write_text(
+                f"Analysis timed out after {TIMEOUT_SECONDS // 60} minutes.",
+                encoding="utf-8",
+            )
+        except OSError:
+            # The immutable record below is authoritative; this text file is
+            # retained only for compatibility with historical readers.
+            pass
+        try:
+            _commit_external_terminal(
+                handle,
+                state="timeout",
+                reason_code="hard_timeout",
+                termination_method=method,
+                timeout_seconds=TIMEOUT_SECONDS,
+            )
+        except (OSError, ValueError) as exc:
+            # One damaged run directory must not stop the global reaper.
+            print(
+                f"[api] terminal record failed for {run_id}: {exc}",
+                file=sys.stderr,
+            )
         killed.append(run_id)
     return killed
 
@@ -966,6 +1026,80 @@ def _read_status(run_dir: Path) -> dict:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
         raise StatusUnreadable(f"{path}: {exc}") from exc
+
+
+def _external_usage_accounting(
+    status: dict,
+    *,
+    ended_at: datetime,
+) -> UsageAccounting:
+    """Classify the last worker snapshot after an external process stop.
+
+    Even a durable snapshot is only a lower bound: the killed request may
+    have reached the provider before its usage counters returned. No snapshot
+    is reported as unavailable, never as zero.
+    """
+
+    usage = status.get("usage")
+    has_trustworthy_snapshot = (
+        isinstance(usage, dict) and not usage.get("collection_error")
+    )
+    return UsageAccounting(
+        state="lower_bound" if has_trustworthy_snapshot else "unavailable",
+        snapshot_at=ended_at,
+        through_stage=str(status.get("stage") or ""),
+        run_complete=False,
+        in_flight_request_may_have_spent=True,
+    )
+
+
+def _commit_external_terminal(
+    handle: _Handle,
+    *,
+    state: str,
+    reason_code: str,
+    termination_method: str,
+    timeout_seconds: int | None,
+) -> None:
+    """Persist facts the stopped worker can no longer record itself."""
+
+    run_dir = run_dir_for(handle.run_id)
+    try:
+        status = _read_status(run_dir)
+    except StatusUnreadable:
+        # Terminal state remains knowable even when the last live projection
+        # is damaged. Its missing stage/usage must stay unavailable rather
+        # than preventing the stronger process outcome from being committed.
+        status = {}
+    ended_at = datetime.now(UTC)
+    accounting = _external_usage_accounting(status, ended_at=ended_at)
+    record = TerminalRecord(
+        state=state,
+        reason_code=reason_code,
+        termination_method=termination_method,
+        started_at=handle.started_at,
+        ended_at=ended_at,
+        elapsed_seconds=handle.elapsed,
+        last_stage=str(status.get("stage") or ""),
+        timeout_seconds=timeout_seconds,
+        usage=status.get("usage"),
+        usage_accounting=accounting,
+        checkpointing=status.get("checkpointing"),
+        recovery=status.get("recovery"),
+    )
+    commit_terminal_record(run_dir, record)
+
+
+def _read_terminal(run_dir: Path) -> tuple[TerminalRecord | None, dict | None]:
+    """Return a valid record and its projection, or an explicit unreadable state."""
+
+    try:
+        record = load_terminal_record(run_dir)
+    except TerminalRecordUnreadable:
+        return None, {"record_state": "unreadable"}
+    if record is None:
+        return None, None
+    return record, record.public_projection()
 
 
 def read_steps(run_id: str, since: int = 0) -> list[dict]:
@@ -1157,6 +1291,7 @@ def get_state(run_id: str) -> dict:
         # Report what is known rather than guessing. "unknown" is a state a
         # client can retry; "failed" is one it reports to the user.
         status, status_readable = {}, False
+    terminal_record, terminal_projection = _read_terminal(run_dir)
     handle = _registry.get(run_id)
 
     if handle is not None and handle.alive():
@@ -1164,30 +1299,55 @@ def get_state(run_id: str) -> dict:
         error = None
         elapsed = handle.elapsed
     else:
-        # A finished run has no handle, and returning None here meant a client
-        # showed 0:00 for a run that plainly took minutes. The elapsed time is
-        # still on disk: the directory name carries the start and status.json's
-        # mtime the last write.
-        elapsed = _elapsed_seconds(run_dir)
-        if (run_dir / _CANCEL_MARKER).exists():
-            state, error = "cancelled", "Cancelled by request."
-        elif status.get("error"):
-            state, error = "failed", _public_failure_reason(status["error"])
-        elif status.get("done"):
-            state, error = "completed", None
-        elif not status_readable:
-            state = "unknown"
-            error = ("Run status is temporarily unreadable; the run itself may "
-                     "have completed. Retry in a moment.")
+        if terminal_record is not None:
+            elapsed = terminal_record.elapsed_seconds
+            state = terminal_record.state
+            if state == "cancelled":
+                error = "Cancelled by request."
+            elif state == "timeout":
+                error = (
+                    "The analysis exceeded its time limit. Resume from the "
+                    "last validated checkpoint or start a new run."
+                )
+            elif state == "failed":
+                error = _public_failure_reason(status.get("error") or _failure_reason(run_dir))
+            else:
+                error = None
         else:
-            reason = _failure_reason(run_dir)
-            state = "timeout" if _is_timeout_failure(reason) else "failed"
-            error = _public_failure_reason(reason)
+            # Historical runs have no terminal record. Preserve their legacy
+            # derivation without mistaking status mtime for new-run truth.
+            elapsed = _elapsed_seconds(run_dir)
+            if (run_dir / _CANCEL_MARKER).exists():
+                state, error = "cancelled", "Cancelled by request."
+            elif status.get("error"):
+                state, error = "failed", _public_failure_reason(status["error"])
+            elif status.get("done"):
+                state, error = "completed", None
+            elif not status_readable:
+                state = "unknown"
+                error = ("Run status is temporarily unreadable; the run itself may "
+                         "have completed. Retry in a moment.")
+            else:
+                reason = _failure_reason(run_dir)
+                state = "timeout" if _is_timeout_failure(reason) else "failed"
+                error = _public_failure_reason(reason)
+
+    usage = status.get("usage")
+    usage_accounting = status.get("usage_accounting")
+    checkpointing = status.get("checkpointing")
+    recovery = status.get("recovery")
+    if terminal_record is not None:
+        if terminal_record.usage is not None:
+            usage = terminal_record.usage
+        usage_accounting = terminal_record.usage_accounting.model_dump(mode="json")
+        checkpointing = terminal_record.checkpointing or checkpointing
+        recovery = terminal_record.recovery or recovery
+
 
     return {
         "run_id": run_id,
         "state": state,
-        "stage": status.get("stage", ""),
+        "stage": status.get("stage") or (terminal_record.last_stage if terminal_record else ""),
         "topic": status.get("topic") or (handle.topic if handle else ""),
         "output_language": status.get("output_language") or "English",
         # This is the immutable identity persisted by the executing worker.
@@ -1215,7 +1375,12 @@ def get_state(run_id: str) -> dict:
         # crew has run, including on failed runs — a run that died halfway
         # still spent whatever it spent, and that is the case where the number
         # is least guessable and most worth showing.
-        "usage": status.get("usage"),
+        "usage": usage,
+        # Temporal completeness is independent of price completeness. A
+        # lower-bound token total can still have a complete price table.
+        "usage_accounting": usage_accounting,
+        "runtime_budget": status.get("runtime_budget"),
+        "terminal": terminal_projection,
         # Counts from the claim-grounding screen: how many quantitative claims
         # could be checked against the text of the sources they cite, how many
         # cited a figure absent from it, and how many could not be checked at
@@ -1261,8 +1426,8 @@ def get_state(run_id: str) -> dict:
         # explicit so a failed auxiliary write cannot look like successful
         # recovery, and a cold start cannot look like a cache hit simply
         # because checkpointing itself was healthy.
-        "checkpointing": status.get("checkpointing"),
-        "recovery": status.get("recovery"),
+        "checkpointing": checkpointing,
+        "recovery": recovery,
         "artifacts": available_artifacts(run_dir),
     }
 
@@ -1283,6 +1448,11 @@ def _elapsed_seconds(run_dir: Path) -> int | None:
     worker wrote. Used for runs whose handle is gone, where the in-memory
     timer is no longer available.
     """
+    terminal_record, _projection = _read_terminal(run_dir)
+    if terminal_record is not None:
+        return terminal_record.elapsed_seconds
+
+    # Historical runs fall back to the last live-status write timestamp.
     try:
         stamp = run_dir.name.split("-")[0]
         start = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)

@@ -23,6 +23,8 @@ from academic_agent.pipeline_worker import (
     _IDX_REVIEW,
     _IDX_SCORING,
     _merge_status_fields,
+    _merge_usage_snapshots,
+    _usage_accounting_snapshot,
     _recover_from_reviewer_failure,
     _review_quality_from_outputs,
     _select_report_and_scores,
@@ -315,6 +317,78 @@ class MergeStatusFieldsTests(unittest.TestCase):
         self.assertTrue(data["done"])
         self.assertIsNone(data["error"])   # not stuck from a previous failed run
 
+    def test_usage_accounting_and_runtime_budget_remain_sticky(self):
+        existing = {
+            "usage_accounting": {"state": "lower_bound"},
+            "runtime_budget": {"state": "active"},
+        }
+        data = self._merge(existing, stage="Agent 5")
+        self.assertEqual(data["usage_accounting"]["state"], "lower_bound")
+        self.assertEqual(data["runtime_budget"]["state"], "active")
+
+
+class UsageSnapshotMergeTests(unittest.TestCase):
+    """A later callback cannot make already observed provider usage shrink."""
+
+    def test_same_agent_counters_and_cost_are_monotonic(self):
+        previous = {
+            "agents": [{
+                "role": "Academic", "model": "qwen3.5-plus",
+                "total_tokens": 100, "requests": 1, "cost_usd": 0.01,
+            }],
+            "total_tokens": 100,
+            "total_requests": 1,
+            "cost_usd": 0.01,
+            "cost_complete": True,
+        }
+        stale = {
+            "agents": [{
+                "role": "Academic", "model": "qwen3.5-plus",
+                "total_tokens": 80, "requests": 0, "cost_usd": 0.008,
+            }],
+            "total_tokens": 80,
+            "total_requests": 0,
+            "cost_usd": 0.008,
+            "cost_complete": True,
+        }
+
+        merged = _merge_usage_snapshots(previous, stale)
+
+        self.assertEqual(merged["total_tokens"], 100)
+        self.assertEqual(merged["total_requests"], 1)
+        self.assertEqual(merged["cost_usd"], 0.01)
+
+    def test_new_agent_is_added_without_erasing_existing_agent(self):
+        first = {
+            "agents": [{"role": "Academic", "model": "m", "total_tokens": 3}],
+            "cost_complete": True,
+        }
+        second = {
+            "agents": [{"role": "Patent", "model": "m", "total_tokens": 7}],
+            "cost_complete": False,
+            "unpriced_models": ["m"],
+        }
+
+        merged = _merge_usage_snapshots(first, second)
+
+        self.assertEqual(merged["total_tokens"], 10)
+        self.assertEqual(
+            [agent["role"] for agent in merged["agents"]],
+            ["Academic", "Patent"],
+        )
+        self.assertFalse(merged["cost_complete"])
+
+    def test_collection_error_is_unavailable_not_complete(self):
+        accounting = _usage_accounting_snapshot(
+            {"collection_error": "RuntimeError: metrics unavailable"},
+            stage="Done",
+            run_complete=True,
+            in_flight_request_may_have_spent=False,
+        )
+
+        self.assertEqual(accounting["state"], "unavailable")
+        self.assertTrue(accounting["run_complete"])
+
 
 class MainEndToEndTests(unittest.TestCase):
     """main() is an orchestrator: these check that it calls the right things
@@ -355,8 +429,11 @@ class MainEndToEndTests(unittest.TestCase):
         self._source_collection.model_dump.return_value = {}
         self._source_collection.crew_inputs.return_value = {}
 
-    def _run(self, run_id="20260101T000000Z-abcdef01", *, spec=None):
+    def _run(
+        self, run_id="20260101T000000Z-abcdef01", *, spec=None, extra_args=None
+    ):
         argv = ["pipeline_worker.py", run_id, "a topic"]
+        argv.extend(extra_args or ())
         if spec is not None:
             run_dir = self.output_root / run_id
             run_dir.mkdir(parents=True, exist_ok=True)
@@ -414,6 +491,45 @@ class MainEndToEndTests(unittest.TestCase):
         )
         self.assertEqual(status["evidence_gap_shadow"]["executed_call_count"], 0)
         self.assertTrue((run_dir / "evidence_gap_shadow.json").exists())
+        terminal = json.loads((run_dir / "terminal.json").read_text(encoding="utf-8"))
+        self.assertEqual(terminal["state"], "completed")
+        self.assertEqual(terminal["termination_method"], "worker_exit")
+        self.assertEqual(terminal["usage_accounting"]["state"], "unavailable")
+        self.assertEqual(status["usage_accounting"]["state"], "unavailable")
+        self.assertEqual(status["runtime_budget"]["state"], "unbounded_cli")
+
+    def test_api_deadline_is_attached_to_all_six_agent_calls(self):
+        """The parent flag is useful only if it reaches every provider wrapper."""
+
+        crew = MagicMock()
+        crew.agents = [
+            SimpleNamespace(role=f"Agent {index + 1}", llm=SimpleNamespace())
+            for index in range(6)
+        ]
+        crew.kickoff.return_value = self._crew_result()
+        extra_args = [
+            "--hard-deadline-epoch",
+            "4102444800",
+            "--hard-timeout-seconds",
+            "1800",
+        ]
+
+        with patch(
+            "academic_agent.llm_config.configure_llm_deadline"
+        ) as configure, patch("academic_agent.crew.AcademicAgent") as agent_cls:
+            agent_cls.return_value.crew.return_value = crew
+            run_dir = self._run(extra_args=extra_args)
+
+        self.assertEqual(configure.call_count, 6)
+        reviewer = configure.call_args_list[4].kwargs
+        scorer = configure.call_args_list[5].kwargs
+        self.assertLess(reviewer["deadline_monotonic"], scorer["deadline_monotonic"])
+        self.assertEqual(reviewer["request_timeout_seconds"], 150)
+        status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+        self.assertEqual(status["runtime_budget"]["state"], "active")
+        self.assertEqual(status["runtime_budget"]["hard_timeout_seconds"], 1800)
+        terminal = json.loads((run_dir / "terminal.json").read_text(encoding="utf-8"))
+        self.assertEqual(terminal["timeout_seconds"], 1800)
 
     def test_decision_context_reaches_crew_kickoff_and_public_status(self):
         """The durable field must reach execution, not merely survive storage."""
@@ -471,6 +587,53 @@ class MainEndToEndTests(unittest.TestCase):
         self.assertFalse(shadow["evidence_changed"])
         crew.kickoff.assert_called_once()
 
+    def test_each_completed_node_persists_a_usage_lower_bound(self):
+        """Usage must cross the callback-to-status seam before a later kill."""
+
+        metrics = SimpleNamespace(
+            prompt_tokens=80,
+            cached_prompt_tokens=0,
+            cache_creation_tokens=0,
+            completion_tokens=20,
+            reasoning_tokens=0,
+            total_tokens=100,
+            successful_requests=1,
+        )
+        llm = SimpleNamespace(
+            model="qwen3.5-plus",
+            get_token_usage_summary=lambda: metrics,
+        )
+        crew = MagicMock()
+        crew.agents = [SimpleNamespace(role="Academic", llm=llm)]
+        intermediate: dict = {}
+
+        def kickoff(*, inputs):
+            del inputs
+            callback = agent_cls.call_args.kwargs["task_callback"]
+            callback(_task("academic complete"))
+            status_path = (
+                self.output_root
+                / "20260101T000000Z-abcdef01"
+                / "status.json"
+            )
+            intermediate.update(json.loads(status_path.read_text(encoding="utf-8")))
+            return self._crew_result()
+
+        crew.kickoff.side_effect = kickoff
+        with patch("academic_agent.crew.AcademicAgent") as agent_cls:
+            agent_cls.return_value.crew.return_value = crew
+            run_dir = self._run()
+
+        self.assertEqual(intermediate["usage"]["total_tokens"], 100)
+        self.assertEqual(intermediate["usage"]["total_requests"], 1)
+        self.assertEqual(intermediate["usage_accounting"]["state"], "lower_bound")
+        self.assertFalse(intermediate["usage_accounting"]["run_complete"])
+        final = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+        self.assertEqual(final["usage_accounting"]["state"], "complete")
+        terminal = json.loads((run_dir / "terminal.json").read_text(encoding="utf-8"))
+        self.assertEqual(terminal["usage"]["total_tokens"], 100)
+        self.assertEqual(terminal["usage_accounting"]["state"], "complete")
+
     def test_source_collection_failure_writes_error_not_a_crash(self):
         with patch("academic_agent.source_pipeline.collect_source_collection",
                    side_effect=RuntimeError("no API key")):
@@ -486,6 +649,12 @@ class MainEndToEndTests(unittest.TestCase):
         self.assertEqual(status["stage"], "Error")
         self.assertIn("no API key", status["error"])
         self.assertTrue((run_dir / "error.log").exists())
+        terminal = json.loads((run_dir / "terminal.json").read_text(encoding="utf-8"))
+        self.assertEqual(terminal["state"], "failed")
+        self.assertEqual(terminal["usage_accounting"]["state"], "unavailable")
+        self.assertFalse(
+            terminal["usage_accounting"]["in_flight_request_may_have_spent"]
+        )
 
     def test_retrieval_failure_writes_machine_readable_diagnostics(self):
         """A failed collection used to discard its in-memory audit exactly

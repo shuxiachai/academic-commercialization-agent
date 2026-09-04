@@ -25,6 +25,10 @@ const STRINGS = {
     tokens_suffix: "tokens",
     price_basis: "Price basis",
     cost_partial: "Partial estimate — no price known for: {models}",
+    usage_partial: "partial usage",
+    usage_unavailable: "usage unavailable",
+    usage_partial_detail: "Durable lower bound; an in-flight provider request may be absent.",
+    usage_unavailable_detail: "Usage accounting was unavailable; this does not mean zero spend.",
 
     // Composer
     compose_title: "What should we assess?",
@@ -252,6 +256,10 @@ const STRINGS = {
     tokens_suffix: "tokens",
     price_basis: "计价依据",
     cost_partial: "部分估算 —— 以下模型无已知价格：{models}",
+    usage_partial: "用量下限",
+    usage_unavailable: "用量不可用",
+    usage_partial_detail: "这是已持久化的用量下限；可能未包含正在执行的服务商请求。",
+    usage_unavailable_detail: "未能取得用量记录；这不代表 Token 或费用为零。",
 
     compose_title: "要评估什么技术？",
     compose_sub: "六个智能体收集学术、专利与市场证据，评估商业化就绪度。每条结论都附带可核查的引用。",

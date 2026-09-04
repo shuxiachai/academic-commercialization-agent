@@ -15,7 +15,13 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from academic_agent.llm_config import _MAX_ATTEMPTS, _is_retryable, _wrap_with_retry
+from academic_agent.llm_config import (
+    _MAX_ATTEMPTS,
+    RunDeadlineExceeded,
+    _is_retryable,
+    _wrap_with_retry,
+    configure_llm_deadline,
+)
 
 
 class RetryClassificationTests(unittest.TestCase):
@@ -59,6 +65,11 @@ class RetryClassificationTests(unittest.TestCase):
         """Unknown failures are treated as permanent — a wrong retry costs
         money and time, a wrong give-up costs one run."""
         self.assertFalse(_is_retryable(ValueError("something unexpected")))
+
+    def test_run_budget_exhaustion_is_not_a_transport_retry(self):
+        """No retry can add time back to the parent watchdog."""
+
+        self.assertFalse(_is_retryable(RunDeadlineExceeded("deadline")))
 
 
 class RetryBehaviourTests(unittest.TestCase):
@@ -130,6 +141,47 @@ class RetryBehaviourTests(unittest.TestCase):
         llm, call = self._llm(return_value="answer")
         llm.call("prompt", tools=["t"])
         call.assert_called_once_with("prompt", tools=["t"])
+
+    @patch("academic_agent.llm_config.time.monotonic", return_value=90.0)
+    def test_provider_is_not_called_without_one_full_bounded_window(self, _clock):
+        """Starting a request that cannot finish before fallback is itself a bug."""
+
+        llm, call = self._llm(return_value="too late")
+        configure_llm_deadline(
+            llm,
+            deadline_monotonic=100.0,
+            stage="Reviewer",
+            request_timeout_seconds=11.0,
+        )
+
+        with self.assertRaisesRegex(RunDeadlineExceeded, "Reviewer"):
+            llm.call("prompt")
+
+        call.assert_not_called()
+
+    @patch("academic_agent.llm_config.random.uniform", return_value=0.0)
+    @patch("academic_agent.llm_config.time.monotonic", return_value=90.0)
+    def test_retry_is_refused_when_backoff_and_attempt_no_longer_fit(
+        self,
+        _clock,
+        _jitter,
+    ):
+        """The wrapper owns retries and must reserve both sleep and call time."""
+
+        llm, call = self._llm(side_effect=ConnectionError("down"))
+        configure_llm_deadline(
+            llm,
+            deadline_monotonic=100.0,
+            stage="Scorer",
+            request_timeout_seconds=9.0,
+        )
+
+        with self.assertRaises(RunDeadlineExceeded) as caught:
+            llm.call("prompt")
+
+        self.assertIsInstance(caught.exception.__cause__, ConnectionError)
+        self.assertEqual(call.call_count, 1)
+        self.sleep.assert_not_called()
 
     def test_the_factory_product_is_preserved(self):
         """Subclassing crewai.LLM would bypass its factory and lose the

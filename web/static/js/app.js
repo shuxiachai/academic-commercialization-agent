@@ -92,7 +92,8 @@ function startClock(fromSeconds) {
 }
 
 function paintHeader({
-  topic, state, elapsed_seconds, source_counts, usage, checkpointing, recovery,
+  topic, state, elapsed_seconds, source_counts, usage, usage_accounting,
+  checkpointing, recovery,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -113,10 +114,10 @@ function paintHeader({
 
   // Shown for failed runs too: a run that died halfway still spent whatever
   // it spent, and that is the bill nobody can otherwise estimate.
-  const spend = runView.usageSummary(usage);
+  const spend = runView.usageSummary(usage, usage_accounting);
   const spendEl = $("#run-usage");
   spendEl.textContent = spend ? `· ${spend}` : "";
-  spendEl.title = spend ? runView.usageTitle(usage) : "";
+  spendEl.title = spend ? runView.usageTitle(usage, usage_accounting) : "";
 
   const recoveryEl = $("#run-recovery");
   const reused = recovery?.reused_nodes?.length ?? 0;

@@ -207,6 +207,10 @@ class SubmitRunTests(_ApiTestCase):
         cmd = mock_popen.call_args[0][0]
         self.assertIn("academic_agent.pipeline_worker", cmd)
         self.assertIn("perovskite solar cells", cmd)
+        self.assertIn("--hard-deadline-epoch", cmd)
+        self.assertIn("--hard-timeout-seconds", cmd)
+        timeout_index = cmd.index("--hard-timeout-seconds")
+        self.assertEqual(cmd[timeout_index + 1], str(runs.TIMEOUT_SECONDS))
 
     @patch("api.runs.subprocess.Popen")
     def test_chinese_topic_is_normalized_across_the_paid_boundary(self, mock_popen):
@@ -639,6 +643,24 @@ class TimeoutReaperTests(_ApiTestCase):
         proc = self._live_proc()
         mock_popen.return_value = proc
         rid = self.client.post("/api/runs", json={"topic": "slow topic"}).json()["run_id"]
+        run_dir = runs.run_dir_for(rid)
+        usage = {
+            "total_tokens": 12_345,
+            "total_requests": 4,
+            "cost_usd": 0.02,
+            "cost_complete": True,
+            "agents": [],
+        }
+        (run_dir / "status.json").write_text(json.dumps({
+            "stage": "Agent 5 — Quality Review & Citation Check",
+            "done": False,
+            "usage": usage,
+            "checkpointing": {
+                "state": "partial",
+                "committed_nodes": ["retrieval", "academic", "patent", "market", "writer"],
+            },
+            "recovery": {"state": "not_requested"},
+        }), encoding="utf-8")
 
         # Backdate the start so the handle looks overdue.
         runs._registry[rid].started -= runs.TIMEOUT_SECONDS + 1
@@ -646,7 +668,50 @@ class TimeoutReaperTests(_ApiTestCase):
         killed = runs.reap_timeouts()
         self.assertIn(rid, killed)
         proc.terminate.assert_called_once()
-        self.assertEqual(self.client.get(f"/api/runs/{rid}").json()["state"], "timeout")
+        status = self.client.get(f"/api/runs/{rid}").json()
+        progress = self.client.get(f"/api/runs/{rid}/progress").json()
+        self.assertEqual(status["state"], "timeout")
+        self.assertGreaterEqual(status["elapsed_seconds"], runs.TIMEOUT_SECONDS)
+        self.assertEqual(status["usage"], usage)
+        self.assertEqual(status["usage_accounting"]["state"], "lower_bound")
+        self.assertTrue(
+            status["usage_accounting"]["in_flight_request_may_have_spent"]
+        )
+        self.assertEqual(status["terminal"]["reason_code"], "hard_timeout")
+        self.assertEqual(status["terminal"]["last_stage"],
+                         "Agent 5 — Quality Review & Citation Check")
+        self.assertEqual(runs._elapsed_seconds(run_dir), status["elapsed_seconds"])
+        self.assertEqual(status["checkpointing"]["committed_nodes"][-1], "writer")
+        for field in ("state", "elapsed_seconds", "usage", "usage_accounting", "terminal"):
+            with self.subTest(field=field):
+                self.assertEqual(progress[field], status[field])
+        self.assertIn("terminal", status["artifacts"])
+
+    @patch("api.runs.subprocess.Popen")
+    def test_reaped_collection_failure_is_unavailable_not_a_lower_bound(
+        self, mock_popen
+    ):
+        """A diagnostic object is not evidence that any counters were observed."""
+        proc = self._live_proc()
+        mock_popen.return_value = proc
+        rid = self.client.post(
+            "/api/runs", json={"topic": "usage collector failure"}
+        ).json()["run_id"]
+        run_dir = runs.run_dir_for(rid)
+        failed_usage = {
+            "collection_error": "RuntimeError: metrics unavailable",
+        }
+        (run_dir / "status.json").write_text(
+            json.dumps({"stage": "Reviewer", "usage": failed_usage}),
+            encoding="utf-8",
+        )
+        runs._registry[rid].started -= runs.TIMEOUT_SECONDS + 1
+
+        self.assertEqual(runs.reap_timeouts(), [rid])
+        status = self.client.get(f"/api/runs/{rid}").json()
+        self.assertEqual(status["usage"], failed_usage)
+        self.assertEqual(status["usage_accounting"]["state"], "unavailable")
+        self.assertEqual(status["terminal"]["state"], "timeout")
 
     @patch("api.runs.subprocess.Popen")
     def test_healthy_run_not_reaped(self, mock_popen):
