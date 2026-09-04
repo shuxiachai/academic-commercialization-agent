@@ -156,6 +156,7 @@ class _ModelAdapter:
 @pytest.fixture(scope="module")
 def _frozen_source(tmp_path_factory):  # noqa: ANN001, ANN202
     output = tmp_path_factory.mktemp("v6-review-source") / "result"
+    implementation_hashes = _implementation_hashes()
     provider = _ProviderAdapter()
     model = _ModelAdapter()
     execution = development.execute_development_study(
@@ -164,7 +165,7 @@ def _frozen_source(tmp_path_factory):  # noqa: ANN001, ANN202
         model_soft_stop_usd=0.021,
         acknowledge_anonymous_daily_budget=True,
         acknowledge_model_budget=True,
-        expected_implementation_sha256=_implementation_hashes(),
+        expected_implementation_sha256=implementation_hashes,
         provider_adapter_factory=lambda: provider,
         model_adapter_factory=lambda: model,
     )
@@ -182,12 +183,12 @@ def _frozen_source(tmp_path_factory):  # noqa: ANN001, ANN202
         field: getattr(execution, field)
         for field in diagnostic.EXPECTED_EXECUTION_OBSERVATIONS
     }
-    return output, source_hashes, observations
+    return output, source_hashes, observations, implementation_hashes
 
 
 @pytest.fixture
 def source(tmp_path, monkeypatch, _frozen_source):  # noqa: ANN001, ANN202
-    frozen, source_hashes, observations = _frozen_source
+    frozen, source_hashes, observations, implementation_hashes = _frozen_source
     copied = tmp_path / "source"
     shutil.copytree(frozen, copied)
     monkeypatch.setattr(
@@ -200,7 +201,24 @@ def source(tmp_path, monkeypatch, _frozen_source):  # noqa: ANN001, ANN202
         "EXPECTED_EXECUTION_OBSERVATIONS",
         observations,
     )
+    # The production diagnostic must keep the exact historical v6 hash map.
+    # This fixture instead creates a synthetic run from today's code, so its
+    # source lock must use the identity that the synthetic manifest persisted.
+    # Source hashes and observations above already follow the same boundary.
+    monkeypatch.setattr(
+        diagnostic,
+        "EXPECTED_IMPLEMENTATION_SHA256",
+        implementation_hashes,
+    )
     return copied
+
+
+def test_historical_implementation_identity_remains_frozen():
+    """Synthetic fixture adaptation must not rewrite the real v6 identity."""
+    assert (
+        diagnostic.EXPECTED_IMPLEMENTATION_SHA256
+        == development.EXPECTED_IMPLEMENTATION_SHA256
+    )
 
 
 def _lock(source: Path, tmp_path: Path) -> Path:

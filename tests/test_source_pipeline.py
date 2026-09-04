@@ -1092,6 +1092,27 @@ class AuthorityQueryPlanningTests(TestCase):
         self.assertIn("site:ema.europa.eu", market[1])
         self.assertFalse(any("clinicaltrials.gov" in query for query in market))
 
+    def test_handheld_ultrasound_queries_regulators_but_not_trial_registry(self):
+        """A diagnostic device needs regulator evidence without assuming a trial."""
+        from academic_agent.source_pipeline import _queries
+
+        topic = "AI-assisted handheld ultrasound for heart-failure screening"
+        market = _queries(topic, weight_profile=_detect_weight_profile(topic))["market"]
+        self.assertIn("site:fda.gov", market[0])
+        self.assertIn("site:ema.europa.eu", market[1])
+        self.assertFalse(any("clinicaltrials.gov" in query for query in market))
+
+    def test_generic_ultrasound_processing_remains_nonclinical(self):
+        """Bare ultrasound must not pull industrial processes into medical search."""
+        from academic_agent.source_pipeline import _queries
+
+        topic = "ultrasound-assisted heavy metal recovery for industrial wastewater"
+        profile = _detect_weight_profile(topic)
+        market = _queries(topic, weight_profile=profile)["market"]
+        self.assertEqual(profile, "industrial")
+        self.assertFalse(any("fda.gov" in query for query in market))
+        self.assertFalse(any("clinicaltrials.gov" in query for query in market))
+
     def test_nonclinical_biomedical_methods_do_not_require_clinical_authorities(self):
         from academic_agent.source_pipeline import _queries
 
@@ -1231,6 +1252,20 @@ class AuthorityCoverageTests(TestCase):
         from academic_agent.source_pipeline import _measure_authority_coverage
 
         topic = "Wearable continuous blood pressure monitoring via photoplethysmography"
+        coverage = _measure_authority_coverage(
+            topic,
+            _detect_weight_profile(topic),
+            [],
+        )
+        self.assertEqual(coverage.status, "incomplete")
+        self.assertEqual(coverage.required_categories, ["regulatory"])
+        self.assertEqual(coverage.missing_categories, ["regulatory"])
+
+    def test_handheld_ultrasound_without_official_record_is_incomplete(self):
+        """The live diagnostic-device miss must not remain not-applicable."""
+        from academic_agent.source_pipeline import _measure_authority_coverage
+
+        topic = "AI-assisted handheld ultrasound for heart-failure screening"
         coverage = _measure_authority_coverage(
             topic,
             _detect_weight_profile(topic),

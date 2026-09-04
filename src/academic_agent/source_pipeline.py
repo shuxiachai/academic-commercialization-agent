@@ -44,6 +44,9 @@ _BIOMEDICAL_MARKERS: tuple[str, ...] = (
     "diagnostic", "implant", "surgical", "gene editing", "cell therapy",
     "gene therapy", "medical device", "antibody", "in vitro", "in vivo",
     "oncology", "cancer treatment", "immunotherapy", "blood pressure",
+    # Keep the full product phrase: bare "ultrasound" also describes industrial
+    # cleaning, inspection, extraction, and processing methods.
+    "handheld ultrasound",
     # Bioprocess / cellular agriculture — manufacturing maturity is the key gate
     "cultivated meat", "cultured meat", "cell-based meat", "cellular agriculture",
     "tissue engineering", "stem cell", "bioprocessing", "bioreactor scale",
@@ -60,11 +63,11 @@ _REGULATED_BIOMEDICAL_MARKERS: tuple[str, ...] = (
     "surgical", "cell therapy", "gene therapy", "medical device",
     "cancer treatment", "immunotherapy", "genetic disease",
     "drug candidate", "drug treatment", "patient treatment",
-    # The phrase is intentionally narrower than "clinical" or "monitoring".
-    # A production canary showed that a cuffless blood-pressure product reached
-    # an industrial score profile and skipped regulator retrieval, while either
-    # generic term would also catch non-product workflow and factory topics.
-    "blood pressure monitor",
+    # These phrases are intentionally narrower than "clinical", "monitoring",
+    # or "ultrasound". Production canaries showed that regulated products
+    # reached an industrial score profile and skipped regulator retrieval, while
+    # the generic terms also catch non-product workflow and factory topics.
+    "blood pressure monitor", "handheld ultrasound",
 )
 _CLINICAL_REGISTRY_MARKERS: tuple[str, ...] = (
     "therapy", "vaccine", "clinical trial", "cell therapy", "gene therapy",
