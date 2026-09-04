@@ -49,9 +49,12 @@ Running on Railway — nothing to install. The gate offers two ways in:
 - **Access code** — runs on the deployment's own keys. Codes are handed out
   privately; without one, use the BYOK option above.
 
-A full run takes roughly 3 minutes and costs a few cents of LLM plus about 9
-search queries. The deployment therefore caps shared paid-operation concurrency
-and daily operator-funded admissions per code, including PDF extraction. See
+Run time is provider-bound rather than fixed. Two completed Qwen production
+canaries took 306 and 885 seconds; these are observations, not a latency SLO,
+while the 30-minute watchdog remains the hard availability boundary. A run
+costs a few cents of LLM usage plus about 9 search queries. The deployment
+therefore caps shared paid-operation concurrency and daily operator-funded
+admissions per code, including PDF extraction. See
 [Deploying publicly](#deploying-publicly) for the exact boundary.
 
 ---
@@ -812,13 +815,18 @@ reason plus raw reason/method inspection, and the real loopback Chromium job
 asserts the disk-to-API-to-DOM seam. See the
 [zero-request result](docs/results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md).
 
-Because the topic was never submitted, a replacement RTI02 protocol preserves
-the same handheld-ultrasound request under a new identity. It keeps one-root,
-zero-retry/resume/cancellation/Planner/supplementary-search bounds and a USD
-0.10 soft stop. The protocol authorizes zero provider calls; execution still
-requires a fresh authorization naming the new merged and deployed revision.
-See the
-[post-browser-seam pre-registration](docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md).
+A separately authorized RTI02 root then completed on exact deployed revision
+`522094a4330133c33aba2c3059bfd646be80b792`. Status, progress, the immutable
+terminal record, and real Chromium agreed on the normal completion reason and
+method. Six `qwen3.5-plus` requests used 69,932 tokens and a complete USD
+0.067922 estimate; all seven checkpoints committed and the primary gate passed
+12/12 with no retry, recovery, cancellation, Planner call, or supplementary
+search. Two of 88 read-only polling intervals were 16 milliseconds earlier than
+the frozen cadence, so the result retains that protocol qualifier and RTI02
+will not be rerun. This observes one ordinary completion, not Reviewer fallback
+or hard-timeout accounting. See the
+[pre-registration](docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)
+and [paid result](docs/results-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md).
 
 The earlier completed Qwen provider canary observed live transport and
 accounting for one run, not general report quality or benchmark equivalence.
@@ -1727,7 +1735,7 @@ Each dimension records its supporting source IDs, shown on the scorecard and tra
 - **自带 API Key（BYOK）**——不需要访问口令。选择 LLM 供应商、填入自己的 LLM Key 与检索 Key 即可运行，费用记在自己账上。密钥只进入这一次运行的子进程环境变量：不落盘、不并入服务端自身环境、不会被同时运行的其他任务看到，关闭标签页即清除
 - **访问口令**——用部署方自己的 Key 运行。口令私下提供；没有口令请用上面的 BYOK 入口
 
-一次运行约 3 分钟，消耗几美分的 LLM 额度加约 9 次检索，因此部署方设有并发上限和每个口令的每日次数上限。两个入口的具体机制见下方「访问控制」。
+运行耗时取决于上游供应商，并非固定 3 分钟。两次已完成的 Qwen 生产 canary 分别耗时 306 秒和 885 秒；它们只是观测值，不是延迟 SLO，30 分钟 watchdog 才是硬性可用性边界。单次运行消耗几美分的 LLM 额度加约 9 次检索，因此部署方设有并发上限和每个口令的每日次数上限。两个入口的具体机制见下方「访问控制」。
 
 ---
 
@@ -2333,12 +2341,16 @@ P0 修复会在每个节点后持久化单调用量，预留 Reviewer/finalizati
 终止方式；真实 loopback Chromium 测试覆盖从磁盘经 FastAPI 到 DOM 的完整接缝。
 详见[零请求结果](docs/results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md)。
 
-由于该主题从未提交，新的 RTI02 协议仍使用同一手持超声主题，但拥有新的冻结
-身份。它继续限制为一个根运行、0 次重试/恢复/取消/Planner/补充搜索与 0.10 美元
-软停止线。协议本身不授权任何调用；必须在新版本合并部署后，由用户重新授权精确
-SHA 才能执行。详见
-[运行时契约](docs/runtime-terminal-integrity.md)与
-[修复后预注册](docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)。
+随后一次单独授权的 RTI02 根运行在精确部署版本
+`522094a4330133c33aba2c3059bfd646be80b792` 上完成。状态、进度、不可变终态记录与
+真实 Chromium 对正常完成原因及终止方式完全一致；6 次 `qwen3.5-plus` 请求使用
+69,932 tokens，完整成本估算为 0.067922 美元，7 个检查点全部提交，主验收门
+12/12 通过，且没有重试、恢复、取消、Planner 或补充搜索。88 个只读轮询间隔中有
+2 个比冻结节奏早 16 毫秒，因此结果保留该协议限定且不会重跑 RTI02。它只验证
+一次普通完成路径，不验证 Reviewer fallback 或硬超时计费。详见
+[运行时契约](docs/runtime-terminal-integrity.md)、
+[修复后预注册](docs/prereg-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)与
+[付费结果](docs/results-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)。
 
 此外，生产隔离的 v5 Evidence Judge 已实现严格的 Qwen 单请求原始 HTTP
 Profile。首次获授权的 schema 3 运行在合并版本 `d9adfa4` 上完成 W01 第一遍，
