@@ -1,158 +1,128 @@
 # Portfolio Case Study: Evidence-Constrained Commercialization Assessment
 
-## The problem
+[Project](../README.md) · [Current evidence ledger](evidence-status.md) · [Experiment archive](experiment-index.md)
 
-Commercialization decisions require evidence from several domains at once:
-technical maturity, patents, market signals, competitors, and regulatory or
-clinical milestones where applicable. A general-purpose chat response can be
-fast, but it is difficult to audit when a claim, score, or recommendation is
-not tied to a source.
+## Problem and product boundary
 
-This project turns a research topic or paper into a structured, scored
-commercialization report. It is designed as a reliability-first decision-support
-workflow for technology-transfer, investment, and industry-research scenarios.
-It does not replace technical, legal, regulatory, or investment due diligence.
+Commercialization triage combines technical maturity, patents, market signals,
+competitors and applicable authority evidence. A plausible narrative is not
+enough if its claims, scores and limitations cannot be traced to sources.
 
-## What I built
+This project turns a topic or paper into a cited report and scorecard for
+technology-transfer, investment and industry-research scenarios. It supports
+research triage; it does not replace technical, legal, regulatory, investment
+or freedom-to-operate due diligence. Target-user value remains incompletely
+established.
 
-The production path is an **evidence-constrained, six-stage LLM workflow**, not
-an unrestricted autonomous agent:
+## What is implemented
 
-Before those stages, deterministic Python retrieval plans the query, collects
-academic, patent, market, and applicable authority evidence, validates
-identifiers and URLs, assigns provenance tiers, deduplicates records, and
-persists a frozen source registry. The LLM workflow then runs:
+The production path is an **evidence-constrained six-stage LLM workflow**, not
+an unrestricted tool-using autonomous agent:
 
-1. An Academic specialist analyses the frozen literature collection.
-2. A Patent specialist analyses the frozen patent collection.
-3. A Market specialist analyses the frozen market and authority collection.
-4. A Writer produces a report whose inline source IDs must resolve to the
-   validated registry.
-5. A Reviewer emits a bounded correction plan; code applies exact edits rather
-   than allowing an unconstrained rewrite.
-6. A Scorer produces a traceable scorecard, while deterministic code validates
-   source IDs and recalculates the weighted total.
+1. Deterministic retrieval first collects, validates, tiers and deduplicates
+   source records into a frozen registry.
+2. Academic, Patent and Market specialists analyse that evidence in parallel.
+3. A Writer produces the structured cited report.
+4. A Reviewer proposes bounded corrections instead of an unconstrained rewrite.
+5. A Scorer emits dimension scores; code validates the references and
+   recomputes the weighted total.
 
-An optional seven-field Decision Context is normalized into the immutable run
-identity and derives one of three applicability modes. Topic-only and partial
-context submissions still run, but the Writer/Reviewer contract must withhold
-actor-specific GO/NO_GO framing until asset, application, owner, and decision
-are all supplied.
+Optional seven-field Decision Context travels through the immutable RunSpec
+and derives applicability. Topic-only inputs remain usable orientation runs;
+they are not silently upgraded into actor-specific GO/NO_GO advice. Narrow
+threshold and material-family citation screens are advisory, not a universal
+semantic correctness oracle.
 
-FastAPI serves the same run artifacts to a build-free HTML/CSS/ES-module client
-and the CLI. Each run executes in a subprocess and writes auditable state under
-outputs/<run_id>/, so the API, browser, CLI, and recovery path observe the same
-source of truth.
+FastAPI serves a build-free HTML/CSS/ES-module client and shared run artifacts.
+The CLI uses the same pipeline. Per-run subprocesses isolate execution;
+content-addressed checkpoints bind reuse to input, evidence, configuration,
+task and pipeline identity. Recovery creates a new child and revalidates the
+longest committed prefix rather than modifying a finished parent.
 
-## Reliability and production engineering
+## Reliability at expensive boundaries
 
-- Pydantic schemas and task guardrails reject malformed evidence, invented
-  source IDs, broken citation registries, invalid report structure, and score
-  formula drift.
-- Node-level, content-addressed checkpoints bind reuse to input, evidence,
-  configuration, task, and pipeline identity. Recovery creates an immutable
-  child and revalidates the longest contiguous committed prefix.
-- Access-code and BYOK paths isolate credentials, share bounded paid-operation
-  admission, and enforce concurrency and daily operator-funded limits before a
-  provider call.
-- Rate limiting, ownership checks, upload bounds, SSRF-oriented URL validation,
-  strict security headers, and retention controls protect the public surface.
-- OpenTelemetry and OpenInference connect retrieval, CrewAI tasks, provider
-  requests, and post-run checks in one privacy-reduced trace. Local artifacts
-  remain authoritative if the collector is unavailable.
-- Docker runs as a non-root user with tini; Railway hosts the public demo.
+- Run and PDF extraction share concurrency and operator-funded admission.
+  Persistent daily quota does not reset with a process restart. BYOK uses
+  isolated credentials and still consumes bounded host capacity.
+- Run IDs are capability links. Code-owned mutation requires owner/admin
+  authority; ownerless BYOK has a distinct, explicitly weaker identity model.
+- Write-once terminal records distinguish normal completion from external stop.
+  Monotonic snapshots report complete, lower-bound or unavailable usage instead
+  of presenting interrupted requests as zero cost.
+- OpenTelemetry/OpenInference exposes redacted task/provider traces through an
+  optional Phoenix/OTLP collector. Collector failure does not invalidate local
+  run artifacts.
+- Docker preserves non-root application execution, process supervision and
+  embedded CJK PDF fonts. Railway is deliberately a single-replica deployment.
 
-## What I measured
+## Measurements that changed decisions
 
-| Evaluation | Result | What it does **not** prove |
+| Evidence | Observation | Engineering decision / limitation |
 |---|---|---|
-| Frozen live baseline | 30/30 completed; 26/30 within milestone-anchored TRL ranges; 30/30 formula and structure checks; 0 unsupported numeric lines | Not a blinded held-out accuracy score, and not complete hallucination elimination |
-| Topology ablation | 90 paid cells across 1-, 4-, and 6-node workflows; the 4-node arm used 54.89% fewer median tokens and 47.03% lower median cost than the 6-node arm | Supports domain decomposition, but does not prove every production stage is necessary |
-| Blinded utility audit | Five reviewers returned 20/20 eligible judgments; both rounds preferred the full workflow 6:4 for decision usefulness | The pre-registered success rule failed; the monolith led information gain 11:5, so this is not proof of six-stage superiority or adoption |
-| Offline fault injection | 30/30 immutable children completed; 90 committed task executions were skipped with 0 duplicate task executions | Zero-network process evidence, not an exactly-once, latency, cost-saving, or production-SLO claim |
-| Provider-backed recovery canary | One same-revision child reused a four-node prefix, made 0 new evidence-agent requests, and completed the remaining workflow | One observation only; interrupted-source usage was unavailable, so total cost and general savings are not inspectable |
-| Bounded Tool Calling contracts | Phase 2 passed 14/14 frozen execution cases; the disconnected Phase 3 generic pilot completed 5/5 requests; Phase 4 passes a 71/71 adapter/executor seam set plus a 50/50 live-runner/review subset; a no-key OpenAlex run completed 4/4 single-attempt cases, retained 9/20 provider rows and reported USD 0.004 of anonymous-budget usage; after a copied declaration error was corrected with disclosure, one eligible human review passed both 4/4 coverage gates; a label-blind conjunctive precision-v2 replay then accepted 5/5 relevant development rows and abstained 4/4 known wrong rows; its identity-locked U01-U08 harness now passes a zero-network dry-run and 19/19 focused seams | Production remains zero-call shadow mode: the first OpenAlex adapter had a 44.4% wrong-source rate, and precision-v2 has passed only its development gate; the frozen eight-case unseen study has not made a provider request, so neither method may advance to planner-trigger measurement or production |
-| Decision-context contract | Seven bounded fields cross the browser, API, immutable RunSpec, checkpoint identity, Crew input and both public status endpoints; all frozen offline seams passed with 0 provider calls | This establishes applicability plumbing, not model compliance, decision correctness, or user value |
-| Test and CI contract | 1,614 tests plus 609 subtests; Linux/Windows × Python 3.11/3.12; 87.31% measured coverage above an 85% floor; a dedicated Chromium journey exercises the access gate, client admission, run history and report DOM | The browser smoke is loopback-only and blocks mutating requests, so it proves the shipped client/API seam without claiming provider compatibility or deployed-service availability |
+| 30-run baseline | 30/30 completed, 26/30 TRL-range hits, 30/30 formula and structure, zero uncited numeric lines | Keep the calibrated scoring baseline; disclose post-observation range edits and that citation proxies do not establish source truth |
+| 90-cell 1/4/6-node ablation | Four-node median tokens -54.89% and cost -47.03% against six-node | Do not claim six nodes were universally necessary |
+| Five-reviewer utility audit | 20 eligible judgments; each round decision preference 6:4, but the registered success rule failed | A simple majority is not a positive utility result; only one reviewer was a target user |
+| Two-target-user pilot | Both retained DEFER, both MAYBE on reuse; usefulness/information gain medians 3/5, actionability/trust/acceptance 2/5 | Do not claim adoption or measured time savings; estimated revision effort and no external checks limit interpretation |
+| Offline recovery | 30/30 children completed, 90 committed tasks skipped, zero duplicate committed-task executions | Local reuse is demonstrated; provider exactly-once is not |
+| Real recovery | One child reused four nodes and completed the suffix with no evidence-agent requests | Interrupted-source usage was unavailable; total savings cannot be calculated |
+| RTI02 runtime canary | One completed Qwen run, 12/12 primary terminal checks, 69,932 tokens, USD 0.067922 estimate, 885 seconds | Normal browser delivery/accounting observed with a minor polling deviation; not fallback/timeout quality, general latency or an SLO |
+| Tool Calling v8 | AC development passed; AD unseen failed routing, closure-role value and incremental coverage | Seal v8 and keep supplementary Tool Calling out of production |
 
-The negative results are retained deliberately. For example, the first patent
-relevance candidate raised auto-kept precision to 94.6% but falsely removed six
-relevant patents, so it was rejected rather than tuned after seeing the labels.
-The user-utility study also failed its registered success criterion even though
-the full workflow won a simple majority. This distinction is part of the
-project's engineering argument: evaluation should be capable of saying no.
+Each row's protocol, exact denominator and method limits are linked in
+[the evidence ledger](evidence-status.md). Do not add these denominators together.
 
-## Key decisions and lessons
+The earlier patent candidate is another instructive rejection: it improved
+selective precision to 94.6% but removed six relevant patents. That violated
+the frozen false-removal gate, so it was not deployed. Negative results are
+part of the engineering record, not shortcomings hidden behind a feature list.
 
-- **Retrieval before reasoning:** freezing and validating evidence before CrewAI
-  reduces tool autonomy, but makes citations, retries, replay, and fault recovery
-  auditable.
-- **Assertions at system seams:** tests cover whether computed values reach both
-  API endpoints and the browser contract, not only whether an internal field is
-  correct.
-- **Silence is not success:** checks distinguish pass, fail, not_run,
-  not_observed, and not_inspectable where a zero denominator could otherwise
-  look healthy.
-- **Precision before blocking:** heuristic screens report conservatively. The
-  uncited-claim detector remains non-blocking because the stored baseline shows
-  that its false-positive burden is still too high.
-- **Applicability before decisiveness:** Decision Context is optional, but code
-  derives whether actor-specific advice is allowed. Missing context remains a
-  usable orientation run instead of being silently promoted to a decision
-  recommendation.
-- **Recovery is at-least-once at provider boundaries:** committed local nodes can
-  be reused safely, but an interrupted external request cannot be claimed as
-  exactly once without provider-supported idempotency.
+## What Tool Calling means in this project
 
-## Current limitations
+The research implementation includes a bounded execution kernel, strict
+one-request adapters, cost/request accounting, source-lock review and frozen
+development/unseen harnesses. The [v1–v8 ledger](evidence-status.md#tool-calling-experiments)
+shows both provider compatibility and failures in source precision, semantic
+agreement, role-coverability and routing value.
 
-- The small utility panel contains only one target-domain user and does not
-  establish adoption, ROI, or improved real-world decisions.
-- Run state, quotas, and artifacts are designed for one application replica;
-  horizontal scaling requires shared transactional storage and a distributed
-  work queue.
-- Evidence-gap production planning remains shadow-only and issues zero
-  supplementary searches. A disconnected five-case pilot passed provider
-  compatibility at USD 0.040, but its returned form declared substantive AI
-  use and labeled only 5/25 candidates directly relevant. Packet v1 also hid
-  the frozen novelty baseline from the reviewer; schema v2 fixes that seam,
-  but the old result remains excluded and does not authorize production.
-- Code-package analysis is not implemented, and patent relevance has no second
-  independent reviewer or inter-rater estimate.
-- The completed user-utility audit included only one actual target user. A
-  separate two-slot target-user decision pilot is now complete with a pre-report
-  baseline and post-report decision. Both target users retained `DEFER`, raised
-  confidence from 3/5 to 4/5, and rated median usefulness and information gain
-  3/5 while actionability, evidence trust, and recommendation acceptance were
-  2/5. Both answered `MAYBE` to reuse and estimated substantial correction
-  work. Neither checked external sources, so this is not source-truth evidence
-  or product validation.
-- The three-mode Decision Context production canary completed for $0.109342,
-  but failed its frozen primary criterion 7/10. One run used Reviewer fallback,
-  one report humanized the required mode token, and one incomplete-context
-  report introduced an unqualified commercial threshold. The result measures
-  prompt compliance and operational behavior only: source truth, decision
-  correctness, target-user value, and whether the framing improves a real
-  decision remain unmeasured.
+Production is still **zero-call shadow mode**. V8's unseen result is final:
+routing 5/8, closure-role value 2/7 and coverability gain +1 failed their gates.
+A new method needs fresh cohorts and pre-registration; adding another model
+pass or tuning AD cannot create independent validation.
 
-## Reproduce or inspect
+## What the tests prove
 
-- [Live application](https://academic-commercialization-agent.up.railway.app)
-- [Architecture and full documentation](../README.md)
-- [Topology ablation protocol and result](prereg-2026-08-21-agent-topology-ablation.md)
-- [User-utility result](results-2026-08-23-user-utility-audit.md)
-- [Target-user pilot pre-registration](prereg-2026-08-26-target-user-decision-pilot.md)
-- [Target-user pilot operator guide](target-user-decision-pilot-guide.md)
-- [Target-user pilot form-timing erratum](errata-2026-08-26-target-user-pilot-form-enums-and-ai-timing.md)
-- [Target-user pilot result](results-2026-08-26-target-user-decision-pilot.md)
-- [Decision Context protocol](prereg-2026-08-26-decision-context-report-contract.md)
-- [Decision Context implementation result](results-2026-08-26-decision-context-report-contract.md)
-- [Decision Context three-mode paid-canary protocol](prereg-2026-08-26-decision-context-paid-canary.md)
-- [Decision Context three-mode paid-canary result](results-2026-08-26-decision-context-paid-canary.md)
-- [Checkpoint recovery design](checkpoint-recovery.md)
-- [Production recovery canary](results-2026-08-24-paid-same-revision-recovery-post-fix.md)
+At the audited pre-consolidation revision `0fdaa76`, 2071 tests and 678
+subtests passed. CI spans Linux/Windows × Python 3.11/3.12, latest Ruff, narrow
+Pylint, an 85% coverage floor, real Chromium against loopback fixtures and
+Docker runtime assertions.
 
-    uv sync
-    uv run pytest -q
-    uv run --with ruff ruff check .
-    uv run uvicorn api.main:app --reload
+Tests target seams: a correct field stored on disk is insufficient if FastAPI
+serialization drops it or the browser never renders it. Regression tests are
+checked by re-injecting the original defect. The browser smoke blocks external
+and mutating requests, so it cannot stand in for paid-provider or deployed
+availability evidence.
+
+## Open work and scope discipline
+
+The next low-cost maintenance seam is auxiliary metadata: some legacy readers
+still conflate missing and unreadable values. Qualitative entailment, broader
+input-distribution evaluation, cross-topic target-user utility and sustained
+adoption remain open. Single-replica state needs redesign before horizontal
+scaling; code-package ingestion is unimplemented.
+
+The completed utility panels cannot be enlarged retroactively. Future review
+requires a new protocol and honest source-check provenance. More agents,
+Kubernetes, memory or a vector store would not by themselves fix these gaps.
+
+## Reproduce
+
+```bash
+uv sync
+uv run pytest -q
+uv run --with ruff ruff check .
+uv run uvicorn api.main:app --reload
+```
+
+See [the operating guide](operating-guide.md) for credentials and paid boundaries,
+[AGENTS.md](../AGENTS.md) for rejected alternatives and [Contributing](../CONTRIBUTING.md)
+for the complete CI-compatible check sequence.
