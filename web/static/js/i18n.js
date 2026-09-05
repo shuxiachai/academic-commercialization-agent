@@ -147,6 +147,7 @@ const STRINGS = {
     // rather than inside a JSON file. A reader meets the flags before the
     // number they qualify.
     rel_title: "Automated checks",
+    rel_metadata_unreadable: "Stored audit summary is unreadable — no result is claimed; the report remains available",
     rel_verdict_risk: "A check disagrees with this report",
     rel_verdict_review: "Worth reading with the notes below in mind",
     rel_verdict_clear: "Nothing was flagged",
@@ -371,6 +372,7 @@ const STRINGS = {
     consistency_excerpt: "报告原文",
 
     rel_title: "自动检查",
+    rel_metadata_unreadable: "已保存的审计摘要无法读取——不对该项结果作出判断；报告仍可查看",
     tab_report_audit: "报告审计",
     report_audit_lede: "以非阻断方式检查未标明来源的决策阈值，以及电解质材料类别与引用来源明确矛盾的窄范围问题。",
     report_audit_clear: "在该窄范围审计能够判断的报告片段中未发现问题。",

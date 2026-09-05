@@ -773,6 +773,36 @@ export function reliabilityRows(progress) {
                 label: t("rel_trail"), detail: t("rel_trail_incomplete") });
   }
 
+  // The API isolates malformed summaries instead of failing the paid report.
+  // Its safe null/[]/false replacements are NOT measurements. Override the
+  // affected row after ordinary rendering so defaults cannot turn a read
+  // fault into either a pass or a historically absent check. Names/labels are
+  // code-owned; never echo damaged payloads into the diagnostic.
+  const faultRows = {
+    consistency: ["consistency", "rel_consistency"],
+    quality_review: ["review", "rel_review"],
+    claim_grounding: ["grounding", "rel_grounding"],
+    report_audit: ["report-audit", "rel_report_audit"],
+    authority_coverage: ["authority", "rel_authority"],
+    component_coverage: ["components", "rel_components"],
+    source_counts: ["sources", "rel_sources"],
+    failed_domains: ["sources", "rel_sources"],
+    evidence_incomplete: ["trail", "rel_trail"],
+  };
+  for (const field of progress.audit_metadata_unreadable ?? []) {
+    if (!Object.hasOwn(faultRows, field)) continue;
+    const [id, label] = faultRows[field];
+    const row = { id, tone: "muted", label: t(label), detail: t("rel_metadata_unreadable") };
+    const index = rows.findIndex(existing => existing.id === id);
+    if (index === -1) rows.push(row);
+    else if (["warn", "risk"].includes(rows[index].tone)) {
+      // Source counts and failed_domains share a row. A damaged count must
+      // not erase a separately readable retrieval failure in that same row.
+      rows[index] = { ...rows[index], detail: rows[index].detail + " " + row.detail };
+    }
+    else rows[index] = row;
+  }
+
   return rows;
 }
 
@@ -808,6 +838,7 @@ export function renderReliability(progress) {
   for (const row of rows) {
     const item = el("li", "reliability__row");
     item.dataset.tone = row.tone;
+    item.dataset.check = row.id;
     item.append(el("span", "reliability__label", row.label));
     item.append(el("span", "reliability__detail", row.detail));
     list.append(item);

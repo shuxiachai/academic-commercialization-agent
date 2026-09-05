@@ -260,6 +260,55 @@ class ReliabilityPanelTests(unittest.TestCase):
 
     # ── Ordering ─────────────────────────────────────────────────────────
 
+    def test_corrupt_summary_is_distinct_from_absence_and_keeps_neighbor_findings(self):
+        """Safe API defaults used to become a pass or an absent-check explanation."""
+        mapping = {
+            "quality_review": "review", "claim_grounding": "grounding",
+            "report_audit": "report-audit", "authority_coverage": "authority",
+            "component_coverage": "components", "source_counts": "sources",
+            "failed_domains": "sources", "evidence_incomplete": "trail",
+        }
+        for field, row_id in mapping.items():
+            with self.subTest(field=field):
+                panel = self._panel(
+                    consistency={"blockers": 1, "warnings": 0},
+                    audit_metadata_unreadable=[field],
+                )
+                row = self._row(panel, row_id)
+                self.assertEqual(row["tone"], "muted")
+                self.assertIn("unreadable", row["detail"])
+                self.assertEqual(self._row(panel, "consistency")["tone"], "risk")
+                self.assertEqual(panel["verdict"]["tone"], "risk")
+
+    def test_corrupt_consistency_is_not_an_english_language_exclusion(self):
+        panel = self._panel(audit_metadata_unreadable=["consistency"])
+        row = self._row(panel, "consistency")
+        self.assertEqual(row["tone"], "muted")
+        self.assertIn("unreadable", row["detail"])
+        self.assertNotIn("English", row["detail"])
+
+    def test_two_source_faults_replace_the_default_pass_with_one_unknown_row(self):
+        panel = self._panel(
+            source_counts={"academic": 3, "patent": 3, "market": 3},
+            failed_domains=[],
+            audit_metadata_unreadable=["source_counts", "failed_domains"],
+        )
+        rows = [row for row in panel["rows"] if row["id"] == "sources"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["tone"], "muted")
+        self.assertIn("unreadable", rows[0]["detail"])
+
+    def test_damaged_counts_do_not_hide_a_known_retrieval_failure(self):
+        """Two metadata fields share the source row; one fault must not erase the other."""
+        panel = self._panel(
+            source_counts=None, failed_domains=["patent"],
+            audit_metadata_unreadable=["source_counts"],
+        )
+        row = self._row(panel, "sources")
+        self.assertEqual(row["tone"], "warn")
+        self.assertIn("patent", row["detail"])
+        self.assertIn("unreadable", row["detail"])
+
     def test_the_worst_finding_decides_the_verdict(self):
         """A blocker beside three passes is still a blocker. Averaging the
         rows, or taking the first, would let one good check bury a bad one."""

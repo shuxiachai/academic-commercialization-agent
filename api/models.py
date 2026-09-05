@@ -161,6 +161,11 @@ class RunProgress(BaseModel):
     run_id: str
     state: RunState
     status_record_state: Literal["absent", "readable", "unreadable"] | None = None
+    audit_metadata_unreadable: list[str] = Field(
+        default_factory=list,
+        description="Code-owned field names whose audit summary could not be read. "
+                    "Their null/default projection is not a passing check.",
+    )
     stage: str = ""
     # Carried here so a client that opens a run from a list has a title on
     # the first response rather than a placeholder until it guesses one.
@@ -302,6 +307,11 @@ class RunStatus(BaseModel):
     # A valid immutable terminal can coexist with an unreadable live status.
     # Surface that loss even when the stronger outcome still says completed.
     status_record_state: Literal["absent", "readable", "unreadable"] | None = None
+    audit_metadata_unreadable: list[str] = Field(
+        default_factory=list,
+        description="Code-owned field names whose audit summary could not be read. "
+                    "Their null/default projection is not a passing check.",
+    )
     stage: str = ""
     topic: str = ""
     pipeline_revision: str | None = Field(

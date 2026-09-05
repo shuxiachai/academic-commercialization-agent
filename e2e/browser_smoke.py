@@ -197,7 +197,7 @@ def _capture_failure(page: Page | None) -> None:
         )
 
 
-def _exercise_browser(base_url: str, run_id: str, fault_ids: tuple[str, str]) -> dict[str, int]:
+def _exercise_browser(base_url: str, run_id: str, fault_ids: tuple[str, str, str]) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
     console_errors: list[str] = []
@@ -298,7 +298,7 @@ def _exercise_browser(base_url: str, run_id: str, fault_ids: tuple[str, str]) ->
             # Real bytes, real endpoints and the shipped DOM must agree even
             # during storage faults. Formatter-only tests previously missed
             # the stale Done stage painting unknown outcomes entirely green.
-            damaged_status_id, damaged_terminal_id = fault_ids
+            damaged_status_id, damaged_terminal_id, damaged_audit_id = fault_ids
             page.goto(f"{base_url}/run/{damaged_status_id}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("completed")
             expect(page.locator("#run-status-record")).to_contain_text("progress record unreadable")
@@ -312,6 +312,20 @@ def _exercise_browser(base_url: str, run_id: str, fault_ids: tuple[str, str]) ->
             expect(page.locator("#run-usage")).to_contain_text("partial usage")
             expect(page.locator('.stage[data-state="done"]')).to_have_count(0)
             expect(page.locator('.stage[data-state="pending"]')).to_have_count(5)
+
+            # Nested faults are weaker than completion or the report itself.
+            # Before projection isolation a scalar failed_domains caused 500;
+            # a string unavailable_domains could instead throw before the
+            # report tab loaded. An empty consistency object silently passed.
+            page.goto(f"{base_url}/run/{damaged_audit_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            expect(page.locator("#run-terminal")).to_have_text("· worker completed")
+            expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+            for check in ("consistency", "grounding", "authority", "components", "report-audit", "sources"):
+                row = page.locator(f'.reliability__row[data-check="{check}"]')
+                expect(row).to_have_attribute("data-tone", "muted")
+                expect(row).to_contain_text("Stored audit summary is unreadable")
+            expect(page.locator('.reliability__row[data-check="review"]')).to_have_attribute("data-tone", "ok")
 
             assert not external_requests, (
                 "The browser attempted non-loopback requests: "
@@ -379,8 +393,21 @@ def main() -> None:
         status["usage"] = {"total_tokens": 100, "cost_usd": 0.01, "cost_complete": True, "agents": []}
         status["usage_accounting"] = {"state": "complete"}
         status_path.write_text(json.dumps(status), encoding="utf-8")
+        damaged_audit_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
+        audit_path = output_root / damaged_audit_id / "status.json"
+        audit_status = json.loads(audit_path.read_text(encoding="utf-8"))
+        audit_status.update({
+            "consistency": {},
+            "claim_grounding": {"status": "partial", "checked": 1, "ungrounded": 0,
+                                "unverifiable": 0, "unavailable_domains": "market"},
+            "authority_coverage": {"status": "incomplete", "missing_categories": 1},
+            "component_coverage": {"status": "unchecked", "unchecked_components": {}},
+            "report_audit": {"status": "completed", "findings": "0"},
+            "failed_domains": 1, "quality_review": {"status": "passed"},
+        })
+        audit_path.write_text(json.dumps(audit_status), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id))
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id))
 
     print(
         json.dumps(
