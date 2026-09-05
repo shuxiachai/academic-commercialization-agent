@@ -93,9 +93,10 @@ remain unchanged. Browse the [full experiment index](experiment-index.md).
 
 ## Highest-value next work
 
-1. Inspect the legacy auxiliary metadata read seam without paid calls:
-   distinguish missing, unreadable and successfully read values before
-   changing defaults; assert at status/progress/browser boundaries.
+1. The core metadata read fault path is now hardened through both HTTP endpoints,
+   history and Chromium; see the [measured scope and limits](results-2026-09-05-runtime-metadata-integrity.md).
+   Further work should reproduce a specific nested metadata failure first,
+   not rewrite unused legacy helpers or claim every schema is validated.
 2. New decision-utility research should target the already observed low trust
    and actionability, use a new protocol and disclose external-source checks.
    Do not append new reviewers to completed panels or claim estimated

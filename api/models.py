@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from academic_agent.run_spec import AssessmentMode, DecisionContext
 
-#: "unknown" means the status file could not be read, not that the run
+#: "unknown" means the status or terminal file could not be read, not that the run
 #: failed. It is deliberately not terminal: a client should retry rather than
 #: tell the user their run died, because it may well have finished.
 RunState = Literal["running", "completed", "failed", "cancelled", "timeout",
@@ -160,6 +160,7 @@ class RunProgress(BaseModel):
 
     run_id: str
     state: RunState
+    status_record_state: Literal["absent", "readable", "unreadable"] | None = None
     stage: str = ""
     # Carried here so a client that opens a run from a list has a title on
     # the first response rather than a placeholder until it guesses one.
@@ -298,6 +299,9 @@ class RunStatus(BaseModel):
 
     run_id: str
     state: RunState
+    # A valid immutable terminal can coexist with an unreadable live status.
+    # Surface that loss even when the stronger outcome still says completed.
+    status_record_state: Literal["absent", "readable", "unreadable"] | None = None
     stage: str = ""
     topic: str = ""
     pipeline_revision: str | None = Field(

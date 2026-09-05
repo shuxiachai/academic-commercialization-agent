@@ -804,10 +804,12 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
     return RunProgress(
         run_id=run_id,
         state=state["state"],
+        status_record_state=state.get("status_record_state"),
         stage=state.get("stage", ""),
         topic=state.get("topic", ""),
         pipeline_revision=state.get("pipeline_revision"),
-        done=state["state"] != "running",
+        # Unknown is retryable, not evidence that execution finished.
+        done=state["state"] in {"completed", "failed", "cancelled", "timeout"},
         error=state.get("error"),
         elapsed_seconds=state.get("elapsed_seconds"),
         source_counts=state.get("source_counts"),

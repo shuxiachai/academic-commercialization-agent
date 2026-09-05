@@ -20,7 +20,7 @@ const STAGES = [
   { id: "scoring",  match: "Agent 6",           key: "stage_scoring" },
 ];
 
-// "unknown" is absent on purpose: the status file was unreadable, which says
+// "unknown" is absent on purpose: a runtime record was unreadable, which says
 // nothing about whether the run finished. Treating it as terminal would stop
 // polling and show a still-running analysis as over.
 const TERMINAL = new Set(["completed", "failed", "cancelled", "timeout"]);
@@ -39,11 +39,15 @@ function stageIndex(stage) {
  * looking stuck.
  */
 export function stageStates(stage, state) {
-  const done = state === "completed" || stage === "Done";
+  // The mutable stage can still say Done when a stronger outcome is damaged
+  // or the process failed during finalization. Only verified completion may
+  // paint every stage green; unknown cannot certify even a partial prefix.
+  const done = state === "completed";
   const failed = state === "failed" || state === "timeout";
   const current = stageIndex(stage);
 
   return STAGES.map((s, i) => {
+    if (state === "unknown") return { ...s, state: "pending" };
     if (done) return { ...s, state: "done" };
     if (current === -1) return { ...s, state: "pending" };
     if (i < current) return { ...s, state: "done" };
@@ -114,7 +118,7 @@ export function follow(runId, { onUpdate, onDone, onError }) {
 /* ── Formatting ────────────────────────────────────────────────────── */
 
 export function formatDuration(seconds) {
-  if (seconds == null) return "0:00";
+  if (seconds == null) return "—";
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${String(s).padStart(2, "0")}`;

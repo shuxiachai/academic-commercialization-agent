@@ -197,7 +197,7 @@ def _capture_failure(page: Page | None) -> None:
         )
 
 
-def _exercise_browser(base_url: str, run_id: str) -> dict[str, int]:
+def _exercise_browser(base_url: str, run_id: str, fault_ids: tuple[str, str]) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
     console_errors: list[str] = []
@@ -295,6 +295,24 @@ def _exercise_browser(base_url: str, run_id: str) -> dict[str, int]:
             expect(page.locator("#run-terminal")).to_have_text("· worker completed")
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
 
+            # Real bytes, real endpoints and the shipped DOM must agree even
+            # during storage faults. Formatter-only tests previously missed
+            # the stale Done stage painting unknown outcomes entirely green.
+            damaged_status_id, damaged_terminal_id = fault_ids
+            page.goto(f"{base_url}/run/{damaged_status_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            expect(page.locator("#run-status-record")).to_contain_text("progress record unreadable")
+            expect(page.locator("#run-terminal")).to_have_text("· worker completed")
+            expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+
+            page.goto(f"{base_url}/run/{damaged_terminal_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("unknown")
+            expect(page.locator("#run-terminal")).to_have_text("· terminal record unreadable")
+            expect(page.locator("#run-elapsed")).to_have_text("—")
+            expect(page.locator("#run-usage")).to_contain_text("partial usage")
+            expect(page.locator('.stage[data-state="done"]')).to_have_count(0)
+            expect(page.locator('.stage[data-state="pending"]')).to_have_count(5)
+
             assert not external_requests, (
                 "The browser attempted non-loopback requests: "
                 + ", ".join(external_requests)
@@ -350,8 +368,19 @@ def main() -> None:
         output_root = Path(temp_dir) / "outputs"
         app, access = _configure_isolated_app(output_root)
         run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
+        damaged_status_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
+        (output_root / damaged_status_id / "status.json").write_bytes(b"\xff")
+        damaged_terminal_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
+        # These are isolated mutable test fixtures, not production terminal
+        # rewrites. Retain stale done=true beside a damaged immutable record.
+        (output_root / damaged_terminal_id / "terminal.json").write_bytes(b"{broken")
+        status_path = output_root / damaged_terminal_id / "status.json"
+        status = json.loads(status_path.read_text(encoding="utf-8"))
+        status["usage"] = {"total_tokens": 100, "cost_usd": 0.01, "cost_complete": True, "agents": []}
+        status["usage_accounting"] = {"state": "complete"}
+        status_path.write_text(json.dumps(status), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id)
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id))
 
     print(
         json.dumps(
