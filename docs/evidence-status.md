@@ -95,8 +95,10 @@ remain unchanged. Browse the [full experiment index](experiment-index.md).
 
 1. The core metadata read fault path is now hardened through both HTTP endpoints,
    history and Chromium; see the [measured scope and limits](results-2026-09-05-runtime-metadata-integrity.md).
-   Further work should reproduce a specific nested metadata failure first,
-   not rewrite unused legacy helpers or claim every schema is validated.
+   Nine reliability-summary fields now have field-local read isolation and
+   explicit unreadable rows; see the [nested fault verification](results-2026-09-05-nested-audit-metadata-integrity.md).
+   Other nested payloads and detailed audit artifacts remain outside that
+   contract. Reproduce their actual client failure before proposing changes.
 2. New decision-utility research should target the already observed low trust
    and actionability, use a new protocol and disclose external-source checks.
    Do not append new reviewers to completed panels or claim estimated

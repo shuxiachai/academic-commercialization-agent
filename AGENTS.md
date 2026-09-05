@@ -213,8 +213,10 @@ restart Railway, invoke a paid canary or publish private run links.
 3. Metadata reads: the core status/progress/history/browser fault seam now
    distinguishes absent and unreadable records; see the
    [fault verification](docs/results-2026-09-05-runtime-metadata-integrity.md).
-   Nested legacy audit schemas are not comprehensively validated. Unused
-   auxiliary readers still have defaults; this is not a main-pipeline outage.
+   Nine display-facing audit-summary fields have field-local isolation; see
+   the [nested contract and limits](docs/results-2026-09-05-nested-audit-metadata-integrity.md).
+   Other nested payloads, detailed audit artifacts and unused auxiliary readers
+   are not comprehensively validated; this is not a main-pipeline outage.
 4. Input distribution: language/shape admission is tested, but the 30-run
    benchmark does not validate Chinese, very short or non-technical requests.
 5. Scale and long-term operations: one replica, no distributed ownership or

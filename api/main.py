@@ -805,6 +805,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         run_id=run_id,
         state=state["state"],
         status_record_state=state.get("status_record_state"),
+        audit_metadata_unreadable=state.get("audit_metadata_unreadable", []),
         stage=state.get("stage", ""),
         topic=state.get("topic", ""),
         pipeline_revision=state.get("pipeline_revision"),

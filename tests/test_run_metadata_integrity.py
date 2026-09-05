@@ -192,3 +192,85 @@ def test_permission_error_is_read_failure_not_public_diagnostic(history, monkeyp
         assert body["status_record_state"] == "unreadable"
         assert "private-storage-path" not in json.dumps(body)
     assert client.get("/api/runs").status_code == 200
+
+
+BAD_AUDIT_FIELDS = [
+    ("consistency", {}), ("consistency", {"blockers": "0"}),
+    ("consistency", {"blockers": False}), ("consistency", {"blockers": -1}),
+    ("quality_review", {"status": "invented"}), ("quality_review", {"status": []}),
+    ("quality_review", {"status": "partial", "unapplied_corrections": "1"}),
+    ("claim_grounding", {"checked": 1, "ungrounded": 0}),
+    ("claim_grounding", {"checked": 1, "ungrounded": False, "unverifiable": 0}),
+    ("claim_grounding", {"status": "partial", "checked": 1, "ungrounded": 0,
+                          "unverifiable": 0, "unavailable_domains": "market"}),
+    ("report_audit", {"status": "completed", "findings": "0"}),
+    ("report_audit", {"status": "completed", "findings": []}),
+    ("authority_coverage", {"status": "incomplete", "missing_categories": 1}),
+    ("component_coverage", {"status": "unchecked", "unchecked_components": {}}),
+    ("component_coverage", {"status": "incomplete", "missing_components": [None]}),
+    ("source_counts", {"academic": "3"}), ("source_counts", {}),
+    ("failed_domains", "market"), ("failed_domains", 1),
+    ("failed_domains", [False]), ("evidence_incomplete", "false"),
+]
+AUDIT_OBJECT_FIELDS = [
+    "consistency", "quality_review", "claim_grounding", "report_audit",
+    "authority_coverage", "component_coverage", "source_counts",
+]
+
+
+@pytest.mark.parametrize("field,value", BAD_AUDIT_FIELDS + [
+    (field, value) for field in AUDIT_OBJECT_FIELDS for value in ([], "private-bad-value", 7)
+])
+def test_nested_audit_fault_is_local_and_reaches_both_http_endpoints(history, field, value):
+    """One broken summary used to produce HTTP 500 or a false clean panel."""
+    directory, client = history
+    _commit_completed(directory)
+    path = directory / "status.json"
+    status = json.loads(path.read_text(encoding="utf-8"))
+    status.update({"consistency": {"blockers": 1, "warnings": 0}, field: value})
+    original = json.dumps(status).encode("utf-8")
+    path.write_bytes(original)
+    (directory / "commercialization_report.md").write_text("# Preserved report", encoding="utf-8")
+    for body in _responses(client):
+        assert body["state"] == "completed"
+        assert body["status_record_state"] == "readable"
+        assert body["audit_metadata_unreadable"] == [field]
+        assert body[field] == {"failed_domains": [], "evidence_incomplete": False}.get(field)
+        assert body["usage"] == USAGE
+        assert body["usage_accounting"]["state"] == "complete"
+        if field != "consistency":
+            assert body["consistency"] == {"blockers": 1, "warnings": 0}
+        assert "private-bad-value" not in json.dumps(body)
+    assert client.get("/api/runs").status_code == 200
+    assert client.get(f"/api/runs/{RID}/report").text == "# Preserved report"
+    assert path.read_bytes() == original
+
+
+@pytest.mark.parametrize("summary", [
+    {"consistency": {"blockers": 0, "warnings": 0},
+     "claim_grounding": {"checked": 2, "ungrounded": 0, "unverifiable": 3}},
+    {"quality_review": {"status": "passed"},
+     "report_audit": {"status": "completed", "findings": 0}},
+    {"claim_grounding": {"status": "failed"}, "report_audit": {"status": "unavailable"}},
+    {"authority_coverage": {"status": "not_applicable"},
+     "component_coverage": {"status": "not_applicable"}},
+    {"component_coverage": {"status": "incomplete", "missing_components": ["edge AI"],
+                            "unchecked_components": []},
+     "authority_coverage": {"status": "incomplete", "missing_categories": ["regulatory"]}},
+    {"claim_grounding": {"status": "partial", "checked": 1, "ungrounded": 0,
+                          "unverifiable": 2, "unavailable_domains": ["market"]}},
+    {"failed_domains": [], "evidence_incomplete": False,
+     "source_counts": {"academic": 3, "patent": 0, "market": 2}},
+    {field: None for field in AUDIT_OBJECT_FIELDS}, {},
+])
+def test_valid_and_absent_audit_summaries_are_not_rewritten(history, summary):
+    """Legacy count-only summaries remain facts, not casualties of a new writer schema."""
+    directory, client = history
+    path = directory / "status.json"
+    status = json.loads(path.read_text(encoding="utf-8"))
+    status.update(summary)
+    path.write_text(json.dumps(status), encoding="utf-8")
+    for body in _responses(client):
+        assert body["audit_metadata_unreadable"] == []
+        for field, value in summary.items():
+            assert body[field] == value

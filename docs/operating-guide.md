@@ -135,6 +135,13 @@ unpriced, rather than showing an unknown model as free. Operators may set
 this is an estimate, not an invoice. See
 [runtime terminal integrity](runtime-terminal-integrity.md).
 
+The status/progress read projection isolates malformed reliability summaries
+through `audit_metadata_unreadable`: the affected panel row says it cannot be
+read, while a valid committed outcome and saved report remain available.
+Absent historical fields remain distinct from a corrupt summary. This does
+not rewrite artifacts or validate every nested schema; see the
+[exact read contract](results-2026-09-05-nested-audit-metadata-integrity.md).
+
 ## Deploying publicly
 
 Configure access control **before** exposing provider-funded POST routes.

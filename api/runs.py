@@ -43,6 +43,7 @@ from academic_agent.run_terminal import (
     commit_terminal_record,
     load_terminal_record,
 )
+from api.audit_projection import project_audit_metadata
 
 # A run is killed after this long. The bound belongs to the worker contract,
 # not to whichever client submitted or polls the run.
@@ -1309,6 +1310,7 @@ def get_state(run_id: str) -> dict:
         # Report what is known rather than guessing. "unknown" is a state a
         # client can retry; "failed" is one it reports to the user.
         status, status_record_state = {}, "unreadable"
+    status, audit_metadata_unreadable = project_audit_metadata(status)
     terminal_record, terminal_projection = _read_terminal(run_dir)
     handle = _registry.get(run_id)
 
@@ -1387,6 +1389,7 @@ def get_state(run_id: str) -> dict:
         "run_id": run_id,
         "state": state,
         "status_record_state": status_record_state,
+        "audit_metadata_unreadable": audit_metadata_unreadable,
         "stage": status.get("stage") or (terminal_record.last_stage if terminal_record else ""),
         "topic": status.get("topic") or (handle.topic if handle else ""),
         "output_language": status.get("output_language") or "English",
