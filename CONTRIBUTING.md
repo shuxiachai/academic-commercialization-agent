@@ -1,65 +1,110 @@
 # Contributing
 
-Thank you for your interest in contributing!
+Read [AGENTS.md](AGENTS.md) first. It is a decision index: several seemingly
+obvious changes have already been rejected on measured evidence. Use
+[the documentation map](docs/README.md) for current guides and historical results.
 
-## Getting started
+## Setup
 
 ```bash
 git clone https://github.com/shuxiachai/academic-commercialization-agent.git
 cd academic-commercialization-agent
 uv sync
-cp .env.example .env   # fill in your API keys
 ```
 
-## Running tests
+Python 3.11/3.12 are the CI-tested versions. Dependencies need network to
+install; the default tests need neither provider keys nor paid requests.
+Configure `.env` only when intentionally running real analysis.
+
+## Checks before and after a change
 
 ```bash
-uv run pytest tests/ -q
+uv run pytest -q
+uv run --with ruff ruff check .
+uv run --with pylint pylint src/ ui/ api/ --disable=all --enable=bad-except-order,unreachable,used-before-assignment,undefined-variable --score=n
 ```
 
-All 365 tests must pass before submitting a PR. They need no API keys and make
-no network calls — any test that reaches the network is a bug.
+The Ruff invocation is intentional: CI resolves the latest release, while the
+local pin can disagree. The narrow Pylint set catches specific correctness
+failures; do not replace it with a general style cleanup.
+
+- Run the complete suite before editing and after the fix.
+- Do not weaken assertions or add skips to make a failure disappear.
+- Read the actual `UserWarning` before acting. A network-leak warning means
+  test isolation is broken; an intentional domain warning needs an explicit
+  assertion, not a global ignore.
+- Use Node locally to execute JavaScript-backed contract tests. CI requires
+  it instead of accepting a silently reduced browser-contract denominator.
+- Assert at the API/status/progress/browser seam, not just internal fields.
+- Re-inject the original defect and confirm the new regression test fails,
+  then restore the fix.
+- Update nearby explanations when behaviour changes. Bilingual benchmark
+  tables and claims are checked independently in `tests/test_public_docs.py`.
+
+If pytest fails to create its temporary directory because of local permissions,
+choose a new writable temporary root; pytest may clear an explicitly supplied
+`--basetemp`, so never point it at an existing data directory. For example:
+
+```powershell
+$testTemp = Join-Path (Get-Location).Path ("outputs/pytest-" + [guid]::NewGuid().ToString("N"))
+uv run pytest -q --basetemp $testTemp
+```
+
+CI runs Linux/Windows × Python 3.11/3.12, lint, an 85% coverage floor,
+zero-provider Chromium and Docker runtime checks. Historical test totals are
+not a substitute for passing the current suite.
+
+### Optional real-browser smoke
+
+```bash
+uv sync --group e2e
+uv run --group e2e playwright install chromium
+uv run --group e2e python -m e2e.browser_smoke
+```
+
+This uses real Chromium and the real loopback application with fixture runs.
+It blocks external and mutating requests: it cannot launch paid work and does
+not establish Railway availability or model quality.
 
 ## What to contribute
 
-- **Bug fixes** — check the [issue tracker](https://github.com/shuxiachai/academic-commercialization-agent/issues) for open bugs
-- **New language support** — add entries to `_WARNING_I18N`, `_UI_I18N`, and `_SCORECARD_I18N` in `ui/i18n.py`
-- **New industry weight profiles** — add to `_WEIGHT_PROFILES` in `evidence.py`
-- **Source API integrations** — extend `source_pipeline.py` with additional academic or patent sources
-- **UI improvements** — `ui/ui.py` contains the Gradio interface; rendering helpers live in the other `ui/` modules
+- Focused bug fixes with an observed failure, a boundary assertion and a
+  re-injection check.
+- UI/accessibility and translation improvements in `web/` and shared
+  `ui/i18n.py`, preserving CSP and explicit unavailable states.
+- Retrieval changes measured first on stored data. New source adapters need
+  bounded transport, accounting, validation and independent source-value
+  evidence before production connection.
+- Documentation corrections that distinguish current behaviour from dated
+  experiments, without rewriting failed studies.
 
-## Pull request guidelines
+Do **not** casually add scoring profiles, change the confidence floor, upgrade
+CrewAI on main or wire experimental Tool Calling into the worker. The reasons
+and required evidence are in [Do not redo these](AGENTS.md#do-not-redo-these).
 
-1. Keep PRs focused — one fix or feature per PR
-2. Add or update tests for any changed logic in `source_pipeline.py` or `evidence.py`
-3. Run `uv run pytest tests/ -q` locally before opening the PR
-4. Describe what problem your PR solves in the PR description
+## Pull requests and privacy
 
-## Project structure
+Keep each PR focused and describe the problem, alternatives, evidence,
+limitations and validation. Commit messages are deliberately substantive and
+in English; do not add Co-Authored-By or tool-signature lines. Preserve
+unrelated worktree changes and raw reviewer files.
 
-| Path | Purpose |
+This public repository must not receive credentials, private review packets,
+first-person resume notes or private run capability URLs. Resume notes are a
+separate private repository. A paid test, production restart, publication of
+private material or PR merge needs its own applicable authorization; a
+documentation change is not that authorization.
+
+## Code map
+
+| Area | Entry |
 |---|---|
-| `app.py` | 10-line entry point — imports and launches Gradio |
-| `api/main.py` | FastAPI endpoints, OpenAPI docs, timeout reaper |
-| `api/runs.py` | Worker process registry, concurrency cap, run-state derivation |
-| `api/models.py` | API request / response schemas |
-| `ui/ui.py` | Gradio Blocks definition and all callbacks |
-| `ui/i18n.py` | All UI/scorecard/warning strings (12 languages) |
-| `ui/runner.py` | Analysis pipeline entry point (subprocess + streaming) |
-| `ui/history.py` | Run history tab and load-run logic |
-| `ui/html_scorecard.py` | Score card HTML rendering |
-| `ui/html_sources.py` | Source list and detail panel HTML |
-| `ui/html_progress.py` | Progress step HTML and stage constants |
-| `ui/html_misc.py` | Header, reviewer notes, and paper divider HTML |
-| `ui/pdf_export.py` | reportlab PDF export |
-| `ui/run_reader.py` | Run directory metadata readers |
-| `src/academic_agent/crew.py` | Agent and task wiring |
-| `src/academic_agent/source_pipeline.py` | Pre-run source collection |
-| `src/academic_agent/evidence.py` | Evidence models and guardrails |
-| `src/academic_agent/pipeline_worker.py` | Subprocess worker |
-| `src/academic_agent/config/agents.yaml` | Agent role definitions |
-| `src/academic_agent/config/tasks.yaml` | Task requirements |
+| API and ownership/admission | `api/main.py`, `api/runs.py`, `api/papers.py`, `api/models.py` |
+| Build-free web client | `web/` |
+| Shared presentation/readers | `ui/i18n.py`, `ui/run_reader.py`, `ui/pdf_export.py` |
+| Pipeline and source validation | `src/academic_agent/crew.py`, `source_pipeline.py`, `evidence.py` |
+| Worker, recovery and terminal truth | `src/academic_agent/pipeline_worker.py`, `checkpoint_runtime.py`, `run_terminal.py` |
+| Configured roles and tasks | `src/academic_agent/config/` |
+| Zero-provider browser journey | `e2e/browser_smoke.py` |
 
-## Questions?
-
-Open an issue or start a discussion — happy to help.
+The detailed boundary map is in [AGENTS.md](AGENTS.md#layout-and-boundary-specific-reading).
