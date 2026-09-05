@@ -162,6 +162,10 @@ to reuse consumed cohorts.
 - [2026 09 04 runtime terminal integrity paid canary preflight](results-2026-09-04-runtime-terminal-integrity-paid-canary-preflight.md)
 - [2026 09 04 runtime terminal integrity post browser seam paid canary](results-2026-09-04-runtime-terminal-integrity-post-browser-seam-paid-canary.md)
 
+## Runtime maintenance verification
+
+- [2026 09 05 runtime metadata integrity](results-2026-09-05-runtime-metadata-integrity.md)
+
 ## Errata
 
 - [2026 08 25 evidence gap phase3 fixture identity](errata-2026-08-25-evidence-gap-phase3-fixture-identity.md)

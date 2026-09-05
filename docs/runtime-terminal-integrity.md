@@ -63,6 +63,16 @@ outcome raises instead of rewriting history. Historical runs without this file
 retain their existing derivation rules. An invalid file is exposed as
 `terminal.record_state=unreadable`, not silently treated as absent.
 
+With no live process, an unreadable terminal makes the outcome `unknown`;
+it cannot fall through to historical done/error/cancellation markers. A valid
+terminal remains authoritative even when the live status is damaged, including
+when its usage is explicitly unavailable. `status_record_state` distinguishes
+absent/readable/unreadable live metadata at both HTTP endpoints. Unknown progress
+has `done=false`; history reuses the safe projection instead of reading corrupt
+status again. The browser labels the fault, renders unknown elapsed time as a
+dash and does not paint stale `Done` stages green. See the
+[zero-provider fault verification](results-2026-09-05-runtime-metadata-integrity.md).
+
 Both `/api/runs/{id}` and `/api/runs/{id}/progress` expose the same terminal
 projection and use its elapsed time. The browser renders the translated reason
 and preserves raw `reason_code` and `termination_method` in an inspection

@@ -93,7 +93,7 @@ function startClock(fromSeconds) {
 
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting,
-  terminal, checkpointing, recovery,
+  terminal, status_record_state, checkpointing, recovery,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -127,6 +127,12 @@ function paintHeader({
   const terminalSummary = runView.terminalSummary(terminal, state);
   terminalEl.textContent = terminalSummary ? `· ${terminalSummary}` : "";
   terminalEl.title = runView.terminalTitle(terminal, state);
+
+  // Terminal success is still usable when its live projection is damaged,
+  // but missing audit fields must not silently masquerade as a clean read.
+  const statusRecordEl = $("#run-status-record");
+  statusRecordEl.textContent = status_record_state === "unreadable"
+    ? `· ${t("status_record_unreadable")}` : "";
 
   const recoveryEl = $("#run-recovery");
   const reused = recovery?.reused_nodes?.length ?? 0;

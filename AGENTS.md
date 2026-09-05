@@ -210,9 +210,11 @@ restart Railway, invoke a paid canary or publish private run links.
 2. Decision value: the five-person utility study failed its success rule and
    the two-target-user pilot did not establish adoption. Both studies are
    closed; new participants belong in a new protocol, not their old denominator.
-3. Legacy metadata reads: some auxiliary readers still collapse absent and
-   unreadable fields into defaults. Follow the status/progress/browser seam
-   before proposing a fix; this is not evidence that the main pipeline fails.
+3. Metadata reads: the core status/progress/history/browser fault seam now
+   distinguishes absent and unreadable records; see the
+   [fault verification](docs/results-2026-09-05-runtime-metadata-integrity.md).
+   Nested legacy audit schemas are not comprehensively validated. Unused
+   auxiliary readers still have defaults; this is not a main-pipeline outage.
 4. Input distribution: language/shape admission is tested, but the 30-run
    benchmark does not validate Chinese, very short or non-technical requests.
 5. Scale and long-term operations: one replica, no distributed ownership or

@@ -999,7 +999,7 @@ def shutdown_all() -> None:
 
 
 class StatusUnreadable(Exception):
-    """status.json exists but does not parse.
+    """status.json exists but cannot be read as a usable progress object.
 
     Distinct from "not written yet", which is an empty dict and means the run
     has only just started. Conflating them made a torn read look like a run
@@ -1015,17 +1015,36 @@ def _read_status(run_dir: Path) -> dict:
     but a truncated file on a full disk still must not be reported as a
     failed run — the run may have finished perfectly.
     """
+    return _read_status_snapshot(run_dir)[0]
+
+
+def _read_status_snapshot(run_dir: Path) -> tuple[dict, str]:
+    """Classify absence during the read, not with a racy second exists() call.
+
+    Keep legacy optional fields optional. This validates the container and
+    outcome flags, not every historical nested audit schema. In particular,
+    JSON null/arrays are parseable but cannot support .get(), and the string
+    "false" must not become a truthy completion flag. Do not repair stored
+    bytes while serving a capability URL.
+    """
     path = run_dir / "status.json"
     try:
         raw = path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        return {}
-    except OSError:
+        return {}, "absent"
+    except (OSError, UnicodeError):
         raise StatusUnreadable(str(path)) from None
     try:
-        return json.loads(raw)
+        data = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise StatusUnreadable(f"{path}: {exc}") from exc
+    if (
+        not isinstance(data, dict)
+        or ("done" in data and not isinstance(data["done"], bool))
+        or (data.get("error") is not None and not isinstance(data["error"], str))
+    ):
+        raise StatusUnreadable(f"{path}: invalid progress container or outcome flags")
+    return data, "readable"
 
 
 def _external_usage_accounting(
@@ -1285,12 +1304,11 @@ def get_state(run_id: str) -> dict:
         raise RunNotFound(f"No run with id {run_id}")
 
     try:
-        status = _read_status(run_dir)
-        status_readable = True
+        status, status_record_state = _read_status_snapshot(run_dir)
     except StatusUnreadable:
         # Report what is known rather than guessing. "unknown" is a state a
         # client can retry; "failed" is one it reports to the user.
-        status, status_readable = {}, False
+        status, status_record_state = {}, "unreadable"
     terminal_record, terminal_projection = _read_terminal(run_dir)
     handle = _registry.get(run_id)
 
@@ -1313,6 +1331,12 @@ def get_state(run_id: str) -> dict:
                 error = _public_failure_reason(status.get("error") or _failure_reason(run_dir))
             else:
                 error = None
+        elif terminal_projection is not None:
+            # A damaged write-once outcome is not a historical run that never
+            # had one. Falling through to done/error/cancel markers invents a
+            # definitive result from the weaker mutable projection.
+            state, elapsed = "unknown", None
+            error = "Run terminal record is unreadable; the outcome cannot be verified."
         else:
             # Historical runs have no terminal record. Preserve their legacy
             # derivation without mistaking status mtime for new-run truth.
@@ -1323,8 +1347,9 @@ def get_state(run_id: str) -> dict:
                 state, error = "failed", _public_failure_reason(status["error"])
             elif status.get("done"):
                 state, error = "completed", None
-            elif not status_readable:
+            elif status_record_state == "unreadable":
                 state = "unknown"
+                elapsed = None
                 error = ("Run status is temporarily unreadable; the run itself may "
                          "have completed. Retry in a moment.")
             else:
@@ -1337,16 +1362,31 @@ def get_state(run_id: str) -> dict:
     checkpointing = status.get("checkpointing")
     recovery = status.get("recovery")
     if terminal_record is not None:
-        if terminal_record.usage is not None:
-            usage = terminal_record.usage
+        # None is an authoritative unavailable observation too. Rehydrating
+        # it from a mutable live file would silently resurrect stale counters.
+        usage = terminal_record.usage
         usage_accounting = terminal_record.usage_accounting.model_dump(mode="json")
         checkpointing = terminal_record.checkpointing or checkpointing
         recovery = terminal_record.recovery or recovery
+    elif terminal_projection is not None or status_record_state == "unreadable":
+        # A readable node snapshot is still useful, but a damaged outcome
+        # cannot certify its completeness. Keep the observation and its known
+        # timestamp; never fabricate an end time from the reader's wall clock.
+        # An unreadable projection supplies no measurement, not a zero bill.
+        usage = usage if isinstance(usage, dict) and not usage.get("collection_error") else None
+        usage_accounting = {
+            "state": "lower_bound" if usage is not None else "unavailable",
+            "snapshot_at": usage_accounting.get("snapshot_at") if isinstance(usage_accounting, dict) else None,
+            "through_stage": str(status.get("stage") or ""),
+            "run_complete": False,
+            "in_flight_request_may_have_spent": True,
+        }
 
 
     return {
         "run_id": run_id,
         "state": state,
+        "status_record_state": status_record_state,
         "stage": status.get("stage") or (terminal_record.last_stage if terminal_record else ""),
         "topic": status.get("topic") or (handle.topic if handle else ""),
         "output_language": status.get("output_language") or "English",
@@ -1448,9 +1488,11 @@ def _elapsed_seconds(run_dir: Path) -> int | None:
     worker wrote. Used for runs whose handle is gone, where the in-memory
     timer is no longer available.
     """
-    terminal_record, _projection = _read_terminal(run_dir)
+    terminal_record, projection = _read_terminal(run_dir)
     if terminal_record is not None:
         return terminal_record.elapsed_seconds
+    if projection is not None:
+        return None
 
     # Historical runs fall back to the last live-status write timestamp.
     try:
@@ -1468,12 +1510,15 @@ def _elapsed_seconds(run_dir: Path) -> int | None:
 
 def _duration(run_dir: Path) -> str:
     try:
-        secs = _elapsed_seconds(run_dir)
-        if secs is None:
-            return "—"
-        return f"{secs}s" if secs < 60 else f"{secs // 60}m {secs % 60:02d}s"
+        return _format_duration(_elapsed_seconds(run_dir))
     except (ValueError, OSError):
         return "—"
+
+
+def _format_duration(secs: int | None) -> str:
+    if secs is None:
+        return "—"
+    return f"{secs}s" if secs < 60 else f"{secs // 60}m {secs % 60:02d}s"
 
 
 def prune_expired_runs(retention_days: int | None = None) -> list[str]:
@@ -1580,15 +1625,18 @@ def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], in
     summaries = []
     for d in dirs[:limit]:
         try:
-            state = get_state(d.name)["state"]
+            projection = get_state(d.name)
         except RunNotFound:
             continue
         summaries.append({
             "run_id": d.name,
-            "state": state,
-            "topic": _read_status(d).get("topic", "—"),
+            "state": projection["state"],
+            "topic": projection["topic"] or "—",
             "started_at": _started_at(d.name),
-            "duration": _duration(d),
+            # Do not re-read the raw status after get_state handled a storage
+            # fault: that second read used to turn one bad row into HTTP 500
+            # for the entire owner's history. The same snapshot owns duration.
+            "duration": _format_duration(projection["elapsed_seconds"]),
             # Not part of RunSummary — the API layer strips this back out
             # for everyone except an admin request, which resolves it to a
             # readable code via access.label_for_owner() first. Included
