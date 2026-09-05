@@ -142,6 +142,13 @@ Absent historical fields remain distinct from a corrupt summary. This does
 not rewrite artifacts or validate every nested schema; see the
 [exact read contract](results-2026-09-05-nested-audit-metadata-integrity.md).
 
+Likewise, `runtime_metadata_unreadable` identifies unreadable selected usage,
+accounting, checkpoint or recovery summaries in the run header. Bad usage
+shows unavailable, not a zero bill; readable usage with bad accounting is only
+a lower bound. A malformed recovery list cannot be counted as reused stages
+or used to display Resume. This does not repair storage or establish actual
+recovery eligibility; see the [runtime-summary contract](results-2026-09-05-runtime-summary-read-integrity.md).
+
 ## Deploying publicly
 
 Configure access control **before** exposing provider-funded POST routes.

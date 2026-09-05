@@ -93,7 +93,7 @@ function startClock(fromSeconds) {
 
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting,
-  terminal, status_record_state, checkpointing, recovery,
+  terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -133,6 +133,9 @@ function paintHeader({
   const statusRecordEl = $("#run-status-record");
   statusRecordEl.textContent = status_record_state === "unreadable"
     ? `· ${t("status_record_unreadable")}` : "";
+
+  const runtimeFault = runView.runtimeMetadataSummary(runtime_metadata_unreadable ?? []);
+  $("#run-runtime-record").textContent = runtimeFault ? `· ${runtimeFault}` : "";
 
   const recoveryEl = $("#run-recovery");
   const reused = recovery?.reused_nodes?.length ?? 0;

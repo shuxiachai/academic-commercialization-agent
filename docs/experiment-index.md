@@ -164,6 +164,7 @@ to reuse consumed cohorts.
 
 ## Runtime maintenance verification
 
+- [2026 09 05 runtime summary read integrity](results-2026-09-05-runtime-summary-read-integrity.md)
 - [2026 09 05 nested audit metadata integrity](results-2026-09-05-nested-audit-metadata-integrity.md)
 - [2026 09 05 runtime metadata integrity](results-2026-09-05-runtime-metadata-integrity.md)
 

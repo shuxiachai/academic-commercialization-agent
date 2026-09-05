@@ -144,8 +144,10 @@ export function sourceSummary(counts) {
  * output, and the reason this is not simply `cost ?? 0`.
  */
 export function usageSummary(usage, accounting = null) {
+  // An unavailable collector can still leave numeric defaults in its payload.
+  // Honor the accounting fact before looking at either tokens or prices.
+  if (accounting?.state === "unavailable") return t("usage_unavailable");
   if (!usage || !usage.total_tokens) {
-    if (accounting?.state === "unavailable") return t("usage_unavailable");
     // Zero observed counters can still be a lower bound when a provider
     // accepted an in-flight request but never returned its usage payload.
     if (accounting?.state === "lower_bound") return t("usage_partial");
@@ -171,7 +173,7 @@ export function usageTitle(usage, accounting = null) {
   } else if (accounting?.state === "unavailable") {
     lines.push(t("usage_unavailable_detail"));
   }
-  if (!usage) return lines.join("\n");
+  if (!usage || accounting?.state === "unavailable") return lines.join("\n");
   if (usage.price_basis) lines.push(`${t("price_basis")}: ${usage.price_basis}`);
   if (usage.cost_complete === false && usage.unpriced_models?.length) {
     lines.push(t("cost_partial").replace("{models}", usage.unpriced_models.join(", ")));
@@ -181,6 +183,16 @@ export function usageTitle(usage, accounting = null) {
     lines.push(`${agent.role}: ${agent.total_tokens} · ${cost}`);
   }
   return lines.join("\n");
+}
+
+/** Code-owned read faults, not inferred billing or checkpoint success. */
+export function runtimeMetadataSummary(fields = []) {
+  const labels = {
+    usage: "runtime_usage", usage_accounting: "runtime_accounting",
+    checkpointing: "runtime_checkpointing", recovery: "runtime_recovery",
+  };
+  const names = fields.filter(field => Object.hasOwn(labels, field)).map(field => t(labels[field]));
+  return names.length ? t("runtime_metadata_unreadable").replace("{fields}", names.join(", ")) : "";
 }
 
 /**
