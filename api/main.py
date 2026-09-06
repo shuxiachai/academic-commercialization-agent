@@ -21,6 +21,7 @@ import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Literal
+from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import (
@@ -422,14 +423,28 @@ def readiness() -> ReadinessStatus:
     # cannot: every key is right, the page loads, and each run dies at its
     # first write. Probed with a real file rather than os.access, which reports
     # the permission bits and not what the filesystem will actually allow.
+    probe = runs.DEFAULT_OUTPUT_ROOT / f".readiness-{uuid4().hex}"
+    created = False
+    checks["outputs"] = "ok"
     try:
         runs.DEFAULT_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-        probe = runs.DEFAULT_OUTPUT_ROOT / ".readiness"
-        probe.write_text("", encoding="utf-8")
-        probe.unlink()
-        checks["outputs"] = "ok"
+        # Concurrent Docker/operator probes must not delete each other's file.
+        # Exclusive creation also prevents a collision from overwriting an
+        # existing artifact. Clean up only files this request actually created.
+        with probe.open("x", encoding="utf-8") as handle:
+            created = True
+            handle.write("ready\n")
     except OSError as exc:
         checks["outputs"] = f"outputs directory is not writable: {exc}"
+    finally:
+        if created:
+            try:
+                probe.unlink()
+            except OSError as exc:
+                # Preserve an earlier write failure; cleanup failure alone is
+                # not proof of an unwritable mount. Neither failure is a pass.
+                if checks["outputs"] == "ok":
+                    checks["outputs"] = f"output probe cleanup failed: {exc}"
 
     # A malformed paid-operation ledger makes every operator-funded request
     # fail closed at admission. Treating that state as ready would route users

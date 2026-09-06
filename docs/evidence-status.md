@@ -34,6 +34,12 @@ Persistence, report download and Chromium are covered; this is not general
 semantic verification or evidence of an observed production forgery. See the
 [authority regression and 110-report diagnostic](results-2026-09-06-report-applicability-authority.md).
 
+Readiness probes are isolated across concurrent requests, PDF market queries
+share the rolling year window, and report-audit details distinguish coverage
+and malformed data. These are offline-verified delivery fixes, not measured
+production incident rates or improved report accuracy. See the
+[maintenance record](results-2026-09-06-maintenance-readiness-query-audit.md).
+
 ## Main evaluation ledger
 
 | Question | Observed evidence | Boundary / decision |
@@ -111,8 +117,9 @@ remain unchanged. Browse the [full experiment index](experiment-index.md).
    explicit unreadable rows; see the [nested fault verification](results-2026-09-05-nested-audit-metadata-integrity.md).
    Selected usage/accounting/checkpoint/recovery summaries now also have
    [read isolation and browser fault tests](results-2026-09-05-runtime-summary-read-integrity.md).
-   Other nested payloads and detailed audit artifacts remain outside these
-   contracts. Reproduce their actual client failure before proposing changes.
+   The report-audit detail renderer now also validates its displayed shapes
+   and counters locally. Other detailed artifacts and nested payloads remain
+   outside these contracts; reproduce their client failure before proposing changes.
 2. New decision-utility research should target the already observed low trust
    and actionability, use a new protocol and disclose external-source checks.
    Do not append new reviewers to completed panels or claim estimated

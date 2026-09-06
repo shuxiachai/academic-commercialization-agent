@@ -83,6 +83,11 @@ semantic correctness of all report prose; see the
 | DELETE | `/api/runs/{id}?intent=cancel` or `?intent=delete` | Only the requested operation, subject to state and ownership rules |
 | POST | `/api/runs/{id}/resume` | New immutable recovery child, not mutation of the old result |
 
+Readiness performs an isolated real-file write per request; concurrent probes
+do not share a filename. A cleanup-only failure is named separately from a
+write failure. This is local readiness, not provider connectivity or model
+quality verification. See the [maintenance contract](results-2026-09-06-maintenance-readiness-query-audit.md).
+
 For a local, ungated deployment, a JSON POST starts paid work:
 
 ```bash
@@ -127,6 +132,13 @@ A source-collection failure exposes canonical query, candidate counts and
 rejection reasons instead of silently inventing evidence. Pydantic and local
 guardrails validate structure and source identities; advisory checks cannot
 guarantee factual entailment.
+
+The PDF-domain market prelude shares the ordinary query path's previous/current
+calendar-year window. This avoids stale hard-coded years, not stale results in
+general. The report-audit detail tab displays individual coverage counts and
+abstention reasons; missing or malformed detail is unreadable, not a clean
+report. Its read-only validation neither repairs the artifact nor blocks report
+access. The heuristic remains English-only even when the UI is Chinese.
 
 Failed, cancelled and timed-out runs with a usable retrieval checkpoint may
 resume from the longest contiguous verified prefix. The child snapshots the

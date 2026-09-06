@@ -24,12 +24,14 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from urllib.parse import urlsplit
 
 import uvicorn
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
 from academic_agent.run_output import create_run_id, save_report
+from academic_agent.report_audit import save_report_audit
 from academic_agent.run_spec import DecisionContext
 from academic_agent.run_terminal import (
     TerminalRecord,
@@ -85,6 +87,13 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
     run_dir = output_root / run_id
     run_dir.mkdir(parents=True)
     decision_gate = DecisionContext().gate_snapshot()
+    # Real writer -> JSON route -> visible detail panel. The missing source
+    # intentionally creates an abstention, not a mismatch or a paid lookup.
+    report_audit = save_report_audit(
+        "Pass Threshold: illustrative analyst proposal.\nSulfide solid-state electrolyte [A1].",
+        collection=SimpleNamespace(academic_sources=[], patent_sources=[], market_sources=[]),
+        decision_gate=decision_gate, output_language="English", run_id=run_id, output_root=output_root,
+    )
     (run_dir / ".owner").write_text(owner, encoding="utf-8")
     (run_dir / "status.json").write_text(
         json.dumps(
@@ -94,6 +103,7 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
                 "topic": FIXTURE_TOPIC,
                 "output_language": "English",
                 "decision_gate": decision_gate,
+                "report_audit": report_audit,
                 "source_counts": {"academic": 3, "patent": 2, "market": 4},
             },
             indent=2,
@@ -330,6 +340,15 @@ def _exercise_browser(
             expect(applicability).to_contain_text("not_established")
             expect(page.locator("article.prose")).not_to_contain_text("Actor-specific GO is approved.")
 
+            page.locator('button.tab[data-view="report-audit"]').click()
+            audit_panel = page.locator('.panel[data-view="report-audit"]')
+            expect(audit_panel).to_be_visible()
+            expect(audit_panel).to_contain_text("Candidates: 1; checked: 0; unverifiable: 1")
+            expect(audit_panel).to_contain_text("Only part of the audit")
+            expect(audit_panel).not_to_contain_text("No issue was found")
+            page.locator('button.tab[data-view="report"]').click()
+            expect(page.locator("article.prose")).to_be_visible()
+
             # A direct route is a separate seam from client-side navigation.
             # Reloading proves the server returns the SPA at /run/{id}, the
             # stored code re-authorizes, and the report reaches the DOM again.
@@ -369,6 +388,11 @@ def _exercise_browser(
                 expect(row).to_have_attribute("data-tone", "muted")
                 expect(row).to_contain_text("Stored audit summary is unreadable")
             expect(page.locator('.reliability__row[data-check="review"]')).to_have_attribute("data-tone", "ok")
+            page.locator('button.tab[data-view="report-audit"]').click()
+            expect(page.locator('.panel[data-view="report-audit"]')).to_contain_text("missing or unreadable")
+            page.locator('button.tab[data-view="report"]').click()
+            expect(page.locator("article.prose")).to_be_visible()
+            expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
 
             # These nested terminal faults previously crashed price/error-list
             # formatting or counted characters as reused nodes. Completion and
@@ -508,6 +532,10 @@ def main() -> None:
             "failed_domains": 1, "quality_review": {"status": "passed"},
         })
         audit_path.write_text(json.dumps(audit_status), encoding="utf-8")
+        detail_path = output_root / damaged_audit_id / "report_audit.json"
+        detail = json.loads(detail_path.read_text(encoding="utf-8"))
+        detail.update(findings=[None], findings_count=1)
+        detail_path.write_text(json.dumps(detail), encoding="utf-8")
         runtime_ids = tuple(_write_completed_run(output_root, access.owner_id(ACCESS_CODE)) for _ in range(3))
         for index, runtime_id in enumerate(runtime_ids):
             # Corrupt only isolated fixture bytes, never a real write-once run.

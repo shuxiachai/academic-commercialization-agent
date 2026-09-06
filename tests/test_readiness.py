@@ -18,8 +18,12 @@ from __future__ import annotations
 
 import os
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Barrier, Lock
+from types import SimpleNamespace
 from unittest import mock
 
 from fastapi.testclient import TestClient
@@ -118,7 +122,7 @@ class WhatMakesItNotReadyTests(_ReadinessBase):
         page loads, and each run dies at its first write. Probed with a real
         file because permission bits and what the filesystem allows are not
         the same question — a read-only mount reports neither."""
-        with mock.patch.object(Path, "write_text", side_effect=OSError("read-only file system")):
+        with mock.patch.object(Path, "open", side_effect=OSError("read-only file system")):
             status = self._readiness(_WORKING)
         self.assertFalse(status.ready)
         self.assertIn("not writable", status.checks["outputs"])
@@ -197,6 +201,68 @@ class WhatMustNotMakeItUnhealthyTests(_ReadinessBase):
 
 
 class EndpointTests(_ReadinessBase):
+
+    def test_overlapping_probes_both_return_200_and_remove_only_their_file(self):
+        """Two successful writes used to race at unlink and produce a false 503."""
+        barrier = Barrier(2, timeout=10)
+        unlink = Path.unlink
+        unlink_lock = Lock()
+        observed = []
+
+        def overlapping_unlink(path, *args, **kwargs):
+            if path.parent == runs.DEFAULT_OUTPUT_ROOT:
+                barrier.wait()
+                # Both writes have finished. Serialize deletion so the second
+                # definitely observes the first removal on Windows as well;
+                # racing deletes do not force that observation.
+                with unlink_lock:
+                    observed.append(path)
+                    return unlink(path, *args, **kwargs)
+            return unlink(path, *args, **kwargs)
+
+        with _only(_WORKING), TestClient(app) as client:
+            with mock.patch.object(Path, "unlink", overlapping_unlink):
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    responses = list(pool.map(lambda _: client.get("/health/ready"), range(2)))
+        self.assertEqual([r.status_code for r in responses], [200, 200])
+        self.assertEqual(len(observed), 2, "Both HTTP requests must cross the probe seam")
+        self.assertTrue(all(r.json()["checks"]["outputs"] == "ok" for r in responses))
+        self.assertEqual(list(runs.DEFAULT_OUTPUT_ROOT.iterdir()), [])
+
+    def test_probe_collision_does_not_overwrite_or_delete_existing_file(self):
+        """Exclusive creation fails closed without adopting somebody else's file."""
+        sentinel = runs.DEFAULT_OUTPUT_ROOT / ".readiness-collision"
+        sentinel.write_text("keep", encoding="utf-8")
+        with _only(_WORKING), mock.patch("api.main.uuid4", return_value=SimpleNamespace(hex="collision")):
+            with TestClient(app) as client:
+                response = client.get("/health/ready")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
+
+    def test_write_failure_is_503_and_does_not_leak_probe(self):
+        """A create-only probe would falsely pass when the actual write fails."""
+        real_open = Path.open
+
+        @contextmanager
+        def failing_write(path, *args, **kwargs):
+            with real_open(path, *args, **kwargs):
+                yield SimpleNamespace(write=mock.Mock(side_effect=OSError("disk full")))
+
+        with _only(_WORKING), TestClient(app) as client:
+            with mock.patch.object(Path, "open", failing_write):
+                response = client.get("/health/ready")
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("disk full", response.json()["checks"]["outputs"])
+        self.assertEqual(list(runs.DEFAULT_OUTPUT_ROOT.iterdir()), [])
+
+    def test_cleanup_failure_is_not_labelled_a_write_failure(self):
+        """A successful write with failed cleanup is a different operational fact."""
+        with _only(_WORKING), TestClient(app) as client:
+            with mock.patch.object(Path, "unlink", side_effect=OSError("cleanup denied")):
+                response = client.get("/health/ready")
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("cleanup failed", response.json()["checks"]["outputs"])
+        self.assertNotIn("not writable", response.json()["checks"]["outputs"])
 
     def test_ready_returns_200(self):
         with _only(_WORKING):

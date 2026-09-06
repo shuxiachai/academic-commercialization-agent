@@ -530,15 +530,89 @@ function renderSources(collection) {
 
 /* ── Narrow, non-blocking report-delivery audit ────────────────────────
  * Findings expose inspectable excerpts; an unavailable audit is not a pass. */
+function auditFindingsReadable(findings) {
+  return Array.isArray(findings) && findings.every(row =>
+    row && typeof row === "object" && !Array.isArray(row) &&
+    ["decision_threshold_provenance", "citation_material_scope"].includes(row.check) &&
+    typeof row.excerpt === "string");
+}
+
+function auditSectionReadable(section, material) {
+  if (!section || typeof section !== "object" || Array.isArray(section) ||
+      !["completed", "partial", "not_applicable", "unavailable", "failed"].includes(section.status) ||
+      !auditFindingsReadable(section.findings) ||
+      (section.reason !== undefined && typeof section.reason !== "string")) return false;
+  const keys = material ? ["candidate_segments", "checked", "mismatched", "unverifiable"]
+    : ["candidate_lines", "unqualified"];
+  if (!keys.every(key => Number.isSafeInteger(section[key]) && section[key] >= 0)) return false;
+  const count = material ? section.mismatched : section.unqualified;
+  const candidates = material ? section.candidate_segments : section.candidate_lines;
+  const check = material ? "citation_material_scope" : "decision_threshold_provenance";
+  // A valid integer is not enough: completed-with-unverifiable is internally
+  // inconsistent and must not paint the section as evaluated.
+  if (section.status === "not_applicable" && candidates !== 0) return false;
+  if (section.status === "completed" && (candidates === 0 || (material && section.unverifiable !== 0))) return false;
+  if (section.status === "partial" && (!material || section.checked === 0 || section.unverifiable === 0)) return false;
+  if (["unavailable", "failed"].includes(section.status) && (material ? section.checked !== 0 : candidates !== 0)) return false;
+  return count === section.findings.length && count <= candidates &&
+    section.findings.every(row => row.check === check) &&
+    (!material || (section.checked + section.unverifiable === candidates && count <= section.checked));
+}
+
 export function renderReportAudit(data) {
   const wrap = el("div", "consistency");
   wrap.append(el("p", "grounding__lede", t("report_audit_lede")));
-  const findings = data.findings ?? [];
+  // The artifact endpoint preserves stored bytes. `{}.length` must not become
+  // "no findings", and a null row must not throw away a paid report's panel.
+  // This validates display shapes, not storage or semantic source truth.
+  if (!data || data.schema_version !== 1 || data.non_blocking !== true ||
+      !["completed", "partial", "not_applicable", "unavailable", "failed"].includes(data.status) ||
+      !auditFindingsReadable(data.findings) || data.findings_count !== data.findings.length) {
+    wrap.append(el("p", "empty-note", t("report_audit_unreadable")));
+    return wrap;
+  }
+
+  let sectionsReadable = true;
+  for (const [key, material] of [["decision_thresholds", false], ["citation_material_scope", true]]) {
+    const section = data[key];
+    const detail = el("div", "audit-section");
+    detail.dataset.check = key;
+    detail.append(el("h3", null, t(material ? "report_audit_material_title" : "report_audit_threshold_title")));
+    // Isolate a malformed section, not its healthy neighbour. Missing
+    // historical detail is unknown; never synthesize zero coverage for it.
+    if (!auditSectionReadable(section, material)) {
+      sectionsReadable = false;
+      detail.append(el("p", "empty-note", t("report_audit_unreadable")));
+    } else {
+      const statusKey = ["failed", "unavailable"].includes(section.status) ? "unavailable" : section.status;
+      detail.append(el("p", null, t(`report_audit_state_${statusKey}`)));
+      const coverage = material
+        ? t("report_audit_material_counts").replace("{candidates}", section.candidate_segments)
+            .replace("{checked}", section.checked).replace("{unverifiable}", section.unverifiable)
+        : t("report_audit_threshold_counts").replace("{candidates}", section.candidate_lines)
+            .replace("{unqualified}", section.unqualified);
+      detail.append(el("p", null, coverage));
+      if (section.reason) {
+        // textContent, including for future reason codes, never artifact HTML.
+        const reason = section.reason === "unsupported_report_language"
+          ? t("report_audit_language_unsupported") : section.reason;
+        detail.append(el("p", null, t("report_audit_reason").replace("{reason}", reason)));
+      }
+    }
+    wrap.append(detail);
+  }
+  const findings = data.findings;
   if (!findings.length) {
-    const message = ["failed", "unavailable"].includes(data.status)
-      ? t("report_audit_unavailable")
-      : t("report_audit_clear");
-    wrap.append(el("p", "consistency__clear", message));
+    // Intact top-level status cannot vouch for unreadable nested counters.
+    const hasIncompleteSection = [data.decision_thresholds, data.citation_material_scope]
+      .some(section => section && ["partial", "unavailable", "failed"].includes(section.status));
+    const noCandidates = [data.decision_thresholds, data.citation_material_scope]
+      .every(section => section && section.status === "not_applicable");
+    const message = !sectionsReadable ? "report_audit_unreadable"
+      : ["failed", "unavailable"].includes(data.status) ? "report_audit_unavailable"
+        : data.status === "partial" || hasIncompleteSection ? "report_audit_state_partial"
+          : data.status === "not_applicable" || noCandidates ? "report_audit_state_not_applicable" : "report_audit_clear";
+    wrap.append(el("p", "empty-note", t(message)));
     return wrap;
   }
 

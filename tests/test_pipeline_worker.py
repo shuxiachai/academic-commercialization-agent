@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
+from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -453,6 +454,38 @@ class MainEndToEndTests(unittest.TestCase):
     def _crew_result(self, n_tasks=6):
         tasks = [_task(f"t{i}") for i in range(n_tasks)]
         return SimpleNamespace(tasks_output=tasks, raw="fallback")
+
+    def test_pdf_market_queries_reach_collector_with_shared_rolling_years(self):
+        """The ordinary queries aged correctly while the PDF prelude stayed in 2025."""
+        contribution = {
+            "title": "A battery study", "core_contribution": "A new solid-state electrolyte design",
+            "application_domain": "electric vehicles", "delta_from_prior": "Higher ionic conductivity",
+            "commercialization_topic": "solid-state batteries for vehicles",
+            "search_keywords": ["solid-state", "battery", "electrolyte"],
+        }
+        spec = RunSpec(topic="a topic", paper_contribution=contribution)
+        for today, years in ((date(2026, 12, 31), "2025 2026"), (date(2027, 1, 1), "2026 2027")):
+            with self.subTest(today=today):
+                # Abort at the actual collection boundary, before any Crew or
+                # provider invocation. Testing a date helper alone missed this.
+                argv = ["pipeline_worker.py", f"{today:%Y%m%d}T000000Z-abcdef01", "a topic"]
+                directory = self.output_root / argv[1]
+                directory.mkdir(exist_ok=True)
+                argv.extend(["--run-spec", str(spec.save(directory))])
+                with patch.object(sys, "argv", argv), \
+                     patch("academic_agent.run_output.DEFAULT_OUTPUT_ROOT", self.output_root), \
+                     patch("academic_agent.source_pipeline.date") as clock, \
+                     patch("academic_agent.source_pipeline.collect_source_collection", side_effect=RuntimeError("offline stop")) as collect:
+                    clock.today.return_value = today
+                    from academic_agent.pipeline_worker import main
+                    with self.assertRaises(SystemExit):
+                        main()
+                collect.assert_called_once()
+                self.assertEqual(collect.call_args.kwargs["extra_market_queries"], [
+                    f"electric vehicles commercial product company revenue manufacturer {years}",
+                    "electric vehicles startup investment funding market leader industry",
+                ])
+                self.assertIsNotNone(collect.call_args.kwargs["paper_seed"])
 
     def test_successful_run_writes_done_and_all_artifacts(self):
         crew = MagicMock()
