@@ -54,6 +54,15 @@ class _ConcurrencyTestBase(unittest.TestCase):
         patcher = patch.object(runs, "DEFAULT_OUTPUT_ROOT", Path(self._tmp.name))
         patcher.start()
         self.addCleanup(patcher.stop)
+        # Concurrency tests must not depend on the operator's .env daily cap
+        # or another test's cached ledger date. Keep real charging enabled,
+        # but give this isolated wallet enough room for all eight contenders;
+        # only the concurrency policy under test should reject them.
+        for name, value in (
+            ("DAILY_CAP", 100), ("_daily_counts", {}), ("_daily_date", None),
+            ("_inline_paid_operations", {}), ("_stop_claims", {}),
+        ):
+            self.enterContext(patch.object(runs, name, value))
 
     def _close_open_logs(self):
         for handle in list(runs._registry.values()):
@@ -131,11 +140,24 @@ class ConcurrencyCapTests(_ConcurrencyTestBase):
         volume, in production) leaked one slot per failed attempt with no
         way to clear it short of restarting the process.
         """
-        with patch("api.runs.Path.mkdir", side_effect=PermissionError("no access")):
+        original_mkdir = Path.mkdir
+
+        def deny_run_directory(path, *args, **kwargs):
+            # Admission now persists its wallet first. Failing every mkdir
+            # stops at that earlier boundary and never exercises the reserved
+            # run's cleanup. Inject only after a slot has actually been taken.
+            if path == runs.DEFAULT_OUTPUT_ROOT:
+                return original_mkdir(path, *args, **kwargs)
+            self.assertEqual(runs.active_count(), 1)
+            raise PermissionError("no access")
+
+        with patch("api.runs.Path.mkdir", autospec=True, side_effect=deny_run_directory), \
+             patch("api.runs.subprocess.Popen", _FakeProc):
             with self.assertRaises(PermissionError):
                 runs.start_run("topic")
 
         self.assertEqual(runs.active_count(), 0)
+        self.assertEqual(sum(runs._daily_counts.values()), 0)
         with patch("api.runs.subprocess.Popen", _FakeProc):
             runs.start_run("topic")          # must not raise
         self.assertEqual(runs.active_count(), 1)
@@ -170,6 +192,10 @@ class ConcurrencyCapTests(_ConcurrencyTestBase):
                 outcomes.append("cancelled")
             except runs.RunNotFound:
                 outcomes.append("not_found")
+            except runs.RunStillActive:
+                # Losing during finalization is an explicit conflict, not a
+                # missing run. Keep every thread outcome in the denominator.
+                outcomes.append("stopping")
 
         workers = [threading.Thread(target=cancel) for _ in range(4)]
         for w in workers:
@@ -178,6 +204,9 @@ class ConcurrencyCapTests(_ConcurrencyTestBase):
             w.join(timeout=30)
 
         self.assertEqual(outcomes.count("cancelled"), 1, outcomes)
+        self.assertTrue(all(not worker.is_alive() for worker in workers))
+        self.assertEqual(len(outcomes), 4, outcomes)
+        self.assertEqual(outcomes.count("not_found") + outcomes.count("stopping"), 3, outcomes)
 
     def test_delete_run_refuses_a_live_run(self):
         with patch("api.runs.subprocess.Popen", _FakeProc):

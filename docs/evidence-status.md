@@ -56,6 +56,13 @@ exports. These are fault-injected offline contracts, not measured production
 incident reductions, exact-once billing or PDF semantic validation. See the
 [runtime/paid-delivery maintenance record](results-2026-09-06-maintenance-runtime-paid-delivery.md).
 
+Stop ownership also spans process termination and terminal publication: capacity,
+status/progress, deletion and retention share that boundary. Failed termination
+retains the worker; concurrent stops cannot acknowledge two successful owners.
+Event-held HTTP tests and local child-process tests establish the bounded offline
+contract, not a production incident rate or remote-provider cancellation. See the
+[stop-ownership verification](results-2026-09-06-run-stop-ownership.md).
+
 | Question | Observed evidence | Boundary / decision |
 |---|---|---|
 | Can the frozen baseline complete with consistent mechanics? | 30/30 completed; 26/30 TRL-range hits; 30/30 correct formula and structure; zero uncited numeric lines; 7/10 topics hit their range in every repetition | Expected ranges were revised after early observations. Not independent accuracy or full hallucination measurement. [CSV](../outputs/benchmark/benchmark_summary.csv), [stability](../outputs/benchmark/benchmark_stability.csv) |

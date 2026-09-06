@@ -80,6 +80,30 @@ tooltip. A missing or unreadable immutable record after a terminal state is
 explicitly labelled rather than looking like an ordinary clean finish. The
 downloadable `terminal` artifact contains the full non-secret record.
 
+## External-stop ownership
+
+The parent keeps a local stop claim and registered handle while waiting for
+terminate/kill and publishing the external terminal record. The global registry
+lock is held only for ownership transitions, never for those slow operations.
+Health counts include launch reservations and stop finalization; both run readers
+continue to report Running with progress `done=false` for a read begun while the
+slot is owned. A later read observes the settled outcome. Deletion and retention
+cannot remove a claimed directory, even after its process has physically exited.
+
+A competing Cancel or legacy DELETE returns 409, not successful cancellation or
+fallthrough deletion. A launch placeholder also returns 409 because it is not a
+process that can be stopped. If termination fails, cancellation returns a safe
+503 and retains the registration; the watchdog continues its peers and reports
+failure before retrying on a later cycle. Natural exit before termination is not
+relabelled Cancelled or Timeout. Shutdown uses the same claim; unexpected overlap
+with an unfinished launch/stop is reported as incomplete, not silently cleared.
+
+Terminal writes retain their existing best-effort storage-failure boundary:
+physical stop can succeed without a durable audit record. This does not make
+the record durable on a failed volume, implement queued cancellation of pending
+launches, or confirm cancellation/refund of a remote provider request. See the
+[offline stop regression](results-2026-09-06-run-stop-ownership.md).
+
 ## Usage states
 
 The HTTP read projection also isolates malformed selected runtime summaries

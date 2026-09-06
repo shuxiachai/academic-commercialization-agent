@@ -323,7 +323,11 @@ class RunNotFound(Exception):
 
 
 class RunStillActive(Exception):
-    """Raised when delete_run is asked to remove a run that has not stopped."""
+    """A mutation conflicts with live, launching or already-stopping work."""
+
+
+class RunStopFailed(Exception):
+    """Process termination could not be confirmed; ownership is retained."""
 
 
 class RunNotResumable(Exception):
@@ -331,6 +335,13 @@ class RunNotResumable(Exception):
 
 
 _registry: dict[str, _Handle] = {}
+
+# A stop claim is not a released admission slot. Keep the handle registered
+# through wait/kill AND terminal publication, so health cannot reap it between
+# those steps and a second mutation cannot remove its files. Identity checks
+# make claim release apply only to the original registration. This is local
+# ownership, not distributed locking or provider-level cancellation.
+_stop_claims: dict[str, _Handle] = {}
 
 # Inline paid operations live in the API process rather than a subprocess, so
 # they cannot be represented by _Handle without making cancellation, polling
@@ -355,9 +366,9 @@ _registry_lock = threading.RLock()
 
 
 def active_count() -> int:
-    """Number of runs still executing. Reaps finished handles as a side effect."""
+    """Occupied run slots, including stop finalization; reap unowned exits."""
     with _registry_lock:
-        for run_id in [rid for rid, h in _registry.items() if not h.alive()]:
+        for run_id in [rid for rid, h in _registry.items() if not _occupies_slot(rid, h)]:
             h = _registry.pop(run_id, None)
             if h and h.log_file is not None:
                 try:
@@ -367,9 +378,13 @@ def active_count() -> int:
         return len(_registry)
 
 
+def _occupies_slot(run_id: str, handle: _Handle) -> bool:
+    """Caller holds the registry lock; a terminal write still owns its slot."""
+    return _stop_claims.get(run_id) is handle or handle.alive()
+
+
 def active_byok_count() -> int:
-    """Live runs billed to a visitor's own key. Reaps first, via active_count,
-    so a finished run cannot keep holding a slot it no longer occupies."""
+    """BYOK run slots, including launch/stop finalization; reap settled exits."""
     active_count()
     with _registry_lock:
         return sum(1 for h in _registry.values() if h.byok)
@@ -886,38 +901,65 @@ def resume_run(
     )
 
 
-def cancel_run(run_id: str) -> None:
-    """Terminate a live run and mark it cancelled."""
-    # Removed under the lock so two concurrent cancels cannot both decide the
-    # run is theirs to terminate.
+@contextmanager
+def _stop_worker(run_id: str) -> Iterator[tuple[_Handle, str]]:
+    """Own a stop until the caller has finished publishing its outcome.
+
+    Do not hold the global lock during wait/kill or filesystem writes: doing
+    so would stall health, polling and unrelated admissions for up to ten
+    seconds. Claim under the lock, then retain that claim across slow work.
+    Launch reservations are not processes; rejecting them is safer than
+    acknowledging a no-op stop followed by Popen installing a live worker.
+    """
     with _registry_lock:
         handle = _registry.get(run_id)
-        if handle is None or not handle.alive():
+        if handle is None:
             raise RunNotFound(f"No live run with id {run_id}")
-        _registry.pop(run_id, None)
-    method = handle.terminate()
+        if _stop_claims.get(run_id) is handle or isinstance(handle.proc, _PendingProcess):
+            raise RunStillActive("Run is starting or already stopping. Refresh its status.")
+        _stop_claims[run_id] = handle
+    stopped = False
     try:
-        (run_dir_for(run_id) / _CANCEL_MARKER).write_text(
-            datetime.now(UTC).isoformat(), encoding="utf-8"
-        )
-    except OSError:
-        # The directory can vanish here if a concurrent delete_run() call for
-        # the same id already popped this handle's twin registration and won
-        # the race to remove it — see delete_run's docstring. Nothing left to
-        # mark at that point is a fine outcome, not a failure to report.
-        pass
-    try:
-        _commit_external_terminal(
-            handle,
-            state="cancelled",
-            reason_code="user_cancelled",
-            termination_method=method,
-            timeout_seconds=TIMEOUT_SECONDS,
-        )
-    except (OSError, ValueError) as exc:
-        # The legacy marker still preserves cancellation if the stronger
-        # audit record cannot be committed; never turn cancel into HTTP 500.
-        print(f"[api] terminal record failed for {run_id}: {exc}", file=sys.stderr)
+        try:
+            method = handle.terminate()
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise RunStopFailed("Worker stop could not be confirmed.") from exc
+        stopped = True
+        yield handle, method
+    finally:
+        with _registry_lock:
+            if stopped and _registry.get(run_id) is handle:
+                _registry.pop(run_id)
+            if _stop_claims.get(run_id) is handle:
+                _stop_claims.pop(run_id)
+
+
+def cancel_run(run_id: str) -> None:
+    """Stop a live process without reporting a natural exit as cancellation."""
+    with _stop_worker(run_id) as (handle, method):
+        if method == "already_exited":
+            raise RunNotFound(f"No live run with id {run_id}")
+        try:
+            (run_dir_for(run_id) / _CANCEL_MARKER).write_text(
+                datetime.now(UTC).isoformat(), encoding="utf-8"
+            )
+        except OSError:
+            # A storage fault may lose the legacy marker; the independent
+            # immutable publication below is still attempted. API deletion
+            # and retention cannot remove the directory while we own it.
+            pass
+        try:
+            _commit_external_terminal(
+                handle,
+                state="cancelled",
+                reason_code="user_cancelled",
+                termination_method=method,
+                timeout_seconds=TIMEOUT_SECONDS,
+            )
+        except (OSError, ValueError) as exc:
+            # Keep the historical best-effort audit boundary separate from
+            # failure to stop a process. The worker has physically stopped.
+            print(f"[api] terminal record failed for {run_id}: {exc}", file=sys.stderr)
 
 
 
@@ -939,7 +981,7 @@ def delete_run(run_id: str) -> None:
 
     with _registry_lock:
         handle = _registry.get(run_id)
-        if handle is not None and handle.alive():
+        if handle is not None and _occupies_slot(run_id, handle):
             raise RunStillActive(f"Run {run_id} is still active — cancel it first")
         _registry.pop(run_id, None)
 
@@ -949,56 +991,55 @@ def delete_run(run_id: str) -> None:
 def reap_timeouts() -> list[str]:
     """Kill runs past the deadline. Returns the run_ids that were killed."""
     killed: list[str] = []
-    # Claim each expired run under the lock before terminating it, so a
-    # concurrent cancel_run cannot terminate the same handle twice.
+    # Snapshot candidates only. Each is claimed just before its stop, allowing
+    # concurrent cancellation to win without releasing capacity prematurely.
     with _registry_lock:
         expired = [
-            (rid, h) for rid, h in _registry.items()
-            if h.alive() and h.elapsed > TIMEOUT_SECONDS
+            rid for rid, h in _registry.items()
+            # A launch thread can replace an old reservation with a fresh
+            # process before claim. Never carry the reservation's age into
+            # the new worker's deadline merely because their run id matches.
+            if not isinstance(h.proc, _PendingProcess) and h.alive() and h.elapsed > TIMEOUT_SECONDS
         ]
-        for run_id, _handle in expired:
-            _registry.pop(run_id, None)
 
     failures = []
-    for run_id, handle in expired:
+    for run_id in expired:
         try:
-            method = handle.terminate()
-        except (OSError, subprocess.SubprocessError) as exc:
-            # A denied stop is not a stopped worker. Restore its ownership so
-            # admission still counts it and a later watchdog cycle can retry.
-            # Continue the batch before surfacing the failed supervision stage.
-            with _registry_lock:
-                _registry.setdefault(run_id, handle)
+            with _stop_worker(run_id) as (handle, method):
+                if method == "already_exited":
+                    # It won the race with the watchdog; do not relabel it.
+                    continue
+                try:
+                    (run_dir_for(run_id) / "error.log").write_text(
+                        f"Analysis timed out after {TIMEOUT_SECONDS // 60} minutes.",
+                        encoding="utf-8",
+                    )
+                except OSError:
+                    # The immutable record below is authoritative; this text
+                    # file is retained only for historical readers.
+                    pass
+                try:
+                    _commit_external_terminal(
+                        handle,
+                        state="timeout",
+                        reason_code="hard_timeout",
+                        termination_method=method,
+                        timeout_seconds=TIMEOUT_SECONDS,
+                    )
+                except (OSError, ValueError) as exc:
+                    print(f"[api] terminal record failed for {run_id}: {exc}", file=sys.stderr)
+                killed.append(run_id)
+        except (RunNotFound, RunStillActive):
+            # A pending launch has no process deadline yet; a concurrent
+            # stopper owns its exit. Neither is a second watchdog stop.
+            continue
+        except RunStopFailed as exc:
+            # The failed claim was released, but the handle never left the
+            # registry. Later admission still counts it and reaping can retry.
             failures.append(run_id)
-            print(f"[api] timeout termination failed for {run_id}: {exc}", file=sys.stderr)
-            continue
-        if method == "already_exited":
-            # It won the race with the watchdog; do not relabel it timeout.
-            continue
-        try:
-            (run_dir_for(run_id) / "error.log").write_text(
-                f"Analysis timed out after {TIMEOUT_SECONDS // 60} minutes.",
-                encoding="utf-8",
-            )
-        except OSError:
-            # The immutable record below is authoritative; this text file is
-            # retained only for compatibility with historical readers.
-            pass
-        try:
-            _commit_external_terminal(
-                handle,
-                state="timeout",
-                reason_code="hard_timeout",
-                termination_method=method,
-                timeout_seconds=TIMEOUT_SECONDS,
-            )
-        except (OSError, ValueError) as exc:
-            # One damaged run directory must not stop the global reaper.
-            print(
-                f"[api] terminal record failed for {run_id}: {exc}",
-                file=sys.stderr,
-            )
-        killed.append(run_id)
+            # Preserve the actual OS/wait diagnostic in operator logs only;
+            # the HTTP cancellation path emits a stable, non-secret message.
+            print(f"[api] timeout termination failed for {run_id}: {exc.__cause__ or exc}", file=sys.stderr)
     if failures:
         raise RuntimeError(f"Timeout termination failed for {len(failures)} run(s)")
     return killed
@@ -1007,15 +1048,19 @@ def reap_timeouts() -> list[str]:
 def shutdown_all() -> None:
     """Terminate every live run. Called on application shutdown."""
     with _registry_lock:
-        handles = list(_registry.values())
-        _registry.clear()
+        run_ids = list(_registry)
     failures = []
-    for handle in handles:
+    for run_id in run_ids:
         try:
-            handle.terminate()
-        except (OSError, subprocess.SubprocessError) as exc:
+            with _stop_worker(run_id):
+                pass
+        except RunNotFound:
+            continue
+        except (RunStopFailed, RunStillActive) as exc:
             # One inaccessible process must not prevent stopping the rest.
-            # Aggregate after all attempts; do not report shutdown as clean.
+            # ASGI normally drains requests before shutdown; if a launch or
+            # stop is still outstanding, retain it and report incomplete
+            # shutdown rather than clearing ownership or stopping it twice.
             failures.append(exc)
     if failures:
         raise RuntimeError(f"Shutdown could not stop {len(failures)} worker(s)") from failures[0]
@@ -1326,6 +1371,13 @@ def get_state(run_id: str) -> dict:
     if not run_dir.is_dir():
         raise RunNotFound(f"No run with id {run_id}")
 
+    # Snapshot ownership before disk reads. Releasing a stop after these reads
+    # cannot turn an earlier, incomplete terminal snapshot into a failed run.
+    # Returning Running for a request begun during finalization is conservative
+    # and keeps recovery/deletion unavailable until a later settled read.
+    with _registry_lock:
+        handle = _registry.get(run_id)
+        occupied = handle is not None and _occupies_slot(run_id, handle)
     try:
         status, status_record_state = _read_status_snapshot(run_dir)
     except StatusUnreadable:
@@ -1334,9 +1386,8 @@ def get_state(run_id: str) -> dict:
         status, status_record_state = {}, "unreadable"
     status, audit_metadata_unreadable = project_audit_metadata(status)
     terminal_record, terminal_projection = _read_terminal(run_dir)
-    handle = _registry.get(run_id)
 
-    if handle is not None and handle.alive():
+    if occupied:
         state = "running"
         error = None
         elapsed = handle.elapsed
@@ -1580,7 +1631,7 @@ def prune_expired_runs(retention_days: int | None = None) -> list[str]:
 
     cutoff = datetime.now(UTC) - timedelta(days=days)
     with _registry_lock:
-        live = {rid for rid, h in _registry.items() if h.alive()}
+        live = {rid for rid, h in _registry.items() if _occupies_slot(rid, h)}
 
     removed: list[str] = []
     for directory in DEFAULT_OUTPUT_ROOT.iterdir():

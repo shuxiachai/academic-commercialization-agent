@@ -475,7 +475,7 @@ class MaintenanceStatus(BaseModel):
 class HealthStatus(BaseModel):
     status: Literal["ok"]
     active_runs: int = Field(
-        description="Worker subprocesses currently running. Kept separately "
+        description="Occupied run slots, including launch and stop finalization. Kept separately "
                     "from active_paid_operations for API compatibility and "
                     "run-specific operational diagnostics.",
     )
