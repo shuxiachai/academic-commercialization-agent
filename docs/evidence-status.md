@@ -28,6 +28,12 @@ states. Legacy unqualified DELETE remains dual-purpose for compatibility;
 this is an offline-verified contract, not an observed data-loss rate. See the
 [stale-click regression and limits](results-2026-09-06-run-mutation-intent.md).
 
+The delivered applicability paragraph is also rebound to the current code-owned
+gate even when generated prose contains a copied or forged internal marker.
+Persistence, report download and Chromium are covered; this is not general
+semantic verification or evidence of an observed production forgery. See the
+[authority regression and 110-report diagnostic](results-2026-09-06-report-applicability-authority.md).
+
 ## Main evaluation ledger
 
 | Question | Observed evidence | Boundary / decision |

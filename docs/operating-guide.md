@@ -63,6 +63,11 @@ Markdown/PDF export.
 Missing Decision Context does not reject a topic. The immutable RunSpec
 derives its applicability mode and carries threshold provenance. An exploratory
 report must not be presented as an owner-authorized GO/NO_GO instruction.
+At save time, the code-owned applicability paragraph is reasserted from that
+gate; a marker in model text cannot suppress it. Legacy reports with no gate
+are not relabelled. This protects the reserved metadata paragraph, not the
+semantic correctness of all report prose; see the
+[delivery regression and limits](results-2026-09-06-report-applicability-authority.md).
 
 | Method | Route | Purpose |
 |---|---|---|

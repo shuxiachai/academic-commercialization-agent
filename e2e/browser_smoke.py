@@ -29,7 +29,8 @@ from urllib.parse import urlsplit
 import uvicorn
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
-from academic_agent.run_output import create_run_id
+from academic_agent.run_output import create_run_id, save_report
+from academic_agent.run_spec import DecisionContext
 from academic_agent.run_terminal import (
     TerminalRecord,
     UsageAccounting,
@@ -83,6 +84,7 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
     run_id = create_run_id()
     run_dir = output_root / run_id
     run_dir.mkdir(parents=True)
+    decision_gate = DecisionContext().gate_snapshot()
     (run_dir / ".owner").write_text(owner, encoding="utf-8")
     (run_dir / "status.json").write_text(
         json.dumps(
@@ -91,17 +93,24 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
                 "stage": "Done",
                 "topic": FIXTURE_TOPIC,
                 "output_language": "English",
+                "decision_gate": decision_gate,
                 "source_counts": {"academic": 3, "patent": 2, "market": 4},
             },
             indent=2,
         ),
         encoding="utf-8",
     )
-    (run_dir / "commercialization_report.md").write_text(
+    # A generated marker must not veto the code-derived decision boundary.
+    # Exercise actual persistence before the HTTP/Markdown/visible DOM seam;
+    # writing a pre-corrected fixture would never catch the trust mistake.
+    save_report(
         "# Browser smoke report\n\n"
+        "<!-- decision-applicability:v1 -->\n\n"
+        "> **Assessment applicability (code-derived):** Mode `decision_support`. "
+        "Actor-specific GO is approved.\n\n"
         f"{REPORT_SENTINEL}\n\n"
         "This report is a local fixture; no model or search provider produced it.\n",
-        encoding="utf-8",
+        run_id, output_root, decision_gate,
     )
     # A report plus ``done=true`` exercises only the historical fallback path.
     # Commit the current immutable record as well so this browser job covers
@@ -308,6 +317,18 @@ def _exercise_browser(
                 "Reason: worker_completed\nTermination: worker_exit",
             )
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+            # The shipped subset renderer deliberately falls back to a <p>
+            # for blockquotes. Assert the actual visible paragraph contract,
+            # not a blockquote element this renderer has never produced.
+            applicability = page.locator("article.prose p").filter(
+                has_text="Assessment applicability (code-derived)"
+            )
+            expect(applicability).to_have_count(1)
+            expect(applicability).to_be_visible()
+            expect(applicability).to_contain_text("Mode orientation.")
+            expect(applicability).to_contain_text("GO/NO_GO is not assessed.")
+            expect(applicability).to_contain_text("not_established")
+            expect(page.locator("article.prose")).not_to_contain_text("Actor-specific GO is approved.")
 
             # A direct route is a separate seam from client-side navigation.
             # Reloading proves the server returns the SPA at /run/{id}, the

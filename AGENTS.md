@@ -162,6 +162,11 @@ carry the detailed lineage, not this index.
 
 ## Runtime boundaries that must survive edits
 
+The saved report's applicability paragraph is code-owned. A marker copied into
+model prose is not proof of authorship: reassert the current gate at delivery,
+preserve legacy no-gate bytes, and do not call this general semantic validation.
+See the [authority regression](docs/results-2026-09-06-report-applicability-authority.md).
+
 Runs are subprocesses writing to `outputs/<run_id>/`. API, browser and CLI
 read those shared artifacts. A completed, failed, cancelled or timed-out API run
 also has write-once `terminal.json`: workers commit their own exits; the API

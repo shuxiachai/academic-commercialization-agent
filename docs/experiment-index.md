@@ -164,6 +164,8 @@ to reuse consumed cohorts.
 
 ## Runtime maintenance verification
 
+- [2026 09 06 report applicability authority](results-2026-09-06-report-applicability-authority.md)
+
 - [2026 09 06 run mutation intent](results-2026-09-06-run-mutation-intent.md)
 
 - [2026 09 05 runtime summary read integrity](results-2026-09-05-runtime-summary-read-integrity.md)
