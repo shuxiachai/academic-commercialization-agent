@@ -104,6 +104,13 @@ the record durable on a failed volume, implement queued cancellation of pending
 launches, or confirm cancellation/refund of a remote provider request. See the
 [offline stop regression](results-2026-09-06-run-stop-ownership.md).
 
+The maintenance supervisor runs its synchronous stages off the ASGI event loop.
+It retains the active stage through cancellation and drains it before lifespan
+calls `shutdown_all`, so shutdown cannot take over an unfinished watchdog stop.
+Repeated cancellation does not abandon that stage or mark it successful. This
+preserves single-process ownership, not bounded filesystem/shutdown latency;
+see the [event-loop regression and limits](results-2026-09-06-maintenance-event-loop.md).
+
 ## Usage states
 
 The HTTP read projection also isolates malformed selected runtime summaries

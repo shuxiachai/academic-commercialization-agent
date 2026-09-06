@@ -203,6 +203,10 @@ publication. Competing mutations return conflict; a failed stop retains the
 worker instead of freeing capacity. Do not pop handles to claim cancellation.
 See the [stop-ownership seam](docs/results-2026-09-06-run-stop-ownership.md).
 
+Synchronous maintenance stays off the ASGI loop but remains serial and owned.
+Cancellation must drain the current stage before worker shutdown; cancelling
+an await does not stop its thread. See the [scheduling/drain boundary](docs/results-2026-09-06-maintenance-event-loop.md).
+
 Composer submission/extraction locks are tab-local, not server idempotency.
 Readiness checks the effective selected credential without contacting providers;
 429 reasons remain distinct. See the [HTTP/browser contract and limits](docs/results-2026-09-06-composer-paid-operation-integrity.md).

@@ -111,6 +111,13 @@ readiness on its own. A failed managed watchdog or failed timeout stage makes
 `/health/ready` return 503. Offline `readiness()` has no ASGI task prerequisite.
 Shutdown attempts worker cleanup even if awaiting the supervisor raises.
 
+Process waits and cleanup run off the ASGI loop, one maintenance stage at a
+time. Graceful shutdown drains the current stage, including after repeated
+cancellation, before stopping remaining workers. No later stage is dispatched
+after that cancellation. A stuck filesystem can still delay this drain and
+the next watchdog cycle: neither shutdown duration nor check freshness has an
+SLO. See the [offline scheduling verification](results-2026-09-06-maintenance-event-loop.md).
+
 Concurrent PDF uploads share a process-wide PDFium parsing/closure mutex;
 their subsequent LLM calls remain under normal paid admission, not that mutex.
 PDF export uses a bounded per-run striped lock and sibling-file atomic publication.
