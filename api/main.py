@@ -18,7 +18,7 @@ import logging
 import os
 import threading
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -74,6 +74,41 @@ def _maintenance_status() -> MaintenanceStatus:
     return MaintenanceStatus(state=state, checks=dict(_maintenance_checks))
 
 
+async def _maintenance_stage(name: str, operation: Callable[[], object]) -> None:
+    """Offload blocking work without abandoning it when the owner is cancelled."""
+    async def execute() -> None:
+        try:
+            changed = await asyncio.to_thread(operation)
+        except Exception:  # noqa: BLE001 - supervise one stage and preserve its completed fault observation
+            _maintenance_checks[name] = "failed"
+            _LOGGER.exception("Background maintenance stage failed: %s", name)
+        else:
+            _maintenance_checks[name] = "ok"
+            if changed:
+                _LOGGER.info("Background maintenance %s: %s", name, changed)
+
+    # Process waits and filesystem cleanup cannot run on the ASGI loop. Merely
+    # awaiting to_thread is insufficient: cancelling that await does not stop
+    # its thread. Shutdown would then race an abandoned timeout stop claim.
+    # Keep a strong task reference, shield it, and drain it before propagating
+    # cancellation. One serial stage is in flight, never a fire-and-forget batch.
+    task = asyncio.create_task(execute())
+    try:
+        await asyncio.shield(task)
+    except asyncio.CancelledError:
+        # A second shutdown cancellation must not punch through the drain.
+        # Do not mark a still-running stage as successful or proceed to the
+        # next cleanup. Python cannot forcibly interrupt a stuck filesystem
+        # thread: draining is ownership, not a bounded shutdown-time guarantee.
+        while not task.done():
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                continue
+        task.result()
+        raise
+
+
 async def _reaper() -> None:
     """Kill runs that exceed the deadline.
 
@@ -91,15 +126,7 @@ async def _reaper() -> None:
             ("papers", papers.prune_old),
             ("retention", runs.prune_expired_runs),
         ):
-            try:
-                changed = operation()
-            except Exception:  # noqa: BLE001 - supervise independent recurring tasks; retain fault state/log
-                _maintenance_checks[name] = "failed"
-                _LOGGER.exception("Background maintenance stage failed: %s", name)
-            else:
-                _maintenance_checks[name] = "ok"
-                if changed:
-                    _LOGGER.info("Background maintenance %s: %s", name, changed)
+            await _maintenance_stage(name, operation)
 
 
 @contextlib.asynccontextmanager
@@ -120,6 +147,8 @@ async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
         finally:
             # Awaiting an already-failed task raises. Worker cleanup must run
             # even in that case; otherwise shutdown leaves paid work orphaned.
+            # The cancelled supervisor drains its current off-loop operation
+            # first, so shutdown cannot compete with that operation's stop.
             try:
                 runs.shutdown_all()
             finally:
