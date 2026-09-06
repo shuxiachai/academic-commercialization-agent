@@ -25,6 +25,11 @@ const STAGES = [
 // polling and show a still-running analysis as over.
 const TERMINAL = new Set(["completed", "failed", "cancelled", "timeout"]);
 
+// A read failure or an initial request still in flight is not a terminal
+// outcome. Share this boundary with actions rather than treating all states
+// except running as permission to delete retained artifacts.
+export const isTerminalState = (state) => TERMINAL.has(state);
+
 /** Index of the stage a status string refers to, or -1 when unrecognised. */
 function stageIndex(stage) {
   if (!stage) return -1;

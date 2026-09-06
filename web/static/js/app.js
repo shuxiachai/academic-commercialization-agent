@@ -178,6 +178,11 @@ function paintActions(state, checkpointing = null) {
     return;
   }
 
+  // No destructive controls before a readable state arrives or while it is
+  // unknown. The server separately enforces intent when a stale click races
+  // completion; disabling controls alone cannot solve that request race.
+  if (!runView.isTerminalState(state)) return;
+
   // Not another "New analysis" — that button already lives in the rail, one
   // click away and always visible. A finished run needs a way out of the
   // browser instead.
@@ -228,9 +233,7 @@ function paintActions(state, checkpointing = null) {
     actions.append(resume);
   }
 
-  // Every terminal state — completed, failed, cancelled, timeout — can be
-  // permanently removed; only a still-running one (handled above, which
-  // already returned) cannot.
+  // Only the known terminal states reaching here offer permanent removal.
   const del = document.createElement("button");
   del.type = "button";
   del.className = "btn btn--danger";
@@ -245,8 +248,8 @@ async function openRun(runId, { known } = {}) {
 
   const body = $("#run-body");
   body.innerHTML = "";
-  paintHeader({ topic: known?.topic ?? "…", state: known?.state ?? "running" });
-  paintActions(known?.state ?? "running", known?.checkpointing);
+  paintHeader({ topic: known?.topic ?? "…", state: known?.state ?? "unknown" });
+  paintActions(known?.state ?? "unknown", known?.checkpointing);
   history.pushState({}, "", `/run/${runId}`);
 
   follower = runView.follow(runId, {
@@ -344,7 +347,10 @@ async function refreshSidebar() {
       } catch {
         // The run itself is still a capability URL even if this poll
         // failed transiently — keep it in the list rather than dropping it.
-        return { run_id, topic, state: "failed", started_at: _startedAtFromRunId(run_id) };
+        // A transport/HTTP failure says nothing about the worker. Marking it
+        // failed would expose Delete, which older servers interpreted as
+        // cancellation if the run was actually still active.
+        return { run_id, topic, state: "unknown", started_at: _startedAtFromRunId(run_id) };
       }
     }));
     sidebar.render(list, runs, {

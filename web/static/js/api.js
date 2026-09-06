@@ -177,14 +177,13 @@ export const getProgress = (runId, since = 0) =>
   request(`/api/runs/${runId}/progress?since=${since}`);
 
 export const cancelRun = (runId) =>
-  request(`/api/runs/${runId}`, { method: "DELETE" });
+  request(`/api/runs/${runId}?intent=cancel`, { method: "DELETE" });
 
-// Same endpoint as cancelRun — the server stops a live run or deletes a
-// finished one depending on its state (see api/main.py delete_run). Two
-// names for the one call because the two call sites mean different things:
-// this one is only ever reached for a run already known to be terminal.
+// The state can change after the last poll. An explicit intent makes a stale
+// button conflict instead of becoming a different destructive operation.
+// A second GET before DELETE would still leave that race open.
 export const deleteRun = (runId) =>
-  request(`/api/runs/${runId}`, { method: "DELETE" });
+  request(`/api/runs/${runId}?intent=delete`, { method: "DELETE" });
 
 export const getReport = (runId) => request(`/api/runs/${runId}/report`);
 

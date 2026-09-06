@@ -175,6 +175,11 @@ credentials and creates an immutable child from the longest validated prefix,
 snapshotting its parent before launch. Persistence and reuse are separate
 states. Local committed-node reuse is not provider-level exactly-once delivery.
 
+First-party Cancel/Delete requests must preserve explicit mutation intent:
+cancel cannot fall through to removal, delete cannot terminate live work, and
+unknown UI states expose neither. Legacy unqualified DELETE still retains its
+dual-purpose contract; see the [verified boundary](docs/results-2026-09-06-run-mutation-intent.md).
+
 The shared run/PDF admission and persistent daily paid-operation ledger protect
 a single process. Do not increase replica/worker counts without redesigning
 ownership, quota transactions and persistence. Do not infer permission to
