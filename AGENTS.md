@@ -198,6 +198,11 @@ under a per-run striped cache lock. Accepted run navigation must survive optiona
 browser-history failures; pending resume state belongs to the parent, not the
 button. See the [maintenance regression and limits](docs/results-2026-09-06-maintenance-runtime-paid-delivery.md).
 
+An external stop retains its run slot through physical exit and terminal
+publication. Competing mutations return conflict; a failed stop retains the
+worker instead of freeing capacity. Do not pop handles to claim cancellation.
+See the [stop-ownership seam](docs/results-2026-09-06-run-stop-ownership.md).
+
 Composer submission/extraction locks are tab-local, not server idempotency.
 Readiness checks the effective selected credential without contacting providers;
 429 reasons remain distinct. See the [HTTP/browser contract and limits](docs/results-2026-09-06-composer-paid-operation-integrity.md).

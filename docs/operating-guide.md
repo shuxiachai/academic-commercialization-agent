@@ -149,6 +149,16 @@ never cancels a live run: that conflict also returns 409. Invalid explicit
 values return 422; a missing run remains 404. For compatibility, omitting
 intent still uses the legacy cancel-or-delete behaviour, so older callers
 must adopt the parameter to avoid stale clicks changing the operation.
+
+Starting or already-stopping runs also return 409 to a Cancel request; refresh
+status instead of issuing a competing stop. A failed process stop returns a
+sanitized 503 and retains the run and its capacity slot. Active counts include
+launch reservations and stop finalization, not just executing subprocesses.
+While external termination/terminal publication is owned, status stays Running,
+progress stays unfinished, and Delete/retention cannot remove the artifacts.
+This is single-process ownership, not provider cancellation or guaranteed audit
+durability during a storage fault. See the
+[stop-ownership contract](results-2026-09-06-run-stop-ownership.md).
 Unknown or not-yet-read states do not expose mutation buttons in the shipped
 client; a BYOK history read error is Unknown, not a failed worker.
 See the [request and browser verification](results-2026-09-06-run-mutation-intent.md).

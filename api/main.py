@@ -774,6 +774,7 @@ def get_run(run_id: str) -> RunStatus:
     responses={
         404: {"description": "Unknown run_id"},
         409: {"description": "Run state conflicts with the requested mutation intent"},
+        503: {"description": "Worker stop could not be confirmed; refresh status before retrying"},
     },
 )
 def delete_run(
@@ -806,6 +807,16 @@ def delete_run(
         try:
             runs.cancel_run(run_id)
             return {"run_id": run_id, "action": "cancelled"}
+        except runs.RunStillActive as exc:
+            # A second stop (including legacy DELETE) cannot fall through to
+            # deletion while the first owns process exit or terminal writes.
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except runs.RunStopFailed as exc:
+            _LOGGER.exception("Failed to stop run %s", run_id)
+            raise HTTPException(
+                status_code=503,
+                detail="The run could not be stopped. Refresh its status before trying again.",
+            ) from exc
         except runs.RunNotFound:
             if intent == "cancel":
                 # A preflight GET in the browser cannot close this race: the
