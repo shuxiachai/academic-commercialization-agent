@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -91,6 +92,21 @@ _COPY: dict[str, dict[str, str]] = {
     },
 }
 
+# The marker is an in-band locator, not proof that Python authored the text.
+# Recognize only the reserved, explicitly labelled metadata paragraph; an
+# unmarked quotation or an inline/bare marker remains ordinary report prose.
+# Its authority always comes from the current gate, never the old paragraph.
+_LABELS = "|".join(re.escape(copy["label"]) for copy in _COPY.values())
+_OWNED_BLOCK = re.compile(
+    rf"^{re.escape(_MARKER)}[ \t]*\r?\n(?:[ \t]*\r?\n)*"
+    rf">[ \t]*\*\*(?:{_LABELS}):\*\*[^\r\n]*"
+    r"(?:\r?\n>[^\r\n]*)*",
+    re.MULTILINE,
+)
+# Only an opening H1 can precede the notice. Searching for the first H1
+# anywhere can insert the notice inside a fenced model example instead.
+_OPENING_TITLE = re.compile(r"\A(?:[ \t]*\r?\n)*# [^\r\n]*(?:\r?\n|$)")
+
 
 def add_applicability_block(
     report: str,
@@ -98,13 +114,15 @@ def add_applicability_block(
     decision_gate: dict[str, Any] | None,
     output_language: str,
 ) -> str:
-    """Insert one idempotent, deterministic block after the first H1.
+    """Reassert current applicability after an opening H1, or before prose.
 
     Runs predating Decision Context have no gate.  Leaving their bytes alone is
     more honest than backfilling them as orientation reports after the fact.
+    Idempotence compares the full canonical paragraph and its preamble
+    position, not mere marker presence in untrusted generated text.
     """
 
-    if not decision_gate or _MARKER in report:
+    if not decision_gate:
         return report
     copy = _COPY.get(output_language, _COPY["English"])
     mode = str(decision_gate.get("mode") or "unknown")
@@ -120,13 +138,28 @@ def add_applicability_block(
         f"{copy['provenance']}: `{provenance_status}`. {copy['caveat']}"
     )
 
-    lines = report.splitlines()
-    insert_at = next(
-        (index + 1 for index, line in enumerate(lines) if line.startswith("# ")),
-        0,
-    )
-    lines[insert_at:insert_at] = ["", block, ""]
-    rendered = "\n".join(lines)
-    if report.endswith("\n"):
-        rendered += "\n"
-    return rendered
+    matches = list(_OWNED_BLOCK.finditer(report))
+    if len(matches) == 1:
+        match = matches[0]
+        prefix = report[:match.start()]
+        title = _OPENING_TITLE.match(prefix)
+        preamble_only = not prefix.strip() or (
+            title is not None and not prefix[title.end():].strip()
+        )
+        if preamble_only and match.group().replace("\r\n", "\n") == block:
+            # Preserve a genuine current delivery byte-for-byte, including old
+            # blank lines. Identical model text cannot change the gate either.
+            return report
+
+    # Replace copied/stale/duplicated reserved paragraphs instead of leaving
+    # conflicting code-labelled authority below a newly prepended disclaimer.
+    # This is not a general prose scrubber: ordinary claims and bare markers
+    # are retained, and no source fact or recommendation is silently repaired.
+    body = _OWNED_BLOCK.sub("", report)
+    title = _OPENING_TITLE.match(body)
+    if title is not None:
+        prefix = body[:title.end()].rstrip("\r\n")
+        suffix = body[title.end():].lstrip("\r\n")
+        return f"{prefix}\n\n{block}\n\n{suffix}"
+    suffix = body.lstrip("\r\n")
+    return f"{block}\n\n{suffix}"
