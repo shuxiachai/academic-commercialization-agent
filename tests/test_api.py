@@ -539,6 +539,115 @@ class DeleteRunTests(_ApiTestCase):
     remove its directory and every artifact in it for good.
     """
 
+    def test_cancel_intent_after_completion_keeps_the_paid_report(self):
+        """A stale Cancel click used to fall through to permanent deletion."""
+        rid = self._make_run(status={"done": True}, report="# Keep this report")
+        response = self.client.delete(f"/api/runs/{rid}?intent=cancel")
+        self.assertEqual(response.status_code, 409, response.json())
+        self.assertEqual(self.client.get(f"/api/runs/{rid}/report").text, "# Keep this report")
+        self.assertTrue((self.tmp / rid).is_dir())
+
+    @patch("api.runs.subprocess.Popen")
+    def test_delete_intent_on_a_live_run_never_cancels_it(self, mock_popen):
+        """A failed BYOK status read used to turn a Delete click into cancellation."""
+        proc = self._live_proc()
+        mock_popen.return_value = proc
+        rid = self.client.post("/api/runs", json={"topic": "live deletion guard"}).json()["run_id"]
+        response = self.client.delete(f"/api/runs/{rid}?intent=delete")
+        self.assertEqual(response.status_code, 409, response.json())
+        proc.terminate.assert_not_called()
+        self.assertEqual(self.client.get(f"/api/runs/{rid}").json()["state"], "running")
+
+    @patch("api.runs.subprocess.Popen")
+    def test_cancel_intent_remains_cancel_when_worker_finishes_after_poll(self, mock_popen):
+        """A preflight read cannot prevent completion racing the Cancel request."""
+        proc = self._live_proc()
+        mock_popen.return_value = proc
+        rid = self.client.post("/api/runs", json={"topic": "finish after poll"}).json()["run_id"]
+        self.assertEqual(self.client.get(f"/api/runs/{rid}").json()["state"], "running")
+        directory = self.tmp / rid
+        (directory / "status.json").write_text(json.dumps({"done": True}), encoding="utf-8")
+        (directory / "commercialization_report.md").write_text("# Finished", encoding="utf-8")
+        proc.poll.return_value = 0
+        response = self.client.delete(f"/api/runs/{rid}?intent=cancel")
+        self.assertEqual(response.status_code, 409)
+        proc.terminate.assert_not_called()
+        self.assertEqual(self.client.get(f"/api/runs/{rid}/report").text, "# Finished")
+
+    @patch("api.runs.subprocess.Popen")
+    def test_explicit_cancel_succeeds_but_a_repeat_never_deletes(self, mock_popen):
+        """An idempotent user retry must not escalate cancellation to erasure."""
+        proc = self._live_proc()
+        mock_popen.return_value = proc
+        rid = self.client.post("/api/runs", json={"topic": "explicit cancel"}).json()["run_id"]
+        response = self.client.delete(f"/api/runs/{rid}?intent=cancel")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["action"], "cancelled")
+        proc.terminate.assert_called_once()
+        self.assertEqual(self.client.delete(f"/api/runs/{rid}?intent=cancel").status_code, 409)
+        self.assertTrue((self.tmp / rid).is_dir())
+        self.assertEqual(self.client.get(f"/api/runs/{rid}").json()["state"], "cancelled")
+
+    def test_explicit_delete_still_removes_a_finished_run(self):
+        """A safety fix cannot pass simply by disabling both mutations."""
+        rid = self._make_run(status={"done": True}, report="# Delete by intent")
+        response = self.client.delete(f"/api/runs/{rid}?intent=delete")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["action"], "deleted")
+        self.assertFalse((self.tmp / rid).exists())
+
+    def test_invalid_intents_do_not_silently_use_legacy_behavior(self):
+        """A misspelled intent must not re-enable cancel-or-delete dispatch."""
+        rid = self._make_run(status={"done": True}, report="# Keep")
+        for intent in ("", "CANCEL", "remove", "null"):
+            with self.subTest(intent=intent):
+                self.assertEqual(self.client.delete(f"/api/runs/{rid}?intent={intent}").status_code, 422)
+                self.assertTrue((self.tmp / rid).is_dir())
+
+    def test_explicit_cancel_missing_run_remains_404(self):
+        """Safe cancellation must not turn an absent run into a state conflict."""
+        for rid in (_run_id("ffffffffff"), "not-a-run"):
+            with self.subTest(run_id=rid):
+                self.assertEqual(self.client.delete(f"/api/runs/{rid}?intent=cancel").status_code, 404)
+
+    def test_explicit_intents_still_require_the_owning_code(self):
+        """The additive intent parameter must not bypass mutation authorization."""
+        rid = self._make_run(status={"done": True}, report="# Private report")
+        (self.tmp / rid / ".owner").write_text(access.owner_id("owner-code"), encoding="utf-8")
+        with patch.object(access, "ACCESS_CODES", "owner-code,other-code"), \
+             patch.object(access, "ADMIN_CODE", None), \
+             patch.object(runs, "cancel_run") as cancel, patch.object(runs, "delete_run") as delete:
+            for intent in ("cancel", "delete"):
+                for headers in ({}, {"X-Access-Code": "other-code"}):
+                    with self.subTest(intent=intent, authorized=False):
+                        response = self.client.delete(f"/api/runs/{rid}?intent={intent}", headers=headers)
+                        self.assertEqual(response.status_code, 404)
+            cancel.assert_not_called()
+            delete.assert_not_called()
+
+    def test_openapi_exposes_optional_closed_mutation_intents(self):
+        """Clients must discover the same intent contract enforced by dispatch."""
+        operation = self.client.get("/openapi.json").json()["paths"]["/api/runs/{run_id}"]["delete"]
+        parameter = next(p for p in operation["parameters"] if p["name"] == "intent")
+        self.assertFalse(parameter["required"])
+        variants = parameter["schema"]["anyOf"]
+        self.assertIn({"enum": ["cancel", "delete"], "type": "string"}, variants)
+
+    def test_explicit_delete_keeps_owner_admin_and_ownerless_contracts(self):
+        """Intent restricts the operation, not the existing identity model."""
+        with patch.object(access, "ACCESS_CODES", "owner-code,other-code"), \
+             patch.object(access, "ADMIN_CODE", "admin-code"):
+            for code in ("owner-code", "admin-code", None):
+                with self.subTest(identity=code or "ownerless-byok"):
+                    rid = self._make_run(status={"done": True}, report="# Authorized removal")
+                    if code is not None:
+                        (self.tmp / rid / ".owner").write_text(access.owner_id("owner-code"), encoding="utf-8")
+                    headers = {"X-Access-Code": code} if code is not None else {}
+                    response = self.client.delete(f"/api/runs/{rid}?intent=delete", headers=headers)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.json()["action"], "deleted")
+                    self.assertFalse((self.tmp / rid).exists())
+
     @patch("api.runs.subprocess.Popen")
     def test_delete_live_run_cancels_but_keeps_it(self, mock_popen):
         proc = self._live_proc()

@@ -75,7 +75,7 @@ report must not be presented as an owner-authorized GO/NO_GO instruction.
 | GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract |
 | GET | `/api/runs/{id}/report` | Final Markdown |
 | GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts |
-| DELETE | `/api/runs/{id}` | Cancel/delete subject to state and ownership rules |
+| DELETE | `/api/runs/{id}?intent=cancel` or `?intent=delete` | Only the requested operation, subject to state and ownership rules |
 | POST | `/api/runs/{id}/resume` | New immutable recovery child, not mutation of the old result |
 
 For a local, ungated deployment, a JSON POST starts paid work:
@@ -88,6 +88,16 @@ Read `run_id` from the actual response and use it in later requests; example
 IDs are not credentials for real runs. On gated deployments, supply an
 `X-Access-Code` header or the supported BYOK fields, never put keys or codes
 in URLs. Consult the local OpenAPI schemas for exact field validation.
+
+Always specify mutation intent. `intent=cancel` never deletes a report:
+an inactive retained run returns 409, so refresh its status. `intent=delete`
+never cancels a live run: that conflict also returns 409. Invalid explicit
+values return 422; a missing run remains 404. For compatibility, omitting
+intent still uses the legacy cancel-or-delete behaviour, so older callers
+must adopt the parameter to avoid stale clicks changing the operation.
+Unknown or not-yet-read states do not expose mutation buttons in the shipped
+client; a BYOK history read error is Unknown, not a failed worker.
+See the [request and browser verification](results-2026-09-06-run-mutation-intent.md).
 
 ## Artifacts and recovery
 

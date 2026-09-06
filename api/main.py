@@ -20,6 +20,7 @@ import threading
 import time
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import (
@@ -710,34 +711,59 @@ def get_run(run_id: str) -> RunStatus:
     tags=["runs"],
     responses={
         404: {"description": "Unknown run_id"},
-        409: {"description": "Run is mid-cancellation from a concurrent request — retry"},
+        409: {"description": "Run state conflicts with the requested mutation intent"},
     },
 )
-def delete_run(run_id: str, http_request: Request) -> dict:
+def delete_run(
+    run_id: str, http_request: Request,
+    intent: Literal["cancel", "delete"] | None = Query(
+        default=None,
+        description="cancel never deletes; delete never cancels. Omit only for legacy cancel-or-delete behavior.",
+    ),
+) -> dict:
     """Stop a live run, or permanently delete a finished one's record.
 
-    A live run is only terminated (kept, marked cancelled) so its partial
+    Without intent, a live run is terminated (kept, marked cancelled) so its partial
     progress stays inspectable — call this again once it has stopped to
     actually remove it. A run that is already completed, failed, cancelled,
     or timed out is deleted immediately: its directory, report, and every
     other artifact are gone for good, not just hidden from the list.
 
-    Unlike the read endpoints on this same path prefix, this one is NOT a
-    capability URL. Knowing a run_id is enough to read a run — that is the
-    deliberate report-sharing model — but it must not be enough to destroy
-    one: run ids travel through browser history, screenshots and forwarded
-    links, and a reader who was handed a report link should not thereby be
-    able to delete it out from under its owner.
+    The web client specifies intent so a stale Cancel cannot erase a newly
+    completed report and a stale Delete cannot stop paid work. Omitted intent
+    retains the documented dual-purpose behavior for older API callers.
+
+    Code-owned mutations still require their owner/admin code, unlike shared
+    reads. Ownerless BYOK retains its existing capability-based mutation
+    contract because it has no second server-side identity. Intent constrains
+    the operation; it does not replace either authorization boundary.
     """
     _authorize_run_mutation(run_id, http_request)
 
-    try:
-        runs.cancel_run(run_id)
-        return {"run_id": run_id, "action": "cancelled"}
-    except runs.RunNotFound:
-        pass  # not live — fall through to an actual delete
+    if intent != "delete":
+        try:
+            runs.cancel_run(run_id)
+            return {"run_id": run_id, "action": "cancelled"}
+        except runs.RunNotFound:
+            if intent == "cancel":
+                # A preflight GET in the browser cannot close this race: the
+                # worker may finish before DELETE arrives. Preserve the user's
+                # operation at dispatch instead of promoting it to destruction.
+                # The existing reader validates the id and distinguishes a
+                # missing run from a retained one without guessing from stage.
+                try:
+                    runs.get_state(run_id)
+                except runs.RunNotFound as exc:
+                    raise HTTPException(status_code=404, detail=str(exc)) from exc
+                raise HTTPException(
+                    status_code=409,
+                    detail="Run is no longer active. Refresh its status; no artifacts were deleted.",
+                ) from None
+            # Legacy callers explicitly retain the old cancel-or-delete route.
 
     try:
+        # delete_run owns the locked active-process check. A caller asking to
+        # delete must never route through cancel_run, even if its UI is stale.
         runs.delete_run(run_id)
     except runs.RunNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

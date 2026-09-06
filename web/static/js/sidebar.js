@@ -73,6 +73,10 @@ export function render(container, runs, { activeId, onSelect, onDelete }) {
       const dot = document.createElement("span");
       dot.className = "runitem__state";
       dot.dataset.state = run.state;
+      if (run.state === "unknown") {
+        dot.title = t("run_state_unknown");
+        item.setAttribute("aria-label", `${run.topic || run.run_id} — ${t("run_state_unknown")}`);
+      }
 
       const label = document.createElement("span");
       label.className = "runitem__label";

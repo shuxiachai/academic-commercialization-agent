@@ -22,6 +22,12 @@ zero-provider Chromium and Docker. Test totals are revision snapshots, not
 an accuracy metric. Installation/lint resolution can need network even though
 the default test execution uses no provider calls.
 
+Subsequent maintenance also preserves explicit Cancel/Delete intent across
+the first-party browser and API, and withholds mutation controls for unknown
+states. Legacy unqualified DELETE remains dual-purpose for compatibility;
+this is an offline-verified contract, not an observed data-loss rate. See the
+[stale-click regression and limits](results-2026-09-06-run-mutation-intent.md).
+
 ## Main evaluation ledger
 
 | Question | Observed evidence | Boundary / decision |

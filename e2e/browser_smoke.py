@@ -208,6 +208,8 @@ def _exercise_browser(
     http_failures: list[tuple[str, str, int]] = []
     page_errors: list[str] = []
     page: Page | None = None
+    held_progress: list[Route] = []
+    faults = {"hold_progress": False, "history_503": False}
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
@@ -223,6 +225,13 @@ def _exercise_browser(
             if request.method not in {"GET", "HEAD", "OPTIONS"}:
                 mutation_attempts.append(f"{request.method} {parsed.path}")
                 route.abort("blockedbyclient")
+                return
+            if faults["hold_progress"] and parsed.path == f"/api/runs/{run_id}/progress":
+                held_progress.append(route)
+                return
+            if faults["history_503"] and parsed.path == f"/api/runs/{run_id}":
+                faults["history_503"] = False
+                route.fulfill(status=503, content_type="application/json", body='{"detail":"fixture unavailable"}')
                 return
             route.continue_()
 
@@ -279,8 +288,17 @@ def _exercise_browser(
             )
             expect(run_button).to_be_enabled()
 
+            # Delay the first state response, not the page or the real worker.
+            # Before it arrives the old client invented running and offered a
+            # Cancel action which could delete an already completed report.
+            faults["hold_progress"] = True
             run_item.click()
             expect(page).to_have_url(f"{base_url}/run/{run_id}")
+            expect(page.locator("#run-pill")).to_have_text("unknown")
+            expect(page.locator("#run-actions button")).to_have_count(0)
+            assert len(held_progress) == 1, "The first progress request was not held."
+            faults["hold_progress"] = False
+            held_progress.pop().continue_()
             expect(page.locator("#run-title")).to_have_text(FIXTURE_TOPIC)
             expect(page.locator("#run-pill")).to_have_text("completed")
             terminal = page.locator("#run-terminal")
@@ -315,6 +333,7 @@ def _exercise_browser(
             expect(page.locator("#run-usage")).to_contain_text("partial usage")
             expect(page.locator('.stage[data-state="done"]')).to_have_count(0)
             expect(page.locator('.stage[data-state="pending"]')).to_have_count(5)
+            expect(page.locator("#run-actions button")).to_have_count(0)
 
             # Nested faults are weaker than completion or the report itself.
             # Before projection isolation a scalar failed_domains caused 500;
@@ -356,6 +375,29 @@ def _exercise_browser(
                 else:
                     expect(page.locator("#run-runtime-record")).to_have_text("")
 
+            # A BYOK history GET failing transiently is not a failed worker.
+            # Keep its capability entry visible, unknown and non-destructive,
+            # then prove a successful reload restores the real completed row.
+            # These are fake credentials; the unchanged route guard prohibits
+            # every submission, cancellation and deletion in this journey.
+            page.evaluate("""({runId, topic}) => {
+                localStorage.removeItem("access-code");
+                sessionStorage.setItem("byok-credentials", JSON.stringify({
+                    provider: "deepseek", llmKey: "fixture-not-a-key", serperKey: "fixture-not-a-key"
+                }));
+                sessionStorage.setItem("byok-runs", JSON.stringify([{run_id: runId, topic}]));
+            }""", {"runId": run_id, "topic": FIXTURE_TOPIC})
+            faults["history_503"] = True
+            page.goto(base_url, wait_until="domcontentloaded")
+            expect(page.locator("#byok-badge")).to_be_visible()
+            byok_row = page.locator(".runitem-row").filter(has=page.locator(f'[data-run-id="{run_id}"]'))
+            expect(byok_row.locator('.runitem__state[data-state="unknown"]')).to_have_count(1)
+            expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(0)
+            expect(byok_row.locator(".runitem")).to_have_attribute("aria-label", f"{FIXTURE_TOPIC} — Run state unavailable; this does not mean it failed.")
+            page.reload(wait_until="domcontentloaded")
+            expect(byok_row.locator('.runitem__state[data-state="completed"]')).to_have_count(1)
+            expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(1)
+
             assert not external_requests, (
                 "The browser attempted non-loopback requests: "
                 + ", ".join(external_requests)
@@ -370,22 +412,31 @@ def _exercise_browser(
             # attempt. Chromium projects each expected 401 into a generic
             # console error, so classify it against the precise HTTP response
             # instead of either treating the healthy gate as broken or
-            # suppressing every browser error indiscriminately.
+            # suppressing every browser error indiscriminately. The one-shot
+            # history 503 is also matched to its exact route and count; it
+            # cannot hide an unrelated failing endpoint or console message.
             expected_auth_failures = [
                 ("GET", "/api/access/check", 401),
                 ("GET", "/api/access/check", 401),
             ]
-            assert http_failures == expected_auth_failures, (
+            expected_history_failures = [("GET", f"/api/runs/{run_id}", 503)]
+            assert http_failures == expected_auth_failures + expected_history_failures, (
                 f"Unexpected HTTP failures: {http_failures!r}"
             )
             expected_401_console = (
                 "Failed to load resource: the server responded with a status "
                 "of 401 (Unauthorized)"
             )
+            expected_503_console = (
+                "Failed to load resource: the server responded with a status "
+                "of 503 (Service Unavailable)"
+            )
             unexpected_console_errors[:] = [
-                message for message in console_errors if message != expected_401_console
+                message for message in console_errors
+                if message not in (expected_401_console, expected_503_console)
             ]
-            assert len(console_errors) == len(expected_auth_failures)
+            assert console_errors.count(expected_401_console) == len(expected_auth_failures)
+            assert console_errors.count(expected_503_console) == len(expected_history_failures)
             assert not unexpected_console_errors, (
                 "Browser console errors: " + "; ".join(unexpected_console_errors)
             )
@@ -400,7 +451,8 @@ def _exercise_browser(
     return {
         "external_requests": len(external_requests),
         "mutation_attempts": len(mutation_attempts),
-        "expected_unauthorized_responses": len(http_failures),
+        "expected_unauthorized_responses": len(expected_auth_failures),
+        "expected_history_unavailable_responses": len(expected_history_failures),
         "console_errors": len(unexpected_console_errors),
         "page_errors": len(page_errors),
     }
