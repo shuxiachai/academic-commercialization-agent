@@ -56,7 +56,7 @@ class UsageSummaryTests(unittest.TestCase):
         (work / "harness.mjs").write_text(textwrap.dedent("""
             globalThis.localStorage = { getItem: () => null, setItem: () => {} };
             const {
-                terminalSummary, terminalTitle, usageSummary, usageTitle,
+                terminalSummary, terminalTitle, usageSummary, usageTitle, runtimeMetadataSummary,
             } = await import("./run.mjs");
             const payload = JSON.parse(process.argv[2]);
             const usage = payload?.usage ?? null;
@@ -68,6 +68,7 @@ class UsageSummaryTests(unittest.TestCase):
                 title: usageTitle(usage, accounting),
                 terminalSummary: terminalSummary(terminal, state),
                 terminalTitle: terminalTitle(terminal, state),
+                runtimeSummary: runtimeMetadataSummary(payload?.runtimeFields ?? []),
             }));
         """), encoding="utf-8")
         cls._work = work
@@ -92,12 +93,14 @@ class UsageSummaryTests(unittest.TestCase):
         *,
         terminal=None,
         state: str = "",
+        runtime_fields=None,
     ) -> dict:
         payload = {
             "usage": usage,
             "accounting": accounting,
             "terminal": terminal,
             "state": state,
+            "runtimeFields": runtime_fields,
         }
         result = subprocess.run(
             [_node(), str(self._work / "harness.mjs"), json.dumps(payload)],
@@ -208,6 +211,25 @@ class UsageSummaryTests(unittest.TestCase):
         source = _APP_JS.read_text(encoding="utf-8")
         self.assertIn("usageSummary(usage, usage_accounting)", source)
         self.assertIn("usageTitle(usage, usage_accounting)", source)
+
+    def test_unavailable_accounting_overrides_numeric_snapshot_defaults(self):
+        """A collector-error payload used to show a price despite unavailable accounting."""
+        out = self._render({
+            "total_tokens": 100, "cost_usd": 0.0, "cost_complete": True,
+            "agents": [{"role": "A", "total_tokens": 100, "cost_usd": 0.0}],
+        }, {"state": "unavailable"})
+        self.assertEqual(out["summary"], "usage unavailable")
+        self.assertNotIn("$", out["summary"] + out["title"])
+        self.assertIn("does not mean zero", out["title"])
+
+    def test_runtime_read_faults_are_explicit_and_code_owned(self):
+        out = self._render(None, runtime_fields=[
+            "usage", "usage_accounting", "checkpointing", "recovery", "private-invalid-value",
+        ])
+        for label in ("unreadable", "Usage and cost", "Usage completeness", "Checkpoint persistence", "Recovery"):
+            self.assertIn(label, out["runtimeSummary"])
+        self.assertNotIn("private-invalid-value", out["runtimeSummary"])
+        self.assertEqual(self._render(None)["runtimeSummary"], "")
 
     def test_known_terminal_reason_and_method_are_inspectable(self):
         """The worker's reason must survive the final JavaScript formatter."""

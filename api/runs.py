@@ -44,6 +44,7 @@ from academic_agent.run_terminal import (
     load_terminal_record,
 )
 from api.audit_projection import project_audit_metadata
+from api.runtime_projection import project_runtime_metadata
 
 # A run is killed after this long. The bound belongs to the worker contract,
 # not to whichever client submitted or polls the run.
@@ -1368,8 +1369,13 @@ def get_state(run_id: str) -> dict:
         # it from a mutable live file would silently resurrect stale counters.
         usage = terminal_record.usage
         usage_accounting = terminal_record.usage_accounting.model_dump(mode="json")
-        checkpointing = terminal_record.checkpointing or checkpointing
-        recovery = terminal_record.recovery or recovery
+        # None means the optional terminal snapshot was not recorded. A
+        # present empty/broken object is NOT permission to resurrect stale
+        # mutable claims about checkpoint persistence or successful reuse.
+        if terminal_record.checkpointing is not None:
+            checkpointing = terminal_record.checkpointing
+        if terminal_record.recovery is not None:
+            recovery = terminal_record.recovery
     elif terminal_projection is not None or status_record_state == "unreadable":
         # A readable node snapshot is still useful, but a damaged outcome
         # cannot certify its completeness. Keep the observation and its known
@@ -1383,13 +1389,20 @@ def get_state(run_id: str) -> dict:
             "run_complete": False,
             "in_flight_request_may_have_spent": True,
         }
-
+    # Validate only the selected runtime view: a valid immutable snapshot can
+    # legitimately shadow a damaged live one. This does not rewrite either
+    # record or change the process outcome derived above.
+    runtime, runtime_metadata_unreadable = project_runtime_metadata({
+        "usage": usage, "usage_accounting": usage_accounting,
+        "checkpointing": checkpointing, "recovery": recovery,
+    })
 
     return {
         "run_id": run_id,
         "state": state,
         "status_record_state": status_record_state,
         "audit_metadata_unreadable": audit_metadata_unreadable,
+        "runtime_metadata_unreadable": runtime_metadata_unreadable,
         "stage": status.get("stage") or (terminal_record.last_stage if terminal_record else ""),
         "topic": status.get("topic") or (handle.topic if handle else ""),
         "output_language": status.get("output_language") or "English",
@@ -1418,10 +1431,10 @@ def get_state(run_id: str) -> dict:
         # crew has run, including on failed runs — a run that died halfway
         # still spent whatever it spent, and that is the case where the number
         # is least guessable and most worth showing.
-        "usage": usage,
+        "usage": runtime["usage"],
         # Temporal completeness is independent of price completeness. A
         # lower-bound token total can still have a complete price table.
-        "usage_accounting": usage_accounting,
+        "usage_accounting": runtime["usage_accounting"],
         "runtime_budget": status.get("runtime_budget"),
         "terminal": terminal_projection,
         # Counts from the claim-grounding screen: how many quantitative claims
@@ -1469,8 +1482,8 @@ def get_state(run_id: str) -> dict:
         # explicit so a failed auxiliary write cannot look like successful
         # recovery, and a cold start cannot look like a cache hit simply
         # because checkpointing itself was healthy.
-        "checkpointing": checkpointing,
-        "recovery": recovery,
+        "checkpointing": runtime["checkpointing"],
+        "recovery": runtime["recovery"],
         "artifacts": available_artifacts(run_dir),
     }
 

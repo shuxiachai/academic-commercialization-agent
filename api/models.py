@@ -161,6 +161,11 @@ class RunProgress(BaseModel):
     run_id: str
     state: RunState
     status_record_state: Literal["absent", "readable", "unreadable"] | None = None
+    runtime_metadata_unreadable: list[str] = Field(
+        default_factory=list,
+        description="Selected usage/accounting/checkpoint/recovery fields that could not be read. "
+                    "Safe defaults do not prove zero spend or successful reuse.",
+    )
     audit_metadata_unreadable: list[str] = Field(
         default_factory=list,
         description="Code-owned field names whose audit summary could not be read. "
@@ -307,6 +312,11 @@ class RunStatus(BaseModel):
     # A valid immutable terminal can coexist with an unreadable live status.
     # Surface that loss even when the stronger outcome still says completed.
     status_record_state: Literal["absent", "readable", "unreadable"] | None = None
+    runtime_metadata_unreadable: list[str] = Field(
+        default_factory=list,
+        description="Selected usage/accounting/checkpoint/recovery fields that could not be read. "
+                    "Safe defaults do not prove zero spend or successful reuse.",
+    )
     audit_metadata_unreadable: list[str] = Field(
         default_factory=list,
         description="Code-owned field names whose audit summary could not be read. "

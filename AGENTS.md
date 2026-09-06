@@ -215,6 +215,9 @@ restart Railway, invoke a paid canary or publish private run links.
    [fault verification](docs/results-2026-09-05-runtime-metadata-integrity.md).
    Nine display-facing audit-summary fields have field-local isolation; see
    the [nested contract and limits](docs/results-2026-09-05-nested-audit-metadata-integrity.md).
+   Selected usage/accounting/checkpoint/recovery summaries also have
+   [read isolation](docs/results-2026-09-05-runtime-summary-read-integrity.md),
+   not writer validation or proof of actual recovery.
    Other nested payloads, detailed audit artifacts and unused auxiliary readers
    are not comprehensively validated; this is not a main-pipeline outage.
 4. Input distribution: language/shape admission is tested, but the 30-run

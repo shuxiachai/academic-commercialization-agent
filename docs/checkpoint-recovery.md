@@ -78,6 +78,14 @@ because its own guardrail still ran.
 
 ## API and credentials
 
+Status/progress reads isolate malformed selected checkpoint/recovery summaries
+and expose `runtime_metadata_unreadable`. A string node list cannot masquerade
+as reused-stage counts or a browser Resume affordance. An empty terminal object
+cannot fall back to stale mutable claims; an optional null terminal snapshot
+retains legacy fallback. Read isolation does not validate manifests, authorize
+reuse or change the lifecycle above. See the
+[runtime-summary read contract](results-2026-09-05-runtime-summary-read-integrity.md).
+
 ```bash
 curl -X POST http://localhost:8000/api/runs/<failed-run-id>/resume \
      -H 'Content-Type: application/json' \

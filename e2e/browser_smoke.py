@@ -197,7 +197,10 @@ def _capture_failure(page: Page | None) -> None:
         )
 
 
-def _exercise_browser(base_url: str, run_id: str, fault_ids: tuple[str, str, str]) -> dict[str, int]:
+def _exercise_browser(
+    base_url: str, run_id: str, fault_ids: tuple[str, str, str],
+    runtime_ids: tuple[str, str, str],
+) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
     console_errors: list[str] = []
@@ -327,6 +330,32 @@ def _exercise_browser(base_url: str, run_id: str, fault_ids: tuple[str, str, str
                 expect(row).to_contain_text("Stored audit summary is unreadable")
             expect(page.locator('.reliability__row[data-check="review"]')).to_have_attribute("data-tone", "ok")
 
+            # These nested terminal faults previously crashed price/error-list
+            # formatting or counted characters as reused nodes. Completion and
+            # the report are stronger facts than a malformed display summary.
+            damaged_runtime_id, bad_resume_id, valid_resume_id = runtime_ids
+            page.goto(f"{base_url}/run/{damaged_runtime_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            expect(page.locator("#run-terminal")).to_have_text("· worker completed")
+            expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+            expect(page.locator("#run-usage")).to_contain_text("usage unavailable")
+            expect(page.locator("#run-usage")).not_to_contain_text("$")
+            for label in ("Usage and cost", "Checkpoint persistence", "Recovery"):
+                expect(page.locator("#run-runtime-record")).to_contain_text(label)
+            expect(page.locator("#run-recovery")).to_have_text("")
+
+            # A malformed string containing 'retrieval' must not expose Resume.
+            # The positive control prevents hiding all recovery from passing.
+            # Neither journey clicks Resume: the server owns real eligibility.
+            for fixture_id, resume_count in ((bad_resume_id, 0), (valid_resume_id, 1)):
+                page.goto(f"{base_url}/run/{fixture_id}", wait_until="domcontentloaded")
+                expect(page.locator("#run-pill")).to_have_text("failed")
+                expect(page.locator("#run-actions").get_by_role("button", name="Resume from checkpoint", exact=True)).to_have_count(resume_count)
+                if not resume_count:
+                    expect(page.locator("#run-runtime-record")).to_contain_text("Checkpoint persistence")
+                else:
+                    expect(page.locator("#run-runtime-record")).to_have_text("")
+
             assert not external_requests, (
                 "The browser attempted non-loopback requests: "
                 + ", ".join(external_requests)
@@ -406,8 +435,26 @@ def main() -> None:
             "failed_domains": 1, "quality_review": {"status": "passed"},
         })
         audit_path.write_text(json.dumps(audit_status), encoding="utf-8")
+        runtime_ids = tuple(_write_completed_run(output_root, access.owner_id(ACCESS_CODE)) for _ in range(3))
+        for index, runtime_id in enumerate(runtime_ids):
+            # Corrupt only isolated fixture bytes, never a real write-once run.
+            terminal_path = output_root / runtime_id / "terminal.json"
+            record = json.loads(terminal_path.read_text(encoding="utf-8"))
+            if index == 0:
+                record["usage"]["total_tokens"] = 100
+                record["usage"]["cost_usd"] = "bad-price"
+                record["checkpointing"] = {"state": "degraded", "errors": 1}
+                record["recovery"] = {"state": "reused", "reused_nodes": "academic"}
+            else:
+                record.update(state="failed", reason_code="worker_failed")
+                record["usage_accounting"].update(state="lower_bound", run_complete=False)
+                record["checkpointing"] = {
+                    "state": "partial",
+                    "committed_nodes": "not_retrieval" if index == 1 else ["retrieval"],
+                }
+            terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id))
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids)
 
     print(
         json.dumps(

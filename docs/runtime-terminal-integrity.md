@@ -82,6 +82,15 @@ downloadable `terminal` artifact contains the full non-secret record.
 
 ## Usage states
 
+The HTTP read projection also isolates malformed selected runtime summaries
+through `runtime_metadata_unreadable`, without rewriting the terminal or
+revoking independently valid completion facts. A damaged usage snapshot means
+unavailable; damaged accounting beside readable counters means lower bound.
+Unavailable accounting takes priority over numeric defaults in the browser.
+See the [runtime-summary fault verification](results-2026-09-05-runtime-summary-read-integrity.md)
+for the exact display contract and its limits. This is not a new writer schema
+or provider-accounting algorithm.
+
 Price coverage and temporal accounting are different questions. Existing
 `usage.cost_complete` still means every observed model had a known price.
 Adjacent `usage_accounting.state` means:
