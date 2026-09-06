@@ -228,8 +228,10 @@ restart Railway, invoke a paid canary or publish private run links.
    Selected usage/accounting/checkpoint/recovery summaries also have
    [read isolation](docs/results-2026-09-05-runtime-summary-read-integrity.md),
    not writer validation or proof of actual recovery.
-   Other nested payloads, detailed audit artifacts and unused auxiliary readers
-   are not comprehensively validated; this is not a main-pipeline outage.
+   The report-audit detail renderer also has local shape/counter validation and
+   explicit coverage states; see the [maintenance boundary](docs/results-2026-09-06-maintenance-readiness-query-audit.md).
+   Other nested payloads, detailed artifacts and unused auxiliary readers are
+   not comprehensively validated; this is not a main-pipeline outage.
 4. Input distribution: language/shape admission is tested, but the 30-run
    benchmark does not validate Chinese, very short or non-technical requests.
 5. Scale and long-term operations: one replica, no distributed ownership or

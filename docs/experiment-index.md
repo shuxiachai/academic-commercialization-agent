@@ -21,6 +21,10 @@ were moved or rewritten by this consolidation. Files after this snapshot must
 be evaluated under their own protocols; existing failures are not permission
 to reuse consumed cohorts.
 
+## Recent offline maintenance
+
+- [2026-09-06 readiness, PDF query and audit-detail maintenance](results-2026-09-06-maintenance-readiness-query-audit.md) — offline boundary verification, not a paid experiment.
+
 ## Release snapshot
 
 - [v2.0.0 release record](release-v2.0.0.md) — numbers are from that release.

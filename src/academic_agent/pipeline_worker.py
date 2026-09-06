@@ -544,7 +544,7 @@ def main() -> None:
     )
     from academic_agent.pdf_extractor import PaperContribution, paper_to_evidence_source
     from academic_agent.source_pipeline import (
-        SourceCollection, SourceCollectionError, collect_source_collection,
+        SourceCollection, SourceCollectionError, _recent_years, collect_source_collection,
     )
     from academic_agent.token_usage import collect_usage
 
@@ -853,7 +853,10 @@ def main() -> None:
                     from academic_agent.language import translate_to_english
                     _domain = translate_to_english(_domain) or _domain
                 extra_market_queries = [
-                    f"{_domain} commercial product company revenue manufacturer 2024 2025",
+                    # PDF seeds precede ordinary market queries. Share their
+                    # rolling window rather than spending the source budget on
+                    # an old literal before current-year queries are attempted.
+                    f"{_domain} commercial product company revenue manufacturer {_recent_years()}",
                     f"{_domain} startup investment funding market leader industry",
                 ]
 
