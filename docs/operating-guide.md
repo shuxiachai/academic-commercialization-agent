@@ -68,6 +68,12 @@ but does not cancel provider work or release the lock before the request settles
 These are tab-local protections, not cross-tab/server idempotency. Requests are
 not automatically retried; a lost acknowledgement does not prove no run started.
 
+An accepted BYOK run opens even if its optional session-history write fails;
+the UI asks the user to bookmark the capability URL. Resume exclusion is keyed
+by parent run across language/poll re-renders in that tab. Transport loss or a
+truncated successful paid response is explicitly an unknown acknowledgement,
+not evidence that no billable operation began; BYOK history may lack that run.
+
 Missing Decision Context does not reject a topic. The immutable RunSpec
 derives its applicability mode and carries threshold provenance. An exploratory
 report must not be presented as an owner-authorized GO/NO_GO instruction.
@@ -95,6 +101,23 @@ Readiness performs an isolated real-file write per request; concurrent probes
 do not share a filename. A cleanup-only failure is named separately from a
 write failure. This is local readiness, not provider connectivity or model
 quality verification. See the [maintenance contract](results-2026-09-06-maintenance-readiness-query-audit.md).
+
+`/health.maintenance` separately reports the managed background task and its
+last timeout/paper/retention checks. Initial `not_checked` is not success;
+`running` describes task liveness, not a complete artifact audit. Each stage
+recovers only after its next successful cycle. A cleanup exception is logged
+and advisory; it does not remove timeout supervision or trigger unhealthy
+readiness on its own. A failed managed watchdog or failed timeout stage makes
+`/health/ready` return 503. Offline `readiness()` has no ASGI task prerequisite.
+Shutdown attempts worker cleanup even if awaiting the supervisor raises.
+
+Concurrent PDF uploads share a process-wide PDFium parsing/closure mutex;
+their subsequent LLM calls remain under normal paid admission, not that mutex.
+PDF export uses a bounded per-run striped lock and sibling-file atomic publication.
+Failed renders do not become downloadable caches; obvious old header/trailer-
+incomplete caches are rebuilt on demand. This does not establish arbitrary PDF
+validity, distributed locking or interruption of a stuck native parser. See the
+[maintenance verification](results-2026-09-06-maintenance-runtime-paid-delivery.md).
 
 The LLM readiness check validates the selected supported provider and its effective
 non-empty credential using the same resolver as operator LLM construction. It

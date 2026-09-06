@@ -62,7 +62,11 @@ const BYOK_RUNS_KEY = "byok-runs";
 
 export function getByokRuns() {
   try {
-    return JSON.parse(sessionStorage.getItem(BYOK_RUNS_KEY)) || [];
+    const entries = JSON.parse(sessionStorage.getItem(BYOK_RUNS_KEY));
+    // Browser storage can contain stale but valid JSON. A non-array must not
+    // crash accepted-run navigation/refresh merely because parsing succeeded.
+    return Array.isArray(entries) ? entries.filter((entry) => entry
+      && typeof entry.run_id === "string" && typeof entry.topic === "string") : [];
   } catch {
     return [];
   }
@@ -83,6 +87,11 @@ export function removeByokRun(runId) {
 }
 
 async function request(path, options = {}) {
+  const paidPost = options.method === "POST"
+    && (/^\/api\/(runs|papers)$/.test(path) || /^\/api\/runs\/[^/]+\/resume$/.test(path));
+  const acknowledgementUnknown = () => new ApiError(0,
+    "The paid request may have been accepted, but its acknowledgement was not received. Check history before submitting again.",
+    "paid_ack_unknown");
   const stored = getAccessCode();
   const headers = {
     ...(stored ? { "X-Access-Code": stored } : {}),
@@ -93,8 +102,9 @@ async function request(path, options = {}) {
   try {
     response = await fetch(path, { ...options, headers });
   } catch (cause) {
-    // fetch only rejects on a transport failure, so this is always "the
-    // server is unreachable" rather than an application error.
+    // Losing the response does not prove a paid POST never reached the server.
+    // Never retry automatically or describe that ambiguous outcome as free.
+    if (paidPost) throw acknowledgementUnknown();
     throw new ApiError(0, "Cannot reach the server. Is it still running?");
   }
 
@@ -114,7 +124,14 @@ async function request(path, options = {}) {
 
   if (response.status === 204) return null;
   const type = response.headers.get("content-type") ?? "";
-  return type.includes("application/json") ? response.json() : response.text();
+  try {
+    return type.includes("application/json") ? await response.json() : await response.text();
+  } catch (cause) {
+    // A truncated 202 body loses the run capability just like a transport
+    // failure. This is distinct from the explicit rejected HTTP path above.
+    if (paidPost) throw acknowledgementUnknown();
+    throw cause;
+  }
 }
 
 const json = (body) => ({

@@ -49,6 +49,13 @@ operator construction. HTTP/Node/Chromium regressions are offline evidence, not
 an observed reduction in bills, server exactly-once delivery or a quality gain.
 See the [verified scope](results-2026-09-06-composer-paid-operation-integrity.md).
 
+Further maintenance isolates recurring cleanup faults from timeout supervision,
+serializes native PDF parsing/closure, preserves paid acceptance through browser
+storage failures and resume re-renders, and atomically publishes single-flight PDF
+exports. These are fault-injected offline contracts, not measured production
+incident reductions, exact-once billing or PDF semantic validation. See the
+[runtime/paid-delivery maintenance record](results-2026-09-06-maintenance-runtime-paid-delivery.md).
+
 | Question | Observed evidence | Boundary / decision |
 |---|---|---|
 | Can the frozen baseline complete with consistent mechanics? | 30/30 completed; 26/30 TRL-range hits; 30/30 correct formula and structure; zero uncited numeric lines; 7/10 topics hit their range in every repetition | Expected ranges were revised after early observations. Not independent accuracy or full hallucination measurement. [CSV](../outputs/benchmark/benchmark_summary.csv), [stability](../outputs/benchmark/benchmark_stability.csv) |

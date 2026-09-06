@@ -191,6 +191,13 @@ a single process. Do not increase replica/worker counts without redesigning
 ownership, quota transactions and persistence. Do not infer permission to
 restart Railway, invoke a paid canary or publish private run links.
 
+Maintenance stages fail independently and expose their state in health; a failed
+supervisor cannot skip shutdown. PDFium calls and native closes share a process
+mutex, separate from paid admission and model work. PDF export publishes atomically
+under a per-run striped cache lock. Accepted run navigation must survive optional
+browser-history failures; pending resume state belongs to the parent, not the
+button. See the [maintenance regression and limits](docs/results-2026-09-06-maintenance-runtime-paid-delivery.md).
+
 Composer submission/extraction locks are tab-local, not server idempotency.
 Readiness checks the effective selected credential without contacting providers;
 429 reasons remain distinct. See the [HTTP/browser contract and limits](docs/results-2026-09-06-composer-paid-operation-integrity.md).

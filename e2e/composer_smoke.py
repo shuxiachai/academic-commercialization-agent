@@ -53,6 +53,7 @@ def main() -> None:
     unexpected: list[str] = []
     page_errors: list[str] = []
     run_id = "20260906T000000Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    child_id = "20260906T000001Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     progress = {"run_id": run_id, "topic": "Accepted fixture assessment", "state": "completed",
                 "stage": "Done", "steps": [], "artifacts": [], "elapsed_seconds": 0}
 
@@ -66,7 +67,9 @@ def main() -> None:
             if url.netloc != urlsplit(base).netloc:
                 unexpected.append(f"External request: {request.method} {request.url}")
                 route.abort()
-            elif request.method == "POST" and url.path in {"/api/papers", "/api/runs"}:
+            elif request.method == "POST" and url.path in {
+                "/api/papers", "/api/runs", f"/api/runs/{run_id}/resume",
+            }:
                 requests.append(route)  # Never continue to an ASGI paid endpoint.
             elif request.method != "GET":
                 unexpected.append(f"Unexpected method: {request.method} {url.path}")
@@ -77,6 +80,8 @@ def main() -> None:
                 _json(route, {"runs": []})
             elif url.path == f"/api/runs/{run_id}/progress":
                 _json(route, progress)
+            elif url.path == f"/api/runs/{child_id}/progress":
+                _json(route, {**progress, "run_id": child_id, "state": "completed", "topic": "Accepted child"})
             elif url.path == "/health":
                 _json(route, {"active_runs": 0, "active_paid_operations": 0,
                               "max_concurrent": 5, "retention_days": 30})
@@ -160,6 +165,53 @@ def main() -> None:
                 _json(requests[-1], {"detail": "Fixture limit"}, status=429, code=code)
                 expect(page.locator("#toasts .toast").last).to_contain_text(expected)
                 expect(run).to_be_enabled()
+
+            # A real browser storage exception happens AFTER paid acceptance.
+            # Stub keys never leave this static-only/intercepted browser; no
+            # model is reachable. Only the optional history write is denied.
+            page.evaluate("""() => sessionStorage.setItem('byok-credentials', JSON.stringify({
+                provider: 'qwen', llmKey: 'fixture-only', serperKey: 'fixture-only'
+            }))""")
+            page.goto(base)
+            expect(page.locator("#byok-badge")).to_be_visible()
+            page.evaluate("""() => {
+                const original = Storage.prototype.setItem;
+                Storage.prototype.setItem = function(key, value) {
+                    if (this === sessionStorage && key === 'byok-runs')
+                        throw new DOMException('Fixture storage quota', 'QuotaExceededError');
+                    return original.call(this, key, value);
+                };
+            }""")
+            progress.update(state="failed", checkpointing={"committed_nodes": ["retrieval"]})
+            topic.fill("Accepted despite browser history quota")
+            run.click()
+            _wait_requests(page, requests, 8)
+            _json(requests[7], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
+            expect(page).to_have_url(f"{base}/run/{run_id}")
+            expect(page.locator("#run-pill")).to_have_text("failed")
+            expect(page.locator("#toasts")).to_contain_text("任务已被接受")
+            resume = page.locator(f'[data-resume-run="{run_id}"]')
+            resume.click()
+            _wait_requests(page, requests, 9)
+            expect(resume).to_be_disabled()
+            page.locator("#ui-lang").select_option("English")
+            expect(page.locator("#run-pill")).to_have_text("failed")
+            expect(resume).to_be_disabled()
+            resume.dispatch_event("click")  # Queued synthetic event bypasses native disabled behavior.
+            page.wait_for_timeout(30)
+            assert len(requests) == 9
+            _json(requests[8], {"run_id": child_id, "topic": "Accepted child", "state": "running"}, status=202)
+            expect(page).to_have_url(f"{base}/run/{child_id}")
+            expect(page.locator("#run-title")).to_have_text("Accepted child")
+            expect(page.locator("#toasts")).to_contain_text("run was accepted")
+
+            page.goto(base)
+            topic.fill("Public fixture topic with lost acknowledgement")
+            run.click()
+            _wait_requests(page, requests, 10)
+            requests[9].abort()
+            expect(page.locator("#toasts")).to_contain_text("may already have started")
+            assert len(requests) == 10
             assert not unexpected, unexpected
             assert not reached_server, reached_server
             assert not page_errors, page_errors

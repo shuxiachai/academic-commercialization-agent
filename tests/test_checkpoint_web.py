@@ -6,6 +6,8 @@ despite being computed and stored correctly.
 """
 
 from pathlib import Path
+import shutil
+import subprocess
 
 
 _REPO = Path(__file__).resolve().parents[1]
@@ -21,7 +23,15 @@ def test_terminal_action_calls_the_resume_endpoint_and_opens_the_child() -> None
 
 
 def test_byok_recovery_keeps_the_new_child_in_session_history() -> None:
-    assert "if (byokMode) api.addByokRun(accepted.run_id, accepted.topic)" in _APP_JS
+    """Assert persisted child identity, not an inline spelling of the helper call."""
+    node = shutil.which("node")
+    assert node is not None, "Node is required for the shipped client contract."
+    result = subprocess.run(
+        [node, str(_REPO / "tests/js/composer_contract.mjs"), "accepted_history_success"],
+        capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS accepted_history_success" in result.stdout
 
 
 def test_resume_button_depends_on_a_persisted_retrieval_checkpoint() -> None:
