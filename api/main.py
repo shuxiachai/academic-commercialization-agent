@@ -35,7 +35,7 @@ from fastapi.staticfiles import StaticFiles
 # contract — an API server should be explicit about when its settings exist.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-from academic_agent.llm_config import _detect_provider  # noqa: E402
+from academic_agent.llm_config import _detect_provider, validate_llm_configuration  # noqa: E402
 from academic_agent.pdf_extractor import (  # noqa: E402
     PaperContribution,
     extract_paper_contribution,
@@ -219,7 +219,7 @@ async def _rate_limit(request: Request, call_next):
         return JSONResponse(
             {"detail": "Too many requests. Slow down and retry shortly."},
             status_code=429,
-            headers={"Retry-After": "10"},
+            headers={"Retry-After": "10", "X-Error-Code": "rate_limited"},
         )
     return await call_next(request)
 
@@ -396,7 +396,7 @@ def readiness() -> ReadinessStatus:
     so each one is a named string rather than a count — an operator staring at
     a deploy that will not go healthy needs to know which check failed.
     """
-    # _detect_provider is imported at module scope, not here. Importing
+    # Configuration helpers are imported at module scope, not here. Importing
     # llm_config pulls in crewai, which calls load_dotenv() as a side effect —
     # so a lazy import inside this function would repopulate os.environ from
     # .env part-way through the very checks that are reading it, and report
@@ -404,7 +404,7 @@ def readiness() -> ReadinessStatus:
     checks: dict[str, str] = {}
 
     try:
-        provider = _detect_provider()
+        provider = validate_llm_configuration()
         checks["llm"] = "ok"
     except RuntimeError as exc:
         provider = None
@@ -553,11 +553,13 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
         raise HTTPException(
             status_code=429,
             detail=f"{exc}. Retry once another paid operation finishes.",
+            headers={"X-Error-Code": "concurrency_limit"},
         ) from exc
     except runs.DailyCapReached as exc:
         raise HTTPException(
             status_code=429,
             detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
+            headers={"X-Error-Code": "daily_quota_exceeded"},
         ) from exc
     except runs.PaidLedgerUnavailable as exc:
         _LOGGER.exception("Paid-operation accounting blocked run admission")
@@ -635,11 +637,13 @@ def resume_run(
         raise HTTPException(
             status_code=429,
             detail=f"{exc}. Retry once another paid operation finishes.",
+            headers={"X-Error-Code": "concurrency_limit"},
         ) from exc
     except runs.DailyCapReached as exc:
         raise HTTPException(
             status_code=429,
             detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
+            headers={"X-Error-Code": "daily_quota_exceeded"},
         ) from exc
     except runs.PaidLedgerUnavailable as exc:
         _LOGGER.exception(
@@ -1009,12 +1013,14 @@ async def upload_paper(
         raise HTTPException(
             status_code=429,
             detail=f"{exc}. Retry once another paid operation finishes.",
+            headers={"X-Error-Code": "concurrency_limit"},
         ) from exc
     except runs.DailyCapReached as exc:
         papers.discard(paper_id)
         raise HTTPException(
             status_code=429,
             detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
+            headers={"X-Error-Code": "daily_quota_exceeded"},
         ) from exc
     except runs.PaidLedgerUnavailable as exc:
         papers.discard(paper_id)

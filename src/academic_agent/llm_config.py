@@ -20,6 +20,12 @@ from crewai import LLM
 from academic_agent.runtime_budget import WORKER_LLM_TIMEOUT_ENV
 
 _SUPPORTED_PROVIDERS = ("deepseek", "qwen", "openai", "anthropic")
+_PROVIDER_KEY_NAMES = {
+    "deepseek": ("DEEPSEEK_API_KEY", "OPENAI_API_KEY"),
+    "qwen": ("DASHSCOPE_API_KEY", "OPENAI_API_KEY"),
+    "openai": ("OPENAI_API_KEY",),
+    "anthropic": ("ANTHROPIC_API_KEY",),
+}
 
 # Qwen3.5 Plus is exposed through Alibaba Model Studio's OpenAI-compatible
 # chat endpoint, but remains a logical provider here. That distinction lets
@@ -66,6 +72,37 @@ def _detect_provider() -> str:
         "  OPENAI_API_KEY    -> OpenAI    (default model: gpt-4o)\n"
         "Or set LLM_PROVIDER explicitly to override auto-detection."
     )
+
+
+def _configured_api_key(provider: str) -> str:
+    """Resolve exactly the credential the operator transport will use.
+
+    Detection alone accepts an explicit selector without a key. Readiness
+    must not certify that state, and duplicating the fallback map there would
+    reject working legacy Qwen/DeepSeek setups. No key value enters errors.
+    Empty BYOK environment sentinels remain empty; do not reload dotenv here.
+    """
+    names = _PROVIDER_KEY_NAMES.get(provider)
+    if names is None:
+        raise RuntimeError(
+            f"Unknown LLM_PROVIDER: {provider!r}. "
+            f"Supported values: {', '.join(_SUPPORTED_PROVIDERS)}."
+        )
+    key = next((os.getenv(name) for name in names if os.getenv(name)), None)
+    if not key or not key.strip():
+        raise RuntimeError(f"No LLM API key configured for {provider}: set {' or '.join(names)}.")
+    return key
+
+
+def validate_llm_configuration() -> str:
+    """Check local configuration, never construct an SDK or probe a paid API.
+
+    A present key does not establish provider connectivity, balance or quality.
+    Keep the returned projection non-secret for the public readiness endpoint.
+    """
+    provider = _detect_provider()
+    _configured_api_key(provider)
+    return provider
 
 
 def _qwen_additional_params() -> dict[str, object]:
@@ -287,6 +324,7 @@ def create_llm(
         return _wrap_with_retry(LLM(**kwargs))
 
     logical_provider = _detect_provider()
+    kwargs["api_key"] = _configured_api_key(logical_provider)
 
     if logical_provider == "deepseek":
         kwargs["provider"] = "deepseek"
@@ -297,7 +335,6 @@ def create_llm(
         )
         if kwargs["model"].startswith("deepseek/"):
             kwargs["model"] = kwargs["model"].split("/", 1)[1]
-        kwargs["api_key"] = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
         kwargs["base_url"] = (
             os.getenv("DEEPSEEK_API_BASE")
             or os.getenv("OPENAI_API_BASE")
@@ -311,9 +348,6 @@ def create_llm(
             or os.getenv("OPENAI_MODEL_NAME")
             or _QWEN_MODEL
         )
-        kwargs["api_key"] = (
-            os.getenv("DASHSCOPE_API_KEY") or os.getenv("OPENAI_API_KEY")
-        )
         kwargs["base_url"] = (
             os.getenv("QWEN_API_BASE")
             or os.getenv("OPENAI_API_BASE")
@@ -324,7 +358,6 @@ def create_llm(
     elif logical_provider == "openai":
         kwargs["provider"] = "openai"
         kwargs["model"] = os.getenv("OPENAI_MODEL") or "gpt-4o"
-        kwargs["api_key"] = os.getenv("OPENAI_API_KEY")
         base = os.getenv("OPENAI_API_BASE")
         if base:
             kwargs["base_url"] = base
@@ -332,7 +365,6 @@ def create_llm(
     elif logical_provider == "anthropic":
         kwargs["provider"] = "anthropic"
         kwargs["model"] = os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5"
-        kwargs["api_key"] = os.getenv("ANTHROPIC_API_KEY")
 
     else:
         supported = ", ".join(_SUPPORTED_PROVIDERS)

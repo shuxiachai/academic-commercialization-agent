@@ -133,6 +133,11 @@ jobs:
       - name: Exercise the zero-provider browser journey
         run: uv run --python 3.12 --group e2e python -m e2e.browser_smoke
 
+      - name: Exercise the composer with intercepted paid-operation responses
+        # A static-only server has no paid API routes. Browser-fulfilled POSTs
+        # cover submit/upload races without relaxing the read-only journey.
+        run: uv run --python 3.12 --group e2e python -m e2e.composer_smoke
+
       - name: Upload the failure screenshot
         if: failure()
         uses: actions/upload-artifact@v6
