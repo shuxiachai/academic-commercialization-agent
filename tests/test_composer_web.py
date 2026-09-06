@@ -11,6 +11,7 @@ import pytest
     "pending_submit", "rejected_submit", "existing_topic_pdf", "empty_topic_pdf",
     "missing_suggestion_pdf", "serialized_pdf", "stale_pdf_response", "failed_pdf",
     "upload_during_submit", "classified_errors",
+    "accepted_history_failure", "resume_rerender", "lost_acknowledgement", "malformed_history",
 ])
 def test_composer_delivers_one_intended_operation(scenario):
     """Input events and delayed extraction cannot duplicate or change paid intent."""

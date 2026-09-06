@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import threading
+from contextlib import closing
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -65,6 +67,13 @@ class PaperContribution(BaseModel):
 #: is where the results sections of the long documents actually are.
 _MAX_PAGES_SCANNED = 120
 
+# PDFium forbids concurrent calls even on different documents. Paid-operation
+# admission allows multiple uploads, so it is not a native-library lock. Keep
+# this process-wide mutex around parsing AND explicit native handle closure,
+# never around the downstream network/LLM call. See pypdfium2's threading
+# incompatibility: https://pypdfium2.readthedocs.io/en/stable/python_api.html
+_PDFIUM_LOCK = threading.Lock()
+
 
 def _pages_to_scan(n: int) -> list[int]:
     """Page indices to read: all of them, or head + tail + an even sample."""
@@ -93,10 +102,10 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
         import pypdfium2 as pdfium
     except ImportError as exc:
         raise RuntimeError(
-            "pypdfium2 is required. Install with: pip install pypdfium2"
+            "pypdfium2 is required. Install project dependencies with: uv sync"
         ) from exc
 
-    with pdfium.PdfDocument(str(pdf_path)) as doc:
+    with _PDFIUM_LOCK, pdfium.PdfDocument(str(pdf_path)) as doc:
         n = len(doc)
 
         # Read the candidate pages once. Keyed by page number, not by
@@ -105,8 +114,10 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
         # would quietly return some other page's text.
         page_texts: dict[int, str] = {}
         for i in _pages_to_scan(n):
-            tp = doc[i].get_textpage()
-            page_texts[i] = tp.get_text_range().strip()
+            # Relying on garbage collection can close a native handle after
+            # the mutex is released. Close children first, including on error.
+            with closing(doc[i]) as page, closing(page.get_textpage()) as tp:
+                page_texts[i] = tp.get_text_range().strip()
 
         head_idx  = set(range(min(3, n)))
         tail_idx  = set(range(max(0, n - 2), n))

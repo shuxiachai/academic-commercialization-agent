@@ -465,6 +465,13 @@ class RunList(BaseModel):
     total: int
 
 
+class MaintenanceStatus(BaseModel):
+    """Observed watchdog state, not proof that every retained artifact is healthy."""
+
+    state: Literal["not_started", "running", "degraded", "failed", "stopped"]
+    checks: dict[str, Literal["not_checked", "ok", "failed"]] = Field(default_factory=dict)
+
+
 class HealthStatus(BaseModel):
     status: Literal["ok"]
     active_runs: int = Field(
@@ -486,6 +493,11 @@ class HealthStatus(BaseModel):
                     "after successful extraction.",
     )
     llm_provider: str | None = None
+
+    maintenance: MaintenanceStatus = Field(
+        default_factory=lambda: MaintenanceStatus(state="not_started"),
+        description="Background timeout/retention checks; not_started is not a passing audit.",
+    )
 
 
 class ReadinessStatus(BaseModel):

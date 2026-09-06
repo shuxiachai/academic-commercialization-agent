@@ -11,6 +11,30 @@ below covers Windows, Linux and macOS font locations.
 """
 
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+from threading import Lock
+
+# Bounded single-process stripes avoid one permanent lock per capability URL.
+# A collision only serializes unrelated exports; multi-replica coordination is
+# deliberately outside this deployment's file/ownership contract.
+_PDF_CACHE_LOCKS = tuple(Lock() for _ in range(32))
+
+
+def pdf_cache_lock(run_dir: Path):
+    return _PDF_CACHE_LOCKS[hash(str(run_dir.resolve())) % len(_PDF_CACHE_LOCKS)]
+
+
+def pdf_cache_complete(path: Path) -> bool:
+    """Reject obvious legacy torn caches, not validate PDF semantics or freshness."""
+    try:
+        with path.open("rb") as handle:
+            header = handle.read(5)
+            handle.seek(0, 2)
+            size = handle.tell()
+            handle.seek(max(0, size - 2048))
+            return header == b"%PDF-" and handle.read().rstrip().endswith(b"%%EOF")
+    except FileNotFoundError:
+        return False
 
 # Reportlab built-in CID fonts — no font file needed, cross-platform.
 # Resolved via pdfmetrics.registerFont(UnicodeCIDFont(...)) in _resolve_font.
@@ -379,10 +403,20 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
     story = markdown_to_story(report_md, styles)
 
     pdf_path = run_dir / "commercialization_report.pdf"
-    doc = SimpleDocTemplate(
-        str(pdf_path), pagesize=A4,
-        rightMargin=2 * cm, leftMargin=2 * cm,
-        topMargin=2 * cm,   bottomMargin=2 * cm,
-    )
-    doc.build(story)
+    # Rendering can write bytes before raising. Publishing directly to the
+    # cache let the NEXT download return those partial bytes as a 200. Build a
+    # uniquely owned sibling, close it (Windows), then replace only on success.
+    # A process crash may leave a temporary sibling, never a new partial cache.
+    with NamedTemporaryFile(dir=run_dir, prefix=".report-", suffix=".pdf.tmp", delete=False) as handle:
+        temporary = Path(handle.name)
+    try:
+        doc = SimpleDocTemplate(
+            str(temporary), pagesize=A4,
+            rightMargin=2 * cm, leftMargin=2 * cm,
+            topMargin=2 * cm,   bottomMargin=2 * cm,
+        )
+        doc.build(story)
+        temporary.replace(pdf_path)
+    finally:
+        temporary.unlink(missing_ok=True)
     return pdf_path

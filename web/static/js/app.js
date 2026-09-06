@@ -15,6 +15,10 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
  * or every visited run keeps polling for the life of the page. */
 let follower = null;
 let activeRunId = null;
+// Button elements are disposable (polling, language changes, navigation).
+// Paid resume intent belongs to the parent run, not the element clicked.
+// This is tab-local exclusion, not cross-tab/server/provider idempotency.
+const pendingResumes = new Set();
 
 /* Capacity polling state. Declared here with the other module state rather
  * than beside the scheduler at the bottom: showRun/showCompose re-time the
@@ -36,6 +40,7 @@ function toast(message, variant = "") {
 }
 
 function operationErrorMessage(err) {
+  if (err.code === "paid_ack_unknown") return t("msg_paid_ack_unknown");
   const key = {
     concurrency_limit: "msg_busy",
     daily_quota_exceeded: "msg_daily_quota",
@@ -44,6 +49,17 @@ function operationErrorMessage(err) {
   // Unknown/legacy 429 responses retain the server's reason. Inferring a
   // capacity error from their status used to hide the daily UTC reset rule.
   return err.status === 429 && key ? t(key) : err.message;
+}
+
+function rememberAcceptedRun(accepted) {
+  if (!byokMode) return;
+  try {
+    api.addByokRun(accepted.run_id, accepted.topic);
+  } catch {
+    // A 202 is already a paid acceptance. Optional sidebar storage must not
+    // turn it into a failed submit or keep the user on a retryable composer.
+    toast(t("msg_history_unavailable"), "error");
+  }
 }
 
 /* ── Views ─────────────────────────────────────────────────────────── */
@@ -229,16 +245,27 @@ function paintActions(state, checkpointing = null) {
     resume.type = "button";
     resume.className = "btn btn--secondary";
     resume.textContent = t("resume");
+    resume.dataset.resumeRun = sourceRunId;
+    resume.disabled = pendingResumes.has(sourceRunId);
     resume.addEventListener("click", async () => {
+      if (pendingResumes.has(sourceRunId)) return;
+      pendingResumes.add(sourceRunId);
       resume.disabled = true;
       try {
         const accepted = await api.resumeRun(sourceRunId);
-        if (byokMode) api.addByokRun(accepted.run_id, accepted.topic);
+        rememberAcceptedRun(accepted);
         toast(t("msg_resumed"), "success");
         openRun(accepted.run_id, { known: accepted });
       } catch (err) {
+        toast(operationErrorMessage(err), "error");
+      } finally {
+        pendingResumes.delete(sourceRunId);
         resume.disabled = false;
-        toast(err.message, "error");
+        // A re-render may have replaced the element while fetch was pending.
+        // Unlock only this parent's current controls, never another operation.
+        $$('[data-resume-run]').forEach((button) => {
+          if (button.dataset.resumeRun === sourceRunId) button.disabled = false;
+        });
       }
     });
     actions.append(resume);
@@ -472,10 +499,7 @@ $("#compose-form").addEventListener("submit", async (e) => {
       paper_id: attachedPaper?.paper_id,
       decision_context: readDecisionContext(),
     });
-    // BYOK runs get no server-side history (see api/access.py) — this is
-    // the only place that ever learns the run happened, so the sidebar has
-    // something to show for the rest of the session.
-    if (byokMode) api.addByokRun(accepted.run_id, accepted.topic);
+    rememberAcceptedRun(accepted);
     topic.value = "";
     clearDecisionContext();
     clearAttachment();

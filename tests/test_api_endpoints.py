@@ -117,7 +117,7 @@ class ReportPdfTests(_EndpointTestBase):
     def test_existing_pdf_is_served_without_re_rendering(self):
         run_id, directory = self._run_dir()
         (directory / "commercialization_report.md").write_text("# R", encoding="utf-8")
-        (directory / "commercialization_report.pdf").write_bytes(b"%PDF-1.4 cached")
+        (directory / "commercialization_report.pdf").write_bytes(b"%PDF-1.4 cached\n%%EOF")
 
         with patch("ui.pdf_export._generate_pdf") as render:
             r = self.client.get(f"/api/runs/{run_id}/report.pdf")
@@ -131,7 +131,7 @@ class ReportPdfTests(_EndpointTestBase):
         (directory / "commercialization_report.md").write_text("# R", encoding="utf-8")
 
         def _fake_render(markdown, run_dir, output_language="English"):
-            (Path(run_dir) / "commercialization_report.pdf").write_bytes(b"%PDF-1.4 new")
+            (Path(run_dir) / "commercialization_report.pdf").write_bytes(b"%PDF-1.4 new\n%%EOF")
 
         with patch("ui.pdf_export._generate_pdf", side_effect=_fake_render) as render:
             r = self.client.get(f"/api/runs/{run_id}/report.pdf")

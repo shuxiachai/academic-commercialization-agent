@@ -959,8 +959,19 @@ def reap_timeouts() -> list[str]:
         for run_id, _handle in expired:
             _registry.pop(run_id, None)
 
+    failures = []
     for run_id, handle in expired:
-        method = handle.terminate()
+        try:
+            method = handle.terminate()
+        except (OSError, subprocess.SubprocessError) as exc:
+            # A denied stop is not a stopped worker. Restore its ownership so
+            # admission still counts it and a later watchdog cycle can retry.
+            # Continue the batch before surfacing the failed supervision stage.
+            with _registry_lock:
+                _registry.setdefault(run_id, handle)
+            failures.append(run_id)
+            print(f"[api] timeout termination failed for {run_id}: {exc}", file=sys.stderr)
+            continue
         if method == "already_exited":
             # It won the race with the watchdog; do not relabel it timeout.
             continue
@@ -988,6 +999,8 @@ def reap_timeouts() -> list[str]:
                 file=sys.stderr,
             )
         killed.append(run_id)
+    if failures:
+        raise RuntimeError(f"Timeout termination failed for {len(failures)} run(s)")
     return killed
 
 
@@ -996,8 +1009,16 @@ def shutdown_all() -> None:
     with _registry_lock:
         handles = list(_registry.values())
         _registry.clear()
+    failures = []
     for handle in handles:
-        handle.terminate()
+        try:
+            handle.terminate()
+        except (OSError, subprocess.SubprocessError) as exc:
+            # One inaccessible process must not prevent stopping the rest.
+            # Aggregate after all attempts; do not report shutdown as clean.
+            failures.append(exc)
+    if failures:
+        raise RuntimeError(f"Shutdown could not stop {len(failures)} worker(s)") from failures[0]
 
 
 class StatusUnreadable(Exception):

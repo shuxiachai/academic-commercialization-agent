@@ -44,6 +44,7 @@ from api import access, papers, runs  # noqa: E402  — must follow load_dotenv
 from api.models import (  # noqa: E402
     BYOK_PROVIDERS,
     HealthStatus,
+    MaintenanceStatus,
     PaperExtraction,
     ReadinessStatus,
     ResumeRunRequest,
@@ -57,6 +58,20 @@ from api.models import (  # noqa: E402
 
 _LOGGER = logging.getLogger(__name__)
 _REAP_INTERVAL_SECONDS = 30
+_maintenance_task: asyncio.Task | None = None
+_maintenance_checks: dict[str, str] = {}
+
+
+def _maintenance_status() -> MaintenanceStatus:
+    """Expose task death even when it bypassed the per-stage fault boundary."""
+    task = _maintenance_task
+    if task is None:
+        state = "not_started"
+    elif task.done():
+        state = "stopped" if task.cancelled() else "failed"
+    else:
+        state = "degraded" if "failed" in _maintenance_checks.values() else "running"
+    return MaintenanceStatus(state=state, checks=dict(_maintenance_checks))
 
 
 async def _reaper() -> None:
@@ -67,33 +82,48 @@ async def _reaper() -> None:
     """
     while True:
         await asyncio.sleep(_REAP_INTERVAL_SECONDS)
-        for run_id in runs.reap_timeouts():
-            print(f"[api] run {run_id} killed: exceeded {runs.TIMEOUT_SECONDS}s")
-        # Pending paper records would otherwise accumulate independently of
-        # run retention. Raw PDFs are already removed after extraction; this
-        # bounds the lifetime of the short-lived extraction capability.
-        removed = papers.prune_old()
-        if removed:
-            print(f"[api] pruned {removed} expired paper upload(s)")
-        expired = runs.prune_expired_runs()
-        if expired:
-            print(f"[api] deleted {len(expired)} run(s) past the "
-                  f"{runs.RUN_RETENTION_DAYS}-day retention window: "
-                  f"{', '.join(expired[:5])}"
-                  + (" ..." if len(expired) > 5 else ""))
+        # A failed directory listing used to kill this task, silently removing
+        # the timeout watchdog too. Isolate each operation, not just the whole
+        # loop: one unavailable cleanup root must not starve another stage.
+        # Errors remain visible until that same stage actually succeeds.
+        for name, operation in (
+            ("timeouts", runs.reap_timeouts),
+            ("papers", papers.prune_old),
+            ("retention", runs.prune_expired_runs),
+        ):
+            try:
+                changed = operation()
+            except Exception:  # noqa: BLE001 - supervise independent recurring tasks; retain fault state/log
+                _maintenance_checks[name] = "failed"
+                _LOGGER.exception("Background maintenance stage failed: %s", name)
+            else:
+                _maintenance_checks[name] = "ok"
+                if changed:
+                    _LOGGER.info("Background maintenance %s: %s", name, changed)
 
 
 @contextlib.asynccontextmanager
 async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
+    global _maintenance_task, _maintenance_checks
+    _maintenance_checks = dict.fromkeys(("timeouts", "papers", "retention"), "not_checked")
     task = asyncio.create_task(_reaper())
+    _maintenance_task = task
     try:
         yield
     finally:
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
-        # Never leave orphaned workers burning API credits.
-        runs.shutdown_all()
+        try:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        except Exception:  # noqa: BLE001 - report failed supervisor without skipping worker shutdown
+            _LOGGER.exception("Background maintenance task exited unexpectedly")
+        finally:
+            # Awaiting an already-failed task raises. Worker cleanup must run
+            # even in that case; otherwise shutdown leaves paid work orphaned.
+            try:
+                runs.shutdown_all()
+            finally:
+                _maintenance_task = None
 
 
 app = FastAPI(
@@ -386,6 +416,7 @@ def health() -> HealthStatus:
         max_concurrent=runs.MAX_CONCURRENT,
         retention_days=runs.RUN_RETENTION_DAYS,
         llm_provider=provider,
+        maintenance=_maintenance_status(),
     )
 
 
@@ -485,6 +516,18 @@ def health_ready(response: Response) -> ReadinessStatus:
     checked that /health returned at all.
     """
     status = readiness()
+    # Pure readiness() is also used offline, without an ASGI lifecycle. Only
+    # an actually managed task is a readiness precondition here. Liveness
+    # always exposes not_started/stopped explicitly. Retention failures are
+    # advisory: restarting paid workers cannot repair a cleanup permission.
+    if _maintenance_task is not None:
+        maintenance = _maintenance_status()
+        watchdog_ok = (
+            maintenance.state in {"running", "degraded"}
+            and maintenance.checks.get("timeouts") != "failed"
+        )
+        status.checks["watchdog"] = "ok" if watchdog_ok else "timeout watchdog unavailable"
+        status.ready = status.ready and watchdog_ok
     if not status.ready:
         response.status_code = 503
     return status
@@ -1090,24 +1133,27 @@ def get_report_pdf(run_id: str) -> FileResponse:
         )
 
     pdf_path = markdown_path.parent / "commercialization_report.pdf"
-    if not pdf_path.exists():
-        from ui.pdf_export import _generate_pdf
+    from ui.pdf_export import _generate_pdf, pdf_cache_complete, pdf_cache_lock
 
-        try:
-            _generate_pdf(
-                markdown_path.read_text(encoding="utf-8"),
-                markdown_path.parent,
-                output_language=state.get("output_language", "English"),
-            )
-        except Exception as exc:  # noqa: BLE001 - renderer failures vary by backend
-            _LOGGER.exception("Report PDF rendering failed for run %s", run_id)
-            raise HTTPException(
-                status_code=500,
-                detail=(
-                    "The report PDF could not be rendered. "
-                    "The Markdown report is still available."
-                ),
-            ) from exc
+    try:
+        # Check inside the lock. Atomic publication prevents torn reads, but
+        # alone still lets simultaneous first downloads build the same report.
+        with pdf_cache_lock(markdown_path.parent):
+            if not pdf_cache_complete(pdf_path):
+                _generate_pdf(
+                    markdown_path.read_text(encoding="utf-8"),
+                    markdown_path.parent,
+                    output_language=state.get("output_language", "English"),
+                )
+    except Exception as exc:  # noqa: BLE001 - renderer/filesystem backends vary; sanitize HTTP detail
+        _LOGGER.exception("Report PDF rendering failed for run %s", run_id)
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The report PDF could not be rendered. "
+                "The Markdown report is still available."
+            ),
+        ) from exc
 
     if not pdf_path.exists():
         raise HTTPException(status_code=500, detail="PDF rendering produced no file.")

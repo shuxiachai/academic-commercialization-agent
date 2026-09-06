@@ -13,6 +13,8 @@ const source = fs.readFileSync(new URL("../../web/static/js/app.js", import.meta
 const translations = {
   msg_busy: "capacity", msg_daily_quota: "daily quota resets at 00:00 UTC",
   msg_rate_limited: "rate limit", msg_submitting: "submitting",
+  msg_paid_ack_unknown: "acceptance unknown; check history",
+  msg_history_unavailable: "accepted; bookmark this URL",
 };
 
 function fixture() {
@@ -23,6 +25,7 @@ function fixture() {
         style: {}, children: [], listeners: {}, textContent: "", scrollHeight: 40 });
     }
     addEventListener(event, handler) { this.listeners[event] = handler; }
+    set innerHTML(value) { this.children = []; }
     append(...children) { this.children.push(...children); }
     querySelectorAll() { return []; }
     focus() {} remove() {} setAttribute() {} removeAttribute() {}
@@ -35,13 +38,15 @@ function fixture() {
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
-    assert.ok(["/api/runs", "/api/papers"].includes(url), `Unexpected HTTP: ${url}`);
+    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume"].includes(url), `Unexpected HTTP: ${url}`);
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
-    api, runView: {}, sidebar: {}, result: {}, needsScopeWarning: () => false,
+    api, runView: { isTerminalState: (state) => ["completed", "failed", "cancelled", "timeout"].includes(state) },
+    sidebar: {}, result: {}, needsScopeWarning: () => false,
     i18n: { t: (key) => translations[key] || key, language: () => "English", apply: () => {} },
-    document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
+    document: { querySelector: get, querySelectorAll: (selector) => selector === '[data-resume-run]'
+      ? get("#run-actions").children.filter((el) => el.dataset?.resumeRun) : [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false },
     window: { matchMedia: () => ({ matches: false }), addEventListener: () => {} },
     localStorage: globalThis.localStorage, history: { pushState: () => {} }, location: { pathname: "/" },
@@ -65,8 +70,79 @@ function fixture() {
   return { get, run, topic, submit, upload, respond, requests, opened };
 }
 
+function paintResume(f) {
+  f.run('activeRunId = "parent"; paintActions("failed", { committed_nodes: ["retrieval"] })');
+  return f.get("#run-actions").children.find((el) => el.textContent === "resume");
+}
+
 const paper = { paper_id: "paper-one", title: "Fixture paper", commercialization_topic: "Suggested topic" };
 const scenarios = {
+  async accepted_history_success() {
+    for (const kind of ["run", "resume"]) {
+      const store = new Map();
+      globalThis.sessionStorage.getItem = (key) => store.get(key) || null;
+      globalThis.sessionStorage.setItem = (key, value) => store.set(key, value);
+      const f = fixture(); f.run("byokMode = true"); f.topic("Accepted history identity");
+      const pending = kind === "run" ? f.submit() : paintResume(f).listeners.click();
+      f.respond(0, { run_id: "child", topic: "Accepted child" }, 202); await pending;
+      assert.deepEqual(JSON.parse(store.get("byok-runs")), [{ run_id: "child", topic: "Accepted child" }]);
+      assert.deepEqual(f.opened, ["child"]);
+      assert.equal(f.requests.length, 1);
+    }
+  },
+  async accepted_history_failure() {
+    for (const kind of ["run", "resume"]) {
+      const f = fixture(); f.run("byokMode = true"); f.topic("Accepted despite storage failure");
+      globalThis.sessionStorage.setItem = () => { throw new Error("QuotaExceededError"); };
+      const pending = kind === "run" ? f.submit() : paintResume(f).listeners.click();
+      f.respond(0, { run_id: "accepted", topic: "Accepted despite storage failure" }, 202);
+      await pending;
+      assert.deepEqual(f.opened, ["accepted"], "A local history fault cannot lose a paid acceptance");
+      assert.equal(f.requests.length, 1);
+      assert.ok(f.get("#toasts").children.some((el) => el.textContent === translations.msg_history_unavailable));
+      assert.ok(!f.get("#toasts").children.some((el) => el.textContent === "QuotaExceededError"));
+      if (kind === "run") assert.equal(f.get("#topic").value, "");
+    }
+  },
+  async resume_rerender() {
+    const f = fixture();
+    const first = paintResume(f).listeners.click();
+    const replacement = paintResume(f);
+    const repeated = replacement.listeners.click();
+    assert.equal(f.requests.length, 1, "Re-render must not allow a duplicate paid resume");
+    assert.equal(replacement.disabled, true, "Re-render must preserve the parent's in-flight state");
+    await repeated;
+    f.respond(0, { detail: "fixture rejected" }, 422); await first;
+    assert.equal(replacement.disabled, false, "Rejected resume must unlock the CURRENT element");
+    const retry = replacement.listeners.click();
+    assert.equal(f.requests.length, 2);
+    f.respond(1, { run_id: "child", topic: "Accepted child" }, 202); await retry;
+    assert.deepEqual(f.opened, ["child"]);
+  },
+  async lost_acknowledgement() {
+    for (const kind of ["run", "pdf", "resume"]) {
+      for (const truncated of [false, true]) {
+        const f = fixture(); f.topic("Ambiguous paid operation");
+        const pending = kind === "run" ? f.submit() : kind === "pdf" ? f.upload() : paintResume(f).listeners.click();
+        if (truncated) f.requests[0].resolve(new Response('{"run_id":', {
+          status: 202, headers: { "Content-Type": "application/json" },
+        }));
+        else f.requests[0].reject(new TypeError("Failed to fetch"));
+        await pending;
+        assert.equal(f.requests.length, 1, "Ambiguous acceptance must not trigger an automatic retry");
+        assert.equal(f.get("#toasts").children.at(-1).textContent, translations.msg_paid_ack_unknown);
+        assert.deepEqual(f.opened, []);
+      }
+    }
+  },
+  async malformed_history() {
+    for (const value of ['{}', 'null', '[null, {}, {"run_id": "valid", "topic": "kept"}]']) {
+      globalThis.sessionStorage.getItem = () => value;
+      const entries = api.getByokRuns();
+      assert.ok(Array.isArray(entries));
+      assert.equal(entries.length, value.includes('"valid"') ? 1 : 0);
+    }
+  },
   async pending_submit() {
     const f = fixture();
     f.topic("Original topic");
