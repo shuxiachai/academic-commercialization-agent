@@ -42,6 +42,13 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Composer maintenance now excludes overlapping tab-local submissions/extractions,
+binds attachment responses to the current selection, and preserves distinct 429
+reasons in the UI. LLM readiness shares effective credential resolution with
+operator construction. HTTP/Node/Chromium regressions are offline evidence, not
+an observed reduction in bills, server exactly-once delivery or a quality gain.
+See the [verified scope](results-2026-09-06-composer-paid-operation-integrity.md).
+
 | Question | Observed evidence | Boundary / decision |
 |---|---|---|
 | Can the frozen baseline complete with consistent mechanics? | 30/30 completed; 26/30 TRL-range hits; 30/30 correct formula and structure; zero uncited numeric lines; 7/10 topics hit their range in every repetition | Expected ranges were revised after early observations. Not independent accuracy or full hallucination measurement. [CSV](../outputs/benchmark/benchmark_summary.csv), [stability](../outputs/benchmark/benchmark_stability.csv) |

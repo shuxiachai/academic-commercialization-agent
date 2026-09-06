@@ -26,6 +26,7 @@ uv run --with ruff ruff check .        # CI uses latest ruff, the local pin is o
 uv sync --group e2e                    # opt-in real-browser dependency; not part of the default suite
 uv run --group e2e playwright install chromium
 uv run --group e2e python -m e2e.browser_smoke   # loopback only; zero provider calls
+uv run --group e2e python -m e2e.composer_smoke  # static-only server; intercepted paid POSTs
 uv run uvicorn api.main:app --reload   # web client on :8000
 uv run academic_agent --topic "<topic>"          # one run from the CLI
 ```
@@ -189,6 +190,10 @@ The shared run/PDF admission and persistent daily paid-operation ledger protect
 a single process. Do not increase replica/worker counts without redesigning
 ownership, quota transactions and persistence. Do not infer permission to
 restart Railway, invoke a paid canary or publish private run links.
+
+Composer submission/extraction locks are tab-local, not server idempotency.
+Readiness checks the effective selected credential without contacting providers;
+429 reasons remain distinct. See the [HTTP/browser contract and limits](docs/results-2026-09-06-composer-paid-operation-integrity.md).
 
 ## Tool Calling: do not turn experimental code into production by accident
 

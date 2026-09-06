@@ -60,11 +60,18 @@ not a substitute for passing the current suite.
 uv sync --group e2e
 uv run --group e2e playwright install chromium
 uv run --group e2e python -m e2e.browser_smoke
+uv run --group e2e python -m e2e.composer_smoke
 ```
 
 This uses real Chromium and the real loopback application with fixture runs.
 It blocks external and mutating requests: it cannot launch paid work and does
 not establish Railway availability or model quality.
+
+The separate composer journey serves the actual static client from a loopback
+server that has no paid API routes. Browser-intercepted POST responses exercise
+upload/submission races, accepted-run navigation and translated admission errors;
+unexpected requests fail the audit. It does not relax the original journey's
+read-only guard or contact any model/search provider.
 
 ## What to contribute
 

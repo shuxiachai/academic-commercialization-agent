@@ -35,6 +35,17 @@ function toast(message, variant = "") {
   setTimeout(() => el.remove(), 4600);
 }
 
+function operationErrorMessage(err) {
+  const key = {
+    concurrency_limit: "msg_busy",
+    daily_quota_exceeded: "msg_daily_quota",
+    rate_limited: "msg_rate_limited",
+  }[err.code];
+  // Unknown/legacy 429 responses retain the server's reason. Inferring a
+  // capacity error from their status used to hide the daily UTC reset rule.
+  return err.status === 429 && key ? t(key) : err.message;
+}
+
 /* ── Views ─────────────────────────────────────────────────────────── */
 
 function stopFollowing() {
@@ -377,6 +388,11 @@ async function refreshSidebar() {
  * reads it and runs first — a `let` further down is a temporal dead zone, and
  * the boot-time call threw before anything rendered. */
 let extracting = false;
+// A disabled button is only a projection, not an operation lock: input events
+// used to re-enable it while a paid POST was still awaiting acknowledgement.
+// This is tab-local exclusion, not server/provider exactly-once delivery.
+let submitting = false;
+let uploadGeneration = 0;
 
 const topic = $("#topic");
 const count = $("#topic-count");
@@ -406,8 +422,17 @@ function autosize() {
 }
 
 function syncComposer() {
-  runBtn.disabled = topic.value.trim().length < 3 || extracting;
-  runBtn.title = extracting ? t("msg_wait_extract") : t("run_hint");
+  runBtn.disabled = topic.value.trim().length < 3 || extracting || submitting;
+  runBtn.title = submitting ? t("msg_submitting")
+    : extracting ? t("msg_wait_extract") : t("run_hint");
+  attachBtn.disabled = extracting || submitting;
+  // Keep the submitted payload stable in the visible composer as well. The
+  // handler guard still matters for programmatic submits and queued events.
+  for (const input of [topic, $("#language"), $("#profile"), ...decisionContextInputs]) {
+    input.disabled = submitting;
+  }
+  $$(".starter").forEach((button) => { button.disabled = submitting; });
+  attachment.querySelectorAll("button").forEach((button) => { button.disabled = submitting; });
   count.textContent = topic.value.length > 240 ? `${topic.value.length} / 300` : "";
   autosize();
 }
@@ -430,12 +455,14 @@ $$(".starter").forEach((btn) =>
 
 $("#compose-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (submitting || extracting || topic.value.trim().length < 3) return;
   const submittedTopic = topic.value.trim();
   if (
     needsScopeWarning(submittedTopic, { hasPaper: Boolean(attachedPaper) })
     && !confirm(t("confirm_broad_topic"))
   ) return;
-  runBtn.disabled = true;
+  submitting = true;
+  syncComposer();
 
   try {
     const accepted = await api.startRun({
@@ -455,12 +482,10 @@ $("#compose-form").addEventListener("submit", async (e) => {
     syncComposer();
     openRun(accepted.run_id, { known: accepted });
   } catch (err) {
-    runBtn.disabled = false;
-    // 429 is the expected answer when both slots are busy, and deserves a
-    // sentence rather than a raw status.
-    toast(err.status === 429
-      ? t("msg_busy")
-      : err.message, "error");
+    toast(operationErrorMessage(err), "error");
+  } finally {
+    submitting = false;
+    syncComposer();
   }
 });
 
@@ -475,8 +500,10 @@ const attachBtn = $("#attach-btn");
 const pdfInput = $("#pdf-input");
 
 function clearAttachment() {
+  // Invalidating a response does not cancel its provider call. Keep the
+  // extraction lock until that request settles, even if the view is cleared.
+  uploadGeneration += 1;
   attachedPaper = null;
-  extracting = false;
   attachment.hidden = true;
   attachment.removeAttribute("data-loading");
   attachment.innerHTML = "";
@@ -504,14 +531,15 @@ function paintAttachment(paper) {
   remove.className = "icon-btn";
   remove.setAttribute("aria-label", "Remove paper");
   remove.textContent = "×";
-  remove.addEventListener("click", clearAttachment);
+  remove.addEventListener("click", () => {
+    if (!submitting) clearAttachment();
+  });
 
   attachment.append(title, remove);
   attachBtn.dataset.active = "true";
 
-  // The extracted topic is a better starting point than whatever the user
-  // typed before attaching — but it stays editable, since the model's
-  // reading of a paper is a proposal, not a verdict.
+  // Suggest a topic only for an empty composer. The user's existing topic
+  // remains authoritative; a model's reading is a proposal, not a verdict.
   if (paper.commercialization_topic && !topic.value.trim()) {
     topic.value = paper.commercialization_topic;
     syncComposer();
@@ -520,12 +548,19 @@ function paintAttachment(paper) {
 
 async function uploadPaper(file) {
   if (!file) return;
+  // Serialize paid extraction, including drop/change events that bypass the
+  // disabled attachment button. Aborting fetch would not cancel provider work.
+  if (extracting || submitting) {
+    toast(t(extracting ? "msg_wait_extract" : "msg_submitting"), "error");
+    return;
+  }
   if (!file.name.toLowerCase().endsWith(".pdf")) {
     toast(t("msg_not_pdf"), "error");
     return;
   }
 
   extracting = true;
+  const generation = ++uploadGeneration;
   attachment.hidden = false;
   attachment.dataset.loading = "true";
   attachment.innerHTML = "";
@@ -539,19 +574,26 @@ async function uploadPaper(file) {
 
   try {
     const paper = await api.uploadPaper(file);
+    if (generation !== uploadGeneration) return;
     attachedPaper = paper;
-    extracting = false;
     paintAttachment(paper);
     toast(t("msg_paper_attached"), "success");
   } catch (err) {
+    if (generation !== uploadGeneration) return;
     clearAttachment();
     toast(err.status === 413
       ? t("msg_too_large")
-      : err.message, "error");
+      : operationErrorMessage(err), "error");
+  } finally {
+    extracting = false;
+    // Always update the control, even when an existing topic meant that
+    // paintAttachment did not auto-fill it (and therefore did not sync it).
+    syncComposer();
   }
 }
 
 attachBtn.addEventListener("click", () => {
+  if (extracting || submitting) return;
   if (attachedPaper) clearAttachment();
   else pdfInput.click();
 });

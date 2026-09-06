@@ -85,3 +85,11 @@ def test_ci_enforces_the_measured_coverage_floor_in_one_canonical_job() -> None:
     assert coverage_job.index("run: node --version") < coverage_job.index(
         "--cov-fail-under=85"
     )
+
+
+def test_ci_runs_both_read_only_and_stubbed_composer_journeys() -> None:
+    """Composer POST coverage must not silently replace the read-only safety net."""
+    workflow = _WORKFLOW.read_text(encoding="utf-8")
+    browser_job = workflow[workflow.index("  browser-smoke:"):workflow.index("  docker:")]
+    assert "python -m e2e.browser_smoke" in browser_job
+    assert "python -m e2e.composer_smoke" in browser_job

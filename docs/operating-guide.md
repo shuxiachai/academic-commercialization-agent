@@ -60,6 +60,14 @@ topic/PDF submission, optional Decision Context, languages, scoring profiles,
 progress, history, scorecard/report/source views, reliability details and
 Markdown/PDF export.
 
+The composer permits one in-flight submission and one serial PDF extraction,
+never both at once. It preserves an existing topic when a paper is attached;
+only an empty topic is auto-filled. A second upload during extraction is rejected
+locally without another paid POST. Clearing a selection invalidates its response
+but does not cancel provider work or release the lock before the request settles.
+These are tab-local protections, not cross-tab/server idempotency. Requests are
+not automatically retried; a lost acknowledgement does not prove no run started.
+
 Missing Decision Context does not reject a topic. The immutable RunSpec
 derives its applicability mode and carries threshold provenance. An exploratory
 report must not be presented as an owner-authorized GO/NO_GO instruction.
@@ -87,6 +95,19 @@ Readiness performs an isolated real-file write per request; concurrent probes
 do not share a filename. A cleanup-only failure is named separately from a
 write failure. This is local readiness, not provider connectivity or model
 quality verification. See the [maintenance contract](results-2026-09-06-maintenance-readiness-query-audit.md).
+
+The LLM readiness check validates the selected supported provider and its effective
+non-empty credential using the same resolver as operator LLM construction. It
+preserves legacy `OPENAI_API_KEY` fallback for Qwen/DeepSeek and does not expose
+key values. It cannot verify balance, endpoint connectivity or report quality.
+
+Admission errors retain their HTTP 429 and string `detail` for existing clients.
+An additive `X-Error-Code` distinguishes `concurrency_limit` (wait for capacity),
+`daily_quota_exceeded` (00:00 UTC reset), and `rate_limited` (short wait, existing
+`Retry-After` guidance). The first two cover run, recovery and paper endpoints.
+The browser translates known reasons and keeps the original detail for unknown
+or legacy errors rather than calling every 429 a full slot. See the
+[composer/configuration regression](results-2026-09-06-composer-paid-operation-integrity.md).
 
 For a local, ungated deployment, a JSON POST starts paid work:
 
