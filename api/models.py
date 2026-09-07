@@ -486,6 +486,22 @@ class MaintenanceTiming(BaseModel):
     )
 
 
+class CleanupSummary(BaseModel):
+    """Last cleanup attempt, not a guarantee that every expired file is gone."""
+
+    model_config = {"frozen": True}
+    state: Literal["not_checked", "complete", "partial", "disabled", "absent", "unavailable"]
+    scan_complete: bool | None = Field(
+        default=None, description="False means observed counts cover only an incomplete scan; null means no scan.",
+    )
+    scanned: int | None = Field(default=None, ge=0, strict=True)
+    deleted: int | None = Field(default=None, ge=0, strict=True)
+    skipped: int | None = Field(default=None, ge=0, strict=True)
+    failed: int | None = Field(default=None, ge=0, strict=True)
+    skip_reasons: dict[Literal["fresh", "live", "unrelated"], int] = Field(default_factory=dict)
+    failure_reasons: dict[Literal["metadata", "delete"], int] = Field(default_factory=dict)
+
+
 class MaintenanceStatus(BaseModel):
     """Observed watchdog state, not proof that every retained artifact is healthy."""
 
@@ -497,6 +513,10 @@ class MaintenanceStatus(BaseModel):
         default=None, description="UTC snapshot time, not the time the stages last completed.",
     )
     timings: dict[str, MaintenanceTiming] = Field(default_factory=dict)
+    cleanup: dict[Literal["papers", "retention"], CleanupSummary] = Field(
+        default_factory=dict, description="Last cleanup attempt paired with that stage's completion clocks. "
+                                        "Legacy checks describe normal return, not complete deletion.",
+    )
 
 
 class HealthStatus(BaseModel):

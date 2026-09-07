@@ -38,6 +38,9 @@ def maintenance_fixture(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "_REAP_INTERVAL_SECONDS", 0)
     monkeypatch.setattr(main, "readiness", lambda: ReadinessStatus(ready=True, checks={}))
     operations = dict.fromkeys(STAGES)
+    # Cleanup now accepts a per-attempt observer keyword, while the watchdog
+    # still has no argument. Fakes accept it without changing the held-work,
+    # timing, cancellation or HTTP assertions these tests were written for.
     for name, module, attribute in (
         ("timeouts", runs, "reap_timeouts"),
         ("papers", main.papers, "prune_old"),
@@ -61,7 +64,7 @@ def test_http_probes_complete_before_slow_maintenance_is_released(maintenance_fi
     operations, shutdown = maintenance_fixture
     entered, release = Event(), Event()
 
-    def slow():
+    def slow(**_kwargs):
         entered.set()
         assert release.wait(15), "observer failed to release maintenance"
         return []
@@ -115,7 +118,7 @@ def test_shutdown_drains_owned_stage_despite_repeated_cancellation(maintenance_f
     operations, shutdown = maintenance_fixture
     entered, release, finished = Event(), Event(), Event()
 
-    def slow():
+    def slow(**_kwargs):
         entered.set()
         try:
             assert release.wait(15), "test failed to release maintenance"
@@ -255,7 +258,7 @@ def test_cycles_remain_serial_and_faults_reach_http(maintenance_fixture):
         return []
 
     for name in STAGES:
-        operations[name].side_effect = lambda name=name: operation(name)
+        operations[name].side_effect = lambda name=name, **_kwargs: operation(name)
 
     async def exercise():
         task = asyncio.create_task(main._reaper())

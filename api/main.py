@@ -43,8 +43,10 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, papers, runs  # noqa: E402  — must follow load_dotenv
+from api.cleanup import CleanupAudit  # noqa: E402
 from api.models import (  # noqa: E402
     BYOK_PROVIDERS,
+    CleanupSummary,
     HealthStatus,
     MaintenanceStatus,
     MaintenanceTiming,
@@ -76,6 +78,7 @@ class _MaintenanceTimes:
     last_finished_at: datetime | None = None
     last_duration_seconds: float | None = None
     last_finished_mono: float | None = None
+    cleanup: CleanupSummary | None = None
 
 
 _maintenance_timings: dict[str, _MaintenanceTimes] = {}
@@ -86,7 +89,7 @@ def _maintenance_clock() -> tuple[datetime, float]:
     return datetime.now(UTC), time.monotonic()
 
 
-def _maintenance_finished(name: str, result: Literal["ok", "failed"]) -> None:
+def _maintenance_finished(name: str, result: Literal["ok", "failed"], cleanup: CleanupSummary | None = None) -> None:
     # Sync HTTP handlers read on other threads. Publish the result and its
     # matching clock pair together, never new 'ok' next to an old completion.
     # This lock covers only snapshots, not I/O or the stage's blocking work.
@@ -98,6 +101,7 @@ def _maintenance_finished(name: str, result: Literal["ok", "failed"]) -> None:
             last_finished_at=wall,
             last_duration_seconds=max(0.0, mono - previous.current_started_mono),
             last_finished_mono=mono,
+            cleanup=cleanup,
         )
         _maintenance_checks[name] = result
 
@@ -128,12 +132,22 @@ def _maintenance_status() -> MaintenanceStatus:
             last_finished_age_seconds=(None if record.last_finished_mono is None
                                        else max(0.0, mono - record.last_finished_mono)),
         )
-    return MaintenanceStatus(state=state, checks=checks, observed_at=wall, timings=timings)
+    cleanup = {}
+    for name in ("papers", "retention"):
+        if name in checks:
+            record = records.get(name, _MaintenanceTimes())
+            cleanup[name] = record.cleanup or CleanupSummary(
+                state="not_checked" if checks[name] == "not_checked" else "unavailable",
+            )
+    return MaintenanceStatus(state=state, checks=checks, observed_at=wall, timings=timings, cleanup=cleanup)
 
 
-async def _maintenance_stage(name: str, operation: Callable[[], object]) -> None:
+async def _maintenance_stage(name: str, operation: Callable[..., object], *, collect_cleanup: bool = False) -> None:
     """Offload blocking work without abandoning it when the owner is cancelled."""
     async def execute() -> None:
+        # No global collector or shared mutable tally: even direct legacy
+        # cleanup callers cannot overwrite an in-flight reaper observation.
+        audit = CleanupAudit() if collect_cleanup else None
         # Starting another attempt does not refresh its last completed result.
         # Preserve that observation while the new attempt queues/runs/drains.
         with _maintenance_lock:
@@ -141,12 +155,16 @@ async def _maintenance_stage(name: str, operation: Callable[[], object]) -> None
             previous = _maintenance_timings.get(name, _MaintenanceTimes())
             _maintenance_timings[name] = replace(previous, current_started_at=wall, current_started_mono=mono)
         try:
-            changed = await asyncio.to_thread(operation)
+            changed = (await asyncio.to_thread(operation, cleanup=audit) if audit is not None
+                       else await asyncio.to_thread(operation))
         except Exception:  # noqa: BLE001 - supervise one stage and preserve its completed fault observation
-            _maintenance_finished(name, "failed")
+            _maintenance_finished(name, "failed", audit.snapshot(interrupted=True) if audit is not None else None)
             _LOGGER.exception("Background maintenance stage failed: %s", name)
         else:
-            _maintenance_finished(name, "ok")
+            # Keep legacy normal-return checks and readiness stable. The
+            # dedicated summary makes partial/absent/disabled outcomes explicit
+            # without evicting a host with paid work for one cleanup failure.
+            _maintenance_finished(name, "ok", audit.snapshot() if audit is not None else None)
             if changed:
                 _LOGGER.info("Background maintenance %s: %s", name, changed)
 
@@ -189,7 +207,7 @@ async def _reaper() -> None:
             ("papers", papers.prune_old),
             ("retention", runs.prune_expired_runs),
         ):
-            await _maintenance_stage(name, operation)
+            await _maintenance_stage(name, operation, collect_cleanup=name != "timeouts")
 
 
 @contextlib.asynccontextmanager

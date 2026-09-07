@@ -75,6 +75,12 @@ polling does not refresh it. This is observation metadata, not a new stale
 threshold or readiness eviction rule. See the
 [time-qualified snapshot contract](results-2026-09-07-maintenance-observation-age.md).
 
+Cleanup now exposes per-attempt deleted/skipped/failed counts at both health
+endpoints, with partial/unavailable scan states rather than inferring full
+deletion from a normal return. Unknown inventory is not zero; cleanup-only
+faults remain advisory. This is not proof of a production storage failure or
+complete erasure; see the [outcome contract](results-2026-09-07-cleanup-outcome-observability.md).
+
 | Question | Observed evidence | Boundary / decision |
 |---|---|---|
 | Can the frozen baseline complete with consistent mechanics? | 30/30 completed; 26/30 TRL-range hits; 30/30 correct formula and structure; zero uncited numeric lines; 7/10 topics hit their range in every repetition | Expected ranges were revised after early observations. Not independent accuracy or full hallucination measurement. [CSV](../outputs/benchmark/benchmark_summary.csv), [stability](../outputs/benchmark/benchmark_stability.csv) |

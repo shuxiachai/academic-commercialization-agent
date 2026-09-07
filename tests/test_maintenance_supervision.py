@@ -66,7 +66,7 @@ def test_health_delivers_cleanup_failure_but_only_dead_watchdog_blocks_readiness
 def test_unstarted_is_not_a_passing_audit():
     snapshot = TestClient(main.app).get("/health").json()["maintenance"]
     assert snapshot == {
-        "state": "not_started", "checks": {}, "timings": {}, "observed_at": snapshot["observed_at"],
+        "state": "not_started", "checks": {}, "timings": {}, "cleanup": {}, "observed_at": snapshot["observed_at"],
     }
     assert snapshot["observed_at"].endswith("Z")
 

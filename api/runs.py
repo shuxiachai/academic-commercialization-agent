@@ -28,6 +28,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from stat import S_ISDIR
 
 from academic_agent.checkpoints import CheckpointStore, hash_json
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
@@ -44,6 +45,7 @@ from academic_agent.run_terminal import (
     load_terminal_record,
 )
 from api.audit_projection import project_audit_metadata
+from api.cleanup import CleanupAudit
 from api.runtime_projection import project_runtime_metadata
 
 # A run is killed after this long. The bound belongs to the worker contract,
@@ -1609,7 +1611,7 @@ def _format_duration(secs: int | None) -> str:
     return f"{secs}s" if secs < 60 else f"{secs // 60}m {secs % 60:02d}s"
 
 
-def prune_expired_runs(retention_days: int | None = None) -> list[str]:
+def prune_expired_runs(retention_days: int | None = None, *, cleanup: CleanupAudit | None = None) -> list[str]:
     """Delete runs older than the retention window. Returns the ids removed.
 
     Age is taken from the run id's own timestamp rather than the directory's
@@ -1621,12 +1623,15 @@ def prune_expired_runs(retention_days: int | None = None) -> list[str]:
     and its id is in the registry regardless of how old the id looks — which
     matters for a run that outlived the window while executing.
 
-    Best-effort, like the paper pruning it runs beside: a directory that
-    cannot be removed is skipped rather than raising, because this is called
-    from a timer whose failure would take the reaper down with it.
+    Best-effort: individual failures are counted but peer cleanup continues.
+    Keep the historical removed-ID return value; the optional observer exposes
+    only safe counts, never paths/IDs, through the maintenance HTTP snapshot.
+    Root failures still reach the supervisor's per-stage boundary.
     """
     days = RUN_RETENTION_DAYS if retention_days is None else retention_days
-    if days <= 0 or not DEFAULT_OUTPUT_ROOT.is_dir():
+    audit = cleanup if cleanup is not None else CleanupAudit()
+    if days <= 0:
+        audit.state = "disabled"
         return []
 
     cutoff = datetime.now(UTC) - timedelta(days=days)
@@ -1634,24 +1639,38 @@ def prune_expired_runs(retention_days: int | None = None) -> list[str]:
         live = {rid for rid, h in _registry.items() if _occupies_slot(rid, h)}
 
     removed: list[str] = []
-    for directory in DEFAULT_OUTPUT_ROOT.iterdir():
-        if not directory.is_dir() or not _RUN_ID_PATTERN.fullmatch(directory.name):
+    for directory in audit.entries(DEFAULT_OUTPUT_ROOT):
+        if not _RUN_ID_PATTERN.fullmatch(directory.name):
+            audit.skip("unrelated")
             continue
         if directory.name in live:
+            audit.skip("live")
+            continue
+        try:
+            metadata = directory.stat()
+        except OSError:
+            audit.fail("metadata")
+            continue
+        if not S_ISDIR(metadata.st_mode):
+            audit.skip("unrelated")
             continue
         try:
             stamp = datetime.strptime(
                 directory.name.split("-")[0], "%Y%m%dT%H%M%SZ"
             ).replace(tzinfo=UTC)
         except ValueError:
+            audit.skip("unrelated")
             continue
         if stamp >= cutoff:
+            audit.skip("fresh")
             continue
         try:
             shutil.rmtree(directory)
         except OSError:
+            audit.fail("delete")
             continue
         removed.append(directory.name)
+        audit.deleted += 1
     return removed
 
 
