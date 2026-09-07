@@ -14,6 +14,7 @@ from api.models import ReadinessStatus
 def isolated_supervisor(monkeypatch):
     monkeypatch.setattr(main, "_maintenance_task", None)
     monkeypatch.setattr(main, "_maintenance_checks", {})
+    monkeypatch.setattr(main, "_maintenance_timings", {})
 
 
 def test_cleanup_fault_keeps_later_stage_and_next_timeout_cycle_alive():
@@ -63,9 +64,11 @@ def test_health_delivers_cleanup_failure_but_only_dead_watchdog_blocks_readiness
 
 
 def test_unstarted_is_not_a_passing_audit():
-    assert TestClient(main.app).get("/health").json()["maintenance"] == {
-        "state": "not_started", "checks": {},
+    snapshot = TestClient(main.app).get("/health").json()["maintenance"]
+    assert snapshot == {
+        "state": "not_started", "checks": {}, "timings": {}, "observed_at": snapshot["observed_at"],
     }
+    assert snapshot["observed_at"].endswith("Z")
 
 
 def test_stage_recovers_only_after_its_next_success():

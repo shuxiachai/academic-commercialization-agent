@@ -19,6 +19,8 @@ import os
 import threading
 import time
 from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -45,6 +47,7 @@ from api.models import (  # noqa: E402
     BYOK_PROVIDERS,
     HealthStatus,
     MaintenanceStatus,
+    MaintenanceTiming,
     PaperExtraction,
     ReadinessStatus,
     ResumeRunRequest,
@@ -60,30 +63,90 @@ _LOGGER = logging.getLogger(__name__)
 _REAP_INTERVAL_SECONDS = 30
 _maintenance_task: asyncio.Task | None = None
 _maintenance_checks: dict[str, str] = {}
+_maintenance_lock = threading.Lock()
+
+
+@dataclass(frozen=True)
+class _MaintenanceTimes:
+    """Process-local clock pairs; monotonic anchors never cross the HTTP seam."""
+
+    current_started_at: datetime | None = None
+    current_started_mono: float | None = None
+    last_started_at: datetime | None = None
+    last_finished_at: datetime | None = None
+    last_duration_seconds: float | None = None
+    last_finished_mono: float | None = None
+
+
+_maintenance_timings: dict[str, _MaintenanceTimes] = {}
+
+
+def _maintenance_clock() -> tuple[datetime, float]:
+    """Keep elapsed facts independent of NTP/manual changes to UTC labels."""
+    return datetime.now(UTC), time.monotonic()
+
+
+def _maintenance_finished(name: str, result: Literal["ok", "failed"]) -> None:
+    # Sync HTTP handlers read on other threads. Publish the result and its
+    # matching clock pair together, never new 'ok' next to an old completion.
+    # This lock covers only snapshots, not I/O or the stage's blocking work.
+    with _maintenance_lock:
+        wall, mono = _maintenance_clock()
+        previous = _maintenance_timings[name]
+        _maintenance_timings[name] = _MaintenanceTimes(
+            last_started_at=previous.current_started_at,
+            last_finished_at=wall,
+            last_duration_seconds=max(0.0, mono - previous.current_started_mono),
+            last_finished_mono=mono,
+        )
+        _maintenance_checks[name] = result
 
 
 def _maintenance_status() -> MaintenanceStatus:
     """Expose task death even when it bypassed the per-stage fault boundary."""
-    task = _maintenance_task
+    with _maintenance_lock:
+        task = _maintenance_task
+        checks = dict(_maintenance_checks)
+        records = dict(_maintenance_timings)
+        wall, mono = _maintenance_clock()
     if task is None:
         state = "not_started"
     elif task.done():
         state = "stopped" if task.cancelled() else "failed"
     else:
-        state = "degraded" if "failed" in _maintenance_checks.values() else "running"
-    return MaintenanceStatus(state=state, checks=dict(_maintenance_checks))
+        state = "degraded" if "failed" in checks.values() else "running"
+    timings = {}
+    for name in checks:
+        record = records.get(name, _MaintenanceTimes())
+        timings[name] = MaintenanceTiming(
+            current_started_at=record.current_started_at,
+            current_elapsed_seconds=(None if record.current_started_mono is None
+                                     else max(0.0, mono - record.current_started_mono)),
+            last_started_at=record.last_started_at,
+            last_finished_at=record.last_finished_at,
+            last_duration_seconds=record.last_duration_seconds,
+            last_finished_age_seconds=(None if record.last_finished_mono is None
+                                       else max(0.0, mono - record.last_finished_mono)),
+        )
+    return MaintenanceStatus(state=state, checks=checks, observed_at=wall, timings=timings)
 
 
 async def _maintenance_stage(name: str, operation: Callable[[], object]) -> None:
     """Offload blocking work without abandoning it when the owner is cancelled."""
     async def execute() -> None:
+        # Starting another attempt does not refresh its last completed result.
+        # Preserve that observation while the new attempt queues/runs/drains.
+        with _maintenance_lock:
+            wall, mono = _maintenance_clock()
+            previous = _maintenance_timings.get(name, _MaintenanceTimes())
+            _maintenance_timings[name] = replace(previous, current_started_at=wall, current_started_mono=mono)
         try:
             changed = await asyncio.to_thread(operation)
         except Exception:  # noqa: BLE001 - supervise one stage and preserve its completed fault observation
-            _maintenance_checks[name] = "failed"
+            _maintenance_finished(name, "failed")
             _LOGGER.exception("Background maintenance stage failed: %s", name)
         else:
-            _maintenance_checks[name] = "ok"
+            _maintenance_finished(name, "ok")
             if changed:
                 _LOGGER.info("Background maintenance %s: %s", name, changed)
 
@@ -131,8 +194,10 @@ async def _reaper() -> None:
 
 @contextlib.asynccontextmanager
 async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
-    global _maintenance_task, _maintenance_checks
-    _maintenance_checks = dict.fromkeys(("timeouts", "papers", "retention"), "not_checked")
+    global _maintenance_task, _maintenance_checks, _maintenance_timings
+    with _maintenance_lock:
+        _maintenance_checks = dict.fromkeys(("timeouts", "papers", "retention"), "not_checked")
+        _maintenance_timings = {}
     task = asyncio.create_task(_reaper())
     _maintenance_task = task
     try:
@@ -549,8 +614,9 @@ def health_ready(response: Response) -> ReadinessStatus:
     # an actually managed task is a readiness precondition here. Liveness
     # always exposes not_started/stopped explicitly. Retention failures are
     # advisory: restarting paid workers cannot repair a cleanup permission.
-    if _maintenance_task is not None:
-        maintenance = _maintenance_status()
+    maintenance = _maintenance_status()
+    status.maintenance = maintenance
+    if maintenance.state != "not_started":
         watchdog_ok = (
             maintenance.state in {"running", "degraded"}
             and maintenance.checks.get("timeouts") != "failed"

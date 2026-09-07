@@ -206,6 +206,9 @@ See the [stop-ownership seam](docs/results-2026-09-06-run-stop-ownership.md).
 Synchronous maintenance stays off the ASGI loop but remains serial and owned.
 Cancellation must drain the current stage before worker shutdown; cancelling
 an await does not stop its thread. See the [scheduling/drain boundary](docs/results-2026-09-06-maintenance-event-loop.md).
+Health/readiness timestamps distinguish current dispatch from last completion;
+elapsed facts use monotonic clocks and do not change readiness policy. See the
+[observation-age contract](docs/results-2026-09-07-maintenance-observation-age.md).
 
 Composer submission/extraction locks are tab-local, not server idempotency.
 Readiness checks the effective selected credential without contacting providers;
