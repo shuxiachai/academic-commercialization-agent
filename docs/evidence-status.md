@@ -69,6 +69,12 @@ are offline-tested; this is not a probe-latency SLO, freshness guarantee or proo
 that a stuck filesystem can be interrupted. See the
 [event-loop/drain contract](results-2026-09-06-maintenance-event-loop.md).
 
+Both health endpoints additionally expose UTC dispatch/completion times and
+monotonic duration/age facts. A current attempt preserves the previous result;
+polling does not refresh it. This is observation metadata, not a new stale
+threshold or readiness eviction rule. See the
+[time-qualified snapshot contract](results-2026-09-07-maintenance-observation-age.md).
+
 | Question | Observed evidence | Boundary / decision |
 |---|---|---|
 | Can the frozen baseline complete with consistent mechanics? | 30/30 completed; 26/30 TRL-range hits; 30/30 correct formula and structure; zero uncited numeric lines; 7/10 topics hit their range in every repetition | Expected ranges were revised after early observations. Not independent accuracy or full hallucination measurement. [CSV](../outputs/benchmark/benchmark_summary.csv), [stability](../outputs/benchmark/benchmark_stability.csv) |

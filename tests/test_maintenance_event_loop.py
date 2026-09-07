@@ -34,6 +34,7 @@ def maintenance_fixture(tmp_path, monkeypatch):
     monkeypatch.setattr(runs, "_inline_paid_operations", {})
     monkeypatch.setattr(main, "_maintenance_task", None)
     monkeypatch.setattr(main, "_maintenance_checks", {})
+    monkeypatch.setattr(main, "_maintenance_timings", {})
     monkeypatch.setattr(main, "_REAP_INTERVAL_SECONDS", 0)
     monkeypatch.setattr(main, "readiness", lambda: ReadinessStatus(ready=True, checks={}))
     operations = dict.fromkeys(STAGES)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from academic_agent.run_spec import AssessmentMode, DecisionContext
 
@@ -465,11 +465,38 @@ class RunList(BaseModel):
     total: int
 
 
+class MaintenanceTiming(BaseModel):
+    """Dispatch/completion observations; null is unknown, not a zero duration."""
+
+    current_started_at: AwareDatetime | None = Field(
+        default=None, description="UTC dispatch time of the attempt without a completed observation. "
+                                  "May include executor queueing; consult supervisor state too.",
+    )
+    current_elapsed_seconds: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    last_started_at: AwareDatetime | None = None
+    last_finished_at: AwareDatetime | None = None
+    last_duration_seconds: float | None = Field(
+        default=None, ge=0, allow_inf_nan=False,
+        description="Monotonic dispatch-to-observed-completion duration of the last completed attempt.",
+    )
+    last_finished_age_seconds: float | None = Field(
+        default=None, ge=0, allow_inf_nan=False,
+        description="Monotonic age of the last completed result, including failures. "
+                    "Not a freshness verdict or SLO.",
+    )
+
+
 class MaintenanceStatus(BaseModel):
     """Observed watchdog state, not proof that every retained artifact is healthy."""
 
     state: Literal["not_started", "running", "degraded", "failed", "stopped"]
-    checks: dict[str, Literal["not_checked", "ok", "failed"]] = Field(default_factory=dict)
+    checks: dict[str, Literal["not_checked", "ok", "failed"]] = Field(
+        default_factory=dict, description="Last completed result per stage, not proof of current freshness.",
+    )
+    observed_at: AwareDatetime | None = Field(
+        default=None, description="UTC snapshot time, not the time the stages last completed.",
+    )
+    timings: dict[str, MaintenanceTiming] = Field(default_factory=dict)
 
 
 class HealthStatus(BaseModel):
@@ -517,3 +544,7 @@ class ReadinessStatus(BaseModel):
     )
     llm_provider: str | None = None
     search_provider: str | None = None
+    maintenance: MaintenanceStatus | None = Field(
+        default=None, description="HTTP supervisor snapshot shared with health. "
+                                  "Absent from the standalone configuration-only readiness check.",
+    )

@@ -118,6 +118,18 @@ after that cancellation. A stuck filesystem can still delay this drain and
 the next watchdog cycle: neither shutdown duration nor check freshness has an
 SLO. See the [offline scheduling verification](results-2026-09-06-maintenance-event-loop.md).
 
+Both HTTP health endpoints expose `maintenance.observed_at` (snapshot UTC time)
+and per-stage `timings`. `current_started_at`/`current_elapsed_seconds` describe
+an unfinished dispatch, including queueing/drain; `last_started_at`,
+`last_finished_at`, `last_duration_seconds` and `last_finished_age_seconds`
+describe its last completed attempt. `checks` keeps that completed result
+while a new attempt is in flight. Unknown facts are null, not zero; UTC labels
+can shift with clock corrections, while durations/ages use monotonic time.
+Use task state and observation age together: a past `ok` is not proof of current
+freshness. There is no new stale cutoff or automatic readiness failure based
+on age. Standalone configuration-only `readiness()` leaves maintenance null.
+See the [exact field meanings and verification](results-2026-09-07-maintenance-observation-age.md).
+
 Concurrent PDF uploads share a process-wide PDFium parsing/closure mutex;
 their subsequent LLM calls remain under normal paid admission, not that mutex.
 PDF export uses a bounded per-run striped lock and sibling-file atomic publication.
