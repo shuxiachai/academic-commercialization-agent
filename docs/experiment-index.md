@@ -23,6 +23,7 @@ to reuse consumed cohorts.
 
 ## Recent offline maintenance
 
+- [2026-09-07 cleanup outcomes](results-2026-09-07-cleanup-outcome-observability.md) — advisory per-attempt counters and explicit incomplete coverage at both HTTP schemas.
 - [2026-09-07 maintenance observation age](results-2026-09-07-maintenance-observation-age.md) — time-qualified health/readiness snapshots without a new SLO or provider call.
 - [2026-09-06 maintenance event-loop ownership](results-2026-09-06-maintenance-event-loop.md) — held-stage HTTP probes and shutdown drain, zero provider calls.
 - [2026-09-06 run stop ownership](results-2026-09-06-run-stop-ownership.md) — cancellation/timeout capacity and artifact boundaries, no provider calls.

@@ -209,6 +209,9 @@ an await does not stop its thread. See the [scheduling/drain boundary](docs/resu
 Health/readiness timestamps distinguish current dispatch from last completion;
 elapsed facts use monotonic clocks and do not change readiness policy. See the
 [observation-age contract](docs/results-2026-09-07-maintenance-observation-age.md).
+Cleanup summaries distinguish complete/partial scans from absent, disabled or
+unavailable observation; legacy normal-return checks are not proof of complete
+deletion. See [safe outcome counts](docs/results-2026-09-07-cleanup-outcome-observability.md).
 
 Composer submission/extraction locks are tab-local, not server idempotency.
 Readiness checks the effective selected credential without contacting providers;

@@ -19,8 +19,10 @@ import shutil
 import time
 import uuid
 from pathlib import Path
+from stat import S_ISDIR
 
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT
+from api.cleanup import CleanupAudit
 
 # Uploads and their extractions live outside the per-run directories: a paper
 # may be uploaded and never run, and a run directory should describe a run.
@@ -210,26 +212,34 @@ def extraction_path_for_run(paper_id: str, *, owner: str | None = None) -> Path:
     return path
 
 
-def prune_old(max_age_seconds: int = _MAX_AGE_SECONDS) -> int:
+def prune_old(max_age_seconds: int = _MAX_AGE_SECONDS, *, cleanup: CleanupAudit | None = None) -> int:
     """Delete upload directories older than max_age_seconds.
 
     Best-effort: a directory that cannot be removed (open handle on Windows,
-    permissions) is skipped rather than raising, since pruning runs on a timer
-    and must not take down the caller.
+    permissions) is counted but does not abort peer cleanup. The optional
+    per-attempt observer preserves the historical integer return contract.
+    Root failures still reach the supervisor, which isolates later stages.
     """
-    if not PAPERS_ROOT.is_dir():
-        return 0
-
+    audit = cleanup if cleanup is not None else CleanupAudit()
     cutoff = time.time() - max_age_seconds
     removed = 0
-    for directory in PAPERS_ROOT.iterdir():
-        if not directory.is_dir():
+    for directory in audit.entries(PAPERS_ROOT):
+        try:
+            metadata = directory.stat()
+        except OSError:
+            audit.fail("metadata")
+            continue
+        if not S_ISDIR(metadata.st_mode):
+            audit.skip("unrelated")
+            continue
+        if metadata.st_mtime >= cutoff:
+            audit.skip("fresh")
             continue
         try:
-            if directory.stat().st_mtime >= cutoff:
-                continue
             shutil.rmtree(directory)
-            removed += 1
         except OSError:
+            audit.fail("delete")
             continue
+        removed += 1
+        audit.deleted += 1
     return removed

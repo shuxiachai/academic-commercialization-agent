@@ -130,6 +130,17 @@ freshness. There is no new stale cutoff or automatic readiness failure based
 on age. Standalone configuration-only `readiness()` leaves maintenance null.
 See the [exact field meanings and verification](results-2026-09-07-maintenance-observation-age.md).
 
+Read `maintenance.cleanup.papers` and `maintenance.cleanup.retention` for
+the last attempt's scanned/deleted/skipped/failed counts and fixed reason
+categories. Legacy `checks=ok` means the operation returned normally, not
+that every directory was deleted. Detail states distinguish complete, partial,
+disabled, absent, not_checked and unavailable. No scan has null counts;
+an empty completed scan has zero counts. Interrupted enumeration retains
+observed lower-bound counts with `scan_complete=false`; a root failure is not
+counted as an invented failed entry. Results remain paired with the last
+completion clock while another attempt is running. Per-entry failures do not
+abort peers or evict paid workers. See [cleanup counts and limits](results-2026-09-07-cleanup-outcome-observability.md).
+
 Concurrent PDF uploads share a process-wide PDFium parsing/closure mutex;
 their subsequent LLM calls remain under normal paid admission, not that mutex.
 PDF export uses a bounded per-run striped lock and sibling-file atomic publication.
