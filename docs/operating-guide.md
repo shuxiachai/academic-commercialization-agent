@@ -224,8 +224,19 @@ newer local choice; logout preserves a different shared selection and returns
 to an explicit gate instead of reloading into it. This is not global logout;
 revoke credentials server-side if all open documents must lose access.
 Compare-before-remove is not a storage transaction. Forced refresh/close can
-still lose a paid reply; no durable receipt or safe resubmission is provided.
+still lose a paid reply; no durable receipt recovery or safe retry is provided.
 See the [verified identity boundary](results-2026-09-08-browser-access-identity.md).
+
+The first-party composer now writes a constant, credential-free tab-session
+warning before analysis, resume or PDF extraction. Refresh after an unconfirmed
+request blocks new paid submissions and exposes a persistent warning. Check
+history or contact the operator before explicitly acknowledging the risk; the
+button only unlocks new intent and never retries or cancels. BYOK history may
+not contain a lost run, and PDF extraction has no recovery history. Read-only
+navigation still works. Denied storage is explicitly memory-only; closing the
+session or clearing storage can remove the warning. This is not server
+idempotency or a guarantee against duplicate charges. See the
+[tested refresh/settlement boundary](results-2026-09-08-paid-refresh-warning.md).
 
 A progress read failing or exceeding its 15-second deadline shows either no
 confirmed observation or a stale last state, separate from the worker outcome.

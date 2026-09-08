@@ -23,6 +23,8 @@ to reuse consumed cohorts.
 
 ## Recent offline maintenance
 
+- [2026-09-08 paid-request refresh warning](results-2026-09-08-paid-refresh-warning.md) — credential-free session warning, explicit acknowledgement and view-delivery settlement; zero provider calls, not server idempotency.
+
 - [2026-09-08 client delivery seams](results-2026-09-08-client-delivery-seams.md) — optional log isolation/cursors, truthful details and browser-storage fallback, zero provider calls.
 - [2026-09-08 combined client boundaries](results-2026-09-08-client-boundary-combinations.md) — fractional score regression, explicit BYOK identity and visible stale reads; zero provider calls.
 - [2026-09-08 browser access identity](results-2026-09-08-browser-access-identity.md) — document-local payer selection, late-401 isolation and explicit conflict logout; zero provider calls.

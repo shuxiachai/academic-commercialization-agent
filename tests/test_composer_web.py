@@ -12,7 +12,8 @@ import pytest
     "missing_suggestion_pdf", "serialized_pdf", "stale_pdf_response", "failed_pdf",
     "upload_during_submit", "classified_errors",
     "accepted_history_failure", "resume_rerender", "lost_acknowledgement", "malformed_history",
-    "gate_pending", "gate_finished", "cross_tab_exit",
+    "gate_pending", "gate_finished", "cross_tab_exit", "receipt_handoff", "receipt_storage_failure",
+    "receipt_navigation_failure",
 ])
 def test_composer_delivers_one_intended_operation(scenario):
     """Input events and delayed extraction cannot duplicate or change paid intent."""
@@ -36,3 +37,16 @@ def test_identity_switch_waits_for_paid_ack_and_clears_attachment(operation):
         "pending_exit", operation], capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "PASS pending_exit" in result.stdout
+
+
+@pytest.mark.parametrize("operation", ["run", "pdf", "resume"])
+@pytest.mark.parametrize("outcome", ["refresh", "transport", "malformed", "handoff", "408", "500", "401", "422", "429"])
+def test_refresh_preserves_unconfirmed_paid_intent(operation, outcome):
+    """A fresh document previously sent another POST after losing the first reply."""
+    node = shutil.which("node")
+    assert node, "Node is required for the reload seam"
+    scenario = "receipt_refresh" if outcome == "refresh" else "receipt_outcome"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        scenario, operation, outcome], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert f"PASS {scenario}" in result.stdout

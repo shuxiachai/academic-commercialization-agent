@@ -235,6 +235,13 @@ persistent removal returns to the gate without reloading into another identity.
 This is not global logout, transactional storage or durable receipt recovery.
 See the [cross-tab identity contract](docs/results-2026-09-08-browser-access-identity.md).
 
+First-party paid requests also leave a credential-free tab-session warning
+before dispatch. Refresh and uncertain replies block new paid intent until
+explicit acknowledgement, not server work; denied storage remains visibly
+memory-only. Parsing success is not view delivery, and one settled request
+cannot erase a peer uncertainty. This is not receipt recovery or server
+idempotency. See the [refresh boundary](docs/results-2026-09-08-paid-refresh-warning.md).
+
 ## Tool Calling: do not turn experimental code into production by accident
 
 - Production is phase-1 **zero-call shadow mode**. Phase-2 execution, provider
