@@ -44,6 +44,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
 )
 from api import access, papers, runs  # noqa: E402  — must follow load_dotenv
 from api.cleanup import CleanupAudit  # noqa: E402
+from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
 from api.models import (  # noqa: E402
     BYOK_PROVIDERS,
     CleanupSummary,
@@ -65,6 +66,9 @@ _REAP_INTERVAL_SECONDS = 30
 _maintenance_task: asyncio.Task | None = None
 _maintenance_checks: dict[str, str] = {}
 _maintenance_lock = threading.Lock()
+# Keep shielded extraction waiters alive after request cancellation. Their
+# threads own persistence/raw cleanup; cancellation is not a thread kill.
+_paper_jobs: set[asyncio.Task] = set()
 
 
 @dataclass(frozen=True)
@@ -246,6 +250,7 @@ app = FastAPI(
     version="2.0.0",
     lifespan=_lifespan,
 )
+app.add_middleware(PaperUploadBoundary)
 
 
 # Response headers applied to everything this app serves.
@@ -1102,13 +1107,73 @@ def _extract_paper_with_paid_reservation(
         )
 
 
+class _PaperStorageError(OSError):
+    """Separate local publication/privacy failure from provider output failure."""
+
+
+class _PaperAbandoned(RuntimeError):
+    """Queued work lost its waiter before provider admission; cleanup only."""
+
+
+async def _process_uploaded_paper(paper_id: str, pdf_path: str, **credentials) -> PaperContribution:
+    """The actual thread finalizes raw storage even if its HTTP waiter leaves.
+
+    Shielding keeps a queued thread from being cancelled before it starts and
+    orphaning the already-saved PDF. An abandoned result is discarded by that
+    thread. If cancellation arrives after finalization, only derived metadata
+    may remain for normal pending-paper retention, never the raw PDF. Hard
+    process death and failing storage still require retention/reconciliation.
+    """
+    abandoned = threading.Event()
+
+    def execute() -> PaperContribution:
+        stored = False
+        try:
+            # Shielding assigns cleanup ownership, not permission to spend
+            # money for a request already abandoned while waiting for a thread.
+            if abandoned.is_set():
+                raise _PaperAbandoned
+            contribution = _extract_paper_with_paid_reservation(pdf_path, **credentials)
+            try:
+                papers.save_extraction(paper_id, contribution.model_dump())
+            except OSError as exc:
+                raise _PaperStorageError("Could not safely store the paper extraction.") from exc
+            stored = True
+            return contribution
+        finally:
+            if not stored or abandoned.is_set():
+                papers.discard(paper_id)
+
+    task = asyncio.create_task(asyncio.to_thread(execute))
+    _paper_jobs.add(task)
+
+    def finished(done: asyncio.Task) -> None:
+        _paper_jobs.discard(done)
+        if done.cancelled():
+            abandoned.set()
+        else:
+            # A disconnected waiter cannot retrieve an exception. Observe it
+            # without logging provider messages that may contain credentials.
+            error = done.exception()
+            if abandoned.is_set() and error is not None and not isinstance(error, _PaperAbandoned):
+                _LOGGER.warning("Abandoned paper extraction failed: %s", type(error).__name__)
+
+    task.add_done_callback(finished)
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        abandoned.set()
+        raise
+
+
 @app.post(
     "/api/papers",
     response_model=PaperExtraction,
     tags=["papers"],
     responses={
-        413: {"description": "File exceeds the size limit"},
-        429: {"description": "Concurrency or daily paid-operation limit reached"},
+        408: {"description": "Upload receive deadline exceeded before extraction"},
+        413: {"description": "File or complete multipart request exceeds its size limit"},
+        429: {"description": "Upload preprocessing, paid concurrency or daily operation limit reached"},
         422: {"description": "PDF could not be parsed into a contribution"},
     },
 )
@@ -1165,31 +1230,32 @@ async def upload_paper(
     except papers.PaperNotAPdf as exc:
         raise HTTPException(status_code=415, detail=str(exc)) from exc
 
+    # Keep preprocessing capacity through the bounded spool-to-storage copy,
+    # not just multipart parsing. Do not retain another 50 MiB bytes object
+    # across model latency. Paid admission still belongs to the worker thread.
+    del data
+    release_upload_slot(http_request.scope)
     try:
-        contribution = await asyncio.to_thread(
-            _extract_paper_with_paid_reservation,
-            str(pdf_path),
+        contribution = await _process_uploaded_paper(
+            paper_id, str(pdf_path),
             owner=owner,
             byok=byok,
             llm_provider=llm_provider,
             llm_api_key=llm_api_key,
         )
     except runs.ConcurrencyLimitReached as exc:
-        papers.discard(paper_id)
         raise HTTPException(
             status_code=429,
             detail=f"{exc}. Retry once another paid operation finishes.",
             headers={"X-Error-Code": "concurrency_limit"},
         ) from exc
     except runs.DailyCapReached as exc:
-        papers.discard(paper_id)
         raise HTTPException(
             status_code=429,
             detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
             headers={"X-Error-Code": "daily_quota_exceeded"},
         ) from exc
     except runs.PaidLedgerUnavailable as exc:
-        papers.discard(paper_id)
         _LOGGER.exception("Paid-operation accounting blocked paper %s", paper_id)
         raise HTTPException(
             status_code=503,
@@ -1198,11 +1264,15 @@ async def upload_paper(
                 "No provider call was started; retry later."
             ),
         ) from exc
+    except _PaperStorageError as exc:
+        _LOGGER.exception("Paper extraction storage failed for %s", paper_id)
+        raise HTTPException(
+            status_code=500, detail="Could not safely store the paper extraction."
+        ) from exc
     except Exception as exc:  # noqa: BLE001 - provider failures vary by SDK
         # The upload is unreachable from here on — no paper_id reaches the
         # client, so no run can name it — and it is somebody's unpublished
         # paper. Deleted now rather than left for the day-long pruner.
-        papers.discard(paper_id)
         _LOGGER.exception("Paper contribution extraction failed for %s", paper_id)
         raise HTTPException(
             status_code=422,
@@ -1212,19 +1282,7 @@ async def upload_paper(
             ),
         ) from exc
 
-    payload = contribution.model_dump()
-    try:
-        papers.save_extraction(paper_id, payload)
-    except OSError as exc:
-        # A successful response promises the raw PDF has been deleted. If the
-        # atomic extraction write or privacy cleanup failed, remove the whole
-        # capability instead of returning an id with ambiguous retention.
-        papers.discard(paper_id)
-        _LOGGER.exception("Paper extraction storage failed for %s", paper_id)
-        raise HTTPException(
-            status_code=500, detail="Could not safely store the paper extraction."
-        ) from exc
-    return PaperExtraction(paper_id=paper_id, **payload)
+    return PaperExtraction(paper_id=paper_id, **contribution.model_dump())
 
 
 @app.get(

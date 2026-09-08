@@ -42,6 +42,12 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Upload ingress also bounds bytes/time/preprocessing slots before multipart
+parsing; delayed history replies cannot repaint a newer view or login; actual
+extraction threads finalize raw PDF cleanup even after waiter cancellation.
+These are offline HTTP/Node/Chromium contracts, not incident-rate or cost-savings
+claims. See the [boundary result and retention limits](results-2026-09-08-upload-history-cancellation-boundaries.md).
+
 Composer maintenance now excludes overlapping tab-local submissions/extractions,
 binds attachment responses to the current selection, and preserves distinct 429
 reasons in the UI. LLM readiness shares effective credential resolution with

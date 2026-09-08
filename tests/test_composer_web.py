@@ -7,6 +7,17 @@ import subprocess
 import pytest
 
 
+@pytest.mark.parametrize("mode", ["ordered", "code", "byok", "gate"])
+def test_history_responses_belong_to_latest_view_and_identity(mode):
+    """Old success responses previously re-exposed A's capabilities after B login."""
+    node = shutil.which("node")
+    assert node, "Node is required for the history delivery seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        "sidebar_generation", mode], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS sidebar_generation" in result.stdout
+
+
 @pytest.mark.parametrize("scenario", [
     "pending_submit", "rejected_submit", "existing_topic_pdf", "empty_topic_pdf",
     "missing_suggestion_pdf", "serialized_pdf", "stale_pdf_response", "failed_pdf",

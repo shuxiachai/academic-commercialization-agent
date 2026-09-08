@@ -681,6 +681,11 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
              patch("api.main.extract_paper_contribution", side_effect=blocking_extractor):
             asyncio.run(exercise_cancellation())
 
+        self.assertEqual(
+            list(papers.PAPERS_ROOT.glob("*/paper.pdf")), [],
+            "The finished extraction thread must also finalize raw PDF cleanup",
+        )
+
     def test_byok_pdf_is_daily_cap_exempt_but_not_resource_cap_exempt(self):
         """Who pays changes the wallet limit, never the host/upstream limit."""
         with patch.object(access, "ACCESS_CODE", "alice-code"), \
