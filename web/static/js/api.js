@@ -17,9 +17,9 @@ export class ApiError extends Error {
 /* ── Access code ───────────────────────────────────────────────────────
  * Set only when a deployment defines ACCESS_CODE (see api/access.py). Stored
  * so the gate is not re-prompted on every reload; a wrong/rotated code is
- * discovered the moment any request comes back 401, at which point it is
- * dropped so the app does not keep resending a code the server will never
- * accept. */
+ * discovered when a request for the current selection comes back 401. A
+ * candidate check or a late response from an earlier selection cannot log
+ * out a newer one. Existing documents do not adopt another tab's payer. */
 
 const ACCESS_KEY = "access-code";
 
@@ -28,34 +28,52 @@ const ACCESS_KEY = "access-code";
 // remove on the next read could resurrect a stale credential. Nothing here
 // bypasses server authentication or retries a paid POST. A reload ends this
 // fallback; callers must not auto-reload after a failed credential removal.
-function credentialSlot(storageName, key) {
-  let memory = null, volatile = false;
+function credentialSlot(storageName, key, snapshot = false) {
+  let memory = null, volatile = false, initialized = false, clearConflict = false;
   return {
     read() {
-      if (!volatile) {
+      if (!volatile && (!snapshot || !initialized)) {
         try { memory = globalThis[storageName].getItem(key); }
         catch { volatile = true; }
+        initialized = true;
       }
       return memory;
     },
     write(value) {
+      const previous = this.read();
       memory = value;
+      initialized = true;
+      clearConflict = false;
       if (volatile) return false;
       try {
         const storage = globalThis[storageName];
+        // localStorage is shared, whereas the selected payer and attachment
+        // belong to this document. Preserve a different persisted selection
+        // and keep logout on-page, so reload cannot silently sign in as it.
+        // This compare-before-remove is not a cross-tab transaction/lock.
+        if (value === null && snapshot && storage.getItem(key) !== previous) {
+          clearConflict = true;
+          return false;
+        }
         if (value === null) storage.removeItem(key);
         else storage.setItem(key, value);
         return true;
       } catch { volatile = true; return false; }
     },
     degraded: () => volatile,
+    clearConflict: () => clearConflict,
   };
 }
 
-const accessSlot = credentialSlot("localStorage", ACCESS_KEY);
+// Pin only the shared access code. BYOK remains session-scoped and retains
+// per-request schema checking; freezing its raw bytes would hide corruption.
+const accessSlot = credentialSlot("localStorage", ACCESS_KEY, true);
+let accessSelection = 0;
 export const getAccessCode = () => accessSlot.read();
+export const accessCodeClearConflict = () => accessSlot.clearConflict();
 
 export function setAccessCode(code) {
+  accessSelection += 1;
   return accessSlot.write(code || null);
 }
 
@@ -140,6 +158,7 @@ async function request(path, options = {}) {
     "The paid request may have been accepted, but its acknowledgement was not received. Check history before submitting again.",
     "paid_ack_unknown");
   const stored = getAccessCode();
+  const selection = accessSelection;
   const headers = {
     ...(stored ? { "X-Access-Code": stored } : {}),
     ...(options.headers || {}),
@@ -156,7 +175,10 @@ async function request(path, options = {}) {
   }
 
   if (!response.ok) {
-    if (response.status === 401) setAccessCode(null);
+    // Compare both identity and generation: even selecting A -> B -> A is a
+    // new choice, not authority for an old A response to clear that choice.
+    if (response.status === 401 && stored && headers["X-Access-Code"] === stored
+      && selection === accessSelection) setAccessCode(null);
     let detail = "";
     try {
       const body = await response.json();

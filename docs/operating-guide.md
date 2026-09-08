@@ -217,6 +217,16 @@ request; a residual access code is not an automatic fallback payer. Logout waits
 for run, resume and PDF acknowledgements, then clears old attachment/context.
 Do not treat closing a tab or aborting a request as provider cancellation.
 
+Access-code selection is document-local after its first read: another tab's
+login/logout does not change an open page's payer or history identity. A new
+document reads the latest persisted code. A late/candidate 401 cannot clear a
+newer local choice; logout preserves a different shared selection and returns
+to an explicit gate instead of reloading into it. This is not global logout;
+revoke credentials server-side if all open documents must lose access.
+Compare-before-remove is not a storage transaction. Forced refresh/close can
+still lose a paid reply; no durable receipt or safe resubmission is provided.
+See the [verified identity boundary](results-2026-09-08-browser-access-identity.md).
+
 A progress read failing or exceeding its 15-second deadline shows either no
 confirmed observation or a stale last state, separate from the worker outcome.
 Successful polling clears the warning; 404 stops polling. Other read requests

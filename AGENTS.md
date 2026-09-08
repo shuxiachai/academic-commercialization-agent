@@ -229,6 +229,12 @@ clears old attachment/context. Progress read loss is not worker failure, and
 its bounded GET must never become a paid-POST timeout. See the
 [combined boundary regression](docs/results-2026-09-08-client-boundary-combinations.md).
 
+An open document keeps its selected access code when other tabs change shared
+storage. Late/candidate 401s cannot clear a newer local selection; a conflicting
+persistent removal returns to the gate without reloading into another identity.
+This is not global logout, transactional storage or durable receipt recovery.
+See the [cross-tab identity contract](docs/results-2026-09-08-browser-access-identity.md).
+
 ## Tool Calling: do not turn experimental code into production by accident
 
 - Production is phase-1 **zero-call shadow mode**. Phase-2 execution, provider

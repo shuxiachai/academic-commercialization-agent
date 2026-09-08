@@ -746,7 +746,8 @@ function showStorageNotice(key = "storage_unavailable") {
 async function exitCredentials() {
   // A pending paid reply may carry the only link to accepted work. Do not
   // discard it, relabel it as the next identity, or abort a provider request
-  // merely to make logout immediate. This guard covers normal reload too.
+  // merely to make logout immediate. This guards logout's own reload, not a
+  // browser refresh, close, crash or navigation outside this handler.
   if (submitting || extracting || pendingResumes.size) {
     toast(t("logout_wait_paid"), "error");
     return;
@@ -758,9 +759,9 @@ async function exitCredentials() {
   const byokCleared = api.setByok(null);
   const codeCleared = api.setAccessCode(null);
   if (byokCleared && codeCleared) { location.reload(); return; }
-  // Failed persistent removal cannot be undone by reloading: that would read
-  // the old value again. End this page's session and ask for explicit login.
-  // Do not claim browser data was purged or cancel any server-side work.
+  // Failed removal or a different shared selection must not be undone by
+  // reloading: that would read stale/other credentials again. End this page's
+  // session and ask for explicit login, without claiming global sign-out.
   stopFollowing();
   stopClock();
   activeRunId = null;
@@ -769,7 +770,8 @@ async function exitCredentials() {
   $("#code-badge").hidden = true;
   $("#pane-run").hidden = true;
   $("#pane-compose").hidden = true;
-  showStorageNotice("storage_logout_incomplete");
+  showStorageNotice(api.accessCodeClearConflict() && byokCleared
+    ? "storage_other_identity" : "storage_logout_incomplete");
   await showGate();
   showCompose();
 }
