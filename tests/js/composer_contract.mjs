@@ -34,7 +34,7 @@ function fixture() {
     if (!elements.has(selector)) elements.set(selector, new Element());
     return elements.get(selector);
   };
-  const requests = [], opened = [];
+  const requests = [], opened = [], reloads = [];
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
@@ -49,7 +49,8 @@ function fixture() {
       ? get("#run-actions").children.filter((el) => el.dataset?.resumeRun) : [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false },
     window: { matchMedia: () => ({ matches: false }), addEventListener: () => {} },
-    localStorage: globalThis.localStorage, history: { pushState: () => {} }, location: { pathname: "/" },
+    localStorage: globalThis.localStorage, history: { pushState: () => {} },
+    location: { pathname: "/", reload: () => reloads.push(true) },
     setTimeout: () => 1, clearTimeout: () => {}, setInterval: () => 1, clearInterval: () => {},
     confirm: () => true, recordOpen: (id) => opened.push(id),
   });
@@ -67,7 +68,7 @@ function fixture() {
       "Content-Type": "application/json", ...(code ? { "X-Error-Code": code } : {}),
     } }),
   );
-  return { get, run, topic, submit, upload, respond, requests, opened };
+  return { get, run, topic, submit, upload, respond, requests, opened, reloads };
 }
 
 function paintResume(f) {
@@ -77,6 +78,25 @@ function paintResume(f) {
 
 const paper = { paper_id: "paper-one", title: "Fixture paper", commercialization_topic: "Suggested topic" };
 const scenarios = {
+  async cross_tab_exit() {
+    const local = new Map();
+    globalThis.localStorage = {getItem: key => local.get(key) ?? null,
+      setItem: (key, value) => local.set(key, value), removeItem: key => local.delete(key)};
+    globalThis.sessionStorage.removeItem = () => {};
+    const f = fixture(); api.setAccessCode('fixture-A');
+    f.topic('Identity A attachment');
+    const pending = f.upload(); f.respond(0, paper); await pending;
+    local.set('access-code', 'fixture-B');
+    f.run('exitCredentials()');
+    assert.equal(f.reloads.length, 0, 'A conflict cannot reload into another tab\'s identity');
+    assert.equal(f.get('#gate').hidden, false, 'A different saved payer requires explicit selection');
+    assert.equal(f.get('#storage-notice').textContent, 'storage_other_identity');
+    assert.equal(f.get('#attachment').hidden, true);
+    assert.equal(f.get('#topic').value, '');
+    assert.equal(api.getAccessCode(), null);
+    assert.equal(local.get('access-code'), 'fixture-B');
+    assert.equal(f.requests.length, 1);
+  },
   async gate_pending() {
     const f = fixture(); f.run('showGate()');
     f.get('#gate-input').value = 'candidate-code';

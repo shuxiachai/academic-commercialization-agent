@@ -95,6 +95,13 @@ separate visible state. These are bounded offline request/browser regressions,
 not measured production charge errors or an uptime SLO. See the
 [combined client-boundary audit](results-2026-09-08-client-boundary-combinations.md).
 
+Open documents now retain their selected access-code identity across other
+tabs' storage changes; late/candidate 401s cannot clear a newer choice, and a
+conflicting logout returns to explicit credential selection. Seventeen new
+offline tests and a five-POST intercepted two-tab journey establish the narrow
+contract, not global logout, cross-tab deduplication or durable receipt recovery.
+See the [identity maintenance record](results-2026-09-08-browser-access-identity.md).
+
 | Question | Observed evidence | Boundary / decision |
 |---|---|---|
 | Can the frozen baseline complete with consistent mechanics? | 30/30 completed; 26/30 TRL-range hits; 30/30 correct formula and structure; zero uncited numeric lines; 7/10 topics hit their range in every repetition | Expected ranges were revised after early observations. Not independent accuracy or full hallucination measurement. [CSV](../outputs/benchmark/benchmark_summary.csv), [stability](../outputs/benchmark/benchmark_stability.csv) |

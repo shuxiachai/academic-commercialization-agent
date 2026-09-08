@@ -32,6 +32,126 @@ def _json(route: Route, value: dict, *, status: int = 200, code: str | None = No
                   headers={"X-Error-Code": code} if code else {})
 
 
+def _access_identity_journey(browser, base: str) -> int:
+    """A real second tab cannot relabel a PDF/run/resume or erase a newer login."""
+    context = browser.new_context()
+    posts, held_reads, unexpected, errors = [], [], [], []
+    hold_history = False
+    run_id = "20260908T000000Z-cccccccccccccccccccccccccccccccc"
+    child_id = "20260908T000001Z-dddddddddddddddddddddddddddddddd"
+
+    def intercept(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        if url.netloc != urlsplit(base).netloc:
+            unexpected.append(request.url)
+            route.abort()
+        elif request.method == "POST" and url.path in {
+            "/api/papers", "/api/runs", f"/api/runs/{run_id}/resume",
+        }:
+            posts.append(route)
+        elif request.method != "GET":
+            unexpected.append(f"{request.method} {url.path}")
+            route.abort()
+        elif url.path == "/api/access/check":
+            accepted = request.headers.get("x-access-code") in {"fixture-A", "fixture-B"}
+            _json(route, {"ok": accepted}, status=200 if accepted else 401)
+        elif url.path == "/api/runs":
+            if hold_history and request.headers.get("x-access-code") == "fixture-A":
+                held_reads.append(route)
+            else:
+                _json(route, {"runs": []})
+        elif url.path == "/health":
+            _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif url.path in {f"/api/runs/{run_id}/progress", f"/api/runs/{child_id}/progress"}:
+            parent = url.path == f"/api/runs/{run_id}/progress"
+            _json(route, {"run_id": run_id if parent else child_id, "topic": "Identity fixture",
+                          "state": "failed" if parent else "completed", "stage": "Done",
+                          "steps": [], "artifacts": [], "elapsed_seconds": 0,
+                          "checkpointing": {"committed_nodes": ["retrieval"]} if parent else None})
+        elif url.path == "/" or url.path.startswith("/static/"):
+            route.continue_()
+        else:
+            unexpected.append(url.path)
+            route.abort()
+
+    context.route("**/*", intercept)
+    a, b = context.new_page(), context.new_page()
+    for tab in (a, b):
+        tab.on("pageerror", lambda error: errors.append(str(error)))
+
+    def login(tab: Page, code: str) -> None:
+        expect(tab.locator("#gate")).to_be_visible()
+        tab.locator("#gate-input").fill(code)
+        tab.locator("#gate-submit").click()
+        expect(tab.locator("#gate")).to_be_hidden()
+        expect(tab.locator("#code-badge")).to_be_visible()
+
+    try:
+        a.goto(base)
+        login(a, "fixture-A")
+        a.locator("#topic").fill("Identity A attached topic")
+        a.locator("#pdf-input").set_input_files({
+            "name": "identity.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-fixture",
+        })
+        _wait_requests(a, posts, 1)
+        assert posts[0].request.headers["x-access-code"] == "fixture-A"
+        b.goto(base)
+        expect(b.locator("#code-badge")).to_be_visible()
+        b.locator("#code-exit").click()
+        login(b, "fixture-B")
+        _json(posts[0], {"paper_id": "paper-A", "title": "Paper owned by A"})
+        expect(a.locator("#attachment")).to_contain_text("Paper owned by A")
+        a.locator("#run-btn").click()
+        _wait_requests(a, posts, 2)
+        assert posts[1].request.headers["x-access-code"] == "fixture-A"
+        assert posts[1].request.post_data_json["paper_id"] == "paper-A"
+        assert "llm_api_key" not in posts[1].request.post_data_json
+        _json(posts[1], {"run_id": run_id, "topic": "Identity fixture"}, status=202)
+        expect(a.locator("#run-pill")).to_have_text("failed")
+        a.locator(f'[data-resume-run="{run_id}"]').click()
+        _wait_requests(a, posts, 3)
+        assert posts[2].request.headers["x-access-code"] == "fixture-A"
+        _json(posts[2], {"run_id": child_id, "topic": "Identity fixture"}, status=202)
+        expect(a.locator("#run-pill")).to_have_text("completed")
+
+        # Hold an actual shipped-client read, then deliver a 401 after B's
+        # login. A's logout must not reload and accidentally adopt B either.
+        hold_history = True
+        a.evaluate("""() => { window.rejectedRead = false;
+            import('/static/js/api.js').then(api => api.listRuns())
+                .catch(() => { window.rejectedRead = true; }); }""")
+        _wait_requests(a, held_reads, 1)
+        _json(held_reads[0], {"detail": "Fixture expired A"}, status=401)
+        a.wait_for_function("window.rejectedRead === true")
+        assert b.evaluate("localStorage.getItem('access-code') === 'fixture-B'")
+        a.locator("#code-exit").click()
+        expect(a.locator("#gate")).to_be_visible()
+        expect(a.locator("#storage-notice")).to_contain_text("Another tab changed")
+        expect(a.locator("#topic")).to_have_value("")
+        expect(a.locator("#attachment")).to_be_hidden()
+        hold_history = False
+        login(a, "fixture-A")
+        a.locator("#topic").fill("Explicit new A selection")
+        a.locator("#run-btn").click()
+        _wait_requests(a, posts, 4)
+        assert posts[3].request.headers["x-access-code"] == "fixture-A"
+        assert posts[3].request.post_data_json["paper_id"] is None
+        _json(posts[3], {"detail": "Fixture rejection"}, status=422)
+        expect(a.locator("#run-btn")).to_be_enabled()
+        b.locator("#topic").fill("B remains B despite the new A login")
+        b.locator("#run-btn").click()
+        _wait_requests(b, posts, 5)
+        assert posts[4].request.headers["x-access-code"] == "fixture-B"
+        _json(posts[4], {"detail": "Fixture rejection"}, status=422)
+        expect(b.locator("#run-btn")).to_be_enabled()
+        assert not unexpected, unexpected
+        assert not errors, errors
+        return len(posts)
+    finally:
+        context.close()
+
+
 def main() -> None:
     app = FastAPI()
     reached_server: list[str] = []
@@ -327,6 +447,7 @@ def main() -> None:
             _json(requests[11], {"detail": "Fixture rejection"}, status=422)
             expect(run).to_be_enabled()
             assert len(requests) == 12
+            identity_posts = _access_identity_journey(browser, base)
             assert not unexpected, unexpected
             assert not reached_server, reached_server
             assert not page_errors, page_errors
@@ -337,6 +458,7 @@ def main() -> None:
             context.close()
             browser.close()
     print(json.dumps({"status": "passed", "browser": "chromium", "stubbed_posts": len(requests),
+                      "identity_stubbed_posts": identity_posts,
                       "api_requests_reaching_server": len(reached_server), "unexpected_requests": len(unexpected),
                       "paid_provider_requests": 0, "page_errors": len(page_errors)}))
 
