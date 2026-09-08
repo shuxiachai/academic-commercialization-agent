@@ -223,6 +223,12 @@ Score/grounding/consistency detail faults must not become zero or agreement.
 Denied storage is page-local fallback, not authentication bypass; failed logout
 must not reload stale credentials. See the [delivery boundary and limits](docs/results-2026-09-08-client-delivery-seams.md).
 
+Normalized score dimensions include fractions in 1..maximum. Malformed BYOK
+must not select operator billing; logout waits for paid acknowledgements and
+clears old attachment/context. Progress read loss is not worker failure, and
+its bounded GET must never become a paid-POST timeout. See the
+[combined boundary regression](docs/results-2026-09-08-client-boundary-combinations.md).
+
 ## Tool Calling: do not turn experimental code into production by accident
 
 - Production is phase-1 **zero-call shadow mode**. Phase-2 execution, provider

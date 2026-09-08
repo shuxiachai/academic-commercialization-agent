@@ -69,16 +69,33 @@ const BYOK_KEY = "byok-credentials";
 const byokSlot = credentialSlot("sessionStorage", BYOK_KEY);
 export const storageDegraded = () => accessSlot.degraded() || byokSlot.degraded();
 
-export function getByok() {
-  try {
-    return JSON.parse(byokSlot.read());
-  } catch {
-    return null;
+// Absence selects operator billing; corruption must never mean absence.
+// Keep this allowlist aligned with API models and the visible provider select.
+export const BYOK_PROVIDERS = ["deepseek", "qwen", "openai", "anthropic"];
+function validateByok(creds) {
+  if (!creds || typeof creds !== "object" || Array.isArray(creds)
+    || !BYOK_PROVIDERS.includes(creds.provider)
+    || ![creds.llmKey, creds.serperKey].every(value => typeof value === "string" && value.trim())) {
+    throw new ApiError(0, "Saved BYOK credentials are invalid. Choose your credentials again before a paid operation.", "invalid_byok");
   }
+  return creds;
+}
+
+export function getByok() {
+  const raw = byokSlot.read();
+  if (raw === null) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // JSON syntax and schema failures share a safe error, never secret bytes.
+    return validateByok(null);
+  }
+  return validateByok(parsed);
 }
 
 export function setByok(creds) {
-  return byokSlot.write(creds ? JSON.stringify(creds) : null);
+  return byokSlot.write(creds === null ? null : JSON.stringify(validateByok(creds)));
 }
 
 /* A BYOK run gets no owner tag server-side (see api/access.py) and so never
@@ -223,8 +240,17 @@ export const resumeRun = (runId) => {
 
 export const getRun = (runId) => request(`/api/runs/${runId}`);
 
-export const getProgress = (runId, since = 0) =>
-  request(`/api/runs/${runId}/progress?since=${since}`);
+export async function getProgress(runId, since = 0) {
+  // Bound only this idempotent read, including its response body. Aborting a
+  // paid POST would not cancel provider work and must not share this timeout.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    return await request(`/api/runs/${runId}/progress?since=${since}`, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export const cancelRun = (runId) =>
   request(`/api/runs/${runId}?intent=cancel`, { method: "DELETE" });

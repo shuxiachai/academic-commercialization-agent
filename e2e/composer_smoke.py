@@ -53,6 +53,7 @@ def main() -> None:
     unexpected: list[str] = []
     page_errors: list[str] = []
     storage_gate = False
+    progress_read_failure = False
     run_id = "20260906T000000Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     child_id = "20260906T000001Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     progress = {"run_id": run_id, "topic": "Accepted fixture assessment", "state": "completed",
@@ -86,7 +87,10 @@ def main() -> None:
             elif url.path == "/api/runs":
                 _json(route, {"runs": []})
             elif url.path == f"/api/runs/{run_id}/progress":
-                _json(route, progress)
+                if progress_read_failure:
+                    route.abort()
+                else:
+                    _json(route, progress)
             elif url.path == f"/api/runs/{child_id}/progress":
                 _json(route, {**progress, "run_id": child_id, "state": "completed", "topic": "Accepted child"})
             elif url.path == "/health":
@@ -141,9 +145,17 @@ def main() -> None:
             expect(run).to_be_enabled()
             run.click()
             _wait_requests(page, requests, 3)
+            progress["state"] = "running"
             _json(requests[2], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
             expect(page.locator("#run-title")).to_have_text(progress["topic"])
+            expect(page.locator("#run-pill")).to_have_text("running")
+            progress_read_failure = True
+            expect(page.locator("#run-connection")).to_contain_text("last confirmed state")
+            expect(page.locator("#run-pill")).to_have_text("running")
+            progress_read_failure = False
+            progress["state"] = "completed"
             expect(page.locator("#run-pill")).to_have_text("completed")
+            expect(page.locator("#run-connection")).to_have_text("")
             assert requests[2].request.post_data_json["paper_id"] == "selected-paper"
 
             # A fresh compose document covers auto-fill, extraction failure,
@@ -193,6 +205,9 @@ def main() -> None:
             topic.fill("Accepted despite browser history quota")
             run.click()
             _wait_requests(page, requests, 8)
+            page.locator("#byok-exit").click()
+            expect(page.locator("#toasts")).to_contain_text("回包后再退出")
+            expect(page.locator("#byok-badge")).to_be_visible()
             _json(requests[7], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
             expect(page).to_have_url(f"{base}/run/{run_id}")
             expect(page.locator("#run-pill")).to_have_text("failed")
@@ -200,6 +215,8 @@ def main() -> None:
             resume = page.locator(f'[data-resume-run="{run_id}"]')
             resume.click()
             _wait_requests(page, requests, 9)
+            page.locator("#byok-exit").click()
+            expect(page.locator("#byok-badge")).to_be_visible()
             expect(resume).to_be_disabled()
             page.locator("#ui-lang").select_option("English")
             expect(page.locator("#run-pill")).to_have_text("failed")
@@ -219,6 +236,23 @@ def main() -> None:
             requests[9].abort()
             expect(page.locator("#toasts")).to_contain_text("may already have started")
             assert len(requests) == 10
+            # A valid leftover code must not silently replace corrupted BYOK.
+            # Even a programmatic submit behind the gate cannot emit a POST.
+            page.evaluate("""() => {
+                sessionStorage.setItem('byok-credentials', '{}');
+                localStorage.setItem('access-code', 'storage-fixture-code');
+            }""")
+            page.goto(base)
+            expect(page.locator("#gate")).to_be_visible()
+            expect(page.locator("#gate-error")).to_contain_text("Saved BYOK credentials are invalid")
+            page.locator("#topic").evaluate("el => { el.value = 'Corrupt identity fixture'; el.dispatchEvent(new Event('input')); }")
+            page.locator("#compose-form").evaluate("form => form.requestSubmit()")
+            expect(page.locator("#toasts")).to_contain_text("no paid request was sent")
+            assert len(requests) == 10
+            page.locator("#gate-input").fill("storage-fixture-code")
+            page.locator("#gate-submit").click()
+            expect(page.locator("#gate")).to_be_hidden()
+            expect(page.locator("#code-badge")).to_be_visible()
             # Deny access to the Storage objects themselves before boot, not
             # just a particular history write after acceptance. Authentication
             # still requires the exact fixture code; only persistence degrades.
@@ -263,11 +297,36 @@ def main() -> None:
             expect(page.locator("#gate")).to_be_hidden()
             expect(page.locator("#byok-badge")).to_be_visible()
             assert fixture_credentials_match(page)
+            # A delayed extraction cannot follow a same-page logout into the
+            # next payer. Logout waits, then clears the acknowledged attachment.
+            topic.fill("Identity A paper topic")
+            page.locator("#pdf-input").set_input_files(pdf)
+            _wait_requests(page, requests, 11)
+            page.locator("#byok-exit").click()
+            expect(page.locator("#toasts")).to_contain_text("回包后再退出")
+            expect(page.locator("#gate")).to_be_hidden()
+            _json(requests[10], {"paper_id": "identity-A-paper", "title": "Identity A paper"})
+            expect(page.locator("#attachment")).to_contain_text("Identity A paper")
             page.locator("#byok-exit").click()
             expect(page.locator("#gate")).to_be_visible()
+            expect(page.locator("#attachment")).to_be_hidden()
+            expect(topic).to_have_value("")
             expect(page.locator("#byok-llm-key")).to_have_value("")
             expect(page.locator("#byok-serper-key")).to_have_value("")
-            assert len(requests) == 10  # This extra browser lane cannot submit paid work.
+            page.locator("#gate-to-byok").click()
+            page.locator("#byok-provider").select_option("qwen")
+            page.locator("#byok-llm-key").fill("fixture-B")
+            page.locator("#byok-serper-key").fill("fixture-search-B")
+            page.locator("#byok-form").evaluate("form => form.requestSubmit()")
+            expect(page.locator("#gate")).to_be_hidden()
+            topic.fill("Identity B topic")
+            run.click()
+            _wait_requests(page, requests, 12)
+            body = requests[11].request.post_data_json
+            assert body["llm_api_key"] == "fixture-B" and body["paper_id"] is None
+            _json(requests[11], {"detail": "Fixture rejection"}, status=422)
+            expect(run).to_be_enabled()
+            assert len(requests) == 12
             assert not unexpected, unexpected
             assert not reached_server, reached_server
             assert not page_errors, page_errors

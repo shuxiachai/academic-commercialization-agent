@@ -88,6 +88,13 @@ page-local identity with explicit persistence/logout limits. These are
 offline HTTP/Chromium contracts, not production incident rates or semantic
 report validation. See the [delivery seam audit](results-2026-09-08-client-delivery-seams.md).
 
+The follow-up corrects integer-only score display against 109 stored score
+files (64 contain fractions). Malformed BYOK no longer chooses operator billing;
+pending acknowledgements retain their identity, and stale progress reads have a
+separate visible state. These are bounded offline request/browser regressions,
+not measured production charge errors or an uptime SLO. See the
+[combined client-boundary audit](results-2026-09-08-client-boundary-combinations.md).
+
 | Question | Observed evidence | Boundary / decision |
 |---|---|---|
 | Can the frozen baseline complete with consistent mechanics? | 30/30 completed; 26/30 TRL-range hits; 30/30 correct formula and structure; zero uncited numeric lines; 7/10 topics hit their range in every repetition | Expected ranges were revised after early observations. Not independent accuracy or full hallucination measurement. [CSV](../outputs/benchmark/benchmark_summary.csv), [stability](../outputs/benchmark/benchmark_stability.csv) |
