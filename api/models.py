@@ -291,6 +291,9 @@ class RunProgress(BaseModel):
     )
     output_language: str = "English"
     steps: list[StepEvent] = Field(default_factory=list)
+    steps_next_cursor: int = Field(default=0, ge=0)
+    steps_read_state: Literal["absent", "readable", "partial", "unavailable"] = "absent"
+    steps_rejected: int = Field(default=0, ge=0, description="Rejected complete lines observed in this log, not failed tasks.")
     artifacts: list[str] = Field(default_factory=list)
 
 

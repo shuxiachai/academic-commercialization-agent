@@ -195,6 +195,22 @@ See the [request and browser verification](results-2026-09-06-run-mutation-inten
 
 ## Artifacts and recovery
 
+Progress readers should pass `steps_next_cursor` back as `since`: it counts
+complete physical log lines, including rejected rows, not returned events.
+`steps_read_state=partial/unavailable` warns about the optional log without
+changing task completion or blocking the report. Incomplete trailing rows are
+held until newline publication. See the [delivery contract](results-2026-09-08-client-delivery-seams.md).
+
+Score, grounding and consistency tabs validate downloaded display fields rather
+than defaulting missing data to zero or agreement. This neither rewrites stored
+artifacts nor changes scoring/heuristics. Healthy report tabs remain usable.
+
+If browser storage is denied, credentials can be held only in page memory and
+preferences use safe defaults. Bookmark accepted run links. A failed persistent
+logout returns to the gate without reloading stale credentials; clear site data
+before reopening when prompted. This does not erase inaccessible storage, revoke
+capability URLs, or stop work on the server.
+
 Each run writes its own `outputs/<run_id>/` directory. Files depend on how
 far the run progressed; a missing report on an early failure is not a completed
 assessment.

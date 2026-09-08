@@ -90,7 +90,11 @@ export function follow(runId, { onUpdate, onDone, onError }) {
       const progress = await api.getProgress(runId, seenSteps);
       if (stopped) return;
 
-      seenSteps += progress.steps.length;
+      // A rejected physical line still advances the server cursor. Fall back
+      // only for old deployments which have not introduced this field yet.
+      seenSteps = Number.isSafeInteger(progress.steps_next_cursor)
+        && progress.steps_next_cursor >= seenSteps
+        ? progress.steps_next_cursor : seenSteps + progress.steps.length;
       onUpdate?.(progress);
 
       if (TERMINAL.has(progress.state)) {

@@ -366,6 +366,10 @@ def _exercise_browser(
             expect(page.locator("#run-terminal")).to_have_text("· worker completed")
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
 
+            # The fixture's optional event log is corrupt; terminal completion
+            # and report delivery must still be visible in actual Chromium.
+            expect(page.locator("#run-step-record")).to_contain_text("Step log incomplete")
+
             page.goto(f"{base_url}/run/{damaged_terminal_id}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("unknown")
             expect(page.locator("#run-terminal")).to_have_text("· terminal record unreadable")
@@ -390,6 +394,10 @@ def _exercise_browser(
             expect(page.locator('.reliability__row[data-check="review"]')).to_have_attribute("data-tone", "ok")
             page.locator('button.tab[data-view="report-audit"]').click()
             expect(page.locator('.panel[data-view="report-audit"]')).to_contain_text("missing or unreadable")
+            for view in ("grounding", "consistency"):
+                page.locator(f'button.tab[data-view="{view}"]').click()
+                expect(page.locator(f'.panel[data-view="{view}"]')).to_contain_text("no conclusion can be drawn")
+                expect(page.locator(f'.panel[data-view="{view}"] .consistency__clear')).to_have_count(0)
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_be_visible()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
@@ -401,6 +409,9 @@ def _exercise_browser(
             page.goto(f"{base_url}/run/{damaged_runtime_id}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("completed")
             expect(page.locator("#run-terminal")).to_have_text("· worker completed")
+            expect(page.locator(".scorecard__value")).to_have_text("—")
+            expect(page.locator(".scorecard__band")).to_contain_text("no conclusion can be drawn")
+            page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
             expect(page.locator("#run-usage")).to_contain_text("usage unavailable")
             expect(page.locator("#run-usage")).not_to_contain_text("$")
@@ -510,6 +521,8 @@ def main() -> None:
         run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
         damaged_status_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
         (output_root / damaged_status_id / "status.json").write_bytes(b"\xff")
+        (output_root / damaged_status_id / "steps.jsonl").write_bytes(
+            b'{"type":"finish","agent_idx":0}\nnull\n{"type":"finish","agent_idx":1}\n')
         damaged_terminal_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
         # These are isolated mutable test fixtures, not production terminal
         # rewrites. Retain stale done=true beside a damaged immutable record.
@@ -536,12 +549,15 @@ def main() -> None:
         detail = json.loads(detail_path.read_text(encoding="utf-8"))
         detail.update(findings=[None], findings_count=1)
         detail_path.write_text(json.dumps(detail), encoding="utf-8")
+        for name in ("claim_grounding.json", "consistency.json"):
+            (output_root / damaged_audit_id / name).write_text("{}", encoding="utf-8")
         runtime_ids = tuple(_write_completed_run(output_root, access.owner_id(ACCESS_CODE)) for _ in range(3))
         for index, runtime_id in enumerate(runtime_ids):
             # Corrupt only isolated fixture bytes, never a real write-once run.
             terminal_path = output_root / runtime_id / "terminal.json"
             record = json.loads(terminal_path.read_text(encoding="utf-8"))
             if index == 0:
+                (output_root / runtime_id / "commercialization_scores.json").write_text("{}", encoding="utf-8")
                 record["usage"]["total_tokens"] = 100
                 record["usage"]["cost_usd"] = "bad-price"
                 record["checkpointing"] = {"state": "degraded", "errors": 1}

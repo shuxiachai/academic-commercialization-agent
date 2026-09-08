@@ -217,6 +217,12 @@ Composer submission/extraction locks are tab-local, not server idempotency.
 Readiness checks the effective selected credential without contacting providers;
 429 reasons remain distinct. See the [HTTP/browser contract and limits](docs/results-2026-09-06-composer-paid-operation-integrity.md).
 
+Optional step logs cannot override run truth. Progress cursors count complete
+physical lines, not valid events; preserve partial tails and explicit read loss.
+Score/grounding/consistency detail faults must not become zero or agreement.
+Denied storage is page-local fallback, not authentication bypass; failed logout
+must not reload stale credentials. See the [delivery boundary and limits](docs/results-2026-09-08-client-delivery-seams.md).
+
 ## Tool Calling: do not turn experimental code into production by accident
 
 - Production is phase-1 **zero-call shadow mode**. Phase-2 execution, provider

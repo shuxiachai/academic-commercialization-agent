@@ -11,6 +11,12 @@
 
 const STRINGS = {
   English: {
+    storage_unavailable: "Browser storage is unavailable. Credentials last only on this page; settings and history may not be saved. Bookmark accepted run links.",
+    storage_logout_incomplete: "Signed out on this page, but stored credentials could not be removed. Clear this site's browser data before reopening it.",
+    detail_unreadable: "Detail unavailable or malformed; no conclusion can be drawn from it.",
+    detail_not_checked: "This check did not establish a result; this is not a pass.",
+    steps_partial: "Step log incomplete; this does not change the run outcome.",
+    steps_unavailable: "Step log unavailable; the run outcome and report remain separate.",
     // Chrome
     brand: "Assessment",
     new_analysis: "New analysis",
@@ -278,6 +284,12 @@ const STRINGS = {
   },
 
   "Simplified Chinese": {
+    storage_unavailable: "浏览器存储不可用。凭据仅在当前页面临时保留，设置与历史可能无法保存；请收藏已接受任务的链接。",
+    storage_logout_incomplete: "已在当前页面退出，但无法删除浏览器里保存的旧凭据。重新打开前请清除此网站的浏览器数据。",
+    detail_unreadable: "详情缺失或格式异常，不能据此得出结论。",
+    detail_not_checked: "此项检查未形成有效判断，不代表通过。",
+    steps_partial: "步骤日志不完整；这不改变任务的执行结果。",
+    steps_unavailable: "无法读取步骤日志；任务结果与报告不受此状态判定。",
     brand: "商业化评估",
     new_analysis: "新建分析",
     no_runs: "暂无运行记录",
@@ -522,7 +534,9 @@ const STRINGS = {
 
 const STORAGE_KEY = "ui-language";
 
-let current = localStorage.getItem(STORAGE_KEY) ?? "English";
+let current = "English";
+try { current = localStorage.getItem(STORAGE_KEY) ?? "English"; }
+catch { /* Preferences cannot prevent module initialization in a restricted browser. */ }
 if (!STRINGS[current]) current = "English";
 
 /** Translate a key, falling back to English and then to the key itself. */
@@ -537,7 +551,8 @@ export function language() {
 export function setLanguage(next) {
   if (!STRINGS[next]) return;
   current = next;
-  localStorage.setItem(STORAGE_KEY, next);
+  try { localStorage.setItem(STORAGE_KEY, next); }
+  catch { /* Keep the selected language in memory; applying it needs no persistence. */ }
   apply();
 }
 

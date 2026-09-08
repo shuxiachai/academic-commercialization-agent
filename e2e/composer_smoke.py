@@ -52,6 +52,7 @@ def main() -> None:
     requests: list[Route] = []
     unexpected: list[str] = []
     page_errors: list[str] = []
+    storage_gate = False
     run_id = "20260906T000000Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     child_id = "20260906T000001Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     progress = {"run_id": run_id, "topic": "Accepted fixture assessment", "state": "completed",
@@ -60,6 +61,7 @@ def main() -> None:
     with _serve(app) as base, sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         context = browser.new_context()
+        code_checks = []
 
         def route_request(route: Route) -> None:
             request = route.request
@@ -75,7 +77,12 @@ def main() -> None:
                 unexpected.append(f"Unexpected method: {request.method} {url.path}")
                 route.abort()
             elif url.path == "/api/access/check":
-                _json(route, {"ok": True})
+                if storage_gate and request.headers.get("x-access-code") == "storage-fixture-code":
+                    code_checks.append(request.url)
+                if storage_gate and request.headers.get("x-access-code") != "storage-fixture-code":
+                    _json(route, {"detail": "Fixture authentication required"}, status=401)
+                else:
+                    _json(route, {"ok": True})
             elif url.path == "/api/runs":
                 _json(route, {"runs": []})
             elif url.path == f"/api/runs/{run_id}/progress":
@@ -212,6 +219,55 @@ def main() -> None:
             requests[9].abort()
             expect(page.locator("#toasts")).to_contain_text("may already have started")
             assert len(requests) == 10
+            # Deny access to the Storage objects themselves before boot, not
+            # just a particular history write after acceptance. Authentication
+            # still requires the exact fixture code; only persistence degrades.
+            storage_gate = True
+            page.add_init_script("""
+                for (const name of ['localStorage', 'sessionStorage']) {
+                    Object.defineProperty(window, name, {get() {
+                        throw new DOMException('Fixture storage denied', 'SecurityError');
+                    }});
+                }
+            """)
+            page.goto(base)
+            expect(page.locator("#gate")).to_be_visible()
+            page.locator("#gate-input").fill("storage-fixture-code")
+            page.locator("#gate-submit").click()
+            expect(page.locator("#gate")).to_be_hidden()
+            expect(page.locator("#code-badge")).to_be_visible()
+            expect(page.locator("#storage-notice")).to_contain_text("Credentials last only on this page")
+            page.locator("#ui-lang").select_option("Simplified Chinese")
+            expect(page.locator("#storage-notice")).to_contain_text("当前页面临时保留")
+            page.locator("#code-exit").click()
+            expect(page.locator("#gate")).to_be_visible()
+            expect(page.locator("#storage-notice")).to_contain_text("无法删除")
+            # Repeated same-document login must replace gate handlers. Assert
+            # the network effect; a hidden gate alone misses duplicate calls.
+            for _ in range(2):
+                expect(page.locator("#gate-input")).to_have_value("")
+                before = len(code_checks)
+                page.locator("#gate-input").fill("storage-fixture-code")
+                page.locator("#gate-submit").click()
+                expect(page.locator("#gate")).to_be_hidden()
+                expect(page.locator("#pane-compose")).to_be_visible()
+                page.wait_for_timeout(30)
+                assert len(code_checks) == before + 1
+                page.locator("#code-exit").click()
+                expect(page.locator("#gate")).to_be_visible()
+            page.locator("#gate-to-byok").click()
+            page.locator("#byok-provider").select_option("qwen")
+            page.locator("#byok-llm-key").fill("fixture-memory-key")
+            page.locator("#byok-serper-key").fill("fixture-memory-search")
+            page.locator("#byok-form").evaluate("form => form.requestSubmit()")
+            expect(page.locator("#gate")).to_be_hidden()
+            expect(page.locator("#byok-badge")).to_be_visible()
+            assert fixture_credentials_match(page)
+            page.locator("#byok-exit").click()
+            expect(page.locator("#gate")).to_be_visible()
+            expect(page.locator("#byok-llm-key")).to_have_value("")
+            expect(page.locator("#byok-serper-key")).to_have_value("")
+            assert len(requests) == 10  # This extra browser lane cannot submit paid work.
             assert not unexpected, unexpected
             assert not reached_server, reached_server
             assert not page_errors, page_errors
@@ -224,6 +280,15 @@ def main() -> None:
     print(json.dumps({"status": "passed", "browser": "chromium", "stubbed_posts": len(requests),
                       "api_requests_reaching_server": len(reached_server), "unexpected_requests": len(unexpected),
                       "paid_provider_requests": 0, "page_errors": len(page_errors)}))
+
+
+def fixture_credentials_match(page: Page) -> bool:
+    """Inspect only fake fixture identity; never log actual visitor credentials."""
+    return page.evaluate("""async () => {
+        const api = await import('/static/js/api.js');
+        return api.getAccessCode() === null && api.getByok()?.provider === 'qwen'
+            && api.getByok()?.llmKey === 'fixture-memory-key';
+    }""")
 
 
 if __name__ == "__main__":

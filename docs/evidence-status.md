@@ -81,6 +81,13 @@ deletion from a normal return. Unknown inventory is not zero; cleanup-only
 faults remain advisory. This is not proof of a production storage failure or
 complete erasure; see the [outcome contract](results-2026-09-07-cleanup-outcome-observability.md).
 
+Optional step-log failures now stay separate from run completion and report
+delivery. Physical-line cursors prevent replay after rejected events; detail
+tabs reject fake zero/pass states, and denied browser storage degrades to
+page-local identity with explicit persistence/logout limits. These are
+offline HTTP/Chromium contracts, not production incident rates or semantic
+report validation. See the [delivery seam audit](results-2026-09-08-client-delivery-seams.md).
+
 | Question | Observed evidence | Boundary / decision |
 |---|---|---|
 | Can the frozen baseline complete with consistent mechanics? | 30/30 completed; 26/30 TRL-range hits; 30/30 correct formula and structure; zero uncited numeric lines; 7/10 topics hit their range in every repetition | Expected ranges were revised after early observations. Not independent accuracy or full hallucination measurement. [CSV](../outputs/benchmark/benchmark_summary.csv), [stability](../outputs/benchmark/benchmark_stability.csv) |
@@ -156,8 +163,9 @@ remain unchanged. Browse the [full experiment index](experiment-index.md).
    explicit unreadable rows; see the [nested fault verification](results-2026-09-05-nested-audit-metadata-integrity.md).
    Selected usage/accounting/checkpoint/recovery summaries now also have
    [read isolation and browser fault tests](results-2026-09-05-runtime-summary-read-integrity.md).
-   The report-audit detail renderer now also validates its displayed shapes
-   and counters locally. Other detailed artifacts and nested payloads remain
+   Report-audit, score, grounding and consistency detail renderers now validate
+   their displayed shapes/counters locally; optional step logs have separate
+   availability and cursor contracts. Other artifacts and nested payloads remain
    outside these contracts; reproduce their client failure before proposing changes.
 2. New decision-utility research should target the already observed low trust
    and actionability, use a new protocol and disclose external-source checks.

@@ -139,16 +139,26 @@ export function renderMarkdown(md) {
 
 /* ── Scorecard ─────────────────────────────────────────────────────── */
 
+// Read validation only: never repair stored JSON or recompute its score.
+// A missing number is not zero, and a valid neighbour remains displayable.
+const detailRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
+const detailCount = value => Number.isSafeInteger(value) && value >= 0;
+const detailStrings = value => Array.isArray(value) && value.every(item => typeof item === "string");
+const detailUnavailable = () => el("p", "empty-note detail-unreadable", t("detail_unreadable"));
+const scoreNumber = (value, max) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max;
+
 function renderScorecard(scores) {
   const wrap = el("section", "scorecard");
-  const overall = Number(scores.overall_score ?? 0);
-  const { name, tone } = band(overall);
+  if (!detailRecord(scores)) { wrap.append(detailUnavailable()); return wrap; }
+  const overall = scores.overall_score;
+  const readable = scoreNumber(overall, 100);
+  const { name, tone } = readable ? band(overall) : { name: t("detail_unreadable"), tone: "muted" };
 
   const head = el("div", "scorecard__head");
   const figure = el("div", "scorecard__figure");
   figure.dataset.tone = tone;
   figure.append(
-    el("span", "scorecard__value tabular", overall.toFixed(1)),
+    el("span", "scorecard__value tabular", readable ? overall.toFixed(1) : "—"),
     el("span", "scorecard__denom", "/ 100"),
   );
   const caption = el("div", "scorecard__caption");
@@ -161,8 +171,9 @@ function renderScorecard(scores) {
 
   const grid = el("div", "dims");
   for (const dim of DIMENSIONS) {
-    const value = Number(scores[dim.key] ?? 0);
-    const pct = Math.max(0, Math.min(100, (value / dim.max) * 100));
+    const value = scores[dim.key];
+    const valid = scoreNumber(value, dim.max) && Number.isInteger(value);
+    const pct = valid ? (value / dim.max) * 100 : 0;
 
     const row = el("div", "dim");
     const label = el("div", "dim__label", t(dim.label));
@@ -170,12 +181,13 @@ function renderScorecard(scores) {
     const fill = el("div", "dim__fill");
     fill.style.width = `${pct}%`;
     bar.append(fill);
-    const num = el("div", "dim__value tabular", `${value} / ${dim.max}`);
+    const num = el("div", "dim__value tabular", valid ? `${value} / ${dim.max}` : "—");
+    if (!valid) row.title = t("detail_unreadable");
 
     row.append(label, bar, num);
 
     const rationale = scores[dim.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "") + "_rationale"];
-    if (rationale) row.title = rationale;
+    if (valid && typeof rationale === "string" && rationale) row.title = rationale;
 
     grid.append(row);
   }
@@ -183,7 +195,9 @@ function renderScorecard(scores) {
 
   for (const [key, title] of [["key_risks", t("risks")], ["key_opportunities", t("opportunities")]]) {
     const items = scores[key];
-    if (!Array.isArray(items) || !items.length) continue;
+    if (items === undefined) continue; // Historical scorecards need not have notes.
+    if (!detailStrings(items)) { wrap.append(detailUnavailable()); continue; }
+    if (!items.length) continue;
     const block = el("div", "notes");
     block.append(el("h4", "notes__title", title));
     const ul = el("ul", "notes__list");
@@ -343,17 +357,21 @@ export async function render(container, runId, progress) {
 // relative to each other — is worth asserting on directly.
 export function renderGrounding(data) {
   const wrap = el("div", "grounding");
-
-  const checked = data.checked ?? 0;
-  const ungrounded = data.ungrounded ?? 0;
-  const unverifiable = data.unverifiable ?? 0;
+  if (!detailRecord(data) || !["checked", "ungrounded", "unverifiable"].every(key => detailCount(data[key]))
+      || data.ungrounded > data.checked) {
+    wrap.append(detailUnavailable()); return wrap;
+  }
+  const { checked, ungrounded, unverifiable } = data;
 
   wrap.append(el("p", "grounding__lede", t("grounding_lede")));
+  // Zero checked is not evidence of a successful screen, including valid
+  // all-zero historical artifacts. Do not infer full report verification.
+  if (data.error || checked === 0) wrap.append(el("p", "empty-note", t("detail_not_checked")));
 
   const stats = el("div", "grounding__stats");
   for (const [value, label, tone] of [
-    [checked, t("grounding_checked"), "ok"],
-    [ungrounded, t("grounding_ungrounded"), ungrounded ? "warn" : "ok"],
+    [checked, t("grounding_checked"), checked && !data.error ? "ok" : "muted"],
+    [ungrounded, t("grounding_ungrounded"), ungrounded ? "warn" : checked && !data.error ? "ok" : "muted"],
     [unverifiable, t("grounding_unverifiable"), "muted"],
   ]) {
     const cell = el("div", `grounding__stat grounding__stat--${tone}`);
@@ -364,7 +382,8 @@ export function renderGrounding(data) {
   wrap.append(stats);
 
   const duplicatesCollapsed = data.duplicates_collapsed ?? 0;
-  if (duplicatesCollapsed > 0) {
+  if (!detailCount(duplicatesCollapsed)) wrap.append(detailUnavailable());
+  else if (duplicatesCollapsed > 0) {
     const note = t("grounding_duplicates").replace(
       "{count}", String(duplicatesCollapsed),
     );
@@ -374,6 +393,7 @@ export function renderGrounding(data) {
   // Per domain, because one aggregate cannot say both "the check works" and
   // "market reports have no abstract to check against".
   const byDomain = data.by_domain ?? {};
+  if (data.by_domain !== undefined && !detailRecord(data.by_domain)) wrap.append(detailUnavailable());
   const domains = [
     ["academic", t("group_academic")],
     ["patent", t("group_patents")],
@@ -384,7 +404,12 @@ export function renderGrounding(data) {
     const list = el("ul", "grounding__domains");
     for (const [key, label] of domains) {
       const d = byDomain[key];
-      const total = (d.checked ?? 0) + (d.unverifiable ?? 0);
+      if (!detailRecord(d) || !["checked", "ungrounded", "unverifiable"].every(k => detailCount(d[k]))
+          || d.ungrounded > d.checked) {
+        list.append(el("li", "grounding__domain", `${label}: ${t("detail_unreadable")}`));
+        continue;
+      }
+      const total = d.checked + d.unverifiable;
       const text = total
         ? `${label}: ${d.checked}/${total} ${t("grounding_checkable")}`
         : `${label}: ${t("grounding_no_figures")}`;
@@ -393,11 +418,19 @@ export function renderGrounding(data) {
     wrap.append(list);
   }
 
-  const rows = data.findings ?? [];
+  const rows = data.findings;
+  if (!Array.isArray(rows)) { wrap.append(detailUnavailable()); return wrap; }
   if (!rows.length) return wrap;
 
   const list = el("ul", "grounding__list");
   for (const row of rows) {
+    if (!detailRecord(row) || typeof row.finding_id !== "string"
+        || !["grounded", "ungrounded", "unverifiable"].includes(row.status)
+        || (row.claim !== undefined && typeof row.claim !== "string")
+        || (row.ungrounded_figures !== undefined && !detailStrings(row.ungrounded_figures))
+        || (row.unverifiable_reason != null && typeof row.unverifiable_reason !== "string")) {
+      list.append(detailUnavailable()); continue;
+    }
     const item = el("li", `grounding__item grounding__item--${row.status}`);
     item.append(el("span", "grounding__id", `${row.finding_id}`));
     item.append(el("span", "grounding__claim", row.claim ?? ""));
@@ -646,8 +679,23 @@ export function renderReportAudit(data) {
 export function renderConsistency(data) {
   const wrap = el("div", "consistency");
   wrap.append(el("p", "grounding__lede", t("consistency_lede")));
-
-  const findings = data.findings ?? [];
+  if (!detailRecord(data) || typeof data.checked !== "boolean"
+      || !detailCount(data.blockers) || !detailCount(data.warnings) || !Array.isArray(data.findings)) {
+    wrap.append(detailUnavailable()); return wrap;
+  }
+  // Even an empty, valid findings array cannot turn a skipped/failed check
+  // into agreement. The current writer normally omits skipped artifacts;
+  // retained historical or hand-edited bytes still reach this read boundary.
+  if (!data.checked || data.error) {
+    wrap.append(el("p", "empty-note", t("detail_not_checked"))); return wrap;
+  }
+  const findings = data.findings;
+  if (data.blockers + data.warnings !== findings.length || findings.some(f =>
+    !detailRecord(f) || !["blocker", "warning"].includes(f.severity)
+    || typeof f.detail !== "string" || (f.excerpt !== undefined && typeof f.excerpt !== "string"))
+    || findings.filter(f => f.severity === "blocker").length !== data.blockers) {
+    wrap.append(detailUnavailable()); return wrap;
+  }
   if (!findings.length) {
     wrap.append(el("p", "consistency__clear", t("consistency_clear")));
     return wrap;

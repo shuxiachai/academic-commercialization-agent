@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 import json
+import math
 import os
 import re
 import shutil
@@ -46,6 +47,7 @@ from academic_agent.run_terminal import (
 )
 from api.audit_projection import project_audit_metadata
 from api.cleanup import CleanupAudit
+from api.models import StepEvent
 from api.runtime_projection import project_runtime_metadata
 
 # A run is killed after this long. The bound belongs to the worker contract,
@@ -1192,34 +1194,48 @@ def _read_terminal(run_dir: Path) -> tuple[TerminalRecord | None, dict | None]:
 
 
 def read_steps(run_id: str, since: int = 0) -> list[dict]:
-    """Step events from steps.jsonl, skipping the first `since` entries.
+    """Compatibility wrapper; `since` counts physical lines, not valid events."""
+    return [event.model_dump() for event in read_step_page(run_id, since)["steps"]]
 
-    The worker appends to this file while running, so a partially written
-    trailing line is normal and is skipped rather than treated as corruption.
+
+def read_step_page(run_id: str, since: int = 0) -> dict:
+    """Read an append-only log without making its availability own run truth.
+
+    Count complete physical lines even when rejected. Counting returned events
+    instead duplicates later good rows forever after a bad row. Re-scan the
+    prefix for advisory loss counts, but deliver only the suffix. Never consume
+    a non-newline-terminated tail: even valid JSON may still be being appended.
+    Binary iteration isolates one invalid UTF-8 line from its healthy neighbours.
+    No raw file errors or rejected event content cross this public boundary.
     """
     if not _is_valid_run_id(run_id):
         raise RunNotFound(f"Invalid run id: {run_id!r}")
 
     path = run_dir_for(run_id) / "steps.jsonl"
-    if not path.exists():
-        return []
-
-    events: list[dict] = []
+    page = {"steps": [], "steps_next_cursor": since,
+            "steps_read_state": "readable", "steps_rejected": 0}
     try:
-        with path.open(encoding="utf-8") as handle:
+        with path.open("rb") as handle:
             for index, line in enumerate(handle):
-                if index < since:
-                    continue
-                line = line.strip()
-                if not line:
-                    continue
+                if not line.endswith(b"\n"):
+                    page["steps_read_state"] = "partial"
+                    break
+                page["steps_next_cursor"] = max(since, index + 1)
                 try:
-                    events.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue      # the writer is mid-line; it will be there next poll
+                    event = StepEvent.model_validate(json.loads(line.decode("utf-8")), strict=True)
+                    if not event.type or (event.ts is not None and not math.isfinite(event.ts)):
+                        raise ValueError("Invalid event identity or timestamp")
+                except (ValueError, RecursionError):
+                    page["steps_rejected"] += 1
+                    page["steps_read_state"] = "partial"
+                    continue
+                if index >= since:
+                    page["steps"].append(event)
+    except FileNotFoundError:
+        page["steps_read_state"] = "absent"
     except OSError:
-        return []
-    return events
+        page["steps_read_state"] = "unavailable"
+    return page
 
 
 def _failure_reason(run_dir: Path) -> str:
