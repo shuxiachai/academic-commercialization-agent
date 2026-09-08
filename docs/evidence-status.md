@@ -171,6 +171,12 @@ remain unchanged. Browse the [full experiment index](experiment-index.md).
 
 ## Highest-value next work
 
+First-party paid intent now survives document refresh as a credential-free
+session warning, with explicit risk acknowledgement before a new submission.
+Three real Chromium reload cases and fault-injected Node delivery/settlement
+contracts establish a bounded client guard, not recovered receipts or measured
+billing savings. See the [verification and limits](results-2026-09-08-paid-refresh-warning.md).
+
 1. The core metadata read fault path is now hardened through both HTTP endpoints,
    history and Chromium; see the [measured scope and limits](results-2026-09-05-runtime-metadata-integrity.md).
    Nine reliability-summary fields now have field-local read isolation and

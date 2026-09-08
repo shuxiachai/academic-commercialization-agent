@@ -152,6 +152,100 @@ def _access_identity_journey(browser, base: str) -> int:
         context.close()
 
 
+def _paid_refresh_journey(browser, base: str) -> int:
+    """Exercise each operation in an isolated tab session, without providers."""
+    return sum(_paid_refresh_case(browser, base, operation) for operation in ("run", "pdf", "resume"))
+
+
+def _paid_refresh_case(browser, base: str, operation: str) -> int:
+    """Forced reload loses JS locks, not the warning; all POSTs are intercepted."""
+    context = browser.new_context()
+    posts: list[Route] = []
+    faults: list[str] = []
+    run_id = "20260908T000000Z-cccccccccccccccccccccccccccccccc"
+    accept_confirmation = True
+
+    def intercept(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        if url.netloc != urlsplit(base).netloc:
+            faults.append("External request")
+            route.abort()
+        elif request.method == "POST" and url.path in {
+            "/api/runs", "/api/papers", f"/api/runs/{run_id}/resume",
+        }:
+            posts.append(route)  # Held across refresh; never sent to the server.
+        elif request.method != "GET":
+            faults.append(f"Unexpected method: {request.method}")
+            route.abort()
+        elif url.path == "/api/access/check":
+            _json(route, {"ok": True})
+        elif url.path == "/api/runs":
+            _json(route, {"runs": []})
+        elif url.path == f"/api/runs/{run_id}/progress":
+            _json(route, {"run_id": run_id, "topic": "Refresh parent", "state": "failed",
+                "stage": "Failed", "steps": [], "artifacts": [], "elapsed_seconds": 0,
+                "checkpointing": {"committed_nodes": ["retrieval"]}})
+        elif url.path == "/health":
+            _json(route, {"active_runs": 0, "active_paid_operations": 0, "max_concurrent": 5})
+        elif url.path == f"/run/{run_id}":
+            route.fulfill(path=str(PROJECT_ROOT / "web/index.html"), content_type="text/html")
+        elif url.path == "/" or url.path.startswith("/static/"):
+            route.continue_()
+        else:
+            faults.append(f"Unexpected path: {url.path}")
+            route.abort()
+
+    context.route("**/*", intercept)
+    page = context.new_page()
+    page.on("pageerror", lambda error: faults.append(str(error)))
+    page.on("dialog", lambda dialog: dialog.accept() if accept_confirmation else dialog.dismiss())
+    try:
+        page.goto(f"{base}/run/{run_id}" if operation == "resume" else base)
+        if operation == "resume":
+            page.locator("[data-resume-run]").click()
+        elif operation == "pdf":
+            page.locator("#pdf-input").set_input_files({
+                "name": "refresh.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-refresh"})
+        else:
+            page.locator("#topic").fill("Offline forced reload assessment")
+            page.locator("#run-btn").click()
+        _wait_requests(page, posts, 1)
+        assert page.evaluate("sessionStorage.getItem('paid-request-unconfirmed-v1')") == "unconfirmed"
+        page.reload()  # Accept beforeunload; the original fetch is still unacknowledged.
+        posts[0].abort()  # Drain the orphaned interception after the document was replaced.
+        expect(page.locator("#paid-receipt-message")).to_contain_text("unconfirmed outcome")
+        if operation == "resume":
+            expect(page.locator("[data-resume-run]")).to_be_disabled()
+            page.locator("[data-resume-run]").evaluate("el => el.dispatchEvent(new Event('click'))")
+        page.locator("#new-run-btn").click()
+        page.locator("#topic").fill("Repeated after refresh")
+        expect(page.locator("#run-btn")).to_be_disabled()
+        expect(page.locator("#attach-btn")).to_be_disabled()
+        page.locator("#compose-form").evaluate("form => form.requestSubmit()")
+        page.locator("#pdf-input").set_input_files({
+            "name": "repeat.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-repeat"})
+        expect(page.locator("#toasts")).to_contain_text("unconfirmed outcome")
+        assert len(posts) == 1, "Reload/programmatic events cannot silently repeat paid work"
+        accept_confirmation = False
+        page.locator("#paid-receipt-ack").click()
+        expect(page.locator("#run-btn")).to_be_disabled()
+        accept_confirmation = True
+        page.locator("#paid-receipt-ack").click()
+        expect(page.locator("#run-btn")).to_be_enabled()
+        assert len(posts) == 1, "Acknowledgement is not a retry or cancellation"
+        page.locator("#run-btn").click()
+        _wait_requests(page, posts, 2)
+        _json(posts[1], {"detail": "Explicit fixture rejection"}, status=422)
+        expect(page.locator("#paid-receipt-notice")).to_be_hidden()
+        page.reload()
+        expect(page.locator("#paid-receipt-notice")).to_be_hidden()
+        assert not faults, faults
+        return len(posts)
+    finally:
+        context.close()
+
+
 def main() -> None:
     app = FastAPI()
     reached_server: list[str] = []
@@ -373,6 +467,12 @@ def main() -> None:
             page.locator("#gate-submit").click()
             expect(page.locator("#gate")).to_be_hidden()
             expect(page.locator("#code-badge")).to_be_visible()
+            # The lost acknowledgement survives the credential gate and a
+            # real reload. Explicit confirmation permits a new intent only.
+            expect(page.locator("#paid-receipt-message")).to_contain_text("unconfirmed outcome")
+            page.once("dialog", lambda dialog: dialog.accept())
+            page.locator("#paid-receipt-ack").click()
+            assert len(requests) == 10
             # Deny access to the Storage objects themselves before boot, not
             # just a particular history write after acceptance. Authentication
             # still requires the exact fixture code; only persistence degrades.
@@ -448,6 +548,7 @@ def main() -> None:
             expect(run).to_be_enabled()
             assert len(requests) == 12
             identity_posts = _access_identity_journey(browser, base)
+            refresh_posts = _paid_refresh_journey(browser, base)
             assert not unexpected, unexpected
             assert not reached_server, reached_server
             assert not page_errors, page_errors
@@ -459,6 +560,7 @@ def main() -> None:
             browser.close()
     print(json.dumps({"status": "passed", "browser": "chromium", "stubbed_posts": len(requests),
                       "identity_stubbed_posts": identity_posts,
+                      "refresh_stubbed_posts": refresh_posts,
                       "api_requests_reaching_server": len(reached_server), "unexpected_requests": len(unexpected),
                       "paid_provider_requests": 0, "page_errors": len(page_errors)}))
 

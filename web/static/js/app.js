@@ -6,6 +6,7 @@ import * as sidebar from "./sidebar.js";
 import * as result from "./result.js";
 import * as i18n from "./i18n.js";
 import { needsScopeWarning } from "./topic.js";
+import { createPaidReceipts } from "./paid_receipts.js";
 const t = i18n.t;
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -19,6 +20,7 @@ let activeRunId = null;
 // Paid resume intent belongs to the parent run, not the element clicked.
 // This is tab-local exclusion, not cross-tab/server/provider idempotency.
 const pendingResumes = new Set();
+const paidReceipts = createPaidReceipts();
 
 /* Capacity polling state. Declared here with the other module state rather
  * than beside the scheduler at the bottom: showRun/showCompose re-time the
@@ -42,6 +44,7 @@ function toast(message, variant = "") {
 function operationErrorMessage(err) {
   if (err.code === "invalid_byok") return t("invalid_byok");
   if (err.code === "paid_ack_unknown") return t("msg_paid_ack_unknown");
+  if (err.code === "paid_receipt_pending") return t("paid_receipt_unknown");
   const key = {
     concurrency_limit: "msg_busy",
     daily_quota_exceeded: "msg_daily_quota",
@@ -60,6 +63,34 @@ function rememberAcceptedRun(accepted) {
     // A 202 is already a paid acceptance. Optional sidebar storage must not
     // turn it into a failed submit or keep the user on a retryable composer.
     toast(t("msg_history_unavailable"), "error");
+  }
+}
+
+async function performPaidRequest(request, deliver) {
+  // Validate locally before recording intent; invalid BYOK cannot cause a
+  // request, select operator billing, or manufacture an uncertain receipt.
+  api.getByok();
+  const settle = paidReceipts.begin();
+  let received = false;
+  try {
+    const response = await request();
+    received = true;
+    await deliver(response);
+    // Parsing JSON is not delivery. Keep the marker until the run view or
+    // extracted attachment actually receives the acknowledgement.
+    settle(true);
+  } catch (err) {
+    // A definite client rejection is a known outcome, not proof of no cost
+    // (PDF validation may follow extraction). Transport/5xx/timeouts and UI
+    // handoff faults remain uncertain, and never auto-retry the paid POST.
+    settle(!received && err.status >= 400 && err.status < 500 && err.status !== 408);
+    throw err;
+  }
+}
+
+function requirePaidIdentity(response, field) {
+  if (!response || typeof response[field] !== "string" || !response[field].trim()) {
+    throw new api.ApiError(0, "Paid acknowledgement has no usable identity.", "paid_ack_unknown");
   }
 }
 
@@ -249,25 +280,27 @@ function paintActions(state, checkpointing = null) {
     resume.className = "btn btn--secondary";
     resume.textContent = t("resume");
     resume.dataset.resumeRun = sourceRunId;
-    resume.disabled = pendingResumes.has(sourceRunId);
+    resume.disabled = pendingResumes.has(sourceRunId) || paidReceipts.state().uncertain;
     resume.addEventListener("click", async () => {
       if (pendingResumes.has(sourceRunId)) return;
       pendingResumes.add(sourceRunId);
       resume.disabled = true;
       try {
-        const accepted = await api.resumeRun(sourceRunId);
-        rememberAcceptedRun(accepted);
-        toast(t("msg_resumed"), "success");
-        openRun(accepted.run_id, { known: accepted });
+        await performPaidRequest(() => api.resumeRun(sourceRunId), async (accepted) => {
+          requirePaidIdentity(accepted, "run_id");
+          rememberAcceptedRun(accepted);
+          await openRun(accepted.run_id, { known: accepted });
+          toast(t("msg_resumed"), "success");
+        });
       } catch (err) {
         toast(operationErrorMessage(err), "error");
       } finally {
         pendingResumes.delete(sourceRunId);
-        resume.disabled = false;
+        resume.disabled = paidReceipts.state().uncertain;
         // A re-render may have replaced the element while fetch was pending.
         // Unlock only this parent's current controls, never another operation.
         $$('[data-resume-run]').forEach((button) => {
-          if (button.dataset.resumeRun === sourceRunId) button.disabled = false;
+          if (button.dataset.resumeRun === sourceRunId) button.disabled = paidReceipts.state().uncertain;
         });
       }
     });
@@ -292,7 +325,11 @@ async function openRun(runId, { known } = {}) {
   body.innerHTML = "";
   paintHeader({ topic: known?.topic ?? "…", state: known?.state ?? "unknown" });
   paintActions(known?.state ?? "unknown", known?.checkpointing);
-  history.pushState({}, "", `/run/${runId}`);
+  try { history.pushState({}, "", `/run/${runId}`); }
+  catch {
+    // Optional URL persistence cannot strand an accepted run before follow.
+    toast(t("msg_history_unavailable"), "error");
+  }
 
   follower = runView.follow(runId, {
     onConnection({ state, lastSuccessAt }) {
@@ -461,10 +498,10 @@ function autosize() {
 }
 
 function syncComposer() {
-  runBtn.disabled = topic.value.trim().length < 3 || extracting || submitting;
+  runBtn.disabled = topic.value.trim().length < 3 || extracting || submitting || paidReceipts.state().uncertain;
   runBtn.title = submitting ? t("msg_submitting")
     : extracting ? t("msg_wait_extract") : t("run_hint");
-  attachBtn.disabled = extracting || submitting;
+  attachBtn.disabled = extracting || submitting || paidReceipts.state().uncertain;
   // Keep the submitted payload stable in the visible composer as well. The
   // handler guard still matters for programmatic submits and queued events.
   for (const input of [topic, $("#language"), $("#profile"), ...decisionContextInputs]) {
@@ -504,19 +541,21 @@ $("#compose-form").addEventListener("submit", async (e) => {
   syncComposer();
 
   try {
-    const accepted = await api.startRun({
+    await performPaidRequest(() => api.startRun({
       topic: submittedTopic,
       language: $("#language").value,
       weight_profile: $("#profile").value,
       paper_id: attachedPaper?.paper_id,
       decision_context: readDecisionContext(),
+    }), async (accepted) => {
+      requirePaidIdentity(accepted, "run_id");
+      rememberAcceptedRun(accepted);
+      await openRun(accepted.run_id, { known: accepted });
+      topic.value = "";
+      clearDecisionContext();
+      clearAttachment();
+      syncComposer();
     });
-    rememberAcceptedRun(accepted);
-    topic.value = "";
-    clearDecisionContext();
-    clearAttachment();
-    syncComposer();
-    openRun(accepted.run_id, { known: accepted });
   } catch (err) {
     toast(operationErrorMessage(err), "error");
   } finally {
@@ -609,11 +648,15 @@ async function uploadPaper(file) {
   syncComposer();
 
   try {
-    const paper = await api.uploadPaper(file);
-    if (generation !== uploadGeneration) return;
-    attachedPaper = paper;
-    paintAttachment(paper);
-    toast(t("msg_paper_attached"), "success");
+    await performPaidRequest(() => api.uploadPaper(file), (paper) => {
+      requirePaidIdentity(paper, "paper_id");
+      // Explicit attachment removal discards the returned selection, not
+      // the knowledge that extraction finished. No automatic re-extraction.
+      if (generation !== uploadGeneration) return;
+      attachedPaper = paper;
+      paintAttachment(paper);
+      toast(t("msg_paper_attached"), "success");
+    });
   } catch (err) {
     if (generation !== uploadGeneration) return;
     clearAttachment();
@@ -945,6 +988,7 @@ const langSelect = $("#ui-lang");
 langSelect.value = i18n.language();
 langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
+  paintPaidReceipt();
   topic.placeholder = t("topic_placeholder");
   // Re-render whatever is on screen so switching mid-run does not leave a
   // half-translated pane behind.
@@ -957,6 +1001,33 @@ langSelect.addEventListener("change", () => {
 i18n.apply();
 topic.placeholder = t("topic_placeholder");
 syncComposer();
+
+function paintPaidReceipt() {
+  const state = paidReceipts.state();
+  $("#paid-receipt-notice").hidden = !state.uncertain && !state.active && !state.unavailable;
+  $("#paid-receipt-message").textContent = [
+    state.uncertain ? t("paid_receipt_unknown") : state.active ? t("paid_receipt_inflight") : "",
+    state.unavailable ? t("paid_receipt_unavailable") : "",
+  ].filter(Boolean).join(" ");
+  $("#paid-receipt-ack").hidden = !state.uncertain;
+  $("#paid-receipt-ack").disabled = Boolean(state.active);
+  syncComposer();
+  $$('[data-resume-run]').forEach((button) => {
+    button.disabled = state.uncertain || pendingResumes.has(button.dataset.resumeRun);
+  });
+}
+paidReceipts.subscribe(paintPaidReceipt);
+$("#paid-receipt-ack").addEventListener("click", () => {
+  if (!paidReceipts.state().active && confirm(t("paid_receipt_confirm"))) paidReceipts.acknowledge();
+});
+window.addEventListener("beforeunload", (event) => {
+  if (!paidReceipts.state().active) return;
+  // Best effort only: forced close/mobile process death may skip this event.
+  // Do not send cancellation, retry, or a beacon from the unload handler.
+  event.preventDefault();
+  event.returnValue = "";
+});
+paintPaidReceipt();
 
 /* Capacity polling.
  *

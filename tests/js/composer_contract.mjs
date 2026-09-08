@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
+import { createPaidReceipts } from "../../web/static/js/paid_receipts.js";
 
 globalThis.localStorage = { getItem: () => null, removeItem: () => {} };
 globalThis.sessionStorage = { getItem: () => null };
@@ -17,7 +18,7 @@ const translations = {
   msg_history_unavailable: "accepted; bookmark this URL",
 };
 
-function fixture() {
+function fixture(receiptStore = new Map()) {
   const elements = new Map();
   class Element {
     constructor() {
@@ -34,7 +35,7 @@ function fixture() {
     if (!elements.has(selector)) elements.set(selector, new Element());
     return elements.get(selector);
   };
-  const requests = [], opened = [], reloads = [];
+  const requests = [], opened = [], reloads = [], windowEvents = {};
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
@@ -42,20 +43,25 @@ function fixture() {
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
+    createPaidReceipts: () => createPaidReceipts(() => ({
+      getItem: key => receiptStore.get(key) ?? null,
+      setItem: (key, value) => receiptStore.set(key, value),
+      removeItem: key => receiptStore.delete(key),
+    })),
     api, runView: { isTerminalState: (state) => ["completed", "failed", "cancelled", "timeout"].includes(state) },
     sidebar: { refresh: () => Promise.resolve([]) }, result: {}, needsScopeWarning: () => false,
     i18n: { t: (key) => translations[key] || key, language: () => "English", apply: () => {} },
     document: { querySelector: get, querySelectorAll: (selector) => selector === '[data-resume-run]'
       ? get("#run-actions").children.filter((el) => el.dataset?.resumeRun) : [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false },
-    window: { matchMedia: () => ({ matches: false }), addEventListener: () => {} },
+    window: { matchMedia: () => ({ matches: false }), addEventListener: (name, fn) => { windowEvents[name] = fn; } },
     localStorage: globalThis.localStorage, history: { pushState: () => {} },
     location: { pathname: "/", reload: () => reloads.push(true) },
     setTimeout: () => 1, clearTimeout: () => {}, setInterval: () => 1, clearInterval: () => {},
     confirm: () => true, recordOpen: (id) => opened.push(id),
   });
   vm.runInContext(source, context);
-  vm.runInContext("openRun = (id) => recordOpen(id)", context);
+  vm.runInContext("globalThis.originalOpenRun = openRun; openRun = (id) => recordOpen(id)", context);
   const run = (text) => vm.runInContext(text, context);
   const topic = (text) => { get("#topic").value = text; run("syncComposer()"); };
   const submit = () => get("#compose-form").listeners.submit({ preventDefault() {} });
@@ -68,7 +74,7 @@ function fixture() {
       "Content-Type": "application/json", ...(code ? { "X-Error-Code": code } : {}),
     } }),
   );
-  return { get, run, topic, submit, upload, respond, requests, opened, reloads };
+  return { get, run, topic, submit, upload, respond, requests, opened, reloads, windowEvents };
 }
 
 function paintResume(f) {
@@ -78,6 +84,90 @@ function paintResume(f) {
 
 const paper = { paper_id: "paper-one", title: "Fixture paper", commercialization_topic: "Suggested topic" };
 const scenarios = {
+  async receipt_refresh() {
+    const kind = process.argv[3];
+    const store = new Map();
+    const a = fixture(store); a.topic('Original private topic');
+    const pending = kind === 'run' ? a.submit() : kind === 'pdf' ? a.upload() : paintResume(a).listeners.click();
+    assert.equal(a.requests.length, 1);
+    assert.deepEqual([...store], [['paid-request-unconfirmed-v1', 'unconfirmed']], 'Write only a constant before dispatch');
+    let prevented = false; const unload = {preventDefault(){prevented = true;}};
+    a.windowEvents.beforeunload(unload);
+    assert.equal(prevented, true); assert.equal(unload.returnValue, '');
+    // A fresh document gets only session bytes, never the previous JS locks.
+    const b = fixture(store); b.topic('Attempted repeat after refresh');
+    assert.equal(b.get('#paid-receipt-notice').hidden, false);
+    assert.equal(b.get('#paid-receipt-message').textContent, 'paid_receipt_unknown');
+    assert.equal(b.get('#run-btn').disabled, true);
+    assert.equal(b.get('#attach-btn').disabled, true);
+    assert.equal(paintResume(b).disabled, true);
+    await b.submit(); await b.upload(); await paintResume(b).listeners.click();
+    assert.equal(b.requests.length, 0, 'All three paid dispatch seams remain blocked after refresh');
+    b.run('confirm = () => false'); b.get('#paid-receipt-ack').listeners.click();
+    await b.submit(); assert.equal(b.requests.length, 0, 'Dismissal is not risk acknowledgement');
+    b.run('confirm = () => true'); b.get('#paid-receipt-ack').listeners.click();
+    assert.equal(b.requests.length, 0, 'Acknowledgement cannot itself dispatch any POST');
+    assert.equal(b.get('#run-btn').disabled, false);
+    const next = b.submit(); b.respond(0, {detail:'known rejection'}, 422); await next;
+    assert.equal(b.requests.length, 1);
+    // Finish the synthetic old document only after all refresh assertions.
+    a.respond(0, kind === 'pdf' ? paper : {run_id:'original',topic:'Original'}, kind === 'pdf' ? 200 : 202);
+    await pending;
+  },
+  async receipt_outcome() {
+    const [kind, outcome] = process.argv.slice(3);
+    const store = new Map(); const f = fixture(store); f.topic('Receipt outcome');
+    const pending = kind === 'run' ? f.submit() : kind === 'pdf' ? f.upload() : paintResume(f).listeners.click();
+    if (outcome === 'transport') f.requests[0].reject(new TypeError('fixture connection lost'));
+    else if (outcome === 'malformed') f.respond(0, {});
+    else if (outcome === 'handoff') {
+      f.run(kind === 'pdf' ? 'paintAttachment = () => {throw Error("fixture handoff")}'
+        : 'openRun = async () => {throw Error("fixture handoff")}');
+      f.respond(0, kind === 'pdf' ? paper : {run_id:'accepted',topic:'Accepted'});
+    } else f.respond(0, {detail:'fixture response'}, Number(outcome));
+    await pending;
+    const rejected = ['401','422','429'].includes(outcome);
+    assert.equal(store.has('paid-request-unconfirmed-v1'), !rejected);
+    assert.equal(f.get('#run-btn').disabled, !rejected);
+    assert.equal(f.get('#paid-receipt-ack').hidden, rejected);
+    assert.equal(f.requests.length, 1);
+    const reloaded = fixture(store); reloaded.topic('New document');
+    assert.equal(reloaded.get('#run-btn').disabled, !rejected);
+  },
+  async receipt_handoff() {
+    const store = new Map(); const f = fixture(store); f.topic('Delayed UI delivery');
+    f.run('openRun = () => new Promise(resolve => {globalThis.finishDelivery = resolve;})');
+    const pending = f.submit(); f.respond(0, {run_id:'accepted',topic:'Accepted'}, 202);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(store.size, 1, 'Parsed JSON must not clear the marker before view handoff');
+    assert.equal(f.run('paidReceipts.state().active'), 1);
+    assert.equal(f.run('paidReceipts.acknowledge()'), false);
+    f.run('finishDelivery()'); await pending;
+    assert.equal(store.size, 0);
+    let prevented = false; f.windowEvents.beforeunload({preventDefault(){prevented=true;}});
+    assert.equal(prevented, false, 'A delivered request no longer needs an unload prompt');
+  },
+  async receipt_navigation_failure() {
+    const store = new Map(); const f = fixture(store); f.topic('Accepted with unavailable URL history');
+    // Keep the actual navigation/follow seam, isolate unrelated field renderers.
+    f.run(`openRun = originalOpenRun; paintHeader = () => {}; paintActions = () => {};
+      history.pushState = () => {throw Error('fixture history denied')};
+      runView.follow = (id) => {recordOpen(id); return {stop(){}};}`);
+    const pending = f.submit(); f.respond(0, {run_id:'accepted',topic:'Accepted'}, 202); await pending;
+    assert.deepEqual(f.opened, ['accepted'], 'URL failure cannot prevent following an accepted run');
+    assert.equal(store.size, 0);
+    assert.equal(f.get('#pane-run').hidden, false);
+    assert.ok(f.get('#toasts').children.some(el => el.textContent === translations.msg_history_unavailable));
+  },
+  async receipt_storage_failure() {
+    const store = {get(){throw Error('denied')}, set(){throw Error('denied')}, delete(){throw Error('denied')}};
+    const f = fixture(store); f.topic('Memory-only mode');
+    assert.equal(f.get('#paid-receipt-notice').hidden, false);
+    assert.equal(f.get('#paid-receipt-message').textContent, 'paid_receipt_unavailable');
+    const pending = f.submit(); f.respond(0, {run_id:'accepted',topic:'Accepted'}, 202); await pending;
+    assert.deepEqual(f.opened, ['accepted'], 'Storage failure cannot erase accepted delivery');
+    assert.equal(f.get('#paid-receipt-message').textContent, 'paid_receipt_unavailable');
+  },
   async cross_tab_exit() {
     const local = new Map();
     globalThis.localStorage = {getItem: key => local.get(key) ?? null,
@@ -294,6 +384,9 @@ const scenarios = {
     const f = fixture(); f.topic("Keep this topic");
     const pending = f.upload(); f.respond(0, { detail: "extraction failed" }, 500); await pending;
     assert.equal(f.get("#attachment").hidden, true);
+    assert.equal(f.get("#run-btn").disabled, true, 'A 500 cannot prove that extraction did not spend');
+    f.get('#paid-receipt-ack').listeners.click();
+    assert.equal(f.requests.length, 1, 'Risk acknowledgement is not a retry');
     assert.equal(f.get("#run-btn").disabled, false);
     const sent = f.submit();
     assert.equal(JSON.parse(f.requests[1].options.body).paper_id, null);
