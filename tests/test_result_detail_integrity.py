@@ -18,6 +18,23 @@ GROUNDING = {"checked": 2, "ungrounded": 0, "unverifiable": 1, "findings": []}
 CONSISTENCY = {"checked": True, "blockers": 0, "warnings": 0, "findings": []}
 
 
+@pytest.mark.parametrize("field,maximum", [("trl_score", 9), ("mrl_score", 10),
+    ("patent_strength", 5), ("market_accessibility", 5), ("evidence_confidence", 5)])
+@pytest.mark.parametrize("value", [1, 3.5, "maximum", 0, 0.5, None, True, "3.5", -1, 11])
+def test_normalized_dimension_range_reaches_browser(tmp_path, monkeypatch, field, maximum, value):
+    """Integer-only rendering hid 64/109 stored reports with normalized fractions."""
+    value = maximum if value == "maximum" else value
+    text, rows = display({**SCORES, field: value}, "scores", tmp_path, monkeypatch)
+    valid = type(value) in (int, float) and 1 <= value <= maximum
+    if valid:
+        assert f"{value} / {maximum}" in text
+        assert "no conclusion" not in text
+    else:
+        assert any(row["text"] == "—" for row in rows)
+        assert "no conclusion" in text
+    assert "65.0" in text  # One bad dimension never erases the healthy neighbour.
+
+
 def display(payload, artifact, tmp_path, monkeypatch, language="English"):
     run_id = "20260908T010203Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     directory = tmp_path / run_id

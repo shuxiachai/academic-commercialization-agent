@@ -40,6 +40,7 @@ function toast(message, variant = "") {
 }
 
 function operationErrorMessage(err) {
+  if (err.code === "invalid_byok") return t("invalid_byok");
   if (err.code === "paid_ack_unknown") return t("msg_paid_ack_unknown");
   const key = {
     concurrency_limit: "msg_busy",
@@ -285,6 +286,7 @@ function paintActions(state, checkpointing = null) {
 async function openRun(runId, { known } = {}) {
   stopFollowing();
   showRun(runId);
+  $("#run-connection").textContent = "";
 
   const body = $("#run-body");
   body.innerHTML = "";
@@ -293,6 +295,14 @@ async function openRun(runId, { known } = {}) {
   history.pushState({}, "", `/run/${runId}`);
 
   follower = runView.follow(runId, {
+    onConnection({ state, lastSuccessAt }) {
+      // Connectivity is a fact about our read, not a new worker state. Stop
+      // extrapolating elapsed time until a fresh progress response anchors it.
+      $("#run-connection").textContent = state === "stale"
+        ? t(lastSuccessAt === null ? "run_connection_unconfirmed" : "run_connection_stale")
+        : state === "missing" ? t("run_connection_missing") : "";
+      if (state !== "connected") stopClock();
+    },
     onUpdate(progress) {
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing);
@@ -734,6 +744,17 @@ function showStorageNotice(key = "storage_unavailable") {
 }
 
 async function exitCredentials() {
+  // A pending paid reply may carry the only link to accepted work. Do not
+  // discard it, relabel it as the next identity, or abort a provider request
+  // merely to make logout immediate. This guard covers normal reload too.
+  if (submitting || extracting || pendingResumes.size) {
+    toast(t("logout_wait_paid"), "error");
+    return;
+  }
+  clearAttachment();
+  clearDecisionContext();
+  topic.value = "";
+  syncComposer();
   const byokCleared = api.setByok(null);
   const codeCleared = api.setAccessCode(null);
   if (byokCleared && codeCleared) { location.reload(); return; }
@@ -742,6 +763,7 @@ async function exitCredentials() {
   // Do not claim browser data was purged or cancel any server-side work.
   stopFollowing();
   stopClock();
+  activeRunId = null;
   byokMode = false;
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = true;
@@ -758,14 +780,25 @@ $("#byok-exit").addEventListener("click", exitCredentials);
 // what got the visitor past the gate, never when the gate is off entirely
 // (nothing to log out of then) and never alongside the BYOK badge.
 function applyCodeMode() {
+  api.setByok(null);
+  byokMode = false;
+  $("#byok-badge").hidden = true;
   $("#code-badge").hidden = false;
 }
 
 $("#code-exit").addEventListener("click", exitCredentials);
 
 async function ensureAccess() {
-  if (api.getByok()) {
-    applyByokMode();
+  try {
+    if (api.getByok()) {
+      applyByokMode();
+      return;
+    }
+  } catch (err) {
+    if (err.code !== "invalid_byok") throw err;
+    // Even a valid residual access code cannot choose a different payer for
+    // a corrupted BYOK session. Only an explicit gate submission can do so.
+    await showGate("invalid_byok");
     return;
   }
   try {
@@ -803,7 +836,7 @@ async function showByokRetention() {
   }
 }
 
-function showGate() {
+function showGate(errorKey = null) {
   const gate = $("#gate");
   const codeForm = $("#gate-form");
   const codeInput = $("#gate-input");
@@ -816,26 +849,31 @@ function showGate() {
   // that would validate one submission several times after repeated login.
   codeForm.reset();
   byokForm.reset();
-  codeError.hidden = true;
+  codeError.hidden = !errorKey;
+  codeError.textContent = errorKey ? t(errorKey) : "";
   gate.hidden = false;
   codeForm.hidden = false;
   byokForm.hidden = true;
   codeInput.focus();
 
   return new Promise((resolve) => {
+    let finished = false;
     const finish = () => {
+      finished = true;
       gate.hidden = true;
       if (api.storageDegraded()) showStorageNotice();
       resolve();
     };
 
     $("#gate-to-byok").onclick = () => {
+      if (codeSubmit.disabled || finished) return;
       codeForm.hidden = true;
       byokForm.hidden = false;
       $("#byok-llm-key").focus();
       showByokRetention();
     };
     $("#byok-to-gate").onclick = () => {
+      if (codeSubmit.disabled || finished) return;
       byokForm.hidden = true;
       codeForm.hidden = false;
       codeInput.focus();
@@ -844,7 +882,7 @@ function showGate() {
     codeForm.onsubmit = async (e) => {
       e.preventDefault();
       const code = codeInput.value.trim();
-      if (!code || codeSubmit.disabled) return;
+      if (!code || codeSubmit.disabled || finished) return;
 
       codeSubmit.disabled = true;
       codeError.hidden = true;
@@ -864,12 +902,18 @@ function showGate() {
 
     byokForm.onsubmit = (e) => {
       e.preventDefault();
+      if (codeSubmit.disabled || finished) return;
       const provider = $("#byok-provider").value;
       const llmKey = $("#byok-llm-key").value.trim();
       const serperKey = $("#byok-serper-key").value.trim();
       if (!llmKey || !serperKey) return;
 
-      api.setByok({ provider, llmKey, serperKey });
+      try {
+        api.setByok({ provider, llmKey, serperKey });
+      } catch (err) {
+        toast(operationErrorMessage(err), "error");
+        return;
+      }
       applyByokMode();
       finish();
     };

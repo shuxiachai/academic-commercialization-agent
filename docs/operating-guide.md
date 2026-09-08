@@ -204,12 +204,24 @@ held until newline publication. See the [delivery contract](results-2026-09-08-c
 Score, grounding and consistency tabs validate downloaded display fields rather
 than defaulting missing data to zero or agreement. This neither rewrites stored
 artifacts nor changes scoring/heuristics. Healthy report tabs remain usable.
+Normalized dimensions accept fractions in 1..maximum, not just rubric integers.
 
 If browser storage is denied, credentials can be held only in page memory and
 preferences use safe defaults. Bookmark accepted run links. A failed persistent
 logout returns to the gate without reloading stale credentials; clear site data
 before reopening when prompted. This does not erase inaccessible storage, revoke
 capability URLs, or stop work on the server.
+
+Malformed saved BYOK requires explicit credential selection before any paid
+request; a residual access code is not an automatic fallback payer. Logout waits
+for run, resume and PDF acknowledgements, then clears old attachment/context.
+Do not treat closing a tab or aborting a request as provider cancellation.
+
+A progress read failing or exceeding its 15-second deadline shows either no
+confirmed observation or a stale last state, separate from the worker outcome.
+Successful polling clears the warning; 404 stops polling. Other read requests
+do not acquire this deadline, and browser suspension can delay timers. See the
+[combined boundary contract](results-2026-09-08-client-boundary-combinations.md).
 
 Each run writes its own `outputs/<run_id>/` directory. Files depend on how
 far the run progressed; a missing report on an early failure is not a completed

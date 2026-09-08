@@ -172,7 +172,10 @@ function renderScorecard(scores) {
   const grid = el("div", "dims");
   for (const dim of DIMENSIONS) {
     const value = scores[dim.key];
-    const valid = scoreNumber(value, dim.max) && Number.isInteger(value);
+    // The scorer normalizes tenths into fractional dimensions (e.g. TRL 8.5).
+    // Integers describe the rubric inputs, not the delivered JSON contract.
+    // Reject impossible zero dimensions without changing overall's 0..100 scale.
+    const valid = scoreNumber(value, dim.max) && value >= 1;
     const pct = valid ? (value / dim.max) * 100 : 0;
 
     const row = el("div", "dim");
@@ -185,6 +188,7 @@ function renderScorecard(scores) {
     if (!valid) row.title = t("detail_unreadable");
 
     row.append(label, bar, num);
+    if (!valid) row.append(detailUnavailable());
 
     const rationale = scores[dim.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "") + "_rationale"];
     if (valid && typeof rationale === "string" && rationale) row.title = rationale;

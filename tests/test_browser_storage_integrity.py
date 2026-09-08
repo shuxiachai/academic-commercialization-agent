@@ -40,7 +40,7 @@ const load=name=>vm.runInContext(fs.readFileSync(input.root+'/web/static/js/'+na
  load('api.js');
  await vm.runInContext('health()',ctx);assert.equal(requests.length,1);
  if(input.scenario==='remove_failure'){
-  vm.runInContext("setAccessCode('stale');setByok({llmKey:'old'})",ctx);
+  vm.runInContext("setAccessCode('stale');setByok({provider:'qwen',llmKey:'old',serperKey:'old-search'})",ctx);
   denyRemove=true;
   assert.equal(vm.runInContext('setAccessCode(null)',ctx),false);
   assert.equal(vm.runInContext('setByok(null)',ctx),false);

@@ -78,10 +78,11 @@ function intervalFor(elapsedMs) {
  * Returns a handle with stop(); the caller must call it when leaving the
  * view, or a poll loop outlives the run it was watching.
  */
-export function follow(runId, { onUpdate, onDone, onError }) {
+export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
   let stopped = false;
   let seenSteps = 0;
   let timer = null;
+  let lastSuccessAt = null;
   const startedAt = Date.now();
 
   async function tick() {
@@ -89,6 +90,9 @@ export function follow(runId, { onUpdate, onDone, onError }) {
     try {
       const progress = await api.getProgress(runId, seenSteps);
       if (stopped) return;
+
+      lastSuccessAt = Date.now();
+      onConnection?.({ state: "connected", lastSuccessAt });
 
       // A rejected physical line still advances the server cursor. Fall back
       // only for old deployments which have not introduced this field yet.
@@ -103,6 +107,9 @@ export function follow(runId, { onUpdate, onDone, onError }) {
       }
     } catch (err) {
       if (stopped) return;
+      // Retry reads, but never present silence as evidence that the worker
+      // still runs. A later successful poll clears this independent warning.
+      onConnection?.({ state: err.status === 404 ? "missing" : "stale", lastSuccessAt });
       // A transient failure should not end the run view: the worker may
       // still be fine and the next tick may well succeed. Only a 404 means
       // the run genuinely is not there.

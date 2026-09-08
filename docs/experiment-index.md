@@ -24,6 +24,7 @@ to reuse consumed cohorts.
 ## Recent offline maintenance
 
 - [2026-09-08 client delivery seams](results-2026-09-08-client-delivery-seams.md) — optional log isolation/cursors, truthful details and browser-storage fallback, zero provider calls.
+- [2026-09-08 combined client boundaries](results-2026-09-08-client-boundary-combinations.md) — fractional score regression, explicit BYOK identity and visible stale reads; zero provider calls.
 - [2026-09-07 cleanup outcomes](results-2026-09-07-cleanup-outcome-observability.md) — advisory per-attempt counters and explicit incomplete coverage at both HTTP schemas.
 - [2026-09-07 maintenance observation age](results-2026-09-07-maintenance-observation-age.md) — time-qualified health/readiness snapshots without a new SLO or provider call.
 - [2026-09-06 maintenance event-loop ownership](results-2026-09-06-maintenance-event-loop.md) — held-stage HTTP probes and shutdown drain, zero provider calls.

@@ -28,7 +28,7 @@ function fixture() {
     set innerHTML(value) { this.children = []; }
     append(...children) { this.children.push(...children); }
     querySelectorAll() { return []; }
-    focus() {} remove() {} setAttribute() {} removeAttribute() {}
+    focus() {} remove() {} reset() {} setAttribute() {} removeAttribute() {}
   }
   const get = (selector) => {
     if (!elements.has(selector)) elements.set(selector, new Element());
@@ -43,7 +43,7 @@ function fixture() {
   };
   const context = vm.createContext({
     api, runView: { isTerminalState: (state) => ["completed", "failed", "cancelled", "timeout"].includes(state) },
-    sidebar: {}, result: {}, needsScopeWarning: () => false,
+    sidebar: { refresh: () => Promise.resolve([]) }, result: {}, needsScopeWarning: () => false,
     i18n: { t: (key) => translations[key] || key, language: () => "English", apply: () => {} },
     document: { querySelector: get, querySelectorAll: (selector) => selector === '[data-resume-run]'
       ? get("#run-actions").children.filter((el) => el.dataset?.resumeRun) : [], createElement: () => new Element(),
@@ -77,6 +77,58 @@ function paintResume(f) {
 
 const paper = { paper_id: "paper-one", title: "Fixture paper", commercialization_topic: "Suggested topic" };
 const scenarios = {
+  async gate_pending() {
+    const f = fixture(); f.run('showGate()');
+    f.get('#gate-input').value = 'candidate-code';
+    f.get('#gate-form').onsubmit({preventDefault(){}}); // Deliberately held access check.
+    assert.equal(f.get('#gate-submit').disabled, true);
+    f.get('#gate-to-byok').onclick();
+    assert.equal(f.get('#byok-form').hidden, true);
+    f.get('#byok-provider').value = 'qwen'; f.get('#byok-llm-key').value = 'fixture-B';
+    f.get('#byok-serper-key').value = 'fixture-search-B';
+    f.get('#byok-form').onsubmit({preventDefault(){}});
+    assert.equal(api.getByok(), null, 'A pending code check cannot race a new BYOK identity');
+    assert.equal(f.get('#gate').hidden, false);
+    assert.equal(f.requests.length, 0);
+  },
+  async gate_finished() {
+    const f = fixture(); const gate = f.run('showGate()');
+    f.get('#byok-provider').value = 'qwen'; f.get('#byok-llm-key').value = 'fixture-A';
+    f.get('#byok-serper-key').value = 'fixture-search';
+    f.get('#byok-form').onsubmit({preventDefault(){}}); await gate;
+    f.get('#byok-llm-key').value = 'fixture-B';
+    f.get('#byok-form').onsubmit({preventDefault(){}});
+    assert.equal(api.getByok()?.llmKey, 'fixture-A', 'A finished gate cannot accept stale input events');
+    assert.equal(f.requests.length, 0);
+  },
+  async pending_exit() {
+    const kind = process.argv[3];
+    const f = fixture(); f.topic("Identity A topic");
+    api.setByok({provider:'qwen',llmKey:'fixture-A',serperKey:'fixture-search'});
+    f.run("byokMode = true");
+    const pending = kind === 'run' ? f.submit() : kind === 'pdf' ? f.upload() : paintResume(f).listeners.click();
+    const blockedExit = f.run("exitCredentials()");
+    assert.equal(api.getByok()?.llmKey, 'fixture-A', 'A pending reply must retain the submitting payer');
+    await blockedExit;
+    assert.equal(f.get('#toasts').children.at(-1).textContent, 'logout_wait_paid');
+    f.respond(0, kind === 'pdf' ? paper : {run_id:'accepted-A',topic:'Accepted A'}, kind === 'pdf' ? 200 : 202);
+    await pending;
+    if (kind !== 'pdf') assert.deepEqual(f.opened, ['accepted-A']);
+    // Force same-page logout: old attachment/context must not reach identity B.
+    globalThis.sessionStorage.removeItem = () => { throw Error('fixture removal denied'); };
+    const exit = f.run('exitCredentials()');
+    assert.equal(api.getByok(), null);
+    assert.equal(f.run('attachedPaper'), null);
+    assert.equal(f.get('#topic').value, '');
+    f.get('#byok-provider').value = 'qwen';
+    f.get('#byok-llm-key').value = 'fixture-B'; f.get('#byok-serper-key').value = 'fixture-search-B';
+    f.get('#byok-form').onsubmit({preventDefault(){}}); await exit;
+    f.topic('Identity B topic'); const submitted = f.submit();
+    const body = JSON.parse(f.requests[1].options.body);
+    assert.equal(body.llm_api_key, 'fixture-B'); assert.equal(body.paper_id, null);
+    f.respond(1, {detail:'fixture rejected'}, 422); await submitted;
+    assert.equal(f.requests.length, 2);
+  },
   async accepted_history_success() {
     for (const kind of ["run", "resume"]) {
       const store = new Map();

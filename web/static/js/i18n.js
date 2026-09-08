@@ -11,6 +11,11 @@
 
 const STRINGS = {
   English: {
+    run_connection_missing: "The server could not find this run. Automatic polling has stopped.",
+    invalid_byok: "Saved BYOK credentials are invalid. Re-enter your keys or explicitly choose an access code; no paid request was sent.",
+    logout_wait_paid: "Wait for the paid request's reply before signing out. Switching now could lose its result; this does not cancel provider work.",
+    run_connection_stale: "Connection interrupted. Displaying the last confirmed state; retrying. This does not mean the run failed.",
+    run_connection_unconfirmed: "Cannot confirm the current run state yet; retrying. This does not mean the run failed.",
     storage_unavailable: "Browser storage is unavailable. Credentials last only on this page; settings and history may not be saved. Bookmark accepted run links.",
     storage_logout_incomplete: "Signed out on this page, but stored credentials could not be removed. Clear this site's browser data before reopening it.",
     detail_unreadable: "Detail unavailable or malformed; no conclusion can be drawn from it.",
@@ -284,6 +289,11 @@ const STRINGS = {
   },
 
   "Simplified Chinese": {
+    run_connection_missing: "服务器未找到此任务，已停止自动轮询。",
+    invalid_byok: "保存的 BYOK 凭据格式异常。请重新填写密钥，或明确选择使用口令；尚未发送付费请求。",
+    logout_wait_paid: "请等待付费请求回包后再退出，避免丢失结果。此提示不会取消供应商调用。",
+    run_connection_stale: "连接中断，当前展示最后一次确认的状态，正在重试；这不代表任务运行失败。",
+    run_connection_unconfirmed: "尚未确认任务的当前状态，正在重试；这不代表任务运行失败。",
     storage_unavailable: "浏览器存储不可用。凭据仅在当前页面临时保留，设置与历史可能无法保存；请收藏已接受任务的链接。",
     storage_logout_incomplete: "已在当前页面退出，但无法删除浏览器里保存的旧凭据。重新打开前请清除此网站的浏览器数据。",
     detail_unreadable: "详情缺失或格式异常，不能据此得出结论。",
