@@ -16,6 +16,14 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
  * or every visited run keeps polling for the life of the page. */
 let follower = null;
 let activeRunId = null;
+// Requests from an old view/session cannot repaint the current identity's
+// capability list. A generation also rejects older responses within one login.
+let sidebarRevision = 0;
+
+function invalidateSidebar() {
+  sidebarRevision++;
+  $("#runlist").innerHTML = "";
+}
 // Button elements are disposable (polling, language changes, navigation).
 // Paid resume intent belongs to the parent run, not the element clicked.
 // This is tab-local exclusion, not cross-tab/server/provider idempotency.
@@ -49,6 +57,7 @@ function operationErrorMessage(err) {
     concurrency_limit: "msg_busy",
     daily_quota_exceeded: "msg_daily_quota",
     rate_limited: "msg_rate_limited",
+    upload_capacity: "msg_upload_busy",
   }[err.code];
   // Unknown/legacy 429 responses retain the server's reason. Inferring a
   // capacity error from their status used to hide the daily UTC reset rule.
@@ -408,6 +417,8 @@ async function handleDeleteRun(runId, topic) {
 }
 
 async function refreshSidebar() {
+  const revision = ++sidebarRevision;
+  const isCurrent = () => revision === sidebarRevision;
   // GET /api/runs (the list) always stays behind the access code, scoped
   // server-side to that code's own runs (api/access.py owner_id). A BYOK
   // visitor has no code at all, so this builds the same view from the
@@ -440,6 +451,7 @@ async function refreshSidebar() {
         return { run_id, topic, state: "unknown", started_at: _startedAtFromRunId(run_id) };
       }
     }));
+    if (!isCurrent()) return null;
     sidebar.render(list, runs, {
       activeId: activeRunId,
       onSelect: (id) => openRun(id),
@@ -448,6 +460,7 @@ async function refreshSidebar() {
     return runs;
   }
   return sidebar.refresh($("#runlist"), {
+    isCurrent,
     activeId: activeRunId,
     onSelect: (runId) => openRun(runId),
     onDelete: handleDeleteRun,
@@ -774,6 +787,7 @@ async function refreshCapacity() {
 let byokMode = false;
 
 function applyByokMode() {
+  invalidateSidebar();
   byokMode = true;
   api.setAccessCode(null);
   $("#byok-badge").hidden = false;
@@ -795,6 +809,7 @@ async function exitCredentials() {
     toast(t("logout_wait_paid"), "error");
     return;
   }
+  invalidateSidebar();
   clearAttachment();
   clearDecisionContext();
   topic.value = "";
@@ -825,6 +840,7 @@ $("#byok-exit").addEventListener("click", exitCredentials);
 // what got the visitor past the gate, never when the gate is off entirely
 // (nothing to log out of then) and never alongside the BYOK badge.
 function applyCodeMode() {
+  invalidateSidebar();
   api.setByok(null);
   byokMode = false;
   $("#byok-badge").hidden = true;

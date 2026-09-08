@@ -14,6 +14,7 @@ separate frozen copy under the run retention policy.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import shutil
 import time
@@ -27,8 +28,9 @@ from api.cleanup import CleanupAudit
 # Uploads and their extractions live outside the per-run directories: a paper
 # may be uploaded and never run, and a run directory should describe a run.
 PAPERS_ROOT = DEFAULT_OUTPUT_ROOT / "_papers"
+_LOGGER = logging.getLogger(__name__)
 
-# This one ceiling is shared by the streaming request reader and the persisted
+# This one ceiling is shared by the bounded spool reader and the persisted
 # payload check. Larger PDFs are almost always scanned images, which the text
 # extractor cannot use anyway.
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -142,7 +144,14 @@ def discard(paper_id: str) -> None:
     """
     if not _is_valid_paper_id(paper_id):
         return
-    shutil.rmtree(paper_dir(paper_id), ignore_errors=True)
+    try:
+        shutil.rmtree(paper_dir(paper_id))
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        # Retention may retry, but silence must not imply privacy cleanup was
+        # successful. Do not put capability ids, filenames or contents in logs.
+        _LOGGER.warning("Paper cleanup incomplete: %s", type(exc).__name__)
 
 
 def save_extraction(paper_id: str, extraction: dict) -> Path:

@@ -84,6 +84,53 @@ function paintResume(f) {
 
 const paper = { paper_id: "paper-one", title: "Fixture paper", commercialization_topic: "Suggested topic" };
 const scenarios = {
+  async sidebar_generation() {
+    const mode = process.argv[3];
+    const f = fixture();
+    f.run(`globalThis.held=[]; globalThis.selected='fixture-A';
+      api={...api, listRuns:()=>new Promise(resolve=>held.push(resolve)),
+        getRun:()=>new Promise(resolve=>held.push(resolve)),
+        getByokRuns:()=>[{run_id:'local-A',topic:'Local A'}],
+        setByok:()=>false, setAccessCode:value=>{selected=value;return false;},
+        getAccessCode:()=>selected,checkAccess:()=>Promise.resolve({}),
+        accessCodeClearConflict:()=>false};`);
+    const actualSidebar = fs.readFileSync(new URL('../../web/static/js/sidebar.js', import.meta.url),'utf8')
+      .replace(/^import .*;\r?\n/gm,'').replace(/export /g,'');
+    f.run(`sidebar=(()=>{${actualSidebar};return {render,refresh};})()`);
+    if (mode === 'byok') f.run('byokMode=true');
+    const old = f.run('refreshSidebar()');
+    const rows = () => f.get('#runlist').children.filter(el=>el.className==='runitem-row')
+      .map(el=>el.children[0].dataset.runId);
+    if (mode === 'gate') {
+      f.run(`sidebar.render(document.querySelector('#runlist'),[{run_id:'old-visible',state:'completed'}],{})`);
+      assert.deepEqual(rows(),['old-visible']);
+      f.run('exitCredentials()');
+      assert.deepEqual(rows(),[], 'Logout must clear an already visible capability');
+      f.run(`held[0]({runs:[{run_id:'late-while-gated',state:'completed'}]})`);
+      await old;
+      assert.deepEqual(rows(),[], 'Pending replies must not repopulate the open login gate');
+      assert.equal(f.get('#gate').hidden,false);
+      return;
+    }
+    if (mode === 'ordered') {
+      const fresh=f.run('refreshSidebar()');
+      f.run(`held[1]({runs:[{run_id:'current',state:'completed'}]})`); await fresh;
+      assert.deepEqual(rows(),['current']);
+    } else {
+      const logout=f.run('exitCredentials()');
+      assert.deepEqual(rows(),[], 'Logout clears capability views before opening the gate');
+      f.get('#gate-input').value='fixture-B';
+      await f.get('#gate-form').onsubmit({preventDefault(){}}); await logout;
+      assert.equal(f.get('#gate').hidden,true);
+      f.run(`held[1]({runs:[{run_id:'current',state:'completed'}]})`);
+      await new Promise(resolve=>setImmediate(resolve));
+    }
+    f.run(mode === 'byok' ? `held[0]({topic:'Old local A',state:'completed'})`
+      : `held[0]({runs:[{run_id:'old-A',state:'completed'}]})`);
+    await old;
+    assert.deepEqual(rows(),['current'], 'Late responses cannot replace the current history');
+    assert.equal(f.requests.length,0);
+  },
   async receipt_refresh() {
     const kind = process.argv[3];
     const store = new Map();

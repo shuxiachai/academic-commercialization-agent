@@ -23,6 +23,8 @@ to reuse consumed cohorts.
 
 ## Recent offline maintenance
 
+- [2026-09-08 upload/history/cancellation boundaries](results-2026-09-08-upload-history-cancellation-boundaries.md) — pre-parser byte/time/capacity limits, generation-bound history and thread-owned PDF cleanup; zero provider calls.
+
 - [2026-09-08 paid-request refresh warning](results-2026-09-08-paid-refresh-warning.md) — credential-free session warning, explicit acknowledgement and view-delivery settlement; zero provider calls, not server idempotency.
 
 - [2026-09-08 client delivery seams](results-2026-09-08-client-delivery-seams.md) — optional log isolation/cursors, truthful details and browser-storage fallback, zero provider calls.

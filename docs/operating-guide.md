@@ -362,6 +362,22 @@ subject to retention. Retention uses run timestamps rather than directory mtime,
 does not delete live runs, and is visible in the UI. Avoid sharing capability
 links or extracted private material unintentionally.
 
+Upload preprocessing has a separate two-slot, single-process limit. Before
+multipart parsing, the entire request is capped at 51 MiB (50 MiB PDF plus
+1 MiB overhead), with 30-second idle and 120-second total body receive limits.
+The per-file 50 MiB cap and BYOK/code authentication still apply. A 429 with
+`upload_capacity` is not a daily quota charge; no extraction has started.
+Preprocessing slots release after local copying, before LLM work.
+
+Cancelling an HTTP waiter does not kill its extraction thread: that thread
+still owns raw-file finalization. If cancellation arrives after successful
+finalization, derived metadata may remain until the 24-hour pending-paper
+expiry. Hard process death/storage failure remains a maintenance boundary;
+cleanup failure is logged, not represented as successful erasure. History
+refreshes are generation-bound and logout clears visible capability lists;
+previously shared capability URLs are not thereby revoked. See the
+[verified boundaries](results-2026-09-08-upload-history-cancellation-boundaries.md).
+
 Strict CSP and security headers constrain the static client and report rendering.
 They do not replace source validation, access control or retention.
 

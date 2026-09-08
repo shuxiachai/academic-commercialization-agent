@@ -242,6 +242,12 @@ memory-only. Parsing success is not view delivery, and one settled request
 cannot erase a peer uncertainty. This is not receipt recovery or server
 idempotency. See the [refresh boundary](docs/results-2026-09-08-paid-refresh-warning.md).
 
+Upload transport is bounded before multipart parsing, separately from paid
+admission. History replies must match the current view/session generation.
+PDF finalization belongs to the actual thread, not a cancellable HTTP waiter;
+post-finalization cancellation may retain derived metadata until normal expiry.
+See the [ingress/history/finalization contract](docs/results-2026-09-08-upload-history-cancellation-boundaries.md).
+
 ## Tool Calling: do not turn experimental code into production by accident
 
 - Production is phase-1 **zero-call shadow mode**. Phase-2 execution, provider

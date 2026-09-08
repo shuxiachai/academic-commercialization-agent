@@ -121,9 +121,12 @@ export function render(container, runs, { activeId, onSelect, onDelete }) {
   }
 }
 
-export async function refresh(container, { activeId, onSelect, onDelete }) {
+export async function refresh(container, { activeId, onSelect, onDelete, isCurrent = () => true }) {
   try {
     const { runs } = await api.listRuns(50);
+    // A cancelled fetch is only an optimization; a late successful response
+    // must independently prove it still belongs to this view and identity.
+    if (!isCurrent()) return null;
     render(container, runs, { activeId, onSelect, onDelete });
     return runs;
   } catch {

@@ -32,6 +32,84 @@ def _json(route: Route, value: dict, *, status: int = 200, code: str | None = No
                   headers={"X-Error-Code": code} if code else {})
 
 
+def _history_generation_journey(browser, base: str) -> int:
+    """Late successful history replies cannot cross login or view generations."""
+    context = browser.new_context()
+    held, unexpected, errors = [], [], []
+    hold = False
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+
+    def history(label):
+        return {"runs": [{"run_id": label, "topic": label, "state": "completed"}]}
+
+    def intercept(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        if url.netloc != urlsplit(base).netloc or request.method != "GET":
+            unexpected.append(request.url)
+            route.abort()
+        elif url.path == "/api/access/check":
+            accepted = request.headers.get("x-access-code") in {"fixture-A", "fixture-B"}
+            _json(route, {"ok": accepted}, status=200 if accepted else 401)
+        elif url.path == "/api/runs":
+            if hold and request.headers.get("x-access-code") == "fixture-A":
+                held.append(route)
+            else:
+                _json(route, history(request.headers.get("x-access-code", "none")))
+        elif url.path == "/health":
+            _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif url.path == "/" or url.path.startswith("/static/"):
+            route.continue_()
+        else:
+            unexpected.append(url.path)
+            route.abort()
+
+    def fulfill(index, label):
+        # Response.finished() in the installed Playwright leaves a losing
+        # target-close task alive. The request-finished event proves receipt
+        # without orphaning that task or ignoring its later close warning.
+        with page.expect_request_finished(lambda request: request.url == held[index].request.url):
+            _json(held[index], history(label))
+        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+
+    context.route("**/*", intercept)
+    try:
+        page.goto(base)
+        page.locator("#gate-input").fill("fixture-A")
+        page.locator("#gate-submit").click()
+        expect(page.locator("#runlist")).to_contain_text("fixture-A")
+        hold = True
+        for count in (1, 2):
+            page.locator("#new-run-btn").click()
+            _wait_requests(page, held, count)
+        fulfill(1, "current-view")
+        expect(page.locator("#runlist")).to_contain_text("current-view")
+        fulfill(0, "obsolete-view")
+        expect(page.locator("#runlist")).to_contain_text("current-view")
+        expect(page.locator("#runlist")).not_to_contain_text("obsolete-view")
+
+        page.locator("#new-run-btn").click()
+        _wait_requests(page, held, 3)
+        # Model another tab's selection, forcing the shipped same-page logout
+        # fallback instead of relying on reload to destroy old async callbacks.
+        page.evaluate("localStorage.setItem('access-code','fixture-B')")
+        page.locator("#code-exit").click()
+        expect(page.locator("#gate")).to_be_visible()
+        expect(page.locator("#runlist .runitem")).to_have_count(0)
+        page.locator("#gate-input").fill("fixture-B")
+        page.locator("#gate-submit").click()
+        expect(page.locator("#runlist")).to_contain_text("fixture-B")
+        fulfill(2, "old-identity-capability")
+        expect(page.locator("#runlist")).to_contain_text("fixture-B")
+        expect(page.locator("#runlist")).not_to_contain_text("old-identity-capability")
+        assert not errors, errors
+        assert not unexpected, unexpected
+        return len(held)
+    finally:
+        context.close()
+
+
 def _access_identity_journey(browser, base: str) -> int:
     """A real second tab cannot relabel a PDF/run/resume or erase a newer login."""
     context = browser.new_context()
@@ -549,6 +627,7 @@ def main() -> None:
             assert len(requests) == 12
             identity_posts = _access_identity_journey(browser, base)
             refresh_posts = _paid_refresh_journey(browser, base)
+            history_reads = _history_generation_journey(browser, base)
             assert not unexpected, unexpected
             assert not reached_server, reached_server
             assert not page_errors, page_errors
@@ -561,6 +640,7 @@ def main() -> None:
     print(json.dumps({"status": "passed", "browser": "chromium", "stubbed_posts": len(requests),
                       "identity_stubbed_posts": identity_posts,
                       "refresh_stubbed_posts": refresh_posts,
+                      "history_held_reads": history_reads,
                       "api_requests_reaching_server": len(reached_server), "unexpected_requests": len(unexpected),
                       "paid_provider_requests": 0, "page_errors": len(page_errors)}))
 
