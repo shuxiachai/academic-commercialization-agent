@@ -120,7 +120,7 @@ function startClock(fromSeconds) {
 
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting,
-  terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable,
+  terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -162,6 +162,8 @@ function paintHeader({
     ? `· ${t("status_record_unreadable")}` : "";
 
   const runtimeFault = runView.runtimeMetadataSummary(runtime_metadata_unreadable ?? []);
+  $("#run-step-record").textContent = ["partial", "unavailable"].includes(steps_read_state)
+    ? `· ${t("steps_" + steps_read_state)}` : "";
   $("#run-runtime-record").textContent = runtimeFault ? `· ${runtimeFault}` : "";
 
   const recoveryEl = $("#run-recovery");
@@ -649,13 +651,16 @@ $("#collapse-btn").addEventListener("click", () => {
   } else {
     const next = workbench.dataset.collapsed !== "true";
     workbench.dataset.collapsed = String(next);
-    localStorage.setItem("sidebar-collapsed", String(next));
+    try { localStorage.setItem("sidebar-collapsed", String(next)); }
+    catch { /* Sidebar persistence is optional; the current DOM already reflects the click. */ }
   }
 });
 
-if (localStorage.getItem("sidebar-collapsed") === "true" && !NARROW.matches) {
-  workbench.dataset.collapsed = "true";
-}
+try {
+  if (localStorage.getItem("sidebar-collapsed") === "true" && !NARROW.matches) {
+    workbench.dataset.collapsed = "true";
+  }
+} catch { /* A default-open sidebar must not stop access checks or routing. */ }
 
 $("#new-run-btn").addEventListener("click", showCompose);
 
@@ -721,10 +726,33 @@ function applyByokMode() {
   $("#byok-badge").hidden = false;
 }
 
-$("#byok-exit").addEventListener("click", () => {
-  api.setByok(null);
-  location.reload();
-});
+function showStorageNotice(key = "storage_unavailable") {
+  const notice = $("#storage-notice");
+  notice.dataset.i18n = key;
+  notice.textContent = t(key);
+  notice.hidden = false;
+}
+
+async function exitCredentials() {
+  const byokCleared = api.setByok(null);
+  const codeCleared = api.setAccessCode(null);
+  if (byokCleared && codeCleared) { location.reload(); return; }
+  // Failed persistent removal cannot be undone by reloading: that would read
+  // the old value again. End this page's session and ask for explicit login.
+  // Do not claim browser data was purged or cancel any server-side work.
+  stopFollowing();
+  stopClock();
+  byokMode = false;
+  $("#byok-badge").hidden = true;
+  $("#code-badge").hidden = true;
+  $("#pane-run").hidden = true;
+  $("#pane-compose").hidden = true;
+  showStorageNotice("storage_logout_incomplete");
+  await showGate();
+  showCompose();
+}
+
+$("#byok-exit").addEventListener("click", exitCredentials);
 
 // Mutually exclusive with applyByokMode(): shown only when a stored code is
 // what got the visitor past the gate, never when the gate is off entirely
@@ -733,10 +761,7 @@ function applyCodeMode() {
   $("#code-badge").hidden = false;
 }
 
-$("#code-exit").addEventListener("click", () => {
-  api.setAccessCode(null);
-  location.reload();
-});
+$("#code-exit").addEventListener("click", exitCredentials);
 
 async function ensureAccess() {
   if (api.getByok()) {
@@ -786,6 +811,12 @@ function showGate() {
   const codeSubmit = $("#gate-submit");
   const byokForm = $("#byok-form");
 
+  // Storage-denied logout reuses this document. Clear previous inputs and
+  // replace the gate-owned handlers below instead of accumulating closures
+  // that would validate one submission several times after repeated login.
+  codeForm.reset();
+  byokForm.reset();
+  codeError.hidden = true;
   gate.hidden = false;
   codeForm.hidden = false;
   byokForm.hidden = true;
@@ -794,25 +825,26 @@ function showGate() {
   return new Promise((resolve) => {
     const finish = () => {
       gate.hidden = true;
+      if (api.storageDegraded()) showStorageNotice();
       resolve();
     };
 
-    $("#gate-to-byok").addEventListener("click", () => {
+    $("#gate-to-byok").onclick = () => {
       codeForm.hidden = true;
       byokForm.hidden = false;
       $("#byok-llm-key").focus();
       showByokRetention();
-    });
-    $("#byok-to-gate").addEventListener("click", () => {
+    };
+    $("#byok-to-gate").onclick = () => {
       byokForm.hidden = true;
       codeForm.hidden = false;
       codeInput.focus();
-    });
+    };
 
-    codeForm.addEventListener("submit", async (e) => {
+    codeForm.onsubmit = async (e) => {
       e.preventDefault();
       const code = codeInput.value.trim();
-      if (!code) return;
+      if (!code || codeSubmit.disabled) return;
 
       codeSubmit.disabled = true;
       codeError.hidden = true;
@@ -828,9 +860,9 @@ function showGate() {
       } finally {
         codeSubmit.disabled = false;
       }
-    });
+    };
 
-    byokForm.addEventListener("submit", (e) => {
+    byokForm.onsubmit = (e) => {
       e.preventDefault();
       const provider = $("#byok-provider").value;
       const llmKey = $("#byok-llm-key").value.trim();
@@ -840,7 +872,7 @@ function showGate() {
       api.setByok({ provider, llmKey, serperKey });
       applyByokMode();
       finish();
-    });
+    };
   });
 }
 
@@ -913,6 +945,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 ensureAccess().then(() => {
+  if (api.storageDegraded()) showStorageNotice();
   routeFromLocation();
   refreshSidebar();
   refreshCapacity();

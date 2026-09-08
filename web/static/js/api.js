@@ -23,11 +23,40 @@ export class ApiError extends Error {
 
 const ACCESS_KEY = "access-code";
 
-export const getAccessCode = () => localStorage.getItem(ACCESS_KEY);
+// Storage is an optional persistence mechanism, not the authority to send a
+// request. Latch a failing slot into page-local memory: retrying a failed
+// remove on the next read could resurrect a stale credential. Nothing here
+// bypasses server authentication or retries a paid POST. A reload ends this
+// fallback; callers must not auto-reload after a failed credential removal.
+function credentialSlot(storageName, key) {
+  let memory = null, volatile = false;
+  return {
+    read() {
+      if (!volatile) {
+        try { memory = globalThis[storageName].getItem(key); }
+        catch { volatile = true; }
+      }
+      return memory;
+    },
+    write(value) {
+      memory = value;
+      if (volatile) return false;
+      try {
+        const storage = globalThis[storageName];
+        if (value === null) storage.removeItem(key);
+        else storage.setItem(key, value);
+        return true;
+      } catch { volatile = true; return false; }
+    },
+    degraded: () => volatile,
+  };
+}
+
+const accessSlot = credentialSlot("localStorage", ACCESS_KEY);
+export const getAccessCode = () => accessSlot.read();
 
 export function setAccessCode(code) {
-  if (code) localStorage.setItem(ACCESS_KEY, code);
-  else localStorage.removeItem(ACCESS_KEY);
+  return accessSlot.write(code || null);
 }
 
 /* ── Bring-your-own-key ───────────────────────────────────────────────
@@ -37,18 +66,19 @@ export function setAccessCode(code) {
  * they should not outlive the tab. */
 
 const BYOK_KEY = "byok-credentials";
+const byokSlot = credentialSlot("sessionStorage", BYOK_KEY);
+export const storageDegraded = () => accessSlot.degraded() || byokSlot.degraded();
 
 export function getByok() {
   try {
-    return JSON.parse(sessionStorage.getItem(BYOK_KEY));
+    return JSON.parse(byokSlot.read());
   } catch {
     return null;
   }
 }
 
 export function setByok(creds) {
-  if (creds) sessionStorage.setItem(BYOK_KEY, JSON.stringify(creds));
-  else sessionStorage.removeItem(BYOK_KEY);
+  return byokSlot.write(creds ? JSON.stringify(creds) : null);
 }
 
 /* A BYOK run gets no owner tag server-side (see api/access.py) and so never

@@ -58,7 +58,6 @@ from api.models import (  # noqa: E402
     RunProgress,
     RunRequest,
     RunStatus,
-    StepEvent,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -1001,9 +1000,9 @@ def get_report(run_id: str) -> PlainTextResponse:
 def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgress:
     """Status plus new step events, for a client polling during a run.
 
-    `since` is the number of step events the client already has; only later
-    ones are returned. Without it a client would re-receive the whole log on
-    every tick, which grows to hundreds of lines over a run.
+    `since` is the physical-line cursor returned as `steps_next_cursor`, not
+    the number of valid events received. The append-only log can contain
+    rejected rows; its failure must not hide a committed run outcome.
 
     Registered before /api/runs/{run_id}/{artifact} because that route would
     otherwise match "progress" as an artifact name.
@@ -1051,7 +1050,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         observability=state.get("observability"),
         checkpointing=state.get("checkpointing"),
         recovery=state.get("recovery"),
-        steps=[StepEvent(**s) for s in runs.read_steps(run_id, since=since)],
+        **runs.read_step_page(run_id, since=since),
         artifacts=state.get("artifacts", []),
     )
 
