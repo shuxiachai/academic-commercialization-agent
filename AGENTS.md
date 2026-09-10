@@ -232,15 +232,28 @@ its bounded GET must never become a paid-POST timeout. See the
 An open document keeps its selected access code when other tabs change shared
 storage. Late/candidate 401s cannot clear a newer local selection; a conflicting
 persistent removal returns to the gate without reloading into another identity.
-This is not global logout, transactional storage or durable receipt recovery.
+This is not global logout or transactional shared storage. Receipt recovery
+now has a separate opt-in contract below.
 See the [cross-tab identity contract](docs/results-2026-09-08-browser-access-identity.md).
 
 First-party paid requests also leave a credential-free tab-session warning
 before dispatch. Refresh and uncertain replies block new paid intent until
 explicit acknowledgement, not server work; denied storage remains visibly
 memory-only. Parsing success is not view delivery, and one settled request
-cannot erase a peer uncertainty. This is not receipt recovery or server
-idempotency. See the [refresh boundary](docs/results-2026-09-08-paid-refresh-warning.md).
+cannot erase a peer uncertainty. The original warning alone is not idempotency;
+see its [historical boundary](docs/results-2026-09-08-paid-refresh-warning.md).
+
+First-party run/PDF/resume requests now persist a random tab-session receipt
+key before dispatch. The opt-in server journal reserves that intent before
+admission, binds the target before launch, and never repeats unresolved work.
+Read-only lookup requires the same valid code for code-owned entries; ownerless
+BYOK uses the high-entropy receipt key as a capability. Keys expire after 24h;
+pruning cannot make an expired retry new. Corrupt storage is unavailable, not
+an empty ledger. The actual PDF thread commits its receipt and keeps completed
+derived metadata after waiter cancellation; queued abandonment still costs no
+provider call. Preserve these seams and the independent receipt maintenance
+stage. This is not provider exactly-once, automatic recovery, disk-loss safety,
+or distributed ownership. See the [receipt contract](docs/results-2026-09-10-durable-paid-receipts.md).
 
 Upload transport is bounded before multipart parsing, separately from paid
 admission. History replies must match the current view/session generation.

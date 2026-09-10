@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import Page, Route, expect, sync_playwright
 
 from e2e.browser_smoke import PROJECT_ROOT, _capture_failure, _serve
+from e2e.receipt_journey import receipt_journey
 
 
 def _wait_requests(page: Page, requests: list[Route], count: int) -> None:
@@ -315,9 +316,13 @@ def _paid_refresh_case(browser, base: str, operation: str) -> int:
         page.locator("#run-btn").click()
         _wait_requests(page, posts, 2)
         _json(posts[1], {"detail": "Explicit fixture rejection"}, status=422)
-        expect(page.locator("#paid-receipt-notice")).to_be_hidden()
+        # Acknowledging the risk clears the warning, not the prior request's
+        # recoverable identity. Keep read-only lookup available after reload.
+        expect(page.locator("#paid-receipt-message")).to_have_text("")
+        expect(page.locator("#paid-receipt-lookup")).to_be_visible()
         page.reload()
-        expect(page.locator("#paid-receipt-notice")).to_be_hidden()
+        expect(page.locator("#paid-receipt-message")).to_have_text("")
+        expect(page.locator("#paid-receipt-lookup")).to_be_visible()
         assert not faults, faults
         return len(posts)
     finally:
@@ -628,6 +633,8 @@ def main() -> None:
             identity_posts = _access_identity_journey(browser, base)
             refresh_posts = _paid_refresh_journey(browser, base)
             history_reads = _history_generation_journey(browser, base)
+            recovered_posts = sum(receipt_journey(browser, base, operation, _json)
+                                  for operation in ("run", "paper", "resume"))
             assert not unexpected, unexpected
             assert not reached_server, reached_server
             assert not page_errors, page_errors
@@ -641,6 +648,7 @@ def main() -> None:
                       "identity_stubbed_posts": identity_posts,
                       "refresh_stubbed_posts": refresh_posts,
                       "history_held_reads": history_reads,
+                      "receipt_recovered_stubbed_posts": recovered_posts,
                       "api_requests_reaching_server": len(reached_server), "unexpected_requests": len(unexpected),
                       "paid_provider_requests": 0, "page_errors": len(page_errors)}))
 

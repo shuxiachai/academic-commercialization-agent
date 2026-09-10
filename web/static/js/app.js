@@ -29,6 +29,8 @@ function invalidateSidebar() {
 // This is tab-local exclusion, not cross-tab/server/provider idempotency.
 const pendingResumes = new Set();
 const paidReceipts = createPaidReceipts();
+let receiptViewGeneration = 0;
+let receiptLookupActive = false;
 
 /* Capacity polling state. Declared here with the other module state rather
  * than beside the scheduler at the bottom: showRun/showCompose re-time the
@@ -75,24 +77,33 @@ function rememberAcceptedRun(accepted) {
   }
 }
 
-async function performPaidRequest(request, deliver) {
+async function performPaidRequest(request, deliver, operation = "run") {
   // Validate locally before recording intent; invalid BYOK cannot cause a
   // request, select operator billing, or manufacture an uncertain receipt.
   api.getByok();
   const settle = paidReceipts.begin();
   let received = false;
+  let receiptKey = null;
   try {
-    const response = await request();
+    receiptKey = api.beginReceipt(operation);
+    // The warning subscribed before this identity existed. Publish the new
+    // lookup/storage state before fetch; a stalled reply must not hide it.
+    paintPaidReceipt();
+    const response = await request(receiptKey);
     received = true;
     await deliver(response);
     // Parsing JSON is not delivery. Keep the marker until the run view or
     // extracted attachment actually receives the acknowledgement.
+    api.forgetReceipt(receiptKey);
     settle(true);
   } catch (err) {
     // A definite client rejection is a known outcome, not proof of no cost
     // (PDF validation may follow extraction). Transport/5xx/timeouts and UI
     // handoff faults remain uncertain, and never auto-retry the paid POST.
-    settle(!received && err.status >= 400 && err.status < 500 && err.status !== 408);
+    const definite = !receiptKey || (!received && err.status >= 400 && err.status < 500
+      && err.status !== 408 && !err.code?.includes("receipt"));
+    if (definite && receiptKey) api.forgetReceipt(receiptKey);
+    settle(definite);
     throw err;
   }
 }
@@ -295,12 +306,12 @@ function paintActions(state, checkpointing = null) {
       pendingResumes.add(sourceRunId);
       resume.disabled = true;
       try {
-        await performPaidRequest(() => api.resumeRun(sourceRunId), async (accepted) => {
+        await performPaidRequest((key) => api.resumeRun(sourceRunId, key), async (accepted) => {
           requirePaidIdentity(accepted, "run_id");
           rememberAcceptedRun(accepted);
           await openRun(accepted.run_id, { known: accepted });
           toast(t("msg_resumed"), "success");
-        });
+        }, "resume");
       } catch (err) {
         toast(operationErrorMessage(err), "error");
       } finally {
@@ -554,13 +565,13 @@ $("#compose-form").addEventListener("submit", async (e) => {
   syncComposer();
 
   try {
-    await performPaidRequest(() => api.startRun({
+    await performPaidRequest((key) => api.startRun({
       topic: submittedTopic,
       language: $("#language").value,
       weight_profile: $("#profile").value,
       paper_id: attachedPaper?.paper_id,
       decision_context: readDecisionContext(),
-    }), async (accepted) => {
+    }, key), async (accepted) => {
       requirePaidIdentity(accepted, "run_id");
       rememberAcceptedRun(accepted);
       await openRun(accepted.run_id, { known: accepted });
@@ -661,7 +672,7 @@ async function uploadPaper(file) {
   syncComposer();
 
   try {
-    await performPaidRequest(() => api.uploadPaper(file), (paper) => {
+    await performPaidRequest((key) => api.uploadPaper(file, key), (paper) => {
       requirePaidIdentity(paper, "paper_id");
       // Explicit attachment removal discards the returned selection, not
       // the knowledge that extraction finished. No automatic re-extraction.
@@ -669,7 +680,7 @@ async function uploadPaper(file) {
       attachedPaper = paper;
       paintAttachment(paper);
       toast(t("msg_paper_attached"), "success");
-    });
+    }, "paper");
   } catch (err) {
     if (generation !== uploadGeneration) return;
     clearAttachment();
@@ -787,6 +798,8 @@ async function refreshCapacity() {
 let byokMode = false;
 
 function applyByokMode() {
+  receiptViewGeneration++;
+  $("#paid-receipt-results").innerHTML = "";
   invalidateSidebar();
   byokMode = true;
   api.setAccessCode(null);
@@ -809,6 +822,9 @@ async function exitCredentials() {
     toast(t("logout_wait_paid"), "error");
     return;
   }
+  receiptViewGeneration++;
+  $("#paid-receipt-results").innerHTML = "";
+  const receiptsCleared = api.clearReceiptJournal();
   invalidateSidebar();
   clearAttachment();
   clearDecisionContext();
@@ -816,7 +832,7 @@ async function exitCredentials() {
   syncComposer();
   const byokCleared = api.setByok(null);
   const codeCleared = api.setAccessCode(null);
-  if (byokCleared && codeCleared) { location.reload(); return; }
+  if (byokCleared && codeCleared && receiptsCleared) { location.reload(); return; }
   // Failed removal or a different shared selection must not be undone by
   // reloading: that would read stale/other credentials again. End this page's
   // session and ask for explicit login, without claiming global sign-out.
@@ -840,6 +856,8 @@ $("#byok-exit").addEventListener("click", exitCredentials);
 // what got the visitor past the gate, never when the gate is off entirely
 // (nothing to log out of then) and never alongside the BYOK badge.
 function applyCodeMode() {
+  receiptViewGeneration++;
+  $("#paid-receipt-results").innerHTML = "";
   invalidateSidebar();
   api.setByok(null);
   byokMode = false;
@@ -1020,11 +1038,20 @@ syncComposer();
 
 function paintPaidReceipt() {
   const state = paidReceipts.state();
-  $("#paid-receipt-notice").hidden = !state.uncertain && !state.active && !state.unavailable;
+  let saved = [], unreadable = false;
+  try { saved = api.pendingReceiptKeys(); } catch { unreadable = true; }
+  const degraded = state.unavailable || api.receiptStorageDegraded();
+  $("#paid-receipt-notice").hidden = !state.uncertain && !state.active && !degraded && !saved.length && !unreadable;
   $("#paid-receipt-message").textContent = [
     state.uncertain ? t("paid_receipt_unknown") : state.active ? t("paid_receipt_inflight") : "",
     state.unavailable ? t("paid_receipt_unavailable") : "",
   ].filter(Boolean).join(" ");
+  $("#paid-receipt-helper").textContent = [
+    api.receiptStorageDegraded() && !state.unavailable ? t("paid_receipt_unavailable") : "",
+    unreadable ? t("receipt_history_unreadable") : saved.length ? t("receipt_lookup_hint") : "",
+  ].filter(Boolean).join(" ");
+  $("#paid-receipt-lookup").hidden = !saved.length;
+  $("#paid-receipt-lookup").disabled = receiptLookupActive || Boolean(state.active);
   $("#paid-receipt-ack").hidden = !state.uncertain;
   $("#paid-receipt-ack").disabled = Boolean(state.active);
   syncComposer();
@@ -1032,6 +1059,65 @@ function paintPaidReceipt() {
     button.disabled = state.uncertain || pendingResumes.has(button.dataset.resumeRun);
   });
 }
+$("#paid-receipt-lookup").addEventListener("click", async () => {
+  if (receiptLookupActive || paidReceipts.state().active) return;
+  const generation = receiptViewGeneration;
+  const entries = api.pendingReceiptKeys();
+  const container = $("#paid-receipt-results");
+  container.innerHTML = "";
+  receiptLookupActive = true;
+  paintPaidReceipt();
+  try {
+    // Only bounded GETs; neither an absent receipt nor an unknown outcome
+    // may become an automatic POST, resume, cancellation or quota refund.
+    for (const entry of entries) {
+      if (generation !== receiptViewGeneration) break;
+      const row = document.createElement("p");
+      container.append(row);
+      try {
+        const receipt = await api.getPaidReceipt(entry.key);
+        if (generation !== receiptViewGeneration) break;
+        if (receipt.state !== "accepted") {
+          row.textContent = t(receipt.state === "failed" ? "receipt_failed" : "receipt_unresolved");
+          continue;
+        }
+        const body = receipt.response;
+        const paper = receipt.operation === "paper";
+        requirePaidIdentity(body, paper ? "paper_id" : "run_id");
+        if (receipt.operation !== entry.operation || receipt.resource_id !== body[paper ? "paper_id" : "run_id"])
+          throw new api.ApiError(503, "Receipt identity mismatch", "receipt_unavailable");
+        row.textContent = paper ? t("receipt_paper_found") : t("receipt_run_found");
+        const open = document.createElement("button");
+        open.type = "button";
+        open.className = "btn btn--secondary";
+        open.textContent = t("receipt_open");
+        open.addEventListener("click", async () => {
+          if (generation !== receiptViewGeneration || submitting || extracting || pendingResumes.size) return;
+          open.disabled = true;
+          try {
+            if (paper) {
+              showCompose();
+              clearAttachment();
+              attachedPaper = body;
+              paintAttachment(body);
+            } else {
+              rememberAcceptedRun(body);
+              await openRun(body.run_id, {known: body});
+            }
+            api.forgetReceipt(entry.key);
+            row.remove();
+            paintPaidReceipt();
+          } catch (err) { toast(operationErrorMessage(err), "error"); open.disabled = false; }
+        });
+        row.append(open);
+      } catch (err) {
+        if (generation !== receiptViewGeneration) break;
+        // 404 may also mean a different code, not a free or unstarted request.
+        row.textContent = t("receipt_lookup_unavailable");
+      }
+    }
+  } finally { receiptLookupActive = false; paintPaidReceipt(); }
+});
 paidReceipts.subscribe(paintPaidReceipt);
 $("#paid-receipt-ack").addEventListener("click", () => {
   if (!paidReceipts.state().active && confirm(t("paid_receipt_confirm"))) paidReceipts.acknowledge();

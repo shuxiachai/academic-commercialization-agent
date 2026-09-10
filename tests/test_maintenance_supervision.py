@@ -12,6 +12,7 @@ from api.models import ReadinessStatus
 
 @pytest.fixture(autouse=True)
 def isolated_supervisor(monkeypatch):
+    monkeypatch.setattr(main, "_prune_receipts", Mock(return_value=0))
     monkeypatch.setattr(main, "_maintenance_task", None)
     monkeypatch.setattr(main, "_maintenance_checks", {})
     monkeypatch.setattr(main, "_maintenance_timings", {})
@@ -30,7 +31,7 @@ def test_cleanup_fault_keeps_later_stage_and_next_timeout_cycle_alive():
                 await main._reaper()
             assert watchdog.call_count == 2
             assert retention.call_count == 2
-        assert main._maintenance_checks == {"timeouts": "ok", "papers": "failed", "retention": "ok"}
+        assert main._maintenance_checks == {"timeouts": "ok", "papers": "failed", "retention": "ok", "receipts": "ok"}
     asyncio.run(exercise())
 
 
@@ -82,7 +83,7 @@ def test_stage_recovers_only_after_its_next_success():
         ):
             with pytest.raises(asyncio.CancelledError):
                 await main._reaper()
-        assert main._maintenance_checks == {"timeouts": "failed", "papers": "ok", "retention": "ok"}
+        assert main._maintenance_checks == {"timeouts": "failed", "papers": "ok", "retention": "ok", "receipts": "ok"}
     asyncio.run(exercise())
     main._maintenance_task = Mock(done=lambda: False)
     with patch.object(main, "readiness", return_value=ReadinessStatus(ready=True, checks={})):

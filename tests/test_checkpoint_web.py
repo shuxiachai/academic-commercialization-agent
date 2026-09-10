@@ -18,7 +18,7 @@ _INDEX = (_REPO / "web" / "index.html").read_text(encoding="utf-8")
 
 def test_terminal_action_calls_the_resume_endpoint_and_opens_the_child() -> None:
     assert "`/api/runs/${runId}/resume`" in _API_JS
-    assert "performPaidRequest(() => api.resumeRun(sourceRunId)" in _APP_JS
+    assert "performPaidRequest((key) => api.resumeRun(sourceRunId, key)" in _APP_JS
     assert "openRun(accepted.run_id, { known: accepted })" in _APP_JS
     # Wrapping the call must preserve the endpoint and delivered child, not
     # merely satisfy a new spelling of the await expression.
