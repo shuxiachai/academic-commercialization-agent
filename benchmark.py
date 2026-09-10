@@ -19,15 +19,17 @@ not yet evidence of anything. Repetitions are interleaved across the batch
 rather than run back to back, so a slow window upstream does not land entirely
 on one topic and masquerade as that topic being unstable.
 
-Each topic writes to outputs/benchmark/<num>-<slug>/ (repetitions after the
-first get a __r2, __r3 suffix):
+Each new batch writes to outputs/benchmark-runs/<experiment-id>/, with
+<num>-<slug>/ units (later repetitions get a __r2, __r3 suffix):
     validated_sources.json
     commercialization_report.md
     commercialization_scores.json
     meta.json   ← status, elapsed time, rate-limit hits, error message if any
 
-Already-succeeded runs are skipped automatically on re-run.
-Run benchmark_check.py afterwards to generate benchmark_summary.csv.
+Reuse requires --resume-batch plus an exact code/model/config/fixture identity
+and intact artifacts. --force starts a NEW batch, never overwrites outputs.
+The historical outputs/benchmark archive remains untouched. Run
+benchmark_check.py --batch <experiment-id> to generate a separate summary.
 
 Concurrency notes
 -----------------
@@ -144,14 +146,14 @@ def _slug(topic: str) -> str:
     return topic.lower().replace(" ", "-")[:45].rstrip("-")
 
 
-def _run_dir(num: str, topic: str, rep: int = 1) -> Path:
+def _run_dir(num: str, topic: str, rep: int = 1, *, root: Path | None = None) -> Path:
     """Directory for one execution of one topic.
 
     Repetition 1 keeps the historic unsuffixed name so existing result
     directories, and anything pointing at them, keep working; only the extra
     repetitions of --repeat get a suffix.
     """
-    base = BENCHMARK_ROOT / f"{num}-{_slug(topic)}"
+    base = (root if root is not None else BENCHMARK_ROOT) / f"{num}-{_slug(topic)}"
     return base if rep <= 1 else base.with_name(f"{base.name}__r{rep}")
 
 
@@ -171,12 +173,19 @@ def _trl_flag(trl, trl_range: tuple) -> str:
 
 
 def _already_succeeded(run_dir: Path, evidence_mode: str = "live") -> bool:
+    """Historical mode inspection only; never use to authorize paid reuse.
+
+    Kept for the archive's compatibility contract. New execution requires
+    benchmark_identity.reusable_result and refuses occupied invalid units.
+    """
     meta_path = run_dir / "meta.json"
     if not meta_path.exists():
         return False
     try:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except Exception:
+    except (OSError, ValueError):
+        return False
+    if not isinstance(meta, dict):
         return False
     if meta.get("status") != "success":
         return False
@@ -240,6 +249,7 @@ def run_topic(
     force: bool = False,
     rep: int = 1,
     use_fixture: bool = False,
+    batch: dict | None = None,
 ) -> dict:
     """Run one topic end to end. Executed in its own process when concurrent."""
     label = num if rep <= 1 else f"{num}#{rep}"
@@ -250,6 +260,28 @@ def run_topic(
         _log(f"  [{label}] dry-run done in {meta['elapsed_seconds']}s")
         return meta
 
+    if batch is None:
+        raise ValueError("Paid benchmark execution requires an accepted versioned batch")
+    import benchmark_identity
+
+    benchmark_identity.verify_batch(batch, batch["identity"]["cases"], use_fixture)
+    case = [num, topic, list(trl_range), industry, rep]
+    if case not in batch["identity"]["cases"]:
+        raise ValueError("Unit was not accepted in the batch manifest")
+    identity = {"batch_sha256": batch["identity_sha256"], "case": case}
+    run_dir = _run_dir(num, topic, rep, root=Path(batch["root"]))
+    if run_dir.is_symlink() or run_dir.resolve().parent != Path(batch["root"]).resolve():
+        raise ValueError("Unit directory must remain inside the accepted batch")
+    if run_dir.exists():
+        if not force and benchmark_identity.reusable_result(run_dir, identity):
+            meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
+            meta["skipped"] = True
+            _log(f"  [{label}] exact identity and artifacts verified — reusing")
+            return meta
+        raise ValueError("Occupied benchmark unit cannot be overwritten or retried; start a new batch")
+    # Exclusive creation also rejects two CLI processes racing on one unit.
+    run_dir.mkdir(exist_ok=False)
+
     from academic_agent.crew import AcademicAgent
     from academic_agent.pipeline_worker import _select_report_and_scores
     from academic_agent.run_output import save_claim_grounding, save_evidence_reports
@@ -259,21 +291,9 @@ def run_topic(
         collect_source_collection,
     )
 
-    run_dir = _run_dir(num, topic, rep)
-    run_dir.mkdir(parents=True, exist_ok=True)
-
     _log(f"  [{label}] start — {topic}  [{industry}]  expect TRL {trl_range[0]}–{trl_range[1]}")
 
-    # Skipping succeeded runs makes an interrupted batch resumable, but it also
-    # means a plain re-run after changing the pipeline does nothing at all —
-    # every topic is skipped and the summary silently reports the old results.
-    # --force is the way to re-measure; it rewrites this run's outputs in place.
     evidence_mode = "fixture" if use_fixture else "live"
-    if not force and _already_succeeded(run_dir, evidence_mode):
-        _log(f"  [{label}] already succeeded — skipping (use --force to re-run)")
-        meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
-        meta["skipped"] = True
-        return meta
 
     meta: dict = {
         "num": num,
@@ -288,8 +308,10 @@ def run_topic(
         # unstated cannot be compared with anything, and the summary reads
         # this rather than the flag it was invoked with.
         "evidence_mode": evidence_mode,
+        "execution_identity": identity,
     }
     start = time.time()
+    (run_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
     try:
         # Step 0: evidence — retrieved live, or replayed from a fixture so the
@@ -314,6 +336,8 @@ def run_topic(
         (run_dir / "validated_sources.json").write_text(
             source_collection.model_dump_json(indent=2), encoding="utf-8"
         )
+        meta["evidence_sha256"] = benchmark_identity.digest(
+            (run_dir / "validated_sources.json").read_bytes())
         a_count = len(source_collection.academic_sources)
         p_count = len(source_collection.patent_sources)
         m_count = len(source_collection.market_sources)
@@ -405,7 +429,7 @@ def run_topic(
         (run_dir / "error.log").write_text(traceback.format_exc(), encoding="utf-8")
         _log(f"  [{label}] ✗ source collection failed: {exc}")
 
-    except Exception:
+    except Exception:  # noqa: BLE001 - persist the paid unit failure, never retry it
         err_text = traceback.format_exc()
         meta["status"] = "error_crew"
         meta["error"] = err_text.splitlines()[-1]
@@ -414,6 +438,7 @@ def run_topic(
         _log(f"  [{label}] ✗ crew failed: {meta['error']}")
 
     meta["elapsed_seconds"] = round(time.time() - start)
+    meta["artifact_sha256"] = benchmark_identity.result_hashes(run_dir)
     (run_dir / "meta.json").write_text(
         json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
     )
@@ -425,11 +450,11 @@ def run_topic(
 
 
 def _run_serial(selected: list[tuple], dry_run: bool, force: bool = False,
-                use_fixture: bool = False) -> list[dict]:
+                use_fixture: bool = False, batch: dict | None = None) -> list[dict]:
     """Original behaviour: one topic at a time, with a pause between them."""
     results = []
     for i, (num, topic, trl_range, industry, rep) in enumerate(selected):
-        meta = run_topic(num, topic, trl_range, industry, dry_run, force, rep, use_fixture)
+        meta = run_topic(num, topic, trl_range, industry, dry_run, force, rep, use_fixture, batch)
         results.append(meta)
         if i < len(selected) - 1 and not meta.get("skipped") and not dry_run:
             _log(f"  → pausing {_INTER_RUN_PAUSE}s before next topic")
@@ -439,7 +464,7 @@ def _run_serial(selected: list[tuple], dry_run: bool, force: bool = False,
 
 def _run_concurrent(
     selected: list[tuple], concurrency: int, stagger: float, dry_run: bool,
-    force: bool = False, use_fixture: bool = False,
+    force: bool = False, use_fixture: bool = False, batch: dict | None = None,
 ) -> list[dict]:
     """Run topics in a process pool, staggering submissions.
 
@@ -454,14 +479,14 @@ def _run_concurrent(
             if i and stagger:
                 time.sleep(stagger)
             fut = pool.submit(run_topic, num, topic, trl_range, industry,
-                              dry_run, force, rep, use_fixture)
+                              dry_run, force, rep, use_fixture, batch)
             futures[fut] = (num, rep)
 
         for done, fut in enumerate(as_completed(futures), start=1):
             num, rep = futures[fut]
             try:
                 results.append(fut.result())
-            except Exception as exc:                      # worker crashed outright
+            except Exception as exc:  # noqa: BLE001 - isolate a crashed worker, never retry it
                 _log(f"  [{num if rep <= 1 else f'{num}#{rep}'}] ✗ worker process died: {exc}")
                 results.append({
                     "num": num,
@@ -509,9 +534,7 @@ def main() -> None:
     parser.add_argument(
         "-f", "--force",
         action="store_true",
-        help="Re-run topics that already succeeded, overwriting their outputs. "
-             "Needed to re-measure after changing the pipeline — without it "
-             "every completed topic is skipped and the summary keeps the old numbers.",
+        help="Re-measure in a NEW batch; never overwrite earlier outputs. Cannot combine with --resume-batch.",
     )
     parser.add_argument(
         "-r", "--repeat",
@@ -544,7 +567,11 @@ def main() -> None:
         action="store_true",
         help="Show the captured fixtures with their age and source counts.",
     )
+    parser.add_argument("--experiment-id", help="New immutable batch name (default: generated unique ID)")
+    parser.add_argument("--resume-batch", help="Reuse intact successes from this exact batch; never retry occupied failed units")
     args = parser.parse_args()
+    if args.resume_batch and (args.force or args.experiment_id or args.dry_run or args.freeze):
+        parser.error("--resume-batch cannot combine with --force, --experiment-id, --dry-run or --freeze")
 
     if args.list_fixtures:
         _log("Fixtures:")
@@ -590,8 +617,15 @@ def main() -> None:
     concurrency = min(args.concurrency, len(selected))
     max_rpm = os.getenv("MAX_RPM", "6")
 
-    BENCHMARK_ROOT.mkdir(parents=True, exist_ok=True)
-    _log(f"Benchmark root : {BENCHMARK_ROOT}")
+    batch = None
+    if not args.dry_run and not args.freeze:
+        from benchmark_identity import prepare_batch
+        try:
+            batch = prepare_batch(selected, args.fixtures,
+                experiment_id=args.resume_batch or args.experiment_id, resume=bool(args.resume_batch))
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+    _log(f"Benchmark root : {batch['root'] if batch else '(no assessment output)'}")
     _log(f"Topics to run  : {len(topics)}"
          + (f" x {args.repeat} repetitions = {len(selected)} runs" if args.repeat > 1 else ""))
     _log(f"Concurrency    : {concurrency}" + ("  (serial)" if concurrency == 1 else ""))
@@ -634,10 +668,10 @@ def main() -> None:
 
     wall_start = time.time()
     if concurrency == 1:
-        results = _run_serial(selected, args.dry_run, args.force, args.fixtures)
+        results = _run_serial(selected, args.dry_run, args.force, args.fixtures, batch)
     else:
         results = _run_concurrent(selected, concurrency, args.stagger,
-                                  args.dry_run, args.force, args.fixtures)
+                                  args.dry_run, args.force, args.fixtures, batch)
     wall_elapsed = time.time() - wall_start
 
     # A skipped topic carries the previous run's status ("success"), so counting
@@ -660,7 +694,7 @@ def main() -> None:
     # leaves "is another experiment worth it" unanswerable, which is the
     # question this exists to serve.
     priced = [r["usage"] for r in results
-              if isinstance(r.get("usage"), dict) and r["usage"].get("cost_usd") is not None]
+              if not r.get("skipped") and isinstance(r.get("usage"), dict) and r["usage"].get("cost_usd") is not None]
     if priced:
         total = sum(u["cost_usd"] for u in priced)
         tokens = sum(u.get("total_tokens", 0) for u in priced)
@@ -668,6 +702,7 @@ def main() -> None:
         note = f"  ({incomplete} run(s) partially priced)" if incomplete else ""
         _log(f"  Cost      : ${total:.4f} over {len(priced)} run(s), "
              f"{tokens:,} tokens{note}")
+        _log("              Crew nodes only; excludes helper/PDF/retrieval costs and reused results.")
         if len(priced) < len(results):
             # Skipped runs carry the previous batch's usage or none at all;
             # counting them would report an old bill as this one's.
@@ -704,7 +739,8 @@ def main() -> None:
     else:
         verdict = "→ throttling observed; lower --concurrency or raise --stagger"
     _log(f"  Rate-limit hits : {limit_hits}  {verdict}")
-    _log("\n  Run `uv run python benchmark_check.py` to generate the summary CSV.")
+    if batch:
+        _log(f"\n  Run `uv run python benchmark_check.py --batch {Path(batch['root']).name}` for this batch's CSV.")
 
 
 if __name__ == "__main__":

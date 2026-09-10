@@ -118,6 +118,28 @@ class UsageSummaryTests(unittest.TestCase):
         self.assertIn("12.3k", out["summary"])
         self.assertIn("$0.0123", out["summary"])
 
+    def test_current_collector_scope_is_visible_even_when_price_is_complete(self):
+        """A complete rate table must not look like a complete end-to-end bill."""
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from academic_agent.token_usage import collect_usage
+        metrics = SimpleNamespace(prompt_tokens=100, completion_tokens=50, total_tokens=150)
+        llm = SimpleNamespace(model="qwen3.5-plus", get_token_usage_summary=lambda: metrics)
+        with patch.dict("os.environ", {"LLM_PRICE_PER_MTOK": ""}):
+            usage = collect_usage(SimpleNamespace(agents=[SimpleNamespace(role="A", llm=llm)])).as_dict()
+        self.assertTrue(usage["cost_complete"])
+        out = self._render(usage)
+        self.assertIn("Crew nodes only", out["summary"])
+        self.assertIn("PDF extraction", out["title"])
+        self.assertIn("not a full invoice", out["title"])
+
+    def test_legacy_scope_and_price_configuration_warning_are_not_hidden(self):
+        """Legacy absence and invalid configuration are not successful checks."""
+        out = self._render({"total_tokens": 100, "cost_usd": 0.01,
+                            "pricing_warnings": ["invalid_price_override"], "agents": []})
+        self.assertIn("Accounting scope not recorded", out["summary"])
+        self.assertIn("incomplete", out["title"])
+
     def test_unpriced_run_shows_tokens_and_no_dollar_figure(self):
         """The server said cost is unknown. Rendering that as $0.00 would put
         the lie back in at the last possible moment."""

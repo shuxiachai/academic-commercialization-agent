@@ -165,6 +165,10 @@ uv run python benchmark.py --dry-run
 
 ### 基准主题
 
+新测量使用绑定版本的独立批次，不覆盖历史产物；复用需要显式选择身份一致且
+产物完好的批次。费用只覆盖 Crew 节点，不包含辅助调用、PDF 和搜索费用。
+参见[执行与费用边界](docs/operating-guide.md#benchmark)。
+
 | # | Topic | Expected TRL | Industry |
 |---|-------|-------------|---------|
 | 01 | CAR-T cell therapy for blood cancers | 7–9 | Biomed |

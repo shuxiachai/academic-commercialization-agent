@@ -188,6 +188,11 @@ uv run python benchmark.py --dry-run
 
 ### Benchmark
 
+New measurements use immutable versioned batches; historical outputs are not
+overwritten. Reuse requires an explicit matching batch and intact artifacts.
+Reported costs cover Crew nodes, not helper/PDF/search charges. See the
+[execution and accounting contract](docs/operating-guide.md#benchmark).
+
 | # | Topic | Expected TRL | Industry |
 |---|-------|-------------|---------|
 | 01 | CAR-T cell therapy for blood cancers | 7–9 | Biomed |

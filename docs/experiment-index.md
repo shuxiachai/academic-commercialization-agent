@@ -183,6 +183,8 @@ to reuse consumed cohorts.
 
 ## Runtime maintenance verification
 
+- [2026-09-10 cost scope and benchmark identity](results-2026-09-10-cost-scope-and-benchmark-identity.md) — finite estimates, explicit Crew-only scope, immutable batch/reuse/export boundaries; no provider experiment.
+
 - [2026 09 06 runtime and paid-delivery maintenance](results-2026-09-06-maintenance-runtime-paid-delivery.md)
 
 - [2026 09 06 composer paid-operation integrity](results-2026-09-06-composer-paid-operation-integrity.md)

@@ -311,6 +311,12 @@ the [identity/logging regression and accounting limits](docs/results-2026-09-10-
 
 ## Keeping this index short without erasing decisions
 
+Crew-node accounting now publishes scope separately from temporal/price
+completeness. Legacy benchmark inspection is not paid reuse authorization:
+new batches bind source/model/config/fixture identity and refuse occupied
+invalid units; summaries never overwrite the archived calibration CSVs. See
+the [cost/batch regression and limits](docs/results-2026-09-10-cost-scope-and-benchmark-identity.md).
+
 Production scoring citation admission now wraps the hash-locked evidence
 factory in `scoring_contract.py`; include it in local recovery identity.
 Do not rewrite old experiment hashes to evolve production checks. PDF locator

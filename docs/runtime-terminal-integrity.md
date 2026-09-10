@@ -123,7 +123,14 @@ for the exact display contract and its limits. This is not a new writer schema
 or provider-accounting algorithm.
 
 Price coverage and temporal accounting are different questions. Existing
-`usage.cost_complete` still means every observed model had a known price.
+`usage.cost_complete` concerns usable price/usage observations inside the
+collector's scope, not an end-to-end bill. New records expose
+`accounting_scope=crew_nodes`, `excluded_stages` and
+`end_to_end_cost_complete=false`; legacy absent scope is not inferred as full.
+Invalid configured rates have a value-free warning; unknown/overflowed cost is
+not zero. These additions neither collect helper/PDF/search spending nor change
+the immutable terminal's temporal definition. See the
+[scope regression](results-2026-09-10-cost-scope-and-benchmark-identity.md).
 Adjacent `usage_accounting.state` means:
 
 - `complete`: the run completed and its final usage collector succeeded;

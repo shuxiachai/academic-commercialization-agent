@@ -78,6 +78,10 @@ def _usage(value: Any) -> bool:
         "price_basis": lambda item: isinstance(item, str),
         "collection_error": lambda item: item is None or isinstance(item, str),
         "unpriced_models": _strings,
+        "accounting_scope": _one_of("crew_nodes"),
+        "excluded_stages": _strings,
+        "end_to_end_cost_complete": lambda item: item is False,
+        "pricing_warnings": _strings,
         "agents": lambda items: isinstance(items, list) and all(_agent(item) for item in items),
     }, required=() if diagnostic_only_allowed else ("total_tokens",))
 

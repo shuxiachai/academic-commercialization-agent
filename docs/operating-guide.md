@@ -310,6 +310,17 @@ unpriced, rather than showing an unknown model as free. Operators may set
 this is an estimate, not an invoice. See
 [runtime terminal integrity](runtime-terminal-integrity.md).
 
+New usage payloads explicitly identify `accounting_scope=crew_nodes`, excluded
+stages and `end_to_end_cost_complete=false`. Planning, translation, inline PDF
+extraction and source retrieval are not collected here; exclusion is not proof
+that a stage executed or was free. The browser displays this scope even when
+the recorded nodes are fully priced; old payloads say the scope was not recorded.
+Malformed/negative/nonfinite rate overrides retain the existing table fallback
+but emit `invalid_price_override` without echoing configuration values. Overflow
+or an entirely unpriced collection is unknown, never zero. Temporal completion
+remains independent of scope and price validity. See the
+[cost and benchmark contract](results-2026-09-10-cost-scope-and-benchmark-identity.md).
+
 The status/progress read projection isolates malformed reliability summaries
 through `audit_metadata_unreadable`: the affected panel row says it cannot be
 read, while a valid committed outcome and saved report remain available.
@@ -449,9 +460,29 @@ any authorized experiment. Do not overwrite the committed 30-run baseline.
 
 For separately authorized batches, `--only`, `--repeat`, `--concurrency`
 and `--force` control selection, repetitions, subprocess parallelism and
-reruns. Review `--help` before running: `--force` deliberately disables
-completed-run reuse. Benchmark resume is batch scheduling; it is distinct from
-a production checkpoint-recovery child.
+fresh measurements. New assessment batches live in
+`outputs/benchmark-runs/<experiment-id>/`; `--experiment-id` names a new batch,
+otherwise a unique ID is generated. `--force` never overwrites an existing
+batch and cannot combine with `--resume-batch`.
+
+`--resume-batch <id>` requires the same selected cases, raw fixture bytes,
+source contents, commit, dependency lock/installed versions, Python/platform,
+exact provider/model and recorded runtime settings. Each worker rechecks the
+identity before paid dispatch. Intact successful units are reused without
+another call; occupied failed/partial/corrupt units are refused, not retried.
+Unstarted units can execute. A new measurement requires a new batch. Live-mode
+reuse refers to the stored evidence snapshot, not a fresh search of today's web.
+Benchmark resume is batch scheduling, not a production recovery child or
+provider-level exactly-once guarantee. Credentials are not in manifests;
+optional source credentials/contact settings are recorded only as presence.
+
+`uv run python benchmark_check.py --batch <id>` reads that batch and exports
+a new directory under `outputs/benchmark-summaries/`, with identity columns in
+the CSV. Omitting `--batch` reads the historical archive but still creates a new
+summary export; it does not replace the committed calibration CSVs. Neither
+summary analysis nor `--dry-run` calls providers. `--freeze` remains a separately
+authorized live retrieval/capture command; it is not an immutable assessment
+batch or a free operation.
 
 Evidence varies between live searches. Repeated observations are necessary to
 separate output spread from an intervention, but repetition on consumed cases

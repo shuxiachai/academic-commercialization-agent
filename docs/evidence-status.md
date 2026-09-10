@@ -47,6 +47,11 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Crew-node cost scope and invalid-rate/overflow states are explicit at HTTP and
+browser delivery. New general benchmark batches bind execution identities and
+preserve archived results; this fixes provenance, not model accuracy or complete
+provider billing. See the [cost/batch contract](results-2026-09-10-cost-scope-and-benchmark-identity.md).
+
 Decimal grounding, production score-citation admission, bounded PDF page
 coverage/candidate identity and terminal-authoritative ops outcomes have new
 offline behavioral regressions. The 30-score replay is unchanged, not new
