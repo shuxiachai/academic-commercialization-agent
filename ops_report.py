@@ -46,6 +46,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+from academic_agent.run_terminal import TerminalRecordUnreadable, load_terminal_record
+
 OUTPUT_ROOT = Path(__file__).parent / "outputs"
 
 #: Run directories are <UTC timestamp>-<hex>; the benchmark writes elsewhere.
@@ -92,11 +94,20 @@ def _outcome(
     the history toward newer releases. The inverse is not safe: a directory
     with neither artifact is not a success merely because no error was found.
 
-    A present but unreadable status stays ``unknown`` even if a report exists.
+    A valid immutable terminal record precedes every legacy status/marker.
+    A present but unreadable terminal stays unknown, never a fallback pass.
+    Without a terminal, unreadable status stays unknown even if a report exists.
     The API makes the same conservative choice because a corrupt source-of-
     truth file can reflect a partial write or disk fault. Silence is therefore
     never converted into a pass.
     """
+    try:
+        terminal = load_terminal_record(directory)
+    except TerminalRecordUnreadable:
+        return "unknown", "unreadable terminal.json", ""
+    if terminal is not None:
+        failure = terminal.reason_code if terminal.state in {"failed", "timeout"} else ""
+        return terminal.state, "terminal.json", failure
     if (directory / "cancelled.marker").exists():
         return "cancelled", "cancelled.marker", ""
     if status_present and not status_readable:
@@ -191,6 +202,9 @@ def collect(root: Path) -> list[dict]:
                 if status_present else {}
             )
         except (OSError, ValueError):
+            status = {}
+            status_readable = False
+        if not isinstance(status, dict):
             status = {}
             status_readable = False
         stamp = _RUN_DIR.match(directory.name).group(1)

@@ -311,6 +311,12 @@ the [identity/logging regression and accounting limits](docs/results-2026-09-10-
 
 ## Keeping this index short without erasing decisions
 
+Production scoring citation admission now wraps the hash-locked evidence
+factory in `scoring_contract.py`; include it in local recovery identity.
+Do not rewrite old experiment hashes to evolve production checks. PDF locator
+reachability is not manuscript identity, and ops outcomes follow terminal truth.
+See the [evidence/PDF/ops repair and remaining audit scope](docs/results-2026-09-10-evidence-pdf-terminal-boundaries.md).
+
 - Update the current ledger and link a dated result; do not append the complete
   experiment narrative to both READMEs and this file.
 - Keep historical preregistrations, results, errata, frozen bytes and long

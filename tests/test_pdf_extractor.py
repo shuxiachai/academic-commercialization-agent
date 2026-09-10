@@ -180,9 +180,10 @@ class PaperToEvidenceSourceTests(unittest.TestCase):
         src = paper_to_evidence_source(_make_pc(doi="10.1234/test"), _reachable)
         self.assertEqual(src.source_type, "academic_paper")
 
-    def test_credibility_tier_is_high(self):
+    def test_reachability_does_not_verify_uploaded_document_identity(self):
         src = paper_to_evidence_source(_make_pc(doi="10.1234/test"), _reachable)
-        self.assertEqual(src.credibility_tier, "high")
+        self.assertEqual(src.credibility_tier, "medium")
+        self.assertIn("not been independently checked", src.credibility_reason)
 
     def test_real_doi_sets_doi_and_doi_org_url(self):
         src = paper_to_evidence_source(_make_pc(doi="10.1038/s41586-023-001"), _reachable)
@@ -261,7 +262,8 @@ class PaperLocatorVerificationTests(unittest.TestCase):
         )
         self.assertEqual(src.doi, "10.1038/s41586-023-001")
         self.assertEqual(str(src.url), "https://doi.org/10.1038/s41586-023-001")
-        self.assertEqual(src.credibility_tier, "high")
+        self.assertEqual(src.credibility_tier, "medium")
+        self.assertIn("not been independently checked", src.credibility_reason)
         self.assertIn("https://publisher.example/dead", checks)
 
     def test_unreachable_arxiv_url_leaves_no_real_locator(self):

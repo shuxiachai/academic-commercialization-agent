@@ -255,6 +255,32 @@ def _render(number: str, unit: str) -> str:
     return f"{number}{unit}" if unit in {"%", ""} else f"{number} {unit}"
 
 
+def _same_numeric_value(claim: str, source: str) -> bool:
+    """Accept exact values or explicit decimal precision, never digit prefixes.
+
+    Truncation and ordinary half-up rounding are both tolerated because this
+    advisory screen prioritizes avoiding accusations over stylistic rounding.
+    A 26.15 -> 26.1 quotation survives; 100 -> 10 does not. No arbitrary
+    relative tolerance or implicit unit conversion can hide an order of magnitude.
+    """
+    from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_HALF_UP, localcontext
+
+    try:
+        with localcontext() as context:
+            context.prec = max(28, len(claim) + len(source) + 2)
+            quoted, observed = Decimal(claim), Decimal(source)
+            if not quoted.is_finite() or not observed.is_finite():
+                return False
+            if quoted == observed:
+                return True
+            places = len(claim.partition(".")[2])
+            quantum = Decimal(1).scaleb(-places)
+            return any(observed.quantize(quantum, rounding=rule) == quoted
+                       for rule in (ROUND_DOWN, ROUND_HALF_UP))
+    except InvalidOperation:
+        return False
+
+
 def _supported(number: str, unit: str, present: list[tuple[str, str]],
                haystack: str) -> bool:
     """Whether a cited source states this figure.
@@ -271,14 +297,15 @@ def _supported(number: str, unit: str, present: list[tuple[str, str]],
     for source_number, source_unit in present:
         if source_unit and unit and source_unit != unit:
             continue
-        # Prefix, not equality: a claim rounding a source's 26.15 to 26.1 is
-        # quoting it.
-        if source_number == number or source_number.startswith(number):
+        if _same_numeric_value(number, source_number):
             return True
     # Last resort for a figure the extractor did not pick up as distinctive on
     # the source side — but only for unitless claims, since a bare substring
     # hit carries no unit to compare.
-    return not unit and number in haystack.replace(",", "")
+    return not unit and any(
+        _same_numeric_value(number, _normalize_number(match.group(1)))
+        for match in _FIGURE_RE.finditer(haystack)
+    )
 
 
 def check_report(report: Any, sources: Any = None) -> GroundingReport:
