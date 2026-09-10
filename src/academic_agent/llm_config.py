@@ -13,7 +13,8 @@ import functools
 import os
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
 from crewai import LLM
 
@@ -94,15 +95,89 @@ def _configured_api_key(provider: str) -> str:
     return key
 
 
+@dataclass(frozen=True)
+class ProviderConfig:
+    """One credential/model/destination identity, never a printable secret.
+
+    Both the CrewAI factory and the one-shot language transport consume this
+    record. Sharing only provider detection left their credential and endpoint
+    fallbacks different, sending an OpenAI BYOK key to DeepSeek.
+    """
+
+    provider: str
+    model: str
+    base_url: str
+    api_key: str = field(repr=False)
+
+
+def resolve_provider_config(
+    *, provider: str | None = None, api_key: str | None = None,
+) -> ProviderConfig:
+    """Resolve locally; explicit BYOK ignores every operator model/base/key.
+
+    Operator-defined HTTPS gateways remain an intentional trust decision.
+    Known vendor destinations may not contradict the selected provider.
+    Missing/partial credentials fail before construction, never fall back to
+    the operator's account. No dotenv reload may undo the worker's sentinels.
+    """
+    explicit = provider is not None or api_key is not None
+    if explicit and (not provider or not api_key or not api_key.strip()):
+        raise RuntimeError("Provider and non-empty API key must be supplied together.")
+    selected = provider.lower().strip() if explicit else _detect_provider()
+    defaults = {
+        "deepseek": ("deepseek-chat", "https://api.deepseek.com"),
+        "qwen": (_QWEN_MODEL, _QWEN_API_BASE),
+        "openai": ("gpt-4o", "https://api.openai.com/v1"),
+        "anthropic": ("claude-sonnet-5", "https://api.anthropic.com"),
+    }
+    if selected not in defaults:
+        raise RuntimeError("Unknown LLM_PROVIDER; supported: " + ", ".join(_SUPPORTED_PROVIDERS))
+    model, base = defaults[selected]
+    key = api_key if explicit else _configured_api_key(selected)
+    if not explicit:
+        names = {
+            "deepseek": (("DEEPSEEK_MODEL", "OPENAI_MODEL_NAME"), ("DEEPSEEK_API_BASE", "OPENAI_API_BASE")),
+            "qwen": (("QWEN_MODEL", "OPENAI_MODEL_NAME"), ("QWEN_API_BASE", "OPENAI_API_BASE")),
+            "openai": (("OPENAI_MODEL", "OPENAI_MODEL_NAME"), ("OPENAI_API_BASE",)),
+            "anthropic": (("ANTHROPIC_MODEL",), ("ANTHROPIC_API_BASE",)),
+        }
+        model_names, base_names = names[selected]
+        model = next((os.environ[n] for n in model_names if os.getenv(n)), model)
+        base = next((os.environ[n] for n in base_names if os.getenv(n)), base)
+    if selected == "deepseek" and model.startswith("deepseek/"):
+        model = model.split("/", 1)[1]
+    base = base.rstrip("/")
+    if selected == "anthropic":
+        base = base.removesuffix("/v1")
+    try:
+        parts = urlsplit(base)
+        valid = (parts.scheme == "https" and parts.hostname and not parts.username
+                 and not parts.password and not parts.query and not parts.fragment)
+        # Force malformed port validation without copying the endpoint to logs.
+        _ = parts.port
+    except ValueError:
+        valid = False
+    if not valid:
+        raise RuntimeError("LLM endpoint must be HTTPS without credentials, query or fragment.")
+    host = parts.hostname
+    vendor = {
+        "api.openai.com": "openai", "api.deepseek.com": "deepseek",
+        "api.anthropic.com": "anthropic",
+    }.get(host)
+    if (host.startswith("dashscope") and host.endswith(".aliyuncs.com")) or host.endswith(".maas.aliyuncs.com"):
+        vendor = "qwen"
+    if vendor and vendor != selected:
+        raise RuntimeError("LLM endpoint does not match the selected provider.")
+    return ProviderConfig(selected, model, base, key)
+
+
 def validate_llm_configuration() -> str:
     """Check local configuration, never construct an SDK or probe a paid API.
 
     A present key does not establish provider connectivity, balance or quality.
     Keep the returned projection non-secret for the public readiness endpoint.
     """
-    provider = _detect_provider()
-    _configured_api_key(provider)
-    return provider
+    return resolve_provider_config().provider
 
 
 def _qwen_additional_params() -> dict[str, object]:
@@ -291,87 +366,18 @@ def create_llm(
     OPENAI_API_BASE pointing somewhere else is exactly the redirect the
     scrubbing exists to prevent, and it would apply here too.
     """
-    kwargs: dict = {}
-
-    if provider and api_key:
-        logical_provider = provider.lower().strip()
-        kwargs["provider"] = (
-            "openai" if logical_provider == "qwen" else logical_provider
-        )
-        kwargs["api_key"] = api_key
-        kwargs["model"] = {
-            "deepseek": "deepseek-chat",
-            "qwen": _QWEN_MODEL,
-            "openai": "gpt-4o",
-            "anthropic": "claude-sonnet-5",
-        }.get(logical_provider, "")
-        if logical_provider == "deepseek":
-            kwargs["base_url"] = "https://api.deepseek.com"
-        elif logical_provider == "qwen":
-            kwargs["base_url"] = _QWEN_API_BASE
-            kwargs["additional_params"] = _qwen_additional_params()
-        if not kwargs["model"]:
-            supported = ", ".join(_SUPPORTED_PROVIDERS)
-            raise RuntimeError(
-                f"Unknown LLM provider: {logical_provider!r}. "
-                f"Supported values: {supported}."
-            )
-        if json_mode and logical_provider in _JSON_MODE_PROVIDERS:
-            kwargs["response_format"] = {"type": "json_object"}
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-        _apply_worker_transport_budget(kwargs)
-        return _wrap_with_retry(LLM(**kwargs))
-
-    logical_provider = _detect_provider()
-    kwargs["api_key"] = _configured_api_key(logical_provider)
-
-    if logical_provider == "deepseek":
-        kwargs["provider"] = "deepseek"
-        kwargs["model"] = (
-            os.getenv("DEEPSEEK_MODEL")
-            or os.getenv("OPENAI_MODEL_NAME")
-            or "deepseek-chat"
-        )
-        if kwargs["model"].startswith("deepseek/"):
-            kwargs["model"] = kwargs["model"].split("/", 1)[1]
-        kwargs["base_url"] = (
-            os.getenv("DEEPSEEK_API_BASE")
-            or os.getenv("OPENAI_API_BASE")
-            or "https://api.deepseek.com"
-        )
-
-    elif logical_provider == "qwen":
-        kwargs["provider"] = "openai"
-        kwargs["model"] = (
-            os.getenv("QWEN_MODEL")
-            or os.getenv("OPENAI_MODEL_NAME")
-            or _QWEN_MODEL
-        )
-        kwargs["base_url"] = (
-            os.getenv("QWEN_API_BASE")
-            or os.getenv("OPENAI_API_BASE")
-            or _QWEN_API_BASE
-        )
+    config = resolve_provider_config(provider=provider, api_key=api_key)
+    logical_provider = config.provider
+    # Explicit bases also defeat SDK-specific OPENAI_BASE_URL /
+    # ANTHROPIC_BASE_URL defaults inside the shared API process.
+    kwargs: dict = {
+        "provider": "openai" if logical_provider == "qwen" else logical_provider,
+        "api_key": config.api_key,
+        "model": config.model,
+        "base_url": config.base_url,
+    }
+    if logical_provider == "qwen":
         kwargs["additional_params"] = _qwen_additional_params()
-
-    elif logical_provider == "openai":
-        kwargs["provider"] = "openai"
-        kwargs["model"] = os.getenv("OPENAI_MODEL") or "gpt-4o"
-        base = os.getenv("OPENAI_API_BASE")
-        if base:
-            kwargs["base_url"] = base
-
-    elif logical_provider == "anthropic":
-        kwargs["provider"] = "anthropic"
-        kwargs["model"] = os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5"
-
-    else:
-        supported = ", ".join(_SUPPORTED_PROVIDERS)
-        raise RuntimeError(
-            f"Unknown LLM_PROVIDER: {logical_provider!r}. "
-            f"Supported values: {supported}."
-        )
 
     if json_mode and logical_provider in _JSON_MODE_PROVIDERS:
         kwargs["response_format"] = {"type": "json_object"}

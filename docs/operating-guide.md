@@ -26,7 +26,7 @@ by the provider contract rather than accepting arbitrary visitor URLs.
 |---|---|---|
 | `qwen` | `DASHSCOPE_API_KEY` | `QWEN_MODEL`, `QWEN_API_BASE` |
 | `deepseek` | `DEEPSEEK_API_KEY` | `DEEPSEEK_MODEL`, `DEEPSEEK_API_BASE` |
-| `anthropic` | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL` |
+| `anthropic` | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL`, `ANTHROPIC_API_BASE` |
 | `openai` | `OPENAI_API_KEY` | `OPENAI_MODEL`, `OPENAI_API_BASE` |
 
 Auto-selection is DeepSeek → Qwen → Anthropic → OpenAI; unused keys do not
@@ -34,6 +34,14 @@ force extra model calls, but they can change the selected provider if
 `LLM_PROVIDER` is absent. Remove unused template placeholders. Qwen's
 `enable_thinking=false` and JSON Object settings are code-owned pipeline
 contracts, not optional prompt tweaks.
+
+The factory and auxiliary planning/translation share model, key and endpoint
+resolution. Endpoints require HTTPS without credentials/query/fragment; a known
+vendor endpoint cannot contradict the selected provider. Explicit BYOK ignores
+operator model/base settings, including SDK base defaults. Auxiliary requests
+refuse redirects and keep their visible untranslated fallback on failure.
+The installed CrewAI Anthropic extra is required for that advertised provider.
+See [the routing regression](results-2026-09-10-provider-and-log-boundaries.md).
 
 Set one web-search key: `TAVILY_API_KEY` or `SERPER_API_KEY`; Tavily wins
 when both are configured. The project observed Serper rejection from Railway

@@ -62,20 +62,21 @@ def is_admin(code: str) -> bool:
 def _warn_if_misconfigured() -> None:
     """Catch the copy-paste mistake this exists to prevent: pasting the
     whole `ACCESS_CODES=a,b,c` line — name, equals sign and all — as the
-    *value* of a variable, rather than just the values. A code containing
-    "=" or starting with "ACCESS_CODE" is not a plausible code anyone would
-    intentionally choose, so it is almost certainly this exact mistake.
+    *value* of a variable, rather than just the values. A code starting with
+    an assignment prefix is suspicious. An equals sign alone is valid in a
+    Base64 secret; diagnosing it both misclassified valid codes and printed
+    the complete credential into deployment logs.
     A plain print rather than warnings.warn: this needs to show up in a
     platform's deploy logs unconditionally, not depend on however Python's
     warning filters happen to be configured at runtime.
     """
     for code in _valid_codes():
-        if "=" in code or code.upper().startswith("ACCESS_CODE"):
+        if code.upper().startswith(("ACCESS_CODE=", "ACCESS_CODES=", "ACCESS_CODE_ADMIN=")):
             print(
-                f"[access] a configured code looks like a mispasted variable "
-                f"assignment rather than a real code: {code!r}. Check that "
-                f"ACCESS_CODES holds only the comma-separated codes "
-                f"themselves, not the 'ACCESS_CODES=' prefix.",
+                "[access] a configured code looks like a mispasted variable "
+                "assignment rather than a real code (value withheld). Check that "
+                "ACCESS_CODES holds only the comma-separated codes "
+                "themselves, not the 'ACCESS_CODES=' prefix.",
                 file=sys.stderr,
             )
 

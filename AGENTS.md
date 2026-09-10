@@ -304,6 +304,11 @@ nodes require that JSON contract. Explicit empty BYOK sentinels prevent
 CrewAI's import-time dotenv from restoring operator keys. Old DeepSeek frozen
 experiments keep their original provider identities.
 
+Language helpers and the CrewAI factory now share complete configuration
+resolution, not just detection. BYOK pins all destinations; auxiliary redirects
+are refused. Do not restore private excerpts/keys in failure diagnostics. See
+the [identity/logging regression and accounting limits](docs/results-2026-09-10-provider-and-log-boundaries.md).
+
 ## Keeping this index short without erasing decisions
 
 - Update the current ledger and link a dated result; do not append the complete

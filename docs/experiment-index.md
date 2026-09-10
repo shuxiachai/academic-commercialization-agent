@@ -38,6 +38,8 @@ to reuse consumed cohorts.
 
 ## Release snapshot
 
+- [2026-09-10 provider identity and diagnostic privacy](results-2026-09-10-provider-and-log-boundaries.md) — shared routing, fixed BYOK destinations, redirect refusal and narrow sensitive-error logging; no paid calls.
+
 - [v2.0.0 release record](release-v2.0.0.md) — numbers are from that release.
 
 ## Pre-registrations and protocols

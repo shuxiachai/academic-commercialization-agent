@@ -10,9 +10,8 @@ Used by collect_source_collection() to support multilingual input:
 
 from dataclasses import dataclass
 import json
-import os
 import re
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 # Registry: langdetect code → Serper params + human-readable name + patent country code
 LANGUAGE_REGISTRY: dict[str, dict] = {
@@ -126,108 +125,70 @@ def get_lang_info(lang_code: str) -> dict[str, str]:
     return LANGUAGE_REGISTRY.get(lang_code, LANGUAGE_REGISTRY["en"])
 
 
-def _anthropic_request(prompt: str, system: str, max_tokens: int) -> tuple[Request, str]:
-    """Build a Messages API request. Anthropic is not OpenAI-shaped.
+class _NoProviderRedirect(HTTPRedirectHandler):
+    """An authenticated auxiliary request must never forward a key elsewhere."""
 
-    Different endpoint, `x-api-key` instead of a bearer token, a required
-    version header, `system` as a top-level field rather than a message, and
-    a response of {"content": [{"type": "text", "text": ...}]}.
-    """
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def urlopen(request, *, timeout):
+    """Local opener, not install_opener: no global change to search clients."""
+    return build_opener(_NoProviderRedirect()).open(request, timeout=timeout)
+
+
+def _provider_request(prompt: str, system: str, max_tokens: int):
+    """Resolve all three identity components together, including for Qwen."""
+    from academic_agent.llm_config import resolve_provider_config
+
+    config = resolve_provider_config()
     payload = {
-        "model": os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-5",
-        "max_tokens": max_tokens,
-        "temperature": 0,
-        "system": system,
+        "model": config.model, "max_tokens": max_tokens, "temperature": 0,
         "messages": [{"role": "user", "content": prompt}],
     }
-    base = (os.getenv("ANTHROPIC_API_BASE") or "https://api.anthropic.com").rstrip("/")
-    return Request(
-        f"{base}/v1/messages",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "x-api-key": os.getenv("ANTHROPIC_API_KEY", ""),
-            "anthropic-version": "2023-06-01",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    ), "anthropic"
-
-
-def _openai_shaped_request(prompt: str, system: str, max_tokens: int) -> tuple[Request, str]:
-    """Build a /chat/completions request, used by DeepSeek and OpenAI alike."""
-    api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY", "")
-    base_url = (
-        os.getenv("DEEPSEEK_API_BASE")
-        or os.getenv("OPENAI_API_BASE")
-        or "https://api.deepseek.com"
-    ).rstrip("/")
-    model = (
-        os.getenv("DEEPSEEK_MODEL")
-        or os.getenv("OPENAI_MODEL_NAME")
-        or "deepseek-chat"
-    )
-    if model.startswith("deepseek/"):
-        model = model.split("/", 1)[1]
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user",   "content": prompt},
-        ],
-        "temperature": 0,
-        "max_tokens": max_tokens,
-    }
-    return Request(
-        f"{base_url}/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    ), "openai"
+    headers = {"Content-Type": "application/json"}
+    if config.provider == "anthropic":
+        payload["system"] = system
+        headers.update({"x-api-key": config.api_key, "anthropic-version": "2023-06-01"})
+        base = config.base_url.removesuffix("/v1")
+        url = f"{base}/v1/messages"
+    else:
+        payload["messages"].insert(0, {"role": "system", "content": system})
+        headers["Authorization"] = f"Bearer {config.api_key}"
+        url = f"{config.base_url}/chat/completions"
+        if config.provider == "qwen":
+            # urllib already serializes the wire body; SDK extra_body is not
+            # a JSON wrapper. This matches the main adapter's non-thinking mode.
+            payload["enable_thinking"] = False
+    return Request(url, data=json.dumps(payload).encode("utf-8"),
+                   headers=headers, method="POST"), config.provider
 
 
 def _llm_call(prompt: str, *, system: str, max_tokens: int = 400) -> str:
-    """Minimal one-shot LLM call using the same credentials as the main pipeline.
+    """One bounded attempt, same resolved identity as the pipeline.
 
-    Routes on the same _detect_provider() the pipeline uses, rather than
-    guessing from whichever key happens to be set. This function previously
-    read only DEEPSEEK_API_KEY / OPENAI_API_KEY and always spoke the OpenAI
-    wire format — so on an Anthropic-only deployment, which llm_config
-    explicitly supports, every call went out with an empty bearer token, was
-    caught by the fallback below, and silently returned "". The callers all
-    degrade to the untranslated original, so nothing failed: a non-English
-    topic simply never got translated for search, its synonyms were never
-    generated, and retrieval quality dropped for a reason that surfaced only
-    as one warnings.warn nobody reads in production.
+    Unavailable planning retains the existing untranslated fallback, with an
+    explicit warning. Invalid configuration cannot build an empty or
+    wrong-provider request. Do not log exception text: HTTP errors and model
+    response/parse errors can contain credentials or unpublished input.
     """
-    from academic_agent.llm_config import _detect_provider   # heavy import; deferred
-
     try:
-        provider = _detect_provider()
-    except RuntimeError:
-        provider = ""
-
-    if provider == "anthropic":
-        req, shape = _anthropic_request(prompt, system, max_tokens)
-    else:
-        req, shape = _openai_shaped_request(prompt, system, max_tokens)
-
-    try:
+        req, provider = _provider_request(prompt, system, max_tokens)
         with urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read())
-        if shape == "anthropic":
+        if provider == "anthropic":
             return "".join(
                 block.get("text", "")
                 for block in data.get("content", [])
                 if block.get("type") == "text"
             ).strip()
         return data["choices"][0]["message"]["content"].strip()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - optional provider/parse failures degrade visibly
         import warnings
-        warnings.warn(f"language._llm_call failed ({type(exc).__name__}: {exc}); falling back to original text")
+        warnings.warn(
+            f"language._llm_call failed ({type(exc).__name__}); falling back to original text",
+            stacklevel=2,
+        )
         return ""
 
 

@@ -165,11 +165,17 @@ class MisconfigurationWarningTests(unittest.TestCase):
 
     def test_flags_a_pasted_assignment_line(self):
         text = self._warning_text(ACCESS_CODE="ACCESS_CODES=abc,def,ghi")
-        self.assertIn("ACCESS_CODES=abc,def,ghi", text)
+        self.assertIn("mispasted", text)
+        self.assertNotIn("abc,def,ghi", text)
 
     def test_flags_it_in_the_plural_variable_too(self):
         text = self._warning_text(ACCESS_CODES="ACCESS_CODE=abc")
-        self.assertIn("ACCESS_CODE=abc", text)
+        self.assertIn("mispasted", text)
+        self.assertNotIn("=abc", text)
+
+    def test_base64_padding_is_not_an_assignment(self):
+        """A valid padded secret must neither be diagnosed nor printed."""
+        self.assertEqual(self._warning_text(ACCESS_CODE="ZmFrZXNlY3JldA=="), "")
 
     def test_a_normal_code_is_silent(self):
         text = self._warning_text(ACCESS_CODES="for-alice,for-bob,ceshi")
