@@ -1,8 +1,8 @@
 """Per-run token accounting and cost estimation.
 
-Every run spends real money across six agents, and until now the system
-recorded none of it: not how many tokens a run cost, not which agent was
-expensive, not whether a failed run burned a full budget before dying.
+This collector observes Crew nodes only. Planning, translation, inline PDF
+extraction and source retrieval are outside its scope. Explicit exclusions
+do not establish that any of those stages ran or that they were free.
 
 Two things this module keeps separate on purpose.
 
@@ -32,6 +32,7 @@ distinction lives.
 
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass, field
 from typing import Any
@@ -111,7 +112,7 @@ def _price_from_env() -> _Price | None:
         values = [float(p) for p in parts]
     except ValueError:
         return None
-    if any(v < 0 for v in values):
+    if any(not math.isfinite(v) or v < 0 for v in values):
         return None
     input_, output = values[0], values[1]
     # Default the cache-read rate to the full input rate rather than to zero:
@@ -214,19 +215,21 @@ class AgentUsage:
 
 @dataclass(frozen=True)
 class RunUsage:
-    """What a whole run spent, per agent and in total."""
+    """Observed Crew-node usage, not an end-to-end provider invoice."""
 
     agents: tuple[AgentUsage, ...] = ()
     total_tokens: int = 0
     total_requests: int = 0
     cost_usd: float | None = None
-    #: False when at least one agent's model had no price. The cost above is
+    #: False when a node has no usable price/usage or configured pricing fails.
+    #: This flag is only about the observed Crew-node scope. The cost above is
     #: then a partial sum, and presenting it as the total would understate the
     #: bill by an unknown amount.
     cost_complete: bool = True
     unpriced_models: tuple[str, ...] = ()
     price_basis: str = ""
     collection_error: str | None = field(default=None)
+    pricing_warnings: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -235,7 +238,15 @@ class RunUsage:
             "cost_usd": self.cost_usd,
             "cost_complete": self.cost_complete,
             "agents": [a.as_dict() for a in self.agents],
+            # Scope is independent of temporal completeness and price coverage.
+            # Excluded stages may not have run; these are omissions from this
+            # collector, not fabricated observations of additional spending.
+            "accounting_scope": "crew_nodes",
+            "excluded_stages": ["search_planning", "translation", "pdf_extraction", "source_retrieval"],
+            "end_to_end_cost_complete": False,
         }
+        if self.pricing_warnings:
+            data["pricing_warnings"] = list(self.pricing_warnings)
         if self.price_basis:
             data["price_basis"] = self.price_basis
         if self.unpriced_models:
@@ -274,7 +285,9 @@ def cost_for(
         + created * price.input * _CACHE_WRITE_MULTIPLIER
         + completion * price.output
     ) / 1_000_000
-    return round(usd, 6)
+    # Finite rates can still overflow when multiplied or summed. Unknown is
+    # safer than Infinity, which survives json.dumps defaults but fails HTTP.
+    return round(usd, 6) if math.isfinite(usd) and usd >= 0 else None
 
 
 def collect_usage(crew: Any) -> RunUsage:
@@ -288,7 +301,7 @@ def collect_usage(crew: Any) -> RunUsage:
     try:
         return _collect_usage(crew)
     except Exception as exc:  # noqa: BLE001 - accounting must never fail a run
-        return RunUsage(collection_error=f"{type(exc).__name__}: {exc}"[:200])
+        return RunUsage(cost_complete=False, collection_error=f"{type(exc).__name__}: {exc}"[:200])
 
 
 def _collect_usage(crew: Any) -> RunUsage:
@@ -297,6 +310,13 @@ def _collect_usage(crew: Any) -> RunUsage:
     bases: list[str] = []
     total_cost = 0.0
     complete = True
+    warnings: list[str] = []
+    if os.getenv("LLM_PRICE_PER_MTOK", "").strip() and _price_from_env() is None:
+        # Retain the existing documented table fallback for malformed overrides,
+        # but never silently call that the configured, complete estimate. Values
+        # are deliberately absent from this diagnostic and from the browser.
+        warnings.append("invalid_price_override")
+        complete = False
 
     for agent in getattr(crew, "agents", None) or ():
         llm = getattr(agent, "llm", None)
@@ -305,6 +325,8 @@ def _collect_usage(crew: Any) -> RunUsage:
             # getattr rather than attribute access throughout: `crew` is a
             # duck-typed seam in tests, and an agent whose llm cannot report
             # usage should drop out of the accounting rather than abort it.
+            complete = False
+            warnings.append("missing_node_usage")
             continue
         metrics = summarize()
         model = str(getattr(llm, "model", "") or "")
@@ -335,14 +357,19 @@ def _collect_usage(crew: Any) -> RunUsage:
             cost_usd=cost,
         ))
 
+    if not math.isfinite(total_cost):
+        warnings.append("nonfinite_total")
+        complete = False
+    known_costs = any(agent.cost_usd is not None for agent in agents)
     return RunUsage(
         agents=tuple(agents),
         total_tokens=sum(a.total_tokens for a in agents),
         total_requests=sum(a.requests for a in agents),
         # A partial sum is still worth reporting -- it is a floor on the bill
         # -- but only next to the flag saying it is a floor.
-        cost_usd=round(total_cost, 6) if agents else None,
-        cost_complete=complete,
+        cost_usd=round(total_cost, 6) if known_costs and math.isfinite(total_cost) else None,
+        cost_complete=complete and bool(agents),
         unpriced_models=tuple(unpriced),
         price_basis=" + ".join(bases),
+        pricing_warnings=tuple(dict.fromkeys(warnings)),
     )

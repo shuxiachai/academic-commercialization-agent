@@ -178,6 +178,7 @@ export function usageSummary(usage, accounting = null) {
     parts.push(`${approx}$${usage.cost_usd.toFixed(4)}`);
   }
   if (accounting?.state === "lower_bound") parts.push(t("usage_partial"));
+  parts.push(t(usage.accounting_scope === "crew_nodes" ? "usage_scope_crew" : "usage_scope_unknown"));
   return parts.join(" · ");
 }
 
@@ -190,6 +191,8 @@ export function usageTitle(usage, accounting = null) {
     lines.push(t("usage_unavailable_detail"));
   }
   if (!usage || accounting?.state === "unavailable") return lines.join("\n");
+  lines.push(t(usage.accounting_scope === "crew_nodes" ? "usage_scope_detail" : "usage_scope_unknown"));
+  if (usage.pricing_warnings?.length) lines.push(t("usage_pricing_warning"));
   if (usage.price_basis) lines.push(`${t("price_basis")}: ${usage.price_basis}`);
   if (usage.cost_complete === false && usage.unpriced_models?.length) {
     lines.push(t("cost_partial").replace("{models}", usage.unpriced_models.join(", ")));

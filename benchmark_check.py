@@ -9,16 +9,19 @@ Reads every outputs/benchmark/<num>-<slug>/ directory, checks:
   - Numeric claims without a citation bracket (hallucination risk indicator)
   - Source counts per domain
 
-Writes outputs/benchmark/benchmark_summary.csv (Excel-friendly UTF-8 BOM).
+Writes a fresh outputs/benchmark-summaries/<id>/ export (UTF-8 BOM); never
+rewrites the published archive CSV. --batch selects one new versioned batch.
 Also prints a human-readable table to the terminal.
 """
 
+import argparse
 import csv
 import json
 import re
 import statistics
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
@@ -369,17 +372,44 @@ def _print_stability(stats: list[dict]) -> None:
     print("─" * 108)
 
 
-def main() -> None:
-    run_dirs = sorted(d for d in BENCHMARK_ROOT.iterdir() if d.is_dir())
+def main(root: Path | None = None, output_dir: Path | None = None) -> None:
+    root = root if root is not None else BENCHMARK_ROOT
+    # Summaries are derived views, not permission to replace the published
+    # calibration CSVs or earlier evaluation results. Every export is separate.
+    output_dir = output_dir if output_dir is not None else (
+        Path(__file__).parent / "outputs" / "benchmark-summaries" / uuid4().hex)
+    output_dir.mkdir(parents=True, exist_ok=False)
+    output_csv = output_dir / "benchmark_summary.csv"
+    stability_csv = output_dir / "benchmark_stability.csv"
+    manifest = None
+    if (root / "batch.json").exists():
+        from benchmark_identity import json_digest
+        manifest = json.loads((root / "batch.json").read_text(encoding="utf-8"))
+        if manifest["identity_sha256"] != json_digest(manifest["identity"]):
+            raise ValueError("Batch manifest identity is corrupt")
+    run_dirs = sorted(d for d in root.iterdir() if d.is_dir())
     if not run_dirs:
-        print(f"No benchmark runs found in {BENCHMARK_ROOT}")
+        print(f"No benchmark runs found in {root}")
         print("Run `uv run python benchmark.py` first.")
         sys.exit(1)
 
     rows = []
     for run_dir in run_dirs:
+        if manifest:
+            from benchmark_identity import reusable_result
+            meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
+            unit = meta.get("execution_identity", {})
+            if (unit.get("batch_sha256") != manifest["identity_sha256"]
+                    or unit.get("case") not in manifest["identity"]["cases"]):
+                raise ValueError("A result belongs to a different batch")
+            if meta.get("status") == "success" and not reusable_result(run_dir, unit):
+                raise ValueError("Successful result artifacts are no longer intact")
         row = analyse_run(run_dir)
         if row:
+            if manifest:
+                row.update(batch_sha256=manifest["identity_sha256"],
+                           code_commit=manifest["identity"]["code_commit"],
+                           provider=manifest["identity"]["provider"], model=manifest["identity"]["model"])
             rows.append(row)
 
     if not rows:
@@ -399,9 +429,10 @@ def main() -> None:
         "academic_sources", "patent_sources", "market_sources",
         "sections_complete", "missing_sections",
         "numeric_uncited_lines", "report_words", "error",
+        "batch_sha256", "code_commit", "provider", "model",
     ]
 
-    with OUTPUT_CSV.open("w", newline="", encoding="utf-8-sig") as f:
+    with output_csv.open("x", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
@@ -410,7 +441,7 @@ def main() -> None:
     repeated = [s for s in stats if s["n"] > 1]
     if repeated:
         _print_stability(stats)
-        with STABILITY_CSV.open("w", newline="", encoding="utf-8-sig") as f:
+        with stability_csv.open("x", newline="", encoding="utf-8-sig") as f:
             writer = csv.DictWriter(f, fieldnames=list(stats[0]), extrasaction="ignore")
             writer.writeheader()
             writer.writerows(stats)
@@ -437,10 +468,10 @@ def main() -> None:
         print("                different measurements. Split by the evidence_mode")
         print("                column in the CSV, or re-run one mode with --force.")
     print(f"TRL calibrated: {trl_pass} pass / {trl_flag} flag (outside expected range)")
-    print(f"CSV           : {OUTPUT_CSV}")
+    print(f"CSV           : {output_csv}")
     if repeated:
         widest = max(repeated, key=lambda s: s["trl_sd"])
-        print(f"Stability CSV : {STABILITY_CSV}")
+        print(f"Stability CSV : {stability_csv}")
         print(f"Widest spread : case {widest['case_num']}, TRL sd {widest['trl_sd']} "
               f"(range {widest['trl_min']:g}-{widest['trl_max']:g}) — a scoring "
               f"change smaller than this is not measurable from one run")
@@ -450,4 +481,15 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Read one benchmark batch; export a new summary")
+    parser.add_argument("--batch", help="New-batch ID; omit to inspect the unchanged historical archive")
+    args = parser.parse_args()
+    root = BENCHMARK_ROOT
+    if args.batch:
+        from benchmark_identity import BATCH_ROOT, _ID
+        if not _ID.fullmatch(args.batch):
+            parser.error("Invalid batch ID")
+        root = BATCH_ROOT / args.batch
+        if not (root / "batch.json").is_file():
+            parser.error("Batch manifest is missing")
+    main(root)

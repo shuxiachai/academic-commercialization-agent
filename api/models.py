@@ -205,8 +205,8 @@ class RunProgress(BaseModel):
     )
     usage: dict | None = Field(
         default=None,
-        description="Tokens and estimated cost for the run, per agent and in "
-                    "total. Absent for runs that predate cost accounting and "
+        description="Observed Crew-node tokens and estimated cost, not the entire bill. "
+                    "Scope/excluded stages are explicit on new runs. Absent on old runs and "
                     "for runs that failed before the crew started.",
     )
     usage_accounting: dict | None = Field(
@@ -357,8 +357,8 @@ class RunStatus(BaseModel):
     )
     usage: dict | None = Field(
         default=None,
-        description="Tokens and estimated cost for the run, per agent and in "
-                    "total. Absent for runs that predate cost accounting and "
+        description="Observed Crew-node tokens and estimated cost, not the entire bill. "
+                    "Scope/excluded stages are explicit on new runs. Absent on old runs and "
                     "for runs that failed before the crew started.",
     )
     usage_accounting: dict | None = Field(
