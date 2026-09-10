@@ -68,6 +68,13 @@ topic/PDF submission, optional Decision Context, languages, scoring profiles,
 progress, history, scorecard/report/source views, reliability details and
 Markdown/PDF export.
 
+PDF extraction responses and stored metadata include `input_coverage` with the
+actual scanned/included/truncated/omitted pages and character budget. This is
+sampling visibility, not full-paper reading or section-level understanding.
+`locator_status` describes a text candidate or conflict, not a verified paper
+identity; reachable upload locators no longer imply high credibility. See the
+[input and identity contract](results-2026-09-10-evidence-pdf-terminal-boundaries.md).
+
 The composer permits one in-flight submission and one serial PDF extraction,
 never both at once. It preserves an existing topic when a paper is attached;
 only an empty topic is auto-filled. A second upload during extraction is rejected

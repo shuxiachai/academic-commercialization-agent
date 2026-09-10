@@ -47,6 +47,12 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Decimal grounding, production score-citation admission, bounded PDF page
+coverage/candidate identity and terminal-authoritative ops outcomes have new
+offline behavioral regressions. The 30-score replay is unchanged, not new
+calibration. Remaining audit gaps are explicit in the
+[repair and scope record](results-2026-09-10-evidence-pdf-terminal-boundaries.md).
+
 Upload ingress also bounds bytes/time/preprocessing slots before multipart
 parsing; delayed history replies cannot repaint a newer view or login; actual
 extraction threads finalize raw PDF cleanup even after waiter cancellation.

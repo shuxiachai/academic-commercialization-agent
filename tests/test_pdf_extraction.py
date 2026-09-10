@@ -146,9 +146,11 @@ class ContributionAssemblyTests(unittest.TestCase):
         with patch("academic_agent.pdf_extractor._call_llm_json", return_value=data):
             return extract_paper_contribution(_pdf(pages))
 
-    def test_a_doi_the_model_returns_wins(self):
+    def test_a_model_doi_cannot_override_document_text(self):
         pc = self._extract(["doi:10.1000/from-text"], doi="10.1000/from-model")
-        self.assertEqual(pc.doi, "10.1000/from-model")
+        self.assertEqual(pc.doi, "10.1000/from-text")
+        self.assertEqual(pc.locator_status, "conflicting_candidates")
+        self.assertIn("from-text", pc.url)
 
     def test_a_doi_in_the_text_is_used_when_the_model_returns_none(self):
         """The regex is the check on the model: a DOI it invented would not

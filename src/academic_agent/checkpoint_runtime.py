@@ -109,6 +109,7 @@ def pipeline_revision() -> str:
         package / "checkpoints.py",
         package / "crew.py",
         package / "evidence.py",
+        package / "scoring_contract.py",
         package / "llm_config.py",
         package / "pipeline_worker.py",
         package / "run_spec.py",

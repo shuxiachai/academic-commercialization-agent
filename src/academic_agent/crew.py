@@ -32,8 +32,8 @@ from academic_agent.evidence import (
     make_evidence_guardrail,
     make_final_report_guardrail,
     make_reviewer_guardrail,
-    make_scoring_guardrail,
 )
+from academic_agent.scoring_contract import make_scoring_guardrail
 from academic_agent.llm_config import create_llm
 from academic_agent.source_pipeline import SourceCollection
 

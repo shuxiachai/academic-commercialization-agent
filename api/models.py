@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from academic_agent.run_spec import AssessmentMode, DecisionContext
+from academic_agent.pdf_extractor import PDFInputCoverage
 
 #: "unknown" means the status or terminal file could not be read, not that the run
 #: failed. It is deliberately not terminal: a client should retry rather than
@@ -138,6 +139,10 @@ class PaperExtraction(BaseModel):
     commercialization_topic: str
     search_keywords: list[str] = Field(default_factory=list)
     abstract_excerpt: str = ""
+    input_coverage: PDFInputCoverage = Field(default_factory=PDFInputCoverage)
+    locator_status: Literal[
+        "text_candidate", "conflicting_candidates", "no_public_candidate", "legacy_unverified",
+    ] = "legacy_unverified"
 
 
 class StepEvent(BaseModel):

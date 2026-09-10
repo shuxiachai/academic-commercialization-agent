@@ -9,7 +9,7 @@ import threading
 from contextlib import closing
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -34,6 +34,20 @@ def _placeholder_doi(title: str) -> str:
     return f"{_PLACEHOLDER_DOI_PREFIX}{hashlib.md5(title.encode()).hexdigest()[:10]}"
 
 
+class PDFInputCoverage(BaseModel):
+    """Code-owned facts about text sent to the model, not semantic coverage."""
+
+    state: Literal["recorded", "not_recorded"] = "not_recorded"
+    total_pages: int | None = None
+    scanned_pages: list[int] = Field(default_factory=list)
+    selected_pages: list[int] = Field(default_factory=list)
+    included_pages: list[int] = Field(default_factory=list)
+    truncated_pages: list[int] = Field(default_factory=list)
+    omitted_pages: list[int] = Field(default_factory=list)
+    input_characters: int | None = None
+    character_budget: int | None = None
+
+
 class PaperContribution(BaseModel):
     """Structured contribution extracted from an academic paper."""
 
@@ -48,6 +62,10 @@ class PaperContribution(BaseModel):
     commercialization_topic: str = Field(min_length=10)
     search_keywords: list[str] = Field(min_length=3)
     abstract_excerpt: str = ""
+    input_coverage: PDFInputCoverage = Field(default_factory=PDFInputCoverage)
+    locator_status: Literal[
+        "text_candidate", "conflicting_candidates", "no_public_candidate", "legacy_unverified",
+    ] = "legacy_unverified"
 
 
 #: How many pages may be read from one document, however long it is.
@@ -88,7 +106,9 @@ def _pages_to_scan(n: int) -> list[int]:
     return sorted(set(head + middle + tail))
 
 
-def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
+def extract_pdf_text(
+    pdf_path: str | Path, max_chars: int = 7000, *, coverage: dict | None = None,
+) -> str:
     """Extract text from the highest-signal pages of a PDF.
 
     Strategy: first 3 pages (title/abstract/intro) + up to 2 middle pages
@@ -98,6 +118,8 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
 
     At most _MAX_PAGES_SCANNED pages are read; see there for why.
     """
+    if max_chars < 1:
+        raise ValueError("PDF character budget must be positive")
     try:
         import pypdfium2 as pdfium
     except ImportError as exc:
@@ -130,14 +152,37 @@ def extract_pdf_text(pdf_path: str | Path, max_chars: int = 7000) -> str:
 
         key_pages = sorted(fixed_idx | mid_idx)
 
-        parts: list[str] = []
-        for i in key_pages:
-            text = page_texts[i]
-            if text:
-                parts.append(f"[Page {i + 1}]\n{text}")
-
-    combined = "\n\n".join(parts)
-    return combined[:max_chars]
+    selected = [i for i in key_pages if page_texts[i]]
+    # Reserve every selected page's label and at least one content character
+    # before allocating the rest. A final prefix slice silently erased results
+    # and conclusions after a long introduction, despite selecting those pages.
+    included: list[int] = []
+    budget = max_chars
+    for i in selected:
+        overhead = len(f"[Page {i + 1}]\n") + (2 if included else 0)
+        if budget >= overhead + 1:
+            included.append(i)
+            budget -= overhead + 1
+    lengths = dict.fromkeys(included, 1)
+    # Water filling gives short pages their whole text and redistributes spare
+    # room; dense pages cannot consume another page's entire allocation.
+    ordered = sorted(included, key=lambda i: len(page_texts[i]))
+    for position, i in enumerate(ordered):
+        extra = min(len(page_texts[i]) - 1, budget // (len(ordered) - position))
+        lengths[i] += extra
+        budget -= extra
+    combined = "\n\n".join(f"[Page {i + 1}]\n{page_texts[i][:lengths[i]]}" for i in included)
+    if coverage is not None:
+        coverage.update(
+            state="recorded", total_pages=n,
+            scanned_pages=[i + 1 for i in sorted(page_texts)],
+            selected_pages=[i + 1 for i in selected],
+            included_pages=[i + 1 for i in included],
+            truncated_pages=[i + 1 for i in included if lengths[i] < len(page_texts[i])],
+            omitted_pages=[i + 1 for i in selected if i not in included],
+            input_characters=len(combined), character_budget=max_chars,
+        )
+    return combined
 
 
 def _find_doi(text: str) -> str | None:
@@ -301,7 +346,10 @@ def extract_paper_contribution(
     llm_provider/llm_api_key bill the extraction to a visitor bringing their
     own key. Omitted, it runs on the deployment's own credentials as before.
     """
-    text = extract_pdf_text(pdf_path)
+    coverage: dict = {}
+    text = extract_pdf_text(pdf_path, coverage=coverage)
+    if not text.strip():
+        raise ValueError("PDF contains no extractable text")
     doi_found   = _find_doi(text)
     arxiv_url   = _find_arxiv_url(text)
 
@@ -316,11 +364,24 @@ def extract_paper_contribution(
         api_key=llm_api_key,
     )
 
-    # Priority: LLM-found DOI > regex DOI > arXiv URL > placeholder DOI
-    if doi_found and not data.get("doi"):
-        data["doi"] = doi_found
-    if arxiv_url and not data.get("doi") and not data.get("url"):
-        data["url"] = arxiv_url
+    # A model locator may name a different real paper. Only retain locators
+    # observed in the bounded document text, and label them as candidates:
+    # a DOI in a bibliography is not proof of this document's identity.
+    model_doi = data.get("doi")
+    model_url = data.get("url")
+    data["doi"] = doi_found
+    data["url"] = f"https://doi.org/{doi_found}" if doi_found else arxiv_url
+    conflict = bool(
+        (model_doi and model_doi != doi_found)
+        or (model_url and model_url != data["url"])
+        or len({m.group(1).rstrip(".,;") for m in _DOI_RE.finditer(text)}) > 1
+    )
+    data["locator_status"] = (
+        "conflicting_candidates" if conflict else
+        "text_candidate" if doi_found or arxiv_url else "no_public_candidate"
+    )
+    # Never trust model-supplied coverage/identity fields, even if valid JSON.
+    data["input_coverage"] = PDFInputCoverage.model_validate(coverage)
 
     # Fallback placeholder DOI so EvidenceSource passes model validation
     if not data.get("doi") and not data.get("url"):
@@ -336,15 +397,11 @@ def paper_to_evidence_source(
 ) -> "EvidenceSource":  # noqa: F821
     """Convert a PaperContribution into an EvidenceSource for pipeline injection as A1.
 
-    The DOI and URL carried by `pc` were read out of the PDF's text by an LLM,
-    not resolved through a search index the way every other source in the
-    pipeline is (source_pipeline._web_source runs the same check before
-    admitting anything). A misread digit or an outright hallucinated
-    identifier is well within what PDF text extraction produces, so the
-    locators are verified here before this source is presented as a citable
-    reference — an unresolvable DOI cited at "high" credibility is worse than
-    citing none at all, since a reader who follows it finds nothing while the
-    scorer counts it as verified evidence either way.
+    Newly extracted locators are candidates found in the actual model input;
+    legacy contributions may still carry model-provided locators. A reachable
+    URL proves neither manuscript identity nor support for the model summary.
+    Keep uploads at medium credibility, even when the candidate is reachable,
+    and retain the identity limitation explicitly instead of upgrading to high.
     """
     from academic_agent.evidence import EvidenceSource, check_public_url
 
@@ -390,9 +447,8 @@ def paper_to_evidence_source(
     if src_url is None and src_doi is None:
         src_doi = _placeholder_doi(pc.title or "Uploaded Paper")
 
-    # An uploaded paper is a primary source whether or not its identifiers
-    # check out, but "high" asserts a reader can go and verify it. With no
-    # locator that resolves, that is not a claim this pipeline can make.
+    # Reachability, document identity and claim support are separate tests.
+    # The first cannot promote an uploaded model summary to verified identity.
     verifiable = src_url is not None or not src_doi.startswith(_PLACEHOLDER_DOI_PREFIX)
 
     summary = f"{pc.core_contribution.rstrip('.')}. {pc.delta_from_prior}"
@@ -406,9 +462,10 @@ def paper_to_evidence_source(
         published_date=None,
         accessed_date=date.today(),
         source_type="academic_paper",
-        credibility_tier="high" if verifiable else "medium",
+        credibility_tier="medium",
         credibility_reason=(
-            "Primary source uploaded directly by the researcher."
+            "Uploaded paper with a reachable candidate locator; document identity "
+            f"and claim support have not been independently checked ({pc.locator_status})."
             if verifiable else
             "Primary source uploaded by the researcher; no independently "
             "resolvable DOI or URL was found in the paper."
