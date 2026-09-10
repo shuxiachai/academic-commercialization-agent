@@ -16,6 +16,11 @@ Qwen3.5 Plus, DeepSeek, Anthropic and OpenAI configuration paths exist. A
 provider being configurable is not proof of equivalent quality or cost.
 Supplementary Tool Calling remains **zero-call shadow mode**.
 
+Planning/translation now shares complete provider configuration with the main
+factory; fixed BYOK destinations and narrow credential/content-safe diagnostics
+are offline-tested. Historical node usage totals still exclude auxiliary calls.
+See the [verified repair and limits](results-2026-09-10-provider-and-log-boundaries.md).
+
 The documentation audit reran the unmodified code and obtained 2071 tests plus
 678 subtests. CI includes four OS/Python cells, lint, an 85% coverage floor,
 zero-provider Chromium and Docker. Test totals are revision snapshots, not

@@ -1256,7 +1256,7 @@ async def upload_paper(
             headers={"X-Error-Code": "daily_quota_exceeded"},
         ) from exc
     except runs.PaidLedgerUnavailable as exc:
-        _LOGGER.exception("Paid-operation accounting blocked paper %s", paper_id)
+        _LOGGER.error("Paid-operation accounting blocked paper (%s)", type(exc).__name__)
         raise HTTPException(
             status_code=503,
             detail=(
@@ -1265,7 +1265,7 @@ async def upload_paper(
             ),
         ) from exc
     except _PaperStorageError as exc:
-        _LOGGER.exception("Paper extraction storage failed for %s", paper_id)
+        _LOGGER.error("Paper extraction storage failed (%s)", type(exc).__name__)
         raise HTTPException(
             status_code=500, detail="Could not safely store the paper extraction."
         ) from exc
@@ -1273,7 +1273,10 @@ async def upload_paper(
         # The upload is unreachable from here on — no paper_id reaches the
         # client, so no run can name it — and it is somebody's unpublished
         # paper. Deleted now rather than left for the day-long pruner.
-        _LOGGER.exception("Paper contribution extraction failed for %s", paper_id)
+        # Exception text/chains can contain model output, input validation
+        # echoes, credentials and capability paths. Ordinary deployment logs
+        # retain the failure category, never the private response or paper id.
+        _LOGGER.error("Paper contribution extraction failed (%s)", type(exc).__name__)
         raise HTTPException(
             status_code=422,
             detail=(

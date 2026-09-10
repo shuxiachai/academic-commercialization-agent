@@ -187,10 +187,10 @@ def _call_llm_json(
     content = re.sub(r"\s*```$", "", content)
     try:
         return json.loads(content)
-    except json.JSONDecodeError as exc:
-        raise ValueError(
-            f"LLM returned non-JSON content: {exc}\nContent: {content[:200]}"
-        ) from exc
+    except json.JSONDecodeError:
+        # Neither the excerpt nor a chained provider response belongs in logs.
+        # The input may be unpublished; parse position is not a useful receipt.
+        raise ValueError("LLM returned non-JSON content") from None
 
 
 def _detect_paper_language(text: str) -> str:

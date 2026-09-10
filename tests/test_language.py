@@ -1,7 +1,6 @@
 """Tests for language detection, translation fallback, and registry lookups."""
 import json
 import os
-import warnings
 from unittest.mock import patch
 
 import pytest
@@ -222,7 +221,8 @@ def test_translate_headings_preserves_tuple_type():
 _PROVIDER_ENV = dict.fromkeys((
     "LLM_PROVIDER",
     "DEEPSEEK_API_KEY", "DEEPSEEK_API_BASE", "DEEPSEEK_MODEL",
-    "OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL_NAME",
+    "OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL_NAME", "OPENAI_MODEL",
+    "DASHSCOPE_API_KEY", "QWEN_API_BASE", "QWEN_MODEL",
     "ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE", "ANTHROPIC_MODEL",
 ), "")
 
@@ -306,6 +306,5 @@ def test_an_unreachable_endpoint_still_degrades_to_the_original():
     second provider must not turn a failed call into a crash mid-run."""
     with patch.dict(os.environ, _only(ANTHROPIC_API_KEY="k")), \
          patch("academic_agent.language.urlopen", side_effect=OSError("no network")), \
-         warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+         pytest.warns(UserWarning, match="OSError"):
         assert translate_to_english("固态电池") == "固态电池"

@@ -163,7 +163,7 @@ class GuestCredentialsAreTheOnesUsedTests(unittest.TestCase):
 
         self.assertEqual(captured["provider"], "openai")
         self.assertEqual(captured["api_key"], "guest-openai-key")
-        self.assertNotIn("base_url", captured)
+        self.assertEqual(captured["base_url"], "https://api.openai.com/v1")
         self.assertNotIn("deepseek", str(captured).lower())
 
     def test_the_guest_provider_wins_over_the_operators(self):
@@ -457,7 +457,7 @@ class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
             llm_config.create_llm(provider="openai", api_key="guest-openai-key")
 
         self.assertEqual(captured["api_key"], "guest-openai-key")
-        self.assertNotIn("base_url", captured)
+        self.assertEqual(captured["base_url"], "https://api.openai.com/v1")
         self.assertEqual(captured["model"], "gpt-4o")
         self.assertNotIn("operator-", str(captured))
 

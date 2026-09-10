@@ -44,10 +44,12 @@ _LLM_ENVIRONMENT = (
     "QWEN_MODEL",
     "OPENAI_API_KEY",
     "OPENAI_API_BASE",
+    "OPENAI_BASE_URL",
     "OPENAI_MODEL",
     "OPENAI_MODEL_NAME",
     "ANTHROPIC_API_KEY",
     "ANTHROPIC_API_BASE",
+    "ANTHROPIC_BASE_URL",
     "ANTHROPIC_MODEL",
 )
 
@@ -66,6 +68,22 @@ def no_real_llm_configuration(monkeypatch):
 
     for name in _LLM_ENVIRONMENT:
         monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def no_real_runtime_limits(monkeypatch):
+    """Do not let import-time .env caps decide which isolated tests get 429.
+
+    The complete suite imported runs before dotenv by accident; a focused
+    provider/PDF run reversed that order and inherited the real daily cap.
+    Tests of admission override these values explicitly after this fixture.
+    """
+    from api import runs
+
+    monkeypatch.setattr(runs, "DAILY_CAP", 0)
+    monkeypatch.setattr(runs, "MAX_CONCURRENT", 2)
+    monkeypatch.setattr(runs, "BYOK_MAX_CONCURRENT", None)
+    monkeypatch.setattr(runs, "RUN_RETENTION_DAYS", 0)
 
 
 @pytest.fixture(autouse=True)

@@ -6,7 +6,7 @@ authors = [{ name = "Jason Chai", email = "shuxiachai@163.com" }]
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "arize-phoenix-otel>=0.16,<1",
-    "crewai[tools]==1.14.7",
+    "crewai[anthropic,tools]==1.14.7",
     "fastapi>=0.115",
     "markdown>=3.6",
     "openinference-instrumentation-anthropic>=0.1,<1",
