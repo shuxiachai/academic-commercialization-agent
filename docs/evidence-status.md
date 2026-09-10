@@ -47,6 +47,12 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Run/PDF/resume acceptance now supports opt-in durable idempotency and read-only
+receipt lookup. Fresh-document Chromium recovery for all three first-party
+operations uses intercepted POSTs, not paid-provider calls; unknown and corrupt
+receipts do not dispatch again. This is not provider exactly-once or measured
+cost savings. See the [receipt evidence and limits](results-2026-09-10-durable-paid-receipts.md).
+
 Crew-node cost scope and invalid-rate/overflow states are explicit at HTTP and
 browser delivery. New general benchmark batches bind execution identities and
 preserve archived results; this fixes provenance, not model accuracy or complete

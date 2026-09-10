@@ -675,6 +675,11 @@ def _start_run_from_spec(
     # subprocess launch happen outside the lock, so a concurrent PDF
     # extraction cannot slip through the same slot.
     run_id = create_run_id()
+    # The receipt reservation predates admission and this resource binding
+    # predates Popen. A crash cannot erase both the key and the intended run
+    # identity, but binding alone deliberately does not assert launch success.
+    from api.receipts import bind_resource
+    bind_resource(run_id)
     charged_on: date | None = None
     with _registry_lock:
         charged_on = _admit_paid_operation_locked(

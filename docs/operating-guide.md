@@ -80,8 +80,9 @@ never both at once. It preserves an existing topic when a paper is attached;
 only an empty topic is auto-filled. A second upload during extraction is rejected
 locally without another paid POST. Clearing a selection invalidates its response
 but does not cancel provider work or release the lock before the request settles.
-These are tab-local protections, not cross-tab/server idempotency. Requests are
-not automatically retried; a lost acknowledgement does not prove no run started.
+These composer locks are tab-local. First-party paid requests additionally use
+the durable receipt contract below. Requests are not automatically retried; a
+lost acknowledgement does not prove no run started.
 
 An accepted BYOK run opens even if its optional session-history write fails;
 the UI asks the user to bookmark the capability URL. Resume exclusion is keyed
@@ -104,6 +105,7 @@ semantic correctness of all report prose; see the
 | GET | `/health/ready` | Explicit provider/configuration, output and paid-accounting readiness |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
+| GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
 | GET | `/api/runs` | Owner-filtered run history when access control is enabled |
 | GET | `/api/runs/{id}` | State, stage, execution identity and available artifacts |
 | GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract |
@@ -118,7 +120,7 @@ write failure. This is local readiness, not provider connectivity or model
 quality verification. See the [maintenance contract](results-2026-09-06-maintenance-readiness-query-audit.md).
 
 `/health.maintenance` separately reports the managed background task and its
-last timeout/paper/retention checks. Initial `not_checked` is not success;
+last timeout/paper/retention/receipt checks. Initial `not_checked` is not success;
 `running` describes task liveness, not a complete artifact audit. Each stage
 recovers only after its next successful cycle. A cleanup exception is logged
 and advisory; it does not remove timeout supervision or trigger unhealthy
@@ -239,24 +241,26 @@ newer local choice; logout preserves a different shared selection and returns
 to an explicit gate instead of reloading into it. This is not global logout;
 revoke credentials server-side if all open documents must lose access.
 Compare-before-remove is not a storage transaction. Forced refresh/close can
-still lose a paid reply; no durable receipt recovery or safe retry is provided.
+still lose a paid reply. Opt-in receipt lookup can recover retained acceptances,
+but losing its tab-session key or denying storage still loses lookup ability.
 See the [verified identity boundary](results-2026-09-08-browser-access-identity.md).
 
 The first-party composer now writes a constant, credential-free tab-session
 warning before analysis, resume or PDF extraction. Refresh after an unconfirmed
 request blocks new paid submissions and exposes a persistent warning. Check
-history or contact the operator before explicitly acknowledging the risk; the
+saved receipts/history or contact the operator before explicitly acknowledging the risk; the
 button only unlocks new intent and never retries or cancels. BYOK history may
-not contain a lost run, and PDF extraction has no recovery history. Read-only
+not contain a lost run; PDF results can now be found through retained receipts. Read-only
 navigation still works. Denied storage is explicitly memory-only; closing the
-session or clearing storage can remove the warning. This is not server
-idempotency or a guarantee against duplicate charges. See the
+session or clearing storage can remove the warning. The warning alone is not
+server idempotency or a guarantee against duplicate charges. See the
 [tested refresh/settlement boundary](results-2026-09-08-paid-refresh-warning.md).
 
 A progress read failing or exceeding its 15-second deadline shows either no
 confirmed observation or a stale last state, separate from the worker outcome.
 Successful polling clears the warning; 404 stops polling. Other read requests
-do not acquire this deadline, and browser suspension can delay timers. See the
+do not acquire this deadline except receipt lookup's separately bounded GET;
+browser suspension can delay timers. See the
 [combined boundary contract](results-2026-09-08-client-boundary-combinations.md).
 
 Each run writes its own `outputs/<run_id>/` directory. Files depend on how
@@ -441,6 +445,58 @@ The trace contract excludes raw topic/content, prompts, secrets and capability-
 bearing run IDs. Tracing adds no model or search requests. Configure the correct
 tenant/Space endpoint using [observability.md](observability.md), not an
 account-root endpoint copied from an unrelated example.
+
+## Paid-request receipts
+
+The shipped browser sends a new `Idempotency-Key` on each explicit analysis,
+PDF extraction or recovery-child request. It stores only the random key and
+operation in tab-session storage before dispatch, never the submitted topic,
+PDF bytes or provider credentials. When a reply is lost or a document refreshes,
+use **Find saved receipts (read only)**, then explicitly open the recovered run
+or attach the recovered paper. This performs GETs only. Unknown/missing/unreadable
+results are not proof of zero cost; acknowledging the warning is not a retry.
+
+Direct HTTP clients may opt in with `v1.<UTC epoch seconds>.<64 random hex
+characters>` (256 bits from a cryptographically secure generator). Initial
+admission requires a timestamp within five minutes; replays and lookup expire
+24 hours after that timestamp. Keep the same key, normalized input and BYOK
+credentials for the same intent. A changed payload/operation is 409, unresolved
+reservation is 409, expired key is 410, unavailable/full storage is 503. A
+committed acceptance replays its original result without another worker/model
+call. An original rejection retains its category, including distinct 429 causes;
+`failed` does not mean unbilled. Clients omitting the header retain the legacy
+non-idempotent contract. The browser never automatically retries a POST.
+
+`GET /api/receipts` takes that same header, not a query parameter. Code-owned
+receipts require the same currently valid access code (or administrator access).
+Ownerless BYOK has no second server-side identity: treat the receipt key as a
+private read capability like a run URL. Do not publish it in logs, links or traces.
+Responses are `no-store`. `pending` means unresolved in this process;
+`unknown` means its originating process is gone, not proof of execution or loss.
+An intended resource ID can be present before a process was actually started.
+
+The journal is `outputs/.paid-receipts.sqlite3`, included in the existing durable
+output volume. It has a 5,000-row active bound and independent expiry maintenance;
+readiness detects an existing unreadable/missing-schema journal. Do not delete,
+replace or restore the live ledger as a retry mechanism. A whole lost volume or
+restored old backup is outside the guarantee. Save/restore it consistently with
+other run artifacts. SQLite transactions do not make quota/worker ownership
+multi-process safe: keep one API process and one replica.
+
+Stored keys are hashed; input/credential identity uses a keyed fingerprint.
+Accepted run responses contain the run ID/topic within the receipt lifetime.
+PDF receipts contain only the paper ID and read its existing metadata store;
+an expired/deleted result gives 410 and does not trigger extraction. The real
+extraction thread retains completed derived metadata after HTTP abandonment;
+raw PDF deletion and queued-abandonment protections remain in force. Expiry
+does not control independent filesystem backups or provider retention.
+
+Denied browser storage is visibly memory-only, so a fresh document cannot
+recover those entries. Logout clears this tab's receipt keys; closing the tab,
+clearing storage, losing keys or using a different origin can lose lookup
+ability. This is bounded acceptance idempotency, not provider-level exactly-once,
+automatic safe resend, automatic workflow recovery or a global cross-tab lock.
+See the [offline result and fault coverage](results-2026-09-10-durable-paid-receipts.md).
 
 ## Benchmark
 

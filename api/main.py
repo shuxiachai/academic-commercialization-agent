@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import logging
 import os
 import threading
@@ -42,7 +43,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     PaperContribution,
     extract_paper_contribution,
 )
-from api import access, papers, runs  # noqa: E402  — must follow load_dotenv
+from api import access, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
 from api.models import (  # noqa: E402
@@ -52,6 +53,7 @@ from api.models import (  # noqa: E402
     MaintenanceStatus,
     MaintenanceTiming,
     PaperExtraction,
+    PaidReceipt,
     ReadinessStatus,
     ResumeRunRequest,
     RunAccepted,
@@ -193,6 +195,10 @@ async def _maintenance_stage(name: str, operation: Callable[..., object], *, col
         raise
 
 
+def _prune_receipts() -> int:
+    return receipts.prune(runs.DEFAULT_OUTPUT_ROOT)
+
+
 async def _reaper() -> None:
     """Kill runs that exceed the deadline.
 
@@ -209,15 +215,16 @@ async def _reaper() -> None:
             ("timeouts", runs.reap_timeouts),
             ("papers", papers.prune_old),
             ("retention", runs.prune_expired_runs),
+            ("receipts", _prune_receipts),
         ):
-            await _maintenance_stage(name, operation, collect_cleanup=name != "timeouts")
+            await _maintenance_stage(name, operation, collect_cleanup=name in {"papers", "retention"})
 
 
 @contextlib.asynccontextmanager
 async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
     global _maintenance_task, _maintenance_checks, _maintenance_timings
     with _maintenance_lock:
-        _maintenance_checks = dict.fromkeys(("timeouts", "papers", "retention"), "not_checked")
+        _maintenance_checks = dict.fromkeys(("timeouts", "papers", "retention", "receipts"), "not_checked")
         _maintenance_timings = {}
     task = asyncio.create_task(_reaper())
     _maintenance_task = task
@@ -411,6 +418,11 @@ async def _access_gate(request: Request, call_next):
     if path in ("/api/runs", "/api/papers") and request.method == "POST":
         return await call_next(request)
     if path.startswith("/api/runs/"):
+        return await call_next(request)
+    if path == "/api/receipts" and request.method == "GET":
+        # Receipt keys are header-only read capabilities. The handler still
+        # requires the original code for code-owned records, including when
+        # the global gate was subsequently disabled.
         return await call_next(request)
 
     matched = access.matching_code(request.headers.get("x-access-code"))
@@ -608,6 +620,12 @@ def readiness() -> ReadinessStatus:
                 "paid-operation accounting is unavailable; paid work is blocked"
             )
 
+    try:
+        receipts.validate(runs.DEFAULT_OUTPUT_ROOT)
+        checks["paid_receipts"] = "ok"
+    except receipts.ReceiptError:
+        checks["paid_receipts"] = "paid-request receipt storage is unavailable"
+
     return ReadinessStatus(
         ready=all(v == "ok" for v in checks.values()),
         checks=checks,
@@ -650,8 +668,116 @@ def health_ready(response: Response) -> ReadinessStatus:
     return status
 
 
+@app.exception_handler(receipts.ReceiptError)
+async def receipt_error(_request: Request, exc: receipts.ReceiptError):
+    return JSONResponse({"detail": str(exc)}, status_code=exc.status,
+                        headers={"X-Error-Code": exc.code, "Cache-Control": "no-store"})
+
+
+def _receipt_http_contract(*, required=False):
+    return {"parameters": [{"name": "Idempotency-Key", "in": "header", "required": required,
+        "schema": {"type": "string", "pattern": r"^v1\.[0-9]{10}\.[0-9a-f]{64}$"},
+        "description": "256-bit random paid-intent capability. New keys need a recent UTC timestamp; replays/read-only lookup expire after 24 hours. Never put in a URL or log."}]}
+
+
+def _claim_receipt(http_request: Request, *, byok: bool, kind: str, payload: dict):
+    key = http_request.headers.get("Idempotency-Key")
+    if key is None:
+        # Backwards-compatible direct clients retain their old contract.
+        # First-party clients always opt in; do not claim unkeyed idempotency.
+        return None, None
+    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    if not byok and access.gate_enabled() and matched is None:
+        raise HTTPException(401, "Provide the access code or complete BYOK credentials.")
+    owner = access.owner_id(matched) if matched and not byok else None
+    return receipts.claim(runs.DEFAULT_OUTPUT_ROOT, key, owner, kind, payload)
+
+
+def _receipt_body(record: dict) -> dict:
+    """Validate saved results at delivery, and never keep a second PDF copy."""
+    try:
+        body = record["response"]
+        if record["state"] == "failed":
+            if not 400 <= record["status"] <= 599 or not isinstance(body.get("detail"), str):
+                raise ValueError("Invalid failed receipt")
+            if body.get("error_code") not in {None, "concurrency_limit", "daily_quota_exceeded", "upload_capacity", "rate_limited"}:
+                raise ValueError("Invalid failure category")
+            return {"detail": body["detail"], "error_code": body.get("error_code")}
+        if record["kind"] == "paper":
+            if record["status"] != 200 or body["paper_id"] != record["resource_id"]:
+                raise ValueError("Invalid paper receipt")
+            body = {"paper_id": body["paper_id"], **papers.load_extraction(body["paper_id"])}
+            return PaperExtraction.model_validate(body).model_dump(mode="json")
+        if record["status"] != 202 or body["run_id"] != record["resource_id"]:
+            raise ValueError("Invalid run receipt")
+        return RunAccepted.model_validate(body).model_dump(mode="json")
+    except papers.PaperNotFound as exc:
+        raise receipts.ReceiptError(410, "receipt_result_expired", "The accepted paper result is no longer available; no extraction was repeated.") from exc
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        raise receipts.ReceiptError(503, "receipt_unavailable", "The saved receipt result is unreadable; do not resubmit with a new key.") from exc
+
+
+def _replay_receipt(record: dict):
+    if record["state"] == "pending":
+        raise receipts.ReceiptError(409, "paid_receipt_pending", "This request already has an unresolved reservation. Query its receipt; do not create another paid request.")
+    body = _receipt_body(record)
+    metadata = {"Idempotency-Replayed": "true", "Cache-Control": "no-store"}
+    if record["state"] == "failed" and body.get("error_code"):
+        metadata["X-Error-Code"] = body["error_code"]
+    return JSONResponse(body, status_code=record["status"], headers=metadata)
+
+
+def _record_rejection(ticket: receipts.Ticket, exc: HTTPException):
+    # A PDF's 422 can follow a billed call. Failed means outcome recorded,
+    # never refunded/free. 5xx remains unresolved rather than false rejection.
+    if 400 <= exc.status_code < 500 and exc.status_code != 408:
+        ticket.finish({"detail": "The original request failed and was not retried. This does not establish zero cost.",
+                       "error_code": (exc.headers or {}).get("X-Error-Code")},
+                      exc.status_code, failed=True)
+
+
+def _run_with_receipt(http_request: Request, request, kind: str, payload: dict, execute):
+    ticket, prior = _claim_receipt(http_request, byok=request.byok, kind=kind, payload=payload)
+    if prior is not None:
+        return _replay_receipt(prior)
+    with receipts.activate(ticket):
+        try:
+            result = execute()
+            if ticket is not None:
+                ticket.finish(result.model_dump(mode="json"), 202)
+            return result
+        except HTTPException as exc:
+            if ticket is not None:
+                _record_rejection(ticket, exc)
+            raise
+
+
+@app.get("/api/receipts", response_model=PaidReceipt, tags=["runs"],
+         openapi_extra=_receipt_http_contract(required=True),
+         responses={404: {"description": "Missing receipt or wrong owner; not proof of zero cost"},
+                    410: {"description": "Expired receipt key or unavailable accepted paper"},
+                    503: {"description": "Receipt observation unavailable"}})
+def get_paid_receipt(http_request: Request, response: Response) -> PaidReceipt:
+    """Read using Idempotency-Key header, never a credential-bearing URL.
+
+    This endpoint cannot dispatch, retry, resume, cancel or refund anything.
+    A pending resource id is an intended target, not proof of process launch.
+    """
+    key = http_request.headers.get("Idempotency-Key", "")
+    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    record = receipts.lookup(runs.DEFAULT_OUTPUT_ROOT, key,
+                             access.owner_id(matched) if matched else None,
+                             admin=matched is not None and access.is_admin(matched))
+    public = receipts.public_record(record)
+    if record["state"] != "pending":
+        public["response"] = _receipt_body(record)
+    response.headers["Cache-Control"] = "no-store"
+    return PaidReceipt.model_validate(public)
+
+
 @app.post(
     "/api/runs",
+    openapi_extra=_receipt_http_contract(),
     response_model=RunAccepted,
     status_code=202,
     tags=["runs"],
@@ -661,6 +787,11 @@ def health_ready(response: Response) -> ReadinessStatus:
     },
 )
 def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
+    return _run_with_receipt(http_request, request, "run", request.model_dump(mode="json"),
+                             lambda: _submit_run_without_receipt(request, http_request))
+
+
+def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> RunAccepted:
     """Queue an assessment. Returns immediately with a run_id to poll.
 
     Run time is provider-bound and may take several minutes; the 30-minute
@@ -746,6 +877,7 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
 
 @app.post(
     "/api/runs/{run_id}/resume",
+    openapi_extra=_receipt_http_contract(),
     response_model=RunAccepted,
     status_code=202,
     tags=["runs"],
@@ -761,6 +893,11 @@ def resume_run(
     request: ResumeRunRequest,
     http_request: Request,
 ) -> RunAccepted:
+    return _run_with_receipt(http_request, request, "resume", {"parent": run_id, **request.model_dump(mode="json")},
+                             lambda: _resume_run_without_receipt(run_id, request, http_request))
+
+
+def _resume_run_without_receipt(run_id: str, request: ResumeRunRequest, http_request: Request) -> RunAccepted:
     """Start an immutable child that reuses only validated source checkpoints.
 
     A resume is a new paid operation, not an in-place process restart. The
@@ -1119,12 +1256,13 @@ async def _process_uploaded_paper(paper_id: str, pdf_path: str, **credentials) -
     """The actual thread finalizes raw storage even if its HTTP waiter leaves.
 
     Shielding keeps a queued thread from being cancelled before it starts and
-    orphaning the already-saved PDF. An abandoned result is discarded by that
+    orphaning the already-saved PDF. A legacy abandoned result is discarded by that
     thread. If cancellation arrives after finalization, only derived metadata
     may remain for normal pending-paper retention, never the raw PDF. Hard
     process death and failing storage still require retention/reconciliation.
     """
     abandoned = threading.Event()
+    ticket = receipts.current()
 
     def execute() -> PaperContribution:
         stored = False
@@ -1132,16 +1270,25 @@ async def _process_uploaded_paper(paper_id: str, pdf_path: str, **credentials) -
             # Shielding assigns cleanup ownership, not permission to spend
             # money for a request already abandoned while waiting for a thread.
             if abandoned.is_set():
+                if ticket is not None:
+                    ticket.finish({"detail": "The request was abandoned before provider admission; no extraction started."},
+                                  409, failed=True)
                 raise _PaperAbandoned
+            receipts.bind_resource(paper_id)
             contribution = _extract_paper_with_paid_reservation(pdf_path, **credentials)
             try:
                 papers.save_extraction(paper_id, contribution.model_dump())
             except OSError as exc:
                 raise _PaperStorageError("Could not safely store the paper extraction.") from exc
             stored = True
+            if ticket is not None:
+                # Receipt-enabled running work publishes in the actual thread,
+                # even if its HTTP waiter disappeared. The derived result has
+                # the normal paper TTL; raw input was removed by save_extraction.
+                ticket.finish({"paper_id": paper_id}, 200)
             return contribution
         finally:
-            if not stored or abandoned.is_set():
+            if not stored or (abandoned.is_set() and ticket is None):
                 papers.discard(paper_id)
 
     task = asyncio.create_task(asyncio.to_thread(execute))
@@ -1168,6 +1315,7 @@ async def _process_uploaded_paper(paper_id: str, pdf_path: str, **credentials) -
 
 @app.post(
     "/api/papers",
+    openapi_extra=_receipt_http_contract(),
     response_model=PaperExtraction,
     tags=["papers"],
     responses={
@@ -1223,6 +1371,31 @@ async def upload_paper(
         data = await _read_capped(file, papers.MAX_UPLOAD_BYTES)
     except papers.PaperTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    ticket, prior = await asyncio.to_thread(
+        _claim_receipt, http_request, byok=byok, kind="paper",
+        payload={"pdf_sha256": hashlib.sha256(data).hexdigest(),
+                 "llm_provider": llm_provider, "llm_api_key": llm_api_key},
+    )
+    if prior is not None:
+        del data
+        release_upload_slot(http_request.scope)
+        return await asyncio.to_thread(_replay_receipt, prior)
+    # A shared one-item holder lets the storage helper release the bounded
+    # buffer before model latency instead of retaining it in both coroutines.
+    buffer = [data]
+    del data
+    with receipts.activate(ticket):
+        try:
+            return await _upload_paper_bytes(buffer, http_request, owner=owner, byok=byok,
+                                             llm_provider=llm_provider, llm_api_key=llm_api_key)
+        except HTTPException as exc:
+            if ticket is not None:
+                await asyncio.to_thread(_record_rejection, ticket, exc)
+            raise
+
+
+async def _upload_paper_bytes(buffer: list[bytes], http_request: Request, *, owner, byok, llm_provider, llm_api_key):
+    data = buffer.pop()
     try:
         paper_id, pdf_path = papers.save_upload(data, owner=owner)
     except papers.PaperTooLarge as exc:
@@ -1269,6 +1442,10 @@ async def upload_paper(
         raise HTTPException(
             status_code=500, detail="Could not safely store the paper extraction."
         ) from exc
+    except receipts.ReceiptError:
+        # A failed receipt write is an unknown acknowledgement, not malformed
+        # provider output and never permission to send a second extraction.
+        raise
     except Exception as exc:  # noqa: BLE001 - provider failures vary by SDK
         # The upload is unreachable from here on — no paper_id reaches the
         # client, so no run can name it — and it is somebody's unpublished

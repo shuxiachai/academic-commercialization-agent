@@ -193,6 +193,10 @@ uv run python benchmark.py --dry-run
 - [贡献指南](CONTRIBUTING.md)、[AGENTS.md](AGENTS.md)：约束与被否决的方法。
 - [实验档案索引](docs/experiment-index.md)：未改写的预注册、结果与勘误。
 
+前端付费请求支持[持久化回执](docs/operating-guide.md#paid-request-receipts)：回包丢失或刷新后，
+可在最长 24 小时内通过只读查询找回分析、PDF 或恢复子运行的接收结果，不重复提交付费请求。
+未知结果仍明确标注；这不等于供应商 exactly-once 或多副本调度。
+
 仍需补强定性结论的引用支持、独立决策效用、中文/极短/非技术输入的基准、
 旧运行元数据读取状态，以及单副本之外的扩展边界。增加 Agent、向量库或
 Kubernetes 本身不能解决这些缺口。

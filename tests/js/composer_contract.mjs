@@ -39,7 +39,7 @@ function fixture(receiptStore = new Map()) {
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
-    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume"].includes(url), `Unexpected HTTP: ${url}`);
+    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts"].includes(url), `Unexpected HTTP: ${url}`);
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
@@ -84,6 +84,35 @@ function paintResume(f) {
 
 const paper = { paper_id: "paper-one", title: "Fixture paper", commercialization_topic: "Suggested topic" };
 const scenarios = {
+  async durable_receipt_lookup() {
+    const outcome = process.argv[3];
+    const f = fixture(); f.topic("Lost paid acceptance");
+    const sent = f.submit();
+    const key = f.requests[0].options.headers["Idempotency-Key"];
+    assert.equal(f.get("#paid-receipt-lookup").hidden, false, "Saved identity must reach the pending UI before fetch settles");
+    assert.match(key, /^v1\.[0-9]{10}\.[0-9a-f]{64}$/);
+    f.requests[0].reject(new Error("lost acknowledgement")); await sent;
+    assert.equal(api.pendingReceiptKeys()[0].key, key);
+    const lookup = f.get("#paid-receipt-lookup").listeners.click();
+    assert.equal(f.requests[1].url, "/api/receipts");
+    assert.equal(f.requests[1].options.method, undefined);
+    assert.equal(f.requests[1].options.headers["Idempotency-Key"], key);
+    if (outcome === "late_identity") f.run("applyByokMode()");
+    const state = outcome === "unknown" ? "unknown" : "accepted";
+    f.respond(1, {operation: "run", state, resource_id: outcome === "mismatch" ? "other" : "accepted-run",
+      response: {run_id: "accepted-run", topic: "Accepted topic"}});
+    await lookup;
+    const rows = f.get("#paid-receipt-results").children;
+    if (outcome === "late_identity") assert.equal(rows.length, 0);
+    else if (outcome === "unknown") assert.equal(rows[0].textContent, "receipt_unresolved");
+    else if (outcome === "mismatch") assert.equal(rows[0].textContent, "receipt_lookup_unavailable");
+    else {
+      await rows[0].children[0].listeners.click();
+      assert.deepEqual(f.opened, ["accepted-run"]);
+      assert.equal(api.pendingReceiptKeys().length, 0);
+    }
+    assert.equal(f.requests.filter(r => r.options.method === "POST").length, 1);
+  },
   async sidebar_generation() {
     const mode = process.argv[3];
     const f = fixture();

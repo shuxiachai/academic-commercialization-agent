@@ -145,6 +145,17 @@ class PaperExtraction(BaseModel):
     ] = "legacy_unverified"
 
 
+class PaidReceipt(BaseModel):
+    """Acceptance observation, not current run state or proof of zero cost."""
+
+    operation: Literal["run", "resume", "paper"]
+    state: Literal["pending", "unknown", "accepted", "failed"]
+    resource_id: str | None = None
+    status_code: int | None = None
+    response: dict | None = None
+    expires_at: float
+
+
 class StepEvent(BaseModel):
     """One line of steps.jsonl, surfaced for live progress."""
 

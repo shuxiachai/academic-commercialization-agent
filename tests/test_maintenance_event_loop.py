@@ -19,7 +19,7 @@ from api import main, runs
 from api.models import ReadinessStatus
 
 
-STAGES = ("timeouts", "papers", "retention")
+STAGES = ("timeouts", "papers", "retention", "receipts")
 RID = "20200101T000000Z-abcdef0123"
 _REAP_TIMEOUTS = runs.reap_timeouts
 _SHUTDOWN_ALL = runs.shutdown_all
@@ -45,6 +45,7 @@ def maintenance_fixture(tmp_path, monkeypatch):
         ("timeouts", runs, "reap_timeouts"),
         ("papers", main.papers, "prune_old"),
         ("retention", runs, "prune_expired_runs"),
+        ("receipts", main, "_prune_receipts"),
     ):
         operations[name] = Mock(return_value=[])
         monkeypatch.setattr(module, attribute, operations[name])
@@ -251,7 +252,7 @@ def test_cycles_remain_serial_and_faults_reach_http(maintenance_fixture):
         nonlocal count
         order.append(name)
         count += 1
-        if count == 6:
+        if count == len(STAGES) * 2:
             complete.set()
         if name == "timeouts":
             raise PermissionError("private fixture path")
@@ -274,7 +275,7 @@ def test_cycles_remain_serial_and_faults_reach_http(maintenance_fixture):
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await task
-        assert order[:6] == list(STAGES) * 2
-        assert order == [STAGES[index % 3] for index in range(len(order))]
+        assert order[:len(STAGES) * 2] == list(STAGES) * 2
+        assert order == [STAGES[index % len(STAGES)] for index in range(len(order))]
 
     asyncio.run(exercise())

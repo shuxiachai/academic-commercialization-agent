@@ -117,8 +117,8 @@ export function setByok(creds) {
 }
 
 /* A BYOK run gets no owner tag server-side (see api/access.py) and so never
- * appears in GET /api/runs for anyone — nothing is recorded past the run
- * directory itself. The sidebar for a BYOK visitor still needs *something*
+ * appears in GET /api/runs for anyone. Its opt-in acceptance receipt is a
+ * separate expiring read capability, not an owner directory. The sidebar still needs *something*
  * to show, so this keeps a session-only list of the run ids they submitted:
  * gone the moment the tab closes (sessionStorage, not localStorage), fully
  * populated for as long as it's open. */
@@ -155,7 +155,7 @@ async function request(path, options = {}) {
   const paidPost = options.method === "POST"
     && (/^\/api\/(runs|papers)$/.test(path) || /^\/api\/runs\/[^/]+\/resume$/.test(path));
   const acknowledgementUnknown = () => new ApiError(0,
-    "The paid request may have been accepted, but its acknowledgement was not received. Check history before submitting again.",
+    "The paid request may have been accepted, but its acknowledgement was not received. Look up saved receipts/history before submitting again.",
     "paid_ack_unknown");
   const stored = getAccessCode();
   const selection = accessSelection;
@@ -203,11 +203,54 @@ async function request(path, options = {}) {
   }
 }
 
-const json = (body) => ({
+const json = (body, receiptKey) => ({
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: { "Content-Type": "application/json", ...(receiptKey ? { "Idempotency-Key": receiptKey } : {}) },
   body: JSON.stringify(body),
 });
+
+/* Random receipt capabilities, not payloads or provider/access credentials.
+ * Persistence is tab-session only. Denied storage latches into memory; the
+ * caller must disclose that refresh cannot recover those entries. Unknown
+ * saved bytes are never silently replaced with an empty, supposedly safe list.
+ */
+const receiptSlot = credentialSlot("sessionStorage", "paid-receipt-keys-v1");
+export const receiptStorageDegraded = () => receiptSlot.degraded();
+export function pendingReceiptKeys() {
+  const raw = receiptSlot.read();
+  if (raw === null) return [];
+  try {
+    const entries = JSON.parse(raw);
+    if (!Array.isArray(entries) || entries.length > 256 || entries.some(entry => !entry
+      || !/^v1\.[0-9]{10}\.[0-9a-f]{64}$/.test(entry.key)
+      || !["run", "resume", "paper"].includes(entry.operation))) throw Error();
+    return entries.map(({key, operation}) => ({key, operation}));
+  } catch {
+    throw new ApiError(0, "Saved receipt identities are unreadable; no paid request was sent.", "receipt_storage_corrupt");
+  }
+}
+export function beginReceipt(operation = "run") {
+  const entries = pendingReceiptKeys();
+  if (entries.length >= 256 || !globalThis.crypto?.getRandomValues) {
+    throw new ApiError(0, "A secure paid receipt cannot be created; no paid request was sent.", "receipt_creation_failed");
+  }
+  const random = globalThis.crypto.getRandomValues(new Uint8Array(32));
+  const key = `v1.${Math.floor(Date.now() / 1000)}.${Array.from(random, n => n.toString(16).padStart(2, "0")).join("")}`;
+  receiptSlot.write(JSON.stringify([...entries, {key, operation}]));
+  return key;
+}
+export function forgetReceipt(key) {
+  const remaining = pendingReceiptKeys().filter(entry => entry.key !== key);
+  return receiptSlot.write(remaining.length ? JSON.stringify(remaining) : null);
+}
+export const clearReceiptJournal = () => receiptSlot.write(null);
+export async function getPaidReceipt(key) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    return await request("/api/receipts", {headers: {"Idempotency-Key": key}, signal: controller.signal});
+  } finally { clearTimeout(timer); }
+}
 
 /* ── Runs ──────────────────────────────────────────────────────────── */
 
@@ -227,7 +270,7 @@ export const startRun = ({
   weight_profile,
   paper_id,
   decision_context,
-}) => {
+}, receiptKey) => {
   const byok = getByok();
   return request("/api/runs", json({
     topic,
@@ -244,10 +287,10 @@ export const startRun = ({
       llm_api_key: byok.llmKey,
       serper_api_key: byok.serperKey,
     } : {}),
-  }));
+  }, receiptKey));
 };
 
-export const resumeRun = (runId) => {
+export const resumeRun = (runId, receiptKey) => {
   // Credentials are intentionally supplied again. The source run retains no
   // BYOK secret, and an access-code run is authorized by the normal header.
   const byok = getByok();
@@ -257,7 +300,7 @@ export const resumeRun = (runId) => {
       llm_api_key: byok.llmKey,
       serper_api_key: byok.serperKey,
     } : {}),
-  }));
+  }, receiptKey));
 };
 
 export const getRun = (runId) => request(`/api/runs/${runId}`);
@@ -290,7 +333,7 @@ export const getArtifact = (runId, name) =>
 
 /* ── Papers ────────────────────────────────────────────────────────── */
 
-export function uploadPaper(file) {
+export function uploadPaper(file, receiptKey) {
   const form = new FormData();
   form.append("file", file);
   // Extraction is an LLM call, so it is billed to somebody. A visitor on
@@ -308,5 +351,6 @@ export function uploadPaper(file) {
   }
   // No Content-Type header: the browser must set it so the multipart
   // boundary matches the body it generates.
-  return request("/api/papers", { method: "POST", body: form });
+  return request("/api/papers", { method: "POST", body: form,
+    headers: receiptKey ? {"Idempotency-Key": receiptKey} : {} });
 }

@@ -7,6 +7,16 @@ import subprocess
 import pytest
 
 
+@pytest.mark.parametrize("outcome", ["accepted", "unknown", "mismatch", "late_identity"])
+def test_durable_receipt_lookup_never_reposts_or_crosses_identity(outcome):
+    node = shutil.which("node")
+    assert node, "Node is required for the paid receipt delivery seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        "durable_receipt_lookup", outcome], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS durable_receipt_lookup" in result.stdout
+
+
 @pytest.mark.parametrize("mode", ["ordered", "code", "byok", "gate"])
 def test_history_responses_belong_to_latest_view_and_identity(mode):
     """Old success responses previously re-exposed A's capabilities after B login."""

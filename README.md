@@ -212,6 +212,11 @@ improve these historical numbers.
 
 ## Documentation and limitations
 
+First-party paid requests support [durable receipts](docs/operating-guide.md#paid-request-receipts):
+after a lost reply or refresh, read-only lookup can recover run/PDF/recovery-child
+acceptance for up to 24 hours without another paid submission. Unknown outcomes
+remain explicit; this is not provider-level exactly-once or multi-replica scheduling.
+
 - [中文项目说明](README.zh-CN.md)
 - [Documentation map](docs/README.md) — current guides versus dated decisions.
 - [Evidence ledger](docs/evidence-status.md) — measurements and what they cannot prove.
