@@ -25,6 +25,8 @@ to reuse consumed cohorts.
 
 ## Recent offline maintenance
 
+- [2026-09-11 upload timeout test isolation](results-2026-09-11-upload-timeout-test-isolation.md) — retained main-CI failure, scoped 20ms fault injection and single-slot recovery assertions; production limits unchanged.
+
 - [2026-09-11 market-metric comparability](results-2026-09-11-market-metric-comparability.md) — offline typed diagnostic, snapshot/CSV identity mismatch and explicit non-assessment; production cap unchanged.
 
 - [2026-09-11 PDF/numeric/receipt seams](results-2026-09-11-pdf-numeric-receipt-seams.md) — separate candidate identity, signed/case-sensitive quantities and thread-owned failure receipts; zero provider calls.

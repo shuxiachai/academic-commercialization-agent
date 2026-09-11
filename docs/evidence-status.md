@@ -47,6 +47,11 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+An existing upload test leaked its injected 20ms timeout into a normal capacity
+probe and failed one main Windows CI job. Scoped fault injection retains exact
+408/401 assertions and now uses one slot to expose leakage. Runtime limits are
+unchanged. See the [CI failure and behavioral repair](results-2026-09-11-upload-timeout-test-isolation.md).
+
 An offline market-metric audit reproduces the untyped >5 spread in 30/30
 current local units, but their metadata is 29 live + 1 fixture, unlike the
 archived all-live CSV. Strict typed comparison finds no fully attributable
