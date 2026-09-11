@@ -132,6 +132,8 @@ class PaperExtraction(BaseModel):
     authors: str = ""
     doi: str | None = None
     url: str | None = None
+    candidate_doi: str | None = None
+    candidate_url: str | None = None
     core_contribution: str
     application_domain: str
     key_metrics: list[str] = Field(default_factory=list)

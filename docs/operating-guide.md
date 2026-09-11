@@ -7,6 +7,13 @@ experiment. Frozen experiments have separate identities and authorization gates.
 
 ## Local setup and provider selection
 
+Uploaded PDF `candidate_doi` / `candidate_url` fields are unverified locators,
+not the document's public identity. A1 uses a synthetic upload identifier until
+independent manuscript verification exists. Known extraction failures are
+queryable through the receipt even after disconnection; receipt storage failure
+still means unresolved, never permission for automatic resend. See the
+[PDF/quantity/receipt contract](results-2026-09-11-pdf-numeric-receipt-seams.md).
+
 Use `uv sync` with Python 3.11/3.12 to reproduce the CI-tested environment.
 Copy [the public template](../.env.example) to `.env`; only real execution
 requires keys. On PowerShell:
