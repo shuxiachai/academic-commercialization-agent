@@ -104,20 +104,37 @@ def test_valid_sized_upload_preserves_authentication(ingress):
 @pytest.mark.parametrize("kind", ["idle", "total"])
 def test_upload_deadline_closes_parser_files(ingress, monkeypatch, kind):
     """A slow body cannot retain a parser slot indefinitely before paid admission."""
-    monkeypatch.setattr(upload_boundary, "UPLOAD_IDLE_SECONDS", 0.02 if kind == "idle" else 1)
-    monkeypatch.setattr(upload_boundary, "UPLOAD_TOTAL_SECONDS", 1 if kind == "idle" else 0.02)
+    monkeypatch.setattr(upload_boundary, "MAX_UPLOAD_PARSERS", 1)
 
     async def chunks():
         yield multipart(256)[:-13]
         await asyncio.sleep(1)
         yield b"--audit--\r\n"
 
-    response = asyncio.run(post(chunks()))
-    assert response.status_code == 408
-    assert response.headers["X-Error-Code"] == "upload_timeout"
-    assert ingress
-    # A rejected request must return capacity for a later legitimate upload.
-    assert asyncio.run(post(multipart())).status_code == 401
+    # Scope the artificial fault to the rejected request. Keeping its 20ms
+    # limit for the capacity probe made Windows scheduling look like a leak:
+    # a correct next request timed out (408) before reaching authentication.
+    # Do not relax 408/auth assertions or change the production timeouts.
+    with monkeypatch.context() as deadline:
+        deadline.setattr(upload_boundary, "UPLOAD_IDLE_SECONDS", 0.02 if kind == "idle" else 1)
+        deadline.setattr(upload_boundary, "UPLOAD_TOTAL_SECONDS", 1 if kind == "idle" else 0.02)
+        response = asyncio.run(post(chunks()))
+        assert response.status_code == 408
+        assert response.headers["X-Error-Code"] == "upload_timeout"
+        assert ingress
+        assert all(file.closed for file in ingress)
+
+    # One slot makes a retained parser observable as 429 rather than allowing
+    # the next request into a second slot. A 50ms valid transfer also makes
+    # failure to restore the ordinary deadline deterministic, not host-speed
+    # dependent. The normal request must still reach auth and return 401.
+    async def legitimate_chunks():
+        body = multipart()
+        yield body[:-13]
+        await asyncio.sleep(0.05)
+        yield body[-13:]
+
+    assert asyncio.run(post(legitimate_chunks())).status_code == 401
 
 
 def test_parser_capacity_rejects_before_receive_and_recovers(ingress, monkeypatch):
