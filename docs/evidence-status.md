@@ -47,6 +47,13 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+An agent-only spot check opened the first six saved market candidates without
+replacement: two pairs have incompatible scopes and one lacks sufficient
+information; no same-definition pair is established. Five selected 2025 amounts
+reappear, but two pages contain internal numeric issues and one stored amount
+differs from its current page. This is not human review or a scoring change.
+See the [source inspection and provenance limits](results-2026-09-11-market-source-spot-check.md).
+
 A local merged-tree upload test failed before any parser file opened, despite
 green CI. Deadline injection now follows actual file creation and separately
 asserts wait selection, cancellation, cleanup and capacity recovery. Production

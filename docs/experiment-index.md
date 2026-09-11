@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-11 six-source market spot check](results-2026-09-11-market-source-spot-check.md) — agent-only public-page inspection; scope mismatch and source/version uncertainty, no scoring change or independent accuracy claim.
+
 - [2026-09-11 upload deadline parser ordering](results-2026-09-11-upload-deadline-parser-order.md) — preserve a local failure despite green CI; deterministic post-open fault injection, no production timeout change.
 
 - [2026-09-11 market estimate sample contract](results-2026-09-11-market-estimate-sample-contract.md) — synthetic controls and unreviewed snapshot preparation, not an independent market-accuracy evaluation.
