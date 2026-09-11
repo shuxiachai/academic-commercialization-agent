@@ -47,6 +47,12 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Market-estimate preparation now separates 16 synthetic comparison controls
+from 20 unreviewed local source-summary candidates. Literal anchors and hashes
+are checked; unknown dimensions stay null, and no real comparisons or expert
+accuracy are claimed. Scoring is unchanged. See the
+[sample contract and remaining evidence gate](results-2026-09-11-market-estimate-sample-contract.md).
+
 An existing upload test leaked its injected 20ms timeout into a normal capacity
 probe and failed one main Windows CI job. Scoped fault injection retains exact
 408/401 assertions and now uses one slot to expose leakage. Runtime limits are

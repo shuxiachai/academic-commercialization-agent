@@ -328,6 +328,10 @@ Market-metric v1 is an offline diagnostic, not a replacement scoring cap. Its
 30 local units are 29 live + 1 fixture and cannot establish original CSV
 identity; zero complete comparable pairs is not agreement. See the
 [snapshot-qualified audit](docs/results-2026-09-11-market-metric-comparability.md).
+The separate sample-preparation tool keeps synthetic control checks and
+unreviewed source-summary drafts in different denominators. Null annotations
+must not become equal definitions or completed review. See the
+[sample contract](docs/results-2026-09-11-market-estimate-sample-contract.md).
 
 PDF candidates never become A1 citation identity, including legacy conversion.
 Numeric sign/unit uncertainty must not become support; known PDF thread failures

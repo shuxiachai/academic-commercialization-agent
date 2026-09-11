@@ -1,0 +1,736 @@
+{
+  "version": "market-estimate-samples-v1",
+  "origin": "synthetic_engineering_controls",
+  "authorship": "Agent-authored engineering controls; not human judgments, real market estimates, or held-out evaluation.",
+  "cases": [
+    {
+      "id": "C01",
+      "reason": "Comparable values within the declared spread threshold.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 2.5 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2.5 billion;"
+      },
+      "expected": {
+        "verdict": "comparable_no_spread",
+        "ratio": "1.25",
+        "missing": [],
+        "mismatched": []
+      }
+    },
+    {
+      "id": "C02",
+      "reason": "Equal amounts expressed in different supported scales.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 2000 million",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2000 million;"
+      },
+      "expected": {
+        "verdict": "comparable_no_spread",
+        "ratio": "1",
+        "missing": [],
+        "mismatched": []
+      }
+    },
+    {
+      "id": "C03",
+      "reason": "A greater-than-five spread on fully declared matching dimensions.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "comparable_spread",
+        "ratio": "10",
+        "missing": [],
+        "mismatched": []
+      }
+    },
+    {
+      "id": "C04",
+      "reason": "The boundary is strictly greater than five, not at least five.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 10 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 10 billion;"
+      },
+      "expected": {
+        "verdict": "comparable_no_spread",
+        "ratio": "5",
+        "missing": [],
+        "mismatched": []
+      }
+    },
+    {
+      "id": "C05",
+      "reason": "No conversion between different currencies.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "EUR 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "EUR",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=EUR; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=EUR 20 billion;"
+      },
+      "expected": {
+        "verdict": "incomparable",
+        "ratio": null,
+        "missing": [],
+        "mismatched": [
+          "currency"
+        ]
+      }
+    },
+    {
+      "id": "C06",
+      "reason": "A forecast year is not the same reporting period.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2030",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2030; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "incomparable",
+        "ratio": null,
+        "missing": [],
+        "mismatched": [
+          "year"
+        ]
+      }
+    },
+    {
+      "id": "C07",
+      "reason": "A region cannot be compared with its world total.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "China",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=China; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "incomparable",
+        "ratio": null,
+        "missing": [],
+        "mismatched": [
+          "geography"
+        ]
+      }
+    },
+    {
+      "id": "C08",
+      "reason": "An application-specific segment is not its parent market.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "EV battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=EV battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "incomparable",
+        "ratio": null,
+        "missing": [],
+        "mismatched": [
+          "market_scope"
+        ]
+      }
+    },
+    {
+      "id": "C09",
+      "reason": "The same year does not equate forecast and estimate bases.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "forecast",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=forecast; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "incomparable",
+        "ratio": null,
+        "missing": [],
+        "mismatched": [
+          "time_basis"
+        ]
+      }
+    },
+    {
+      "id": "C10",
+      "reason": "The same currency is not the same price basis.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "constant_2020",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=constant_2020; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "incomparable",
+        "ratio": null,
+        "missing": [],
+        "mismatched": [
+          "price_basis"
+        ]
+      }
+    },
+    {
+      "id": "C11",
+      "reason": "Annual revenue and shipment value are different measurement bases.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_shipments_value"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_shipments_value; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "incomparable",
+        "ratio": null,
+        "missing": [],
+        "mismatched": [
+          "measurement_basis"
+        ]
+      }
+    },
+    {
+      "id": "C12",
+      "reason": "Financing is not market size even with all other dimensions supplied.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 10 million",
+        "annotations": {
+          "metric": "funding",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=funding; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 10 million;"
+      },
+      "expected": {
+        "verdict": "incomparable",
+        "ratio": null,
+        "missing": [],
+        "mismatched": [
+          "metric",
+          "not_market_size"
+        ]
+      }
+    },
+    {
+      "id": "C13",
+      "reason": "Two source IDs in one declared source family are not independent votes.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F1",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "incomparable",
+        "ratio": null,
+        "missing": [],
+        "mismatched": [
+          "same_source_family"
+        ]
+      }
+    },
+    {
+      "id": "C14",
+      "reason": "Missing year cannot be filled from the other estimate.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": null,
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "insufficient_information",
+        "ratio": null,
+        "missing": [
+          "year"
+        ],
+        "mismatched": []
+      }
+    },
+    {
+      "id": "C15",
+      "reason": "Two unknown scopes do not establish equal definitions.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": null,
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": null,
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "insufficient_information",
+        "ratio": null,
+        "missing": [
+          "market_scope"
+        ],
+        "mismatched": []
+      }
+    },
+    {
+      "id": "C16",
+      "reason": "Missing price basis is not silently nominal.",
+      "left": {
+        "origin": "synthetic",
+        "source_id": "F1",
+        "source_family": "F1",
+        "amount": "USD 2 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": "nominal",
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; price_basis=nominal; measurement_basis=annual_revenue; amount=USD 2 billion;"
+      },
+      "right": {
+        "origin": "synthetic",
+        "source_id": "F2",
+        "source_family": "F2",
+        "amount": "USD 20 billion",
+        "annotations": {
+          "metric": "market_size",
+          "currency": "USD",
+          "year": "2025",
+          "geography": "global",
+          "market_scope": "battery packs",
+          "time_basis": "estimate",
+          "price_basis": null,
+          "measurement_basis": "annual_revenue"
+        },
+        "text": "metric=market_size; currency=USD; year=2025; geography=global; market_scope=battery packs; time_basis=estimate; measurement_basis=annual_revenue; amount=USD 20 billion;"
+      },
+      "expected": {
+        "verdict": "insufficient_information",
+        "ratio": null,
+        "missing": [
+          "price_basis"
+        ],
+        "mismatched": []
+      }
+    }
+  ]
+}
