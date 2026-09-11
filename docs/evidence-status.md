@@ -47,6 +47,14 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Market scores now disclose that same-definition estimates are **not assessed**,
+including historical artifacts viewed in the current browser. Fresh/restored
+score JSON reasserts this limitation instead of trusting generated verification.
+Thirty local score replays preserve all previous fields and 183 historical
+JSON/CSV hashes. The 3.5 cap and scoring formula remain unchanged; this fixes
+missing disclosure, not the known untyped comparison policy. See the
+[delivery contract and regression](results-2026-09-11-market-score-delivery-disclosure.md).
+
 An agent-only spot check opened the first six saved market candidates without
 replacement: two pairs have incompatible scopes and one lacks sufficient
 information; no same-definition pair is established. Five selected 2025 amounts

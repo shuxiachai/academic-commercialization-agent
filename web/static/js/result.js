@@ -197,6 +197,26 @@ function renderScorecard(scores) {
   }
   wrap.append(grid);
 
+  // The saved legacy flag is an untyped numeric-spread signal, not verified
+  // market disagreement. Old artifacts need the same disclosure as new ones;
+  // never trust generated/malformed 'market_comparison: verified' metadata to
+  // upgrade it. This viewer cannot establish semantic comparability at all.
+  const flag = scores.market_uncertainty;
+  const match = typeof flag === "string" && flag.match(
+    /^high \([0-9]+× spread: [0-9]+(?:\.[0-9]+)?(?:e[+-][0-9]+)?–[0-9]+(?:\.[0-9]+)?(?:e[+-][0-9]+)? bn USD\)$/u,
+  );
+  const signal = Object.hasOwn(scores, "market_uncertainty") && flag === null
+    ? "not_triggered" : match && match[0] === flag ? "triggered" : "unavailable";
+  const caveat = el("section", "notes scorecard__market-caveat");
+  caveat.dataset.comparability = "not_assessed";
+  caveat.dataset.legacySignal = signal;
+  caveat.append(
+    el("h4", "notes__title", t("market_comparison_title")),
+    el("p", null, t("market_comparison_limit")),
+    el("p", null, t(`market_comparison_${signal}`)),
+  );
+  wrap.append(caveat);
+
   for (const [key, title] of [["key_risks", t("risks")], ["key_opportunities", t("opportunities")]]) {
     const items = scores[key];
     if (items === undefined) continue; // Historical scorecards need not have notes.

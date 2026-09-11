@@ -15,6 +15,10 @@ is experimental and remains disconnected from production.**
 
 ## What you can do
 
+Market scorecards disclose [unverified estimate comparability](docs/results-2026-09-11-market-score-delivery-disclosure.md).
+This makes the historical cap's limitation visible; it does not fix or validate
+the underlying market-scoring policy.
+
 - Submit a research topic or attach a paper PDF; choose report language and
   scoring profile.
 - Optionally provide Decision Context: the system distinguishes exploratory

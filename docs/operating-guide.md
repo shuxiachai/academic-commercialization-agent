@@ -63,6 +63,13 @@ not connected. Do not configure or purchase optional keys merely to run tests.
 
 ## Web, CLI and HTTP API
 
+The scorecard explicitly labels market-estimate comparability as not assessed.
+Fresh/restored score artifacts include `market_comparison`; the raw
+`market_uncertainty` string remains a legacy untyped diagnostic, not verified
+USD data. A missing or null flag must not be called a comparison pass. The
+historical numeric cap and existing report prose are unchanged. See the
+[delivery contract](results-2026-09-11-market-score-delivery-disclosure.md).
+
 ```bash
 uv run uvicorn api.main:app --reload
 # CLI alternative: real provider work, not an offline smoke test

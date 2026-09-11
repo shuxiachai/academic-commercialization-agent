@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-11 market-score delivery disclosure](results-2026-09-11-market-score-delivery-disclosure.md) — writer/HTTP/browser qualification and fault reinjection; frozen numeric cap unchanged, semantic comparability unestablished.
+
 - [2026-09-11 six-source market spot check](results-2026-09-11-market-source-spot-check.md) — agent-only public-page inspection; scope mismatch and source/version uncertainty, no scoring change or independent accuracy claim.
 
 - [2026-09-11 upload deadline parser ordering](results-2026-09-11-upload-deadline-parser-order.md) — preserve a local failure despite green CI; deterministic post-open fault injection, no production timeout change.

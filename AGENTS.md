@@ -324,6 +324,11 @@ the [identity/logging regression and accounting limits](docs/results-2026-09-10-
 
 ## Keeping this index short without erasing decisions
 
+Market score delivery must disclose non-assessment, not promote the legacy
+untyped spread flag to verified USD disagreement. Reassert fresh/restored JSON
+metadata and retain the legacy browser fallback without changing score values.
+See the [disclosure contract](docs/results-2026-09-11-market-score-delivery-disclosure.md).
+
 Market-metric v1 is an offline diagnostic, not a replacement scoring cap. Its
 30 local units are 29 live + 1 fixture and cannot establish original CSV
 identity; zero complete comparable pairs is not agreement. See the
