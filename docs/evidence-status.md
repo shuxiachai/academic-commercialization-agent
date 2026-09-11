@@ -47,6 +47,13 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+An offline market-metric audit reproduces the untyped >5 spread in 30/30
+current local units, but their metadata is 29 live + 1 fixture, unlike the
+archived all-live CSV. Strict typed comparison finds no fully attributable
+pairs, so all 30 are `not_assessed`, not verified agreement. This does not
+change market scores or establish penalty counts. See the
+[qualified snapshot and next gate](results-2026-09-11-market-metric-comparability.md).
+
 PDF candidate locators are now separate from A1 citation identity, including
 legacy extraction conversion. Signed quantities and milli/mega symbols remain
 distinct; unsupported unit notation abstains. The actual PDF thread publishes

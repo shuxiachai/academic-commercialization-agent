@@ -1,0 +1,323 @@
+{
+  "version": "market-metric-audit-v1",
+  "execution": "offline_only",
+  "production_effect": "none",
+  "implementation_sha256": "0b770c228236cf81edf0bbd360f228b049e923af6a01b1ac0edba804555da375",
+  "summary": {
+    "units": 30,
+    "available": 30,
+    "unavailable": 0,
+    "legacy_above_five": 30,
+    "verdicts": {
+      "not_assessed": 30
+    },
+    "meta_modes": {
+      "live": 29,
+      "fixture": 1
+    },
+    "score_states": {
+      "available": 30
+    },
+    "metric_occurrences": {
+      "acquisition": 3,
+      "funding": 19,
+      "market_size": 336,
+      "non_monetary": 17,
+      "revenue": 21,
+      "unknown": 462
+    },
+    "exclusion_reasons": {
+      "bound_not_point_estimate": 25,
+      "context_only_not_independent_estimate": 636,
+      "currency_unknown_or_conflicting": 168,
+      "geography_unknown_or_multiple": 593,
+      "market_scope_unknown_or_multiple": 531,
+      "metric_not_market_size": 60,
+      "metric_unknown_or_mixed": 462,
+      "multiple_amounts_unattributed": 808,
+      "nonpositive_or_range_or_signed_amount": 3,
+      "period_unknown_or_multiple": 835,
+      "single_registered_source_required": 105
+    }
+  },
+  "archived_csv_sha256": "d4f8bb9ec1e6883b13eff57a13b670a6a8b929568f42c37a3fc6378134d1d673",
+  "archived_csv_modes": {
+    "live": 30
+  },
+  "archived_csv_mode_mismatches": [
+    "03-solid-state-batteries-for-electric-vehicles"
+  ],
+  "historical_identity": "not_established_by_matching_csv_labels",
+  "inputs": [
+    {
+      "unit": "01-car-t-cell-therapy-for-blood-cancers",
+      "sha256": {
+        "market_evidence.json": "858fc9f85c834b9196a20c082933f825fcc6891d040b35c12cdf0b48be8b822e",
+        "meta.json": "9521c96eaba514469ec06d8324ccca04e8550ea9b741804d414f3d1308964da3",
+        "commercialization_scores.json": "c30ceadc9bce1b13485ea1dfaf2741dfb047a7b265f6d60926361f878404f16a"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "01-car-t-cell-therapy-for-blood-cancers__r2",
+      "sha256": {
+        "market_evidence.json": "f1e3f44832fcda9012aab809d31cfda5cc4c4f608ec605835875697e4e39260b",
+        "meta.json": "7c1b48cba8bf5ea2d543883fdc6e773b177e9d21e3b2671d5411972db5540da1",
+        "commercialization_scores.json": "77792120952dfa6af48258c8e41a7a143ab27196734cb03a13ea2725725a3fd0"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "01-car-t-cell-therapy-for-blood-cancers__r3",
+      "sha256": {
+        "market_evidence.json": "ebc0791e261f2dd2573e0cba7963d72f59a7170d769e621312fc7190b6d117e2",
+        "meta.json": "f5e5d61b6643ca5234605075c28ef1caa4cf13ed75d3b4518da3e5824c0d2a0e",
+        "commercialization_scores.json": "b84da34460b2c21da11826976a913de6b65c274d72e25925cd0d254c45c8eb2a"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "02-mrna-vaccines-for-cancer-immunotherapy",
+      "sha256": {
+        "market_evidence.json": "974122cf2f796c9bd5babf0d2a23572439579636b84cefca80463aaca6cd7bdd",
+        "meta.json": "79caa917c780af71d277b8000cc76a0ddee43976381f6f2127054fc2bb99fefc",
+        "commercialization_scores.json": "e1cbd5a0f6ee1797738a334490748cc9b737e858fb201fcdb984ce6aa0a95e1d"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "02-mrna-vaccines-for-cancer-immunotherapy__r2",
+      "sha256": {
+        "market_evidence.json": "6dcf3e06ba9e067ab37e06d1b20853f6cc8213b0390c42290fdc79437e294c65",
+        "meta.json": "6f21cb17ecb8b736ed44f7ccae5f1813c7308c5019d5849e2eec8223d6e46a6a",
+        "commercialization_scores.json": "467ee1760e34f46cc23973d0efe9bcd2a2b54267bb9002213a9f5b36e1a204a3"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "02-mrna-vaccines-for-cancer-immunotherapy__r3",
+      "sha256": {
+        "market_evidence.json": "e2413e01657ebecfed6fbc6216c26232b905005cfcd410cadd67d055d2a547e4",
+        "meta.json": "6b5ebdd2ba7b391d5e2ee33115eec3c8d14001fb443a18438fabb0a9aa709c63",
+        "commercialization_scores.json": "33060358b42d421484249032ac94ec4028ea8f4c6f39572c4638bd0dde5ee9dc"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "03-solid-state-batteries-for-electric-vehicles",
+      "sha256": {
+        "market_evidence.json": "5bbabd5f7cfa23542597774bcf1989cc1f7d8a1cd947e79f5e19429bde52bf04",
+        "meta.json": "5428961e2b390603e0f173456bd07b86c7c01a1b400102435368b8c0f95bb9e1",
+        "commercialization_scores.json": "0fb78e6a97e817b61118780121bd81552b4faaa4fcf90130f9e7541e57756520"
+      },
+      "mode": "fixture"
+    },
+    {
+      "unit": "03-solid-state-batteries-for-electric-vehicles__r2",
+      "sha256": {
+        "market_evidence.json": "f1db5b2a1f480499d3d8cb6ac3cfc78b41ab82840a0af1ff5af71289e8aa73e7",
+        "meta.json": "3e758bb3b918eeceb766a3387ff388096777a74fce8c50bc0bd012df40fd3f29",
+        "commercialization_scores.json": "508540e7773e5b5bb9043e9b8d8baa472e93366fed31da46327077b128963b77"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "03-solid-state-batteries-for-electric-vehicles__r3",
+      "sha256": {
+        "market_evidence.json": "5ed7501b22dad7fa8c3f5132b06114770f9b09959053dd497a094066e87fe31e",
+        "meta.json": "920e2a884b4d9bd3e9348463b717bfccd9a9dedfea8dd27a4afed8d594c14ce5",
+        "commercialization_scores.json": "8edbe4c7d8cb669cf9101dd0b846ffac0c0be27a9dd60d33f96c686dbcf66c9b"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "04-perovskite-solar-cells-for-utility-scale-powe",
+      "sha256": {
+        "market_evidence.json": "3608ae93314755416c798c66723c56674ff16746abfa4b73339885d9cc36bc94",
+        "meta.json": "cba72c45c7090e7c852bea47788c65f3b277ecba9673475cd6d668ea71b28807",
+        "commercialization_scores.json": "aa39f97cd42b6c4549864e348fa858735a01410f04fbee2ddc13bc29e8965cf9"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "04-perovskite-solar-cells-for-utility-scale-powe__r2",
+      "sha256": {
+        "market_evidence.json": "140e6e286df64f63e8c3b713087f24bd25a535468cb2cdaca5925dda14823dab",
+        "meta.json": "2e65f8f2fc1d13a642b016ef3a9feb0272aeab3f93b9fd0338781a63bc29ba52",
+        "commercialization_scores.json": "1f035bba77ebda67c436c385f7a827f72fd111eee26c9aabb9a8b84e6dc9a661"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "04-perovskite-solar-cells-for-utility-scale-powe__r3",
+      "sha256": {
+        "market_evidence.json": "35d1a1f6d8c0db168702156e85c54f915a8e517873aba61cc3d4110d2e497657",
+        "meta.json": "fcf240c539f4dc0628e7c5cb5eee57eb7b0704dfd0a57f72b15072508aef9468",
+        "commercialization_scores.json": "cfabd6bf8cfd923a0b844a1b55cd42d1810410c9e5e270e51fa96c5f7a7fa334"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "05-crispr-gene-editing-for-genetic-diseases",
+      "sha256": {
+        "market_evidence.json": "33f1eb5f10418153f6df54a6089c3c9ff2c425b301bfd1c943a17c40eded1907",
+        "meta.json": "13d88a36edcbeaa75a45af072ad2a8d9c6c3252f3132193260b2a6c0fb1b249d",
+        "commercialization_scores.json": "4dc9dab0a97467a13ed90598dba0b264656e65fee4fa82357ebc27ea246facfe"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "05-crispr-gene-editing-for-genetic-diseases__r2",
+      "sha256": {
+        "market_evidence.json": "d21390f9f052f3f052e1434fc05a7cffa252eb59c189d2a6cd19ce5b2094e897",
+        "meta.json": "3eb64633c3f38681ca9a6342b84df098858c011c1373657098caa2e24e7bcbd0",
+        "commercialization_scores.json": "18b7eba247250e653be9f5298833f3a5a2e13e961ecddfd9c0982e2a34540fa0"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "05-crispr-gene-editing-for-genetic-diseases__r3",
+      "sha256": {
+        "market_evidence.json": "583a74840313154830d467f5dc8be04b64ea83b69a0e8eb9c168e70a88d2148d",
+        "meta.json": "89c2d84c37a253db025aecd985bd095ae93baef807294fb7ae56cc84b544b55f",
+        "commercialization_scores.json": "350c11be46ff9ab06dac42a1368a7bf0fd361faabc53ec4f919a4f66935bfb52"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "06-carbon-capture-and-storage-for-industrial-emi",
+      "sha256": {
+        "market_evidence.json": "619647b8bf43f028c8ee89988e17c6ef1d75c4cc39eca92bd5f51f1b970f60b2",
+        "meta.json": "fcdb773ce2374c4e990f1c0a47022833daa195b5d1c9bd1bb1ea739dd9600f96",
+        "commercialization_scores.json": "82393595c532926b69e3a859961a98726fa46f8d9a0ed299f21dbac7a0444a3b"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "06-carbon-capture-and-storage-for-industrial-emi__r2",
+      "sha256": {
+        "market_evidence.json": "0a364577bd8bf08242301fe9cca0d12aae558189f9f6ee214dea001250933287",
+        "meta.json": "ea056f1061e726ce914b02941b2e86299439cad4e1f8d4c198f9abee5ca52147",
+        "commercialization_scores.json": "57c7bf3f92f9c177a6b5d2c0d5dc8aabe2c7ad568c9bfb18f89a1637e8b2dc99"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "06-carbon-capture-and-storage-for-industrial-emi__r3",
+      "sha256": {
+        "market_evidence.json": "eb43f9775b8e13fd56d90e9ad4b979e2c15633a47e96cd3edb9ce4611c0b18ae",
+        "meta.json": "e4c34afdde53827a2d0caa52e6cde81118b45cc928e16ef50757034d119c2773",
+        "commercialization_scores.json": "e2ce7509385a24f27b376a5b25f16e2402e29daad376aa1d2ea6ec4a8f14dfb8"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "07-cultivated-meat-for-food-industry",
+      "sha256": {
+        "market_evidence.json": "4ca09661be214c8a189ec2f648c83b3addbd2fd42f63b93eda5bfd63b7471327",
+        "meta.json": "20e060989167a8a07a3681f1915a783a26f612fa7dafb4b1024642638ca8b51f",
+        "commercialization_scores.json": "c6fca6051a956e24db2db86e5655cbaa3898b0e1c84b06d9955f7dd2d66fea9e"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "07-cultivated-meat-for-food-industry__r2",
+      "sha256": {
+        "market_evidence.json": "8c6210f10edd4c631519a2479ddf9ba244ed969ff13a3741cca004554e8bf007",
+        "meta.json": "5fe01c8e26bd9cc4b1a506c6b2034392f72e77652f2b18fc5d956a26f23ad6a1",
+        "commercialization_scores.json": "3351014e6378c28b6df0f11d2d1d0f376cbce400c6030962fd461dfdab69a831"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "07-cultivated-meat-for-food-industry__r3",
+      "sha256": {
+        "market_evidence.json": "670e7a961f32c71d2826f5d68a5a64d4332150a45f87cdb9f60110bd1204fb1f",
+        "meta.json": "ffe3df0935434c47407b891eaaf7c96e61b621a01a9761cd85f688dd43b5270c",
+        "commercialization_scores.json": "ab5425193c991854185484da37e587fd4625e9984468249675255b5e0c850dd1"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "08-quantum-computing-for-drug-discovery",
+      "sha256": {
+        "market_evidence.json": "d1499bee87f01add380f27afeb1c4121b6ba63dab786c96b05d26c112feb772a",
+        "meta.json": "f4856b6b55ebd56d36235da92bf4eb1ea59c94a866860a83013cd8789f31a6bc",
+        "commercialization_scores.json": "c5fed40c92972a3212b690ef81ad4d510e46f81debc85c59a9522f557357f7cf"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "08-quantum-computing-for-drug-discovery__r2",
+      "sha256": {
+        "market_evidence.json": "87bd0269394120e3f3fcbadbb58617475a5847d156c0cf8e7b5c2d6559b79852",
+        "meta.json": "e36bbe5ed1f8c4f933b9ee7fab3a12dfb1344ddf8eed8236df782c854fec74ab",
+        "commercialization_scores.json": "243c957c4fa57d2a08c9f4202ba03f2c3ede089d660f0602b27fc24fdf5ff6ef"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "08-quantum-computing-for-drug-discovery__r3",
+      "sha256": {
+        "market_evidence.json": "aab8ddaed330f3574360e0b1b8c3cb83c76c70b6e5a803af96d0e5fba374115d",
+        "meta.json": "47b90737c7e7a906d39d5ea4320c5405303eb12f055ad298163b9239fc2b0070",
+        "commercialization_scores.json": "738de3b582c63c5f72731850297889246e48b2f8f99a488d49e08a4ed0bd1c7c"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "09-graphene-based-flexible-electronics",
+      "sha256": {
+        "market_evidence.json": "7bffca588f1ced768395a61c5edc94c077ba71afaf13bc13d5f41f5bb3a826ef",
+        "meta.json": "6169205412af7bb798f084a299cb3363e6c0599fde107579611649e9378e28a2",
+        "commercialization_scores.json": "9847d9da0eadc5ce66b2313d77856790622e9c007de6bbf1183d920436676284"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "09-graphene-based-flexible-electronics__r2",
+      "sha256": {
+        "market_evidence.json": "fdea60cde56dc1df66eb3b7b514d65751d8da8a92559e29eb280b510e29c04f4",
+        "meta.json": "a60491287c4bb77901f3cd2e673a31b746d5c17763286de660b17e3bc44d1d7e",
+        "commercialization_scores.json": "d920e02bf1f2c034fcd71718f1b9c17717c1ea46bff7293db0d971d4c030f100"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "09-graphene-based-flexible-electronics__r3",
+      "sha256": {
+        "market_evidence.json": "f73c5514218f93200a5075886eeb45c17c673093f364c8eb970f0b39aaf2cb8c",
+        "meta.json": "cc25f62d939cf8c22982940f1e92a89bfeb451381b59fee9f2e136b7d2cd5e1f",
+        "commercialization_scores.json": "4188cc3a68db61e675f99de3019bcb82988158fd624e70eff98275acc82d0ce4"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "10-room-temperature-ambient-pressure-superconduc",
+      "sha256": {
+        "market_evidence.json": "39bfd0de69d08c1a03633db3e1410661c5ca00ab0c7c9dcedb9ce61f132f531d",
+        "meta.json": "c43d340c7df7738b8f1019bce60ac5869d5dcbfe607bac889b4610d5d62a7513",
+        "commercialization_scores.json": "ae8e58c18627c7074ac2ff13d54ca132bfd3b2047aac62d8b806f2cd6bab4b4b"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "10-room-temperature-ambient-pressure-superconduc__r2",
+      "sha256": {
+        "market_evidence.json": "04e5cb37dd2a86a266a75ff1b2a0867fb515fe31f33013b1f659bb5e42915aab",
+        "meta.json": "1c05ca484e1e07a63b4f89491d55f46525f55141e4e044d1c98b1f7707736577",
+        "commercialization_scores.json": "6376db994ab8022d9df4a9225c8dc274b88b98e8559515912dac05f3aa3cfa83"
+      },
+      "mode": "live"
+    },
+    {
+      "unit": "10-room-temperature-ambient-pressure-superconduc__r3",
+      "sha256": {
+        "market_evidence.json": "838b4676919fd35736204769d7abe2b3a70808b2bbb628e9bc1f5e3ace8785b5",
+        "meta.json": "090a73a985566f0254e24cd34e51731f03472fe424c62c2eb2f5d26cae0ce768",
+        "commercialization_scores.json": "3704cdf2d33c0a06b36c52784d00a2b7ec5a6dbc2f0ab12c0b2e1ba9cbf04e3b"
+      },
+      "mode": "live"
+    }
+  ]
+}

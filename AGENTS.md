@@ -324,6 +324,11 @@ the [identity/logging regression and accounting limits](docs/results-2026-09-10-
 
 ## Keeping this index short without erasing decisions
 
+Market-metric v1 is an offline diagnostic, not a replacement scoring cap. Its
+30 local units are 29 live + 1 fixture and cannot establish original CSV
+identity; zero complete comparable pairs is not agreement. See the
+[snapshot-qualified audit](docs/results-2026-09-11-market-metric-comparability.md).
+
 PDF candidates never become A1 citation identity, including legacy conversion.
 Numeric sign/unit uncertainty must not become support; known PDF thread failures
 must finalize receipts even without a waiter, while journal write failure stays
