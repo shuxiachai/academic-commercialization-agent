@@ -1,0 +1,106 @@
+{
+  "version": "market-source-spot-check-v1",
+  "observed_date": "2026-09-11",
+  "inspection_base": "fa48312cb3545410cdf8f0200bb01047442c8151",
+  "observer": "codex_agent",
+  "independent_human_review": false,
+  "production_effect": "none",
+  "source_snapshot_sha256": "bae3d1c310a274285fddf32088da426398fe921f8f9a1082e40d7655190e8c47",
+  "selection": "first_six_saved_candidates_without_replacement",
+  "access_method": "assistant_web_reader_may_use_cached_text",
+  "full_paid_reports_reviewed": false,
+  "original_html_identity_established": false,
+  "existing_snapshot_modified": false,
+  "candidates": [
+    {
+      "id": "S01",
+      "saved_mode": "live",
+      "saved_text_sha256": "148e7433b358b49637e1d22194ff8c8c75e5a8ad4a290c4fbc0b37c454aac7c6",
+      "url": "https://www.precedenceresearch.com/car-t-cell-therapy-market",
+      "page_read": "readable",
+      "locators": ["Market Scope", "What is the CAR T-Cell Therapy Market Size?"],
+      "headline_2025_matches_saved": true,
+      "issue_codes": ["malformed_grouping", "within_page_2026_values_differ"],
+      "price_basis": null,
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S02",
+      "saved_mode": "live",
+      "saved_text_sha256": "edadaa52f5f70c77b50424f0e12e08b78430166c5ee83ecc5093918051006c27",
+      "url": "https://www.fortunebusinessinsights.com/car-t-cell-therapy-market-108455",
+      "page_read": "readable",
+      "locators": ["CAR-T Cell Therapy Market Size and Future Outlook", "Report Scope and Segmentation"],
+      "headline_2025_matches_saved": false,
+      "issue_codes": ["snapshot_current_page_mismatch", "historical_cause_unknown"],
+      "price_basis": null,
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S03",
+      "saved_mode": "live",
+      "saved_text_sha256": "eb336aad8e2feb929c13bbfb22f5cc654a8f556d2fc7ba389a195b32de46b882",
+      "url": "https://www.mordorintelligence.com/industry-reports/mrna-vaccines-and-therapeutics-market",
+      "page_read": "readable",
+      "locators": ["MRNA Vaccines And Therapeutics Market Analysis by Mordor Intelligence", "Key Report Takeaways"],
+      "headline_2025_matches_saved": true,
+      "issue_codes": ["scope_not_oncology_only"],
+      "price_basis": null,
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S04",
+      "saved_mode": "live",
+      "saved_text_sha256": "554043efd079c823b3980532a5814f5fa590b9d99cc92f1c20fda1b48214ebbb",
+      "url": "https://www.vantagemarketresearch.com/mrna-cancer-vaccines-and-therapeutics-market",
+      "page_read": "readable",
+      "locators": ["Revenue, 2025", "Forecast Year, 2035", "introduction before Market Overview"],
+      "headline_2025_matches_saved": true,
+      "issue_codes": ["within_page_2035_values_differ", "scope_differs_from_general_mrna"],
+      "price_basis": null,
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S05",
+      "saved_mode": "fixture",
+      "saved_text_sha256": "f28842ac156de08760843209bf07fbca3233ea81d43cb55e31c2fd774de5b81d",
+      "url": "https://www.marketsandmarkets.com/Market-Reports/solid-state-battery-market-164577856.html",
+      "page_read": "readable",
+      "locators": ["REPORT SCOPE", "SOLID-STATE BATTERY MARKET KEY TAKEAWAYS"],
+      "headline_2025_matches_saved": true,
+      "issue_codes": ["scope_not_ev_only", "ev_share_year_differs_from_total_year"],
+      "price_basis": null,
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S06",
+      "saved_mode": "fixture",
+      "saved_text_sha256": "f3e9d93e0ca6f60374920fefc8b9535bed98c80d16d6b52614d299a27cf9d93f",
+      "url": "https://www.fortunebusinessinsights.com/ev-solid-state-battery-market-115751",
+      "page_read": "readable",
+      "locators": ["EV Solid-state Battery Market Size and Future Outlook", "Frequently Asked Questions"],
+      "headline_2025_matches_saved": true,
+      "issue_codes": ["scope_ev_only_not_all_applications"],
+      "price_basis": null,
+      "source_truth": "not_established"
+    }
+  ],
+  "pairs": [
+    {"ids": ["S01", "S02"], "outcome": "insufficient_information", "reasons": ["same_definition_not_established", "price_basis_not_established", "snapshot_current_page_mismatch"], "ratio": null},
+    {"ids": ["S03", "S04"], "outcome": "incompatible_scope", "reasons": ["general_mrna_vs_oncology_scope"], "ratio": null},
+    {"ids": ["S05", "S06"], "outcome": "incompatible_scope", "reasons": ["all_applications_vs_ev_only"], "ratio": null}
+  ],
+  "summary": {
+    "selected_candidates": 6,
+    "readable_publisher_urls": 6,
+    "selected_headline_2025_amount_matches": 5,
+    "snapshot_current_page_mismatches": 1,
+    "pages_with_specified_internal_numeric_issues": 2,
+    "inspected_pairs": 3,
+    "incompatible_scope_pairs": 2,
+    "insufficient_information_pairs": 1,
+    "fully_established_same_definition_pairs": 0,
+    "independent_human_judgments": 0,
+    "replacement_scores_emitted": 0
+  }
+}
