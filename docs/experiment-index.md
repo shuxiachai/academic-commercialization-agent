@@ -25,6 +25,8 @@ to reuse consumed cohorts.
 
 ## Recent offline maintenance
 
+- [2026-09-11 market-metric comparability](results-2026-09-11-market-metric-comparability.md) — offline typed diagnostic, snapshot/CSV identity mismatch and explicit non-assessment; production cap unchanged.
+
 - [2026-09-11 PDF/numeric/receipt seams](results-2026-09-11-pdf-numeric-receipt-seams.md) — separate candidate identity, signed/case-sensitive quantities and thread-owned failure receipts; zero provider calls.
 
 - [2026-09-10 evidence/PDF/terminal boundaries](results-2026-09-10-evidence-pdf-terminal-boundaries.md) — precision-aware numeric matching, production-only citation admission, actual PDF input coverage, candidate identity limits and terminal-authoritative operational outcomes; zero provider calls.
