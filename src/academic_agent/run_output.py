@@ -439,6 +439,53 @@ def _normalize_delivered_score_rationales(scores_json: str) -> str:
     return json.dumps(payload, ensure_ascii=False)
 
 
+def _qualify_market_comparison(scores_json: str) -> str:
+    """Disclose a legacy scoring signal without promoting it to source truth.
+
+    The frozen cap mixes untyped amounts. Its text even labels them USD, which
+    is not established by that parser. Changing the numeric rule without a
+    validated replacement would retire the calibration baseline; hiding its
+    limitations at delivery is not an acceptable alternative either. Preserve
+    the raw flag as a historical diagnostic, never as a verified estimate.
+
+    Rebuild this disclosure for fresh AND checkpoint-restored output. Generated
+    metadata saying 'verified' cannot establish a comparison that never ran.
+    Sparse/non-object diagnostic payloads retain the old save contract.
+    """
+    try:
+        payload = json.loads(scores_json)
+    except json.JSONDecodeError:
+        return scores_json
+    if not isinstance(payload, dict) or not any(
+        key in payload for key in ("market_accessibility", "market_uncertainty", "market_comparison")
+    ):
+        return scores_json
+
+    signal = "unavailable"
+    if "market_uncertainty" in payload and payload["market_uncertainty"] is None:
+        signal = "not_triggered"
+    elif isinstance(payload.get("market_uncertainty"), str) and re.fullmatch(
+        r"high \([0-9]+× spread: [0-9]+(?:\.[0-9]+)?(?:e[+-][0-9]+)?–"
+        r"[0-9]+(?:\.[0-9]+)?(?:e[+-][0-9]+)? bn USD\)",
+        payload["market_uncertainty"],
+    ):
+        signal = "triggered"
+    payload["market_comparison"] = {
+        "version": "market-comparison-disclosure-v1",
+        "comparability_status": "not_assessed",
+        "legacy_cap_signal": signal,
+        "score_policy": "legacy_cap_unchanged",
+        "deduction_status": "not_reconstructable",
+        "limitation": (
+            "Same-definition market estimates were not verified. The legacy amount-spread "
+            "flag does not establish currency, metric, year, geography, scope or method "
+            "comparability. Its amounts are not verified USD estimates. Neither an absent "
+            "flag nor a score at 3.5 proves agreement or an actual deduction."
+        ),
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
 def save_scores(
     scores_json: str,
     run_id: str,
@@ -450,7 +497,8 @@ def save_scores(
     run_directory.mkdir(parents=True, exist_ok=True)
     scores_path = run_directory / "commercialization_scores.json"
     scores_path.write_text(
-        _normalize_delivered_score_rationales(scores_json), encoding="utf-8"
+        _qualify_market_comparison(_normalize_delivered_score_rationales(scores_json)),
+        encoding="utf-8",
     )
     return scores_path
 

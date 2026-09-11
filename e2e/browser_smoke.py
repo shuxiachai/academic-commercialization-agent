@@ -30,7 +30,7 @@ from urllib.parse import urlsplit
 import uvicorn
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
-from academic_agent.run_output import create_run_id, save_report
+from academic_agent.run_output import create_run_id, save_report, save_scores
 from academic_agent.report_audit import save_report_audit
 from academic_agent.run_spec import DecisionContext
 from academic_agent.run_terminal import (
@@ -326,6 +326,9 @@ def _exercise_browser(
                 "title",
                 "Reason: worker_completed\nTermination: worker_exit",
             )
+            # With scores present the first visible tab is the scorecard.
+            # Select the report explicitly rather than weakening its assertion.
+            page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
             # The shipped subset renderer deliberately falls back to a <p>
             # for blockquotes. Assert the actual visible paragraph contract,
@@ -339,6 +342,18 @@ def _exercise_browser(
             expect(applicability).to_contain_text("GO/NO_GO is not assessed.")
             expect(applicability).to_contain_text("not_established")
             expect(page.locator("article.prose")).not_to_contain_text("Actor-specific GO is approved.")
+
+            page.locator('button.tab[data-view="score"]').click()
+            market_caveat = page.locator(".scorecard__market-caveat")
+            expect(market_caveat).to_be_visible()
+            expect(market_caveat).to_have_attribute("data-comparability", "not_assessed")
+            expect(market_caveat).to_have_attribute("data-legacy-signal", "triggered")
+            expect(market_caveat).to_contain_text("does not establish comparable USD estimates")
+            expect(page.locator(".scorecard__value")).to_have_text("65.0")
+            expect(page.locator(".dim__value").nth(3)).to_have_text("3.5 / 5")
+            delivered_scores = page.request.get(f"{base_url}/api/runs/{run_id}/scores").json()
+            assert delivered_scores["market_comparison"]["comparability_status"] == "not_assessed"
+            assert delivered_scores["market_comparison"]["legacy_cap_signal"] == "triggered"
 
             page.locator('button.tab[data-view="report-audit"]').click()
             audit_panel = page.locator('.panel[data-view="report-audit"]')
@@ -354,6 +369,7 @@ def _exercise_browser(
             # stored code re-authorizes, and the report reaches the DOM again.
             page.reload(wait_until="domcontentloaded")
             expect(page.locator("#run-terminal")).to_have_text("· worker completed")
+            page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
 
             # Real bytes, real endpoints and the shipped DOM must agree even
@@ -519,6 +535,17 @@ def main() -> None:
         output_root = Path(temp_dir) / "outputs"
         app, access = _configure_isolated_app(output_root)
         run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
+        # Keep the legacy cap visible without presenting its mixed-amount flag
+        # as a semantic comparison. Only this fixture adds a score tab; other
+        # fault journeys retain their original report-first layout. Generated
+        # 'verified' metadata must pass through the actual writer, not a fixture
+        # pre-populated with the correct disclosure.
+        save_scores(json.dumps({
+            "overall_score": 65, "trl_score": 6, "mrl_score": 6,
+            "patent_strength": 3, "market_accessibility": 3.5, "evidence_confidence": 4,
+            "market_uncertainty": "high (2000× spread: 0.01–20 bn USD)",
+            "market_comparison": {"comparability_status": "verified"},
+        }), run_id, output_root)
         damaged_status_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
         (output_root / damaged_status_id / "status.json").write_bytes(b"\xff")
         (output_root / damaged_status_id / "steps.jsonl").write_bytes(

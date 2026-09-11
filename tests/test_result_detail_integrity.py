@@ -35,7 +35,7 @@ def test_normalized_dimension_range_reaches_browser(tmp_path, monkeypatch, field
     assert "65.0" in text  # One bad dimension never erases the healthy neighbour.
 
 
-def display(payload, artifact, tmp_path, monkeypatch, language="English"):
+def display(payload, artifact, tmp_path, monkeypatch, language="English", *, persist_scores=False):
     run_id = "20260908T010203Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     directory = tmp_path / run_id
     directory.mkdir(exist_ok=True)
@@ -43,11 +43,21 @@ def display(payload, artifact, tmp_path, monkeypatch, language="English"):
     (directory / "status.json").write_text('{"done":true,"stage":"Done"}', encoding="utf-8")
     (directory / "commercialization_report.md").write_text("# Healthy neighbour", encoding="utf-8")
     name = {"scores": "commercialization_scores.json", "grounding": "claim_grounding.json", "consistency": "consistency.json"}[artifact]
-    (directory / name).write_text(json.dumps(payload), encoding="utf-8")
+    if persist_scores:
+        # Exercise the same saver used by fresh and restored scorer output,
+        # not a fixture which already contains the expected disclosure.
+        from academic_agent.run_output import save_scores
+
+        assert artifact == "scores"
+        save_scores(json.dumps(payload), run_id, tmp_path)
+        delivered = json.loads((directory / name).read_text(encoding="utf-8"))
+    else:
+        (directory / name).write_text(json.dumps(payload), encoding="utf-8")
+        delivered = payload
     client = TestClient(app)
     response = client.get(f"/api/runs/{run_id}/{artifact}")
     assert response.status_code == 200
-    assert response.json() == payload
+    assert response.json() == delivered
     assert client.get(f"/api/runs/{run_id}/report").text == "# Healthy neighbour"
     assert client.get(f"/api/runs/{run_id}/progress").json()["done"] is True
     node = shutil.which("node")
