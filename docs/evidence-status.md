@@ -47,6 +47,11 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+A local merged-tree upload test failed before any parser file opened, despite
+green CI. Deadline injection now follows actual file creation and separately
+asserts wait selection, cancellation, cleanup and capacity recovery. Production
+limits are unchanged. See the [ordering failure and regression](results-2026-09-11-upload-deadline-parser-order.md).
+
 Market-estimate preparation now separates 16 synthetic comparison controls
 from 20 unreviewed local source-summary candidates. Literal anchors and hashes
 are checked; unknown dimensions stay null, and no real comparisons or expert
