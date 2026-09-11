@@ -55,6 +55,8 @@ class PaperContribution(BaseModel):
     authors: str = ""
     doi: str | None = None
     url: str | None = None
+    candidate_doi: str | None = None
+    candidate_url: str | None = None
     core_contribution: str = Field(min_length=20)
     application_domain: str = Field(min_length=3)
     key_metrics: list[str] = Field(default_factory=list)
@@ -369,11 +371,11 @@ def extract_paper_contribution(
     # a DOI in a bibliography is not proof of this document's identity.
     model_doi = data.get("doi")
     model_url = data.get("url")
-    data["doi"] = doi_found
-    data["url"] = f"https://doi.org/{doi_found}" if doi_found else arxiv_url
+    data["candidate_doi"] = doi_found
+    data["candidate_url"] = f"https://doi.org/{doi_found}" if doi_found else arxiv_url
     conflict = bool(
         (model_doi and model_doi != doi_found)
-        or (model_url and model_url != data["url"])
+        or (model_url and model_url != data["candidate_url"])
         or len({m.group(1).rstrip(".,;") for m in _DOI_RE.finditer(text)}) > 1
     )
     data["locator_status"] = (
@@ -383,9 +385,11 @@ def extract_paper_contribution(
     # Never trust model-supplied coverage/identity fields, even if valid JSON.
     data["input_coverage"] = PDFInputCoverage.model_validate(coverage)
 
-    # Fallback placeholder DOI so EvidenceSource passes model validation
-    if not data.get("doi") and not data.get("url"):
-        data["doi"] = _placeholder_doi(str(data.get("title", "paper")))
+    # A regex hit is only a candidate, even a lone first-page DOI. Front matter
+    # can cite prior work too. A synthetic upload identity prevents that hit
+    # becoming A1's registered DOI or dedup key without manuscript verification.
+    data["doi"] = _placeholder_doi(str(data.get("title", "paper")))
+    data["url"] = None
 
     valid_fields = PaperContribution.model_fields.keys()
     return PaperContribution(**{k: v for k, v in data.items() if k in valid_fields})
@@ -395,81 +399,28 @@ def paper_to_evidence_source(
     pc: PaperContribution,
     url_checker: "UrlChecker | None" = None,  # noqa: F821
 ) -> "EvidenceSource":  # noqa: F821
-    """Convert a PaperContribution into an EvidenceSource for pipeline injection as A1.
+    """Use the upload as A1, never a bibliography locator as its identity.
 
-    Newly extracted locators are candidates found in the actual model input;
-    legacy contributions may still carry model-provided locators. A reachable
-    URL proves neither manuscript identity nor support for the model summary.
-    Keep uploads at medium credibility, even when the candidate is reachable,
-    and retain the identity limitation explicitly instead of upgrading to high.
+    Candidate and legacy locators have no independent manuscript match. The
+    optional checker remains call-compatible but is not invoked: reachability
+    cannot authorize identity or an additional network request at this seam.
     """
-    from academic_agent.evidence import EvidenceSource, check_public_url
+    from academic_agent.evidence import EvidenceSource
 
-    if url_checker is None:
-        url_checker = check_public_url
-
-    # Prefer real DOI URL; placeholder DOIs get stored in the doi field only.
-    # Always populate src_doi when available so dedup and citation-tracking work.
-    _real_doi = pc.doi if (pc.doi and not pc.doi.startswith(_PLACEHOLDER_DOI_PREFIX)) else None
-    if not _real_doi and pc.url:
-        # Extract DOI from a doi.org URL the LLM returned in the url field.
-        _m = re.match(r"https?://doi\.org/(10\.\d{4,9}/[^\s?#]+)", pc.url.strip())
-        if _m:
-            _real_doi = _m.group(1)
-
-    if _real_doi:
-        src_doi: str | None = _real_doi
-        src_url: str | None = pc.url or f"https://doi.org/{_real_doi}"
-    elif pc.url:
-        src_doi = None
-        src_url = pc.url
-    else:
-        src_doi = pc.doi  # placeholder, passes format check
-        src_url = None
-
-    if src_url is not None and not url_checker(str(src_url))[0]:
-        # A doi.org link that does not resolve condemns the DOI itself, not
-        # just the link. Any other URL failing says nothing about a DOI that
-        # was extracted separately, so that one is re-checked below instead.
-        if src_doi and str(src_url).startswith("https://doi.org/"):
-            src_doi = None
-        src_url = None
-
-    if src_url is None and _real_doi and src_doi:
-        _resolver = f"https://doi.org/{src_doi}"
-        src_url = _resolver if url_checker(_resolver)[0] else None
-        if src_url is None:
-            src_doi = None
-
-    # Nothing survived verification, but the upload itself is still real and
-    # still has to reach the crew as A1 — fall back to the same synthetic id
-    # used for a paper that never carried an identifier at all.
-    if src_url is None and src_doi is None:
-        src_doi = _placeholder_doi(pc.title or "Uploaded Paper")
-
-    # Reachability, document identity and claim support are separate tests.
-    # The first cannot promote an uploaded model summary to verified identity.
-    verifiable = src_url is not None or not src_doi.startswith(_PLACEHOLDER_DOI_PREFIX)
-
+    # Apply this to old saved contributions too. Fixing only new uploads would
+    # leave legacy model/regex locators citable after a deployment restart.
+    src_doi = (pc.doi if pc.doi and pc.doi.startswith(_PLACEHOLDER_DOI_PREFIX)
+               else _placeholder_doi(pc.title or "Uploaded Paper"))
     summary = f"{pc.core_contribution.rstrip('.')}. {pc.delta_from_prior}"
-
     return EvidenceSource(
-        source_id="A1",
-        title=pc.title or "Uploaded Paper",
-        url=src_url,  # type: ignore[arg-type]
-        doi=src_doi,
-        publisher=pc.authors or "Uploaded",
-        published_date=None,
-        accessed_date=date.today(),
-        source_type="academic_paper",
+        source_id="A1", title=pc.title or "Uploaded Paper",
+        url=None, doi=src_doi, publisher=pc.authors or "Uploaded",
+        published_date=None, accessed_date=date.today(), source_type="academic_paper",
         credibility_tier="medium",
         credibility_reason=(
-            "Uploaded paper with a reachable candidate locator; document identity "
-            f"and claim support have not been independently checked ({pc.locator_status})."
-            if verifiable else
-            "Primary source uploaded by the researcher; no independently "
-            "resolvable DOI or URL was found in the paper."
+            "Uploaded paper; document identity and claim support have not been independently checked. "
+            f"Candidate locators are excluded from citation identity ({pc.locator_status}); "
+            "the synthetic upload identifier is not a registered DOI."
         ),
-        evidence_summary=summary[:500],
-        citation_count=None,
+        evidence_summary=summary[:500], citation_count=None,
     )

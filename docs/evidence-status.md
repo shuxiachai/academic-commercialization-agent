@@ -47,6 +47,13 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+PDF candidate locators are now separate from A1 citation identity, including
+legacy extraction conversion. Signed quantities and milli/mega symbols remain
+distinct; unsupported unit notation abstains. The actual PDF thread publishes
+known failure receipts after HTTP cancellation. Read-only 90-artifact replay
+moves 18 previously checked findings to unverifiable; it is not an accuracy
+gain. See the [repair and explicit limits](results-2026-09-11-pdf-numeric-receipt-seams.md).
+
 Run/PDF/resume acceptance now supports opt-in durable idempotency and read-only
 receipt lookup. Fresh-document Chromium recovery for all three first-party
 operations uses intercepted POSTs, not paid-provider calls; unknown and corrupt

@@ -148,20 +148,25 @@ class ContributionAssemblyTests(unittest.TestCase):
 
     def test_a_model_doi_cannot_override_document_text(self):
         pc = self._extract(["doi:10.1000/from-text"], doi="10.1000/from-model")
-        self.assertEqual(pc.doi, "10.1000/from-text")
+        self.assertEqual(pc.candidate_doi, "10.1000/from-text")
+        self.assertTrue(pc.doi.startswith("10.0000/uploaded-"))
         self.assertEqual(pc.locator_status, "conflicting_candidates")
-        self.assertIn("from-text", pc.url)
+        self.assertIn("from-text", pc.candidate_url)
+        self.assertIsNone(pc.url)
 
     def test_a_doi_in_the_text_is_used_when_the_model_returns_none(self):
         """The regex is the check on the model: a DOI it invented would not
         appear in the paper, and one it missed still gets found."""
         pc = self._extract(["Preprint. doi:10.1000/from-text here"])
-        self.assertEqual(pc.doi, "10.1000/from-text")
+        self.assertEqual(pc.candidate_doi, "10.1000/from-text")
+        self.assertTrue(pc.doi.startswith("10.0000/uploaded-"))
+        self.assertIsNone(pc.url)
 
     def test_an_arxiv_url_is_used_when_there_is_no_doi(self):
         pc = self._extract(["Available at https://arxiv.org/abs/2501.01234"])
-        self.assertEqual(str(pc.url), "https://arxiv.org/abs/2501.01234")
-        self.assertIsNone(pc.doi)
+        self.assertEqual(pc.candidate_url, "https://arxiv.org/abs/2501.01234")
+        self.assertIsNone(pc.url)
+        self.assertTrue(pc.doi.startswith("10.0000/uploaded-"))
 
     def test_a_placeholder_doi_is_minted_when_nothing_identifies_the_paper(self):
         """Without one the paper cannot become an EvidenceSource, so the

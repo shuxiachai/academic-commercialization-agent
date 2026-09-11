@@ -324,6 +324,11 @@ the [identity/logging regression and accounting limits](docs/results-2026-09-10-
 
 ## Keeping this index short without erasing decisions
 
+PDF candidates never become A1 citation identity, including legacy conversion.
+Numeric sign/unit uncertainty must not become support; known PDF thread failures
+must finalize receipts even without a waiter, while journal write failure stays
+unresolved. See the [boundary repair and coverage tradeoff](docs/results-2026-09-11-pdf-numeric-receipt-seams.md).
+
 Crew-node accounting now publishes scope separately from temporal/price
 completeness. Legacy benchmark inspection is not paid reuse authorization:
 new batches bind source/model/config/fixture identity and refuse occupied

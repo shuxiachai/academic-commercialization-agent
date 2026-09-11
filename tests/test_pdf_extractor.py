@@ -185,10 +185,10 @@ class PaperToEvidenceSourceTests(unittest.TestCase):
         self.assertEqual(src.credibility_tier, "medium")
         self.assertIn("not been independently checked", src.credibility_reason)
 
-    def test_real_doi_sets_doi_and_doi_org_url(self):
+    def test_legacy_real_doi_is_not_a_verified_upload_identity(self):
         src = paper_to_evidence_source(_make_pc(doi="10.1038/s41586-023-001"), _reachable)
-        self.assertEqual(src.doi, "10.1038/s41586-023-001")
-        self.assertIn("doi.org", str(src.url))
+        self.assertTrue(src.doi.startswith("10.0000/uploaded-"))
+        self.assertIsNone(src.url)
 
     def test_placeholder_doi_stored_but_no_url(self):
         placeholder = "10.0000/uploaded-abc123"
@@ -196,18 +196,19 @@ class PaperToEvidenceSourceTests(unittest.TestCase):
         self.assertEqual(src.doi, placeholder)
         self.assertTrue(src.url is None or not src.url.startswith("https://doi.org/10.0000"))
 
-    def test_arxiv_url_used_when_no_real_doi(self):
+    def test_legacy_arxiv_url_is_not_a_verified_upload_identity(self):
         src = paper_to_evidence_source(
             _make_pc(doi=None, url="https://arxiv.org/abs/1706.03762"), _reachable
         )
-        self.assertIn("1706.03762", str(src.url))
-        self.assertIsNone(src.doi)
+        self.assertIsNone(src.url)
+        self.assertTrue(src.doi.startswith("10.0000/uploaded-"))
 
-    def test_doi_org_url_in_url_field_extracts_real_doi(self):
+    def test_legacy_doi_url_cannot_bypass_upload_identity_boundary(self):
         src = paper_to_evidence_source(
             _make_pc(doi=None, url="https://doi.org/10.1016/j.cell.2024.01.001"), _reachable
         )
-        self.assertEqual(src.doi, "10.1016/j.cell.2024.01.001")
+        self.assertIsNone(src.url)
+        self.assertTrue(src.doi.startswith("10.0000/uploaded-"))
 
     def test_evidence_summary_combines_contribution_and_delta(self):
         pc = _make_pc(doi="10.1234/test")
@@ -228,8 +229,11 @@ class PaperToEvidenceSourceTests(unittest.TestCase):
 
 
 class PaperLocatorVerificationTests(unittest.TestCase):
-    """The DOI/URL come from an LLM reading PDF text, so they are checked
-    before this source is offered to the report as a citable reference."""
+    """Old extraction locators must not bypass the new identity boundary.
+
+    These replace the old resolver-fallback assertions deliberately: even a
+    successful HTTP check cannot justify attaching a citation to this upload.
+    """
 
     def test_unresolvable_doi_is_dropped_rather_than_cited(self):
         """The bad identifier must not survive into the report. It degrades
@@ -246,10 +250,10 @@ class PaperLocatorVerificationTests(unittest.TestCase):
         locator that claim is not the pipeline's to make."""
         src = paper_to_evidence_source(_make_pc(doi="10.1234/hallucinated"), _unreachable)
         self.assertEqual(src.credibility_tier, "medium")
-        self.assertIn("no independently resolvable", src.credibility_reason)
+        self.assertIn("not been independently checked", src.credibility_reason)
 
-    def test_unreachable_url_falls_back_to_the_doi_resolver(self):
-        """A dead publisher link does not condemn a DOI extracted separately."""
+    def test_dead_legacy_url_does_not_trigger_candidate_doi_resolution(self):
+        """Neither URL reachability nor a successful resolver grants identity."""
         checks = []
 
         def only_doi_org_resolves(url: str) -> tuple[bool, str]:
@@ -260,11 +264,11 @@ class PaperLocatorVerificationTests(unittest.TestCase):
             _make_pc(doi="10.1038/s41586-023-001", url="https://publisher.example/dead"),
             only_doi_org_resolves,
         )
-        self.assertEqual(src.doi, "10.1038/s41586-023-001")
-        self.assertEqual(str(src.url), "https://doi.org/10.1038/s41586-023-001")
+        self.assertTrue(src.doi.startswith("10.0000/uploaded-"))
+        self.assertIsNone(src.url)
         self.assertEqual(src.credibility_tier, "medium")
         self.assertIn("not been independently checked", src.credibility_reason)
-        self.assertIn("https://publisher.example/dead", checks)
+        self.assertEqual(checks, [])
 
     def test_unreachable_arxiv_url_leaves_no_real_locator(self):
         src = paper_to_evidence_source(

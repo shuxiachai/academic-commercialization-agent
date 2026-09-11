@@ -1287,6 +1287,26 @@ async def _process_uploaded_paper(paper_id: str, pdf_path: str, **credentials) -
                 # the normal paper TTL; raw input was removed by save_extraction.
                 ticket.finish({"paper_id": paper_id}, 200)
             return contribution
+        except (receipts.ReceiptError, _PaperAbandoned):
+            # A failed commit is unavailable acknowledgement, not extraction
+            # failure. Queued abandonment already has its own final receipt.
+            raise
+        except Exception as exc:  # noqa: BLE001 - SDK/parser failures vary; actual thread owns finality
+            if ticket is not None:
+                if isinstance(exc, (runs.ConcurrencyLimitReached, runs.DailyCapReached)):
+                    status = 429
+                    code = ("concurrency_limit" if isinstance(exc, runs.ConcurrencyLimitReached)
+                            else "daily_quota_exceeded")
+                else:
+                    status = (503 if isinstance(exc, runs.PaidLedgerUnavailable) else
+                              500 if isinstance(exc, _PaperStorageError) else 422)
+                    code = None
+                # A cancelled waiter cannot run its HTTP exception mapping.
+                # Record known execution failure here, including local 5xx.
+                # No exception text, refund claim or inferred zero usage.
+                ticket.finish({"detail": "The original request failed and was not retried. This does not establish zero cost.",
+                               "error_code": code}, status, failed=True)
+            raise
         finally:
             if not stored or (abandoned.is_set() and ticket is None):
                 papers.discard(paper_id)

@@ -66,16 +66,58 @@ _UNIT_SYNONYMS = {
     "month": "months", "cycle": "cycles",
 }
 
+# Explicit SI spellings only; case folding is reserved for ordinary words.
+# mM is not mm and MK is not mK. Unsupported symbols must abstain instead of
+# silently acquiring the meaning of a differently cased recognised symbol.
+_SI_UNITS = {
+    "Wh/kg": "wh/kg", "Wh/L": "wh/l", "Wh/l": "wh/l", "mAh": "mah",
+    "kWh": "kwh", "MWh": "mwh", "GWh": "gwh",
+    "kW": "kw", "MW": "mw", "GW": "gw",
+    "MPa": "mpa", "GPa": "gpa", "kPa": "kpa", "°C": "°c", "℃": "°c", "K": "k",
+    "nm": "nm", "µm": "µm", "um": "µm", "mm": "mm", "cm": "cm", "km": "km",
+    "kg": "kg", "mg": "mg", "µg": "µg", "ug": "µg", "ml": "ml", "mL": "ml",
+    "mol": "mol", "Hz": "hz", "kHz": "khz", "MHz": "mhz", "GHz": "ghz",
+}
+
 
 def _normalize_unit(unit: str) -> str:
-    cleaned = (unit or "").strip().lower().rstrip(".,;:)")
+    raw = (unit or "").strip().rstrip(".,;:)")
+    # SI prefixes are case-sensitive. Lowercasing mW into MW's canonical key
+    # erases six orders of magnitude; these spellings must remain distinct.
+    milli = {"mW": "milliwatt", "mWh": "milliwatt-hour", "mPa": "millipascal",
+             "mHz": "millihertz"}
+    if raw in milli:
+        return milli[raw]
+    cleaned = raw.lower()
+    if cleaned in {symbol.lower() for symbol in _SI_UNITS}:
+        return _SI_UNITS.get(raw, _UNKNOWN_UNIT + raw)
     return _UNIT_SYNONYMS.get(cleaned, cleaned)
 
 
 _FIGURE_RE = re.compile(
-    r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)\s*(?:" + _UNIT_PATTERN + r")?",
+    r"(?<![\w.])([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(?:" + _UNIT_PATTERN + r")?",
     re.IGNORECASE,
 )
+
+# An unrecognised suffix is NOT a unitless number. Preserve uncertainty rather
+# than accepting identical digits as support. Ordinary connective words after a
+# unitless value are allowed; this short grammar is not universal unit parsing.
+_UNIT_TAIL = re.compile(r"(?:[^\W\d_]|[°℃%])[\w°℃%/^²³·*_-]*")
+_PROSE_AFTER_NUMBER = {"under", "in", "at", "for", "and", "or", "of", "to", "as",
+                       "is", "was", "were", "with", "by", "from", "than",
+                       "citation", "citations"}
+_UNKNOWN_UNIT = "?unknown:"
+
+
+def _figure_unit(match: re.Match, text: str) -> str:
+    raw = match.group(0)[len(match.group(1)):].strip()
+    tail = text[match.end():]
+    extra = _UNIT_TAIL.match(tail)
+    if raw and (tail.startswith(("/", "^", "²", "³", "·", "*")) or extra or tail[:1].isalnum()):
+        return _UNKNOWN_UNIT + raw + tail.split()[0]
+    if not raw and extra and extra.group().lower() not in _PROSE_AFTER_NUMBER:
+        return _UNKNOWN_UNIT + extra.group()
+    return _normalize_unit(raw)
 
 #: Words that turn a following round number into a bound rather than a
 #: quotation. "above 100 GPa" is the analyst's threshold, and is a correct
@@ -161,7 +203,7 @@ def _normalize_number(raw: str) -> str:
     """'1,250.0' -> '1250'. Thousands separators and trailing zeros are
     formatting, not content, and a claim that writes 26.10% against a source
     that writes 26.1% is quoting the same figure."""
-    cleaned = raw.replace(",", "").strip()
+    cleaned = raw.replace(",", "").replace("−", "-").strip().lstrip("+")
     if "." in cleaned:
         cleaned = cleaned.rstrip("0").rstrip(".")
     return cleaned or "0"
@@ -182,7 +224,7 @@ def checkable_figures(text: str) -> list[tuple[str, str]]:
     seen: set[str] = set()
     for match in _FIGURE_RE.finditer(text or ""):
         raw = match.group(1)
-        unit = _normalize_unit(match.group(0)[len(raw):])
+        unit = _figure_unit(match, text)
         number = _normalize_number(raw)
         try:
             value = float(number)
@@ -195,7 +237,7 @@ def checkable_figures(text: str) -> list[tuple[str, str]]:
         # report that ordinary, correct sentence as a fabrication. A figure
         # carrying a unit stays even if it looks like a year: "2024 GWh" is a
         # quantity, not a date.
-        if not unit and 1900 <= value <= 2100 and "." not in number:
+        if (not unit or unit.startswith(_UNKNOWN_UNIT)) and 1900 <= value <= 2100 and "." not in number:
             continue
 
         # A round number behind a comparative is a bound the analyst chose,
@@ -207,7 +249,10 @@ def checkable_figures(text: str) -> list[tuple[str, str]]:
         if "." not in number and _BOUND_QUALIFIERS.search(text[: match.start()]):
             continue
 
-        distinctive = bool(unit) or "." in number or value >= _LARGE_ENOUGH
+        # A recognised base with an unsupported suffix (1 cm², 2 kg/foo) is
+        # still a quantity requiring abstention, not a disposable small count.
+        has_unit_prefix = bool(match.group(0)[len(raw):].strip())
+        distinctive = has_unit_prefix or "." in number or abs(value) >= _LARGE_ENOUGH
         key = f"{number}|{unit}"
         if distinctive and key not in seen:
             seen.add(key)
@@ -295,6 +340,8 @@ def _supported(number: str, unit: str, present: list[tuple[str, str]],
     without repeating the unit" into an accusation of fabrication.
     """
     for source_number, source_unit in present:
+        if unit.startswith(_UNKNOWN_UNIT) or source_unit.startswith(_UNKNOWN_UNIT):
+            continue
         if source_unit and unit and source_unit != unit:
             continue
         if _same_numeric_value(number, source_number):
@@ -305,6 +352,7 @@ def _supported(number: str, unit: str, present: list[tuple[str, str]],
     return not unit and any(
         _same_numeric_value(number, _normalize_number(match.group(1)))
         for match in _FIGURE_RE.finditer(haystack)
+        if not _figure_unit(match, haystack).startswith(_UNKNOWN_UNIT)
     )
 
 
@@ -378,6 +426,19 @@ def _check_report(report: Any, sources: Any = None) -> GroundingReport:
 
         haystack = " ".join(_source_text(s) for s in checkable)
         present = checkable_figures(haystack)
+        if any(unit.startswith(_UNKNOWN_UNIT) for _, unit in figures) or any(
+            source_unit.startswith(_UNKNOWN_UNIT) and _same_numeric_value(number, source_number)
+            and not _supported(number, unit, present, haystack)
+            for number, unit in figures for source_number, source_unit in present
+        ):
+            # Unknown units cannot earn a pass or a false accusation. Keep
+            # this outside the checked denominator, visible in the audit.
+            checks.append(ClaimCheck(
+                finding_id=str(getattr(finding, "finding_id", "")), claim=claim,
+                source_ids=cited_ids, unverifiable_reason="unrecognised unit notation prevents numeric comparison",
+            ))
+            unverifiable += 1
+            continue
         hit, miss = [], []
         for number, unit in figures:
             if _supported(number, unit, present, haystack):
