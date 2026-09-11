@@ -1,6 +1,7 @@
 """Assert ingress limits at HTTP/parser seams, before auth or paid admission."""
 
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import httpx
@@ -103,31 +104,61 @@ def test_valid_sized_upload_preserves_authentication(ingress):
 
 @pytest.mark.parametrize("kind", ["idle", "total"])
 def test_upload_deadline_closes_parser_files(ingress, monkeypatch, kind):
-    """A slow body cannot retain a parser slot indefinitely before paid admission."""
+    """Expire after an actual file opens, not before scheduling reaches parsing."""
     monkeypatch.setattr(upload_boundary, "MAX_UPLOAD_PARSERS", 1)
+    clock = [0.0]
+    waits, cancelled = [], []
+    original_open = formparsers.SpooledTemporaryFile
+
+    def opened(*args, **kwargs):
+        file = original_open(*args, **kwargs)
+        if kind == "total":
+            clock[0] = upload_boundary.UPLOAD_TOTAL_SECONDS + 1
+        return file
 
     async def chunks():
+        # Reproduce the old fixture failure deterministically: its 20ms limit
+        # could expire before there was any parser file to test for cleanup.
+        await asyncio.sleep(0.05)
         yield multipart(256)[:-13]
-        await asyncio.sleep(1)
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.append(True)
         yield b"--audit--\r\n"
 
-    # Scope the artificial fault to the rejected request. Keeping its 20ms
-    # limit for the capacity probe made Windows scheduling look like a leak:
-    # a correct next request timed out (408) before reaching authentication.
-    # Do not relax 408/auth assertions or change the production timeouts.
+    async def wait_receive(awaitable, timeout):
+        waits.append(timeout)
+        # Only the already-opened parser gets a deliberately expiring real
+        # asyncio timeout. The first read has a test watchdog, not a synthetic
+        # 20ms precondition. The module-local proxy leaves ASGI/httpx clocks
+        # and global asyncio scheduling untouched.
+        return await asyncio.wait_for(awaitable, 0.02 if ingress else 5)
+
+    async def exercise():
+        # Missing rejection or a bypassed wait must fail, never hang the suite.
+        return await asyncio.wait_for(post(chunks()), 5)
+
+    # Keep the production 30s/120s constants and assert their chosen wait at
+    # the seam. Total expiry jumps only this module's clock after file-open;
+    # idle expiry uses actual await cancellation on the next body receive.
+    # All injected dependencies end before the single-slot capacity probe.
     with monkeypatch.context() as deadline:
-        deadline.setattr(upload_boundary, "UPLOAD_IDLE_SECONDS", 0.02 if kind == "idle" else 1)
-        deadline.setattr(upload_boundary, "UPLOAD_TOTAL_SECONDS", 1 if kind == "idle" else 0.02)
-        response = asyncio.run(post(chunks()))
+        deadline.setattr(formparsers, "SpooledTemporaryFile", opened)
+        deadline.setattr(upload_boundary, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+        deadline.setattr(upload_boundary, "asyncio", SimpleNamespace(wait_for=wait_receive))
+        response = asyncio.run(exercise())
         assert response.status_code == 408
         assert response.headers["X-Error-Code"] == "upload_timeout"
         assert ingress
         assert all(file.closed for file in ingress)
+        expected = min(upload_boundary.UPLOAD_IDLE_SECONDS, upload_boundary.UPLOAD_TOTAL_SECONDS)
+        assert waits == [expected] * (2 if kind == "idle" else 1)
+        assert cancelled == ([True] if kind == "idle" else [])
 
     # One slot makes a retained parser observable as 429 rather than allowing
-    # the next request into a second slot. A 50ms valid transfer also makes
-    # failure to restore the ordinary deadline deterministic, not host-speed
-    # dependent. The normal request must still reach auth and return 401.
+    # the next request into a second slot. Keep the slow valid transfer as a
+    # positive control under the ordinary clock, receive and deadline limits.
     async def legitimate_chunks():
         body = multipart()
         yield body[:-13]
