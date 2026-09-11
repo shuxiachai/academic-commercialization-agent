@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-11 market estimate sample contract](results-2026-09-11-market-estimate-sample-contract.md) — synthetic controls and unreviewed snapshot preparation, not an independent market-accuracy evaluation.
+
 - [2026-09-10 durable paid receipts](results-2026-09-10-durable-paid-receipts.md) — offline HTTP/SQLite/browser acceptance recovery and defect reinjection; no paid experiment.
 
 [Current evidence ledger](evidence-status.md) · [Documentation map](README.md)
