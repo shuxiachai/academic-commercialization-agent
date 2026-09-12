@@ -1,0 +1,744 @@
+{
+  "version": "market-source-followup-v1",
+  "observed_date": "2026-09-12",
+  "inspection_base": "fed29bb80b6b02a4f930be634b814176c4045f5a",
+  "observer": "codex_agent",
+  "independent_human_review": false,
+  "production_effect": "none",
+  "source_snapshot_sha256": "bae3d1c310a274285fddf32088da426398fe921f8f9a1082e40d7655190e8c47",
+  "prior_observation_sha256": "0fcec35bdc56bf8c1ac354255e230b8cbaaa026802338fe4b702cc370bc4e06d",
+  "selection": "remaining_saved_candidates_S07_to_S20_in_saved_order_without_replacement",
+  "selection_limits": "convenience_followup_not_preregistered_or_held_out",
+  "access_method": "assistant_web_reader_may_use_cached_text",
+  "access_limits": [
+    "one_original_URL_failed_then_canonical_slash_returned_text",
+    "S10_methodology_link_returned_error",
+    "bounded_searches_for_public_methodology_did_not_establish_price_basis",
+    "no_full_paid_reports_or_original_HTML_identity"
+  ],
+  "existing_snapshot_modified": false,
+  "original_annotations_remain_unreviewed": true,
+  "candidates": [
+    {
+      "id": "S07",
+      "saved_mode": "live",
+      "saved_text_sha256": "076dc22a08d3d15421807d5e26b8dc973b0a83e1d17531588809e68906e95612",
+      "url": "https://www.fortunebusinessinsights.com/industry-reports/perovskite-solar-cell-market-101556",
+      "read_url": "https://www.fortunebusinessinsights.com/industry-reports/perovskite-solar-cell-market-101556",
+      "page_read": "readable",
+      "locators": [
+        "PEROVSKITE SOLAR CELLS MARKET SIZE AND FUTURE OUTLOOK",
+        "Report Scope & Segmentation"
+      ],
+      "selected_amount": {
+        "value": "101.02",
+        "scale": "million",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "perovskite solar cells, multiple applications",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "forward_value_snapshot_mismatch"
+      ],
+      "note": "The 2025 value reappears; the 2034 page forecast is now 3,221.11 million versus saved 3,269.02. Both scope and base year are visible; cell/module revenue boundaries and price basis are not established.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S08",
+      "saved_mode": "live",
+      "saved_text_sha256": "febb5c360085f90ef69c16f00e269a7ed25c6994b5262e097b37efbbb22b2845",
+      "url": "https://market.us/report/perovskite-solar-cells-module-market",
+      "read_url": "https://market.us/report/perovskite-solar-cells-module-market/",
+      "page_read": "readable",
+      "locators": [
+        "Report Overview",
+        "Report Scope"
+      ],
+      "selected_amount": {
+        "value": "0.44",
+        "scale": "billion",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "perovskite solar cell modules, multiple applications",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "initial_reader_error_recovered_canonical_slash",
+        "cell_module_accounting_boundary_unresolved"
+      ],
+      "note": "The headline and table repeat the selected value. Reading the original URL failed; the canonical trailing-slash URL later returned text. This is the same publisher candidate, not a substituted source.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S09",
+      "saved_mode": "live",
+      "saved_text_sha256": "9ca58348d57ff48b5c9cde20315ee420bec28d095c297198ba1ffe52cbb9c419",
+      "url": "https://www.marketsandmarkets.com/Market-Reports/crispr-technology-market-134401204.html",
+      "read_url": "https://www.marketsandmarkets.com/Market-Reports/crispr-technology-market-134401204.html",
+      "page_read": "readable",
+      "locators": [
+        "market headline",
+        "MARKET SCOPE"
+      ],
+      "selected_amount": {
+        "value": "3.21",
+        "scale": "billion",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "CRISPR products and services including nonmedical applications",
+        "time_basis": "forecast",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "forecast_vs_estimate_pair",
+        "scope_broader_than_genetic_diseases"
+      ],
+      "note": "The scope table uses 2024 as base and 2025-2030 as forecast. The 2025 figure is not a retrospective estimate just because the present date is later. Revenue-based estimation headings do not establish all inclusion and pricing assumptions.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S10",
+      "saved_mode": "live",
+      "saved_text_sha256": "98fc3cfec9861328ef64c1c6768632de53ad163dde82b95702f35a9f0b76cc74",
+      "url": "https://www.towardshealthcare.com/insights/crispr-gene-editing-market-sizing",
+      "read_url": "https://www.towardshealthcare.com/insights/crispr-gene-editing-market-sizing",
+      "page_read": "readable",
+      "locators": [
+        "opening estimate",
+        "Revenue, 2025",
+        "Market Definition"
+      ],
+      "selected_amount": {
+        "value": "4.76",
+        "scale": "billion",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "CRISPR gene editing products and services",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": "annual_revenue"
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "forecast_vs_estimate_pair",
+        "methodology_link_reader_error"
+      ],
+      "note": "The page labels the 2025 number an estimate and revenue. Its report-methodology link returned an error, so the missing price assumptions cannot be inferred from the table of contents.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S11",
+      "saved_mode": "live",
+      "saved_text_sha256": "de934d4e14a096a84bdf5ca457515377c6e8b4909831806278fedee1a5744999",
+      "url": "https://www.gminsights.com/industry-analysis/post-combustion-carbon-capture-storage-market",
+      "read_url": "https://www.gminsights.com/industry-analysis/post-combustion-carbon-capture-storage-market",
+      "page_read": "readable",
+      "locators": [
+        "Market Size & Growth",
+        "coverage in revenue and MTPA"
+      ],
+      "selected_amount": {
+        "value": "5.5",
+        "scale": "billion",
+        "currency": "USD",
+        "year": 2024
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2024,
+        "geography": "global",
+        "market_scope": "post-combustion carbon capture and storage",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": "annual_revenue"
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "year_mismatch_pair",
+        "capture_technology_scope_mismatch"
+      ],
+      "note": "The amount belongs to 2024 and post-combustion only, not all capture technologies in 2025. Coverage names revenue separately from physical capture capacity.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S12",
+      "saved_mode": "live",
+      "saved_text_sha256": "57564d578d537a497e05a38ff66a8f4878fa2d1e6d95a94301b77a995744da3f",
+      "url": "https://www.fortunebusinessinsights.com/industry-reports/carbon-capture-and-sequestration-market-100819",
+      "read_url": "https://www.fortunebusinessinsights.com/industry-reports/carbon-capture-and-sequestration-market-100819",
+      "page_read": "readable",
+      "locators": [
+        "Carbon Capture and Sequestration (CCS) Market Size",
+        "technology definition"
+      ],
+      "selected_amount": {
+        "value": "4.51",
+        "scale": "billion",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "carbon capture and sequestration across multiple capture technologies",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "year_mismatch_pair",
+        "capture_technology_scope_mismatch"
+      ],
+      "note": "The definition includes pre-combustion, oxy-fuel and post-combustion. The 2025 total must not be compared directly with the prior-year post-combustion segment.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S13",
+      "saved_mode": "live",
+      "saved_text_sha256": "c15d7f771140e81593f648e777baa4ad2cc0108cf67f9f3b842ee293b5e2b2d3",
+      "url": "https://www.mordorintelligence.com/industry-reports/cultured-meat-market",
+      "read_url": "https://www.mordorintelligence.com/industry-reports/cultured-meat-market",
+      "page_read": "readable",
+      "locators": [
+        "Cultured Meat Market Analysis",
+        "Global Cultured Meat Market Report Scope"
+      ],
+      "selected_amount": {
+        "value": "35.67",
+        "scale": "million",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "cultured meat including seafood and hybrid products",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "hybrid_product_revenue_boundary_unknown"
+      ],
+      "note": "The page covers foodservice and retail and reports value and tons. Those units do not establish manufacturer versus retail valuation or the treatment of the non-cultured share of hybrid products.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S14",
+      "saved_mode": "live",
+      "saved_text_sha256": "9550c54ee4ac547a3e92b530a1b874b2979703b204ac310195f74281446a16bd",
+      "url": "https://www.researchnester.com/reports/cultured-meat-market/8272",
+      "read_url": "https://www.researchnester.com/reports/cultured-meat-market/8272",
+      "page_read": "readable",
+      "locators": [
+        "Cultured Meat Market Outlook",
+        "Cultured Meat Market Size and Forecast",
+        "segmentation"
+      ],
+      "selected_amount": {
+        "value": "292.6",
+        "scale": "million",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "cultured meat including seafood and hybrid products",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "forecast_endpoints_cagr_mismatch",
+        "hybrid_product_revenue_boundary_unknown"
+      ],
+      "note": "The page gives 303.1 million for 2026, 416.7 million for 2035 and 33.6% CAGR. Endpoint arithmetic is about 3.60%, not 33.6%; the underlying correct forecast is not established.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S15",
+      "saved_mode": "live",
+      "saved_text_sha256": "ca9f05c86151539cd498d88a5dde9adcea16549a41f65986d664c89f94ece694",
+      "url": "https://www.rootsanalysis.com/reports/quantum-computing-in-drug-discovery.html",
+      "read_url": "https://www.rootsanalysis.com/reports/quantum-computing-in-drug-discovery.html",
+      "page_read": "readable",
+      "locators": [
+        "Market Size",
+        "offering and drug discovery steps",
+        "Asia Pacific methodology note"
+      ],
+      "selected_amount": {
+        "value": "315",
+        "scale": "million",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "quantum computing offerings for drug discovery",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "measurement_boundary_unknown",
+        "detailed_methodology_full_report_only_in_inspected_text"
+      ],
+      "note": "The scope includes hardware, services and software; the page explicitly places detailed methodology in the full report. Attribution of shared hardware revenue to drug discovery and pricing assumptions remain unresolved.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S16",
+      "saved_mode": "live",
+      "saved_text_sha256": "9c744ad954eedc33f8c47b351e4a9fe2e959ebc5231f2e9a3395d98890adb656",
+      "url": "https://www.snsinsider.com/reports/quantum-computing-in-drug-discovery-market-10497",
+      "read_url": "https://www.snsinsider.com/reports/quantum-computing-in-drug-discovery-market-10497",
+      "page_read": "readable",
+      "locators": [
+        "Report Scope & Overview",
+        "Report Scope",
+        "Frequently Asked Questions"
+      ],
+      "selected_amount": {
+        "value": "0.45",
+        "scale": "billion",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "quantum computing offerings for drug discovery",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "within_page_2035_values_differ",
+        "measurement_boundary_unknown"
+      ],
+      "note": "The headline and scope table give 1.48 billion for 2035 while the FAQ gives 1.47. Technology and application lists overlap S15, but do not establish identical revenue boundaries or independent underlying data.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S17",
+      "saved_mode": "live",
+      "saved_text_sha256": "720fda4685253d5ca808b095498d6a59aafcf32fb46eecc34df9548b812853ae",
+      "url": "https://www.snsinsider.com/press-release/global-graphene-electronics-market",
+      "read_url": "https://www.snsinsider.com/press-release/global-graphene-electronics-market",
+      "page_read": "readable",
+      "locators": [
+        "press-release opening",
+        "Key Market Insights"
+      ],
+      "selected_amount": {
+        "value": "943.10",
+        "scale": "million",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "graphene electronics including energy-storage applications",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": "annual_revenue"
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "scope_differs_from_all_flexible_electronics"
+      ],
+      "note": "This covers graphene coatings and electronic or storage uses, not the intersection of graphene-based flexible devices alone.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S18",
+      "saved_mode": "live",
+      "saved_text_sha256": "f1f176a0e366433b1d44f8dd43730e7dce3818c04ec51f458bf362353d16e6f3",
+      "url": "https://www.precedenceresearch.com/flexible-electronics-market",
+      "read_url": "https://www.precedenceresearch.com/flexible-electronics-market",
+      "page_read": "readable",
+      "locators": [
+        "introduction",
+        "Revenue card",
+        "Flexible Electronics Market Size and Forecast"
+      ],
+      "selected_amount": {
+        "value": "38.08",
+        "scale": "billion",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "flexible electronics across materials",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": "annual_revenue"
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "scope_differs_from_graphene_electronics",
+        "within_page_base_year_conflict"
+      ],
+      "note": "Prose calls the amount a 2025 value, while the revenue card labels 2024. Flexible electronics is not the same market as all graphene electronics; no corrected year is invented.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S19",
+      "saved_mode": "live",
+      "saved_text_sha256": "19419088352428593a940643aa650782a67b6804565eb7f00b962d51ac7fb754",
+      "url": "https://www.snsinsider.com/reports/superconductors-market-4291",
+      "read_url": "https://www.snsinsider.com/reports/superconductors-market-4291",
+      "page_read": "readable",
+      "locators": [
+        "Report Scope and Overview",
+        "Report Attributes"
+      ],
+      "selected_amount": {
+        "value": "10.94",
+        "scale": "billion",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "low- and high-temperature superconductors",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "scope_not_ambient_room_temperature",
+        "component_system_boundary_unknown"
+      ],
+      "note": "The scope covers LTS and HTS applications. It does not measure the requested ambient-pressure room-temperature superconductor opportunity; material, component and end-system revenue inclusions are not reconciled.",
+      "source_truth": "not_established"
+    },
+    {
+      "id": "S20",
+      "saved_mode": "live",
+      "saved_text_sha256": "d91af7230f087aad8990d57de6f806cae1a6da4c14b976dbcb2cf23e7b2a8e83",
+      "url": "https://www.mordorintelligence.com/industry-reports/superconductors-market",
+      "read_url": "https://www.mordorintelligence.com/industry-reports/superconductors-market",
+      "page_read": "readable",
+      "locators": [
+        "Superconductors Market Analysis",
+        "Global Superconductors Market Report Scope"
+      ],
+      "selected_amount": {
+        "value": "1.34",
+        "scale": "billion",
+        "currency": "USD",
+        "year": 2025
+      },
+      "selected_amount_reappears_in_saved_and_page": true,
+      "dimensions": {
+        "metric": "market_size",
+        "currency": "USD",
+        "year": 2025,
+        "geography": "global",
+        "market_scope": "low- and high-temperature superconductors",
+        "time_basis": "estimate",
+        "price_basis": null,
+        "measurement_basis": null
+      },
+      "annotation_method": "agent_interpretation_of_inspected_publisher_passages",
+      "same_price_basis_established": false,
+      "independent_underlying_data_established": false,
+      "issue_codes": [
+        "scope_not_ambient_room_temperature",
+        "component_system_boundary_unknown"
+      ],
+      "note": "LTS, HTS, materials and end-use scope are visible. Similar headings to S19 do not establish identical component/system boundaries or a common price basis.",
+      "source_truth": "not_established"
+    }
+  ],
+  "pairs": [
+    {
+      "id": "P04",
+      "ids": [
+        "S07",
+        "S08"
+      ],
+      "outcome": "insufficient_information",
+      "mismatched": [],
+      "missing": [
+        "price_basis",
+        "reconciled_measurement_boundary",
+        "independent_underlying_data",
+        "cell_vs_module_scope_equivalence"
+      ],
+      "comparison_ratio": null,
+      "replacement_score": null,
+      "independent_human_review": false
+    },
+    {
+      "id": "P05",
+      "ids": [
+        "S09",
+        "S10"
+      ],
+      "outcome": "incompatible_time_basis",
+      "mismatched": [
+        "forecast_vs_estimate"
+      ],
+      "missing": [
+        "price_basis",
+        "reconciled_measurement_boundary",
+        "independent_underlying_data",
+        "exact_product_service_inclusions"
+      ],
+      "comparison_ratio": null,
+      "replacement_score": null,
+      "independent_human_review": false
+    },
+    {
+      "id": "P06",
+      "ids": [
+        "S11",
+        "S12"
+      ],
+      "outcome": "incompatible_scope_and_year",
+      "mismatched": [
+        "2024_vs_2025",
+        "post_combustion_vs_multiple_technologies"
+      ],
+      "missing": [
+        "price_basis",
+        "reconciled_measurement_boundary",
+        "independent_underlying_data"
+      ],
+      "comparison_ratio": null,
+      "replacement_score": null,
+      "independent_human_review": false
+    },
+    {
+      "id": "P07",
+      "ids": [
+        "S13",
+        "S14"
+      ],
+      "outcome": "insufficient_information",
+      "mismatched": [],
+      "missing": [
+        "price_basis",
+        "reconciled_measurement_boundary",
+        "independent_underlying_data",
+        "hybrid_revenue_allocation"
+      ],
+      "secondary_issues": [
+        "S14_forecast_arithmetic"
+      ],
+      "comparison_ratio": null,
+      "replacement_score": null,
+      "independent_human_review": false
+    },
+    {
+      "id": "P08",
+      "ids": [
+        "S15",
+        "S16"
+      ],
+      "outcome": "insufficient_information",
+      "mismatched": [],
+      "missing": [
+        "price_basis",
+        "reconciled_measurement_boundary",
+        "independent_underlying_data",
+        "shared_hardware_and_service_attribution"
+      ],
+      "secondary_issues": [
+        "S16_forward_value_conflict"
+      ],
+      "comparison_ratio": null,
+      "replacement_score": null,
+      "independent_human_review": false
+    },
+    {
+      "id": "P09",
+      "ids": [
+        "S17",
+        "S18"
+      ],
+      "outcome": "incompatible_scope",
+      "mismatched": [
+        "graphene_electronics_vs_all_flexible_electronics"
+      ],
+      "missing": [
+        "price_basis",
+        "reconciled_measurement_boundary",
+        "independent_underlying_data"
+      ],
+      "secondary_issues": [
+        "S18_year_conflict"
+      ],
+      "comparison_ratio": null,
+      "replacement_score": null,
+      "independent_human_review": false
+    },
+    {
+      "id": "P10",
+      "ids": [
+        "S19",
+        "S20"
+      ],
+      "outcome": "insufficient_information",
+      "mismatched": [],
+      "missing": [
+        "price_basis",
+        "reconciled_measurement_boundary",
+        "independent_underlying_data",
+        "component_vs_system_inclusions"
+      ],
+      "secondary_issues": [
+        "both_sources_not_requested_ambient_room_temperature_market"
+      ],
+      "comparison_ratio": null,
+      "replacement_score": null,
+      "independent_human_review": false
+    }
+  ],
+  "development_negatives": [
+    {
+      "id": "N01",
+      "source_candidate": "S07",
+      "url": "https://www.fortunebusinessinsights.com/industry-reports/perovskite-solar-cell-market-101556",
+      "locators": [
+        "market headline",
+        "KEY INDUSTRY DEVELOPMENTS, July 2025"
+      ],
+      "left": {
+        "value": "101.02",
+        "scale": "million",
+        "currency": "USD",
+        "year": 2025,
+        "metric": "market_size"
+      },
+      "right": {
+        "value": "28",
+        "scale": "million",
+        "currency": "USD",
+        "year": 2025,
+        "metric": "company_financing"
+      },
+      "outcome": "different_metric_same_publisher",
+      "comparison_ratio": null,
+      "source_truth": "not_established",
+      "note": "A market total and a GCL financing round are not two market estimates. This selected passage is a separate development negative, not an eighth candidate pair or independent two-source estimate."
+    }
+  ],
+  "summary": {
+    "selected_candidates": 14,
+    "readable_publisher_candidates": 14,
+    "selected_amounts_reappearing": 14,
+    "inspected_pairs": 7,
+    "explicitly_incompatible_pairs": 3,
+    "insufficient_information_pairs": 4,
+    "fully_established_same_definition_pairs": 0,
+    "additional_metric_negatives": 1,
+    "independent_human_judgments": 0,
+    "replacement_scores_emitted": 0,
+    "price_basis_unestablished_candidates": 14
+  }
+}

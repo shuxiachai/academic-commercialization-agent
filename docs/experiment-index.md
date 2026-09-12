@@ -1,5 +1,6 @@
 # Experiment archive index
 
+- [2026-09-12 market-source follow-up](results-2026-09-12-market-source-followup.md) — remaining 14 candidates and seven comparisons; all 20 inspected across two dates, no fully established real positive and no scoring change.
 - [2026-09-12 numeric token and cap provenance](results-2026-09-12-numeric-token-and-cap-provenance.md) — whole expressions/explicit abstention and pre/post arithmetic receipts; frozen formula unchanged, no independent accuracy claim.
 
 - [2026-09-11 market-score delivery disclosure](results-2026-09-11-market-score-delivery-disclosure.md) — writer/HTTP/browser qualification and fault reinjection; frozen numeric cap unchanged, semantic comparability unestablished.
