@@ -343,6 +343,10 @@ The separate sample-preparation tool keeps synthetic control checks and
 unreviewed source-summary drafts in different denominators. Null annotations
 must not become equal definitions or completed review. See the
 [sample contract](docs/results-2026-09-11-market-estimate-sample-contract.md).
+All 20 candidate pages now have separate agent-only observations across two
+dates, but zero fully comparable real pairs. Do not promote that coverage to
+human labels or relax missing pricing/revenue boundaries. See the
+[follow-up and concrete collection gate](docs/results-2026-09-12-market-source-followup.md).
 
 PDF candidates never become A1 citation identity, including legacy conversion.
 Numeric sign/unit uncertainty must not become support; known PDF thread failures

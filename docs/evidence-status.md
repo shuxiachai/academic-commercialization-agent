@@ -63,12 +63,15 @@ JSON/CSV hashes. The 3.5 cap and scoring formula remain unchanged; this fixes
 missing disclosure, not the known untyped comparison policy. See the
 [delivery contract and regression](results-2026-09-11-market-score-delivery-disclosure.md).
 
-An agent-only spot check opened the first six saved market candidates without
-replacement: two pairs have incompatible scopes and one lacks sufficient
-information; no same-definition pair is established. Five selected 2025 amounts
-reappear, but two pages contain internal numeric issues and one stored amount
-differs from its current page. This is not human review or a scoring change.
-See the [source inspection and provenance limits](results-2026-09-11-market-source-spot-check.md).
+Agent-only inspection now covers all 20 saved market candidates over two dates.
+The first six retain their [original observations](results-2026-09-11-market-source-spot-check.md);
+the [remaining 14](results-2026-09-12-market-source-followup.md) add seven pairs:
+three explicit scope/time/year mismatches and four insufficient-information
+outcomes. Across ten pairs, five are explicitly incompatible and five lack
+sufficient information; no fully comparable real pair is established. One
+same-page market-size/funding negative is separate, not another pair. Missing
+pricing and revenue boundaries remain unknown; original drafts stay unreviewed.
+This is not independent human review, market accuracy or a scoring-policy change.
 
 A local merged-tree upload test failed before any parser file opened, despite
 green CI. Deadline injection now follows actual file creation and separately
