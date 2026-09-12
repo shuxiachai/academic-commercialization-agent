@@ -187,7 +187,11 @@ def test_diagnostic_cannot_change_production_guardrail_or_frozen_scores(monkeypa
     monkeypatch.setattr(audit, "analyze_report", forbidden)
     before = _run(legacy(market_task=task), market_accessibility=50)
     after = _run(current(market_task=task), market_accessibility=50)
-    assert before == after
+    # The current wrapper adds a pre/post arithmetic receipt; every original
+    # field (not only numeric scores) must still equal the frozen factory.
+    assert before == (after[0], {k: v for k, v in after[1].items() if k != "market_cap_audit"})
+    assert after[1]["market_cap_audit"]["pre_cap_score"] == 5
+    assert after[1]["market_cap_audit"]["deduction"] == 1.5
     assert after[0] and after[1]["market_accessibility"] == 3.5
 
 

@@ -70,6 +70,15 @@ USD data. A missing or null flag must not be called a comparison pass. The
 historical numeric cap and existing report prose are unchanged. See the
 [delivery contract](results-2026-09-11-market-score-delivery-disclosure.md).
 
+New production-validated scores additionally carry `market_cap_audit`: the
+normalized pre/post market score, actual market-point deduction, trigger and
+reason. Triggered at an original 3.0 remains 3.0, with zero deduction; triggered
+at 5.0 becomes 3.5, with 1.5 deducted. These are arithmetic observations, not
+verified comparable market estimates or overall-score point deductions.
+The browser validates the receipt against the saved score and flag. Historical
+missing/inconsistent receipts remain unavailable; no old score is migrated or
+recalculated. See [numeric/cap provenance](results-2026-09-12-numeric-token-and-cap-provenance.md).
+
 ```bash
 uv run uvicorn api.main:app --reload
 # CLI alternative: real provider work, not an offline smoke test

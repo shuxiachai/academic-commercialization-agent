@@ -28,6 +28,7 @@ separately, and never folded into the unsupported total.
 from __future__ import annotations
 
 import re
+from decimal import Decimal, InvalidOperation
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -48,7 +49,7 @@ _LARGE_ENOUGH = 1000
 # the start of "European" turns an ordinary publication year into a currency
 # figure; the optional unit group then bypasses the bare-year exclusion below.
 _UNIT_PATTERN = (
-    r"(?:%|percent|wh/kg|wh/l|mah|kwh|mwh|gwh|kw|mw|gw|mpa|gpa|kpa|"
+    r"(?:%|percent|wh\s*/\s*kg|wh\s*/\s*l|mah|kwh|mwh|gwh|kw|mw|gw|mpa|gpa|kpa|"
     r"°c|℃|k|nm|µm|um|mm|cm|km|kg|mg|µg|ug|ml|mol|hz|khz|mhz|ghz|"
     r"usd|eur|billion|million|trillion|bn|yr|years?|months?|cycles?|x)"
     r"(?![A-Za-z])"
@@ -81,7 +82,7 @@ _SI_UNITS = {
 
 
 def _normalize_unit(unit: str) -> str:
-    raw = (unit or "").strip().rstrip(".,;:)")
+    raw = re.sub(r"\s*/\s*", "/", (unit or "").strip().rstrip(".,;:)"))
     # SI prefixes are case-sensitive. Lowercasing mW into MW's canonical key
     # erases six orders of magnitude; these spellings must remain distinct.
     milli = {"mW": "milliwatt", "mWh": "milliwatt-hour", "mPa": "millipascal",
@@ -95,7 +96,12 @@ def _normalize_unit(unit: str) -> str:
 
 
 _FIGURE_RE = re.compile(
-    r"(?<![\w.])([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(?:" + _UNIT_PATTERN + r")?",
+    # Consume the entire exponent and a spaced unary sign. Otherwise 1e-3%
+    # restarts at the exponent suffix and a detached minus becomes unsigned.
+    # Do not restart inside a malformed exponent or a leading-decimal value.
+    r"(?<![\w.])((?:[+\-−]\s*)?(?:\d[\d,]*(?:\.\d*)?|\.\d+)"
+    r"(?:e[\d+\-−. \t]*|[ \t]*[×*][ \t]*10[ \t]*\^[+\-−\d. \t]*"
+    r"|[ \t]*[–—-][ \t]*\d+(?:\.\d+)?)?)\s*(?:" + _UNIT_PATTERN + r")?",
     re.IGNORECASE,
 )
 
@@ -113,7 +119,10 @@ def _figure_unit(match: re.Match, text: str) -> str:
     raw = match.group(0)[len(match.group(1)):].strip()
     tail = text[match.end():]
     extra = _UNIT_TAIL.match(tail)
-    if raw and (tail.startswith(("/", "^", "²", "³", "·", "*")) or extra or tail[:1].isalnum()):
+    # Space is also legal inside a compound suffix. kg / m2 and kg m^-2
+    # cannot acquire kg's meaning by dropping everything after whitespace.
+    compound = re.match(r"\s+[A-Za-zµΩ]+(?:\^[-+−]?\d+|[²³]|\d+)(?!\w)", tail)
+    if raw and (tail.lstrip().startswith(("/", "^", "²", "³", "·", "*")) or compound or extra or tail[:1].isalnum()):
         return _UNKNOWN_UNIT + raw + tail.split()[0]
     if not raw and extra and extra.group().lower() not in _PROSE_AFTER_NUMBER:
         return _UNKNOWN_UNIT + extra.group()
@@ -203,7 +212,21 @@ def _normalize_number(raw: str) -> str:
     """'1,250.0' -> '1250'. Thousands separators and trailing zeros are
     formatting, not content, and a claim that writes 26.10% against a source
     that writes 26.1% is quoting the same figure."""
-    cleaned = raw.replace(",", "").replace("−", "-").strip().lstrip("+")
+    cleaned = re.sub(r"\s+", "", raw.replace(",", "").replace("−", "-")).lstrip("+").rstrip(".")
+    if len(cleaned) > 128:
+        raise ValueError("numeric notation exceeds screen bounds")
+    if not re.fullmatch(r"-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", cleaned):
+        # The lexer consumes unsupported expressions too, so a power or a
+        # malformed exponent cannot restart at its suffix and earn support.
+        raise ValueError("unsupported numeric expression")
+    if "e" in cleaned.lower():
+        # Bounded exact decimal expansion keeps scientific notation equivalent
+        # without floats/overflow, or unbounded allocation from hostile input.
+        # Out-of-grammar exponents are marked unverifiable by the caller.
+        value = Decimal(cleaned)
+        if abs(value.as_tuple().exponent) > 100:
+            raise ValueError("scientific notation exceeds numeric screen bounds")
+        cleaned = format(value, "f")
     if "." in cleaned:
         cleaned = cleaned.rstrip("0").rstrip(".")
     return cleaned or "0"
@@ -225,10 +248,25 @@ def checkable_figures(text: str) -> list[tuple[str, str]]:
     for match in _FIGURE_RE.finditer(text or ""):
         raw = match.group(1)
         unit = _figure_unit(match, text)
-        number = _normalize_number(raw)
+        # Structured publication dates join the source haystack too. Preserve
+        # their old non-quantity exclusion instead of letting the range lexer
+        # turn every dated abstract into globally unknown numeric notation.
+        if (not unit or unit.startswith(_UNKNOWN_UNIT)) and re.fullmatch(
+            r"(?:19|20)\d{2}[-–—](?:(?:19|20)\d{2}|\d{2})", raw.strip()
+        ):
+            continue
         try:
+            number = _normalize_number(raw)
             value = float(number)
-        except ValueError:
+        except (ValueError, InvalidOperation):
+            # A small bare count range (TRL 4-5, 3-50 peptide epitopes) was
+            # never checkable. Unsupported *quantities* stay visible without
+            # expanding the denominator to ordinary counts and calendar prose.
+            count_range = re.fullmatch(r"(\d+)\s*[-–—]\s*(\d+)", raw.strip())
+            if (count_range and not match.group(0)[len(raw):].strip()
+                    and all(int(x) < _LARGE_ENOUGH for x in count_range.groups())):
+                continue
+            found.append((raw, _UNKNOWN_UNIT + "numeric notation"))
             continue
         # A bare four-digit year is the noisiest thing this could flag. Claims
         # routinely date themselves against the analyst's present ("as of
@@ -252,7 +290,7 @@ def checkable_figures(text: str) -> list[tuple[str, str]]:
         # A recognised base with an unsupported suffix (1 cm², 2 kg/foo) is
         # still a quantity requiring abstention, not a disposable small count.
         has_unit_prefix = bool(match.group(0)[len(raw):].strip())
-        distinctive = has_unit_prefix or "." in number or abs(value) >= _LARGE_ENOUGH
+        distinctive = has_unit_prefix or "." in number or "e" in raw.lower() or abs(value) >= _LARGE_ENOUGH
         key = f"{number}|{unit}"
         if distinctive and key not in seen:
             seen.add(key)
@@ -322,7 +360,7 @@ def _same_numeric_value(claim: str, source: str) -> bool:
             quantum = Decimal(1).scaleb(-places)
             return any(observed.quantize(quantum, rounding=rule) == quoted
                        for rule in (ROUND_DOWN, ROUND_HALF_UP))
-    except InvalidOperation:
+    except (InvalidOperation, ValueError):
         return False
 
 
@@ -349,11 +387,17 @@ def _supported(number: str, unit: str, present: list[tuple[str, str]],
     # Last resort for a figure the extractor did not pick up as distinctive on
     # the source side — but only for unitless claims, since a bare substring
     # hit carries no unit to compare.
-    return not unit and any(
-        _same_numeric_value(number, _normalize_number(match.group(1)))
-        for match in _FIGURE_RE.finditer(haystack)
-        if not _figure_unit(match, haystack).startswith(_UNKNOWN_UNIT)
-    )
+    if not unit:
+        for match in _FIGURE_RE.finditer(haystack):
+            if _figure_unit(match, haystack).startswith(_UNKNOWN_UNIT):
+                continue
+            try:
+                observed = _normalize_number(match.group(1))
+            except (ValueError, InvalidOperation):
+                continue
+            if _same_numeric_value(number, observed):
+                return True
+    return False
 
 
 def check_report(report: Any, sources: Any = None) -> GroundingReport:
@@ -427,7 +471,9 @@ def _check_report(report: Any, sources: Any = None) -> GroundingReport:
         haystack = " ".join(_source_text(s) for s in checkable)
         present = checkable_figures(haystack)
         if any(unit.startswith(_UNKNOWN_UNIT) for _, unit in figures) or any(
-            source_unit.startswith(_UNKNOWN_UNIT) and _same_numeric_value(number, source_number)
+            source_unit.startswith(_UNKNOWN_UNIT) and (
+                source_unit == _UNKNOWN_UNIT + "numeric notation" or _same_numeric_value(number, source_number)
+            )
             and not _supported(number, unit, present, haystack)
             for number, unit in figures for source_number, source_unit in present
         ):
@@ -435,7 +481,7 @@ def _check_report(report: Any, sources: Any = None) -> GroundingReport:
             # this outside the checked denominator, visible in the audit.
             checks.append(ClaimCheck(
                 finding_id=str(getattr(finding, "finding_id", "")), claim=claim,
-                source_ids=cited_ids, unverifiable_reason="unrecognised unit notation prevents numeric comparison",
+                source_ids=cited_ids, unverifiable_reason="unrecognised numeric or unit notation prevents numeric comparison",
             ))
             unverifiable += 1
             continue

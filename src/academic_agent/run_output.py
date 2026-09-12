@@ -461,21 +461,16 @@ def _qualify_market_comparison(scores_json: str) -> str:
     ):
         return scores_json
 
-    signal = "unavailable"
-    if "market_uncertainty" in payload and payload["market_uncertainty"] is None:
-        signal = "not_triggered"
-    elif isinstance(payload.get("market_uncertainty"), str) and re.fullmatch(
-        r"high \([0-9]+× spread: [0-9]+(?:\.[0-9]+)?(?:e[+-][0-9]+)?–"
-        r"[0-9]+(?:\.[0-9]+)?(?:e[+-][0-9]+)? bn USD\)",
-        payload["market_uncertainty"],
-    ):
-        signal = "triggered"
+    from academic_agent.market_cap_audit import legacy_signal, readable_cap
+
+    signal = legacy_signal(payload)
+    cap = readable_cap(payload)
     payload["market_comparison"] = {
         "version": "market-comparison-disclosure-v1",
         "comparability_status": "not_assessed",
         "legacy_cap_signal": signal,
         "score_policy": "legacy_cap_unchanged",
-        "deduction_status": "not_reconstructable",
+        "deduction_status": "recorded" if cap is not None else "not_reconstructable",
         "limitation": (
             "Same-definition market estimates were not verified. The legacy amount-spread "
             "flag does not establish currency, metric, year, geography, scope or method "

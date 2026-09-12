@@ -147,6 +147,24 @@ const detailStrings = value => Array.isArray(value) && value.every(item => typeo
 const detailUnavailable = () => el("p", "empty-note detail-unreadable", t("detail_unreadable"));
 const scoreNumber = (value, max) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max;
 
+function readableMarketCap(scores, signal) {
+  // Read validation, not authentication: only the production guardrail creates
+  // receipts. A saved cap value or a version marker alone cannot reconstruct
+  // the lost original score. Keep old/malformed artifacts explicitly unknown.
+  const a = scores.market_cap_audit;
+  if (!detailRecord(a) || a.version !== "legacy-market-cap-audit-v1" || signal === "unavailable") return null;
+  if (![a.pre_cap_score, a.post_cap_score].every(x => scoreNumber(x, 5) && x >= 1)) return null;
+  if (typeof a.triggered !== "boolean" || typeof a.applied !== "boolean" ||
+      typeof a.deduction !== "number" || !Number.isFinite(a.deduction)) return null;
+  const expected = a.triggered ? Math.min(a.pre_cap_score, 3.5) : a.pre_cap_score;
+  if (a.cap !== 3.5 || a.triggered !== (signal === "triggered") ||
+      a.post_cap_score !== scores.market_accessibility || a.post_cap_score !== expected ||
+      a.deduction !== Math.round((a.pre_cap_score - a.post_cap_score) * 10) / 10 ||
+      a.applied !== (a.post_cap_score < a.pre_cap_score) ||
+      a.reason !== (a.triggered ? "legacy_untyped_spread_gt_5" : "legacy_cap_not_triggered")) return null;
+  return a;
+}
+
 function renderScorecard(scores) {
   const wrap = el("section", "scorecard");
   if (!detailRecord(scores)) { wrap.append(detailUnavailable()); return wrap; }
@@ -213,8 +231,20 @@ function renderScorecard(scores) {
   caveat.append(
     el("h4", "notes__title", t("market_comparison_title")),
     el("p", null, t("market_comparison_limit")),
-    el("p", null, t(`market_comparison_${signal}`)),
   );
+  const cap = readableMarketCap(scores, signal);
+  if (cap) {
+    const receipt = el("p", "scorecard__cap-receipt",
+      t("market_cap_record") + ": " + cap.pre_cap_score + " → " + cap.post_cap_score + " / 5. " +
+      t("market_cap_deduction") + ": " + cap.deduction + ". " +
+      t(cap.applied ? "market_cap_applied" : "market_cap_unchanged") + " " +
+      t(cap.triggered ? "market_cap_reason_spread" : "market_cap_reason_none"));
+    receipt.dataset.applied = String(cap.applied);
+    caveat.append(receipt);
+  } else {
+    caveat.append(el("p", null, t(`market_comparison_${signal}`)),
+      el("p", "scorecard__cap-unavailable", t("market_cap_unavailable")));
+  }
   wrap.append(caveat);
 
   for (const [key, title] of [["key_risks", t("risks")], ["key_opportunities", t("opportunities")]]) {

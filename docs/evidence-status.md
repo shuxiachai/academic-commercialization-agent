@@ -47,6 +47,14 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Complete numeric tokens now prevent scientific/sign/compound suffixes from
+earning false support. Ninety-artifact replay moves nine range-bearing findings
+to unverifiable (32 -> 23 checked), not improved independent accuracy. New
+validated scores record actual pre/post cap arithmetic through checkpoints,
+HTTP and the browser; legacy missing records cannot be reconstructed. Scoring
+and source-comparability policy stay unchanged. See the
+[repair, controls and tradeoff](results-2026-09-12-numeric-token-and-cap-provenance.md).
+
 Market scores now disclose that same-definition estimates are **not assessed**,
 including historical artifacts viewed in the current browser. Fresh/restored
 score JSON reasserts this limitation instead of trusting generated verification.

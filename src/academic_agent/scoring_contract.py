@@ -7,6 +7,7 @@ This checks citation identity/category, not semantic support or calibration.
 """
 
 from collections.abc import Callable
+import json
 from typing import Any
 
 from crewai import TaskOutput
@@ -16,6 +17,7 @@ from academic_agent.evidence import (
     CommercializationScore, make_scoring_guardrail as legacy_scoring_guardrail,
     parse_citation_ids,
 )
+from academic_agent.market_cap_audit import capture_cap
 
 
 def make_scoring_guardrail(
@@ -61,6 +63,16 @@ def make_scoring_guardrail(
                 errors.append(f"Score prose contains malformed citations: {malformed}.")
         if errors:
             return False, " ".join(errors)
-        return legacy(output)
+        # Capture BEFORE the frozen factory mutates/normalizes TaskOutput.
+        # Its schema dump discards model-invented audit fields; code overwrites
+        # the receipt only after a successful validation. No second scoring
+        # policy, retrospective estimate or extra provider request is involved.
+        before = score.market_accessibility / 10
+        ok, result = legacy(output)
+        if ok:
+            payload = json.loads(result.raw)
+            payload["market_cap_audit"] = capture_cap(before, payload)
+            result.raw = json.dumps(payload)
+        return ok, result
 
     return validate_score

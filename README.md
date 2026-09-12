@@ -18,6 +18,8 @@ is experimental and remains disconnected from production.**
 Market scorecards disclose [unverified estimate comparability](docs/results-2026-09-11-market-score-delivery-disclosure.md).
 This makes the historical cap's limitation visible; it does not fix or validate
 the underlying market-scoring policy.
+New validated results also show [pre/post cap scores and the actual deduction](docs/results-2026-09-12-numeric-token-and-cap-provenance.md);
+historical missing receipts cannot be reconstructed.
 
 - Submit a research topic or attach a paper PDF; choose report language and
   scoring profile.

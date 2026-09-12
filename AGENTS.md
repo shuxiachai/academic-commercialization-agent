@@ -329,6 +329,12 @@ untyped spread flag to verified USD disagreement. Reassert fresh/restored JSON
 metadata and retain the legacy browser fallback without changing score values.
 See the [disclosure contract](docs/results-2026-09-11-market-score-delivery-disclosure.md).
 
+New validated scores also carry a pre/post cap receipt captured by the production
+wrapper, with schema/arithmetic read validation and hash-bound checkpoint reuse.
+Never reconstruct it from a historical 3.5 score or trust a model-supplied
+receipt. Whole scientific/sign/unit tokens must not match only their suffixes;
+unsupported expressions abstain. See the [repair and coverage tradeoff](docs/results-2026-09-12-numeric-token-and-cap-provenance.md).
+
 Market-metric v1 is an offline diagnostic, not a replacement scoring cap. Its
 30 local units are 29 live + 1 fixture and cannot establish original CSV
 identity; zero complete comparable pairs is not agreement. See the
