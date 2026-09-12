@@ -218,7 +218,7 @@ def _capture_failure(page: Page | None) -> None:
 
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
-    runtime_ids: tuple[str, str, str],
+    runtime_ids: tuple[str, str, str], cap_run_id: str,
 ) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
@@ -371,6 +371,21 @@ def _exercise_browser(
             expect(page.locator("#run-terminal")).to_have_text("· worker completed")
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+
+            # A new arithmetic receipt is distinct from the legacy unknown
+            # above. Verify the same disk bytes over HTTP and actual Chromium;
+            # neither a computed field alone nor an old 3.5 score proves this.
+            page.goto(f"{base_url}/run/{cap_run_id}", wait_until="domcontentloaded")
+            receipt = page.locator(".scorecard__cap-receipt")
+            expect(receipt).to_be_visible()
+            expect(receipt).to_have_attribute("data-applied", "true")
+            expect(receipt).to_contain_text("5 → 3.5 / 5")
+            expect(receipt).to_contain_text("points): 1.5")
+            expect(page.locator(".scorecard__market-caveat")).to_have_attribute("data-comparability", "not_assessed")
+            recorded = page.request.get(f"{base_url}/api/runs/{cap_run_id}/scores").json()
+            assert recorded["market_cap_audit"]["pre_cap_score"] == 5
+            assert recorded["market_cap_audit"]["deduction"] == 1.5
+            assert recorded["market_comparison"]["deduction_status"] == "recorded"
 
             # Real bytes, real endpoints and the shipped DOM must agree even
             # during storage faults. Formatter-only tests previously missed
@@ -546,6 +561,12 @@ def main() -> None:
             "market_uncertainty": "high (2000× spread: 0.01–20 bn USD)",
             "market_comparison": {"comparability_status": "verified"},
         }), run_id, output_root)
+        from academic_agent.market_cap_audit import capture_cap
+
+        cap_run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
+        cap_scores = json.loads((output_root / run_id / "commercialization_scores.json").read_text(encoding="utf-8"))
+        cap_scores["market_cap_audit"] = capture_cap(5, cap_scores)
+        save_scores(json.dumps(cap_scores), cap_run_id, output_root)
         damaged_status_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
         (output_root / damaged_status_id / "status.json").write_bytes(b"\xff")
         (output_root / damaged_status_id / "steps.jsonl").write_bytes(
@@ -598,7 +619,7 @@ def main() -> None:
                 }
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids)
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id)
 
     print(
         json.dumps(

@@ -13,6 +13,8 @@
 
 市场评分卡会明确提示[估值可比性尚未核实](docs/results-2026-09-11-market-score-delivery-disclosure.md)。
 这项修复让历史上限规则的局限可见，不代表市场评分规则本身已修正或验证准确。
+新验证结果还会记录并展示[封顶前后分数及实际扣分](docs/results-2026-09-12-numeric-token-and-cap-provenance.md)；
+历史结果没有保存这些记录时，不会倒推补造。
 
 - 输入研究主题或上传论文 PDF，选择报告语言与评分档位。
 - 可选填写 Decision Context：区分方向性探索和具体决策，标识阈值是否由

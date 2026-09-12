@@ -110,6 +110,7 @@ def pipeline_revision() -> str:
         package / "crew.py",
         package / "evidence.py",
         package / "scoring_contract.py",
+        package / "market_cap_audit.py",
         package / "pdf_extractor.py",
         package / "claim_grounding.py",
         package / "llm_config.py",

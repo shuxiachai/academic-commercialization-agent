@@ -85,7 +85,9 @@ def test_funding_false_comparison_keeps_calibration_but_discloses_limit(tmp_path
     text, _ = display(scores, "scores", tmp_path, monkeypatch, persist_scores=True)
     assert "3.5 / 5" in text and "not assessed" in text
     saved = json.loads(next(tmp_path.glob("*/commercialization_scores.json")).read_text(encoding="utf-8"))
-    assert saved.pop("market_comparison")["deduction_status"] == "not_reconstructable"
+    assert saved.pop("market_comparison")["deduction_status"] == "recorded"
+    assert saved["market_cap_audit"]["pre_cap_score"] == 5
+    assert saved["market_cap_audit"]["deduction"] == 1.5
     assert saved == scores
 
 
