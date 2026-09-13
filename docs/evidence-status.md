@@ -47,6 +47,14 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+The PDF failure-receipt test observer no longer consumes the executor slot
+needed by its worker. A single-slot control reproduced ten entry failures;
+event-loop notification preserves all twenty default/single-slot failure and
+cancellation cases without relaxing timeouts. Both observer and missing-receipt
+mutations were caught. Production is unchanged, and the earlier CI incident's
+exact timing cause remains unproven. See the
+[test isolation result and limits](results-2026-09-13-pdf-receipt-observer-isolation.md).
+
 Complete numeric tokens now prevent scientific/sign/compound suffixes from
 earning false support. Ninety-artifact replay moves nine range-bearing findings
 to unverifiable (32 -> 23 checked), not improved independent accuracy. New
