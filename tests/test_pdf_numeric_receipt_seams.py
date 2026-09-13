@@ -1,6 +1,7 @@
 """Regression seams for candidate identity, signed units and orphaned receipts."""
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import threading
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -99,32 +100,46 @@ def test_signed_or_unknown_unit_reaches_audit_verdict(claim, source, status):
     ('ledger', 503, None),
 ])
 @pytest.mark.parametrize('cancel', [False, True])
-def test_actual_pdf_thread_publishes_failure_even_without_waiter(paid_api, monkeypatch, failure, status, code, cancel):
+@pytest.mark.parametrize('executor_workers', [None, 1], ids=['default-pool', 'single-worker'])
+def test_actual_pdf_thread_publishes_failure_even_without_waiter(paid_api, monkeypatch, failure, status, code, cancel, executor_workers):
     """Read a terminal failure over HTTP after the real thread, not the waiter, exits."""
     client, _, root = paid_api
     auth = headers()
     ticket, _ = receipts.claim(root, auth['Idempotency-Key'], access.owner_id('offline-owner-a'), 'paper', {})
     paper_id, path = papers.save_upload(b'%PDF-offline')
-    entered, release = threading.Event(), threading.Event()
+    release = threading.Event()
     failures = {'provider': ValueError, 'concurrency': runs.ConcurrencyLimitReached,
                 'quota': runs.DailyCapReached, 'ledger': runs.PaidLedgerUnavailable}
 
-    def extract(*_args, **_kwargs):
-        entered.set()
-        assert release.wait(5)
-        if failure != 'storage':
-            raise failures[failure]('SECRET_PROVIDER_EXCERPT')
-        return contribution()
-
-    monkeypatch.setattr(main, '_extract_paper_with_paid_reservation', extract)
     if failure == 'storage':
         monkeypatch.setattr(papers, 'save_extraction', MagicMock(side_effect=OSError('SECRET_STORAGE_PATH')))
 
     async def exercise():
+        loop = asyncio.get_running_loop()
+        entered = asyncio.Event()
+        # The observer must not occupy the same executor that must start the
+        # PDF worker. With one available thread, to_thread(entered.wait, 3)
+        # queues before execute and causes its own timeout. Keep the original
+        # 3/5-second bounds; signal on the loop instead of adding pool capacity,
+        # sleeping before the assertion, or assuming the real work has started.
+        # Both the untouched default pool and a deterministic single slot are
+        # exercised. asyncio.run owns shutdown of this loop-local executor.
+        if executor_workers is not None:
+            loop.set_default_executor(ThreadPoolExecutor(max_workers=executor_workers))
+
+        def extract(*_args, **_kwargs):
+            loop.call_soon_threadsafe(entered.set)
+            assert release.wait(5)
+            if failure != 'storage':
+                raise failures[failure]('SECRET_PROVIDER_EXCERPT')
+            return contribution()
+
+        monkeypatch.setattr(main, '_extract_paper_with_paid_reservation', extract)
         with receipts.activate(ticket):
             waiter = asyncio.create_task(main._process_uploaded_paper(paper_id, str(path)))
         try:
-            assert await asyncio.to_thread(entered.wait, 3)
+            assert await asyncio.wait_for(entered.wait(), 3)
+            assert not waiter.done(), 'The worker must remain held before waiter cancellation'
             if cancel:
                 waiter.cancel()
                 with pytest.raises(asyncio.CancelledError):

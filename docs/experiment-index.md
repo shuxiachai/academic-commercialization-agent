@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-13 PDF receipt observer isolation](results-2026-09-13-pdf-receipt-observer-isolation.md) — deterministic single-slot observer failure and event-loop handshake; original CI timing cause unproven, production unchanged.
+
 - [2026-09-12 market-source follow-up](results-2026-09-12-market-source-followup.md) — remaining 14 candidates and seven comparisons; all 20 inspected across two dates, no fully established real positive and no scoring change.
 - [2026-09-12 numeric token and cap provenance](results-2026-09-12-numeric-token-and-cap-provenance.md) — whole expressions/explicit abstention and pre/post arithmetic receipts; frozen formula unchanged, no independent accuracy claim.
 
