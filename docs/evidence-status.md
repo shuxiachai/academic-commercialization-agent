@@ -261,6 +261,12 @@ Semantic support remains `not_assessed`; reader benefit versus direct source
 browsing is unmeasured. This is not v9 and does not change the failed v8 gates.
 See the [protocol and validation result](results-2026-09-14-report-evidence-followup-phase1.md).
 
+The [first real Qwen canary](results-2026-09-15-report-evidence-followup-qwen-canary.md)
+received three valid native responses with complete reported usage, but failed
+closure after two lookups exhausted the tool budget. No read/final answer was
+delivered; the second synthetic case was not run. Conservative known-usage
+estimate: USD 0.001813194, not an invoice. No retry or production activation.
+
 ## Negative findings that remain binding
 
 [AGENTS.md](../AGENTS.md#do-not-redo-these) retains the six measured exclusions:

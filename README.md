@@ -132,6 +132,10 @@ uses only two synthetic controls and a six-request/USD 0.10 allowance. It neithe
 adds sources nor exposes a paid endpoint; reader benefit and production integration
 remain unestablished.
 
+Its [first native Qwen canary](docs/results-2026-09-15-report-evidence-followup-qwen-canary.md)
+accounted three requests but **failed the read-to-answer closure gate**; the
+second case was not run. Native transport success is not a completed feature.
+
 ## Quick start
 
 Use Python 3.11 or 3.12 for the CI-tested environment and

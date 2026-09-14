@@ -108,6 +108,12 @@ The core's delivered evidence means handed to the transport callback; the
 network ledger separately records dispatch/response observations. Neither
 establishes that the model understood the excerpt.
 
+The [first native observation](results-2026-09-15-report-evidence-followup-qwen-canary.md)
+failed the closure gate: Qwen spent both local tool attempts on literal lookups,
+then requested a read after the allowance was exhausted. Three replies were
+accounted, no final answer was delivered, and the second case was not run.
+This is transport evidence, not a successful read-to-answer conversation.
+
 ## What is intentionally not connected
 
 - No FastAPI route, browser button, production worker hook or scoring change.
