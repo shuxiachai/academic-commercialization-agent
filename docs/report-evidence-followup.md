@@ -60,16 +60,17 @@ snapshot binding and budgets, not a promise that prompting defeats injection.
 
 ## Conversation and evidence delivery
 
-The transport must be explicitly injected. No concrete network adapter is
-included. It exchanges assistant `tool_calls` and tool-result messages with
+The transport must be explicitly injected. The core has no implicit network
+fallback. It exchanges assistant `tool_calls` and tool-result messages with
 the exact original `tool_call_id`, following the documented
 [Qwen-compatible Function Calling message shape](https://help.aliyun.com/en/model-studio/qwen-function-calling).
-This does not establish that the exact production model accepts the prototype.
+The scripted demo remains offline; native model observations belong to the
+separate bounded canary below, not to that demonstration.
 
 At most two tool requests and three transport turns are allowed, with at most
 one tool request per turn. Bad tool names and arguments consume tool budget;
 ambiguous/duplicate IDs fail the protocol. There is no automatic retry, repair,
-search fallback or autonomous switch to another report. A trusted future
+search fallback or autonomous switch to another report. The injected
 transport must separately enforce network timeout, credentials and cost; an
 in-process injected callback cannot be safely preempted by this library.
 
@@ -85,11 +86,33 @@ delivered evidence, deliberate abstention and execution failure. In all cases,
 proof that the prose is entailed by the excerpt. No-tool responses do not count
 as successful tool use or completed evidence checking.
 
+## Bounded Qwen compatibility work
+
+The [Qwen canary protocol](prereg-2026-09-14-report-evidence-followup-qwen.md)
+defines two synthetic controls and one shared allowance: six sequential requests,
+USD 0.10 soft stop, exact `qwen3.5-plus`, no retry or supplemental search.
+It uses only the dedicated DashScope key and the official Beijing destination,
+independently of the ordinary pipeline's selected provider. Global credentials,
+model configuration and `.env` are not rewritten.
+
+The separate adapter and experiment ledger enforce transport limits and record
+request intent before dispatch. Missing usage or an uncertain attempt stops the
+batch instead of being estimated as zero. Reported tokens and conservative cost
+estimates are separate from the provider invoice. An occupied output cannot be
+reused. This local, single-owner experiment ledger is not the application's
+shared paid-admission service or a customer receipt system.
+
+No real saved report is read by the canary. Its fixture identities, source and
+dependency hashes must match a committed version before network execution.
+The core's delivered evidence means handed to the transport callback; the
+network ledger separately records dispatch/response observations. Neither
+establishes that the model understood the excerpt.
+
 ## What is intentionally not connected
 
 - No FastAPI route, browser button, production worker hook or scoring change.
-- No paid follow-up admission, persistent receipt, live usage ledger or model
-  request; these must be designed before exposing a paid endpoint.
+- No production follow-up admission or customer receipt. Local canary accounting
+  must not be presented as protection for a public paid endpoint.
 - No external retrieval, new source registration, cross-run memory or report
   mutation. The existing v1–v8 source locks and evaluation decisions remain intact.
 - No claim of full-text verification, hallucination elimination, independent
@@ -98,8 +121,8 @@ as successful tool use or completed evidence checking.
 ## Next gates
 
 The [phase-one protocol](prereg-2026-09-14-report-evidence-followup-phase1.md)
-defines offline acceptance and the non-model comparison. The next live step
-requires a frozen exact model, input set, request/cost ceilings and separate
-authorization. A production release additionally needs ownership, shared paid
+defines offline acceptance and the non-model comparison. The bounded canary
+has separate frozen inputs, authorization and failure criteria. A production
+release additionally needs ownership, shared paid
 admission, accounting, request receipts, safe diagnostics and user-visible
 failure states. The experimental library being importable is not that release.

@@ -8,6 +8,7 @@ dependencies = [
     "arize-phoenix-otel>=0.16,<1",
     "crewai[anthropic,tools]==1.14.7",
     "fastapi>=0.115",
+    "httpx==0.28.1",
     "markdown>=3.6",
     "openinference-instrumentation-anthropic>=0.1,<1",
     "openinference-instrumentation-crewai>=0.1,<1",

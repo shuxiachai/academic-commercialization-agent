@@ -253,7 +253,10 @@ The [report evidence follow-up](report-evidence-followup.md) implements two
 read-only tools over one supplied snapshot, with a native-shaped assistant/tool
 round trip through a scripted transport. The 127 new offline tests and synthetic
 demo establish bounded dispatch and content-bound evidence delivery, not actual
-model behavior. No provider transport, paid endpoint or production hook exists.
+model behavior. A separate pinned Qwen transport and single-owner canary ledger
+are governed by a [two-control, six-request protocol](prereg-2026-09-14-report-evidence-followup-qwen.md).
+The synthetic allowance is not production authorization; no paid endpoint or
+production hook exists.
 Semantic support remains `not_assessed`; reader benefit versus direct source
 browsing is unmeasured. This is not v9 and does not change the failed v8 gates.
 See the [protocol and validation result](results-2026-09-14-report-evidence-followup-phase1.md).
