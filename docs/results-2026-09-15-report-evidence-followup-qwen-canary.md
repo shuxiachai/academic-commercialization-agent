@@ -79,8 +79,10 @@ not a per-request latency measure or SLO. No actual bill was queried.
 ## Root cause and limits
 
 The scripted demonstration used a short matching literal query. Real Qwen
-initially treated lookup like a keyword search, then needed a second lookup.
-This consumed the fixed two-tool allowance before the required read. The strict
+first requested a long phrase with no literal match, then a shorter matching
+phrase. Interpreting the first request as keyword-search behavior is an
+inference, not evidence of the model's internal reasoning. The two lookups
+consumed the fixed two-tool allowance before the required read. The strict
 budget correctly blocked further work; the tool interface and conversational
 planning did not produce the required closure under that budget.
 
