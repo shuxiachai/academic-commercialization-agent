@@ -1,5 +1,8 @@
 # Experiment archive index
 
+- [2026-09-14 saved-evidence follow-up protocol](prereg-2026-09-14-report-evidence-followup-phase1.md) — isolated read-only conversation hypothesis, direct-browsing baseline, no live authorization.
+- [2026-09-14 saved-evidence follow-up result](results-2026-09-14-report-evidence-followup-phase1.md) — bounded native-shaped offline loop and evidence receipts, not production supplementation or semantic verification.
+
 - [2026-09-13 PDF receipt observer isolation](results-2026-09-13-pdf-receipt-observer-isolation.md) — deterministic single-slot observer failure and event-loop handshake; original CI timing cause unproven, production unchanged.
 
 - [2026-09-12 market-source follow-up](results-2026-09-12-market-source-followup.md) — remaining 14 candidates and seven comparisons; all 20 inspected across two dates, no fully established real positive and no scoring change.
