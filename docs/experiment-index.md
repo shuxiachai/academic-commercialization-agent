@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-15 native Qwen follow-up result](results-2026-09-15-report-evidence-followup-qwen-canary.md) — three accounted native requests; closure failed at the tool budget, second case unrun, no retry.
+
+- [2026-09-14 bounded Qwen follow-up canary](prereg-2026-09-14-report-evidence-followup-qwen.md) — two synthetic controls, at most six requests and USD 0.10; production-disconnected.
+
 - [2026-09-14 saved-evidence follow-up protocol](prereg-2026-09-14-report-evidence-followup-phase1.md) — isolated read-only conversation hypothesis, direct-browsing baseline, no live authorization.
 - [2026-09-14 saved-evidence follow-up result](results-2026-09-14-report-evidence-followup-phase1.md) — bounded native-shaped offline loop and evidence receipts, not production supplementation or semantic verification.
 

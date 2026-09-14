@@ -126,9 +126,15 @@ keeps v1–v8 failures distinct from transport and mechanical successes. A later
 method needs a new protocol and fresh cohorts, not tuning on the failed unseen set.
 
 A separate [saved-evidence follow-up prototype](docs/report-evidence-followup.md)
-exercises bounded lookup/read tools and native-shaped conversation messages with
-a scripted offline transport. It neither adds sources nor exposes a paid endpoint;
-real-model compatibility, reader benefit and production integration remain untested.
+exercises bounded lookup/read tools and content-bound evidence receipts. Its scripted
+demo remains offline; a separately [preregistered Qwen canary](docs/prereg-2026-09-14-report-evidence-followup-qwen.md)
+uses only two synthetic controls and a six-request/USD 0.10 allowance. It neither
+adds sources nor exposes a paid endpoint; reader benefit and production integration
+remain unestablished.
+
+Its [first native Qwen canary](docs/results-2026-09-15-report-evidence-followup-qwen-canary.md)
+accounted three requests but **failed the read-to-answer closure gate**; the
+second case was not run. Native transport success is not a completed feature.
 
 ## Quick start
 

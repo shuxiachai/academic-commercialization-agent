@@ -1,0 +1,24 @@
+[
+  {
+    "case_id": "FQ01",
+    "source_id": "A1",
+    "group": "academic",
+    "title": "Synthetic sensor laboratory record",
+    "publisher": "Synthetic example",
+    "accessed_date": "2026-09-14",
+    "origin": "abstract",
+    "summary": "The synthetic sensor was tested only in a laboratory fixture at 25 degrees Celsius. No field deployment was evaluated.",
+    "question": "What temperature was used to test the synthetic sensor, and was field deployment evaluated? Read the saved evidence before answering and cite its evidence ID."
+  },
+  {
+    "case_id": "FQ02",
+    "source_id": "M1",
+    "group": "market",
+    "title": "Synthetic market record",
+    "publisher": "Synthetic example",
+    "accessed_date": "2026-09-14",
+    "origin": "unknown",
+    "summary": null,
+    "question": "Does the saved synthetic market record establish annual revenue? Inspect the saved record; if its text is unavailable, explicitly abstain rather than invent a revenue figure."
+  }
+]
