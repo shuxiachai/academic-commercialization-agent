@@ -247,6 +247,17 @@ A subsequent method must change that hypothesis on fresh development evidence
 before a separately frozen unseen evaluation. None of this authorizes a new
 paid run, a new reviewer packet, reserved-cohort access or production insertion.
 
+## Separate saved-evidence conversation prototype
+
+The [report evidence follow-up](report-evidence-followup.md) implements two
+read-only tools over one supplied snapshot, with a native-shaped assistant/tool
+round trip through a scripted transport. The 127 new offline tests and synthetic
+demo establish bounded dispatch and content-bound evidence delivery, not actual
+model behavior. No provider transport, paid endpoint or production hook exists.
+Semantic support remains `not_assessed`; reader benefit versus direct source
+browsing is unmeasured. This is not v9 and does not change the failed v8 gates.
+See the [protocol and validation result](results-2026-09-14-report-evidence-followup-phase1.md).
+
 ## Negative findings that remain binding
 
 [AGENTS.md](../AGENTS.md#do-not-redo-these) retains the six measured exclusions:
