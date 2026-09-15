@@ -126,6 +126,8 @@ runner，也不宣称新的真实模型成功率或线上追问已经完成。�
 其[后续真实批次](docs/results-2026-09-15-stage-qwen-canary-live.md)已完成原生查找、
 读取及证据交付，但最终回复混入说明和JSON代码块，严格格式校验失败。
 三次请求已记账，第二例未执行；读取有进展，不等于闭环通过或已接入生产。
+后续的[最终回合JSON候选](docs/report-evidence-followup.md#separate-final-only-json-candidate)
+使用新合成控制并保留本地严格校验，不改写旧失败结果，也不开启生产追问入口。
 
 ## 快速启动
 

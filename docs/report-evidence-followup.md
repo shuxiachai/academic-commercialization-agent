@@ -215,6 +215,48 @@ closed batch using its remaining budget. A separate final-output contract is
 the next offline candidate; no production route or semantic-validation claim
 follows from observing one successful read.
 
+## Separate final-only JSON candidate
+
+The [new protocol](prereg-2026-09-16-report-evidence-final-json-qwen.md) addresses
+the observed SQ final-envelope failure without changing its frozen adapter or
+parser. A distinct transport adds `response_format={"type":"json_object"}`
+only when tools are disabled; native lookup/read requests keep their original
+shape. The final HTTP request still omits `tools` and retains `tool_choice=none`.
+This asks for valid JSON, not schema compliance or semantic correctness.
+
+The JSON keyword must already appear as a standalone ASCII word in string
+system/user content before reservation. Assistant/tool text cannot satisfy
+the prerequisite; the adapter does not add missing instructions. Body encoding,
+reservation hash and actual HTTP agree on the complete final request. The core
+continues to reject prose, fences, malformed envelopes and invalid evidence IDs.
+
+The separate `report_evidence_final_json_canary.py` entry defaults to committed
+identity checking only, before key/output/network work. JQ01/JQ02 are new
+synthetic controls, not repaired or repeated SQ outcomes. Live use requires
+the final implementation identity, fixture hash and applicable bounded user
+authorization. No retry, remaining-budget continuation or production route
+follows from the prior failed batch or from preparing this candidate.
+
+For a committed checkout, the default identity-only check is:
+
+```powershell
+$commit = git rev-parse HEAD
+uv run python report_evidence_final_json_canary.py --expected-commit $commit --expected-fixture-sha256 f0e8233a7b0e0d86783f069d96880ace941cd0ac16dbfa934e723d653febb5ca
+```
+
+Do not supply an output path or paid acknowledgement to this check. It must
+return before inspecting a key, whether or not a credential exists. Live mode
+uses a new code-owned ledger identity and exclusive output path, retains known
+usage when a final answer is rejected, and stops on the first failing case.
+JSON Object output alone is not a successful read/citation or abstention gate.
+
+Only `JQ01.json`, `JQ02.json` and `summary.json` are authoritative results.
+Each is published without replacing an existing name, after its same-directory
+candidate is fully written, flushed, fsynced and closed. A leftover dot-prefixed
+`.pending` file is diagnostic material, never a successful result or a resume
+token. Unsupported hard links fail closed. Cleanup after successful publication
+cannot reverse the returned truth; this is not power-loss or distributed safety.
+
 ## Bounded Qwen compatibility work
 
 The [Qwen canary protocol](prereg-2026-09-14-report-evidence-followup-qwen.md)

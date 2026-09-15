@@ -299,6 +299,12 @@ USD 0.002828557 is a frozen conservative estimate, not an invoice. No retry,
 accepted final answer, general semantic verification or production activation
 is claimed; the original failed batch and sealed retrieval results stay intact.
 
+The [separate final-only JSON candidate](report-evidence-followup.md#separate-final-only-json-candidate)
+has a [new JQ synthetic protocol](prereg-2026-09-16-report-evidence-final-json-qwen.md).
+It requests JSON Object output only after tools are disabled, keeping strict
+local parsing and the old failed batches intact. Preparation is not proof of
+native closure, semantic correctness or production authorization.
+
 ## Negative findings that remain binding
 
 [AGENTS.md](../AGENTS.md#do-not-redo-these) retains the six measured exclusions:

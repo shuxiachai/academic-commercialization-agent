@@ -149,6 +149,9 @@ Its [subsequent live batch](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered saved text after native lookup/read, but failed final JSON-envelope
 parsing. Three requests were accounted and the second case was not run;
 this is progress in evidence delivery, not successful closure or production use.
+A [new final-only JSON candidate](docs/report-evidence-followup.md#separate-final-only-json-candidate)
+uses fresh synthetic controls and preserves strict local validation; it does not
+rewrite the failed batch or enable a production follow-up endpoint.
 
 ## Quick start
 
