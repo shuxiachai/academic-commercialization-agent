@@ -143,6 +143,8 @@ production follow-up is claimed. Its separate
 [stage-aware transport](docs/report-evidence-followup.md#stage-aware-qwen-transport)
 preserves final-only intent at the HTTP/journal seam; this is offline contract
 work, not a new native-model observation or production integration.
+A [separate canary protocol](docs/report-evidence-followup.md#stage-aware-canary-preparation)
+prepares new synthetic cases; its default identity check makes no provider call.
 
 ## Quick start
 

@@ -287,6 +287,15 @@ The [transport result](results-2026-09-15-report-evidence-stage-qwen-transport.m
 retains the Windows test-isolation failure and distinguishes code deployment
 from successful live closure or production follow-up.
 
+A [separately preregistered stage-aware canary](prereg-2026-09-15-report-evidence-stage-qwen-canary.md)
+prepares two new synthetic controls with default-off execution and independent
+commit/fixture identity. This is offline runner preparation, not a new provider
+observation or reuse of the previous allowance. The original failed batch and
+sealed retrieval experiments remain unchanged.
+The [preparation result](results-2026-09-15-stage-qwen-canary-preparation.md)
+records 81 new tests, actual first-failure dispatch suppression and a committed
+default identity check; SQ01/SQ02 remain unrun against the provider.
+
 ## Negative findings that remain binding
 
 [AGENTS.md](../AGENTS.md#do-not-redo-these) retains the six measured exclusions:
