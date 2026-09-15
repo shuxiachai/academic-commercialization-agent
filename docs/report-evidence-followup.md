@@ -161,13 +161,46 @@ bind the new module and every reused dependency rather than copying an old
 experiment identity. The ledger remains single-owner, not customer admission.
 
 Transport acceptance does not mean the final envelope, evidence citations or
-answer semantics passed the policy/core. A future runner must stop on those
-failures too. Current verification uses synthetic keys and intercepted HTTP;
-there is no new live CLI, paid experiment or production route. See the
+answer semantics passed the policy/core. The separate runner below must stop
+on those failures too. Verification uses synthetic keys and intercepted HTTP;
+no new paid experiment or production route is implied. See the
 [offline transport protocol](prereg-2026-09-15-report-evidence-stage-qwen-transport.md).
 The [scoped result](results-2026-09-15-report-evidence-stage-qwen-transport.md)
 records validation and the failed Windows isolation attempt without relabeling
 either as provider behavior.
+
+## Stage-aware canary preparation
+
+The [new protocol](prereg-2026-09-15-report-evidence-stage-qwen-canary.md)
+freezes SQ01/SQ02 separately from the failed original batch. The new command
+`report_evidence_stage_canary.py` defaults to identity checking, not execution.
+It requires an exact committed version and the new fixture's SHA-256 before
+any credential lookup, output creation or possible provider request. Its
+execution path composes the actual stage policy and separate HTTP adapter.
+
+For an already committed checkout, this PowerShell example performs only the
+default check; selecting HEAD here identifies the checkout, not a paid approval:
+
+```powershell
+$commit = git rev-parse HEAD
+uv run python report_evidence_stage_canary.py --expected-commit $commit --expected-fixture-sha256 93d3872b7789a1ff99fbe236274a0ec7a52ce987ece9d53f63e4080fba27ffa6
+```
+
+Do not add `--authorize-paid` or an output directory to a dry check. Code-owned
+failure categories are printed instead of raw key, path or provider exceptions.
+
+The future live path requires an explicit acknowledgement for the new protocol,
+a fresh exclusive output and only the process `DASHSCOPE_API_KEY`. There is no
+automatic `.env` read, provider fallback, retry, repair or resume. An operator
+acknowledgement records an action; it is not independently verified user consent
+or reuse of the old batch's unused calls. Fresh bounded user authorization is
+still required before anyone executes it.
+
+SQ01 requires an actual saved-text read and a cited final answer; SQ02 requires
+an actual missing-text read followed by abstention. Transport acceptance alone
+does not pass either case. First-case protocol/core/accounting failure prevents
+the next case, preserving received usage and marking the rest unrun. Default-off
+preparation is not live Qwen closure, semantic support or production admission.
 
 ## Bounded Qwen compatibility work
 
