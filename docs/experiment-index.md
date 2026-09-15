@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-15 stage-aware Qwen transport protocol](prereg-2026-09-15-report-evidence-stage-qwen-transport.md) — preserve final-only semantics at intercepted HTTP and journal boundaries; no live authorization.
+
 - [2026-09-15 offline stage-control result](results-2026-09-15-report-evidence-stage-policy.md) — dispatch and actual-forwarding seams; 43 new tests, no new provider observations.
 
 - [2026-09-15 offline follow-up stage policy](prereg-2026-09-15-report-evidence-stage-policy.md) — reserve read/finalization within unchanged limits; no new live authorization.
