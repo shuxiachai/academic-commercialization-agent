@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-15 stage-aware Qwen live result](results-2026-09-15-stage-qwen-canary-live.md) — three accounted requests; saved text reached final-only HTTP, SQ01 failed strict JSON-envelope parsing, SQ02 unrun; no retry or production activation.
+
 - [2026-09-15 stage-aware Qwen canary preparation result](results-2026-09-15-stage-qwen-canary-preparation.md) — 81 new offline tests, default committed identity check and first-case failure dispatch counterexample; no live cases run.
 
 - [2026-09-15 stage-aware Qwen canary protocol](prereg-2026-09-15-report-evidence-stage-qwen-canary.md) — new synthetic identity and default-off runner; offline preparation, separate live authorization required.

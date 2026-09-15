@@ -151,8 +151,10 @@ empty tool list becomes an omitted `tools` member in the HTTP body, while
 explicit `tool_choice=none` remains. This mapping occurs before serialization
 and reservation; it is not an after-the-fact rewrite of an auto request.
 Native IDs/results remain in the message history, and the exact wire bytes must
-match the pre-dispatch journal. Live acceptance by the exact endpoint remains
-unobserved for this new conversation.
+match the pre-dispatch journal. The offline preparation did not observe live
+acceptance. The [later bounded batch](results-2026-09-15-stage-qwen-canary-live.md)
+received three accepted transport responses, including final-only, but the
+final envelope failed core parsing. This is not successful answer closure.
 
 HTTP cancellation/TLS/proxy/redirect limits and response/usage/key protections
 reuse frozen primitives. The old `__call__` is not reused because it hardcodes
@@ -203,6 +205,15 @@ the next case, preserving received usage and marking the rest unrun. Default-off
 preparation is not live Qwen closure, semantic support or production admission.
 The [offline preparation result](results-2026-09-15-stage-qwen-canary-preparation.md)
 records the committed default check and dispatch-level defect re-injection.
+
+The [subsequent authorized live result](results-2026-09-15-stage-qwen-canary-live.md)
+is a failure, not an extension of that offline pass. SQ01 performed lookup and
+read, with the complete saved excerpt reaching a final-only HTTP request, but
+the response mixed prose and fenced JSON and failed `invalid_final_envelope`.
+Three requests were accounted; SQ02 was not run. Do not repair or rerun this
+closed batch using its remaining budget. A separate final-output contract is
+the next offline candidate; no production route or semantic-validation claim
+follows from observing one successful read.
 
 ## Bounded Qwen compatibility work
 
