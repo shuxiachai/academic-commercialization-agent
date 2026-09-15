@@ -257,6 +257,13 @@ candidate is fully written, flushed, fsynced and closed. A leftover dot-prefixed
 token. Unsupported hard links fail closed. Cleanup after successful publication
 cannot reverse the returned truth; this is not power-loss or distributed safety.
 
+The [single JQ live batch](results-2026-09-16-report-evidence-final-json-qwen.md)
+used two requests and failed JQ01: a long contiguous lookup query missed the
+existing source, and the final-only response was valid JSON abstention without
+a read. JQ02 was unrun. JSON-format compatibility on this zero-hit branch is not
+successful saved-evidence closure. The next offline gate is the lookup contract;
+do not use the remaining allowance for another batch or enable a production route.
+
 ## Bounded Qwen compatibility work
 
 The [Qwen canary protocol](prereg-2026-09-14-report-evidence-followup-qwen.md)

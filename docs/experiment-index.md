@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-16 final-only JSON JQ result](results-2026-09-16-report-evidence-final-json-qwen.md): valid final envelope on the zero-hit branch, failed positive saved-read gate, second case unrun; no production admission.
+
 - [2026-09-16 final-only JSON Qwen protocol](prereg-2026-09-16-report-evidence-final-json-qwen.md) — new JQ synthetic controls, final-only JSON Object wire contract, strict parsing and separate bounded authorization; old failures unchanged.
 
 - [2026-09-15 stage-aware Qwen live result](results-2026-09-15-stage-qwen-canary-live.md) — three accounted requests; saved text reached final-only HTTP, SQ01 failed strict JSON-envelope parsing, SQ02 unrun; no retry or production activation.

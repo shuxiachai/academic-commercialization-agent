@@ -152,6 +152,11 @@ this is progress in evidence delivery, not successful closure or production use.
 A [new final-only JSON candidate](docs/report-evidence-followup.md#separate-final-only-json-candidate)
 uses fresh synthetic controls and preserves strict local validation; it does not
 rewrite the failed batch or enable a production follow-up endpoint.
+Its [JQ validation](docs/results-2026-09-16-report-evidence-final-json-qwen.md)
+returned valid JSON after a zero-hit lookup, but failed the required read gate;
+the second case was unrun. The observed blocker was saved-source discovery;
+final JSON compatibility after a successful saved-text read remains untested.
+Neither observation permits claiming closure or retrying the frozen batch.
 
 ## Quick start
 

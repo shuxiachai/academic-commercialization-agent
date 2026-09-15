@@ -302,8 +302,11 @@ is claimed; the original failed batch and sealed retrieval results stay intact.
 The [separate final-only JSON candidate](report-evidence-followup.md#separate-final-only-json-candidate)
 has a [new JQ synthetic protocol](prereg-2026-09-16-report-evidence-final-json-qwen.md).
 It requests JSON Object output only after tools are disabled, keeping strict
-local parsing and the old failed batches intact. Preparation is not proof of
-native closure, semantic correctness or production authorization.
+local parsing and the old failed batches intact. Its [single live JQ batch](results-2026-09-16-report-evidence-final-json-qwen.md)
+made two requests: the multi-concept contiguous lookup missed an existing source,
+then strict JSON abstention passed formatting but failed the positive read gate.
+JQ02 was unrun. Estimated usage cost USD 0.000937594 is not an invoice.
+This is neither native read closure, semantic correctness nor production authorization.
 
 ## Negative findings that remain binding
 
