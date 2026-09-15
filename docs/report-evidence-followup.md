@@ -201,6 +201,8 @@ an actual missing-text read followed by abstention. Transport acceptance alone
 does not pass either case. First-case protocol/core/accounting failure prevents
 the next case, preserving received usage and marking the rest unrun. Default-off
 preparation is not live Qwen closure, semantic support or production admission.
+The [offline preparation result](results-2026-09-15-stage-qwen-canary-preparation.md)
+records the committed default check and dispatch-level defect re-injection.
 
 ## Bounded Qwen compatibility work
 

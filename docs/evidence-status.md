@@ -292,6 +292,9 @@ prepares two new synthetic controls with default-off execution and independent
 commit/fixture identity. This is offline runner preparation, not a new provider
 observation or reuse of the previous allowance. The original failed batch and
 sealed retrieval experiments remain unchanged.
+The [preparation result](results-2026-09-15-stage-qwen-canary-preparation.md)
+records 81 new tests, actual first-failure dispatch suppression and a committed
+default identity check; SQ01/SQ02 remain unrun against the provider.
 
 ## Negative findings that remain binding
 

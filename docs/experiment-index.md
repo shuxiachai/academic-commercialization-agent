@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-15 stage-aware Qwen canary preparation result](results-2026-09-15-stage-qwen-canary-preparation.md) — 81 new offline tests, default committed identity check and first-case failure dispatch counterexample; no live cases run.
+
 - [2026-09-15 stage-aware Qwen canary protocol](prereg-2026-09-15-report-evidence-stage-qwen-canary.md) — new synthetic identity and default-off runner; offline preparation, separate live authorization required.
 
 - [2026-09-15 stage-aware Qwen transport result](results-2026-09-15-report-evidence-stage-qwen-transport.md) — final-only intent reaches intercepted HTTP and its journal; Windows fixture failure retained, no provider observation.
