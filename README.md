@@ -145,6 +145,10 @@ preserves final-only intent at the HTTP/journal seam; this is offline contract
 work, not a new native-model observation or production integration.
 A [separate canary protocol](docs/report-evidence-followup.md#stage-aware-canary-preparation)
 prepares new synthetic cases; its default identity check makes no provider call.
+Its [subsequent live batch](docs/results-2026-09-15-stage-qwen-canary-live.md)
+delivered saved text after native lookup/read, but failed final JSON-envelope
+parsing. Three requests were accounted and the second case was not run;
+this is progress in evidence delivery, not successful closure or production use.
 
 ## Quick start
 

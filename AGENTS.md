@@ -265,6 +265,12 @@ See the [ingress/history/finalization contract](docs/results-2026-09-08-upload-h
 
 ## Tool Calling: do not turn experimental code into production by accident
 
+The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
+delivered a synthetic excerpt through native lookup/read but failed the strict
+final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes
+unchanged and general semantic support unassessed. A future final-output
+contract must not retrospectively repair this result or enable production.
+
 - Production is phase-1 **zero-call shadow mode**. Phase-2 execution, provider
   adapters and later OpenAlex/Qwen selectors are production-disconnected.
 - Adaptive Role-Gap v8 passed AC development and **failed AD unseen evaluation**:

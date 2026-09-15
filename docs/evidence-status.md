@@ -288,13 +288,16 @@ retains the Windows test-isolation failure and distinguishes code deployment
 from successful live closure or production follow-up.
 
 A [separately preregistered stage-aware canary](prereg-2026-09-15-report-evidence-stage-qwen-canary.md)
-prepares two new synthetic controls with default-off execution and independent
-commit/fixture identity. This is offline runner preparation, not a new provider
-observation or reuse of the previous allowance. The original failed batch and
-sealed retrieval experiments remain unchanged.
-The [preparation result](results-2026-09-15-stage-qwen-canary-preparation.md)
-records 81 new tests, actual first-failure dispatch suppression and a committed
-default identity check; SQ01/SQ02 remain unrun against the provider.
+has independent commit/fixture identity and default-off execution. Its
+[preparation result](results-2026-09-15-stage-qwen-canary-preparation.md) retains
+81 new offline tests and the first-failure dispatch counterexample.
+The [subsequent live batch](results-2026-09-15-stage-qwen-canary-live.md) made
+three requests: lookup and saved-text read reached final-only HTTP, but SQ01
+failed because prose plus fenced JSON violated the strict final envelope.
+SQ02 was not run. Reported usage was 2529 input / 401 output tokens;
+USD 0.002828557 is a frozen conservative estimate, not an invoice. No retry,
+accepted final answer, general semantic verification or production activation
+is claimed; the original failed batch and sealed retrieval results stay intact.
 
 ## Negative findings that remain binding
 

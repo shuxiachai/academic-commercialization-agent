@@ -123,6 +123,9 @@ runner，也不宣称新的真实模型成功率或线上追问已经完成。�
 禁用工具的意图保留到HTTP/账本接缝；这是离线合同验证，不是新的模型实测或生产接入。
 另有[独立canary准备](docs/report-evidence-followup.md#stage-aware-canary-preparation)，
 冻结新的合成案例；默认只核验身份，不发供应商请求，也不复用旧付费额度。
+其[后续真实批次](docs/results-2026-09-15-stage-qwen-canary-live.md)已完成原生查找、
+读取及证据交付，但最终回复混入说明和JSON代码块，严格格式校验失败。
+三次请求已记账，第二例未执行；读取有进展，不等于闭环通过或已接入生产。
 
 ## 快速启动
 
