@@ -1,0 +1,24 @@
+[
+  {
+    "case_id": "JQ01",
+    "source_id": "A9",
+    "group": "academic",
+    "title": "Synthetic piezoelectric vibration sensor record",
+    "publisher": "Synthetic example",
+    "accessed_date": "2026-09-16",
+    "origin": "abstract",
+    "summary": "The synthetic piezoelectric vibration sensor showed a resonant frequency of 18 Hz in a laboratory fixture. No field deployment or lifetime testing was performed.",
+    "question": "What resonant frequency did the synthetic piezoelectric vibration sensor show, and were field deployment or lifetime testing performed? Read the saved evidence before answering and cite its evidence ID."
+  },
+  {
+    "case_id": "JQ02",
+    "source_id": "M6",
+    "group": "market",
+    "title": "Synthetic river membrane business record",
+    "publisher": "Synthetic example",
+    "accessed_date": "2026-09-16",
+    "origin": "unknown",
+    "summary": null,
+    "question": "Does the synthetic river membrane business record establish annual revenue? Read the saved record and explicitly abstain if its text is unavailable."
+  }
+]
