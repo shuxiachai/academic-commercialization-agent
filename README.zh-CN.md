@@ -116,6 +116,10 @@
 [首次真实 Qwen 验证](docs/results-2026-09-15-report-evidence-followup-qwen-canary.md)
 完整记录了三次调用，但**读取到回答的闭环未通过**，第二例未执行；原生传输成功不等于功能已完成。
 
+另有独立的[离线阶段策略](docs/report-evidence-followup.md#separate-offline-stage-policy)，
+同时约束展示给模型及实际可执行的工具，为读取与回答保留机会；不增加额度、不修改旧冻结
+runner，也不宣称新的真实模型成功率或线上追问已经完成。
+
 ## 快速启动
 
 优先使用 CI 覆盖的 Python 3.11/3.12 与 [uv](https://docs.astral.sh/uv/)。

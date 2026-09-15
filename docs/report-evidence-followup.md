@@ -86,6 +86,54 @@ delivered evidence, deliberate abstention and execution failure. In all cases,
 proof that the prose is entailed by the excerpt. No-tool responses do not count
 as successful tool use or completed evidence checking.
 
+## Separate offline stage policy
+
+See the [measured offline result](results-2026-09-15-report-evidence-stage-policy.md)
+for regression counts, the dispatch-level mutation and limits.
+
+The [stage-policy protocol](prereg-2026-09-15-report-evidence-stage-policy.md)
+adds an opt-in wrapper around the unchanged original loop. This is not a
+replacement for the frozen Qwen runner. It narrows both the tool declarations
+sent to the injected callback and the responses admitted back to local dispatch.
+
+The new entry is `run_policy_followup` in
+`academic_agent.report_evidence_guarded_followup`. Its separate demonstration is:
+
+```bash
+uv run python report_evidence_guarded_followup_demo.py
+```
+
+This uses an invented orchard-probe record and a scripted callback, accepts no
+arguments, and labels its JSON output `scripted_offline`. It is not a paid
+rerun of FQ01 and cannot consume the previous batch's remaining allowance.
+
+| Stage observed from actual local results | Allowed next tool action |
+|---|---|
+| Before a result | One lookup or a direct read of an ID present in this snapshot. |
+| Lookup with hits | Read only an ID in those returned hits; no second lookup. |
+| Lookup without hits, or after a read result | No tool; final answer/abstention only. |
+| Last allowed turn | No tool, even if another numeric tool slot remains. |
+
+The final-only call has `tools=[]` and `tool_choice="none"`. A response that
+ignores this restriction is rejected before a tool executes, not retried with
+more permissions. Lookup is one case-insensitive contiguous literal phrase,
+not a keyword bag or semantic search. Zero hits do not prove absent sources or
+justify invented content. A direct-read existence check does not prove the
+model obtained the ID without guessing; the catalog still exposes no ID list.
+
+Policy state follows actual paired tool results, not model-written stage
+claims. The original core counts delivery at entry to its callback. The wrapper
+therefore distinguishes that legacy diagnostic from reaching the actual
+downstream callback: pre-dispatch rejection is not downstream delivery, and
+post-response rejection cannot erase evidence already handed to that callback.
+Neither observation proves a provider received or understood the evidence.
+
+The ceiling stays two tool attempts and three core turns. Scripted positive and
+negative controls exercise this policy without credentials or network. They do
+not establish a higher live success rate. Earlier abstention is not a successful
+answer to the consumed positive FQ01 case. The original adapter accepts only
+`auto`; silently translating `none` to `auto` is not a supported integration.
+
 ## Bounded Qwen compatibility work
 
 The [Qwen canary protocol](prereg-2026-09-14-report-evidence-followup-qwen.md)

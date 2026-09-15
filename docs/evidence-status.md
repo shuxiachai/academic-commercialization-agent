@@ -267,6 +267,17 @@ closure after two lookups exhausted the tool budget. No read/final answer was
 delivered; the second synthetic case was not run. Conservative known-usage
 estimate: USD 0.001813194, not an invoice. No retry or production activation.
 
+The separate [offline stage policy](report-evidence-followup.md#separate-offline-stage-policy)
+restricts both advertised actions and local dispatch, retaining the original
+two-tool/three-turn ceilings and frozen modules. It distinguishes entering the
+legacy callback from actually forwarding evidence to the injected transport.
+This is control-boundary work, not a fresh model observation or a reversal of
+FQ01/v8 failures. Its [offline protocol](prereg-2026-09-15-report-evidence-stage-policy.md)
+does not grant new paid requests or a production route.
+The [offline result](results-2026-09-15-report-evidence-stage-policy.md) records
+43 new tests, the repeated-lookup defect reinjection and the remaining live
+adapter/semantic limits; scripted closure is not a new Qwen success rate.
+
 ## Negative findings that remain binding
 
 [AGENTS.md](../AGENTS.md#do-not-redo-these) retains the six measured exclusions:

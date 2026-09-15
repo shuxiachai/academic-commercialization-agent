@@ -136,6 +136,11 @@ Its [first native Qwen canary](docs/results-2026-09-15-report-evidence-followup-
 accounted three requests but **failed the read-to-answer closure gate**; the
 second case was not run. Native transport success is not a completed feature.
 
+A separate [offline stage policy](docs/report-evidence-followup.md#separate-offline-stage-policy)
+reserves read/finalization opportunities by narrowing advertised and executable
+actions. It keeps the same limits and frozen runner; no new live success or
+production follow-up is claimed.
+
 ## Quick start
 
 Use Python 3.11 or 3.12 for the CI-tested environment and
