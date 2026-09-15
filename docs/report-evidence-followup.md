@@ -134,6 +134,41 @@ not establish a higher live success rate. Earlier abstention is not a successful
 answer to the consumed positive FQ01 case. The original adapter accepts only
 `auto`; silently translating `none` to `auto` is not a supported integration.
 
+## Stage-aware Qwen transport
+
+The separate `report_evidence_stage_qwen_transport.py` connects the callback
+contract to an explicit HTTP body without editing the old adapter or runner.
+`StageQwenFollowupTransport` uses `StageQwenLedger`, whose code-owned manifest
+labels this as an offline contract and records `tool_choice_by_stage`. Reusing
+an auto-only manifest would misdescribe the operation even if a mock answered.
+The scope label is not a network sandbox or live authorization.
+
+Its permitted inputs are the policy's original lookup/read declarations, the
+single read declaration retaining its returned-hit enum, or an empty list with
+`tool_choice=none`. No dummy tool, hidden `auto` replacement or schema repair is
+used to make finalization appear compatible. In final-only mode, the callback's
+empty tool list becomes an omitted `tools` member in the HTTP body, while
+explicit `tool_choice=none` remains. This mapping occurs before serialization
+and reservation; it is not an after-the-fact rewrite of an auto request.
+Native IDs/results remain in the message history, and the exact wire bytes must
+match the pre-dispatch journal. Live acceptance by the exact endpoint remains
+unobserved for this new conversation.
+
+HTTP cancellation/TLS/proxy/redirect limits and response/usage/key protections
+reuse frozen primitives. The old `__call__` is not reused because it hardcodes
+auto. The new source documents that dependency coupling; a later runner must
+bind the new module and every reused dependency rather than copying an old
+experiment identity. The ledger remains single-owner, not customer admission.
+
+Transport acceptance does not mean the final envelope, evidence citations or
+answer semantics passed the policy/core. A future runner must stop on those
+failures too. Current verification uses synthetic keys and intercepted HTTP;
+there is no new live CLI, paid experiment or production route. See the
+[offline transport protocol](prereg-2026-09-15-report-evidence-stage-qwen-transport.md).
+The [scoped result](results-2026-09-15-report-evidence-stage-qwen-transport.md)
+records validation and the failed Windows isolation attempt without relabeling
+either as provider behavior.
+
 ## Bounded Qwen compatibility work
 
 The [Qwen canary protocol](prereg-2026-09-14-report-evidence-followup-qwen.md)

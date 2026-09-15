@@ -118,7 +118,9 @@
 
 另有独立的[离线阶段策略](docs/report-evidence-followup.md#separate-offline-stage-policy)，
 同时约束展示给模型及实际可执行的工具，为读取与回答保留机会；不增加额度、不修改旧冻结
-runner，也不宣称新的真实模型成功率或线上追问已经完成。
+runner，也不宣称新的真实模型成功率或线上追问已经完成。独立的
+[阶段感知传输](docs/report-evidence-followup.md#stage-aware-qwen-transport)将最后一轮
+禁用工具的意图保留到HTTP/账本接缝；这是离线合同验证，不是新的模型实测或生产接入。
 
 ## 快速启动
 
