@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-15 stage-aware Qwen canary protocol](prereg-2026-09-15-report-evidence-stage-qwen-canary.md) — new synthetic identity and default-off runner; offline preparation, separate live authorization required.
+
 - [2026-09-15 stage-aware Qwen transport result](results-2026-09-15-report-evidence-stage-qwen-transport.md) — final-only intent reaches intercepted HTTP and its journal; Windows fixture failure retained, no provider observation.
 
 - [2026-09-15 stage-aware Qwen transport protocol](prereg-2026-09-15-report-evidence-stage-qwen-transport.md) — preserve final-only semantics at intercepted HTTP and journal boundaries; no live authorization.

@@ -1,0 +1,24 @@
+[
+  {
+    "case_id": "SQ01",
+    "source_id": "A7",
+    "group": "academic",
+    "title": "Synthetic ceramic strain gauge record",
+    "publisher": "Synthetic example",
+    "accessed_date": "2026-09-15",
+    "origin": "abstract",
+    "summary": "The synthetic ceramic strain gauge measured 32 microstrain in a bench fixture. No outdoor durability testing was performed.",
+    "question": "What strain did the synthetic ceramic strain gauge measure, and was outdoor durability tested? Read the saved evidence before answering and cite its evidence ID."
+  },
+  {
+    "case_id": "SQ02",
+    "source_id": "M4",
+    "group": "market",
+    "title": "Synthetic coastal filter business record",
+    "publisher": "Synthetic example",
+    "accessed_date": "2026-09-15",
+    "origin": "unknown",
+    "summary": null,
+    "question": "Does the synthetic coastal filter business record establish annual sales? Read the saved record and explicitly abstain if its text is unavailable."
+  }
+]
