@@ -278,6 +278,15 @@ The [offline result](results-2026-09-15-report-evidence-stage-policy.md) records
 43 new tests, the repeated-lookup defect reinjection and the remaining live
 adapter/semantic limits; scripted closure is not a new Qwen success rate.
 
+The separate [stage-aware Qwen transport](report-evidence-followup.md#stage-aware-qwen-transport)
+preserves explicit final-only wire semantics and uses a distinct journal
+identity. Its [offline protocol](prereg-2026-09-15-report-evidence-stage-qwen-transport.md)
+covers intercepted HTTP and failure accounting, not a new live runner, paid
+allowance or general semantic validation. Both earlier failures remain binding.
+The [transport result](results-2026-09-15-report-evidence-stage-qwen-transport.md)
+retains the Windows test-isolation failure and distinguishes code deployment
+from successful live closure or production follow-up.
+
 ## Negative findings that remain binding
 
 [AGENTS.md](../AGENTS.md#do-not-redo-these) retains the six measured exclusions:

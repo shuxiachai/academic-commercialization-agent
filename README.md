@@ -139,7 +139,10 @@ second case was not run. Native transport success is not a completed feature.
 A separate [offline stage policy](docs/report-evidence-followup.md#separate-offline-stage-policy)
 reserves read/finalization opportunities by narrowing advertised and executable
 actions. It keeps the same limits and frozen runner; no new live success or
-production follow-up is claimed.
+production follow-up is claimed. Its separate
+[stage-aware transport](docs/report-evidence-followup.md#stage-aware-qwen-transport)
+preserves final-only intent at the HTTP/journal seam; this is offline contract
+work, not a new native-model observation or production integration.
 
 ## Quick start
 
