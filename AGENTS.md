@@ -140,6 +140,11 @@ These are not style preferences; each came from a specific failure.
 - **Prose is not covered by tests.** One recent round found five places where a
   comment, a docstring, or UI copy described behaviour the code did not have.
   When you change behaviour, the sentence next to it is part of the change.
+- **New semantic reviews use LLMs, not a human-review prerequisite.** Follow
+  [the explicit AI-only policy](docs/llm-review-policy.md): fresh judging context,
+  honest provenance and uncertainty, no rewriting old human declarations or
+  substituting simulated judgment for observed adoption. Budget and private-data
+  publication permissions remain separate.
 
 ## Layout and boundary-specific reading
 
@@ -164,6 +169,7 @@ These are not style preferences; each came from a specific failure.
 | Public documentation | `README.md`, `README.zh-CN.md`, `docs/` | `tests/test_public_docs.py`; both languages must retain the full executable benchmark contract |
 | Real saved-report follow-up preparation | `report_evidence_real_saved_eval.py` | [Local-only RS protocol](docs/prereg-2026-09-16-report-evidence-real-saved-offline.md); private raw report/source/question/label binding, explicit scripted callbacks only, no live runner or real-data transmission authority |
 | Isolated real saved-report Qwen pilot | `report_evidence_real_saved_qwen_canary.py`, root `report_evidence_real_saved_canary.py` | [Separate RS live protocol](docs/prereg-2026-09-16-report-evidence-real-saved-qwen.md); exact private packet and current-code identities, four sequential requests maximum, fixed single-batch output, first failure stops, separate LLM review never human gold; no production route |
+| Offline claim-relative follow-up | `report_evidence_claim_relation.py` | [New offline contract](docs/prereg-2026-09-16-followup-claim-relation.md); caller-owned claim, unverified model relationship, code-derived delivery, actual callback byte/delivery checks; no provider adapter or historical relabeling |
 
 Unless qualified, the Python module names in this table are under
 `src/academic_agent/`. The dated experiment documents and their code comments

@@ -216,6 +216,16 @@ accounting does not make incomplete source-run spending inspectable.
 
 ## Tool Calling experiments
 
+New semantic evaluations follow the [LLM-only review policy](llm-review-policy.md).
+No new human panel is required. Independent AI judgment remains distinct from
+structural validation, historical human declarations and observed user adoption.
+The [new offline claim-relation protocol](prereg-2026-09-16-followup-claim-relation.md)
+uses caller-owned propositions and code-derived delivery for support, refutation,
+insufficiency and unavailable reads. It does not alter frozen transports or
+authorize a provider run or production connection.
+The [offline implementation record](results-2026-09-16-followup-claim-relation.md)
+keeps scripted contract evidence separate from model semantic quality.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

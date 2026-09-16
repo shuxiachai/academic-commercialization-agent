@@ -11,6 +11,37 @@ The ordinary alternative remains browsing the same source cards and summaries.
 Reader benefit relative to that alternative has not been measured. This phase
 tests the tool conversation protocol, not model quality or product adoption.
 
+New semantic evaluations follow the [LLM-only review policy](llm-review-policy.md).
+Human review is not required to proceed; independent model judgment is still
+separate from structural admission and cannot establish actual user adoption.
+
+## Separate offline claim-relation contract
+
+The [new preregistration](prereg-2026-09-16-followup-claim-relation.md) defines
+`run_claim_relation_followup(snapshot, claim, *, transport)` in the isolated
+`report_evidence_claim_relation` module. The caller supplies an explicit
+proposition verbatim. This is not automatic claim extraction from arbitrary
+questions, an existing Qwen adapter option or a production endpoint.
+
+The model declares `claim_relation`, `answer`, `supporting_evidence_ids` and
+`caveats`; it cannot independently set delivery `status`. A `supported` claim
+and an explicitly `refuted` claim can both produce evidence-backed delivery.
+`insufficient` means nonempty material was delivered but does not establish the
+claim or its refutation; `unavailable` means no usable read reached the callback.
+Both abstain. Negation in prose is not a rule for selecting any of these states.
+
+The wrapper checks structural consistency and actual receipts, preserves the
+declaration on serialization and derives the old core envelope without changing
+frozen code. It does **not** verify the model's semantic relationship. A false
+but structurally consistent declaration can still pass; all semantic flags
+remain unverified. Scripts are not model inference.
+
+One read and two callbacks remain the ceiling. The transformed callback request
+is checked again against 12 KiB; the outer wrapper's earlier byte/delivery
+counts cannot stand in for the final callback. Early ending, checked missing
+text, delivered-but-insufficient evidence and execution failure stay distinct.
+There is no new provider adapter, automatic judging request or paid runner.
+
 ## Offline demonstration
 
 ```bash

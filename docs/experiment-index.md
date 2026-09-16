@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-16 offline claim-relation result](results-2026-09-16-followup-claim-relation.md): actual callback delivery, four model-declared relations and code-derived status, with fresh synthetic controls; no semantic-accuracy or live-provider claim.
+
+- [2026-09-16 offline claim-relation preregistration](prereg-2026-09-16-followup-claim-relation.md): separate model-declared evidence relationship from code-owned delivery; new synthetic controls, LLM-only future judging, no paid inference or production activation.
+
 - [2026-09-16 real saved-report Qwen pilot preregistration](prereg-2026-09-16-report-evidence-real-saved-qwen.md): separate exact-packet authorization, four sequential requests, fixed single-batch output, first-failure stop and disclosed post-hoc LLM review; not another synthetic run or production activation.
 
 - [2026-09-16 real saved-report offline result](results-2026-09-16-report-evidence-real-saved-offline.md): full 20-source catalog, separate labels and two scripted read-to-final probes; no provider requests, model correctness or live authorization.
