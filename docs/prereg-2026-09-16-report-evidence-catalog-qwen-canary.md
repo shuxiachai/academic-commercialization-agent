@@ -155,3 +155,16 @@ Close the batch after pass or failure without automatic retuning or another
 paid attempt. Two mechanical passes still do not authorize production routing,
 evidence-gap search, broad semantic claims or user-value claims. Production
 integration requires its own admission, ownership, privacy and value gates.
+
+## Pre-live clarification from independent protocol review
+
+Added on 2026-09-16, after registration and before any CQ request. The phrase
+"Every received failure retains reported usage" above is too broad for the
+frozen HTTP primitive: non-200 status is rejected before reading its body.
+The enforceable contract is to retain valid usage that was actually parsed.
+Non-200, invalid encoding, size-limit or read failures can leave usage unknown,
+even if an inaccessible response body would have contained token counts. Keep
+the reservation as a lower bound and stop, never turn that uncertainty into
+zero cost. Do not change the old wire or retrospectively infer unavailable
+usage. This clarification narrows accounting claims, not the mechanical pass
+criteria, call limit or spend authority.
