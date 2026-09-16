@@ -158,6 +158,7 @@ These are not style preferences; each came from a specific failure.
 | Offline evidence and user studies | `outputs/benchmark/`, `benchmark_check.py`, `ops_report.py`, `user_utility_audit.py`, `checkpoint_fault_audit.py` | [Experiment index](docs/experiment-index.md), source locks and method declarations |
 | Stage-aware synthetic canary | `report_evidence_stage_qwen_canary.py`, root `report_evidence_stage_canary.py` | [New protocol](docs/prereg-2026-09-15-report-evidence-stage-qwen-canary.md); default identity check only, fresh commit/fixture authorization required for live use; keep old manifests and allowances separate |
 | Final-only JSON follow-up candidate | `report_evidence_final_json_qwen_transport.py`, `report_evidence_final_json_qwen_canary.py`, root `report_evidence_final_json_canary.py` | [JQ protocol](docs/prereg-2026-09-16-report-evidence-final-json-qwen.md); JSON Object only in final-only requests, strict parser unchanged; freeze new identity and keep SQ/FQ closed, no production route |
+| Bounded metadata discovery candidate | `report_evidence_catalog_followup.py`, root `report_evidence_catalog_demo.py` | [Offline catalog protocol](docs/prereg-2026-09-16-report-evidence-catalog.md); title/ID metadata is not read evidence; one visible-ID read then final-only, no live adapter or production route |
 | Public documentation | `README.md`, `README.zh-CN.md`, `docs/` | `tests/test_public_docs.py`; both languages must retain the full executable benchmark contract |
 
 Unless qualified, the Python module names in this table are under

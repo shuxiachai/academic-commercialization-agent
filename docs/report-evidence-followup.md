@@ -264,6 +264,54 @@ a read. JQ02 was unrun. JSON-format compatibility on this zero-hit branch is not
 successful saved-evidence closure. The next offline gate is the lookup contract;
 do not use the remaining allowance for another batch or enable a production route.
 
+## Bounded metadata catalog candidate
+
+The [offline protocol](prereg-2026-09-16-report-evidence-catalog.md) registers a
+separate `report_evidence_catalog_v1` entry. It does not alter the frozen lookup,
+core, stage policy, Qwen adapters or old runners. The caller supplies the same
+trusted in-memory snapshot; the new wrapper derives unranked titles and source
+IDs before the first callback. No summary, URL, DOI or evidence ID is supplied
+through this metadata path. Titles remain untrusted data, not instructions.
+
+Limits are 32 entries, 256 Unicode code points per title and 6,144 canonical
+ASCII JSON bytes for the entire catalog. Counts and explicit coverage disclose
+prefix omission and title clipping. Zero sources is a valid empty catalog;
+failure is not empty success. Canonical callback arguments are independently
+limited to 12 KiB before dispatch. A future HTTP adapter must also account for
+its own outer request fields and escaping, rather than assuming that this check
+proves wire acceptance.
+
+The first action permits only one `read_source` of a visible ID, or finalization;
+an empty catalog permits no tool. After the actual read result, the next action
+is final-only. This deliberately narrower candidate uses at most one local tool
+and two downstream callbacks, under the old two-tool/three-turn ceiling. It is
+not a controlled experiment isolating metadata from policy changes. It cannot
+fall back to another source, lookup, external search, pagination or a repair.
+
+The old count-only overview remains unchanged; the new supplementary catalog
+contains IDs. It is injected as user-data with a code-owned system warning, not
+as a fake tool result or source text promoted to system authority. Each outgoing
+history contains one copy. Direct read receipts still come exclusively from the
+frozen executor. Metadata-only citations, invisible IDs and repeated reads fail
+before granting more evidence. Delivered evidence means supplied to the actual
+injected callback, not read bookkeeping performed before a rejected dispatch.
+
+`run_catalog_followup` and `report_evidence_catalog_demo.py` are isolated,
+callback-only entry points. The no-argument demo is `scripted_offline`; it reads
+no credential, real report or provider. The old Qwen transports only admit up to
+five hit IDs, so they are not compatible live adapters for this catalog's
+32-entry enum. New wire adaptation and a separately frozen live protocol remain
+future gates; no key or provider call is needed for this phase.
+
+```bash
+uv run python report_evidence_catalog_demo.py
+```
+
+Catalog coverage is not question relevance or semantic support. Similar titles,
+omitted entries, truncation and facts split across sources remain limits. The
+candidate cannot claim reader benefit or model selection quality from scripted
+controls. JQ, SQ, FQ and v8 keep their recorded failures; production stays off.
+
 ## Bounded Qwen compatibility work
 
 The [Qwen canary protocol](prereg-2026-09-14-report-evidence-followup-qwen.md)

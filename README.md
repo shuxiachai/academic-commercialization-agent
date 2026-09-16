@@ -158,6 +158,11 @@ the second case was unrun. The observed blocker was saved-source discovery;
 final JSON compatibility after a successful saved-text read remains untested.
 Neither observation permits claiming closure or retrying the frozen batch.
 
+The next [offline catalog candidate](docs/report-evidence-followup.md#bounded-metadata-catalog-candidate)
+exposes bounded saved titles/IDs before one read, without changing literal lookup
+or issuing citations from metadata. It has no live transport or production route;
+scripted controls are not evidence of Qwen selection quality or reader benefit.
+
 ## Quick start
 
 Use Python 3.11 or 3.12 for the CI-tested environment and

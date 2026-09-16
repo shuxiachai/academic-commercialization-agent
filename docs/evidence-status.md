@@ -308,6 +308,17 @@ then strict JSON abstention passed formatting but failed the positive read gate.
 JQ02 was unrun. Estimated usage cost USD 0.000937594 is not an invoice.
 This is neither native read closure, semantic correctness nor production authorization.
 
+A separate [bounded metadata catalog](report-evidence-followup.md#bounded-metadata-catalog-candidate)
+addresses discovery offline, preserving the closed JQ result. The candidate gives
+unranked titles/IDs, restricts the first action to one visible-ID read, and keeps
+actual read receipts separate from metadata. It is not a silent replacement for
+literal lookup, a live adapter or evidence of source selection accuracy.
+The [new protocol](prereg-2026-09-16-report-evidence-catalog.md) preserves old
+frozen bytes and forbids additional paid requests in this phase.
+The [local capacity result](results-2026-09-16-report-evidence-catalog.md) covers
+30 snapshots / 632 source rows without omitted metadata; it does not establish
+which source answers a question or revalidate the original benchmark identity.
+
 ## Negative findings that remain binding
 
 [AGENTS.md](../AGENTS.md#do-not-redo-these) retains the six measured exclusions:

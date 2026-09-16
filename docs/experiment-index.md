@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-16 bounded catalog offline result](results-2026-09-16-report-evidence-catalog.md): local metadata capacity and read-before-cite contract; not a native provider observation or production enablement.
+
+- [2026-09-16 offline bounded catalog protocol](prereg-2026-09-16-report-evidence-catalog.md): metadata discovery plus one actual read; no new paid batch, production route or reinterpretation of JQ failure.
+
 - [2026-09-16 final-only JSON JQ result](results-2026-09-16-report-evidence-final-json-qwen.md): valid final envelope on the zero-hit branch, failed positive saved-read gate, second case unrun; no production admission.
 
 - [2026-09-16 final-only JSON Qwen protocol](prereg-2026-09-16-report-evidence-final-json-qwen.md) — new JQ synthetic controls, final-only JSON Object wire contract, strict parsing and separate bounded authorization; old failures unchanged.
