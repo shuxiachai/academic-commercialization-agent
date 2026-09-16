@@ -334,7 +334,12 @@ freezes two new synthetic cases and an independently bounded runner: at most fou
 sequential requests, USD 0.10, first failure stops. A sixth-ID read and its actual
 paired HTTP delivery precede strict final JSON; the missing-text case must read
 before abstaining. The adapter's offline manifest is not live authorization.
-The result will remain separate from old failed batches and production gates.
+The [one CQ batch](results-2026-09-16-report-evidence-catalog-qwen-canary.md)
+passed both controls with four requests and complete reported usage; estimated
+cost USD 0.002839152 is not an invoice. This demonstrates native read-to-final
+closure on these easy invented cases, not general source selection, semantic
+correctness or user benefit. It is closed and production remains disabled;
+old failed batches and production gates retain their original meaning.
 
 ## Negative findings that remain binding
 

@@ -371,8 +371,12 @@ power-loss durability, distributed coordination or provider exactly-once.
 
 These easy synthetic controls are a compatibility gate, not independent source
 selection accuracy, general semantic support, reader value or production
-admission. Raw traces stay local. The result is recorded separately after the
-single batch; a pass does not turn on an API route or browser control.
+admission. Raw traces stay local. The [single CQ result](results-2026-09-16-report-evidence-catalog-qwen-canary.md)
+passed both mechanical gates in four accounted requests, with estimated usage
+cost USD 0.002839152 and reservation consumption USD 0.044597248, not an invoice.
+A narrow AI content inspection matched the two synthetic controls; semantic
+support remains not_assessed. The batch is closed, without a production API
+route or browser control.
 
 ## Bounded Qwen compatibility work
 

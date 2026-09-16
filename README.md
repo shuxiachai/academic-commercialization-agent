@@ -155,7 +155,7 @@ rewrite the failed batch or enable a production follow-up endpoint.
 Its [JQ validation](docs/results-2026-09-16-report-evidence-final-json-qwen.md)
 returned valid JSON after a zero-hit lookup, but failed the required read gate;
 the second case was unrun. The observed blocker was saved-source discovery;
-final JSON compatibility after a successful saved-text read remains untested.
+final JSON compatibility after a successful saved-text read was not tested in JQ.
 Neither observation permits claiming closure or retrying the frozen batch.
 
 The next [offline catalog candidate](docs/report-evidence-followup.md#bounded-metadata-catalog-candidate)
@@ -165,6 +165,10 @@ adapts its 32-ID declaration without changing frozen transports. It is tested
 with intercepted HTTP, not a live model. A separate [CQ synthetic canary](docs/report-evidence-followup.md#catalog-native-synthetic-canary)
 now has its own frozen inputs and bounded runner; it is not production routing.
 Scripted controls do not establish Qwen selection quality or reader benefit.
+The separate [single CQ live batch](docs/results-2026-09-16-report-evidence-catalog-qwen-canary.md)
+then passed both invented controls in four requests: actual read plus cited
+final JSON, and actual missing-text read plus abstention. This is bounded native
+closure evidence, not general semantic accuracy or production enablement.
 
 ## Quick start
 
