@@ -1,0 +1,124 @@
+[
+  {
+    "case_id": "CQ01",
+    "target_source_id": "A6",
+    "question": "What frequency shift did the synthetic ceramic humidity resonator show at 60% relative humidity, and were outdoor deployment or long-term stability studied? Read the saved evidence before answering and cite its evidence ID.",
+    "sources": [
+      {
+        "source_id": "A1",
+        "group": "academic",
+        "title": "Synthetic ceramic temperature resonator bench record",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "abstract",
+        "summary": "The synthetic ceramic temperature resonator was tested only for temperature response. This record contains no humidity-response measurement."
+      },
+      {
+        "source_id": "A2",
+        "group": "academic",
+        "title": "Synthetic polymer humidity film absorption record",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "abstract",
+        "summary": "The synthetic polymer film absorbed water during a bench test. No resonator frequency shift was measured."
+      },
+      {
+        "source_id": "A3",
+        "group": "academic",
+        "title": "Synthetic chamber humidity controller service note",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "abstract",
+        "summary": "The chamber controller maintained its setpoint during maintenance. This note is not a test of a ceramic resonator."
+      },
+      {
+        "source_id": "A4",
+        "group": "academic",
+        "title": "Synthetic ceramic pressure resonator calibration note",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "abstract",
+        "summary": "The synthetic ceramic pressure resonator was calibrated against chamber pressure. Humidity sensitivity was outside the test scope."
+      },
+      {
+        "source_id": "A5",
+        "group": "academic",
+        "title": "Synthetic optical humidity probe laboratory record",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "abstract",
+        "summary": "The optical probe measured transmitted light during a laboratory humidity trial. It did not measure resonant frequency."
+      },
+      {
+        "source_id": "A6",
+        "group": "academic",
+        "title": "Synthetic ceramic humidity resonator bench record",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "abstract",
+        "summary": "The synthetic ceramic humidity resonator shifted by 24 kHz at 60% relative humidity in a laboratory chamber. No outdoor deployment or long-term stability study was performed."
+      }
+    ]
+  },
+  {
+    "case_id": "CQ02",
+    "target_source_id": "M6",
+    "question": "Does the synthetic harbor filtration venture revenue record establish annual revenue? Read the saved record and explicitly abstain if its text is unavailable.",
+    "sources": [
+      {
+        "source_id": "M1",
+        "group": "market",
+        "title": "Synthetic harbor filtration venture funding note",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "search_snippet",
+        "summary": "The synthetic venture received a seed funding pledge. This is not revenue and includes no annual sales figure."
+      },
+      {
+        "source_id": "M2",
+        "group": "market",
+        "title": "Synthetic river filtration venture revenue note",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "search_snippet",
+        "summary": "A separate synthetic river venture recorded pilot sales. It is not the harbor filtration venture."
+      },
+      {
+        "source_id": "M3",
+        "group": "market",
+        "title": "Synthetic harbor filtration venture prototype note",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "search_snippet",
+        "summary": "The synthetic harbor venture built a laboratory prototype. The note reports no sales or revenue."
+      },
+      {
+        "source_id": "M4",
+        "group": "market",
+        "title": "Synthetic harbor filtration market overview",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "search_snippet",
+        "summary": "The synthetic overview lists possible filtration buyers. It does not state company revenue."
+      },
+      {
+        "source_id": "M5",
+        "group": "market",
+        "title": "Synthetic coastal membrane licensing note",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "search_snippet",
+        "summary": "A separate synthetic coastal membrane team discussed licensing terms. No harbor venture financial results are included."
+      },
+      {
+        "source_id": "M6",
+        "group": "market",
+        "title": "Synthetic harbor filtration venture revenue record",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "unknown",
+        "summary": null
+      }
+    ]
+  }
+]
