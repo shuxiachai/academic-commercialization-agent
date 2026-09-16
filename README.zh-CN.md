@@ -130,11 +130,13 @@ runner，也不宣称新的真实模型成功率或线上追问已经完成。�
 使用新合成控制并保留本地严格校验，不改写旧失败结果，也不开启生产追问入口。
 其[JQ验证](docs/results-2026-09-16-report-evidence-final-json-qwen.md)在零匹配后返回了
 合规JSON，但没有实际读取已保存证据，正例仍失败、第二例未运行。
-下一步先离线验证来源发现接口，不把格式通过当作闭环通过或追加重试的依据。
+后续目录与传输工作保持独立身份，不把格式通过当作闭环通过或追加重试的依据。
 
 新的[离线目录候选](docs/report-evidence-followup.md#bounded-metadata-catalog-candidate)
 先提供有界的已保存标题/ID，再允许读取一条来源；不改旧短语匹配，也不凭目录发放引用。
-它尚无真实传输或生产入口；脚本控制不证明千问选源正确，也不证明用户收益。
+独立的[目录原生传输合同](docs/report-evidence-followup.md#catalog-native-qwen-wire-contract)
+适配32个可见ID，不改冻结适配器。验证使用拦截HTTP而非真实模型，尚无新付费runner
+或生产入口；脚本控制不证明千问选源正确，也不证明用户收益。
 
 ## 快速启动
 

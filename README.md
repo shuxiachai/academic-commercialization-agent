@@ -160,8 +160,10 @@ Neither observation permits claiming closure or retrying the frozen batch.
 
 The next [offline catalog candidate](docs/report-evidence-followup.md#bounded-metadata-catalog-candidate)
 exposes bounded saved titles/IDs before one read, without changing literal lookup
-or issuing citations from metadata. It has no live transport or production route;
-scripted controls are not evidence of Qwen selection quality or reader benefit.
+or issuing citations from metadata. A separate [catalog-native wire contract](docs/report-evidence-followup.md#catalog-native-qwen-wire-contract)
+adapts its 32-ID declaration without changing frozen transports. It is tested
+with intercepted HTTP, not a live model, and has no new paid runner or production
+route. Scripted controls do not establish Qwen selection quality or reader benefit.
 
 ## Quick start
 

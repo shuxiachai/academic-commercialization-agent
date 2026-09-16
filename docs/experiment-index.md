@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-16 catalog-native Qwen offline result](results-2026-09-16-report-evidence-catalog-qwen-transport.md): actual intercepted bodies and journal hashes, with separate protocol/semantic limits and no live model claim.
+
+- [2026-09-16 catalog-native Qwen offline protocol](prereg-2026-09-16-report-evidence-catalog-qwen-transport.md): a separate 32-ID wire/history/accounting contract, not a widened old adapter or a live batch.
+
 - [2026-09-16 bounded catalog offline result](results-2026-09-16-report-evidence-catalog.md): local metadata capacity and read-before-cite contract; not a native provider observation or production enablement.
 
 - [2026-09-16 offline bounded catalog protocol](prereg-2026-09-16-report-evidence-catalog.md): metadata discovery plus one actual read; no new paid batch, production route or reinterpretation of JQ failure.

@@ -299,9 +299,10 @@ injected callback, not read bookkeeping performed before a rejected dispatch.
 `run_catalog_followup` and `report_evidence_catalog_demo.py` are isolated,
 callback-only entry points. The no-argument demo is `scripted_offline`; it reads
 no credential, real report or provider. The old Qwen transports only admit up to
-five hit IDs, so they are not compatible live adapters for this catalog's
-32-entry enum. New wire adaptation and a separately frozen live protocol remain
-future gates; no key or provider call is needed for this phase.
+five hit IDs, so they are not compatible adapters for this catalog's 32-entry
+enum. The separate catalog-native wire contract below does not widen those
+frozen files. A fresh live protocol remains a later gate; the scripted demo
+still needs no key or provider call.
 
 ```bash
 uv run python report_evidence_catalog_demo.py
@@ -311,6 +312,39 @@ Catalog coverage is not question relevance or semantic support. Similar titles,
 omitted entries, truncation and facts split across sources remain limits. The
 candidate cannot claim reader benefit or model selection quality from scripted
 controls. JQ, SQ, FQ and v8 keep their recorded failures; production stays off.
+
+## Catalog-native Qwen wire contract
+
+The [separate protocol](prereg-2026-09-16-report-evidence-catalog-qwen-transport.md)
+adds a network-capable adapter for the catalog wrapper, validated through
+intercepted HTTP rather than provider requests. The caller explicitly supplies
+one trusted snapshot, a dedicated ledger and key; no ambient credential lookup
+or production route is added. Each adapter instance belongs to one conversation.
+
+The visible-ID enum can contain up to 32 entries and must agree with the bound
+catalog. Nonempty initial calls use only `read_source`; after the actual local
+read, final-only requests use `none`, omit tools and request JSON Object. The
+strict core parser still checks the final envelope and issued receipt IDs.
+Metadata does not issue citations, and JSON mode is not semantic validation.
+
+Before a second reservation, compare the complete paired result with the saved
+window in the bound snapshot, including absence, offsets, text and receipt
+identity. Retaining a source hash cannot legitimize changed text. This computes
+comparison bytes only: it neither repeats the read nor issues another receipt,
+and cannot prove a Python caller actually executed the tool.
+
+The complete canonical HTTP body, including model and output parameters, must
+fit 12 KiB before reservation. Its bytes must match the durable request hash.
+Callback entry, HTTP dispatch and observed response are separate facts: the
+catalog's forwarded receipt alone does not prove the provider received it.
+Unknown usage retains a reservation and stops further dispatch; it is not zero.
+
+The adapter reuses pinned one-shot HTTP/accounting primitives, not an old batch
+identity. The original model, destination, price estimates, TLS/proxy isolation,
+timeouts and retry restrictions remain. The ledger is single-owner, not public
+paid admission or a grant to use any remaining experiment allowance. No new
+paid runner or synthetic batch is implemented in this phase, and old failed
+observations remain closed. True native-model closure still needs its own test.
 
 ## Bounded Qwen compatibility work
 
