@@ -301,8 +301,8 @@ callback-only entry points. The no-argument demo is `scripted_offline`; it reads
 no credential, real report or provider. The old Qwen transports only admit up to
 five hit IDs, so they are not compatible adapters for this catalog's 32-entry
 enum. The separate catalog-native wire contract below does not widen those
-frozen files. A fresh live protocol remains a later gate; the scripted demo
-still needs no key or provider call.
+frozen files. The separate CQ protocol below freezes a new synthetic live gate;
+the scripted demo still needs no key or provider call.
 
 ```bash
 uv run python report_evidence_catalog_demo.py
@@ -343,8 +343,36 @@ The adapter reuses pinned one-shot HTTP/accounting primitives, not an old batch
 identity. The original model, destination, price estimates, TLS/proxy isolation,
 timeouts and retry restrictions remain. The ledger is single-owner, not public
 paid admission or a grant to use any remaining experiment allowance. No new
-paid runner or synthetic batch is implemented in this phase, and old failed
-observations remain closed. True native-model closure still needs its own test.
+paid runner or synthetic batch was implemented in that offline phase, and old
+failed observations remain closed. The new CQ gate is separate from it.
+
+## Catalog-native synthetic canary
+
+The [CQ preregistration](prereg-2026-09-16-report-evidence-catalog-qwen-canary.md)
+freezes two fresh invented cases, six titles each, with the target sixth. CQ01
+requires an actual full saved-text read and a strict final answer citing that
+receipt; CQ02 requires an actual missing-text read before abstaining. Exactly
+two accounted requests per passing case must demonstrate the paired tool result
+in the same native conversation. Callback forwarding alone cannot pass.
+
+The separate runner independently caps the batch at four sequential Qwen
+requests and USD 0.10, stops on the first failure and leaves later cases unrun.
+The adapter's offline manifest remains unchanged; separate committed identity
+and authorization records carry this experiment's scope. The identity-only CLI
+does not read keys, create output or call providers. Only explicit live mode
+under the new protocol may use its dedicated process credential. Occupied output
+is rejected and no old batch is retried, resumed or given a replacement budget.
+
+Parsed usage is preserved even if a later gate fails. Non-200 or unreadable
+responses may leave usage unknown: retain the reservation and stop, not zero
+cost. Case and summary publication occurs after complete flush/fsync/close,
+without overwriting existing records. Local single-owner publication is not
+power-loss durability, distributed coordination or provider exactly-once.
+
+These easy synthetic controls are a compatibility gate, not independent source
+selection accuracy, general semantic support, reader value or production
+admission. Raw traces stay local. The result is recorded separately after the
+single batch; a pass does not turn on an API route or browser control.
 
 ## Bounded Qwen compatibility work
 
