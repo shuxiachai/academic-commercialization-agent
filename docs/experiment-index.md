@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-16 real saved-report Qwen pilot preregistration](prereg-2026-09-16-report-evidence-real-saved-qwen.md): separate exact-packet authorization, four sequential requests, fixed single-batch output, first-failure stop and disclosed post-hoc LLM review; not another synthetic run or production activation.
+
 - [2026-09-16 real saved-report offline result](results-2026-09-16-report-evidence-real-saved-offline.md): full 20-source catalog, separate labels and two scripted read-to-final probes; no provider requests, model correctness or live authorization.
 
 - [2026-09-16 real saved-report offline preparation](prereg-2026-09-16-report-evidence-real-saved-offline.md): one historical live report, two new developmental questions, private byte-bound inputs and nonempty read-then-abstain; no real-data transmission or live runner.

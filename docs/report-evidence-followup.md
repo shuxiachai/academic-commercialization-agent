@@ -401,6 +401,22 @@ CQ's synthetic allowance nor successful offline preparation grants that scope.
 
 ## Bounded Qwen compatibility work
 
+The later [real saved-report RS pilot](prereg-2026-09-16-report-evidence-real-saved-qwen.md)
+has its own runner and data authorization, not another CQ attempt. It verifies
+the exact private packet and rebuilds inputs from originals, separately binds
+the current committed import closure, and uses one fixed fresh output location.
+Identity-only operation does not read credentials or create output. Live mode
+is limited to four sequential requests, two per case, and USD 0.10; a known
+first-response failure prevents the next paid request, and any first-case
+failure leaves the second case unrun. The original offline manifest remains
+unchanged and grants no live authority.
+
+Semantic inspection uses a separate read-only LLM review of available answers
+against actually delivered windows, without first seeing reference labels.
+This is not human expert validation, source truth or independent gold accuracy.
+Mechanical results and runtime semantic states remain unchanged by that
+post-hoc judgment. No additional project-provider judging call is authorized.
+
 The [Qwen canary protocol](prereg-2026-09-14-report-evidence-followup-qwen.md)
 defines two synthetic controls and one shared allowance: six sequential requests,
 USD 0.10 soft stop, exact `qwen3.5-plus`, no retry or supplemental search.
