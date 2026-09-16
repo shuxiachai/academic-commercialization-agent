@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-16 CQ native synthetic result](results-2026-09-16-report-evidence-catalog-qwen-canary.md): both frozen cases passed in four accounted requests; actual read-to-final closure and missing-text abstention, not general quality or production activation.
+
+- [2026-09-16 catalog-native CQ canary preregistration](prereg-2026-09-16-report-evidence-catalog-qwen-canary.md): two fresh synthetic controls, four requests maximum and first-failure stop; independent from the adapter's offline manifest and all closed batches.
+
 - [2026-09-16 catalog-native Qwen offline result](results-2026-09-16-report-evidence-catalog-qwen-transport.md): actual intercepted bodies and journal hashes, with separate protocol/semantic limits and no live model claim.
 
 - [2026-09-16 catalog-native Qwen offline protocol](prereg-2026-09-16-report-evidence-catalog-qwen-transport.md): a separate 32-ID wire/history/accounting contract, not a widened old adapter or a live batch.

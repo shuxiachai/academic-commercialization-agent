@@ -323,11 +323,23 @@ A separate [catalog-native transport contract](report-evidence-followup.md#catal
 now carries the 32-ID declaration and final-only JSON through an independently
 identified, snapshot-bound adapter. Its [offline protocol](prereg-2026-09-16-report-evidence-catalog-qwen-transport.md)
 keeps the full HTTP byte cap, actual request/journal identity and unknown-usage
-stop rule. Intercepted HTTP is not a live Qwen result; no fresh paid runner or
-production follow-up route is added. Callback forwarding is not HTTP delivery.
+stop rule. Intercepted HTTP is not a live Qwen result; no production follow-up
+route is added. Callback forwarding is not HTTP delivery.
 The [offline result](results-2026-09-16-report-evidence-catalog-qwen-transport.md)
 keeps pre-change capacity, actual intercepted transport, failure controls and
 review findings in separate denominators; none establishes model selection quality.
+
+The separate [CQ protocol](prereg-2026-09-16-report-evidence-catalog-qwen-canary.md)
+freezes two new synthetic cases and an independently bounded runner: at most four
+sequential requests, USD 0.10, first failure stops. A sixth-ID read and its actual
+paired HTTP delivery precede strict final JSON; the missing-text case must read
+before abstaining. The adapter's offline manifest is not live authorization.
+The [one CQ batch](results-2026-09-16-report-evidence-catalog-qwen-canary.md)
+passed both controls with four requests and complete reported usage; estimated
+cost USD 0.002839152 is not an invoice. This demonstrates native read-to-final
+closure on these easy invented cases, not general source selection, semantic
+correctness or user benefit. It is closed and production remains disabled;
+old failed batches and production gates retain their original meaning.
 
 ## Negative findings that remain binding
 
