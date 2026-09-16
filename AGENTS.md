@@ -173,6 +173,12 @@ These are not style preferences; each came from a specific failure.
 | Claim-relative native Qwen candidate | `report_evidence_claim_qwen_transport.py` | [Separate offline wire protocol](docs/prereg-2026-09-16-claim-qwen-transport.md); bind trusted claim/snapshot before the first request, preserve four-field native content and complete receipt/window checks, compare full wire bytes to the journal; no live runner or production route |
 | Claim-relative synthetic Qwen canary | `report_evidence_claim_qwen_canary.py`, root `report_evidence_claim_canary.py` | [Separate CLQ protocol](docs/prereg-2026-09-16-claim-qwen-canary.md); three fresh single-source controls, six requests maximum, first-failure stop and separate blind LLM review; fixed single-batch output, no private RS data or production route |
 
+CLQ is closed: six requests passed per-case mechanical checks but matched only
+2/3 frozen relation labels. Blind LLM review diagnosed the recording-versus-
+physical-value reference mismatch; do not relabel or rerun the consumed batch.
+The intended live insufficiency lane is still unproven. See the
+[qualified result](docs/results-2026-09-16-claim-qwen-canary.md).
+
 Unless qualified, the Python module names in this table are under
 `src/academic_agent/`. The dated experiment documents and their code comments
 carry the detailed lineage, not this index.

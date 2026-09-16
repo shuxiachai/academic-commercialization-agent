@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-16 claim-relative Qwen canary result](results-2026-09-16-claim-qwen-canary.md): six requests, three per-case mechanical passes but 2/3 frozen-label matches; batch failed. Blind LLM review diagnoses a recording-versus-physical-value reference mismatch without changing the label or rerunning the batch.
+
 - [2026-09-16 claim-relative synthetic Qwen canary preregistration](prereg-2026-09-16-claim-qwen-canary.md): three fresh support/refutation/insufficiency controls, six sequential requests maximum and first-failure stop; separate blind LLM judging, no private report transmission or production activation.
 
 - [2026-09-16 claim-relative Qwen wire result](results-2026-09-16-claim-qwen-transport.md): native HTTP/ledger admission, 88 synthetic controls, four targeted mutation failures and local 30-snapshot capacity replay; no provider inference or semantic-accuracy claim.

@@ -170,6 +170,13 @@ then passed both invented controls in four requests: actual read plus cited
 final JSON, and actual missing-text read plus abstention. This is bounded native
 closure evidence, not general semantic accuracy or production enablement.
 
+A separate [claim-relative CLQ observation](docs/results-2026-09-16-claim-qwen-canary.md)
+completed six requests with three per-case mechanical passes but only 2/3
+frozen-label matches, so the batch failed. Blind LLM review identified a
+reference/proposition mismatch; the old label and failure remain unchanged.
+This is not live validation of the intended insufficiency lane or production
+Tool Calling.
+
 ## Quick start
 
 Use Python 3.11 or 3.12 for the CI-tested environment and

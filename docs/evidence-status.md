@@ -233,11 +233,15 @@ The [intercepted-wire result](results-2026-09-16-claim-qwen-transport.md) record
 requests; none is a real model response or evidence of semantic accuracy.
 
 The separate [CLQ synthetic protocol](prereg-2026-09-16-claim-qwen-canary.md)
-freezes three new support/refutation/insufficiency controls and a single
-six-request, USD 0.10 batch. Execution requires exact-tree CI and independent
-implementation review; blind LLM judging is separate from local label matching.
-The protocol alone is not a native success result, private-data grant or
-production admission. Unavailable remains an offline-only relation here.
+was executed once after exact-tree CI and independent implementation review.
+Its [closed result](results-2026-09-16-claim-qwen-canary.md) records six requests,
+USD 0.006361992 estimated known use, three per-case mechanical passes and
+2/3 frozen-label matches: the batch failed. A fresh blind LLM judged all three
+answers supported, including refutation of a claim that a flow was recorded
+when the text explicitly says no measurement was made. This exposes a
+reference/proposition mismatch, not permission to revise the consumed label.
+The intended nonempty-insufficiency lane remains unproven live; unavailable
+remains offline-only. No private-data grant or production admission follows.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources

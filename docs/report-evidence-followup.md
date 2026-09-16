@@ -86,6 +86,15 @@ does not reopen a CQ/RS budget, transmit private reports, establish general
 accuracy, or authorize a production endpoint. Its frozen method is a plan,
 not a claim that the native model already passed the new controls.
 
+The subsequent [single live result](results-2026-09-16-claim-qwen-canary.md)
+completed six requests after the execution SHA's CI passed. All three cases
+passed mechanical checks, but only two matched the frozen relation labels;
+the batch failed and is closed. Blind LLM review supported the model's third
+refutation: the proposition concerns a recorded flow, which the source
+explicitly denies measuring. Preserve that reference-design diagnostic
+separately from the failed frozen gate. Neither the intended live
+insufficiency lane nor general semantics is now established.
+
 ## Offline demonstration
 
 ```bash
