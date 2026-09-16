@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-16 claim-relative Qwen wire result](results-2026-09-16-claim-qwen-transport.md): native HTTP/ledger admission, 88 synthetic controls, four targeted mutation failures and local 30-snapshot capacity replay; no provider inference or semantic-accuracy claim.
+
+- [2026-09-16 claim-relative Qwen wire preregistration](prereg-2026-09-16-claim-qwen-transport.md): independent snapshot/claim-bound native bridge, full HTTP byte and usage boundaries; intercepted transport only, no new live batch or old allowance reuse.
+
 - [2026-09-16 offline claim-relation result](results-2026-09-16-followup-claim-relation.md): actual callback delivery, four model-declared relations and code-derived status, with fresh synthetic controls; no semantic-accuracy or live-provider claim.
 
 - [2026-09-16 offline claim-relation preregistration](prereg-2026-09-16-followup-claim-relation.md): separate model-declared evidence relationship from code-owned delivery; new synthetic controls, LLM-only future judging, no paid inference or production activation.

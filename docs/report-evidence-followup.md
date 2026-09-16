@@ -40,7 +40,31 @@ One read and two callbacks remain the ceiling. The transformed callback request
 is checked again against 12 KiB; the outer wrapper's earlier byte/delivery
 counts cannot stand in for the final callback. Early ending, checked missing
 text, delivered-but-insufficient evidence and execution failure stay distinct.
-There is no new provider adapter, automatic judging request or paid runner.
+That callback-only contract adds no provider adapter, automatic judging request
+or paid runner. The separate native candidate below has its own identity.
+
+## Separate claim-relative native Qwen candidate
+
+The [native wire protocol](prereg-2026-09-16-claim-qwen-transport.md) adds
+`ClaimQwenLedger` and `ClaimQwenFollowupTransport` for the claim wrapper, not
+an option that silently changes the older catalog adapter. Construction binds
+the trusted snapshot and caller-owned claim; even a different first-turn claim
+must be refused before reservation. The full paired local read result is
+compared against the snapshot and original arguments, without another read.
+
+The four-field final content returns unchanged to the wrapper. JSON Object is
+a wire constraint, not schema or semantic proof; the wrapper still validates
+the declaration and derives delivery. It preserves the frozen exact model,
+HTTP primitive, one-read/two-request ceiling and accounting rules. Full encoded
+HTTP size and journal hashes are checked at the dispatch boundary, separately
+from callback entry. A wrapper failure is not a successful batch merely because
+the transport accepted its response; future callers must handle that outcome.
+
+This candidate is tested with intercepted HTTP and fake keys. It adds no live
+runner, provider-data grant, search or production endpoint. Ledger journals
+contain source text and answers: future real-data journals remain private;
+hashing does not make them safe to publish. Semantic judging follows the
+LLM-only policy and remains separate from this engineering validation.
 
 ## Offline demonstration
 

@@ -225,6 +225,12 @@ insufficiency and unavailable reads. It does not alter frozen transports or
 authorize a provider run or production connection.
 The [offline implementation record](results-2026-09-16-followup-claim-relation.md)
 keeps scripted contract evidence separate from model semantic quality.
+The [separate native claim transport protocol](prereg-2026-09-16-claim-qwen-transport.md)
+binds first-turn claim identity and complete native tool history. Its scope is
+offline HTTP/accounting validation, not another paid batch or production hook.
+The [intercepted-wire result](results-2026-09-16-claim-qwen-transport.md) records
+88 new controls, four targeted defect reinjections and 60 local intercepted
+requests; none is a real model response or evidence of semantic accuracy.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
