@@ -319,6 +319,16 @@ The [local capacity result](results-2026-09-16-report-evidence-catalog.md) cover
 30 snapshots / 632 source rows without omitted metadata; it does not establish
 which source answers a question or revalidate the original benchmark identity.
 
+A separate [catalog-native transport contract](report-evidence-followup.md#catalog-native-qwen-wire-contract)
+now carries the 32-ID declaration and final-only JSON through an independently
+identified, snapshot-bound adapter. Its [offline protocol](prereg-2026-09-16-report-evidence-catalog-qwen-transport.md)
+keeps the full HTTP byte cap, actual request/journal identity and unknown-usage
+stop rule. Intercepted HTTP is not a live Qwen result; no fresh paid runner or
+production follow-up route is added. Callback forwarding is not HTTP delivery.
+The [offline result](results-2026-09-16-report-evidence-catalog-qwen-transport.md)
+keeps pre-change capacity, actual intercepted transport, failure controls and
+review findings in separate denominators; none establishes model selection quality.
+
 ## Negative findings that remain binding
 
 [AGENTS.md](../AGENTS.md#do-not-redo-these) retains the six measured exclusions:
