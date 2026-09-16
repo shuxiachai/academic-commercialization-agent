@@ -66,6 +66,26 @@ contain source text and answers: future real-data journals remain private;
 hashing does not make them safe to publish. Semantic judging follows the
 LLM-only policy and remains separate from this engineering validation.
 
+## Separate claim-relative synthetic canary
+
+The [new CLQ preregistration](prereg-2026-09-16-claim-qwen-canary.md) freezes
+three invented single-source controls for support, refutation and nonempty
+insufficiency. It permits at most six sequential requests in one closed batch,
+USD 0.10 soft stop, only after exact-tree CI and independent implementation
+review. The unavailable relation remains offline-only for this batch.
+
+The new runner separates code/protocol checks, local expected-label matching
+and later blind LLM semantic review. Labels never enter provider prompts or
+the blind judge's first pass. A correct refutation is distinct from an
+unsupported answer. Any first transport, wrapper, label, accounting or
+publication failure stops further cases; missing judgments are not matches.
+
+The fixed output directory cannot be reused, including after partial setup.
+Identity-only default mode reads no key and sends no request. This protocol
+does not reopen a CQ/RS budget, transmit private reports, establish general
+accuracy, or authorize a production endpoint. Its frozen method is a plan,
+not a claim that the native model already passed the new controls.
+
 ## Offline demonstration
 
 ```bash

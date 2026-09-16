@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-16 claim-relative synthetic Qwen canary preregistration](prereg-2026-09-16-claim-qwen-canary.md): three fresh support/refutation/insufficiency controls, six sequential requests maximum and first-failure stop; separate blind LLM judging, no private report transmission or production activation.
+
 - [2026-09-16 claim-relative Qwen wire result](results-2026-09-16-claim-qwen-transport.md): native HTTP/ledger admission, 88 synthetic controls, four targeted mutation failures and local 30-snapshot capacity replay; no provider inference or semantic-accuracy claim.
 
 - [2026-09-16 claim-relative Qwen wire preregistration](prereg-2026-09-16-claim-qwen-transport.md): independent snapshot/claim-bound native bridge, full HTTP byte and usage boundaries; intercepted transport only, no new live batch or old allowance reuse.
