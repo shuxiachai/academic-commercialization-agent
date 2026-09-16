@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-16 real saved-report offline result](results-2026-09-16-report-evidence-real-saved-offline.md): full 20-source catalog, separate labels and two scripted read-to-final probes; no provider requests, model correctness or live authorization.
+
+- [2026-09-16 real saved-report offline preparation](prereg-2026-09-16-report-evidence-real-saved-offline.md): one historical live report, two new developmental questions, private byte-bound inputs and nonempty read-then-abstain; no real-data transmission or live runner.
+
 - [2026-09-16 CQ native synthetic result](results-2026-09-16-report-evidence-catalog-qwen-canary.md): both frozen cases passed in four accounted requests; actual read-to-final closure and missing-text abstention, not general quality or production activation.
 
 - [2026-09-16 catalog-native CQ canary preregistration](prereg-2026-09-16-report-evidence-catalog-qwen-canary.md): two fresh synthetic controls, four requests maximum and first-failure stop; independent from the adapter's offline manifest and all closed batches.

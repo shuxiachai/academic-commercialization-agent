@@ -162,6 +162,7 @@ These are not style preferences; each came from a specific failure.
 | Catalog-native Qwen wire contract | `report_evidence_catalog_qwen_transport.py` | [Separate offline protocol](docs/prereg-2026-09-16-report-evidence-catalog-qwen-transport.md); bind the trusted snapshot/catalog and single conversation, preserve the full HTTP byte bound and usage ledger; no production route |
 | Catalog-native synthetic canary | `report_evidence_catalog_qwen_canary.py`, root `report_evidence_catalog_canary.py` | [Separate CQ protocol](docs/prereg-2026-09-16-report-evidence-catalog-qwen-canary.md); two fresh synthetic cases, four total requests, first failure stops; offline manifest is not live authority, no old batch reuse or production activation |
 | Public documentation | `README.md`, `README.zh-CN.md`, `docs/` | `tests/test_public_docs.py`; both languages must retain the full executable benchmark contract |
+| Real saved-report follow-up preparation | `report_evidence_real_saved_eval.py` | [Local-only RS protocol](docs/prereg-2026-09-16-report-evidence-real-saved-offline.md); private raw report/source/question/label binding, explicit scripted callbacks only, no live runner or real-data transmission authority |
 
 Unless qualified, the Python module names in this table are under
 `src/academic_agent/`. The dated experiment documents and their code comments

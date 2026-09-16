@@ -378,6 +378,27 @@ A narrow AI content inspection matched the two synthetic controls; semantic
 support remains not_assessed. The batch is closed, without a production API
 route or browser control.
 
+## Real saved-report preparation
+
+The separate [RS offline protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md)
+prepares one historical live-report snapshot and two new Chinese questions.
+All 20 saved sources remain in their original order. The positive task explains
+a saved material-level finding; the negative task must read the same nonempty
+text before declining an unsupported deployment conclusion. This is a small
+developmental pilot, not an unseen accuracy study.
+
+`report_evidence_real_saved_eval.py` binds original report/source/metadata bytes,
+questions, projection, configuration, snapshot and catalog. Private reference
+labels are bound separately and never enter callback construction. Explicit
+scripted callbacks and an intercepted full-wire probe verify delivery only;
+the module has no implicit transport, live runner, credential option or route.
+Reference review is AI saved-text inspection, not human labels or external
+paper verification. Content hashes do not establish ownership or permission.
+
+A real-model run still requires a distinct frozen runner and data authorization
+covering the whole visible catalog and any selectable saved window. Neither
+CQ's synthetic allowance nor successful offline preparation grants that scope.
+
 ## Bounded Qwen compatibility work
 
 The [Qwen canary protocol](prereg-2026-09-14-report-evidence-followup-qwen.md)

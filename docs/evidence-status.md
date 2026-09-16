@@ -216,6 +216,15 @@ accounting does not make incomplete source-run spending inspectable.
 
 ## Tool Calling experiments
 
+Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
+Its candidate is one historical live-report snapshot with all 20 saved sources
+and two newly authored questions. Labels are kept outside model inputs and
+reference review is distinct from mechanical rehearsal. No real-report model
+call, privacy grant, production route or new general-accuracy result follows
+from this preparation; CQ remains a closed synthetic-only observation.
+The [offline rehearsal result](results-2026-09-16-report-evidence-real-saved-offline.md)
+records four intercepted scripted HTTP requests, not four provider calls.
+
 This is the completed research history, **not completed production Tool Calling**.
 Compatibility, source relevance, role coverage, novelty, planner triggering and
 report value have independent gates. A provider request succeeding is not a
