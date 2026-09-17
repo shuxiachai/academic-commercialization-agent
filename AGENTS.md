@@ -290,6 +290,12 @@ distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live
 insufficiency, authorize a new paid runner or change runtime semantic flags.
 
+The separate [PCQ native protocol](docs/prereg-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+binds a dedicated runner and fixed output, not a replacement CLQ fixture. Default
+CLI is identity-only; native dispatch requires the exact committed identity,
+independent review and green CI. Mechanical acceptance, frozen-label agreement,
+publication and later LLM judgment remain separate. No production connection.
+
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict
 final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes

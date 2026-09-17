@@ -149,6 +149,8 @@ runner，也不宣称新的真实模型成功率或线上追问已经完成。�
 
 后续[PCQ对照准备](docs/results-2026-09-17-claim-proposition-contrast.md)新增经独立LLM盲审的
 合成参考标签与离线收据检查；这不是又一次千问实测，也不是生产发布。
+其[独立原生执行器](docs/results-2026-09-17-claim-proposition-contrast-qwen-runner.md)
+新增身份绑定与拦截HTTP的失败路径验证，尚不构成真实模型验证。
 
 ## 快速启动
 

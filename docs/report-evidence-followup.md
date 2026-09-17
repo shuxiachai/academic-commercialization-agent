@@ -113,6 +113,31 @@ prints a scripted local read-to-final rehearsal. Neither calls a provider,
 reads credentials, authorizes a paid run or judges native model correctness.
 Do not replace the frozen CLQ fixture or reset its closed output directory.
 
+### Separate PCQ native execution contract
+
+The [new native protocol](prereg-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+uses those exact reviewed fixture bytes with a dedicated runner, a distinct
+fixed output and a new execution identity. It does not execute the closed CLQ
+runner or use the scripted preparation answer as a native-output assertion.
+Three fixed cases allow at most two sequential requests each. The first failed
+read, receipt, wrapper, accounting, identity, label or publication gate stops
+the batch and leaves later cases explicitly unrun.
+
+The dedicated CLI defaults to identity-only: no credential lookup, output
+creation or HTTP. A later native dispatch requires separately recorded protocol
+acknowledgement, exact commit/fixture identity, independent implementation review
+and all exact-head CI checks. The adapter's offline manifest stays unchanged.
+The model sees only the claim, catalog and actual local read, never reference
+labels, rationales or scripted answers. Nonempty-insufficient must retain its
+usable read while abstaining with no supporting IDs.
+
+Case mechanical results, reference agreement and later LLM review are distinct.
+Overall batch success additionally requires known accounting, no pending or
+stopped state and complete summary publication. Neither offline intercepted
+HTTP nor a declared claim relation establishes semantic correctness; runtime
+not-assessed/not-verified flags are unchanged. No public route, production
+admission, real saved-report disclosure or automatic deployment is added.
+
 ## Offline demonstration
 
 ```bash

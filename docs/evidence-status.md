@@ -249,6 +249,10 @@ controls. A fresh blind LLM's three proposals match the prewritten references;
 these are AI-reviewed development labels, not independent gold. Offline scripted
 receipt checks are separate from semantics. No new Qwen request is included,
 and the live insufficiency lane remains unproven.
+The [separate PCQ native executor](results-2026-09-17-claim-proposition-contrast-qwen-runner.md)
+now has 208 offline tests, three dispatch-count defect reinjections and distinct
+mechanical/label/publication gates. Its fixed-output identity is not the closed
+CLQ batch; no new paid observation or production admission follows.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources

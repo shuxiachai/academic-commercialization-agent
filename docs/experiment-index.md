@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-17 PCQ native executor offline result](results-2026-09-17-claim-proposition-contrast-qwen-runner.md): dedicated identity and output, 208 new intercepted-HTTP tests, distinct mechanical/label/publication observations and three actual dispatch-count fault reinjections; no new Qwen observation.
+
+- [2026-09-17 PCQ native Qwen preregistration](prereg-2026-09-17-claim-proposition-contrast-qwen-canary.md): a separate fixed-output executor for the already frozen synthetic contrast controls, at most six sequential requests after exact-tree validation; preparation is not a live result.
+
 - [2026-09-17 PCQ proposition-contrast preparation](results-2026-09-17-claim-proposition-contrast.md): fresh-context LLM pre-review of three synthetic references before native testing, plus a separate offline rehearsal; no Qwen result or relabeling of the failed CLQ batch.
 - [2026-09-17 PCQ offline preregistration](prereg-2026-09-17-claim-proposition-contrast.md): distinguish actual physical value from the content of a measurement record; blind projection, immutable draft identity and independent freeze gate.
 
