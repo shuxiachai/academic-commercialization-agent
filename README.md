@@ -188,6 +188,11 @@ physical value refuted rather than insufficient. Context-limited LLM review
 judged the answer mixed; PCQ02/03 were unrun. The batch is closed and failed, with no
 production change or native validation of nonempty-evidence abstention.
 
+A separate [explicit relation-policy successor](docs/results-2026-09-17-claim-relation-policy.md)
+prepares offline callback rules and eight synthetic development contrasts.
+Reference agreement and scripted delivery are not new Qwen accuracy evidence
+or production admission; the earlier failed batches remain closed.
+
 ## Quick start
 
 Use Python 3.11 or 3.12 for the CI-tested environment and

@@ -263,6 +263,12 @@ missing measurement from physical contradiction. Runtime unverified flags and
 the old failed batches are unchanged. This is not a general accuracy estimate;
 the intended native insufficiency lane and production admission remain unproven.
 
+The [explicit relation-policy successor](results-2026-09-17-claim-relation-policy.md)
+is offline-only: seven text-bearing development references and one missing-text
+control received label-blinded, context-limited LLM review. Its implementation
+contract separates policy-to-callback delivery from frozen inner facts and
+does not correct a model's semantic label or add a native/production path.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

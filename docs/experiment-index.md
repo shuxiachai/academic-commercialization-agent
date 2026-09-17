@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-17 explicit relation-policy offline contract](prereg-2026-09-17-claim-relation-policy.md) and [development result](results-2026-09-17-claim-relation-policy.md): a separate absence/contradiction policy, new synthetic development controls, callback delivery audit and unchanged native/production boundaries.
+
 - [2026-09-17 PCQ native canary result](results-2026-09-17-claim-proposition-contrast-qwen-canary.md): two requests before the first reference mismatch; one mechanical pass, zero of one checked label matches and two unrun controls. Context-limited LLM assessment is mixed; closed failure, not production admission.
 
 - [2026-09-17 PCQ native executor offline result](results-2026-09-17-claim-proposition-contrast-qwen-runner.md): dedicated identity and output, 208 new intercepted-HTTP tests, distinct mechanical/label/publication observations and three actual dispatch-count fault reinjections; no new Qwen observation.

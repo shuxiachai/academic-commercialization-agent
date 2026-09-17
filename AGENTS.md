@@ -301,6 +301,12 @@ two requests, one mechanical pass and one reference mismatch; PCQ02/03 unrun.
 Context-limited LLM review judged the answer mixed. Keep the occupied batch and frozen
 prompt unchanged; nonempty-evidence abstention remains unproven live.
 
+The [explicit relation-policy successor](docs/results-2026-09-17-claim-relation-policy.md)
+is offline callback preparation only. Preserve the frozen inner result and
+separate policy-to-callback delivery from inner-to-policy delivery. New
+synthetic reference agreement is context-limited LLM review, not native
+accuracy; do not reuse an old Qwen adapter, closed batch or production route.
+
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict
 final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes

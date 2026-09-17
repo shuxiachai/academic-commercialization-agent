@@ -147,6 +147,22 @@ Do not invoke this occupied output again or rewrite its protocol/prompt/labels.
 The intended live nonempty-evidence abstention lane remains unproven; any
 successor begins with a new offline contract rather than another paid retry.
 
+### Explicit relation-policy successor
+
+The [new offline protocol](prereg-2026-09-17-claim-relation-policy.md) and
+[qualified result](results-2026-09-17-claim-relation-policy.md) define a separate
+callback layer, not an update to the frozen claim wrapper. Its single-request
+callback signature deliberately differs from old native adapters. A nested
+inner result records entry into the policy layer; its own audit records entry
+into the final injected callback. A read can reach the former and be blocked
+before the latter. Neither observation proves a model obeyed the rubric.
+
+The explicit rubric preserves the original proposition and distinguishes
+missing measurements, actual contradiction, record-content claims, scope and
+negation. Scripted controls are not semantic model validation. All runtime
+semantic flags remain unverified; no native executor or production connection
+is added, and PCQ/CLQ outputs must not be retried or relabeled.
+
 ## Offline demonstration
 
 ```bash
