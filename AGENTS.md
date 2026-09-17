@@ -317,6 +317,18 @@ pytest may read terminal configuration before teardown. The
 [CI isolation correction](docs/results-2026-09-17-relation-policy-ci-isolation.md)
 preserves strict adapter assertions and the original failed CI observation.
 
+The [separate RPQ batch protocol](docs/prereg-2026-09-18-relation-policy-qwen-canary.md)
+fixes RP01-RP03 as dependent synthetic development controls, not unseen data.
+It requires the new runner/output identity and both RP callback audit and
+native journal gates. Six requests and USD 0.10 are ceilings, not proof of
+dispatch or consent. Exact-tree validation, independent review and green CI
+precede any native use; old PCQ/CLQ outputs and private RS data stay separate.
+The new `report_evidence_relation_policy_qwen_canary.py` under `src/academic_agent/`
+and root `report_evidence_relation_policy_canary.py` have a
+[separate verification record](docs/results-2026-09-18-relation-policy-qwen-runner.md).
+Default CLI verifies identity only. A successful script/intercepted HTTP test
+is not a live result, a new private-data grant or production admission.
+
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict
 final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes

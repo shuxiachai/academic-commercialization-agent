@@ -284,6 +284,15 @@ The [CI follow-up](results-2026-09-17-relation-policy-ci-isolation.md) preserves
 the subsequent verbose-reporting failure and test-only isolation correction;
 local suite success must not be substituted for exact-head CI.
 
+The [RPQ batch protocol](prereg-2026-09-18-relation-policy-qwen-canary.md)
+now freezes RP01-RP03 for a separately identified synthetic native experiment.
+Its three cases are dependent development controls, not fresh unseen evidence.
+Any later dispatch requires its own exact-code/fixture/output checks and
+all three delivery layers; protocol preparation adds no new model observation.
+The [dedicated runner verification](results-2026-09-18-relation-policy-qwen-runner.md)
+records intercepted HTTP and targeted stop/guard mutations, not native answers.
+The CLI is identity-only by default; production and the closed batches are unchanged.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

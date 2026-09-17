@@ -625,6 +625,17 @@ This is transport evidence, not a successful read-to-answer conversation.
 
 ## Next gates
 
+The [RPQ protocol](prereg-2026-09-18-relation-policy-qwen-canary.md) is the next
+isolated native test of explicit absence-versus-contradiction instructions.
+It selects three already reviewed synthetic development controls, not real
+saved reports, with at most six requests and USD 0.10 after exact-tree review
+and CI. The new runner must inspect RP callback delivery, inner receipts and
+native journals separately; a reference mismatch stops rather than repairs.
+Old consumed batches and real-data permissions cannot be reused for this step.
+The [runner verification record](results-2026-09-18-relation-policy-qwen-runner.md)
+separates offline execution, failed test-harness attempts and restored checks.
+The dedicated CLI verifies identity by default without key access or HTTP.
+
 The [phase-one protocol](prereg-2026-09-14-report-evidence-followup-phase1.md)
 defines offline acceptance and the non-model comparison. The bounded canary
 has separate frozen inputs, authorization and failure criteria. A production
