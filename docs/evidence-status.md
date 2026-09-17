@@ -47,6 +47,13 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Test maintenance consolidates weak/repeated feature scenarios and checks actual
+launch/workflow commands. The canonical matrix cell now measures coverage in
+its single full-suite execution; the existing coverage check is an explicit
+matrix-result gate rather than a fifth test run. All four environments, the
+85% floor, browser/container checks and frozen experiments remain. See the
+[maintenance evidence and limits](results-2026-09-17-test-maintenance.md).
+
 The PDF failure-receipt test observer no longer consumes the executor slot
 needed by its worker. A single-slot control reproduced ten entry failures;
 event-loop notification preserves all twenty default/single-slot failure and

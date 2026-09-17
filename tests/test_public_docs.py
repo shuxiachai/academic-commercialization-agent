@@ -10,8 +10,10 @@ test stayed green.
 
 from __future__ import annotations
 
+import ast
 import csv
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -121,15 +123,105 @@ class RunIdDocumentationContractTests(unittest.TestCase):
 class ServingSurfaceDocumentationTests(unittest.TestCase):
     """Removed entry points must not remain described as live architecture."""
 
-    def test_current_entry_point_docs_do_not_advertise_gradio(self):
-        # The contribution guide survived the frontend replacement with the
-        # old entry point and sent new contributors to deleted files.
-        for relative in (
-            "AGENTS.md", "CONTRIBUTING.md", "api/main.py", "api/runs.py", "api/papers.py",
+    @staticmethod
+    def _binds_api_app(source: str) -> bool:
+        for node in ast.parse(source).body:
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+            elif isinstance(node, ast.AnnAssign) and node.value is not None:
+                targets = [node.target]
+            else:
+                continue
+            if any(isinstance(target, ast.Name) and target.id == "app" for target in targets):
+                return True
+        return False
+
+    def _check_launch_commands(self, text: str, *, module_docstring: bool = False) -> set[str]:
+        # Inspect standalone launch examples, not every mention of a retired
+        # product. "Gradio was removed" is useful history, not a broken command.
+        # This is deliberately not a shell interpreter or general prose audit.
+        surfaces = set()
+        # Markdown fences and indented module-docstring examples identify code.
+        # A prose sentence beginning with a product name is still only prose.
+        examples = re.findall(r"^```[^\n]*\n(.*?)^```", text, re.MULTILINE | re.DOTALL)
+        if module_docstring:
+            examples.extend(line[4:] for line in text.splitlines() if line.startswith("    "))
+        removed = (
+            r"(?i)^(?:uv[ \t]+run[ \t]+)?"
+            r"(?:python(?:3(?:\.\d+)?)?[ \t]+(?:-m[ \t]+)?)?"
+            r"(?:gradio|(?:\./)?app\.py)(?:[ \t]|$)"
+        )
+        invalid_script = (
+            r"(?i)^(?:uv[ \t]+run[ \t]+)?python(?:3(?:\.\d+)?)?[ \t]+"
+            r"(?:uvicorn|academic_agent)(?:[ \t]|$)"
+        )
+        for line in "\n".join(examples).splitlines():
+            command = line.strip()
+            self.assertNotRegex(command, removed)
+            # Never strip Python: `python uvicorn` executes a script, not the
+            # installed command. Only the two documented uv forms count below.
+            self.assertNotRegex(command, invalid_script)
+            if re.match(r"uv[ \t]+run[ \t]+uvicorn(?:[ \t]|$)", command):
+                self.assertRegex(command, r"^uv[ \t]+run[ \t]+uvicorn[ \t]+api\.main:app(?:[ \t]|$)")
+                surfaces.add("web")
+            elif re.match(r"uv[ \t]+run[ \t]+academic_agent(?:[ \t]|$)", command):
+                self.assertRegex(command, r"^uv[ \t]+run[ \t]+academic_agent[ \t]+--topic[ \t]+\S+")
+                surfaces.add("cli")
+        return surfaces
+
+    def test_current_entry_point_docs_use_existing_launch_targets(self):
+        # Bind the advertised commands to actual package targets without
+        # importing a serving entry point or starting a paid analysis.
+        package = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        self.assertEqual(package["project"]["scripts"]["academic_agent"], "academic_agent.main:run")
+        cli = ast.parse((ROOT / "src/academic_agent/main.py").read_text(encoding="utf-8"))
+        self.assertTrue(any(isinstance(node, ast.FunctionDef) and node.name == "run" for node in cli.body))
+        self.assertTrue(self._binds_api_app((ROOT / "api/main.py").read_text(encoding="utf-8")))
+        for relative, expected in (
+            ("README.md", {"web", "cli"}), ("README.zh-CN.md", {"web", "cli"}),
+            ("AGENTS.md", {"web", "cli"}), ("CONTRIBUTING.md", set()),
+            ("api/main.py", {"web"}), ("api/runs.py", set()), ("api/papers.py", set()),
         ):
             with self.subTest(file=relative):
                 text = (ROOT / relative).read_text(encoding="utf-8")
-                self.assertNotIn("Gradio", text)
+                if relative.endswith(".py"):
+                    text = ast.get_docstring(ast.parse(text)) or ""
+                self.assertTrue(expected <= self._check_launch_commands(
+                    text, module_docstring=relative.endswith(".py"),
+                ))
+
+    def test_api_binding_allows_annotations_but_requires_a_value(self):
+        """An equivalent typed assignment is live; an annotation alone binds nothing."""
+        for source, expected in (
+            ("app = FastAPI()", True), ("app: FastAPI = FastAPI()", True),
+            ("app: FastAPI", False), ("other = FastAPI()", False),
+        ):
+            with self.subTest(source=source):
+                self.assertEqual(self._binds_api_app(source), expected)
+
+    def test_launch_contract_rejects_dead_commands_not_historical_prose(self):
+        """Reinstate removed launch commands without forbidding valid history."""
+        valid = (
+            "Gradio was removed.\n    Gradio in indented prose is still history.\n"
+            "```bash\n# python app.py is obsolete.\n"
+            "uv run uvicorn api.main:app --reload\n"
+            'uv run academic_agent --topic "example"\n```'
+        )
+        self.assertEqual(self._check_launch_commands(valid), {"web", "cli"})
+        self.assertEqual(self._check_launch_commands(
+            "    uv run uvicorn api.main:app --reload", module_docstring=True,
+        ), {"web"})
+        for command in (
+            "python app.py", "uv run python app.py", "uv run app.py",
+            "python -m gradio app.py", "gradio app.py",
+            "uv run uvicorn app:app --reload",
+            "python uvicorn api.main:app", "python academic_agent --topic x",
+            "uv run python uvicorn api.main:app", "uv run python academic_agent --topic x",
+        ):
+            for is_docstring in (False, True):
+                example = f"    {command}" if is_docstring else f"```bash\n{command}\n```"
+                with self.subTest(command=command, docstring=is_docstring), self.assertRaises(AssertionError):
+                    self._check_launch_commands(example, module_docstring=is_docstring)
 
 
 class PublicDocumentationNavigationTests(unittest.TestCase):

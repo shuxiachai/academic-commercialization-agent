@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-17 test maintenance and CI consolidation](results-2026-09-17-test-maintenance.md): stronger delivery/call assertions, executable workflow checks and four full matrix executions with the existing coverage floor; frozen experiments and production remain unchanged.
+
 - [2026-09-17 RP native CI isolation correction](results-2026-09-17-relation-policy-ci-isolation.md): a process-global test guard outlived the operation and broke verbose pytest reporting; scoped restoration preserves strict adapter checks without changing the runtime or frozen experiments.
 
 - [2026-09-17 relation-policy native wire preregistration](prereg-2026-09-17-relation-policy-qwen-transport.md) and [offline result](results-2026-09-17-relation-policy-qwen-transport.md): separate positional adapter, exact policy/claim/read-result binding and HTTP/journal boundaries; no new provider observation or production route.
