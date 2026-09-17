@@ -95,6 +95,24 @@ explicitly denies measuring. Preserve that reference-design diagnostic
 separately from the failed frozen gate. Neither the intended live
 insufficiency lane nor general semantics is now established.
 
+## New PCQ reference preparation
+
+The [PCQ protocol](prereg-2026-09-17-claim-proposition-contrast.md) uses a new
+physical-value/record-content contrast pair and a separate measurement control.
+Fresh-context LLM pre-review occurred without author labels or scripted answers;
+the [aggregate result](results-2026-09-17-claim-proposition-contrast.md) records
+three matching proposals and the limitations of AI-generated development labels.
+
+```bash
+uv run python report_evidence_contrast_check.py --review-input
+uv run python report_evidence_contrast_check.py
+```
+
+The first command prints the allowlisted question/source view; the second
+prints a scripted local read-to-final rehearsal. Neither calls a provider,
+reads credentials, authorizes a paid run or judges native model correctness.
+Do not replace the frozen CLQ fixture or reset its closed output directory.
+
 ## Offline demonstration
 
 ```bash

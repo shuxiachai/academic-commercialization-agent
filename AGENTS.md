@@ -285,6 +285,11 @@ See the [ingress/history/finalization contract](docs/results-2026-09-08-upload-h
 
 ## Tool Calling: do not turn experimental code into production by accident
 
+The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
+distinguishes a physical-value claim from a recording claim. Its blind-reviewed
+synthetic references and scripted rehearsal do not reopen CLQ, validate live
+insufficiency, authorize a new paid runner or change runtime semantic flags.
+
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict
 final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes

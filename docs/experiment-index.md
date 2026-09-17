@@ -1,5 +1,8 @@
 # Experiment archive index
 
+- [2026-09-17 PCQ proposition-contrast preparation](results-2026-09-17-claim-proposition-contrast.md): fresh-context LLM pre-review of three synthetic references before native testing, plus a separate offline rehearsal; no Qwen result or relabeling of the failed CLQ batch.
+- [2026-09-17 PCQ offline preregistration](prereg-2026-09-17-claim-proposition-contrast.md): distinguish actual physical value from the content of a measurement record; blind projection, immutable draft identity and independent freeze gate.
+
 - [2026-09-16 claim-relative Qwen canary result](results-2026-09-16-claim-qwen-canary.md): six requests, three per-case mechanical passes but 2/3 frozen-label matches; batch failed. Blind LLM review diagnoses a recording-versus-physical-value reference mismatch without changing the label or rerunning the batch.
 
 - [2026-09-16 claim-relative synthetic Qwen canary preregistration](prereg-2026-09-16-claim-qwen-canary.md): three fresh support/refutation/insufficiency controls, six sequential requests maximum and first-failure stop; separate blind LLM judging, no private report transmission or production activation.

@@ -243,6 +243,13 @@ reference/proposition mismatch, not permission to revise the consumed label.
 The intended nonempty-insufficiency lane remains unproven live; unavailable
 remains offline-only. No private-data grant or production admission follows.
 
+The [PCQ successor preparation](results-2026-09-17-claim-proposition-contrast.md)
+separates physical-value and record-content propositions using new synthetic
+controls. A fresh blind LLM's three proposals match the prewritten references;
+these are AI-reviewed development labels, not independent gold. Offline scripted
+receipt checks are separate from semantics. No new Qwen request is included,
+and the live insufficiency lane remains unproven.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

@@ -177,6 +177,10 @@ reference/proposition mismatch; the old label and failure remain unchanged.
 This is not live validation of the intended insufficiency lane or production
 Tool Calling.
 
+The [PCQ successor preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
+adds LLM-blind-reviewed synthetic references and offline receipt controls;
+it is not another live Qwen observation or a production release.
+
 ## Quick start
 
 Use Python 3.11 or 3.12 for the CI-tested environment and
