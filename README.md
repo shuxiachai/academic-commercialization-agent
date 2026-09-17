@@ -195,6 +195,8 @@ or production admission; the earlier failed batches remain closed.
 Its [separate native wire adapter](docs/results-2026-09-17-relation-policy-qwen-transport.md)
 binds the policy, claim, saved-text receipts and complete HTTP body to a new
 offline ledger. Intercepted HTTP is not a new provider outcome or live authority.
+The [CI follow-up](docs/results-2026-09-17-relation-policy-ci-isolation.md)
+records a test-guard lifetime defect separately from the adapter's local checks.
 
 ## Quick start
 

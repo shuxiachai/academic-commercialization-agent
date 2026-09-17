@@ -312,6 +312,10 @@ owns positional-request admission and a new offline ledger. Preserve exact
 policy/claim/history/read-result comparison and final HTTP bytes. Its callback
 audit is not proof of HTTP dispatch; intercepted responses are not provider
 validation. No live runner or production route follows from this adapter.
+Keep process-global test guards scoped to the operation, not fixture teardown:
+pytest may read terminal configuration before teardown. The
+[CI isolation correction](docs/results-2026-09-17-relation-policy-ci-isolation.md)
+preserves strict adapter assertions and the original failed CI observation.
 
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict

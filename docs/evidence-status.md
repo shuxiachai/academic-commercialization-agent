@@ -273,6 +273,9 @@ Its [separate native wire successor](results-2026-09-17-relation-policy-qwen-tra
 binds the frozen policy and trusted claim/snapshot through intercepted HTTP
 and an independent ledger. Callback entry, reserved wire intent and observed
 response remain separate. No new provider result or production admission.
+The [CI follow-up](results-2026-09-17-relation-policy-ci-isolation.md) preserves
+the subsequent verbose-reporting failure and test-only isolation correction;
+local suite success must not be substituted for exact-head CI.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources

@@ -177,6 +177,9 @@ An RP callback entry may exist without a dispatched request; keep these facts
 separate. Native protocol admission is not strict-wrapper or semantic success.
 This network-capable adapter is tested with intercepted HTTP and fake keys,
 not a live runner, production integration or new private-data authorization.
+The [CI isolation correction](results-2026-09-17-relation-policy-ci-isolation.md)
+records why the environment-read guard must end before pytest reports the test,
+while remaining active throughout adapter construction and intercepted HTTP.
 
 ## Offline demonstration
 

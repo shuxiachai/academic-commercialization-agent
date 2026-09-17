@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-17 RP native CI isolation correction](results-2026-09-17-relation-policy-ci-isolation.md): a process-global test guard outlived the operation and broke verbose pytest reporting; scoped restoration preserves strict adapter checks without changing the runtime or frozen experiments.
+
 - [2026-09-17 relation-policy native wire preregistration](prereg-2026-09-17-relation-policy-qwen-transport.md) and [offline result](results-2026-09-17-relation-policy-qwen-transport.md): separate positional adapter, exact policy/claim/read-result binding and HTTP/journal boundaries; no new provider observation or production route.
 
 - [2026-09-17 explicit relation-policy offline contract](prereg-2026-09-17-claim-relation-policy.md) and [development result](results-2026-09-17-claim-relation-policy.md): a separate absence/contradiction policy, new synthetic development controls, callback delivery audit and unchanged native/production boundaries.

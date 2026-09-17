@@ -162,6 +162,8 @@ runner，也不宣称新的真实模型成功率或线上追问已经完成。�
 其[独立原生适配器](docs/results-2026-09-17-relation-policy-qwen-transport.md)
 将策略、原命题、保存片段回执与完整HTTP体绑定到新离线账本。
 拦截HTTP不等于真实供应商结果，也不自动授权付费或上线。
+[CI后续记录](docs/results-2026-09-17-relation-policy-ci-isolation.md)
+单独保留测试隔离作用域缺陷，不将本地通过等同于跨平台通过。
 
 ## 快速启动
 

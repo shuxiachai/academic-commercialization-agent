@@ -5,12 +5,14 @@ only capture/tamper requests before forwarding to the real native transport.
 """
 
 import asyncio
+from contextlib import contextmanager
 from copy import deepcopy
 from decimal import Decimal
 import hashlib
 import json
 from pathlib import Path
 import inspect
+import shutil
 import socket
 
 import httpx
@@ -192,6 +194,29 @@ def run(snapshot, ledger, *, claim=CLAIM, proxy=None):
     """Compatibility in test helpers only; every scenario traverses actual RP."""
     result, transport = run_rp(snapshot, ledger, claim=claim, proxy=proxy)
     return result.inner, transport
+
+
+@contextmanager
+def no_ambient_reads(monkeypatch):
+    # os is process-global: fixture teardown runs after pytest reports the call,
+    # whose terminal-width query indexes COLUMNS. Restore before reporting even
+    # when adapter work raises, without allowing terminal reads inside the guard.
+    class NoAmbientReads(dict):
+        def get(self, name, default=None):
+            if any(part in name for part in ("KEY", "QWEN", "PROXY")):
+                pytest.fail("ambient credentials/configuration must not be read")
+            return default
+
+        def __getitem__(self, name):
+            pytest.fail("environment indexing is forbidden")
+
+        def items(self):
+            pytest.fail("environment enumeration is forbidden")
+
+    # Replace only the mapping object; never inspect/overwrite a real key.
+    with monkeypatch.context() as scoped:
+        scoped.setattr(frozen.os, "environ", NoAmbientReads())
+        yield
 
 
 def initial_request(snapshot, claim=CLAIM):
@@ -754,28 +779,64 @@ def test_manifest_and_pinned_http_configuration(snapshot, ledger, mock_http, mon
     with pytest.raises(TypeError):
         RelationPolicyQwenLedger(tmp_path / "caller-manifest", {"live_authorization": True})
     assert (ledger.output_dir / "manifest.json").read_bytes() == before
-    # Replace the mapping object with invented values; never inspect/overwrite a real key.
-    class NoAmbientReads(dict):
-        def get(self, name, default=None):
-            if any(part in name for part in ("KEY", "QWEN", "PROXY")):
-                pytest.fail("ambient credentials/configuration must not be read")
-            return default
+    monkeypatch.setenv("COLUMNS", "93")
+    monkeypatch.setenv("LINES", "27")
+    original_environment = frozen.os.environ
+    with no_ambient_reads(monkeypatch):
+        script(mock_http, ledger, final())
+        result, _ = run(snapshot, ledger)
+        assert result.state == "abstained"
+        request = mock_http["requests"][0]
+        assert request.method == "POST" and str(request.url) == frozen.ENDPOINT
+        assert request.headers["Authorization"] == "Bearer " + KEY and request.headers["accept-encoding"] == "identity"
+        assert mock_http["transport_options"] == [{"retries": 0, "verify": True, "trust_env": False}]
+        options = mock_http["client_options"][0]
+        assert options["follow_redirects"] is False and options["trust_env"] is False and options["verify"] is True
+        assert options["timeout"].connect == 10 and options["timeout"].read == 60
+        assert_journal(mock_http, ledger)
+    # Exercise the actual reporter dependency before fixture teardown, not just
+    # a finalizer assertion that would miss the original PASSED/INTERNALERROR.
+    assert shutil.get_terminal_size(fallback=(80, 24)) == (93, 27)
+    assert id(frozen.os.environ) == id(original_environment)
 
-        def __getitem__(self, name):
-            pytest.fail("environment indexing is forbidden")
 
-    monkeypatch.setattr(frozen.os, "environ", NoAmbientReads())
+@pytest.mark.parametrize("phase", ["constructor", "http"])
+@pytest.mark.parametrize("access,message", [
+    ("get", "ambient credentials/configuration must not be read"),
+    ("index", "environment indexing is forbidden"),
+    ("items", "environment enumeration is forbidden"),
+])
+def test_environment_guard_blocks_reads_and_restores_on_failure(snapshot, ledger, mock_http, monkeypatch, phase, access, message):
+    """Credential reads during construction/HTTP fail without leaking the guard into pytest reporting."""
+    monkeypatch.setenv("COLUMNS", "93")
+    monkeypatch.setenv("LINES", "27")
+    original_environment = frozen.os.environ
+
+    def read_environment():
+        if access == "get":
+            frozen.os.environ.get("DASHSCOPE_API_KEY")
+        elif access == "index":
+            frozen.os.environ["DASHSCOPE_API_KEY"]
+        else:
+            frozen.os.environ.items()
+
     script(mock_http, ledger, final())
-    result, _ = run(snapshot, ledger)
-    assert result.state == "abstained"
-    request = mock_http["requests"][0]
-    assert request.method == "POST" and str(request.url) == frozen.ENDPOINT
-    assert request.headers["Authorization"] == "Bearer " + KEY and request.headers["accept-encoding"] == "identity"
-    assert mock_http["transport_options"] == [{"retries": 0, "verify": True, "trust_env": False}]
-    options = mock_http["client_options"][0]
-    assert options["follow_redirects"] is False and options["trust_env"] is False and options["verify"] is True
-    assert options["timeout"].connect == 10 and options["timeout"].read == 60
-    assert_journal(mock_http, ledger)
+    if phase == "constructor":
+        original_init = RelationPolicyQwenFollowupTransport.__init__
+
+        def init_with_ambient_read(self, *args, **kwargs):
+            original_init(self, *args, **kwargs)
+            read_environment()
+
+        monkeypatch.setattr(RelationPolicyQwenFollowupTransport, "__init__", init_with_ambient_read)
+    else:
+        mock_http["handler"] = lambda request: read_environment()
+    with pytest.raises(pytest.fail.Exception, match=message):
+        with no_ambient_reads(monkeypatch):
+            run(snapshot, ledger)
+    assert len(mock_http["requests"]) == int(phase == "http")
+    assert shutil.get_terminal_size(fallback=(80, 24)) == (93, 27)
+    assert id(frozen.os.environ) == id(original_environment)
 
 
 @pytest.mark.parametrize("kind", ["key", "claim", "snapshot"])
