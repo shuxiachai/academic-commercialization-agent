@@ -307,6 +307,12 @@ separate policy-to-callback delivery from inner-to-policy delivery. New
 synthetic reference agreement is context-limited LLM review, not native
 accuracy; do not reuse an old Qwen adapter, closed batch or production route.
 
+The [separate RP native adapter](docs/results-2026-09-17-relation-policy-qwen-transport.md)
+owns positional-request admission and a new offline ledger. Preserve exact
+policy/claim/history/read-result comparison and final HTTP bytes. Its callback
+audit is not proof of HTTP dispatch; intercepted responses are not provider
+validation. No live runner or production route follows from this adapter.
+
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict
 final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes

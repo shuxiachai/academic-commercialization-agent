@@ -192,6 +192,9 @@ A separate [explicit relation-policy successor](docs/results-2026-09-17-claim-re
 prepares offline callback rules and eight synthetic development contrasts.
 Reference agreement and scripted delivery are not new Qwen accuracy evidence
 or production admission; the earlier failed batches remain closed.
+Its [separate native wire adapter](docs/results-2026-09-17-relation-policy-qwen-transport.md)
+binds the policy, claim, saved-text receipts and complete HTTP body to a new
+offline ledger. Intercepted HTTP is not a new provider outcome or live authority.
 
 ## Quick start
 

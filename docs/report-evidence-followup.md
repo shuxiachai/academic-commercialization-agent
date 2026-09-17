@@ -163,6 +163,21 @@ negation. Scripted controls are not semantic model validation. All runtime
 semantic flags remain unverified; no native executor or production connection
 is added, and PCQ/CLQ outputs must not be retried or relabeled.
 
+### Relation-policy native wire adapter
+
+The [separate wire protocol](prereg-2026-09-17-relation-policy-qwen-transport.md)
+and [offline record](results-2026-09-17-relation-policy-qwen-transport.md)
+define a new positional-request adapter and exact-type ledger for RP. The
+trusted snapshot, verbatim claim and frozen policy are bound before the first
+request; complete native history and saved-text results are compared without
+rewriting messages or model relations.
+
+The complete final HTTP body has its own byte check and pre-dispatch journal.
+An RP callback entry may exist without a dispatched request; keep these facts
+separate. Native protocol admission is not strict-wrapper or semantic success.
+This network-capable adapter is tested with intercepted HTTP and fake keys,
+not a live runner, production integration or new private-data authorization.
+
 ## Offline demonstration
 
 ```bash

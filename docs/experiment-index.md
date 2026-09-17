@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-17 relation-policy native wire preregistration](prereg-2026-09-17-relation-policy-qwen-transport.md) and [offline result](results-2026-09-17-relation-policy-qwen-transport.md): separate positional adapter, exact policy/claim/read-result binding and HTTP/journal boundaries; no new provider observation or production route.
+
 - [2026-09-17 explicit relation-policy offline contract](prereg-2026-09-17-claim-relation-policy.md) and [development result](results-2026-09-17-claim-relation-policy.md): a separate absence/contradiction policy, new synthetic development controls, callback delivery audit and unchanged native/production boundaries.
 
 - [2026-09-17 PCQ native canary result](results-2026-09-17-claim-proposition-contrast-qwen-canary.md): two requests before the first reference mismatch; one mechanical pass, zero of one checked label matches and two unrun controls. Context-limited LLM assessment is mixed; closed failure, not production admission.

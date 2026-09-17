@@ -269,6 +269,11 @@ control received label-blinded, context-limited LLM review. Its implementation
 contract separates policy-to-callback delivery from frozen inner facts and
 does not correct a model's semantic label or add a native/production path.
 
+Its [separate native wire successor](results-2026-09-17-relation-policy-qwen-transport.md)
+binds the frozen policy and trusted claim/snapshot through intercepted HTTP
+and an independent ledger. Callback entry, reserved wire intent and observed
+response remain separate. No new provider result or production admission.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and
