@@ -296,6 +296,11 @@ CLI is identity-only; native dispatch requires the exact committed identity,
 independent review and green CI. Mechanical acceptance, frozen-label agreement,
 publication and later LLM judgment remain separate. No production connection.
 
+PCQ is now [closed and failed](docs/results-2026-09-17-claim-proposition-contrast-qwen-canary.md):
+two requests, one mechanical pass and one reference mismatch; PCQ02/03 unrun.
+Context-limited LLM review judged the answer mixed. Keep the occupied batch and frozen
+prompt unchanged; nonempty-evidence abstention remains unproven live.
+
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict
 final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes

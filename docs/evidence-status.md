@@ -254,6 +254,15 @@ now has 208 offline tests, three dispatch-count defect reinjections and distinct
 mechanical/label/publication gates. Its fixed-output identity is not the closed
 CLQ batch; no new paid observation or production admission follows.
 
+The subsequent [single PCQ native observation](results-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+is closed and failed after two requests, estimated USD 0.002044425. PCQ01 read
+the complete source and passed mechanics but declared refuted instead of the
+frozen insufficient label (0/1 checked matches); PCQ02/03 were unrun. A label-blinded
+LLM with inherited project context inferred insufficient and judged the answer mixed, distinguishing
+missing measurement from physical contradiction. Runtime unverified flags and
+the old failed batches are unchanged. This is not a general accuracy estimate;
+the intended native insufficiency lane and production admission remain unproven.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

@@ -182,6 +182,11 @@ adds LLM-blind-reviewed synthetic references and offline receipt controls;
 it is not another live Qwen observation or a production release.
 Its [separate native executor](docs/results-2026-09-17-claim-proposition-contrast-qwen-runner.md)
 adds identity-bound dispatch and intercepted-HTTP failure tests, not live validation.
+The later [single PCQ native batch](docs/results-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+stopped after two requests: PCQ01 passed mechanics but called an unmeasured
+physical value refuted rather than insufficient. Context-limited LLM review
+judged the answer mixed; PCQ02/03 were unrun. The batch is closed and failed, with no
+production change or native validation of nonempty-evidence abstention.
 
 ## Quick start
 

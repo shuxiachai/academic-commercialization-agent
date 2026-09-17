@@ -138,6 +138,15 @@ HTTP nor a declared claim relation establishes semantic correctness; runtime
 not-assessed/not-verified flags are unchanged. No public route, production
 admission, real saved-report disclosure or automatic deployment is added.
 
+The [subsequent native batch](results-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+is now closed after two requests. PCQ01 passed the actual read/receipt/JSON
+checks but declared refuted where the frozen reference is insufficient;
+PCQ02/03 were not run. Label-blinded LLM review judged the answer mixed, but
+inherited project history prevents claiming complete context isolation.
+Do not invoke this occupied output again or rewrite its protocol/prompt/labels.
+The intended live nonempty-evidence abstention lane remains unproven; any
+successor begins with a new offline contract rather than another paid retry.
+
 ## Offline demonstration
 
 ```bash
