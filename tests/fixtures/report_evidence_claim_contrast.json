@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "cohort_id": "claim_proposition_contrast_v1",
+  "origin": "author_generated_synthetic",
+  "status": "draft_before_llm_review",
+  "cases": [
+    {
+      "case_id": "PCQ01",
+      "claim": "At 25 C, the electrical resistance of the fictional Arlen-74 film was 80 ohms.",
+      "source": {
+        "source_id": "A1",
+        "group": "academic",
+        "title": "Fictional Arlen-74 film bench record",
+        "summary": "The fictional Arlen-74 film was examined at 25 C. Its thickness was 110 nm. Electrical resistance was not measured, and this bench record contains no electrical resistance result. No durability or field evaluation was performed.",
+        "publisher": "Synthetic controls",
+        "source_type": "synthetic_control",
+        "accessed_date": "2026-09-17"
+      },
+      "expected_relation": "insufficient",
+      "proposition_kind": "physical_value",
+      "reference_rationale": "Absence of a resistance measurement establishes neither the stated physical value nor a different value.",
+      "scripted_answer": "The record supplies no electrical resistance measurement, so it establishes neither 80 ohms nor a different value."
+    },
+    {
+      "case_id": "PCQ02",
+      "claim": "This bench record reports a measured electrical resistance of 80 ohms for the fictional Arlen-74 film at 25 C.",
+      "source": {
+        "source_id": "A1",
+        "group": "academic",
+        "title": "Fictional Arlen-74 film bench record",
+        "summary": "The fictional Arlen-74 film was examined at 25 C. Its thickness was 110 nm. Electrical resistance was not measured, and this bench record contains no electrical resistance result. No durability or field evaluation was performed.",
+        "publisher": "Synthetic controls",
+        "source_type": "synthetic_control",
+        "accessed_date": "2026-09-17"
+      },
+      "expected_relation": "refuted",
+      "proposition_kind": "record_contents",
+      "reference_rationale": "The record explicitly says no electrical resistance measurement/result exists in it, contradicting a claim about what this record reports.",
+      "scripted_answer": "The record explicitly says resistance was not measured and it contains no resistance result; it does not report 80 ohms."
+    },
+    {
+      "case_id": "PCQ03",
+      "claim": "This bench record reports a measured electrical resistance of 80 ohms for the fictional Bracken-85 film at 25 C.",
+      "source": {
+        "source_id": "A1",
+        "group": "academic",
+        "title": "Fictional Bracken-85 film bench record",
+        "summary": "In a single bench observation at 25 C, the fictional Bracken-85 film had a measured electrical resistance of 80 ohms. Its thickness was 140 nm. This record reports that observation only; no durability or field evaluation was performed.",
+        "publisher": "Synthetic controls",
+        "source_type": "synthetic_control",
+        "accessed_date": "2026-09-17"
+      },
+      "expected_relation": "supported",
+      "proposition_kind": "record_contents",
+      "reference_rationale": "The same record explicitly reports the same material, measured property, value and temperature.",
+      "scripted_answer": "The bench record reports one measured observation of 80 ohms at 25 C for Bracken-85; it does not establish durability or field performance."
+    }
+  ]
+}
