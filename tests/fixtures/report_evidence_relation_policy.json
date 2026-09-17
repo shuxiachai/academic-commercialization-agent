@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "cohort_id": "claim_relation_policy_development_v1",
+  "origin": "author_generated_synthetic",
+  "reference_status": "llm_label_blinded_context_limited_reviewed",
+  "cases": [
+    {
+      "case_id": "RP01",
+      "claim": "The fictional Velan-C film had thermal conductivity 2 W/(m K) at 20 C.",
+      "text": "The fictional Velan-C film was examined at 20 C. Its thickness was 140 nm. Thermal conductivity was not measured, and this bench record contains no thermal conductivity result.",
+      "expected_relation": "insufficient",
+      "proposition_kind": "physical_value",
+      "reference_rationale": "An unmeasured property is not established as true or false."
+    },
+    {
+      "case_id": "RP02",
+      "claim": "This bench record reports a measured thermal conductivity of 2 W/(m K) for the fictional Velan-C film at 20 C.",
+      "text": "The fictional Velan-C film was examined at 20 C. Its thickness was 140 nm. Thermal conductivity was not measured, and this bench record contains no thermal conductivity result.",
+      "expected_relation": "refuted",
+      "proposition_kind": "record_contents",
+      "reference_rationale": "The explicit no-measurement statement contradicts what the claim says the record reports."
+    },
+    {
+      "case_id": "RP03",
+      "claim": "In test T1 at 1 A, the fictional Rovan coil had temperature exactly 22 C.",
+      "text": "In test T1 at 1 A, the fictional Rovan coil had temperature exactly 22 C. No other tests are described.",
+      "expected_relation": "supported",
+      "proposition_kind": "physical_value",
+      "reference_rationale": "Same subject, test and current, with the exact reported value."
+    },
+    {
+      "case_id": "RP04",
+      "claim": "In test V1 at 10 mA, the fictional Islen module output was exactly 5.0 V.",
+      "text": "In test V1 at 10 mA, the fictional Islen module output was exactly 3.0 V, not 5.0 V. Output at 20 mA was not measured.",
+      "expected_relation": "refuted",
+      "proposition_kind": "physical_value",
+      "reference_rationale": "An explicit incompatible value under the same test conditions refutes the claim."
+    },
+    {
+      "case_id": "RP05",
+      "claim": "In test V1 at 20 mA, the fictional Islen module output was exactly 5.0 V.",
+      "text": "In test V1 at 10 mA, the fictional Islen module output was exactly 3.0 V, not 5.0 V. Output at 20 mA was not measured.",
+      "expected_relation": "insufficient",
+      "proposition_kind": "physical_value",
+      "reference_rationale": "A conflicting value under another current does not refute the requested current."
+    },
+    {
+      "case_id": "RP06",
+      "claim": "In test F1 at 6 W, the fictional Melin pump delivered exactly 7 L/min.",
+      "text": "In test F1 at 6 W, the fictional Dorin pump delivered exactly 2 L/min, not 7 L/min. No measurements of the Melin pump are included.",
+      "expected_relation": "insufficient",
+      "proposition_kind": "physical_value",
+      "reference_rationale": "The numerical conflict belongs to another subject."
+    },
+    {
+      "case_id": "RP07",
+      "claim": "In test F1 at 6 W, the fictional Dorin pump did not deliver exactly 7 L/min.",
+      "text": "In test F1 at 6 W, the fictional Dorin pump delivered exactly 2 L/min, not 7 L/min. No measurements of the Melin pump are included.",
+      "expected_relation": "supported",
+      "proposition_kind": "negated_physical_value",
+      "reference_rationale": "The evidence supports the negated proposition, rather than refuting it because the answer is negative."
+    },
+    {
+      "case_id": "RP08",
+      "claim": "In test R1, the fictional Neral sensor response time was exactly 4 ms.",
+      "text": null,
+      "expected_relation": "unavailable",
+      "proposition_kind": "physical_value",
+      "reference_rationale": "The selected saved source has no text; this is not a claim about all literature."
+    }
+  ]
+}
