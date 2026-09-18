@@ -4,7 +4,7 @@
 
 [打开在线应用](https://academic-commercialization-agent.up.railway.app) · [阅读公开报告样例](examples/solid-state-batteries-ev.md) · [本地运行](#快速启动) · [English](README.md)
 
-**体验条件：**需要作者提供的访问码，或使用 BYOK（支持的模型 API key + Serper 检索 key）。
+**体验条件：** 需要作者提供的访问码，或使用 BYOK（支持的模型 API key + Serper 检索 key）。
 新建分析和 PDF 提取会产生供应商用量；阅读下面的公开样例不需要 key，也不触发新分析。
 
 ![真实历史结果界面：CRISPR 评估的评分维度、来源数量及带引用的风险说明](assets/screenshot-results.png)
