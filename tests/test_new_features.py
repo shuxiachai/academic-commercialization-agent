@@ -492,7 +492,7 @@ class FuzzyTitleDeduplicationTests(TestCase):
 
     def test_arxiv_near_duplicate_of_crossref_source_rejected(self) -> None:
         """
-        Scenario: Crossref returns paper A; PubMed supplement returns paper B
+        Scenario: Crossref returns paper A; arXiv supplement returns paper B
         with a title that is ≥0.88 similar to A. Paper B should be rejected.
         """
         arxiv_near_dup = {
@@ -504,6 +504,11 @@ class FuzzyTitleDeduplicationTests(TestCase):
             "authors": "Some Author",
         }
 
+        # arXiv citation backfill uses source_pipeline.urlopen directly, not
+        # the injected _NullS2 client. Keep this deduplication fixture offline
+        # and make an omitted mock fail before urllib can open a connection.
+        citation_response = MagicMock()
+        citation_response.__enter__.return_value.read.return_value = b'{"citationCount": 0}'
         with patch(
             "academic_agent.source_pipeline.ArxivClient.search",
             return_value=[arxiv_near_dup],
@@ -513,7 +518,12 @@ class FuzzyTitleDeduplicationTests(TestCase):
         ), patch(
             "academic_agent.source_pipeline.LensPatentClient.search",
             return_value=[],
-        ):
+        ), patch(
+            "academic_agent.source_pipeline.urlopen", return_value=citation_response,
+        ) as citation_lookup, patch(
+            "urllib.request.OpenerDirector.open",
+            side_effect=AssertionError("Unexpected HTTP: arXiv citation lookup must be mocked"),
+        ) as http_guard:
             collection = collect_source_collection(
                 "research topic commercialization",
                 searcher=_fake_search,
@@ -525,6 +535,14 @@ class FuzzyTitleDeduplicationTests(TestCase):
                 maximum_sources=6,
                 accessed_date=date(2025, 7, 1),
             )
+
+            citation_lookup.assert_called_once()
+            self.assertEqual(
+                citation_lookup.call_args.args[0].full_url,
+                "https://api.semanticscholar.org/graph/v1/paper/arXiv:2401.99999?fields=citationCount",
+            )
+            self.assertEqual(citation_lookup.call_args.kwargs, {"timeout": 10})
+            http_guard.assert_not_called()
 
         # All academic sources must have unique normalised titles
         titles = [src.title.lower() for src in collection.academic_sources]
@@ -604,7 +622,7 @@ class PatentAssigneesTests(TestCase):
             )
 
     def test_assignees_extracted_from_lens_results(self) -> None:
-        """Lens results with known applicants should populate patent_assignees."""
+        """Known Lens applicants must reach the patent crew input unchanged."""
         records = [
             _lens_patent_record(
                 "001-001-001-001-001", "10000001",
@@ -620,6 +638,10 @@ class PatentAssigneesTests(TestCase):
         collection = self._run_collection(records)
         self.assertIn("Acme Healthcare Corp", collection.patent_assignees)
         self.assertIn("BioTech Solutions Ltd", collection.patent_assignees)
+        self.assertCountEqual(
+            json.loads(collection.crew_inputs()["patent_assignees_json"]),
+            ["Acme Healthcare Corp", "BioTech Solutions Ltd"],
+        )
 
     def test_generic_assignee_names_filtered_out(self) -> None:
         """'Patent Applicant' (Lens fallback) should not appear in patent_assignees."""
@@ -633,14 +655,10 @@ class PatentAssigneesTests(TestCase):
         collection = self._run_collection(records)
         self.assertNotIn("Patent Applicant", collection.patent_assignees)
         self.assertNotIn("", collection.patent_assignees)
-
-    def test_assignees_present_in_crew_inputs(self) -> None:
-        """patent_assignees_json must appear in crew_inputs() output."""
-        collection = self._run_collection([])
-        inputs = collection.crew_inputs()
-        self.assertIn("patent_assignees_json", inputs)
-        parsed = json.loads(inputs["patent_assignees_json"])
-        self.assertIsInstance(parsed, list)
+        self.assertEqual(
+            json.loads(collection.crew_inputs()["patent_assignees_json"]),
+            [],
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -648,19 +666,30 @@ class PatentAssigneesTests(TestCase):
 # ---------------------------------------------------------------------------
 
 class TranslateToLanguageTests(TestCase):
-    def test_returns_translation_when_llm_succeeds(self) -> None:
+    def test_returns_mocked_translation_with_requested_language_in_llm_call(self) -> None:
+        """The original text and requested target must reach the LLM call."""
         from academic_agent.language import translate_to_language
 
-        with patch(
-            "academic_agent.language._llm_call",
-            return_value="大语言模型在医疗保健领域的应用",
-        ):
-            result = translate_to_language(
-                "Large language models in healthcare",
-                "Simplified Chinese",
-            )
+        translations = {
+            "Simplified Chinese": "大语言模型在医疗保健领域的应用",
+            "Japanese": "大規模言語モデル",
+            "Korean": "대규모 언어 모델",
+            "French": "grands modèles de langage",
+        }
+        original = "Large language models in healthcare"
+        for language, expected in translations.items():
+            with self.subTest(language=language):
+                with patch(
+                    "academic_agent.language._llm_call", return_value=expected
+                ) as llm_call:
+                    result = translate_to_language(original, language)
 
-        self.assertEqual(result, "大语言模型在医疗保健领域的应用")
+                self.assertEqual(result, expected)
+                prompt = llm_call.call_args.args[0]
+                system = llm_call.call_args.kwargs["system"]
+                self.assertIn(original, prompt)
+                self.assertIn(language, prompt)
+                self.assertIn(language, system)
 
     def test_falls_back_to_original_on_llm_failure(self) -> None:
         from academic_agent.language import translate_to_language
@@ -670,21 +699,6 @@ class TranslateToLanguageTests(TestCase):
             result = translate_to_language(original, "Simplified Chinese")
 
         self.assertEqual(result, original)
-
-    def test_different_target_languages(self) -> None:
-        from academic_agent.language import translate_to_language
-
-        translations = {
-            "Japanese":  "大規模言語モデル",
-            "Korean":    "대규모 언어 모델",
-            "French":    "grands modèles de langage",
-        }
-        for lang, expected in translations.items():
-            with self.subTest(language=lang):
-                with patch("academic_agent.language._llm_call", return_value=expected):
-                    result = translate_to_language("large language models", lang)
-                self.assertEqual(result, expected)
-
 
 # ---------------------------------------------------------------------------
 # 10. Patent API keyword truncation
@@ -860,20 +874,24 @@ class PatentElectrodeDirectionFilterTests(TestCase):
         def search_title(self, title: str) -> list[dict]:
             return []
 
-    def _search_with_cathode_patent(self, query: str) -> dict:
+    def _search_with_electrode_patents(
+        self, query: str, *, include_anode: bool = True
+    ) -> dict:
         if "site:patents" in query or "patent applicant" in query:
-            return {
-                "organic": [
-                    {
-                        # Title includes "hard carbon" + "sodium" (score ≥ 2) so it
-                        # passes _tscore check and reaches the electrode-direction filter.
-                        "title": "Hard carbon cathode for sodium batteries",
-                        "link": "https://patents.google.com/patent/US99990001",
-                        "snippet": (
-                            "Hard carbon cathode active material for sodium-ion battery. "
-                            "Improved cycle stability and rate performance."
-                        ),
-                    },
+            patents = [
+                {
+                    # Title includes "hard carbon" + "sodium" (score ≥ 2) so it
+                    # passes _tscore check and reaches the electrode-direction filter.
+                    "title": "Hard carbon cathode for sodium batteries",
+                    "link": "https://patents.google.com/patent/US99990001",
+                    "snippet": (
+                        "Hard carbon cathode active material for sodium-ion battery. "
+                        "Improved cycle stability and rate performance."
+                    ),
+                },
+            ]
+            if include_anode:
+                patents.append(
                     {
                         "title": "Hard carbon anode for sodium storage in batteries",
                         "link": "https://patents.google.com/patent/US99990002",
@@ -881,8 +899,10 @@ class PatentElectrodeDirectionFilterTests(TestCase):
                             "Anode material for sodium-ion secondary batteries with "
                             "improved first coulombic efficiency and cycle stability."
                         ),
-                    },
-                ]
+                    }
+                )
+            return {
+                "organic": patents
             }
         # Academic Serper results for the fallback — DOIs use the "test-N" pattern
         if any(kw in query for kw in (" DOI", "review journal", "efficiency stability",
@@ -913,7 +933,7 @@ class PatentElectrodeDirectionFilterTests(TestCase):
             ]
         }
 
-    def test_cathode_patent_rejected_for_anode_topic(self) -> None:
+    def test_cathode_patent_rejected_for_anode_topic_and_recorded_in_audit(self) -> None:
         with patch(
             "academic_agent.source_pipeline.LensPatentClient.search",
             return_value=[],
@@ -926,7 +946,7 @@ class PatentElectrodeDirectionFilterTests(TestCase):
         ):
             collection = collect_source_collection(
                 self._ANODE_TOPIC,
-                searcher=self._search_with_cathode_patent,
+                searcher=self._search_with_electrode_patents,
                 crossref=self._AnodicCrossref(),
                 openalex=_NullOpenAlex(),
                 s2=_NullS2(),
@@ -947,64 +967,41 @@ class PatentElectrodeDirectionFilterTests(TestCase):
             any("anode" in t for t in patent_titles),
             f"Anode patent should be accepted, got: {patent_titles}",
         )
-
-    def test_no_cathode_rejection_for_non_specific_topic(self) -> None:
-        """A topic without electrode direction should not filter out electrode patents."""
-        with patch(
-            "academic_agent.source_pipeline.LensPatentClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.PubMedClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.ArxivClient.search",
-            return_value=[],
-        ):
-            collection = collect_source_collection(
-                "sodium battery materials",
-                searcher=self._search_with_cathode_patent,
-                crossref=self._AnodicCrossref(),
-                openalex=_NullOpenAlex(),
-                s2=_NullS2(),
-                url_checker=lambda url: (True, ""),
-                minimum_sources=1,
-                maximum_sources=6,
-                accessed_date=date(2026, 7, 17),
-            )
-        # Both cathode and anode patents may appear since topic is not electrode-specific
-        patent_titles = [p.title.lower() for p in collection.patent_sources]
-        self.assertTrue(
-            any("anode" in t or "cathode" in t for t in patent_titles) or len(patent_titles) == 0,
-            "Non-electrode-specific topic should not apply electrode direction filter",
-        )
-
-    def test_cathode_rejection_recorded_in_audit(self) -> None:
-        with patch(
-            "academic_agent.source_pipeline.LensPatentClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.PubMedClient.search",
-            return_value=[],
-        ), patch(
-            "academic_agent.source_pipeline.ArxivClient.search",
-            return_value=[],
-        ):
-            collection = collect_source_collection(
-                self._ANODE_TOPIC,
-                searcher=self._search_with_cathode_patent,
-                crossref=self._AnodicCrossref(),
-                openalex=_NullOpenAlex(),
-                s2=_NullS2(),
-                url_checker=lambda url: (True, ""),
-                minimum_sources=1,
-                maximum_sources=6,
-                accessed_date=date(2026, 7, 17),
-            )
-
         all_rejected = [r for audit in collection.audit for r in audit.rejected_reasons]
         self.assertTrue(
             any("cathode" in r and "anode" in r for r in all_rejected),
             f"Expected cathode-vs-anode rejection reason in audit, got: {all_rejected}",
+        )
+
+    def test_cathode_patent_retained_for_non_specific_topic(self) -> None:
+        """A non-directional topic must retain the otherwise identical cathode patent."""
+        with patch(
+            "academic_agent.source_pipeline.LensPatentClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.PubMedClient.search",
+            return_value=[],
+        ), patch(
+            "academic_agent.source_pipeline.ArxivClient.search",
+            return_value=[],
+        ):
+            collection = collect_source_collection(
+                "hard carbon sodium batteries",
+                searcher=lambda query: self._search_with_electrode_patents(
+                    query, include_anode=False
+                ),
+                crossref=self._AnodicCrossref(),
+                openalex=_NullOpenAlex(),
+                s2=_NullS2(),
+                url_checker=lambda url: (True, ""),
+                minimum_sources=1,
+                maximum_sources=6,
+                accessed_date=date(2026, 7, 17),
+            )
+        patent_titles = [p.title.lower() for p in collection.patent_sources]
+        self.assertTrue(
+            any("cathode" in t for t in patent_titles),
+            f"Non-electrode-specific topic must retain cathode patent, got: {patent_titles}",
         )
 
 

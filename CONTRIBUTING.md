@@ -54,6 +54,22 @@ CI runs Linux/Windows × Python 3.11/3.12, lint, an 85% coverage floor,
 zero-provider Chromium and Docker runtime checks. Historical test totals are
 not a substitute for passing the current suite.
 
+The Ubuntu Python 3.12 matrix cell measures coverage during its full test run;
+the other three cells run the full suite without coverage. The existing
+coverage status check aggregates matrix success, including that measurement,
+rather than executing the suite a fifth time. It fails for failed, cancelled
+or skipped matrix results. Verbose reporting remains enabled in every cell.
+
+Maintain failure coverage, not a target test count. Combine identical setup
+when result and audit assertions protect the same scenario; assert nonempty
+data at its delivery boundary and request parameters at the real call seam.
+Replace brittle display-name/prose checks with the actual executable contract,
+including a negative control that the replacement rejects. Reusable helpers
+must still exercise each distinct adapter. Do not delete or relocate frozen
+experiment tests, some of which are included in source identity hashes, merely
+to shrink the default suite. Warning policy, full-suite collection and the
+cross-platform/browser/container boundaries remain unchanged.
+
 ### Optional real-browser smoke
 
 ```bash

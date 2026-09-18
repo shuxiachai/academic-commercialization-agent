@@ -11,6 +11,176 @@ The ordinary alternative remains browsing the same source cards and summaries.
 Reader benefit relative to that alternative has not been measured. This phase
 tests the tool conversation protocol, not model quality or product adoption.
 
+New semantic evaluations follow the [LLM-only review policy](llm-review-policy.md).
+Human review is not required to proceed; independent model judgment is still
+separate from structural admission and cannot establish actual user adoption.
+
+## Separate offline claim-relation contract
+
+The [new preregistration](prereg-2026-09-16-followup-claim-relation.md) defines
+`run_claim_relation_followup(snapshot, claim, *, transport)` in the isolated
+`report_evidence_claim_relation` module. The caller supplies an explicit
+proposition verbatim. This is not automatic claim extraction from arbitrary
+questions, an existing Qwen adapter option or a production endpoint.
+
+The model declares `claim_relation`, `answer`, `supporting_evidence_ids` and
+`caveats`; it cannot independently set delivery `status`. A `supported` claim
+and an explicitly `refuted` claim can both produce evidence-backed delivery.
+`insufficient` means nonempty material was delivered but does not establish the
+claim or its refutation; `unavailable` means no usable read reached the callback.
+Both abstain. Negation in prose is not a rule for selecting any of these states.
+
+The wrapper checks structural consistency and actual receipts, preserves the
+declaration on serialization and derives the old core envelope without changing
+frozen code. It does **not** verify the model's semantic relationship. A false
+but structurally consistent declaration can still pass; all semantic flags
+remain unverified. Scripts are not model inference.
+
+One read and two callbacks remain the ceiling. The transformed callback request
+is checked again against 12 KiB; the outer wrapper's earlier byte/delivery
+counts cannot stand in for the final callback. Early ending, checked missing
+text, delivered-but-insufficient evidence and execution failure stay distinct.
+That callback-only contract adds no provider adapter, automatic judging request
+or paid runner. The separate native candidate below has its own identity.
+
+## Separate claim-relative native Qwen candidate
+
+The [native wire protocol](prereg-2026-09-16-claim-qwen-transport.md) adds
+`ClaimQwenLedger` and `ClaimQwenFollowupTransport` for the claim wrapper, not
+an option that silently changes the older catalog adapter. Construction binds
+the trusted snapshot and caller-owned claim; even a different first-turn claim
+must be refused before reservation. The full paired local read result is
+compared against the snapshot and original arguments, without another read.
+
+The four-field final content returns unchanged to the wrapper. JSON Object is
+a wire constraint, not schema or semantic proof; the wrapper still validates
+the declaration and derives delivery. It preserves the frozen exact model,
+HTTP primitive, one-read/two-request ceiling and accounting rules. Full encoded
+HTTP size and journal hashes are checked at the dispatch boundary, separately
+from callback entry. A wrapper failure is not a successful batch merely because
+the transport accepted its response; future callers must handle that outcome.
+
+This candidate is tested with intercepted HTTP and fake keys. It adds no live
+runner, provider-data grant, search or production endpoint. Ledger journals
+contain source text and answers: future real-data journals remain private;
+hashing does not make them safe to publish. Semantic judging follows the
+LLM-only policy and remains separate from this engineering validation.
+
+## Separate claim-relative synthetic canary
+
+The [new CLQ preregistration](prereg-2026-09-16-claim-qwen-canary.md) freezes
+three invented single-source controls for support, refutation and nonempty
+insufficiency. It permits at most six sequential requests in one closed batch,
+USD 0.10 soft stop, only after exact-tree CI and independent implementation
+review. The unavailable relation remains offline-only for this batch.
+
+The new runner separates code/protocol checks, local expected-label matching
+and later blind LLM semantic review. Labels never enter provider prompts or
+the blind judge's first pass. A correct refutation is distinct from an
+unsupported answer. Any first transport, wrapper, label, accounting or
+publication failure stops further cases; missing judgments are not matches.
+
+The fixed output directory cannot be reused, including after partial setup.
+Identity-only default mode reads no key and sends no request. This protocol
+does not reopen a CQ/RS budget, transmit private reports, establish general
+accuracy, or authorize a production endpoint. Its frozen method is a plan,
+not a claim that the native model already passed the new controls.
+
+The subsequent [single live result](results-2026-09-16-claim-qwen-canary.md)
+completed six requests after the execution SHA's CI passed. All three cases
+passed mechanical checks, but only two matched the frozen relation labels;
+the batch failed and is closed. Blind LLM review supported the model's third
+refutation: the proposition concerns a recorded flow, which the source
+explicitly denies measuring. Preserve that reference-design diagnostic
+separately from the failed frozen gate. Neither the intended live
+insufficiency lane nor general semantics is now established.
+
+## New PCQ reference preparation
+
+The [PCQ protocol](prereg-2026-09-17-claim-proposition-contrast.md) uses a new
+physical-value/record-content contrast pair and a separate measurement control.
+Fresh-context LLM pre-review occurred without author labels or scripted answers;
+the [aggregate result](results-2026-09-17-claim-proposition-contrast.md) records
+three matching proposals and the limitations of AI-generated development labels.
+
+```bash
+uv run python report_evidence_contrast_check.py --review-input
+uv run python report_evidence_contrast_check.py
+```
+
+The first command prints the allowlisted question/source view; the second
+prints a scripted local read-to-final rehearsal. Neither calls a provider,
+reads credentials, authorizes a paid run or judges native model correctness.
+Do not replace the frozen CLQ fixture or reset its closed output directory.
+
+### Separate PCQ native execution contract
+
+The [new native protocol](prereg-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+uses those exact reviewed fixture bytes with a dedicated runner, a distinct
+fixed output and a new execution identity. It does not execute the closed CLQ
+runner or use the scripted preparation answer as a native-output assertion.
+Three fixed cases allow at most two sequential requests each. The first failed
+read, receipt, wrapper, accounting, identity, label or publication gate stops
+the batch and leaves later cases explicitly unrun.
+
+The dedicated CLI defaults to identity-only: no credential lookup, output
+creation or HTTP. A later native dispatch requires separately recorded protocol
+acknowledgement, exact commit/fixture identity, independent implementation review
+and all exact-head CI checks. The adapter's offline manifest stays unchanged.
+The model sees only the claim, catalog and actual local read, never reference
+labels, rationales or scripted answers. Nonempty-insufficient must retain its
+usable read while abstaining with no supporting IDs.
+
+Case mechanical results, reference agreement and later LLM review are distinct.
+Overall batch success additionally requires known accounting, no pending or
+stopped state and complete summary publication. Neither offline intercepted
+HTTP nor a declared claim relation establishes semantic correctness; runtime
+not-assessed/not-verified flags are unchanged. No public route, production
+admission, real saved-report disclosure or automatic deployment is added.
+
+The [subsequent native batch](results-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+is now closed after two requests. PCQ01 passed the actual read/receipt/JSON
+checks but declared refuted where the frozen reference is insufficient;
+PCQ02/03 were not run. Label-blinded LLM review judged the answer mixed, but
+inherited project history prevents claiming complete context isolation.
+Do not invoke this occupied output again or rewrite its protocol/prompt/labels.
+The intended live nonempty-evidence abstention lane remains unproven; any
+successor begins with a new offline contract rather than another paid retry.
+
+### Explicit relation-policy successor
+
+The [new offline protocol](prereg-2026-09-17-claim-relation-policy.md) and
+[qualified result](results-2026-09-17-claim-relation-policy.md) define a separate
+callback layer, not an update to the frozen claim wrapper. Its single-request
+callback signature deliberately differs from old native adapters. A nested
+inner result records entry into the policy layer; its own audit records entry
+into the final injected callback. A read can reach the former and be blocked
+before the latter. Neither observation proves a model obeyed the rubric.
+
+The explicit rubric preserves the original proposition and distinguishes
+missing measurements, actual contradiction, record-content claims, scope and
+negation. Scripted controls are not semantic model validation. All runtime
+semantic flags remain unverified; no native executor or production connection
+is added, and PCQ/CLQ outputs must not be retried or relabeled.
+
+### Relation-policy native wire adapter
+
+The [separate wire protocol](prereg-2026-09-17-relation-policy-qwen-transport.md)
+and [offline record](results-2026-09-17-relation-policy-qwen-transport.md)
+define a new positional-request adapter and exact-type ledger for RP. The
+trusted snapshot, verbatim claim and frozen policy are bound before the first
+request; complete native history and saved-text results are compared without
+rewriting messages or model relations.
+
+The complete final HTTP body has its own byte check and pre-dispatch journal.
+An RP callback entry may exist without a dispatched request; keep these facts
+separate. Native protocol admission is not strict-wrapper or semantic success.
+This network-capable adapter is tested with intercepted HTTP and fake keys,
+not a live runner, production integration or new private-data authorization.
+The [CI isolation correction](results-2026-09-17-relation-policy-ci-isolation.md)
+records why the environment-read guard must end before pytest reports the test,
+while remaining active throughout adapter construction and intercepted HTTP.
+
 ## Offline demonstration
 
 ```bash
@@ -378,7 +548,44 @@ A narrow AI content inspection matched the two synthetic controls; semantic
 support remains not_assessed. The batch is closed, without a production API
 route or browser control.
 
+## Real saved-report preparation
+
+The separate [RS offline protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md)
+prepares one historical live-report snapshot and two new Chinese questions.
+All 20 saved sources remain in their original order. The positive task explains
+a saved material-level finding; the negative task must read the same nonempty
+text before declining an unsupported deployment conclusion. This is a small
+developmental pilot, not an unseen accuracy study.
+
+`report_evidence_real_saved_eval.py` binds original report/source/metadata bytes,
+questions, projection, configuration, snapshot and catalog. Private reference
+labels are bound separately and never enter callback construction. Explicit
+scripted callbacks and an intercepted full-wire probe verify delivery only;
+the module has no implicit transport, live runner, credential option or route.
+Reference review is AI saved-text inspection, not human labels or external
+paper verification. Content hashes do not establish ownership or permission.
+
+A real-model run still requires a distinct frozen runner and data authorization
+covering the whole visible catalog and any selectable saved window. Neither
+CQ's synthetic allowance nor successful offline preparation grants that scope.
+
 ## Bounded Qwen compatibility work
+
+The later [real saved-report RS pilot](prereg-2026-09-16-report-evidence-real-saved-qwen.md)
+has its own runner and data authorization, not another CQ attempt. It verifies
+the exact private packet and rebuilds inputs from originals, separately binds
+the current committed import closure, and uses one fixed fresh output location.
+Identity-only operation does not read credentials or create output. Live mode
+is limited to four sequential requests, two per case, and USD 0.10; a known
+first-response failure prevents the next paid request, and any first-case
+failure leaves the second case unrun. The original offline manifest remains
+unchanged and grants no live authority.
+
+Semantic inspection uses a separate read-only LLM review of available answers
+against actually delivered windows, without first seeing reference labels.
+This is not human expert validation, source truth or independent gold accuracy.
+Mechanical results and runtime semantic states remain unchanged by that
+post-hoc judgment. No additional project-provider judging call is authorized.
 
 The [Qwen canary protocol](prereg-2026-09-14-report-evidence-followup-qwen.md)
 defines two synthetic controls and one shared allowance: six sequential requests,
@@ -417,6 +624,19 @@ This is transport evidence, not a successful read-to-answer conversation.
   accuracy, user time savings or production-ready Tool Calling.
 
 ## Next gates
+
+The [RPQ protocol](prereg-2026-09-18-relation-policy-qwen-canary.md) fixed three
+dependent synthetic development controls, not real saved reports. Its
+[native batch is closed](results-2026-09-18-relation-policy-qwen-canary.md):
+one request returned unavailable without reading the advertised source.
+The runner stopped before a second request. No receipt or admitted assessment
+exists; label checks are zero and semantic support is not_reviewable.
+Next investigate first-stage read admission offline under a new contract.
+Forced tool execution, if chosen, must not be called autonomous tool selection.
+Do not reuse the occupied batch, old allowances or private real-report material.
+The [runner verification record](results-2026-09-18-relation-policy-qwen-runner.md)
+separates offline execution, failed test-harness attempts and restored checks.
+The dedicated CLI verifies identity by default without key access or HTTP.
 
 The [phase-one protocol](prereg-2026-09-14-report-evidence-followup-phase1.md)
 defines offline acceptance and the non-model comparison. The bounded canary

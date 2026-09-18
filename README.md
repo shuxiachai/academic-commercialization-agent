@@ -183,6 +183,34 @@ then passed both invented controls in four requests: actual read plus cited
 final JSON, and actual missing-text read plus abstention. This is bounded native
 closure evidence, not general semantic accuracy or production enablement.
 
+A separate [claim-relative CLQ observation](docs/results-2026-09-16-claim-qwen-canary.md)
+completed six requests with three per-case mechanical passes but only 2/3
+frozen-label matches, so the batch failed. Blind LLM review identified a
+reference/proposition mismatch; the old label and failure remain unchanged.
+This is not live validation of the intended insufficiency lane or production
+Tool Calling.
+
+The [PCQ successor preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
+adds LLM-blind-reviewed synthetic references and offline receipt controls;
+it is not another live Qwen observation or a production release.
+Its [separate native executor](docs/results-2026-09-17-claim-proposition-contrast-qwen-runner.md)
+adds identity-bound dispatch and intercepted-HTTP failure tests, not live validation.
+The later [single PCQ native batch](docs/results-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+stopped after two requests: PCQ01 passed mechanics but called an unmeasured
+physical value refuted rather than insufficient. Context-limited LLM review
+judged the answer mixed; PCQ02/03 were unrun. The batch is closed and failed, with no
+production change or native validation of nonempty-evidence abstention.
+
+A separate [explicit relation-policy successor](docs/results-2026-09-17-claim-relation-policy.md)
+prepares offline callback rules and eight synthetic development contrasts.
+Reference agreement and scripted delivery are not new Qwen accuracy evidence
+or production admission; the earlier failed batches remain closed.
+Its [separate native wire adapter](docs/results-2026-09-17-relation-policy-qwen-transport.md)
+binds the policy, claim, saved-text receipts and complete HTTP body to a new
+offline ledger. Intercepted HTTP is not a new provider outcome or live authority.
+The [CI follow-up](docs/results-2026-09-17-relation-policy-ci-isolation.md)
+records a test-guard lifetime defect separately from the adapter's local checks.
+
 ## Quick start
 
 Use Python 3.11 or 3.12 for the CI-tested environment and

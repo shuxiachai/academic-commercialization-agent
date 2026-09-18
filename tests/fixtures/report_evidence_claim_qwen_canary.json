@@ -1,0 +1,53 @@
+[
+  {
+    "case_id": "CLQ01",
+    "claim": "In the fictional Lumen-41 membrane bench test at 20 C and a pressure difference of 50 kPa, the recorded flow was 18 mL/min.",
+    "target_source_id": "A1",
+    "expected_relation": "supported",
+    "sources": [
+      {
+        "source_id": "A1",
+        "group": "academic",
+        "title": "Fictional Lumen-41 membrane bench record",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "abstract",
+        "summary": "This invented record concerns the Lumen-41 membrane. In a bench test at 20 C and a pressure difference of 50 kPa, its recorded flow was 18 mL/min. The observation is restricted to this single bench test. Long-term durability and field deployment were not evaluated."
+      }
+    ]
+  },
+  {
+    "case_id": "CLQ02",
+    "claim": "In the fictional Meridian-52 membrane bench test at 20 C and a pressure difference of 50 kPa, the recorded flow was 18 mL/min.",
+    "target_source_id": "A1",
+    "expected_relation": "refuted",
+    "sources": [
+      {
+        "source_id": "A1",
+        "group": "academic",
+        "title": "Fictional Meridian-52 membrane bench record",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "abstract",
+        "summary": "This invented record concerns the Meridian-52 membrane. In a bench test at 20 C and a pressure difference of 50 kPa, its recorded flow was 11 mL/min, not 18 mL/min. The observation is restricted to this single bench test. Long-term durability and field deployment were not evaluated."
+      }
+    ]
+  },
+  {
+    "case_id": "CLQ03",
+    "claim": "In the fictional Northvale-63 membrane bench test at 20 C and a pressure difference of 50 kPa, the recorded flow was 18 mL/min.",
+    "target_source_id": "A1",
+    "expected_relation": "insufficient",
+    "sources": [
+      {
+        "source_id": "A1",
+        "group": "academic",
+        "title": "Fictional Northvale-63 membrane bench record",
+        "publisher": "Synthetic example",
+        "accessed_date": "2026-09-16",
+        "origin": "abstract",
+        "summary": "This invented record concerns the Northvale-63 membrane. A bench inspection at 20 C and a pressure difference of 50 kPa recorded a thickness of 0.4 mm. Flow was not measured, and this record contains no flow result. Long-term durability and field deployment were not evaluated."
+      }
+    ]
+  }
+]

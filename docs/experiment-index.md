@@ -1,5 +1,44 @@
 # Experiment archive index
 
+- [2026-09-18 RPQ native early-final result](results-2026-09-18-relation-policy-qwen-canary.md): one request, zero reads/receipts/admitted answers, first-stage mechanical rejection; no label checks, RP02/RP03 unrun and the fixed batch closed.
+
+- [2026-09-18 relation-policy native canary preregistration](prereg-2026-09-18-relation-policy-qwen-canary.md) and [runner verification](results-2026-09-18-relation-policy-qwen-runner.md): a separate RP01-RP03 synthetic batch with policy/callback/native delivery gates, exact identity, six-request limit and first-failure stop; preparation is not a provider observation.
+
+- [2026-09-17 test maintenance and CI consolidation](results-2026-09-17-test-maintenance.md): stronger delivery/call assertions, executable workflow checks and four full matrix executions with the existing coverage floor; frozen experiments and production remain unchanged.
+
+- [2026-09-17 RP native CI isolation correction](results-2026-09-17-relation-policy-ci-isolation.md): a process-global test guard outlived the operation and broke verbose pytest reporting; scoped restoration preserves strict adapter checks without changing the runtime or frozen experiments.
+
+- [2026-09-17 relation-policy native wire preregistration](prereg-2026-09-17-relation-policy-qwen-transport.md) and [offline result](results-2026-09-17-relation-policy-qwen-transport.md): separate positional adapter, exact policy/claim/read-result binding and HTTP/journal boundaries; no new provider observation or production route.
+
+- [2026-09-17 explicit relation-policy offline contract](prereg-2026-09-17-claim-relation-policy.md) and [development result](results-2026-09-17-claim-relation-policy.md): a separate absence/contradiction policy, new synthetic development controls, callback delivery audit and unchanged native/production boundaries.
+
+- [2026-09-17 PCQ native canary result](results-2026-09-17-claim-proposition-contrast-qwen-canary.md): two requests before the first reference mismatch; one mechanical pass, zero of one checked label matches and two unrun controls. Context-limited LLM assessment is mixed; closed failure, not production admission.
+
+- [2026-09-17 PCQ native executor offline result](results-2026-09-17-claim-proposition-contrast-qwen-runner.md): dedicated identity and output, 208 new intercepted-HTTP tests, distinct mechanical/label/publication observations and three actual dispatch-count fault reinjections; no new Qwen observation.
+
+- [2026-09-17 PCQ native Qwen preregistration](prereg-2026-09-17-claim-proposition-contrast-qwen-canary.md): a separate fixed-output executor for the already frozen synthetic contrast controls, at most six sequential requests after exact-tree validation; preparation is not a live result.
+
+- [2026-09-17 PCQ proposition-contrast preparation](results-2026-09-17-claim-proposition-contrast.md): fresh-context LLM pre-review of three synthetic references before native testing, plus a separate offline rehearsal; no Qwen result or relabeling of the failed CLQ batch.
+- [2026-09-17 PCQ offline preregistration](prereg-2026-09-17-claim-proposition-contrast.md): distinguish actual physical value from the content of a measurement record; blind projection, immutable draft identity and independent freeze gate.
+
+- [2026-09-16 claim-relative Qwen canary result](results-2026-09-16-claim-qwen-canary.md): six requests, three per-case mechanical passes but 2/3 frozen-label matches; batch failed. Blind LLM review diagnoses a recording-versus-physical-value reference mismatch without changing the label or rerunning the batch.
+
+- [2026-09-16 claim-relative synthetic Qwen canary preregistration](prereg-2026-09-16-claim-qwen-canary.md): three fresh support/refutation/insufficiency controls, six sequential requests maximum and first-failure stop; separate blind LLM judging, no private report transmission or production activation.
+
+- [2026-09-16 claim-relative Qwen wire result](results-2026-09-16-claim-qwen-transport.md): native HTTP/ledger admission, 88 synthetic controls, four targeted mutation failures and local 30-snapshot capacity replay; no provider inference or semantic-accuracy claim.
+
+- [2026-09-16 claim-relative Qwen wire preregistration](prereg-2026-09-16-claim-qwen-transport.md): independent snapshot/claim-bound native bridge, full HTTP byte and usage boundaries; intercepted transport only, no new live batch or old allowance reuse.
+
+- [2026-09-16 offline claim-relation result](results-2026-09-16-followup-claim-relation.md): actual callback delivery, four model-declared relations and code-derived status, with fresh synthetic controls; no semantic-accuracy or live-provider claim.
+
+- [2026-09-16 offline claim-relation preregistration](prereg-2026-09-16-followup-claim-relation.md): separate model-declared evidence relationship from code-owned delivery; new synthetic controls, LLM-only future judging, no paid inference or production activation.
+
+- [2026-09-16 real saved-report Qwen pilot preregistration](prereg-2026-09-16-report-evidence-real-saved-qwen.md): separate exact-packet authorization, four sequential requests, fixed single-batch output, first-failure stop and disclosed post-hoc LLM review; not another synthetic run or production activation.
+
+- [2026-09-16 real saved-report offline result](results-2026-09-16-report-evidence-real-saved-offline.md): full 20-source catalog, separate labels and two scripted read-to-final probes; no provider requests, model correctness or live authorization.
+
+- [2026-09-16 real saved-report offline preparation](prereg-2026-09-16-report-evidence-real-saved-offline.md): one historical live report, two new developmental questions, private byte-bound inputs and nonempty read-then-abstain; no real-data transmission or live runner.
+
 - [2026-09-16 CQ native synthetic result](results-2026-09-16-report-evidence-catalog-qwen-canary.md): both frozen cases passed in four accounted requests; actual read-to-final closure and missing-text abstention, not general quality or production activation.
 
 - [2026-09-16 catalog-native CQ canary preregistration](prereg-2026-09-16-report-evidence-catalog-qwen-canary.md): two fresh synthetic controls, four requests maximum and first-failure stop; independent from the adapter's offline manifest and all closed batches.

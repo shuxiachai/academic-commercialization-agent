@@ -47,6 +47,13 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+Test maintenance consolidates weak/repeated feature scenarios and checks actual
+launch/workflow commands. The canonical matrix cell now measures coverage in
+its single full-suite execution; the existing coverage check is an explicit
+matrix-result gate rather than a fifth test run. All four environments, the
+85% floor, browser/container checks and frozen experiments remain. See the
+[maintenance evidence and limits](results-2026-09-17-test-maintenance.md).
+
 The PDF failure-receipt test observer no longer consumes the executor slot
 needed by its worker. A single-slot control reproduced ten entry failures;
 event-loop notification preserves all twenty default/single-slot failure and
@@ -215,6 +222,87 @@ questions. Cost estimates are not invoice reconciliation, and complete local
 accounting does not make incomplete source-run spending inspectable.
 
 ## Tool Calling experiments
+
+New semantic evaluations follow the [LLM-only review policy](llm-review-policy.md).
+No new human panel is required. Independent AI judgment remains distinct from
+structural validation, historical human declarations and observed user adoption.
+The [new offline claim-relation protocol](prereg-2026-09-16-followup-claim-relation.md)
+uses caller-owned propositions and code-derived delivery for support, refutation,
+insufficiency and unavailable reads. It does not alter frozen transports or
+authorize a provider run or production connection.
+The [offline implementation record](results-2026-09-16-followup-claim-relation.md)
+keeps scripted contract evidence separate from model semantic quality.
+The [separate native claim transport protocol](prereg-2026-09-16-claim-qwen-transport.md)
+binds first-turn claim identity and complete native tool history. Its scope is
+offline HTTP/accounting validation, not another paid batch or production hook.
+The [intercepted-wire result](results-2026-09-16-claim-qwen-transport.md) records
+88 new controls, four targeted defect reinjections and 60 local intercepted
+requests; none is a real model response or evidence of semantic accuracy.
+
+The separate [CLQ synthetic protocol](prereg-2026-09-16-claim-qwen-canary.md)
+was executed once after exact-tree CI and independent implementation review.
+Its [closed result](results-2026-09-16-claim-qwen-canary.md) records six requests,
+USD 0.006361992 estimated known use, three per-case mechanical passes and
+2/3 frozen-label matches: the batch failed. A fresh blind LLM judged all three
+answers supported, including refutation of a claim that a flow was recorded
+when the text explicitly says no measurement was made. This exposes a
+reference/proposition mismatch, not permission to revise the consumed label.
+The intended nonempty-insufficiency lane remains unproven live; unavailable
+remains offline-only. No private-data grant or production admission follows.
+
+The [PCQ successor preparation](results-2026-09-17-claim-proposition-contrast.md)
+separates physical-value and record-content propositions using new synthetic
+controls. A fresh blind LLM's three proposals match the prewritten references;
+these are AI-reviewed development labels, not independent gold. Offline scripted
+receipt checks are separate from semantics. No new Qwen request is included,
+and the live insufficiency lane remains unproven.
+The [separate PCQ native executor](results-2026-09-17-claim-proposition-contrast-qwen-runner.md)
+now has 208 offline tests, three dispatch-count defect reinjections and distinct
+mechanical/label/publication gates. Its fixed-output identity is not the closed
+CLQ batch; no new paid observation or production admission follows.
+
+The subsequent [single PCQ native observation](results-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+is closed and failed after two requests, estimated USD 0.002044425. PCQ01 read
+the complete source and passed mechanics but declared refuted instead of the
+frozen insufficient label (0/1 checked matches); PCQ02/03 were unrun. A label-blinded
+LLM with inherited project context inferred insufficient and judged the answer mixed, distinguishing
+missing measurement from physical contradiction. Runtime unverified flags and
+the old failed batches are unchanged. This is not a general accuracy estimate;
+the intended native insufficiency lane and production admission remain unproven.
+
+The [explicit relation-policy successor](results-2026-09-17-claim-relation-policy.md)
+is offline-only: seven text-bearing development references and one missing-text
+control received label-blinded, context-limited LLM review. Its implementation
+contract separates policy-to-callback delivery from frozen inner facts and
+does not correct a model's semantic label or add a native/production path.
+
+Its [separate native wire successor](results-2026-09-17-relation-policy-qwen-transport.md)
+binds the frozen policy and trusted claim/snapshot through intercepted HTTP
+and an independent ledger. Callback entry, reserved wire intent and observed
+response remain separate. No new provider result or production admission.
+The [CI follow-up](results-2026-09-17-relation-policy-ci-isolation.md) preserves
+the subsequent verbose-reporting failure and test-only isolation correction;
+local suite success must not be substituted for exact-head CI.
+
+The [RPQ batch protocol](prereg-2026-09-18-relation-policy-qwen-canary.md)
+froze RP01-RP03 for a separately identified synthetic native experiment.
+Its three cases are dependent development controls, not fresh unseen evidence.
+The [dedicated runner verification](results-2026-09-18-relation-policy-qwen-runner.md)
+records intercepted HTTP and targeted stop/guard mutations, not native answers.
+The [closed native result](results-2026-09-18-relation-policy-qwen-canary.md)
+records one request and an early unavailable final with no tool call. The batch
+failed before evidence delivery: zero label checks, semantic not_reviewable,
+RP02/RP03 unrun. Estimated usage cost is USD 0.001229421; no retry or production
+activation occurred. The occupied batch and frozen bytes must not be reused.
+
+Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
+Its candidate is one historical live-report snapshot with all 20 saved sources
+and two newly authored questions. Labels are kept outside model inputs and
+reference review is distinct from mechanical rehearsal. No real-report model
+call, privacy grant, production route or new general-accuracy result follows
+from this preparation; CQ remains a closed synthetic-only observation.
+The [offline rehearsal result](results-2026-09-16-report-evidence-real-saved-offline.md)
+records four intercepted scripted HTTP requests, not four provider calls.
 
 This is the completed research history, **not completed production Tool Calling**.
 Compatibility, source relevance, role coverage, novelty, planner triggering and

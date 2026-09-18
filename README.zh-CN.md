@@ -154,6 +154,29 @@ runner，也不宣称新的真实模型成功率或线上追问已经完成。�
 实际读取后带收据回答，以及实际读到正文缺失后弃答。这是有界的原生闭环证据，
 不是一般语义准确率、真实用户效果或生产接入。
 
+独立的[命题相对CLQ验证](docs/results-2026-09-16-claim-qwen-canary.md)完成六次请求：
+三题机械检查通过，但只匹配2/3冻结标签，整批仍记为失败。独立LLM盲审发现
+参考标签与“是否记录过数值”的命题措辞不匹配；旧标签及失败不改写。
+本批尚未证明预期的“非空证据仍不足”实测路径，也未接入生产Tool Calling。
+
+后续[PCQ对照准备](docs/results-2026-09-17-claim-proposition-contrast.md)新增经独立LLM盲审的
+合成参考标签与离线收据检查；这不是又一次千问实测，也不是生产发布。
+其[独立原生执行器](docs/results-2026-09-17-claim-proposition-contrast-qwen-runner.md)
+新增身份绑定与拦截HTTP的失败路径验证，尚不构成真实模型验证。
+随后唯一一次[PCQ原生批次](docs/results-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+在两次请求后停止：PCQ01机械检查通过，但把“未测量的物理值”判为反驳而非证据不足。
+带有项目历史背景的LLM评审判回答为mixed；PCQ02/03未运行。整批已关闭并记为失败，
+没有接入生产，也尚未验证“读到非空资料后正确弃答”的原生路径。
+
+独立的[显式关系判定策略](docs/results-2026-09-17-claim-relation-policy.md)
+准备离线回调规则与八个合成开发对照。参考判断一致和脚本交付检查都不是
+新的千问准确率证据或生产准入；此前失败批次保持关闭。
+其[独立原生适配器](docs/results-2026-09-17-relation-policy-qwen-transport.md)
+将策略、原命题、保存片段回执与完整HTTP体绑定到新离线账本。
+拦截HTTP不等于真实供应商结果，也不自动授权付费或上线。
+[CI后续记录](docs/results-2026-09-17-relation-policy-ci-isolation.md)
+单独保留测试隔离作用域缺陷，不将本地通过等同于跨平台通过。
+
 ## 快速启动
 
 优先使用 CI 覆盖的 Python 3.11/3.12 与 [uv](https://docs.astral.sh/uv/)。

@@ -140,6 +140,11 @@ These are not style preferences; each came from a specific failure.
 - **Prose is not covered by tests.** One recent round found five places where a
   comment, a docstring, or UI copy described behaviour the code did not have.
   When you change behaviour, the sentence next to it is part of the change.
+- **New semantic reviews use LLMs, not a human-review prerequisite.** Follow
+  [the explicit AI-only policy](docs/llm-review-policy.md): fresh judging context,
+  honest provenance and uncertainty, no rewriting old human declarations or
+  substituting simulated judgment for observed adoption. Budget and private-data
+  publication permissions remain separate.
 
 ## Layout and boundary-specific reading
 
@@ -162,6 +167,17 @@ These are not style preferences; each came from a specific failure.
 | Catalog-native Qwen wire contract | `report_evidence_catalog_qwen_transport.py` | [Separate offline protocol](docs/prereg-2026-09-16-report-evidence-catalog-qwen-transport.md); bind the trusted snapshot/catalog and single conversation, preserve the full HTTP byte bound and usage ledger; no production route |
 | Catalog-native synthetic canary | `report_evidence_catalog_qwen_canary.py`, root `report_evidence_catalog_canary.py` | [Separate CQ protocol](docs/prereg-2026-09-16-report-evidence-catalog-qwen-canary.md); two fresh synthetic cases, four total requests, first failure stops; offline manifest is not live authority, no old batch reuse or production activation |
 | Public documentation | `README.md`, `README.zh-CN.md`, `docs/` | `tests/test_public_docs.py`; both languages must retain the full executable benchmark contract |
+| Real saved-report follow-up preparation | `report_evidence_real_saved_eval.py` | [Local-only RS protocol](docs/prereg-2026-09-16-report-evidence-real-saved-offline.md); private raw report/source/question/label binding, explicit scripted callbacks only, no live runner or real-data transmission authority |
+| Isolated real saved-report Qwen pilot | `report_evidence_real_saved_qwen_canary.py`, root `report_evidence_real_saved_canary.py` | [Separate RS live protocol](docs/prereg-2026-09-16-report-evidence-real-saved-qwen.md); exact private packet and current-code identities, four sequential requests maximum, fixed single-batch output, first failure stops, separate LLM review never human gold; no production route |
+| Offline claim-relative follow-up | `report_evidence_claim_relation.py` | [New offline contract](docs/prereg-2026-09-16-followup-claim-relation.md); caller-owned claim, unverified model relationship, code-derived delivery, actual callback byte/delivery checks; no provider adapter or historical relabeling |
+| Claim-relative native Qwen candidate | `report_evidence_claim_qwen_transport.py` | [Separate offline wire protocol](docs/prereg-2026-09-16-claim-qwen-transport.md); bind trusted claim/snapshot before the first request, preserve four-field native content and complete receipt/window checks, compare full wire bytes to the journal; no live runner or production route |
+| Claim-relative synthetic Qwen canary | `report_evidence_claim_qwen_canary.py`, root `report_evidence_claim_canary.py` | [Separate CLQ protocol](docs/prereg-2026-09-16-claim-qwen-canary.md); three fresh single-source controls, six requests maximum, first-failure stop and separate blind LLM review; fixed single-batch output, no private RS data or production route |
+
+CLQ is closed: six requests passed per-case mechanical checks but matched only
+2/3 frozen relation labels. Blind LLM review diagnosed the recording-versus-
+physical-value reference mismatch; do not relabel or rerun the consumed batch.
+The intended live insufficiency lane is still unproven. See the
+[qualified result](docs/results-2026-09-16-claim-qwen-canary.md).
 
 Unless qualified, the Python module names in this table are under
 `src/academic_agent/`. The dated experiment documents and their code comments
@@ -268,6 +284,57 @@ post-finalization cancellation may retain derived metadata until normal expiry.
 See the [ingress/history/finalization contract](docs/results-2026-09-08-upload-history-cancellation-boundaries.md).
 
 ## Tool Calling: do not turn experimental code into production by accident
+
+The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
+distinguishes a physical-value claim from a recording claim. Its blind-reviewed
+synthetic references and scripted rehearsal do not reopen CLQ, validate live
+insufficiency, authorize a new paid runner or change runtime semantic flags.
+
+The separate [PCQ native protocol](docs/prereg-2026-09-17-claim-proposition-contrast-qwen-canary.md)
+binds a dedicated runner and fixed output, not a replacement CLQ fixture. Default
+CLI is identity-only; native dispatch requires the exact committed identity,
+independent review and green CI. Mechanical acceptance, frozen-label agreement,
+publication and later LLM judgment remain separate. No production connection.
+
+PCQ is now [closed and failed](docs/results-2026-09-17-claim-proposition-contrast-qwen-canary.md):
+two requests, one mechanical pass and one reference mismatch; PCQ02/03 unrun.
+Context-limited LLM review judged the answer mixed. Keep the occupied batch and frozen
+prompt unchanged; nonempty-evidence abstention remains unproven live.
+
+The [explicit relation-policy successor](docs/results-2026-09-17-claim-relation-policy.md)
+is offline callback preparation only. Preserve the frozen inner result and
+separate policy-to-callback delivery from inner-to-policy delivery. New
+synthetic reference agreement is context-limited LLM review, not native
+accuracy; do not reuse an old Qwen adapter, closed batch or production route.
+
+The [separate RP native adapter](docs/results-2026-09-17-relation-policy-qwen-transport.md)
+owns positional-request admission and a new offline ledger. Preserve exact
+policy/claim/history/read-result comparison and final HTTP bytes. Its callback
+audit is not proof of HTTP dispatch; intercepted responses are not provider
+validation. No live runner or production route follows from this adapter.
+Keep process-global test guards scoped to the operation, not fixture teardown:
+pytest may read terminal configuration before teardown. The
+[CI isolation correction](docs/results-2026-09-17-relation-policy-ci-isolation.md)
+preserves strict adapter assertions and the original failed CI observation.
+
+The [separate RPQ batch protocol](docs/prereg-2026-09-18-relation-policy-qwen-canary.md)
+fixes RP01-RP03 as dependent synthetic development controls, not unseen data.
+It requires the new runner/output identity and both RP callback audit and
+native journal gates. Six requests and USD 0.10 are ceilings, not proof of
+dispatch or consent. Exact-tree validation, independent review and green CI
+precede any native use; old PCQ/CLQ outputs and private RS data stay separate.
+The new `report_evidence_relation_policy_qwen_canary.py` under `src/academic_agent/`
+and root `report_evidence_relation_policy_canary.py` have a
+[separate verification record](docs/results-2026-09-18-relation-policy-qwen-runner.md).
+Default CLI verifies identity only. A successful script/intercepted HTTP test
+is not a live result, a new private-data grant or production admission.
+
+RPQ is now [closed and failed](docs/results-2026-09-18-relation-policy-qwen-canary.md):
+one native request returned an early unavailable final without calling read_source.
+The frozen gate stopped before any read or second request; RP02/RP03 are unrun,
+label checks are zero and semantic review is not_reviewable. Preserve the occupied
+batch. Any successor must address first-stage read admission separately, not
+reinterpret this as tested insufficiency or a provider outage.
 
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict

@@ -17,6 +17,7 @@
 | What is the concise engineering case study? | [Portfolio case study](portfolio-case-study.md) |
 | What happened in each Tool Calling version? | [Version ledger](evidence-status.md#tool-calling-experiments) |
 | How can I inspect the isolated saved-evidence tool conversation? | [Report evidence follow-up](report-evidence-followup.md) |
+| How are new semantic reviews performed without human sign-off? | [LLM-only review policy](llm-review-policy.md) |
 | Where is the full experimental history? | [Experiment index](experiment-index.md) |
 
 ## Current guides are not historical results
