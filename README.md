@@ -43,6 +43,9 @@ establishes no fully comparable real pair; the scoring policy is not yet validat
   threshold is owner-approved.
 - Follow progress, inspect citations and reliability warnings, export Markdown
   or PDF, and share a run link.
+- In Sources, locate a saved source by exact ID or literal keyword and expand
+  its saved text without a model call. Saved text is not paper full text or
+  verified claim support; see the [operating guide](docs/operating-guide.md#web-cli-and-http-api).
 - Recover an interrupted run as an immutable child using its longest validated
   checkpoint prefix and fresh credentials.
 - Use an operator-issued access code or supported bring-your-own-key (BYOK)

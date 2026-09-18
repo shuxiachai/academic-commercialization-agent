@@ -16,6 +16,13 @@ Qwen3.5 Plus, DeepSeek, Anthropic and OpenAI configuration paths exist. A
 provider being configurable is not proof of equivalent quality or cost.
 Supplementary Tool Calling remains **zero-call shadow mode**.
 
+The Sources panel separately supports local exact-ID/literal-keyword lookup
+and expansion of saved text through the existing artifact read. It does not
+run an LLM, supplement evidence or judge claim support. Text can have been
+cleaned, truncated or supplied as a fallback description during collection;
+missing/malformed/over-budget fields are not a negative evidence finding.
+See the [viewer scope and limits](operating-guide.md#web-cli-and-http-api).
+
 Planning/translation now shares complete provider configuration with the main
 factory; fixed BYOK destinations and narrow credential/content-safe diagnostics
 are offline-tested. Historical node usage totals still exclude auxiliary calls.

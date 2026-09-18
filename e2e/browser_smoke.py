@@ -30,7 +30,7 @@ from urllib.parse import urlsplit
 import uvicorn
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
-from academic_agent.run_output import create_run_id, save_report, save_scores
+from academic_agent.run_output import create_run_id, save_report, save_scores, save_source_collection
 from academic_agent.report_audit import save_report_audit
 from academic_agent.run_spec import DecisionContext
 from academic_agent.run_terminal import (
@@ -45,6 +45,29 @@ ARTIFACT_ROOT = PROJECT_ROOT / "output" / "playwright"
 ACCESS_CODE = "browser-smoke-code"
 FIXTURE_TOPIC = "Browser smoke fixture for evidence-constrained commercialization"
 REPORT_SENTINEL = "BROWSER_SMOKE_REPORT_REACHED_CLIENT"
+
+
+def _saved_source_fixture() -> dict[str, list[dict[str, str]]]:
+    """Synthetic only: exercises saved source bytes without provider access."""
+    def source(source_id: str, **overrides: str) -> dict[str, str]:
+        row = {
+            "source_id": source_id, "title": f"Fixture title {source_id}",
+            "url": f"https://example.test/{source_id.lower()}", "publisher": "Fixture publisher",
+            "published_date": "2026-09-18", "credibility_tier": "high",
+            "evidence_summary": f"Saved fixture excerpt {source_id}: 前🙂\nexact tail.",
+        }
+        row.update(overrides)
+        return row
+
+    long_text = "  Leading\t\r\n前🙂 <img src=x onerror=alert(1)> **literal markdown**\n" + "长🙂" * 3500 + "\nEXACT_TAIL  \n"
+    academic = [source("A1", evidence_summary=long_text), source("A10", evidence_summary="Body mentions A1 only.")]
+    academic.extend(source(f"A{index}") for index in range(2, 55) if index != 10)
+    academic[-1]["evidence_summary"] = "x" * 16_385
+    return {
+        "academic_sources": academic,
+        "patent_sources": [source("P1", title="Bilingual literal .* needle patent")],
+        "market_sources": [source("M1", publisher="市场资料", evidence_summary="Market needle excerpt")],
+    }
 
 
 def _configure_isolated_app(output_root: Path):
@@ -216,6 +239,88 @@ def _capture_failure(page: Page | None) -> None:
         )
 
 
+def _exercise_sources_panel(page: Page, collection: dict, *, chinese: bool) -> None:
+    """Assert real DOM, native keyboard behavior and full saved text on both UIs."""
+    panel = page.locator('.panel[data-view="sources"]')
+    search = panel.locator(".sources__search")
+    expect(search).to_be_visible()
+    expect(panel.locator(".sources__search-label")).to_have_text(
+        "搜索已保存来源" if chinese else "Search saved sources",
+    )
+    expect(panel.locator(".sources__warning")).to_contain_text(
+        "搜索范围不完整" if chinese else "Search scope is incomplete",
+    )
+    expect(panel.locator(".sources__disclosure")).to_contain_text(
+        "不是论文全文" if chinese else "not paper full text",
+    )
+    all_ids = [row["source_id"] for group in ("academic_sources", "patent_sources", "market_sources")
+               for row in collection[group]]
+    expect(panel.locator(".source__id")).to_have_text(all_ids[:50])
+    expect(panel.locator(".sources__status")).to_contain_text("56 / 56")
+    expect(panel.locator(".sources__prev")).to_be_disabled()
+
+    # Native details really starts closed and is operated with the keyboard.
+    # to_have_text normalizes whitespace, so compare actual textContent below.
+    details = panel.locator(".source__excerpt").first
+    summary = details.locator("summary")
+    text = details.locator(".source__text")
+    assert details.evaluate("node => node.tagName") == "DETAILS"
+    expect(summary).to_have_text("已保存摘录" if chinese else "Saved excerpt")
+    assert details.get_attribute("open") is None
+    expect(text).to_be_hidden()
+    summary.focus()
+    summary.press("Enter")
+    expect(details).to_have_attribute("open", "")
+    expect(text).to_be_visible()
+    assert text.text_content() == collection["academic_sources"][0]["evidence_summary"]
+    expect(panel.locator("img, script, iframe, svg")).to_have_count(0)
+    expect(panel.locator("a.source__link").first).to_have_attribute("href", "https://example.test/a1")
+
+    # Scope layout checks to Sources: the pre-existing run header has its own
+    # narrow-screen layout, unrelated to this saved-text delivery contract.
+    page.set_viewport_size({"width": 360, "height": 720})
+    assert text.evaluate("""node => {
+        const bounds = node.getBoundingClientRect();
+        return getComputedStyle(node).whiteSpace === "pre-wrap"
+            && node.scrollWidth <= node.clientWidth + 1
+            && bounds.left >= 0 && bounds.right <= innerWidth + 1;
+    }"""), "Saved long unbroken text must wrap within the narrow Sources panel."
+    assert text.text_content() == collection["academic_sources"][0]["evidence_summary"]
+    summary.focus()
+    summary.press("Space")
+    expect(text).to_be_hidden()
+
+    for query, expected_ids in (
+        (" A1 ", ["A1"]), ("[a1]", ["A1"]), ("body mentions A1", ["A10"]),
+        (".*", ["P1"]), ("市场资料", ["M1"]), ("EXACT_TAIL", ["A1"]),
+    ):
+        search.fill(query)
+        expect(panel.locator(".source__id")).to_have_text(expected_ids)
+        expect(panel.locator(".sources__warning")).to_be_visible()
+    search.fill("NO_MATCH_ANYWHERE")
+    expect(panel.locator(".source")).to_have_count(0)
+    expect(panel.locator(".empty-note")).to_have_text(
+        "在可搜索的已保存字段中没有匹配项。" if chinese else "No match in searchable saved fields.",
+    )
+    panel.locator(".sources__clear").click()
+    expect(search).to_have_value("")
+    expect(search).to_be_focused()
+    expect(panel.locator(".source__id")).to_have_text(all_ids[:50])
+    panel.locator(".sources__next").click()
+    expect(panel.locator(".source__id")).to_have_text(all_ids[50:])
+    expect(panel.locator(".sources__next")).to_be_disabled()
+    expect(panel.locator(".sources__status")).to_contain_text("51–56")
+    # Filtering from page 2 resets the page; all admitted pages are searched.
+    search.fill("[A1]")
+    expect(panel.locator(".source__id")).to_have_text(["A1"])
+    expect(panel.locator(".sources__prev")).to_be_disabled()
+    panel.locator(".sources__clear").click()
+    panel.locator(".sources__next").click()
+    panel.locator(".sources__prev").click()
+    expect(panel.locator(".source__id")).to_have_text(all_ids[:50])
+    page.set_viewport_size({"width": 1280, "height": 720})
+
+
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
     runtime_ids: tuple[str, str, str], cap_run_id: str,
@@ -226,6 +331,7 @@ def _exercise_browser(
     unexpected_console_errors: list[str] = []
     http_failures: list[tuple[str, str, int]] = []
     page_errors: list[str] = []
+    source_requests = 0
     page: Page | None = None
     held_progress: list[Route] = []
     faults = {"hold_progress": False, "history_503": False}
@@ -235,6 +341,7 @@ def _exercise_browser(
         context = browser.new_context()
 
         def guard_route(route: Route) -> None:
+            nonlocal source_requests
             request = route.request
             parsed = urlsplit(request.url)
             if parsed.hostname not in {"127.0.0.1", "localhost"}:
@@ -245,6 +352,8 @@ def _exercise_browser(
                 mutation_attempts.append(f"{request.method} {parsed.path}")
                 route.abort("blockedbyclient")
                 return
+            if parsed.path == f"/api/runs/{run_id}/sources":
+                source_requests += 1
             if faults["hold_progress"] and parsed.path == f"/api/runs/{run_id}/progress":
                 held_progress.append(route)
                 return
@@ -363,6 +472,33 @@ def _exercise_browser(
             expect(audit_panel).not_to_contain_text("No issue was found")
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_be_visible()
+
+            # Disk -> real HTTP JSON -> actual Chromium textContent, with one
+            # source GET per render. Language switching intentionally re-renders;
+            # searching, expanding, paging and revisiting tabs must not re-fetch.
+            for chinese in (False, True):
+                if chinese:
+                    page.locator("#ui-lang").select_option("Simplified Chinese")
+                    expect(page.locator('button.tab[data-view="sources"]')).to_have_text("来源")
+                before_sources = source_requests
+                with page.expect_response(
+                    lambda response: urlsplit(response.url).path == f"/api/runs/{run_id}/sources",
+                ) as source_read:
+                    page.locator('button.tab[data-view="sources"]').click()
+                assert source_read.value.status == 200 and source_read.value.request.method == "GET"
+                collection = source_read.value.json()
+                assert collection == _saved_source_fixture()
+                _exercise_sources_panel(page, collection, chinese=chinese)
+                page.locator('button.tab[data-view="report"]').click()
+                expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+                page.locator('button.tab[data-view="sources"]').click()
+                expect(page.locator(".source__id")).to_have_count(50)
+                assert source_requests == before_sources + 1, "Sources controls/tab revisits must use exactly one GET per render."
+            assert source_requests == 2, "Two language renders must produce exactly two source GETs."
+            page.locator("#ui-lang").select_option("English")
+            expect(page.locator('button.tab[data-view="sources"]')).to_have_text("Sources")
+            page.locator('button.tab[data-view="report"]').click()
+            expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
 
             # A direct route is a separate seam from client-side navigation.
             # Reloading proves the server returns the SPA at /run/{id}, the
@@ -550,6 +686,9 @@ def main() -> None:
         output_root = Path(temp_dir) / "outputs"
         app, access = _configure_isolated_app(output_root)
         run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
+        save_source_collection(
+            json.dumps(_saved_source_fixture(), ensure_ascii=False), run_id, output_root,
+        )
         # Keep the legacy cap visible without presenting its mixed-amount flag
         # as a semantic comparison. Only this fixture adds a score tab; other
         # fault journeys retain their original report-first layout. Generated
