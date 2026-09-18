@@ -340,8 +340,14 @@ This is not arbitrary-question coverage or a live compatibility result. A new
 synthetic development controls and a dedicated executor. Default identity checks
 have no credential/output side effects; native admission has aggregate four-
 request/USD 0.05 bounds and first-failure stop. Reference labels received a
-context-limited LLM blind review, not human expert validation. Preparation is
-not a live result; selection quality and production admission remain open.
+context-limited LLM blind review, not human expert validation. The separate
+[single native SLQ observation](results-2026-09-19-source-locator-qwen-canary.md)
+then completed four requests with 4/4 mechanical and 4/4 development-reference
+checks, two nonempty saved-text deliveries, explicit decline and preserved
+missing text. Known-use estimate was USD 0.001656723; conservative reservation
+consumption was USD 0.044597248, not an invoice. Separate label-blinded LLM
+inspection supported the narrow location/delivery observations. The batch is
+closed; this is neither independent accuracy nor production admission.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources

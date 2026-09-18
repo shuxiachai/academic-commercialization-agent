@@ -311,6 +311,10 @@ review and green CI plus the applicable bounded low-cost authorization.
 Keep aggregate four-request/USD 0.05 admission, first-failure stop and reference
 agreement separate from mechanical delivery. No production route follows.
 
+SLQ is now [closed after four native synthetic controls passed](docs/results-2026-09-19-source-locator-qwen-canary.md).
+This is one-selection compatibility and development-reference agreement, not
+unseen accuracy or production admission. Do not reopen its occupied output.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live

@@ -52,6 +52,13 @@ with first-failure stop and one fixed non-resumable output directory. Label-
 blinded LLM reference agreement and intercepted tests are not real Qwen results,
 independent accuracy or authorization to enable the website's follow-up entry.
 
+The [one native SLQ batch](results-2026-09-19-source-locator-qwen-canary.md) now
+completed 4/4 mechanical and 4/4 development-reference checks in four requests.
+It delivered two saved texts, explicitly declined an unrelated catalog and
+preserved missing text after a matching selection. The fixed batch is closed;
+do not rerun it. This remains a small synthetic compatibility observation with
+separate context-limited LLM inspection, not unseen accuracy or an online feature.
+
 ## Separate offline claim-relation contract
 
 The [read-first successor](prereg-2026-09-18-read-first-followup.md) separately

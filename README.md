@@ -214,12 +214,13 @@ offline ledger. Intercepted HTTP is not a new provider outcome or live authority
 The [CI follow-up](docs/results-2026-09-17-relation-policy-ci-isolation.md)
 records a test-guard lifetime defect separately from the adapter's local checks.
 
-The next [saved-source locator candidate](docs/prereg-2026-09-18-saved-source-locator.md)
-is offline-only: one selection callback, one saved-text read, and code-owned
-output without a generated answer. Its scripted demo is not a live model
-result or a production feature. A [dedicated Qwen adapter](docs/prereg-2026-09-18-source-locator-qwen-transport.md)
-has a separate one-request wire/journal contract with intercepted-HTTP tests,
-not a live compatibility result; see the [conversation guide](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator).
+The isolated [saved-source locator](docs/prereg-2026-09-18-saved-source-locator.md)
+uses one selection, one local saved-text read and code-owned output without
+another generated answer. Its [single native SLQ batch](docs/results-2026-09-19-source-locator-qwen-canary.md)
+passed four synthetic mechanical/reference controls in four Qwen requests,
+including explicit decline and missing text. This small development result
+is not independent accuracy or a production feature; see the
+[conversation guide](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator).
 
 ## Quick start
 
