@@ -15,6 +15,21 @@ New semantic evaluations follow the [LLM-only review policy](llm-review-policy.m
 Human review is not required to proceed; independent model judgment is still
 separate from structural admission and cannot establish actual user adoption.
 
+## Separate code-owned saved-source locator
+
+The [locator contract](prereg-2026-09-18-saved-source-locator.md) removes model
+answer generation from a new, isolated callback path. At most one visible-ID
+selection is followed by one local read and code-owned JSON containing the
+complete saved text within the 1,500-code-point limit. Missing, blank, declined,
+out-of-scope and failed/unavailable cases remain distinct. It reuses the frozen
+catalog and reader without rewriting the earlier conversation experiments.
+
+Run `uv run python report_evidence_source_locator_demo.py` for the no-argument
+synthetic `scripted_offline` demonstration. It reads no credentials or files and
+does not contact a model. Native selection quality, benefit over the Sources
+browser, private-data authority and production admission are still unestablished.
+Do not describe this demo or JSON serialization as a deployed Tool Calling UI.
+
 ## Separate offline claim-relation contract
 
 The [read-first successor](prereg-2026-09-18-read-first-followup.md) separately
