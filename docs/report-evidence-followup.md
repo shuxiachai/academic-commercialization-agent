@@ -30,6 +30,18 @@ does not contact a model. Native selection quality, benefit over the Sources
 browser, private-data authority and production admission are still unestablished.
 Do not describe this demo or JSON serialization as a deployed Tool Calling UI.
 
+The [dedicated native adapter contract](prereg-2026-09-18-source-locator-qwen-transport.md)
+adds a separate `LocatorQwenTransport(api_key, ledger, *, snapshot, question)`
+callback. It binds the original question and complete metadata request, caps
+the final HTTP body at 12 KiB and retains a durable intent before possible
+dispatch. `LocatorQwenLedger` permits only one reservation across sequential
+transport instances. Its explicit fresh output directory is created by the
+ledger constructor; the transport never looks up credentials or writes files
+at construction. This is a single-owner journal, not a public paid receipt.
+Tests intercept the pinned HTTP primitive using fake credentials. There is no
+live CLI, second model request or production route. Request journals contain
+questions and catalog metadata and are not automatically safe to publish.
+
 ## Separate offline claim-relation contract
 
 The [read-first successor](prereg-2026-09-18-read-first-followup.md) separately

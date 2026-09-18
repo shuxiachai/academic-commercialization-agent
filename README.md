@@ -217,7 +217,9 @@ records a test-guard lifetime defect separately from the adapter's local checks.
 The next [saved-source locator candidate](docs/prereg-2026-09-18-saved-source-locator.md)
 is offline-only: one selection callback, one saved-text read, and code-owned
 output without a generated answer. Its scripted demo is not a live model
-result or a production feature; see the [conversation guide](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator).
+result or a production feature. A [dedicated Qwen adapter](docs/prereg-2026-09-18-source-locator-qwen-transport.md)
+has a separate one-request wire/journal contract with intercepted-HTTP tests,
+not a live compatibility result; see the [conversation guide](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator).
 
 ## Quick start
 

@@ -298,6 +298,12 @@ demo are callback-only; the old CQ prompt/schema, native adapters and closed
 allowances cannot be reused. Local callback/read facts are not HTTP, cost or
 browser-delivery evidence. Keep this candidate disconnected from production.
 
+Its [dedicated Qwen boundary](docs/prereg-2026-09-18-source-locator-qwen-transport.md)
+binds the exact question/catalog request and one durable reservation per new
+single-owner ledger. Tests intercept HTTP; there is no live runner or new paid
+allowance. Preserve pre-dispatch persistence, safe errors and unknown usage;
+neither the old six-request cap nor a new transport instance resets this limit.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live
