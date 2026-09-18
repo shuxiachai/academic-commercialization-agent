@@ -1,9 +1,21 @@
 # 学术成果商业化评估系统
 
-[English](README.md) · [在线体验](https://academic-commercialization-agent.up.railway.app) · [文档导航](docs/README.md) · [项目案例](docs/portfolio-case-study.md)
+输入论文或研究主题，生成**带来源、评分与风险提示的商业化评估草稿**，辅助科研成果转化初筛。
 
-面向科研成果转化初筛的证据约束工作流：收集来源，分析技术成熟度、
-专利与市场，再输出带引用、可追溯评分和质量提示的报告。
+[打开在线应用](https://academic-commercialization-agent.up.railway.app) · [阅读公开报告样例](examples/solid-state-batteries-ev.md) · [本地运行](#快速启动) · [English](README.md)
+
+**体验条件：** 需要作者提供的访问码，或使用 BYOK（支持的模型 API key + Serper 检索 key）。
+新建分析和 PDF 提取会产生供应商用量；阅读下面的公开样例不需要 key，也不触发新分析。
+
+![真实历史结果界面：CRISPR 评估的评分维度、来源数量及带引用的风险说明](assets/screenshot-results.png)
+
+*真实界面归档于 2026-08-11，版本 [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512)，不是当前发布版的新截图。*
+
+**公开报告样例：**[电动汽车用固态电池](examples/solid-state-batteries-ev.md)
+— [2026-07-19 冻结版本，9673a83](https://github.com/shuxiachai/academic-commercialization-agent/blob/9673a8346c15f11b989ce8fd2d85be484d1c27b3/examples/solid-state-batteries-ev.md)。
+截图与样例来自不同历史运行，不代表当前模型准确率或最新市场判断。
+
+[文档导航](docs/README.md) · [项目案例](docs/portfolio-case-study.md)
 
 技术实现为 Python、CrewAI、FastAPI 和无需构建的 JavaScript 客户端。
 生产环境刻意限制自主性：确定性代码先完成检索，六阶段模型工作流再分析
@@ -244,7 +256,18 @@ Kubernetes 本身不能解决这些缺口。
 
 ## 界面截图
 
-历史界面快照，线上具体文案可能更新。
+<details>
+<summary>历史首页与运行中界面 — a343a95，2026-08-11 归档</summary>
+
+下图为版本 [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512)
+的真实界面，当前控件和文案可能不同；结果截图已放在首屏。
 
 ![首页](assets/screenshot-home.png)
-![报告结果](assets/screenshot-results.png)
+![分析运行中](assets/screenshot-running.png)
+
+</details>
+
+## 作者与更多作品
+
+作者：[shuxiachai](https://github.com/shuxiachai)。
+更多项目与实践见 [GitHub 个人主页](https://github.com/shuxiachai)。
