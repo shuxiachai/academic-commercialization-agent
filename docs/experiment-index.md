@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-18 read-first follow-up preregistration](prereg-2026-09-18-read-first-followup.md): three fresh dependent synthetic controls with label-blinded, context-limited LLM reference review; a proposed named read before finalization, not autonomous selection, a native result or production admission.
+
 - [2026-09-18 RPQ native early-final result](results-2026-09-18-relation-policy-qwen-canary.md): one request, zero reads/receipts/admitted answers, first-stage mechanical rejection; no label checks, RP02/RP03 unrun and the fixed batch closed.
 
 - [2026-09-18 relation-policy native canary preregistration](prereg-2026-09-18-relation-policy-qwen-canary.md) and [runner verification](results-2026-09-18-relation-policy-qwen-runner.md): a separate RP01-RP03 synthetic batch with policy/callback/native delivery gates, exact identity, six-request limit and first-failure stop; preparation is not a provider observation.
