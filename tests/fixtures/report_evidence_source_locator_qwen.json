@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "cohort_id": "source_locator_synthetic_development_v1",
+  "origin": "author_generated_synthetic",
+  "reference_status": "llm_label_blinded_context_limited_reviewed",
+  "source_metadata": {
+    "publisher": "Synthetic locator controls",
+    "source_type": "synthetic_control",
+    "origin": "unknown",
+    "accessed_date": "2026-09-19"
+  },
+  "cases": [
+    {
+      "case_id": "SLQ01",
+      "question": "Locate the saved source about freeze-thaw cycling of basil-fibre roof tiles, rather than their fire resistance.",
+      "sources": [
+        {
+          "source_id": "A11",
+          "group": "academic",
+          "title": "Fire resistance of basil-fibre roof tiles",
+          "summary": "Synthetic note: a small basil-fibre tile specimen was exposed to a laboratory flame. Freeze-thaw cycling was not tested."
+        },
+        {
+          "source_id": "M13",
+          "group": "market",
+          "title": "Purchasing preferences for decorative roof tiles",
+          "summary": "Synthetic note: ten fictional buyers compared tile colours. No material durability tests were performed."
+        },
+        {
+          "source_id": "A12",
+          "group": "academic",
+          "title": "Freeze-thaw cycling of basil-fibre roof tiles",
+          "summary": "  Synthetic note: basil-fibre tile coupons underwent 18 freeze-thaw cycles.\nNo outdoor service-life measurement was saved.  "
+        }
+      ],
+      "expected_source_id": "A12",
+      "expected_state": "excerpt",
+      "expected_reason": "saved_text"
+    },
+    {
+      "case_id": "SLQ02",
+      "question": "请定位关于冷链包装上无需电池、通过机械方式记录震动的标签设计来源，不是温度记录器。",
+      "sources": [
+        {
+          "source_id": "A22",
+          "group": "academic",
+          "title": "Battery-powered temperature loggers for cold-chain boxes",
+          "summary": "Synthetic note: a battery-powered logger recorded temperature in a fictional shipping box."
+        },
+        {
+          "source_id": "P21",
+          "group": "patent",
+          "title": "Mechanical battery-free vibration labels for cold-chain packages",
+          "summary": "Synthetic design note: a sliding marker records a shock on a package without a battery. No patent validity or commercial performance was verified."
+        },
+        {
+          "source_id": "M23",
+          "group": "market",
+          "title": "Adoption of cold-chain logistics scheduling software",
+          "summary": "Synthetic note: fictional logistics teams compared scheduling software. No physical sensor was evaluated."
+        }
+      ],
+      "expected_source_id": "P21",
+      "expected_state": "excerpt",
+      "expected_reason": "saved_text"
+    },
+    {
+      "case_id": "SLQ03",
+      "question": "Locate a saved source specifically about industrial ultrasonic weld inspection of railway axles.",
+      "sources": [
+        {
+          "source_id": "A31",
+          "group": "academic",
+          "title": "Optical colour measurement of strawberry ripeness",
+          "summary": "Synthetic note: a camera compared strawberry colours. No industrial inspection was studied."
+        },
+        {
+          "source_id": "P32",
+          "group": "patent",
+          "title": "Solar-powered greenhouse roof ventilator",
+          "summary": "Synthetic design note: a small solar panel powers a greenhouse vent."
+        },
+        {
+          "source_id": "M33",
+          "group": "market",
+          "title": "Retail sales of reusable produce labels",
+          "summary": "Synthetic note: fictional retailers compared label prices."
+        }
+      ],
+      "expected_source_id": null,
+      "expected_state": "declined",
+      "expected_reason": "selector_declined"
+    },
+    {
+      "case_id": "SLQ04",
+      "question": "Locate the saved patent on a collapsible lattice insert for shipping instrument cases.",
+      "sources": [
+        {
+          "source_id": "P41",
+          "group": "patent",
+          "title": "Collapsible lattice insert for shipping instrument cases",
+          "summary": null
+        },
+        {
+          "source_id": "A42",
+          "group": "academic",
+          "title": "Acoustic damping tests of fixed foam instrument-case inserts",
+          "summary": "Synthetic note: a fixed foam insert was compared for acoustic damping. No collapsible structure was tested."
+        },
+        {
+          "source_id": "M43",
+          "group": "market",
+          "title": "Rental demand for musical instrument cases",
+          "summary": "Synthetic note: fictional shops compared instrument-case rental demand."
+        }
+      ],
+      "expected_source_id": "P41",
+      "expected_state": "missing_text",
+      "expected_reason": "saved_text_missing"
+    }
+  ]
+}
