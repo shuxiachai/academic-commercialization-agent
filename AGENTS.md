@@ -336,6 +336,13 @@ label checks are zero and semantic review is not_reviewable. Preserve the occupi
 batch. Any successor must address first-stage read admission separately, not
 reinterpret this as tested insufficiency or a provider outage.
 
+The separate [read-first RF contract](docs/prereg-2026-09-18-read-first-followup.md)
+keeps the frozen RP callback but requires a named full read on the native wire.
+Its new transport and canary are under `src/academic_agent/report_evidence_read_first*`.
+Scope is zero/one saved source of at most 1,500 code points. Preserve separate
+inner, policy-callback and native request facts; forced execution is not autonomous
+selection. Default CLI is identity-only; no old batch or production route is reopened.
+
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict
 final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes

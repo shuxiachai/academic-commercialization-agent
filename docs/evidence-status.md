@@ -295,6 +295,17 @@ failed before evidence delivery: zero label checks, semantic not_reviewable,
 RP02/RP03 unrun. Estimated usage cost is USD 0.001229421; no retry or production
 activation occurred. The occupied batch and frozen bytes must not be reused.
 
+The separately [registered read-first candidate](prereg-2026-09-18-read-first-followup.md)
+narrows the task to zero/one short saved source. It preserves the original RP
+callback and audits a declared named-read transformation on the native request,
+rather than repairing an early model final. RF01-RF03 are new dependent synthetic
+development controls with context-limited LLM reference review, not unseen gold.
+The native compatibility gate remains separate from offline engineering; this
+candidate neither adds sources nor enables production follow-up.
+The [offline engineering record](results-2026-09-18-read-first-followup-implementation.md)
+retains two independent-review findings, their delivery/error-path repairs and
+defect-reinjection evidence rather than treating a green test count as proof.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and
