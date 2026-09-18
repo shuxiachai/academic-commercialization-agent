@@ -17,6 +17,19 @@ separate from structural admission and cannot establish actual user adoption.
 
 ## Separate offline claim-relation contract
 
+The [read-first successor](prereg-2026-09-18-read-first-followup.md) separately
+constrains native admission while retaining this frozen claim/RP chain. It
+accepts only zero/one complete short saved source and explicitly forces the
+first named read when a source exists. Source availability, local execution,
+inner/RP delivery and native request observations remain separate. This is
+controlled tool execution, not autonomous source selection or semantic proof;
+there is still no public follow-up route or production activation.
+
+The [RF native batch](results-2026-09-18-read-first-qwen-canary.md) subsequently
+completed one real forced-read conversation but failed its first relation label.
+The batch is closed, later controls are unrun and automatic expansion stops.
+This establishes neither general semantic judgment nor a shipped user feature.
+
 The [new preregistration](prereg-2026-09-16-followup-claim-relation.md) defines
 `run_claim_relation_followup(snapshot, claim, *, transport)` in the isolated
 `report_evidence_claim_relation` module. The caller supplies an explicit

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "cohort_id": "read_first_saved_evidence_development_v1",
+  "origin": "author_generated_synthetic",
+  "reference_status": "llm_label_blinded_context_limited_reviewed",
+  "cases": [
+    {
+      "case_id": "RF01",
+      "claim": "The fictional Ilex-M sample had thermal conductivity 2.4 W/(m K) at 20 C.",
+      "text": "The fictional Ilex-M sample was tested at 20 C. Its measured density was 1.25 g/cm3. Thermal conductivity was not measured, and this laboratory record contains no thermal conductivity result.",
+      "expected_relation": "insufficient",
+      "proposition_kind": "physical_value",
+      "reference_rationale": "The record does not establish the unmeasured physical value as true or false. Its density measurement is not a thermal conductivity measurement."
+    },
+    {
+      "case_id": "RF02",
+      "claim": "This laboratory record reports a measured thermal conductivity of 2.4 W/(m K) for the fictional Ilex-M sample at 20 C.",
+      "text": "The fictional Ilex-M sample was tested at 20 C. Its measured density was 1.25 g/cm3. Thermal conductivity was not measured, and this laboratory record contains no thermal conductivity result.",
+      "expected_relation": "refuted",
+      "proposition_kind": "record_contents",
+      "reference_rationale": "The record explicitly states that thermal conductivity was not measured and that it contains no thermal conductivity result, contradicting what the claim says this record reports."
+    },
+    {
+      "case_id": "RF03",
+      "claim": "The fictional Ilex-N sample had thermal conductivity 2.4 W/(m K) at 20 C.",
+      "text": "The fictional Ilex-N sample was tested at 20 C. Its measured thermal conductivity was 2.4 W/(m K).",
+      "expected_relation": "supported",
+      "proposition_kind": "physical_value",
+      "reference_rationale": "The separate record explicitly reports the same thermal conductivity value, unit, sample and temperature as the claim."
+    }
+  ]
+}
