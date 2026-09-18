@@ -114,3 +114,12 @@ boundary must independently bind request identity, full wire size, provider
 configuration and usage before new model-quality evaluation. Fresh real-task
 selection assessment, applicable data/budget authority and production admission
 remain separate gates. This registration supplies none of those permissions.
+
+## Pre-implementation clarification, 2026-09-18
+
+Read-only architectural review identified an ambiguity in discarding assistant
+prose. For a `read_source` call, assistant content must be absent, null or empty;
+nonempty generated prose plus a tool call is a failed mixed response and must
+perform zero reads. Do not accept that combination and merely hide its prose.
+A standalone refusal remains `declined` with its text discarded. This pins down
+admission before implementation/native use; no historical result is changed.
