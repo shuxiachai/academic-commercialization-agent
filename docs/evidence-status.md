@@ -285,13 +285,15 @@ the subsequent verbose-reporting failure and test-only isolation correction;
 local suite success must not be substituted for exact-head CI.
 
 The [RPQ batch protocol](prereg-2026-09-18-relation-policy-qwen-canary.md)
-now freezes RP01-RP03 for a separately identified synthetic native experiment.
+froze RP01-RP03 for a separately identified synthetic native experiment.
 Its three cases are dependent development controls, not fresh unseen evidence.
-Any later dispatch requires its own exact-code/fixture/output checks and
-all three delivery layers; protocol preparation adds no new model observation.
 The [dedicated runner verification](results-2026-09-18-relation-policy-qwen-runner.md)
 records intercepted HTTP and targeted stop/guard mutations, not native answers.
-The CLI is identity-only by default; production and the closed batches are unchanged.
+The [closed native result](results-2026-09-18-relation-policy-qwen-canary.md)
+records one request and an early unavailable final with no tool call. The batch
+failed before evidence delivery: zero label checks, semantic not_reviewable,
+RP02/RP03 unrun. Estimated usage cost is USD 0.001229421; no retry or production
+activation occurred. The occupied batch and frozen bytes must not be reused.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources

@@ -329,6 +329,13 @@ and root `report_evidence_relation_policy_canary.py` have a
 Default CLI verifies identity only. A successful script/intercepted HTTP test
 is not a live result, a new private-data grant or production admission.
 
+RPQ is now [closed and failed](docs/results-2026-09-18-relation-policy-qwen-canary.md):
+one native request returned an early unavailable final without calling read_source.
+The frozen gate stopped before any read or second request; RP02/RP03 are unrun,
+label checks are zero and semantic review is not_reviewable. Preserve the occupied
+batch. Any successor must address first-stage read admission separately, not
+reinterpret this as tested insufficiency or a provider outage.
+
 The separate saved-evidence [stage canary](docs/results-2026-09-15-stage-qwen-canary-live.md)
 delivered a synthetic excerpt through native lookup/read but failed the strict
 final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes

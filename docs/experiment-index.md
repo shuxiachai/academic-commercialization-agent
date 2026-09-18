@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-18 RPQ native early-final result](results-2026-09-18-relation-policy-qwen-canary.md): one request, zero reads/receipts/admitted answers, first-stage mechanical rejection; no label checks, RP02/RP03 unrun and the fixed batch closed.
+
 - [2026-09-18 relation-policy native canary preregistration](prereg-2026-09-18-relation-policy-qwen-canary.md) and [runner verification](results-2026-09-18-relation-policy-qwen-runner.md): a separate RP01-RP03 synthetic batch with policy/callback/native delivery gates, exact identity, six-request limit and first-failure stop; preparation is not a provider observation.
 
 - [2026-09-17 test maintenance and CI consolidation](results-2026-09-17-test-maintenance.md): stronger delivery/call assertions, executable workflow checks and four full matrix executions with the existing coverage floor; frozen experiments and production remain unchanged.
