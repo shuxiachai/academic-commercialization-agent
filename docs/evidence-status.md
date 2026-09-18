@@ -305,6 +305,11 @@ candidate neither adds sources nor enables production follow-up.
 The [offline engineering record](results-2026-09-18-read-first-followup-implementation.md)
 retains two independent-review findings, their delivery/error-path repairs and
 defect-reinjection evidence rather than treating a green test count as proof.
+Its [single native result](results-2026-09-18-read-first-qwen-canary.md) is closed
+and failed: two requests, one actual complete read, one mechanical pass, but
+zero matches in one frozen-label check. RF02/RF03 are unrun. A later
+context-limited LLM review judged the answer mixed; estimated known usage is
+USD 0.002436429. No retry, follow-on batch or production activation follows.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources

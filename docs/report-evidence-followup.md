@@ -25,6 +25,11 @@ inner/RP delivery and native request observations remain separate. This is
 controlled tool execution, not autonomous source selection or semantic proof;
 there is still no public follow-up route or production activation.
 
+The [RF native batch](results-2026-09-18-read-first-qwen-canary.md) subsequently
+completed one real forced-read conversation but failed its first relation label.
+The batch is closed, later controls are unrun and automatic expansion stops.
+This establishes neither general semantic judgment nor a shipped user feature.
+
 The [new preregistration](prereg-2026-09-16-followup-claim-relation.md) defines
 `run_claim_relation_followup(snapshot, claim, *, transport)` in the isolated
 `report_evidence_claim_relation` module. The caller supplies an explicit

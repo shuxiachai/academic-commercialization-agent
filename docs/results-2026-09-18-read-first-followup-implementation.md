@@ -89,3 +89,15 @@ response, real-report judgment or production admission is established by this
 offline record. Closed RPQ/PCQ/CLQ outputs remain unchanged. No old batch,
 private report, production endpoint, scoring formula or access boundary is
 reopened.
+
+## Final pre-native validation
+
+The repaired full local suite passed 5621 tests and 1517 subtests in 443.95s.
+Repository-wide latest Ruff and prescribed narrow Pylint passed. A separate
+targeted read-only re-review closed both P2 findings without executing tests.
+The real committed default CLI then verified commit `41d67f5` and the frozen
+fixture without creating a batch directory; this is separate from its mocked
+Git/version subprocess regression. All eight exact-head checks passed in
+[CI35314037507](https://github.com/shuxiachai/academic-commercialization-agent/actions/runs/35314037507)
+before the subsequently [failed native batch](results-2026-09-18-read-first-qwen-canary.md).
+No green engineering check was promoted to a passing semantic observation.
