@@ -328,8 +328,15 @@ revalidation. A post-implementation scripted replay through the actual selector,
 reader and JSON renderer preserved all 632 saved texts, with 632 observed
 callback entries and local reads; its maximum callback envelope was 4,867 ASCII
 bytes. IDs were prescribed, not selected by an LLM, so this is delivery/capacity
-evidence, not 100% selection accuracy. Native transport and production entry
-points remain absent.
+evidence, not 100% selection accuracy. A separate
+[single-selection Qwen transport](prereg-2026-09-18-source-locator-qwen-transport.md)
+now prepares the native boundary using intercepted HTTP, not provider calls.
+It binds question/catalog/schema identity, complete wire bytes and a dedicated
+one-request durable ledger; it does not send the locally read text back to a
+model. Before implementation, the same 30-snapshot fixed-question inspection
+measured maximum complete native bodies of 4,990 bytes, below 12,288 bytes.
+This is not arbitrary-question coverage or a live compatibility result. Native
+selection quality, a fresh live runner and production entry points remain open.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources

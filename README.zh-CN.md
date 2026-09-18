@@ -181,7 +181,9 @@ runner，也不宣称新的真实模型成功率或线上追问已经完成。�
 
 下一步的[保存来源定位候选](docs/prereg-2026-09-18-saved-source-locator.md)仍仅限离线：
 一次选源回调、一次保存文本读取，结果由程序原样组装，不生成新答案。
-脚本演示不是真实模型结果，也不是生产功能；详见[追问原型说明](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator)。
+脚本演示不是真实模型结果，也不是生产功能。
+独立的[千问适配器](docs/prereg-2026-09-18-source-locator-qwen-transport.md)补充单次请求与账本约束，
+仅通过拦截 HTTP 验证，不代表真实兼容性已通过；详见[追问原型说明](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator)。
 
 ## 快速启动
 
