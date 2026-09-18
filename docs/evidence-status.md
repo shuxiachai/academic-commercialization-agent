@@ -335,8 +335,13 @@ It binds question/catalog/schema identity, complete wire bytes and a dedicated
 one-request durable ledger; it does not send the locally read text back to a
 model. Before implementation, the same 30-snapshot fixed-question inspection
 measured maximum complete native bodies of 4,990 bytes, below 12,288 bytes.
-This is not arbitrary-question coverage or a live compatibility result. Native
-selection quality, a fresh live runner and production entry points remain open.
+This is not arbitrary-question coverage or a live compatibility result. A new
+[SLQ batch protocol](prereg-2026-09-19-source-locator-qwen-canary.md) freezes four
+synthetic development controls and a dedicated executor. Default identity checks
+have no credential/output side effects; native admission has aggregate four-
+request/USD 0.05 bounds and first-failure stop. Reference labels received a
+context-limited LLM blind review, not human expert validation. Preparation is
+not a live result; selection quality and production admission remain open.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources

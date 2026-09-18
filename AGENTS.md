@@ -300,9 +300,16 @@ browser-delivery evidence. Keep this candidate disconnected from production.
 
 Its [dedicated Qwen boundary](docs/prereg-2026-09-18-source-locator-qwen-transport.md)
 binds the exact question/catalog request and one durable reservation per new
-single-owner ledger. Tests intercept HTTP; there is no live runner or new paid
-allowance. Preserve pre-dispatch persistence, safe errors and unknown usage;
+single-owner ledger. Its tests intercept HTTP and grant no paid allowance.
+Preserve pre-dispatch persistence, safe errors and unknown usage;
 neither the old six-request cap nor a new transport instance resets this limit.
+
+The separate [SLQ protocol](docs/prereg-2026-09-19-source-locator-qwen-canary.md)
+freezes four synthetic development cases and a new single-batch executor.
+Default CLI is identity-only; native use needs exact source/fixture identity,
+review and green CI plus the applicable bounded low-cost authorization.
+Keep aggregate four-request/USD 0.05 admission, first-failure stop and reference
+agreement separate from mechanical delivery. No production route follows.
 
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed

@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-19 SLQ synthetic locator preregistration](prereg-2026-09-19-source-locator-qwen-canary.md): four newly frozen title-selection/decline/missing-text controls, separate code-owned delivery and reference gates, one fixed four-request/USD 0.05 batch; preparation is not native success or production admission.
+
 - [2026-09-18 source-locator Qwen wire preregistration](prereg-2026-09-18-source-locator-qwen-transport.md): isolated one-selection adapter, exact question/catalog wire identity and a dedicated one-request durable ledger; intercepted HTTP only, no new native result or production route.
 
 - [2026-09-18 saved-source locator preregistration](prereg-2026-09-18-saved-source-locator.md): one callback selection and code-owned complete saved-text delivery; reuses existing catalog/read primitives without a model-generated answer, native adapter or production route.

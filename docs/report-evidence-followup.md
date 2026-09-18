@@ -38,9 +38,19 @@ dispatch. `LocatorQwenLedger` permits only one reservation across sequential
 transport instances. Its explicit fresh output directory is created by the
 ledger constructor; the transport never looks up credentials or writes files
 at construction. This is a single-owner journal, not a public paid receipt.
-Tests intercept the pinned HTTP primitive using fake credentials. There is no
-live CLI, second model request or production route. Request journals contain
+Tests intercept the pinned HTTP primitive using fake credentials. The adapter
+alone has no live CLI, second model request or production route. Request journals contain
 questions and catalog metadata and are not automatically safe to publish.
+
+A [separate SLQ executor](prereg-2026-09-19-source-locator-qwen-canary.md) freezes
+four new synthetic development controls: title contrast, Chinese selection,
+explicit decline and selected metadata with missing text. Run its module CLI
+with the expected commit and fixture hash for an identity-only check; that
+default does not read credentials or create an output batch. Explicit native
+admission is capped at four sequential one-request cases and USD 0.05 overall,
+with first-failure stop and one fixed non-resumable output directory. Label-
+blinded LLM reference agreement and intercepted tests are not real Qwen results,
+independent accuracy or authorization to enable the website's follow-up entry.
 
 ## Separate offline claim-relation contract
 
