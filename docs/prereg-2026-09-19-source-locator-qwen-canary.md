@@ -139,3 +139,14 @@ independent review before native use. New semantic judgment, if needed, uses
 a separate label-blinded LLM context, never a simulated human reviewer or an
 extra paid judging request. It remains fallible and cannot change frozen gates.
 Production routes, source validation, scores and access control stay unchanged.
+
+## Reference-review provenance
+
+The pre-freeze review above used a fresh configured `route_reviewer` context
+(Astra/high); these UTF-8/LF text identities are provenance records, not model
+backend attestation. No fixture, reference or acceptance rule changed here.
+
+- Visible case/question/title-ID JSON input SHA-256: `d04fe324245ccd873fe30902ac99d21290032b5f270fd175dddfed4c26d7feda`.
+- Full supplied review prompt SHA-256: `8e0e7105d6eb2fdcfc514b712fae7ff7558552dfc9e6de4b6f122b8d188b18f5`.
+- Returned review text SHA-256: `34481ed745c8f644854a1bb3ca5c5931ae4061481f36621205674738eceb4125`.
+- External-source access: none. Source text and reference labels in first-pass input: none.
