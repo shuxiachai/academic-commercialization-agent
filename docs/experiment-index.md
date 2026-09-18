@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-18 saved-source locator preregistration](prereg-2026-09-18-saved-source-locator.md): one callback selection and code-owned complete saved-text delivery; reuses existing catalog/read primitives without a model-generated answer, native adapter or production route.
+
 - [2026-09-18 read-first native result](results-2026-09-18-read-first-qwen-canary.md): two requests and one actual full read, but a failed first relation label; later controls unrun, context-limited LLM judgment mixed, batch closed and production unchanged.
 
 - [2026-09-18 read-first follow-up preregistration](prereg-2026-09-18-read-first-followup.md) and [offline engineering](results-2026-09-18-read-first-followup-implementation.md): three fresh dependent synthetic controls, a named-read native boundary and separate delivery observations; not autonomous selection, a native result or production admission.

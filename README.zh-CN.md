@@ -179,6 +179,10 @@ runner，也不宣称新的真实模型成功率或线上追问已经完成。�
 [CI后续记录](docs/results-2026-09-17-relation-policy-ci-isolation.md)
 单独保留测试隔离作用域缺陷，不将本地通过等同于跨平台通过。
 
+下一步的[保存来源定位候选](docs/prereg-2026-09-18-saved-source-locator.md)仍仅限离线：
+一次选源回调、一次保存文本读取，结果由程序原样组装，不生成新答案。
+脚本演示不是真实模型结果，也不是生产功能；详见[追问原型说明](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator)。
+
 ## 快速启动
 
 优先使用 CI 覆盖的 Python 3.11/3.12 与 [uv](https://docs.astral.sh/uv/)。

@@ -214,6 +214,11 @@ offline ledger. Intercepted HTTP is not a new provider outcome or live authority
 The [CI follow-up](docs/results-2026-09-17-relation-policy-ci-isolation.md)
 records a test-guard lifetime defect separately from the adapter's local checks.
 
+The next [saved-source locator candidate](docs/prereg-2026-09-18-saved-source-locator.md)
+is offline-only: one selection callback, one saved-text read, and code-owned
+output without a generated answer. Its scripted demo is not a live model
+result or a production feature; see the [conversation guide](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator).
+
 ## Quick start
 
 Use Python 3.11 or 3.12 for the CI-tested environment and

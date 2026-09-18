@@ -318,6 +318,19 @@ zero matches in one frozen-label check. RF02/RF03 are unrun. A later
 context-limited LLM review judged the answer mixed; estimated known usage is
 USD 0.002436429. No retry, follow-on batch or production activation follows.
 
+A separate [saved-source locator](prereg-2026-09-18-saved-source-locator.md)
+now narrows the next offline path to one selection callback, one actual local
+read and code-owned saved-text JSON. It does not generate an answer, judge
+support/refutation or reuse the old CQ native contract. Fresh local capacity
+inspection found 632 of 632 saved texts fit the existing catalog/read bounds
+across 30 snapshots; this is not model-selection accuracy or benchmark
+revalidation. A post-implementation scripted replay through the actual selector,
+reader and JSON renderer preserved all 632 saved texts, with 632 observed
+callback entries and local reads; its maximum callback envelope was 4,867 ASCII
+bytes. IDs were prescribed, not selected by an LLM, so this is delivery/capacity
+evidence, not 100% selection accuracy. Native transport and production entry
+points remain absent.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

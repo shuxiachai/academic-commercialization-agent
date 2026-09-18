@@ -291,6 +291,13 @@ See the [ingress/history/finalization contract](docs/results-2026-09-08-upload-h
 
 ## Tool Calling: do not turn experimental code into production by accident
 
+The separate [saved-source locator](docs/prereg-2026-09-18-saved-source-locator.md)
+uses one selector callback and one existing local read, followed by code-owned
+saved-text JSON, not a generated answer or claim relation. Its new module/test/
+demo are callback-only; the old CQ prompt/schema, native adapters and closed
+allowances cannot be reused. Local callback/read facts are not HTTP, cost or
+browser-delivery evidence. Keep this candidate disconnected from production.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live
