@@ -1,10 +1,23 @@
 # Academic Commercialization Assessment Agent
 
-[中文](README.zh-CN.md) · [Live application](https://academic-commercialization-agent.up.railway.app) · [Documentation](docs/README.md) · [Case study](docs/portfolio-case-study.md)
+Turn a paper or research topic into a **source-linked commercialization assessment draft**, with an auditable scorecard and risk notes for research triage.
 
-An evidence-constrained workflow for assessing research commercialization:
-collect sources, analyse technical maturity, patents and market signals, then
-deliver a cited report with an auditable scorecard.
+[Open the application](https://academic-commercialization-agent.up.railway.app) · [Read a public report](examples/solid-state-batteries-ev.md) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
+
+**Demo access:** an operator-issued access code **or** BYOK (a supported LLM API key
+plus a Serper search key). New analyses and PDF extraction incur provider usage.
+The public report below can be read without keys or a new analysis.
+
+![Real historical result screen: CRISPR assessment with score dimensions, source counts and cited risk notes](assets/screenshot-results.png)
+
+*Real UI archived on 2026-08-11 at [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512), not a current-release capture.*
+
+**Public sample:** [Solid-state batteries for electric vehicles](examples/solid-state-batteries-ev.md)
+— [frozen 2026-07-19 version, 9673a83](https://github.com/shuxiachai/academic-commercialization-agent/blob/9673a8346c15f11b989ce8fd2d85be484d1c27b3/examples/solid-state-batteries-ev.md).
+The screenshot and sample are different historical runs; neither represents
+current model accuracy or an up-to-date market assessment.
+
+[Documentation](docs/README.md) · [Case study](docs/portfolio-case-study.md)
 
 Built with Python, CrewAI, FastAPI and a build-free JavaScript client. The
 production system deliberately limits autonomy: retrieval is deterministic,
@@ -314,10 +327,21 @@ database or Kubernetes would not by themselves resolve these gaps.
 
 ## Screenshots
 
-Historical UI snapshots; exact deployed wording may evolve.
+<details>
+<summary>Historical home and running views — a343a95, archived 2026-08-11</summary>
+
+These are real interface captures from [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512).
+Current controls and wording may differ; the result screen is shown above.
 
 ![Home screen](assets/screenshot-home.png)
-![Run result](assets/screenshot-results.png)
+![Analysis in progress](assets/screenshot-running.png)
+
+</details>
+
+## Author and more projects
+
+Created by [shuxiachai](https://github.com/shuxiachai).
+Explore [more projects on the author's GitHub profile](https://github.com/shuxiachai).
 
 <a id="chinese"></a>
 
