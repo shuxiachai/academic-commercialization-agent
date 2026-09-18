@@ -43,8 +43,12 @@ from academic_agent.run_terminal import (
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_ROOT = PROJECT_ROOT / "output" / "playwright"
 ACCESS_CODE = "browser-smoke-code"
-FIXTURE_TOPIC = "Browser smoke fixture for evidence-constrained commercialization"
+FIXTURE_TOPIC = (
+    "Browser smoke fixture for evidence-constrained commercialization — "
+    "用于工业预测性维护的量子传感器阵列商业化可行性评估"
+)
 REPORT_SENTINEL = "BROWSER_SMOKE_REPORT_REACHED_CLIENT"
+HEADER_UNBROKEN_METADATA = "METADATA_UNBROKEN_TOKEN_" + "x" * 160
 
 
 def _saved_source_fixture() -> dict[str, list[dict[str, str]]]:
@@ -321,6 +325,129 @@ def _exercise_sources_panel(page: Page, collection: dict, *, chinese: bool) -> N
     page.set_viewport_size({"width": 1280, "height": 720})
 
 
+def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
+    """Catch actions squeezing mobile metadata into columns and hiding the report."""
+    title = page.locator("#run-title")
+    actions = page.locator("#run-actions")
+    controls = actions.locator(":is(a, button)")
+    expect(title).to_have_text(FIXTURE_TOPIC)
+    expect(page.locator("#run-terminal")).to_have_text(
+        "· 工作进程已完成" if chinese else "· worker completed",
+    )
+    expect(controls).to_have_text(["Markdown", "PDF", "删除" if chinese else "Delete"])
+    expect(actions.get_by_role("link")).to_have_count(2)
+    expect(actions.get_by_role("button")).to_have_count(1)
+    run_id = urlsplit(page.url).path.rsplit("/", 1)[-1]
+    metadata = page.locator("#pane-run .pane__meta > span[id]")
+    original = dict(metadata.evaluate_all(
+        "nodes => nodes.map(node => [node.id, node.textContent])"
+    ))
+    # Layout-only stress, not simulated server truth. Keep the normal completed
+    # fixture as a separate case and restore every field after the warning case.
+    warnings = {
+        "run-usage": "· 用量下限 12,345 tokens / $0.0123" if chinese else "· usage 12,345 tokens / $0.0123",
+        "run-terminal": ("· 终态记录：" if chinese else "· terminal record: ") + HEADER_UNBROKEN_METADATA,
+        "run-status-record": "· 进度记录无法读取" if chinese else "· progress record unreadable",
+        "run-runtime-record": "· 运行摘要无法读取" if chinese else "· runtime metadata unreadable",
+        "run-step-record": "· 步骤日志不完整" if chinese else "· step log incomplete",
+        "run-connection": "· 进度观测已过期" if chinese else "· progress observation stale",
+        "run-recovery": "· 恢复检查点已保留" if chinese else "· recovery checkpoint retained",
+    }
+    set_metadata = """values => {
+        for (const [id, value] of Object.entries(values)) document.getElementById(id).textContent = value;
+    }"""
+    try:
+        for scenario, values in (("completed", original), ("warnings", original | warnings)):
+            page.evaluate(set_metadata, values)
+            for width in (320, 390, 640, 861, 1280):
+                page.set_viewport_size({"width": width, "height": 720})
+                # The workbench and overlay sidebar animate at the breakpoint;
+                # measure the settled layout, not a frame midway through resize.
+                page.locator(".workbench").evaluate(
+                    """async node => {
+                        const animations = [node, node.querySelector('.sidebar')].flatMap(el => el.getAnimations());
+                        await Promise.all(animations.map(a => a.finished));
+                    }"""
+                )
+                # The report follows the applicability/audit panels in this
+                # scroll container. Prove it can be brought into the viewport.
+                page.locator("article.prose").scroll_into_view_if_needed()
+                layout = page.locator("#pane-run").evaluate("""pane => {
+                    const node = selector => pane.querySelector(selector);
+                    const rect = element => element.getBoundingClientRect();
+                    const inside = (a, b) => a.left >= b.left - 1 && a.right <= b.right + 1
+                        && a.top >= b.top - 1 && a.bottom <= b.bottom + 1;
+                    const viewport = {left: 0, top: 0, right: innerWidth, bottom: innerHeight};
+                    const hit = (element, box) => element.contains(document.elementFromPoint(
+                        (box.left + box.right) / 2, (box.top + box.bottom) / 2));
+                    const headNode = node('.pane__head'), head = rect(headNode);
+                    const heading = rect(node('.pane__heading')), actions = rect(node('#run-actions'));
+                    const style = getComputedStyle(headNode);
+                    const contentWidth = head.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+                    const fields = [...pane.querySelectorAll('.pane__meta > span[id]')]
+                        .filter(element => element.textContent);
+                    const textFits = element => {
+                        const box = rect(element), range = document.createRange();
+                        range.selectNodeContents(element);
+                        const lines = [...range.getClientRects()];
+                        return box.width > 0 && box.height > 0 && inside(box, heading) && inside(box, head)
+                            && inside(box, viewport) && element.scrollWidth <= element.clientWidth + 1
+                            && element.scrollHeight <= element.clientHeight + 1 && lines.length > 0
+                            && lines.every(line => inside(line, box) && hit(element, line));
+                    };
+                    const body = rect(node('#run-body')), prose = node('article.prose'), report = rect(prose);
+                    const visibleReport = {
+                        left: Math.max(body.left, report.left, 0), right: Math.min(body.right, report.right, innerWidth),
+                        top: Math.max(body.top, report.top, 0), bottom: Math.min(body.bottom, report.bottom, innerHeight),
+                    };
+                    const readable = selector => rect(node(selector)).width >= 4 * parseFloat(getComputedStyle(node(selector)).fontSize);
+                    return {
+                        checks: {
+                            noOverflow: headNode.scrollWidth <= headNode.clientWidth + 1 && inside(head, viewport),
+                            arrangement: innerWidth <= 640
+                                ? heading.width >= contentWidth - 1 && actions.top >= heading.bottom - 1
+                                : actions.left >= heading.right - 1 && Math.abs(actions.top - heading.top) <= 1,
+                            metadataFits: fields.every(textFits),
+                            sourceReadable: readable('#run-sources'), terminalReadable: readable('#run-terminal'),
+                            controlsReachable: [...pane.querySelectorAll('#run-actions :is(a, button)')].every(element => {
+                                const box = rect(element);
+                                return box.width >= 44 && box.height >= 24 && inside(box, head)
+                                    && inside(box, viewport) && hit(element, box);
+                            }),
+                            // At least six ordinary text lines, not merely a nonzero offscreen box.
+                            reportUsable: body.top >= head.bottom - 1 && visibleReport.bottom - visibleReport.top >= 120
+                                && visibleReport.right - visibleReport.left >= 200 && hit(prose, visibleReport),
+                        },
+                        headHeight: head.height, headingWidth: heading.width,
+                        sourceWidth: rect(node('#run-sources')).width, terminalWidth: rect(node('#run-terminal')).width,
+                        visibleReportHeight: visibleReport.bottom - visibleReport.top,
+                        clippedFields: fields.filter(element => !textFits(element)).map(element => element.id),
+                    };
+                }""")
+                assert all(layout["checks"].values()), (
+                    f"Run header {scenario} at {width}px ({'Chinese' if chinese else 'English'}): {layout!r}"
+                )
+                for field, expected in values.items():
+                    assert page.locator(f"#{field}").text_content() == expected, field
+                    if expected:
+                        expect(page.locator(f"#{field}")).to_be_visible()
+                for index, (path, suffix) in enumerate((("report", "md"), ("report.pdf", "pdf"))):
+                    expect(controls.nth(index)).to_have_attribute("href", f"/api/runs/{run_id}/{path}")
+                    expect(controls.nth(index)).to_have_attribute("download", f"{run_id}.{suffix}")
+                # Seed focus immediately before the actions, then use real Tab
+                # traversal through BOTH downloads and Delete; never activate them.
+                controls.first.focus()
+                page.keyboard.press("Shift+Tab")
+                for index in range(3):
+                    page.keyboard.press("Tab")
+                    expect(controls.nth(index)).to_be_focused()
+                    expect(controls.nth(index)).to_be_visible()
+                    expect(controls.nth(index)).to_be_enabled()
+    finally:
+        page.evaluate(set_metadata, original)
+        page.set_viewport_size({"width": 1280, "height": 720})
+
+
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
     runtime_ids: tuple[str, str, str], cap_run_id: str,
@@ -491,6 +618,7 @@ def _exercise_browser(
                 _exercise_sources_panel(page, collection, chinese=chinese)
                 page.locator('button.tab[data-view="report"]').click()
                 expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+                _assert_run_header_layout(page, chinese=chinese)
                 page.locator('button.tab[data-view="sources"]').click()
                 expect(page.locator(".source__id")).to_have_count(50)
                 assert source_requests == before_sources + 1, "Sources controls/tab revisits must use exactly one GET per render."
