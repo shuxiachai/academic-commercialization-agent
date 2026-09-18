@@ -317,6 +317,10 @@ export async function render(container, runId, progress) {
   if (artifacts.includes("report-audit"))
     views.push({ id: "report-audit", label: t("tab_report_audit") });
 
+  if (!artifacts.includes("sources")) {
+    container.append(el("p", "empty-note sources__missing", t("sources_missing_artifact")));
+  }
+
   if (!views.length) {
     container.append(el("p", "empty-note", t("no_artifacts")));
     return;
@@ -389,7 +393,15 @@ export async function render(container, runId, progress) {
       }
     } catch (err) {
       panel.innerHTML = "";
-      panel.append(el("p", "empty-note", err.message));
+      if (id === "sources") {
+        // Saved private text may occur in server, parser or network messages.
+        // A failed read is not an empty registry; never echo its raw message.
+        const message = err?.status === 409 ? "sources_unavailable"
+          : err?.status === 404 ? "sources_resource_unavailable" : "sources_read_failed";
+        panel.append(el("p", "empty-note sources__error", t(message)));
+      } else {
+        panel.append(el("p", "empty-note", err.message));
+      }
       loaded.delete(id);      // let a retry re-fetch
     }
   }
@@ -571,47 +583,207 @@ export function renderRetrievalDiagnostics(data) {
 
 /* ── Sources ───────────────────────────────────────────────────────── */
 
-function renderSources(collection) {
-  const wrap = el("div", "sources");
+const SOURCE_GROUPS = [
+  ["academic_sources", "group_academic"],
+  ["patent_sources", "group_patents"],
+  ["market_sources", "group_market"],
+];
+const SOURCE_ROW_LIMIT = 1000;
+const SOURCE_STRING_LIMIT = 16384;
+const SOURCE_TOTAL_LIMIT = 2 * 1024 * 1024;
+const SOURCE_PAGE_SIZE = 50;
 
-  const groups = [
-    ["academic_sources", t("group_academic")],
-    ["patent_sources", t("group_patents")],
-    ["market_sources", t("group_market")],
-  ];
-
-  for (const [key, title] of groups) {
-    const items = collection[key] ?? [];
-    if (!items.length) continue;
-
-    wrap.append(el("h3", "sources__title", `${title} · ${items.length}`));
-    const list = el("ul", "sources__list");
-
-    for (const source of items) {
-      const li = el("li", "source");
-
-      const id = el("span", "source__id", source.source_id);
-      const body = el("div", "source__body");
-
-      const link = el("a", "source__link", source.title);
-      link.href = source.url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-
-      const meta = el("div", "source__meta");
-      const bits = [source.publisher, source.published_date?.slice(0, 4)].filter(Boolean);
-      meta.append(el("span", null, bits.join(" · ")));
-
-      const tier = el("span", "tier", source.credibility_tier);
-      tier.dataset.tier = source.credibility_tier;
-      meta.append(tier);
-
-      body.append(link, meta);
-      li.append(id, body);
-      list.append(li);
-    }
-    wrap.append(list);
+function savedSourceUrl(value) {
+  // No base URL: a relative or scheme-relative link must remain plain text.
+  // Reject controls before URL parsing, which would silently remove some.
+  if (!/^https?:\/\//i.test(value) || /[\u0000-\u0020\u007f-\u009f]/u.test(value)) return null;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && url.hostname && !url.username && !url.password
+      ? url.href : null;
+  } catch {
+    return null;
   }
+}
+
+function admitSavedSources(collection) {
+  const admitted = { rows: [], partial: false, empty: false };
+  if (!detailRecord(collection)) { admitted.partial = true; return admitted; }
+  admitted.empty = SOURCE_GROUPS.every(([key]) => Array.isArray(collection[key]) && collection[key].length === 0);
+  let inspected = 0;
+  let units = 0;
+
+  // These are after-JSON display/search bounds, not HTTP or JSON-parser bounds.
+  // Count inspected rows (even malformed ones) and only examine a fixed field
+  // whitelist. Never enumerate arbitrary metadata or scan an unbounded tail.
+  for (const [group] of SOURCE_GROUPS) {
+    const items = collection[group];
+    if (!Array.isArray(items)) { admitted.partial = true; continue; }
+    const count = Math.min(items.length, SOURCE_ROW_LIMIT - inspected);
+    if (count < items.length) admitted.partial = true;
+    for (let index = 0; index < count; index++) {
+      inspected++;
+      const raw = items[index];
+      if (!detailRecord(raw)) { admitted.partial = true; continue; }
+      const row = { group, invalid: false };
+      const unreadable = state => {
+        admitted.partial = true;
+        row.invalid = true;
+        return { text: null, state };
+      };
+      const field = (key, required = false) => {
+        const value = raw[key];
+        if (value == null && !required) return { text: null, state: "missing" };
+        if (typeof value !== "string") return unreadable("invalid");
+        // Check lengths before copying, lowercasing, URL parsing or DOM work.
+        // Reject whole fields, never present a truncated excerpt as original.
+        if (value.length > SOURCE_STRING_LIMIT || value.length > SOURCE_TOTAL_LIMIT - units) {
+          return unreadable("limited");
+        }
+        units += value.length;
+        if (required && !value.trim()) return unreadable("invalid");
+        // Whitespace-only excerpts still keep every original character, but
+        // must not be presented as containing readable saved evidence.
+        return { text: value, state: value.trim().length ? "available" : "empty" };
+      };
+      row.source_id = field("source_id", true);
+      row.title = field("title", true);
+      for (const key of ["publisher", "published_date", "credibility_tier", "url", "evidence_summary", "summary_source"]) {
+        row[key] = field(key);
+      }
+      row.href = row.url.text ? savedSourceUrl(row.url.text) : null;
+      if (row.url.text && !row.href) unreadable("invalid");
+      row.searchId = row.source_id.text?.toLowerCase() ?? null;
+      // Keep field boundaries: a title suffix plus publisher prefix is not a
+      // match in either saved field. IDs are handled separately and exactly.
+      row.searchFields = [row.title.text, row.publisher.text, row.evidence_summary.text]
+        .filter(value => value !== null).map(value => value.toLowerCase());
+      admitted.rows.push(row);
+    }
+  }
+  return admitted;
+}
+
+function renderSavedSource(source) {
+  const li = el("li", "source");
+  const id = el("span", "source__id", source.source_id.text ?? t("sources_id_unavailable"));
+  const body = el("div", "source__body");
+  const title = el(source.href ? "a" : "span", "source__link", source.title.text ?? t("sources_title_unavailable"));
+  if (source.href) {
+    title.href = source.href;
+    title.target = "_blank";
+    title.rel = "noopener noreferrer";
+  }
+  const meta = el("div", "source__meta");
+  const bits = [source.publisher.text, source.published_date.text?.slice(0, 4)].filter(Boolean);
+  meta.append(el("span", null, bits.join(" · ")));
+  if (source.credibility_tier.text) {
+    const tier = el("span", "tier", source.credibility_tier.text);
+    if (["high", "medium", "low"].includes(source.credibility_tier.text)) {
+      tier.dataset.tier = source.credibility_tier.text;
+    }
+    meta.append(tier);
+  }
+  body.append(title, meta);
+  if (source.invalid) body.append(el("p", "source__fault", t("sources_record_partial")));
+
+  const excerpt = el("details", "source__excerpt");
+  excerpt.append(el("summary", null, t("sources_excerpt")));
+  const label = source.summary_source.text;
+  const labelKey = ["abstract", "search_snippet"].includes(label)
+    ? "sources_summary_source" : "sources_summary_unrecognized";
+  excerpt.append(el("p", "source__summary-source", label
+    ? t(labelKey).replace("{label}", () => label) : t("sources_summary_unrecorded")));
+  const saved = source.evidence_summary;
+  if (saved.text !== null) {
+    // Direct textContent, including an empty string and all original white
+    // space. No Markdown, autolinks, highlighting or excerpt normalization.
+    excerpt.append(el("div", "source__text", saved.text));
+  }
+  if (saved.state !== "available") {
+    excerpt.append(el("p", "source__excerpt-state", t(`sources_excerpt_${saved.state}`)));
+  }
+  body.append(excerpt);
+  li.append(id, body);
+  return li;
+}
+
+function renderSources(collection) {
+  const wrap = el("div", "sources sources--browser");
+  const admitted = admitSavedSources(collection);
+  wrap.append(el("p", "sources__disclosure", t("sources_disclosure")));
+  if (admitted.partial) wrap.append(el("p", "sources__warning", t("sources_incomplete")));
+
+  const controls = el("div", "sources__controls");
+  const label = el("label", "sources__search-label");
+  label.append(el("span", null, t("sources_search_label")));
+  const search = el("input", "sources__search");
+  search.type = "search";
+  search.maxLength = SOURCE_STRING_LIMIT;
+  search.autocomplete = "off";
+  search.spellcheck = false;
+  search.placeholder = t("sources_search_placeholder");
+  label.append(search);
+  const clear = el("button", "btn btn--secondary sources__clear", t("sources_clear"));
+  clear.type = "button";
+  controls.append(label, clear);
+  const status = el("p", "sources__status");
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  const results = el("div", "sources__results");
+  const pager = el("div", "sources__pager");
+  const previous = el("button", "btn btn--secondary sources__prev", t("sources_previous"));
+  const next = el("button", "btn btn--secondary sources__next", t("sources_next"));
+  previous.type = next.type = "button";
+  pager.append(previous, next);
+  wrap.append(controls, el("p", "sources__hint", t("sources_search_hint")), status, results, pager);
+
+  // All view state belongs to this render. An old GET can only update its
+  // detached panel; there is no shared selection, storage, URL or log state.
+  let page = 0;
+  let matches = admitted.rows;
+  let query = "";
+  const paint = () => {
+    results.replaceChildren();
+    const start = page * SOURCE_PAGE_SIZE;
+    const visible = matches.slice(start, start + SOURCE_PAGE_SIZE);
+    for (const [group, heading] of SOURCE_GROUPS) {
+      const rows = visible.filter(row => row.group === group);
+      if (!rows.length) continue;
+      const count = matches.filter(row => row.group === group).length;
+      results.append(el("h3", "sources__title", `${t(heading)} · ${count}`));
+      const list = el("ul", "sources__list");
+      for (const row of rows) list.append(renderSavedSource(row));
+      results.append(list);
+    }
+    if (!matches.length) {
+      const message = query ? "sources_no_match" : admitted.empty ? "sources_empty" : "sources_no_records";
+      results.append(el("p", "empty-note", t(message)));
+    }
+    status.textContent = t("sources_count").replace("{matched}", String(matches.length))
+      .replace("{total}", String(admitted.rows.length)).replace("{start}", String(matches.length ? start + 1 : 0))
+      .replace("{end}", String(start + visible.length));
+    clear.disabled = !search.value;
+    previous.disabled = page === 0;
+    next.disabled = start + SOURCE_PAGE_SIZE >= matches.length;
+  };
+  const filter = () => {
+    query = search.value.trim().toLowerCase();
+    // A fixed recognizer selects ID mode; user text never becomes a regex.
+    const isId = /^(?:[apm]\d+|\[[apm]\d+\])$/.test(query);
+    const id = query.startsWith("[") ? query.slice(1, -1) : query;
+    matches = admitted.rows.filter(row => !query || (isId
+      ? row.searchId === id : row.searchFields.some(value => value.includes(query))));
+    page = 0;
+    paint();
+  };
+  search.addEventListener("input", filter);
+  clear.addEventListener("click", () => { search.value = ""; filter(); search.focus(); });
+  previous.addEventListener("click", () => { if (page > 0) { page--; paint(); } });
+  next.addEventListener("click", () => {
+    if ((page + 1) * SOURCE_PAGE_SIZE < matches.length) { page++; paint(); }
+  });
+  paint();
   return wrap;
 }
 

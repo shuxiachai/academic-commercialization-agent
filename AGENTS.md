@@ -245,6 +245,12 @@ Score/grounding/consistency detail faults must not become zero or agreement.
 Denied storage is page-local fallback, not authentication bypass; failed logout
 must not reload stale credentials. See the [delivery boundary and limits](docs/results-2026-09-08-client-delivery-seams.md).
 
+The Sources viewer searches only budget-admitted saved fields and displays
+their exact saved text, not original full papers or verified claim support.
+Keep missing/unreadable/empty/no-match states distinct, untrusted strings inert
+and ID matching exact; its limits are post-JSON display limits. See the
+[operating guide](docs/operating-guide.md#web-cli-and-http-api).
+
 Normalized score dimensions include fractions in 1..maximum. Malformed BYOK
 must not select operator billing; logout waits for paid acknowledgements and
 clears old attachment/context. Progress read loss is not worker failure, and

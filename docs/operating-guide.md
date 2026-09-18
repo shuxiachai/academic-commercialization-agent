@@ -91,6 +91,24 @@ topic/PDF submission, optional Decision Context, languages, scoring profiles,
 progress, history, scorecard/report/source views, reliability details and
 Markdown/PDF export.
 
+In the **Sources** tab, enter a whole source ID such as `A1` or `[A1]` for
+an exact match, or a literal keyword to search saved titles, publishers and
+text. Search is case-insensitive and stays in this panel; it does not call a
+model or search provider. Clear restores the list. Expand a source to read its
+complete saved `evidence_summary`, including preserved whitespace. That field
+may be a cleaned or truncated abstract, search snippet or fallback description:
+it is **not paper full text or proof that a report claim is supported**.
+
+Missing files, failed reads, empty lists and no keyword matches are distinct.
+Malformed or oversized records leave an incomplete-search warning while healthy
+records remain available. The display examines at most 1,000 records, admits at
+most 16,384 UTF-16 units per text field and 2 Mi UTF-16 units in total, and shows
+50 matches per page. These are post-JSON display limits, not HTTP-byte or JSON
+parsing memory limits; search covers all admitted records, not only one page.
+The existing run-read capability and artifact endpoint are unchanged. This
+read-only viewer neither enables experimental Tool Calling nor rewrites saved
+reports, citations or evidence.
+
 PDF extraction responses and stored metadata include `input_coverage` with the
 actual scanned/included/truncated/omitted pages and character budget. This is
 sampling visibility, not full-paper reading or section-level understanding.
