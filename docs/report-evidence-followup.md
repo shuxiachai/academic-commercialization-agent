@@ -71,6 +71,12 @@ and uniqueness remain separate; multiple acceptable hits are not a failure.
 Model evaluation remains `not_run`, and this preparation grants no paid or
 production admission.
 
+The [SLC baseline result](results-2026-09-19-public-source-search-baseline.md)
+observed the prepared keyword hit sets for all six cases, including a valid
+two-candidate set. This does not include the user's cost of preparing those
+keywords and does not compare a model. The CLI reports model `not_run` and
+null benefit; whole-question literal misses are diagnostic only.
+
 ## Separate offline claim-relation contract
 
 The [read-first successor](prereg-2026-09-18-read-first-followup.md) separately

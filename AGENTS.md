@@ -320,6 +320,9 @@ reuses the unchanged Sources observer on a public bibliography, not private
 saved-source text. Preserve exact assisted queries, set-valued references,
 explicit unavailable observations and the `not_run` model lane; neither long-
 question zero hits nor multiple acceptable candidates prove a model advantage.
+The [observed SLC baseline](docs/results-2026-09-19-public-source-search-baseline.md)
+covers 5/5 positive references with assisted keywords; four are unique and one
+has two valid candidates. Model comparison is still `not_run`, not a model win.
 
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
