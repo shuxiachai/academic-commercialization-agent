@@ -19,6 +19,7 @@
 | How can I inspect the isolated saved-evidence tool conversation? | [Report evidence follow-up](report-evidence-followup.md) |
 | What does the isolated saved-source HTTP/browser entry protect? | [Saved-source entry contract](saved-source-entry.md) |
 | How is saved-source paid admission prepared without activating it? | [Backend controller and receipts](saved-source-paid-controller.md) |
+| How does the isolated receipt page recover a lost acknowledgement? | [Receipt HTTP/browser contract](saved-source-receipt-entry.md) |
 | How are new semantic reviews performed without human sign-off? | [LLM-only review policy](llm-review-policy.md) |
 | Where is the full experimental history? | [Experiment index](experiment-index.md) |
 

@@ -120,6 +120,12 @@ shared-admission and locator-receipt logic, but is not connected to this lab or
 the deployed application. It does not enable model calls, accept BYOK credentials
 or provide a new public endpoint. Existing run/PDF receipt APIs are unchanged.
 
+Its separate [receipt entry](saved-source-receipt-entry.md) is also an unmounted
+factory, with its own browser and explicit GET recovery after a lost response.
+It stores a random receipt key before submission, not the code or report text;
+uncertain responses do not unlock another POST. There is still no provider
+adapter or public feature flag to activate on Railway.
+
 PDF extraction responses and stored metadata include `input_coverage` with the
 actual scanned/included/truncated/omitted pages and character budget. This is
 sampling visibility, not full-paper reading or section-level understanding.

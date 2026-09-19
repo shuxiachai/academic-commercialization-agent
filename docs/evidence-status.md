@@ -391,8 +391,9 @@ local snapshots exactly; that is neither model selection nor original benchmark
 identity. Browser validation is a separate engineering boundary.
 
 A separate [backend paid controller](saved-source-paid-controller.md) prepares
-shared paid-operation admission and durable, code-owned locator receipts. It
-does not connect the existing lab, production API or a provider. The journal
+shared paid-operation admission and durable, code-owned locator receipts. Its
+[isolated receipt entry](saved-source-receipt-entry.md) adds HTTP/browser recovery,
+not a connection to the original lab, production API or a provider. The journal
 binds saved identities without duplicating private excerpts; replay and unknown
 acknowledgement are distinct from another selector call. This is billing-boundary
 preparation, not a native result or production admission.
