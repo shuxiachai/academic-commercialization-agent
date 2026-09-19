@@ -382,6 +382,14 @@ estimate was USD 0.004639290, reservation consumption USD 0.066895872; separate
 blind LLM inspection supports only title location. The batch is closed and no
 production route is enabled.
 
+The separate [saved-source HTTP/browser entry](saved-source-entry.md) is an
+unmounted callback integration shell, default-disabled, with bounded saved-data
+loading and a dedicated scripted Chromium journey. It does not enable the
+production endpoint, native provider dispatch, BYOK or paid receipts. Before
+edits, prescribed-ID callbacks delivered 632/632 saved texts from 30 current
+local snapshots exactly; that is neither model selection nor original benchmark
+identity. Browser validation is a separate engineering boundary.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

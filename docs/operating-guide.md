@@ -109,6 +109,12 @@ The existing run-read capability and artifact endpoint are unchanged. This
 read-only viewer neither enables experimental Tool Calling nor rewrites saved
 reports, citations or evidence.
 
+The [saved-source entry lab](saved-source-entry.md) is separate from this shipped
+viewer. It uses an explicit independent app factory and new assets, defaults to
+disabled selection, and is not mounted or advertised by the production app.
+Its scripted browser test has no native provider; billing and durable locator
+receipts are not implemented. Do not configure keys or expose it as a paid route.
+
 PDF extraction responses and stored metadata include `input_coverage` with the
 actual scanned/included/truncated/omitted pages and character budget. This is
 sampling visibility, not full-paper reading or section-level understanding.

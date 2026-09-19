@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>已保存来源 · 隔离实验室</title>
+  <link rel="stylesheet" href="/lab-static/app.css">
+  <script src="/lab-static/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">SAVED SOURCE LAB / ISOLATED</p>
+      <h1>定位已保存的来源</h1>
+      <p>一次定位，一份原样保存文本。不会生成研究结论。</p>
+    </header>
+    <aside class="notice" aria-label="实验边界">
+      <strong>隔离入口 · injected callback</strong>
+      <p>Selector 默认禁用；仅由服务端注入可信回调。计费未实现（billing not implemented）。</p>
+      <p>标题不是证据；保存文本不是已验证全文，也不代表已验证支持（not verified support）。</p>
+    </aside>
+    <form id="locator-form" novalidate autocomplete="off">
+      <label for="run-id">Run ID <span>只读访问能力，不是付费或所有者凭证</span></label>
+      <input id="run-id" name="run-id" type="text" spellcheck="false" autocomplete="off"
+             aria-describedby="run-hint" placeholder="YYYYMMDDThhmmssZ-32位小写十六进制">
+      <p id="run-hint" class="hint">仅输入你有权读取的已保存报告 ID。此页不保存 ID、问题或凭证。</p>
+      <label for="question">想定位什么？ <span>最多 4096 个 Unicode 码点，原样提交</span></label>
+      <textarea id="question" name="question" rows="3" spellcheck="false" autocomplete="off"
+                placeholder="例如：哪份保存来源描述了实验设置？"></textarea>
+      <div class="actions">
+        <button id="locate" type="submit">定位保存来源</button>
+        <button id="reset" type="reset" class="secondary">重置</button>
+        <span class="hint">仅手动提交 · 无自动重试</span>
+      </div>
+    </form>
+    <p id="request-status" role="status" aria-live="polite">就绪，尚未发送请求。</p>
+    <section id="result" aria-labelledby="result-state" hidden>
+      <h2 id="result-state"></h2>
+      <p id="result-context" class="context"></p>
+      <p id="catalog-coverage"></p>
+      <p id="semantic-status" class="notice"></p>
+      <dl id="source-metadata"></dl>
+      <h3>原样保存文本</h3>
+      <p id="text-status" class="hint"></p>
+      <pre id="saved-text" tabindex="0" hidden></pre>
+      <details>
+        <summary>本地执行与内容标识（不是来源真实性证明）</summary>
+        <pre id="execution-facts"></pre>
+      </details>
+    </section>
+    <footer>仅检查已保存数据的交付；相关性与语义支持均未评估。不是生产 Tool Calling。</footer>
+    <noscript>此隔离页需要 JavaScript。尚未发起定位请求。</noscript>
+  </main>
+</body>
+</html>

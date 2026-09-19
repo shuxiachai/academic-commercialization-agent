@@ -17,6 +17,14 @@ separate from structural admission and cannot establish actual user adoption.
 
 ## Separate code-owned saved-source locator
 
+The [isolated HTTP/browser entry](saved-source-entry.md) prepares a different
+delivery seam around this locator. Its independent factory is not mounted in
+the production app and defaults to no selector. The real-browser smoke uses
+scripted callbacks and saved synthetic source bytes, not a model or paid API.
+Run `uv run --group e2e python -m e2e.saved_source_smoke` after installing the
+documented E2E dependencies. Local occupancy is not paid quota; billing, BYOK
+and persistent locator receipts remain unimplemented.
+
 The [locator contract](prereg-2026-09-18-saved-source-locator.md) removes model
 answer generation from a new, isolated callback path. At most one visible-ID
 selection is followed by one local read and code-owned JSON containing the

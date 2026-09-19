@@ -86,14 +86,17 @@ nosniff protect the separate page. This is not a newly hardened production API.
 At most one operation executes per app instance. A nonblocking slot inside the
 actual synchronous worker covers loader, selector, read and serialization;
 overlapping work returns `429 / locator_busy` without another callback.
-The worker's finally releases it. Cancelling/disconnecting an HTTP waiter cannot
-free a still-running thread, start replacement work or trigger a retry.
+The worker finalizes the operation, but its registered thread continues to own
+admission until physical exit is observed. Neither the pre-callback startup
+window nor the post-result exit window permits replacement work. Cancelling or
+disconnecting an HTTP waiter cannot free that ownership or trigger a retry.
 
 Shutdown atomically marks closing, rejects new work with
 `503 / locator_closing`, and asynchronously waits for the actual worker to
-exit. Do not block the ASGI loop while waiting. A permanently stuck trusted
-callback cannot be safely killed, so no bounded shutdown or distributed
-ownership is claimed. Tests coordinate events, not arbitrary sleeps.
+exit. Do not block the ASGI loop while waiting. A blocking filesystem operation
+or permanently stuck trusted callback can delay that drain; a thread cannot be
+safely killed. No bounded shutdown or distributed ownership is claimed. Tests
+coordinate events, not arbitrary sleeps.
 
 ## Browser and verification cutline
 
@@ -123,3 +126,34 @@ step without weakening existing jobs. Only after independent review and green
 CI may this inert preparation merge/deploy. Any later native integration needs
 an explicit production adapter with shared paid admission, durable receipts,
 fresh credential isolation and separate activation/data authority.
+
+## Observed verification and limits
+
+The new bounded byte projector preserved all 632 texts from the same 30 current
+local registries in prescribed-ID callback replay. No private raw records were
+published. This is a local projection/read observation, not an HTTP or model
+selection accuracy denominator.
+
+The dedicated Chromium journey issued one default-disabled request and fifteen
+actual loopback POSTs through the new loader/app/locator. It checked exact
+1500-code-point text, Unicode and whitespace, inert hostile markup, absent and
+blank text, refusal/decline, out-of-scope/empty registries, safe failures, double
+submission and stale input/reset replies. Browser and Python guards blocked
+external/provider traffic. Both existing browser journeys also passed without
+changing their guards. No native model or paid quota was exercised.
+
+Independent review found an admission gap even though the initial 6244-test /
+1570-subtest whole suite was green: an operation-only flag did not count a
+thread before callback entry or after its target returned but before exit.
+Five additional event-driven cases now cover both physical-thread windows,
+cancellation/closing and thread-start rollback. Re-injecting the old gate made
+all four window variants fail with HTTP 200 instead of 429; exact source was
+restored. The final focused backend/dependency regression passed 246 cases.
+
+Two unchanged browser-contract assertions also caught actual text-clipping and
+stale-reply source mutations. Earlier loader/HTTP mutation checks covered
+duplicate-key acceptance, a dropped saved_text field and the earlier cancellation
+guard; those historical mutations are not relabeled as final-thread-gate checks.
+Final independent review found no remaining actionable issue within this scope.
+Whole-tree regression and CI remain release gates, not evidence of production
+activation, paid admission, user benefit or a hard sandbox around callbacks.
