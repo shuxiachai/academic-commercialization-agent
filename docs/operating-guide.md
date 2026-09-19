@@ -115,6 +115,11 @@ disabled selection, and is not mounted or advertised by the production app.
 Its scripted browser test has no native provider; billing and durable locator
 receipts are not implemented. Do not configure keys or expose it as a paid route.
 
+The [prepared backend controller](saved-source-paid-controller.md) has separate
+shared-admission and locator-receipt logic, but is not connected to this lab or
+the deployed application. It does not enable model calls, accept BYOK credentials
+or provide a new public endpoint. Existing run/PDF receipt APIs are unchanged.
+
 PDF extraction responses and stored metadata include `input_coverage` with the
 actual scanned/included/truncated/omitted pages and character budget. This is
 sampling visibility, not full-paper reading or section-level understanding.

@@ -390,6 +390,13 @@ edits, prescribed-ID callbacks delivered 632/632 saved texts from 30 current
 local snapshots exactly; that is neither model selection nor original benchmark
 identity. Browser validation is a separate engineering boundary.
 
+A separate [backend paid controller](saved-source-paid-controller.md) prepares
+shared paid-operation admission and durable, code-owned locator receipts. It
+does not connect the existing lab, production API or a provider. The journal
+binds saved identities without duplicating private excerpts; replay and unknown
+acknowledgement are distinct from another selector call. This is billing-boundary
+preparation, not a native result or production admission.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

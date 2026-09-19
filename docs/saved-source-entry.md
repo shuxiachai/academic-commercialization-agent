@@ -28,6 +28,11 @@ those types for this entry. **Paid quota, billing, persistent locator receipts
 and BYOK integration are not implemented.** A local occupancy guard is not a
 paid allowance, token budget or duplicate-intent journal.
 
+A subsequent [backend-only controller](saved-source-paid-controller.md) prepares
+those admission and receipt boundaries separately. It does not change this
+factory, its response envelope or its browser: none of them use that controller.
+The existing run/resume/paper journal remains unchanged.
+
 ## Loader and HTTP interface
 
 New `academic_agent.saved_source_loader` projects bounded UTF-8 JSON directly;
