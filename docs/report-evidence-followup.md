@@ -59,6 +59,24 @@ preserved missing text after a matching selection. The fixed batch is closed;
 do not rerun it. This remains a small synthetic compatibility observation with
 separate context-limited LLM inspection, not unseen accuracy or an online feature.
 
+The next [SLC comparison preparation](prereg-2026-09-19-public-source-search-comparison.md)
+uses twenty ID/title entries from an already public battery report. Original
+saved summaries are unavailable; report prose is not substituted for them.
+Run `uv run python -m academic_agent.report_evidence_source_locator_comparison`
+to observe the unchanged Sources JavaScript filter through the existing minimal
+DOM harness. This is offline behavior observation, not real-browser layout or
+user-study evidence. The two conditions are literal whole questions (diagnostic)
+and frozen author-prepared keywords (assisted search). Candidate-set coverage
+and uniqueness remain separate; multiple acceptable hits are not a failure.
+Model evaluation remains `not_run`, and this preparation grants no paid or
+production admission.
+
+The [SLC baseline result](results-2026-09-19-public-source-search-baseline.md)
+observed the prepared keyword hit sets for all six cases, including a valid
+two-candidate set. This does not include the user's cost of preparing those
+keywords and does not compare a model. The CLI reports model `not_run` and
+null benefit; whole-question literal misses are diagnostic only.
+
 ## Separate offline claim-relation contract
 
 The [read-first successor](prereg-2026-09-18-read-first-followup.md) separately

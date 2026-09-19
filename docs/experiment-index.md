@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-19 SLC public-title comparison preregistration](prereg-2026-09-19-public-source-search-comparison.md) and [observed baseline](results-2026-09-19-public-source-search-baseline.md): six new questions over twenty public bibliography titles; assisted keywords cover all five positive-reference cases, with four unique and one valid pair. Whole-question misses are diagnostic, unavailable states stay explicit, and the model lane is not run.
+
 - [2026-09-19 SLQ native source-location result](results-2026-09-19-source-locator-qwen-canary.md): four native requests, 4/4 mechanical and 4/4 development-reference checks, USD 0.001656723 reported-use estimate; explicit decline/missing text preserved, separate LLM inspection, closed synthetic batch and no production activation.
 
 - [2026-09-19 SLQ synthetic locator preregistration](prereg-2026-09-19-source-locator-qwen-canary.md): four newly frozen title-selection/decline/missing-text controls, separate code-owned delivery and reference gates, one fixed four-request/USD 0.05 batch; preparation is not native success or production admission.

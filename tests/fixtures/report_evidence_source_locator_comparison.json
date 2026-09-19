@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "cohort_id": "public_bibliography_title_lookup_development_v1",
+  "source_report": "examples/solid-state-batteries-ev.md",
+  "source_report_sha256_lf": "8fac15788439fecf6a6fbdcd32e4aea069ad8cfbb721aa54bd3abd8a8ee984cd",
+  "catalog_origin": "public_report_reference_title_projection_not_original_registry",
+  "saved_text_status": "unavailable_in_public_input",
+  "keyword_origin": "author_prepared_before_observation_not_measured_user_queries",
+  "reference_status": "llm_label_blinded_title_scope_review_not_human_gold",
+  "observer_assets": [
+    {
+      "path": "tests/js/source_browser_contract.mjs",
+      "sha256_lf": "54cbb9a989ce6681ee0fca092441371c44617abdc76a8837d04d92647b928dca"
+    },
+    {
+      "path": "web/static/js/result.js",
+      "sha256_lf": "575b6ba17de6660575369f08d271889e788570059d1823cdfe28f13f773b4650"
+    },
+    {
+      "path": "web/static/js/i18n.js",
+      "sha256_lf": "1010e034767fee6829bcad0bd709cbe7784e7c024db62108e64c482790de958d"
+    }
+  ],
+  "catalog": [
+    {
+      "source_id": "A1",
+      "title": "Advancements in Solid-State Batteries for Electric Vehicles: A Comprehensive Review"
+    },
+    {
+      "source_id": "A2",
+      "title": "HELENA project: Driving innovation in high energy density Li-metal halide solid-state batteries for electric vehicles and aircrafts"
+    },
+    {
+      "source_id": "A3",
+      "title": "Recent progress and challenges for manufacturing and operating solid-state batteries for electric vehicles"
+    },
+    {
+      "source_id": "A4",
+      "title": "Smart Modelling and Predictive Control of Solid-State Batteries for Electric Vehicles using Machine Learning-Driven Thermal and Discharge Optimization"
+    },
+    {
+      "source_id": "P1",
+      "title": "Movable solid-state battery energy storage power supply vehicle"
+    },
+    {
+      "source_id": "P2",
+      "title": "SOC calibration method and system for solid-state battery of electric vehicle"
+    },
+    {
+      "source_id": "P3",
+      "title": "Solid-state single battery, solid-state battery pack and electric equipment"
+    },
+    {
+      "source_id": "P4",
+      "title": "Lightweight solid-state battery box and system for electric vehicle"
+    },
+    {
+      "source_id": "P5",
+      "title": "All-solid-state battery system, vehicle, and control method of all-solid-state battery"
+    },
+    {
+      "source_id": "P6",
+      "title": "Integrated solid-state battery pack and pure electric vehicle"
+    },
+    {
+      "source_id": "P7",
+      "title": "SOLID-STATE BATTERY WITH MULTILAYER SOLID-STATE ELECTROLYTE"
+    },
+    {
+      "source_id": "P8",
+      "title": "ALL-SOLID-STATE BATTERY SYSTEM, VEHICLE INCLUDING SAME, AND CONTROL METHOD FOR ALL-SOLID-STATE BATTERY"
+    },
+    {
+      "source_id": "M1",
+      "title": "Electric vehicle batteries – Global EV Outlook 2025 – Analysis - IEA"
+    },
+    {
+      "source_id": "M2",
+      "title": "Solid State Batteries To Revolutionize EV Industry - ISI Markets"
+    },
+    {
+      "source_id": "M3",
+      "title": "Electric Vehicle Solid State Battery Market Size, Growth 2035"
+    },
+    {
+      "source_id": "M4",
+      "title": "Solid-State Battery Market Size, Share & Trends - MarketsandMarkets"
+    },
+    {
+      "source_id": "M5",
+      "title": "Solid State Battery Market Size & Share Report, 2026- 2033"
+    },
+    {
+      "source_id": "M6",
+      "title": "Solid-State Battery Market Size, Share, Growth | Forecast [2034]"
+    },
+    {
+      "source_id": "M7",
+      "title": "Top 10 Solid State Battery Companies in 2026"
+    },
+    {
+      "source_id": "M8",
+      "title": "Solid State Battery Market Size to Surpass USD 2773.36 Million by ..."
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SLC01",
+      "question": "Locate the reference describing the HELENA project for batteries in electric vehicles and aircraft.",
+      "keyword_query": "HELENA",
+      "acceptable_source_ids": [
+        "A2"
+      ],
+      "reference_kind": "matching_title"
+    },
+    {
+      "case_id": "SLC02",
+      "question": "请定位使用机器学习对固态电池进行热管理与放电预测控制的学术来源。",
+      "keyword_query": "Machine Learning",
+      "acceptable_source_ids": [
+        "A4"
+      ],
+      "reference_kind": "matching_title"
+    },
+    {
+      "case_id": "SLC03",
+      "question": "Locate the listed reference whose title explicitly concerns a multilayer solid-state electrolyte.",
+      "keyword_query": "multilayer",
+      "acceptable_source_ids": [
+        "P7"
+      ],
+      "reference_kind": "matching_title"
+    },
+    {
+      "case_id": "SLC04",
+      "question": "Locate a listed patent reference about an all-solid-state battery system, its vehicle, and control method.",
+      "keyword_query": "all-solid-state battery",
+      "acceptable_source_ids": [
+        "P5",
+        "P8"
+      ],
+      "reference_kind": "matching_title"
+    },
+    {
+      "case_id": "SLC05",
+      "question": "请定位这份目录中来源代码为 [M1] 的条目。",
+      "keyword_query": "[m1]",
+      "acceptable_source_ids": [
+        "M1"
+      ],
+      "reference_kind": "matching_title"
+    },
+    {
+      "case_id": "SLC06",
+      "question": "Locate a listed reference specifically about enzymatic recycling of polyethylene terephthalate (PET).",
+      "keyword_query": "enzymatic",
+      "acceptable_source_ids": [],
+      "reference_kind": "no_matching_title"
+    }
+  ]
+}

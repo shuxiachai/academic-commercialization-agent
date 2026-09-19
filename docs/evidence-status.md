@@ -349,6 +349,19 @@ consumption was USD 0.044597248, not an invoice. Separate label-blinded LLM
 inspection supported the narrow location/delivery observations. The batch is
 closed; this is neither independent accuracy nor production admission.
 
+A [public-bibliography comparison](prereg-2026-09-19-public-source-search-comparison.md)
+now prepares six fresh questions over twenty historical public ID/title entries,
+without reconstructing unavailable saved abstracts. It observes the shipped
+Sources filter under a minimal DOM, separating whole-question diagnostics from
+author-assisted keyword queries and set coverage from unique hits. The twelve
+paired condition observations are not twelve independent samples. No model
+comparison or production admission follows from this offline preparation.
+The [observed keyword baseline](results-2026-09-19-public-source-search-baseline.md)
+found acceptable titles for 5/5 positive cases (four unique, one valid pair),
+and no titles for its one no-fit control. Author-supplied queries and whole-
+question diagnostic misses cannot establish a model advantage or human savings;
+the model lane remains `not_run` with null quality/benefit and no provider calls.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and
