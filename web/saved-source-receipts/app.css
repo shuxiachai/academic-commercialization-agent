@@ -1,0 +1,34 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #192d35; background: #f3f6f5; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 900px; margin: 0 auto; padding: 32px 24px 50px; }
+h1 { margin: 6px 0 12px; font-size: 2rem; }
+h2 { font-size: 1.2rem; margin: 0 0 12px; }
+h3 { font-size: 1rem; }
+p { line-height: 1.65; }
+.eyebrow { font-size: .75rem; letter-spacing: .14em; color: #42655c; }
+.notice { background: #e7f0ec; border-left: 4px solid #387060; padding: 12px 16px; margin: 22px 0; }
+.notice p { margin: 6px 0; }
+form, .recovery, #receipt, #result { padding: 20px; margin-top: 20px; background: white; border: 1px solid #d6e1dc; border-radius: 8px; }
+label { display: block; margin: 14px 0 7px; font-weight: 600; }
+label span, .hint, footer { color: #51656c; font-size: .88rem; font-weight: 400; }
+label span { display: block; margin-top: 4px; }
+input:not([type=checkbox]), textarea { width: 100%; border: 1px solid #9bacaa; border-radius: 5px; padding: 10px; font: inherit; color: inherit; background: white; }
+textarea { resize: vertical; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+button { border: 1px solid #235c4d; border-radius: 5px; padding: 10px 14px; font: inherit; background: #235c4d; color: white; cursor: pointer; }
+button.secondary { background: white; color: #235c4d; }
+button:disabled { opacity: .48; cursor: not-allowed; }
+:focus-visible { outline: 3px solid #b67925; outline-offset: 3px; }
+.risk { font-weight: 400; font-size: .88rem; line-height: 1.6; }
+.risk input { accent-color: #235c4d; }
+#request-status { padding: 12px 0; overflow-wrap: anywhere; }
+[data-kind=error] { color: #9c2c1e; }
+.context, pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+pre { padding: 16px; background: #f4f7f6; border: 1px solid #dae3df; line-height: 1.6; font-size: .86rem; tab-size: 4; }
+dl { display: grid; grid-template-columns: minmax(80px, 120px) 1fr; gap: 8px 14px; }
+dt { font-weight: 600; } dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+details { margin-top: 18px; } summary { cursor: pointer; }
+footer { margin-top: 28px; }
+[hidden] { display: none !important; }
+@media (max-width: 560px) { main { padding: 20px 12px; } form, .recovery, #receipt, #result { padding: 15px; } h1 { font-size: 1.65rem; } }

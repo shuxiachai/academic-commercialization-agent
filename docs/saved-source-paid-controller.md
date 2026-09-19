@@ -1,8 +1,9 @@
 # Prepared saved-source admission and receipts
 
-This is a backend-only, default-disabled controller for the isolated saved-source
-locator. It is not connected to `api.main`, the isolated browser app or any native
-provider. It accepts no BYOK key and does not discover a provider credential.
+This is a default-disabled backend controller for the isolated saved-source
+locator. It is not connected to `api.main` or any native provider. A separate
+[receipt entry](saved-source-receipt-entry.md) wraps it in its own isolated HTTP
+app/browser. It accepts no BYOK key and does not discover a provider credential.
 The original lab remains an injected-callback demonstration without billing.
 
 ## Why a separate receipt
@@ -37,7 +38,8 @@ selector_identity=None)` has asynchronous `execute(key, run_id, question,
 access_code)`, `lookup(key, access_code)` and `close()` methods. A trusted injected
 selector needs an explicit configuration identity; this string is not an
 independent attestation of the callback or its model. Disabling execution keeps
-lookup available for already-recorded outcomes. No HTTP mapping is provided.
+lookup available for already-recorded outcomes. The controller itself has no
+HTTP mapping; the separate receipt entry preserves its full observation contract.
 
 A receipt reserves the intent before work can reach shared admission. Its
 keyed fingerprint binds the exact question, report ID, payer and selector
@@ -104,9 +106,9 @@ observation, expiry and storage faults. Re-injected defects must make the named
 regressions fail before the exact fix is restored. Complete regression, latest
 Ruff, narrow Pylint and independent review remain release gates.
 
-These tests do not enable production Tool Calling. HTTP receipt projection,
-browser acknowledgement recovery, a native adapter with fresh credential and
-cost bounds, and explicit activation/data-transfer authority remain separate.
+These tests do not enable production Tool Calling. The separate HTTP/browser
+receipt entry has its own delivery tests; a native adapter with fresh credential
+and cost bounds, plus explicit activation/data-transfer authority, remain separate.
 Capacity is shared only inside one process; this is not distributed scheduling,
 provider exactly-once execution or a statement of user benefit. Rollback must
 disable new work, drain threads and preserve the journal, not delete it to retry.

@@ -137,6 +137,11 @@ jobs:
         # fixture callback, not a provider; existing smoke guards stay intact.
         run: uv run --python 3.12 --group e2e python -m e2e.saved_source_smoke
 
+      - name: Recover isolated saved-source receipts after a lost acknowledgement
+        # Real loopback POST/GET traverses the controller and journal; only a
+        # scripted selector is injected. This does not mount a production route.
+        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_receipt_smoke
+
       - name: Upload the failure screenshot
         if: failure()
         uses: actions/upload-artifact@v6

@@ -602,7 +602,7 @@ assert not any(name in sys.modules for name in forbidden)
     assert "saved-source-lab" not in production
 
 
-def _production_absence_probe(tmp_path, *, inject_post=False, check_filesystem=False):
+def _production_absence_probe(tmp_path, *, inject_post=False, check_filesystem=False, receipt_probe="none"):
     """Import the real production app in a credential-free, disposable process."""
     script = r'''
 import asyncio
@@ -707,6 +707,20 @@ async def assert_absent(app):
             reply = await client.get(path)
             assert reply.status_code == 404
             assert reply.json() == {"detail": "Not Found"}
+        if sys.argv[5] != "none":
+            reply = await client.get("/api/saved-source-receipts")
+            assert reply.status_code == 404, f"production receipt GET status: {reply.status_code}"
+            assert reply.json() == {"detail": "Not Found"}
+            scope = {"type": "http", "method": "GET", "path": "/api/saved-source-receipts", "root_path": ""}
+            assert not any(route.matches(scope)[0] is Match.FULL for route in app.routes)
+            assert b"receipt-static" not in page.content
+            for path in ("/saved-source-receipts/", "/receipt-static/index.html", "/receipt-static/app.js",
+                         "/receipt-static/result.js", "/receipt-static/app.css"):
+                reply = await client.get(path)
+                assert reply.status_code == 404, f"production receipt asset status: {reply.status_code}"
+                assert reply.json() == {"detail": "Not Found"}
+            assert "api.saved_source_receipt_app" not in sys.modules
+            assert "api.saved_source_controller" not in sys.modules
     assert "api.saved_source_app" not in sys.modules
     assert not any(name.startswith("academic_agent.report_evidence_source_locator_qwen") for name in sys.modules)
     assert not attempts, attempts
@@ -720,6 +734,19 @@ async def scenario():
             print("injected POST handler reached", flush=True)
             return {"fake": "registered"}
         app.add_api_route(url.replace(sys.argv[4], "{run_id}"), fake_post, methods=["POST"])
+    if sys.argv[5] == "get":
+        async def fake_receipt():
+            print("injected receipt GET reached", flush=True)
+            return {"fake": "receipt"}
+        app.add_api_route("/api/saved-source-receipts", fake_receipt, methods=["GET"])
+    elif sys.argv[5] == "static":
+        from starlette.staticfiles import StaticFiles
+        assets = temporary / "receipt-assets"
+        assets.mkdir()
+        for name in ("index.html", "app.js", "result.js", "app.css"):
+            (assets / name).write_text("synthetic receipt asset", encoding="utf-8")
+        app.mount("/receipt-static", StaticFiles(directory=assets), name="synthetic-receipt-static")
+        print("injected receipt static mounted", flush=True)
     await assert_absent(app)
 
 # Construct only asyncio's own self-pipe before blocking socket activity (the
@@ -755,7 +782,7 @@ with asyncio.Runner() as runner:
     })
     return subprocess.run(
         [sys.executable, "-I", "-B", "-X", "utf8", "-c", script, str(Path(__file__).resolve().parents[1]), URL,
-         "filesystem" if check_filesystem else "inject" if inject_post else "absent", RUN_ID],
+         "filesystem" if check_filesystem else "inject" if inject_post else "absent", RUN_ID, receipt_probe],
         cwd=tmp_path, env=environment, capture_output=True, text=True, encoding="utf-8", timeout=90, check=False,
     )
 
