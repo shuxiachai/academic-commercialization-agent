@@ -324,6 +324,14 @@ The [observed SLC baseline](docs/results-2026-09-19-public-source-search-baselin
 covers 5/5 positive references with assisted keywords; four are unique and one
 has two valid candidates. Model comparison is still `not_run`, not a model win.
 
+The separate [SLCQ native comparison](docs/prereg-2026-09-19-public-source-locator-qwen-comparison.md)
+binds those same six questions/public titles to a fresh six-request/USD 0.10
+batch. Preserve set-valued references, missing-text delivery and distinct refusal;
+identity-only preparation is not a native result or production admission.
+Use the [pre-live hash erratum](docs/erratum-2026-09-19-slc-baseline-encoding.md):
+the SLCQ gate binds unmodified Python JSON, not the historically recorded
+integer-normalized encoding. Do not silently admit both hashes.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live

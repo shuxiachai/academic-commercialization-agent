@@ -362,6 +362,18 @@ and no titles for its one no-fit control. Author-supplied queries and whole-
 question diagnostic misses cannot establish a model advantage or human savings;
 the model lane remains `not_run` with null quality/benefit and no provider calls.
 
+The separate [SLCQ native protocol](prereg-2026-09-19-public-source-locator-qwen-comparison.md)
+prepares a comparison on the same six questions and public-title scope, with a
+fresh fixed output, six-request/USD 0.10 ceiling and first-failure stop. It does
+not rewrite SLC's historical model lane or send unavailable original summaries.
+An acceptable selection with `missing_text` remains location, not evidence
+delivery; refusal is not successful no-fit abstention. No native outcome is
+established by this preparation.
+The [baseline encoding erratum](erratum-2026-09-19-slc-baseline-encoding.md)
+retains the earlier hash and its missing normalization qualifier while binding
+the new runner to the directly reproducible, unmodified Python-output identity.
+The baseline hit sets and references did not change.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

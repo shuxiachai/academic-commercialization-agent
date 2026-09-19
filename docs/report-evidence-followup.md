@@ -77,6 +77,19 @@ two-candidate set. This does not include the user's cost of preparing those
 keywords and does not compare a model. The CLI reports model `not_run` and
 null benefit; whole-question literal misses are diagnostic only.
 
+A [separate SLCQ comparison](prereg-2026-09-19-public-source-locator-qwen-comparison.md)
+binds the same questions and twenty public titles to the unchanged selector.
+Run `uv run python -m academic_agent.report_evidence_source_locator_comparison_qwen`
+with `--expected-commit` and `--expected-fixture-sha256` for identity-only checks.
+The default reads no key and creates no batch. The separate native scope is at
+most six sequential calls and USD 0.10, with first-failure stop and no retries.
+Original summaries stay absent: selecting an ID produces `missing_text`, not
+verified evidence. Prepared keyword candidate sets remain the primary baseline;
+this protocol does not establish model benefit or activate a public route.
+Its [pre-live encoding correction](erratum-2026-09-19-slc-baseline-encoding.md)
+is part of the execution identity; the old normalized hash is provenance only,
+not an alternative way to pass the new baseline gate.
+
 ## Separate offline claim-relation contract
 
 The [read-first successor](prereg-2026-09-18-read-first-followup.md) separately
