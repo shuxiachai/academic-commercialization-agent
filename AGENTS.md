@@ -315,6 +315,12 @@ SLQ is now [closed after four native synthetic controls passed](docs/results-202
 This is one-selection compatibility and development-reference agreement, not
 unseen accuracy or production admission. Do not reopen its occupied output.
 
+The [SLC public-title comparison](docs/prereg-2026-09-19-public-source-search-comparison.md)
+reuses the unchanged Sources observer on a public bibliography, not private
+saved-source text. Preserve exact assisted queries, set-valued references,
+explicit unavailable observations and the `not_run` model lane; neither long-
+question zero hits nor multiple acceptable candidates prove a model advantage.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live
