@@ -336,6 +336,12 @@ SLCQ is now [closed after six native cases](docs/results-2026-09-19-public-sourc
 no-fit dispositions. Five reads delivered no text; title location is not
 evidence support, measured user benefit or production Tool Calling.
 
+The [isolated saved-source entry](docs/saved-source-entry.md) has its own app
+factory, loader and browser assets; it is not mounted in api.main. Preserve
+default-disabled selection, read-capability confinement, actual-thread slot
+ownership and explicit billing/receipt non-integration. No provider or paid
+quota is enabled by its scripted browser tests.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live

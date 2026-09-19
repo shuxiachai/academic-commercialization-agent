@@ -132,6 +132,11 @@ jobs:
         # cover submit/upload races without relaxing the read-only journey.
         run: uv run --python 3.12 --group e2e python -m e2e.composer_smoke
 
+      - name: Exercise the isolated saved-source entry with a scripted selector
+        # A separate unmounted app owns this POST journey. Its selector is a
+        # fixture callback, not a provider; existing smoke guards stay intact.
+        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_smoke
+
       - name: Upload the failure screenshot
         if: failure()
         uses: actions/upload-artifact@v6
