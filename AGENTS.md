@@ -322,7 +322,19 @@ explicit unavailable observations and the `not_run` model lane; neither long-
 question zero hits nor multiple acceptable candidates prove a model advantage.
 The [observed SLC baseline](docs/results-2026-09-19-public-source-search-baseline.md)
 covers 5/5 positive references with assisted keywords; four are unique and one
-has two valid candidates. Model comparison is still `not_run`, not a model win.
+has two valid candidates. Its historical model lane remains `not_run`.
+
+The separate [SLCQ native comparison](docs/prereg-2026-09-19-public-source-locator-qwen-comparison.md)
+binds those same six questions/public titles to a fresh six-request/USD 0.10
+batch. Preserve set-valued references, missing-text delivery and distinct refusal;
+identity-only preparation is not a native result or production admission.
+Use the [pre-live hash erratum](docs/erratum-2026-09-19-slc-baseline-encoding.md):
+the SLCQ gate binds unmodified Python JSON, not the historically recorded
+integer-normalized encoding. Do not silently admit both hashes.
+SLCQ is now [closed after six native cases](docs/results-2026-09-19-public-source-locator-qwen-comparison.md):
+6/6 mechanical/reference checks, matching the assisted baseline's positive and
+no-fit dispositions. Five reads delivered no text; title location is not
+evidence support, measured user benefit or production Tool Calling.
 
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
