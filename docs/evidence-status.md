@@ -373,6 +373,14 @@ The [baseline encoding erratum](erratum-2026-09-19-slc-baseline-encoding.md)
 retains the earlier hash and its missing normalization qualifier while binding
 the new runner to the directly reproducible, unmodified Python-output identity.
 The baseline hit sets and references did not change.
+The [separate native SLCQ result](results-2026-09-19-public-source-locator-qwen-comparison.md)
+completed six requests and 6/6 mechanical/reference checks, with five acceptable
+locations and one explicit decline. The assisted baseline also passed; native
+selection reduced the valid patent pair to P5 without proving human savings.
+Five reads returned missing text and delivered zero evidence. Reported-use
+estimate was USD 0.004639290, reservation consumption USD 0.066895872; separate
+blind LLM inspection supports only title location. The batch is closed and no
+production route is enabled.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources

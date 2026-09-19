@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-19 SLCQ native comparison result](results-2026-09-19-public-source-locator-qwen-comparison.md): six native requests and 6/6 mechanical/reference checks, five valid title locations and one explicit decline; assisted keywords also succeed, five reads deliver no text, USD 0.004639290 reported-use estimate. Closed batch, no quality superiority or production activation.
+
 - [2026-09-19 SLCQ native comparison preregistration](prereg-2026-09-19-public-source-locator-qwen-comparison.md) and [pre-live baseline encoding erratum](erratum-2026-09-19-slc-baseline-encoding.md): same six frozen questions and public-title scope as SLC, separate six-request/USD 0.10 batch, set-valued reference gates and explicit missing-text delivery; preparation is not a native outcome.
 
 - [2026-09-19 SLC public-title comparison preregistration](prereg-2026-09-19-public-source-search-comparison.md) and [observed baseline](results-2026-09-19-public-source-search-baseline.md): six new questions over twenty public bibliography titles; assisted keywords cover all five positive-reference cases, with four unique and one valid pair. Whole-question misses are diagnostic, unavailable states stay explicit, and the model lane is not run.

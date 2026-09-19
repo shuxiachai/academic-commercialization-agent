@@ -90,6 +90,13 @@ Its [pre-live encoding correction](erratum-2026-09-19-slc-baseline-encoding.md)
 is part of the execution identity; the old normalized hash is provenance only,
 not an alternative way to pass the new baseline gate.
 
+The [completed SLCQ batch](results-2026-09-19-public-source-locator-qwen-comparison.md)
+passed all six native mechanical/reference checks. Five selections were valid
+locations with missing saved text, and one question explicitly declined. The
+assisted keyword baseline also succeeded, so this is not a quality or time-
+savings win. Its fixed output is occupied and closed; do not run it again.
+No online follow-up endpoint or general claim-support validation follows.
+
 ## Separate offline claim-relation contract
 
 The [read-first successor](prereg-2026-09-18-read-first-followup.md) separately
