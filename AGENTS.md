@@ -342,6 +342,14 @@ default-disabled selection, read-capability confinement, actual-thread slot
 ownership and explicit billing/receipt non-integration. No provider or paid
 quota is enabled by its scripted browser tests.
 
+The separate [prepared paid controller](docs/saved-source-paid-controller.md)
+adds backend-only shared admission and a distinct locator receipt journal.
+It is not wired into that app, the browser or a native provider. Keep current-code
+authorization separate from the report read capability; pending/unknown receipts
+cannot redispatch, and replay cannot manufacture new callback facts. Dedicated
+thread leases remain occupied through physical exit. Do not generalize the old
+run/resume/paper receipt schema or copy private source text into the new journal.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live

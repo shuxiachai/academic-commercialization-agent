@@ -353,6 +353,22 @@ _stop_claims: dict[str, _Handle] = {}
 # context manager; the bool records whether it consumes the BYOK share.
 _inline_paid_operations: dict[object, bool] = {}
 
+
+@dataclass(frozen=True)
+class _ThreadPaidToken:
+    """A dedicated thread, not its target or an asyncio waiter, owns this slot."""
+
+    thread: threading.Thread
+
+
+def _prune_thread_paid_operations_locked() -> None:
+    # Ordinary inline tokens retain their existing context-manager lifetime.
+    # A thread's target can return before Thread.run actually exits; only an
+    # observed physical exit permits reuse of its paid-operation capacity.
+    for token in tuple(_inline_paid_operations):
+        if isinstance(token, _ThreadPaidToken) and not token.thread.is_alive():
+            del _inline_paid_operations[token]
+
 # In-process cache of the durable UTC-day ledger. The atomic file survives an
 # application restart, closing the easiest way to reset a leaked code's wallet
 # cap. _registry_lock makes read/check/write one decision inside this process;
@@ -396,17 +412,20 @@ def active_byok_count() -> int:
 
 def _active_paid_operation_count_locked() -> int:
     """Live worker runs plus inline LLM calls; caller holds _registry_lock."""
+    _prune_thread_paid_operations_locked()
     return active_count() + len(_inline_paid_operations)
 
 
 def _active_byok_paid_operation_count_locked() -> int:
     """The BYOK share across both execution paths; caller holds the lock."""
+    _prune_thread_paid_operations_locked()
     return active_byok_count() + sum(_inline_paid_operations.values())
 
 
 def capacity_counts() -> tuple[int, int]:
     """Atomic (worker runs, all paid operations) capacity snapshot."""
     with _registry_lock:
+        _prune_thread_paid_operations_locked()
         active_runs = active_count()
         return active_runs, active_runs + len(_inline_paid_operations)
 
@@ -626,6 +645,26 @@ def reserve_inline_paid_operation(
     finally:
         with _registry_lock:
             _inline_paid_operations.pop(token, None)
+
+
+def reserve_thread_paid_operation(*, owner: str | None, byok: bool) -> None:
+    """Charge at selector entry; reserve until the calling thread physically exits.
+
+    Call only inside a dedicated, already-started thread, never a reusable
+    executor worker. There is intentionally no release/context-manager API:
+    serialization, durable finalization and post-target exit still own capacity.
+    Failure after admission cannot establish a free provider attempt and does
+    not refund the daily ledger. Existing inline/PDF behavior is unchanged.
+    """
+    thread = threading.current_thread()
+    if thread is threading.main_thread() or not thread.is_alive():
+        raise RuntimeError("A live dedicated thread must own paid admission")
+    token = _ThreadPaidToken(thread)
+    with _registry_lock:
+        if token in _inline_paid_operations:
+            raise RuntimeError("This thread already owns paid admission")
+        _admit_paid_operation_locked(owner=owner, byok=byok)
+        _inline_paid_operations[token] = byok
 
 
 def run_dir_for(run_id: str) -> Path:
