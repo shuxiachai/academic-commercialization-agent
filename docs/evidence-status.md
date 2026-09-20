@@ -401,8 +401,13 @@ preparation, not a native result or production admission.
 The separate [RQ protocol](prereg-2026-09-20-saved-source-receipt-qwen-canary.md)
 prepares two fictional native receipt/browser controls under a fresh two-request
 USD 0.05 ceiling. The old locator/transport and receipt wire remain unchanged;
-first-failure stopping and separate native accounting protect the pilot. No
-live result or production capability follows from offline preparation.
+first-failure stopping and separate native accounting protect the pilot. The
+[closed native result](results-2026-09-20-saved-source-receipt-qwen-canary.md)
+passed 2/2 mechanical/reference gates and actual lost-ack browser recovery,
+without another selector request or daily charge on replay. Known-use estimate
+was USD 0.000799403; HTTP accounting remains unobserved and separate. These
+fictional development controls do not establish real-report value or production
+capability.
 
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
