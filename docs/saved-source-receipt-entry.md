@@ -133,6 +133,11 @@ All four existing/new Chromium journeys and current Ruff/narrow Pylint passed
 again on the reviewed code. These observations do not activate a public route
 or establish provider-level exactly-once behavior.
 
+The later [RQ protocol](prereg-2026-09-20-saved-source-receipt-qwen-canary.md)
+composes this unchanged factory with a fixed-case native selector in a separate
+synthetic runner. It adds no provider configuration or public activation to this
+page; its native accounting remains separate from the receipt wire fields.
+
 Final whole-tree regression passed 6,499 tests and 1,578 subtests, compared with
 the 6,325/1,574 starting baseline. This local result and the reviewed source
 identity precede, rather than replace, cross-platform CI and deployment checks.

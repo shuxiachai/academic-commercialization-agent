@@ -398,6 +398,12 @@ binds saved identities without duplicating private excerpts; replay and unknown
 acknowledgement are distinct from another selector call. This is billing-boundary
 preparation, not a native result or production admission.
 
+The separate [RQ protocol](prereg-2026-09-20-saved-source-receipt-qwen-canary.md)
+prepares two fictional native receipt/browser controls under a fresh two-request
+USD 0.05 ceiling. The old locator/transport and receipt wire remain unchanged;
+first-failure stopping and separate native accounting protect the pilot. No
+live result or production capability follows from offline preparation.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

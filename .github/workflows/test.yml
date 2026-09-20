@@ -142,6 +142,11 @@ jobs:
         # scripted selector is injected. This does not mount a production route.
         run: uv run --python 3.12 --group e2e python -m e2e.saved_source_receipt_smoke
 
+      - name: Rehearse the receipt Qwen boundary with intercepted provider responses
+        # Default module mode is fake-key/zero-provider Chromium, never the paid
+        # CLI. It traverses the real selector transport, HTTP app and receipts.
+        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_receipt_qwen_canary
+
       - name: Upload the failure screenshot
         if: failure()
         uses: actions/upload-artifact@v6

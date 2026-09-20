@@ -355,6 +355,14 @@ redispatch. Preserve explicit GET recovery, request/identity generation checks,
 failed-storage blocking and exact response-field delivery. No production mount
 or model activation follows from this isolated integration.
 
+The separate [RQ synthetic native protocol](docs/prereg-2026-09-20-saved-source-receipt-qwen-canary.md)
+composes the unchanged native locator with the receipt app only in a dedicated
+fixed-case browser runner. Keep its two-request/USD 0.05 aggregate gate, fresh
+occupied-output refusal, exact code/fixture identity and first-failure stop.
+Identity-only CLI and offline browser rehearsal cannot read a real provider key.
+The HTTP usage/cost fields remain unobserved; native accounting is a separate
+side ledger. This is not a generic provider factory or public feature switch.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live
