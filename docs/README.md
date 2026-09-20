@@ -20,6 +20,8 @@
 | What does the isolated saved-source HTTP/browser entry protect? | [Saved-source entry contract](saved-source-entry.md) |
 | How is saved-source paid admission prepared without activating it? | [Backend controller and receipts](saved-source-paid-controller.md) |
 | How does the isolated receipt page recover a lost acknowledgement? | [Receipt HTTP/browser contract](saved-source-receipt-entry.md) |
+| How is a native Qwen receipt trial bounded? | [RQ synthetic preregistration](prereg-2026-09-20-saved-source-receipt-qwen-canary.md) |
+| What did the native receipt/browser trial actually verify? | [RQ result and limits](results-2026-09-20-saved-source-receipt-qwen-canary.md) |
 | How are new semantic reviews performed without human sign-off? | [LLM-only review policy](llm-review-policy.md) |
 | Where is the full experimental history? | [Experiment index](experiment-index.md) |
 

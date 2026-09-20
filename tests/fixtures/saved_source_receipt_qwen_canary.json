@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "protocol_identity": "saved_source_receipt_qwen_canary_v1",
+  "scope": "fictional_development_controls_not_unseen_or_human_gold",
+  "cases": [
+    {
+      "case_id": "RQ01",
+      "run_id": "20260920T000000Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "question": "Which saved source describes how the fictional Amber fixture records the time of an impact event?",
+      "sources": [
+        {
+          "source_id": "A11",
+          "title": "Fictional Amber fixture: crush response and rebound of an impact-energy absorber",
+          "group": "academic",
+          "publisher": "Fictional fixture; not a real institution",
+          "source_type": "synthetic_development_control",
+          "url": null,
+          "doi": null,
+          "published_date": null,
+          "accessed_date": "synthetic-not-observed",
+          "summary": "Fictional absorber note only: this control describes crush response and rebound, not event timestamp storage.",
+          "origin": "unknown"
+        },
+        {
+          "source_id": "A12",
+          "title": "Fictional Amber fixture: impact-event timestamp logger and stored record layout",
+          "group": "academic",
+          "publisher": "Fictional fixture; not a real institution",
+          "source_type": "synthetic_development_control",
+          "url": null,
+          "doi": null,
+          "published_date": null,
+          "accessed_date": "synthetic-not-observed",
+          "summary": "Fictional bench record only.\r\n  The Amber fixture stores an impact event timestamp in each local event record.\nLiteral marker: <b>RQ01_LOCAL_ONLY</b> 中文🙂 é\nNot a real research result.  ",
+          "origin": "unknown"
+        },
+        {
+          "source_id": "P13",
+          "title": "Fictional Blue fixture: rotary locking latch for a folding frame",
+          "group": "patent",
+          "publisher": "Fictional fixture; not a real institution",
+          "source_type": "synthetic_development_control",
+          "url": null,
+          "doi": null,
+          "published_date": null,
+          "accessed_date": "synthetic-not-observed",
+          "summary": "Fictional latch note only: the Blue frame uses a rotary locking latch. This is not an actual patent.",
+          "origin": "unknown"
+        }
+      ],
+      "reference": {
+        "source_id": "A12",
+        "state": "excerpt",
+        "reason": "saved_text",
+        "read_attempts": 1,
+        "read_completed": 1
+      }
+    },
+    {
+      "case_id": "RQ02",
+      "run_id": "20260920T000001Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "question": "Which listed source describes a calibration method for a methane leak sensor?",
+      "sources": [
+        {
+          "source_id": "A21",
+          "title": "Fictional paperclip sorting tray: numbered compartment labels",
+          "group": "academic",
+          "publisher": "Fictional fixture; not a real institution",
+          "source_type": "synthetic_development_control",
+          "url": null,
+          "doi": null,
+          "published_date": null,
+          "accessed_date": "synthetic-not-observed",
+          "summary": "Fictional tray note only: numbered compartments separate paperclips.",
+          "origin": "unknown"
+        },
+        {
+          "source_id": "A22",
+          "title": "Fictional library book-return timer: elapsed-time display",
+          "group": "academic",
+          "publisher": "Fictional fixture; not a real institution",
+          "source_type": "synthetic_development_control",
+          "url": null,
+          "doi": null,
+          "published_date": null,
+          "accessed_date": "synthetic-not-observed",
+          "summary": "Fictional timer note only: a display shows elapsed book-return time.",
+          "origin": "unknown"
+        },
+        {
+          "source_id": "P23",
+          "title": "Fictional document folder: push-button release latch",
+          "group": "patent",
+          "publisher": "Fictional fixture; not a real institution",
+          "source_type": "synthetic_development_control",
+          "url": null,
+          "doi": null,
+          "published_date": null,
+          "accessed_date": "synthetic-not-observed",
+          "summary": "Fictional folder note only: a push button releases a latch. This is not an actual patent.",
+          "origin": "unknown"
+        }
+      ],
+      "reference": {
+        "source_id": null,
+        "state": "declined",
+        "reason": "selector_declined",
+        "read_attempts": 0,
+        "read_completed": 0
+      }
+    }
+  ]
+}

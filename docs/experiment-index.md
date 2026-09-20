@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-20 RQ native receipt/browser result](results-2026-09-20-saved-source-receipt-qwen-canary.md): two native selections, 2/2 mechanical/reference gates, exact saved-text/decline delivery and lost-ack recovery without redispatch; USD 0.000799403 reported-use estimate, separate unobserved HTTP accounting, closed synthetic batch and no public activation.
+
+- [2026-09-20 RQ synthetic receipt/browser preregistration](prereg-2026-09-20-saved-source-receipt-qwen-canary.md): two fresh fictional controls, exact-case native binding, two-request/USD 0.05 maximum and receipt recovery through the real isolated browser; preparation is not a native result or production activation.
+
 - [2026-09-19 SLCQ native comparison result](results-2026-09-19-public-source-locator-qwen-comparison.md): six native requests and 6/6 mechanical/reference checks, five valid title locations and one explicit decline; assisted keywords also succeed, five reads deliver no text, USD 0.004639290 reported-use estimate. Closed batch, no quality superiority or production activation.
 
 - [2026-09-19 SLCQ native comparison preregistration](prereg-2026-09-19-public-source-locator-qwen-comparison.md) and [pre-live baseline encoding erratum](erratum-2026-09-19-slc-baseline-encoding.md): same six frozen questions and public-title scope as SLC, separate six-request/USD 0.10 batch, set-valued reference gates and explicit missing-text delivery; preparation is not a native outcome.
