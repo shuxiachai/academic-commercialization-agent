@@ -256,6 +256,19 @@ def _wire_reply(reply, key, *, run_id=None):
 def create_saved_source_receipt_app(*, load_snapshot, journal_root, selector=None, selector_identity=None):
     """Own one controller and drain it on shutdown; execution defaults disabled."""
     controller = SavedSourceController(load_snapshot, journal_root, selector, selector_identity)
+    return _assemble_receipt_app(
+        controller, web_root=_WEB_ROOT, static_prefix="/receipt-static",
+        post_path="/api/runs/{run_id}/saved-source-location", get_path="/api/saved-source-receipts",
+        wire_reply=_wire_reply,
+    )
+
+
+def _assemble_receipt_app(controller, *, web_root, static_prefix, post_path, get_path, wire_reply):
+    """Share ingress and lifetime, not a mutable wire version or paid authority.
+
+    Separate factories supply their serializer and routes; the legacy serializer
+    stays strict, so adding an opt-in observation cannot silently change its API.
+    """
 
     @asynccontextmanager
     async def lifespan(_app):
@@ -281,9 +294,9 @@ def create_saved_source_receipt_app(*, load_snapshot, journal_root, selector=Non
 
     @app.get("/", include_in_schema=False)
     async def index():
-        return FileResponse(_WEB_ROOT / "index.html")
+        return FileResponse(web_root / "index.html")
 
-    app.mount("/receipt-static", StaticFiles(directory=_WEB_ROOT, check_dir=False), name="receipt-static")
+    app.mount(static_prefix, StaticFiles(directory=web_root, check_dir=False), name=static_prefix.strip("/"))
 
     async def handle(request, run_id=None):
         try:
@@ -295,17 +308,17 @@ def create_saved_source_receipt_app(*, load_snapshot, journal_root, selector=Non
                 reply = await controller.lookup(key, code)
             else:
                 reply = await controller.execute(key, run_id, _question(body), code)
-            return _wire_reply(reply, key, run_id=run_id)
+            return wire_reply(reply, key, run_id=run_id)
         except ReceiptError as exc:
             return _error(exc.code)
         except Exception:  # noqa: BLE001 -- never echo rejected values, controller details or private paths.
             return _error("execution_unavailable")
 
-    @app.post("/api/runs/{run_id}/saved-source-location", response_model=None)
+    @app.post(post_path, response_model=None)
     async def locate(run_id: str, request: Request):
         return await handle(request, run_id)
 
-    @app.get("/api/saved-source-receipts", response_model=None)
+    @app.get(get_path, response_model=None)
     async def lookup(request: Request):
         return await handle(request)
 

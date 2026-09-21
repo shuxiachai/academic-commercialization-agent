@@ -123,8 +123,15 @@ or provide a new public endpoint. Existing run/PDF receipt APIs are unchanged.
 Its separate [receipt entry](saved-source-receipt-entry.md) is also an unmounted
 factory, with its own browser and explicit GET recovery after a lost response.
 It stores a random receipt key before submission, not the code or report text;
-uncertain responses do not unlock another POST. There is still no provider
-adapter or public feature flag to activate on Railway.
+uncertain responses do not unlock another POST. The closed RQ experiment used a
+fixed-case native adapter, not a generally configured provider or public feature
+flag to activate on Railway.
+
+The separate [usage delivery entry](saved-source-usage.md) adds an opt-in,
+operation-bound accounting envelope and isolated page. It retains reported token
+counts, unknown observations, estimate basis and reservation as separate facts.
+It does not mount new production routes, discover provider keys or reopen RQ.
+The deployed API table below still describes only the public application.
 
 PDF extraction responses and stored metadata include `input_coverage` with the
 actual scanned/included/truncated/omitted pages and character budget. This is

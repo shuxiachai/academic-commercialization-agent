@@ -1,4 +1,4 @@
-"""Prepared backend only: no HTTP, browser, BYOK or native provider connection.
+"""Isolated backend: explicit opt-in accounting, no provider/key discovery.
 
 Each intent owns a dedicated thread and a separate durable receipt. Admission
 is shared with runs/PDF, but a receipt is not a provider billing observation.
@@ -19,6 +19,9 @@ from academic_agent.report_evidence_source_locator import (
     _expected_read, locate_saved_source, render_locator_result,
 )
 from academic_agent.saved_source_loader import SavedSourceMissing, valid_run_id
+from academic_agent.saved_source_usage import (
+    AccountingError, ExecutionFactsV1, MAX_ACCOUNTING_BYTES, UsageProjectionV1, unavailable_usage,
+)
 from api import access, runs
 from api.saved_source_receipts import (
     Binding, Journal, OPERATION, Projection, ReceiptError, canonical,
@@ -118,15 +121,26 @@ class SavedSourceController:
     identity. Lookup deliberately works when disabled, allowing safe rollback.
     """
 
-    def __init__(self, load_snapshot, journal_root, selector=None, selector_identity=None):
+    def __init__(self, load_snapshot, journal_root, selector=None, selector_identity=None, *,
+                 accounted_selector=None, accounting_store=None):
         if not callable(load_snapshot) or (selector is not None and not callable(selector)):
             raise ValueError("invalid_saved_source_controller")
-        if selector is not None and (type(selector_identity) is not str
+        if selector is not None and accounted_selector is not None:
+            raise ValueError("mutually_exclusive_selectors")
+        if accounted_selector is not None and (
+                not callable(getattr(accounted_selector, "select", None)) or accounting_store is None):
+            raise ValueError("invalid_accounted_selector")
+        if accounting_store is not None and not all(callable(getattr(accounting_store, name, None))
+                                                     for name in ("begin", "observe")):
+            raise ValueError("invalid_accounting_store")
+        if (selector is not None or accounted_selector is not None) and (type(selector_identity) is not str
                 or not 1 <= len(selector_identity) <= 256 or not selector_identity.strip()):
             raise ValueError("invalid_selector_identity")
         self._load_snapshot = load_snapshot
         self._selector = selector
         self._selector_identity = selector_identity
+        self._accounted_selector = accounted_selector
+        self._accounting_store = accounting_store
         self._journal = Journal(journal_root)
         self._gate = threading.RLock()
         self._closed = False
@@ -172,6 +186,18 @@ class SavedSourceController:
             "error_code": record.error_code, "delivery": "not_ready",
             "delivery_snapshot_reads": 0, "delivery_source_reads": 0, "result": None,
         }
+        if self._accounting_store is not None:
+            try:
+                value = self._accounting_store.observe(record)
+                if type(value) is not dict or len(canonical(value).encode("ascii")) > MAX_ACCOUNTING_BYTES:
+                    raise AccountingError()
+                checked = UsageProjectionV1.model_validate(value)
+                if (checked.receipt_key_sha256 != record.key_hash or checked.run_id != record.run_id
+                        or checked.expires_at != record.expires):
+                    raise AccountingError()
+                reply["accounting"] = checked.model_dump(mode="json")
+            except Exception:  # noqa: BLE001 -- accounting delivery faults must not erase a valid saved result.
+                reply["accounting"] = unavailable_usage(record.key_hash, record.run_id, record.expires)
         if record.state != "completed":
             return reply
         if result is not None:
@@ -200,12 +226,32 @@ class SavedSourceController:
         except Exception:  # noqa: BLE001 -- malformed reads/digests are not permission to select again.
             return {**reply, "delivery": "unavailable"}
 
-    def _operate(self, ticket, run_id, question, access_code, owner, intent):
+    def _operate(self, ticket, run_id, question, access_code, owner, intent, claimed):
         admission = "not_admitted"
         admission_error = None
+        observation = None
+        accounted_entries = 0
+
+        def seal(record=None):
+            if observation is not None:
+                try:
+                    observation.seal(ExecutionFactsV1(
+                        receipt_state=record.state if record is not None else "unresolved",
+                        admission_state=record.admission if record is not None else admission,
+                        accounted_selector_entries=accounted_entries,
+                        result_digest=record.projection.result_digest if record is not None and record.projection else None,
+                    ))
+                except Exception:  # noqa: BLE001 -- a sidecar fault cannot overwrite durable receipt truth.
+                    pass
+
+        def finish(record, *, result=None):
+            # This runs on the actual operation thread, before reply publication
+            # and physical lease release, whether or not an HTTP waiter exists.
+            seal(record)
+            return self._observe(record, result=result)
 
         def admitted_selector(request):
-            nonlocal admission, admission_error
+            nonlocal admission, admission_error, accounted_entries
             try:
                 # Revocation during a slow loader must stop before paid entry.
                 current_owner, _ = self._authenticate(access_code)
@@ -230,16 +276,24 @@ class SavedSourceController:
             except ReceiptError as exc:
                 admission_error = exc.code
                 raise
+            if self._accounted_selector is not None:
+                operation = observation.operation
+                accounted_entries += 1
+                return self._accounted_selector.select(request, operation=operation, observation=observation)
             return self._selector(request)
 
         try:
+            if self._accounted_selector is not None:
+                observation = self._accounting_store.begin(claimed)
             try:
                 snapshot = _validated_snapshot(self._load_snapshot(run_id), run_id)
             except SavedSourceMissing:
-                return self._observe(ticket.fail("saved_source_missing", admission=admission))
+                return finish(ticket.fail("saved_source_missing", admission=admission))
             except Exception:  # noqa: BLE001 -- a loader fault is safely classified before any paid callback.
-                return self._observe(ticket.fail("saved_source_unavailable", admission=admission))
-            ticket.bind(_binding(snapshot))
+                return finish(ticket.fail("saved_source_unavailable", admission=admission))
+            bound = ticket.bind(_binding(snapshot))
+            if observation is not None:
+                observation.bind(bound, self._selector_identity)
             result = locate_saved_source(snapshot, question, selector=admitted_selector)
             # The frozen locator intentionally catches callback exceptions.
             # Preserve admission categories out-of-band instead of calling a
@@ -248,18 +302,20 @@ class SavedSourceController:
                 if admission_error not in {"concurrency_limit", "daily_quota_exceeded", "paid_ledger_unavailable",
                                            "access_denied", "request_abandoned"}:
                     raise ReceiptError("receipt_unavailable")
-                return self._observe(ticket.fail(admission_error, admission=admission))
+                return finish(ticket.fail(admission_error, admission=admission))
             projection, delivered = _projection(result)
             record = ticket.complete(projection)
-            return self._observe(record, result=delivered)
+            return finish(record, result=delivered)
         except ReceiptError:
             # A lost durable write stays unresolved. Never overwrite it with a
             # guessed failure/free status, even when no waiter remains.
+            seal()
             raise ReceiptError("receipt_unavailable") from None
         except BaseException:  # Trusted-code SystemExit must settle the future without leaking its content.
             try:
-                return self._observe(ticket.fail("execution_unavailable", admission=admission))
+                return finish(ticket.fail("execution_unavailable", admission=admission))
             except Exception:  # noqa: BLE001 -- failed finalization cannot be reported as a durable failure.
+                seal()
                 raise ReceiptError("receipt_unavailable") from None
 
     def _begin(self, key, run_id, question, access_code, intent):
@@ -268,7 +324,7 @@ class SavedSourceController:
             owner, _ = self._authenticate(access_code)
             if self._closed:
                 raise ReceiptError("controller_closed")
-            if self._selector is None:
+            if self._selector is None and self._accounted_selector is None:
                 raise ReceiptError("selector_disabled")
             if (not valid_run_id(run_id) or type(question) is not str
                     or not 1 <= len(question) <= 4096 or not question.strip()):
@@ -294,7 +350,7 @@ class SavedSourceController:
 
             def worker():
                 try:
-                    future.set_result(self._operate(ticket, run_id, question, access_code, owner, intent))
+                    future.set_result(self._operate(ticket, run_id, question, access_code, owner, intent, record))
                 except BaseException:  # An abandoned waiter must not produce a private thread traceback.
                     future.set_result(ReceiptError("receipt_unavailable"))
 

@@ -141,6 +141,11 @@ Its [closed two-case observation](results-2026-09-20-saved-source-receipt-qwen-c
 passed native selection and real browser lost-ack recovery on fictional data;
 it does not turn this page into a publicly mounted or generally configured service.
 
+The later [usage delivery entry](saved-source-usage.md) uses an explicit new
+envelope around this unchanged receipt contract. Its accounting projection and
+isolated page do not change this original page's unobserved usage fields or
+retroactively add accounting delivery to the RQ observation.
+
 Final whole-tree regression passed 6,499 tests and 1,578 subtests, compared with
 the 6,325/1,574 starting baseline. This local result and the reviewed source
 identity precede, rather than replace, cross-platform CI and deployment checks.

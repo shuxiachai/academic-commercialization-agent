@@ -409,6 +409,12 @@ was USD 0.000799403; HTTP accounting remains unobserved and separate. These
 fictional development controls do not establish real-report value or production
 capability.
 
+The [usage delivery successor](saved-source-usage.md) keeps that historical wire
+unchanged and adds opt-in operation-bound accounting to a separate envelope and
+isolated page. It distinguishes reported use, estimates, reservations and absent
+observations. Its implementation and intercepted tests are not new native results,
+provider invoices, real-report utility or public activation.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

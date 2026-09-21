@@ -119,7 +119,7 @@ export function validError(status, p) {
     && typeof p.error_code === "string" && (safeErrors[status] ?? []).includes(p.error_code);
 }
 // Reject duplicate JSON members too: JSON.parse alone silently keeps the last.
-export function strictJSON(raw) {
+export function strictJSON(raw, { onInvalidNumber } = {}) {
   let pos = 0;
   const fail = () => { throw Error("Invalid response JSON"); };
   const whitespace = () => { while (/[\t\n\r ]/.test(raw[pos] ?? "!") && pos < raw.length) pos++; };
@@ -132,7 +132,7 @@ export function strictJSON(raw) {
     }
     return fail();
   }
-  function value(depth = 0) {
+  function value(depth = 0, path = []) {
     if (depth > 24) return fail();
     whitespace();
     if (raw[pos] === '"') return quoted();
@@ -147,8 +147,8 @@ export function strictJSON(raw) {
           if (raw[pos] !== '"') return fail();
           const key = quoted(); whitespace();
           if (Object.hasOwn(result, key) || raw[pos++] !== ":") return fail();
-          result[key] = value(depth + 1);
-        } else result.push(value(depth + 1));
+          result[key] = value(depth + 1, [...path, key]);
+        } else result.push(value(depth + 1, [...path, result.length]));
         whitespace();
         if (raw[pos] === end) { pos++; return result; }
         if (raw[pos++] !== ",") return fail();
@@ -161,14 +161,20 @@ export function strictJSON(raw) {
     const parsed = JSON.parse(token[0]);
     // This wire contains integer facts only. Preserve strict Python int types
     // instead of accepting 1.0/1e0 after JavaScript has erased that distinction.
-    if (typeof parsed === "number" && (!Number.isSafeInteger(parsed) || /[.eE]/.test(token[0]))) return fail();
+    if (typeof parsed === "number" && (!Number.isSafeInteger(parsed) || /[.eE]/.test(token[0]))) {
+      // An opt-in component may discard an invalid numeric subtree, but never
+      // normalize the token into accepted integer facts. Defaults stay strict;
+      // syntax, duplicate keys, depth and full-input checks still run afterward.
+      if (onInvalidNumber?.(path, token[0]) !== true) return fail();
+      return null;
+    }
     return parsed;
   }
   const result = value(); whitespace();
   if (pos !== raw.length) return fail();
   return result;
 }
-export async function readBody(response) {
+export async function readBody(response, options) {
   if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(response.headers.get("content-type") ?? "")
       || !response.body || typeof response.body.getReader !== "function") throw Error("Invalid response type");
   const reader = response.body.getReader(), chunks = [];
@@ -190,7 +196,7 @@ export async function readBody(response) {
   const bytes = new Uint8Array(size);
   let offset = 0;
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-  return strictJSON(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
+  return strictJSON(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes), options);
 }
 export function clearDisplay(byId) {
   byId("receipt").hidden = true; byId("result").hidden = true; byId("saved-text").hidden = true;

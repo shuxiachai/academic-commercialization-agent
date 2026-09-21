@@ -368,6 +368,12 @@ RQ is now [closed after two native synthetic cases](docs/results-2026-09-20-save
 additional selection or charge on refresh/GET. Native accounting remains separate
 from HTTP unobserved fields. This is not real-report utility or production admission.
 
+The separate [usage delivery contract](docs/saved-source-usage.md) is an opt-in
+accounting successor, not a rewrite of the closed RQ batch. Preserve the legacy
+receipt fields, operation-specific binding, unknown-versus-zero distinction and
+actual-thread finalization. Its versioned HTTP/browser entry stays unmounted;
+intercepted native tests do not authorize a new paid run or real-data transfer.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live

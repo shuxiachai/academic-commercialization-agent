@@ -147,6 +147,11 @@ jobs:
         # CLI. It traverses the real selector transport, HTTP app and receipts.
         run: uv run --python 3.12 --group e2e python -m e2e.saved_source_receipt_qwen_canary
 
+      - name: Verify isolated native usage reaches durable receipts and the browser
+        # Fake-key intercepted HTTP only. The usage page is not mounted in the
+        # public app and this smoke cannot authorize a provider request.
+        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_usage_smoke
+
       - name: Upload the failure screenshot
         if: failure()
         uses: actions/upload-artifact@v6
