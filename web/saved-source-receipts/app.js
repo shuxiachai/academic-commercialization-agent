@@ -2,9 +2,22 @@
 import { runPattern, keyPattern, points, isBlank, keys, strictJSON, readBody,
   validReceipt, validError, clearDisplay, renderReceipt } from "./result.js";
 
+// Only trusted same-origin scripts configure this boot hook. State and actions
+// stay closure-private; a second boot cannot install another submit listener.
+let receiptPageStarted = false;
+globalThis.startSavedSourceReceiptPage = function ({
+  storageName = "saved-source-receipts:v1",
+  postPath = run => `/api/runs/${run}/saved-source-location`,
+  getPath = "/api/saved-source-receipts",
+  readResponse = readBody,
+  decode = payload => ({ receipt: payload }),
+  clearExtra = () => {}, renderExtra = () => {},
+} = {}) {
+if (receiptPageStarted) throw Error("Receipt page already started");
+receiptPageStarted = true;
 const byId = id => document.getElementById(id);
+const clear = () => { clearDisplay(byId); clearExtra(byId); };
 const form = byId("locator-form"), code = byId("access-code"), run = byId("run-id"), question = byId("question");
-const storageName = "saved-source-receipts:v1";
 let receiptKey = null, storageFault = false, generation = 0, busy = false, terminal = false;
 const record = key => JSON.stringify({ version: 1, receipt_key: key });
 const validCode = value => typeof value === "string" && /^[\x20-\x7e]{1,4096}$(?![\s\S])/.test(value) && value.trim().length > 0;
@@ -43,7 +56,7 @@ function checkStorage() {
 }
 function invalidate() {
   generation++; terminal = false; byId("risk").checked = false;
-  clearDisplay(byId); sync();
+  clear(); sync();
   status(busy ? "输入已更改；旧显示失效，原请求仍占用本页。回执不会被清除。" : "输入已更改；没有自动请求，已有回执继续保留。" );
 }
 for (const field of [code, run, question]) field.addEventListener("input", invalidate);
@@ -94,7 +107,7 @@ async function request(recover) {
   const ownedGeneration = ++generation;
   const current = () => generation === ownedGeneration && receiptKey === input.key
     && code.value === input.code && run.value === input.run && question.value === input.question;
-  busy = true; terminal = false; byId("risk").checked = false; clearDisplay(byId); sync();
+  busy = true; terminal = false; byId("risk").checked = false; clear(); sync();
   status(recover ? "正在查询同一回执；不会重新定位。" : "回执已保存，正在提交一次定位；不会自动重试。" );
   let timer;
   const abort = recover ? new AbortController() : null;
@@ -110,8 +123,8 @@ async function request(recover) {
     }
     // Timeout only the read, including its streamed body. Never timeout a POST.
     const transport = async () => {
-      const response = await fetch(recover ? "/api/saved-source-receipts" : `/api/runs/${input.run}/saved-source-location`, options);
-      return { response, payload: await readBody(response) };
+      const response = await fetch(recover ? getPath : postPath(input.run), options);
+      return { response, payload: await readResponse(response) };
     };
     const responseWork = transport();
     const observation = recover ? await Promise.race([responseWork, new Promise((_, reject) => {
@@ -120,11 +133,13 @@ async function request(recover) {
     const { response, payload } = observation;
     if (!current()) return;
     if (response.status === 200) {
-      if (!await validReceipt(payload, input.key, recover ? null : input.run)) throw Error("Invalid receipt response");
+      const decoded = decode(payload);
+      if (!await validReceipt(decoded.receipt, input.key, recover ? null : input.run)) throw Error("Invalid receipt response");
       if (!current()) return;
       checkStorage();
-      renderReceipt(payload, byId, recover);
-      terminal = ["completed", "failed"].includes(payload.state);
+      renderReceipt(decoded.receipt, byId, recover);
+      renderExtra(decoded, byId);
+      terminal = ["completed", "failed"].includes(decoded.receipt.state);
       status(terminal ? "已显示经过格式与身份校验的终态；确认风险后才可结束本地记录。"
         : "回执仍为 pending/unknown；保持阻止新提交。没有自动查询或重试。" );
     } else {
@@ -135,7 +150,7 @@ async function request(recover) {
     }
   } catch {
     if (current()) {
-      clearDisplay(byId); terminal = false;
+      clear(); terminal = false;
       status("请求、响应或校验不可用；服务端可能已经执行。保留回执，只能手动查询，不能重新提交。", "error");
     }
   } finally {
@@ -161,3 +176,10 @@ byId("acknowledge").addEventListener("click", () => {
   }
 });
 sync();
+};
+
+// The legacy page needs no configuration. Only the separately shipped usage
+// page opts out of legacy auto-start before invoking the same state machine.
+if (document.documentElement?.dataset.receiptContract !== "saved_source_receipt_usage_v1") {
+  globalThis.startSavedSourceReceiptPage();
+}

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN" data-receipt-contract="saved_source_receipt_usage_v1">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>保存来源 · 回执与核算</title>
+  <link rel="stylesheet" href="/usage-static/app.css">
+  <script type="module" src="/usage-static/app.js"></script>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">SAVED SOURCE / ISOLATED ACCOUNTING</p>
+    <h1>保存来源 · 回执与核算</h1>
+    <p>一次定位，原样交付。刷新后只查询同一回执，不重新执行。</p>
+  </header>
+  <aside class="notice" aria-label="隔离边界">
+    <strong>隔离入口 · 默认关闭 · 仅服务端显式注入</strong>
+    <p>使用共享操作配额与独立回执；准入不等于实际费用。此页不接收模型密钥，不启用生产 Tool Calling。</p>
+    <p>标题不是证据；保存文本不是已验证全文，也不代表主张已获支持。</p>
+  </aside>
+  <form id="locator-form" novalidate autocomplete="off">
+    <label for="access-code">访问码 <span>仅当前页面内存；刷新后重新输入</span></label>
+    <input id="access-code" type="password" autocomplete="off" spellcheck="false">
+    <label for="run-id">Run ID <span>只读链接不是付费授权</span></label>
+    <input id="run-id" type="text" autocomplete="off" spellcheck="false"
+           placeholder="YYYYMMDDThhmmssZ-32位小写十六进制">
+    <label for="question">想定位什么？ <span>1–4096 个 Unicode 码点，原样提交</span></label>
+    <textarea id="question" rows="3" autocomplete="off" spellcheck="false"></textarea>
+    <div class="actions">
+      <button id="locate" type="submit" disabled>提交一次定位</button>
+      <button id="reset" type="reset" class="secondary">清空输入与显示</button>
+    </div>
+  </form>
+  <section class="recovery" aria-labelledby="recovery-title">
+    <h2 id="recovery-title">同一回执，手动恢复</h2>
+    <p id="storage-status" role="status"></p>
+    <p class="hint">本标签页只保存随机回执键，不保存访问码、Run ID、问题、来源或回复。不会自动查询、重试或提交。</p>
+    <button id="recover" type="button" class="secondary" disabled>查询已有回执（不重新定位）</button>
+    <label class="risk"><input id="risk" type="checkbox">我理解：结束这条本地记录不会取消服务端工作，也不代表免费；下次提交是新的付费意图。</label>
+    <button id="acknowledge" type="button" class="secondary" disabled>确认终态并结束本地记录</button>
+    <p class="hint">只有当前有效的终态或明确过期回复才允许结束记录；未知、未找到、错误或存储故障都保持阻止新提交。</p>
+  </section>
+  <p id="request-status" role="status" aria-live="polite">尚未发送请求。</p>
+  <section id="receipt" hidden aria-labelledby="receipt-title">
+    <h2 id="receipt-title">回执观察</h2>
+    <p id="receipt-context" class="context"></p>
+    <pre id="receipt-facts"></pre>
+    <p class="hint">回执 completed 不等于来源有文本，也不等于定位或语义判断成功。旧回执字段保持未观察；独立核算状态见下方，不是发票。</p>
+  </section>
+  <section id="accounting" hidden aria-labelledby="accounting-title">
+    <h2 id="accounting-title">本次定位的独立核算</h2>
+    <p id="accounting-status" role="status"></p>
+    <p id="accounting-usage"></p>
+    <p id="accounting-cost"></p>
+    <p id="accounting-reservation"></p>
+    <p class="hint">固定工程价格估算，不是供应商发票或未来价格保证。未知不是零；核算不可用不会清除合法的保存文本。模型名称匹配不证明后端权重。</p>
+    <details><summary>完整核算投影（只限当前回执）</summary><pre id="accounting-facts"></pre></details>
+  </section>
+  <section id="result" hidden aria-labelledby="result-state">
+    <h2 id="result-state"></h2>
+    <p id="catalog-coverage"></p>
+    <p id="semantic-status" class="notice"></p>
+    <dl id="source-metadata"></dl>
+    <h3>原样保存文本</h3>
+    <p id="text-status" class="hint"></p>
+    <pre id="saved-text" tabindex="0" hidden></pre>
+    <details><summary>执行事实与内容标识（不是真实性证明）</summary><pre id="execution-facts"></pre></details>
+  </section>
+  <footer>仅验证保存数据的交付；选择相关性与语义支持均未评估。</footer>
+  <noscript>此页需要 JavaScript；尚未发起请求。</noscript>
+</main>
+</body>
+</html>

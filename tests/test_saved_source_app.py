@@ -602,7 +602,7 @@ assert not any(name in sys.modules for name in forbidden)
     assert "saved-source-lab" not in production
 
 
-def _production_absence_probe(tmp_path, *, inject_post=False, check_filesystem=False, receipt_probe="none"):
+def _production_absence_probe(tmp_path, *, inject_post=False, check_filesystem=False, receipt_probe="none", usage_probe="none"):
     """Import the real production app in a credential-free, disposable process."""
     script = r'''
 import asyncio
@@ -721,6 +721,24 @@ async def assert_absent(app):
                 assert reply.json() == {"detail": "Not Found"}
             assert "api.saved_source_receipt_app" not in sys.modules
             assert "api.saved_source_controller" not in sys.modules
+        if sys.argv[6] != "none":
+            usage_url = url.replace("saved-source-location", "saved-source-usage")
+            reply = await client.post(usage_url, json={"question": "Where?"})
+            assert reply.status_code == 405, f"production usage POST status: {reply.status_code}"
+            assert reply.json() == {"detail": "Method Not Allowed"}
+            for method, path in (("POST", usage_url), ("GET", "/api/saved-source-usage-receipts")):
+                scope = {"type": "http", "method": method, "path": path, "root_path": ""}
+                assert not any(route.matches(scope)[0] is Match.FULL for route in app.routes), f"production usage route: {method}"
+            for path in ("/api/saved-source-usage-receipts", "/saved-source-usage/",
+                         "/usage-static/index.html", "/usage-static/app.js", "/usage-static/accounting.js", "/usage-static/app.css"):
+                reply = await client.get(path)
+                assert reply.status_code == 404, f"production usage GET/asset status: {reply.status_code}"
+                assert reply.json() == {"detail": "Not Found"}
+            assert b"usage-static" not in page.content
+            assert b"saved-source-usage" not in page.content
+            assert "api.saved_source_usage_app" not in sys.modules
+            assert "api.saved_source_accounting" not in sys.modules
+            assert "academic_agent.saved_source_accounted_qwen" not in sys.modules
     assert "api.saved_source_app" not in sys.modules
     assert not any(name.startswith("academic_agent.report_evidence_source_locator_qwen") for name in sys.modules)
     assert not attempts, attempts
@@ -747,6 +765,20 @@ async def scenario():
             (assets / name).write_text("synthetic receipt asset", encoding="utf-8")
         app.mount("/receipt-static", StaticFiles(directory=assets), name="synthetic-receipt-static")
         print("injected receipt static mounted", flush=True)
+    if sys.argv[6] in {"post", "get"}:
+        async def fake_usage():
+            print("injected usage handler reached", flush=True)
+            return {"fake": "usage"}
+        path = url.replace(sys.argv[4], "{run_id}").replace("saved-source-location", "saved-source-usage") if sys.argv[6] == "post" else "/api/saved-source-usage-receipts"
+        app.add_api_route(path, fake_usage, methods=["POST" if sys.argv[6] == "post" else "GET"])
+    elif sys.argv[6] == "static":
+        from starlette.staticfiles import StaticFiles
+        assets = temporary / "usage-assets"
+        assets.mkdir()
+        for name in ("index.html", "app.js", "accounting.js", "app.css"):
+            (assets / name).write_text("synthetic usage asset", encoding="utf-8")
+        app.mount("/usage-static", StaticFiles(directory=assets), name="synthetic-usage-static")
+        print("injected usage static mounted", flush=True)
     await assert_absent(app)
 
 # Construct only asyncio's own self-pipe before blocking socket activity (the
@@ -782,7 +814,7 @@ with asyncio.Runner() as runner:
     })
     return subprocess.run(
         [sys.executable, "-I", "-B", "-X", "utf8", "-c", script, str(Path(__file__).resolve().parents[1]), URL,
-         "filesystem" if check_filesystem else "inject" if inject_post else "absent", RUN_ID, receipt_probe],
+         "filesystem" if check_filesystem else "inject" if inject_post else "absent", RUN_ID, receipt_probe, usage_probe],
         cwd=tmp_path, env=environment, capture_output=True, text=True, encoding="utf-8", timeout=90, check=False,
     )
 

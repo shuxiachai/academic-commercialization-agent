@@ -1,7 +1,7 @@
 # Prepared saved-source admission and receipts
 
 This is a default-disabled backend controller for the isolated saved-source
-locator. It is not connected to `api.main` or any native provider. A separate
+locator. It is not connected to `api.main` and discovers no native provider. A separate
 [receipt entry](saved-source-receipt-entry.md) wraps it in its own isolated HTTP
 app/browser. It accepts no BYOK key and does not discover a provider credential.
 The original lab remains an injected-callback demonstration without billing.
@@ -82,8 +82,14 @@ model execution.
 Receipt completion means that a validated locator outcome was recorded, not
 that an excerpt exists or semantic support passed. The original result's
 `state` and `reason` remain visible, including declined, unavailable and failed
-locator outcomes. Provider usage and cost are explicitly `not_observed`;
-admission quota is not a token or dollar estimate.
+locator outcomes. Provider usage and cost in the legacy receipt fields are explicitly `not_observed`;
+admission quota is not a token or dollar estimate. The later opt-in
+[accounting successor](saved-source-usage.md) adds keyword-only
+`accounted_selector` and `accounting_store` parameters. The two selector modes
+are mutually exclusive; an accounted selector needs an identity and store.
+Store-only construction allows lookup but keeps execution disabled. Only the
+opt-in observation has the extra `accounting` projection; the old fields and
+original receipt page retain their strict contract.
 
 Deleted, changed and unreadable source data must remain distinguishable. A
 completed receipt can survive while its deliverable is no longer available;
