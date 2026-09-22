@@ -27,6 +27,7 @@
 | What did the real-data offline rehearsal observe? | [RU preparation result](results-2026-09-22-real-source-usage-offline.md) |
 | What must a separate native saved-source usage pilot preserve? | [RUQ preparation protocol](prereg-2026-09-22-real-source-usage-qwen.md) |
 | What did the independent title-reference review establish? | [LLM review and limits](results-2026-09-22-real-source-usage-reference-review.md) |
+| What did the native real saved-source usage pilot establish? | [RUQ result and limits](results-2026-09-22-real-source-usage-qwen.md) |
 | How are new semantic reviews performed without human sign-off? | [LLM-only review policy](llm-review-policy.md) |
 | Where is the full experimental history? | [Experiment index](experiment-index.md) |
 

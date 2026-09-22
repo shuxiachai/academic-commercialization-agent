@@ -440,6 +440,15 @@ catalog-level no-fit. The raw judgment lives in a separate private sidecar;
 the old packet remains unchanged. This is title-location reference agreement,
 not native selection accuracy, verified article type, source truth or user value.
 
+The later [RUQ native batch](results-2026-09-22-real-source-usage-qwen.md) is now
+closed: four authorized Qwen requests delivered three exact saved excerpts and
+one explicit decline through isolated ASGI POST/GET. All four mechanical and
+fallible title-reference checks passed, with complete reported usage and a
+USD 0.003321282 frozen-rate estimate (invoice unobserved). GET added no native
+request or paid admission. This is a real native accounting observation, not
+unseen accuracy, a native browser journey, keyword-baseline superiority or public
+feature activation; the occupied batch and allowance cannot be reused.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

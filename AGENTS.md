@@ -387,6 +387,10 @@ rewriting RU bytes or weakening its old validator. Default CLI is identity-only;
 four-request/USD 0.05 ceilings are proposed limits, not native authority. Keep
 its fixed output separate, first-fault stop and usage uncertainty visible; no
 production mount or reuse of a closed grant follows from preparation.
+RUQ is now [closed after four native cases](docs/results-2026-09-22-real-source-usage-qwen.md):
+three exact saved excerpts and one decline reached the isolated HTTP/accounting
+path. This is development reference agreement, not unseen accuracy or a native
+browser/user-value result. Do not reopen the occupied output or its allowance.
 
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed

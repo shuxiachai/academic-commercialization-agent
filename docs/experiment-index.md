@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-22 RUQ native saved-source usage result](results-2026-09-22-real-source-usage-qwen.md): four native requests, three exact saved excerpts and one decline; complete POST/GET accounting, USD 0.003321282 frozen-rate estimate, no redispatch. Closed development batch, not model superiority or production activation.
+
 - [2026-09-22 RU independent reference sidecar](results-2026-09-22-real-source-usage-reference-review.md): fresh-context LLM title-location judgments agree with four development drafts; exact quotation checks, set-valued references and article-type uncertainty are preserved. Not human gold, native model accuracy or measured user benefit.
 
 - [2026-09-22 RUQ native usage pilot preparation](prereg-2026-09-22-real-source-usage-qwen.md): immutable RU origin, independent LLM reference sidecar, separate current-code binding and proposed four-request/USD 0.05 fixed batch; no live authority, new native observation or production activation.
