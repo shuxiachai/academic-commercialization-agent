@@ -104,6 +104,29 @@ execution gates, not consequences of these local passing counts.
 
 ### Native evaluation remains separate
 
+The first [PR CI run](https://github.com/shuxiachai/academic-commercialization-agent/actions/runs/35714860457)
+failed the fresh-child positive control in both Python 3.11 cells. Linux recorded
+blocked `lib-dynload` directory access; Windows recorded a file-guard rejection
+before any intercepted native request. Both Python 3.12 cells and browser,
+container and lint checks passed. The aggregate coverage gate correctly failed.
+Those diagnostics did not retain the full remote paths, so the exact remote
+aliases or SQLite targets cannot be claimed as established causes.
+
+A bounded test-only follow-up proved that comparing resolved roots with merely
+absolute candidate paths rejects legitimate aliases and can miss symlink or
+`..` escapes. Both sides now use canonical paths, with sensitive-path checks
+before and after resolution. Local SQLite file URIs are decoded and checked by
+the same rule; neither arbitrary `sys.path` entries nor shared/historical private
+outputs are admitted. The native runner and production code are unchanged.
+
+The 23 new portable controls directly execute the child's guard, and ten
+standard-library-only WSL controls exercised real symlink/URI behavior. Restoring
+the old guard produced 12 failures among the 23 controls; the fix was restored.
+Final local checks passed 104 runner tests, the complete **6,849-test / 1,610-subtest**
+suite, current Ruff and narrow Pylint. Independent static review found no
+remaining issue. The prior local harness failures and this CI/repair chain
+remain recorded; local success is not a substitute for the next complete CI.
+
 The [RUQ protocol](prereg-2026-09-22-real-source-usage-qwen.md) prepares a distinct
 current-code-bound native-to-HTTP/accounting observation. It must retain this
 sidecar separately from the original packet, and it still needs implementation

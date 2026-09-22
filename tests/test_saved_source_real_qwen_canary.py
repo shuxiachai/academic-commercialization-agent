@@ -3,11 +3,14 @@
 from contextlib import ExitStack
 from copy import deepcopy
 from decimal import Decimal
+import ast
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import subprocess
 import sys
+from types import SimpleNamespace
+from urllib.parse import unquote, urlsplit
 
 import httpx
 import pytest
@@ -686,6 +689,7 @@ import json, os, pathlib, socket, sys
 from contextlib import ExitStack
 from copy import deepcopy
 from unittest.mock import patch
+from urllib.parse import unquote, urlsplit
 
 sys.dont_write_bytecode = True
 workspace = pathlib.Path.cwd().resolve()
@@ -696,30 +700,65 @@ violations = []
 network_events = []
 file_events = []
 public_roots = [repository / name for name in ('src', 'api', 'web', 'tests', '.venv')]
-public_roots += [pathlib.Path(sys.base_prefix).resolve(), pathlib.Path(sys.prefix).resolve()]
+public_roots += [pathlib.Path(sys.base_prefix), pathlib.Path(sys.prefix)]
+public_roots = [path.resolve() for path in public_roots]
 
 def deny(category):
     violations.append(category)
     raise AssertionError(category)
 
-def check_path(value, writing=False):
-    if isinstance(value, int):
-        return
-    path = pathlib.Path(os.fsdecode(value)).absolute()
+def check_sensitive_path(path):
     parts = {part.lower() for part in path.parts}
     if path.name.lower() == '.env' or path.name.lower().startswith('.env.'):
         deny('dotenv_access')
     if parts & {'.aws', '.azure', '.ssh', '.codex', '.credentials', 'synthetic-credential-store'}:
         deny('credential_store_access')
+
+def check_path(value, writing=False, directory=False):
+    if isinstance(value, int):
+        return
+    original = pathlib.Path(os.fsdecode(value)).absolute()
+    check_sensitive_path(original)
+    if original.is_relative_to(repository / 'outputs') and not original.is_relative_to(workspace):
+        deny('shared_private_output_access')
+    try:
+        # Compare the same canonical representation on BOTH sides. absolute()
+        # neither resolves a runtime alias nor prevents a public-looking '..'
+        # or symlink from escaping. Never admit raw sys.path as trusted roots.
+        path = original.resolve()
+    except (OSError, RuntimeError):
+        deny('path_resolution_failed')
+    check_sensitive_path(path)
     if path.is_relative_to(workspace):
         return
     # Deny real outputs, including siblings of pytest's new synthetic workspace.
     if path.is_relative_to(repository / 'outputs'):
         deny('shared_private_output_access')
+    if directory and path == repository:
+        return
     if writing or not any(path.is_relative_to(root) for root in public_roots):
         file_events.append({'basename': path.name, 'repository_root': path == repository,
                             'writing': writing, 'caller': sys._getframe(2).f_code.co_name})
         deny('nonpublic_file_access')
+
+def check_sqlite_uri(value):
+    # The unchanged stores pass Path.as_uri() plus mode=ro/rw. The URI itself
+    # is not a filesystem pathname (especially on Windows); guard the decoded
+    # local target, with the SAME canonical/sensitive/private-output rules.
+    if not isinstance(value, str) or not value.startswith('file:'):
+        deny('invalid_sqlite_uri')
+    uri = urlsplit(value)
+    if uri.netloc or uri.fragment or uri.query not in ('mode=ro', 'mode=rw'):
+        deny('invalid_sqlite_uri')
+    try:
+        path = unquote(uri.path, encoding='utf-8', errors='strict')
+    except UnicodeError:
+        deny('invalid_sqlite_uri')
+    if not path.startswith('/') or '\x00' in path:
+        deny('invalid_sqlite_uri')
+    if os.name == 'nt' and len(path) >= 3 and path[1].isalpha() and path[2] == ':':
+        path = path[1:]
+    check_path(path, writing=True)
 
 def audit(event, args):
     if event == 'open':
@@ -727,13 +766,12 @@ def audit(event, args):
         writing = isinstance(flags, int) and bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC))
         check_path(path, writing)
     elif event == 'sqlite3.connect':
-        check_path(args[0], writing=True)
+        check_sqlite_uri(args[0])
     elif event in ('os.listdir', 'os.scandir') and args[0] is not None:
         # Normal import/distribution discovery lists sys.path's repository
         # root. Admit that exact directory enumeration, never open its private
         # files or descend into shared outputs; the open guard is unchanged.
-        if isinstance(args[0], int) or pathlib.Path(os.fsdecode(args[0])).absolute() != repository:
-            check_path(args[0])
+        check_path(args[0], directory=True)
     elif event in ('socket.getaddrinfo', 'socket.gethostbyname', 'socket.gethostbyaddr', 'socket.sendto'):
         network_events.append(event)
         deny('other_network_access')
@@ -821,6 +859,7 @@ assert result['state'] == 'passed', {
     'failed_gates': [row.get('failed_gate') for row in result['cases']],
     'guard_failures': guard.failures, 'violations': violations,
     'native_interceptions': len(guard.requests), 'forbidden_modules': forbidden_modules(),
+    'file_events': file_events,
 }
 assert result['native_entries'] == result['selector_entries'] == len(guard.requests) == 4
 assert http_methods == ['POST', 'GET'] * 4
@@ -884,3 +923,92 @@ def test_fresh_native_composition_guards_are_effective(tmp_path, fault, reason):
     assert result.returncode == 17, result.stderr.decode("utf-8")
     assert not result.stderr
     assert json.loads(result.stdout) == {"probe": fault, "violations": [reason], "composition_started": False}
+
+
+def _portable_child_path_guard():
+    """Run the child's actual guard with a deterministic synthetic path resolver.
+
+    No symlink privilege, Linux installation or private filesystem is needed.
+    Resolve alias components before '..', as a real filesystem does; merely
+    normalizing '..' first would erase a symlink escape. These are path-policy
+    controls, not evidence of a particular CI machine's actual alias spelling.
+    """
+    aliases = {
+        "/python-link": "/runtime",
+        "/repo/src/dotenv-link": "/outside/.env",
+        "/repo/src/credential-link": "/outside/.aws/credentials",
+        "/repo/src/private-link": "/repo/outputs/private/report.json",
+        "/repo/src/outside-link": "/outside/folder",
+        "/repo/outputs/synthetic-only/escape": "/repo/outputs/private",
+        "/repo/src/root-link": "/repo",
+        "/repo/outputs/private/root-link": "/repo",
+    }
+
+    class ModelPath(PurePosixPath):
+        def absolute(self):
+            assert self.is_absolute()
+            return self
+
+        def resolve(self):
+            parts = []
+            for part in self.parts:
+                if part == "..":
+                    if len(parts) > 1:
+                        parts.pop()
+                else:
+                    parts.append(part)
+                target = aliases.get(str(PurePosixPath(*parts)))
+                if target is not None:
+                    parts = list(PurePosixPath(target).parts)
+            return type(self)(*parts)
+
+    namespace = {
+        "os": os, "sys": sys, "pathlib": SimpleNamespace(Path=ModelPath),
+        "workspace": ModelPath("/repo/outputs/synthetic-only"), "repository": ModelPath("/repo"),
+        "public_roots": [ModelPath("/runtime"), ModelPath("/repo/src")],
+        "violations": [], "file_events": [], "network_events": [],
+        "urlsplit": urlsplit, "unquote": unquote,
+    }
+    tree = ast.parse(_NATIVE_COMPOSITION_CHILD)
+    names = {"deny", "check_sensitive_path", "check_path", "check_sqlite_uri", "audit"}
+    selected = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
+    exec(compile(ast.Module(body=selected, type_ignores=[]), "<synthetic-child-path-guard>", "exec"), namespace)
+    return namespace
+
+
+@pytest.mark.parametrize("path,event,writing,reason", [
+    ("/runtime/lib/python3.11/lib-dynload", "os.scandir", False, None),
+    ("/python-link/lib/python3.11/lib-dynload", "os.scandir", False, None),
+    ("/python-link/lib/../lib/python3.11/lib-dynload", "os.listdir", False, None),
+    ("/runtime/lib/python3.11/lib-dynload", "open", True, "nonpublic_file_access"),
+    ("/repo/outputs/synthetic-only/new.json", "open", True, None),
+    ("/repo/src/../outputs/private/report.json", "open", False, "shared_private_output_access"),
+    ("/repo/src/private-link", "open", False, "shared_private_output_access"),
+    ("/repo/outputs/synthetic-only/escape/report.json", "open", False, "shared_private_output_access"),
+    ("/repo/outputs/synthetic-only/../private/report.json", "open", False, "shared_private_output_access"),
+    ("/repo/src/dotenv-link", "open", False, "dotenv_access"),
+    ("/repo/src/credential-link", "open", False, "credential_store_access"),
+    ("/repo/src/outside-link/../token", "open", False, "nonpublic_file_access"),
+    ("/repo/src/root-link", "os.listdir", False, None),
+    ("/repo/outputs/private/root-link", "os.listdir", False, "shared_private_output_access"),
+    ("/repo/outputs/synthetic-only/.env", "open", False, "dotenv_access"),
+    ("/repo/outputs/synthetic-only/.aws/credentials", "open", False, "credential_store_access"),
+    ("file:///repo/outputs/synthetic-only/receipt.sqlite3?mode=rw", "sqlite3.connect", False, None),
+    ("file:///repo/outputs/synthetic-only/%2e%2e/private/receipt.sqlite3?mode=ro", "sqlite3.connect", False, "shared_private_output_access"),
+    ("file:///repo/src/private-link?mode=rw", "sqlite3.connect", False, "shared_private_output_access"),
+    ("file:///repo/outputs/synthetic-only/%2eenv?mode=ro", "sqlite3.connect", False, "dotenv_access"),
+    ("file:///repo/src/credential-link?mode=ro", "sqlite3.connect", False, "credential_store_access"),
+    ("file://remote/repo/outputs/synthetic-only/receipt.sqlite3?mode=rw", "sqlite3.connect", False, "invalid_sqlite_uri"),
+    ("file:///repo/outputs/synthetic-only/receipt.sqlite3?mode=rw&cache=shared", "sqlite3.connect", False, "invalid_sqlite_uri"),
+])
+def test_child_path_guard_canonical_alias_and_escape_boundaries(path, event, writing, reason):
+    """Benign runtime aliases work; lexical/public-looking paths never authorize escapes."""
+    guard = _portable_child_path_guard()
+    arguments = (path, "wb" if writing else "rb", os.O_WRONLY if writing else os.O_RDONLY) if event == "open" else (path,)
+    if reason is None:
+        guard["audit"](event, arguments)
+        assert guard["violations"] == []
+    else:
+        with pytest.raises(AssertionError, match="^" + reason + "$"):
+            guard["audit"](event, arguments)
+        assert guard["violations"] == [reason]
