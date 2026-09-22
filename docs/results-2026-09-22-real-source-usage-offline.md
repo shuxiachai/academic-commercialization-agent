@@ -103,6 +103,37 @@ and file hashes are not attestations of historical authenticity or provider use.
 
 ## What remains
 
+### CI diagnostic follow-up
+
+The first PR run on `181c19f` did not pass the complete matrix:
+[Windows Python 3.11](https://github.com/shuxiachai/academic-commercialization-agent/actions/runs/35687852167/job/106618418018)
+failed the existing loader-time code-revocation test because its five-second
+entry event was not observed. The other three Python cells, including measured
+coverage, passed; the aggregate coverage gate correctly failed with the matrix.
+The failed assertion did not record whether the POST was pending, rejected or
+exceptional. Its exact cause was not reproduced or established locally.
+
+A test-only diagnostic follow-up retains that five-second bound, the outer
+ten-second bound and all revoked-code/zero-callback/zero-admission assertions.
+It records the synthetic POST outcome on an entry miss and settles its waiter
+while lifespan still owns the actual worker drain. Four negative controls cover
+early HTTP rejection, an exception, cancellation and a pending POST. Reinjecting
+the old event-only diagnostic makes all four unchanged controls fail.
+This improves failure evidence; it is not a proven fix for the original CI
+failure, and later passing runs must not erase that unresolved observation.
+
+After this diagnostic change, complete local Python 3.11 and 3.12 runs each
+passed 6,745 tests and 1,601 subtests with the same assertions and warning policy.
+The temporary 3.11 installation first produced unrelated import/guard failures:
+dependencies had been placed under protected outputs, and its locale-decoded
+editable path did not resolve this Unicode workspace. A separate ignored venv
+and a local ASCII-escaped editable path corrected that setup without changing
+project guards. These local setup failures are not the original CI failure.
+Independent static review found no actionable diagnostic code/document issue;
+the subsequent PR matrix must still pass before release.
+
+### Evaluation gates
+
 Independent LLM reference review and native effectiveness both remain `not_run`.
 Any real model pilot must bind its own reviewed implementation and the exact
 private input identity, obtain applicable transmission/credential/budget
