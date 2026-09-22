@@ -164,3 +164,8 @@ not additional independent samples. A default-temp-directory ACL failure and
 two separate fixture-isolation mistakes were corrected without skips, warning
 ignores or weakened assertions. No real key or paid request was used in this
 round. Cross-platform CI and normal deployment remain separate release gates.
+
+The subsequent [RU offline preparation](prereg-2026-09-22-real-source-usage-offline.md)
+binds real saved inputs for a future evaluation without activating this provider
+path. Its scripted accounting is not another native observation or permission
+to send the private packet to a model.

@@ -76,8 +76,71 @@ def assert_error(reply, status, code):
     assert "access-control-allow-origin" not in reply.headers
 
 
-async def observed(event):
-    assert await asyncio.to_thread(event.wait, 5), "Scripted thread did not reach boundary"
+async def observed(event, *, request=None):
+    reached = await asyncio.to_thread(event.wait, 5)
+    detail = ""
+    if not reached and request is not None:
+        # These requests contain synthetic fixtures only. A missed loader event
+        # alone cannot distinguish an early HTTP failure from pending startup.
+        if request.cancelled():
+            detail = "; POST cancelled"
+        elif not request.done():
+            detail = "; POST still pending; loader entry not observed"
+        elif (error := request.exception()) is not None:
+            detail = f"; POST raised {type(error).__name__}: {error}"
+        else:
+            reply = request.result()
+            detail = f"; POST completed: HTTP {reply.status_code}; body={reply.text!r}"
+    assert reached, "Scripted thread did not reach boundary" + detail
+
+
+@pytest.mark.parametrize("outcome", ["early_http", "raised", "cancelled", "pending"])
+def test_loader_boundary_failure_reports_post_outcome(boundary, outcome):
+    """A missed loader event must expose the POST outcome, not imply slow CI."""
+    make, _, _ = boundary
+    calls = Mock(side_effect=select)
+    app = make(calls)
+    unreached = Mock()
+    unreached.wait.return_value = False
+
+    async def scenario():
+        async with app.router.lifespan_context(app):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://test") as client:
+                async def post():
+                    if outcome == "early_http":
+                        return await client.post(URL, json={"question": QUESTION},
+                                                 headers=headers(key(), "synthetic-invalid-code"))
+                    if outcome == "raised":
+                        raise RuntimeError("synthetic POST failure")
+                    await asyncio.Event().wait()
+
+                task = asyncio.create_task(post())
+                try:
+                    if outcome == "cancelled":
+                        task.cancel()
+                    if outcome != "pending":
+                        await asyncio.gather(task, return_exceptions=True)
+                    with pytest.raises(AssertionError) as caught:
+                        await observed(unreached, request=task)
+                    message = str(caught.value)
+                    assert "Scripted thread did not reach boundary" in message
+                    if outcome == "early_http":
+                        reply = task.result()
+                        assert_error(reply, 401, "access_denied")
+                        assert f"POST completed: HTTP 401; body={reply.text!r}" in message
+                    else:
+                        assert {
+                            "raised": "POST raised RuntimeError: synthetic POST failure",
+                            "cancelled": "POST cancelled",
+                            "pending": "POST still pending; loader entry not observed",
+                        }[outcome] in message
+                finally:
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(asyncio.wait_for(scenario(), 10))
+    unreached.wait.assert_called_once_with(5)
+    assert calls.call_count == count() == 0
 
 
 def test_full_controller_and_frozen_result_fields_reach_both_endpoints(boundary, monkeypatch):
@@ -678,11 +741,18 @@ def test_code_revocation_during_loader_prevents_http_paid_entry(boundary, monkey
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://test") as client:
                 receipt_key = key()
                 task = asyncio.create_task(client.post(URL, json={"question": QUESTION}, headers=headers(receipt_key)))
+                reached = False
                 try:
-                    await observed(entered)
+                    await observed(entered, request=task)
+                    reached = True
                     monkeypatch.setattr(access, "ACCESS_CODE", None)
                 finally:
                     release.set()
+                    if not reached:
+                        # Preserve the diagnostic assertion while settling the
+                        # HTTP waiter; lifespan still drains the physical worker.
+                        task.cancel()
+                        await asyncio.gather(task, return_exceptions=True)
                 reply = await task
                 assert reply.status_code == 200
                 assert (reply.json()["state"], reply.json()["error_code"], reply.json()["admission_state"]) == (

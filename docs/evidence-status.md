@@ -415,6 +415,18 @@ isolated page. It distinguishes reported use, estimates, reservations and absent
 observations. Its implementation and intercepted tests are not new native results,
 provider invoices, real-report utility or public activation.
 
+The separate [RU preparation](prereg-2026-09-22-real-source-usage-offline.md)
+binds two complete historical source registries and four new title-location
+questions for a private local packet. It separates title-only keyword observation
+from scripted usage delivery, and keeps reference blind review and native efficacy
+`not_run`. Neither new questions nor an intercepted response make consumed
+benchmark material an unseen or paid-model evaluation.
+Its [offline result](results-2026-09-22-real-source-usage-offline.md) records
+four scripted receipt/usage passes and zero external provider calls. Assisted
+keywords cover all three positive draft cases; one returns multiple candidates.
+This does not establish model superiority, completed reference review or actual
+model costs on these real inputs.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and
