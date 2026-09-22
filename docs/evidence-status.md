@@ -427,6 +427,19 @@ keywords cover all three positive draft cases; one returns multiple candidates.
 This does not establish model superiority, completed reference review or actual
 model costs on these real inputs.
 
+The [RUQ successor protocol](prereg-2026-09-22-real-source-usage-qwen.md)
+separates a later private LLM reference review from those historical RU fields.
+Its planned native-to-HTTP usage observation binds both the immutable original
+packet and the new execution code. The proposed fixed four-request/USD 0.05
+batch is not permission to transmit data or evidence of model effectiveness;
+production remains disconnected.
+
+A subsequent [fresh-context LLM review](results-2026-09-22-real-source-usage-reference-review.md)
+agreed with all four candidate-set drafts and retained the ambiguous pair and
+catalog-level no-fit. The raw judgment lives in a separate private sidecar;
+the old packet remains unchanged. This is title-location reference agreement,
+not native selection accuracy, verified article type, source truth or user value.
+
 Real saved-report follow-up now has a separate [offline preparation protocol](prereg-2026-09-16-report-evidence-real-saved-offline.md).
 Its candidate is one historical live-report snapshot with all 20 saved sources
 and two newly authored questions. Labels are kept outside model inputs and

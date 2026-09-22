@@ -381,6 +381,13 @@ not native efficacy or unseen evaluation. References remain AI-authored drafts
 with blind review `not_run`; no caller-supplied live callback, key or paid flag
 is accepted. Preserve separate scripts/labels and all closed RS/RQ artifacts.
 
+The separate [RUQ preparation](docs/prereg-2026-09-22-real-source-usage-qwen.md)
+binds a later LLM reference sidecar and a current execution identity without
+rewriting RU bytes or weakening its old validator. Default CLI is identity-only;
+four-request/USD 0.05 ceilings are proposed limits, not native authority. Keep
+its fixed output separate, first-fault stop and usage uncertainty visible; no
+production mount or reuse of a closed grant follows from preparation.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live

@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-22 RU independent reference sidecar](results-2026-09-22-real-source-usage-reference-review.md): fresh-context LLM title-location judgments agree with four development drafts; exact quotation checks, set-valued references and article-type uncertainty are preserved. Not human gold, native model accuracy or measured user benefit.
+
+- [2026-09-22 RUQ native usage pilot preparation](prereg-2026-09-22-real-source-usage-qwen.md): immutable RU origin, independent LLM reference sidecar, separate current-code binding and proposed four-request/USD 0.05 fixed batch; no live authority, new native observation or production activation.
+
 - [2026-09-22 RU offline preparation result](results-2026-09-22-real-source-usage-offline.md): four scripted real-data receipt/usage rehearsals, unchanged source bytes and zero external provider calls; assisted-keyword candidate coverage, AI draft references and native efficacy unrun, not a model-advantage claim.
 
 - [2026-09-22 RU real saved-source offline preparation](prereg-2026-09-22-real-source-usage-offline.md): two complete historical registries, four new questions, separate AI reference drafts/scripts, title-only no-model observation and isolated intercepted usage replay; no native efficacy, completed blind review or private-data transmission grant.
