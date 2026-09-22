@@ -374,6 +374,13 @@ receipt fields, operation-specific binding, unknown-versus-zero distinction and
 actual-thread finalization. Its versioned HTTP/browser entry stays unmounted;
 intercepted native tests do not authorize a new paid run or real-data transfer.
 
+The [RU real saved-source preparation](docs/prereg-2026-09-22-real-source-usage-offline.md)
+keeps full historical registries and four new questions in a private local packet.
+Its title-only Sources baseline and internally intercepted usage rehearsal are
+not native efficacy or unseen evaluation. References remain AI-authored drafts
+with blind review `not_run`; no caller-supplied live callback, key or paid flag
+is accepted. Preserve separate scripts/labels and all closed RS/RQ artifacts.
+
 The separate [PCQ preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
 distinguishes a physical-value claim from a recording claim. Its blind-reviewed
 synthetic references and scripted rehearsal do not reopen CLQ, validate live

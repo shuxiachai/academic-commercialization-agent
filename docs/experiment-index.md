@@ -1,5 +1,9 @@
 # Experiment archive index
 
+- [2026-09-22 RU offline preparation result](results-2026-09-22-real-source-usage-offline.md): four scripted real-data receipt/usage rehearsals, unchanged source bytes and zero external provider calls; assisted-keyword candidate coverage, AI draft references and native efficacy unrun, not a model-advantage claim.
+
+- [2026-09-22 RU real saved-source offline preparation](prereg-2026-09-22-real-source-usage-offline.md): two complete historical registries, four new questions, separate AI reference drafts/scripts, title-only no-model observation and isolated intercepted usage replay; no native efficacy, completed blind review or private-data transmission grant.
+
 - [2026-09-20 RQ native receipt/browser result](results-2026-09-20-saved-source-receipt-qwen-canary.md): two native selections, 2/2 mechanical/reference gates, exact saved-text/decline delivery and lost-ack recovery without redispatch; USD 0.000799403 reported-use estimate, separate unobserved HTTP accounting, closed synthetic batch and no public activation.
 
 - [2026-09-20 RQ synthetic receipt/browser preregistration](prereg-2026-09-20-saved-source-receipt-qwen-canary.md): two fresh fictional controls, exact-case native binding, two-request/USD 0.05 maximum and receipt recovery through the real isolated browser; preparation is not a native result or production activation.

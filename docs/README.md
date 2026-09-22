@@ -23,6 +23,8 @@
 | How is a native Qwen receipt trial bounded? | [RQ synthetic preregistration](prereg-2026-09-20-saved-source-receipt-qwen-canary.md) |
 | What did the native receipt/browser trial actually verify? | [RQ result and limits](results-2026-09-20-saved-source-receipt-qwen-canary.md) |
 | How can isolated receipts deliver truthful native usage? | [Usage delivery contract](saved-source-usage.md) |
+| How is real saved-report selection prepared without sending data? | [RU offline protocol](prereg-2026-09-22-real-source-usage-offline.md) |
+| What did the real-data offline rehearsal observe? | [RU preparation result](results-2026-09-22-real-source-usage-offline.md) |
 | How are new semantic reviews performed without human sign-off? | [LLM-only review policy](llm-review-policy.md) |
 | Where is the full experimental history? | [Experiment index](experiment-index.md) |
 
