@@ -16,6 +16,13 @@ Qwen3.5 Plus, DeepSeek, Anthropic and OpenAI configuration paths exist. A
 provider being configurable is not proof of equivalent quality or cost.
 Supplementary Tool Calling remains **zero-call shadow mode**.
 
+A separate [saved-source production wrapper](operating-guide.md#optional-saved-source-locator)
+is default-off. Its gated page/API reuses the bounded one-selection locator,
+owner authorization, shared admission and durable receipt/accounting contracts.
+It is not automatic supplementary retrieval, report generation or proof of
+source truth. The earlier four-case RUQ native observation remains isolated;
+shipping the wrapper does not repeat that batch or activate paid production use.
+
 The Sources panel separately supports local exact-ID/literal-keyword lookup
 and expansion of saved text through the existing artifact read. It does not
 run an LLM, supplement evidence or judge claim support. Text can have been

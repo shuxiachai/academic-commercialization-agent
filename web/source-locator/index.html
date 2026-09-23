@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN" data-receipt-contract="saved_source_receipt_usage_v1" data-execution-allowed="{{SOURCE_LOCATOR_EXECUTION_ALLOWED}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>定位已保存来源 · Academic Commercialization Assessment</title>
+  <link rel="stylesheet" href="/source-locator-static/app.css">
+  <script type="module" src="/source-locator-static/entry.js"></script>
+</head>
+<body>
+<main>
+  <nav class="navigation"><a href="/">返回评估应用 / Back to assessments</a></nav>
+  <header>
+    <p class="eyebrow">SAVED SOURCE LOCATOR</p>
+    <h1>定位已保存来源</h1>
+    <p>描述你想找的资料，模型最多选择一条已保存来源；程序原样展示保存片段。</p>
+  </header>
+  <aside class="notice" aria-label="功能边界">
+    <strong>不是追问答案，不搜索新资料，不验证结论</strong>
+    <p>最多展示 1,500 个 Unicode 码点的保存片段，不代表论文全文、来源真实性或语义支持。可先在报告的 Sources 标签页免费按 ID 或关键词查找。</p>
+    <p>模型只看到预算内的标题目录；遗漏、标题截断和未选择都不代表完整报告没有相关资料。</p>
+    <p>仅支持当前有效访问码拥有的报告。共享只读链接、无所有者的历史报告和 BYOK 报告不能使用本入口消费服务端额度。</p>
+    <p id="execution-status" role="status">正在读取本页状态；不会自动提交。</p>
+  </aside>
+  <form id="locator-form" novalidate autocomplete="off">
+    <label for="access-code">报告所有者的访问码 <span>仅当前页面内存；刷新后重新输入</span></label>
+    <input id="access-code" type="password" autocomplete="off" spellcheck="false">
+    <label for="run-id">Run ID <span>报告链接里的运行编号，不是付费凭据</span></label>
+    <input id="run-id" type="text" autocomplete="off" spellcheck="false">
+    <label for="question">想定位什么？ <span>1–4096 个 Unicode 码点，原样提交</span></label>
+    <textarea id="question" rows="3" autocomplete="off" spellcheck="false"></textarea>
+    <label class="transfer-consent"><input id="locator-consent" type="checkbox"><span>我确认本次定位：将问题和已保存来源的标题/ID 发送给 Qwen（qwen3.5-plus），并由服务器短期保存请求以供审计；不发送报告正文或保存摘要。该操作可能收费并占用共享额度，无自动重试。修改输入后需重新确认。</span></label>
+    <div class="actions">
+      <button id="locate" type="submit" disabled>提交一次定位</button>
+      <button id="reset" type="reset" class="secondary">清空输入与显示</button>
+    </div>
+  </form>
+  <section class="recovery" aria-labelledby="recovery-title">
+    <h2 id="recovery-title">查询同一回执，不重复定位</h2>
+    <p id="storage-status" role="status"></p>
+    <p class="hint">本标签页仅保存随机回执键，不保存访问码、Run ID、问题或来源。刷新不自动提交或查询；原问题不会恢复。</p>
+    <button id="recover" type="button" class="secondary" disabled>手动查询已有回执</button>
+    <label class="risk"><input id="risk" type="checkbox">我理解：结束本地记录不会取消服务端工作，不代表免费；之后提交是新的付费意图。</label>
+    <button id="acknowledge" type="button" class="secondary" disabled>确认终态并结束本地记录</button>
+    <p class="hint">只有当前有效终态或明确过期才能结束记录。未知、未找到或存储故障都保持阻止新提交。</p>
+  </section>
+  <p id="request-status" role="status" aria-live="polite">尚未发送请求。</p>
+  <section id="receipt" hidden aria-labelledby="receipt-title">
+    <h2 id="receipt-title">回执观察</h2>
+    <p id="receipt-context" class="context"></p>
+    <details><summary>回执完整投影</summary><pre id="receipt-facts"></pre></details>
+    <p class="hint">completed 仅表示定位结果已记录，不等于有文本、来源正确或主张获得支持。</p>
+  </section>
+  <section id="accounting" hidden aria-labelledby="accounting-title">
+    <h2 id="accounting-title">本次定位的用量与费用</h2>
+    <p id="accounting-status" role="status"></p>
+    <p id="accounting-usage"></p>
+    <p id="accounting-cost"></p>
+    <p id="accounting-reservation"></p>
+    <p class="hint">固定工程价格估算不是供应商发票或未来价格保证；预留预算不等于实际费用，未知不等于零。核算不可用不会隐藏合法保存片段。</p>
+    <details><summary>当前回执完整核算记录</summary><pre id="accounting-facts"></pre></details>
+  </section>
+  <section id="result" hidden aria-labelledby="result-state">
+    <h2 id="result-state"></h2>
+    <p id="catalog-coverage"></p>
+    <p id="semantic-status" class="notice"></p>
+    <dl id="source-metadata"></dl>
+    <h3>原样保存片段</h3>
+    <p id="text-status" class="hint"></p>
+    <pre id="saved-text" tabindex="0" hidden></pre>
+    <details><summary>执行事实与内容标识（不是真实性证明）</summary><pre id="execution-facts"></pre></details>
+  </section>
+  <footer>一次来源定位，不修改原报告、评分或证据。模型可能选错来源，也可以拒绝选择。</footer>
+  <noscript>此页需要 JavaScript；尚未发起请求。</noscript>
+</main>
+</body>
+</html>

@@ -151,6 +151,7 @@ These are not style preferences; each came from a specific failure.
 | Change surface | Start here | Read before changing |
 |---|---|---|
 | Production entry points | `api/`, `web/`, `src/academic_agent/main.py` | [Operating guide](docs/operating-guide.md), `tests/test_api.py`, browser-contract tests |
+| Default-off saved-source production entry | `api/saved_source_production*.py`, `web/source-locator/` | [Gated locator contract](docs/operating-guide.md#optional-saved-source-locator); preserve frozen labs, consent before intent, owner-only billing, receipt-only rollback and actual-thread drain |
 | Retrieval and title recovery | `source_pipeline.py`, `source_clients.py`, `source_title_recovery.py` under `src/academic_agent/` | Nearby precision-first comments, frozen baseline, [ultrasound applicability result](docs/results-2026-09-04-handheld-ultrasound-authority-applicability.md) |
 | CrewAI and structured output | `crew.py`, `config/agents.yaml`, `config/tasks.yaml`, `evidence.py` | [CrewAI reference](docs/crewai-reference.md), unchanged scoring baseline |
 | Decision applicability and citation checks | `report_applicability.py`, `report_audit.py`, `claim_grounding.py`, `consistency.py` | [Report seams](docs/results-2026-09-03-report-decision-and-citation-seams.md), [threshold precision result](docs/results-2026-09-04-decision-threshold-warning-precision.md) |
@@ -291,12 +292,23 @@ See the [ingress/history/finalization contract](docs/results-2026-09-08-upload-h
 
 ## Tool Calling: do not turn experimental code into production by accident
 
+The [production saved-source wrapper](docs/operating-guide.md#optional-saved-source-locator)
+is a distinct default-off successor. Its new `/source-locator` page and API paths
+must preserve owner-code authorization, explicit question/catalog transfer
+consent, bounded paid admission, durable receipts and independent accounting.
+Both deployment exposure and new execution default off; do not infer activation
+or a new paid allowance from a merge. Rollback keeps receipt-only observation,
+drains actual threads and preserves the journal. Old lab paths, frozen modules,
+closed batches and their absence assertions remain unchanged. Shared links,
+ownerless/BYOK reports and admin read privilege cannot fund a new selection.
+
 The separate [saved-source locator](docs/prereg-2026-09-18-saved-source-locator.md)
 uses one selector callback and one existing local read, followed by code-owned
 saved-text JSON, not a generated answer or claim relation. Its new module/test/
 demo are callback-only; the old CQ prompt/schema, native adapters and closed
 allowances cannot be reused. Local callback/read facts are not HTTP, cost or
-browser-delivery evidence. Keep this candidate disconnected from production.
+browser-delivery evidence. Never expose this callback-only candidate directly;
+the separately gated production wrapper does not activate its old lab factory.
 
 Its [dedicated Qwen boundary](docs/prereg-2026-09-18-source-locator-qwen-transport.md)
 binds the exact question/catalog request and one durable reservation per new
@@ -462,8 +474,9 @@ final JSON envelope; SQ02 is unrun. Keep this batch closed, its frozen bytes
 unchanged and general semantic support unassessed. A future final-output
 contract must not retrospectively repair this result or enable production.
 
-- Production is phase-1 **zero-call shadow mode**. Phase-2 execution, provider
-  adapters and later OpenAlex/Qwen selectors are production-disconnected.
+- Supplementary retrieval is phase-1 **zero-call shadow mode**. Its phase-2
+  execution, provider adapters and later OpenAlex/Qwen evidence-gap selectors
+  are production-disconnected; the saved-source locator is a separate scope.
 - Adaptive Role-Gap v8 passed AC development and **failed AD unseen evaluation**:
   only three of six gates passed. Routing was 5/8, closure-role value 2/7 and
   coverability gain +1. See the [final result and provenance limits](docs/results-2026-09-03-openalex-adaptive-role-gap-v8-ad-human-review.md).

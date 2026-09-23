@@ -131,7 +131,91 @@ The separate [usage delivery entry](saved-source-usage.md) adds an opt-in,
 operation-bound accounting envelope and isolated page. It retains reported token
 counts, unknown observations, estimate basis and reservation as separate facts.
 It does not mount new production routes, discover provider keys or reopen RQ.
-The deployed API table below still describes only the public application.
+These original lab routes remain absent from the public application. A distinct,
+default-off production wrapper is described below; it does not mount those apps.
+
+### Optional saved-source locator
+
+The production wrapper has a separate page, `/source-locator`, and separate
+routes: `POST /api/runs/{run_id}/source-locator` and
+`GET /api/source-locator/receipts`. They are absent with the default configuration.
+Enabling the entry and allowing new executions are separate controls; receipt-only
+mode retains manual recovery without starting another selection. Shipping this
+code does **not** enable the feature or authorize a new provider experiment.
+
+This is a source locator, not a question-answering agent. One bounded Qwen
+request chooses at most one source ID from the saved title catalog or declines.
+The catalog admits at most 32 entries, 256 Unicode code points per title and
+6,144 ASCII JSON bytes. Returned/omitted counts and clipped-title counts remain
+visible; a decline is not proof that the complete report has no relevant source.
+The server then returns the exact saved excerpt, at most 1,500 Unicode code
+points. It does not search, supplement evidence, modify the report, judge support
+or generate a second answer. The existing Sources keyword/ID search remains free.
+
+Execution requires both a currently valid access code and a readable report-owner
+marker matching that code. A shared report URL, admin read privilege, historical
+ownerless report or BYOK report cannot select operator funding. Owners are not
+backfilled to make old examples eligible. The initial feature does not accept
+BYOK, arbitrary providers, model names or endpoints.
+
+The page explicitly asks before sending the unchanged question and saved source
+IDs/titles to `qwen3.5-plus`. Report prose, saved excerpts and the access code are
+not sent to that model. Native request journals contain question/title text and
+therefore have bounded retention; they must not be described as hash-only logs.
+The POST also requires `X-Source-Locator-Consent: question-catalog-v1`, alongside
+`X-Access-Code` and `Idempotency-Key`. GET observes an existing receipt without
+the consent header, key discovery, another admission or another model request.
+
+Only the random receipt key is saved in tab-session storage before POST. Missing
+consent or disabled execution creates no local intent. Refresh does not resend;
+the user re-enters the code and explicitly queries the existing receipt. Unknown
+delivery keeps resubmission blocked. Input changes invalidate consent and late
+results. A changed, missing or unreadable saved registry cannot silently select
+again to repair an old receipt.
+
+The new entry preserves the strict `saved_source_receipt_usage_v1` envelope.
+Unknown usage is not zero; reservations, frozen-rate estimates and provider
+invoices remain separate. Accounting damage does not hide an otherwise valid
+saved excerpt. Report relevance and semantic support are still not assessed by
+the runtime. Earlier RUQ's four-case observation remains a development result,
+not independent accuracy, user benefit or public activation.
+
+Use the explicit disabled settings in [.env.example](../.env.example) as the
+configuration reference. New execution also requires valid finite feature
+budgets and the existing shared paid-operation limits. Disabling execution is
+the rollback path: retain the entry for authorized receipt GETs, drain actual
+threads and preserve journals. Do not delete a ledger to enable a retry.
+The deployment remains single-process/single-replica, with no provider-level
+exactly-once, distributed quota or hard shutdown-time guarantee.
+
+`SOURCE_LOCATOR_ENABLED` controls route/page registration;
+`SOURCE_LOCATOR_EXECUTION_ENABLED` permits new attempts only when
+`SOURCE_LOCATOR_DAILY_REQUEST_CAP`, `SOURCE_LOCATOR_DAILY_USD_CAP` and
+`SOURCE_LOCATOR_MIN_INTERVAL_SECONDS` are valid and positive. Both switches
+default false and all three limits default zero. Limits are global to this
+single-process locator; unknown attempts retain their reservations. The USD
+ceiling is an engineering reservation policy, not a provider-side spending cap.
+Changing deployment environment requires a fresh process. No flag is enabled
+by this implementation or its intercepted browser tests.
+
+Both health endpoints expose optional `source_locator` configuration observations,
+separate from the existing maintenance result enum. These are not checks of the
+provider credential, remaining allowance or model connectivity. When an active
+operation defers cleanup, `deferred_maintenance` records that observation without
+erasing the prior failure or refreshing its completion time. Cleanup advances a
+durable clock watermark separately from admission spacing, so pruning cannot
+reopen a consumed day after clock rollback or indefinitely delay the next call.
+
+The implementation's Windows/Python 3.12 whole-tree regression passed 6,916 tests
+and 1,619 subtests with 90.32% coverage, against the unchanged 85% floor. Seven
+zero-provider Chromium journeys passed. The new main-app journey checked both
+health endpoints, transfer consent before intent, one intercepted native POST
+and paid admission, lost acknowledgement, then exact-text/accounting recovery
+by GET after execution was closed. Independent review and defect reinjection
+covered the health, clock, deferred-maintenance, malformed-code and consent
+seams. These are offline engineering observations, not another native experiment,
+provider exactly-once proof or production activation; CI/deployment are separate
+release checks.
 
 PDF extraction responses and stored metadata include `input_coverage` with the
 actual scanned/included/truncated/omitted pages and character budget. This is

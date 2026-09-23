@@ -1,0 +1,6 @@
+@import url("/source-locator-static/receipt.css");
+#accounting { padding: 20px; margin-top: 20px; background: white; border: 1px solid #d6e1dc; border-radius: 8px; }
+#accounting-cost { font-variant-numeric: tabular-nums; }
+.transfer-consent { display: flex; gap: 12px; align-items: flex-start; padding: 16px; background: #f2f7f4; border: 1px solid #c4d4c9; border-radius: 8px; }
+.transfer-consent input { width: auto; flex: 0 0 auto; margin-top: 4px; }
+.navigation { margin-bottom: 16px; }
