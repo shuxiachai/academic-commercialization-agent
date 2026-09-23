@@ -152,6 +152,11 @@ jobs:
         # public app and this smoke cannot authorize a provider request.
         run: uv run --python 3.12 --group e2e python -m e2e.saved_source_usage_smoke
 
+      - name: Verify default-off production locator consent and receipt recovery
+        # The real main application uses synthetic owner data and a fake-key
+        # intercepted transport. No deployment flag or paid grant is changed.
+        run: uv run --python 3.12 --group e2e python -m e2e.source_locator_production_smoke
+
       - name: Upload the failure screenshot
         if: failure()
         uses: actions/upload-artifact@v6

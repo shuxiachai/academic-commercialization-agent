@@ -540,6 +540,24 @@ class MaintenanceStatus(BaseModel):
     )
 
 
+class MaintenanceDeferral(BaseModel):
+    """Observation of a skipped dispatch, never a refreshed completion time."""
+
+    reason: Literal["active_operation"]
+    observed_at: AwareDatetime
+
+
+class SourceLocatorStatus(BaseModel):
+    """Configuration observation only, not credential, storage or provider readiness."""
+
+    execution: Literal["enabled", "disabled"]
+    budget: Literal["configured", "disabled"]
+    deferred_maintenance: dict[
+        Literal["source_locator_receipts", "source_locator_accounting", "source_locator_native"],
+        MaintenanceDeferral,
+    ] = Field(default_factory=dict)
+
+
 class HealthStatus(BaseModel):
     status: Literal["ok"]
     active_runs: int = Field(
@@ -562,6 +580,10 @@ class HealthStatus(BaseModel):
     )
     llm_provider: str | None = None
 
+    source_locator: SourceLocatorStatus | None = Field(
+        default=None, description="Optional locator configuration; null when its entry is not exposed. "
+                                  "A configured budget is not proof of a credential or available allowance.",
+    )
     maintenance: MaintenanceStatus = Field(
         default_factory=lambda: MaintenanceStatus(state="not_started"),
         description="Background timeout/retention checks; not_started is not a passing audit.",
@@ -585,6 +607,9 @@ class ReadinessStatus(BaseModel):
     )
     llm_provider: str | None = None
     search_provider: str | None = None
+    source_locator: SourceLocatorStatus | None = Field(
+        default=None, description="Advisory locator configuration, independent of assessment readiness.",
+    )
     maintenance: MaintenanceStatus | None = Field(
         default=None, description="HTTP supervisor snapshot shared with health. "
                                   "Absent from the standalone configuration-only readiness check.",

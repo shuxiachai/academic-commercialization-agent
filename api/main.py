@@ -45,6 +45,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
 )
 from api import access, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
 from api.cleanup import CleanupAudit  # noqa: E402
+from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
 from api.models import (  # noqa: E402
     BYOK_PROVIDERS,
@@ -61,6 +62,7 @@ from api.models import (  # noqa: E402
     RunProgress,
     RunRequest,
     RunStatus,
+    SourceLocatorStatus,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -84,6 +86,7 @@ class _MaintenanceTimes:
     last_duration_seconds: float | None = None
     last_finished_mono: float | None = None
     cleanup: CleanupSummary | None = None
+    deferred_at: datetime | None = None
 
 
 _maintenance_timings: dict[str, _MaintenanceTimes] = {}
@@ -162,6 +165,15 @@ async def _maintenance_stage(name: str, operation: Callable[..., object], *, col
         try:
             changed = (await asyncio.to_thread(operation, cleanup=audit) if audit is not None
                        else await asyncio.to_thread(operation))
+        except MaintenanceDeferred:
+            # A live owner prevented any scan. Clear only the current dispatch;
+            # keep the old result, cleanup facts and completion clocks aging.
+            with _maintenance_lock:
+                wall, _ = _maintenance_clock()
+                previous = _maintenance_timings[name]
+                _maintenance_timings[name] = replace(
+                    previous, current_started_at=None, current_started_mono=None, deferred_at=wall,
+                )
         except Exception:  # noqa: BLE001 - supervise one stage and preserve its completed fault observation
             _maintenance_finished(name, "failed", audit.snapshot(interrupted=True) if audit is not None else None)
             _LOGGER.exception("Background maintenance stage failed: %s", name)
@@ -199,6 +211,24 @@ def _prune_receipts() -> int:
     return receipts.prune(runs.DEFAULT_OUTPUT_ROOT)
 
 
+def _source_locator_stages():
+    return () if _source_locator is None else _source_locator.maintenance_stages()
+
+
+def _source_locator_status() -> SourceLocatorStatus | None:
+    # Configuration is not a completed maintenance check. Keep its different
+    # vocabulary outside checks/timings and outside the readiness decision.
+    if _source_locator is None:
+        return None
+    with _maintenance_lock:
+        deferred = {
+            name: {"reason": "active_operation", "observed_at": record.deferred_at}
+            for name, _ in _source_locator_stages()
+            if (record := _maintenance_timings.get(name)) is not None and record.deferred_at is not None
+        }
+    return SourceLocatorStatus(**_source_locator.feature_status(), deferred_maintenance=deferred)
+
+
 async def _reaper() -> None:
     """Kill runs that exceed the deadline.
 
@@ -216,7 +246,7 @@ async def _reaper() -> None:
             ("papers", papers.prune_old),
             ("retention", runs.prune_expired_runs),
             ("receipts", _prune_receipts),
-        ):
+        ) + _source_locator_stages():
             await _maintenance_stage(name, operation, collect_cleanup=name in {"papers", "retention"})
 
 
@@ -225,12 +255,15 @@ async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
     global _maintenance_task, _maintenance_checks, _maintenance_timings
     with _maintenance_lock:
         _maintenance_checks = dict.fromkeys(("timeouts", "papers", "retention", "receipts"), "not_checked")
+        _maintenance_checks.update(dict.fromkeys((name for name, _ in _source_locator_stages()), "not_checked"))
         _maintenance_timings = {}
     task = asyncio.create_task(_reaper())
     _maintenance_task = task
     try:
         yield
     finally:
+        if _source_locator is not None:
+            _source_locator.stop_accepting()
         try:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -243,7 +276,11 @@ async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
             # The cancelled supervisor drains its current off-loop operation
             # first, so shutdown cannot compete with that operation's stop.
             try:
-                runs.shutdown_all()
+                try:
+                    if _source_locator is not None:
+                        await _source_locator.close()
+                finally:
+                    runs.shutdown_all()
             finally:
                 _maintenance_task = None
 
@@ -258,6 +295,17 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 app.add_middleware(PaperUploadBoundary)
+
+# Configuration and object construction are I/O-free. The main lifespan owns
+# the physical operation threads; mounting a subapp would not own its lifespan.
+_source_locator = None
+if os.environ.get("SOURCE_LOCATOR_ENABLED") in {"1", "true"}:
+    # Default OFF also keeps frozen experimental factories out of sys.modules,
+    # not merely out of the router. Their historical absence probes stay valid.
+    from api import saved_source_production
+    _source_locator = saved_source_production.build_runtime(output_root=runs.DEFAULT_OUTPUT_ROOT)
+    saved_source_production.register_routes(app, _source_locator)
+app.state.source_locator = _source_locator
 
 
 # Response headers applied to everything this app serves.
@@ -323,7 +371,13 @@ def _client_key(request: Request) -> str:
     the ASGI server. Reading X-Forwarded-For again here would bypass that trust
     decision and let a direct caller choose a new address on every request.
     """
-    matched = access.matching_code(request.headers.get("x-access-code"))
+    try:
+        matched = access.matching_code(request.headers.get("x-access-code"))
+    except (TypeError, ValueError):
+        # Header decoding is Latin-1; HMAC accepts only ASCII strings. A
+        # malformed code still spends the IP bucket and reaches the endpoint's
+        # strict rejection. This is not an authenticated identity or a grant.
+        matched = None
     if matched:
         return f"code:{access.owner_id(matched)}"
     return f"ip:{request.client.host if request.client else 'unknown'}"
@@ -424,6 +478,10 @@ async def _access_gate(request: Request, call_next):
         # requires the original code for code-owned records, including when
         # the global gate was subsequently disabled.
         return await call_next(request)
+    if _source_locator is not None and path == "/api/source-locator/receipts" and request.method == "GET":
+        # The locator independently requires a current code, even after the
+        # legacy global gate is disabled. Preserve its bounded safe diagnostics.
+        return await call_next(request)
 
     matched = access.matching_code(request.headers.get("x-access-code"))
     if access.gate_enabled() and matched is None:
@@ -504,14 +562,23 @@ if _WEB_ROOT.is_dir():
     @app.get("/", include_in_schema=False)
     @app.get("/history", include_in_schema=False)
     @app.get("/run/{run_id}", include_in_schema=False)
-    def _spa(run_id: str = "") -> FileResponse:
+    def _spa(run_id: str = "") -> Response:
         """Serve the single page for every client-side route.
 
         Routing happens in the browser, so a deep link must return the same
         document rather than a 404 — the client reads the path and renders the
         matching view.
         """
-        return FileResponse(_WEB_ROOT / "index.html", media_type="text/html")
+        if _source_locator is None:
+            return FileResponse(_WEB_ROOT / "index.html", media_type="text/html")
+        from academic_agent.saved_source_loader import valid_run_id
+        marker = "<!-- SOURCE_LOCATOR_LINK -->"
+        page = (_WEB_ROOT / "index.html").read_text(encoding="utf-8")
+        if page.count(marker) != 1:
+            raise HTTPException(status_code=503, detail="Page navigation is unavailable.")
+        fragment = "#" + run_id if valid_run_id(run_id) else ""
+        link = '<a href="/source-locator' + fragment + '">Saved-source locator</a>'
+        return Response(page.replace(marker, link, 1), media_type="text/html", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/health", response_model=HealthStatus, tags=["meta"])
@@ -545,6 +612,7 @@ def health() -> HealthStatus:
         retention_days=runs.RUN_RETENTION_DAYS,
         llm_provider=provider,
         maintenance=_maintenance_status(),
+        source_locator=_source_locator_status(),
     )
 
 
@@ -656,6 +724,7 @@ def health_ready(response: Response) -> ReadinessStatus:
     # advisory: restarting paid workers cannot repair a cleanup permission.
     maintenance = _maintenance_status()
     status.maintenance = maintenance
+    status.source_locator = _source_locator_status()
     if maintenance.state != "not_started":
         watchdog_ok = (
             maintenance.state in {"running", "degraded"}
