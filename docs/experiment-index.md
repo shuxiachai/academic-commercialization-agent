@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-23 production saved-source public-origin repair](results-2026-09-23-source-locator-public-origin.md): one rejected production pilot before provider dispatch, explicit public-origin/Host binding across TLS termination, unchanged frozen labs, and zero-provider proxy-browser receipt recovery; paid execution stays disabled.
+
 - [2026-09-22 RUQ native saved-source usage result](results-2026-09-22-real-source-usage-qwen.md): four native requests, three exact saved excerpts and one decline; complete POST/GET accounting, USD 0.003321282 frozen-rate estimate, no redispatch. Closed development batch, not model superiority or production activation.
 
 - [2026-09-22 RU independent reference sidecar](results-2026-09-22-real-source-usage-reference-review.md): fresh-context LLM title-location judgments agree with four development drafts; exact quotation checks, set-valued references and article-type uncertainty are preserved. Not human gold, native model accuracy or measured user benefit.

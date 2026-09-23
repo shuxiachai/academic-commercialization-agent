@@ -113,6 +113,13 @@ defect failure without ignoring any warning.
 
 ## Handoff and remaining gates
 
+The first PR CI run (`35824920173`) caught a documentation integration omission:
+the new dated record was absent from the archive index. Ubuntu/Python 3.11
+reported one failed navigation subtest, 7,082 passed tests, one existing
+platform skip and 1,592 passed subtests. The archive link was added without
+changing the assertion or runtime code; this failure must not be called a
+provider, origin-policy or platform outage.
+
 Original production-problem failure count remains one rejected pilot. One repair
 candidate has passed the focused engineering checks above; no paid retry was
 attempted. The failed temp-directory run, initial proxy harness and initial
