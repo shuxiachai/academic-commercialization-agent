@@ -23,6 +23,14 @@ It is not automatic supplementary retrieval, report generation or proof of
 source truth. The earlier four-case RUQ native observation remains isolated;
 shipping the wrapper does not repeat that batch or activate paid production use.
 
+The first authorized production-browser pilot on 2026-09-23 stopped on one
+`403 origin_denied`, before controller admission or Qwen dispatch. Refresh did
+not resend, and the subsequent receipt GET returned `receipt_not_found`.
+Execution was closed again with zero feature budgets; this was not a successful
+native production observation. An HTTPS request also produced an HTTP redirect,
+exposing the TLS-termination boundary missing from the original loopback smoke.
+See the [production-origin repair and validation limits](results-2026-09-23-source-locator-public-origin.md).
+
 The Sources panel separately supports local exact-ID/literal-keyword lookup
 and expansion of saved text through the existing artifact read. It does not
 run an LLM, supplement evidence or judge claim support. Text can have been

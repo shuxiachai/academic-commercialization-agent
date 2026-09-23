@@ -7,6 +7,7 @@ keys and a transport/socket allowlist keep this separate from any live grant.
 
 from __future__ import annotations
 
+import argparse
 from contextlib import ExitStack
 from copy import deepcopy
 import json
@@ -28,6 +29,7 @@ STORAGE = "source-locator:v1"
 POST = f"/api/runs/{RUN_ID}/source-locator"
 GET = "/api/source-locator/receipts"
 FAKE_KEY = "sk-production-locator-offline-only"
+PUBLIC_ORIGIN = "https://locator.invalid"
 
 
 def _assert_wire(wire):
@@ -88,14 +90,23 @@ def _wire_negative_controls(wire):
 class ProductionBrowser(BrowserFixture):
     """Retain existing persistence/network guards but admit only new routes."""
 
+    def same_origin(self, url):
+        return (url.scheme, url.netloc) == ("http", urlsplit(self.base).netloc) and not url.query
+
+    def fetch(self, route):
+        return route.fetch(max_redirects=0)
+
+    def asset(self, route):
+        route.continue_()
+
     def route(self, route):
         request = route.request
         url = urlsplit(request.url)
-        same = (url.scheme, url.netloc) == ("http", urlsplit(self.base).netloc) and not url.query
-        assets = {"/source-locator", *(f"/source-locator-static/{name}" for name in (
+        same = self.same_origin(url)
+        assets = {"/source-locator", "/source-locator/", *(f"/source-locator-static/{name}" for name in (
             "entry.js", "receipt.js", "result.js", "accounting.js", "app.css", "receipt.css"))}
         if same and request.method == "GET" and url.path in assets:
-            route.continue_()
+            self.asset(route)
             return
         post = request.method == "POST" and url.path == POST
         get = request.method == "GET" and url.path == GET
@@ -114,7 +125,7 @@ class ProductionBrowser(BrowserFixture):
         else:
             assert "x-source-locator-consent" not in request.headers
             assert request.post_data is None
-        upstream = route.fetch(max_redirects=0)
+        upstream = self.fetch(route)
         payload = upstream.json()
         (self.posts if post else self.gets).append((request, upstream.status, payload))
         if post and self.mode == "lost_post":
@@ -126,9 +137,53 @@ class ProductionBrowser(BrowserFixture):
             route.fulfill(response=upstream)
 
 
-def main():
+class ProxyProductionBrowser(ProductionBrowser):
+    """Real browser HTTPS origin, intercepted into an HTTP-only loopback upstream.
+
+    Every permitted browser request is fetched from the fixed loopback server;
+    no request to locator.invalid reaches DNS/network. Preserve Chromium's real
+    Origin bytes and bind only the upstream Host. This models TLS termination,
+    not TLS certificate verification or Railway's particular forwarded headers.
+    """
+
+    def __init__(self, browser, base, faults):
+        assert urlsplit(base).scheme == "http" and urlsplit(base).hostname == "127.0.0.1"
+        self.upstream = base
+        self.slash_checks = 0
+        super().__init__(browser, PUBLIC_ORIGIN + "/source-locator", faults)
+        assert self.page.url == PUBLIC_ORIGIN + "/source-locator"
+        # Chromium/Playwright only intercepts the first hop of this synthetic
+        # redirect chain. Observe the actual 307 without following it into DNS;
+        # the canonical document and all paid/recovery requests still traverse
+        # the real HTTP upstream. This is not a TLS/redirect-following audit.
+        result = self.page.evaluate("async () => (await fetch('/source-locator/', {redirect: 'manual'})).type")
+        assert result == "opaqueredirect" and self.slash_checks == 1
+
+    def same_origin(self, url):
+        return (url.scheme, url.netloc) == ("https", "locator.invalid") and not url.query
+
+    def fetch(self, route):
+        request = route.request
+        headers = request.all_headers()
+        assert not any(name == "forwarded" or name.startswith("x-forwarded-") for name in headers)
+        if request.method == "POST":
+            assert headers["origin"] == PUBLIC_ORIGIN, "Observe the browser's Origin; do not synthesize it"
+        headers["host"] = "locator.invalid"
+        return route.fetch(url=self.upstream + urlsplit(request.url).path, headers=headers, max_redirects=0)
+
+    def asset(self, route):
+        upstream = self.fetch(route)
+        if urlsplit(route.request.url).path == "/source-locator/":
+            assert upstream.status == 307 and upstream.headers["location"] == "/source-locator"
+            self.slash_checks += 1
+        else:
+            assert upstream.status == 200
+        route.fulfill(response=upstream)
+
+
+def main(*, proxy=False):
     assert "api.main" not in sys.modules, "Run this isolated smoke as a fresh module"
-    faults, native = [], []
+    faults, native, ingress = [], [], []
     # Explicitly retain only process/tool infrastructure, never ambient provider
     # credentials. dotenv is disabled before any production dependency import.
     environment = {key: os.environ[key] for key in (
@@ -139,6 +194,7 @@ def main():
         "AGENT_OBSERVABILITY_ENABLED": "false", "SOURCE_LOCATOR_ENABLED": "true",
         "SOURCE_LOCATOR_EXECUTION_ENABLED": "true", "SOURCE_LOCATOR_DAILY_REQUEST_CAP": "2",
         "SOURCE_LOCATOR_DAILY_USD_CAP": "0.03", "SOURCE_LOCATOR_MIN_INTERVAL_SECONDS": "1",
+        "SOURCE_LOCATOR_PUBLIC_ORIGIN": PUBLIC_ORIGIN if proxy else "",
         "DASHSCOPE_API_KEY": FAKE_KEY, "LLM_PROVIDER": "qwen", "QWEN_MODEL": "qwen3.5-plus",
         "TAVILY_API_KEY": "offline-readiness-no-search",
     })
@@ -175,7 +231,14 @@ def main():
         # imports, so this does not open a provider or telemetry escape window.
         stack.enter_context(patch.object(httpx, "AsyncHTTPTransport", transport))
 
-        with _serve(production.app) as base, sync_playwright() as playwright:
+        async def observed_app(scope, receive, send):
+            if scope["type"] == "http" and scope["path"] in {POST, GET, "/source-locator", "/source-locator/"}:
+                ingress.append((scope["method"], scope["path"], scope["scheme"],
+                                [value for name, value in scope["headers"] if name == b"host"],
+                                [value for name, value in scope["headers"] if name == b"origin"]))
+            await production.app(scope, receive, send)
+
+        with _serve(observed_app if proxy else production.app) as base, sync_playwright() as playwright:
             with httpx.Client(trust_env=False) as client:
                 home = client.get(base + "/")
                 assert home.status_code == 200 and 'href="/source-locator' in home.text
@@ -185,9 +248,12 @@ def main():
                 assert health.status_code == 200 and health.json()["status"] == "ok"
                 readiness = client.get(base + "/health/ready")
                 assert readiness.status_code == 200 and readiness.json()["ready"] is True
-            browser = playwright.chromium.launch()
+            # Proxy-mode URLs are virtual. Even an accidentally un-intercepted
+            # redirect must not resolve or connect to a public host.
+            browser = playwright.chromium.launch(args=["--host-resolver-rules=MAP * ~NOTFOUND"] if proxy else [])
             try:
-                h = ProductionBrowser(browser, base + "/source-locator", faults)
+                h = (ProxyProductionBrowser(browser, base, faults) if proxy
+                     else ProductionBrowser(browser, base + "/source-locator", faults))
                 try:
                     h.inputs()
                     h.page.locator("#locate").click()
@@ -225,7 +291,16 @@ def main():
                     assert h.gets[-1][2]["receipt"]["result"] == before["receipt"]["result"]
                     assert h.gets[-1][2]["accounting"] == before["accounting"]
                     assert len(h.posts) == len(h.gets) == len(native) == charge() == 1
-                    output = ROOT / "output/playwright/source-locator-production-smoke.png"
+                    if proxy:
+                        assert h.page.evaluate("location.origin") == PUBLIC_ORIGIN
+                        assert all(scheme == "http" and hosts == [b"locator.invalid"]
+                                   for _, _, scheme, hosts, _ in ingress)
+                        posts = [row for row in ingress if row[0] == "POST"]
+                        gets = [row for row in ingress if row[1] == GET]
+                        assert len(posts) == len(gets) == 1
+                        assert posts[0][4] == [PUBLIC_ORIGIN.encode()]
+                    suffix = "-proxy" if proxy else ""
+                    output = ROOT / f"output/playwright/source-locator-production{suffix}-smoke.png"
                     output.parent.mkdir(parents=True, exist_ok=True)
                     h.page.screenshot(path=str(output), full_page=True)
                 finally:
@@ -233,9 +308,12 @@ def main():
             finally:
                 browser.close()
     assert not faults, faults
-    print("Main locator Chromium passed: consent precedes intent; one native interception and daily admission; "
+    print(f"Main locator Chromium {'public-HTTPS/backend-HTTP' if proxy else 'direct same-origin'} passed: "
+          "consent precedes intent; one native interception and daily admission; "
           "lost acknowledgement recovered by one GET after execution closed; zero external provider requests.")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--proxy", action="store_true", help="Intercept a public HTTPS browser origin into loopback HTTP")
+    main(proxy=parser.parse_args().proxy)

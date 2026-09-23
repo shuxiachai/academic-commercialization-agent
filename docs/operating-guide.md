@@ -198,6 +198,48 @@ ceiling is an engineering reservation policy, not a provider-side spending cap.
 Changing deployment environment requires a fresh process. No flag is enabled
 by this implementation or its intercepted browser tests.
 
+For TLS-terminating deployments where the backend sees HTTP, explicitly set
+`SOURCE_LOCATOR_PUBLIC_ORIGIN` to the single browser-facing origin, for example
+`https://academic-commercialization-agent.up.railway.app`. This setting affects
+only the production locator routes, page and whitelisted assets. It does not
+change Uvicorn, global proxy trust or the frozen lab helpers. Unset or exactly
+empty retains ASGI-scheme + Host origin comparison; an invalid nonempty value
+fails closed rather than reverting to that mode. Invalid configuration disables
+execution and returns `503 execution_unavailable` for otherwise valid locator
+requests, including page/asset and receipt-only access. Correct the pin while
+keeping execution off; do not erase a receipt to work around this error.
+
+The pin accepts one ASCII HTTP(S) origin, with an optional port in 1..65535.
+Scheme/DNS case, IPv6 address spelling and omitted/default ports are compared
+canonically. The production parser deliberately rejects URL-repair ambiguities:
+userinfo, paths (including a trailing slash), even empty `?`/`#` delimiters,
+whitespace/control characters, lists/commas, wildcard hosts, trailing DNS dots,
+IPv6 zone IDs and malformed/abbreviated numeric addresses. This stricter syntax
+is intentional; it is not a claim that every frozen parser decision is identical.
+The original raw Host must match the configured hostname and effective public
+port. A present Origin must match the configured scheme, hostname and effective
+port. Missing Origin remains supported for existing non-browser/receipt clients,
+but never removes the configured Host check. Duplicate critical headers, header
+budgets, exact JSON media/body rules, explicit POST consent and current-code/
+owner authorization remain enforced before paid admission. `Forwarded` and
+`X-Forwarded-*` values cannot select either authority, even if they claim HTTPS.
+
+Keep this valid pin during receipt-only rollback. It is configuration, not proof
+of TLS or authentication: the operator still owns the HTTPS edge and backend
+exposure, and non-browser callers can supply Host/Origin themselves. No access
+code, budget or execution permission follows from a matching origin. Only the
+locator page's trailing-slash route has an explicit relative
+`307 Location: /source-locator`, so a backend HTTP scheme cannot downgrade that
+page redirect; unrelated application's redirects remain unchanged.
+
+The [2026-09-23 qualified origin repair](results-2026-09-23-source-locator-public-origin.md)
+records the original rejected pilot separately from offline engineering checks.
+For the new browser seam, run
+`uv run --group e2e python -m e2e.source_locator_production_smoke --proxy`.
+The original command without `--proxy` retains the direct same-origin journey.
+The proxy journey uses a real Chromium HTTPS origin with intercepted loopback
+HTTP upstream requests, not a real TLS proxy or a paid provider validation.
+
 Both health endpoints expose optional `source_locator` configuration observations,
 separate from the existing maintenance result enum. These are not checks of the
 provider credential, remaining allowance or model connectivity. When an active

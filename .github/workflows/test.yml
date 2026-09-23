@@ -157,6 +157,11 @@ jobs:
         # intercepted transport. No deployment flag or paid grant is changed.
         run: uv run --python 3.12 --group e2e python -m e2e.source_locator_production_smoke
 
+      - name: Verify public HTTPS locator origin over a loopback HTTP backend
+        # Railway terminates TLS before ASGI. Keep this distinct from direct
+        # loopback success; the fixed proxy harness never reaches a provider.
+        run: uv run --python 3.12 --group e2e python -m e2e.source_locator_production_smoke --proxy
+
       - name: Upload the failure screenshot
         if: failure()
         uses: actions/upload-artifact@v6
