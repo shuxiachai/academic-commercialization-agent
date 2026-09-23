@@ -10,7 +10,7 @@ import threading
 import time
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from academic_agent import report_evidence_source_locator as locator
 from academic_agent.report_evidence_catalog_followup import build_catalog
@@ -21,9 +21,10 @@ from api import saved_source_accounting as accounting
 from api.maintenance import MaintenanceDeferred
 from api.saved_source_controller import SavedSourceController, _validated_snapshot
 from api.saved_source_production_assets import asset_response, page_response
+from api.saved_source_production_origin import OriginPolicy, request_headers
 from api.saved_source_production_policy import ControlStore, Settings, _plain
 from api.saved_source_receipt_app import (
-    MAX_CRITICAL_HEADER_BYTES, _CRITICAL, _DETAIL, _HEADERS, _body, _error, _question, _request_headers,
+    MAX_CRITICAL_HEADER_BYTES, _CRITICAL, _DETAIL, _HEADERS, _body, _error, _question,
 )
 from api.saved_source_receipts import ReceiptError, canonical
 from api.saved_source_usage_app import _wire_usage_reply
@@ -99,6 +100,7 @@ class SourceLocatorRuntime:
 
     def __init__(self, settings, output_root, *, key_loader=None, load_snapshot=None):
         self.settings = settings
+        self.origin_policy = OriginPolicy(settings.public_origin)
         self.root = Path(output_root) / ".source-locator-v1"
         self.control = ControlStore(self.root, settings)
         self.key_loader = _load_key if key_loader is None else key_loader
@@ -107,7 +109,8 @@ class SourceLocatorRuntime:
 
     @property
     def execution_allowed(self):
-        return self.settings.execution_allowed and not self._disabled.is_set() and not self.controller._closed
+        return (self.settings.execution_allowed and self.origin_policy.valid
+                and not self._disabled.is_set() and not self.controller._closed)
 
     def disable_execution(self):
         # Existing-intent GET is independent of execution policy. A disabled
@@ -230,7 +233,7 @@ def build_runtime(*, settings=None, output_root, key_loader=None, load_snapshot=
     return SourceLocatorRuntime(settings, output_root, key_loader=key_loader, load_snapshot=load_snapshot)
 
 
-def _production_headers(request):
+def _production_headers(request, origin_policy):
     headers = [(name.lower(), value) for name, value in request.scope["headers"]
                if name.lower() in _CRITICAL | {CONSENT_HEADER}]
     if sum(len(name) + len(value) for name, value in headers) > MAX_CRITICAL_HEADER_BYTES:
@@ -240,7 +243,7 @@ def _production_headers(request):
         raise ReceiptError("invalid_request")
     if request.method == "POST" and consent != [CONSENT_VALUE]:
         raise ReceiptError("consent_required")
-    return _request_headers(request)
+    return request_headers(request, origin_policy)
 
 
 def register_routes(app, runtime):
@@ -249,7 +252,7 @@ def register_routes(app, runtime):
 
     async def handle(request, run_id=None):
         try:
-            key, code = _production_headers(request)
+            key, code = _production_headers(request, runtime.origin_policy)
             body = await _body(request)
             if run_id is None:
                 reply = await runtime.controller.lookup(key, code)
@@ -272,9 +275,27 @@ def register_routes(app, runtime):
         return await handle(request)
 
     @app.get(PAGE_PATH, response_model=None, include_in_schema=False)
-    async def page():
+    async def page(request: Request):
+        try:
+            runtime.origin_policy.check_page(request)
+        except ReceiptError as exc:
+            return _error(exc.code)
         return page_response(runtime.execution_allowed)
 
+    @app.get(PAGE_PATH + "/", response_model=None, include_in_schema=False)
+    async def page_slash(request: Request):
+        try:
+            runtime.origin_policy.check_page(request)
+        except ReceiptError as exc:
+            return _error(exc.code)
+        # A relative target keeps the browser's public HTTPS origin when the
+        # backend sees HTTP; do not change global slash redirects or proxy trust.
+        return RedirectResponse(PAGE_PATH, status_code=307, headers=_HEADERS)
+
     @app.get("/source-locator-static/{name}", response_model=None, include_in_schema=False)
-    async def asset(name: str):
+    async def asset(name: str, request: Request):
+        try:
+            runtime.origin_policy.check_page(request)
+        except ReceiptError as exc:
+            return _error(exc.code)
         return asset_response(name)

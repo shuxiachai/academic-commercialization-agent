@@ -34,6 +34,7 @@ class Settings:
     daily_request_cap: int = 0
     daily_usd_cap: Decimal = Decimal("0")
     min_interval_seconds: Decimal = Decimal("0")
+    public_origin: str = ""
 
     @classmethod
     def from_env(cls):
@@ -57,6 +58,7 @@ class Settings:
             daily_request_cap=integer("SOURCE_LOCATOR_DAILY_REQUEST_CAP"),
             daily_usd_cap=decimal("SOURCE_LOCATOR_DAILY_USD_CAP"),
             min_interval_seconds=decimal("SOURCE_LOCATOR_MIN_INTERVAL_SECONDS"),
+            public_origin=os.environ.get("SOURCE_LOCATOR_PUBLIC_ORIGIN", ""),
         )
 
     @property

@@ -302,6 +302,12 @@ drains actual threads and preserves the journal. Old lab paths, frozen modules,
 closed batches and their absence assertions remain unchanged. Shared links,
 ownerless/BYOK reports and admin read privilege cannot fund a new selection.
 
+The first production browser pilot failed before dispatch at the origin gate.
+Keep explicit public-origin handling confined to the production wrapper; never
+replace frozen lab checks or trust arbitrary forwarded headers to repair TLS
+termination. A disabled-execution origin check is not a paid canary. See the
+[origin boundary and qualified observation](docs/results-2026-09-23-source-locator-public-origin.md).
+
 The separate [saved-source locator](docs/prereg-2026-09-18-saved-source-locator.md)
 uses one selector callback and one existing local read, followed by code-owned
 saved-text JSON, not a generated answer or claim relation. Its new module/test/
