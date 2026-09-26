@@ -49,6 +49,14 @@ cleaned, truncated or supplied as a fallback description during collection;
 missing/malformed/over-budget fields are not a negative evidence finding.
 See the [viewer scope and limits](operating-guide.md#web-cli-and-http-api).
 
+A separate [offline candidate-search library](saved-source-candidate-search.md)
+preserves literal lookup and adds a case-preserving ASCII word-separator lane.
+An explicitly injected synchronous callback may propose one query using only
+the question and fixed policy; results are candidate metadata, not selected
+evidence or an answer. It has no native provider, public route or production
+connection. Mechanical controls do not establish unseen query quality, semantic
+support or user benefit; the viewer and gated locator above are unchanged.
+
 Planning/translation now shares complete provider configuration with the main
 factory; fixed BYOK destinations and narrow credential/content-safe diagnostics
 are offline-tested. Historical node usage totals still exclude auxiliary calls.

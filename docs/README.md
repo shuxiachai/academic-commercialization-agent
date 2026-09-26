@@ -18,6 +18,7 @@
 | What is the concise engineering case study? | [Portfolio case study](portfolio-case-study.md) |
 | What happened in each Tool Calling version? | [Version ledger](evidence-status.md#tool-calling-experiments) |
 | How can I inspect the isolated saved-evidence tool conversation? | [Report evidence follow-up](report-evidence-followup.md) |
+| How can a query propose local candidates without reading or answering? | [Offline candidate-search contract](saved-source-candidate-search.md) |
 | What does the isolated saved-source HTTP/browser entry protect? | [Saved-source entry contract](saved-source-entry.md) |
 | How is saved-source paid admission prepared without activating it? | [Backend controller and receipts](saved-source-paid-controller.md) |
 | How does the isolated receipt page recover a lost acknowledgement? | [Receipt HTTP/browser contract](saved-source-receipt-entry.md) |
