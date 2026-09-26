@@ -128,99 +128,35 @@ Protocols, source artifacts and limitations are linked in the
 
 ## Tool Calling: current status
 
-The bounded execution kernel, adapters, accounting, source-locked review and
-unseen-test harnesses exist. Production remains **phase-1 zero-call shadow
-mode**: gap signals may be recorded, but they do not add sources or paid searches.
+Three capabilities have different release boundaries:
 
-The latest Adaptive Role-Gap v8 passed its AC development gates but failed
-three of six gates on AD unseen evaluation: routing 5/8, closure-role value
-2/7, and only +1 coverable case over the anchor. V8 is sealed, AC/AD are
-consumed, and production integration is not authorized by these results.
+- **Saved-source location:** an opt-in production page/API makes at most one
+  bounded Qwen selection from saved IDs/titles, then returns exact saved text.
+  It generates no research answer and performs no new search. Owner-code
+  authorization, explicit transfer consent, paid admission, durable receipts
+  and operation-level accounting apply. See the
+  [operating contract](docs/operating-guide.md#optional-saved-source-locator).
+- **Supplementary retrieval:** production remains zero-call shadow mode. The
+  latest unseen evaluation failed its admission gates; source-location progress
+  does not enable this separate capability.
+- **Generated evidence follow-up answers:** experimental, not a production
+  answering feature. Tool execution or valid JSON does not prove claim support.
 
-The [version-by-version ledger](docs/evidence-status.md#tool-calling-experiments)
-keeps v1–v8 failures distinct from transport and mechanical successes. A later
-method needs a new protocol and fresh cohorts, not tuning on the failed unseen set.
+On 2026-09-26, one bounded production-browser acceptance selected the prepared
+source, delivered exact saved text and recovered the same receipt/accounting
+after execution was closed and the service redeployed. The operation reported
+1,199 tokens and a USD 0.000764436 frozen-rate estimate, not an invoice.
+This is one prepared delivery observation, not unseen accuracy or superiority
+over free Sources keyword search. **Paid execution was closed again with zero
+feature budgets; it is not permanently enabled.** The
+[qualified acceptance record](docs/results-2026-09-26-production-source-locator-acceptance.md)
+separates the original POST body-observer limitation from the verified DOM and
+GET response, retaining the earlier origin-rejected attempt as a failure.
 
-A separate [saved-evidence follow-up prototype](docs/report-evidence-followup.md)
-exercises bounded lookup/read tools and content-bound evidence receipts. Its scripted
-demo remains offline; a separately [preregistered Qwen canary](docs/prereg-2026-09-14-report-evidence-followup-qwen.md)
-uses only two synthetic controls and a six-request/USD 0.10 allowance. It neither
-adds sources nor exposes a paid endpoint; reader benefit and production integration
-remain unestablished.
-
-Its [first native Qwen canary](docs/results-2026-09-15-report-evidence-followup-qwen-canary.md)
-accounted three requests but **failed the read-to-answer closure gate**; the
-second case was not run. Native transport success is not a completed feature.
-
-A separate [offline stage policy](docs/report-evidence-followup.md#separate-offline-stage-policy)
-reserves read/finalization opportunities by narrowing advertised and executable
-actions. It keeps the same limits and frozen runner; no new live success or
-production follow-up is claimed. Its separate
-[stage-aware transport](docs/report-evidence-followup.md#stage-aware-qwen-transport)
-preserves final-only intent at the HTTP/journal seam; this is offline contract
-work, not a new native-model observation or production integration.
-A [separate canary protocol](docs/report-evidence-followup.md#stage-aware-canary-preparation)
-prepares new synthetic cases; its default identity check makes no provider call.
-Its [subsequent live batch](docs/results-2026-09-15-stage-qwen-canary-live.md)
-delivered saved text after native lookup/read, but failed final JSON-envelope
-parsing. Three requests were accounted and the second case was not run;
-this is progress in evidence delivery, not successful closure or production use.
-A [new final-only JSON candidate](docs/report-evidence-followup.md#separate-final-only-json-candidate)
-uses fresh synthetic controls and preserves strict local validation; it does not
-rewrite the failed batch or enable a production follow-up endpoint.
-Its [JQ validation](docs/results-2026-09-16-report-evidence-final-json-qwen.md)
-returned valid JSON after a zero-hit lookup, but failed the required read gate;
-the second case was unrun. The observed blocker was saved-source discovery;
-final JSON compatibility after a successful saved-text read was not tested in JQ.
-Neither observation permits claiming closure or retrying the frozen batch.
-
-The next [offline catalog candidate](docs/report-evidence-followup.md#bounded-metadata-catalog-candidate)
-exposes bounded saved titles/IDs before one read, without changing literal lookup
-or issuing citations from metadata. A separate [catalog-native wire contract](docs/report-evidence-followup.md#catalog-native-qwen-wire-contract)
-adapts its 32-ID declaration without changing frozen transports. It is tested
-with intercepted HTTP, not a live model. A separate [CQ synthetic canary](docs/report-evidence-followup.md#catalog-native-synthetic-canary)
-now has its own frozen inputs and bounded runner; it is not production routing.
-Scripted controls do not establish Qwen selection quality or reader benefit.
-The separate [single CQ live batch](docs/results-2026-09-16-report-evidence-catalog-qwen-canary.md)
-then passed both invented controls in four requests: actual read plus cited
-final JSON, and actual missing-text read plus abstention. This is bounded native
-closure evidence, not general semantic accuracy or production enablement.
-
-A separate [claim-relative CLQ observation](docs/results-2026-09-16-claim-qwen-canary.md)
-completed six requests with three per-case mechanical passes but only 2/3
-frozen-label matches, so the batch failed. Blind LLM review identified a
-reference/proposition mismatch; the old label and failure remain unchanged.
-This is not live validation of the intended insufficiency lane or production
-Tool Calling.
-
-The [PCQ successor preparation](docs/results-2026-09-17-claim-proposition-contrast.md)
-adds LLM-blind-reviewed synthetic references and offline receipt controls;
-it is not another live Qwen observation or a production release.
-Its [separate native executor](docs/results-2026-09-17-claim-proposition-contrast-qwen-runner.md)
-adds identity-bound dispatch and intercepted-HTTP failure tests, not live validation.
-The later [single PCQ native batch](docs/results-2026-09-17-claim-proposition-contrast-qwen-canary.md)
-stopped after two requests: PCQ01 passed mechanics but called an unmeasured
-physical value refuted rather than insufficient. Context-limited LLM review
-judged the answer mixed; PCQ02/03 were unrun. The batch is closed and failed, with no
-production change or native validation of nonempty-evidence abstention.
-
-A separate [explicit relation-policy successor](docs/results-2026-09-17-claim-relation-policy.md)
-prepares offline callback rules and eight synthetic development contrasts.
-Reference agreement and scripted delivery are not new Qwen accuracy evidence
-or production admission; the earlier failed batches remain closed.
-Its [separate native wire adapter](docs/results-2026-09-17-relation-policy-qwen-transport.md)
-binds the policy, claim, saved-text receipts and complete HTTP body to a new
-offline ledger. Intercepted HTTP is not a new provider outcome or live authority.
-The [CI follow-up](docs/results-2026-09-17-relation-policy-ci-isolation.md)
-records a test-guard lifetime defect separately from the adapter's local checks.
-
-The isolated [saved-source locator](docs/prereg-2026-09-18-saved-source-locator.md)
-uses one selection, one local saved-text read and code-owned output without
-another generated answer. Its [single native SLQ batch](docs/results-2026-09-19-source-locator-qwen-canary.md)
-passed four synthetic mechanical/reference controls in four Qwen requests,
-including explicit decline and missing text. This small development result
-is not independent accuracy or a production feature; see the
-[conversation guide](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator).
+Historical hypotheses, failures and closed batches remain in the
+[evidence ledger](docs/evidence-status.md#tool-calling-experiments) and
+[experiment archive](docs/experiment-index.md). They are not combined into a
+general accuracy score or reopened by this acceptance.
 
 ## Quick start
 
