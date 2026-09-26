@@ -54,6 +54,7 @@ def asset_bytes(name, *, root=WEB_ROOT):
     """Never mount a directory or accept a caller-controlled filesystem path."""
     files = {
         "entry.js": root / "source-locator" / "entry.js",
+        "outcome.js": root / "source-locator" / "outcome.js",
         "app.css": root / "source-locator" / "app.css",
         "result.js": root / "saved-source-receipts" / "result.js",
         "receipt.css": root / "saved-source-receipts" / "app.css",

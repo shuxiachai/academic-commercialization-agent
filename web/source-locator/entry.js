@@ -2,6 +2,7 @@
 import "/source-locator-static/receipt.js";
 import { runPattern } from "/source-locator-static/result.js";
 import { readUsageBody, decodeUsage, clearAccounting, renderAccounting } from "/source-locator-static/accounting.js";
+import { clearOutcome, renderOutcome } from "/source-locator-static/outcome.js";
 
 const byId = id => document.getElementById(id);
 const consent = byId("locator-consent");
@@ -45,6 +46,6 @@ globalThis.startSavedSourceReceiptPage({
   requestHeaders: () => ({ "X-Source-Locator-Consent": "question-catalog-v1" }),
   readResponse: readUsageBody,
   decode: decodeUsage,
-  clearExtra: clearAccounting,
-  renderExtra: renderAccounting,
+  clearExtra: byId => { clearAccounting(byId); clearOutcome(byId); },
+  renderExtra: (decoded, byId) => { renderAccounting(decoded, byId); renderOutcome(decoded, byId); },
 });

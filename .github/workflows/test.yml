@@ -45,7 +45,9 @@ jobs:
         if: matrix.os != 'ubuntu-latest' || matrix.python-version != '3.12'
         # Warning filters live in pyproject.toml so this command is identical
         # on both shells — see the filterwarnings comment there.
-        run: uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short
+        # Both paths report slow test phases without changing collection or
+        # the coverage measurement core; timings alone do not explain a cause.
+        run: uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short --durations=40
 
       - name: Run tests with the measured coverage floor
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
@@ -54,7 +56,7 @@ jobs:
         # leaves room for platform-specific defensive branches. Other cells
         # still run every test, without redefining this single-platform metric.
         run: >
-          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short
+          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short --durations=40
           --cov=src/academic_agent
           --cov=api
           --cov=ui

@@ -27,6 +27,8 @@ from e2e.saved_source_smoke import EXACT_TEXT, RUN_ID, TITLE, _block_external_co
 ROOT = Path(__file__).resolve().parents[1]
 STORAGE = "source-locator:v1"
 POST = f"/api/runs/{RUN_ID}/source-locator"
+FAILED_RUN = "20260926T235959Z-ffffffffffffffffffffffffffffffff"
+FAILED_POST = f"/api/runs/{FAILED_RUN}/source-locator"
 GET = "/api/source-locator/receipts"
 FAKE_KEY = "sk-production-locator-offline-only"
 PUBLIC_ORIGIN = "https://locator.invalid"
@@ -104,11 +106,11 @@ class ProductionBrowser(BrowserFixture):
         url = urlsplit(request.url)
         same = self.same_origin(url)
         assets = {"/source-locator", "/source-locator/", *(f"/source-locator-static/{name}" for name in (
-            "entry.js", "receipt.js", "result.js", "accounting.js", "app.css", "receipt.css"))}
+            "entry.js", "outcome.js", "receipt.js", "result.js", "accounting.js", "app.css", "receipt.css"))}
         if same and request.method == "GET" and url.path in assets:
             self.asset(route)
             return
-        post = request.method == "POST" and url.path == POST
+        post = request.method == "POST" and url.path in {POST, FAILED_POST}
         get = request.method == "GET" and url.path == GET
         if not same or not (post or get):
             self.faults.append(f"Unexpected main locator request: {request.method} {url.path}")
@@ -181,6 +183,172 @@ class ProxyProductionBrowser(ProductionBrowser):
         route.fulfill(response=upstream)
 
 
+def _main_spa_navigation(browser, base, faults, *, proxy=False, old_link=False):
+    """Serve real SPA modules; only synthetic read data and old-defect bytes vary."""
+    run_b = "20260926T121212Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    origin = PUBLIC_ORIGIN if proxy else base
+    context = browser.new_context(service_workers="block")
+    page = context.new_page()
+    page.on("pageerror", lambda error: faults.append(f"main SPA: {error}"))
+    assets = {"/", f"/run/{RUN_ID}", f"/run/{run_b}", "/source-locator",
+              "/static/brand/aca-mark.svg",
+              *(f"/static/js/{name}.js" for name in
+                ("app", "api", "run", "sidebar", "result", "i18n", "topic", "paid_receipts")),
+              *(f"/static/css/{name}.css" for name in ("tokens", "base", "workbench", "result")),
+              *(f"/source-locator-static/{name}" for name in
+                ("entry.js", "outcome.js", "receipt.js", "result.js", "accounting.js", "app.css", "receipt.css"))}
+    progress_reads, injections = [], []
+
+    def reply(route, payload):
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
+
+    def route_request(route):
+        request, url = route.request, urlsplit(route.request.url)
+        expected = urlsplit(origin)
+        if (url.scheme, url.netloc) != (expected.scheme, expected.netloc) or request.method != "GET":
+            faults.append(f"Unexpected SPA request: {request.method} {request.url}")
+            route.abort()
+        elif not url.query and url.path in assets:
+            if proxy or (old_link and url.path == "/static/js/app.js"):
+                headers = request.all_headers()
+                headers["host"] = urlsplit(origin).netloc
+                upstream = route.fetch(url=base + url.path, headers=headers, max_redirects=0)
+                assert upstream.status == 200
+                if old_link and url.path == "/static/js/app.js":
+                    source = upstream.text()
+                    hook = "  syncSourceLocatorLink();"
+                    assert source.count(hook) == 3
+                    injections.append(url.path)
+                    route.fulfill(response=upstream, body=source.replace(hook, ""))
+                else:
+                    route.fulfill(response=upstream)
+            else:
+                route.continue_()
+        elif not url.query and url.path == "/api/access/check":
+            reply(route, {"ok": True})
+        elif url.path == "/api/runs" and url.query == "limit=50":
+            reply(route, {"runs": [{"run_id": RUN_ID, "topic": "Run A", "state": "completed"},
+                                   {"run_id": run_b, "topic": "Run B", "state": "completed"}]})
+        elif not url.query and url.path == "/health":
+            reply(route, {"active_runs": 0, "active_paid_operations": 0, "max_concurrent": 1})
+        elif url.path in {f"/api/runs/{RUN_ID}/progress", f"/api/runs/{run_b}/progress"} and url.query == "since=0":
+            run_id = RUN_ID if url.path.endswith(RUN_ID + "/progress") else run_b
+            progress_reads.append(run_id)
+            reply(route, {"run_id": run_id, "topic": "Run A" if run_id == RUN_ID else "Run B", "state": "completed",
+                          "stage": "Done", "steps": [], "artifacts": [], "elapsed_seconds": 0})
+        else:
+            faults.append(f"Unexpected SPA GET: {url.path}?{url.query}")
+            route.abort()
+
+    def block_websocket(websocket):
+        faults.append("Unexpected SPA WebSocket")
+        websocket.close()
+
+    context.route("**/*", route_request)
+    context.route_web_socket("**/*", block_websocket)
+    try:
+        page.goto(origin + f"/run/{RUN_ID}", wait_until="networkidle")
+        link = page.locator("#source-locator-link")
+        expect(link).to_have_attribute("href", f"/source-locator#{RUN_ID}")
+        page.locator(f'.runitem[data-run-id="{run_b}"]').click()
+        expect(page.locator("#run-title")).to_have_text("Run B")
+        assert run_b in progress_reads
+        try:
+            expect(link).to_have_attribute("href", f"/source-locator#{run_b}", timeout=1500)
+        except AssertionError:
+            if not old_link:
+                raise
+            assert injections == ["/static/js/app.js"]
+            assert link.get_attribute("href") == f"/source-locator#{RUN_ID}"
+            print("Controlled served old SPA: same A->B href assertion FAILED as required.")
+            return
+        assert not old_link, "Stale-link negative control escaped the new browser assertion"
+        link.click()
+        expect(page.locator("#run-id")).to_have_value(run_b)
+        assert page.url == origin + "/source-locator#" + run_b
+        page.go_back(wait_until="networkidle")
+        expect(page.locator("#source-locator-link")).to_have_attribute("href", f"/source-locator#{run_b}")
+        page.evaluate("() => { history.pushState({}, '', '/'); dispatchEvent(new PopStateEvent('popstate')); }")
+        expect(page.locator("#source-locator-link")).to_have_attribute("href", "/source-locator")
+        expect(page.locator("#pane-compose")).to_be_visible()
+        page.locator(f'.runitem[data-run-id="{RUN_ID}"]').click()
+        expect(page.locator("#run-title")).to_have_text("Run A")
+        assert page.url == origin + f"/run/{RUN_ID}"
+        page.evaluate("() => { history.pushState = () => { throw Error('test history failure'); }; }")
+        page.locator(f'.runitem[data-run-id="{run_b}"]').click()
+        expect(page.locator("#run-title")).to_have_text("Run B")
+        expect(page.locator("#source-locator-link")).to_have_attribute("href", f"/source-locator#{run_b}")
+        assert page.url == origin + f"/run/{RUN_ID}", "Test must retain stale URL A while logical view is B"
+        page.locator("#new-run-btn").click()
+        expect(page.locator("#pane-compose")).to_be_visible()
+        expect(page.locator("#source-locator-link")).to_have_attribute("href", "/source-locator")
+        assert page.url == origin + f"/run/{RUN_ID}"
+        print("SPA A->B, actual locator prefill, root popstate and failed-history A->B/home passed.")
+    finally:
+        context.close()
+
+
+def _failed_receipt_notice(browser, base, faults, native, charge, *, proxy=False, old_entry=False):
+    """Observe a real pre-admission receipt, including the old served-entry control."""
+    fixture = ProxyProductionBrowser if proxy else ProductionBrowser
+    injections = []
+    if old_entry:
+        class WithoutOutcome(fixture):
+            def asset(self, route):
+                if urlsplit(route.request.url).path != "/source-locator-static/entry.js":
+                    return super().asset(route)
+                upstream = self.fetch(route)
+                assert upstream.status == 200
+                source = upstream.text()
+                hook = "renderOutcome(decoded, byId);"
+                assert source.count(hook) == 1
+                injections.append(hook)
+                route.fulfill(response=upstream, body=source.replace(hook, ""))
+        fixture = WithoutOutcome
+    failed = fixture(browser, base if proxy else base + "/source-locator", faults)
+    try:
+        failed.inputs()
+        failed.page.locator("#run-id").fill(FAILED_RUN)
+        failed.page.locator("#locator-consent").check()
+        failed.page.locator("#locate").click()
+        expect(failed.page.locator("#receipt")).to_be_visible()
+        failed.wait_settled()
+        assert len(failed.posts) == 1 and failed.posts[0][1] == 200
+        receipt = failed.posts[0][2]["receipt"]
+        assert receipt["state"] == "failed" and receipt["error_code"] == "saved_source_missing"
+        assert receipt["admission_state"] == "not_admitted"
+        assert len(native) == charge() == 0
+        notice = failed.page.locator("#receipt-outcome")
+        try:
+            expect(notice).to_be_visible(timeout=1500)
+        except AssertionError:
+            if not old_entry:
+                raise
+            assert injections == ["renderOutcome(decoded, byId);"]
+            assert notice.text_content() == ""
+            print("Controlled served old entry: same failed-receipt visibility assertion FAILED as required.")
+            return
+        assert not old_entry, "Missing-hook negative control escaped the new browser assertion"
+        expect(notice).to_contain_text("定位失败：此报告的已保存来源不可用")
+        expect(notice).to_contain_text("不代表免费或可自动重试")
+        expect(failed.page.locator("#receipt-outcome *")).to_have_count(0)
+        assert "saved_source_missing" not in notice.text_content()
+        before = failed.page.evaluate("key => sessionStorage.getItem(key)", STORAGE)
+        suffix = "-proxy" if proxy else ""
+        output = ROOT / f"output/playwright/source-locator-failed-receipt{suffix}.png"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        failed.page.screenshot(path=str(output), full_page=True)
+        failed.page.locator("#reset").click()
+        expect(notice).to_be_hidden()
+        assert notice.text_content() == ""
+        assert failed.page.evaluate("key => sessionStorage.getItem(key)", STORAGE) == before
+        expect(failed.page.locator("#locate")).to_be_disabled()
+        assert len(failed.posts) == 1 and not failed.gets and len(native) == charge() == 0
+        print("Real failed receipt: Chinese notice visible, reset clears prose but retains blocked receipt.")
+    finally:
+        failed.close()
+
+
 def main(*, proxy=False):
     assert "api.main" not in sys.modules, "Run this isolated smoke as a fresh module"
     faults, native, ingress = [], [], []
@@ -224,6 +392,10 @@ def main(*, proxy=False):
         stack.enter_context(_block_external_connections(faults))
         root = Path(stack.enter_context(TemporaryDirectory(prefix="locator-production-smoke-", dir=ROOT / "outputs")))
         charge = stack.enter_context(_fixture(root))
+        # Copy only the fixture's synthetic owner; do not patch authorization.
+        missing_sources = root / FAILED_RUN
+        missing_sources.mkdir()
+        (missing_sources / ".owner").write_bytes((root / RUN_ID / ".owner").read_bytes())
         from api import main as production
 
         # CrewAI subclasses the real transport while importing. Replace the
@@ -232,7 +404,7 @@ def main(*, proxy=False):
         stack.enter_context(patch.object(httpx, "AsyncHTTPTransport", transport))
 
         async def observed_app(scope, receive, send):
-            if scope["type"] == "http" and scope["path"] in {POST, GET, "/source-locator", "/source-locator/"}:
+            if scope["type"] == "http" and scope["path"] in {POST, FAILED_POST, GET, "/source-locator", "/source-locator/"}:
                 ingress.append((scope["method"], scope["path"], scope["scheme"],
                                 [value for name, value in scope["headers"] if name == b"host"],
                                 [value for name, value in scope["headers"] if name == b"origin"]))
@@ -265,6 +437,10 @@ def main(*, proxy=False):
                     expect(h.page.locator("#locator-consent")).not_to_be_checked()
                     h.page.locator("#question").fill(QUESTION)
                     h.page.locator("#locator-consent").check()
+                    # The owned fixture deliberately lacks sources.json, so the
+                    # normal owner check precedes a real pre-admission failure.
+                    _failed_receipt_notice(browser, base, faults, native, charge, proxy=proxy)
+                    _failed_receipt_notice(browser, base, faults, native, charge, proxy=proxy, old_entry=True)
                     h.mode = "lost_post"
                     h.page.locator("#locate").click()
                     expect(h.page.locator("#request-status")).to_contain_text("服务端可能已经执行")
@@ -295,16 +471,22 @@ def main(*, proxy=False):
                         assert h.page.evaluate("location.origin") == PUBLIC_ORIGIN
                         assert all(scheme == "http" and hosts == [b"locator.invalid"]
                                    for _, _, scheme, hosts, _ in ingress)
-                        posts = [row for row in ingress if row[0] == "POST"]
+                        posts = [row for row in ingress if row[1] == POST]
+                        failed_posts = [row for row in ingress if row[1] == FAILED_POST]
                         gets = [row for row in ingress if row[1] == GET]
                         assert len(posts) == len(gets) == 1
                         assert posts[0][4] == [PUBLIC_ORIGIN.encode()]
+                        assert len(failed_posts) == 2
+                        assert all(row[4] == [PUBLIC_ORIGIN.encode()] for row in failed_posts)
                     suffix = "-proxy" if proxy else ""
                     output = ROOT / f"output/playwright/source-locator-production{suffix}-smoke.png"
                     output.parent.mkdir(parents=True, exist_ok=True)
                     h.page.screenshot(path=str(output), full_page=True)
                 finally:
                     h.close()
+                _main_spa_navigation(browser, base, faults, proxy=proxy)
+                _main_spa_navigation(browser, base, faults, proxy=proxy, old_link=True)
+                assert len(native) == charge() == 1, "UI checks must not create another native request"
             finally:
                 browser.close()
     assert not faults, faults

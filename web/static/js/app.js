@@ -122,12 +122,25 @@ function stopFollowing() {
   stopClock();
 }
 
+// The locator only receives a run capability in its fragment. Keep this
+// stricter than a path-shaped string so an untrusted display value cannot
+// become a link target, and never place an access code or receipt key here.
+// Logical view state stays authoritative even when optional history writes fail.
+const locatorRunPattern = /^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{32}$(?![\s\S])/;
+function syncSourceLocatorLink(runId = activeRunId) {
+  const link = $("#source-locator-link");
+  if (!link) return; // The default-off feature deliberately omits the link.
+  link.href = `/source-locator${typeof runId === "string" && locatorRunPattern.test(runId) ? `#${runId}` : ""}`;
+}
+
 function showCompose() {
   stopFollowing();
   activeRunId = null;
+  syncSourceLocatorLink();
   $("#pane-compose").hidden = false;
   $("#pane-run").hidden = true;
-  history.pushState({}, "", "/");
+  try { history.pushState({}, "", "/"); }
+  catch { toast(t("msg_history_unavailable"), "error"); }
   refreshSidebar();
   // Re-time capacity polling: the pending timer was scheduled for whichever
   // state we just left, so without this a run starting waits out the idle
@@ -138,6 +151,7 @@ function showCompose() {
 
 function showRun(runId) {
   activeRunId = runId;
+  syncSourceLocatorLink();
   $("#pane-compose").hidden = true;
   $("#pane-run").hidden = false;
   refreshSidebar();
@@ -1006,6 +1020,9 @@ function routeFromLocation() {
   if (match) {
     openRun(match[1]);
   } else {
+    stopFollowing();
+    activeRunId = null;
+    syncSourceLocatorLink();
     $("#pane-compose").hidden = false;
     $("#pane-run").hidden = true;
     topic.focus();
