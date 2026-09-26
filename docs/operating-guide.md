@@ -143,6 +143,12 @@ Enabling the entry and allowing new executions are separate controls; receipt-on
 mode retains manual recovery without starting another selection. Shipping this
 code does **not** enable the feature or authorize a new provider experiment.
 
+The sidebar entry follows the current report through client-side navigation,
+including switching between reports; leaving the report clears its old ID.
+Only a valid run ID is carried in the URL fragment, never an access code or
+receipt key. This prefill is a convenience, not ownership or consent. A browser
+history-write failure must not leave the link pointing at the previous report.
+
 This is a source locator, not a question-answering agent. One bounded Qwen
 request chooses at most one source ID from the saved title catalog or declines.
 The catalog admits at most 32 entries, 256 Unicode code points per title and
@@ -174,6 +180,13 @@ results. A changed, missing or unreadable saved registry cannot silently select
 again to repair an old receipt.
 
 The new entry preserves the strict `saved_source_receipt_usage_v1` envelope.
+
+After receipt validation, the production page displays a fixed, readable reason
+for a failed receipt without requiring expansion of its JSON. The explanation
+does not override terminal state, clear an unresolved intent, alter accounting
+or claim the failure was free. Reset/new observations clear stale explanations;
+provider exception text is never interpolated into this notice.
+
 Unknown usage is not zero; reservations, frozen-rate estimates and provider
 invoices remain separate. Accounting damage does not hide an otherwise valid
 saved excerpt. Report relevance and semantic support are still not assessed by
@@ -680,6 +693,13 @@ replace or restore the live ledger as a retry mechanism. A whole lost volume or
 restored old backup is outside the guarantee. Save/restore it consistently with
 other run artifacts. SQLite transactions do not make quota/worker ownership
 multi-process safe: keep one API process and one replica.
+
+For the separate synthetic volume-copy/read rehearsal and the prerequisites
+for an operator-led restore, see [offline volume restoration](offline-volume-restore.md).
+That rehearsal is not a backup service, a latest-snapshot detector or permission
+to replace live storage. A readable old copy cannot establish what was billed
+after it was captured; all paid entry points must remain closed during a real
+restore assessment, not only the saved-source locator.
 
 Stored keys are hashed; input/credential identity uses a keyed fingerprint.
 Accepted run responses contain the run ID/topic within the receipt lifetime.

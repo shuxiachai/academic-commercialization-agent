@@ -12,6 +12,7 @@
 | Where are the important design decisions and exclusions? | [AGENTS.md](../AGENTS.md) |
 | How do I contribute and reproduce CI? | [Contributing](../CONTRIBUTING.md) |
 | How do checkpoints and recovery remain safe? | [Checkpoint recovery](checkpoint-recovery.md) |
+| What can an offline volume-copy rehearsal establish? | [Synthetic restore scope and operator prerequisites](offline-volume-restore.md) |
 | What happens on timeout or incomplete accounting? | [Runtime terminal integrity](runtime-terminal-integrity.md) |
 | How do traces avoid exporting private data? | [Observability](observability.md) |
 | What is the concise engineering case study? | [Portfolio case study](portfolio-case-study.md) |
