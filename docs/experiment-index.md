@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-26 source-guided positive Qwen protocol](prereg-2026-09-26-saved-source-positive-qwen.md): separate four-request native preparation, exact approved wire, first-failure stop and private reference binding; not production activation or a native result.
+
 - [2026-09-26 bounded production saved-source acceptance](results-2026-09-26-production-source-locator-acceptance.md): one native selection delivered exact saved text; after execution closure and redeployment, one manual GET preserved the receipt and accounting. USD 0.000764436 frozen-rate estimate, original POST-body observer limitation, not unseen accuracy or permanent enablement.
 
 - [2026-09-23 production saved-source public-origin repair](results-2026-09-23-source-locator-public-origin.md): one rejected production pilot before provider dispatch, explicit public-origin/Host binding across TLS termination, unchanged frozen labs, and zero-provider proxy-browser receipt recovery; paid execution stays disabled.
