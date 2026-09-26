@@ -292,6 +292,13 @@ See the [ingress/history/finalization contract](docs/results-2026-09-08-upload-h
 
 ## Tool Calling: do not turn experimental code into production by accident
 
+The [offline candidate-search library](docs/saved-source-candidate-search.md)
+keeps literal results and lexical-separator additions separate. Its one explicit
+query callback receives no snapshot/catalog; it is trusted synchronous code,
+not a network sandbox or paid-call limit. Preserve pre-callback snapshot binding,
+strict proposal admission and metadata-only delivery. Do not wire it into a
+provider, production route, automatic read or generated answer by implication.
+
 The [production saved-source wrapper](docs/operating-guide.md#optional-saved-source-locator)
 is a distinct default-off successor. Its new `/source-locator` page and API paths
 must preserve owner-code authorization, explicit question/catalog transfer
