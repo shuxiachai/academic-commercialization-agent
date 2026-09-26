@@ -14,7 +14,7 @@ _WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "tes
 _PYTHON = "${{ matrix.python-version }}"
 _PLAIN_IF = "matrix.os != 'ubuntu-latest' || matrix.python-version != '3.12'"
 _COVERAGE_IF = "matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'"
-_PLAIN_RUN = f"uv run --python {_PYTHON} pytest tests/ -v --tb=short"
+_PLAIN_RUN = f"uv run --python {_PYTHON} pytest tests/ -v --tb=short --durations=40"
 _COVERAGE_RUN = (
     f"{_PLAIN_RUN} --cov=src/academic_agent --cov=api --cov=ui "
     "--cov-report=term-missing --cov-fail-under=85"
@@ -194,12 +194,16 @@ def test_ci_executable_contracts():
     (_COVERAGE_RUN, {"run": "# " + _COVERAGE_RUN}),
     (_COVERAGE_RUN, {"run": _COVERAGE_RUN.replace("=85", "=84")}),
     (_COVERAGE_RUN, {"run": _COVERAGE_RUN.replace(" --cov=ui", "")}),
+    (_PLAIN_RUN, {"run": _PLAIN_RUN.replace(" --durations=40", "")}),
+    (_COVERAGE_RUN, {"run": _COVERAGE_RUN.replace(" --durations=40", "")}),
+    (_PLAIN_RUN, {"run": _PLAIN_RUN.replace("--durations=40", "--durations=10")}),
+    (_COVERAGE_RUN, {"run": _COVERAGE_RUN.replace("--durations=40", "--durations=10")}),
     (_PLAIN_RUN, {"run": _PLAIN_RUN + " || true"}),
     (_PLAIN_RUN, {"run": _PLAIN_RUN + " -k smoke"}),
     (_COVERAGE_RUN, {"continue-on-error": True}),
 ])
 def test_execution_contract_rejects_weakened_steps(command, update):
-    """Reinject bypasses in memory; never corrupt the on-disk workflow."""
+    """Reject execution/timing bypasses in memory, not by corrupting CI on disk."""
     jobs = _jobs()
     steps = jobs["test"]["steps"]
     steps[_run_index(steps, command)].update(update)

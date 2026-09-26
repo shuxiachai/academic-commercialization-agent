@@ -60,6 +60,13 @@ coverage status check aggregates matrix success, including that measurement,
 rather than executing the suite a fifth time. It fails for failed, cancelled
 or skipped matrix results. Verbose reporting remains enabled in every cell.
 
+Every matrix cell also publishes its 40 slowest test phases with
+`--durations=40`. Use `uv run pytest -q --durations=40` for a local profile before
+optimizing fixtures. These timings locate expensive setup/calls/teardown, not
+the cause of that cost, and cannot by themselves justify removing process or
+default-off isolation checks. Preserve the collected suite and coverage scope
+when comparing measurement overhead; concurrent workloads are a confounder.
+
 Maintain failure coverage, not a target test count. Combine identical setup
 when result and audit assertions protect the same scenario; assert nonempty
 data at its delivery boundary and request parameters at the real call seam.
