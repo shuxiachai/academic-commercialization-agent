@@ -292,6 +292,13 @@ See the [ingress/history/finalization contract](docs/results-2026-09-08-upload-h
 
 ## Tool Calling: do not turn experimental code into production by accident
 
+The [source-guided positive Qwen controls](docs/prereg-2026-09-26-saved-source-positive-qwen.md)
+have a separate fixed packet/output and four-request batch. The new standalone
+runner is identity-only by default; do not reuse closed SLQ/SLCQ/RUQ authority,
+publish private packet identities, or treat a context-only proxy as native Qwen.
+Native use requires the frozen implementation, exact approved request preview,
+independent review, green CI and the applicable bounded operator grant.
+
 The [production saved-source wrapper](docs/operating-guide.md#optional-saved-source-locator)
 is a distinct default-off successor. Its new `/source-locator` page and API paths
 must preserve owner-code authorization, explicit question/catalog transfer
