@@ -308,6 +308,13 @@ replace frozen lab checks or trust arbitrary forwarded headers to repair TLS
 termination. A disabled-execution origin check is not a paid canary. See the
 [origin boundary and qualified observation](docs/results-2026-09-23-source-locator-public-origin.md).
 
+One later [bounded production acceptance](docs/results-2026-09-26-production-source-locator-acceptance.md)
+observed native source selection, exact saved-text delivery and the same receipt
+after execution closure and redeployment. The original POST body was unavailable
+to the independent observer; DOM and actual GET evidence are qualified separately.
+Execution is closed again with zero feature budgets. Do not reopen the consumed
+attempt or promote its prepared-case match to unseen accuracy or user benefit.
+
 The separate [saved-source locator](docs/prereg-2026-09-18-saved-source-locator.md)
 uses one selector callback and one existing local read, followed by code-owned
 saved-text JSON, not a generated answer or claim relation. Its new module/test/

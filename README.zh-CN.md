@@ -110,80 +110,29 @@
 
 ## Tool Calling 完成到哪里
 
-已实现受预算约束的执行内核、适配器、用量审计、来源锁定人工评审和未见集
-实验链。生产仍为 **phase-1 零调用 Shadow Mode**：可以记录证据缺口，
-不会因此追加来源或付费搜索。
+这里需要区分三种能力：
 
-最新 Adaptive Role-Gap v8 在 AC 开发集通过后，在 AD 未见集的六门中失败
-三门：路由正确 5/8、补充搜索所选角色价值 2/7、相比 anchor 仅多覆盖 1 个
-案例。v8 已封存，AC/AD 已消费，不能凭这些结果接入生产。
+- **保存来源定位**：已经接入独立生产页面和 API。模型最多从保存的标题/ID
+  目录中选择一次，程序返回原样保存文本；不生成研究答案、不搜索新资料。
+  执行需要报告所有者身份、明确的数据发送同意、付费准入和持久回执，并提供
+  操作级核算。详见[运行边界](docs/operating-guide.md#optional-saved-source-locator)。
+- **自动补充检索**：生产仍是零调用观察模式。最后一轮未见评估未通过准入要求，
+  不会因为来源定位取得进展而自动启用。
+- **生成式证据追问**：仍属实验，没有开放为生产问答功能。
+  工具确实执行或 JSON 格式正确，都不等于答案得到证据支持。
 
-[v1–v8 版本台账](docs/evidence-status.md#tool-calling-experiments)分别记录传输、
-机械检查和价值评测结论。未来方法需要新的预注册和开发/未见集，不能调整
-已失败的未见集后再称为验证成功。
+2026 年 9 月 26 日，一次受限生产浏览器验收选中预先确定的来源，准确交付保存文本，
+并在关闭执行、重新部署后通过同一回执恢复结果和核算。该操作报告用量为
+1,199 Tokens，按固定工程价格估算 USD 0.000764436，不是供应商发票。
+这只是一个准备案例的交付观察，不是未见准确率，也不证明优于已有免费的 Sources
+关键词查找。**验收后已重新关闭新增付费执行，功能预算归零，并未持续开放。**
 
-另有独立的[已有证据追问原型](docs/report-evidence-followup.md)，验证受限查找/读取
-工具及绑定原始片段的收据。脚本演示仍为离线；另行[预注册 Qwen 合成验证](docs/prereg-2026-09-14-report-evidence-followup-qwen.md)，
-仅两个对照、最多六次请求、0.10 美元软停止线。它不补充新来源、不开放付费接口；
-读者收益和生产接入仍未建立，不能视为 v8 通过。
+[验收记录与限制](docs/results-2026-09-26-production-source-locator-acceptance.md)
+分别说明原 POST 响应体观察器的限制、实际页面与 GET 原始响应的核对，以及此前
+同源校验失败的独立事实，不将不同批次拼成一次成功。
 
-[首次真实 Qwen 验证](docs/results-2026-09-15-report-evidence-followup-qwen-canary.md)
-完整记录了三次调用，但**读取到回答的闭环未通过**，第二例未执行；原生传输成功不等于功能已完成。
-
-另有独立的[离线阶段策略](docs/report-evidence-followup.md#separate-offline-stage-policy)，
-同时约束展示给模型及实际可执行的工具，为读取与回答保留机会；不增加额度、不修改旧冻结
-runner，也不宣称新的真实模型成功率或线上追问已经完成。独立的
-[阶段感知传输](docs/report-evidence-followup.md#stage-aware-qwen-transport)将最后一轮
-禁用工具的意图保留到HTTP/账本接缝；这是离线合同验证，不是新的模型实测或生产接入。
-另有[独立canary准备](docs/report-evidence-followup.md#stage-aware-canary-preparation)，
-冻结新的合成案例；默认只核验身份，不发供应商请求，也不复用旧付费额度。
-其[后续真实批次](docs/results-2026-09-15-stage-qwen-canary-live.md)已完成原生查找、
-读取及证据交付，但最终回复混入说明和JSON代码块，严格格式校验失败。
-三次请求已记账，第二例未执行；读取有进展，不等于闭环通过或已接入生产。
-后续的[最终回合JSON候选](docs/report-evidence-followup.md#separate-final-only-json-candidate)
-使用新合成控制并保留本地严格校验，不改写旧失败结果，也不开启生产追问入口。
-其[JQ验证](docs/results-2026-09-16-report-evidence-final-json-qwen.md)在零匹配后返回了
-合规JSON，但没有实际读取已保存证据，正例仍失败、第二例未运行。
-后续目录与传输工作保持独立身份，不把格式通过当作闭环通过或追加重试的依据。
-
-新的[离线目录候选](docs/report-evidence-followup.md#bounded-metadata-catalog-candidate)
-先提供有界的已保存标题/ID，再允许读取一条来源；不改旧短语匹配，也不凭目录发放引用。
-独立的[目录原生传输合同](docs/report-evidence-followup.md#catalog-native-qwen-wire-contract)
-适配32个可见ID，不改冻结适配器，原离线验证使用拦截HTTP而非真实模型。
-独立的[CQ合成canary](docs/report-evidence-followup.md#catalog-native-synthetic-canary)另有冻结输入与有界执行器，
-不是生产入口；脚本控制不证明千问选源正确，也不证明用户收益。
-随后唯一一次[CQ真实批次](docs/results-2026-09-16-report-evidence-catalog-qwen-canary.md)以四次请求通过两个虚构控制：
-实际读取后带收据回答，以及实际读到正文缺失后弃答。这是有界的原生闭环证据，
-不是一般语义准确率、真实用户效果或生产接入。
-
-独立的[命题相对CLQ验证](docs/results-2026-09-16-claim-qwen-canary.md)完成六次请求：
-三题机械检查通过，但只匹配2/3冻结标签，整批仍记为失败。独立LLM盲审发现
-参考标签与“是否记录过数值”的命题措辞不匹配；旧标签及失败不改写。
-本批尚未证明预期的“非空证据仍不足”实测路径，也未接入生产Tool Calling。
-
-后续[PCQ对照准备](docs/results-2026-09-17-claim-proposition-contrast.md)新增经独立LLM盲审的
-合成参考标签与离线收据检查；这不是又一次千问实测，也不是生产发布。
-其[独立原生执行器](docs/results-2026-09-17-claim-proposition-contrast-qwen-runner.md)
-新增身份绑定与拦截HTTP的失败路径验证，尚不构成真实模型验证。
-随后唯一一次[PCQ原生批次](docs/results-2026-09-17-claim-proposition-contrast-qwen-canary.md)
-在两次请求后停止：PCQ01机械检查通过，但把“未测量的物理值”判为反驳而非证据不足。
-带有项目历史背景的LLM评审判回答为mixed；PCQ02/03未运行。整批已关闭并记为失败，
-没有接入生产，也尚未验证“读到非空资料后正确弃答”的原生路径。
-
-独立的[显式关系判定策略](docs/results-2026-09-17-claim-relation-policy.md)
-准备离线回调规则与八个合成开发对照。参考判断一致和脚本交付检查都不是
-新的千问准确率证据或生产准入；此前失败批次保持关闭。
-其[独立原生适配器](docs/results-2026-09-17-relation-policy-qwen-transport.md)
-将策略、原命题、保存片段回执与完整HTTP体绑定到新离线账本。
-拦截HTTP不等于真实供应商结果，也不自动授权付费或上线。
-[CI后续记录](docs/results-2026-09-17-relation-policy-ci-isolation.md)
-单独保留测试隔离作用域缺陷，不将本地通过等同于跨平台通过。
-
-独立的[保存来源定位候选](docs/prereg-2026-09-18-saved-source-locator.md)采用一次选源、
-一次本地保存文本读取，由程序原样组装结果，不再生成新答案。
-[单批 SLQ 真实试跑](docs/results-2026-09-19-source-locator-qwen-canary.md)完成四次千问请求，
-四个合成流程与参考检查均通过，包含明确弃权和缺失文本处理。
-这只是小型开发验证，不是独立准确率或已上线功能；详见[追问原型说明](docs/report-evidence-followup.md#separate-code-owned-saved-source-locator)。
+历史假设、失败和已关闭批次保留在[证据记录](docs/evidence-status.md#tool-calling-experiments)
+及[实验档案](docs/experiment-index.md)，不累加成通用准确率，也不因本次验收而重新开启。
 
 ## 快速启动
 

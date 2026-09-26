@@ -31,6 +31,17 @@ native production observation. An HTTPS request also produced an HTTP redirect,
 exposing the TLS-termination boundary missing from the original loopback smoke.
 See the [production-origin repair and validation limits](results-2026-09-23-source-locator-public-origin.md).
 
+A new [bounded production acceptance on 2026-09-26](results-2026-09-26-production-source-locator-acceptance.md)
+completed one native selection from 16 saved titles and delivered the exact
+saved text. After disabling execution and redeploying, one manual receipt GET
+preserved the same text and accounting without another selection. Reported
+usage was 1199 tokens; the frozen-rate estimate was USD 0.000764436, not an
+invoice. The original POST body was unavailable to the independent browser
+observer; comparison used the delivered DOM and subsequent actual GET body.
+This is one prepared production acceptance, not unseen accuracy or user value.
+Execution is again disabled with zero feature budgets; the earlier failed pilot
+and all isolated batch limits remain unchanged.
+
 The Sources panel separately supports local exact-ID/literal-keyword lookup
 and expansion of saved text through the existing artifact read. It does not
 run an LLM, supplement evidence or judge claim support. Text can have been

@@ -240,6 +240,13 @@ The original command without `--proxy` retains the direct same-origin journey.
 The proxy journey uses a real Chromium HTTPS origin with intercepted loopback
 HTTP upstream requests, not a real TLS proxy or a paid provider validation.
 
+The separate [2026-09-26 production acceptance](results-2026-09-26-production-source-locator-acceptance.md)
+observed one native selection, exact saved-text delivery and unchanged receipt
+accounting after execution closure and redeployment. New paid execution was
+closed again with zero feature budgets. This prepared case is not a general
+accuracy claim or permission to keep the feature enabled; original POST-body
+capture was unavailable, while the delivered DOM and actual GET were compared.
+
 Both health endpoints expose optional `source_locator` configuration observations,
 separate from the existing maintenance result enum. These are not checks of the
 provider credential, remaining allowance or model connectivity. When an active
