@@ -1,5 +1,7 @@
 # Experiment archive index
 
+- [2026-09-26 candidate-query Qwen wire preparation](prereg-2026-09-26-candidate-query-qwen-transport.md): question-only native query proposals, exact body/ledger binding, one-request accounting and intercepted-HTTP validation; no real key, paid allowance, source transfer, answer generation or production activation.
+
 - [2026-09-26 bounded production saved-source acceptance](results-2026-09-26-production-source-locator-acceptance.md): one native selection delivered exact saved text; after execution closure and redeployment, one manual GET preserved the receipt and accounting. USD 0.000764436 frozen-rate estimate, original POST-body observer limitation, not unseen accuracy or permanent enablement.
 
 - [2026-09-23 production saved-source public-origin repair](results-2026-09-23-source-locator-public-origin.md): one rejected production pilot before provider dispatch, explicit public-origin/Host binding across TLS termination, unchanged frozen labs, and zero-provider proxy-browser receipt recovery; paid execution stays disabled.

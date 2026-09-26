@@ -120,3 +120,9 @@ There is no CLI, HTTP route, production worker import, provider factory or
 credential option for this module. A future native adapter or product entry
 needs its own request/data boundary, authorization, accounting and evaluation;
 this library does not reopen any closed batch or activate the existing locator.
+
+The separate [Qwen query wire preparation](prereg-2026-09-26-candidate-query-qwen-transport.md)
+implements that callback contract with an explicit key and a new one-request
+journal. It is tested using fake keys and intercepted HTTP, not enabled here
+or in production. Its model receives only the question and fixed controls,
+never the snapshot or resulting candidates; native quality remains untested.

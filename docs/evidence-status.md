@@ -57,6 +57,12 @@ evidence or an answer. It has no native provider, public route or production
 connection. Mechanical controls do not establish unseen query quality, semantic
 support or user benefit; the viewer and gated locator above are unchanged.
 
+A distinct [Qwen query wire adapter](prereg-2026-09-26-candidate-query-qwen-transport.md)
+is prepared around that callback, with a new one-request ledger and question-only
+native request. Fake-key, intercepted HTTP is its verification boundary, not a
+new provider observation. No saved source metadata/text is added to the request,
+and no paid allowance, live runner or production connection follows.
+
 Planning/translation now shares complete provider configuration with the main
 factory; fixed BYOK destinations and narrow credential/content-safe diagnostics
 are offline-tested. Historical node usage totals still exclude auxiliary calls.
