@@ -299,6 +299,13 @@ not a network sandbox or paid-call limit. Preserve pre-callback snapshot binding
 strict proposal admission and metadata-only delivery. Do not wire it into a
 provider, production route, automatic read or generated answer by implication.
 
+The [separate candidate-query Qwen adapter](docs/prereg-2026-09-26-candidate-query-qwen-transport.md)
+binds only the question and fixed policy, with a new single-request journal and
+explicit in-memory credential guard. Preserve reserve-before-POST, strict native
+query versus text-JSON admission and unknown usage. It is network-capable only
+when explicitly invoked; intercepted tests and scope labels grant no live call,
+new data transfer or production registration. Do not reuse a closed batch.
+
 The [production saved-source wrapper](docs/operating-guide.md#optional-saved-source-locator)
 is a distinct default-off successor. Its new `/source-locator` page and API paths
 must preserve owner-code authorization, explicit question/catalog transfer
