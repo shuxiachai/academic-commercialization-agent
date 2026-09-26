@@ -14,7 +14,8 @@ def test_production_projection_checks_consent_before_receipt_and_recovers_withou
     node = shutil.which("node")
     assert node, "Node is required for the actual source-locator browser contract"
     root = Path(__file__).resolve().parents[1]
-    replies = [asset_response(name) for name in ("result.js", "receipt.js", "accounting.js", "entry.js")]
+    # The VM strips imports, so load every real served dependency before entry.
+    replies = [asset_response(name) for name in ("result.js", "receipt.js", "accounting.js", "outcome.js", "entry.js")]
     assert all(reply.status_code == 200 for reply in replies)
     page = page_response(True)
     assert page.status_code == 200

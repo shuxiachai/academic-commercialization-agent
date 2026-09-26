@@ -4,3 +4,4 @@
 .transfer-consent { display: flex; gap: 12px; align-items: flex-start; padding: 16px; background: #f2f7f4; border: 1px solid #c4d4c9; border-radius: 8px; }
 .transfer-consent input { width: auto; flex: 0 0 auto; margin-top: 4px; }
 .navigation { margin-bottom: 16px; }
+#receipt-outcome { padding: 12px; background: #fff4f2; border-left: 4px solid #9b3a2f; }

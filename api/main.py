@@ -577,7 +577,7 @@ if _WEB_ROOT.is_dir():
         if page.count(marker) != 1:
             raise HTTPException(status_code=503, detail="Page navigation is unavailable.")
         fragment = "#" + run_id if valid_run_id(run_id) else ""
-        link = '<a href="/source-locator' + fragment + '">Saved-source locator</a>'
+        link = '<a id="source-locator-link" href="/source-locator' + fragment + '">Saved-source locator</a>'
         return Response(page.replace(marker, link, 1), media_type="text/html", headers={"Cache-Control": "no-store"})
 
 
