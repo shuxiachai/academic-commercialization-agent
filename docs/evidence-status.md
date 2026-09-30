@@ -27,6 +27,14 @@ establish native prevention of factual misinterpretation. The motivating normal
 run completed and exposed auxiliary costs in the browser; that is not source
 truth, a complete bill, or general semantic validation.
 
+A separate [Reviewer comparison development protocol](prereg-2026-09-30-reviewer-comparison.md)
+now has [offline execution preparation](results-2026-09-30-reviewer-comparison-preparation.md).
+It pairs three fresh fictional drafts under the old and current Reviewer
+instructions, followed by actual correction application/report validation and
+later blind LLM judgment. Its isolated six-request/USD 0.10 batch does not run
+the full production workflow. Preparation and scripted controls alone leave
+native semantic gain unmeasured.
+
 A separate [saved-source production wrapper](operating-guide.md#optional-saved-source-locator)
 is default-off. Its gated page/API reuses the bounded one-selection locator,
 owner authorization, shared admission and durable receipt/accounting contracts.

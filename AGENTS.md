@@ -594,6 +594,15 @@ not a semantic validator; do not rewrite the motivating saved report or claim
 scripted correction delivery proves native reasoning. See the
 [RFID repair and qualified replay](docs/results-2026-09-30-rfid-evidence-boundaries.md).
 
+The separate `evals/reviewer_comparison_v1/` development challenge binds three
+fresh synthetic pairs and the old/current Reviewer instructions. Its default
+preparation cannot read a key or dispatch; native use needs the exact reviewed
+CI identity, a fresh fixed output and the applicable one-batch allowance.
+Correction application plus report validation is not the full CrewAI workflow,
+and semantic results require a new blind LLM context. See the
+[frozen protocol](docs/prereg-2026-09-30-reviewer-comparison.md) and
+[preparation limits](docs/results-2026-09-30-reviewer-comparison-preparation.md).
+
 Market score delivery must disclose non-assessment, not promote the legacy
 untyped spread flag to verified USD disagreement. Reassert fresh/restored JSON
 metadata and retain the legacy browser fallback without changing score values.

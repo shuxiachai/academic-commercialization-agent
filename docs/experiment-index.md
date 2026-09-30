@@ -8,6 +8,10 @@ the current evidence status for today's qualified conclusions; open a dated
 protocol or result when tracing a specific decision. An archive link does not
 authorize rerunning a paid batch, moving its files or treating a failed gate as passed.
 
+- [2026-09-30 Reviewer comparison development protocol](prereg-2026-09-30-reviewer-comparison.md): three fresh synthetic pairs, isolated native instructions, actual correction application and blind LLM judgment; six-request/USD 0.10 ceiling, no production activation.
+
+- [2026-09-30 Reviewer comparison preparation](results-2026-09-30-reviewer-comparison-preparation.md): frozen synthetic inputs and instruction roots, credential/import/history boundaries, meaningful failure controls; mechanical preparation does not establish native semantic gain.
+
 - [2026-09-30 RFID evidence boundaries](results-2026-09-30-rfid-evidence-boundaries.md): compound-aware patent admission and cautious news provenance; saved-candidate replay and scripted comparison delivery, not native semantic prevention or a new paid experiment.
 
 - [2026-09-29 synthetic auxiliary restoration](results-2026-09-29-auxiliary-volume-restore.md): copied helper/PDF ledgers, source isolation, cleared caches, handler/model delivery, known lower bounds and unknown states; no double counting or read repair, original bounded inventory and stale-snapshot limits retained, no provider or real-volume operation.

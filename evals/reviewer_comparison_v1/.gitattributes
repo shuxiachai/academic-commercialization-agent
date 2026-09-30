@@ -1,0 +1,5 @@
+runner.py -text
+fixture.json -text
+manifest.json -text
+README.md -text
+.gitattributes -text

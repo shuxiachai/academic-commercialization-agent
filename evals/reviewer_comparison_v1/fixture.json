@@ -1,0 +1,549 @@
+{
+  "schema": "reviewer_comparison_v1",
+  "provenance": "Fresh AI-authored synthetic development controls, not human gold, held-out data, or verified papers.",
+  "cases": [
+    {
+      "id": "RC01",
+      "topic": "Synthetic pressure monitor for filter loading",
+      "evidence_reports": [
+        {
+          "topic": "Synthetic pressure monitor for filter loading",
+          "scope_summary": "Constructed evidence context for an isolated Reviewer development comparison.",
+          "search_queries": [
+            "synthetic only; no retrieval performed"
+          ],
+          "findings": [
+            {
+              "finding_id": "AF1",
+              "category": "synthetic comparison context",
+              "claim": "The monitor's calibration error was 13.7 kPa, justifying a 1.37 kPa deployment tolerance.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "A1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "AF2",
+              "category": "synthetic comparison context",
+              "claim": "This constructed source reports only its explicitly stated setting and does not validate all operating conditions.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "A1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "AF3",
+              "category": "synthetic comparison context",
+              "claim": "Deployment acceptance criteria require authority and evidence beyond this constructed record.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "A1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "A1",
+              "title": "Fictional RC01 A record",
+              "url": "https://synthetic.example.org/reviewer-v1/rc01/a1",
+              "publisher": "Fictional Evaluation Laboratory",
+              "accessed_date": "2026-01-02",
+              "source_type": "academic_paper",
+              "credibility_tier": "medium",
+              "credibility_reason": "Synthetic control only; not independently verified evidence.",
+              "evidence_summary": "Fictional bench note: at a fixed blower setting, the duct pressure with the filter loaded exceeded pressure with the filter bypassed by 13.7 kPa. These are two physical operating conditions. No reference manometer was used and no instrument error or release tolerance was determined."
+            }
+          ],
+          "limitations": [
+            "Constructed development input only, not actual retrieval or a verified external source."
+          ]
+        },
+        {
+          "topic": "Synthetic pressure monitor for filter loading",
+          "scope_summary": "Constructed evidence context for an isolated Reviewer development comparison.",
+          "search_queries": [
+            "synthetic only; no retrieval performed"
+          ],
+          "findings": [
+            {
+              "finding_id": "PF1",
+              "category": "synthetic comparison context",
+              "claim": "Fictional patent note: a removable monitor bracket is described. This note contains no instrument validation, acceptance tolerance, enforceability assessment or legal clearance.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "P1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "PF2",
+              "category": "synthetic comparison context",
+              "claim": "This constructed source reports only its explicitly stated setting and does not validate all operating conditions.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "P1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "PF3",
+              "category": "synthetic comparison context",
+              "claim": "Deployment acceptance criteria require authority and evidence beyond this constructed record.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "P1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "P1",
+              "title": "Fictional RC01 P record",
+              "url": "https://synthetic.example.org/reviewer-v1/rc01/p1",
+              "publisher": "Fictional Evaluation Laboratory",
+              "accessed_date": "2026-01-02",
+              "source_type": "patent",
+              "credibility_tier": "medium",
+              "credibility_reason": "Synthetic control only; not independently verified evidence.",
+              "evidence_summary": "Fictional patent note: a removable monitor bracket is described. This note contains no instrument validation, acceptance tolerance, enforceability assessment or legal clearance."
+            }
+          ],
+          "limitations": [
+            "Constructed development input only, not actual retrieval or a verified external source."
+          ]
+        },
+        {
+          "topic": "Synthetic pressure monitor for filter loading",
+          "scope_summary": "Constructed evidence context for an isolated Reviewer development comparison.",
+          "search_queries": [
+            "synthetic only; no retrieval performed"
+          ],
+          "findings": [
+            {
+              "finding_id": "MF1",
+              "category": "synthetic comparison context",
+              "claim": "Fictional product note: an industrial monitoring application is proposed. The note gives no measured accuracy, customer uptake, release criterion or market-size estimate.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "M1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "MF2",
+              "category": "synthetic comparison context",
+              "claim": "This constructed source reports only its explicitly stated setting and does not validate all operating conditions.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "M1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "MF3",
+              "category": "synthetic comparison context",
+              "claim": "Deployment acceptance criteria require authority and evidence beyond this constructed record.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "M1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "M1",
+              "title": "Fictional RC01 M record",
+              "url": "https://synthetic.example.org/reviewer-v1/rc01/m1",
+              "publisher": "Fictional Evaluation Laboratory",
+              "accessed_date": "2026-01-02",
+              "source_type": "company_disclosure",
+              "credibility_tier": "medium",
+              "credibility_reason": "Synthetic control only; not independently verified evidence.",
+              "evidence_summary": "Fictional product note: an industrial monitoring application is proposed. The note gives no measured accuracy, customer uptake, release criterion or market-size estimate."
+            }
+          ],
+          "limitations": [
+            "Constructed development input only, not actual retrieval or a verified external source."
+          ]
+        }
+      ],
+      "draft": "# Academic Commercialization Assessment: Synthetic pressure monitor for filter loading\n\n## Executive Summary\nThe comparison below concerns a bounded bench observation, not a complete commercialization decision [A1]. The proposed monitoring use is described only in a fictional product note [M1].\n\n## 1. Technology Overview & Maturity\nThe pressure monitor had a calibration error of 13.7 kPa in the fixed-blower trial [A1].\nPerformance outside the stated blower setting has not been characterized [A1].\n\n## 2. Patent Landscape & White Spaces\nThe fictional patent note describes a removable mounting bracket; legal clearance and enforceability have not been established [P1].\nPatent analysis is preliminary research, not legal advice or a freedom-to-operate opinion.\n\n## 3. Target Industries & Use Cases\nThe fictional product note proposes industrial monitoring but supplies no customer-adoption observation [M1].\n\n## 4. Competitive Landscape\nThe product note provides no comparative market-share or validated competing-instrument performance information [M1].\n\n## 5. Commercialization Opportunities & Recommendations\nAnalyst inference: because the measured calibration error was 13.7 kPa, deployment requires a 1.37 kPa acceptance limit [A1].\nThe bracket description alone cannot settle deployment performance or freedom to operate [P1].\n\n## Evidence Limitations\nAll records in this assessment are fictional development controls. There is no original-paper verification, production decision, adoption observation or evidence of user benefit.\n\n## References\n[A1] Fictional RC01 A record. https://synthetic.example.org/reviewer-v1/rc01/a1\n[P1] Fictional RC01 P record. https://synthetic.example.org/reviewer-v1/rc01/p1\n[M1] Fictional RC01 M record. https://synthetic.example.org/reviewer-v1/rc01/m1\n"
+    },
+    {
+      "id": "RC02",
+      "topic": "Synthetic torque transducer for assembly fixtures",
+      "evidence_reports": [
+        {
+          "topic": "Synthetic torque transducer for assembly fixtures",
+          "scope_summary": "Constructed evidence context for an isolated Reviewer development comparison.",
+          "search_queries": [
+            "synthetic only; no retrieval performed"
+          ],
+          "findings": [
+            {
+              "finding_id": "AF1",
+              "category": "synthetic comparison context",
+              "claim": "The transducer had a positive indication error of 0.84 N m relative to the reference torque standard in the slow room-temperature ramp. Thermal drift remains untested.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "A1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "AF2",
+              "category": "synthetic comparison context",
+              "claim": "This constructed source reports only its explicitly stated setting and does not validate all operating conditions.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "A1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "AF3",
+              "category": "synthetic comparison context",
+              "claim": "Deployment acceptance criteria require authority and evidence beyond this constructed record.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "A1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "A1",
+              "title": "Fictional RC02 A record",
+              "url": "https://synthetic.example.org/reviewer-v1/rc02/a1",
+              "publisher": "Fictional Evaluation Laboratory",
+              "accessed_date": "2026-01-02",
+              "source_type": "academic_paper",
+              "credibility_tier": "medium",
+              "credibility_reason": "Synthetic control only; not independently verified evidence.",
+              "evidence_summary": "Fictional bench note: during a slow torque ramp at room temperature, a transducer read 0.84 N m above a reference torque standard measuring the same applied shaft torque. This is a positive indication error for that setup. Thermal drift was not evaluated. The study sets no acceptance threshold."
+            }
+          ],
+          "limitations": [
+            "Constructed development input only, not actual retrieval or a verified external source."
+          ]
+        },
+        {
+          "topic": "Synthetic torque transducer for assembly fixtures",
+          "scope_summary": "Constructed evidence context for an isolated Reviewer development comparison.",
+          "search_queries": [
+            "synthetic only; no retrieval performed"
+          ],
+          "findings": [
+            {
+              "finding_id": "PF1",
+              "category": "synthetic comparison context",
+              "claim": "Fictional patent note: a removable monitor bracket is described. This note contains no instrument validation, acceptance tolerance, enforceability assessment or legal clearance.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "P1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "PF2",
+              "category": "synthetic comparison context",
+              "claim": "This constructed source reports only its explicitly stated setting and does not validate all operating conditions.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "P1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "PF3",
+              "category": "synthetic comparison context",
+              "claim": "Deployment acceptance criteria require authority and evidence beyond this constructed record.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "P1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "P1",
+              "title": "Fictional RC02 P record",
+              "url": "https://synthetic.example.org/reviewer-v1/rc02/p1",
+              "publisher": "Fictional Evaluation Laboratory",
+              "accessed_date": "2026-01-02",
+              "source_type": "patent",
+              "credibility_tier": "medium",
+              "credibility_reason": "Synthetic control only; not independently verified evidence.",
+              "evidence_summary": "Fictional patent note: a removable monitor bracket is described. This note contains no instrument validation, acceptance tolerance, enforceability assessment or legal clearance."
+            }
+          ],
+          "limitations": [
+            "Constructed development input only, not actual retrieval or a verified external source."
+          ]
+        },
+        {
+          "topic": "Synthetic torque transducer for assembly fixtures",
+          "scope_summary": "Constructed evidence context for an isolated Reviewer development comparison.",
+          "search_queries": [
+            "synthetic only; no retrieval performed"
+          ],
+          "findings": [
+            {
+              "finding_id": "MF1",
+              "category": "synthetic comparison context",
+              "claim": "Fictional product note: an industrial monitoring application is proposed. The note gives no measured accuracy, customer uptake, release criterion or market-size estimate.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "M1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "MF2",
+              "category": "synthetic comparison context",
+              "claim": "This constructed source reports only its explicitly stated setting and does not validate all operating conditions.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "M1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "MF3",
+              "category": "synthetic comparison context",
+              "claim": "Deployment acceptance criteria require authority and evidence beyond this constructed record.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "M1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "M1",
+              "title": "Fictional RC02 M record",
+              "url": "https://synthetic.example.org/reviewer-v1/rc02/m1",
+              "publisher": "Fictional Evaluation Laboratory",
+              "accessed_date": "2026-01-02",
+              "source_type": "company_disclosure",
+              "credibility_tier": "medium",
+              "credibility_reason": "Synthetic control only; not independently verified evidence.",
+              "evidence_summary": "Fictional product note: an industrial monitoring application is proposed. The note gives no measured accuracy, customer uptake, release criterion or market-size estimate."
+            }
+          ],
+          "limitations": [
+            "Constructed development input only, not actual retrieval or a verified external source."
+          ]
+        }
+      ],
+      "draft": "# Academic Commercialization Assessment: Synthetic torque transducer for assembly fixtures\n\n## Executive Summary\nThe comparison below concerns a bounded bench observation, not a complete commercialization decision [A1]. The proposed monitoring use is described only in a fictional product note [M1].\n\n## 1. Technology Overview & Maturity\nDuring the slow room-temperature ramp, the transducer read 0.84 N m above the reference standard for the same shaft torque, a positive indication error in that setup [A1].\nThermal drift was not evaluated; the bench comparison does not establish behavior under heating [A1].\n\n## 2. Patent Landscape & White Spaces\nThe fictional patent note describes a removable mounting bracket; legal clearance and enforceability have not been established [P1].\nPatent analysis is preliminary research, not legal advice or a freedom-to-operate opinion.\n\n## 3. Target Industries & Use Cases\nThe fictional product note proposes industrial monitoring but supplies no customer-adoption observation [M1].\n\n## 4. Competitive Landscape\nThe product note provides no comparative market-share or validated competing-instrument performance information [M1].\n\n## 5. Commercialization Opportunities & Recommendations\nIndependent analyst experiment proposal requiring owner confirmation: test a 0.19 N m target; this proposed target is not derived from the observed indication error and is not a source-established or owner-approved release threshold [A1].\nThe bracket description alone cannot settle deployment performance or freedom to operate [P1].\n\n## Evidence Limitations\nAll records in this assessment are fictional development controls. There is no original-paper verification, production decision, adoption observation or evidence of user benefit.\n\n## References\n[A1] Fictional RC02 A record. https://synthetic.example.org/reviewer-v1/rc02/a1\n[P1] Fictional RC02 P record. https://synthetic.example.org/reviewer-v1/rc02/p1\n[M1] Fictional RC02 M record. https://synthetic.example.org/reviewer-v1/rc02/m1\n"
+    },
+    {
+      "id": "RC03",
+      "topic": "Synthetic cabinet humidity monitor",
+      "evidence_reports": [
+        {
+          "topic": "Synthetic cabinet humidity monitor",
+          "scope_summary": "Constructed evidence context for an isolated Reviewer development comparison.",
+          "search_queries": [
+            "synthetic only; no retrieval performed"
+          ],
+          "findings": [
+            {
+              "finding_id": "AF1",
+              "category": "synthetic comparison context",
+              "claim": "Humidity comparisons gave 11.6 percentage points and 0.9 percentage points; the larger comparison is the monitor error, while the smaller describes the rack gradient.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "A1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "AF2",
+              "category": "synthetic comparison context",
+              "claim": "This constructed source reports only its explicitly stated setting and does not validate all operating conditions.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "A1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "AF3",
+              "category": "synthetic comparison context",
+              "claim": "Deployment acceptance criteria require authority and evidence beyond this constructed record.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "A1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "A1",
+              "title": "Fictional RC03 A record",
+              "url": "https://synthetic.example.org/reviewer-v1/rc03/a1",
+              "publisher": "Fictional Evaluation Laboratory",
+              "accessed_date": "2026-01-02",
+              "source_type": "academic_paper",
+              "credibility_tier": "medium",
+              "credibility_reason": "Synthetic control only; not independently verified evidence.",
+              "evidence_summary": "Fictional cabinet study: during a steady purge, relative humidity on the north rack exceeded the south rack by 11.6 percentage points. In a separate isothermal chamber, the co-located monitor read 0.9 percentage points below a reference hygrometer measuring the same air. No outdoor condensation trial was performed; the chamber error is not an outdoor accuracy guarantee. No release criterion was set."
+            }
+          ],
+          "limitations": [
+            "Constructed development input only, not actual retrieval or a verified external source."
+          ]
+        },
+        {
+          "topic": "Synthetic cabinet humidity monitor",
+          "scope_summary": "Constructed evidence context for an isolated Reviewer development comparison.",
+          "search_queries": [
+            "synthetic only; no retrieval performed"
+          ],
+          "findings": [
+            {
+              "finding_id": "PF1",
+              "category": "synthetic comparison context",
+              "claim": "Fictional patent note: a removable monitor bracket is described. This note contains no instrument validation, acceptance tolerance, enforceability assessment or legal clearance.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "P1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "PF2",
+              "category": "synthetic comparison context",
+              "claim": "This constructed source reports only its explicitly stated setting and does not validate all operating conditions.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "P1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "PF3",
+              "category": "synthetic comparison context",
+              "claim": "Deployment acceptance criteria require authority and evidence beyond this constructed record.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "P1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "P1",
+              "title": "Fictional RC03 P record",
+              "url": "https://synthetic.example.org/reviewer-v1/rc03/p1",
+              "publisher": "Fictional Evaluation Laboratory",
+              "accessed_date": "2026-01-02",
+              "source_type": "patent",
+              "credibility_tier": "medium",
+              "credibility_reason": "Synthetic control only; not independently verified evidence.",
+              "evidence_summary": "Fictional patent note: a removable monitor bracket is described. This note contains no instrument validation, acceptance tolerance, enforceability assessment or legal clearance."
+            }
+          ],
+          "limitations": [
+            "Constructed development input only, not actual retrieval or a verified external source."
+          ]
+        },
+        {
+          "topic": "Synthetic cabinet humidity monitor",
+          "scope_summary": "Constructed evidence context for an isolated Reviewer development comparison.",
+          "search_queries": [
+            "synthetic only; no retrieval performed"
+          ],
+          "findings": [
+            {
+              "finding_id": "MF1",
+              "category": "synthetic comparison context",
+              "claim": "Fictional product note: an industrial monitoring application is proposed. The note gives no measured accuracy, customer uptake, release criterion or market-size estimate.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "M1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "MF2",
+              "category": "synthetic comparison context",
+              "claim": "This constructed source reports only its explicitly stated setting and does not validate all operating conditions.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "M1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            },
+            {
+              "finding_id": "MF3",
+              "category": "synthetic comparison context",
+              "claim": "Deployment acceptance criteria require authority and evidence beyond this constructed record.",
+              "claim_type": "observed_fact",
+              "source_ids": [
+                "M1"
+              ],
+              "confidence": "medium",
+              "commercial_implication": "Do not generalize beyond the explicitly supplied evidence."
+            }
+          ],
+          "sources": [
+            {
+              "source_id": "M1",
+              "title": "Fictional RC03 M record",
+              "url": "https://synthetic.example.org/reviewer-v1/rc03/m1",
+              "publisher": "Fictional Evaluation Laboratory",
+              "accessed_date": "2026-01-02",
+              "source_type": "company_disclosure",
+              "credibility_tier": "medium",
+              "credibility_reason": "Synthetic control only; not independently verified evidence.",
+              "evidence_summary": "Fictional product note: an industrial monitoring application is proposed. The note gives no measured accuracy, customer uptake, release criterion or market-size estimate."
+            }
+          ],
+          "limitations": [
+            "Constructed development input only, not actual retrieval or a verified external source."
+          ]
+        }
+      ],
+      "draft": "# Academic Commercialization Assessment: Synthetic cabinet humidity monitor\n\n## Executive Summary\nThe comparison below concerns a bounded bench observation, not a complete commercialization decision [A1]. The proposed monitoring use is described only in a fictional product note [M1].\n\n## 1. Technology Overview & Maturity\nThe monitor read 11.6 percentage points below its chamber reference; the north rack exceeded the south rack by 0.9 percentage points during the steady purge [A1].\nNo outdoor condensation trial was performed; a chamber comparison is not an outdoor accuracy guarantee [A1].\n\n## 2. Patent Landscape & White Spaces\nThe fictional patent note describes a removable mounting bracket; legal clearance and enforceability have not been established [P1].\nPatent analysis is preliminary research, not legal advice or a freedom-to-operate opinion.\n\n## 3. Target Industries & Use Cases\nThe fictional product note proposes industrial monitoring but supplies no customer-adoption observation [M1].\n\n## 4. Competitive Landscape\nThe product note provides no comparative market-share or validated competing-instrument performance information [M1].\n\n## 5. Commercialization Opportunities & Recommendations\nAnalyst inference: the 11.6 percentage-point monitor error establishes an 11.6 percentage-point maximum error gate for outdoor release [A1].\nThe bracket description alone cannot settle deployment performance or freedom to operate [P1].\n\n## Evidence Limitations\nAll records in this assessment are fictional development controls. There is no original-paper verification, production decision, adoption observation or evidence of user benefit.\n\n## References\n[A1] Fictional RC03 A record. https://synthetic.example.org/reviewer-v1/rc03/a1\n[P1] Fictional RC03 P record. https://synthetic.example.org/reviewer-v1/rc03/p1\n[M1] Fictional RC03 M record. https://synthetic.example.org/reviewer-v1/rc03/m1\n"
+    }
+  ]
+}
