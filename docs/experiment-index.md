@@ -8,6 +8,8 @@ the current evidence status for today's qualified conclusions; open a dated
 protocol or result when tracing a specific decision. An archive link does not
 authorize rerunning a paid batch, moving its files or treating a failed gate as passed.
 
+- [2026-09-30 Reviewer comparison v2 protocol](prereg-2026-09-30-reviewer-comparison-v2.md): dependent synthetic successor with complete Bearer syntax, explicit no-dispatch credential preflight, post-read execution identity checks and safe response-digest admission; old batch closed, native outcomes not yet observed.
+
 - [2026-09-30 Reviewer comparison preflight closeout](results-2026-09-30-reviewer-comparison-preflight.md): one claimed batch stopped on selected-credential syntax before client creation; zero native calls/deliveries, semantic judgment not run, immutable preparation kept outside main.
 
 - [2026-09-30 Reviewer comparison development protocol](prereg-2026-09-30-reviewer-comparison.md): three fresh synthetic pairs, isolated native instructions, actual correction application and blind LLM judgment; six-request/USD 0.10 ceiling, no production activation.

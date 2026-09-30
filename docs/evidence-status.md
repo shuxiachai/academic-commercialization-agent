@@ -35,6 +35,13 @@ reservations, native calls or delivered reports. Blind semantic judgment is
 `not_run`, not a pass. Preparation stays outside main; this does not measure
 model quality or diagnose production credentials. The occupied batch is closed.
 
+A [separate v2 protocol](prereg-2026-09-30-reviewer-comparison-v2.md) addresses
+the legacy credential alphabet and claim-before-preflight boundary. It reuses
+the untransmitted synthetic controls without changing the instruction comparison
+or calling them held-out data. Syntax admission, native dispatch and semantic
+improvement remain distinct; no v2 native outcome or production activation is
+established by registering this successor.
+
 A separate [saved-source production wrapper](operating-guide.md#optional-saved-source-locator)
 is default-off. Its gated page/API reuses the bounded one-selection locator,
 owner authorization, shared admission and durable receipt/accounting contracts.
