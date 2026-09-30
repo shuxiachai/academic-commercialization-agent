@@ -59,10 +59,13 @@ def _json(value):
 
 
 def _ast_value(node):
-    """AST-v1 encoding for Python 3.11/3.12, including all source locations.
+    """AST-v1 encoding, qualified by CPython minor, with all source locations.
 
     3.12 adds empty type_params to these pre-PEP-695 definitions. Only that
     known empty field is excluded; nonempty parameters are not admitted.
+    This does NOT make located ASTs portable: 3.11/3.12 f-string locations
+    differ. Each interpreter has its own measured manifest descriptor; never
+    discard positions or select whichever alternate hash happens to match.
     Runtime bytecode identity is recorded separately with its interpreter.
     """
     if isinstance(node, ast.AST):
@@ -138,11 +141,18 @@ def _derive(name, raw):
     return derived, descriptor
 
 
-def describe():
-    """Read/parse only: suitable for generating a manifest without model imports."""
+def _interpreter_key():
+    """Select only the current supported parser, never a compatibility fallback."""
     if sys.implementation.name != "cpython" or sys.version_info[:2] not in {(3, 11), (3, 12)}:
         raise SourceFault("unsupported_interpreter")
-    return {"method": "source_locked_extracted_namespace_v1", "ast_encoding": "located_ast_v1_py311_py312",
+    return f"cpython-{sys.version_info[0]}.{sys.version_info[1]}"
+
+
+def describe():
+    """Describe this actual parser only; freeze each supported interpreter separately."""
+    interpreter = _interpreter_key()
+    return {"method": "source_locked_extracted_namespace_v2", "ast_encoding": "located_ast_v1_version_qualified",
+            "interpreter": interpreter,
             "compile": {"dont_inherit": True, "optimize": 0},
             "bytecode_encoding": "recursive_code_fields_v1",
             "bytecode_scope": "same_interpreter_runtime_identity_not_portable_manifest_hash",
@@ -263,7 +273,9 @@ def load(name="evidence"):
         raise SourceFault("unexpected_helper")
     descriptor = describe()
     manifest = json.loads((HERE / "manifest.json").read_bytes())
-    if manifest.get("source_loader") != descriptor:
+    variants = manifest.get("source_loader")
+    if (type(variants) is not dict or set(variants) != {"cpython-3.11", "cpython-3.12"}
+            or variants.get(_interpreter_key()) != descriptor):
         raise SourceFault("derived_manifest_drift")
     _dependencies()
     if name not in _CACHE:
@@ -299,7 +311,7 @@ def load(name="evidence"):
 def runtime_identity():
     """Actual compiled identities, qualified by this exact Python interpreter.
 
-    The portable manifest binds AST/source/loader bytes. These code hashes
+    The manifest binds version-qualified ASTs and shared source/loader bytes. These code hashes
     additionally enter execution identity (and its post-key comparison); they
     are intentionally not asserted equal across Python 3.11/3.12 or builds.
     """

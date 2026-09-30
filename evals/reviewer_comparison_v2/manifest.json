@@ -86,15 +86,15 @@
   "sources": {
     "evals/reviewer_comparison_v2/runner.py": "f3b6acb2d93a94a401807d35d06a88ed101b6747c2f32c3a6f33eaf4b4551012",
     "evals/reviewer_comparison_v2/credential.py": "cd4d07cbacc8d7638390a2696eb81feed10499686b2ff2acf1772ff0763623a5",
-    "evals/reviewer_comparison_v2/source_loader.py": "6ba5e2fbd98829ba6c475810e7b26fdf799acf09f87d3b729a798ba5aafa4334",
+    "evals/reviewer_comparison_v2/source_loader.py": "632fcf6be9170f82935d106fea87cde0785f571e322d7af67da161fb5b1b71ea",
     "evals/reviewer_comparison_v2/fixture.json": "4ee81119c3e680e96c8904ac0946e6d96a91a06fd5a84fd101966809301fef4a",
-    "evals/reviewer_comparison_v2/README.md": "b1034d90904c551ac7cee1c76eb3e8ce78e891492d6a5de6f1a3cc7720da8993",
+    "evals/reviewer_comparison_v2/README.md": "bfe4c47b413f9163c1e2ec6299971e048bc59e0851c5f37333541e6ae7ad0b12",
     "evals/reviewer_comparison_v2/.gitattributes": "4e4ffa54112f9b2ccbc29f7868e6351d5e2c0e47ef1ab3a632964f13766f27ca",
-    "tests/test_reviewer_comparison_v2.py": "59a3c0fe6c21c2d8074f87016203fac839e913666fa004dd8d0894430b5d59ef",
+    "tests/test_reviewer_comparison_v2.py": "b9d2e6236e89c91400bf918741dc951383b0df21b3565ad376df90f4690e5d2f",
     "src/academic_agent/evidence.py": "8e9eda3126dc1b81ec5a97e23ecfce8ba64c59a0d77c9a3fb3aec259f07b38c5",
     "src/academic_agent/run_spec.py": "8f6cd3f3b936d4045efaf42cc1314191bdfb4c693047be1d5460f8461f460c38",
     "src/academic_agent/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "docs/prereg-2026-09-30-reviewer-comparison-v2.md": "66f7a1615bff26c222db4ba3a968152671f56ada231a67568c8e707107411392",
+    "docs/prereg-2026-09-30-reviewer-comparison-v2.md": "52dd58bd6f961876d662a235482e376ca71a9c474a7139766f1ff943f073bcb7",
     "pyproject.toml": "b5931549959454bfa2e3bbb1d7fc00040db10c2634cc0952bfcd9c3c6a92fffd",
     "uv.lock": "8df6e326a3a1123da0d7491151feb45baee98ec37d882d8c933ff8e53da44494"
   },
@@ -120,94 +120,190 @@
     "v1_closed_journal_sha256": "80598f445c9b997d3642600faa10b9115df2015b8ac2f1761e783a1153cf6e61"
   },
   "source_loader": {
-    "method": "source_locked_extracted_namespace_v1",
-    "ast_encoding": "located_ast_v1_py311_py312",
-    "compile": {
-      "dont_inherit": true,
-      "optimize": 0
-    },
-    "bytecode_encoding": "recursive_code_fields_v1",
-    "bytecode_scope": "same_interpreter_runtime_identity_not_portable_manifest_hash",
-    "loader_sha256": "6ba5e2fbd98829ba6c475810e7b26fdf799acf09f87d3b729a798ba5aafa4334",
-    "packages": {
-      "pydantic": "2.12.5",
-      "pydantic-core": "2.41.5"
-    },
-    "sources": {
-      "evidence": {
-        "source_path": "src/academic_agent/evidence.py",
-        "normalized_source_sha256": "8e9eda3126dc1b81ec5a97e23ecfce8ba64c59a0d77c9a3fb3aec259f07b38c5",
-        "omissions": [
-          {
-            "node": [
-              "ImportFrom",
-              "crewai",
-              14,
-              14
-            ],
-            "ast_sha256": "61b47f1b46f09af97762557a1a47c07d8fe02b03b67f346a48d244b9d22a6c69"
-          },
-          {
-            "node": [
-              "FunctionDef",
-              "make_scoring_guardrail",
-              600,
-              800
-            ],
-            "ast_sha256": "f55a1a15f6b356606e8c50198480db418607ac9c721e9bf7c1bf5a6b0954d3f0"
-          },
-          {
-            "node": [
-              "FunctionDef",
-              "make_evidence_guardrail",
-              992,
-              1040
-            ],
-            "ast_sha256": "213042a999ac5771518ae9a2eab1c3c5d4d3cd74ce90246e2a832fe3c4816b51"
-          },
-          {
-            "node": [
-              "FunctionDef",
-              "make_final_report_guardrail",
-              1929,
-              1962
-            ],
-            "ast_sha256": "a8b69e5af40281fdf25c41a4050fd952263f4ef03e160025e7762446667a3ce8"
-          },
-          {
-            "node": [
-              "FunctionDef",
-              "make_reviewer_guardrail",
-              2063,
-              2234
-            ],
-            "ast_sha256": "d3044288c8ed70cc2c1f1076fbe3bad063dfc20f9e4b799f5cc9e8490ec83d77"
-          }
-        ],
-        "original_top_nodes": 97,
-        "retained_top_nodes": 92,
-        "derived_ast_sha256": "407ff7c15b6081d9946565b86762f0fa0d6b119a5ec2d9749ec85b7800830787",
-        "exports": [
-          "EvidenceSource",
-          "EvidenceFinding",
-          "EvidenceReport",
-          "ReviewerCorrection",
-          "ReviewerCorrectionPlan",
-          "_apply_reviewer_corrections",
-          "validate_final_report",
-          "parse_citation_ids"
-        ]
+    "cpython-3.11": {
+      "method": "source_locked_extracted_namespace_v2",
+      "ast_encoding": "located_ast_v1_version_qualified",
+      "interpreter": "cpython-3.11",
+      "compile": {
+        "dont_inherit": true,
+        "optimize": 0
       },
-      "run_spec": {
-        "source_path": "src/academic_agent/run_spec.py",
-        "normalized_source_sha256": "8f6cd3f3b936d4045efaf42cc1314191bdfb4c693047be1d5460f8461f460c38",
-        "omissions": [],
-        "original_top_nodes": 16,
-        "retained_top_nodes": 16,
-        "derived_ast_sha256": "e32ecb4bd5489edf7bef458b483e62f267e5c3d95aa2be9c10d8c43141a09049",
-        "exports": [
-          "DecisionContext"
-        ]
+      "bytecode_encoding": "recursive_code_fields_v1",
+      "bytecode_scope": "same_interpreter_runtime_identity_not_portable_manifest_hash",
+      "loader_sha256": "632fcf6be9170f82935d106fea87cde0785f571e322d7af67da161fb5b1b71ea",
+      "packages": {
+        "pydantic": "2.12.5",
+        "pydantic-core": "2.41.5"
+      },
+      "sources": {
+        "evidence": {
+          "source_path": "src/academic_agent/evidence.py",
+          "normalized_source_sha256": "8e9eda3126dc1b81ec5a97e23ecfce8ba64c59a0d77c9a3fb3aec259f07b38c5",
+          "omissions": [
+            {
+              "node": [
+                "ImportFrom",
+                "crewai",
+                14,
+                14
+              ],
+              "ast_sha256": "61b47f1b46f09af97762557a1a47c07d8fe02b03b67f346a48d244b9d22a6c69"
+            },
+            {
+              "node": [
+                "FunctionDef",
+                "make_scoring_guardrail",
+                600,
+                800
+              ],
+              "ast_sha256": "7d86b7df1911333ab9df582db398d8b0ce4621ab1d1beb06c696976f4863fe51"
+            },
+            {
+              "node": [
+                "FunctionDef",
+                "make_evidence_guardrail",
+                992,
+                1040
+              ],
+              "ast_sha256": "03b2ab02fed6342f87cc8b7ebd5c3544e7ad0a49126efc9d2be1fa79376503b5"
+            },
+            {
+              "node": [
+                "FunctionDef",
+                "make_final_report_guardrail",
+                1929,
+                1962
+              ],
+              "ast_sha256": "a8b69e5af40281fdf25c41a4050fd952263f4ef03e160025e7762446667a3ce8"
+            },
+            {
+              "node": [
+                "FunctionDef",
+                "make_reviewer_guardrail",
+                2063,
+                2234
+              ],
+              "ast_sha256": "cdd9ad3dccd865bc094cb33d638a20ac7a9f57c0780068d8db15e722aad12816"
+            }
+          ],
+          "original_top_nodes": 97,
+          "retained_top_nodes": 92,
+          "derived_ast_sha256": "f9abfedfa4cbccb9c5ddd1cf136c329e40461135dffaf844d00fce8e895a767a",
+          "exports": [
+            "EvidenceSource",
+            "EvidenceFinding",
+            "EvidenceReport",
+            "ReviewerCorrection",
+            "ReviewerCorrectionPlan",
+            "_apply_reviewer_corrections",
+            "validate_final_report",
+            "parse_citation_ids"
+          ]
+        },
+        "run_spec": {
+          "source_path": "src/academic_agent/run_spec.py",
+          "normalized_source_sha256": "8f6cd3f3b936d4045efaf42cc1314191bdfb4c693047be1d5460f8461f460c38",
+          "omissions": [],
+          "original_top_nodes": 16,
+          "retained_top_nodes": 16,
+          "derived_ast_sha256": "27e0fc992f8aa6f58bd6621083db6d4df52a46d9d25e89ef2ca7d27ea4f548b7",
+          "exports": [
+            "DecisionContext"
+          ]
+        }
+      }
+    },
+    "cpython-3.12": {
+      "method": "source_locked_extracted_namespace_v2",
+      "ast_encoding": "located_ast_v1_version_qualified",
+      "interpreter": "cpython-3.12",
+      "compile": {
+        "dont_inherit": true,
+        "optimize": 0
+      },
+      "bytecode_encoding": "recursive_code_fields_v1",
+      "bytecode_scope": "same_interpreter_runtime_identity_not_portable_manifest_hash",
+      "loader_sha256": "632fcf6be9170f82935d106fea87cde0785f571e322d7af67da161fb5b1b71ea",
+      "packages": {
+        "pydantic": "2.12.5",
+        "pydantic-core": "2.41.5"
+      },
+      "sources": {
+        "evidence": {
+          "source_path": "src/academic_agent/evidence.py",
+          "normalized_source_sha256": "8e9eda3126dc1b81ec5a97e23ecfce8ba64c59a0d77c9a3fb3aec259f07b38c5",
+          "omissions": [
+            {
+              "node": [
+                "ImportFrom",
+                "crewai",
+                14,
+                14
+              ],
+              "ast_sha256": "61b47f1b46f09af97762557a1a47c07d8fe02b03b67f346a48d244b9d22a6c69"
+            },
+            {
+              "node": [
+                "FunctionDef",
+                "make_scoring_guardrail",
+                600,
+                800
+              ],
+              "ast_sha256": "f55a1a15f6b356606e8c50198480db418607ac9c721e9bf7c1bf5a6b0954d3f0"
+            },
+            {
+              "node": [
+                "FunctionDef",
+                "make_evidence_guardrail",
+                992,
+                1040
+              ],
+              "ast_sha256": "213042a999ac5771518ae9a2eab1c3c5d4d3cd74ce90246e2a832fe3c4816b51"
+            },
+            {
+              "node": [
+                "FunctionDef",
+                "make_final_report_guardrail",
+                1929,
+                1962
+              ],
+              "ast_sha256": "a8b69e5af40281fdf25c41a4050fd952263f4ef03e160025e7762446667a3ce8"
+            },
+            {
+              "node": [
+                "FunctionDef",
+                "make_reviewer_guardrail",
+                2063,
+                2234
+              ],
+              "ast_sha256": "d3044288c8ed70cc2c1f1076fbe3bad063dfc20f9e4b799f5cc9e8490ec83d77"
+            }
+          ],
+          "original_top_nodes": 97,
+          "retained_top_nodes": 92,
+          "derived_ast_sha256": "407ff7c15b6081d9946565b86762f0fa0d6b119a5ec2d9749ec85b7800830787",
+          "exports": [
+            "EvidenceSource",
+            "EvidenceFinding",
+            "EvidenceReport",
+            "ReviewerCorrection",
+            "ReviewerCorrectionPlan",
+            "_apply_reviewer_corrections",
+            "validate_final_report",
+            "parse_citation_ids"
+          ]
+        },
+        "run_spec": {
+          "source_path": "src/academic_agent/run_spec.py",
+          "normalized_source_sha256": "8f6cd3f3b936d4045efaf42cc1314191bdfb4c693047be1d5460f8461f460c38",
+          "omissions": [],
+          "original_top_nodes": 16,
+          "retained_top_nodes": 16,
+          "derived_ast_sha256": "e32ecb4bd5489edf7bef458b483e62f267e5c3d95aa2be9c10d8c43141a09049",
+          "exports": [
+            "DecisionContext"
+          ]
+        }
       }
     }
   }

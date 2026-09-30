@@ -38,13 +38,25 @@ stdlib/Pydantic source is compiled in a separately labelled dictionary as well.
 Its postponed annotations are completed by the real Pydantic `model_rebuild`
 with that verified dictionary; no annotation or field is rewritten.
 
-The manifest binds both source descriptors, located AST-v1 identities, exact
-five-node omission rules, loader bytes and dependency versions. Empty 3.12
-`type_params` fields are excluded explicitly for 3.11/3.12 AST portability;
-other retained AST fields/locations are bound. Compilation uses
+The manifest binds a separately measured descriptor for each of CPython 3.11
+and 3.12, including both sources, located AST-v1 identities, exact five-node
+omission rules, loader bytes and dependency versions. Selection requires the
+current implementation/minor key and exact descriptor equality; missing/extra
+variants, a swapped descriptor or an unsupported interpreter refuse admission.
+Empty 3.12 `type_params` fields remain the only explicit field exclusion. This
+does not make located ASTs portable: the unchanged retained evidence/run_spec
+trees have respectively 548/27 differing f-string location attributes between
+local 3.11.9 and 3.12.9. No location is normalized away. Original/retained node
+counts remain 97/92 and 16/16 on both versions. Compilation uses
 `dont_inherit=True, optimize=0`. Actual compiled-code hashes additionally enter
 execution identity with the exact Python version/cache tag; they are not
 universal cross-interpreter hashes.
+The evidence code index has exactly 75/63 distinct qualified names on 3.11/3.12;
+the recursive code-object totals are 83/68 because some comprehensions share
+qualified names. All 15 extra 3.11 objects are list/dict/set comprehensions
+inlined on 3.12. Tests bind both exact version-qualified counts, compare retained
+bodies against a same-interpreter full-source compile (without executing it),
+and require diagnostic references not to alter the code digest.
 The code encoding is explicit recursive fields/constants, not `marshal`'s
 reference-count-sensitive object graph. Retaining diagnostic references cannot
 change the identity of otherwise identical code. Cached exports/functions and their actual

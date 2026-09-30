@@ -89,9 +89,19 @@ is supplied; production source and historical byte locks stay untouched.
 
 Compile only the verified derived tree with `dont_inherit=True, optimize=0`
 in an explicitly labelled derived namespace. Bind the loader, source bytes,
-exact omission rules and derived identity in the manifest. AST identities may
-be portable within their stated encoding; bytecode comparisons/hashes are
-Python-version-qualified, never a claimed universal 3.11/3.12 identity.
+exact omission rules and derived identity in the manifest. The 2026-10-01
+pre-live CI correction binds separately measured `cpython-3.11` and
+`cpython-3.12` descriptors. Select exactly the current implementation/minor key;
+missing, extra, swapped or mismatched descriptors refuse admission. Do not try
+whichever alternate descriptor happens to match. Retain all located AST
+attributes, with only the already declared empty `type_params` exclusion;
+f-string locations differ between these parsers and are not normalized away.
+AST identity is interpreter-qualified. Bytecode comparisons/hashes additionally
+bind the exact Python version and cache tag, never a universal 3.11/3.12 identity.
+Fidelity controls distinguish the measured 75/63 distinct qualified-name index
+entries from 83/68 recursive code objects on 3.11/3.12, rather than imposing
+one interpreter's count or dropping the count assertion. This correction
+precedes all v2 native requests and changes no model input or semantic reference.
 The included scoring computation is unmodified, but the omitted scoring and
 other guardrail factories are not executed or validated by this experiment.
 

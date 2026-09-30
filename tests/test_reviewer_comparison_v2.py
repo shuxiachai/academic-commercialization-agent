@@ -13,7 +13,7 @@ import socket
 import subprocess
 import sys
 import threading
-from types import CodeType
+from types import CodeType, SimpleNamespace
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -1080,7 +1080,7 @@ def test_exact_extraction_retains_real_models_and_compiled_bodies(prepared):
 
     exports = r.production()
     namespace, _bindings, derived_code, _exports = s._CACHE["evidence"]
-    descriptor = prepared["manifest"]["source_loader"]["sources"]["evidence"]
+    descriptor = prepared["manifest"]["source_loader"][s._interpreter_key()]["sources"]["evidence"]
     assert (descriptor["original_top_nodes"], descriptor["retained_top_nodes"]) == (97, 92)
     assert [tuple(item["node"]) for item in descriptor["omissions"]] == list(s.OMISSIONS)
     assert not s.OMITTED_NAMES.intersection(namespace)
@@ -1132,7 +1132,8 @@ def test_extraction_refuses_unexpected_source_ast_or_import_before_execution(mon
         s._derive("evidence", raw)
 
 
-@pytest.mark.parametrize("fault", ("node", "order", "filename", "code", "model-method"))
+@pytest.mark.parametrize("fault", ("node", "order", "filename", "code", "model-method",
+                                 "lineno", "col_offset", "end_lineno", "end_col_offset"))
 def test_derived_tree_and_runtime_code_tampering_refuse(monkeypatch, fault):
     """A real function's filename/body and every retained AST node are identity inputs."""
     exports = r.production()
@@ -1155,8 +1156,11 @@ def test_derived_tree_and_runtime_code_tampering_refuse(monkeypatch, fault):
             if name == "evidence":
                 if fault == "node":
                     tree.body[-1] = ast.Pass(lineno=1, col_offset=0)
-                else:
+                elif fault == "order":
                     tree.body.reverse()
+                else:
+                    node = next(n for n in ast.walk(tree) if isinstance(n, ast.FormattedValue))
+                    setattr(node, fault, getattr(node, fault) + 1)
                 descriptor["derived_ast_sha256"] = s._ast_sha(tree)
             return tree, descriptor
 
@@ -1197,6 +1201,97 @@ def test_cold_plugin_gate_precedes_derived_execution(monkeypatch):
         s.load()
 
 
+def test_version_qualified_manifest_matches_native_located_ast():
+    """A 3.12-only located AST manifest rejected unchanged source under 3.11."""
+    variants = json.loads((s.HERE / "manifest.json").read_bytes())["source_loader"]
+    assert set(variants) == {"cpython-3.11", "cpython-3.12"}
+    key = f"{sys.implementation.name}-{sys.version_info[0]}.{sys.version_info[1]}"
+    assert s._interpreter_key() == key
+    assert variants[key] == s.describe()
+    expected_hashes = {
+        "cpython-3.11": {
+            "evidence": "f9abfedfa4cbccb9c5ddd1cf136c329e40461135dffaf844d00fce8e895a767a",
+            "run_spec": "27e0fc992f8aa6f58bd6621083db6d4df52a46d9d25e89ef2ca7d27ea4f548b7",
+        },
+        "cpython-3.12": {
+            "evidence": "407ff7c15b6081d9946565b86762f0fa0d6b119a5ec2d9749ec85b7800830787",
+            "run_spec": "e32ecb4bd5489edf7bef458b483e62f267e5c3d95aa2be9c10d8c43141a09049",
+        },
+    }
+    for version, descriptor in variants.items():
+        assert descriptor["interpreter"] == version
+        assert descriptor["method"] == "source_locked_extracted_namespace_v2"
+        assert descriptor["ast_encoding"] == "located_ast_v1_version_qualified"
+        assert descriptor["compile"] == {"dont_inherit": True, "optimize": 0}
+        for name, source in descriptor["sources"].items():
+            assert source["normalized_source_sha256"] == s.SOURCE_LOCKS[name]
+            assert source["derived_ast_sha256"] == expected_hashes[version][name]
+            counts = (source["original_top_nodes"], source["retained_top_nodes"])
+            assert counts == ((97, 92) if name == "evidence" else (16, 16))
+            assert [tuple(item["node"]) for item in source["omissions"]] == (
+                list(s.OMISSIONS) if name == "evidence" else [])
+
+
+@pytest.mark.parametrize("fault", ("unqualified", "missing-current", "missing-other", "extra",
+                                 "swapped", "wrong-label", "wrong-ast", "wrong-omission"))
+def test_manifest_requires_exact_current_interpreter_before_execution(monkeypatch, fault):
+    """An alternate matching descriptor must never repair the current parser's drift."""
+    path = s.HERE / "manifest.json"
+    manifest = json.loads(path.read_bytes())
+    variants = manifest["source_loader"]
+    current = s._interpreter_key()
+    other = next(key for key in variants if key != current)
+    if fault == "unqualified":
+        manifest["source_loader"] = variants[current]
+    elif fault == "missing-current":
+        del variants[current]
+    elif fault == "missing-other":
+        del variants[other]
+    elif fault == "extra":
+        variants["cpython-3.13"] = copy.deepcopy(variants[current])
+    elif fault == "swapped":
+        variants[current], variants[other] = variants[other], variants[current]
+    elif fault == "wrong-label":
+        variants[current]["interpreter"] = other
+    elif fault == "wrong-ast":
+        variants[current]["sources"]["evidence"]["derived_ast_sha256"] = (
+            variants[other]["sources"]["evidence"]["derived_ast_sha256"])
+    else:
+        variants[current]["sources"]["evidence"]["omissions"][1]["ast_sha256"] = (
+            variants[other]["sources"]["evidence"]["omissions"][1]["ast_sha256"])
+    original = Path.read_bytes
+    monkeypatch.setattr(Path, "read_bytes", lambda self: r.wire(manifest) if self == path else original(self))
+    monkeypatch.setattr(s, "_dependencies", lambda: pytest.fail("drift reached dependency/model admission"))
+    with pytest.raises(s.SourceFault, match="derived_manifest_drift"):
+        s.load()
+
+
+@pytest.mark.parametrize(("implementation", "version"), (
+    ("cpython", (3, 10)), ("cpython", (3, 13)), ("pypy", (3, 11)),
+))
+def test_unsupported_interpreter_refuses_before_parsing(monkeypatch, implementation, version):
+    """A new parser requires measured contracts, not a best-effort old descriptor."""
+    with monkeypatch.context() as patch:
+        patch.setattr(sys, "implementation", SimpleNamespace(name=implementation))
+        patch.setattr(sys, "version_info", version)
+        patch.setattr(s, "_derive", lambda *_args: pytest.fail("unsupported parser reached extraction"))
+        with pytest.raises(s.SourceFault, match="unsupported_interpreter"):
+            s.describe()
+
+
+def test_native_parser_fstring_locations_and_comprehension_control():
+    """A tiny unexecuted control reproduces both interpreter differences independently."""
+    raw = 'def control(xs):\n    return f"value={xs}", [x + 1 for x in xs]\n'
+    tree = ast.parse(raw)
+    joined = next(node for node in ast.walk(tree) if isinstance(node, ast.JoinedStr))
+    expected = {(3, 11): ((11, 24), (11, 24)), (3, 12): ((13, 19), (19, 23))}[sys.version_info[:2]]
+    assert tuple((node.col_offset, node.end_col_offset) for node in joined.values) == expected
+    assert all(node.lineno == node.end_lineno == 2 for node in joined.values)
+    code = compile(tree, "<parser-control>", "exec", dont_inherit=True, optimize=0)
+    assert set(s._code_index(code)) == (
+        {"control", "control.<locals>.<listcomp>"} if sys.version_info[:2] == (3, 11) else {"control"})
+
+
 def test_runtime_code_digest_is_independent_of_diagnostic_object_references():
     """marshal(code) changed identity when the fidelity check held nested code refs."""
     raw = (r.ROOT / "src/academic_agent/evidence.py").read_bytes()
@@ -1204,7 +1299,22 @@ def test_runtime_code_digest_is_independent_of_diagnostic_object_references():
     code = compile(tree, "<identity-regression>", "exec", dont_inherit=True, optimize=0)
     before = s._code_sha(code)
     held = s._code_index(code)
-    assert len(held) == 63 and s._code_sha(code) == before
+    # PEP 709 inlines list/dict/set comprehensions on 3.12. An index keyed by
+    # qualname also collapses repeated comprehensions: check the real objects
+    # separately, without relaxing either exact count or the digest assertion.
+    def nested_codes(parent):
+        for value in parent.co_consts:
+            if isinstance(value, CodeType):
+                yield value
+                yield from nested_codes(value)
+
+    expected_index, expected_objects = {(3, 11): (75, 83), (3, 12): (63, 68)}[sys.version_info[:2]]
+    assert len(held) == expected_index
+    objects = list(nested_codes(code))
+    assert len(objects) == expected_objects
+    assert sum(item.co_name in {"<listcomp>", "<dictcomp>", "<setcomp>"} for item in objects) == (
+        15 if sys.version_info[:2] == (3, 11) else 0)
+    assert s._code_sha(code) == before
     assert s._code_sha(code.replace(co_filename="<other-label>")) != before
     assert s._code_sha(code.replace(co_consts=(*code.co_consts, "additional-constant"))) != before
 
