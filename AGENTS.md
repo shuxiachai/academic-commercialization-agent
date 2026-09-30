@@ -600,6 +600,14 @@ semantic review `not_run`. Its immutable preparation remains outside main at
 [`aa1c591526db40683413073e3c759ab690e7b013`](https://github.com/shuxiachai/academic-commercialization-agent/tree/aa1c591526db40683413073e3c759ab690e7b013/evals/reviewer_comparison_v1).
 Do not reopen the occupied output or treat missing answers as semantic success.
 
+The [Reviewer v2 closeout](docs/results-2026-10-01-reviewer-comparison-v2.md)
+records one HTTP 200 response and zero applied reports. Both reasons exceeded
+the local 300-character bound, which the actual direct request did not transmit.
+The batch stopped; five requests are unrun and semantic gain is unmeasured.
+Keep preparation outside main at `34228f3b54767d20dd3b22cc67e0bdcc23ad348d`.
+Any successor first needs an offline common-output-contract check; do not clip
+this response, relax the old bound or reopen its occupied output.
+
 Market score delivery must disclose non-assessment, not promote the legacy
 untyped spread flag to verified USD disagreement. Reassert fresh/restored JSON
 metadata and retain the legacy browser fallback without changing score values.

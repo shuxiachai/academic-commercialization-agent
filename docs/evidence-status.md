@@ -1,6 +1,6 @@
 # Current evidence status
 
-Current ledger, updated 2026-09-30. The initial documentation consolidation
+Current ledger, updated 2026-10-01. The initial documentation consolidation
 used public main `0fdaa76a107cf034c16c1ffa6e3ae623e4c63fe2` on 2026-09-05;
 its dated baseline is historical, not the identity of every later entry.
 This page separates implemented contracts from observed behaviour and claims
@@ -34,6 +34,15 @@ The one claimed batch stopped on selected-credential syntax, with zero request
 reservations, native calls or delivered reports. Blind semantic judgment is
 `not_run`, not a pass. Preparation stays outside main; this does not measure
 model quality or diagnose production credentials. The occupied batch is closed.
+
+The separate [Reviewer v2 protocol](prereg-2026-09-30-reviewer-comparison-v2.md)
+has a [closed native observation](results-2026-10-01-reviewer-comparison-v2.md):
+one HTTP 200 response, 3,625 recorded tokens and USD 0.002965895 estimated at
+frozen rates. Its two reasons exceeded a local 300-character constraint absent
+from the actual request, so no report was applied and five requests remain
+unrun. This exposes a direct-experiment output-contract gap; it does not show
+semantic gain, candidate failure on unrun cases or production activation.
+No retry or post hoc clipping rescued the batch. Preparation remains outside main.
 
 A separate [saved-source production wrapper](operating-guide.md#optional-saved-source-locator)
 is default-off. Its gated page/API reuses the bounded one-selection locator,
