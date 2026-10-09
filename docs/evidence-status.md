@@ -1,6 +1,6 @@
 # Current evidence status
 
-Current ledger, updated 2026-10-01. The initial documentation consolidation
+Current ledger, updated 2026-10-09. The initial documentation consolidation
 used public main `0fdaa76a107cf034c16c1ffa6e3ae623e4c63fe2` on 2026-09-05;
 its dated baseline is historical, not the identity of every later entry.
 This page separates implemented contracts from observed behaviour and claims
@@ -52,6 +52,15 @@ this does not establish native delivery, compliance or semantic gain. Inspection
 of the current production factory/task configuration shows JSON Object mode
 without supplying the complete schema; that separate integration has not been
 changed by this preparation or validated by a new production HTTP observation.
+
+The separate [Reviewer v3 preparation](prereg-2026-10-01-reviewer-comparison-v3.md)
+has [qualified Windows validation](results-2026-10-09-reviewer-v3-windows-preparation.md):
+two fresh runs on CPython 3.11.9 and 3.12.9 each passed 529 tests, with zero
+cumulative refusals and actual child/parent exit zero. These results bind the
+recorded working-tree snapshot; the original four-refusal failure remains
+failed and closed. Complete Linux preparation, same-commit remote CI and actual Reviewer
+model results remain unobserved. Preparation stays outside main and grants no
+new paid, private-data transfer or production authority.
 
 A separate [saved-source production wrapper](operating-guide.md#optional-saved-source-locator)
 is default-off. Its gated page/API reuses the bounded one-selection locator,

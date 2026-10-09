@@ -8,6 +8,10 @@ the current evidence status for today's qualified conclusions; open a dated
 protocol or result when tracing a specific decision. An archive link does not
 authorize rerunning a paid batch, moving its files or treating a failed gate as passed.
 
+- [2026-10-01 Reviewer comparison v3 protocol](prereg-2026-10-01-reviewer-comparison-v3.md): dependent synthetic pairs with the same complete output contract on both arms, separately frozen wire bytes and bounded preparation; no native result or production admission follows from this link.
+
+- [2026-10-09 Reviewer v3 Windows preparation validation](results-2026-10-09-reviewer-v3-windows-preparation.md): two new default-entry runs passed 529 tests each with zero cumulative refusals and actual process exit zero; historical failures remain closed, Linux/remote CI and native semantic results remain pending.
+
 - [2026-10-01 Reviewer comparison v2 closeout](results-2026-10-01-reviewer-comparison-v2.md): one response-backed request stopped on reason lengths exceeding an untransmitted field bound; no final reports or semantic comparison, no retry or production activation.
 
 - [2026-10-01 offline common Reviewer output contract](../evals/reviewer_output_contract_v1/README.md): explicit complete-schema addition and local intercepted-byte checks for newly prepared requests; no provider, new native batch or production integration.

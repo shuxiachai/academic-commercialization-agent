@@ -1,0 +1,41 @@
+name: Reviewer v3 preparation
+
+# This file stays on the unmerged preparation branch, never in the release.
+# Use the ordinary workflow's events so its eight checks and these four checks
+# attest the same PR commit. No path filter may manufacture a missing green lane.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  reviewer-v3:
+    name: Reviewer v3 (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "latest"
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --python ${{ matrix.python-version }}
+
+      - name: Require Node for inherited test fixtures
+        run: node --version
+
+      # Both files are deliberately outside default collection. These bounded
+      # checks add no second full suite and cannot replace the ordinary gates.
+      - name: Check isolated Reviewer v3 and common output contract
+        run: >
+          uv run --no-sync --offline --python ${{ matrix.python-version }}
+          python -B -E -S evals/reviewer_comparison_v3/test_invoker.py

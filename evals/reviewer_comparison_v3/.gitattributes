@@ -1,0 +1,8 @@
+runner.py -text
+credential.py -text
+source_loader.py -text
+test_invoker.py -text
+fixture.json -text
+manifest.json -text
+README.md -text
+.gitattributes -text
