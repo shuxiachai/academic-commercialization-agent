@@ -446,7 +446,7 @@ class ForbiddenBoundary(Exception):
     pass
 
 
-def main_observation(tmp_path, outcome, *, remove_stop=False, reject_source=False):
+def main_observation(tmp_path, outcome, *, remove_stop=False, reject_source=False, isolate_normal_profile=True):
     """Use actual main sequencing with every setup/global/provider seam isolated."""
     calls, observers, profiles, imports = [], [], [], []
     environment = configuration_values()
@@ -507,7 +507,28 @@ def main_observation(tmp_path, outcome, *, remove_stop=False, reject_source=Fals
             raise original_exception
         return {"synthetic": "no-source-executed"}
 
+    @contextmanager
+    def normal_profile(owned, stdlib_paths):
+        # This fixture selects NT312 and replaces every process-wide setup
+        # seam. Importing the real helper here would select the pytest HOST
+        # platform instead, where sysconfig is already warm on Linux.
+        assert owned == tmp_path and stdlib_paths == invoker._STDLIB_PATHS
+        assert control["diagnostic_binding"] == "explicit_ff" and control["policy_applicable"]
+        calls.append("normal-profile-enter")
+        try:
+            yield {"applicable": False}
+        finally:
+            calls.append("normal-profile-exit")
+
+    def dependencies(*args):
+        calls.append("normal-dependencies")
+        return {}, None
+
     def import_only(name, globals=None, locals=None, fromlist=(), level=0):
+        if (isolate_normal_profile and name == "evals.reviewer_comparison_v3.linux_sysconfig_profile"
+                and fromlist == ("install",) and level == 0):
+            calls.append("normal-profile-import")
+            return SimpleNamespace(install=normal_profile)
         if name == "evals.reviewer_comparison_v3" and fromlist == ("runner",):
             return SimpleNamespace(runner=SimpleNamespace(prepare=prepare))
         if name == "pytest":
@@ -544,7 +565,7 @@ def main_observation(tmp_path, outcome, *, remove_stop=False, reject_source=Fals
         atexit=SimpleNamespace(register=lambda *args: None),
         _nt312_profile_sources=sources,
         _SysconfigObservation=make_observation, _DistroProfileObservation=make_profile,
-        _normal_dependency_startup=lambda *args: ({}, None), _normal_model_shims=lambda *args: {},
+        _normal_dependency_startup=dependencies, _normal_model_shims=lambda *args: {},
         _sysconfig_project=lambda owned: owned / "synthetic-project", _normal_sysconfig_scope=scope,
         _sysconfig_environment_absent=lambda *args: True)
     caught = None
@@ -560,9 +581,15 @@ def assert_main_stopped(result, outcome, tmp_path):
     assert not set(result.calls).intersection({"prepared", "finish", "profile-finish", "verify-import"}), \
         "ff_stop_before_completed_observation"
     assert result.imports == [], "ff_stop_before_pytest_import"
+    assert [call for call in result.calls if call.startswith("normal-")] == [
+        "normal-profile-import", "normal-profile-enter", "normal-dependencies", "normal-profile-exit"], \
+        "synthetic_nt_profile_scope_must_surround_startup"
     assert result.calls.count("prepare") == int(outcome != "not_reached")
     assert result.calls.count("scope-exit") == 1
     assert result.calls[0] == "source-binding", "source_binding_before_prepare"
+    assert result.calls.index("normal-profile-enter") < result.calls.index("scope-enter")
+    assert result.calls.index("window-prepare_scope_exit") < result.calls.index("normal-profile-exit"), \
+        "normal_profile_must_exit_after_prepare_scope"
     observer = result.observers[0]
     assert observer.first_fault is result.profiles[0].first_fault
     assert observer.data["ff_prepare_outcome"] == outcome, "honest_prepare_outcome"
@@ -606,3 +633,14 @@ def test_reinjected_missing_main_stop_fails_same_pre_pytest_boundary_assertion(t
     negative.mkdir()
     with pytest.raises(AssertionError, match="ff_stop_before_completed_observation"):
         assert_main_stopped(main_observation(negative, "returned", remove_stop=True), "returned", negative)
+
+
+def test_reinjected_unisolated_profile_fails_the_same_synthetic_scope_oracle(tmp_path):
+    """Removing the new import boundary must fail even on a non-Linux pytest host."""
+    # A warmed Linux host refuses the leaked real helper; Windows yields its
+    # real nonapplicable profile. Neither supplies the declared fixture scope.
+    # Cache warmth is not assumed: the same oracle detects the missing mock
+    # even when the host has not imported sysconfig yet.
+    result = main_observation(tmp_path, "returned", isolate_normal_profile=False)
+    with pytest.raises(AssertionError, match="synthetic_nt_profile_scope_must_surround_startup"):
+        assert_main_stopped(result, "returned", tmp_path)

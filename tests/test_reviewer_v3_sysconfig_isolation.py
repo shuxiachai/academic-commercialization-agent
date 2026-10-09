@@ -5,10 +5,10 @@ install a global guard, mutate the live sysconfig cache, or launch a child.
 """
 
 import builtins
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 import sys
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -201,7 +201,7 @@ def test_path_observation_fault_preserves_original_permission_error(tmp_path, mo
 @pytest.mark.parametrize("refusal_stage", ["before", "after"])
 def test_actual_main_stops_before_pytest_on_swallowed_prepare_refusal(tmp_path, monkeypatch, refusal_stage):
     """The real main seam must stop a swallowed denial before pytest import."""
-    observations, preparation_calls, pytest_imports = [], [], []
+    observations, preparation_calls, pytest_imports, scope_calls = [], [], [], []
     observation_type = invoker._SysconfigObservation
     config = invoker._sysconfig_configuration(diagnostic(), platform=("nt", "cpython", (3, 11)))
 
@@ -220,11 +220,13 @@ def test_actual_main_stops_before_pytest_on_swallowed_prepare_refusal(tmp_path, 
             pass
 
     def dependencies(*args):
+        scope_calls.append("dependencies")
         if refusal_stage == "before":
             swallow_original_denial()
         return {}, None
 
     def preparation():
+        scope_calls.append("prepare")
         preparation_calls.append(True)
         if refusal_stage == "after":
             swallow_original_denial()
@@ -255,11 +257,27 @@ def test_actual_main_stops_before_pytest_on_swallowed_prepare_refusal(tmp_path, 
     monkeypatch.setattr(invoker, "_sysconfig_environment_absent", lambda *args: True)
     original_import = builtins.__import__
 
-    def observe_import(name, *args, **kwargs):
+    @contextmanager
+    def normal_profile(owned, stdlib_paths):
+        # Explicit NT311 configuration belongs to this synthetic main test.
+        # The real helper would use the Linux pytest host and its warm cache,
+        # escaping the already declared setup isolation before our ledger seam.
+        assert owned == tmp_path and stdlib_paths == invoker._STDLIB_PATHS
+        assert config["diagnostic_binding"] == "explicit_h1" and config["policy_applicable"]
+        scope_calls.append("profile-enter")
+        try:
+            yield {"applicable": False}
+        finally:
+            scope_calls.append("profile-exit")
+
+    def observe_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "evals.reviewer_comparison_v3.linux_sysconfig_profile" and fromlist == ("install",) and level == 0:
+            scope_calls.append("profile-import")
+            return SimpleNamespace(install=normal_profile)
         if name == "pytest":
             pytest_imports.append(True)
             raise AssertionError("pytest imported after a cumulative denial")
-        return original_import(name, *args, **kwargs)
+        return original_import(name, globals, locals, fromlist, level)
 
     original_path = sys.path[:]
     with pytest.raises(RuntimeError, match="prepare_cumulative_refusal_mismatch"):
@@ -270,6 +288,8 @@ def test_actual_main_stops_before_pytest_on_swallowed_prepare_refusal(tmp_path, 
             monkeypatch.setattr(builtins, "__import__", original_import)
             sys.path[:] = original_path
     assert preparation_calls == ([] if refusal_stage == "before" else [True])
+    assert scope_calls == ["profile-import", "profile-enter", "dependencies",
+                           *([] if refusal_stage == "before" else ["prepare"]), "profile-exit"]
     assert pytest_imports == []
     assert observations[0].guard.violations == ["read_outside_admitted_sources"]
 

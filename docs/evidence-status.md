@@ -65,7 +65,12 @@ The ordinary eight CI checks passed independently. A new local prefix control
 observed four sysconfig probes; it does not prove the remote paths are identical.
 Three later [bounded Linux controls](results-2026-10-09-reviewer-v3-linux-profile-controls.md)
 observed zero refusals with the new capability profile and the expected two
-refusals in each of two removal controls; remote acceptance still needs new CI.
+refusals in each of two removal controls. The [second remote preparation matrix](results-2026-10-09-reviewer-v3-linux-preparation-ci.md)
+at `180fc64` then passed all four cells with 529 tests and zero refusals each.
+That commit's ordinary Ubuntu regression exposed seven failures in synthetic
+diagnostic fixtures, so preparation success alone did not complete acceptance.
+The follow-up isolates that dependency in the fixtures; current-head checks are
+tracked in [Draft PR 194](https://github.com/shuxiachai/academic-commercialization-agent/pull/194).
 Actual Reviewer model results remain unrun. Preparation stays outside main and
 grants no new paid, private-data transfer or production authority.
 
