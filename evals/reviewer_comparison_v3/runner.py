@@ -64,6 +64,7 @@ SOURCE_PATHS = (
     "evals/reviewer_comparison_v3/credential.py",
     "evals/reviewer_comparison_v3/source_loader.py",
     "evals/reviewer_comparison_v3/test_invoker.py",
+    "evals/reviewer_comparison_v3/linux_sysconfig_profile.py",
     "evals/reviewer_comparison_v3/fixture.json",
     "evals/reviewer_comparison_v3/README.md",
     "evals/reviewer_comparison_v3/.gitattributes",

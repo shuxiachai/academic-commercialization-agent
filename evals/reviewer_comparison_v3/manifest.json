@@ -368,13 +368,14 @@
     "PyYAML": "6.0.3"
   },
   "sources": {
-    "evals/reviewer_comparison_v3/runner.py": "54bac816d5bf8fdfb6b60391dfe3fe767db64d66a6b2e234e470d204cf972254",
+    "evals/reviewer_comparison_v3/runner.py": "38c63628da25c2332e61ba1bf4acdda64e7d56b294a0ccaa987d74a1dce07069",
     "evals/reviewer_comparison_v3/credential.py": "cd4d07cbacc8d7638390a2696eb81feed10499686b2ff2acf1772ff0763623a5",
     "evals/reviewer_comparison_v3/source_loader.py": "aca93d42968ee64f080a2ac3dee9a553975e94e9d9c473e6a0a89bd65215958c",
-    "evals/reviewer_comparison_v3/test_invoker.py": "0eb6e775cb0c2412595cf45dbb29f70caea29c94ed6e1bebecf260b5111d9075",
+    "evals/reviewer_comparison_v3/test_invoker.py": "ad138af039b3b333942b48f7f030efd8fb368f747a55457bd521ede9bed6a26f",
+    "evals/reviewer_comparison_v3/linux_sysconfig_profile.py": "1d64587acc03b17c5248e06567fe01d8d9638dab42bc3656d18c1242841e77ed",
     "evals/reviewer_comparison_v3/fixture.json": "4ee81119c3e680e96c8904ac0946e6d96a91a06fd5a84fd101966809301fef4a",
-    "evals/reviewer_comparison_v3/README.md": "f6c0728117fe7a04c70d2420316655eae472eca8adbbaddba7e02ae5d2317140",
-    "evals/reviewer_comparison_v3/.gitattributes": "9e9ea509f8f1e027ab0f417891edd94083373b2b5b13425dc8b56ed9baa9f8da",
+    "evals/reviewer_comparison_v3/README.md": "bb9f3a4c8f925493c1f7f8c99f31647df84bf05b1a7c592a492cc772caf832e7",
+    "evals/reviewer_comparison_v3/.gitattributes": "af57b1555b4825655fb8fa797a73eebd0f4f1a98930000deb13cc3600a2259ea",
     "tests/reviewer_comparison_v3_checks.py": "426c0bc5aaa44758effe59d2c2ff776b60c908cfdaf7324719a93a8be7812677",
     "evals/reviewer_output_contract_v1/contract.py": "69d6c63fbea8b7e06d9a983a90a911c7ab0e2c5bcfdc2c39743b28fc8b60b05a",
     "tests/reviewer_output_contract_checks.py": "a3420c4da47c136365cb9e185b514f0108a6ba9683fbe029b81acd0f037c9ff0",
@@ -384,7 +385,7 @@
     "src/academic_agent/evidence.py": "8e9eda3126dc1b81ec5a97e23ecfce8ba64c59a0d77c9a3fb3aec259f07b38c5",
     "src/academic_agent/run_spec.py": "8f6cd3f3b936d4045efaf42cc1314191bdfb4c693047be1d5460f8461f460c38",
     "src/academic_agent/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "docs/prereg-2026-10-01-reviewer-comparison-v3.md": "051fcf1b4d6300d6b0714c456c08c595a36cfdf01c0e79f38a4797b58c33bc01",
+    "docs/prereg-2026-10-01-reviewer-comparison-v3.md": "20f82489d4b85f1957bdd9990337add8982592283a444fb1c09b92be7ef6e167",
     "pyproject.toml": "b5931549959454bfa2e3bbb1d7fc00040db10c2634cc0952bfcd9c3c6a92fffd",
     "uv.lock": "8df6e326a3a1123da0d7491151feb45baee98ec37d882d8c933ff8e53da44494"
   }

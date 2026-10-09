@@ -12,6 +12,10 @@ authorize rerunning a paid batch, moving its files or treating a failed gate as 
 
 - [2026-10-09 Reviewer v3 Windows preparation validation](results-2026-10-09-reviewer-v3-windows-preparation.md): two new default-entry runs passed 529 tests each with zero cumulative refusals and actual process exit zero; historical failures remain closed, Linux/remote CI and native semantic results remain pending.
 
+- [2026-10-09 first Reviewer v3 preparation CI](results-2026-10-09-reviewer-v3-first-preparation-ci.md): ordinary eight checks passed; Windows preparation passed, both Ubuntu cells retained four refusals and exited 87 despite 529 passed assertions. A separate local prefix observation identifies four sysconfig probes without proving the remote event paths; native results remain unrun.
+
+- [2026-10-09 Reviewer v3 Linux import controls](results-2026-10-09-reviewer-v3-linux-profile-controls.md): one fresh positive import had zero refusals and exit zero; two removal controls each retained two specific refusals and actual exit one. Local controls do not replace full remote preparation CI.
+
 - [2026-10-01 Reviewer comparison v2 closeout](results-2026-10-01-reviewer-comparison-v2.md): one response-backed request stopped on reason lengths exceeding an untransmitted field bound; no final reports or semantic comparison, no retry or production activation.
 
 - [2026-10-01 offline common Reviewer output contract](../evals/reviewer_output_contract_v1/README.md): explicit complete-schema addition and local intercepted-byte checks for newly prepared requests; no provider, new native batch or production integration.

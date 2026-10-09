@@ -1243,8 +1243,7 @@ def _normal_sysconfig_scope(project, configuration):
         with _sysconfig_prepare_scope(project, configuration["mode"]):
             yield
     else:
-        # Other platforms keep the original preparation environment. H1
-        # cannot reach this branch; absent validation is not platform success.
+        # Other normal profiles have separate policies; H1 cannot enter here.
         yield
 
 
@@ -2299,54 +2298,56 @@ def main():
         observation.phase = "dependency_startup"
     if locator is not None:
         locator.phase = "dependency_startup"
-    normal_profile, normal_lease = _normal_dependency_startup(site, guard)
-    appdirs_profile = _normal_model_shims(paths, guard)
-    from evals.reviewer_comparison_v3 import runner
+    from evals.reviewer_comparison_v3.linux_sysconfig_profile import install
+    with install(owned, _STDLIB_PATHS) as linux_profile:
+        normal_profile, normal_lease = _normal_dependency_startup(site, guard)
+        appdirs_profile = _normal_model_shims(paths, guard)
+        from evals.reviewer_comparison_v3 import runner
 
-    if observation is not None:
-        observation.window("dependency_startup")
-        observation.phase, observation.watch_markers = "prepare", True
-    project = _sysconfig_project(owned) if sysconfig_configuration["policy_applicable"] else None
-    if locator is not None:
-        locator.phase = "prepare"
-    if observation is not None:
-        observation.require_prepare_ledger("before")
-    if distro_profile is not None:
-        distro_profile.require_cold("before_prepare")
-    try:
-        with _normal_sysconfig_scope(project, sysconfig_configuration):
-            try:
-                prepared = runner.prepare()  # Unpatched identity, never a key/native mode.
-            except PermissionError:
-                if ff_configuration is not None:
-                    observation.data["ff_prepare_outcome"] = "permission_error"
-                raise
-            except BaseException:  # Record only the outcome; preserve the original failure.
-                if ff_configuration is not None:
-                    observation.data["ff_prepare_outcome"] = "other_failure"
-                raise
-            else:
-                if ff_configuration is not None:
-                    observation.data["ff_prepare_outcome"] = "returned"
-                    observation.data["prepare_returned"] = True
-    except PermissionError:
-        if ff_configuration is not None:
-            observation.data["negative_stopped_before_pytest"] = True
-        if h6_configuration is not None and _H6_CASES[h6_configuration["case_id"]] == "missing-project":
-            observation.data["negative_stopped_before_pytest"] = (
-                guard.violations == ["read_outside_admitted_sources"] and not observation.data["observer_fault"]
-                and observation.data["marker_intents"] == {
-                    "Setup": {"admitted": 0, "refused": 1}, "Setup.local": {"admitted": 0, "refused": 0}})
-        # The real installed predicate propagates the original refusal. Do not
-        # manufacture a missing marker, continue prepare, or synthesize exit87.
-        raise
-    finally:
-        if ff_configuration is not None:
-            observation.phase = "prepare_scope_exit"
-        if h6_configuration is not None or ff_configuration is not None:
-            observation.data["prepare_scope_exited"] = True
-            observation.data["env_absent_after_prepare_exit"] = _sysconfig_environment_absent(os.environ)
-            observation.window("prepare_scope_exit")
+        if observation is not None:
+            observation.window("dependency_startup")
+            observation.phase, observation.watch_markers = "prepare", True
+        project = _sysconfig_project(owned) if sysconfig_configuration["policy_applicable"] else None
+        if locator is not None:
+            locator.phase = "prepare"
+        if observation is not None:
+            observation.require_prepare_ledger("before")
+        if distro_profile is not None:
+            distro_profile.require_cold("before_prepare")
+        try:
+            with _normal_sysconfig_scope(project, sysconfig_configuration):
+                try:
+                    prepared = runner.prepare()  # Unpatched identity, never a key/native mode.
+                except PermissionError:
+                    if ff_configuration is not None:
+                        observation.data["ff_prepare_outcome"] = "permission_error"
+                    raise
+                except BaseException:  # Record only the outcome; preserve the original failure.
+                    if ff_configuration is not None:
+                        observation.data["ff_prepare_outcome"] = "other_failure"
+                    raise
+                else:
+                    if ff_configuration is not None:
+                        observation.data["ff_prepare_outcome"] = "returned"
+                        observation.data["prepare_returned"] = True
+        except PermissionError:
+            if ff_configuration is not None:
+                observation.data["negative_stopped_before_pytest"] = True
+            if h6_configuration is not None and _H6_CASES[h6_configuration["case_id"]] == "missing-project":
+                observation.data["negative_stopped_before_pytest"] = (
+                    guard.violations == ["read_outside_admitted_sources"] and not observation.data["observer_fault"]
+                    and observation.data["marker_intents"] == {
+                        "Setup": {"admitted": 0, "refused": 1}, "Setup.local": {"admitted": 0, "refused": 0}})
+            # The real installed predicate propagates the original refusal. Do not
+            # manufacture a missing marker, continue prepare, or synthesize exit87.
+            raise
+        finally:
+            if ff_configuration is not None:
+                observation.phase = "prepare_scope_exit"
+            if h6_configuration is not None or ff_configuration is not None:
+                observation.data["prepare_scope_exited"] = True
+                observation.data["env_absent_after_prepare_exit"] = _sysconfig_environment_absent(os.environ)
+                observation.window("prepare_scope_exit")
     if ff_configuration is not None:
         raise RuntimeError("ff_diagnostic_stop_before_pytest")
     if h6_configuration is not None and _H6_CASES[h6_configuration["case_id"]] == "missing-project":
@@ -2453,6 +2454,7 @@ def main():
               "normal_appdirs_profile": appdirs_profile,
               "normal_windows_dependencies": normal_lease.facts if normal_lease is not None else None}
     result["sysconfig_configuration"] = sysconfig_configuration
+    result["linux_sysconfig_profile"] = linux_profile
     result["executed_entry"] = startup["executed_entry"]
     result["sysconfig_observation"] = observation.snapshot() if observation is not None else None
     (owned / "receipt.json").write_text(json.dumps(result, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")

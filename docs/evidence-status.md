@@ -58,9 +58,16 @@ has [qualified Windows validation](results-2026-10-09-reviewer-v3-windows-prepar
 two fresh runs on CPython 3.11.9 and 3.12.9 each passed 529 tests, with zero
 cumulative refusals and actual child/parent exit zero. These results bind the
 recorded working-tree snapshot; the original four-refusal failure remains
-failed and closed. Complete Linux preparation, same-commit remote CI and actual Reviewer
-model results remain unobserved. Preparation stays outside main and grants no
-new paid, private-data transfer or production authority.
+failed and closed. The [first remote preparation CI](results-2026-10-09-reviewer-v3-first-preparation-ci.md)
+then passed both Windows cells but failed both Ubuntu cells: 529 assertions passed
+in each, but four read-range refusals remained and the actual exits were 87.
+The ordinary eight CI checks passed independently. A new local prefix control
+observed four sysconfig probes; it does not prove the remote paths are identical.
+Three later [bounded Linux controls](results-2026-10-09-reviewer-v3-linux-profile-controls.md)
+observed zero refusals with the new capability profile and the expected two
+refusals in each of two removal controls; remote acceptance still needs new CI.
+Actual Reviewer model results remain unrun. Preparation stays outside main and
+grants no new paid, private-data transfer or production authority.
 
 A separate [saved-source production wrapper](operating-guide.md#optional-saved-source-locator)
 is default-off. Its gated page/API reuses the bounded one-selection locator,

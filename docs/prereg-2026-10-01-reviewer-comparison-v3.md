@@ -9,8 +9,15 @@ Status note added 2026-10-09: the preparation observations below retain their
 original snapshot-specific failures and pending gates. A later
 [Windows validation record](results-2026-10-09-reviewer-v3-windows-preparation.md)
 records two new complete default-entry passes without relabelling those failed
-cases. Linux and remote preparation CI remain unobserved; native execution and
-semantic gain remain untested. This note changes neither the method nor authority.
+cases. The later [first remote CI record](results-2026-10-09-reviewer-v3-first-preparation-ci.md)
+preserves two failed Ubuntu preparation cells and a distinct local prefix
+observation. Native execution and semantic gain remain untested. This note
+changes neither the method nor authority. A subsequent
+[Linux normal-test capability candidate](../evals/reviewer_comparison_v3/README.md#linux-normal-test-capability-candidate)
+uses the authentic optional-resolution fallback and an owned empty build
+directory under the unchanged Guard. It requires its own reviewed source
+identity, fresh positive/negative controls and complete CI; historical failed
+observations and the native experiment's request contract remain unchanged.
 
 ## Question, dependency and unchanged reference
 

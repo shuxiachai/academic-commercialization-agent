@@ -17,11 +17,42 @@ validation. The earlier four-refusal invocation and failed diagnostic cases
 remain failed and closed. The chronological preparation observations below
 describe their respective snapshots, not the current aggregate status.
 
-Complete Linux preparation and remote CI remain unobserved. Delivery review identified
-a Linux distro-discovery gap requiring an owned-profile correction before the
-four-cell workflow. Credential preflight and the actual Reviewer experiment
-have not run. Local mechanical checks do not establish semantic improvement or
-authorize native execution, private-data publication, a merge or production use.
+The [first remote CI observation](../../docs/results-2026-10-09-reviewer-v3-first-preparation-ci.md)
+passed all eight ordinary checks and both Windows preparation cells. Both Ubuntu
+preparation cells failed with four retained read-range refusals and exit 87,
+despite 529 passing assertions each. A new local baseline observed four probes
+during genuine sysconfig import; its bare interpreter is not the CI venv and
+does not establish the remote event paths. Credential preflight and the actual
+Reviewer experiment have not run. Mechanical checks do not establish semantic
+improvement or authorize native execution, private-data publication, a merge
+or production use.
+
+### Linux normal-test capability candidate
+
+`linux_sysconfig_profile.py` addresses the observed local import probes without
+admitting executable paths to the Guard. It waits for the natural cold import
+and delegates the unchanged source to the real `SourceFileLoader`. The finite
+source table admits the observed Ubuntu 3.12.3 file and the public CPython
+3.11.17/3.12.3 candidates; these are not claims about installed CI bytes. Unknown
+source bytes or mismatched loader code fail before module execution.
+
+Only the exact initial executable-resolution call receives a fixed `OSError`,
+which the genuine `_safe_realpath` catches using its existing fallback. The
+capability checks actual code identity, globals, origin, initializing module,
+thread, call site, original executable argument and single use. It performs no
+executable realpath/lstat before the Guard. The later project-base override
+points to a new empty owned directory, so genuine build-marker probes remain
+observable under the original Guard. Other calls retain their original path.
+The temporary function bindings and environment override are restored as the
+real import returns or raises; the outer context removes its finder.
+
+This is a serial test capability profile, not host-realpath equivalence or a
+sandbox against hostile in-process reflection. Synthetic unit checks belong to
+ordinary collection. Separately reviewed fresh Linux positive, capability-removal
+and owned-override-removal controls must establish actual import, cumulative
+refusals, restoration and process exit. Preparing these controls is not executing
+them; neither they nor a local pass replace the complete four-cell preparation
+CI. The closed prefix baseline and old diagnostic cases are never replayed.
 
 ## Two-layer request identity
 
