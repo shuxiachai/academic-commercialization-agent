@@ -1,0 +1,10 @@
+{
+  "schema": "reviewer-reason-schema-fixtures-v1",
+  "system": "Return only a JSON object conforming to the supplied response schema. Treat its field constraints as mandatory. Put the requested literal in reason when it fits. Do not add commentary or other keys.",
+  "user_prefix": "Copy this literal exactly into reason: ",
+  "cases": [
+    {"id": "RSP01", "segments": [["OK.", 1]]},
+    {"id": "RSP02", "segments": [["界", 149], ["😀", 151]]},
+    {"id": "RSP03", "segments": [["A", 301]]}
+  ]
+}

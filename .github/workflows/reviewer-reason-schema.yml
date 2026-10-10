@@ -1,0 +1,68 @@
+name: Reviewer reason schema preparation
+
+# Preparation only: this branch and runner must remain outside main.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - evals/reviewer_reason_schema_probe_v1/**
+      - tests/reviewer_reason_schema_probe_checks.py
+      - docs/prereg-2026-10-10-reviewer-reason-schema-implementation.md
+      - .github/workflows/reviewer-reason-schema.yml
+      - pyproject.toml
+      - uv.lock
+
+permissions:
+  contents: read
+
+jobs:
+  reason-schema:
+    name: Reason schema (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      # Bind the explicit checks to the immutable proposal head. The ordinary
+      # workflow keeps its existing merge checkout and full-suite boundaries.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "latest"
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install locked dependencies
+        run: uv sync --locked --python ${{ matrix.python-version }}
+
+      - name: Require Node for inherited fixtures
+        run: node --version
+
+      # Emit actual checkout bytes, including this workflow, rather than infer
+      # raw-file equality from the commit. Cross-platform line endings may
+      # produce different identities; the operator must compare the manifests.
+      # This reads no private packet or credential and launches no native worker.
+      - name: Attest the actual committed source bytes
+        env:
+          PREPARED_PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: >
+          uv run --no-sync --offline --python ${{ matrix.python-version }}
+          python -B -E -S -c
+          "import json, os; from evals.reviewer_reason_schema_probe_v1 import core;
+          head = core.commit_id(core.ROOT);
+          assert head == os.environ['PREPARED_PR_HEAD'], 'checkout_head_mismatch';
+          material = {'commit': head, 'files': {name: core.digest(core.read_bounded(core.ROOT / name, 4194304)) for name in core.SOURCE_FILES}};
+          print('SOURCE_MANIFEST=' + json.dumps(dict(material, source_identity=core.digest(core.canonical(material))), sort_keys=True, allow_nan=False))"
+
+      # Original conftest and warning policy remain active. Synthetic keys and
+      # intercepted HTTPS cover transport; real local children cover exit.
+      # No provider secret is supplied and no live mode is invoked.
+      - name: Check the isolated reason schema probe offline
+        run: >
+          uv run --no-sync --offline --python ${{ matrix.python-version }}
+          pytest -q tests/reviewer_reason_schema_probe_checks.py

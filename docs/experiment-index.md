@@ -8,6 +8,8 @@ the current evidence status for today's qualified conclusions; open a dated
 protocol or result when tracing a specific decision. An archive link does not
 authorize rerunning a paid batch, moving its files or treating a failed gate as passed.
 
+- [2026-10-10 Reviewer reason schema implementation preparation](prereg-2026-10-10-reviewer-reason-schema-implementation.md): three new synthetic controls and an independent stdlib runner prepared offline; proposed three requests with a CNY 0.12 soft stop, no native grant or result, production integration or closed-batch reuse.
+
 - [2026-10-01 Reviewer comparison v2 closeout](results-2026-10-01-reviewer-comparison-v2.md): one response-backed request stopped on reason lengths exceeding an untransmitted field bound; no final reports or semantic comparison, no retry or production activation.
 
 - [2026-10-01 offline common Reviewer output contract](../evals/reviewer_output_contract_v1/README.md): explicit complete-schema addition and local intercepted-byte checks for newly prepared requests; no provider, new native batch or production integration.
