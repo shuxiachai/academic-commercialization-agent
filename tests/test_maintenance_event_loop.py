@@ -17,6 +17,7 @@ import pytest
 
 from api import main, runs
 from api.models import ReadinessStatus
+from tests.scripted_waits import SCENARIO, STEP
 
 
 STAGES = ("timeouts", "papers", "retention", "receipts", "auxiliary_usage")
@@ -68,7 +69,7 @@ def test_http_probes_complete_before_slow_maintenance_is_released(maintenance_fi
 
     def slow(**_kwargs):
         entered.set()
-        assert release.wait(15), "observer failed to release maintenance"
+        assert release.wait(STEP), "observer failed to release maintenance"
         return []
 
     operations[stage].side_effect = slow
@@ -91,11 +92,11 @@ def test_http_probes_complete_before_slow_maintenance_is_released(maintenance_fi
         def observe():
             future = None
             try:
-                assert entered.wait(10), "maintenance did not start"
+                assert entered.wait(STEP), "maintenance did not start"
                 started = time.monotonic()
                 future = asyncio.run_coroutine_threadsafe(probe(), loop)
                 try:
-                    future.result(timeout=5)
+                    future.result(timeout=STEP)
                 except TimeoutError:
                     pytest.fail(f"HTTP probes stalled behind synchronous {stage} maintenance")
                 print(f"{stage}: four held-stage HTTP probes completed in {time.monotonic() - started:.3f}s")
@@ -123,7 +124,7 @@ def test_shutdown_drains_owned_stage_despite_repeated_cancellation(maintenance_f
     def slow(**_kwargs):
         entered.set()
         try:
-            assert release.wait(15), "test failed to release maintenance"
+            assert release.wait(STEP), "test failed to release maintenance"
             if failure:
                 raise PermissionError("private fixture path")
             return []
@@ -141,7 +142,7 @@ def test_shutdown_drains_owned_stage_despite_repeated_cancellation(maintenance_f
         await scope.__aenter__()
         closing = None
         try:
-            assert await asyncio.to_thread(entered.wait, 10)
+            assert await asyncio.to_thread(entered.wait, STEP)
             closing = asyncio.create_task(scope.__aexit__(None, None, None))
             # Yield after each cancellation so both reach the actual owner,
             # rather than coalescing before its first suspended await.
@@ -159,7 +160,7 @@ def test_shutdown_drains_owned_stage_despite_repeated_cancellation(maintenance_f
             if closing is None:
                 await scope.__aexit__(None, None, None)
             else:
-                await asyncio.wait_for(closing, 10)
+                await asyncio.wait_for(closing, SCENARIO)
         assert main._maintenance_checks[stage] == ("failed" if failure else "ok")
         assert all(operation.call_count <= 1 for operation in operations.values())
         shutdown.assert_called_once_with()
@@ -179,7 +180,7 @@ def test_real_stop_claim_is_settled_before_shutdown(maintenance_fixture, monkeyp
     def wait(timeout=None):
         if not entered.is_set():
             entered.set()
-            assert release.wait(15)
+            assert release.wait(STEP)
             if failure:
                 raise PermissionError("first stop denied")
         proc.poll.return_value = 0
@@ -204,7 +205,7 @@ def test_real_stop_claim_is_settled_before_shutdown(maintenance_fixture, monkeyp
         await scope.__aenter__()
         closing = None
         try:
-            assert await asyncio.to_thread(entered.wait, 10)
+            assert await asyncio.to_thread(entered.wait, STEP)
             closing = asyncio.create_task(scope.__aexit__(None, None, None))
             await asyncio.sleep(0)
             await asyncio.sleep(0)
@@ -216,7 +217,7 @@ def test_real_stop_claim_is_settled_before_shutdown(maintenance_fixture, monkeyp
             if closing is None:
                 await scope.__aexit__(None, None, None)
             else:
-                await asyncio.wait_for(closing, 10)
+                await asyncio.wait_for(closing, SCENARIO)
         shutdown.assert_called_once_with()
         assert proc.terminate.call_count == (2 if failure else 1)
         assert runs.active_count() == 0
@@ -266,7 +267,7 @@ def test_cycles_remain_serial_and_faults_reach_http(maintenance_fixture):
         task = asyncio.create_task(main._reaper())
         main._maintenance_task = task
         try:
-            assert await asyncio.to_thread(complete.wait, 10)
+            assert await asyncio.to_thread(complete.wait, STEP)
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url="http://test") as client:
                 response = await client.get("/health/ready")
                 assert response.status_code == 503

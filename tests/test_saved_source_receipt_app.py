@@ -22,6 +22,7 @@ from api import saved_source_receipt_app as api
 from api import saved_source_receipts as receipts
 from tests.test_saved_source_app import _production_absence_probe
 from tests.test_saved_source_controller import CODE, QUESTION, RUN_ID, TEXT, key, saved_registry, select
+from tests.scripted_waits import SCENARIO, STEP
 
 URL = f"/api/runs/{RUN_ID}/saved-source-location"
 LOOKUP = "/api/saved-source-receipts"
@@ -77,7 +78,7 @@ def assert_error(reply, status, code):
 
 
 async def observed(event, *, request=None):
-    reached = await asyncio.to_thread(event.wait, 5)
+    reached = await asyncio.to_thread(event.wait, STEP)
     detail = ""
     if not reached and request is not None:
         # These requests contain synthetic fixtures only. A missed loader event
@@ -138,8 +139,8 @@ def test_loader_boundary_failure_reports_post_outcome(boundary, outcome):
                     task.cancel()
                     await asyncio.gather(task, return_exceptions=True)
 
-    asyncio.run(asyncio.wait_for(scenario(), 10))
-    unreached.wait.assert_called_once_with(5)
+    asyncio.run(asyncio.wait_for(scenario(), SCENARIO))
+    unreached.wait.assert_called_once_with(STEP)
     assert calls.call_count == count() == 0
 
 
@@ -560,7 +561,7 @@ def test_durable_lost_ack_recovery_with_fresh_controller_never_redispatches(boun
     def selector(request):
         if hold == "pending":
             entered.set()
-            assert release.wait(8)
+            assert release.wait(STEP)
         return calls(request)
     first_app, fresh_app = make(selector), make(selector=None)
     receipt_key = key()
@@ -581,7 +582,7 @@ def test_durable_lost_ack_recovery_with_fresh_controller_never_redispatches(boun
                     if hold == "pending":
                         await observed(entered)
                     else:
-                        await asyncio.wait_for(sent.wait(), 5)
+                        await asyncio.wait_for(sent.wait(), STEP)
                     task.cancel()
                     with pytest.raises(asyncio.CancelledError):
                         await task
@@ -614,7 +615,7 @@ def test_durable_lost_ack_recovery_with_fresh_controller_never_redispatches(boun
             assert reply.json()["result"]["saved_text"]["text"] == TEXT
             assert reply.json()["run_id"] == RUN_ID
             assert reply.json()["state"] == "completed"
-    asyncio.run(asyncio.wait_for(scenario(), 15))
+    asyncio.run(asyncio.wait_for(scenario(), SCENARIO))
     assert calls.call_count == count() == 1
 
 
@@ -628,7 +629,7 @@ def test_lifespan_owns_physical_post_target_exit_and_cancellation_drain(boundary
             super().run()
             if self.name == "saved-source-controller":
                 exited.set()
-                assert release.wait(8)
+                assert release.wait(STEP)
     monkeypatch.setattr(threading, "Thread", DelayedExit)
     app = make()
     async def scenario():
@@ -665,7 +666,7 @@ def test_lifespan_owns_physical_post_target_exit_and_cancellation_drain(boundary
                         await closer
             assert runs.active_paid_operation_count() == 0
             assert_error(await client.post(URL, json={"question": QUESTION}, headers=headers(key())), 503, "controller_closed")
-    asyncio.run(asyncio.wait_for(scenario(), 15))
+    asyncio.run(asyncio.wait_for(scenario(), SCENARIO))
 
 
 def test_production_actual_router_absent_and_negative_control(tmp_path):
@@ -733,7 +734,7 @@ def test_code_revocation_during_loader_prevents_http_paid_entry(boundary, monkey
     calls = Mock(side_effect=select)
     def load(run_id):
         entered.set()
-        assert release.wait(5)
+        assert release.wait(STEP)
         return SavedSourceLoader(root)(run_id)
     app = make(calls, load)
     async def scenario():
@@ -758,7 +759,7 @@ def test_code_revocation_during_loader_prevents_http_paid_entry(boundary, monkey
                 assert (reply.json()["state"], reply.json()["error_code"], reply.json()["admission_state"]) == (
                     "failed", "access_denied", "not_admitted")
                 assert_error(await client.get(LOOKUP, headers=headers(receipt_key)), 401, "access_denied")
-    asyncio.run(asyncio.wait_for(scenario(), 10))
+    asyncio.run(asyncio.wait_for(scenario(), SCENARIO))
     assert calls.call_count == count() == 0
 
 

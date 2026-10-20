@@ -6,6 +6,7 @@ import subprocess
 import pytest
 
 from api import saved_source_production_assets as assets
+from tests.scripted_waits import SCENARIO
 
 
 def test_exact_aliases_preserve_frozen_bytes():
@@ -103,6 +104,6 @@ assert.equal(stores, 1);
 console.log('served pre-intent hooks verified');
 '''
     completed = subprocess.run(["node", "--input-type=module", "-e", probe], input=json.dumps(script),
-                               capture_output=True, text=True, timeout=15, check=False)
+                               capture_output=True, text=True, timeout=SCENARIO, check=False)
     assert completed.returncode == 0, completed.stderr
     assert "served pre-intent hooks verified" in completed.stdout
