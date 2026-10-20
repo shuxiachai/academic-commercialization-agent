@@ -918,8 +918,12 @@ def test_integration_blocking_cancellation_callback_halts_batch(
     collection = _collection()
     callback_gate = threading.Lock()
     callback_gate.acquire()
+    cancel_thread: threading.Thread | None = None
+    worker_exited_cleanly = False
 
     def blocking_cancel_cb() -> None:
+        nonlocal cancel_thread
+        cancel_thread = threading.current_thread()
         callback_gate.acquire()
 
     class StalledCrewWithBlockingCancel:
@@ -930,8 +934,13 @@ def test_integration_blocking_cancellation_callback_halts_batch(
             blocking_cancel_cb()
 
         def kickoff(self, inputs=None):
-            time.sleep(2.0)
-            return SimpleNamespace(tasks_output=[])
+            nonlocal worker_exited_cleanly
+            try:
+                while True:
+                    time.sleep(0.005)
+            except TimeoutError:
+                worker_exited_cleanly = True
+                return SimpleNamespace(tasks_output=[])
 
     crew_obj = StalledCrewWithBlockingCancel()
 
@@ -961,6 +970,7 @@ def test_integration_blocking_cancellation_callback_halts_batch(
         try:
             exit_code = ablation.main(["--execute", "--pilot", "--max-execution-time", "1"])
             assert exit_code == 0
+            assert worker_exited_cleanly is True
 
             exp_dirs = list(root.glob("*"))
             assert len(exp_dirs) == 1
@@ -974,27 +984,42 @@ def test_integration_blocking_cancellation_callback_halts_batch(
                 assert meta_data["usage"]["cost_complete"] is False
         finally:
             callback_gate.release()
+            if cancel_thread is not None:
+                cancel_thread.join(timeout=1.0)
+                assert not cancel_thread.is_alive(), "cancel_thread did not exit cleanly"
 
 
-def test_integration_active_child_thread_halts_batch(
+def test_integration_active_child_thread_ignored_by_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Outer worker exits quickly but leaves an active spawned child thread; main() must set unconfirmed status and halt."""
+    """Outer worker exits quickly and leaves an active child thread; main() records success because detached child threads are ignored."""
     collection = _collection()
-    child_gate = threading.Lock()
-    child_gate.acquire()
+    child_threads: list[threading.Thread] = []
+    stop_event = threading.Event()
 
+    # Note: Detached child threads spawned by cell execution fall outside this
+    # deadline's guarantee and are ignored. The cell records success as long as the
+    # explicit worker thread exits cleanly.
     class SpawnChildCrew:
         tasks: list[object] = []
         agents: list[object] = []
 
         def kickoff(self, inputs=None):
             def background_worker():
-                child_gate.acquire()
+                # Sleeps for 1-2 seconds while main worker returns immediately
+                stop_event.wait(timeout=1.5)
 
             t = threading.Thread(target=background_worker, daemon=True)
+            child_threads.append(t)
             t.start()
-            return SimpleNamespace(tasks_output=[])
+            dummy_outputs = [
+                SimpleNamespace(
+                    raw=f"# Executive Summary\nTask {i} output report text",
+                    name=f"task_{i}",
+                )
+                for i in range(5)
+            ]
+            return SimpleNamespace(tasks_output=dummy_outputs)
 
     crew_obj = SpawnChildCrew()
 
@@ -1017,26 +1042,100 @@ def test_integration_active_child_thread_halts_batch(
     monkeypatch.setattr(ablation, "_commit_sha", lambda: "mockedcommit")
 
     output_root = Path(__file__).parents[1] / "outputs"
-    with tempfile.TemporaryDirectory(prefix="test-child-thread-halt-", dir=output_root) as raw:
+    with tempfile.TemporaryDirectory(prefix="test-child-thread-ignored-", dir=output_root) as raw:
         root = Path(raw)
         monkeypatch.setattr(ablation, "ABLATION_ROOT", root)
 
         try:
-            exit_code = ablation.main(["--execute", "--pilot", "--max-execution-time", "1"])
+            exit_code = ablation.main(["--execute", "--pilot", "--max-execution-time", "5", "--pause-seconds", "0"])
             assert exit_code == 0
 
             exp_dirs = list(root.glob("*"))
             assert len(exp_dirs) == 1
-            cell_meta_files = list(exp_dirs[0].glob("**/meta.json"))
-            assert len(cell_meta_files) == 1
+            cell_meta_files = sorted(exp_dirs[0].glob("**/meta.json"))
+            # In pilot mode with 3 cells, all cells succeed and the batch does not halt
+            assert len(cell_meta_files) == 3
 
-            meta_data = json.loads(cell_meta_files[0].read_text(encoding="utf-8"))
-            assert meta_data["status"] == "error_timeout_unconfirmed"
-            assert meta_data.get("usage_is_time_incomplete") is True
-            if "usage" in meta_data and isinstance(meta_data["usage"], dict):
-                assert meta_data["usage"]["cost_complete"] is False
+            for meta_file in cell_meta_files:
+                meta_data = json.loads(meta_file.read_text(encoding="utf-8"))
+                assert meta_data["status"] == "success"
+                assert meta_data.get("usage_is_time_incomplete") is not True
         finally:
-            child_gate.release()
+            stop_event.set()
+            for t in child_threads:
+                t.join(timeout=2.0)
+                assert not t.is_alive(), "child thread did not exit cleanly"
+
+
+def test_cold_start_real_crew_success_ignores_shared_threads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A cold-start run using pinned CrewAI succeeds even though background EventBus threads are spawned."""
+    from crewai import Agent, Crew, Task
+    from crewai.llms.providers.openai.completion import OpenAICompletion
+
+    collection = _collection()
+    monkeypatch.delenv("OPENAI_API_BASE", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-mock-key")
+    monkeypatch.delenv("ABLATION_MAX_EXECUTION_TIME", raising=False)
+
+    dummy_report = "# Executive Summary\n" + ("Valid evaluation text for commercialization report. " * 20)
+
+    # Intercept provider call at OpenAICompletion.call
+    monkeypatch.setattr(
+        OpenAICompletion,
+        "call",
+        lambda *args, **kwargs: dummy_report,
+    )
+
+    def _build_test_crew(variant: str, *args: object, **kwargs: object) -> tuple[Crew, str]:
+        task_name = "monolith_report_task" if variant == "monolith" else "commercialization_report_task"
+        agents = [Agent(role=f"Agent_{i}", goal="Evaluate", backstory="Expert") for i in range(5)]
+        tasks = [
+            Task(name=task_name, description="Evaluate topic", expected_output="Report", agent=agents[i])
+            for i in range(5)
+        ]
+        return Crew(agents=agents, tasks=tasks), task_name
+
+    monkeypatch.setattr(
+        ablation,
+        "_fixture",
+        lambda *args: (collection, {"sha256_16": "fixture-digest"}),
+    )
+    monkeypatch.setattr(ablation.benchmark_fixtures, "age_days", lambda num: 1.0)
+    monkeypatch.setattr(ablation, "build_variant_crew", _build_test_crew)
+    monkeypatch.setattr(
+        ablation,
+        "preflight_fixtures",
+        lambda cases: {"03": {"sha256_16": "fixture-digest"}},
+    )
+    monkeypatch.setattr(ablation, "_commit_sha", lambda: "mockedcommit")
+
+    output_root = Path(__file__).parents[1] / "outputs"
+    with tempfile.TemporaryDirectory(prefix="test-cold-start-", dir=output_root) as raw:
+        root = Path(raw)
+        monkeypatch.setattr(ablation, "ABLATION_ROOT", root)
+
+        exit_code = ablation.main(["--execute", "--pilot", "--max-execution-time", "5", "--pause-seconds", "0"])
+        assert exit_code == 0
+
+        exp_dirs = list(root.glob("*"))
+        assert len(exp_dirs) == 1
+        cell_meta_files = sorted(exp_dirs[0].glob("**/meta.json"))
+        # All 3 cells in pilot must start and complete successfully
+        assert len(cell_meta_files) == 3
+
+        for meta_file in cell_meta_files:
+            meta_data = json.loads(meta_file.read_text(encoding="utf-8"))
+            assert meta_data["status"] == "success"
+            assert meta_data.get("usage_is_time_incomplete") is not True
+
+        has_crew_bg_thread = any(
+            ("CrewAIEventsLoop" in t.name or "CrewAISyncHandler" in t.name) and t.is_alive()
+            for t in threading.enumerate()
+        )
+        assert has_crew_bg_thread, "Expected at least one CrewAI background thread (CrewAIEventsLoop/CrewAISyncHandler) to be alive"
+
 
 
 

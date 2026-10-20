@@ -601,6 +601,9 @@ def _execute_cell_with_deadline(
     - **Local Execution Termination & Resource Cleanup**: Guarantees bounded local wait time
       and local task resource cleanup upon deadline expiration. Unconfirmed exits set
       ``status="error_timeout_unconfirmed"`` and stop the batch run to prevent concurrent paid runs.
+      Note: Tracking execution boundaries is strictly limited to the explicit worker thread and
+      the cancellation callback. Any detached child threads spawned by the cell are ignored and fall
+      outside this deadline's guarantee.
     - **Remote Provider Cancellation & Token Consumption**: Once an upstream HTTP request has been
       dispatched to a remote LLM provider, server-side generation cancellation and billing/token
       consumption depend on the remote provider's API behavior and are not guaranteed by local execution
@@ -610,8 +613,6 @@ def _execute_cell_with_deadline(
     timeout_val = float(exec_time)
     evt = cancel_event or threading.Event()
     container: dict[str, Any] = {"result": None, "exception": None}
-
-    initial_threads = set(threading.enumerate())
 
     def _worker() -> None:
         try:
@@ -624,10 +625,8 @@ def _execute_cell_with_deadline(
     worker_thread.join(timeout=timeout_val)
 
     cb_thread: threading.Thread | None = None
-    cell_threads = (set(threading.enumerate()) - initial_threads) - {worker_thread}
-    has_alive_cell_threads = any(t.is_alive() for t in cell_threads)
 
-    if worker_thread.is_alive() or has_alive_cell_threads:
+    if worker_thread.is_alive():
         # Stage 1: Cooperative signal & bounded cancellation callback invocation
         evt.set()
         if cancel_callback is not None:
@@ -643,10 +642,7 @@ def _execute_cell_with_deadline(
             worker_thread.join(timeout=0.1)
 
         cb_alive = cb_thread.is_alive() if cb_thread is not None else False
-        remaining_cell_threads = set(threading.enumerate()) - initial_threads
-        any_alive = any(t.is_alive() for t in remaining_cell_threads) or cb_alive
-
-        worker_stopped = not any_alive
+        worker_stopped = not (worker_thread.is_alive() or cb_alive)
         status_flag = (
             "worker_stopped=True"
             if worker_stopped
