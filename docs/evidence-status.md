@@ -194,6 +194,17 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+**Academic title gate v1 (2026-10-20).** An offline replay of 494 saved
+title-gate decisions. The rule R5 anchors academic acceptance on the user's
+own words. It was registered on the v2 topics and evaluated once on the v1
+topics: precision rose from 83.5% to 88.9%, recall stayed at 78.0%, and
+off-topic acceptances fell from 19 to 12 (supported; AI labels, 11 deciding
+rows). It is deployed with two declared changes, an anchor guard for
+request-like inputs and a plural stemmer, and the maintainer delegated the
+registered human check. No TRL effect is shown. See the
+[result](results-2026-10-20-academic-title-gate-v1.md) and the
+[deployment erratum](errata-2026-10-20-academic-title-gate-v1-deployment.md).
+
 **Held-out TRL calibration v2 (2026-10-19).** Ten further topics, registered
 before any run, measured with `qwen3.8-max` and the revised market retrieval
 (#213, #215). **25/30 runs fell in range**; 28 completed. Eleven runs scored
