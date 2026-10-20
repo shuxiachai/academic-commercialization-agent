@@ -9,16 +9,16 @@
 
 .workbench {
   display: grid;
-  grid-template-columns: 248px 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr;
   height: 100vh;
   height: 100dvh;          /* mobile browsers shrink the viewport on scroll */
   overflow: hidden;         /* each pane scrolls independently */
   transition: grid-template-columns var(--duration-base) var(--ease);
 }
-/* Collapsing hides the rail's content but keeps a 48px strip, because the
+/* Collapsing hides the rail's content but keeps a 52px strip, because the
    toggle lives inside it: a zero-width sidebar took its own reopen control
    with it, and the state is persisted, so a reload did not recover either. */
-.workbench[data-collapsed="true"] { grid-template-columns: 48px 1fr; }
+.workbench[data-collapsed="true"] { grid-template-columns: 52px 1fr; }
 .workbench[data-collapsed="true"] .brand__name,
 .workbench[data-collapsed="true"] .new-run span,
 .workbench[data-collapsed="true"] .new-run .kbd,
@@ -37,7 +37,7 @@
   flex-direction: column;
   min-width: 0;
   border-right: 1px solid var(--border-subtle);
-  background: var(--bg-base);
+  background: var(--bg-sidebar);
   overflow: hidden;
 }
 
@@ -46,25 +46,27 @@
   align-items: center;
   gap: var(--space-2);
   height: var(--header-height);
-  padding: 0 var(--space-3) 0 var(--space-4);
+  padding: 0 var(--space-3) 0 var(--space-5);
   flex-shrink: 0;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-width: 0;
   flex: 1;
   color: var(--text-primary);
 }
+.brand:hover { color: var(--text-primary); }
 .brand__mark {
-  width: 22px; height: 22px;
+  width: 24px; height: 24px;
   display: block;
   flex-shrink: 0;
 }
 .brand__name {
-  font-size: var(--text-base);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -73,53 +75,53 @@
 }
 
 .icon-btn {
-  width: 26px; height: 26px;
+  width: 30px; height: 30px;
   display: grid;
   place-items: center;
   border-radius: var(--radius-md);
-  color: var(--text-disabled);
+  color: var(--text-tertiary);
   flex-shrink: 0;
   transition: background var(--duration-fast) var(--ease),
               color var(--duration-fast) var(--ease);
 }
-.icon-btn svg { width: 15px; height: 15px; }
-.icon-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
+.icon-btn svg { width: 16px; height: 16px; }
+.icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
 /* ── New run ── */
 .new-run {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 var(--space-3) var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  margin: var(--space-1) var(--space-4) var(--space-4);
+  padding: 9px var(--space-3);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-raised);
-  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
   font-size: var(--text-base);
   font-weight: 500;
   white-space: nowrap;
   transition: background var(--duration-fast) var(--ease),
               border-color var(--duration-fast) var(--ease),
-              color var(--duration-fast) var(--ease);
+              box-shadow var(--duration-fast) var(--ease);
 }
-.new-run svg { width: 14px; height: 14px; flex-shrink: 0; }
+.new-run svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--accent); }
 .new-run:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
-  color: var(--text-primary);
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-md);
 }
 
 .kbd {
   margin-left: auto;
-  padding: 1px 5px;
+  padding: 0 6px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
-  background: var(--bg-base);
-  color: var(--text-disabled);
+  background: var(--bg-overlay);
+  color: var(--text-tertiary);
   font-family: var(--font-mono);
   font-size: 10px;
-  line-height: 1.5;
+  line-height: 1.7;
 }
 
 /* ── Run list ── */
@@ -127,40 +129,42 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0 var(--space-2) var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
   min-height: 0;
 }
 
 .runlist__group {
-  padding: var(--space-4) var(--space-2) var(--space-1);
+  padding: var(--space-4) var(--space-2) var(--space-2);
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-disabled);
+  color: var(--text-tertiary);
 }
 
 .runitem {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   width: 100%;
-  padding: var(--space-2) var(--space-2);
+  padding: 7px var(--space-2) 7px var(--space-3);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: var(--text-base);
   text-align: left;
   transition: background var(--duration-fast) var(--ease),
-              color var(--duration-fast) var(--ease);
+              color var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
 }
 .runitem:hover { background: var(--bg-hover); color: var(--text-primary); }
 .runitem[aria-current="true"] {
-  background: var(--bg-overlay);
+  background: var(--bg-raised);
   color: var(--text-primary);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--border-subtle);
 }
 
 .runitem__state {
-  width: 6px; height: 6px;
+  width: 7px; height: 7px;
   border-radius: var(--radius-full);
   flex-shrink: 0;
   background: var(--text-disabled);
@@ -176,7 +180,7 @@
 
 @keyframes pulse-dot {
   0%, 100% { box-shadow: 0 0 0 0 var(--accent-ring); }
-  55%      { box-shadow: 0 0 0 4px transparent; }
+  55%      { box-shadow: 0 0 0 5px transparent; }
 }
 
 .runitem__label {
@@ -187,15 +191,29 @@
   text-overflow: ellipsis;
 }
 
+/* Admin view: the owner badge sits on a second line under the topic, so the
+   topic keeps the rail's full width (sidebar.js render()). */
+.runitem--owned { align-items: flex-start; }
+.runitem--owned .runitem__state { margin-top: 0.55em; }
+.runitem__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.runitem__text .runitem__label { flex: none; width: 100%; }
+
 /* Only ever rendered for an admin request (RunSummary.owner_label) — which
    code ran this, so a merged multi-code history stays legible instead of
    reading as one undifferentiated list. */
 .runitem__owner {
   flex-shrink: 0;
-  max-width: 96px;
+  max-width: 100%;
   padding: 1px var(--space-2);
   border-radius: var(--radius-full);
-  background: var(--bg-active);
+  background: var(--bg-overlay);
   color: var(--text-tertiary);
   font-size: var(--text-xs);
   white-space: nowrap;
@@ -213,40 +231,57 @@
 }
 .runitem-row .runitem { flex: 1; min-width: 0; }
 
-/* Always rendered, never hover-gated. It was hidden until hover at first, on
-   the theory that a permanent trash icon on every row is visual noise — but
-   the person who owns these runs could not find the feature at all, which is
-   the worse failure of the two: an affordance nobody knows about is not a
-   quieter interface, it is a missing one. It stays visually quiet instead,
-   inheriting .icon-btn's muted colour at rest and turning red on hover, so it
-   reads as available without competing with the topic it sits beside. */
+/* Always rendered, never hover-gated: the person who owns these runs could
+   not find a hover-only delete at all. It stays quiet at rest instead and
+   turns red on hover, so it reads as available without competing with the
+   topic it sits beside. */
 .runitem__delete {
   flex-shrink: 0;
+  color: var(--text-disabled);
   transition: background var(--duration-fast) var(--ease),
               color var(--duration-fast) var(--ease);
 }
 .runitem__delete:hover,
 .runitem__delete:focus-visible {
-  background: var(--bg-hover);
+  background: var(--danger-subtle);
   color: var(--danger);
 }
 
 .runlist__empty {
-  padding: var(--space-8) var(--space-4);
+  margin: var(--space-6) var(--space-2) 0;
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-lg);
   text-align: center;
-  color: var(--text-disabled);
+  color: var(--text-tertiary);
   font-size: var(--text-sm);
 }
 
 /* ── Sidebar footer ── */
 .sidebar__foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
+
+/* Injected by api/main.py only when the saved-source locator is enabled.
+   It takes a row of its own: sharing one with the capacity line and the
+   language select overflowed the rail, and the capacity label ran under
+   the select. */
+#source-locator-link {
+  flex-basis: 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+.workbench[data-collapsed="true"] #source-locator-link { display: none; }
 
 .capacity {
   display: flex;
@@ -257,28 +292,32 @@
 }
 .capacity__dots { display: flex; gap: 3px; }
 .capacity__dot {
-  width: 5px; height: 5px;
+  width: 6px; height: 6px;
   border-radius: var(--radius-full);
   background: var(--bg-active);
 }
 .capacity__dot[data-busy="true"] { background: var(--accent); }
 .capacity__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: var(--text-xs);
-  color: var(--text-disabled);
+  color: var(--text-tertiary);
   white-space: nowrap;
 }
 
 .bare-select {
-  padding: 2px var(--space-1);
+  padding: 3px var(--space-2);
   background: transparent;
-  border: none;
-  color: var(--text-disabled);
+  border: 1px solid transparent;
+  color: var(--text-tertiary);
   font-size: var(--text-xs);
+  font-weight: 500;
   cursor: pointer;
   border-radius: var(--radius-sm);
 }
-.bare-select:hover { color: var(--text-secondary); background: var(--bg-hover); }
-.bare-select option { background: var(--bg-overlay); color: var(--text-primary); }
+.bare-select:hover { color: var(--text-primary); background: var(--bg-hover); }
+.bare-select option { background: var(--bg-raised); color: var(--text-primary); }
 
 /* ═══ Main ═════════════════════════════════════════════════════════════ */
 
@@ -289,6 +328,19 @@
   overflow: hidden;
   background: var(--bg-base);
 }
+
+/* The phone bar holds the only control that opens the overlay sidebar: the
+   sidebar's own toggle sits inside the sidebar, which is off-screen there.
+   It is in the flow, not fixed, so it never covers the run header. */
+.mobilebar { display: none; }
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: var(--scrim);
+  animation: fade-in var(--duration-base) var(--ease-out);
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 .pane {
   display: flex;
@@ -301,15 +353,16 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-4);
-  padding: var(--space-5) var(--space-8);
+  padding: var(--space-6) var(--space-10) var(--space-5);
   border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-base);
   flex-shrink: 0;
 }
 .pane__heading { flex: 1; min-width: 0; }
 .pane__title {
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.012em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -326,7 +379,7 @@
 
 /* Run metadata is saved output and can include long translated diagnostics.
    Let it wrap before it narrows its siblings to unusable columns. */
-#pane-run .pane__meta { flex-wrap: wrap; min-width: 0; }
+#pane-run .pane__meta { flex-wrap: wrap; min-width: 0; row-gap: var(--space-1); }
 #pane-run .pane__meta > span {
   min-width: 0;
   max-width: 100%;
@@ -347,39 +400,59 @@
 .pane__body {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-8);
+  padding: var(--space-8) var(--space-10) var(--space-12);
   min-height: 0;
 }
 /* A measure, not the window width — but 860px wasted most of a wide screen.
    Prose sets its own narrower limit further in; scorecards and source lists
    have short lines and benefit from the extra room. */
-.pane__body > * { max-width: 1100px; margin-inline: auto; }
-.pane__head { padding-inline: var(--space-8); }
+.pane__body > * { max-width: 1060px; margin-inline: auto; }
 .pane__head > * { max-width: none; }
+/* Centred with auto margins, not align-items: a flex-centred child taller
+   than the pane (the composer with decision context open) overflowed upward,
+   past the scroll origin, so its title could not be scrolled back into view.
+   Auto margins centre a short child and collapse to zero for a tall one. */
 .pane__body--centered {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: var(--space-6);
+  padding: var(--space-10) var(--space-6);
 }
+.pane__body--centered > .compose { margin-block: auto; }
 
 /* ═══ Composer ═════════════════════════════════════════════════════════ */
 
-.compose { width: 100%; max-width: 660px; }
+.compose { width: 100%; max-width: 700px; }
 
 .compose__title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-weight: 600;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
   text-align: center;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .compose__sub {
   font-size: var(--text-md);
   color: var(--text-tertiary);
   text-align: center;
-  max-width: 52ch;
+  max-width: 56ch;
   margin: 0 auto var(--space-8);
+}
+/* Sits in the gap .compose__sub leaves, so the composer does not move down. */
+.compose__samples {
+  text-align: center;
+  font-size: var(--text-sm);
+  margin: calc(var(--space-6) * -1) 0 var(--space-6);
+}
+.compose__samples a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--accent-subtle);
+  font-weight: 500;
 }
 
 /* The whole block is the control; the textarea inside has no chrome of its
@@ -388,20 +461,21 @@
 .composer {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
-  background: var(--bg-raised);
+  background: var(--bg-input);
+  box-shadow: var(--shadow-md);
   transition: border-color var(--duration-base) var(--ease),
               box-shadow var(--duration-base) var(--ease);
 }
 .composer:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-subtle);
+  box-shadow: var(--shadow-md), 0 0 0 4px var(--accent-subtle);
 }
 
 .composer__input {
   display: block;
   width: 100%;
   max-height: 40vh;
-  padding: var(--space-4) var(--space-4) var(--space-2);
+  padding: var(--space-5) var(--space-5) var(--space-3);
   background: none;
   border: none;
   color: var(--text-primary);
@@ -412,14 +486,10 @@
 }
 .composer__input::placeholder { color: var(--text-disabled); }
 
-/* The container already turns blue on :focus-within, and base.css gives every
-   focusable element a 2px outline with a 2px offset — so focusing the textarea
-   drew a second blue rectangle inside the first, with a gap between them.
-   Focus is expressed once, by the container. Keyboard users lose nothing: that
-   border is the focus indicator.
-
-   Same reasoning for the chips and send button on the bar below, which sit
-   inside the same focused container. */
+/* Focus is expressed once, by the container: base.css's outline would draw a
+   second rectangle inside the first. Keyboard users lose nothing, because
+   that border is the focus indicator. The chips and send button on the bar
+   below sit inside the same focused container. */
 .composer__input:focus-visible,
 .composer__bar .chip-btn:focus-visible,
 .composer__bar .chip-select:focus-visible,
@@ -431,34 +501,35 @@
 .composer__bar .chip-btn:focus-visible,
 .composer__bar .chip-select:focus-visible,
 .composer__bar .send-btn:focus-visible {
-  box-shadow: 0 0 0 2px var(--accent-ring);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .composer__bar {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-3) var(--space-4);
   flex-wrap: wrap;
 }
 .composer__spacer { flex: 1; min-width: var(--space-2); }
 .composer__count {
   font-size: var(--text-xs);
-  color: var(--text-disabled);
+  color: var(--text-tertiary);
 }
 
 .chip-btn,
 .chip-select {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  height: 28px;
+  gap: 6px;
+  height: 30px;
   padding: 0 var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-overlay);
-  color: var(--text-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
   font-size: var(--text-sm);
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease),
@@ -469,43 +540,45 @@
 .chip-btn:hover,
 .chip-select:hover {
   background: var(--bg-hover);
-  border-color: var(--border-default);
-  color: var(--text-secondary);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 .chip-btn[data-active="true"] {
   background: var(--accent-subtle);
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: var(--accent-border);
   color: var(--accent);
 }
 
 .chip-select {
   appearance: none;
   -webkit-appearance: none;
-  padding-right: var(--space-6);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2371717a' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  padding-right: 26px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%238a857c' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right var(--space-2) center;
+  background-position: right 10px center;
 }
-.chip-select option { background: var(--bg-overlay); color: var(--text-primary); }
+.chip-select option { background: var(--bg-raised); color: var(--text-primary); }
 
 .send-btn {
-  width: 30px; height: 30px;
+  width: 36px; height: 36px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-full);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
   transition: background var(--duration-fast) var(--ease),
               opacity var(--duration-fast) var(--ease),
               transform var(--duration-fast) var(--ease);
 }
-.send-btn svg { width: 15px; height: 15px; }
+.send-btn svg { width: 16px; height: 16px; }
 .send-btn:hover:not(:disabled) { background: var(--accent-hover); }
 .send-btn:active:not(:disabled) { transform: scale(0.94); }
 .send-btn:disabled {
   background: var(--bg-active);
   color: var(--text-disabled);
+  box-shadow: none;
   cursor: not-allowed;
 }
 
@@ -513,7 +586,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 var(--space-3) var(--space-3);
+  margin: 0 var(--space-4) var(--space-3);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -523,26 +596,30 @@
 }
 
 .composer__privacy {
-  margin: 0 var(--space-3) var(--space-3);
+  margin: 0 var(--space-4) var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
   color: var(--text-tertiary);
   font-size: var(--text-xs);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .decision-context {
-  margin-top: var(--space-3);
-  border: 1px solid var(--border-subtle);
+  margin-top: var(--space-4);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--bg-raised) 82%, transparent);
+  background: var(--bg-raised);
+  transition: box-shadow var(--duration-base) var(--ease);
 }
+.decision-context[open] { box-shadow: var(--shadow-sm); }
 .decision-context > summary {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 42px;
+  min-height: 46px;
   padding: 0 var(--space-4);
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: 600;
   list-style: none;
@@ -550,16 +627,22 @@
 .decision-context > summary::-webkit-details-marker { display: none; }
 .decision-context > summary::after {
   content: "+";
+  display: grid;
+  place-items: center;
+  width: 22px; height: 22px;
   margin-left: auto;
-  color: var(--text-tertiary);
-  font-size: var(--text-lg);
-  font-weight: 400;
+  border-radius: var(--radius-full);
+  background: var(--bg-overlay);
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  font-weight: 500;
+  line-height: 1;
 }
 .decision-context[open] > summary::after { content: "−"; }
 .decision-context__optional {
-  padding: 2px var(--space-2);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-full);
-  background: var(--bg-overlay);
   color: var(--text-tertiary);
   font-size: var(--text-xs);
   font-weight: 500;
@@ -569,17 +652,17 @@
   margin: 0 var(--space-4) var(--space-4);
   color: var(--text-tertiary);
   font-size: var(--text-xs);
-  line-height: 1.55;
+  line-height: 1.6;
 }
 .decision-context__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-4) var(--space-3);
   padding: 0 var(--space-4) var(--space-4);
 }
 .decision-context__grid label {
   display: grid;
-  gap: var(--space-2);
+  gap: 6px;
   color: var(--text-secondary);
   font-size: var(--text-xs);
   font-weight: 600;
@@ -592,13 +675,26 @@
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  background: var(--bg-overlay);
+  background: var(--bg-input);
   color: var(--text-primary);
   font: inherit;
+  font-size: var(--text-sm);
   font-weight: 400;
   line-height: var(--leading-normal);
+  transition: border-color var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
 }
 .decision-context__grid textarea { resize: vertical; }
+.decision-context__grid select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--space-8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%238a857c' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+}
+.decision-context__grid select option { background: var(--bg-raised); color: var(--text-primary); }
 .decision-context__grid input::placeholder,
 .decision-context__grid textarea::placeholder { color: var(--text-disabled); }
 .decision-context__grid input:focus,
@@ -606,7 +702,7 @@
 .decision-context__grid select:focus {
   border-color: var(--accent);
   outline: none;
-  box-shadow: 0 0 0 2px var(--accent-subtle);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 .decision-context__wide { grid-column: 1 / -1; }
 
@@ -617,8 +713,7 @@
 
 /* Extraction makes an LLM call and takes several seconds. A static line of
    text is indistinguishable from a hang, so the row shimmers and carries the
-   same pulsing dot the run stages use — one vocabulary for "working", not a
-   third one invented here. */
+   same pulsing dot the run stages use — one vocabulary for "working". */
 .composer__attachment[data-loading="true"] {
   background: linear-gradient(90deg,
     var(--bg-overlay) 25%, var(--bg-hover) 50%, var(--bg-overlay) 75%);
@@ -651,14 +746,14 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   justify-content: center;
-  margin-top: var(--space-5);
+  margin-top: var(--space-6);
 }
 .starter {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  padding: 6px var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
   background: transparent;
-  color: var(--text-disabled);
+  color: var(--text-tertiary);
   font-size: var(--text-sm);
   transition: background var(--duration-fast) var(--ease),
               color var(--duration-fast) var(--ease),
@@ -666,8 +761,8 @@
 }
 .starter:hover {
   background: var(--bg-raised);
-  border-color: var(--border-default);
-  color: var(--text-secondary);
+  border-color: var(--accent-border);
+  color: var(--accent);
 }
 
 /* ═══ Stages ═══════════════════════════════════════════════════════════ */
@@ -676,6 +771,10 @@
   max-width: 620px;
   display: flex;
   flex-direction: column;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
 }
 
 .stage {
@@ -694,19 +793,16 @@
   top: 28px;
   bottom: -4px;
   width: 1px;
-  /* Brighter than border-subtle so the connector does not vanish between two
-     now-visible dots, which read as a broken sequence. */
   background: var(--border-strong);
 }
 
 .stage__dot {
-  width: 11px; height: 11px;
+  width: 12px; height: 12px;
   border-radius: var(--radius-full);
-  /* Pending reads as a hollow white ring. The previous #232329 border was
-     three shades off the background, so only the active and completed states
-     were distinguishable and the pipeline looked two stages long. */
-  border: 2px solid var(--text-secondary);
-  background: var(--bg-base);
+  /* Pending reads as a hollow ring, distinct from the background, so the
+     pipeline shows its full length before anything has run. */
+  border: 2px solid var(--text-disabled);
+  background: var(--bg-raised);
   flex-shrink: 0;
   z-index: 1;
   transition: border-color var(--duration-base) var(--ease),
@@ -729,15 +825,15 @@
 .stage__label {
   flex: 1;
   font-size: var(--text-md);
-  color: var(--text-disabled);
+  color: var(--text-tertiary);
 }
-.stage[data-state="active"] .stage__label { color: var(--text-primary); font-weight: 500; }
+.stage[data-state="active"] .stage__label { color: var(--text-primary); font-weight: 600; }
 .stage[data-state="done"]   .stage__label { color: var(--text-secondary); }
 .stage[data-state="failed"] .stage__label { color: var(--danger); }
 
 .stage__meta {
   font-size: var(--text-sm);
-  color: var(--text-disabled);
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -747,19 +843,19 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 .pill--running   { background: var(--accent-subtle);  color: var(--accent); }
 .pill--completed { background: var(--success-subtle); color: var(--success); }
 .pill--failed    { background: var(--danger-subtle);  color: var(--danger); }
-.pill--cancelled { background: var(--bg-active);      color: var(--text-tertiary); }
+.pill--cancelled { background: var(--bg-overlay);     color: var(--text-tertiary); }
 .pill--timeout   { background: var(--warning-subtle); color: var(--warning); }
-.pill--unknown   { background: var(--bg-active);      color: var(--text-tertiary); }
+.pill--unknown   { background: var(--bg-overlay);     color: var(--text-tertiary); }
 
 /* ═══ Buttons ══════════════════════════════════════════════════════════ */
 
@@ -774,31 +870,35 @@
   white-space: nowrap;
   transition: background var(--duration-fast) var(--ease),
               border-color var(--duration-fast) var(--ease),
-              color var(--duration-fast) var(--ease);
+              color var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
 }
 .btn svg { width: 14px; height: 14px; }
 .btn--secondary {
   border: 1px solid var(--border-default);
   background: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
   color: var(--text-secondary);
 }
 .btn--secondary:hover {
-  background: var(--bg-hover);
   border-color: var(--border-strong);
   color: var(--text-primary);
 }
 .btn--danger {
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  background: var(--danger-subtle);
-  color: #f87171;
+  border: 1px solid var(--danger-border);
+  background: transparent;
+  color: var(--danger);
 }
-.btn--danger:hover { background: rgba(239, 68, 68, 0.18); }
+.btn--danger:hover { background: var(--danger-subtle); }
 .btn--primary {
   justify-content: center;
+  padding: 10px var(--space-4);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
 }
-.btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn--primary:hover:not(:disabled) { background: var(--accent-hover); color: var(--on-accent); }
 .btn--primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ═══ Access gate ══════════════════════════════════════════════════════ */
@@ -810,12 +910,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 10, 11, 0.72);
-  backdrop-filter: blur(4px);
+  padding: var(--space-4);
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .gate__card {
-  width: min(380px, calc(100vw - var(--space-8)));
-  padding: var(--space-6);
+  width: min(400px, calc(100vw - var(--space-8)));
+  max-height: calc(100dvh - var(--space-8));
+  overflow-y: auto;
+  padding: var(--space-8) var(--space-8) var(--space-6);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
   background: var(--bg-raised);
@@ -824,29 +928,36 @@
 .gate__card form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
-.gate__title { font-size: var(--text-lg); }
+.gate__title {
+  font-size: var(--text-2xl);
+  letter-spacing: -0.018em;
+}
 .gate__sub {
+  margin-bottom: var(--space-2);
   font-size: var(--text-base);
   color: var(--text-secondary);
   line-height: var(--leading-normal);
 }
 .gate__input {
-  padding: var(--space-3);
+  padding: 11px var(--space-3);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  background: var(--bg-overlay);
+  background: var(--bg-input);
   color: var(--text-primary);
+  transition: border-color var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
 }
 .gate__input::placeholder { color: var(--text-disabled); }
 .gate__input:focus-visible {
+  outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
 .gate__error {
   font-size: var(--text-sm);
-  color: #f87171;
+  color: var(--danger);
 }
 .gate__hint {
   font-size: var(--text-xs);
@@ -856,14 +967,32 @@
 }
 .gate__switch {
   align-self: center;
+  margin-top: var(--space-1);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
 }
-.gate__switch:hover { color: var(--text-primary); }
+.gate__switch:hover { color: var(--accent); text-decoration-color: currentColor; }
+.gate__samples {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  text-align: center;
+  font-size: var(--text-sm);
+}
 
-select.gate__input { cursor: pointer; }
+select.gate__input {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--space-8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%238a857c' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+}
+select.gate__input option { background: var(--bg-raised); color: var(--text-primary); }
 
 /* ═══ BYOK badge ═══════════════════════════════════════════════════════ */
 
@@ -872,14 +1001,17 @@ select.gate__input { cursor: pointer; }
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin: 0 var(--space-3) var(--space-2);
+  margin: 0 var(--space-4) var(--space-3);
   padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--accent-border);
   border-radius: var(--radius-md);
   background: var(--accent-subtle);
   color: var(--accent);
   font-size: var(--text-xs);
+  font-weight: 500;
 }
-.byok-badge #byok-exit {
+.byok-badge #byok-exit,
+.byok-badge #code-exit {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -891,7 +1023,7 @@ select.gate__input { cursor: pointer; }
 
 .toasts {
   position: fixed;
-  bottom: var(--space-5);
+  bottom: var(--space-6);
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -907,15 +1039,18 @@ select.gate__input { cursor: pointer; }
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-overlay);
+  background: var(--bg-raised);
   box-shadow: var(--shadow-lg);
   font-size: var(--text-base);
-  color: var(--text-secondary);
-  pointer-events: auto;
+  color: var(--text-primary);
+  /* Toasts are text-only and leave on their own after a few seconds, so they
+     never take a click: on a phone two stacked toasts sat over the middle of
+     the report, and a tap there landed on the notice instead of the text. */
+  pointer-events: none;
   animation: toast-in var(--duration-slow) var(--ease-out);
 }
-.toast--error   { border-color: rgba(239, 68, 68, 0.35); }
-.toast--success { border-color: rgba(34, 197, 94, 0.35); }
+.toast--error   { border-color: var(--danger-border); }
+.toast--success { border-color: var(--success-border); }
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(10px); }
@@ -924,20 +1059,34 @@ select.gate__input { cursor: pointer; }
 
 /* ═══ Responsive ═══════════════════════════════════════════════════════
    Below 860px the sidebar overlays instead of taking a column: at that
-   width a 248px rail leaves too little for the run itself. */
+   width a 264px rail leaves too little for the run itself. */
 @media (max-width: 860px) {
   .workbench { grid-template-columns: 1fr; }
   .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    width: 248px;
+    width: min(var(--sidebar-width), 86vw);
     z-index: 60;
     box-shadow: var(--shadow-lg);
     transform: translateX(-100%);
     transition: transform var(--duration-base) var(--ease);
   }
   .workbench[data-sidebar-open="true"] .sidebar { transform: none; }
+  .mobilebar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 48px;
+    padding: 0 var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-base);
+    flex-shrink: 0;
+  }
+  .mobilebar .brand { flex: 0 1 auto; }
   .pane__head, .pane__body { padding-left: var(--space-5); padding-right: var(--space-5); }
+  .pane__head { padding-top: var(--space-5); }
+  .pane__body { padding-top: var(--space-6); }
+  .compose__title { font-size: var(--text-2xl); }
 }
 
 /* A completed run still exposes its actions on a phone; the heading owns the
@@ -950,4 +1099,14 @@ select.gate__input { cursor: pointer; }
   #pane-run .pane__heading,
   #pane-run .pane__actions { width: 100%; }
   #pane-run .pane__actions { flex-wrap: wrap; }
+  .pane__body--centered { padding-top: var(--space-8); }
+  /* Compact and low on a phone, where the visible report is short. */
+  .toasts {
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    transform: none;
+    align-items: center;
+  }
+  .toast { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
 }

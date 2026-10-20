@@ -600,7 +600,12 @@ def main() -> None:
             page.locator("#gate-to-byok").click()
             page.locator("#byok-provider").select_option("qwen")
             page.locator("#byok-llm-key").fill("fixture-memory-key")
-            page.locator("#byok-serper-key").fill("fixture-memory-search")
+            page.locator("#byok-search-key").fill("fixture-memory-search")
+            # There is no default model: without one the form does not submit.
+            page.locator("#byok-form").evaluate("form => form.requestSubmit()")
+            expect(page.locator("#gate")).to_be_visible()
+            expect(page.locator("#byok-badge")).to_be_hidden()
+            page.locator("#byok-model").fill("qwen3.8-27b")
             page.locator("#byok-form").evaluate("form => form.requestSubmit()")
             expect(page.locator("#gate")).to_be_hidden()
             expect(page.locator("#byok-badge")).to_be_visible()
@@ -620,11 +625,19 @@ def main() -> None:
             expect(page.locator("#attachment")).to_be_hidden()
             expect(topic).to_have_value("")
             expect(page.locator("#byok-llm-key")).to_have_value("")
-            expect(page.locator("#byok-serper-key")).to_have_value("")
+            expect(page.locator("#byok-search-key")).to_have_value("")
+            expect(page.locator("#byok-model")).to_have_value("")
             page.locator("#gate-to-byok").click()
             page.locator("#byok-provider").select_option("qwen")
+            # The placeholder only suggests a model (the field is required),
+            # and follows the provider and search choice.
+            expect(page.locator("#byok-model")).to_have_attribute("placeholder", "模型（必填），例如 qwen3.8-27b")
+            expect(page.locator("#byok-search-key")).to_have_attribute("placeholder", "Tavily API Key")
+            page.locator("#byok-search").select_option("serper")
+            expect(page.locator("#byok-search-key")).to_have_attribute("placeholder", "Serper API Key")
             page.locator("#byok-llm-key").fill("fixture-B")
-            page.locator("#byok-serper-key").fill("fixture-search-B")
+            page.locator("#byok-model").fill("qwen3.8-max")
+            page.locator("#byok-search-key").fill("fixture-search-B")
             page.locator("#byok-form").evaluate("form => form.requestSubmit()")
             expect(page.locator("#gate")).to_be_hidden()
             topic.fill("Identity B topic")
@@ -632,6 +645,8 @@ def main() -> None:
             _wait_requests(page, requests, 12)
             body = requests[11].request.post_data_json
             assert body["llm_api_key"] == "fixture-B" and body["paper_id"] is None
+            assert body["llm_model"] == "qwen3.8-max" and body["serper_api_key"] == "fixture-search-B"
+            assert "tavily_api_key" not in body
             _json(requests[11], {"detail": "Fixture rejection"}, status=422)
             expect(run).to_be_enabled()
             assert len(requests) == 12

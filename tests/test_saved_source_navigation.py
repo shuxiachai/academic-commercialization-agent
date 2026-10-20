@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 
 from fastapi.testclient import TestClient
+from tests.scripted_waits import SCENARIO
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -98,6 +99,6 @@ console.log('real SPA view probe and stale-link reinjection verified');
 '''
     completed = subprocess.run(["node", "--input-type=module", "-e", probe],
                                input=json.dumps({"source": source, "A": RUN_A, "B": RUN_B}),
-                               capture_output=True, text=True, encoding="utf-8", timeout=15, check=False)
+                               capture_output=True, text=True, encoding="utf-8", timeout=SCENARIO, check=False)
     assert completed.returncode == 0, completed.stderr
     assert "real SPA view probe and stale-link reinjection verified" in completed.stdout

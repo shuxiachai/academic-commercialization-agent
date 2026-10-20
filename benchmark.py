@@ -142,8 +142,70 @@ BENCHMARK_ROOT = Path(__file__).parent / "outputs" / "benchmark"
 _INTER_RUN_PAUSE = 15  # seconds between topics to avoid API rate limits
 
 
+def load_cohort(path: Path) -> list[tuple[str, str, tuple[int, int], str]]:
+    """Read a separately registered topic set in the TOPICS tuple shape.
+
+    TOPICS stays the advertised calibration set: both READMEs are tested
+    against it, and its ranges were adjusted after early observations. A new
+    measurement on unseen topics needs ranges fixed before any run, so they
+    live in a committed file with their evidence and are loaded here rather
+    than appended to TOPICS. Each case's topic and range is part of the batch
+    identity, so a batch cannot be resumed after its ranges change.
+
+    Case IDs may not reuse a TOPICS number: run directories are keyed by it.
+    """
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or data.get("schema_version") != 1:
+        raise ValueError("cohort file must be a JSON object with schema_version 1")
+    cases = data.get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("cohort file must list at least one case")
+    reserved = {num for num, *_ in TOPICS}
+    loaded: list[tuple[str, str, tuple[int, int], str]] = []
+    seen: set[str] = set()
+    for case in cases:
+        if not isinstance(case, dict):
+            raise ValueError("each cohort case must be an object")
+        num, topic = case.get("id"), case.get("topic")
+        expected, industry = case.get("expected_trl"), case.get("industry")
+        if not isinstance(num, str) or not num.isascii() or not num.isalnum():
+            raise ValueError(f"case id must be a short alphanumeric string: {num!r}")
+        if num in reserved or num in seen:
+            raise ValueError(f"case id {num!r} is reused")
+        if not isinstance(topic, str) or len(topic.strip()) < 3 or topic != topic.strip():
+            raise ValueError(f"case {num}: topic must be trimmed text of at least 3 characters")
+        if (not isinstance(expected, list) or len(expected) != 2
+                or not all(type(v) is int and 1 <= v <= 9 for v in expected)
+                or expected[0] > expected[1]):
+            raise ValueError(f"case {num}: expected_trl must be [low, high] integers within 1-9")
+        if not isinstance(industry, str) or not industry.strip():
+            raise ValueError(f"case {num}: industry is required")
+        seen.add(num)
+        loaded.append((num, topic, (expected[0], expected[1]), industry))
+    return loaded
+
+
 def _slug(topic: str) -> str:
     return topic.lower().replace(" ", "-")[:45].rstrip("-")
+
+
+def _crew_inputs(source_collection) -> dict:
+    """The kickoff inputs production builds, for a run with no decision context.
+
+    pipeline_worker merges source_collection.crew_inputs() with the decision
+    placeholders that the Writer and Reviewer templates require. This runner
+    took only the first part. From the day Decision Context was added, every
+    live benchmark run therefore failed at kickoff with "Missing required
+    template variable 'decision_context_json'", and no test noticed, because
+    none runs a real crew. A benchmark topic is an orientation run, so the
+    placeholders come from an empty DecisionContext, as they do in production
+    when none is supplied.
+    """
+    from academic_agent.run_spec import DecisionContext
+
+    inputs = source_collection.crew_inputs()
+    inputs.update(DecisionContext().crew_inputs())
+    return inputs
 
 
 def _run_dir(num: str, topic: str, rep: int = 1, *, root: Path | None = None) -> Path:
@@ -354,7 +416,7 @@ def run_topic(
         # away, because the per-agent token usage lives on it and is only
         # readable after kickoff returns.
         crew_obj = AcademicAgent(source_collection).crew()
-        result = crew_obj.kickoff(inputs=source_collection.crew_inputs())
+        result = crew_obj.kickoff(inputs=_crew_inputs(source_collection))
 
         tasks_output = getattr(result, "tasks_output", None) or []
 
@@ -567,6 +629,12 @@ def main() -> None:
         action="store_true",
         help="Show the captured fixtures with their age and source counts.",
     )
+    parser.add_argument(
+        "--cohort",
+        metavar="PATH",
+        help="Run a separately registered topic set (JSON, see load_cohort) "
+             "instead of the ten advertised TOPICS. --only/--skip select its IDs.",
+    )
     parser.add_argument("--experiment-id", help="New immutable batch name (default: generated unique ID)")
     parser.add_argument("--resume-batch", help="Reuse intact successes from this exact batch; never retry occupied failed units")
     args = parser.parse_args()
@@ -594,9 +662,16 @@ def main() -> None:
     only_set = {n.strip() for n in args.only.split(",")} if args.only else None
     skip_set = {n.strip() for n in args.skip.split(",")} if args.skip else set()
 
+    source = TOPICS
+    if args.cohort:
+        try:
+            source = load_cohort(Path(args.cohort))
+        except (OSError, ValueError) as exc:
+            parser.error(f"--cohort: {exc}")
+        _log(f"Cohort         : {args.cohort} ({len(source)} cases)")
     topics = [
         (num, topic, trl_range, industry)
-        for num, topic, trl_range, industry in TOPICS
+        for num, topic, trl_range, industry in source
         if (only_set is None or num in only_set) and num not in skip_set
     ]
     if not topics:

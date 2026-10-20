@@ -209,6 +209,7 @@ def _call_llm_json(
     system_prompt: str | None = None,
     provider: str | None = None,
     api_key: str | None = None,
+    model: str | None = None,
 ) -> dict[str, Any]:
     """Call the LLM via crewai.LLM and return parsed JSON.
 
@@ -219,7 +220,7 @@ def _call_llm_json(
     from academic_agent.llm_config import create_llm
 
     llm = create_llm(json_mode=True, temperature=0.0,
-                     provider=provider, api_key=api_key)
+                     provider=provider, api_key=api_key, model=model)
     messages = []
     if system_prompt:
         # The uploaded paper belongs in a lower-trust user message. Keeping
@@ -363,11 +364,13 @@ def extract_paper_contribution(
     *,
     llm_provider: str | None = None,
     llm_api_key: str | None = None,
+    llm_model: str | None = None,
 ) -> PaperContribution:
     """Extract structured contribution metadata from an academic PDF using LLM.
 
     llm_provider/llm_api_key bill the extraction to a visitor bringing their
-    own key. Omitted, it runs on the deployment's own credentials as before.
+    own key, and llm_model optionally names the model for that key. Omitted,
+    it runs on the deployment's own credentials as before.
     """
     coverage: dict = {}
     text = extract_pdf_text(pdf_path, coverage=coverage)
@@ -385,6 +388,7 @@ def extract_paper_contribution(
         system_prompt=_PAPER_EXTRACTION_SYSTEM_PROMPT,
         provider=llm_provider,
         api_key=llm_api_key,
+        model=llm_model,
     )
 
     # A model locator may name a different real paper. Only retain locators
@@ -416,6 +420,71 @@ def extract_paper_contribution(
     return PaperContribution(**{k: v for k, v in data.items() if k in valid_fields})
 
 
+#: Ceiling for the uploaded paper's evidence summary: the same as an
+#: abstract-backed academic source (source_pipeline._ABSTRACT_MAX_CHARS), so
+#: the paper being assessed never gets less room than a retrieved one.
+A1_SUMMARY_MAX_CHARS = 1500
+#: Room reserved for the delta and the metrics before the contribution is
+#: sized. Both are short by prompt design (one or two sentences; a list of
+#: values); the caps only bound a pathological extraction.
+_A1_DELTA_MAX_CHARS = 400
+_A1_METRICS_MAX_CHARS = 500
+
+
+def _shorten(text: str, limit: int) -> str:
+    """Cut at a word boundary with an ellipsis; unchanged when it fits."""
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1]
+    # CJK text has no spaces, so only back up to one that is reasonably near.
+    space = cut.rfind(" ")
+    if space >= limit - 40:
+        cut = cut[:space]
+    return cut.rstrip(" ,;:") + "…"
+
+
+def _a1_summary(pc: PaperContribution) -> str:
+    """Contribution, delta and metrics, with only the contribution shortened.
+
+    The summary used to be contribution + delta cut at 500 characters, and the
+    extracted metrics were never included. A long contribution therefore
+    pushed out the delta, and the paper's own numbers never reached the
+    writer. Delta and metrics are short and are what distinguishes this paper,
+    so they are sized first and the contribution gets the remainder.
+
+    Metrics are kept or dropped as whole items, never cut inside one: a number
+    truncated mid-token ("25.2% vs 2") reads as a different claim. A count of
+    the dropped items is stated rather than implied absent.
+    """
+    delta = "Improvement over prior work: " + _shorten(
+        pc.delta_from_prior.strip(), _A1_DELTA_MAX_CHARS)
+
+    metrics = [m.strip() for m in pc.key_metrics if m and m.strip()]
+    metrics_part = ""
+    if metrics:
+        kept: list[str] = []
+        for metric in metrics:
+            dropped = len(metrics) - len(kept) - 1
+            candidate = "Reported metrics: " + "; ".join([*kept, metric]) + (
+                f" (+{dropped} more)" if dropped else "")
+            if len(candidate) > _A1_METRICS_MAX_CHARS:
+                break
+            kept.append(metric)
+        if kept:
+            dropped = len(metrics) - len(kept)
+            metrics_part = "Reported metrics: " + "; ".join(kept) + (
+                f" (+{dropped} more)" if dropped else "")
+
+    tail = " ".join(part for part in (delta, metrics_part) if part)
+    room = A1_SUMMARY_MAX_CHARS - len(tail) - 1
+    contribution = pc.core_contribution.strip()
+    # Extraction writes in the paper's language; "。." was the old result.
+    if not contribution.endswith((".", "!", "?", "。", "！", "？")):
+        contribution += "."
+    contribution = _shorten(contribution, room)
+    return f"{contribution} {tail}"
+
+
 def paper_to_evidence_source(
     pc: PaperContribution,
     url_checker: "UrlChecker | None" = None,  # noqa: F821
@@ -432,7 +501,6 @@ def paper_to_evidence_source(
     # leave legacy model/regex locators citable after a deployment restart.
     src_doi = (pc.doi if pc.doi and pc.doi.startswith(_PLACEHOLDER_DOI_PREFIX)
                else _placeholder_doi(pc.title or "Uploaded Paper"))
-    summary = f"{pc.core_contribution.rstrip('.')}. {pc.delta_from_prior}"
     return EvidenceSource(
         source_id="A1", title=pc.title or "Uploaded Paper",
         url=None, doi=src_doi, publisher=pc.authors or "Uploaded",
@@ -443,5 +511,5 @@ def paper_to_evidence_source(
             f"Candidate locators are excluded from citation identity ({pc.locator_status}); "
             "the synthetic upload identifier is not a registered DOI."
         ),
-        evidence_summary=summary[:500], citation_count=None,
+        evidence_summary=_a1_summary(pc), citation_count=None,
     )

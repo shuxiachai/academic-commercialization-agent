@@ -126,11 +126,11 @@ def _make_llm(env: dict, **kwargs):
             return mock_llm.call_args.kwargs
 
 
-def test_deepseek_default_model():
+def test_deepseek_without_a_model_fails_closed():
+    """No built-in default: a missing model variable fails before construction."""
     env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "", "OPENAI_MODEL_NAME": ""}
-    kw = _make_llm(env)
-    assert kw["model"] == "deepseek-chat"
-    assert kw["provider"] == "deepseek"
+    with pytest.raises(RuntimeError, match="No model configured for deepseek: set DEEPSEEK_MODEL"):
+        _make_llm(env)
 
 
 def test_deepseek_custom_model():
@@ -146,21 +146,30 @@ def test_deepseek_strips_prefix():
 
 
 def test_deepseek_json_mode_sets_response_format():
-    env = {"DEEPSEEK_API_KEY": "sk-ds"}
+    env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "deepseek-chat"}
     kw = _make_llm(env, json_mode=True)
     assert kw.get("response_format") == {"type": "json_object"}
 
 
 def test_deepseek_no_json_mode_skips_response_format():
-    env = {"DEEPSEEK_API_KEY": "sk-ds"}
+    env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "deepseek-chat"}
     kw = _make_llm(env, json_mode=False)
     assert "response_format" not in kw
 
 
-def test_openai_default_model():
+def test_openai_without_a_model_fails_closed():
     env = {
         "DEEPSEEK_API_KEY": "", "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": "sk-oai",
         "OPENAI_MODEL": "", "OPENAI_API_BASE": "", "OPENAI_MODEL_NAME": "",
+    }
+    with pytest.raises(RuntimeError, match="No model configured for openai: set OPENAI_MODEL"):
+        _make_llm(env)
+
+
+def test_openai_named_model():
+    env = {
+        "DEEPSEEK_API_KEY": "", "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": "sk-oai",
+        "OPENAI_MODEL": "gpt-4o", "OPENAI_API_BASE": "", "OPENAI_MODEL_NAME": "",
     }
     kw = _make_llm(env)
     assert kw["model"] == "gpt-4o"
@@ -170,14 +179,20 @@ def test_openai_default_model():
 def test_openai_json_mode_sets_response_format():
     env = {
         "DEEPSEEK_API_KEY": "", "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": "sk-oai",
-        "OPENAI_API_BASE": "", "OPENAI_MODEL_NAME": "",
+        "OPENAI_MODEL": "gpt-4o", "OPENAI_API_BASE": "", "OPENAI_MODEL_NAME": "",
     }
     kw = _make_llm(env, json_mode=True)
     assert kw.get("response_format") == {"type": "json_object"}
 
 
-def test_anthropic_default_model():
+def test_anthropic_without_a_model_fails_closed():
     env = {"DEEPSEEK_API_KEY": "", "ANTHROPIC_API_KEY": "sk-ant", "ANTHROPIC_MODEL": ""}
+    with pytest.raises(RuntimeError, match="No model configured for anthropic: set ANTHROPIC_MODEL"):
+        _make_llm(env)
+
+
+def test_anthropic_named_model():
+    env = {"DEEPSEEK_API_KEY": "", "ANTHROPIC_API_KEY": "sk-ant", "ANTHROPIC_MODEL": "claude-sonnet-5"}
     kw = _make_llm(env)
     assert kw["model"] == "claude-sonnet-5"
     assert kw["provider"] == "anthropic"
@@ -185,19 +200,19 @@ def test_anthropic_default_model():
 
 def test_anthropic_json_mode_does_not_set_response_format():
     """Anthropic does not support response_format; guardrail handles JSON validation."""
-    env = {"DEEPSEEK_API_KEY": "", "ANTHROPIC_API_KEY": "sk-ant"}
+    env = {"DEEPSEEK_API_KEY": "", "ANTHROPIC_API_KEY": "sk-ant", "ANTHROPIC_MODEL": "claude-sonnet-5"}
     kw = _make_llm(env, json_mode=True)
     assert "response_format" not in kw
 
 
 def test_temperature_is_passed_when_set():
-    env = {"DEEPSEEK_API_KEY": "sk-ds"}
+    env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "deepseek-chat"}
     kw = _make_llm(env, temperature=0.0)
     assert kw["temperature"] == 0.0
 
 
 def test_temperature_omitted_when_none():
-    env = {"DEEPSEEK_API_KEY": "sk-ds"}
+    env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "deepseek-chat"}
     kw = _make_llm(env, temperature=None)
     assert "temperature" not in kw
 
@@ -207,6 +222,7 @@ def test_worker_transport_disables_sdk_retries_and_sets_timeout():
 
     env = {
         "DEEPSEEK_API_KEY": "sk-ds",
+        "DEEPSEEK_MODEL": "deepseek-chat",
         WORKER_LLM_TIMEOUT_ENV: "150",
     }
     kw = _make_llm(env)
@@ -217,6 +233,7 @@ def test_worker_transport_disables_sdk_retries_and_sets_timeout():
 def test_non_worker_llm_does_not_inherit_runtime_transport_policy():
     env = {
         "DEEPSEEK_API_KEY": "sk-ds",
+        "DEEPSEEK_MODEL": "deepseek-chat",
         WORKER_LLM_TIMEOUT_ENV: "",
     }
     kw = _make_llm(env)
@@ -225,7 +242,7 @@ def test_non_worker_llm_does_not_inherit_runtime_transport_policy():
 
 
 def test_invalid_worker_timeout_fails_before_provider_construction():
-    env = {"DEEPSEEK_API_KEY": "sk-ds", WORKER_LLM_TIMEOUT_ENV: "zero"}
+    env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "deepseek-chat", WORKER_LLM_TIMEOUT_ENV: "zero"}
     with pytest.raises(RuntimeError, match=WORKER_LLM_TIMEOUT_ENV):
         _make_llm(env)
 
@@ -236,7 +253,7 @@ def test_invalid_worker_timeout_fails_before_provider_construction():
 
 def test_backward_compat_alias():
     """create_deepseek_llm delegates to create_llm unchanged."""
-    env = {"DEEPSEEK_API_KEY": "sk-ds"}
+    env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "deepseek-chat"}
     with patch.dict("os.environ", env, clear=False):
         with patch("academic_agent.llm_config.LLM") as mock_llm:
             mock_llm.return_value = MagicMock()
@@ -249,7 +266,7 @@ def test_backward_compat_alias():
 
 
 # ---------------------------------------------------------------------------
-# Qwen3.5 Plus — logical provider over CrewAI's OpenAI-compatible transport
+# Qwen — logical provider over CrewAI's OpenAI-compatible transport
 # ---------------------------------------------------------------------------
 
 def test_detect_qwen_explicit():
@@ -302,16 +319,23 @@ def test_detect_legacy_qwen_from_openai_compatible_settings(base, model):
         assert _detect_provider() == "qwen"
 
 
+def test_qwen_without_a_model_fails_closed():
+    """The regression this guards: an unset QWEN_MODEL silently ran qwen3.5-plus."""
+    env = {"DASHSCOPE_API_KEY": "sk-qwen", "QWEN_MODEL": "", "QWEN_API_BASE": "", "OPENAI_MODEL_NAME": ""}
+    with pytest.raises(RuntimeError, match="No model configured for qwen: set QWEN_MODEL"):
+        _make_llm(env)
+
+
 def test_qwen_default_contract_uses_official_endpoint_and_non_thinking_mode():
     kw = _make_llm(
         {
             "DASHSCOPE_API_KEY": "sk-qwen",
-            "QWEN_MODEL": "",
+            "QWEN_MODEL": "qwen3.8-27b",
             "QWEN_API_BASE": "",
         }
     )
     assert kw["provider"] == "openai"
-    assert kw["model"] == "qwen3.5-plus"
+    assert kw["model"] == "qwen3.8-27b"
     assert kw["api_key"] == "sk-qwen"
     assert kw["base_url"] == "https://dashscope.aliyuncs.com/compatible-mode/v1"
     assert kw["additional_params"] == {
@@ -348,13 +372,14 @@ def test_qwen_byok_ignores_operator_endpoint_and_model():
             create_llm(
                 provider="qwen",
                 api_key="guest-qwen",
+                model="guest-model",
                 json_mode=True,
                 temperature=0.0,
             )
             kw = mock_llm.call_args.kwargs
     assert kw["provider"] == "openai"
     assert kw["api_key"] == "guest-qwen"
-    assert kw["model"] == "qwen3.5-plus"
+    assert kw["model"] == "guest-model"
     assert kw["base_url"] == "https://dashscope.aliyuncs.com/compatible-mode/v1"
     assert kw["additional_params"] == {
         "extra_body": {"enable_thinking": False}
@@ -375,6 +400,7 @@ def test_qwen_extension_reaches_the_real_crewai_chat_request_body():
     llm = create_llm(
         provider="qwen",
         api_key="not-a-real-key",
+        model="qwen3.8-27b",
         json_mode=True,
         temperature=0.0,
     )

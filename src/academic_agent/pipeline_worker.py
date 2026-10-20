@@ -109,7 +109,8 @@ def _review_quality_from_outputs(tasks_output: list[Any]) -> dict[str, Any]:
             "reason": "Reviewer output was empty after crew completion.",
         }
 
-    from academic_agent.evidence import reviewer_quality_summary
+    # Also counts over-long edits skipped by reviewer_plan_bounds.
+    from academic_agent.reviewer_plan_bounds import reviewer_quality_summary
 
     return reviewer_quality_summary(raw)
 

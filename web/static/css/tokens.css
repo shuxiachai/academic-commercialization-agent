@@ -4,74 +4,94 @@
  * and never hard-code a colour or a spacing value, so a change to the scale
  * moves the whole interface together instead of leaving one panel behind.
  *
- * The palette is near-monochrome on purpose. Colour is scarce enough that when
- * it appears — the run button, a live indicator, a score — it means something.
+ * The look is a research instrument rather than a dashboard: warm paper and
+ * ink in the light theme, warm charcoal in the dark one, a serif for what is
+ * read (titles, scores, the report) and a sans for what is operated. One ink
+ * accent carries the primary action, focus and live state; status colours
+ * appear only where they mean something.
+ *
+ * Both themes follow the operating system. The token names are unchanged from
+ * the dark-only design, so components switch theme without knowing it.
  */
 
 :root {
+  color-scheme: light;
+
   /* ── Surfaces ──
-     Five steps of near-black. Depth is read from lightness rather than from
-     borders, which keeps the page quiet when a dozen panels are on screen. */
-  --bg-base:      #0a0a0b;   /* page */
-  --bg-raised:    #111113;   /* cards sitting on the page */
-  --bg-overlay:   #17171a;   /* inputs, menus, anything above a card */
-  --bg-hover:     #1c1c20;
-  --bg-active:    #232329;
+     Paper, not white: the page is warm off-white and cards are a lighter
+     sheet laid on it, so depth reads from tone rather than from heavy borders. */
+  --bg-base:      #f5f3ee;   /* page */
+  --bg-raised:    #fdfcf9;   /* cards sitting on the page */
+  --bg-overlay:   #efece5;   /* chips, wells, anything inset */
+  --bg-hover:     #e9e5dc;
+  --bg-active:    #dfdad0;
+  --bg-sidebar:   #efece6;
+  --bg-input:     #fffefb;
 
-  /* ── Borders ──
-     White at low alpha rather than fixed greys: the same value reads correctly
-     over any surface above, which fixed greys do not. */
-  --border-subtle:  rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.09);
-  --border-strong:  rgba(255, 255, 255, 0.14);
+  /* ── Borders ── Ink at low alpha, so one value reads over every surface. */
+  --border-subtle:  rgba(40, 33, 24, 0.08);
+  --border-default: rgba(40, 33, 24, 0.13);
+  --border-strong:  rgba(40, 33, 24, 0.22);
 
-  /* ── Text ──
-     Four levels. More than four and the hierarchy stops being legible. */
-  --text-primary:   #ededef;
-  --text-secondary: #a1a1aa;
-  --text-tertiary:  #71717a;
-  --text-disabled:  #52525b;
+  /* ── Text ── Four levels of ink. */
+  --text-primary:   #1d1b18;
+  --text-secondary: #4a463f;
+  --text-tertiary:  #77726a;
+  --text-disabled:  #a39e94;
 
   /* ── Accent ──
-     One hue, three roles. Used for the primary action, focus rings, and live
-     state — nothing decorative. */
-  --accent:        #3b82f6;
-  --accent-hover:  #2f6fe0;
-  --accent-subtle: rgba(59, 130, 246, 0.12);
-  --accent-ring:   rgba(59, 130, 246, 0.35);
+     A deep teal ink: legible as text on paper (contrast above 5:1) and calm
+     enough to sit beside the status colours without competing with them. */
+  --accent:        #0f6b66;
+  --accent-hover:  #0b5551;
+  --accent-subtle: rgba(15, 107, 102, 0.09);
+  --accent-ring:   rgba(15, 107, 102, 0.28);
+  --accent-border: rgba(15, 107, 102, 0.30);
+  --on-accent:     #ffffff;
 
-  /* ── Status ── */
-  --success:        #22c55e;
-  --success-subtle: rgba(34, 197, 94, 0.12);
-  --warning:        #f59e0b;
-  --warning-subtle: rgba(245, 158, 11, 0.12);
-  --danger:         #ef4444;
-  --danger-subtle:  rgba(239, 68, 68, 0.12);
+  /* ── Status ── Darkened for paper; each passes as small text. */
+  --success:        #2e7a4d;
+  --success-subtle: rgba(46, 122, 77, 0.10);
+  --warning:        #9a6208;
+  --warning-subtle: rgba(178, 116, 12, 0.11);
+  --danger:         #b3262f;
+  --danger-subtle:  rgba(179, 38, 47, 0.08);
+  --danger-border:  rgba(179, 38, 47, 0.28);
+  --success-border: rgba(46, 122, 77, 0.32);
+
+  /* Score bars run from faint to full ink, so length and depth agree. */
+  --meter-low:  rgba(15, 107, 102, 0.28);
+  --meter-high: #0f6b66;
+
+  --scrim: rgba(29, 27, 24, 0.34);
 
   /* ── Type ──
-     System stack: it renders at native weights on every platform and costs no
-     network request. CJK faces are listed because the interface is used in
-     Chinese and Japanese, where the Latin defaults fall back badly. */
+     System stacks only: the content security policy loads nothing from other
+     origins, and a native face costs no request. The serif list leads with
+     the well-made book faces of each platform; CJK falls back to a Song face
+     where one is good, else to the platform sans rather than to a bitmap Song. */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Roboto",
                "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
-               "Microsoft YaHei", sans-serif;
-  --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace;
+               "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-serif: "Iowan Old Style", "Charter", "Bitstream Charter", "Palatino Linotype",
+                "Palatino", "Source Serif Pro", "Georgia", "Songti SC", "Noto Serif CJK SC",
+                "Source Han Serif SC", "PingFang SC", "Microsoft YaHei", serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Cascadia Mono", "Fira Code", Consolas, monospace;
 
   --text-xs:   11px;
-  --text-sm:   12px;
-  --text-base: 13px;
-  --text-md:   14px;
-  --text-lg:   16px;
-  --text-xl:   20px;
-  --text-2xl:  26px;
-  --text-3xl:  32px;
+  --text-sm:   12.5px;
+  --text-base: 14px;
+  --text-md:   15px;
+  --text-lg:   17px;
+  --text-xl:   21px;
+  --text-2xl:  28px;
+  --text-3xl:  36px;
 
-  --leading-tight:  1.25;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.7;
+  --leading-tight:   1.22;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.72;
 
-  /* ── Spacing ──
-     A 4px scale. Arbitrary values are what make spacing look accidental. */
+  /* ── Spacing ── A 4px scale. */
   --space-1:  4px;
   --space-2:  8px;
   --space-3:  12px;
@@ -85,31 +105,78 @@
   --space-20: 80px;
 
   /* ── Radii ── */
-  --radius-sm:   4px;
-  --radius-md:   6px;
-  --radius-lg:   8px;
-  --radius-xl:   12px;
+  --radius-sm:   5px;
+  --radius-md:   8px;
+  --radius-lg:   11px;
+  --radius-xl:   16px;
   --radius-full: 9999px;
 
-  /* ── Elevation ──
-     Shadows stay tight and dark. Large soft shadows read as light coming from
-     somewhere, which a near-black interface does not have. */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.6);
+  /* ── Elevation ── Soft and low on paper: a sheet, not a floating panel. */
+  --shadow-sm: 0 1px 2px rgba(40, 33, 24, 0.06);
+  --shadow-md: 0 2px 4px rgba(40, 33, 24, 0.04), 0 6px 18px rgba(40, 33, 24, 0.07);
+  --shadow-lg: 0 4px 10px rgba(40, 33, 24, 0.06), 0 18px 44px rgba(40, 33, 24, 0.14);
 
-  /* ── Motion ──
-     Short enough to feel like a response, not an animation. */
+  /* ── Motion ── Short enough to feel like a response, not an animation. */
   --ease:      cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out:  cubic-bezier(0, 0, 0.2, 1);
   --duration-fast: 120ms;
-  --duration-base: 180ms;
-  --duration-slow: 280ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
 
   /* ── Layout ── */
   --content-width: 880px;   /* a comfortable measure for reading a report */
   --wide-width:   1140px;   /* results, where two columns are useful */
-  --header-height: 56px;
+  --header-height: 60px;
+  --sidebar-width: 264px;
+}
+
+/* ── Dark: warm charcoal, parchment text ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --bg-base:    #141311;
+    --bg-raised:  #1b1a17;
+    --bg-overlay: #23211e;
+    --bg-hover:   #2a2824;
+    --bg-active:  #34312c;
+    --bg-sidebar: #181715;
+    --bg-input:   #1f1d1a;
+
+    --border-subtle:  rgba(255, 244, 228, 0.07);
+    --border-default: rgba(255, 244, 228, 0.11);
+    --border-strong:  rgba(255, 244, 228, 0.18);
+
+    --text-primary:   #ede9e2;
+    --text-secondary: #b8b2a7;
+    --text-tertiary:  #888277;
+    --text-disabled:  #5f5a52;
+
+    --accent:        #62b9b1;
+    --accent-hover:  #7cc8c1;
+    --accent-subtle: rgba(98, 185, 177, 0.12);
+    --accent-ring:   rgba(98, 185, 177, 0.34);
+    --accent-border: rgba(98, 185, 177, 0.32);
+    --on-accent:     #0e1514;
+
+    --success:        #67bd8a;
+    --success-subtle: rgba(103, 189, 138, 0.12);
+    --warning:        #e2a947;
+    --warning-subtle: rgba(226, 169, 71, 0.12);
+    --danger:         #ef7272;
+    --danger-subtle:  rgba(239, 114, 114, 0.10);
+    --danger-border:  rgba(239, 114, 114, 0.30);
+    --success-border: rgba(103, 189, 138, 0.34);
+
+    --meter-low:  rgba(98, 185, 177, 0.30);
+    --meter-high: #62b9b1;
+
+    --scrim: rgba(0, 0, 0, 0.55);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 10px 34px rgba(0, 0, 0, 0.55);
+  }
 }
 
 /* Respect a user who has asked for less movement. Transitions become

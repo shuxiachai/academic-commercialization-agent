@@ -5,45 +5,52 @@
 .tabs {
   display: flex;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-default);
+  margin: var(--space-2) 0 var(--space-8);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.tabs::-webkit-scrollbar { display: none; }
 
 .tab {
   padding: var(--space-3) var(--space-4);
   color: var(--text-tertiary);
   font-size: var(--text-base);
   font-weight: 500;
+  white-space: nowrap;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   transition: color var(--duration-fast) var(--ease),
               border-color var(--duration-fast) var(--ease);
 }
-.tab:hover { color: var(--text-secondary); }
+.tab:hover { color: var(--text-primary); }
 .tab[data-active="true"] {
   color: var(--text-primary);
+  font-weight: 600;
   border-bottom-color: var(--accent);
 }
 
 /* Panels fill the pane. Only running prose needs a narrow measure, and it
-   sets one itself — a shared 780px cap made the scorecard needlessly cramped
-   on a wide screen. */
+   sets one itself. */
 .panel { max-width: none; }
 
 /* ═══ Scorecard ════════════════════════════════════════════════════════ */
 
 .scorecard__head {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-4);
+  align-items: flex-end;
+  gap: var(--space-5);
   margin-bottom: var(--space-8);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .scorecard__figure { display: flex; align-items: baseline; gap: var(--space-2); }
 .scorecard__value {
-  font-size: 48px;
+  font-family: var(--font-serif);
+  font-size: 64px;
   font-weight: 600;
-  line-height: 1;
+  line-height: 0.95;
   letter-spacing: -0.03em;
 }
 .scorecard__figure[data-tone="success"] .scorecard__value { color: var(--success); }
@@ -51,52 +58,82 @@
 .scorecard__figure[data-tone="warning"] .scorecard__value { color: var(--warning); }
 .scorecard__figure[data-tone="muted"]   .scorecard__value { color: var(--text-tertiary); }
 
-.scorecard__denom { font-size: var(--text-md); color: var(--text-disabled); }
+.scorecard__denom {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  color: var(--text-tertiary);
+}
 
-.scorecard__caption { display: flex; flex-direction: column; gap: 2px; }
+.scorecard__caption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 6px;
+}
 .scorecard__band {
-  font-size: var(--text-md);
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
   font-weight: 600;
   color: var(--text-primary);
 }
-.scorecard__label { font-size: var(--text-sm); color: var(--text-tertiary); }
+.scorecard__label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
 
-/* ── Dimensions ── */
-.dims { display: flex; flex-direction: column; gap: var(--space-3); }
+/* ── Dimensions ──
+   The fill carries a faint-to-full ink gradient sized to the whole track
+   (100cqw of the bar), not to itself, so a short bar shows only the faint end
+   and a full one reaches deep ink: depth agrees with length without any
+   per-value class from the renderer. Without container units the gradient
+   simply spans the fill. */
+.dims { display: flex; flex-direction: column; gap: var(--space-4); }
 
 .dim {
   display: grid;
-  grid-template-columns: 200px 1fr 80px;
+  grid-template-columns: 220px 1fr 72px;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
-.dim__label { font-size: var(--text-base); color: var(--text-secondary); }
+.dim__label { font-size: var(--text-base); color: var(--text-secondary); font-weight: 500; }
 .dim__bar {
-  height: 6px;
+  height: 8px;
   border-radius: var(--radius-full);
   background: var(--bg-overlay);
   overflow: hidden;
+  container-type: inline-size;
 }
 .dim__fill {
   height: 100%;
   border-radius: var(--radius-full);
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--meter-low), var(--meter-high));
+  background-size: 100cqw 100%;
   /* Bars grow on first paint; the delay is enough to read as deliberate
      rather than as a slow render. */
   transition: width var(--duration-slow) var(--ease-out);
 }
 .dim__value {
   font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  font-weight: 600;
+  color: var(--text-secondary);
   text-align: right;
 }
 
 /* ── Risks and opportunities ── */
-.notes { margin-top: var(--space-8); }
+.notes {
+  margin-top: var(--space-8);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+}
 .notes__title {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--text-tertiary);
   margin-bottom: var(--space-3);
@@ -104,7 +141,7 @@
 .notes__list { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
 .notes__list li {
   position: relative;
-  padding-left: var(--space-4);
+  padding-left: var(--space-5);
   font-size: var(--text-base);
   color: var(--text-secondary);
   line-height: var(--leading-relaxed);
@@ -112,119 +149,176 @@
 .notes__list li::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 9px;
-  width: 4px; height: 4px;
+  left: 2px;
+  top: 10px;
+  width: 6px; height: 6px;
   border-radius: var(--radius-full);
-  background: var(--text-disabled);
+  background: var(--accent-ring);
 }
 
 /* ═══ Report prose ═════════════════════════════════════════════════════ */
 
 .prose {
-  /* Full panel width, so the report's left edge lines up with the scorecard's
-     and with the tabs above both. A narrower centred measure reads better for
-     long English prose, but it put the report on a different vertical line
-     from every other tab, which is more distracting than a long line.
-     (Not `ch` either: that unit is the width of "0", and a CJK glyph is about
-     twice that, so a ch-based measure is half as wide in Chinese.) */
-  font-size: var(--text-md);
-  line-height: var(--leading-relaxed);
+  /* Left-aligned so the report's left edge lines up with the scorecard and
+     the tabs, but capped at a reading measure rather than the panel width.
+     (Pixels, not `ch`: a CJK glyph is about twice the width of "0", so a
+     ch-based measure would be half as wide in Chinese.) */
+  max-width: 820px;
+  font-family: var(--font-serif);
+  font-size: 16.5px;
+  line-height: 1.78;
   color: var(--text-secondary);
 }
 
-.prose h1 { font-size: var(--text-2xl); color: var(--text-primary); margin: 0 0 var(--space-6); }
+.prose h1 {
+  font-size: var(--text-3xl);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-6);
+}
 .prose h2 {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+  margin: var(--space-12) 0 var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-default);
+}
+.prose h3 {
+  font-family: var(--font-serif);
   font-size: var(--text-lg);
   color: var(--text-primary);
-  margin: var(--space-10) 0 var(--space-4);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
+  margin: var(--space-8) 0 var(--space-3);
 }
-.prose h3 { font-size: var(--text-md); color: var(--text-primary); margin: var(--space-6) 0 var(--space-3); }
-.prose h4 { font-size: var(--text-base); color: var(--text-secondary); margin: var(--space-5) 0 var(--space-2); }
+.prose h4 {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: var(--space-6) 0 var(--space-2);
+}
 
 .prose p { margin-bottom: var(--space-4); }
 .prose strong { color: var(--text-primary); font-weight: 600; }
 
-.prose ul { margin: 0 0 var(--space-4) var(--space-5); }
-.prose li { margin-bottom: var(--space-2); }
+.prose ul, .prose ol { margin: 0 0 var(--space-5) var(--space-6); }
+.prose li { margin-bottom: var(--space-2); padding-left: var(--space-1); }
+.prose li::marker { color: var(--text-tertiary); }
+
+.prose blockquote {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  border-left: 3px solid var(--accent-border);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+.prose blockquote p:last-child { margin-bottom: 0; }
 
 .prose code {
   padding: 1px 5px;
   border-radius: var(--radius-sm);
   background: var(--bg-overlay);
   color: var(--text-primary);
-  font-size: 0.9em;
+  font-size: 0.82em;
 }
 
 /* Citations are the reason the report can be audited, so they are given a
    distinct treatment rather than blending into the sentence. */
 .cite {
   display: inline-block;
-  padding: 0 4px;
+  padding: 0 5px;
+  border: 1px solid var(--accent-border);
   border-radius: var(--radius-sm);
   background: var(--accent-subtle);
   color: var(--accent);
   font-family: var(--font-mono);
-  font-size: 0.82em;
+  font-size: 0.72em;
+  font-weight: 500;
+  line-height: 1.6;
+  vertical-align: 0.12em;
   white-space: nowrap;
 }
 
-.table-wrap { overflow-x: auto; margin-bottom: var(--space-5); }
-.prose table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
-.prose th {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-subtle);
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: var(--space-6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
   background: var(--bg-raised);
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.prose th {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-overlay);
   color: var(--text-primary);
   font-weight: 600;
   text-align: left;
   white-space: nowrap;
 }
 .prose td {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-subtle);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: top;
 }
+.prose tr:last-child td { border-bottom: none; }
+.prose th + th, .prose td + td { border-left: 1px solid var(--border-subtle); }
 
 /* ═══ Sources ══════════════════════════════════════════════════════════ */
 
 .sources__title {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-tertiary);
-  margin: var(--space-8) 0 var(--space-3);
+  margin: var(--space-10) 0 var(--space-3);
 }
 .sources__title:first-child { margin-top: 0; }
 
-.sources__list { list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.sources__list { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
 
 .source {
   display: flex;
-  gap: var(--space-3);
-  padding: var(--space-3);
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  transition: background var(--duration-fast) var(--ease);
+  background: var(--bg-raised);
+  transition: border-color var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
 }
-.source:hover { background: var(--bg-raised); }
+.source:hover { border-color: var(--border-default); box-shadow: var(--shadow-sm); }
 
 .source__id {
   flex-shrink: 0;
-  width: 30px;
+  align-self: flex-start;
+  min-width: 34px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-subtle);
+  color: var(--accent);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--accent);
-  padding-top: 2px;
+  font-weight: 600;
+  text-align: center;
 }
 .source__body { min-width: 0; }
 .source__link {
   display: block;
   color: var(--text-primary);
-  font-size: var(--text-base);
-  line-height: var(--leading-normal);
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.4;
 }
 .source__link:hover { color: var(--accent); }
 
@@ -232,21 +326,21 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
   font-size: var(--text-sm);
-  color: var(--text-disabled);
+  color: var(--text-tertiary);
 }
 
 .tier {
-  padding: 0 6px;
-  border-radius: var(--radius-sm);
+  padding: 0 7px;
+  border-radius: var(--radius-full);
   font-size: var(--text-xs);
-  font-weight: 500;
+  font-weight: 600;
   text-transform: capitalize;
 }
 .tier[data-tier="high"]   { background: var(--success-subtle); color: var(--success); }
 .tier[data-tier="medium"] { background: var(--warning-subtle); color: var(--warning); }
-.tier[data-tier="low"]    { background: var(--bg-active);      color: var(--text-tertiary); }
+.tier[data-tier="low"]    { background: var(--bg-overlay);     color: var(--text-tertiary); }
 
 /* Saved-source browsing stays scoped here: retrieval diagnostics reuse the
    older source classes and must not acquire these controls or layout rules. */
@@ -258,12 +352,12 @@
 }
 .sources__warning {
   border-left: 3px solid var(--warning);
-  border-radius: var(--radius-sm);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   background: var(--warning-subtle);
   color: var(--text-primary);
   font-size: var(--text-sm);
   line-height: var(--leading-relaxed);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-4);
 }
 .sources__controls {
@@ -271,7 +365,7 @@
   flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--space-3);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 .sources__search-label {
   flex: 1 1 240px;
@@ -281,15 +375,23 @@
   gap: var(--space-2);
   color: var(--text-secondary);
   font-size: var(--text-sm);
+  font-weight: 500;
 }
 .sources__search {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  background: var(--bg-raised);
+  background: var(--bg-input);
   color: var(--text-primary);
-  padding: var(--space-3);
+  padding: 10px var(--space-3);
+  transition: border-color var(--duration-fast) var(--ease),
+              box-shadow var(--duration-fast) var(--ease);
+}
+.sources__search:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 .sources__pager {
   display: flex;
@@ -312,8 +414,10 @@
   cursor: pointer;
   color: var(--text-secondary);
   font-size: var(--text-sm);
+  font-weight: 500;
   padding: var(--space-1) 0;
 }
+.source__excerpt summary:hover { color: var(--accent); }
 .source__summary-source, .source__excerpt-state, .source__fault {
   font-size: var(--text-xs);
   line-height: var(--leading-relaxed);
@@ -354,9 +458,12 @@
 }
 
 @media (max-width: 720px) {
-  .dim { grid-template-columns: 1fr; gap: var(--space-1); }
-  .dim__value { text-align: left; }
-  .scorecard__value { font-size: 38px; }
+  .dim { grid-template-columns: 1fr auto; gap: var(--space-2) var(--space-3); }
+  .dim__bar { grid-column: 1 / -1; grid-row: 2; }
+  .dim__value { text-align: right; }
+  .scorecard__head { flex-wrap: wrap; gap: var(--space-3) var(--space-5); }
+  .scorecard__value { font-size: 48px; }
+  .prose { font-size: 16px; }
 }
 
 /* ── Citation check ────────────────────────────────────────────────────
@@ -375,13 +482,13 @@
 
 .grounding__stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 
 .grounding__stat {
-  padding: var(--space-3);
+  padding: var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--bg-raised);
   border: 1px solid var(--border-subtle);
@@ -391,9 +498,11 @@
 .grounding__stat--muted { color: var(--text-tertiary); }
 
 .grounding__value {
-  font-family: var(--font-mono);
-  font-size: var(--text-xl);
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 600;
   color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .grounding__stat--muted .grounding__value { color: var(--text-secondary); }
@@ -420,10 +529,11 @@
   display: grid;
   grid-template-columns: auto 1fr;
   gap: var(--space-1) var(--space-3);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--bg-raised);
-  border-left: 2px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--border-strong);
 }
 
 .grounding__item--ungrounded { border-left-color: var(--warning); }
@@ -431,7 +541,7 @@
 .grounding__id {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  color: var(--accent);
 }
 
 .grounding__claim { font-size: var(--text-sm); color: var(--text-primary); }
@@ -441,23 +551,24 @@
   font-size: var(--text-xs);
   color: var(--text-tertiary);
 }
+
 /* The code-derived boundary sits ahead of both the heuristic checks and the
  * score. It is a statement about what this run was allowed to decide, not a
  * quality verdict, so it uses the neutral accent rather than warning colors. */
 .decision-applicability {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-lg);
   background: var(--bg-raised);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-5);
   margin-bottom: var(--space-3);
 }
 
 .decision-applicability__title {
-  color: var(--text-tertiary);
+  color: var(--accent);
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -476,8 +587,6 @@
 
 /* ── Automated checks ──────────────────────────────────────────────────
  * Above the tabs, so the flags are read before the number they qualify.
- * Every figure here was already being computed and stored; what was missing
- * was any place on screen for it.
  *
  * The verdict tints the border, not the whole panel. A red block over a
  * finished assessment reads as "this run failed", which is not what any of
@@ -485,12 +594,12 @@
  * worth a second look.
  */
 .reliability {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   border-left-width: 3px;
   border-radius: var(--radius-lg);
   background: var(--bg-raised);
-  padding: var(--space-4);
-  margin-bottom: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-6);
 }
 .reliability[data-tone="risk"]  { border-left-color: var(--danger); }
 .reliability[data-tone="warn"]  { border-left-color: var(--warning); }
@@ -507,13 +616,16 @@
 .reliability__title {
   color: var(--text-tertiary);
   font-size: var(--text-xs);
-  letter-spacing: 0.06em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .reliability__verdict {
   color: var(--text-primary);
-  font-size: var(--text-base);
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
 .reliability__note {
@@ -525,15 +637,16 @@
 .reliability__rows {
   list-style: none;
   margin: var(--space-3) 0 0;
-  padding: 0;
+  padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--border-subtle);
   display: grid;
   gap: var(--space-2);
 }
 
 .reliability__row {
   display: grid;
-  grid-template-columns: minmax(110px, max-content) 1fr;
-  gap: var(--space-3);
+  grid-template-columns: minmax(150px, max-content) 1fr;
+  gap: var(--space-4);
   align-items: baseline;
   font-size: var(--text-sm);
 }
@@ -544,8 +657,30 @@
 .reliability__row[data-tone="warn"] .reliability__detail { color: var(--warning); }
 
 @media (max-width: 640px) {
-  .reliability__row { grid-template-columns: 1fr; gap: var(--space-1); }
+  .reliability__row { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* ── Report audit ── One card per narrow check, so each reads as a unit. */
+.audit-section {
+  margin-bottom: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+}
+.audit-section h3 {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+.audit-section p {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  margin-bottom: var(--space-1);
+}
+.audit-section p:last-child { margin-bottom: 0; }
 
 /* ── Report vs scorecard ─────────────────────────────────────────────── */
 

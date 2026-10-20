@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import threading
+import time
 from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
@@ -20,6 +21,7 @@ from academic_agent.saved_source_loader import (
     SavedSourceLoader, SavedSourceMissing, SavedSourceUnavailable, snapshot_from_saved_bytes,
 )
 from api import saved_source_app as api
+from tests.scripted_waits import STEP
 
 RUN_ID = "20260919T123456Z-0123456789abcdef0123456789abcdef"
 URL = f"/api/runs/{RUN_ID}/saved-source-location"
@@ -310,7 +312,7 @@ def test_page_assets_and_all_errors_are_same_origin_no_store():
 
 
 async def wait_event(event):
-    assert await asyncio.to_thread(event.wait, 5), "worker event not reached"
+    assert await asyncio.to_thread(event.wait, STEP), "worker event not reached"
 
 
 @pytest.mark.parametrize("stage", ["loader", "selector", "read", "serialize"])
@@ -320,7 +322,7 @@ def test_physical_worker_holds_slot_after_http_cancellation(stage, monkeypatch):
     callback_count = 0
     def block():
         started.set()
-        assert release.wait(10), "test did not release worker"
+        assert release.wait(STEP), "test did not release worker"
     def load(_run_id):
         if stage == "loader":
             block()
@@ -371,7 +373,7 @@ def test_shutdown_atomically_closes_and_asynchronously_drains_actual_thread(monk
     original_join = threading.Thread.join
     def callback(request):
         started.set()
-        assert release.wait(10)
+        assert release.wait(STEP)
         return select(request)
     def join(thread, *args, **kwargs):
         if thread.name == "saved-source-locator":
@@ -427,7 +429,7 @@ async def _exercise_physical_thread_window(monkeypatch, *, window, cancel_waiter
 
     def hold():
         reached.set()
-        assert release.wait(10), "test did not release physical worker"
+        assert release.wait(STEP), "test did not release physical worker"
 
     def run(thread):
         first = bool(workers) and thread is workers[0]
@@ -471,7 +473,7 @@ async def _exercise_physical_thread_window(monkeypatch, *, window, cancel_waiter
         try:
             await wait_event(reached)
             if window == "post_target":
-                await asyncio.wait_for(delivery_reached.wait(), 5)
+                await asyncio.wait_for(delivery_reached.wait(), STEP)
             expected_calls = int(window == "post_target")
             assert workers[0].is_alive()
             assert load.call_count == callback.call_count == expected_calls
@@ -550,11 +552,28 @@ def test_thread_start_failure_rolls_back_registration(monkeypatch):
     assert all(not thread.is_alive() for thread in attempts)
 
 
+def _locator_threads_exit(timeout=STEP):
+    """Admission stays closed until the previous worker thread has exited.
+
+    That is the design (run() refuses while any registered thread is alive),
+    and the reply is settled just before the thread returns. On a loaded
+    machine the next request can arrive inside that window and get 429, so
+    wait for the actual exit, as the slot contract states, before asserting.
+    """
+    deadline = time.monotonic() + timeout
+    while any(thread.name == "saved-source-locator" and thread.is_alive()
+              for thread in threading.enumerate()):
+        assert time.monotonic() < deadline, "Locator worker thread did not exit"
+        time.sleep(0.005)
+
+
 def test_slot_releases_after_success_and_failure():
     callback = Mock(side_effect=[RuntimeError("private"), select({}), select({})])
     with TestClient(make_app(selector=callback)) as client:
         assert_error(client.post(URL, json={"question": "Where?"}), 503, "execution_unavailable")
+        _locator_threads_exit()
         assert client.post(URL, json={"question": "Where?"}).status_code == 200
+        _locator_threads_exit()
         assert client.post(URL, json={"question": "Where?"}).status_code == 200
     assert callback.call_count == 3
 

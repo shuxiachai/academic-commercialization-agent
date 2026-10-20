@@ -47,14 +47,26 @@ jobs:
         # on both shells — see the filterwarnings comment there.
         # Both paths report slow test phases without changing collection or
         # the coverage measurement core; timings alone do not explain a cause.
-        run: uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short --durations=40
+        # Serial on purpose. With -n auto (#228) about half of the CI runs
+        # hit a timing-sensitive concurrency test on a saturated runner;
+        # re-enable it once those tests are parallel-safe.
+        # These cells skip tests of closed experiments (marker `experiment`,
+        # tests/experiment_tests.txt): about 80% of suite time, for code the
+        # app and pipeline never import. The coverage cell below still runs
+        # them on every PR, and full-suite.yml runs everything on every cell
+        # weekly.
+        run: uv run --python ${{ matrix.python-version }} pytest tests/ -m "not experiment" -v --tb=short --durations=40
 
       - name: Run tests with the measured coverage floor
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         # The canonical cell measures coverage during its only full-suite run.
         # A fresh full run measured 87% on 2026-08-24; the unchanged 85% floor
-        # leaves room for platform-specific defensive branches. Other cells
-        # still run every test, without redefining this single-platform metric.
+        # leaves room for platform-specific defensive branches. This cell runs
+        # every test, experiments included, so the metric is unchanged.
+        # sys.monitoring (Python 3.12+) measures the same line coverage as the
+        # trace-function core at a fraction of its overhead.
+        env:
+          COVERAGE_CORE: sysmon
         run: >
           uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short --durations=40
           --cov=src/academic_agent
@@ -226,3 +238,14 @@ jobs:
 
           echo "All four CJK languages must resolve to an embedded font"
           docker run --rm academic-agent:ci python scripts/verify_container_fonts.py
+
+          echo "The application must import from the image's own files"
+          # .dockerignore excludes tests, docs and experiment runners; this
+          # fails the build if the serving code depends on any of them.
+          docker run --rm academic-agent:ci python -c "import api.main, academic_agent.main, academic_agent.pipeline_worker"
+
+          echo "Sample reports must ship, or /samples serves 404s"
+          docker run --rm academic-agent:ci python -c "from api import samples; [samples.read_sample(s.slug) for s in samples.SAMPLES]"
+
+          echo "Excluded development files must not ship"
+          docker run --rm academic-agent:ci sh -c '! ls -d tests docs evals ablation.py 2>/dev/null | grep .'

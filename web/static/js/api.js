@@ -91,13 +91,41 @@ export const storageDegraded = () => accessSlot.degraded() || byokSlot.degraded(
 // Absence selects operator billing; corruption must never mean absence.
 // Keep this allowlist aligned with API models and the visible provider select.
 export const BYOK_PROVIDERS = ["deepseek", "qwen", "openai", "anthropic"];
+const BYOK_SEARCH = ["tavily", "serper"];
+// The shape of llm_config.BYOK_MODEL_PATTERN; the server checks it again.
+const BYOK_MODEL = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
+const filled = value => typeof value === "string" && value.trim() !== "";
+
+// Two stored shapes are valid: the current {search, searchKey, model?} and
+// the earlier {serperKey}, which an open tab may still hold. Either is kept as
+// stored; only byokBody translates it into request fields. A mixed or partial
+// object is corrupt, and corruption must never read as "no BYOK".
 function validateByok(creds) {
+  const current = creds && BYOK_SEARCH.includes(creds.search) && filled(creds.searchKey)
+    && creds.serperKey === undefined;
+  const legacy = creds && filled(creds.serperKey)
+    && creds.search === undefined && creds.searchKey === undefined && creds.model === undefined;
+  const model = creds && (creds.model === undefined
+    || (typeof creds.model === "string" && BYOK_MODEL.test(creds.model)));
   if (!creds || typeof creds !== "object" || Array.isArray(creds)
-    || !BYOK_PROVIDERS.includes(creds.provider)
-    || ![creds.llmKey, creds.serperKey].every(value => typeof value === "string" && value.trim())) {
+    || !BYOK_PROVIDERS.includes(creds.provider) || !filled(creds.llmKey)
+    || !(current || legacy) || !model) {
     throw new ApiError(0, "Saved BYOK credentials are invalid. Choose your credentials again before a paid operation.", "invalid_byok");
   }
   return creds;
+}
+
+/** Request fields for validated BYOK credentials, current or earlier shape. */
+export function byokBody(byok) {
+  const search = byok.searchKey !== undefined
+    ? { [`${byok.search}_api_key`]: byok.searchKey }
+    : { serper_api_key: byok.serperKey };
+  return {
+    llm_provider: byok.provider,
+    llm_api_key: byok.llmKey,
+    ...search,
+    ...(byok.model ? { llm_model: byok.model } : {}),
+  };
 }
 
 export function getByok() {
@@ -285,11 +313,7 @@ export const startRun = ({
     decision_context: decision_context || null,
     // Present only in BYOK mode — omitted (not null) so a plain run without
     // these keys still authorizes on the access code alone server-side.
-    ...(byok ? {
-      llm_provider: byok.provider,
-      llm_api_key: byok.llmKey,
-      serper_api_key: byok.serperKey,
-    } : {}),
+    ...(byok ? byokBody(byok) : {}),
   }, receiptKey));
 };
 
@@ -298,11 +322,7 @@ export const resumeRun = (runId, receiptKey) => {
   // BYOK secret, and an access-code run is authorized by the normal header.
   const byok = getByok();
   return request(`/api/runs/${runId}/resume`, json({
-    ...(byok ? {
-      llm_provider: byok.provider,
-      llm_api_key: byok.llmKey,
-      serper_api_key: byok.serperKey,
-    } : {}),
+    ...(byok ? byokBody(byok) : {}),
   }, receiptKey));
 };
 
@@ -345,12 +365,13 @@ export function uploadPaper(file, receiptKey) {
   // and attaching a paper — half of what the composer offers — was closed to
   // exactly the people the BYOK path exists for.
   //
-  // The serper key is not sent: extraction reads the PDF and calls the model,
-  // and never searches.
+  // No search key is sent: extraction reads the PDF and calls the model,
+  // and never searches. The visitor's chosen model applies here too.
   const byok = getByok();
   if (byok) {
     form.append("llm_provider", byok.provider);
     form.append("llm_api_key", byok.llmKey);
+    if (byok.model) form.append("llm_model", byok.model);
   }
   // No Content-Type header: the browser must set it so the multipart
   // boundary matches the body it generates.

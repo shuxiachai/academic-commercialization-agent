@@ -190,6 +190,7 @@ class RetryBehaviourTests(unittest.TestCase):
         import os
 
         os.environ.setdefault("DEEPSEEK_API_KEY", "test-key")
+        os.environ.setdefault("DEEPSEEK_MODEL", "deepseek-chat")
         llm = create_llm()
         self.assertIn("Completion", type(llm).__name__)
 

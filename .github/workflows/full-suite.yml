@@ -1,0 +1,38 @@
+name: Full suite (weekly)
+
+# Pull requests run tests of closed experiments (marker `experiment`) on the
+# Ubuntu/Python 3.12 coverage cell only. This workflow runs the complete suite
+# on every cell once a week, and on demand, so a Windows- or 3.11-only break
+# in that code is still found within days rather than never.
+on:
+  schedule:
+    - cron: "17 3 * * 1"   # Mondays 03:17 UTC
+  workflow_dispatch:
+
+jobs:
+  full-suite:
+    name: full suite (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "latest"
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --python ${{ matrix.python-version }}
+
+      - name: Require Node for web contract tests
+        run: node --version
+
+      - name: Run the complete suite
+        run: uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short --durations=40

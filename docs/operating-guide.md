@@ -24,12 +24,18 @@ uv sync
 ```
 
 For Qwen, explicitly set `LLM_PROVIDER=qwen`, `DASHSCOPE_API_KEY` and
-`QWEN_MODEL=qwen3.5-plus`. The built-in China-region compatible endpoint is
+`QWEN_MODEL`. The public deployment uses `qwen3.8-27b` (since 2026-10-19;
+`qwen3.8-max` from 2026-10-18). Both accept the pipeline's JSON Object output
+with thinking disabled. Held-out v2 measured `qwen3.8-max`, not the 27B model.
+There is no built-in default model (removed 2026-10-20; it was `qwen3.5-plus`).
+An unset `QWEN_MODEL` uses `OPENAI_MODEL_NAME` when that is set; otherwise
+readiness reports the missing variable and every run fails before its first
+model request. The same holds for each provider's model variable below. The built-in China-region compatible endpoint is
 `https://dashscope.aliyuncs.com/compatible-mode/v1`; operators may override
 `QWEN_API_BASE` for their account/region. The browser BYOK endpoint is fixed
 by the provider contract rather than accepting arbitrary visitor URLs.
 
-| Provider selector | Key | Optional model / endpoint |
+| Provider selector | Key | Required model, optional endpoint |
 |---|---|---|
 | `qwen` | `DASHSCOPE_API_KEY` | `QWEN_MODEL`, `QWEN_API_BASE` |
 | `deepseek` | `DEEPSEEK_API_KEY` | `DEEPSEEK_MODEL`, `DEEPSEEK_API_BASE` |
@@ -324,6 +330,11 @@ semantic correctness of all report prose; see the
 | GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts |
 | DELETE | `/api/runs/{id}?intent=cancel` or `?intent=delete` | Only the requested operation, subject to state and ownership rules |
 | POST | `/api/runs/{id}/resume` | New immutable recovery child, not mutation of the old result |
+| GET | `/api/samples` | Committed example reports (allowlist in `api/samples.py`); no access code needed |
+| GET | `/api/samples/{slug}` | One example report as Markdown; unknown or missing samples return 404 |
+
+The browser reader for these samples is `/samples`. It is a separate page
+from `/` so that it renders on a gated deployment without the access gate.
 
 Readiness performs an isolated real-file write per request; concurrent probes
 do not share a filename. A cleanup-only failure is named separately from a
@@ -592,6 +603,9 @@ These are example policy values, not a cost/SLO guarantee.
   trust must be configured at the ASGI/deployment boundary.
 - Leaving all access-code variables unset disables the gate for local use.
   It is not a safe default for an operator-funded public demo.
+- `GET /api/samples` and `GET /api/samples/{slug}` stay open on a gated
+  deployment. They serve only the allowlisted files under `examples/`, read
+  no deployment state and spend nothing; other methods on those paths are gated.
 
 ### Run links, BYOK and retention
 
@@ -603,7 +617,19 @@ as well; recovery still needs fresh complete credentials.
 BYOK credentials are passed to the individual child environment, not merged
 into the operator environment or persisted in run artifacts. Empty sentinels
 prevent import-time dotenv loading from restoring operator keys. PDF extraction
-uses the same isolated credential contract. The client keeps BYOK history in
+uses the same isolated credential contract.
+
+A BYOK visitor names the model for their own key (`llm_model`, required: there
+is no default, and the form shows only an example). The name must be a plain identifier
+(letters, digits and `. _ - :`). It fills only the selected provider's model
+variable, while the endpoint stays the provider's fixed one, so it cannot
+redirect the key. The operator's `QWEN_MODEL` never applies to a visitor's
+run. The model must support the pipeline's JSON Object output. A model that
+does not support it fails on the visitor's own key. A visitor searches with
+exactly one of `tavily_api_key` or `serper_api_key`. The form recommends
+Tavily because Serper rejected requests from Railway. Earlier `serper_api_key`
+clients and stored browser credentials remain valid. Resuming with a
+different model re-executes nodes, because checkpoint identity binds the model. The client keeps BYOK history in
 session storage; closing a tab removes that client history, **not** an already
 running server job or the persisted report.
 

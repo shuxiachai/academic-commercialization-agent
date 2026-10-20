@@ -19,6 +19,7 @@ from api import access, main, papers, receipts, runs
 from academic_agent.checkpoint_runtime import retrieval_identity
 from academic_agent.checkpoints import CheckpointStore
 from academic_agent.run_spec import RunSpec
+from tests.scripted_waits import SCENARIO, STEP
 
 _READ_ONLY_POPEN = subprocess.Popen
 
@@ -99,7 +100,8 @@ def test_byok_fingerprint_has_no_plain_credentials_and_lookup_is_capability_base
     client, launch, root = paid_api
     auth = headers(code=None)
     payload = {"topic": "Private BYOK input", "llm_provider": "qwen",
-               "llm_api_key": "offline-llm-secret", "serper_api_key": "offline-search-secret"}
+               "llm_api_key": "offline-llm-secret", "llm_model": "qwen3.8-27b",
+               "serper_api_key": "offline-search-secret"}
     first = client.post("/api/runs", headers=auth, json=payload)
     assert first.status_code == 202
     assert client.post("/api/runs", headers=auth, json=payload).json() == first.json()
@@ -120,14 +122,14 @@ def test_pending_duplicate_is_rejected_while_first_popen_is_in_flight(paid_api):
     process = launch.return_value
     def blocked(*_args, **_kwargs):
         started.set()
-        assert release.wait(5)
+        assert release.wait(STEP)
         return process
     launch.side_effect = blocked
     auth = headers()
     with ThreadPoolExecutor(max_workers=1) as pool:
         first = pool.submit(client.post, "/api/runs", headers=auth, json={"topic": "Concurrent topic"})
         try:
-            assert started.wait(3)
+            assert started.wait(STEP)
             second = client.post("/api/runs", headers=auth, json={"topic": "Concurrent topic"})
             assert second.status_code == 409
             assert second.headers["x-error-code"] == "paid_receipt_pending"
@@ -135,7 +137,7 @@ def test_pending_duplicate_is_rejected_while_first_popen_is_in_flight(paid_api):
             assert pending["state"] == "pending" and pending["resource_id"]
         finally:
             release.set()
-        accepted = first.result(timeout=5)
+        accepted = first.result(timeout=STEP)
     assert accepted.status_code == 202
     assert pending["resource_id"] == accepted.json()["run_id"]
     assert launch.call_count == 1 and sum(runs._daily_counts.values()) == 1
@@ -154,7 +156,7 @@ def test_lost_commit_after_launch_keeps_durable_pointer_without_second_worker(pa
         # HTTP worker path. Patching runs.subprocess affects the shared module.
         reader.setattr(subprocess, "Popen", _READ_ONLY_POPEN)
         result = subprocess.run([sys.executable, "-c", script, str(root), auth["Idempotency-Key"], access.owner_id("offline-owner-a")],
-                                capture_output=True, text=True, check=True, timeout=10)
+                                capture_output=True, text=True, check=True, timeout=SCENARIO)
     saved = json.loads(result.stdout)
     assert saved["state"] == "unknown" and saved["resource_id"] in runs._registry
     duplicate = client.post("/api/runs", headers=auth, json={"topic": "Crash boundary"})
@@ -220,7 +222,7 @@ def test_receipted_pdf_cancellation_retains_finished_metadata_but_never_starts_a
     started, release = threading.Event(), threading.Event()
     def extract(*_args, **_kwargs):
         started.set()
-        assert release.wait(4)
+        assert release.wait(STEP)
         return contribution()
     monkeypatch.setattr(main, "_extract_paper_with_paid_reservation", extract)
     async def exercise():

@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "cohort": "heldout-trl-v1",
+  "anchored_on": "2026-10-18",
+  "protocol": "docs/prereg-2026-10-18-heldout-trl-v1.md",
+  "anchoring": "Ranges set from external evidence before any run of these topics, by an AI assistant (Claude) using web search, then reviewed by the maintainer. Not an independent human-expert panel. TRL follows the standard 1-9 definitions; a range spans the defensible field-level and leading-application readings.",
+  "cases": [
+    {
+      "id": "H01",
+      "topic": "small modular reactors for grid electricity",
+      "expected_trl": [7, 9],
+      "industry": "Nuclear Energy",
+      "input_shape": "english",
+      "anchor": "Two SMR designs supply grid power in commercial operation: the floating Akademik Lomonosov (2x KLT-40S, fully commissioned 2020-05-22) and HTR-PM at Shidaowan (two small reactors driving one 210 MWe turbine, commercial operation announced 2023-12-06). Linglong One (ACP100) is still listed under construction in IAEA PRIS as of May 2026. Western designs (NuScale, BWRX-300) are licensed or in licensing with none operating. Leading application 8-9; a field reading weighted to Western designs 7.",
+      "sources": [
+        "https://world-nuclear-news.org/articles/chinese-htr-pm-demo-begins-commercial-operation",
+        "https://www.powermag.com/a-closer-look-at-two-operational-small-modular-reactor-designs/",
+        "https://introl.com/blog/china-linglong-one-smr-first-commercial-nuclear-2026"
+      ]
+    },
+    {
+      "id": "H02",
+      "topic": "fusion power",
+      "expected_trl": [3, 5],
+      "industry": "Energy",
+      "input_shape": "short",
+      "anchor": "No fusion device has produced net electricity. Target gain above 1 has been shown at NIF (inertial). For magnetic confinement, high-field HTS magnets were validated at component scale; SPARC is still under construction (first plasma now targeted 2027) and the ARC plant is planned for the early 2030s. Component validation in a relevant environment reaches TRL 5; no system prototype exists.",
+      "sources": [
+        "https://en.wikipedia.org/wiki/SPARC_(tokamak)",
+        "https://interestingengineering.com/energy/worlds-1st-commercial-fusion-plant"
+      ]
+    },
+    {
+      "id": "H03",
+      "topic": "implantable brain-computer interfaces for paralysis",
+      "expected_trl": [5, 7],
+      "industry": "Medical Devices",
+      "input_shape": "english",
+      "anchor": "Human feasibility studies under FDA investigational device exemptions: Synchron COMMAND (six patients, no device-related serious adverse events), Neuralink (twelve implants by January 2026), Paradromics (first chronic implant used for speech, 2026). No implantable BCI for paralysis has market approval; Synchron's pivotal trial was being planned. Precision Neuroscience's 510(k) covers a temporary (up to 30-day) cortical interface, not a paralysis BCI. Prototype demonstrated with patients: 6, with 5-7 covering the field.",
+      "sources": [
+        "https://www.medtechdive.com/news/precision-neuroscience-brain-implant-fda-cleared/745913/",
+        "https://beyondtmrw.org/article/brain-computer-interface-clinical-trials-accelerate-in-2026",
+        "https://www.mobihealthnews.com/news/synchron-kicks-clinical-trial-device-helps-patients-paralysis-communicate"
+      ]
+    },
+    {
+      "id": "H04",
+      "topic": "psilocybin therapy for treatment-resistant depression",
+      "expected_trl": [7, 8],
+      "industry": "Pharmaceuticals",
+      "input_shape": "english",
+      "anchor": "Compass Pathways' COMP360 met the primary MADRS endpoint in two Phase 3 trials (COMP005; COMP006 reported 2026-02-17, 26-week data 2026-07-07). A rolling NDA is underway for Q4 2026 completion, and launch also depends on FDA approval and DEA rescheduling. Completed Phase 3 without approval is beyond prototype demonstration (7) but short of a qualified, approved system (8-9).",
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/0001816590/000181659026000047/cmps-20260707.htm",
+        "https://www.psychiatrictimes.com/view/comp360-psilocybin-for-treatment-resistant-depression-achieves-primary-endpoint-in-phase-3-trial"
+      ]
+    },
+    {
+      "id": "H05",
+      "topic": "direct air capture of carbon dioxide",
+      "expected_trl": [6, 8],
+      "industry": "Climate",
+      "input_shape": "english",
+      "anchor": "First-of-kind commercial plants operate and sell removal credits, but far below design capacity. Climeworks Mammoth (36,000 t/yr nameplate) removed 675 t net in H1 2026. Occidental/1PointFive Stratos (500,000 t/yr design) was commissioning with commercial operation expected in 2026, unconfirmed. Operating first commercial systems with unproven performance: 7, range 6-8.",
+      "sources": [
+        "https://carbon-pulse.com/549103/",
+        "https://www.gasworld.com/story/climeworks-upgrades-dac-tech-at-iceland-facility-after-low-co2-capture-record/2259464.article/",
+        "https://www.1pointfive.com/news/occidental-and-1pointfive-secure-class-vi-permits-for-stratos-direct-air-capture-facility"
+      ]
+    },
+    {
+      "id": "H06",
+      "topic": "漂浮式海上风电",
+      "expected_trl": [8, 9],
+      "industry": "Renewable Energy",
+      "input_shape": "chinese",
+      "anchor": "Floating offshore wind: several commercial farms in operation. Hywind Scotland (30 MW) has been commercial since 2017, with 54-57% capacity factors reported for 2018-2020. Hywind Tampen (88 MW) has operated since 2023. Further commercial arrays include Kincardine and WindFloat Atlantic, and Chinese demonstrators such as Sanxia Yinling. Commercial systems proven in operation, though not at the scale or cost of fixed-bottom wind: 8-9.",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Hywind_Scotland",
+        "https://www.equinor.com/en/news/20210323-hywind-scotland-uk-best-performing-offshore-wind-farm.html"
+      ]
+    },
+    {
+      "id": "H07",
+      "topic": "人工光合作用制备太阳能燃料",
+      "expected_trl": [3, 5],
+      "industry": "Chemistry",
+      "input_shape": "chinese",
+      "anchor": "Artificial photosynthesis for solar fuels is at lab-to-bench prototype stage. The largest field test, a 100 m2 photocatalytic water-splitting array, ran for months at 0.76% maximum solar-to-hydrogen efficiency, which its authors call energy-negative overall. A University of Tokyo/INPEX bench prototype produced methane over a 72-hour test. No pilot plant has confirmed output. Photocatalytic CO2 reduction is lower still.",
+      "sources": [
+        "https://www.t.u-tokyo.ac.jp/en/press/foee/press/setnws_202109031148045484967776.html",
+        "https://eic.ec.europa.eu/eic-prizes/eic-horizon-prizes/fuel-sun-artificial-photosynthesis_en",
+        "https://www.tudelft.nl/en/innovatie-impact/innovation-projects/solar-fuels"
+      ]
+    },
+    {
+      "id": "H08",
+      "topic": "precision fermentation for dairy proteins",
+      "expected_trl": [7, 9],
+      "industry": "Food",
+      "input_shape": "english",
+      "anchor": "Fermentation-derived whey protein has been sold in retail products since 2019 under an FDA GRAS determination (Perfect Day, licensed to brands including Graeter's and Bored Cow). Vivici and others supply commercial quantities. Volumes are small: Perfect Day's Gujarat plant (about 2,000 t in its first year) begins deliveries in Q1 2027. A product approved and sold is 8-9; a field reading that weighs unscaled production is 7.",
+      "sources": [
+        "https://www.greenqueen.com.hk/perfect-day-precision-fermentation-animal-free-dairy-whey-protein/",
+        "https://agfundernews.com/perfect-day-says-gujarat-facility-on-track-for-2026-start-2027-ramp-up-for-recombinant-whey-protein"
+      ]
+    },
+    {
+      "id": "H09",
+      "topic": "DNA data storage",
+      "expected_trl": [4, 6],
+      "industry": "Computing",
+      "input_shape": "english",
+      "anchor": "End-to-end automated systems have been demonstrated (Microsoft and University of Washington, 2019). Atlas Data Storage, spun out of Twist Bioscience with $155M, announced and demonstrated the Atlas Eon 100 archival service. Its density claims are vendor statements, pricing is undisclosed, and there are no confirmed paying deployments at scale. Prototype demonstrated in a relevant environment (5-6), with 4 for a field reading.",
+      "sources": [
+        "https://blocksandfiles.com/2025/05/06/dna-storage-gets-a-new-twist-with-atlas-data-storage/",
+        "https://itdaily.com/news/datacenter/atlas-data-storage-eon-100/",
+        "https://www.techradar.com/pro/after-nearly-10-years-twist-bioscience-spin-off-plans-terabyte-scale-dna-storage-in-2026-intending-to-store-13tb-of-data-in-a-single-drop-of-water"
+      ]
+    },
+    {
+      "id": "H10",
+      "topic": "drone delivery of medical supplies",
+      "expected_trl": [8, 9],
+      "industry": "Logistics",
+      "input_shape": "english",
+      "anchor": "Zipline has delivered medical supplies at national scale in Rwanda since 2016 and in Ghana since 2019. It passed 1 million commercial deliveries in April 2024, 1.4 million by March 2025 and 2 million in early 2026, across roughly seven to eight countries. A system proven in sustained operation: 9, with 8 allowed for the field.",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Zipline_(drone_delivery_company)",
+        "https://afrviator.org/bulletin/zipline-marks-milestone-with-one-million-commercial-drone-deliveries",
+        "https://www.scottishmortgage.com/en/uk/individual-investors/insights/ic-article/sm-articles-2025-private-companies-top-10-progress-report-zipline-10054161"
+      ]
+    }
+  ]
+}

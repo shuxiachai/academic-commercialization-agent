@@ -325,6 +325,36 @@ def _exercise_sources_panel(page: Page, collection: dict, *, chinese: bool) -> N
     page.set_viewport_size({"width": 1280, "height": 720})
 
 
+def _exercise_phone_menu(page: Page, run_id: str) -> None:
+    """Below 860px the sidebar's own toggle is off-screen with it; the phone bar opens it."""
+    workbench, menu = page.locator("#workbench"), page.locator("#mobile-menu")
+    scrim, sidebar = page.locator("#sidebar-scrim"), page.locator("#sidebar")
+    settled_open = "() => document.querySelector('#sidebar').getBoundingClientRect().left >= 0"
+    page.set_viewport_size({"width": 390, "height": 760})
+    try:
+        expect(menu).to_be_visible()
+        expect(menu).to_have_attribute("aria-expanded", "false")
+        expect(scrim).to_be_hidden()
+        menu.click()
+        expect(workbench).to_have_attribute("data-sidebar-open", "true")
+        expect(menu).to_have_attribute("aria-expanded", "true")
+        expect(scrim).to_be_visible()
+        page.wait_for_function(settled_open)
+        expect(sidebar.locator(f'button.runitem[data-run-id="{run_id}"]')).to_be_visible()
+        # The scrim lies beside the open sidebar; tapping it dismisses the menu.
+        scrim.click(position={"x": 375, "y": 380})
+        expect(workbench).to_have_attribute("data-sidebar-open", "false")
+        expect(scrim).to_be_hidden()
+        menu.click()
+        expect(scrim).to_be_visible()
+        page.keyboard.press("Escape")
+        expect(scrim).to_be_hidden()
+        expect(menu).to_have_attribute("aria-expanded", "false")
+    finally:
+        page.set_viewport_size({"width": 1280, "height": 720})
+    expect(menu).to_be_hidden()
+
+
 def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
     """Catch actions squeezing mobile metadata into columns and hiding the report."""
     title = page.locator("#run-title")
@@ -525,6 +555,7 @@ def _exercise_browser(
             page.locator("#gate-input").fill(ACCESS_CODE)
             page.locator("#gate-submit").click()
             expect(gate).to_be_hidden()
+            _exercise_phone_menu(page, run_id)
 
             run_item = page.locator(f'button.runitem[data-run-id="{run_id}"]')
             expect(run_item).to_be_visible()
@@ -607,6 +638,12 @@ def _exercise_browser(
                 if chinese:
                     page.locator("#ui-lang").select_option("Simplified Chinese")
                     expect(page.locator('button.tab[data-view="sources"]')).to_have_text("来源")
+                    # Relabelled from the last reading at once, well inside the
+                    # 10s idle poll that used to be the only thing changing it.
+                    expect(page.locator("#capacity-label")).to_contain_text("运行中", timeout=1000)
+                    starter = page.locator("#starters .starter").first
+                    expect(starter).to_have_text("电动汽车用固态电池")
+                    expect(starter).to_have_attribute("data-topic", "电动汽车用固态电池")
                 before_sources = source_requests
                 with page.expect_response(
                     lambda response: urlsplit(response.url).path == f"/api/runs/{run_id}/sources",
@@ -625,6 +662,9 @@ def _exercise_browser(
             assert source_requests == 2, "Two language renders must produce exactly two source GETs."
             page.locator("#ui-lang").select_option("English")
             expect(page.locator('button.tab[data-view="sources"]')).to_have_text("Sources")
+            expect(page.locator("#capacity-label")).to_contain_text("running", timeout=1000)
+            expect(page.locator("#starters .starter").first).to_have_attribute(
+                "data-topic", "solid-state batteries for electric vehicles")
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
 

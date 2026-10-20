@@ -1,44 +1,45 @@
 # 学术成果商业化评估系统
 
-输入论文或研究主题，生成**带来源、评分与风险提示的商业化评估草稿**，辅助科研成果转化初筛。
+输入论文或研究主题，生成**带来源引用的商业化评估草稿**：覆盖技术成熟度、
+制造成熟度、专利与市场的评分卡，引用已注册来源，并列出风险。
 
-[打开在线应用](https://academic-commercialization-agent.up.railway.app) · [阅读公开报告样例](examples/solid-state-batteries-ev.md) · [本地运行](#快速启动) · [English](README.md)
+[打开在线应用](https://academic-commercialization-agent.up.railway.app) · [免 Key 阅读示例报告](https://academic-commercialization-agent.up.railway.app/samples) · [本地运行](#快速启动) · [English](README.md)
 
-**体验条件：** 需要作者提供的访问码，或使用 BYOK（支持的模型 API key + Serper 检索 key）。
-新建分析和 PDF 提取会产生供应商用量；阅读下面的公开样例不需要 key，也不触发新分析。
+![当前结果界面中的一次真实历史运行：CRISPR 评估的自动检查面板、评分维度与来源数量](assets/screenshot-results.png)
 
-![真实历史结果界面：CRISPR 评估的评分维度、来源数量及带引用的风险说明](assets/screenshot-results.png)
+*当前界面，2026-10-20 截取，展示的是 2026-08-09 的一次真实运行。该运行早于现在的自动检查，面板对此有说明；不代表当前模型的结果。*
 
-*真实界面归档于 2026-08-11，版本 [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512)，不是当前发布版的新截图。*
-
-**公开报告样例：**[电动汽车用固态电池](examples/solid-state-batteries-ev.md)
-— [2026-07-19 冻结版本，9673a83](https://github.com/shuxiachai/academic-commercialization-agent/blob/9673a8346c15f11b989ce8fd2d85be484d1c27b3/examples/solid-state-batteries-ev.md)。
-截图与样例来自不同历史运行，不代表当前模型准确率或最新市场判断。
-
-[从这里开始：文档与目录导航](docs/README.md) · [项目案例](docs/portfolio-case-study.md)
+**无需 Key 先体验：**[示例报告页](https://academic-commercialization-agent.up.railway.app/samples)
+提供三份完整评估，打开时不发起任何模型或检索请求。同样的报告也在
+[examples/](examples/README.md) 中，例如[电动汽车用固态电池](examples/solid-state-batteries-ev.md)
+（[2026-07-19 冻结版本，9673a83](https://github.com/shuxiachai/academic-commercialization-agent/blob/9673a8346c15f11b989ce8fd2d85be484d1c27b3/examples/solid-state-batteries-ev.md)）。
+新建分析需要作者提供的访问码，或使用 BYOK（自己的模型 API key 与模型 + Tavily 或 Serper 检索 key），
+并会产生供应商用量。截图与样例来自不同历史运行，不代表当前模型准确率或最新市场判断。
 
 技术实现为 Python、CrewAI、FastAPI 和无需构建的 JavaScript 客户端。
-生产环境刻意限制自主性：确定性代码先完成检索，六阶段模型工作流再分析
-已验证证据。**补充检索 Tool Calling 仍是独立实验，尚未接入生产。**
+[从这里开始：文档与目录导航](docs/README.md) · [项目案例](docs/portfolio-case-study.md)
+
+**目录速览：**应用代码在 `src/academic_agent/`、`api/`、`web/` 和 `ui/`，测试在
+`tests/` 和 `e2e/`。根目录下的大量 Python 文件是基准测试命令和已冻结的实验运行器，
+其路径被实验协议锁定，因此不搬动；运行应用不需要它们。各目录说明见
+[目录地图](docs/README.md#repository-map)。
 
 ## 可以做什么
 
-市场评分卡会明确提示[估值可比性尚未核实](docs/results-2026-09-11-market-score-delivery-disclosure.md)。
-这项修复让历史上限规则的局限可见，不代表市场评分规则本身已修正或验证准确。
-新验证结果还会记录并展示[封顶前后分数及实际扣分](docs/results-2026-09-12-numeric-token-and-cap-provenance.md)；
-历史结果没有保存这些记录时，不会倒推补造。
-[20条市场来源核对](docs/results-2026-09-12-market-source-followup.md)仍未建立完整同口径真实配对，
-不代表评分政策已经通过验证。
-
 - 输入研究主题或上传论文 PDF，选择报告语言与评分档位。
-- 可选填写 Decision Context：区分方向性探索和具体决策，标识阈值是否由
-  决策所有者批准；上下文不完整仍能运行，不自动升级为可执行投资建议。
+- 先由确定性代码完成检索与来源验证，六阶段模型工作流再分析这批冻结证据；
+  刻意限制自主性。
+- 评分卡包含 TRL、MRL、专利强度、市场可及性和证据置信度；加权总分由代码计算，
+  不由模型给出。
 - 查看进度、引用、来源与可靠性提示，导出 Markdown/PDF，分享运行链接。
-- 在“来源”页按完整编号或字面关键词定位，展开查看保存文本，无需模型调用。
+- 在“来源”页按编号或关键词定位，展开查看保存文本，无需模型调用。
   保存文本不等于论文全文或已验证的结论支持；详见[操作指南](docs/operating-guide.md#web-cli-and-http-api)。
-- 将中断任务恢复为不可变子运行，复用连续、已验证的 Checkpoint 前缀，
-  并重新提供必要凭证。
-- 在启用门禁的部署中使用口令或自带密钥（BYOK）。
+- 可选填写 Decision Context：区分方向性探索和具体主体的决策，并标识阈值是否由
+  决策所有者批准；上下文不完整仍能运行，不自动升级为可执行投资建议。
+- 中断的任务可从最后一个已验证的 Checkpoint 恢复。恢复会生成一个新的关联运行，
+  原运行不会被覆盖。
+- 付费请求支持[持久化回执](docs/operating-guide.md#paid-request-receipts)：回包丢失或刷新后，
+  可在最长 24 小时内找回已接收的分析、PDF 或恢复运行，无需重复付费。
 
 报告用于研究初筛，不代替技术、法律、监管、投资或 FTO 尽职调查。
 “引用 ID 有效”不等于“来源在语义上支持该结论”。
@@ -59,7 +60,7 @@
                     │
                   评分 → 代码重算加权总分
                     │
-          共享运行产物 + 不可变终态
+          共享运行产物 + 最终运行状态
                     │
           FastAPI / 浏览器 / CLI / 恢复
 ```
@@ -71,9 +72,9 @@
 |---|---|
 | 证据 | 原生数据客户端与网页检索，URL/DOI 验证、来源分层、去重和引用注册 |
 | 输出 | Pydantic 契约、Guardrail、确定性评分与受限 Reviewer 修订 |
-| 质量 | 精度优先的非阻断筛查；区分“未发现问题”和“未能检查” |
-| 运行时 | 子进程隔离、内容寻址 Checkpoint、不可变恢复子运行和一次写入终态 |
-| 费用 | PDF/正式运行共享准入，持久化日配额，完整/下界/不可用用量状态 |
+| 质量 | 精度优先的非阻断筛查；“未能检查”与“检查通过”分开报告 |
+| 运行时 | 每次运行独立子进程、内容寻址 Checkpoint、恢复为新的关联运行、最终状态只写一次 |
+| 费用 | PDF 与正式运行共享准入、持久化日配额，用量标注为完整/下界/不可用 |
 | 可观测性 | 可选的脱敏 OpenTelemetry/OpenInference Trace，支持 Phoenix/OTLP |
 | 部署 | FastAPI、原生 HTML/CSS/ES modules、Docker、Railway；单应用副本 |
 
@@ -93,6 +94,17 @@
 因此不是独立未见集验证；数值引用筛查也不能证明不存在幻觉。
 10 个主题中有 7 个在三次运行中均命中 TRL 区间。
 
+**留出集检验。**另选 10 个从未运行过的新主题，并在运行前依据外部证据冻结预期区间
+（`qwen3.7-plus`，2026-10-18）。结果 **30 次运行中 21 次落在区间内**，正好达到预注册的
+"成立"标准。但评分向 7 分集中：没有一次高于 7 分，已大规模商业化的技术因此被低估。
+详见[留出集结果](docs/results-2026-10-18-heldout-trl-v1.md)。
+
+2026-10-19 用 `qwen3.8-max` 和改进后的市场检索跑了第二组留出集：**30 次中 25 次落在区间内**，
+成熟技术有 11 次打到 8–9 分；低成熟度主题没有虚高，但最低的两个主题被打在区间下限之下。
+这一组的主题和模型也变了，因此提升不能归因于某一项改动。TRL 仍应视为粗粒度信号。
+详见[第二组结果](docs/results-2026-10-19-heldout-trl-v2.md)。线上部署此后已换成更小的
+`qwen3.8-27b`，两组留出集都没有测过这个模型。
+
 其他已完成的证据：
 
 - **90 单元消融实验**：四节点相对六节点的中位 Token 减少 54.89%，
@@ -101,38 +113,12 @@
   但预注册成功标准未通过。
 - **两位目标用户试点**：两人均维持 `DEFER`，再次使用意愿均为 `MAYBE`，
   未核验外部来源；不能据此宣称产品采用或商业价值已验证。
-- **恢复测试**：离线故障注入 30/30 子运行完成，线上另有一例复用四节点。
+- **恢复测试**：离线故障注入 30/30 次恢复完成，线上另有一例复用四节点。
   不等于 exactly-once 或普遍节费保证。
 - **运行时 RTI02**：一例 Qwen 正常完成通过 12/12 主要终态检查，
   披露了轻微观察轮询间隔偏差；该次没有验证超时、回退路径或通用报告质量。
 
 详细数据、方法限制和原始公开依据见[当前证据台账](docs/evidence-status.md)。
-
-## Tool Calling 完成到哪里
-
-这里需要区分三种能力：
-
-- **保存来源定位**：已经接入独立生产页面和 API。模型最多从保存的标题/ID
-  目录中选择一次，程序返回原样保存文本；不生成研究答案、不搜索新资料。
-  执行需要报告所有者身份、明确的数据发送同意、付费准入和持久回执，并提供
-  操作级核算。详见[运行边界](docs/operating-guide.md#optional-saved-source-locator)。
-- **自动补充检索**：生产仍是零调用观察模式。最后一轮未见评估未通过准入要求，
-  不会因为来源定位取得进展而自动启用。
-- **生成式证据追问**：仍属实验，没有开放为生产问答功能。
-  工具确实执行或 JSON 格式正确，都不等于答案得到证据支持。
-
-2026 年 9 月 26 日，一次受限生产浏览器验收选中预先确定的来源，准确交付保存文本，
-并在关闭执行、重新部署后通过同一回执恢复结果和核算。该操作报告用量为
-1,199 Tokens，按固定工程价格估算 USD 0.000764436，不是供应商发票。
-这只是一个准备案例的交付观察，不是未见准确率，也不证明优于已有免费的 Sources
-关键词查找。**验收后已重新关闭新增付费执行，功能预算归零，并未持续开放。**
-
-[验收记录与限制](docs/results-2026-09-26-production-source-locator-acceptance.md)
-分别说明原 POST 响应体观察器的限制、实际页面与 GET 原始响应的核对，以及此前
-同源校验失败的独立事实，不将不同批次拼成一次成功。
-
-历史假设、失败和已关闭批次保留在[证据记录](docs/evidence-status.md#tool-calling-experiments)
-及[实验档案](docs/experiment-index.md)，不累加成通用准确率，也不因本次验收而重新开启。
 
 ## 快速启动
 
@@ -150,7 +136,7 @@ uv sync
 ```dotenv
 LLM_PROVIDER=qwen
 DASHSCOPE_API_KEY=your-key
-QWEN_MODEL=qwen3.5-plus
+QWEN_MODEL=qwen3.8-27b
 QWEN_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
 TAVILY_API_KEY=your-search-key
 ```
@@ -162,7 +148,7 @@ TAVILY_API_KEY=your-search-key
 
 ```bash
 uv run uvicorn api.main:app --reload
-# 浏览器打开 http://localhost:8000
+# 浏览器打开 http://localhost:8000（示例报告：http://localhost:8000/samples）
 # 或通过 CLI 发起真实分析：
 uv run academic_agent --topic "solid-state batteries for electric vehicles"
 ```
@@ -174,7 +160,7 @@ uv run academic_agent --topic "solid-state batteries for electric vehicles"
 ## 安全与部署
 
 运行链接具有 **128 位随机性**，是读取能力凭证：知道完整链接的人可以
-读取该运行，直到留存策略删除它。口令归属运行的修改还需 owner/admin
+读取该运行，直到留存策略删除它。修改口令归属的运行还需 owner/admin
 口令；无归属 BYOK 运行没有第二个服务端身份。不要公开私人运行链接。
 
 部署前配置访问控制、付费准入、留存和持久化存储。PDF 提取同样是付费操作。
@@ -218,36 +204,82 @@ uv run python benchmark.py --dry-run
 [基准操作说明](docs/operating-guide.md#benchmark)解释重复运行、冻结证据和
 付费注意事项。不要通过修改评分规则来“改善”这批历史指标。
 
-## 文档与限制
+## 仓库结构
 
+应用本身集中在少数几个目录里。根目录下的大多数 Python 文件是另一回事：
+已冻结的实验脚本。
+
+| 路径 | 内容 |
+|---|---|
+| `src/academic_agent/` | 流水线、检索、评分与运行时。部分模块是实验库，[代码地图](AGENTS.md#layout-and-boundary-specific-reading)标明了哪些 |
+| `api/`、`web/`、`ui/` | FastAPI 服务、浏览器客户端与共享展示逻辑 |
+| `tests/`、`e2e/` | 离线测试（不调用供应商）与可选的浏览器流程测试 |
+| `examples/` | [示例报告](examples/README.md)，同时在 `/samples` 页面提供 |
+| `scripts/` | 运维报告、离线审计与脚本化演示 |
+| `docs/` | 当前文档，以及带日期的预注册、结果与勘误；[从导航页开始](docs/README.md) |
+| 根目录 `benchmark*.py` | 上文的基准命令 |
+| 其他根目录 `*.py`（`openalex_*`、`evidence_gap_*`、`report_evidence_*`、`ablation*` 等） | 实验运行脚本。运行或理解应用都不需要它们 |
+
+这些实验脚本是有意留在根目录的：对应的实验协议锁定了源文件路径和哈希，
+搬动它们会让这些记录失效（见[实验档案索引](docs/experiment-index.md)）。新工具请放在 `scripts/` 下。
+
+## 限制与待解决问题
+
+仍需补强：定性结论的引用支持、独立测量的决策效用、中文/极短/非技术输入的基准、
+旧运行元数据读取状态，以及单副本之外的扩展边界。增加 Agent、向量库或
+Kubernetes 本身不能解决这些缺口。
+
+**市场评分。**市场评分卡会明确提示[估值可比性尚未核实](docs/results-2026-09-11-market-score-delivery-disclosure.md)：
+历史上限规则的局限已经可见，但市场评分规则本身既未修正也未验证。新结果还会展示
+[封顶前后分数及实际扣分](docs/results-2026-09-12-numeric-token-and-cap-provenance.md)；
+历史结果缺失的记录不会倒推补造。[20 条市场来源核对](docs/results-2026-09-12-market-source-followup.md)
+仍未找到完整同口径的真实配对。
+
+**Tool Calling。**三种能力的上线边界各不相同：
+
+- *保存来源定位*已接入可选的生产页面和 API：模型最多从保存的标题/ID 目录中
+  选择一次，程序返回原样保存文本；不生成研究答案、不搜索新资料，需要所有者授权、
+  数据发送同意、付费准入和回执（[运行边界](docs/operating-guide.md#optional-saved-source-locator)）。
+  2026-09-26 的一次准备好的生产验收交付了选中来源，并在重新部署后找回回执
+  （1,199 Tokens，按固定价格估算 USD 0.000764436），见
+  [验收记录与限制](docs/results-2026-09-26-production-source-locator-acceptance.md)。
+  这只是一次交付观察，不是未见准确率。**验收后已重新关闭付费执行，功能预算归零，并未持续开放。**
+- *自动补充检索*在生产中仍是零调用观察模式；最近一轮未见评估未通过准入要求。
+- *生成式证据追问*仍属实验，没有开放为生产功能。工具确实执行或 JSON 格式正确，
+  都不等于答案得到证据支持。
+
+历史假设、失败和已关闭批次保留在[证据记录](docs/evidence-status.md#tool-calling-experiments)
+及[实验档案](docs/experiment-index.md)，不累加成通用准确率。
+
+## 文档
+
+- [English README](README.md)
 - [文档地图](docs/README.md)：按阅读目的找到入口，区分生产目录、历史实验与本地私人资料。
 - [证据台账](docs/evidence-status.md)：数据及其不能证明的内容。
 - [操作指南](docs/operating-guide.md)：配置、API、部署与评分。
 - [贡献指南](CONTRIBUTING.md)、[AGENTS.md](AGENTS.md)：约束与被否决的方法。
 - [实验档案索引](docs/experiment-index.md)：未改写的预注册、结果与勘误。
 
-前端付费请求支持[持久化回执](docs/operating-guide.md#paid-request-receipts)：回包丢失或刷新后，
-可在最长 24 小时内通过只读查询找回分析、PDF 或恢复子运行的接收结果，不重复提交付费请求。
-未知结果仍明确标注；这不等于供应商 exactly-once 或多副本调度。
-
-仍需补强定性结论的引用支持、独立决策效用、中文/极短/非技术输入的基准、
-旧运行元数据读取状态，以及单副本之外的扩展边界。增加 Agent、向量库或
-Kubernetes 本身不能解决这些缺口。
-
 ## 界面截图
 
 <details>
-<summary>历史首页与运行中界面 — a343a95，2026-08-11 归档</summary>
+<summary>首页与报告界面 — 当前界面，2026-10-20 截取</summary>
 
-下图为版本 [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512)
-的真实界面，当前控件和文案可能不同；结果截图已放在首屏。
+在本地副本中用当前界面打开 2026 年 8 月的真实历史运行截取，截图过程未发起任何模型或检索请求。
+旧版截图见版本 [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512)。
 
-![首页](assets/screenshot-home.png)
-![分析运行中](assets/screenshot-running.png)
+![首页，侧栏为真实历史运行](assets/screenshot-home.png)
+![同一次 CRISPR 运行的报告页](assets/screenshot-report.png)
 
 </details>
 
 ## 作者与更多作品
 
 作者：[shuxiachai](https://github.com/shuxiachai)。
+参与者：[Song Guoyu（@7776403yu）](https://github.com/7776403yu)、[@xiaobaozhou165-sudo](https://github.com/xiaobaozhou165-sudo)。
 更多项目与实践见 [GitHub 个人主页](https://github.com/shuxiachai)。
+
+## 许可证
+
+本项目采用 [MIT 许可证](LICENSE)。提交的贡献同样按 MIT 许可，详见
+[CONTRIBUTING.md](CONTRIBUTING.md#pull-requests-and-privacy)。

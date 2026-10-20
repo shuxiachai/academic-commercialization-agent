@@ -38,13 +38,14 @@ from fastapi.staticfiles import StaticFiles
 # contract — an API server should be explicit about when its settings exist.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
+from academic_agent.byok_model import BYOK_MODEL_PATTERN  # noqa: E402
 from academic_agent.llm_config import _detect_provider, validate_llm_configuration  # noqa: E402
 from academic_agent.pdf_extractor import (  # noqa: E402
     PaperContribution,
     extract_paper_contribution,
 )
 from api import access, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import auxiliary_usage
+from api import auxiliary_usage, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -467,11 +468,17 @@ async def _access_gate(request: Request, call_next):
       Keeping that decision in the handler also lets resume parse fresh BYOK
       credentials without consuming and rebuilding the request body here.
       GET /api/runs itself stays gated because it lists deployment history.
+    - GET /api/samples and /api/samples/{slug} — committed example reports
+      from an allowlist (api/samples.py). They exist so a visitor without a
+      code can see a finished report; nothing behind them spends money or
+      reads deployment state.
     """
     path = request.url.path
     if not path.startswith("/api/"):
         return await call_next(request)
     if path in ("/api/runs", "/api/papers") and request.method == "POST":
+        return await call_next(request)
+    if request.method == "GET" and (path == "/api/samples" or path.startswith("/api/samples/")):
         return await call_next(request)
     if path.startswith("/api/runs/"):
         return await call_next(request)
@@ -581,6 +588,37 @@ if _WEB_ROOT.is_dir():
         fragment = "#" + run_id if valid_run_id(run_id) else ""
         link = '<a id="source-locator-link" href="/source-locator' + fragment + '">Saved-source locator</a>'
         return Response(page.replace(marker, link, 1), media_type="text/html", headers={"Cache-Control": "no-store"})
+
+    @app.get("/samples", include_in_schema=False)
+    @app.get("/samples/{slug}", include_in_schema=False)
+    def _samples_page(slug: str = "") -> FileResponse:
+        """Serve the sample-report reader for the list and every deep link.
+
+        A separate document rather than a route inside the main page: the main
+        page puts its access gate up before any view renders, and the point of
+        this one is to be readable by someone who has no code.
+        """
+        return FileResponse(_WEB_ROOT / "samples.html", media_type="text/html")
+
+
+@app.get("/api/samples", tags=["samples"])
+def list_sample_reports() -> list[dict[str, str]]:
+    """Committed example reports readable without credentials.
+
+    Historical outputs from an earlier pipeline version, listed with the
+    commit that added them; not current model accuracy or market data.
+    """
+    return samples.list_samples()
+
+
+@app.get("/api/samples/{slug}", tags=["samples"], response_class=PlainTextResponse)
+def read_sample_report(slug: str) -> PlainTextResponse:
+    """One example report as Markdown. Unknown or missing samples are 404."""
+    try:
+        text = samples.read_sample(slug)
+    except (KeyError, FileNotFoundError):
+        raise HTTPException(status_code=404, detail="No sample with that name.") from None
+    return PlainTextResponse(text, media_type="text/markdown; charset=utf-8")
 
 
 @app.get("/health", response_model=HealthStatus, tags=["meta"])
@@ -885,6 +923,20 @@ def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
                              lambda: _submit_run_without_receipt(request, http_request))
 
 
+def _byok_credentials(request: RunRequest | ResumeRunRequest) -> runs.BYOKCredentials | None:
+    """The visitor's complete credential set, or None for operator billing.
+
+    The request model has already rejected partial sets, so a BYOK request
+    never falls back to the deployment's keys.
+    """
+    if not request.byok:
+        return None
+    return runs.BYOKCredentials(
+        request.llm_provider, request.llm_api_key, request.serper_api_key,
+        llm_model=request.llm_model, tavily_api_key=request.tavily_api_key,
+    )
+
+
 def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> RunAccepted:
     """Queue an assessment. Returns immediately with a run_id to poll.
 
@@ -903,7 +955,8 @@ def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> R
     if matched is None and not request.byok and access.gate_enabled():
         raise HTTPException(
             status_code=401,
-            detail="Provide the access code, or your own llm_provider/llm_api_key/serper_api_key.",
+            detail="Provide the access code, or your own llm_provider/llm_api_key "
+                   "and a tavily_api_key or serper_api_key.",
         )
     # BYOK runs get no owner tag at all — never recorded in anyone's history,
     # billed to the requester, gone once the tab closes (frontend keeps its
@@ -921,10 +974,7 @@ def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> R
         except papers.PaperNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    byok = (
-        runs.BYOKCredentials(request.llm_provider, request.llm_api_key, request.serper_api_key)
-        if request.byok else None
-    )
+    byok = _byok_credentials(request)
 
     try:
         run_id, _ = runs.start_run(
@@ -1011,13 +1061,7 @@ def _resume_run_without_receipt(run_id: str, request: ResumeRunRequest, http_req
             detail="Provide the access code, or fresh BYOK credentials to resume.",
         )
     owner = access.owner_id(matched) if matched and not request.byok else None
-    byok = (
-        runs.BYOKCredentials(
-            request.llm_provider, request.llm_api_key, request.serper_api_key
-        )
-        if request.byok
-        else None
-    )
+    byok = _byok_credentials(request)
 
     try:
         child_id, child_directory = runs.resume_run(
@@ -1326,6 +1370,7 @@ def _extract_paper_with_paid_reservation(
     byok: bool,
     llm_provider: str | None,
     llm_api_key: str | None,
+    llm_model: str | None = None,
 ) -> PaperContribution:
     """Extract while the actual worker thread owns the paid-operation slot.
 
@@ -1339,6 +1384,7 @@ def _extract_paper_with_paid_reservation(
             pdf_path,
             llm_provider=llm_provider if byok else None,
             llm_api_key=llm_api_key if byok else None,
+            llm_model=llm_model if byok else None,
         )
 
 
@@ -1455,6 +1501,7 @@ async def upload_paper(
     file: UploadFile = File(...),
     llm_provider: str | None = Form(default=None),
     llm_api_key: str | None = Form(default=None),
+    llm_model: str | None = Form(default=None),
 ) -> PaperExtraction:
     """Extract a paper's contribution from an uploaded PDF.
 
@@ -1483,6 +1530,22 @@ async def upload_paper(
             status_code=422,
             detail=f"llm_provider must be one of {BYOK_PROVIDERS}.",
         )
+    # Extraction never searches, so no search key is involved here; the model
+    # only applies to the visitor's own key, and is required with it: there is
+    # no default. Direct (non-HTTP) callers receive the Form() default object
+    # rather than None, and an empty form field names no model, so only a
+    # non-empty string counts.
+    llm_model = (llm_model.strip() or None) if isinstance(llm_model, str) else None
+    if llm_model is not None and (not llm_provider or not BYOK_MODEL_PATTERN.fullmatch(llm_model)):
+        raise HTTPException(
+            status_code=422,
+            detail="llm_model requires llm_provider and must be a plain model identifier.",
+        )
+    if llm_provider and llm_model is None:
+        raise HTTPException(
+            status_code=422,
+            detail="llm_model is required with llm_provider: there is no default model.",
+        )
     byok = bool(llm_provider)
     matched = access.matching_code(http_request.headers.get("x-access-code"))
     if matched is None and not byok and access.gate_enabled():
@@ -1499,7 +1562,8 @@ async def upload_paper(
     ticket, prior = await asyncio.to_thread(
         _claim_receipt, http_request, byok=byok, kind="paper",
         payload={"pdf_sha256": hashlib.sha256(data).hexdigest(),
-                 "llm_provider": llm_provider, "llm_api_key": llm_api_key},
+                 "llm_provider": llm_provider, "llm_api_key": llm_api_key,
+                 "llm_model": llm_model},
     )
     if prior is not None:
         del data
@@ -1512,14 +1576,16 @@ async def upload_paper(
     with receipts.activate(ticket):
         try:
             return await _upload_paper_bytes(buffer, http_request, owner=owner, byok=byok,
-                                             llm_provider=llm_provider, llm_api_key=llm_api_key)
+                                             llm_provider=llm_provider, llm_api_key=llm_api_key,
+                                             llm_model=llm_model)
         except HTTPException as exc:
             if ticket is not None:
                 await asyncio.to_thread(_record_rejection, ticket, exc)
             raise
 
 
-async def _upload_paper_bytes(buffer: list[bytes], http_request: Request, *, owner, byok, llm_provider, llm_api_key):
+async def _upload_paper_bytes(buffer: list[bytes], http_request: Request, *, owner, byok, llm_provider, llm_api_key,
+                              llm_model=None):
     data = buffer.pop()
     try:
         paper_id, pdf_path = papers.save_upload(data, owner=owner)
@@ -1535,7 +1601,8 @@ async def _upload_paper_bytes(buffer: list[bytes], http_request: Request, *, own
     release_upload_slot(http_request.scope)
     try:
         return await _uploaded_paper_result(paper_id, pdf_path, owner=owner, byok=byok,
-                                            llm_provider=llm_provider, llm_api_key=llm_api_key)
+                                            llm_provider=llm_provider, llm_api_key=llm_api_key,
+                                            llm_model=llm_model)
     except HTTPException as exc:
         summary = await asyncio.to_thread(auxiliary_usage.paper_summary, paper_id)
         raise _PaperHTTPError(exc, summary) from exc
@@ -1545,7 +1612,8 @@ async def _upload_paper_bytes(buffer: list[bytes], http_request: Request, *, own
         raise _PaperHTTPError(original, summary) from exc
 
 
-async def _uploaded_paper_result(paper_id, pdf_path, *, owner, byok, llm_provider, llm_api_key):
+async def _uploaded_paper_result(paper_id, pdf_path, *, owner, byok, llm_provider, llm_api_key,
+                                 llm_model=None):
     try:
         contribution = await _process_uploaded_paper(
             paper_id, str(pdf_path),
@@ -1553,6 +1621,7 @@ async def _uploaded_paper_result(paper_id, pdf_path, *, owner, byok, llm_provide
             byok=byok,
             llm_provider=llm_provider,
             llm_api_key=llm_api_key,
+            llm_model=llm_model,
         )
     except runs.ConcurrencyLimitReached as exc:
         raise HTTPException(

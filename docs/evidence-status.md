@@ -1,6 +1,6 @@
 # Current evidence status
 
-Current ledger, updated 2026-10-11. The initial documentation consolidation
+Current ledger, updated 2026-10-18. The initial documentation consolidation
 used public main `0fdaa76a107cf034c16c1ffa6e3ae623e4c63fe2` on 2026-09-05;
 its dated baseline is historical, not the identity of every later entry.
 This page separates implemented contracts from observed behaviour and claims
@@ -193,6 +193,38 @@ production incident rates or improved report accuracy. See the
 [maintenance record](results-2026-09-06-maintenance-readiness-query-audit.md).
 
 ## Main evaluation ledger
+
+**Academic title gate v1 (2026-10-20).** An offline replay of 494 saved
+title-gate decisions. The rule R5 anchors academic acceptance on the user's
+own words. It was registered on the v2 topics and evaluated once on the v1
+topics: precision rose from 83.5% to 88.9%, recall stayed at 78.0%, and
+off-topic acceptances fell from 19 to 12 (supported; AI labels, 11 deciding
+rows). It is deployed with two declared changes, an anchor guard for
+request-like inputs and a plural stemmer, and the maintainer delegated the
+registered human check. No TRL effect is shown. See the
+[result](results-2026-10-20-academic-title-gate-v1.md) and the
+[deployment erratum](errata-2026-10-20-academic-title-gate-v1-deployment.md).
+
+**Held-out TRL calibration v2 (2026-10-19).** Ten further topics, registered
+before any run, measured with `qwen3.8-max` and the revised market retrieval
+(#213, #215). **25/30 runs fell in range**; 28 completed. Eleven runs scored
+8–9 on proven technologies, so v1's compression did not recur. No low-maturity
+topic was inflated, but all three misses that delivered a TRL fell below their
+floor (hyperloop, space-based solar power). Topics and model changed alongside
+retrieval, so no single cause is established. See the
+[result and limits](results-2026-10-19-heldout-trl-v2.md).
+
+**Held-out TRL calibration (2026-10-18).** Ten topics never run before, with
+ranges fixed from external evidence before any run. Batch `heldout-trl-v1-c`
+ran `qwen3.7-plus`, the production model on that date. **21/30 runs fell in
+range**, which is the registered "supported" threshold. Scores were
+compressed, though: only 4, 6 and 7 occurred, no run scored above 7, and
+misses leaned below the floor (6 of 9), a registered directional bias.
+Mature, deployed technologies (drone medical delivery, floating offshore
+wind) were under-scored, and fusion power was over-scored. A constant-7 scorer
+would reach 15/30 (exploratory). The 30-run baseline below remains
+the tuned calibration set. See the [result and limits](results-2026-10-18-heldout-trl-v1.md);
+the topics are now consumed.
 
 Test maintenance consolidates weak/repeated feature scenarios and checks actual
 launch/workflow commands. The canonical matrix cell now measures coverage in

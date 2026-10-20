@@ -348,6 +348,32 @@ class Qwen35PlusPricingTests(TestCase):
         self.assertIn("2026-08-30", price.basis)
         self.assertNotIn(PRICES_AS_OF, price.basis)
 
+    def test_newer_qwen_models_are_priced_as_upper_bounds_with_their_own_date(self):
+        """Production moved to these models; unpriced, every run reported
+        "at least $X; unpriced: qwen3.x" and the soft stop could not apply."""
+        with _clean_env():
+            plus, max_ = price_for("qwen3.7-plus"), price_for("qwen3.8-max")
+            dated = price_for("qwen3.8-max-0902")
+        self.assertEqual((plus.input, plus.cached, plus.output), (0.85, 0.85, 3.40))
+        self.assertEqual((max_.input, max_.cached, max_.output), (2.00, 2.00, 6.00))
+        self.assertEqual((dated.input, dated.output), (2.00, 6.00))
+        for price in (plus, max_):
+            self.assertIn("upper bound", price.basis)
+            self.assertIn("2026-10-18", price.basis)
+            self.assertNotIn(PRICES_AS_OF, price.basis)
+            # Unknown cache pricing is charged at the full input rate.
+            self.assertEqual(price.cached, price.input)
+
+    def test_qwen38_27b_is_priced_at_the_higher_official_or_listed_rate(self):
+        """Production moved to qwen3.8-27b on 2026-10-19; unpriced, every run
+        would read "at least $X; unpriced" and the soft stop could not apply."""
+        with _clean_env():
+            small = price_for("qwen3.8-27b")
+        self.assertEqual((small.input, small.cached, small.output), (0.52, 0.52, 3.20))
+        self.assertIn("upper bound", small.basis)
+        self.assertIn("2026-10-19", small.basis)
+        self.assertNotIn(PRICES_AS_OF, small.basis)
+
     def test_qwen_cached_tokens_are_a_subset_of_prompt_input(self):
         """DashScope follows the OpenAI nested cached-token convention.
 

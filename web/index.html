@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light dark">
 <title>Commercialization Assessment</title>
 <meta name="description" content="Six AI agents assess the commercialization readiness of academic research, producing a scored report with verifiable citations.">
 <link rel="icon" type="image/svg+xml" href="/static/brand/aca-mark.svg">
@@ -75,6 +75,23 @@
 
   <!-- ═══ Main ═════════════════════════════════════════════════════ -->
   <main class="main" id="main">
+    <!-- Phone bar. Below 860px the sidebar is an overlay whose own toggle is
+         off-screen with it, so this is the only way to reach run history,
+         "new analysis" and the interface language there (chrome.js). -->
+    <div class="mobilebar" id="mobilebar">
+      <button type="button" class="icon-btn" id="mobile-menu" aria-controls="sidebar"
+              aria-expanded="false" aria-label="Open menu">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <a class="brand" href="/" tabindex="-1" aria-hidden="true">
+        <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
+        <span class="brand__name">Assessment</span>
+      </a>
+    </div>
+    <div class="scrim" id="sidebar-scrim" hidden></div>
+
     <p id="storage-notice" class="empty-note" role="status" hidden></p>
     <section id="paid-receipt-notice" class="empty-note" role="status" hidden>
       <p id="paid-receipt-message"></p>
@@ -94,6 +111,7 @@
             commercialization potential. Reports show references, evidence gaps,
             and applicability limits.
           </p>
+          <p class="compose__samples"><a href="/samples" data-samples-i18n="samples_link">Browse sample reports — no key needed</a></p>
 
           <form id="compose-form" novalidate>
             <div class="composer" id="composer">
@@ -313,25 +331,44 @@
       <p class="gate__sub gate__sub--retention" id="byok-retention"></p>
       <select class="gate__input" id="byok-provider" aria-label="LLM provider">
         <option value="deepseek">DeepSeek</option>
-        <option value="qwen">Qwen3.5 Plus</option>
+        <option value="qwen">Qwen (Alibaba Model Studio)</option>
         <option value="openai">OpenAI</option>
         <option value="anthropic">Anthropic</option>
       </select>
       <input class="gate__input" id="byok-llm-key" type="password" autocomplete="off"
              data-i18n-placeholder="byok_llm_placeholder" placeholder="LLM API key">
-      <input class="gate__input" id="byok-serper-key" type="password" autocomplete="off"
-             data-i18n-placeholder="byok_serper_placeholder" placeholder="Serper API key">
-      <p class="gate__hint" data-i18n="byok_hint">
+      <!-- The model the visitor's own key should use. Required: there is no
+           default model. byok_fields.js shows an example as the placeholder. -->
+      <input class="gate__input" id="byok-model" type="text" autocomplete="off" spellcheck="false"
+             maxlength="100" required placeholder="Model (required)">
+      <!-- Tavily first: Serper refuses requests from some hosting providers,
+           including this deployment's, so a Serper-only run may find nothing. -->
+      <select class="gate__input" id="byok-search" aria-label="Web search service">
+        <option value="tavily">Tavily</option>
+        <option value="serper">Serper</option>
+      </select>
+      <input class="gate__input" id="byok-search-key" type="password" autocomplete="off"
+             placeholder="Search API key">
+      <p class="gate__hint" data-byok-i18n="byok_hint">
         Keys: platform.deepseek.com/api-keys · bailian.console.aliyun.com (China Qwen) ·
-        platform.openai.com/api-keys · console.anthropic.com — plus serper.dev/api-key for search.
+        platform.openai.com/api-keys · console.anthropic.com — plus app.tavily.com
+        (recommended) or serper.dev for search.
       </p>
       <button type="submit" class="btn btn--primary" id="byok-submit" data-i18n="byok_submit">Start</button>
       <button type="button" class="gate__switch" id="byok-to-gate" data-i18n="byok_have_code">I have an access code</button>
     </form>
 
+    <!-- Outside both forms so it shows whichever one is up. A visitor with
+         neither a code nor keys otherwise has nothing to look at here. -->
+    <p class="gate__samples"><a href="/samples" data-samples-i18n="samples_link">Browse sample reports — no key needed</a></p>
+
   </div>
 </div>
 
 <script type="module" src="/static/js/app.js"></script>
+<script type="module" src="/static/js/samples_links.js"></script>
+<script type="module" src="/static/js/byok_fields.js"></script>
+<script type="module" src="/static/js/chrome.js"></script>
+<script type="module" src="/static/js/starters.js"></script>
 </body>
 </html>

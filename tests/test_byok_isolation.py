@@ -59,6 +59,7 @@ _GUEST = BYOKCredentials(
     llm_provider="openai",
     llm_api_key="guest-openai-key",
     serper_api_key="guest-serper-key",
+    llm_model="gpt-4o",
 )
 
 
@@ -66,6 +67,7 @@ _QWEN_GUEST = BYOKCredentials(
     llm_provider="qwen",
     llm_api_key="guest-qwen-key",
     serper_api_key="guest-serper-key",
+    llm_model="qwen3.8-27b",
 )
 
 class NoOperatorCredentialSurvivesTests(unittest.TestCase):
@@ -89,6 +91,7 @@ class NoOperatorCredentialSurvivesTests(unittest.TestCase):
         expected = {
             "LLM_PROVIDER": "openai",
             "OPENAI_API_KEY": "guest-openai-key",
+            "OPENAI_MODEL": "gpt-4o",  # the visitor's own model, required
             "SERPER_API_KEY": "guest-serper-key",
         }
         for name in _OPERATOR_BILLED_ENV:
@@ -201,7 +204,7 @@ class _FakeProc:
             llm_config.create_llm(json_mode=True, temperature=0.0)
 
         self.assertEqual(captured["provider"], "openai")
-        self.assertEqual(captured["model"], "qwen3.5-plus")
+        self.assertEqual(captured["model"], "qwen3.8-27b")
         self.assertEqual(captured["api_key"], "guest-qwen-key")
         self.assertEqual(
             captured["base_url"],
@@ -360,7 +363,7 @@ class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
     _PDF = {"file": ("p.pdf", b"%PDF-1.4 body", "application/pdf")}
-    _CREDS = {"llm_provider": "openai", "llm_api_key": "guest-openai-key"}
+    _CREDS = {"llm_provider": "openai", "llm_api_key": "guest-openai-key", "llm_model": "gpt-4o"}
 
     def _post(self, data=None, headers=None):
         from fastapi.testclient import TestClient
@@ -454,7 +457,7 @@ class UploadIsBilledToWhoeverBroughtTheKeyTests(unittest.TestCase):
         with mock.patch.dict(os.environ, _OPERATOR_ENV, clear=True), \
                 mock.patch.object(llm_config, "LLM", lambda **kw: captured.update(kw)), \
                 mock.patch.object(llm_config, "_wrap_with_retry", lambda x: x):
-            llm_config.create_llm(provider="openai", api_key="guest-openai-key")
+            llm_config.create_llm(provider="openai", api_key="guest-openai-key", model="gpt-4o")
 
         self.assertEqual(captured["api_key"], "guest-openai-key")
         self.assertEqual(captured["base_url"], "https://api.openai.com/v1")
@@ -499,4 +502,5 @@ class QwenBrowserBoundaryTests(unittest.TestCase):
         source = (
             Path(__file__).resolve().parent.parent / "web" / "index.html"
         ).read_text(encoding="utf-8")
-        self.assertIn('<option value="qwen">Qwen3.5 Plus</option>', source)
+        # The label no longer names one model: the visitor chooses the model.
+        self.assertIn('<option value="qwen">', source)

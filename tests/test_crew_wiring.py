@@ -37,6 +37,7 @@ def _make_collection() -> SourceCollection:
 
 def test_evidence_pipeline_is_connected(monkeypatch) -> None:
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
     crew = AcademicAgent(_make_collection()).crew()
 
     assert len(crew.tasks) == 6
@@ -78,6 +79,7 @@ def test_evidence_pipeline_is_connected(monkeypatch) -> None:
 
 def test_final_context_reuses_the_research_tasks(monkeypatch) -> None:
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
     crew = AcademicAgent(_make_collection()).crew()
 
     # Scorer (Task 5) context must reuse the same task objects as Tasks 0-2

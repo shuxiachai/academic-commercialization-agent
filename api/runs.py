@@ -31,6 +31,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from stat import S_ISDIR
 
+from academic_agent.byok_model import BYOK_MODEL_PATTERN, MODEL_ENV_NAMES
 from academic_agent.checkpoints import CheckpointStore, hash_json
 from academic_agent.run_output import DEFAULT_OUTPUT_ROOT, create_run_id
 from academic_agent.run_spec import (
@@ -200,7 +201,20 @@ class BYOKCredentials:
 
     llm_provider: str
     llm_api_key: str
-    serper_api_key: str
+    serper_api_key: str | None = None
+    #: The model for the visitor's own key. The API boundary requires it
+    #: (api/models.py); without it the worker has no model to resolve and
+    #: fails before any request, since there is no default.
+    llm_model: str | None = None
+    #: Tavily is offered because Serper refuses requests from some hosts,
+    #: including this deployment's. Exactly one search key is required.
+    tavily_api_key: str | None = None
+
+    def __post_init__(self) -> None:
+        if bool(self.serper_api_key) == bool(self.tavily_api_key):
+            raise ValueError("BYOK needs exactly one search key: Tavily or Serper.")
+        if self.llm_model is not None and not BYOK_MODEL_PATTERN.fullmatch(self.llm_model):
+            raise ValueError("BYOK model must be a plain model identifier.")
 
     def as_env(self, base: dict[str, str]) -> dict[str, str]:
         """The subprocess environment for this run: scrubbed, then filled in.
@@ -239,7 +253,15 @@ class BYOKCredentials:
                 f"Unsupported BYOK LLM provider: {self.llm_provider!r}"
             ) from exc
         env[key_name] = self.llm_api_key
-        env["SERPER_API_KEY"] = self.serper_api_key
+        # Only the selected provider's own model variable is filled, after
+        # every operator model name was scrubbed above. The endpoint is not
+        # visitor-controlled: it stays the provider's fixed default.
+        if self.llm_model:
+            env[MODEL_ENV_NAMES[self.llm_provider]] = self.llm_model
+        if self.tavily_api_key:
+            env["TAVILY_API_KEY"] = self.tavily_api_key
+        else:
+            env["SERPER_API_KEY"] = self.serper_api_key
         return env
 
 

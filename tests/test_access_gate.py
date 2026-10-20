@@ -30,6 +30,7 @@ from pydantic import ValidationError
 from api import access, papers, runs
 from api.main import app
 from api.models import RunRequest
+from tests.scripted_waits import STEP
 
 
 class AccessCheckTests(unittest.TestCase):
@@ -196,8 +197,14 @@ class RunRequestByokValidationTests(unittest.TestCase):
 
     def test_providing_all_three_is_valid(self):
         req = RunRequest(topic="a valid research topic", llm_provider="deepseek",
-                          llm_api_key="k", serper_api_key="s")
+                          llm_api_key="k", llm_model="deepseek-chat", serper_api_key="s")
         self.assertTrue(req.byok)
+
+    def test_byok_without_a_model_is_rejected(self):
+        """There is no default model to bill the visitor's key for."""
+        with self.assertRaises(ValidationError):
+            RunRequest(topic="a valid research topic", llm_provider="deepseek",
+                       llm_api_key="k", serper_api_key="s")
 
     def test_partial_byok_is_rejected(self):
         with self.assertRaises(ValidationError):
@@ -516,7 +523,7 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
     def _upload(self, *, code: str | None = None, byok: bool = False):
         headers = {"X-Access-Code": code} if code else {}
         data = (
-            {"llm_provider": "deepseek", "llm_api_key": "visitor-key"}
+            {"llm_provider": "deepseek", "llm_api_key": "visitor-key", "llm_model": "deepseek-chat"}
             if byok else {}
         )
         return self.client.post(
@@ -634,7 +641,7 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
         def blocking_extractor(*_args, **_kwargs):
             started.set()
             try:
-                if not release.wait(timeout=2):
+                if not release.wait(timeout=STEP):
                     raise TimeoutError("test did not release extractor")
                 return self._contribution()
             finally:
@@ -662,10 +669,11 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
                     file=upload,
                     llm_provider="deepseek",
                     llm_api_key="visitor-key",
+                    llm_model="deepseek-chat",
                 )
             )
             try:
-                self.assertTrue(await asyncio.to_thread(started.wait, 1))
+                self.assertTrue(await asyncio.to_thread(started.wait, STEP))
                 task.cancel()
                 with self.assertRaises(asyncio.CancelledError):
                     await task
@@ -674,7 +682,7 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
                 release.set()
                 await upload.close()
 
-            self.assertTrue(await asyncio.to_thread(finished.wait, 1))
+            self.assertTrue(await asyncio.to_thread(finished.wait, STEP))
             for _ in range(100):
                 if runs.active_paid_operation_count() == 0:
                     break
@@ -735,6 +743,7 @@ class BYOKSubmissionTests(_RunLifecycleTestBase):
             "topic": "a valid research topic",
             "llm_provider": "deepseek",
             "llm_api_key": "visitors-llm-key",
+            "llm_model": "deepseek-chat",
             "serper_api_key": "visitors-serper-key",
         }
         body.update(overrides)
@@ -1059,6 +1068,7 @@ class MultiCodeIsolationTests(_RunLifecycleTestBase):
                 "topic": "byok topic",
                 "llm_provider": "deepseek",
                 "llm_api_key": "k",
+                "llm_model": "deepseek-chat",
                 "serper_api_key": "s",
             })
             alice_view = self.client.get(

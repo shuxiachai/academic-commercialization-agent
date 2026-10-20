@@ -50,8 +50,23 @@ _SKIP_LINE_PREFIXES = ("#", "|", ">", "```", "---", "===")
 # Per-run analysis helpers
 # ---------------------------------------------------------------------------
 
-def _check_sections(report: str) -> tuple[bool, list[str]]:
-    missing = [h for h in _REQUIRED_REPORT_HEADINGS if h not in report]
+def _required_headings(localized: list[str] | tuple[str, ...] | None) -> tuple[str, ...]:
+    """The headings production's validate_final_report requires for a run.
+
+    A run with localized headings (validated_sources.json) is checked against
+    them, except References, which the canonical reference section always
+    writes in English. Checking every run against the English list marked all
+    Chinese reports incomplete: the held-out batch showed 24/30 while every
+    report had all eight sections. evidence.py is hash-locked, so the rule is
+    restated here and a test compares it with the production validator.
+    """
+    if localized:
+        return tuple(localized[:-1]) + ("## References",)
+    return _REQUIRED_REPORT_HEADINGS
+
+
+def _check_sections(report: str, localized: list[str] | None = None) -> tuple[bool, list[str]]:
+    missing = [h for h in _required_headings(localized) if h not in report]
     return len(missing) == 0, missing
 
 
@@ -245,9 +260,11 @@ def analyse_run(run_dir: Path) -> dict | None:
 
     # --- Sources ---
     sources_path = run_dir / "validated_sources.json"
+    localized_headings: list[str] = []
     if sources_path.exists():
         try:
             sources = json.loads(sources_path.read_text(encoding="utf-8"))
+            localized_headings = list(sources.get("localized_headings") or [])
             row["academic_sources"] = len(sources.get("academic_sources", []))
             row["patent_sources"]   = len(sources.get("patent_sources", []))
             row["market_sources"]   = len(sources.get("market_sources", []))
@@ -259,7 +276,7 @@ def analyse_run(run_dir: Path) -> dict | None:
     if report_path.exists():
         try:
             report = report_path.read_text(encoding="utf-8")
-            complete, missing = _check_sections(report)
+            complete, missing = _check_sections(report, localized_headings)
             row["sections_complete"]     = complete
             row["missing_sections"]      = "; ".join(missing)
             row["numeric_uncited_lines"] = _count_numeric_uncited(report)

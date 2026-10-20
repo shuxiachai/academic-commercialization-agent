@@ -148,6 +148,7 @@ def test_variant_builders_have_the_registered_node_counts(
     """The labels in persisted metadata must match the Crew that gets kicked off."""
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
     collection = _collection()
 
     monolith, monolith_task = ablation.build_variant_crew("monolith", collection)
@@ -589,6 +590,7 @@ def test_max_execution_time_env_and_override(monkeypatch: pytest.MonkeyPatch) ->
 def test_build_variant_crew_applies_max_execution_time(monkeypatch: pytest.MonkeyPatch) -> None:
     """Agent instances built by build_variant_crew must receive max_execution_time when configured."""
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
     collection = _collection()
 
     crew_mono, _ = ablation.build_variant_crew("monolith", collection, max_execution_time=45)

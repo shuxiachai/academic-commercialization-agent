@@ -1068,6 +1068,212 @@ class ComponentQueryPlanningTests(TestCase):
                 ))
 
 
+class MarketSlotSharingTests(TestCase):
+    """No market query can take the domain; the topic's own queries get slots.
+
+    On the 30 held-out runs of 2026-10-18, component queries supplied 166 of
+    219 market sources and no query naming the full topic ever ran.
+    """
+
+    TOPIC = "unmanned aerial vehicle delivery of medical supplies"
+    COMPONENTS = ("unmanned aerial vehicles", "medical supply chain logistics")
+
+    def test_deployment_queries_for_the_topic_precede_the_market_size_queries(self):
+        from academic_agent.source_pipeline import _queries
+
+        market = _queries(self.TOPIC)["market"]
+        self.assertEqual(market[0], f"{self.TOPIC} company commercial deployment industry news")
+        self.assertIn("product manufacturer revenue", market[1])
+        size = [i for i, q in enumerate(market) if "market size" in q or "market report" in q]
+        self.assertEqual(len(size), 2)
+        self.assertGreater(min(size), 2)
+
+    def test_component_queries_reserve_one_slot_and_others_share(self):
+        from academic_agent.source_pipeline import (
+            _COMPONENT_MARKET_SOURCES_PER_QUERY,
+            _MARKET_SOURCES_PER_QUERY,
+            _market_query_limits,
+            _queries,
+        )
+
+        market = _queries(self.TOPIC, components=self.COMPONENTS)["market"]
+        limits = _market_query_limits(market, self.COMPONENTS)
+        self.assertEqual(set(limits), set(market))
+        for query in market:
+            with self.subTest(query=query[:60]):
+                expected = (
+                    _COMPONENT_MARKET_SOURCES_PER_QUERY
+                    if query.startswith(self.COMPONENTS)
+                    else _MARKET_SOURCES_PER_QUERY
+                )
+                self.assertEqual(limits[query], expected)
+
+    def test_a_query_with_many_results_cannot_fill_the_market_domain(self):
+        """The seam: limits reach _collect_domain through collection.
+
+        Uses the fixture topic the shared academic fakes are relevant to.
+        """
+        topic = "Test commercialization topic"
+        components = ("test sensor modules", "commercial logistics networks")
+        market_queries: list[str] = []
+
+        def search(query: str) -> dict:
+            if "site:patents" in query or " DOI" in query or "review journal" in query \
+                    or "efficiency stability" in query:
+                return fake_search(query)
+            market_queries.append(query)
+            slot = len(market_queries)
+            return {"organic": [
+                {
+                    "title": f"Test commercialization operator update {slot}-{index}",
+                    "link": f"https://www.reuters.com/technology/operator-{slot}-{index}",
+                    "snippet": _LONG_MARKET_SNIPPET,
+                }
+                for index in range(1, 9)
+            ]}
+
+        plan = TopicSearchPlan(search_topic=topic, components=components)
+        with patch("academic_agent.language.plan_topic_search", return_value=plan):
+            collection = collect_source_collection(
+                topic,
+                searcher=search,
+                crossref=MatchingCrossref(),
+                openalex=_NullOpenAlex(),
+                s2=_NullS2(),
+                pubmed=_NullPubMed(),
+                arxiv=_NullArXiv(),
+                lens=_NullLens(),
+                url_checker=lambda url: (True, ""),
+                accessed_date=date(2026, 10, 1),
+            )
+
+        admitted = {
+            audit.query: len(audit.accepted_source_ids)
+            for audit in collection.audit
+            if audit.domain == "market" and audit.accepted_source_ids
+        }
+        for component in components:
+            with self.subTest(component=component):
+                [query] = [q for q in admitted if q.startswith(component)]
+                self.assertEqual(admitted[query], 1)
+        deployment = f"{topic} company commercial deployment industry news"
+        self.assertEqual(admitted[deployment], 3)
+        self.assertEqual(len(collection.market_sources), 8)
+        self.assertGreaterEqual(len(admitted), 4)
+        self.assertTrue(any(
+            "query source limit reached" in reason
+            for audit in collection.audit
+            for reason in audit.rejected_reasons
+        ))
+
+
+class MarketEstimateReleaseTests(TestCase):
+    """A market-size release on a news or wire host is a market estimate."""
+
+    def _classify(self, title: str, link: str):
+        source, reason = _web_source(
+            {"title": title, "link": link, "snippet": _LONG_MARKET_SNIPPET},
+            "M1", "market", date(2026, 10, 1), lambda url: (True, ""),
+        )
+        self.assertIsNotNone(source, reason)
+        return source
+
+    def test_syndicated_market_size_releases_are_market_reports(self):
+        cases = (
+            ("Direct Air Capture Market Poised for Explosive 43.3% CAGR Growth",
+             "https://finance.yahoo.com/news/direct-air-capture-market"),
+            ("Floating Offshore Wind Market worth $25.40 billion by 2031 | MarketsandMarkets",
+             "https://finance.yahoo.com/sectors/energy/articles/floating-wind"),
+            ("Small Modular Reactor (SMR) Research Report 2025-2030 | Revolutionizing Energy",
+             "https://finance.yahoo.com/news/small-modular-reactor-research"),
+            ("Floating Offshore Wind Market Research, Latest Company Developments",
+             "https://www.globenewswire.com/news-release/2026/10/01/floating-wind"),
+        )
+        for title, link in cases:
+            with self.subTest(title=title[:40]):
+                source = self._classify(title, link)
+                self.assertEqual(source.source_type, "market_report")
+                self.assertIn("Market-estimate release", source.credibility_reason)
+
+    def test_company_news_with_amounts_or_the_word_market_stays_news(self):
+        """A deal size is a commercial event, not a market estimate."""
+        cases = (
+            ("NuScale Power's Small Modular Reactor Achieves Standard Design Approval",
+             "https://finance.yahoo.com/news/nuscale-standard-design-approval"),
+            ("Fusion startup Tokamak Energy attracts $125M for its reactor design",
+             "https://finance.yahoo.com/news/tokamak-energy-funding"),
+            ("Utility signs $1 billion contract to bring reactors to market",
+             "https://finance.yahoo.com/news/utility-reactor-contract"),
+        )
+        for title, link in cases:
+            with self.subTest(title=title[:40]):
+                self.assertEqual(self._classify(title, link).source_type, "reputable_news")
+
+
+class SectorAndEncyclopediaSourceTests(TestCase):
+    """Sector bodies are admitted; an encyclopedia entry is low credibility and capped."""
+
+    def _source(self, title: str, link: str):
+        source, reason = _web_source(
+            {"title": title, "link": link, "snippet": _LONG_MARKET_SNIPPET},
+            "M1", "market", date(2026, 10, 1), lambda url: (True, ""),
+        )
+        self.assertIsNotNone(source, reason)
+        return source
+
+    def test_wikipedia_is_a_low_credibility_tertiary_source(self):
+        source = self._source("Floating offshore wind - Wikipedia",
+                              "https://en.wikipedia.org/wiki/Floating_wind_turbine")
+        self.assertEqual((source.source_type, source.credibility_tier), ("other", "low"))
+        self.assertIn("tertiary", source.credibility_reason)
+
+    def test_sector_bodies_and_trade_press_are_admitted(self):
+        cases = (
+            ("https://world-nuclear.org/information-library/small-reactors", "research_institute"),
+            ("https://ieefa.org/resources/small-modular-reactors", "research_institute"),
+            ("https://www.carbonherald.com/top-direct-air-capture-companies", "reputable_news"),
+            ("https://www.beckershospitalreview.com/drone-delivery-hospitals", "reputable_news"),
+        )
+        for link, expected in cases:
+            with self.subTest(link=link):
+                self.assertEqual(self._source("Sector deployment overview", link).source_type, expected)
+
+    def test_social_networks_stay_blocked(self):
+        source, reason = _web_source(
+            {"title": "Drone delivery video", "link": "https://www.youtube.com/watch?v=abc",
+             "snippet": _LONG_MARKET_SNIPPET},
+            "M1", "market", date(2026, 10, 1), lambda url: (True, ""),
+        )
+        self.assertIsNone(source)
+        self.assertIn("blocked or not approved", reason)
+
+    def test_one_encyclopedia_entry_per_market_collection(self):
+        from academic_agent.source_pipeline import _collect_domain
+
+        def search(query: str) -> dict:
+            return {"organic": [
+                {"title": f"Test commercialization topic article {i} - Wikipedia",
+                 "link": f"https://en.wikipedia.org/wiki/Test_commercialization_{i}",
+                 "snippet": _LONG_MARKET_SNIPPET}
+                for i in range(1, 4)
+            ] + [
+                {"title": f"Test commercialization operator update {i}",
+                 "link": f"https://www.reuters.com/technology/operator-{i}",
+                 "snippet": _LONG_MARKET_SNIPPET}
+                for i in range(1, 4)
+            ]}
+
+        sources, audits = _collect_domain(
+            "market", ["q"], search, MatchingCrossref(), lambda url: (True, ""),
+            date(2026, 10, 1), "Test commercialization topic",
+            minimum_sources=0, maximum_sources=4,
+        )
+        hosts = [str(s.url) for s in sources]
+        self.assertEqual(sum("wikipedia.org" in h for h in hosts), 1)
+        self.assertEqual(len(sources), 4)
+        self.assertTrue(any("encyclopedia cap" in r for a in audits for r in a.rejected_reasons))
+
+
 class AuthorityQueryPlanningTests(TestCase):
     """Clinical-product searches must ask authority systems directly."""
 

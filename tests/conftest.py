@@ -32,7 +32,11 @@ by accident, not any test's own setup.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
+
+_EXPERIMENT_LIST = Path(__file__).with_name("experiment_tests.txt")
 
 _LLM_ENVIRONMENT = (
     "LLM_PROVIDER",
@@ -156,3 +160,23 @@ def pytest_configure(config):
         "allow_llm: test exercises language._llm_call itself and bypasses the "
         "offline stub (it must still stub the HTTP transport)",
     )
+    config.addinivalue_line(
+        "markers",
+        "experiment: test of a closed experiment, audit or probe that neither the app nor "
+        "the pipeline imports (listed in tests/experiment_tests.txt; applied automatically)",
+    )
+
+
+def experiment_test_files() -> set[str]:
+    """File names listed in tests/experiment_tests.txt."""
+    lines = _EXPERIMENT_LIST.read_text(encoding="utf-8").splitlines()
+    return {line.strip() for line in lines if line.strip() and not line.lstrip().startswith("#")}
+
+
+def pytest_collection_modifyitems(config, items):
+    # Mark by file so pull-request CI can run `-m "not experiment"` on the
+    # Windows and Python 3.11 cells while the coverage cell runs everything.
+    listed = experiment_test_files()
+    for item in items:
+        if item.path.name in listed:
+            item.add_marker(pytest.mark.experiment)

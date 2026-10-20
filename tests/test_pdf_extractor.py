@@ -11,6 +11,7 @@ from __future__ import annotations
 import unittest
 
 from academic_agent.pdf_extractor import (
+    A1_SUMMARY_MAX_CHARS,
     PaperContribution,
     _detect_paper_language,
     _find_arxiv_url,
@@ -216,12 +217,58 @@ class PaperToEvidenceSourceTests(unittest.TestCase):
         self.assertIn("novel solid electrolyte", src.evidence_summary)
         self.assertIn("prior sulfide", src.evidence_summary)
 
-    def test_evidence_summary_capped_at_500_chars(self):
-        long_contrib = "A" * 400
-        long_delta = "B" * 400
-        pc = _make_pc(doi="10.1234/test", core_contribution=long_contrib, delta_from_prior=long_delta)
+    def test_evidence_summary_includes_extracted_metrics(self):
+        """The uploaded paper is the one source whose numbers the writer most
+        needs; they were extracted and then never shown to it."""
+        src = paper_to_evidence_source(_make_pc(doi="10.1234/test"), _reachable)
+        self.assertIn("25 mS/cm ionic conductivity", src.evidence_summary)
+        self.assertIn("stable up to 5V", src.evidence_summary)
+
+    def test_long_contribution_cannot_push_out_delta_or_metrics(self):
+        """A long contribution used to consume the whole budget, dropping the
+        delta after it; only the contribution may be shortened."""
+        pc = _make_pc(
+            doi="10.1234/test",
+            core_contribution="word " * 600,
+            delta_from_prior="DELTA-MARKER beats the prior baseline.",
+            key_metrics=["METRIC-ONE 25.2%", "METRIC-TWO 3x"],
+        )
+        summary = paper_to_evidence_source(pc, _reachable).evidence_summary
+        self.assertLessEqual(len(summary), A1_SUMMARY_MAX_CHARS)
+        self.assertIn("DELTA-MARKER beats the prior baseline.", summary)
+        self.assertIn("METRIC-ONE 25.2%", summary)
+        self.assertIn("METRIC-TWO 3x", summary)
+        self.assertIn("…", summary)
+
+    def test_evidence_summary_capped_like_an_abstract_source(self):
+        pc = _make_pc(doi="10.1234/test", core_contribution="A" * 3000,
+                      delta_from_prior="B" * 3000, key_metrics=["C" * 3000] * 20)
         src = paper_to_evidence_source(pc, _reachable)
-        self.assertLessEqual(len(src.evidence_summary), 500)
+        self.assertLessEqual(len(src.evidence_summary), A1_SUMMARY_MAX_CHARS)
+
+    def test_metrics_are_kept_or_dropped_whole_never_cut(self):
+        """A number cut mid-token ("25.2% vs 2") reads as a different claim."""
+        metrics = [f"metric {i}: {i}.5% gain over baseline" + "x" * 40 for i in range(40)]
+        pc = _make_pc(doi="10.1234/test", key_metrics=metrics)
+        summary = paper_to_evidence_source(pc, _reachable).evidence_summary
+        kept = [m for m in metrics if m in summary]
+        self.assertTrue(kept)
+        self.assertLess(len(kept), len(metrics))
+        self.assertIn(f"+{len(metrics) - len(kept)} more", summary)
+        # Every metric in the summary appears in full, in its original order.
+        self.assertEqual(kept, metrics[:len(kept)])
+
+    def test_cjk_sentence_end_is_not_followed_by_a_latin_period(self):
+        pc = _make_pc(doi="10.1234/test",
+                      core_contribution="本文提出一种卤化物固态电解质，并在室温下保持界面稳定。")
+        summary = paper_to_evidence_source(pc, _reachable).evidence_summary
+        self.assertIn("界面稳定。 ", summary)
+        self.assertNotIn("。.", summary)
+
+    def test_blank_metrics_add_nothing(self):
+        pc = _make_pc(doi="10.1234/test", key_metrics=["", "   "])
+        summary = paper_to_evidence_source(pc, _reachable).evidence_summary
+        self.assertNotIn("Reported metrics", summary)
 
     def test_title_used_in_source(self):
         src = paper_to_evidence_source(_make_pc(doi="10.1234/test"), _reachable)

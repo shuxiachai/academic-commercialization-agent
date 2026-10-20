@@ -32,10 +32,10 @@ retain their original paths and hashes.
 | `api/`, `web/`, `ui/` | HTTP serving, browser client and shared presentation; isolated/default-off surfaces also live here | [Operating guide](operating-guide.md) |
 | `src/academic_agent/` | Pipeline, retrieval and runtime code **alongside experimental libraries**; not every module is production-connected | [Boundary-specific code map](../AGENTS.md#layout-and-boundary-specific-reading) |
 | `tests/`, `e2e/` | Offline regression contracts and opt-in zero-provider browser journeys | [Contributor checks](../CONTRIBUTING.md#checks-before-and-after-a-change) |
-| Root Python scripts | Benchmark commands and experimental runners with separate migration requirements; not a list of application startup commands | [Supported setup](operating-guide.md#local-setup-and-provider-selection), then the relevant [experiment protocol](experiment-index.md) |
+| Root Python scripts | `benchmark*.py` are the benchmark commands. The rest (`openalex_*`, `evidence_gap_*`, `report_evidence_*`, `ablation*`, …) are frozen experiment runners whose protocols lock their paths and hashes; none is needed to run the application | [Supported setup](operating-guide.md#local-setup-and-provider-selection), then the relevant [experiment protocol](experiment-index.md) |
 | `docs/` | Current guides plus dated protocols, results and errata | This map for current reading; [archive](experiment-index.md) for history |
 | `evals/`, `benchmark_fixtures/`, `test_papers/` | Evaluation material, fixtures and test inputs; each has its own provenance and scope | [Evidence ledger](evidence-status.md) and the relevant protocol |
-| `examples/`, `assets/` | Public sample reports and presentation images, not automatically current results | [Versioned public sample](../README.md) |
+| `examples/`, `assets/` | Public sample reports (also served without credentials at `/samples` from the allowlist in `api/samples.py`) and presentation images, not automatically current results | [Versioned public sample](../README.md), [sample index](../examples/README.md) |
 | `scripts/` | Operational report and container font check; `audits/` holds offline audit tools and `demos/` holds scripted examples | [Current tool commands](#relocated-maintenance-and-demo-commands), [contributor checks](../CONTRIBUTING.md) |
 | `outputs/`, `output/playwright/` | Local run/evaluation artifacts, temporary test trees and browser failure screenshots | See local/private boundaries below; do not treat the whole directory as disposable |
 | `notes/` | Separate private repository for personal project narratives and original review material, when present locally | Local/private only; not part of a public clone |
@@ -45,6 +45,12 @@ Configuration and deployment entry files remain at the root: `pyproject.toml`,
 Use the documented FastAPI or CLI commands, not an arbitrary root-level script.
 The remaining experimental runners can bind their paths and source hashes.
 Their migration requires a separate identity and compatibility review.
+
+Do not add new scripts at the root. Put a new experiment runner, probe or
+audit under `scripts/` (offline audits in `scripts/audits/`, run as
+`uv run python -m scripts.audits.<name>`) and its tests in `tests/`.
+`market_retrieval_probe.py` (2026-10-19) is the last root-level addition; it
+stays where its dated result cites it.
 
 ## Relocated maintenance and demo commands
 

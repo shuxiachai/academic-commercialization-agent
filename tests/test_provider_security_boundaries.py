@@ -15,13 +15,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from academic_agent import language, llm_config, pdf_extractor
+from academic_agent.byok_model import MODEL_ENV_NAMES
 from api import access, main, papers, runs
 
 pytestmark = pytest.mark.allow_llm
 
+# The model is always named (there is no default); these are just names.
 CASES = [
     ("openai", "OPENAI_API_KEY", "https://api.openai.com/v1", "gpt-4o"),
-    ("qwen", "DASHSCOPE_API_KEY", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen3.5-plus"),
+    ("qwen", "DASHSCOPE_API_KEY", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen3.8-27b"),
     ("deepseek", "DEEPSEEK_API_KEY", "https://api.deepseek.com", "deepseek-chat"),
     ("anthropic", "ANTHROPIC_API_KEY", "https://api.anthropic.com", "claude-sonnet-5"),
 ]
@@ -47,11 +49,12 @@ def test_auxiliary_and_factory_share_the_actual_identity(provider, key_name, bas
     """The real child environment must reach both transports, not just config."""
     dirty = dict.fromkeys(runs._OPERATOR_BILLED_ENV, "operator-secret")
     if byok:
-        env = runs.BYOKCredentials(provider, "visitor-key", "visitor-search").as_env(dirty)
+        env = runs.BYOKCredentials(provider, "visitor-key", "visitor-search",
+                                   llm_model=model).as_env(dirty)
         key = "visitor-key"
     else:
         env = {**dict.fromkeys(runs._OPERATOR_BILLED_ENV, ""), key_name: "operator-key",
-               "LLM_PROVIDER": provider}
+               "LLM_PROVIDER": provider, MODEL_ENV_NAMES[provider]: model}
         key = "operator-key"
     with patch.dict(os.environ, env), patch.object(language, "urlopen", return_value=Response()) as send, \
          patch.object(llm_config, "LLM", return_value=MagicMock()) as factory:
@@ -81,7 +84,7 @@ def test_inline_byok_pins_endpoint_even_with_sdk_environment(provider, key_name,
     env.update(OPENAI_BASE_URL="https://operator.invalid/v1",
                ANTHROPIC_BASE_URL="https://operator.invalid")
     with patch.dict(os.environ, env), patch.object(llm_config, "LLM", return_value=MagicMock()) as factory:
-        llm_config.create_llm(provider=provider, api_key="visitor-key")
+        llm_config.create_llm(provider=provider, api_key="visitor-key", model=model)
     assert factory.call_args.kwargs["base_url"] == base
     assert factory.call_args.kwargs["model"] == model
     assert factory.call_args.kwargs["api_key"] == "visitor-key"
@@ -145,7 +148,8 @@ def test_redirect_is_rejected_before_another_authenticated_request(status):
 
 
 def test_auxiliary_warning_never_echoes_a_provider_exception():
-    with patch.dict(os.environ, {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "fake"}), \
+    with patch.dict(os.environ, {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "fake",
+                                 "OPENAI_MODEL": "gpt-4o"}), \
          patch.object(language, "urlopen", side_effect=OSError("secret-key private-paper")), \
          pytest.warns(UserWarning) as warnings:
         assert language._llm_call("private-paper", system="translate") == ""
@@ -189,7 +193,8 @@ def test_pdf_http_failure_logs_only_category(tmp_path, caplog, monkeypatch, exce
 
 
 def test_resolved_configuration_repr_never_discloses_key():
-    config = llm_config.resolve_provider_config(provider="openai", api_key="private-key")
+    config = llm_config.resolve_provider_config(provider="openai", api_key="private-key",
+                                                model="gpt-4o")
     assert "private-key" not in repr(config)
 
 
@@ -198,7 +203,7 @@ def test_real_sdk_client_params_cannot_restore_operator_base(provider, key_name,
     """Use the installed provider class, not a factory double, without sending."""
     with patch.dict(os.environ, {"OPENAI_BASE_URL": "https://operator.invalid/v1",
                                  "ANTHROPIC_BASE_URL": "https://operator.invalid"}):
-        llm = llm_config.create_llm(provider=provider, api_key="fake-visitor")
+        llm = llm_config.create_llm(provider=provider, api_key="fake-visitor", model=model)
         params = llm._get_client_params()
     assert params["base_url"] == base
     assert params["api_key"] == "fake-visitor"

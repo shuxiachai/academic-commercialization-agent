@@ -266,7 +266,7 @@ def test_anthropic_deployment_actually_translates():
         captured["body"] = json.loads(request.data)
         return _Resp({"content": [{"type": "text", "text": "solid state batteries"}]})
 
-    with patch.dict(os.environ, _only(ANTHROPIC_API_KEY="sk-ant-test")), \
+    with patch.dict(os.environ, _only(ANTHROPIC_API_KEY="sk-ant-test", ANTHROPIC_MODEL="claude-sonnet-5")), \
          patch("academic_agent.language.urlopen", fake_urlopen):
         out = translate_to_english("固态电池")
 
@@ -290,7 +290,7 @@ def test_deepseek_deployment_keeps_the_openai_shape():
         captured["body"] = json.loads(request.data)
         return _Resp({"choices": [{"message": {"content": "solid state batteries"}}]})
 
-    with patch.dict(os.environ, _only(DEEPSEEK_API_KEY="sk-test")), \
+    with patch.dict(os.environ, _only(DEEPSEEK_API_KEY="sk-test", DEEPSEEK_MODEL="deepseek-chat")), \
          patch("academic_agent.language.urlopen", fake_urlopen):
         out = translate_to_english("固态电池")
 
@@ -304,7 +304,7 @@ def test_deepseek_deployment_keeps_the_openai_shape():
 def test_an_unreachable_endpoint_still_degrades_to_the_original():
     """Callers rely on "" meaning "use the untranslated text"; adding a
     second provider must not turn a failed call into a crash mid-run."""
-    with patch.dict(os.environ, _only(ANTHROPIC_API_KEY="k")), \
+    with patch.dict(os.environ, _only(ANTHROPIC_API_KEY="k", ANTHROPIC_MODEL="claude-sonnet-5")), \
          patch("academic_agent.language.urlopen", side_effect=OSError("no network")), \
          pytest.warns(UserWarning, match="OSError"):
         assert translate_to_english("固态电池") == "固态电池"

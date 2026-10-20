@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "cohort": "heldout-trl-v2",
+  "anchored_on": "2026-10-19",
+  "protocol": "docs/prereg-2026-10-19-heldout-trl-v2.md",
+  "anchoring": "Ranges set from external evidence before any run of these topics, by an AI assistant (Claude) using web search on 2026-10-19, and reviewed by the maintainer before the batch. Not an independent human-expert panel. TRL follows the standard 1-9 definitions; a range spans the defensible field-level and leading-application readings. Scale, cost, profitability and adoption breadth are MRL and market questions and do not lower a range. anchor_entities are operators, products and deployments named in each anchor, fixed here before any run for the retrieval-level measure and matched case-sensitively as whole tokens; generic words that are also names (Spread, Plenty, Alice, X1) are left out.",
+  "cases": [
+    {
+      "id": "V01",
+      "topic": "robotic-assisted surgery",
+      "expected_trl": [
+        8,
+        9
+      ],
+      "industry": "Medical Devices",
+      "input_shape": "english",
+      "anchor": "Intuitive Surgical's da Vinci systems have been FDA-cleared since 2000. About 3.15 million da Vinci procedures were performed in 2025, on an installed base of about 11,100 systems. A system proven in sustained routine operation: 9, with 8 allowed for the field.",
+      "anchor_entities": [
+        "Intuitive Surgical",
+        "da Vinci"
+      ],
+      "sources": [
+        "https://www.sec.gov/Archives/edgar/data/1035267/000103526726000010/isrg-20251231.htm",
+        "https://www.nasdaq.com/press-release/intuitive-announces-preliminary-fourth-quarter-and-full-year-2025-results-2026-01-14"
+      ]
+    },
+    {
+      "id": "V02",
+      "topic": "continuous glucose monitoring for diabetes",
+      "expected_trl": [
+        8,
+        9
+      ],
+      "industry": "Medical Devices",
+      "input_shape": "english",
+      "anchor": "Continuous glucose monitors are approved and sold at scale. Dexcom reported about $4.7 billion of revenue in 2025; Abbott's FreeStyle Libre passed $2 billion in a single quarter in Q3 2025 and reports millions of users. A system proven in sustained routine operation: 9, with 8 allowed for the field.",
+      "anchor_entities": [
+        "Dexcom",
+        "Abbott",
+        "FreeStyle Libre"
+      ],
+      "sources": [
+        "https://www.businesswire.com/news/home/20250120089503/en",
+        "https://www.abbott.com/corpnewsroom/strategy-and-strength/freestyle-libre3-welcome-to-the-us"
+      ]
+    },
+    {
+      "id": "V03",
+      "topic": "enhanced geothermal systems for electricity generation",
+      "expected_trl": [
+        7,
+        8
+      ],
+      "industry": "Renewable Energy",
+      "input_shape": "english",
+      "anchor": "Fervo's Project Red pilot has supplied grid power since 2023. Fervo's Cape Station in Utah declared commercial operation of its first 33 MW unit on 2026-09-30, the first greenfield enhanced geothermal plant to reach contractual commercial operation; the other two Phase I units are due by 2027-01-01. A first commercial system just entering operation, from one developer: 8 for the leading application, 7 for the field.",
+      "anchor_entities": [
+        "Fervo",
+        "Cape Station",
+        "Project Red"
+      ],
+      "sources": [
+        "https://www.energyglobal.com/other-renewables/05102026/fervo-energy-declares-commercial-operation-at-cape-station-ahead-of-schedule/",
+        "https://www.renewableenergymagazine.com/geothermal/fervo-energy-declares-commercial-operation-at-cape-20261002"
+      ]
+    },
+    {
+      "id": "V04",
+      "topic": "pig kidney xenotransplantation",
+      "expected_trl": [
+        5,
+        7
+      ],
+      "industry": "Biotechnology",
+      "input_shape": "english",
+      "anchor": "Gene-edited pig kidneys have been transplanted into living patients under compassionate use since 2024; the longest-functioning graft, at Mass General, was removed after 271 days in October 2025. The FDA cleared trials by United Therapeutics and eGenesis in 2025, and United Therapeutics' Phase 1/2 EXPAND trial performed its first transplant at NYU Langone on 2025-11-03. No approval. First-in-human trials under way: 6, with 5-7 covering the field.",
+      "anchor_entities": [
+        "United Therapeutics",
+        "eGenesis",
+        "EXPAND",
+        "NYU Langone",
+        "Mass General"
+      ],
+      "sources": [
+        "https://clinicaltrials.gov/study/NCT06878560",
+        "https://nyulangone.org/news/first-gene-edited-pig-kidney-transplant-clinical-trial-begins-nyu-langone-health",
+        "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12728669/"
+      ]
+    },
+    {
+      "id": "V05",
+      "topic": "battery-electric aircraft for regional passenger flights",
+      "expected_trl": [
+        5,
+        6
+      ],
+      "industry": "Aerospace",
+      "input_shape": "english",
+      "anchor": "No battery-electric regional passenger aircraft is certified or in service. Eviation's nine-seat Alice flew once in 2022, and the programme was paused with most staff laid off in February 2025. Heart Aerospace's full-scale battery-electric X1 demonstrator first flew on 2026-08-12 under an experimental certificate, while its production ES-30 is hybrid-electric with entry into service targeted for 2031. Full-scale prototypes flown in a relevant environment: 6, with 5 for the field.",
+      "anchor_entities": [
+        "Eviation",
+        "Heart Aerospace",
+        "ES-30"
+      ],
+      "sources": [
+        "https://www.ainonline.com/aviation-news/air-transport/2025-02-18/eviation-pauses-alice-electric-aircraft-while-seeking-new",
+        "https://heartaerospace.com/newsroom/heart-aerospace-completes-first-flight-of-world-s-largest-electric-aircraft"
+      ]
+    },
+    {
+      "id": "V06",
+      "topic": "space-based solar power",
+      "expected_trl": [
+        3,
+        5
+      ],
+      "industry": "Energy",
+      "input_shape": "english",
+      "anchor": "Caltech's SSPD-1 demonstrator tested its MAPLE microwave transmitter in orbit in 2023 and beamed detectable power to Earth, validating components in space. Aetherflux raised $50 million to fly a laser power-beaming demonstrator in 2026; no result was found. No system prototype has delivered usable power. Components validated in a relevant environment: 4-5, with 3 for the field.",
+      "anchor_entities": [
+        "Caltech",
+        "SSPD-1",
+        "MAPLE",
+        "Aetherflux"
+      ],
+      "sources": [
+        "https://www.enlit.world/library/first-wireless-transmission-of-power-demonstrated-in-space",
+        "https://techcrunch.com/2025/04/02/space-solar-startup-aetherflux-raises-50m-to-launch-first-space-demo-in-2026"
+      ]
+    },
+    {
+      "id": "V07",
+      "topic": "hyperloop",
+      "expected_trl": [
+        4,
+        6
+      ],
+      "industry": "Transportation",
+      "input_shape": "short",
+      "anchor": "Virgin Hyperloop carried its first passengers at 107 mph (172 km/h) on its 500 m DevLoop test track in 2020; the company, later Hyperloop One, shut down at the end of 2023 without a contract to build a line. Hardt Hyperloop reached 85 km/h on the 420 m European Hyperloop Center track in 2025. No system has run near operational speed in a long low-pressure tube. Subsystems validated on short tracks: 5, with 4-6 covering the readings.",
+      "anchor_entities": [
+        "Virgin Hyperloop",
+        "Hyperloop One",
+        "DevLoop",
+        "Hardt"
+      ],
+      "sources": [
+        "https://www.engadget.com/hyperloop-one-is-shutting-down-030049106.html",
+        "https://www.thedrive.com/news/37526/virgin-hyperloop-gears-up-for-the-future-after-107-mph-test-with-passengers-onboard",
+        "https://interestingengineering.com/transportation/hyperloop-capsule-shatters-speed-record"
+      ]
+    },
+    {
+      "id": "V08",
+      "topic": "量子密钥分发网络",
+      "expected_trl": [
+        7,
+        9
+      ],
+      "industry": "Telecommunications",
+      "input_shape": "chinese",
+      "anchor": "Quantum key distribution networks: China's Beijing-Shanghai backbone (about 2,000 km, 32 trusted nodes) launched in 2017 and, joined to the Micius satellite, served more than 150 users including banks and power grids (Nature, 2021). Hefei's metropolitan network reportedly serves hundreds of government and state-owned users, and China Telecom launched a commercial hybrid QKD and post-quantum service in 2025. Operational networks with paying users in one country, limited elsewhere: 8-9 for the leading application, 7 for the field.",
+      "anchor_entities": [
+        "Beijing-Shanghai",
+        "Micius",
+        "Hefei",
+        "China Telecom",
+        "京沪干线",
+        "墨子号",
+        "中国电信"
+      ],
+      "anchor_aliases": {
+        "京沪干线": "Beijing-Shanghai",
+        "墨子号": "Micius",
+        "中国电信": "China Telecom"
+      },
+      "sources": [
+        "https://www.sci.news/physics/integrated-quantum-communication-network-china-09228.html",
+        "https://thequantuminsider.com/2025/05/20/china-telecom-launches-hybrid-quantum-safe-encryption-system-completes-1000-kilometer-secure-call/"
+      ]
+    },
+    {
+      "id": "V09",
+      "topic": "特高压直流输电",
+      "expected_trl": [
+        8,
+        9
+      ],
+      "industry": "Energy",
+      "input_shape": "chinese",
+      "anchor": "Ultra-high-voltage DC transmission: the ±800 kV Xiangjiaba-Shanghai link (about 2,000 km, 6,400 MW) entered commercial operation in 2010 for State Grid, and the ±1100 kV Changji-Guquan line (about 3,300 km, 12,000 MW) has operated since 2019. Many UHVDC lines now operate in China. A system proven in sustained operation: 9, with 8 allowed for the field.",
+      "anchor_entities": [
+        "Xiangjiaba",
+        "Changji",
+        "Guquan",
+        "State Grid",
+        "向家坝",
+        "昌吉",
+        "古泉",
+        "国家电网"
+      ],
+      "anchor_aliases": {
+        "向家坝": "Xiangjiaba",
+        "昌吉": "Changji",
+        "古泉": "Guquan",
+        "国家电网": "State Grid"
+      },
+      "sources": [
+        "https://www.automation.com/en-us/articles/2010-2/abb-commissions-worlds-longest-dc-power-transmissi",
+        "https://www.hitachienergy.com/content/case-studies/en/xiangjiaba---shanghai",
+        "https://globaltransmission.info/chinas-±1100-kv-changji-guquan-uhvdc-project-delivers-300-twh-power"
+      ]
+    },
+    {
+      "id": "V10",
+      "topic": "vertical farming for fresh produce",
+      "expected_trl": [
+        8,
+        9
+      ],
+      "industry": "Agriculture",
+      "input_shape": "english",
+      "anchor": "Commercial vertical farms have sold produce for years: Spread's automated Techno Farm Keihanna in Japan has produced about 30,000 heads of lettuce a day since around 2018. The sector's economics are poor: Bowery shut down in 2024, Plenty filed for Chapter 11 in 2025 while keeping its Virginia strawberry farm, and AeroFarms went through bankruptcy in 2023. Business failure is a market and MRL question; the technology is proven in commercial operation: 8-9.",
+      "anchor_entities": [
+        "Techno Farm",
+        "Keihanna",
+        "Bowery",
+        "AeroFarms"
+      ],
+      "sources": [
+        "https://www.verticalfarmdaily.com/article/9283357/japan-operating-rate-of-99-in-large-scale-automated-farm/",
+        "https://techcrunch.com/2025/03/24/vertical-farming-company-plenty-files-for-bankruptcy-after-raising-nearly-1b",
+        "https://www.ucl.ac.uk/news/2025/jan/analysis-five-reasons-why-vertical-farming-still-future-despite-recent-business-failures"
+      ]
+    }
+  ]
+}

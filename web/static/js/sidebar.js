@@ -84,8 +84,6 @@ export function render(container, runs, { activeId, onSelect, onDelete }) {
       // The rail truncates aggressively, so the full topic lives in the title.
       item.title = run.topic || run.run_id;
 
-      item.append(dot, label);
-
       // Only ever present for an admin request (api/access.py owner_label) —
       // an unlabelled merge of every code's history answers "what ran", not
       // "who ran it", which is the entire reason to hold that code rather
@@ -95,7 +93,15 @@ export function render(container, runs, { activeId, onSelect, onDelete }) {
         owner.className = "runitem__owner";
         owner.textContent = run.owner_label;
         item.title = `${run.owner_label} · ${item.title}`;
-        item.append(owner);
+        // Under the topic rather than beside it: beside it, the badge and the
+        // delete button left the topic about a dozen characters of the rail.
+        const text = document.createElement("span");
+        text.className = "runitem__text";
+        text.append(label, owner);
+        item.className = "runitem runitem--owned";
+        item.append(dot, text);
+      } else {
+        item.append(dot, label);
       }
       item.addEventListener("click", () => onSelect(run.run_id));
       row.append(item);

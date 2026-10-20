@@ -33,6 +33,7 @@ from academic_agent.evidence import (
     make_final_report_guardrail,
     make_reviewer_guardrail,
 )
+from academic_agent.reviewer_plan_bounds import bound_reviewer_guardrail
 from academic_agent.scoring_contract import make_scoring_guardrail
 from academic_agent.llm_config import create_llm
 from academic_agent.source_pipeline import SourceCollection
@@ -267,7 +268,9 @@ class AcademicAgent:
                 self.patent_analysis_task(),        # Task 2 原始专利证据 / Raw patent evidence
                 self.market_intelligence_task(),    # Task 3 原始市场证据 / Raw market evidence
             ],
-            guardrail=make_reviewer_guardrail(
+            # An over-long correction is skipped and noted instead of rejecting
+            # the whole patch plan (reviewer_plan_bounds; evidence.py is pinned).
+            guardrail=bound_reviewer_guardrail(make_reviewer_guardrail(
                 report_task,
                 # The same evidence tasks passed as context above: the reviewer's
                 # output is what gets persisted, so it is re-checked against the
@@ -283,7 +286,7 @@ class AcademicAgent:
                     else None
                 ),
                 output_language=self.source_collection.output_language,
-            ),
+            )),
             guardrail_max_retries=1,
         )
 

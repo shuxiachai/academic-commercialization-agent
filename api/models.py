@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
+from academic_agent.byok_model import BYOK_MODEL_PATTERN
 from academic_agent.run_spec import AssessmentMode, DecisionContext
 from academic_agent.pdf_extractor import PDFInputCoverage
 
@@ -16,6 +17,41 @@ RunState = Literal["running", "completed", "failed", "cancelled", "timeout",
                    "unknown"]
 
 BYOK_PROVIDERS = ("deepseek", "qwen", "openai", "anthropic")
+
+_BYOK_SHAPE = (
+    "llm_provider, llm_api_key and llm_model, plus exactly one of "
+    "tavily_api_key or serper_api_key, must be provided together, or all "
+    "omitted to use the deployment's own keys."
+)
+
+
+def _blank_model_is_missing(value: object) -> object:
+    """An empty model field is a missing model, not a bad name."""
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value.strip() if isinstance(value, str) else value
+
+
+def _check_byok(provider, llm_key, serper_key, tavily_key, model) -> None:
+    """One rule for every BYOK body: complete or absent, never a mix.
+
+    A partial set must not fall back to operator billing, so anything short
+    of a complete set is rejected. Exactly one search key: either service
+    serves the run, and accepting both would leave the choice implicit.
+    Tavily is offered because Serper refuses requests from some hosting
+    providers, including the deployment's. The model is part of the set:
+    there is no built-in default, so the visitor's key is only ever billed
+    for a model the visitor named.
+    """
+    search_keys = [k for k in (serper_key, tavily_key) if k]
+    if any((provider, llm_key, serper_key, tavily_key, model)):
+        if not (provider and llm_key and model and len(search_keys) == 1):
+            raise ValueError(_BYOK_SHAPE)
+    if provider is not None and provider not in BYOK_PROVIDERS:
+        raise ValueError(f"llm_provider must be one of {BYOK_PROVIDERS}.")
+    if model is not None and not BYOK_MODEL_PATTERN.fullmatch(model):
+        raise ValueError("llm_model must be a plain model identifier "
+                         "(letters, digits and . _ - : only, at most 100 characters).")
 
 
 class RunRequest(BaseModel):
@@ -43,15 +79,21 @@ class RunRequest(BaseModel):
     )
 
     # Bring-your-own-key: an alternative to the access code for a visitor who
-    # is not the deployment owner. All three or none — a run either runs on
+    # is not the deployment owner. Complete or absent: a run either runs on
     # the deployment's own billed keys (gated by the access code) or entirely
     # on the requester's own, never a mix of the two.
     llm_provider: str | None = Field(
         default=None,
         description=f"Bring-your-own-key provider: one of {BYOK_PROVIDERS}. "
-                    "Required together with llm_api_key and serper_api_key.",
+                    "Required together with llm_api_key and one search key.",
     )
     llm_api_key: str | None = Field(default=None, description="Bring-your-own LLM API key.")
+    llm_model: str | None = Field(
+        default=None,
+        description="Model for the bring-your-own LLM key. Required with llm_provider; "
+                    "there is no default.",
+    )
+    tavily_api_key: str | None = Field(default=None, description="Bring-your-own Tavily API key.")
     serper_api_key: str | None = Field(default=None, description="Bring-your-own Serper API key.")
 
     @field_validator("topic", mode="before")
@@ -67,16 +109,13 @@ class RunRequest(BaseModel):
         """
         return value.strip() if isinstance(value, str) else value
 
+    _model_blank = field_validator("llm_model", mode="before")(classmethod(
+        lambda cls, value: _blank_model_is_missing(value)))
+
     @model_validator(mode="after")
     def _byok_is_all_or_nothing(self) -> "RunRequest":
-        fields = (self.llm_provider, self.llm_api_key, self.serper_api_key)
-        if any(fields) and not all(fields):
-            raise ValueError(
-                "llm_provider, llm_api_key and serper_api_key must be provided together, "
-                "or all omitted to use the deployment's own keys."
-            )
-        if self.llm_provider is not None and self.llm_provider not in BYOK_PROVIDERS:
-            raise ValueError(f"llm_provider must be one of {BYOK_PROVIDERS}.")
+        _check_byok(self.llm_provider, self.llm_api_key, self.serper_api_key,
+                    self.tavily_api_key, self.llm_model)
         return self
 
     @property
@@ -98,18 +137,22 @@ class ResumeRunRequest(BaseModel):
         description=f"Bring-your-own-key provider: one of {BYOK_PROVIDERS}.",
     )
     llm_api_key: str | None = Field(default=None, description="Fresh LLM API key.")
+    llm_model: str | None = Field(
+        default=None,
+        description="Model for the fresh LLM key; required with llm_provider. A different "
+                    "model from the source run re-executes its nodes: checkpoint identity "
+                    "binds the model.",
+    )
+    tavily_api_key: str | None = Field(default=None, description="Fresh Tavily API key.")
     serper_api_key: str | None = Field(default=None, description="Fresh Serper API key.")
+
+    _model_blank = field_validator("llm_model", mode="before")(classmethod(
+        lambda cls, value: _blank_model_is_missing(value)))
 
     @model_validator(mode="after")
     def _byok_is_all_or_nothing(self) -> "ResumeRunRequest":
-        fields = (self.llm_provider, self.llm_api_key, self.serper_api_key)
-        if any(fields) and not all(fields):
-            raise ValueError(
-                "llm_provider, llm_api_key and serper_api_key must be provided together, "
-                "or all omitted to use the deployment's own keys."
-            )
-        if self.llm_provider is not None and self.llm_provider not in BYOK_PROVIDERS:
-            raise ValueError(f"llm_provider must be one of {BYOK_PROVIDERS}.")
+        _check_byok(self.llm_provider, self.llm_api_key, self.serper_api_key,
+                    self.tavily_api_key, self.llm_model)
         return self
 
     @property

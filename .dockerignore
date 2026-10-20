@@ -4,8 +4,9 @@
 
 .venv/
 venv/
-__pycache__/
-*.py[cod]
+# Patterns match from the context root, so nested caches need **/.
+**/__pycache__/
+**/*.py[cod]
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
@@ -33,3 +34,21 @@ outputs/
 Dockerfile
 .dockerignore
 docker-compose.yml
+
+# Not read at runtime. The image serves api/, web/, ui/ and src/, the samples
+# page reads examples/, and the build runs scripts/verify_container_fonts.py.
+# These were about 70% of the tracked bytes and 645 of 836 files. The CI
+# docker job imports api.main inside the image, so a runtime dependency on any
+# of them fails the build rather than production.
+tests/
+e2e/
+docs/
+evals/
+benchmark_fixtures/
+test_papers/
+assets/
+notes/
+# Root-level scripts are benchmark commands and frozen experiment runners.
+# Like *.md above, this pattern matches the context root only, so src/, api/
+# and scripts/ keep their Python files.
+*.py

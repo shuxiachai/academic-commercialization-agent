@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="English">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Sample reports · Commercialization Assessment</title>
+<meta name="description" content="Read finished commercialization assessment reports without an access code or API keys.">
+<link rel="icon" type="image/svg+xml" href="/static/brand/aca-mark.svg">
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/result.css">
+<link rel="stylesheet" href="/static/css/samples.css">
+</head>
+<body>
+
+<!-- Deliberately not the main page's shell: that page raises its access gate
+     before any view renders. Nothing here sends a credential or reaches a
+     paid endpoint; it reads /api/samples, which serves committed files. -->
+<div class="samples">
+  <header class="samples__head">
+    <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
+      <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
+      <span class="brand__name" data-i18n="brand">Assessment</span>
+    </a>
+    <div class="samples__nav">
+      <a class="samples__back" href="/" data-samples-i18n="samples_back">Back to the app</a>
+      <select class="bare-select" id="ui-lang" aria-label="Interface language">
+        <option value="English">EN</option>
+        <option value="Simplified Chinese">中文</option>
+      </select>
+    </div>
+  </header>
+
+  <section class="samples__intro">
+    <h1 data-samples-i18n="samples_title">Sample reports</h1>
+    <p data-samples-i18n="samples_sub">Finished assessments you can read without an access code or API keys.</p>
+  </section>
+
+  <nav class="samples__list" id="sample-list" aria-label="Sample reports"></nav>
+
+  <section class="samples__reader" id="sample-reader" aria-live="polite">
+    <p class="empty-note" data-samples-i18n="samples_choose">Choose a report above.</p>
+  </section>
+</div>
+
+<script type="module" src="/static/js/samples.js"></script>
+</body>
+</html>

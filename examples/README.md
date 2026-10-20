@@ -5,6 +5,12 @@ Each report synthesises academic papers, patents, and market intelligence into a
 structured analysis with technology maturity evaluation, patent landscape mapping,
 and strategic recommendations.
 
+These are historical runs from an earlier pipeline version (committed
+2026-07-19), not current model accuracy or an up-to-date market assessment.
+The three below can also be read in the web app at `/samples`, with no access
+code or API key. That list is the allowlist in `api/samples.py`; a file added
+here does not appear there until it is added to the list.
+
 ---
 
 ## Reports

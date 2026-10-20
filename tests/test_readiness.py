@@ -34,6 +34,7 @@ from api.runs import _OPERATOR_BILLED_ENV
 
 _WORKING = {
     "DEEPSEEK_API_KEY": "sk-test",
+    "DEEPSEEK_MODEL": "deepseek-chat",
     "SERPER_API_KEY": "serper-test",
 }
 
@@ -92,11 +93,21 @@ class WhatMakesItNotReadyTests(_ReadinessBase):
             {
                 "LLM_PROVIDER": "qwen",
                 "DASHSCOPE_API_KEY": "sk-qwen",
+                "QWEN_MODEL": "qwen3.8-27b",
                 "SERPER_API_KEY": "serper-test",
             }
         )
         self.assertTrue(status.ready, status.checks)
         self.assertEqual(status.llm_provider, "qwen")
+
+    def test_a_key_without_a_model_is_not_ready(self):
+        """There is no default model: an unset QWEN_MODEL once silently ran
+        qwen3.5-plus. Readiness (and so the healthcheck) now names it."""
+        status = self._readiness(
+            {"LLM_PROVIDER": "qwen", "DASHSCOPE_API_KEY": "sk-qwen", "SERPER_API_KEY": "serper-test"}
+        )
+        self.assertFalse(status.ready)
+        self.assertIn("QWEN_MODEL", status.checks["llm"])
 
     def test_no_llm_key_is_not_ready(self):
         """The case /health already reported, as llm_provider: null, beside
@@ -113,7 +124,8 @@ class WhatMakesItNotReadyTests(_ReadinessBase):
         self.assertNotEqual(status.checks["search"], "ok")
 
     def test_either_search_provider_satisfies_it(self):
-        status = self._readiness({"DEEPSEEK_API_KEY": "sk-test", "TAVILY_API_KEY": "tv"})
+        status = self._readiness({"DEEPSEEK_API_KEY": "sk-test", "DEEPSEEK_MODEL": "deepseek-chat",
+                                  "TAVILY_API_KEY": "tv"})
         self.assertTrue(status.ready, status.checks)
         self.assertEqual(status.search_provider, "tavily")
 

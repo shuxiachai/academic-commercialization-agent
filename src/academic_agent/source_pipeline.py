@@ -9,7 +9,7 @@ import warnings
 from datetime import date, datetime, UTC
 from difflib import SequenceMatcher
 from typing import Any, Literal
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from urllib.error import URLError
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
@@ -198,6 +198,13 @@ _NONPROFIT_RESEARCH_DOMAINS = {
     "seia.org",              # Solar Energy Industries Association (US)
     "solarpowereurope.org",  # SolarPower Europe
     "solarenergyuk.net",     # Solar Energy UK
+    # Sector bodies that were rejected as unapproved on the 2026-10-18 held-out
+    # runs while naming the operators those topics' anchors rely on.
+    "world-nuclear.org",              # World Nuclear Association
+    "fusionindustryassociation.org",  # Fusion Industry Association
+    "dnastoragealliance.org",         # DNA Data Storage Alliance (SNIA)
+    "catf.us",                        # Clean Air Task Force
+    "ore.catapult.org.uk",            # Offshore Renewable Energy Catapult (UK)
 }
 _THINK_TANK_DOMAINS = {
     "itif.org",          # Information Technology and Innovation Foundation
@@ -208,7 +215,16 @@ _THINK_TANK_DOMAINS = {
     "csis.org",          # Center for Strategic and International Studies
     "chathamhouse.org",  # Chatham House
     "piie.com",          # Peterson Institute for International Economics
+    "ieefa.org",         # Institute for Energy Economics and Financial Analysis
+    "worldnuclearreport.org",  # World Nuclear Industry Status Report (independent)
 }
+# A tertiary source: it names operators and deployment dates that market pages
+# omit, but cites rather than originates them. It was blocked with the social
+# networks from the first pipeline, without a recorded failure. On the
+# 2026-10-18 held-out runs it was the only result naming the floating offshore
+# wind farms (Hywind, Kincardine, WindFloat) that topic's anchor rests on.
+# Admitted at low credibility and at most _MARKET_ENCYCLOPEDIA_SOFT_CAP per run.
+_ENCYCLOPEDIA_DOMAINS = {"wikipedia.org"}
 _PATENT_HOSTS = {
     "patents.google.com",
     "patentscope.wipo.int",
@@ -279,6 +295,96 @@ def _is_borderline_publisher(publisher: str) -> bool:
     return any(frag in lowered for frag in _BORDERLINE_PUBLISHER_FRAGMENTS)
 
 
+# General-purpose deposit services: anyone can upload anything, with no
+# editorial screening. In 95 saved runs, 15 Zenodo deposits were graded high
+# as "journal records", one of them a pseudo-scientific text.
+_DEPOSIT_DOI_PREFIXES: dict[str, str] = {
+    "10.5281/": "Zenodo",
+    "10.6084/": "Figshare",
+    "10.17632/": "Mendeley Data",
+}
+_DEPOSIT_NAME_FRAGMENTS = ("zenodo", "figshare", "mendeley data")
+# Preprint servers screen for scope, not quality; none of them peer-reviews.
+_PREPRINT_DOI_PREFIXES: dict[str, str] = {
+    "10.1101/": "bioRxiv/medRxiv",
+    "10.48550/": "arXiv",
+    "10.31219/": "OSF Preprints",
+    "10.31234/": "PsyArXiv",
+    "10.31235/": "SocArXiv",
+    "10.36227/": "TechRxiv",
+    "10.22541/": "Authorea",
+    "10.20944/": "Preprints.org",
+    "10.21203/": "Research Square",
+    "10.26434/": "ChemRxiv",
+    "10.2139/": "SSRN",
+}
+# The citation count at which the arXiv path already treats a preprint as
+# high-impact (see the backfill pass in collect_source_collection).
+_UNREVIEWED_IMPACT_CITATIONS = 10
+_TIER_RANK = {"low": 0, "medium": 1, "high": 2}
+
+
+def _unreviewed_kind(
+    doi: str, publisher: str, *, work_type: str | None = None,
+    source_type: str | None = None,
+) -> tuple[str, str] | None:
+    """Classify a record as ("deposit"|"preprint", service name), or None.
+
+    The DOI prefix decides first because it is present on every path; the
+    OpenAlex work/source types and the Crossref item type cover servers not
+    listed above.
+    """
+    doi = doi.lower()
+    for prefix, name in _DEPOSIT_DOI_PREFIXES.items():
+        if doi.startswith(prefix):
+            return "deposit", name
+    if any(fragment in publisher.lower() for fragment in _DEPOSIT_NAME_FRAGMENTS):
+        return "deposit", publisher
+    if work_type == "dataset":
+        return "deposit", publisher or "dataset repository"
+    for prefix, name in _PREPRINT_DOI_PREFIXES.items():
+        if doi.startswith(prefix):
+            return "preprint", name
+    if work_type in ("preprint", "posted-content") or source_type == "repository":
+        return "preprint", publisher or "preprint server"
+    return None
+
+
+def _grade_unreviewed(
+    tier: str, reason: str, *, doi: str, publisher: str, cited: int,
+    work_type: str | None = None, source_type: str | None = None,
+) -> tuple[str, str]:
+    """Cap the tier of a deposit or preprint and say why; never raise it.
+
+    Deposits cap at low (medium once cited), preprints at medium (high once
+    cited), matching the existing arXiv rule. An already stricter grade, such
+    as a predatory publisher's low, keeps its own reason. The reason never
+    contains "0 citation": the backfill pass upgrades medium sources whose
+    reason does, which would undo this cap.
+    """
+    kind = _unreviewed_kind(doi, publisher, work_type=work_type, source_type=source_type)
+    if kind is None:
+        return tier, reason
+    category, name = kind
+    impact = cited >= _UNREVIEWED_IMPACT_CITATIONS
+    if category == "deposit":
+        cap = "medium" if impact else "low"
+        note = (
+            f"General-purpose repository deposit ({name}): no editorial screening "
+            f"or peer review; citations: {cited:,}. Do not rely on it for material "
+            "conclusions without independent corroboration."
+        )
+    else:
+        cap = "high" if impact else "medium"
+        note = (
+            f"Preprint ({name}): not peer-reviewed; citations: {cited:,}. State "
+            "findings as provisional and corroborate with published work."
+        )
+    if _TIER_RANK[tier] < _TIER_RANK[cap]:
+        return tier, reason
+    return cap, note
+
+
 _REPUTABLE_NEWS_DOMAINS = {
     "reuters.com",
     "apnews.com",
@@ -333,6 +439,11 @@ _INDUSTRY_NEWS_DOMAINS = {
     "agfundernews.com",
     "foodnavigator.com",
     "fooddive.com",
+    # Carbon removal and healthcare / medical-device trade press
+    "carbonherald.com",
+    "beckershospitalreview.com",
+    "beckersasc.com",
+    "mddionline.com",
 }
 _CONSULTING_RESEARCH_DOMAINS = {
     "mckinsey.com",      # McKinsey & Company
@@ -404,7 +515,6 @@ _BLOCKED_MARKET_DOMAINS = {
     "reddit.com",
     "tiktok.com",
     "twitter.com",
-    "wikipedia.org",
     "x.com",
     "youtu.be",
     "youtube.com",
@@ -446,6 +556,56 @@ _MIN_EVIDENCE_SUMMARY_CHARS = 100
 _ABSTRACT_MIN_CHARS: int = 20
 # Maximum characters kept from abstracts/patent bodies passed to the LLM.
 _ABSTRACT_MAX_CHARS: int = 1500
+# Room kept for an over-long abstract's closing sentences (see _bounded_abstract).
+_ABSTRACT_TAIL_CHARS: int = 450
+_ELISION = " […] "
+# A Latin sentence end is punctuation followed by whitespace, so "3.5" and
+# "U.S.A" do not split; CJK ends need no space after them.
+_SENTENCE_END = re.compile(r"[.!?](?=\s)|[。！？]")
+
+
+def _bounded_abstract(text: str, limit: int = _ABSTRACT_MAX_CHARS) -> str:
+    """Keep an abstract's opening and its closing sentences within ``limit``.
+
+    Abstracts end with results and conclusions, and a prefix cut dropped
+    exactly those: in 95 saved runs, 42 of 120 abstract-backed academic
+    sources stopped at the cap, all mid-sentence. The cap itself stays,
+    because the saved-source locator reads at most 1,500 code points per
+    source and its acceptance was recorded at that bound.
+
+    Whole closing sentences fill up to _ABSTRACT_TAIL_CHARS, the opening gets
+    the rest up to a sentence end, and _ELISION marks the omitted middle. If
+    no closing sentence fits, the opening alone is kept; if no sentence end
+    fits either, the text is cut at a word with an ellipsis.
+    """
+    if len(text) <= limit:
+        return text
+    ends = [match.end() for match in _SENTENCE_END.finditer(text)]
+
+    tail_start = None
+    for end in ends:
+        start = end
+        while start < len(text) and text[start].isspace():
+            start += 1
+        if start < len(text) and len(text) - start <= _ABSTRACT_TAIL_CHARS:
+            tail_start = start
+            break
+
+    if tail_start is None:
+        head_room = limit - 1
+    else:
+        head_room = limit - len(_ELISION) - (len(text) - tail_start)
+    head_end = max((end for end in ends if end <= head_room), default=None)
+    if head_end is None:
+        head = text[:head_room]
+        space = head.rfind(" ")
+        if space > 0:
+            head = head[:space]
+        return head.rstrip(" ,;:") + "…"
+    head = text[:head_end]
+    if tail_start is None:
+        return head + "…"
+    return head + _ELISION + text[tail_start:]
 # Papers published within this many days are treated as "recently published" when
 # they have zero citations (citation-count lag is expected for brand-new papers).
 _ZERO_CITATION_RECENCY_DAYS: int = 90
@@ -455,9 +615,25 @@ _MARKET_INSTITUTIONAL_SOFT_CAP = 3
 # Market domain: accept at most this many market_report sources before deferring
 # extras, so company_disclosure / reputable_news sources have a chance to fill slots.
 _MARKET_REPORT_SOFT_CAP = 4
+# Market domain: one encyclopedia entry adds the named deployments; more would
+# trade primary evidence for a tertiary summary.
+_MARKET_ENCYCLOPEDIA_SOFT_CAP = 1
 # Maximum Serper results processed per query; limits first-query slot exhaustion
 # so subsequent queries in the same domain have a chance to contribute sources.
 _SERPER_MAX_RESULTS_PER_QUERY = 8
+# Market domain: at most this many accepted sources per query, so the eight
+# slots are shared between deployment, market-size and revenue queries instead
+# of going to whichever query runs first. The cap above was meant to do this,
+# but it equals the slot count, so one query could still fill the domain.
+_MARKET_SOURCES_PER_QUERY = 3
+# A component's market query reserves coverage for that building block, and one
+# source shows it is represented. Unbounded, a generic component query filled
+# most market slots with component-level reports: 166 of 219 market sources on
+# the 2026-10-18 held-out runs, e.g. six general UAV market reports for drone
+# delivery of medical supplies. The scorer's SCOPE MATCH RULE then discounts
+# them as evidence about a narrower thing, and the queries naming the topic
+# itself never ran.
+_COMPONENT_MARKET_SOURCES_PER_QUERY = 1
 
 # Country-specific government TLD patterns (non-.gov forms used internationally).
 # Defined at module level to avoid recreating the tuple on every call to
@@ -708,7 +884,7 @@ def _safe_summary(snippet: str, title: str) -> str:
     cjk = sum(1 for c in cleaned if "一" <= c <= "鿿")
     min_len = 20 if cjk / max(len(cleaned), 1) > 0.25 else 60
     if len(cleaned) >= min_len:
-        return cleaned[:_ABSTRACT_MAX_CHARS]
+        return _bounded_abstract(cleaned)
 
     fallback = f"Verified search result for the source titled {title}."
     if len(fallback) >= min_len:
@@ -811,6 +987,116 @@ def _title_matches_topic(title: str, topic: str) -> bool:
             return False
     return True
 
+
+# Academic title gate: rule R5 of docs/prereg-2026-10-20-academic-title-gate-v1.md
+# (result: docs/results-2026-10-20-academic-title-gate-v1.md). The planned
+# search phrase adds category words ("high-speed", "power") that unrelated
+# titles share, and a title with only the user's one distinctive word failed
+# the two-word overlap. So the gate is anchored on the words the user typed.
+# Patents keep _title_matches_topic.
+_ACADEMIC_FUNCTION_WORDS = frozenset({
+    "for", "the", "and", "of", "in", "on", "to", "with", "via", "from", "into",
+    "by", "a", "an", "its", "their", "as", "at", "or",
+})
+# "-based" compounds ("space-based") split into a word most titles contain.
+_ACADEMIC_EXTRA_STOPWORDS = frozenset({"based"})
+# The replay covered inputs of up to six content words; see _academic_anchor_topic.
+_MAX_USER_CORE_WORDS = 6
+
+
+def _academic_stem(token: str) -> str:
+    """Strip plurals and "-ing" so "farms" meets "farming" and "drones" meets "drone".
+
+    R5 as registered cut "-es" after any letter, turning "drones" into "dron"
+    and "interfaces" into "interfac"; that lost four relevant test titles.
+    "-es" now goes only after s, x, z, ch or sh, and "-ies" becomes "-y".
+    """
+    if token.endswith("ies") and len(token) >= 6:
+        return token[:-3] + "y"
+    if token.endswith(("sses", "xes", "zes", "ches", "shes")) and len(token) - 2 >= 4:
+        return token[:-2]
+    if token.endswith("ing") and len(token) - 3 >= 4:
+        return token[:-3]
+    if token.endswith("s") and not token.endswith("ss") and len(token) - 1 >= 4:
+        return token[:-1]
+    return token
+
+
+def _academic_content_words(text: str) -> list[str]:
+    return [
+        _academic_stem(word)
+        for word in _WORD_PATTERN.findall(text.lower())
+        if len(word) >= 3
+        and word not in _ACADEMIC_FUNCTION_WORDS
+        and word not in _TOPIC_STOPWORDS
+        and word not in _ACADEMIC_EXTRA_STOPWORDS
+    ]
+
+
+def _academic_phrase_matches(title: str, phrase: str) -> bool:
+    """_title_matches_topic's test on stemmed words of three or more letters.
+
+    At least two shared words; from three phrase words on, a matched pair
+    adjacent in the phrase must also be adjacent in the title.
+    """
+    phrase_words = _academic_content_words(phrase)
+    if not phrase_words:
+        return True
+    title_words = [_academic_stem(word) for word in _WORD_PATTERN.findall(title.lower())]
+    overlap = set(phrase_words) & set(title_words)
+    if len(overlap) < 2:
+        return False
+    if len(set(phrase_words)) >= 3:
+        title_bigrams = set(zip(title_words, title_words[1:], strict=False))
+        matched_pairs = [
+            pair
+            for pair in zip(phrase_words, phrase_words[1:], strict=False)
+            if pair[0] in overlap and pair[1] in overlap
+        ]
+        if matched_pairs and not any(pair in title_bigrams for pair in matched_pairs):
+            return False
+    return True
+
+
+def _academic_title_matches(title: str, topic: str, user_topic: str = "") -> bool:
+    """Whether an academic title is about the topic the user asked for.
+
+    ``topic`` is the planned search phrase (or an alias); ``user_topic`` is
+    the submitted topic from _academic_anchor_topic. One user word
+    ("hyperloop") must appear in the title. Several must match as a phrase,
+    or the planned phrase must match and one of them appear. Without user
+    words (Chinese input, or no anchor) the planned phrase alone decides.
+    """
+    core = set(_academic_content_words(user_topic))
+    if not core:
+        return _academic_phrase_matches(title, topic)
+    title_words = {_academic_stem(word) for word in _WORD_PATTERN.findall(title.lower())}
+    if len(core) == 1:
+        return bool(core & title_words)
+    if _academic_phrase_matches(title, user_topic):
+        return True
+    return bool(core & title_words) and _academic_phrase_matches(title, topic)
+
+
+def _academic_anchor_topic(
+    display_topic: str, search_topic: str, aliases: Sequence[str] = ()
+) -> str:
+    """The submitted text when it names a topic, else "" (no anchor).
+
+    The replay inputs were short topics ("hyperloop", "fusion power"), and
+    every plan kept at least half of their words. A request such as "We are
+    building an LLM for scriptwriting; assess its value" carries words no
+    paper title uses, and the planner keeps one of six. Such an input, or
+    one longer than the replay's six words, leaves the planned phrase to
+    decide.
+    """
+    core = set(_academic_content_words(display_topic))
+    if not core or len(core) > _MAX_USER_CORE_WORDS:
+        return ""
+    planned = set(_academic_content_words(" ".join((search_topic, *aliases))))
+    return display_topic if 2 * len(core & planned) >= len(core) else ""
+
+
 def _published_date(item: dict[str, Any]) -> date | None:
     for key in ("published-print", "published-online", "published", "issued"):
         container = item.get(key)
@@ -862,6 +1148,7 @@ def _academic_source(
     research_topic: str,
     *,
     aliases: Sequence[str] = (),
+    user_topic: str = "",
 ) -> tuple[EvidenceSource | None, str]:
     item, reason = _resolve_crossref_item(result, crossref)
     if item is None:
@@ -873,7 +1160,7 @@ def _academic_source(
         return None, "Crossref record lacks DOI, title, or publisher"
     validation_topics = tuple(dict.fromkeys((research_topic, *aliases)))
     if not any(
-        _title_matches_topic(title, validation_topic)
+        _academic_title_matches(title, validation_topic, user_topic)
         for validation_topic in validation_topics
     ):
         return None, (
@@ -906,7 +1193,7 @@ def _academic_source(
     ):
         return None, "search snippet contains a truncated or unverifiable DOI reference"
     if len(crossref_abstract) >= _ABSTRACT_MIN_CHARS:
-        evidence_summary = crossref_abstract[:_ABSTRACT_MAX_CHARS]
+        evidence_summary = _bounded_abstract(crossref_abstract)
         summary_basis = "Crossref abstract"
     else:
         evidence_summary = _safe_summary(snippet, title)
@@ -941,6 +1228,11 @@ def _academic_source(
             f"Publisher '{publisher}' operates legitimate journals but is flagged for "
             "volume/speed issues; verify the specific journal's impact factor."
         )
+    # Crossref types preprints as "posted-content".
+    credibility_tier, credibility_reason = _grade_unreviewed(
+        credibility_tier, credibility_reason, doi=doi, publisher=publisher, cited=cited,
+        work_type=str(item.get("type") or "") or None,
+    )
     return (
         EvidenceSource(
             source_id=source_id,
@@ -1064,6 +1356,7 @@ def _academic_source_from_openalex(
     research_topic: str,
     *,
     s2_client: SemanticScholarClient | None = None,
+    user_topic: str = "",
 ) -> tuple[EvidenceSource | None, str]:
     title = _clean_text(str(work.get("title") or ""))
     doi_raw = str(work.get("doi") or "").lower().strip()
@@ -1091,7 +1384,7 @@ def _academic_source_from_openalex(
     # Always require a title match regardless of OpenAlex topic classification.
     # topic_match=True only means OpenAlex field labels overlap (e.g. "Manufacturing"),
     # which is too broad — a generic manufacturing paper should not pass title check.
-    if not _title_matches_topic(title, research_topic):
+    if not _academic_title_matches(title, research_topic, user_topic):
         if topic_match is True:
             return None, f"OpenAlex topic matched broadly but title is off-topic: {title!r}"
         elif topic_match is False:
@@ -1166,6 +1459,11 @@ def _academic_source_from_openalex(
             f"Publisher '{publisher}' operates legitimate journals but is flagged for "
             "volume/speed issues; verify the specific journal's impact factor."
         )
+    credibility_tier, credibility_reason = _grade_unreviewed(
+        credibility_tier, credibility_reason, doi=doi, publisher=publisher, cited=cited,
+        work_type=str(work.get("type") or "") or None,
+        source_type=str(source_meta.get("type") or "") or None,
+    )
     return (
         EvidenceSource(
             source_id=source_id,
@@ -1178,7 +1476,7 @@ def _academic_source_from_openalex(
             source_type="academic_paper",
             credibility_tier=credibility_tier,
             credibility_reason=credibility_reason,
-            evidence_summary=abstract[:_ABSTRACT_MAX_CHARS],
+            evidence_summary=_bounded_abstract(abstract),
             summary_source="abstract",
             citation_count=cited,
         ),
@@ -1191,6 +1489,8 @@ def _academic_source_from_s2(
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    user_topic: str = "",
 ) -> tuple[EvidenceSource | None, str]:
     title = _clean_text(str(paper.get("title") or ""))
     abstract = _clean_text(str(paper.get("abstract") or ""))
@@ -1201,7 +1501,7 @@ def _academic_source_from_s2(
         return None, "Semantic Scholar paper has no title"
     if not doi:
         return None, f"S2 paper has no DOI: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    if not _academic_title_matches(title, research_topic, user_topic):
         return None, f"S2 title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"S2 abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1226,6 +1526,14 @@ def _academic_source_from_s2(
 
     cited = int(paper.get("citationCount") or 0)
     summary_sparse = len(abstract) < 120
+    credibility_tier, credibility_reason = _grade_unreviewed(
+        "medium" if summary_sparse else "high",
+        f"Semantic Scholar record: DOI resolves; journal record "
+        f"(peer-review status not independently verified), "
+        f"{cited:,} citations."
+        + (" Brief evidence summary — detailed findings may be limited." if summary_sparse else ""),
+        doi=doi, publisher=publisher, cited=cited,
+    )
     return (
         EvidenceSource(
             source_id=source_id,
@@ -1236,14 +1544,9 @@ def _academic_source_from_s2(
             published_date=published,
             accessed_date=accessed_date,
             source_type="academic_paper",
-            credibility_tier="medium" if summary_sparse else "high",
-            credibility_reason=(
-                f"Semantic Scholar record: DOI resolves; journal record "
-                f"(peer-review status not independently verified), "
-                f"{cited:,} citations."
-                + (" Brief evidence summary — detailed findings may be limited." if summary_sparse else "")
-            ),
-            evidence_summary=abstract[:_ABSTRACT_MAX_CHARS],
+            credibility_tier=credibility_tier,
+            credibility_reason=credibility_reason,
+            evidence_summary=_bounded_abstract(abstract),
             summary_source="abstract",
             citation_count=cited,
         ),
@@ -1256,6 +1559,8 @@ def _academic_source_from_arxiv(
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    user_topic: str = "",
 ) -> tuple["EvidenceSource | None", str]:
     title    = _clean_text(record.get("title") or "")
     abstract = _clean_text(record.get("abstract") or "")
@@ -1268,7 +1573,7 @@ def _academic_source_from_arxiv(
         return None, "arXiv record has no title"
     if not arxiv_url and not doi:
         return None, f"arXiv record has no URL: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    if not _academic_title_matches(title, research_topic, user_topic):
         return None, f"arXiv title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"arXiv abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1316,7 +1621,7 @@ def _academic_source_from_arxiv(
             source_type="academic_paper",
             credibility_tier=credibility_tier,
             credibility_reason=credibility_reason,
-            evidence_summary=abstract[:_ABSTRACT_MAX_CHARS],
+            evidence_summary=_bounded_abstract(abstract),
             summary_source="abstract",
             citation_count=None,
         ),
@@ -1329,6 +1634,8 @@ def _academic_source_from_pubmed(
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    user_topic: str = "",
 ) -> tuple["EvidenceSource | None", str]:
     title    = _clean_text(record.get("title") or "")
     abstract = _clean_text(record.get("abstract") or "")
@@ -1341,7 +1648,7 @@ def _academic_source_from_pubmed(
         return None, "PubMed record has no title"
     if not (doi or pmid):
         return None, f"PubMed record has no DOI or PMID: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    if not _academic_title_matches(title, research_topic, user_topic):
         return None, f"PubMed title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"PubMed abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1374,7 +1681,7 @@ def _academic_source_from_pubmed(
                 "establish that this record was peer reviewed."
                 + (" Brief evidence summary." if summary_sparse else "")
             ),
-            evidence_summary=abstract[:_ABSTRACT_MAX_CHARS],
+            evidence_summary=_bounded_abstract(abstract),
             summary_source="abstract",
             citation_count=None,
         ),
@@ -1479,7 +1786,7 @@ def _patent_source_from_lens(
                 f"applicants: {publisher}; year: {pub_year}. "
                 "Legal scope requires full claim review."
             ),
-            evidence_summary=evidence[:_ABSTRACT_MAX_CHARS],
+            evidence_summary=_bounded_abstract(evidence),
             # Lens returns the patent's own abstract. Left unset, this record
             # was indistinguishable from a truncated Google Patents extract,
             # which also lands on None — so the field could not answer the one
@@ -1504,6 +1811,27 @@ def _host_matches(host: str, domains: set[str]) -> bool:
     )
 
 
+# A market-size or industry-report release keeps its wording when a news or
+# press-wire host carries it. On the 2026-10-18 held-out runs, 40 of the 75
+# sources classed as news were such releases, most syndicated on
+# finance.yahoo.com. As news they escaped _MARKET_REPORT_SOFT_CAP and satisfied
+# the company-news guard, so a run could hold no actual company news. Each
+# alternative requires market-estimate wording; a bare amount ("raises $1
+# billion") is a commercial event and must not match. Over the 83 distinct
+# news and company titles of those runs, the 34 matches were all estimates and
+# the 49 non-matches were company or news items.
+_MARKET_ESTIMATE_TITLE = re.compile(
+    r"\bmarket\s+(?:size|share|report|research|forecast|analysis|outlook|trends"
+    r"|opportunit(?:y|ies))\b"
+    r"|\b(?:industry|research)\s+(?:report|research|analysis)\b"
+    r"|\bCAGR\b"
+    r"|\bmarket\s+(?:is\s+)?(?:worth|poised|projected|expected|estimated|set"
+    r"|to\s+(?:reach|hit|surpass|grow|skyrocket))\b"
+    r"|市场规模|市场报告|行业报告|研究报告|市场前景|市场分析|复合增长率",
+    re.IGNORECASE,
+)
+
+
 def _market_source_profile(
     canonical_url: str,
     host: str,
@@ -1512,6 +1840,13 @@ def _market_source_profile(
         return None
     if _host_matches(host, _ACADEMIC_PUBLISHER_DOMAINS):
         return None
+    if _host_matches(host, _ENCYCLOPEDIA_DOMAINS):
+        return (
+            "other",
+            "low",
+            "Encyclopedia entry (tertiary source): useful for named operators and "
+            "deployment history; verify each claim against the primary sources it cites.",
+        )
     if _host_matches(host, _AUTHORITATIVE_RESEARCH_DOMAINS):
         return (
             "research_institute",
@@ -2009,6 +2344,16 @@ def _web_source(
         if profile is None:
             return None, f"market host is blocked or not approved: {host}"
         source_type, credibility_tier, credibility_reason = profile
+        if (
+            source_type in ("reputable_news", "company_disclosure")
+            and _MARKET_ESTIMATE_TITLE.search(title)
+        ):
+            source_type = "market_report"
+            credibility_reason = (
+                f"Market-estimate release carried by {host}; counted as a "
+                "commercial market estimate, not as reporting or a company "
+                "disclosure. " + credibility_reason
+            )
         authority_category = _authority_category_for_url(canonical)
         title_decision = recover_official_source_title(
             title,
@@ -2236,6 +2581,30 @@ def _clinical_scope_warning(topic: str, weight_profile: str) -> str | None:
     )
 
 
+def _component_terms(components: Sequence[str]) -> list[str]:
+    return [
+        " ".join(component.split())
+        for component in components[:4]
+        if len(" ".join(component.split())) >= 3
+    ]
+
+
+def _component_market_query(component: str) -> str:
+    return f"{component} company product commercial deployment {_recent_years()}"
+
+
+def _market_query_limits(
+    market_queries: Sequence[str], components: Sequence[str],
+) -> dict[str, int]:
+    """Per-query source limits for the primary market pass."""
+    limits = dict.fromkeys(market_queries, _MARKET_SOURCES_PER_QUERY)
+    for component in _component_terms(components):
+        query = _component_market_query(component)
+        if query in limits:
+            limits[query] = _COMPONENT_MARKET_SOURCES_PER_QUERY
+    return limits
+
+
 def _queries(
     topic: str,
     *,
@@ -2252,11 +2621,7 @@ def _queries(
     # without including metric clauses (e.g. "improving X by 12.1%") that
     # appear in no market report.
     _mkt_short = " ".join(_pat_clean.split()[:6])
-    component_terms = [
-        " ".join(component.split())
-        for component in components[:4]
-        if len(" ".join(component.split())) >= 3
-    ]
+    component_terms = _component_terms(components)
     patent: list[str] = [
         f"{topic} site:patents.google.com/patent",
         f"{topic} site:patentscope.wipo.int",
@@ -2296,21 +2661,25 @@ def _queries(
             f"{topic} trial results status site:clinicaltrials.gov"
         )
     market_templates = [
-        # Short-form queries first: more likely to match market/industry reports
-        # than the full metric-laden topic string.
-        f"{_mkt_short} market size revenue commercial manufacturer {_years}",
-        f"{_mkt_short} industry company deployment commercial scale",
-        f"{topic} product manufacturer revenue commercial sales {_years}",
+        # Deployment evidence about the topic itself comes first. The scorer
+        # reads named operators, products and deployments as the primary TRL
+        # signal and a market-size page as no signal at all, yet this list
+        # used to open with the market-size query. The market-size queries
+        # now fill only slots left over: the deployment queries already
+        # return market-size pages (a retrieval probe on 2026-10-19 got two
+        # to three per query), so the market-evidence score keeps its input.
         f"{topic} company commercial deployment industry news",
-        f"{_mkt_short} market report investment startup {_years}",
+        f"{topic} product manufacturer revenue commercial sales {_years}",
+        f"{_mkt_short} industry company deployment commercial scale",
+        f"{_mkt_short} market size revenue commercial manufacturer {_years}",
         f"{topic} commercial scale production manufacturer press release",
+        f"{_mkt_short} market report investment startup {_years}",
         f"{topic} manufacturing commercialization company",
         f"{topic} government standards policy commercialization",
     ]
     if component_terms:
         component_market = [
-            f"{component} company product commercial deployment {_years}"
-            for component in component_terms
+            _component_market_query(component) for component in component_terms
         ]
         market_templates = (component_market + market_templates)[:8]
     market.extend(market_templates)
@@ -2410,6 +2779,8 @@ def _collect_domain(
     blocked_dois: set[str] | None = None,
     blocked_titles: set[str] | None = None,
     research_aliases: Sequence[str] = (),
+    query_limits: Mapping[str, int] | None = None,
+    user_topic: str = "",
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
     prefix = {"academic": "A", "patent": "P", "market": "M"}[domain]
     accepted: list[EvidenceSource] = []
@@ -2428,6 +2799,7 @@ def _collect_domain(
     _institutional_accepted = 0
     _authority_categories_accepted: set[str] = set()
     _market_report_accepted = 0
+    _encyclopedia_accepted = 0
     _INSTITUTIONAL_TYPES = frozenset(("research_institute", "government"))
     excluded_dois = {
         doi.lower()
@@ -2448,8 +2820,14 @@ def _collect_domain(
         organic = response.get("organic", [])
         results = [item for item in organic if isinstance(item, dict)]
         audit = SearchAudit(domain=domain, query=query, result_count=len(results))
+        query_limit = (query_limits or {}).get(query)
         for result in results[:_SERPER_MAX_RESULTS_PER_QUERY]:
             if len(accepted) >= maximum_sources:
+                break
+            if query_limit is not None and len(audit.accepted_source_ids) >= query_limit:
+                audit.rejected_reasons.append(
+                    f"query source limit reached ({query_limit}); later results not read"
+                )
                 break
             # Use a stable placeholder; the real ID is assigned only when the
             # source is confirmed accepted so deferred sources never get the
@@ -2495,7 +2873,7 @@ def _collect_domain(
             if domain == "academic":
                 source, reason = _academic_source(
                     result, _tmp_src_id, crossref, accessed_date, research_topic,
-                    aliases=research_aliases,
+                    aliases=research_aliases, user_topic=user_topic,
                 )
             else:
                 source, reason = _web_source(
@@ -2600,6 +2978,17 @@ def _collect_domain(
                         )
                         continue
                     _market_report_accepted += 1
+                elif _host_matches(
+                    (urlsplit(str(source.url)).hostname or "") if source.url else "",
+                    _ENCYCLOPEDIA_DOMAINS,
+                ):
+                    if _encyclopedia_accepted >= _MARKET_ENCYCLOPEDIA_SOFT_CAP:
+                        _deferred.append(source)
+                        audit.rejected_reasons.append(
+                            f"deferred (encyclopedia cap): {source.title!r}"
+                        )
+                        continue
+                    _encyclopedia_accepted += 1
             source.source_id = f"{prefix}{len(accepted) + 1}"
             accepted.append(source)
             audit.accepted_source_ids.append(source.source_id)
@@ -2652,6 +3041,7 @@ def _collect_academic_primary(
     synonyms: list[str] | None = None,
     pubmed: "PubMedClient | None" = None,
     arxiv: "ArxivClient | None" = None,
+    user_topic: str = "",
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
     """Collect academic sources via concurrent multi-API fetch with synonym,
     topic-cluster, MeSH, and citation-snowball expansion."""
@@ -2711,7 +3101,8 @@ def _collect_academic_primary(
                 break
             src_id = f"A{len(accepted) + 1}"
             source, reason = _academic_source_from_openalex(
-                work, src_id, accessed_date, match_topic, s2_client=s2
+                work, src_id, accessed_date, match_topic, s2_client=s2,
+                user_topic=user_topic,
             )
             if source is None:
                 audit.rejected_reasons.append(reason)
@@ -2724,7 +3115,9 @@ def _collect_academic_primary(
             if len(accepted) >= limit:
                 break
             src_id = f"A{len(accepted) + 1}"
-            source, reason = converter(paper, src_id, accessed_date, topic)
+            source, reason = converter(
+                paper, src_id, accessed_date, topic, user_topic=user_topic
+            )
             if source is None:
                 audit.rejected_reasons.append(reason)
                 continue
@@ -2971,6 +3364,8 @@ def collect_source_collection(
         )
     native_topic = display_topic if is_native else None
     topic_synonyms = list(plan.aliases)
+    # The words the user typed anchor the academic title gate, when they name a topic.
+    academic_anchor = _academic_anchor_topic(display_topic, normalized_topic, topic_synonyms)
     # A caller-supplied profile decides retrieval, not just scoring. It used to
     # be applied by the worker *after* this function returned, which meant a
     # user who corrected an auto-detection to "biomedical" got biomedical
@@ -3063,6 +3458,7 @@ def collect_source_collection(
         synonyms=topic_synonyms,
         pubmed=pubmed,
         arxiv=arxiv,
+        user_topic=academic_anchor,
     )
     all_audits.extend(oa_audits)
 
@@ -3082,6 +3478,7 @@ def collect_source_collection(
                 blocked_dois=existing_dois,
                 blocked_titles={src.title for src in academic},
                 research_aliases=topic_synonyms,
+                user_topic=academic_anchor,
             )
             all_audits.extend(fb_audits)
             for src in fallback:
@@ -3278,6 +3675,7 @@ def collect_source_collection(
             maximum_sources=maximum_sources,
             blocked_dois={src.doi for src in academic if src.doi is not None},
             blocked_titles={src.title for src in academic},
+            query_limits=_market_query_limits(query_map["market"], plan.components),
         )
     except SourceCollectionError as exc:
         # Losing the market domain used to lose the whole run, including the
@@ -3411,6 +3809,7 @@ def collect_source_collection(
             },
             blocked_titles={source.title for source in previously_seen},
             research_aliases=topic_synonyms,
+            user_topic=academic_anchor,
         )
         all_audits.extend(recovery_audits)
         recovered, recovery_removed = _filter_by_relevance(

@@ -7,6 +7,7 @@ import pytest
 
 from api import main, runs
 from academic_agent import llm_config
+from academic_agent.byok_model import MODEL_ENV_NAMES
 
 
 @pytest.fixture
@@ -45,6 +46,10 @@ def test_readiness_preserves_the_actual_transport_key_alias(client, monkeypatch,
     """Reject missing credentials without breaking the legacy OPENAI_* setup."""
     monkeypatch.setenv("LLM_PROVIDER", provider)
     monkeypatch.setenv(key_name, "offline-credential-do-not-return")
+    # A model is always named: there is no default (the legacy alias pairs
+    # OPENAI_API_KEY with OPENAI_MODEL_NAME).
+    monkeypatch.setenv("OPENAI_MODEL_NAME" if key_name == "OPENAI_API_KEY" else MODEL_ENV_NAMES[provider],
+                       "offline-model")
     constructor = MagicMock()
     monkeypatch.setattr(llm_config, "LLM", constructor)
     response = client.get("/health/ready")

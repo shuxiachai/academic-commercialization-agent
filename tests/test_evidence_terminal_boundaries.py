@@ -90,6 +90,7 @@ def test_production_crew_scoring_task_enforces_the_new_contract(monkeypatch):
     from academic_agent.crew import AcademicAgent
 
     monkeypatch.setenv("DEEPSEEK_API_KEY", "offline-placeholder")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
     guardrail = AcademicAgent(_make_collection()).crew().tasks[5].guardrail
     ok, error = _run(guardrail, patent_source_ids=["A1"])
     assert not ok and "wrong domain" in error

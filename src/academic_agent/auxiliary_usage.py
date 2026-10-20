@@ -29,6 +29,7 @@ Stage = Literal["search_planning", "translation", "heading_translation", "synony
 MODELS = {
     "deepseek-chat": "deepseek", "deepseek-reasoner": "deepseek",
     "deepseek-v4-flash": "deepseek", "qwen3.5-plus": "qwen",
+    "qwen3.7-plus": "qwen", "qwen3.8-max": "qwen", "qwen3.8-27b": "qwen",
     "gpt-4o": "openai", "gpt-4o-mini": "openai", "gpt-4.1": "openai",
     "gpt-4.1-mini": "openai", "claude-sonnet-5": "anthropic",
     "claude-opus-4": "anthropic", "claude-sonnet-4": "anthropic", "claude-haiku-4": "anthropic",

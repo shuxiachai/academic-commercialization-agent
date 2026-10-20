@@ -4,6 +4,26 @@ Read [AGENTS.md](AGENTS.md) first. It is a decision index: several seemingly
 obvious changes have already been rejected on measured evidence. Use
 [the documentation map](docs/README.md) for current guides and historical results.
 
+For a first contribution, the map below is enough; read AGENTS.md before
+changing pipeline, scoring or experiment code.
+
+## Where newcomers can work
+
+Look for issues labelled
+[`good first issue`](https://github.com/shuxiachai/academic-commercialization-agent/labels/good%20first%20issue)
+or [`help wanted`](https://github.com/shuxiachai/academic-commercialization-agent/labels/help%20wanted).
+You need no API keys: the test suite and the browser smokes make no paid
+requests.
+
+| | Where |
+|---|---|
+| **Good for a first PR** | The main web client (`web/index.html`, `web/samples.html`, `web/static/` except the files in the last row; new UI strings go in a small module of their own, like `web/static/js/samples_i18n.js`); `ui/` readers and PDF export; current guides (`README*`, `CONTRIBUTING.md`, `docs/operating-guide.md`, `docs/README.md`); new tests in `tests/` and `e2e/`; new tools under `scripts/` |
+| **Open an issue first** | Production pipeline and retrieval (`src/academic_agent/crew.py`, `source_pipeline.py`, `config/`); API access, BYOK and billing boundaries in `api/`; anything that changes scores, prompts or providers |
+| **Do not change** | `web/static/js/i18n.js`, `web/static/js/result.js`, `tests/js/source_browser_contract.mjs`, `AGENTS.md` and `src/academic_agent/evidence.py` (frozen experiments hash their bytes, and their tests fail on any edit; to change evidence.py behaviour, wrap it as `reviewer_plan_bounds.py` does); the experimental pages `web/saved-source-*/` and `web/source-locator/`; the root experiment scripts and the experimental modules in `src/academic_agent/` (their paths and bytes are bound the same way); dated documents `docs/prereg-*`, `docs/results-*`, `docs/errata-*`, `docs/protocol-*`; fixtures in `tests/fixtures/`, `evals/` and `benchmark_fixtures/`. Touch `pyproject.toml` and `uv.lock` only as far as your change needs |
+
+If a change you need falls in the last row, open an issue and explain why;
+the frozen material belongs to closed studies whose results depend on it.
+
 ## Setup
 
 ```bash
@@ -27,6 +47,24 @@ uv run --with pylint pylint src/ ui/ api/ --disable=all --enable=bad-except-orde
 The Ruff invocation is intentional: CI resolves the latest release, while the
 local pin can disagree. The narrow Pylint set catches specific correctness
 failures; do not replace it with a general style cleanup.
+
+Locally you can add `-n auto` (pytest-xdist, in the dev group) to spread the
+suite over your cores: it then takes minutes rather than about ten. Run it
+inside the project environment (`uv run`), not with `uv run --with`: some
+tests start a fresh interpreter that may only read the project's own
+installed packages. CI still runs serially: on a saturated four-core runner
+a few timing-sensitive concurrency tests fail intermittently in parallel, so
+confirm a parallel-only failure with a serial rerun before chasing it.
+
+Tests of closed experiments, audits and probes are marked `experiment`
+([list](tests/experiment_tests.txt)); they take about 80% of suite time for
+code the app and pipeline never import. `uv run pytest -m "not experiment"`
+runs the rest in a couple of minutes. On a pull request, the Ubuntu/Python
+3.12 cell runs everything and the other cells skip `experiment`; the weekly
+[full-suite workflow](.github/workflows/full-suite.yml) runs everything on
+every cell. Add a new test of experiment code to the list;
+`tests/test_experiment_suite.py` rejects a listed file that tests code the
+app or pipeline uses. An unlisted test simply runs everywhere.
 
 - Run the complete suite before editing and after the fix.
 - Do not weaken assertions or add skips to make a failure disappear.
@@ -136,6 +174,10 @@ limitations and validation. Commit messages are deliberately substantive and
 in English; do not add Co-Authored-By or tool-signature lines. Preserve
 unrelated worktree changes and raw reviewer files.
 
+The project is licensed under the [MIT License](LICENSE). By submitting a
+pull request you agree that your contribution is licensed under the same
+terms, and that you have the right to submit it under them.
+
 This public repository must not receive credentials, private review packets,
 first-person resume notes or private run capability URLs. Resume notes are a
 separate private repository. A paid test, production restart, publication of
@@ -155,3 +197,8 @@ documentation change is not that authorization.
 | Zero-provider browser journey | `e2e/browser_smoke.py` |
 
 The detailed boundary map is in [AGENTS.md](AGENTS.md#layout-and-boundary-specific-reading).
+
+New experiment runners, probes and audits belong under `scripts/` (offline
+audits in `scripts/audits/`), not at the repository root. Existing root
+runners stay where they are because their protocols bind paths and hashes;
+see the [repository map](docs/README.md#repository-map).

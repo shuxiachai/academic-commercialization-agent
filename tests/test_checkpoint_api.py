@@ -175,6 +175,7 @@ def test_resume_byok_secrets_reach_env_not_argv_or_snapshot(
     body = {
         "llm_provider": "deepseek",
         "llm_api_key": "fresh-llm-secret",
+        "llm_model": "deepseek-chat",
         "serper_api_key": "fresh-search-secret",
     }
 
@@ -254,6 +255,7 @@ def test_owned_source_cannot_be_resumed_from_a_leaked_capability_url(
     byok = {
         "llm_provider": "deepseek",
         "llm_api_key": "attacker-key",
+        "llm_model": "deepseek-chat",
         "serper_api_key": "attacker-search",
     }
 
@@ -322,6 +324,7 @@ def test_unreadable_owner_metadata_denies_paid_resume_without_leaking_detail(
     body = {
         "llm_provider": "deepseek",
         "llm_api_key": "attacker-key",
+        "llm_model": "deepseek-chat",
         "serper_api_key": "attacker-search",
     }
 

@@ -59,6 +59,17 @@ _PRICING: dict[str, tuple[float, float, float]] = {
     # published China/global standard tier so a soft stop cannot understate a
     # long request; deployments can replace it with LLM_PRICE_PER_MTOK.
     "qwen3.5-plus":       (0.573, 0.115, 3.44),
+    # Newer Qwen models, priced from third-party listings only: Alibaba's
+    # official page could not be retrieved. Each row takes the highest figure
+    # found, and cached input is charged at the full input rate, so a soft
+    # stop can only overstate. qwen3.7-plus: China long-context tier
+    # ¥6/¥24 per Mtok at ~¥7.1/USD. qwen3.8-max: the international $2/$6
+    # list rate, above the China ¥12/¥36. qwen3.8-27b: Alibaba's page lists
+    # Beijing ¥3/¥12 and Singapore ¥3.646/¥21.875 (~$0.51/$3.08); third-party
+    # listings give up to $0.50/$3.20. The row takes the higher of each.
+    "qwen3.7-plus":       (0.85, 0.85, 3.40),
+    "qwen3.8-max":        (2.00, 2.00, 6.00),
+    "qwen3.8-27b":        (0.52, 0.52, 3.20),
     "gpt-4o-mini":        (0.15, 0.075, 0.60),
     "gpt-4.1":            (2.00, 0.50, 8.00),
     "gpt-4.1-mini":       (0.40, 0.10, 1.60),
@@ -70,6 +81,9 @@ _PRICING: dict[str, tuple[float, float, float]] = {
 _PRICING_BASIS_OVERRIDES = {
     "deepseek-v4-flash": "built-in DeepSeek peak table (as of 2026-08-30)",
     "qwen3.5-plus": "built-in Qwen3.5 Plus peak tier (as of 2026-08-30)",
+    "qwen3.7-plus": "built-in Qwen3.7 Plus upper bound, third-party listings (as of 2026-10-18)",
+    "qwen3.8-max": "built-in Qwen3.8 Max upper bound, third-party listings (as of 2026-10-18)",
+    "qwen3.8-27b": "built-in Qwen3.8 27B upper bound, Alibaba and third-party listings (as of 2026-10-19)",
 }
 
 # Anthropic bills a cache *write* above the normal input rate. Cache reads are

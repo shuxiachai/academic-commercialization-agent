@@ -99,9 +99,14 @@ For BYOK, send a fresh complete credential set in the JSON body:
 {
   "llm_provider": "deepseek",
   "llm_api_key": "...",
-  "serper_api_key": "..."
+  "llm_model": "deepseek-chat",
+  "tavily_api_key": "..."
 }
 ```
+
+`llm_model` is optional, and `serper_api_key` may replace `tavily_api_key`
+(exactly one search key). A model different from the failed attempt's changes
+checkpoint identity, so its nodes re-execute instead of being reused.
 
 Credentials cross only the child subprocess environment. They are absent from
 argv, RunSpec, checkpoint manifests, checkpoint payloads, and status files.
