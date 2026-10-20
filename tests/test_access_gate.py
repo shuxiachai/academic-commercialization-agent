@@ -30,6 +30,7 @@ from pydantic import ValidationError
 from api import access, papers, runs
 from api.main import app
 from api.models import RunRequest
+from tests.scripted_waits import STEP
 
 
 class AccessCheckTests(unittest.TestCase):
@@ -640,7 +641,7 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
         def blocking_extractor(*_args, **_kwargs):
             started.set()
             try:
-                if not release.wait(timeout=2):
+                if not release.wait(timeout=STEP):
                     raise TimeoutError("test did not release extractor")
                 return self._contribution()
             finally:
@@ -672,7 +673,7 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
                 )
             )
             try:
-                self.assertTrue(await asyncio.to_thread(started.wait, 1))
+                self.assertTrue(await asyncio.to_thread(started.wait, STEP))
                 task.cancel()
                 with self.assertRaises(asyncio.CancelledError):
                     await task
@@ -681,7 +682,7 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
                 release.set()
                 await upload.close()
 
-            self.assertTrue(await asyncio.to_thread(finished.wait, 1))
+            self.assertTrue(await asyncio.to_thread(finished.wait, STEP))
             for _ in range(100):
                 if runs.active_paid_operation_count() == 0:
                     break

@@ -22,6 +22,7 @@ from academic_agent.checkpoints import CheckpointStore
 from academic_agent.run_spec import RunSpec
 from api import access, auxiliary_usage as pdf_usage, main, papers, receipts, runs
 from tests.test_server_receipts import contribution, headers, paid_api  # noqa: F401
+from tests.scripted_waits import STEP
 
 USAGE = {"prompt_tokens": 10, "completion_tokens": 2, "total_tokens": 12}
 SDK_USAGE = {**USAGE, "successful_requests": 1}
@@ -368,7 +369,7 @@ def test_cancelled_pdf_waiter_settles_once_in_actual_thread(paid_api, monkeypatc
 
         def call(_messages):
             loop.call_soon_threadsafe(entered.set)
-            assert release.wait(5)
+            assert release.wait(STEP)
             return json.dumps(contribution().model_dump())
 
         sdk(monkeypatch, call=call)
@@ -387,7 +388,7 @@ def test_cancelled_pdf_waiter_settles_once_in_actual_thread(paid_api, monkeypatc
                 while not main._paper_jobs:
                     await asyncio.sleep(0)
             else:
-                assert await asyncio.wait_for(entered.wait(), 3)
+                assert await asyncio.wait_for(entered.wait(), STEP)
             assert not waiter.done()
             waiter.cancel()
             with pytest.raises(asyncio.CancelledError):
@@ -416,7 +417,7 @@ def test_two_pdf_threads_do_not_mix_accounts_or_prune_active_records(paid_api, m
     original = main.extract_paper_contribution
 
     def extract(*args, **kwargs):
-        barrier.wait(3)
+        barrier.wait(STEP)
         collector = aux.current()
         os.utime(collector.path, (1, 1))
         assert pdf_usage.prune() == 0
@@ -546,15 +547,15 @@ def test_pdf_response_does_not_block_loop_on_actual_prune_lock(paid_api, monkeyp
             def held_iteration(path):
                 if path == root / "_auxiliary_usage":
                     loop.call_soon_threadsafe(entered.set)
-                    assert release.wait(5), "prune observer did not release the real lock"
+                    assert release.wait(STEP), "prune observer did not release the real lock"
                 return iterate(path)
 
             monkeypatch.setattr(Path, "iterdir", held_iteration)
 
             def observer():
                 try:
-                    assert probe_go.wait(3)
-                    response = asyncio.run_coroutine_threadsafe(client.get("/health"), loop).result(timeout=2)
+                    assert probe_go.wait(STEP)
+                    response = asyncio.run_coroutine_threadsafe(client.get("/health"), loop).result(timeout=STEP)
                     assert response.status_code == 200
                 except Exception as exc:  # noqa: BLE001 - transfer observer failures to pytest's thread
                     errors.append(exc)
@@ -567,7 +568,7 @@ def test_pdf_response_does_not_block_loop_on_actual_prune_lock(paid_api, monkeyp
                 threads.extend((pruner, observer_thread))
                 pruner.start()
                 observer_thread.start()
-                assert await asyncio.wait_for(entered.wait(), 3)
+                assert await asyncio.wait_for(entered.wait(), STEP)
                 probe_go.set()  # Current task reaches delivery before the queued health probe.
 
             async def wrapped(*args, **kwargs):
@@ -589,7 +590,7 @@ def test_pdf_response_does_not_block_loop_on_actual_prune_lock(paid_api, monkeyp
             finally:
                 release.set()
                 for thread in threads:
-                    await asyncio.to_thread(thread.join, 3)
+                    await asyncio.to_thread(thread.join, STEP)
             assert not errors, f"Health was blocked by PDF delivery: {errors!r}"
 
     asyncio.run(exercise())

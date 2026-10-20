@@ -11,6 +11,7 @@ from reportlab.platypus import SimpleDocTemplate
 
 from api import main
 from ui import pdf_export
+from tests.scripted_waits import STEP
 
 
 @pytest.fixture
@@ -63,7 +64,7 @@ def test_simultaneous_first_downloads_share_one_completed_build(report):
     real_lock = pdf_export.pdf_cache_lock
 
     def simultaneous_lock(directory):
-        gate.wait(timeout=5)
+        gate.wait(timeout=STEP)
         return real_lock(directory)
 
     def download():
@@ -74,7 +75,7 @@ def test_simultaneous_first_downloads_share_one_completed_build(report):
         patch.object(pdf_export, "_generate_pdf", wraps=pdf_export._generate_pdf) as render,
         ThreadPoolExecutor(max_workers=2) as pool,
     ):
-        first, second = [f.result(timeout=10) for f in [pool.submit(download), pool.submit(download)]]
+        first, second = [f.result(timeout=STEP) for f in [pool.submit(download), pool.submit(download)]]
     assert render.call_count == 1, "Concurrent first downloads must share one build"
     assert first.status_code == second.status_code == 200
     assert first.content == second.content == report.with_suffix(".pdf").read_bytes()
