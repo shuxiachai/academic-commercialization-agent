@@ -10,6 +10,7 @@ import sys
 import pytest
 
 from academic_agent import market_estimate_samples as samples
+from tests.scripted_waits import SCENARIO
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "market_estimate_controls_v1.json"
@@ -19,7 +20,7 @@ BUNDLE = json.loads(FIXTURE.read_text(encoding="utf-8"))
 def cli(flag, source, output):
     return subprocess.run([sys.executable, "-m", "academic_agent.market_estimate_samples",
                            flag, str(source), "--output", str(output)],
-                          capture_output=True, text=True, timeout=20, check=False)
+                          capture_output=True, text=True, timeout=SCENARIO, check=False)
 
 
 def control_file(tmp_path, value):

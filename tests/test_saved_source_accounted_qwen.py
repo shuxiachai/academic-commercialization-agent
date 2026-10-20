@@ -23,6 +23,7 @@ from tests.test_saved_source_accounting import (
     RESERVATION, TOKENS, boundary, count, execute,  # noqa: F401 -- pytest registers the shared isolated fixture.
 )
 from tests.test_saved_source_controller import CODE, QUESTION, RUN_ID, TEXT, key, select
+from tests.scripted_waits import STEP
 
 KEY = "sk-fictional-accounted-qwen-no-provider"
 
@@ -259,7 +260,7 @@ def test_cancelled_waiter_seals_on_actual_thread_and_keeps_slot(native, boundary
     def held_seal(self, facts):
         thread_ids.append(threading.get_ident())
         entered.set()
-        assert release.wait(10)
+        assert release.wait(STEP)
         return original(self, facts)
 
     monkeypatch.setattr(accounting.OperationObservation, "seal", held_seal)
@@ -268,7 +269,7 @@ def test_cancelled_waiter_seals_on_actual_thread_and_keeps_slot(native, boundary
     async def scenario():
         task = asyncio.create_task(native.controller.execute(receipt_key, RUN_ID, QUESTION, CODE))
         try:
-            assert await asyncio.to_thread(entered.wait, 10)
+            assert await asyncio.to_thread(entered.wait, STEP)
             task.cancel()
             with suppress(asyncio.CancelledError):
                 await task
@@ -284,7 +285,7 @@ def test_cancelled_waiter_seals_on_actual_thread_and_keeps_slot(native, boundary
 
             other = threading.Thread(target=competitor)
             other.start()
-            other.join(5)
+            other.join(STEP)
             assert not other.is_alive() and len(failures) == 1
         finally:
             release.set()

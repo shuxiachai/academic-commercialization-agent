@@ -8,6 +8,7 @@ import pytest
 
 from api import papers, runs
 from api import main
+from tests.scripted_waits import STEP
 
 
 @pytest.mark.parametrize("outcome", ["success", "provider_error", "storage_error"])
@@ -25,7 +26,7 @@ def test_abandoned_thread_finalizes_storage(monkeypatch, tmp_path, outcome, canc
 
     def extractor(*_args, **_kwargs):
         started.set()
-        assert release.wait(3), "Test must release the fake provider"
+        assert release.wait(STEP), "Test must release the fake provider"
         if outcome == "provider_error":
             raise ValueError("offline provider error")
         return contribution

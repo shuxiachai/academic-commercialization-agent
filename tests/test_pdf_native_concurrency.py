@@ -9,6 +9,7 @@ import pytest
 
 from academic_agent import pdf_extractor as extractor
 from api import main, runs
+from tests.scripted_waits import STEP
 
 
 class ObservedLock:
@@ -64,7 +65,7 @@ def install_native_probe(monkeypatch, lock, *, concurrent=False, fail=False):
         def __init__(self, _):
             lock.assert_owned()
             if concurrent:
-                assert lock.competing.wait(3), "Second admitted extraction never attempted parsing"
+                assert lock.competing.wait(STEP), "Second admitted extraction never attempted parsing"
 
         def __enter__(self):
             return self
@@ -99,7 +100,7 @@ def test_two_admitted_uploads_serialize_native_handles_not_model_work(monkeypatc
         text = extractor.extract_pdf_text(path)
         # No actual LLM is called. Both threads must reach this seam together;
         # serializing the whole extraction would hold the first here forever.
-        model_boundary.wait(timeout=3)
+        model_boundary.wait(timeout=STEP)
         return text
 
     monkeypatch.setattr(main, "extract_paper_contribution", contribution)
@@ -107,7 +108,7 @@ def test_two_admitted_uploads_serialize_native_handles_not_model_work(monkeypatc
         futures = [pool.submit(main._extract_paper_with_paid_reservation, "fixture.pdf",
                                owner=None, byok=True, llm_provider="qwen", llm_api_key="fixture")
                    for _ in range(2)]
-        assert all("Public fixture" in f.result(timeout=5) for f in futures)
+        assert all("Public fixture" in f.result(timeout=STEP) for f in futures)
     assert closed == ["text", "page", "document"] * 2
     assert runs.capacity_counts() == (0, 0)
 
