@@ -276,7 +276,7 @@ Kubernetes 本身不能解决这些缺口。
 ## 作者与更多作品
 
 作者：[shuxiachai](https://github.com/shuxiachai)。
-参与者：[Song Guoyu（@7776403yu）](https://github.com/7776403yu)。
+参与者：[Song Guoyu（@7776403yu）](https://github.com/7776403yu)、[@xiaobaozhou165-sudo](https://github.com/xiaobaozhou165-sudo)。
 更多项目与实践见 [GitHub 个人主页](https://github.com/shuxiachai)。
 
 ## 许可证
