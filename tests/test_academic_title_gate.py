@@ -40,21 +40,40 @@ def _gate_topics(row):
     )) if topic]
 
 
+def _production_decisions():
+    decisions = {}
+    for row in _replay_rows():
+        anchor = pipeline._academic_anchor_topic(row["display_topic"], row["research_topic"], row["aliases"])
+        decisions[row["id"]] = any(
+            pipeline._academic_title_matches(row["title"], t, anchor) for t in _gate_topics(row)
+        )
+    return decisions
+
+
 class FrozenRuleTests(TestCase):
-    def test_production_gate_reproduces_r5_on_every_replayed_decision(self) -> None:
+    def test_production_gate_is_r5_with_the_plural_stemmer(self) -> None:
         rules = _frozen_rules()
+        rules._stem = pipeline._academic_stem
+        observed = _production_decisions()
         rows = _replay_rows()
         self.assertEqual(len(rows), 494)
         for row in rows:
             with self.subTest(row=row["id"]):
                 expected = any(rules.r5_one_matcher(row["title"], t, row) for t in _gate_topics(row))
-                anchor = pipeline._academic_anchor_topic(
-                    row["display_topic"], row["research_topic"], row["aliases"]
-                )
-                observed = any(
-                    pipeline._academic_title_matches(row["title"], t, anchor) for t in _gate_topics(row)
-                )
-                self.assertEqual(observed, expected, row["title"])
+                self.assertEqual(observed[row["id"]], expected, row["title"])
+
+    def test_the_stemmer_fix_is_the_only_departure_from_frozen_r5(self) -> None:
+        # The five decisions the results note's exploratory check reported:
+        # four relevant titles ("drones", "interface") and one general UAV survey.
+        rules = _frozen_rules()
+        observed = _production_decisions()
+        changed = {
+            row["id"]
+            for row in _replay_rows()
+            if observed[row["id"]] != any(rules.r5_one_matcher(row["title"], t, row) for t in _gate_topics(row))
+        }
+        self.assertEqual(changed, {"test-0295", "test-0299", "test-0369", "test-0372", "test-0383"})
+        self.assertTrue(all(observed[row_id] for row_id in changed))
 
     def test_every_replayed_latin_input_anchors_on_the_users_words(self) -> None:
         for row in _replay_rows():
@@ -68,6 +87,18 @@ class FrozenRuleTests(TestCase):
 
 
 class AcademicTitleGateTests(TestCase):
+    def test_plurals_meet_their_singular(self) -> None:
+        stem = pipeline._academic_stem
+        for plural, singular in (("drones", "drone"), ("interfaces", "interface"), ("supplies", "supply"),
+                                 ("processes", "process"), ("farms", "farming")):
+            with self.subTest(plural=plural):
+                self.assertEqual(stem(plural), stem(singular))
+        self.assertTrue(pipeline._academic_title_matches(
+            "Unmanned aerial vehicle (drones) in public health: A SWOT analysis.",
+            "unmanned aerial vehicle medical supply delivery",
+            "drone delivery of medical supplies",
+        ))
+
     def test_one_word_input_needs_that_word_not_the_planners_expansion(self) -> None:
         match = pipeline._academic_title_matches
         # Rejected by the old gate: one shared word with the expanded phrase.

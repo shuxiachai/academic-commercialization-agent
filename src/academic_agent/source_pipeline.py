@@ -1005,9 +1005,20 @@ _MAX_USER_CORE_WORDS = 6
 
 
 def _academic_stem(token: str) -> str:
-    for suffix in ("ing", "es", "s"):
-        if token.endswith(suffix) and len(token) - len(suffix) >= 4:
-            return token[: -len(suffix)]
+    """Strip plurals and "-ing" so "farms" meets "farming" and "drones" meets "drone".
+
+    R5 as registered cut "-es" after any letter, turning "drones" into "dron"
+    and "interfaces" into "interfac"; that lost four relevant test titles.
+    "-es" now goes only after s, x, z, ch or sh, and "-ies" becomes "-y".
+    """
+    if token.endswith("ies") and len(token) >= 6:
+        return token[:-3] + "y"
+    if token.endswith(("sses", "xes", "zes", "ches", "shes")) and len(token) - 2 >= 4:
+        return token[:-2]
+    if token.endswith("ing") and len(token) - 3 >= 4:
+        return token[:-3]
+    if token.endswith("s") and not token.endswith("ss") and len(token) - 1 >= 4:
+        return token[:-1]
     return token
 
 
