@@ -601,6 +601,9 @@ def _execute_cell_with_deadline(
     - **Local Execution Termination & Resource Cleanup**: Guarantees bounded local wait time
       and local task resource cleanup upon deadline expiration. Unconfirmed exits set
       ``status="error_timeout_unconfirmed"`` and stop the batch run to prevent concurrent paid runs.
+      Note: Tracking execution boundaries is strictly limited to the explicit worker thread and
+      the cancellation callback. Any detached child threads spawned by the cell are ignored and fall
+      outside this deadline's guarantee.
     - **Remote Provider Cancellation & Token Consumption**: Once an upstream HTTP request has been
       dispatched to a remote LLM provider, server-side generation cancellation and billing/token
       consumption depend on the remote provider's API behavior and are not guaranteed by local execution

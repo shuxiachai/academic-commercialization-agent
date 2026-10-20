@@ -984,6 +984,85 @@ def test_integration_blocking_cancellation_callback_halts_batch(
             callback_gate.release()
             if cancel_thread is not None:
                 cancel_thread.join(timeout=1.0)
+                assert not cancel_thread.is_alive(), "cancel_thread did not exit cleanly"
+
+
+def test_integration_active_child_thread_ignored_by_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Outer worker exits quickly and leaves an active child thread; main() records success because detached child threads are ignored."""
+    collection = _collection()
+    child_threads: list[threading.Thread] = []
+    stop_event = threading.Event()
+
+    # Note: Detached child threads spawned by cell execution fall outside this
+    # deadline's guarantee and are ignored. The cell records success as long as the
+    # explicit worker thread exits cleanly.
+    class SpawnChildCrew:
+        tasks: list[object] = []
+        agents: list[object] = []
+
+        def kickoff(self, inputs=None):
+            def background_worker():
+                # Sleeps for 1-2 seconds while main worker returns immediately
+                stop_event.wait(timeout=1.5)
+
+            t = threading.Thread(target=background_worker, daemon=True)
+            child_threads.append(t)
+            t.start()
+            dummy_outputs = [
+                SimpleNamespace(
+                    raw=f"# Executive Summary\nTask {i} output report text",
+                    name=f"task_{i}",
+                )
+                for i in range(5)
+            ]
+            return SimpleNamespace(tasks_output=dummy_outputs)
+
+    crew_obj = SpawnChildCrew()
+
+    monkeypatch.setattr(
+        ablation,
+        "_fixture",
+        lambda *args: (collection, {"sha256_16": "fixture-digest"}),
+    )
+    monkeypatch.setattr(ablation.benchmark_fixtures, "age_days", lambda num: 1.0)
+    monkeypatch.setattr(
+        ablation,
+        "build_variant_crew",
+        lambda *args, **kwargs: (crew_obj, "monolith_report_task"),
+    )
+    monkeypatch.setattr(
+        ablation,
+        "preflight_fixtures",
+        lambda cases: {"03": {"sha256_16": "fixture-digest"}},
+    )
+    monkeypatch.setattr(ablation, "_commit_sha", lambda: "mockedcommit")
+
+    output_root = Path(__file__).parents[1] / "outputs"
+    with tempfile.TemporaryDirectory(prefix="test-child-thread-ignored-", dir=output_root) as raw:
+        root = Path(raw)
+        monkeypatch.setattr(ablation, "ABLATION_ROOT", root)
+
+        try:
+            exit_code = ablation.main(["--execute", "--pilot", "--max-execution-time", "5", "--pause-seconds", "0"])
+            assert exit_code == 0
+
+            exp_dirs = list(root.glob("*"))
+            assert len(exp_dirs) == 1
+            cell_meta_files = sorted(exp_dirs[0].glob("**/meta.json"))
+            # In pilot mode with 3 cells, all cells succeed and the batch does not halt
+            assert len(cell_meta_files) == 3
+
+            for meta_file in cell_meta_files:
+                meta_data = json.loads(meta_file.read_text(encoding="utf-8"))
+                assert meta_data["status"] == "success"
+                assert meta_data.get("usage_is_time_incomplete") is not True
+        finally:
+            stop_event.set()
+            for t in child_threads:
+                t.join(timeout=2.0)
+                assert not t.is_alive(), "child thread did not exit cleanly"
 
 
 def test_cold_start_real_crew_success_ignores_shared_threads(
@@ -1048,6 +1127,12 @@ def test_cold_start_real_crew_success_ignores_shared_threads(
             meta_data = json.loads(meta_file.read_text(encoding="utf-8"))
             assert meta_data["status"] == "success"
             assert meta_data.get("usage_is_time_incomplete") is not True
+
+        has_crew_bg_thread = any(
+            ("CrewAIEventsLoop" in t.name or "CrewAISyncHandler" in t.name) and t.is_alive()
+            for t in threading.enumerate()
+        )
+        assert has_crew_bg_thread, "Expected at least one CrewAI background thread (CrewAIEventsLoop/CrewAISyncHandler) to be alive"
 
 
 
