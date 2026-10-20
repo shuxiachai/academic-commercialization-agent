@@ -987,6 +987,116 @@ def _title_matches_topic(title: str, topic: str) -> bool:
             return False
     return True
 
+
+# Academic title gate: rule R5 of docs/prereg-2026-10-20-academic-title-gate-v1.md
+# (result: docs/results-2026-10-20-academic-title-gate-v1.md). The planned
+# search phrase adds category words ("high-speed", "power") that unrelated
+# titles share, and a title with only the user's one distinctive word failed
+# the two-word overlap. So the gate is anchored on the words the user typed.
+# Patents keep _title_matches_topic.
+_ACADEMIC_FUNCTION_WORDS = frozenset({
+    "for", "the", "and", "of", "in", "on", "to", "with", "via", "from", "into",
+    "by", "a", "an", "its", "their", "as", "at", "or",
+})
+# "-based" compounds ("space-based") split into a word most titles contain.
+_ACADEMIC_EXTRA_STOPWORDS = frozenset({"based"})
+# The replay covered inputs of up to six content words; see _academic_anchor_topic.
+_MAX_USER_CORE_WORDS = 6
+
+
+def _academic_stem(token: str) -> str:
+    """Strip plurals and "-ing" so "farms" meets "farming" and "drones" meets "drone".
+
+    R5 as registered cut "-es" after any letter, turning "drones" into "dron"
+    and "interfaces" into "interfac"; that lost four relevant test titles.
+    "-es" now goes only after s, x, z, ch or sh, and "-ies" becomes "-y".
+    """
+    if token.endswith("ies") and len(token) >= 6:
+        return token[:-3] + "y"
+    if token.endswith(("sses", "xes", "zes", "ches", "shes")) and len(token) - 2 >= 4:
+        return token[:-2]
+    if token.endswith("ing") and len(token) - 3 >= 4:
+        return token[:-3]
+    if token.endswith("s") and not token.endswith("ss") and len(token) - 1 >= 4:
+        return token[:-1]
+    return token
+
+
+def _academic_content_words(text: str) -> list[str]:
+    return [
+        _academic_stem(word)
+        for word in _WORD_PATTERN.findall(text.lower())
+        if len(word) >= 3
+        and word not in _ACADEMIC_FUNCTION_WORDS
+        and word not in _TOPIC_STOPWORDS
+        and word not in _ACADEMIC_EXTRA_STOPWORDS
+    ]
+
+
+def _academic_phrase_matches(title: str, phrase: str) -> bool:
+    """_title_matches_topic's test on stemmed words of three or more letters.
+
+    At least two shared words; from three phrase words on, a matched pair
+    adjacent in the phrase must also be adjacent in the title.
+    """
+    phrase_words = _academic_content_words(phrase)
+    if not phrase_words:
+        return True
+    title_words = [_academic_stem(word) for word in _WORD_PATTERN.findall(title.lower())]
+    overlap = set(phrase_words) & set(title_words)
+    if len(overlap) < 2:
+        return False
+    if len(set(phrase_words)) >= 3:
+        title_bigrams = set(zip(title_words, title_words[1:], strict=False))
+        matched_pairs = [
+            pair
+            for pair in zip(phrase_words, phrase_words[1:], strict=False)
+            if pair[0] in overlap and pair[1] in overlap
+        ]
+        if matched_pairs and not any(pair in title_bigrams for pair in matched_pairs):
+            return False
+    return True
+
+
+def _academic_title_matches(title: str, topic: str, user_topic: str = "") -> bool:
+    """Whether an academic title is about the topic the user asked for.
+
+    ``topic`` is the planned search phrase (or an alias); ``user_topic`` is
+    the submitted topic from _academic_anchor_topic. One user word
+    ("hyperloop") must appear in the title. Several must match as a phrase,
+    or the planned phrase must match and one of them appear. Without user
+    words (Chinese input, or no anchor) the planned phrase alone decides.
+    """
+    core = set(_academic_content_words(user_topic))
+    if not core:
+        return _academic_phrase_matches(title, topic)
+    title_words = {_academic_stem(word) for word in _WORD_PATTERN.findall(title.lower())}
+    if len(core) == 1:
+        return bool(core & title_words)
+    if _academic_phrase_matches(title, user_topic):
+        return True
+    return bool(core & title_words) and _academic_phrase_matches(title, topic)
+
+
+def _academic_anchor_topic(
+    display_topic: str, search_topic: str, aliases: Sequence[str] = ()
+) -> str:
+    """The submitted text when it names a topic, else "" (no anchor).
+
+    The replay inputs were short topics ("hyperloop", "fusion power"), and
+    every plan kept at least half of their words. A request such as "We are
+    building an LLM for scriptwriting; assess its value" carries words no
+    paper title uses, and the planner keeps one of six. Such an input, or
+    one longer than the replay's six words, leaves the planned phrase to
+    decide.
+    """
+    core = set(_academic_content_words(display_topic))
+    if not core or len(core) > _MAX_USER_CORE_WORDS:
+        return ""
+    planned = set(_academic_content_words(" ".join((search_topic, *aliases))))
+    return display_topic if 2 * len(core & planned) >= len(core) else ""
+
+
 def _published_date(item: dict[str, Any]) -> date | None:
     for key in ("published-print", "published-online", "published", "issued"):
         container = item.get(key)
@@ -1038,6 +1148,7 @@ def _academic_source(
     research_topic: str,
     *,
     aliases: Sequence[str] = (),
+    user_topic: str = "",
 ) -> tuple[EvidenceSource | None, str]:
     item, reason = _resolve_crossref_item(result, crossref)
     if item is None:
@@ -1049,7 +1160,7 @@ def _academic_source(
         return None, "Crossref record lacks DOI, title, or publisher"
     validation_topics = tuple(dict.fromkeys((research_topic, *aliases)))
     if not any(
-        _title_matches_topic(title, validation_topic)
+        _academic_title_matches(title, validation_topic, user_topic)
         for validation_topic in validation_topics
     ):
         return None, (
@@ -1245,6 +1356,7 @@ def _academic_source_from_openalex(
     research_topic: str,
     *,
     s2_client: SemanticScholarClient | None = None,
+    user_topic: str = "",
 ) -> tuple[EvidenceSource | None, str]:
     title = _clean_text(str(work.get("title") or ""))
     doi_raw = str(work.get("doi") or "").lower().strip()
@@ -1272,7 +1384,7 @@ def _academic_source_from_openalex(
     # Always require a title match regardless of OpenAlex topic classification.
     # topic_match=True only means OpenAlex field labels overlap (e.g. "Manufacturing"),
     # which is too broad — a generic manufacturing paper should not pass title check.
-    if not _title_matches_topic(title, research_topic):
+    if not _academic_title_matches(title, research_topic, user_topic):
         if topic_match is True:
             return None, f"OpenAlex topic matched broadly but title is off-topic: {title!r}"
         elif topic_match is False:
@@ -1377,6 +1489,8 @@ def _academic_source_from_s2(
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    user_topic: str = "",
 ) -> tuple[EvidenceSource | None, str]:
     title = _clean_text(str(paper.get("title") or ""))
     abstract = _clean_text(str(paper.get("abstract") or ""))
@@ -1387,7 +1501,7 @@ def _academic_source_from_s2(
         return None, "Semantic Scholar paper has no title"
     if not doi:
         return None, f"S2 paper has no DOI: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    if not _academic_title_matches(title, research_topic, user_topic):
         return None, f"S2 title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"S2 abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1445,6 +1559,8 @@ def _academic_source_from_arxiv(
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    user_topic: str = "",
 ) -> tuple["EvidenceSource | None", str]:
     title    = _clean_text(record.get("title") or "")
     abstract = _clean_text(record.get("abstract") or "")
@@ -1457,7 +1573,7 @@ def _academic_source_from_arxiv(
         return None, "arXiv record has no title"
     if not arxiv_url and not doi:
         return None, f"arXiv record has no URL: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    if not _academic_title_matches(title, research_topic, user_topic):
         return None, f"arXiv title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"arXiv abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1518,6 +1634,8 @@ def _academic_source_from_pubmed(
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    user_topic: str = "",
 ) -> tuple["EvidenceSource | None", str]:
     title    = _clean_text(record.get("title") or "")
     abstract = _clean_text(record.get("abstract") or "")
@@ -1530,7 +1648,7 @@ def _academic_source_from_pubmed(
         return None, "PubMed record has no title"
     if not (doi or pmid):
         return None, f"PubMed record has no DOI or PMID: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    if not _academic_title_matches(title, research_topic, user_topic):
         return None, f"PubMed title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"PubMed abstract too thin ({len(abstract)} chars): {title!r}"
@@ -2662,6 +2780,7 @@ def _collect_domain(
     blocked_titles: set[str] | None = None,
     research_aliases: Sequence[str] = (),
     query_limits: Mapping[str, int] | None = None,
+    user_topic: str = "",
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
     prefix = {"academic": "A", "patent": "P", "market": "M"}[domain]
     accepted: list[EvidenceSource] = []
@@ -2754,7 +2873,7 @@ def _collect_domain(
             if domain == "academic":
                 source, reason = _academic_source(
                     result, _tmp_src_id, crossref, accessed_date, research_topic,
-                    aliases=research_aliases,
+                    aliases=research_aliases, user_topic=user_topic,
                 )
             else:
                 source, reason = _web_source(
@@ -2922,6 +3041,7 @@ def _collect_academic_primary(
     synonyms: list[str] | None = None,
     pubmed: "PubMedClient | None" = None,
     arxiv: "ArxivClient | None" = None,
+    user_topic: str = "",
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
     """Collect academic sources via concurrent multi-API fetch with synonym,
     topic-cluster, MeSH, and citation-snowball expansion."""
@@ -2981,7 +3101,8 @@ def _collect_academic_primary(
                 break
             src_id = f"A{len(accepted) + 1}"
             source, reason = _academic_source_from_openalex(
-                work, src_id, accessed_date, match_topic, s2_client=s2
+                work, src_id, accessed_date, match_topic, s2_client=s2,
+                user_topic=user_topic,
             )
             if source is None:
                 audit.rejected_reasons.append(reason)
@@ -2994,7 +3115,9 @@ def _collect_academic_primary(
             if len(accepted) >= limit:
                 break
             src_id = f"A{len(accepted) + 1}"
-            source, reason = converter(paper, src_id, accessed_date, topic)
+            source, reason = converter(
+                paper, src_id, accessed_date, topic, user_topic=user_topic
+            )
             if source is None:
                 audit.rejected_reasons.append(reason)
                 continue
@@ -3241,6 +3364,8 @@ def collect_source_collection(
         )
     native_topic = display_topic if is_native else None
     topic_synonyms = list(plan.aliases)
+    # The words the user typed anchor the academic title gate, when they name a topic.
+    academic_anchor = _academic_anchor_topic(display_topic, normalized_topic, topic_synonyms)
     # A caller-supplied profile decides retrieval, not just scoring. It used to
     # be applied by the worker *after* this function returned, which meant a
     # user who corrected an auto-detection to "biomedical" got biomedical
@@ -3333,6 +3458,7 @@ def collect_source_collection(
         synonyms=topic_synonyms,
         pubmed=pubmed,
         arxiv=arxiv,
+        user_topic=academic_anchor,
     )
     all_audits.extend(oa_audits)
 
@@ -3352,6 +3478,7 @@ def collect_source_collection(
                 blocked_dois=existing_dois,
                 blocked_titles={src.title for src in academic},
                 research_aliases=topic_synonyms,
+                user_topic=academic_anchor,
             )
             all_audits.extend(fb_audits)
             for src in fallback:
@@ -3682,6 +3809,7 @@ def collect_source_collection(
             },
             blocked_titles={source.title for source in previously_seen},
             research_aliases=topic_synonyms,
+            user_topic=academic_anchor,
         )
         all_audits.extend(recovery_audits)
         recovered, recovery_removed = _filter_by_relevance(
