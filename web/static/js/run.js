@@ -36,28 +36,47 @@ function stageIndex(stage) {
   return STAGES.findIndex((s) => stage.includes(s.match));
 }
 
+/** Seconds spent in each stage, by stage id, from the API's stage_timings. */
+function stageSeconds(timings) {
+  const seconds = {};
+  for (const timing of Array.isArray(timings) ? timings : []) {
+    const index = stageIndex(timing?.stage);
+    if (index === -1 || !Number.isFinite(timing.duration_seconds)) continue;
+    const { id } = STAGES[index];
+    seconds[id] = (seconds[id] ?? 0) + timing.duration_seconds;
+  }
+  return seconds;
+}
+
 /**
- * Per-stage state for the current status.
+ * Per-stage state for the current status, with the time each stage took.
  *
  * "Done" is reported as its own stage rather than as the last one, so a
  * completed run marks every stage done instead of leaving the final one
  * looking stuck.
  */
-export function stageStates(stage, state) {
+export function stageStates(stage, state, timings = []) {
   // The mutable stage can still say Done when a stronger outcome is damaged
   // or the process failed during finalization. Only verified completion may
   // paint every stage green; unknown cannot certify even a partial prefix.
   const done = state === "completed";
   const failed = state === "failed" || state === "timeout";
   const current = stageIndex(stage);
+  const seconds = stageSeconds(timings);
 
+  const stateOf = (i) => {
+    if (state === "unknown") return "pending";
+    if (done) return "done";
+    if (current === -1) return "pending";
+    if (i < current) return "done";
+    if (i > current) return "pending";
+    return failed ? "failed" : "active";
+  };
+  // A pending row shows no time, even when an unverifiable outcome has
+  // repainted stages the worker did record as finished.
   return STAGES.map((s, i) => {
-    if (state === "unknown") return { ...s, state: "pending" };
-    if (done) return { ...s, state: "done" };
-    if (current === -1) return { ...s, state: "pending" };
-    if (i < current) return { ...s, state: "done" };
-    if (i > current) return { ...s, state: "pending" };
-    return { ...s, state: failed ? "failed" : "active" };
+    const rowState = stateOf(i);
+    return { ...s, state: rowState, seconds: rowState === "pending" ? null : seconds[s.id] ?? null };
   });
 }
 
@@ -237,11 +256,13 @@ const AUXILIARY_STRINGS = {
 const HEADER_STRINGS = {
   English: {
     usage_details: "Usage & cost",
+    stage_timing: "Stage timing",
     source_locator: "Saved-source locator",
     source_locator_title: "Experimental: pick the saved source behind a question about a report and read its saved text",
   },
   "Simplified Chinese": {
     usage_details: "用量与费用",
+    stage_timing: "阶段耗时",
     source_locator: "已保存来源定位",
     source_locator_title: "实验功能：针对报告中的问题，找出对应的已保存来源并显示其原文",
   },
@@ -262,6 +283,26 @@ export function headerLabel(key) {
 
 export function stateLabel(state) {
   return STATE_LABELS[uiLanguage()]?.[state] ?? state;
+}
+
+// Short stage names for the one-line timing summary; the stage list keeps the
+// long ones from i18n.js.
+const STAGE_SHORT_LABELS = {
+  English: { sources: "Sources", evidence: "Evidence", report: "Report", review: "Review", scoring: "Scoring" },
+  "Simplified Chinese": { sources: "来源", evidence: "证据分析", report: "报告撰写", review: "审查", scoring: "评分" },
+};
+
+/** "Sources 0:40 · Evidence 1:00 · Report 0:25…" from stage_timings; "" without any. */
+export function timingSummary(timings) {
+  const labels = STAGE_SHORT_LABELS[uiLanguage()] ?? STAGE_SHORT_LABELS.English;
+  const seconds = stageSeconds(timings);
+  const active = new Set((Array.isArray(timings) ? timings : [])
+    .filter((timing) => timing?.active)
+    .map((timing) => STAGES[stageIndex(timing.stage)]?.id));
+  return STAGES
+    .filter((s) => seconds[s.id] != null)
+    .map((s) => `${labels[s.id]} ${formatDuration(seconds[s.id])}${active.has(s.id) ? "…" : ""}`)
+    .join(" · ");
 }
 
 /** Independent helper observations; never folded into Crew's numeric total. */
@@ -368,6 +409,12 @@ export function renderStages(container, stages) {
     label.textContent = t(stage.key);
 
     row.append(dot, label);
+    if (stage.seconds != null) {
+      const time = document.createElement("span");
+      time.className = "stage__meta";
+      time.textContent = formatDuration(stage.seconds);
+      row.append(time);
+    }
     list.append(row);
   }
   container.append(list);

@@ -122,6 +122,17 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
         decision_gate=decision_gate, output_language="English", run_id=run_id, output_root=output_root,
     )
     (run_dir / ".owner").write_text(owner, encoding="utf-8")
+    started_at = datetime.now(UTC).replace(microsecond=0)
+    ended_at = started_at + timedelta(seconds=7)
+    # Worker stage labels and when each began; Done marks the end of scoring.
+    stage_offsets = (
+        ("Source Collection & Validation", 0),
+        ("Phase 1 — Evidence Collection (Academic · Patent · Market)", 1),
+        ("Agent 4 — Report Writing", 3),
+        ("Agent 5 — Quality Review & Citation Check", 4),
+        ("Agent 6 — Commercialization Scoring", 5),
+        ("Done", 6),
+    )
     (run_dir / "status.json").write_text(
         json.dumps(
             {
@@ -132,6 +143,10 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
                 "decision_gate": decision_gate,
                 "report_audit": report_audit,
                 "source_counts": {"academic": 3, "patent": 2, "market": 4},
+                "stage_timings": [
+                    {"stage": stage, "started_at": (started_at + timedelta(seconds=offset)).isoformat()}
+                    for stage, offset in stage_offsets
+                ],
             },
             indent=2,
         ),
@@ -154,8 +169,6 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
     # the complete disk -> FastAPI projection -> JavaScript -> DOM seam that a
     # paid run uses. The explicit zero snapshot means "observed zero calls";
     # None would mean accounting failed and is invalid for a completed run.
-    started_at = datetime.now(UTC).replace(microsecond=0)
-    ended_at = started_at + timedelta(seconds=7)
     accounting = UsageAccounting(
         state="complete",
         snapshot_at=ended_at,
@@ -375,6 +388,14 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
     expect(page.locator("#run-usage")).to_be_hidden()
     usage_details.locator("summary").click()
     expect(page.locator("#run-usage")).to_be_visible()
+    timing_details = page.locator("#run-timing-details")
+    timing_details.evaluate("details => { details.open = false; }")
+    expect(timing_details.locator("summary")).to_have_text("· 阶段耗时" if chinese else "· Stage timing")
+    expect(page.locator("#run-timing")).to_be_hidden()
+    timing_details.locator("summary").click()
+    expect(page.locator("#run-timing")).to_have_text(
+        "来源 0:01 · 证据分析 0:02 · 报告撰写 0:01 · 审查 0:01 · 评分 0:01" if chinese
+        else "Sources 0:01 · Evidence 0:02 · Report 0:01 · Review 0:01 · Scoring 0:01")
     run_id = urlsplit(page.url).path.rsplit("/", 1)[-1]
     metadata = page.locator("#pane-run .pane__meta > span[id]")
     original = dict(metadata.evaluate_all(
@@ -392,10 +413,12 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
         "run-recovery": "· 恢复检查点已保留" if chinese else "· recovery checkpoint retained",
     }
     set_metadata = """values => {
-        // Measure with usage unfolded: its text is the longest the header holds.
-        const usage = document.getElementById('run-usage-details');
-        usage.hidden = false;
-        usage.open = true;
+        // Measure with usage and timing unfolded: the longest text the header holds.
+        for (const id of ['run-usage-details', 'run-timing-details']) {
+            const details = document.getElementById(id);
+            details.hidden = false;
+            details.open = true;
+        }
         for (const [id, value] of Object.entries(values)) document.getElementById(id).textContent = value;
     }"""
     try:
@@ -426,7 +449,7 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
                     const heading = rect(node('.pane__heading')), actions = rect(node('#run-actions'));
                     const style = getComputedStyle(headNode);
                     const contentWidth = head.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-                    const fields = [...pane.querySelectorAll('.pane__meta > span[id], #run-usage')]
+                    const fields = [...pane.querySelectorAll('.pane__meta > span[id], #run-usage, #run-timing')]
                         .filter(element => element.textContent);
                     const textFits = element => {
                         const box = rect(element), range = document.createRange();
@@ -689,6 +712,9 @@ def _exercise_browser(
             expect(page.locator("#run-terminal")).to_have_text("· worker completed")
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+            # status.json stage start times -> API durations -> folded header summary.
+            expect(page.locator("#run-timing")).to_have_text(
+                "Sources 0:01 · Evidence 0:02 · Report 0:01 · Review 0:01 · Scoring 0:01")
 
             # A new arithmetic receipt is distinct from the legacy unknown
             # above. Verify the same disk bytes over HTTP and actual Chromium;
@@ -726,6 +752,9 @@ def _exercise_browser(
             expect(page.locator("#run-usage")).to_contain_text("partial usage")
             expect(page.locator('.stage[data-state="done"]')).to_have_count(0)
             expect(page.locator('.stage[data-state="pending"]')).to_have_count(5)
+            # Recorded durations stay in the header; unverified rows show none.
+            expect(page.locator(".stage .stage__meta")).to_have_count(0)
+            expect(page.locator("#run-timing")).to_contain_text("Sources 0:01")
             expect(page.locator("#run-actions button")).to_have_count(0)
 
             # Nested faults are weaker than completion or the report itself.

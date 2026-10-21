@@ -391,7 +391,7 @@
   white-space: nowrap;
 }
 
-/* Usage and its accounting caveats: folded behind one click, never removed. */
+/* Usage and its accounting caveats, and stage timing: folded behind one click, never removed. */
 #pane-run .run-usage { min-width: 0; max-width: 100%; }
 #pane-run .run-usage > summary {
   cursor: pointer;
@@ -402,7 +402,8 @@
 #pane-run .run-usage > summary::-webkit-details-marker { display: none; }
 #pane-run .run-usage > summary:hover { color: var(--text-secondary); }
 #pane-run .run-usage[open] { flex-basis: 100%; }
-#pane-run .run-usage > #run-usage {
+#pane-run .run-usage > #run-usage,
+#pane-run .run-usage > #run-timing {
   display: block;
   margin-top: var(--space-1);
   overflow-wrap: anywhere;

@@ -214,6 +214,18 @@ class StepEvent(BaseModel):
     tool: str = ""
 
 
+class StageTiming(BaseModel):
+    stage: str = Field(description="The worker's stage label, as in `stage`.")
+    started_at: AwareDatetime
+    duration_seconds: int | None = Field(
+        default=None,
+        description="Until the next stage began or the run ended; so far while "
+                    "`active`. None when the end is unknown. The last agent stage "
+                    "includes report finalization.",
+    )
+    active: bool = Field(default=False, description="The stage the run is in now.")
+
+
 class RunProgress(BaseModel):
     """Everything a client needs to render live progress in one request.
 
@@ -249,6 +261,11 @@ class RunProgress(BaseModel):
     done: bool = False
     error: str | None = None
     elapsed_seconds: int | None = None
+    stage_timings: list[StageTiming] = Field(
+        default_factory=list,
+        description="When each stage began and how long it took. Empty for runs "
+                    "that predate stage timing.",
+    )
     source_counts: dict[str, int] | None = None
     evidence_incomplete: bool = Field(
         default=False,
@@ -402,6 +419,11 @@ class RunStatus(BaseModel):
     output_language: str = "English"
     error: str | None = None
     elapsed_seconds: int | None = None
+    stage_timings: list[StageTiming] = Field(
+        default_factory=list,
+        description="When each stage began and how long it took. Empty for runs "
+                    "that predate stage timing.",
+    )
     source_counts: dict[str, int] | None = None
     evidence_incomplete: bool = Field(
         default=False,

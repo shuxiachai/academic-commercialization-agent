@@ -1588,6 +1588,11 @@ def get_state(run_id: str) -> dict:
         "decision_gate": status.get("decision_gate"),
         "error": error,
         "elapsed_seconds": elapsed,
+        "stage_timings": _stage_timings(
+            status.get("stage_timings"),
+            running=state == "running",
+            ended_at=terminal_record.ended_at if terminal_record is not None else None,
+        ),
         "source_counts": status.get("source_counts"),
         # True when the run finished but its per-agent evidence files could not
         # be written. The report is still valid; what is missing is the record
@@ -1659,6 +1664,55 @@ def get_state(run_id: str) -> dict:
         "recovery": runtime["recovery"],
         "artifacts": available_artifacts(run_dir),
     }
+
+
+# Stage strings that mark the end of the run rather than a stage of it.
+_END_STAGES = frozenset({"Done", "Error"})
+
+
+def _stage_timings(
+    raw: object, *, running: bool, ended_at: datetime | None,
+) -> list[dict]:
+    """Each stage's start and duration, from the worker's stage_timings.
+
+    A stage lasts until the next one starts; the last one until the run's
+    terminal record, or until now while the run is still going (`active`).
+    A run without a terminal record and no later stage has no end to measure
+    against, so its last duration is None. Malformed entries are skipped.
+    """
+    entries: list[tuple[str, datetime]] = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        stage, started = item.get("stage"), item.get("started_at")
+        if not isinstance(stage, str) or not stage or not isinstance(started, str):
+            continue
+        try:
+            started_at = datetime.fromisoformat(started)
+        except ValueError:
+            continue
+        if started_at.tzinfo is not None:
+            entries.append((stage[:200], started_at))
+    timings = []
+    for index, (stage, started_at) in enumerate(entries[:32]):
+        if stage in _END_STAGES:
+            continue
+        active = False
+        if index + 1 < len(entries):
+            end: datetime | None = entries[index + 1][1]
+        elif running:
+            end, active = datetime.now(UTC), True
+        else:
+            end = ended_at
+        timings.append({
+            "stage": stage,
+            "started_at": started_at.isoformat(),
+            "duration_seconds": (
+                max(0, int((end - started_at).total_seconds())) if end is not None else None
+            ),
+            "active": active,
+        })
+    return timings
 
 
 def _started_at(run_id: str) -> str:

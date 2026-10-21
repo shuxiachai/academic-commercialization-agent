@@ -414,6 +414,7 @@ def _merge_status_fields(
     source_counts: dict | None,
     topic: str | None,
     pipeline_revision: str | None = None,
+    now: str | None = None,
 ) -> dict:
     """Build the next status.json payload from the previous one plus updates.
 
@@ -454,6 +455,13 @@ def _merge_status_fields(
         data["source_counts"] = source_counts
     if topic is not None:
         data["topic"] = topic
+    # When each stage began, so a slow run shows where its time went. A write
+    # that repeats the current stage does not restart its clock.
+    timings = list(existing.get("stage_timings") or [])
+    if now is not None and (not timings or timings[-1].get("stage") != stage):
+        timings.append({"stage": stage, "started_at": now})
+    if timings:
+        data["stage_timings"] = timings
     return data
 
 
@@ -601,6 +609,7 @@ def main() -> None:
                 source_counts=source_counts,
                 topic=topic,
                 pipeline_revision=pipeline_revision,
+                now=datetime.now(UTC).isoformat(),
             )
             if evidence_incomplete is not None:
                 data["evidence_incomplete"] = evidence_incomplete

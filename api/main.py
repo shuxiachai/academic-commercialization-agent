@@ -1340,6 +1340,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         done=state["state"] in {"completed", "failed", "cancelled", "timeout"},
         error=state.get("error"),
         elapsed_seconds=state.get("elapsed_seconds"),
+        stage_timings=state.get("stage_timings", []),
         source_counts=state.get("source_counts"),
         evidence_incomplete=state.get("evidence_incomplete", False),
         failed_domains=state.get("failed_domains", []),
