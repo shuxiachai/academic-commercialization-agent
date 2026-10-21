@@ -101,3 +101,10 @@ e2e = [
     # silently acquiring a browser it never launches.
     "playwright>=1.50,<2",
 ]
+
+[tool.uv]
+# crewai-cli 1.14.7 declares uv~=0.11.6, but every uv before 0.13.4 trusts the
+# emSign root whose intermediate keys were compromised (GHSA-hq85-5cpj-mr62).
+# Nothing here runs the crewai CLI, so the pin is overridden instead of
+# waiting for a crewai release.
+override-dependencies = ["uv>=0.13.4"]

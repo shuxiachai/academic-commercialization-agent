@@ -42,7 +42,7 @@ ENV PYTHONUNBUFFERED=1 \
 # ---------------------------------------------------------------------------
 FROM base AS deps
 
-COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
