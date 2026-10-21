@@ -1,0 +1,235 @@
+{
+ "_counts": {
+  "new": 43,
+  "reused": 143
+ },
+ "_rubric": "Title gate v1 rubric: 1 = about the topic technology, a variant, a component or subsystem, or its application, deployment or assessment; 0 = a different subject sharing words. AI assistant, from topic and full title, blind to the arm. General surveys of a parent technology (all UAVs, all brain-computer interfaces) are 0, as adopted in the title gate v1 maintainer review. Pairs already labelled in title gate v1 reuse that label with its five errata.",
+ "labels": {
+  "DNA data storage": {
+   "a digital twin for dna data storage based on comprehensive quantification of errors and biases": 1,
+   "a novel dna based data storage simulation platform with the jpeg standards": 1,
+   "a segmented edit error correcting code with re synchronization function for dna based storage systems": 1,
+   "an efficient encoding mechanism for digital microfluidic based dna data storage systems": 1,
+   "bio inspired approaches to in vivo dna data storage systems": 1,
+   "empowering dna based information processing computation and data storage": 1,
+   "navigating imaginaries of dna based digital data storage": 1,
+   "private information retrieval for large scale dna based data storage": 1
+  },
+  "battery-electric aircraft for regional passenger flights": {
+   "airport gate scheduling for passengers aircraft and operation": 0,
+   "degradation aware co design and multi level energy management of fuel cell battery powertrains for hybrid electric aircraft": 1,
+   "impact of mission duration on capacity power and structural degradation of high power electric aircraft battery cells": 1,
+   "passenger life saving in a badly damaged aircraft scenario": 0,
+   "system level implications of fast battery charging during the turnaround of hybrid electric aircraft": 1,
+   "system level thermal and electrical modeling of battery systems for electric aircraft design": 1,
+   "the promise of energy efficient battery powered urban aircraft": 1,
+   "universal battery performance and degradation model for electric aircraft": 1,
+   "wing structural sizing insights for a large battery electric aircraft": 1
+  },
+  "continuous glucose monitoring for diabetes": {
+   "agreement between garmin and ultrahuman wearables and their association with continuous glucose monitoring an n of 1 study": 1,
+   "application of continuous glucose monitoring and automated insulin delivery technologies for pregnant women with type 1 type 2 or gestational diabetes an international consensus statement": 1,
+   "clinical targets for continuous glucose monitoring data interpretation recommendations from the international consensus on time in range": 1,
+   "continuous glucose monitoring for diabetes management during pregnancy evidence practical tips and common pitfalls": 1,
+   "continuous glucose monitoring for the routine care of type 2 diabetes mellitus": 1,
+   "continuous glucose monitoring is not ready for the diagnosis of prediabetes": 1,
+   "intensive blood glucose control and vascular outcomes in patients with type 2 diabetes": 0,
+   "intraoperative continuous glucose monitor sensor receiver connectivity is maintained with alternative sensor placement a pilot study": 1,
+   "opening the black box of continuous glucose monitoring how app features drive behavior change a poster for ada tech 2026": 1
+  },
+  "direct air capture of carbon dioxide": {
+   "a review on direct air capture of carbon dioxide sorbent materials process engineering industrial scale up and future perspectives": 1,
+   "amine functionalized covalent organic framework for direct air capture of carbon dioxide": 1,
+   "carbon capture and storage ccs the way forward": 0,
+   "direct air capture of carbon dioxide process design and cost": 1,
+   "distributed direct air capture of carbon dioxide by synergistic water harvesting": 1,
+   "exploring phosphonium based anion exchange polymers for moisture swing direct air capture of carbon dioxide": 1,
+   "fluxnet a new tool to study the temporal and spatial variability of ecosystem scale carbon dioxide water vapor and energy flux densities": 0,
+   "ultrasonic swing carbon dioxide release using aralkylamines for direct air capture": 1,
+   "water enhanced direct air capture of carbon dioxide in metal organic frameworks": 1
+  },
+  "drone delivery of medical supplies": {
+   "delivery of medical supplies to remote locations via unmanned aerial vehicles approaches challenges and solutions": 1,
+   "effect of unmanned aerial vehicle drone delivery on blood product delivery time and wastage in rwanda a retrospective cross sectional study and time series analysis": 1,
+   "human drone interaction in delivery of medical supplies a scoping review of experimental studies": 1,
+   "optimization approaches for civil applications of unmanned aerial vehicles uavs or aerial drones a survey": 0,
+   "the feasibility of medical unmanned aerial systems in suburban areas": 1,
+   "towards the unmanned aerial vehicles uavs a comprehensive review": 0,
+   "unmanned aerial vehicle drones in public health a swot analysis": 1,
+   "unmanned aerial vehicle mediated drug delivery for first aid": 1,
+   "unmanned aerial vehicles uavs a survey on civil applications and key research challenges": 0,
+   "unmanned aerial vehicles uavs practical aspects applications open challenges security issues and future trends": 0,
+   "using the unmanned aerial vehicle delivery decision tool to consider transporting medical supplies via drone": 1
+  },
+  "enhanced geothermal systems for electricity generation": {
+   "de risking enhanced geothermal systems across the full project lifecycle a probabilistic framework for exploration development and portfolio integration": 1,
+   "enhanced geothermal systems for clean firm energy generation": 1,
+   "enhanced geothermal systems for the future power system cost estimation and flexibility considerations": 1,
+   "numerical study of heat extraction from an enhanced geothermal system combined with closed coaxial heat exchangers in complex fractured reservoirs": 1,
+   "numerical study on the influence of well layout on electricity generation performance of enhanced geothermal systems": 1,
+   "staged field development planning for enhanced geothermal systems under thermal and economic constraints": 1,
+   "sustainable energy transition for renewable and low carbon grid electricity generation and supply": 0,
+   "the role of computational geomechanics in the design operation and control of enhanced geothermal systems for district heating": 1,
+   "thermal performance comparison of planar and non planar fractures in enhanced geothermal systems": 1
+  },
+  "fusion power": {
+   "a high density and high confinement tokamak plasma regime for fusion energy": 1,
+   "advances challenges and future perspectives of microwave reflectometry for plasma position and shape control on future nuclear fusion devices": 1,
+   "artificial intelligence driven optimization of tokamak plasma confinement for sustainable nuclear fusion energy generation": 1,
+   "back to the future from nuclear energy to ai": 0,
+   "feasibility of d d nuclear fusion achieved by chemical methods quantum chemical analysis": 1,
+   "liquid metals power advanced nuclear energy systems": 1,
+   "nuclear combustion energy generation through fusion induced nuclear relaxation": 1,
+   "the el rakhawi fusion neutral battery architecture fnba integrated safe nuclear fusion energy generation and sustainable conductive energy storage for zero emission mobility and heavy industry": 1,
+   "unpacking public support for nuclear energy a twin conjoint experiment on innovative nuclear fusion and next generation fission technologies": 1
+  },
+  "hyperloop": {
+   "a 3d non stationary mmwave channel model for vacuum tube ultra high speed train channels": 1,
+   "a study of non symmetric double sided linear induction motor for hyperloop all in one system propulsion levitation and guidance": 1,
+   "aerodynamic study of a hyperloop pod equipped with compressor to overcome the kantrowitz limit": 1,
+   "analysis and modelling of performances of the hl hyperloop transport system": 1,
+   "can hyperloops substitute high speed rails in the future": 1,
+   "estimation of direct energy consumption and co2 emission by high speed rail transrapid maglev and hyperloop passenger transport systems": 1,
+   "how can autonomous and connected vehicles electromobility brt hyperloop shared use mobility and mobility as a service shape transport futures for the context of smart cities": 1,
+   "hyperloop transport technology assessment and system analysis": 1,
+   "laser driven high velocity microparticle launcher in atmosphere and under vacuum": 0,
+   "modelling of dislocation generation and interaction during high speed deformation of metals": 0,
+   "numerical analysis of aerodynamic characteristics of hyperloop system": 1,
+   "prospects and challenges of the hyperloop transportation system a systematic technology review": 1,
+   "study of a null flux coil electrodynamic suspension structure for evacuated tube transportation": 1,
+   "sub sonic linear synchronous motors using superconducting magnets for the hyperloop": 1,
+   "transpod ultra high speed tube transportation dynamics of vehicles and infrastructure": 1
+  },
+  "implantable brain-computer interfaces for paralysis": {
+   "a survey of signal processing algorithms in brain computer interfaces based on electrical brain signals": 0,
+   "an implant to wearable ir uwb transmitter receiver architecture and layered protocol for high density brain computer interfaces": 1,
+   "an integrated brain machine interface platform with thousands of channels": 1,
+   "bidirectional wireless communication for weakly coupled implantable brain computer interfaces": 1,
+   "brain computer interfaces a review": 0,
+   "correction perioperative management for invasive brain computer interface implantation under surgical navigation in a patient with traumatic spinal cord injury a case report": 1,
+   "implantable brain computer interface based speech neuroprostheses for restoring communication in patients with amyotrophic lateral sclerosis a scoping review": 1,
+   "review of recent advances in implantable brain computer interfaces for the restoration of motor function in patients with paralysis": 1
+  },
+  "pig kidney xenotransplantation": {
+   "447 2 consistent long term survival in consecutive cases of life supporting porcine kidney xenotransplantation using 10ge source pigs": 1,
+   "consistent survival in consecutive cases of life supporting porcine kidney xenotransplantation using 10ge source pigs": 1,
+   "first clinical grade porcine kidney xenotransplant using a human decedent model": 1,
+   "genetically modified porcine to human cardiac xenotransplantation": 1,
+   "infectious disease surveillance and management in clinical xenotransplantation experience with the first human porcine kidney transplant": 1,
+   "porcine kidney xenotransplantation as a bridge to allotransplantation a first in human study": 1,
+   "porcine kidney xenotransplantation from primate models to clinical reality": 1,
+   "porcine xenotransplantation in end stage kidney disease": 1,
+   "results of two cases of pig to human kidney xenotransplantation": 1,
+   "xenotransplantation of a porcine kidney for end stage kidney disease": 1
+  },
+  "precision fermentation for dairy proteins": {
+   "allergenicity assessment of precision fermentation derived food proteins": 1,
+   "biotechnology approaches to dairy alternatives through precision fermentation and cellular agriculture": 1,
+   "el rakhawi integrated system for photo acoustic self separating precision fermentation with closed loop nutrient recovery": 1,
+   "exploring an effect directed approach as a screening tool for the safety assessment of precision fermentation derived dairy proteins evidence from ar and ahr activation": 1,
+   "fermentation for designing innovative plant based meat and dairy alternatives": 0,
+   "food proteins from yeast based precision fermentation simple purification of recombinant β lactoglobulin using polyphosphate": 1,
+   "harnessing fungal secretion systems for precision fermentation of food proteins": 1,
+   "precision fermentation for sustainable food production technological advances food applications sustainability challenges and future perspectives": 1,
+   "rna thermometers as temperature dependent tools for enhanced recombinant protein production in precision fermentation": 1
+  },
+  "psilocybin therapy for treatment-resistant depression": {
+   "429 association between subjective experiences and symptom improvement following psilocybin therapy in japanese patients with treatment resistant depression an open label study": 1,
+   "701 efficacy and safety of comp360 psilocybin therapy in anorexia nervosa a proof of concept study": 1,
+   "music for psilocybin therapy and the temporal arc of psychedelic experience": 1,
+   "preparing the body for psilocybin therapy receptive and generative interoception in cancer patients": 1,
+   "psilocybin assisted treatment for alcohol dependence a proof of concept study": 1,
+   "psilocybin with psychological support for treatment resistant depression an open label feasibility study": 1,
+   "psilocybin with psychological support for treatment resistant depression six month follow up": 1,
+   "single dose psilocybin for a treatment resistant episode of major depression": 1
+  },
+  "robotic-assisted surgery": {
+   "adoption of robot assisted minimally invasive surgery across surgical specialties in france a nationwide population based study": 1,
+   "anesthetic management for patients with morbid obesity undergoing robot assisted gynecological surgery pathophysiology risks and contemporary approaches a narrative review": 1,
+   "cardiothoracic robotic assisted surgery in times of covid 19": 1,
+   "current status clinical outcomes and socioeconomic challenges of uniportal video assisted thoracoscopic surgery in japan compared with robot assisted thoracic surgery a narrative review": 1,
+   "laparoscopic robotic assisted surgery in reproductive medicine": 1,
+   "latest outcomes in robotic assisted bariatric surgery contemporary analysis of laparoscopic versus robotic sleeve gastrectomy and roux en y gastric bypass": 1,
+   "physiotherapy in robotic assisted abdominal surgery bridging physiological rationale and clinical practice a narrative review": 1,
+   "robot assisted surgery for cervical cancer a systematic review of clinical outcomes": 1,
+   "robotic assisted abdominal aortic surgery evidence and techniques": 1,
+   "robotic assisted fertility sparing surgery in gynecological oncology": 1,
+   "unveiling the chasm in japanese robot assisted surgery diffusion the interplay of surgical volume and intra specialty spillover": 1
+  },
+  "small modular reactors for grid electricity": {
+   "dynamic stability assessment of grid connected data centers powered by small modular reactors": 1,
+   "energy storage options for small modular reactor data centre co location a systematic review": 1,
+   "historical insights from past smrs used in nuclear propulsion and electricity generation in remote locations": 1,
+   "levelized cost of electricity for uzbekistan s first small modular reactors a probabilistic assessment of the role of capital costs construction risks and the cost of capital": 1,
+   "multi physics analysis of smart small modular reactor benchmark problems using the coupled mccard matra code system": 1,
+   "research on power distribution reconstruction for small modular reactors based on pinn": 1,
+   "technical overview of recent developments in small modular reactors in the united states": 1,
+   "techno economic boundary analysis of small modular reactor cogeneration for hyperscale data center it and cooling loads": 1
+  },
+  "space-based solar power": {
+   "a comprehensive review on space solar power satellite an idiosyncratic approach": 1,
+   "comparative assessment of space based solar power and terrestrial photovoltaic systems": 1,
+   "development of the optical waveguide solar lighting system for space based plant growing": 0,
+   "high fidelity solar power income modeling for solar electric uavs development and flight test based verification": 0,
+   "next generation civilization satellite mobile communication power supply integrated infrastructure system by quantum thought circuit os asi two part structure part i comprehensive study on hybrid communication networks space based solar power supply smartphone centric hierarchical power distribution spatial dynamic infrastructure packetized power isac p metasurface path control and an autonomous distributed integrated foundation based on quantum thought circuit os asi part ii integrated study on autonomous data centric distributed protection architecture with self defensive structures multi path compliance and metabolic anomaly detection": 1,
+   "orbital and rf power beaming analysis for space based solar power systems": 1,
+   "stability analysis in large scale centralized bidirectional inverter based stations connected to bulk power systems through ac and dc connections": 0,
+   "the research trend on space based solar power sbsp system": 1,
+   "towards net zero a technological review on the potential of space based solar power and wireless power transmission": 1
+  },
+  "vertical farming for fresh produce": {
+   "beyond soil an analysis of diverse growing media in vertical farming systems": 1,
+   "containerized vertical farming using cobots": 1,
+   "current status and future challenges in implementing and upscaling vertical farming systems": 1,
+   "life cycle assessment of microgreen production effects of indoor vertical farm management on yield and environmental performance": 1,
+   "optimized potting media and vertical farming enhance high value crop productivity in riverine lands of bangladesh": 1,
+   "preharvest exposure to far red and uva light enhances growth and pigment content of oakleaf lettuce in an indoor vertical farming system": 1,
+   "rethinking urban food systems through urban agriculture and vertical farming for health and environment a systematic review": 1,
+   "the el rakhawi quantum food security and vertical agronomy system qfs unifying smart vertical farming quantum tuned photonics atmospheric microbiome engineering and predictive ai for the absolute eradication of global hunger and agricultural ecological collapse": 1,
+   "vertical farming increases lettuce yield per unit area compared to conventional horizontal hydroponics": 1
+  },
+  "人工光合作用制备太阳能燃料": {
+   "artificial photosynthesis for production of hydrogen peroxide and its fuel cells": 1,
+   "comparative screening of mdea tsa and psa vpsa for co2 capture upstream of artificial photosynthesis": 1,
+   "design and synthesis of an indoloquinoxaline non fullerene acceptor polythiophene donor based double cable polymer as an all organic photocatalyst for artificial photosynthesis of h 2 o 2": 1,
+   "graphitic carbon nitride g c 3 n 4 based photocatalysts for artificial photosynthesis and environmental remediation are we a step closer to achieving sustainability": 1,
+   "photoinduced electron transfer in supramolecular systems for artificial photosynthesis": 1,
+   "semi artificial photosynthesis enables light driven biomanufacturing in non photosynthetic bacteria": 1,
+   "solar fuels via artificial photosynthesis": 1,
+   "status and perspectives of co2 conversion into fuels and chemicals by catalytic photocatalytic and electrocatalytic processes": 1,
+   "the convergent frontier intelligence framework from artificial consciousness to synthetic photosynthesis a unified theory of agi biocomputing room temperature superconductivity artificial photosynthesis and frontier law": 1
+  },
+  "漂浮式海上风电": {
+   "adapting floating offshore wind hydrogen systems for emerging markets the case of the ica region peru": 1,
+   "efficient preliminary floating offshore wind turbine design and testing methodologies and application to a concrete spar design": 1,
+   "fault ride through and grid disturbance mitigation for the stability of grid connected floating offshore wind energy conversion systems": 1,
+   "grand challenges in the science of wind energy": 0,
+   "inspection of floating offshore wind turbines using multi rotor unmanned aerial vehicles literature review and trends": 1,
+   "mooring system analysis for a 15 mw semi submersible floating offshore wind turbine in deep sea deployment case study for morro bay wind energy area california": 1,
+   "stability analysis of integrating a floating offshore wind farm with renewable energy farms fed to a multimachine power system through a multi terminal high voltage direct current link based on a modular multilevel converter": 1,
+   "storms on wind energy turbine systems a multi dimensional architecture for storm resilient onshore offshore and floating wind fleets": 1
+  },
+  "特高压直流输电": {
+   "a novel ultra high voltage direct current line fault diagnosis method based on principal component analysis and kernel density estimation": 1,
+   "anomaly detection of acoustic signals in ultra high voltage converter valves based on the favae as": 1,
+   "characterization of a high resolution 2d transmission ion chamber for independent validation of proton pencil beam scanning of conventional and flash dose delivery": 0,
+   "development and application of a wireless sensor for space charge density measurement in an ultra high voltage direct current environment": 1,
+   "high power hybrid commutated converter for carbon neutral power transmission": 1,
+   "optimal distributed feedback voltage control under limited reactive power": 0,
+   "optimisation of power transmission systems using a discrete tabu search method": 0,
+   "optimization of ultra high voltage direct current power transmission curve for high proportion new energy bases": 1
+  },
+  "量子密钥分发网络": {
+   "advances in chip based quantum key distribution": 1,
+   "an efficient routing protocol for quantum key distribution networks": 1,
+   "euv lithography and programmable nanostructures at the limit english introduction and research abstract this monograph develops a falsifiable research program for using extreme ultraviolet lithography to manufacture nanostructures with verified optical electrical mechanical or quantum sensitive functions its premise is deliberately stricter than smaller features are better a structure qualifies only when mask intent exposure resist chemistry transferred geometry and terminal function can be linked through traceable evidence on blind wafer locations scientific position the core candidate expression is y_prog p g in ω_g f in ω_f λ_d d_stoch λ_c c_euv it treats success as probability mass inside a joint geometry function acceptance region discounted by stochastic defect burden and euv route cost all variables units normalizations uncertainty models and domains must be preregistered safety rights irreversible harm missing primary evidence and terminal functional degradation are hard vetoes that cannot be compensated by a weighted score architecture and contents the book contains a scientific boundary statement a five layer architecture a reading guide thirty distinct formula derivations eighty two chapters with five research sections each two hundred research gates thirty three phoenix answer embryos and two hundred thirty three easter egg equations every chapter moves from claim and mechanism to experiment adversarial validation transfer and successor use the single section per page format keeps each decision object visually intact layer 01 functional grammar define geometric primitives functions and unacceptable defects before optimization layer 02 joint stochastic physics model source mask resist development and transfer with visible uncertainty layer 03 cross field experiment randomize focus and dose across wafer positions and preserve evidence ancestry layer 04 functional closure close the loop on terminal function and distribution tails rather than cd alone layer 05 portability and succession require reconstruction on a second platform and preserve the authority to reject or retire the route what makes the study testable the minimum prototype prints three parameterized structure families with explicit functional readouts on the same wafer randomizes focus and dose and holds out fields from model fitting a mature design rule plus opc flow and an electron beam small batch route serve as strong comparators the claim fails when gains disappear outside selected fields when rare fatal defects are dominated by unmodeled stochasticity when pattern transfer destroys the functional benefit or when the cost ceiling is exceeded evidence and doi strategy doi bearing sources anchor euv image formation stochastic resist physics secondary electron chemistry mask three dimensional effects curvilinear inverse lithography actinic inspection and nanoscale metrology citations support known mechanisms and constraints they do not convert proposed results into completed experiments the companion workbook maps doi records chapter interfaces equations and all research gates central deliverable the final phoenix answer embryo is the programmable euv structure atlas a reconstructable evidence object binding layout grammar process windows stochastic defects terminal functions negative cases and successor decisions its deepest criterion is not permanence it is whether a later team can reproduce refute fork or responsibly retire the work without needing the original authors selected doi anchors r01 extreme ultraviolet lithography nature reviews methods primers 4 84 2024 10 1038 s43586 024 00361 z r02 lithography at euv wavelengths nature photonics 4 809 811 2010 10 1038 nphoton 2010 277 r03 lithography gets extreme nature photonics 4 24 26 2010 10 1038 nphoton 2009 251 r04 pushing the limits of lithography nature 406 1027 1031 2000 10 1038 35023233 r05 beyond euv lithography a comparative study of efficient photoresists performance scientific reports 5 9235 2015 10 1038 srep09235 r06 key role of very low energy electrons in tin based molecular resists for euv nanolithography acs applied materials interfaces 2020 10 1021 acsami 9b19004 r07 mean free path of electrons in organic photoresists for euv lithography acs applied materials interfaces 2023 10 1021 acsami 3c05884 r08 extreme ultraviolet lithographic performance and reaction mechanism of polymeric resist chemistry of materials 2024 10 1021 acs chemmater 3c02628 r09 in situ analysis of electron induced chemical transformations in hybrid thin films acs applied materials interfaces 2025 10 1021 acsami 4c19426 r10 effect of networking density on molecular layer deposited alucone resists acs applied materials interfaces 2025 10 1021 acsami 5c13361 r11 contribution of euv resist counti": 0,
+   "field test of quantum key distribution in the tokyo qkd network": 1,
+   "genetic algorithm enhanced neural network for parameter optimization of quantum key distribution": 1,
+   "microsatellite based real time quantum key distribution": 1,
+   "networking feasibility of quantum key distribution constellation networks": 1,
+   "performance evaluation of quantum key distribution in secure communication networks a link to user simulation study": 1,
+   "quantum key distribution qkd and entanglement routing in quantum networks protocols repeater topologies and co existence with post quantum cryptography": 1,
+   "the integration of quantum key distribution and zero trust security in 5g networks a comprehensive review": 1
+  }
+ }
+}
