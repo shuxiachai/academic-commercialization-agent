@@ -528,6 +528,13 @@ retries. Defaults reserve closeout time before the 30-minute watchdog:
 not inherit the API watchdog. UI and both run endpoints distinguish terminal
 reason, stop method and elapsed time.
 
+The worker records when each stage began (`stage_timings` in `status.json`).
+Both run endpoints return each stage's duration: until the next stage began,
+until the terminal record's end, or so far (`active`) while the run is going.
+Scoring's duration includes report finalization. The run header shows them
+folded under "Stage timing"; the live stage list shows them per row. Runs
+started before this field have none.
+
 Usage snapshots only increase. `complete`, `lower_bound` and `unavailable`
 are different accounting facts; an interrupted in-flight call can have spend
 that no local counter captured. Cost uses a known price basis or stays

@@ -195,6 +195,7 @@ function startClock(fromSeconds) {
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
   terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
+  stage_timings,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -224,6 +225,13 @@ function paintHeader({
   // the DOM and one click away, while the header leads with the outcome.
   $("#run-usage-details").hidden = !spendEl.textContent;
   $("#run-usage-label").textContent = `· ${runView.headerLabel("usage_details")}`;
+
+  // Where the time went, folded the same way. The stage list shows it while
+  // the run is going; the finished view replaces that list.
+  const timingEl = $("#run-timing");
+  timingEl.textContent = runView.timingSummary(stage_timings);
+  $("#run-timing-details").hidden = !timingEl.textContent;
+  $("#run-timing-label").textContent = `· ${runView.headerLabel("stage_timing")}`;
 
   // State alone cannot distinguish a worker failure from a watchdog stop, and
   // a missing/unreadable terminal record must not look like an ordinary clean
@@ -394,12 +402,12 @@ async function openRun(runId, { known } = {}) {
       if (progress.state === "running") watchedActive = true;
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing);
-      runView.renderStages(body, runView.stageStates(progress.stage, progress.state));
+      runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
     },
     onDone(progress) {
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing);
-      runView.renderStages(body, runView.stageStates(progress.stage, progress.state));
+      runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
       refreshSidebar();
 
       if (progress.state === "completed") {
