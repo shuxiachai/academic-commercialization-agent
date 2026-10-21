@@ -31,7 +31,7 @@ registered measurement.
 - **Live check, before #248:** all four hyperloop runs stopped at the
   academic minimum with 1–2 sources.
 - **Held-out v2 (`qwen3.8-max`, old gate):** hyperloop scored 4, 3 and 2,
-  and 41% of its academic sources were off-topic.
+  and 9 of its 24 academic sources (38%) were off-topic.
 
 **Cost:** 71,961 and 72,109 Crew-node tokens.
 
