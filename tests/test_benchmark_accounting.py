@@ -28,6 +28,11 @@ class AccountingIsWiredTests(TestCase):
         source = inspect.getsource(benchmark.run_topic)
         self.assertIn("save_claim_grounding", source)
 
+    def test_a_source_collection_failure_keeps_its_retrieval_diagnostics(self):
+        """As the worker does; four live failures once had to be reproduced to be read."""
+        source = inspect.getsource(benchmark.run_topic)
+        self.assertIn("save_retrieval_diagnostics(exc.diagnostics", source)
+
     def test_the_crew_object_is_kept_so_usage_can_be_read(self):
         """usage lives on the crew and is only readable after kickoff. Chaining
         .crew().kickoff() throws the object away and silently yields an empty

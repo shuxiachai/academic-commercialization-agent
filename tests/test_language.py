@@ -146,6 +146,35 @@ def test_compound_topic_keeps_independently_searchable_components():
     )
 
 
+def test_the_requested_assessment_is_stripped_from_the_plan():
+    """qwen3.8-27b translated this request into "Hyperloop commercial viability",
+    and no paper title carries that phrase (2026-10-21 production smoke run)."""
+    response = (
+        "SEARCH_TOPIC: Hyperloop commercial viability\n"
+        "ALIAS: Economic feasibility of hyperloop transportation systems\n"
+        "ALIAS: Business case for vacuum tube transit"
+    )
+    with patch("academic_agent.language._llm_call", return_value=response):
+        plan = plan_topic_search("帮我评估 hyperloop 的商业潜力")
+
+    assert plan == TopicSearchPlan(
+        search_topic="Hyperloop",
+        aliases=("hyperloop transportation systems", "vacuum tube transit"),
+    )
+
+
+def test_assessment_stripping_leaves_research_subjects_alone():
+    from academic_agent.language import _strip_assessment_terms
+
+    for kept in ("Electricity market design", "Market-based carbon pricing",
+                 "Economic dispatch of power systems", "Business process automation",
+                 "Commercial potential"):
+        assert _strip_assessment_terms(kept) == kept
+    assert _strip_assessment_terms("Techno-economic analysis of green hydrogen") == "green hydrogen"
+    assert _strip_assessment_terms(
+        "Market analysis and investment assessment for vacuum tube transit") == "vacuum tube transit"
+
+
 def test_a_single_component_line_is_ignored_as_an_eager_alias():
     response = (
         "SEARCH_TOPIC: direct air capture sorbents\n"
