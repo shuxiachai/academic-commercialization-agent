@@ -320,6 +320,7 @@ semantic correctness of all report prose; see the
 |---|---|---|
 | GET | `/health` | Liveness and capacity snapshot; not proof of report quality |
 | GET | `/health/ready` | Explicit provider/configuration, output and paid-accounting readiness |
+| GET | `/api/health/retrieval?window=20` | Per-lane counts of empty and refused retrieval across recent runs' audits; owner-filtered like `/api/runs`, no topics or run ids |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
 | GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
@@ -340,6 +341,15 @@ Readiness performs an isolated real-file write per request; concurrent probes
 do not share a filename. A cleanup-only failure is named separately from a
 write failure. This is local readiness, not provider connectivity or model
 quality verification. See the [maintenance contract](results-2026-09-06-maintenance-readiness-query-audit.md).
+
+`/api/health/retrieval` reads the saved audits of the newest runs and counts,
+per lane (`OA-Cited`, `S2`, `PubMed`, `market web search`, ...), the runs in
+which that lane returned nothing and the runs in which it recorded a refusal
+or failed request. `failing` lists lanes that failed in at least half of three
+or more observed runs, usually a missing or exhausted key; `mostly_empty`
+lists other lanes that returned nothing in at least 80% of them. S2, PubMed
+and arXiv rows exist only when OpenAlex left slots open or the lane failed,
+so their counts cover the runs that needed them.
 
 `/health.maintenance` separately reports the managed background task and its
 last timeout/paper/retention/receipt checks. Initial `not_checked` is not success;

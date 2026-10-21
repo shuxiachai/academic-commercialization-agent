@@ -46,7 +46,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import auxiliary_usage, samples
+from api import auxiliary_usage, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -60,6 +60,7 @@ from api.models import (  # noqa: E402
     PaidReceipt,
     ReadinessStatus,
     ResumeRunRequest,
+    RetrievalHealth,
     RunAccepted,
     RunList,
     RunProgress,
@@ -1114,6 +1115,28 @@ def _resume_run_without_receipt(run_id: str, request: ResumeRunRequest, http_req
         resumed_from=run_id,
     )
 
+
+
+@app.get("/api/health/retrieval", response_model=RetrievalHealth, tags=["meta"])
+def retrieval_health_summary(
+    http_request: Request,
+    window: int = Query(default=retrieval_health.DEFAULT_WINDOW, ge=1, le=100),
+) -> RetrievalHealth:
+    """Which retrieval lanes came back empty or refused across recent runs.
+
+    /health/ready checks that keys are configured; this reports whether the
+    sources behind them have actually been answering. Behind the access code,
+    scoped as GET /api/runs is, because it reads run history.
+    """
+    try:
+        run_dirs = runs.run_directories(owner=http_request.state.owner)
+    except runs.OwnerMarkerUnreadable as exc:
+        _LOGGER.exception("Run history ownership metadata could not be read")
+        raise HTTPException(
+            status_code=503,
+            detail="Run history is temporarily unavailable. Retry later.",
+        ) from exc
+    return RetrievalHealth(**retrieval_health.summarize(run_dirs, window=window))
 
 
 @app.get("/api/runs", response_model=RunList, tags=["runs"])

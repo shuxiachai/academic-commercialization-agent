@@ -3161,7 +3161,7 @@ def _collect_academic_primary(
                 domain="academic",
                 query=f"[{label}] {topic}",
                 result_count=0,
-                rejected_reasons=[str(exc)],
+                rejected_reasons=[f"request failed: {exc}"],
             ))
             return []
 
@@ -3184,11 +3184,6 @@ def _collect_academic_primary(
         result_count=len(cited_works),
     )
     audits.extend([recent_audit, cited_audit])
-    openalex_error = getattr(openalex, "last_error", None)
-    if openalex_error:
-        # An empty OpenAlex result that was really a refusal must not read as
-        # "no papers on this topic".
-        cited_audit.rejected_reasons.append(openalex_error)
 
     # Recent-slots first, then age-split cited track
     _fill_oa(recent_works, recent_audit, limit=recent_slots)
@@ -3211,6 +3206,9 @@ def _collect_academic_primary(
         _fill_oa(syn_works, syn_audit, limit=maximum_sources, match_topic=syn)
 
     # S2 / PubMed / arXiv supplements when still short
+    s2_audit: SearchAudit | None = None
+    pm_audit: SearchAudit | None = None
+    ax_audit: SearchAudit | None = None
     if len(accepted) < maximum_sources:
         s2_audit = SearchAudit(domain="academic", query=f"[S2] {topic}", result_count=len(s2_papers))
         audits.append(s2_audit)
@@ -3304,6 +3302,24 @@ def _collect_academic_primary(
                     )
                     audits.append(sb_audit)
                     _fill_oa(snowball_works, sb_audit, limit=maximum_sources)
+
+    # An empty result that was really a refusal or a failure must not read as
+    # "no papers on this topic". The S2/PubMed/arXiv rows exist only when the
+    # earlier lanes left slots open, so a refusal gets a row of its own; every
+    # OpenAlex call shares one client, noted on the OA-Cited row.
+    for label, client, audit, fetched in (
+        ("OA-Cited", openalex, cited_audit, cited_works),
+        ("S2", s2, s2_audit, s2_papers),
+        ("PubMed", pubmed_client, pm_audit, pm_papers),
+        ("arXiv", arxiv_client, ax_audit, ax_papers),
+    ):
+        error = getattr(client, "last_error", None)
+        if not error:
+            continue
+        if audit is None:
+            audit = SearchAudit(domain="academic", query=f"[{label}] {topic}", result_count=len(fetched))
+            audits.append(audit)
+        audit.rejected_reasons.append(error)
 
     if relaxed_reserve is not None:
         relaxed_reserve.append(_relaxed_top_up_factory(
