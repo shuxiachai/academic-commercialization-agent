@@ -346,7 +346,9 @@ def run_topic(
 
     from academic_agent.crew import AcademicAgent
     from academic_agent.pipeline_worker import _select_report_and_scores
-    from academic_agent.run_output import save_claim_grounding, save_evidence_reports
+    from academic_agent.run_output import (
+        save_claim_grounding, save_evidence_reports, save_retrieval_diagnostics,
+    )
     from academic_agent.token_usage import collect_usage
     from academic_agent.source_pipeline import (
         SourceCollectionError,
@@ -489,6 +491,14 @@ def run_topic(
         meta["error"] = str(exc)
         meta["rate_limit_hits"] += _count_rate_limit_hits(str(exc))
         (run_dir / "error.log").write_text(traceback.format_exc(), encoding="utf-8")
+        if exc.diagnostics:
+            # The plan, candidate counts and rejection audit, as the worker
+            # keeps them. Without this file the four hyperloop failures of
+            # academic-gate-live-v1 had to be reproduced to be diagnosed.
+            try:
+                save_retrieval_diagnostics(exc.diagnostics, run_id=run_dir.name, output_root=run_dir.parent)
+            except (OSError, TypeError, ValueError) as diagnostic_err:
+                _log(f"  [{label}] retrieval diagnostics not saved: {diagnostic_err}")
         _log(f"  [{label}] ✗ source collection failed: {exc}")
 
     except Exception:  # noqa: BLE001 - persist the paid unit failure, never retry it

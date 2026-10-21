@@ -232,6 +232,26 @@ def _clean_topic_plan_value(value: str) -> str:
     return " ".join(value.strip().strip("'\"").split())
 
 
+# The assessment a request asks for is what the pipeline produces, not a
+# research subject. Even with the prompt saying so, qwen3.8-27b translated
+# "帮我评估 hyperloop 的商业潜力" as "Hyperloop commercial viability", and the
+# academic lanes found no paper under that phrase.
+_ASSESSMENT_TERMS = re.compile(
+    r"\b(?:techno-)?(?:commerciali[sz]ation|commercial|economic|market|business|investment)\s+"
+    r"(?:potential|viability|feasibility|prospects?|outlook|value|case|assessment|analysis)\b"
+    r"(?:\s+(?:of|for|in)\b)?",
+    re.IGNORECASE,
+)
+_DANGLING_CONNECTOR = re.compile(r"^(?:and|of|for|in)\s+|\s+(?:and|of|for|in)$", re.IGNORECASE)
+
+
+def _strip_assessment_terms(value: str) -> str:
+    """Drop requested-assessment phrases; keep the value if little would remain."""
+    stripped = " ".join(_ASSESSMENT_TERMS.sub(" ", value).split())
+    stripped = _DANGLING_CONNECTOR.sub("", stripped).strip(" ,;:-")
+    return stripped if len(stripped) >= 3 else value
+
+
 def plan_topic_search(topic: str, n: int = 2) -> TopicSearchPlan:
     """Turn free-form user language into one faithful academic search plan.
 
@@ -258,7 +278,10 @@ def plan_topic_search(topic: str, n: int = 2) -> TopicSearchPlan:
         "Convert the user input below into a faithful academic literature-search plan.\n"
         "Remove conversational/request framing (for example, 'we are building', "
         "'help me assess', or 'is it valuable') but preserve the actual technology, "
-        "method, application, and constraints. Translate to English when needed. "
+        "method, application, and constraints. The assessment the user asks for "
+        "(commercial potential, viability, feasibility, market value, business case, "
+        "investment) is what this system produces, not a research subject: leave it "
+        "out of SEARCH_TOPIC and the aliases. Translate to English when needed. "
         "Do not invent a technology or narrow the scope beyond the input. Keep "
         "the input's own name for the technology or subject in SEARCH_TOPIC, "
         "even a coined or brand-like term such as 'hyperloop', because papers "
@@ -296,9 +319,9 @@ def plan_topic_search(topic: str, n: int = 2) -> TopicSearchPlan:
         value = _clean_topic_plan_value(raw_value)
         normalized_label = label.upper()
         if normalized_label == "SEARCH_TOPIC":
-            search_topic = value
+            search_topic = _strip_assessment_terms(value)
         elif normalized_label == "ALIAS" and value:
-            aliases.append(value)
+            aliases.append(_strip_assessment_terms(value))
         elif normalized_label == "COMPONENT" and value:
             components.append(value)
 
