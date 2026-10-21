@@ -257,12 +257,34 @@ const HEADER_STRINGS = {
   English: {
     usage_details: "Usage & cost",
     stage_timing: "Stage timing",
+    eta_left: "about {minutes} min left",
+    eta_soon: "under a minute left",
+    eta_over: "slower than usual",
+    eta_title: "Typical time from the last {runs} completed runs on this deployment; not a guarantee.",
+    notify: "Notify me when done",
+    notify_title: "Shows a browser notification when this run finishes while the tab is in the background.",
+    finished_ok: "Assessment complete",
+    finished_bad: "Assessment did not finish",
+    quota_left: "{remaining} of {limit} runs left today",
+    quota_none: "No runs left today · resets {time}",
+    quota_title: "Each run and each PDF extraction uses one. Resets at 00:00 UTC ({time} your time).",
     source_locator: "Saved-source locator",
     source_locator_title: "Experimental: pick the saved source behind a question about a report and read its saved text",
   },
   "Simplified Chinese": {
     usage_details: "用量与费用",
     stage_timing: "阶段耗时",
+    eta_left: "预计还需约 {minutes} 分钟",
+    eta_soon: "预计不到 1 分钟",
+    eta_over: "比平时慢",
+    eta_title: "按本站最近 {runs} 次完成运行的典型用时估算，仅供参考。",
+    notify: "完成时提醒我",
+    notify_title: "标签页在后台时，运行结束后弹出浏览器通知。",
+    finished_ok: "评估已完成",
+    finished_bad: "评估未完成",
+    quota_left: "今日剩余 {remaining}/{limit} 次",
+    quota_none: "今日次数已用完 · {time} 重置",
+    quota_title: "每次运行和每次 PDF 提取各占 1 次。每天 UTC 0 点重置（你的当地时间 {time}）。",
     source_locator: "已保存来源定位",
     source_locator_title: "实验功能：针对报告中的问题，找出对应的已保存来源并显示其原文",
   },
@@ -279,6 +301,34 @@ const STATE_LABELS = {
 
 export function headerLabel(key) {
   return (HEADER_STRINGS[uiLanguage()] ?? HEADER_STRINGS.English)[key] ?? HEADER_STRINGS.English[key];
+}
+
+/** "about 6 min left" for a running run's eta; "" without one. */
+export function etaSummary(eta) {
+  const seconds = eta?.remaining_seconds;
+  if (!Number.isFinite(seconds)) return "";
+  if (seconds <= 0) return headerLabel("eta_over");
+  if (seconds < 60) return headerLabel("eta_soon");
+  return headerLabel("eta_left").replace("{minutes}", String(Math.ceil(seconds / 60)));
+}
+
+export function etaTitle(eta) {
+  return Number.isFinite(eta?.basis_runs) ? headerLabel("eta_title").replace("{runs}", String(eta.basis_runs)) : "";
+}
+
+/** Composer line for GET /api/quota; text "" when the deployment has no cap. */
+export function quotaSummary(quota) {
+  if (!quota || !Number.isFinite(quota.limit) || !Number.isFinite(quota.remaining)) {
+    return { text: "", title: "", exhausted: false };
+  }
+  const reset = new Date(quota.resets_at);
+  const time = Number.isNaN(reset.getTime()) ? "00:00 UTC"
+    : reset.toLocaleTimeString(uiLanguage() === "Simplified Chinese" ? "zh-CN" : "en", { hour: "2-digit", minute: "2-digit" });
+  const exhausted = quota.remaining <= 0;
+  const text = headerLabel(exhausted ? "quota_none" : "quota_left")
+    .replace("{remaining}", String(quota.remaining)).replace("{limit}", String(quota.limit))
+    .replace("{time}", time);
+  return { text, title: headerLabel("quota_title").replace("{time}", time), exhausted };
 }
 
 export function stateLabel(state) {

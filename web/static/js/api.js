@@ -295,6 +295,9 @@ export const checkAccess = (code) =>
 
 export const listRuns = (limit = 50) => request(`/api/runs?limit=${limit}`);
 
+// Paid operations left today for the stored code; null when uncapped.
+export const getQuota = () => request("/api/quota");
+
 // How the planner reads a topic. One small model call on the deployment's
 // key, outside the daily run quota; not a paid POST, so never receipted.
 export const planTopic = (topic) => request("/api/plan", json({ topic }));

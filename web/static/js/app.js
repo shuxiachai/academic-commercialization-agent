@@ -154,6 +154,7 @@ function showCompose() {
   // state we just left, so without this a run starting waits out the idle
   // delay before the display starts tracking it.
   scheduleCapacity();
+  refreshQuota();
   $("#topic").focus();
 }
 
@@ -195,7 +196,7 @@ function startClock(fromSeconds) {
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
   terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
-  stage_timings,
+  stage_timings, eta,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -209,6 +210,12 @@ function paintHeader({
     stopClock();
     $("#run-elapsed").textContent = runView.formatDuration(elapsed_seconds);
   }
+
+  // A typical figure from recent runs, for a run still going.
+  const etaText = state === "running" ? runView.etaSummary(eta) : "";
+  $("#run-eta").textContent = etaText ? `· ${etaText}` : "";
+  $("#run-eta").title = etaText ? runView.etaTitle(eta) : "";
+  paintNotifyButton(state);
 
   const summary = runView.sourceSummary(source_counts);
   const el = $("#run-sources");
@@ -371,6 +378,49 @@ function paintActions(state, checkpointing = null) {
   actions.append(del);
 }
 
+/* ── Finish notice ─────────────────────────────────────────────────────
+ * A run takes ten to twenty minutes and people switch tabs. When a run this
+ * page watched finishes in a background tab, the tab title says so, and a
+ * browser notification appears if the user opted in from the run header.
+ * Permission is asked only from that button, never unprompted. */
+
+const baseTitle = document.title;
+const notificationsAvailable = () => typeof Notification !== "undefined";
+let notifyState = "";
+
+function paintNotifyButton(state) {
+  notifyState = state;
+  const button = $("#run-notify");
+  button.hidden = !(state === "running" && notificationsAvailable() && Notification.permission === "default");
+  button.textContent = `· ${runView.headerLabel("notify")}`;
+  button.title = runView.headerLabel("notify_title");
+}
+
+$("#run-notify").addEventListener("click", async () => {
+  if (!notificationsAvailable()) return;
+  try { await Notification.requestPermission(); }
+  catch { /* A refused or unsupported prompt leaves the title notice. */ }
+  paintNotifyButton(notifyState);
+});
+
+function announceFinish(progress) {
+  if (!document.hidden) return;
+  const label = runView.headerLabel(progress.state === "completed" ? "finished_ok" : "finished_bad");
+  document.title = `${progress.state === "completed" ? "✓" : "✗"} ${label} · ${baseTitle}`;
+  if (notificationsAvailable() && Notification.permission === "granted") {
+    try {
+      const notice = new Notification(label, { body: progress.topic || "", tag: progress.run_id });
+      notice.onclick = () => { window.focus(); notice.close(); };
+    } catch {
+      // Some mobile browsers allow notifications only from a service worker.
+    }
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) document.title = baseTitle;
+});
+
 async function openRun(runId, { known } = {}) {
   stopFollowing();
   showRun(runId);
@@ -415,6 +465,7 @@ async function openRun(runId, { known } = {}) {
       } else if (progress.error) {
         toast(progress.error, "error");
       }
+      if (watchedActive) announceFinish(progress);
 
       // A failed run keeps its stage list and may now expose a retrieval
       // diagnostic artifact. Where it stopped and what the search rejected
@@ -538,6 +589,10 @@ let uploadGeneration = 0;
 let planPreviewEnabled = false;
 let previewing = false;
 let planState = null;
+// Paid operations left today: shown when the deployment advertises a cap.
+let quotaEnabled = false;
+let quotaGeneration = 0;
+let lastQuota = null;
 
 const topic = $("#topic");
 const count = $("#topic-count");
@@ -655,6 +710,7 @@ async function submitAssessment(submittedTopic, searchPlan) {
   } finally {
     submitting = false;
     syncComposer();
+    refreshQuota();
   }
 }
 
@@ -697,6 +753,35 @@ function hidePlan() {
   planState = null;
   planPanel.hidden = true;
   planPanel.innerHTML = "";
+}
+
+/* Remaining daily runs, so a code holder learns of the cap before a
+ * submission is refused rather than from the refusal. */
+function paintQuota() {
+  const el = $("#quota");
+  const summary = runView.quotaSummary(lastQuota);
+  el.hidden = !summary.text;
+  el.textContent = summary.text;
+  el.title = summary.title;
+  el.classList?.toggle("composer__quota--empty", summary.exhausted);
+}
+
+async function refreshQuota() {
+  const generation = ++quotaGeneration;
+  if (!quotaEnabled || byokMode) {
+    lastQuota = null;
+    paintQuota();
+    return;
+  }
+  try {
+    const quota = await api.getQuota();
+    if (generation !== quotaGeneration) return;
+    lastQuota = quota;
+  } catch {
+    if (generation !== quotaGeneration) return;
+    lastQuota = null;
+  }
+  paintQuota();
 }
 
 function readConfirmedPlan() {
@@ -910,6 +995,7 @@ async function uploadPaper(file) {
     // Always update the control, even when an existing topic meant that
     // paintAttachment did not auto-fill it (and therefore did not sync it).
     syncComposer();
+    refreshQuota();
   }
 }
 
@@ -1039,6 +1125,7 @@ function applyByokMode() {
   api.setAccessCode(null);
   $("#byok-badge").hidden = false;
   hidePlan();
+  refreshQuota();
 }
 
 function showStorageNotice(key = "storage_unavailable") {
@@ -1119,7 +1206,9 @@ async function ensureAccess() {
   try {
     const access = await api.checkAccess(api.getAccessCode());
     planPreviewEnabled = access?.plan_preview === true;
+    quotaEnabled = access?.daily_quota === true;
     if (api.getAccessCode()) applyCodeMode();
+    refreshQuota();
     return;
   } catch (err) {
     if (err.status !== 401) throw err;
@@ -1205,8 +1294,10 @@ function showGate(errorKey = null) {
       try {
         const access = await api.checkAccess(code);
         planPreviewEnabled = access?.plan_preview === true;
+        quotaEnabled = access?.daily_quota === true;
         api.setAccessCode(code);
         applyCodeMode();
+        refreshQuota();
         finish();
       } catch (err) {
         codeError.textContent = err.status === 401 ? t("gate_error") : err.message;
@@ -1268,6 +1359,7 @@ langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
   localizeSourceLocatorLink();
   renderPlan();
+  paintQuota();
   paintPaidReceipt();
   paintCapacityLabel();
   topic.placeholder = t("topic_placeholder");

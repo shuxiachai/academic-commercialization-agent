@@ -9,6 +9,7 @@ This complements, rather than relaxes, the read-only browser_smoke contract.
 from __future__ import annotations
 
 import json
+import re
 import time
 from urllib.parse import urlsplit
 
@@ -431,6 +432,107 @@ def _plan_preview_journey(browser, base: str) -> int:
         context.close()
 
 
+_FAKE_NOTIFICATIONS = """
+window.__notices = [];
+window.__hidden = false;
+Object.defineProperty(document, "hidden", { configurable: true, get: () => window.__hidden });
+class FakeNotification {
+  static permission = "default";
+  static requestPermission() { FakeNotification.permission = "granted"; return Promise.resolve("granted"); }
+  constructor(title, options) { window.__notices.push([title, options?.body ?? ""]); }
+  close() {}
+}
+window.Notification = FakeNotification;
+"""
+
+
+def _waiting_journey(browser, base: str) -> int:
+    """Runs left today, time left, and a finish notice for a background tab."""
+    context = browser.new_context()
+    context.add_init_script(_FAKE_NOTIFICATIONS)
+    posts, unexpected, errors = [], [], []
+    quota = {"limit": 3, "used": 1, "remaining": 2, "resets_at": "2026-10-22T00:00:00+00:00"}
+    run_id = "20261021T000000Z-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    progress = {"run_id": run_id, "topic": "Sodium-ion batteries", "state": "running",
+                "stage": "Agent 4 — Report Writing", "steps": [], "artifacts": [], "elapsed_seconds": 420,
+                "eta": {"remaining_seconds": 330, "basis_runs": 12, "basis": "stages"}}
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+
+    def intercept(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        if url.netloc != urlsplit(base).netloc:
+            unexpected.append(request.url)
+            route.abort()
+        elif request.method == "POST" and url.path == "/api/runs":
+            posts.append(route)  # Never continue to an ASGI paid endpoint.
+        elif request.method != "GET":
+            unexpected.append(f"{request.method} {url.path}")
+            route.abort()
+        elif url.path == "/api/access/check":
+            accepted = request.headers.get("x-access-code") == "fixture-A"
+            _json(route, {"ok": True, "daily_quota": True} if accepted else {"detail": "code required"},
+                  status=200 if accepted else 401)
+        elif url.path == "/api/quota":
+            _json(route, quota)
+        elif url.path == "/api/runs":
+            _json(route, {"runs": []})
+        elif url.path == f"/api/runs/{run_id}/progress":
+            _json(route, progress)
+        elif url.path == "/health":
+            _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif url.path == "/" or url.path.startswith("/static/"):
+            route.continue_()
+        else:
+            unexpected.append(url.path)
+            route.abort()
+
+    context.route("**/*", intercept)
+    try:
+        page.goto(base)
+        page.locator("#gate-input").fill("fixture-A")
+        page.locator("#gate-submit").click()
+        expect(page.locator("#quota")).to_have_text("2 of 3 runs left today")
+        expect(page.locator("#quota")).to_have_attribute("title", re.compile("PDF extraction uses one"))
+
+        # Without a preview advertised, the run button submits as before.
+        page.locator("#topic").fill("sodium-ion batteries for grid storage")
+        quota.update(used=2, remaining=1)
+        page.locator("#run-btn").click()
+        _wait_requests(page, posts, 1)
+        assert "search_plan" not in posts[0].request.post_data_json
+        _json(posts[0], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
+        expect(page.locator("#run-eta")).to_have_text("· about 6 min left")
+        expect(page.locator("#run-eta")).to_have_attribute("title", re.compile("last 12 completed runs"))
+
+        # Asked only from the button; once granted, the button goes away.
+        notify = page.locator("#run-notify")
+        expect(notify).to_have_text("· Notify me when done")
+        notify.click()
+        expect(notify).to_be_hidden()
+
+        # The tab is in the background when the run finishes.
+        page.evaluate("window.__hidden = true")
+        progress.update(state="completed", stage="Done", eta=None)
+        expect(page).to_have_title(re.compile("^✓ Assessment complete"), timeout=8000)
+        assert page.evaluate("window.__notices") == [["Assessment complete", "Sodium-ion batteries"]]
+        expect(page.locator("#run-eta")).to_have_text("")
+        page.evaluate("window.__hidden = false; document.dispatchEvent(new Event('visibilitychange'))")
+        expect(page).to_have_title("Commercialization Assessment")
+
+        # Back in the composer the count is fresh; an exhausted day says when it resets.
+        quota.update(used=3, remaining=0)
+        page.locator("#new-run-btn").click()
+        expect(page.locator("#quota")).to_contain_text("No runs left today")
+        expect(page.locator("#quota")).to_have_class(re.compile("composer__quota--empty"))
+        assert not errors, errors
+        assert not unexpected, unexpected
+        return len(posts)
+    finally:
+        context.close()
+
+
 def main() -> None:
     app = FastAPI()
     reached_server: list[str] = []
@@ -754,6 +856,7 @@ def main() -> None:
             assert len(requests) == 12
             identity_posts = _access_identity_journey(browser, base)
             plan_posts = _plan_preview_journey(browser, base)
+            wait_posts = _waiting_journey(browser, base)
             refresh_posts = _paid_refresh_journey(browser, base)
             history_reads = _history_generation_journey(browser, base)
             recovered_posts = sum(receipt_journey(browser, base, operation, _json)
@@ -770,6 +873,7 @@ def main() -> None:
     print(json.dumps({"status": "passed", "browser": "chromium", "stubbed_posts": len(requests),
                       "identity_stubbed_posts": identity_posts,
                       "plan_preview_stubbed_posts": plan_posts,
+                      "waiting_stubbed_posts": wait_posts,
                       "refresh_stubbed_posts": refresh_posts,
                       "history_held_reads": history_reads,
                       "receipt_recovered_stubbed_posts": recovered_posts,

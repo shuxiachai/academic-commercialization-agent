@@ -391,6 +391,19 @@
   white-space: nowrap;
 }
 
+/* Opt-in completion notice; shown only while the browser has not been asked. */
+#pane-run .run-notify {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+#pane-run .run-notify:hover { color: var(--text-secondary); }
+
 /* Usage and its accounting caveats, and stage timing: folded behind one click, never removed. */
 #pane-run .run-usage { min-width: 0; max-width: 100%; }
 #pane-run .run-usage > summary {
@@ -612,6 +625,13 @@
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
+
+.composer__quota {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.composer__quota--empty { color: var(--danger); }
 
 .composer__privacy {
   margin: 0 var(--space-4) var(--space-4);

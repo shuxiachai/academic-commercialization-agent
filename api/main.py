@@ -53,6 +53,7 @@ from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa
 from api.models import (  # noqa: E402
     BYOK_PROVIDERS,
     CleanupSummary,
+    DailyQuota,
     HealthStatus,
     MaintenanceStatus,
     MaintenanceTiming,
@@ -559,10 +560,27 @@ def access_check() -> dict:
     """No-op the frontend calls to validate a code before storing it.
 
     Reaching this handler at all means the middleware already accepted the
-    header — there is nothing left to verify here. `plan_preview` tells the
-    browser whether to show POST /api/plan before a code-funded run.
+    header — there is nothing left to verify here. `plan_preview` and
+    `daily_quota` tell the browser whether POST /api/plan and GET /api/quota
+    are worth calling on this deployment.
     """
-    return {"ok": True, "plan_preview": plan_preview.enabled()}
+    return {"ok": True, "plan_preview": plan_preview.enabled(), "daily_quota": bool(runs.DAILY_CAP)}
+
+
+@app.get("/api/quota", response_model=DailyQuota | None, tags=["runs"])
+def daily_quota(http_request: Request) -> DailyQuota | None:
+    """Paid operations left today for this access code; null when uncapped.
+
+    Counted per validated code (the admin code too), as admission counts
+    them. A BYOK visitor has no code and no operator-funded quota.
+    """
+    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    try:
+        quota = runs.daily_quota(access.owner_id(matched) if matched else None)
+    except runs.PaidLedgerUnavailable as exc:
+        _LOGGER.exception("Paid-operation ledger unreadable for the quota view")
+        raise HTTPException(status_code=503, detail="Daily quota is temporarily unavailable.") from exc
+    return DailyQuota(**quota) if quota is not None else None
 
 
 @app.post(
@@ -1374,6 +1392,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         error=state.get("error"),
         elapsed_seconds=state.get("elapsed_seconds"),
         stage_timings=state.get("stage_timings", []),
+        eta=state.get("eta"),
         source_counts=state.get("source_counts"),
         evidence_incomplete=state.get("evidence_incomplete", False),
         failed_domains=state.get("failed_domains", []),

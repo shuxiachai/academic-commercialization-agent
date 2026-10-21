@@ -252,6 +252,25 @@ class StageTiming(BaseModel):
     active: bool = Field(default=False, description="The stage the run is in now.")
 
 
+class RunEta(BaseModel):
+    remaining_seconds: int = Field(
+        description="Typical time left; negative once the run is slower than usual.",
+    )
+    basis_runs: int = Field(description="Recent completed runs the estimate is drawn from.")
+    basis: Literal["stages", "total"] = Field(
+        description="Per-stage medians when enough runs recorded stage times, else the median total.",
+    )
+
+
+class DailyQuota(BaseModel):
+    """Operator-funded paid operations today for the calling access code."""
+
+    limit: int
+    used: int
+    remaining: int
+    resets_at: AwareDatetime
+
+
 class RunProgress(BaseModel):
     """Everything a client needs to render live progress in one request.
 
@@ -291,6 +310,11 @@ class RunProgress(BaseModel):
         default_factory=list,
         description="When each stage began and how long it took. Empty for runs "
                     "that predate stage timing.",
+    )
+    eta: RunEta | None = Field(
+        default=None,
+        description="For a running run, the typical time left from recent completed "
+                    "runs; None without at least three of them.",
     )
     source_counts: dict[str, int] | None = None
     evidence_incomplete: bool = Field(
@@ -449,6 +473,11 @@ class RunStatus(BaseModel):
         default_factory=list,
         description="When each stage began and how long it took. Empty for runs "
                     "that predate stage timing.",
+    )
+    eta: RunEta | None = Field(
+        default=None,
+        description="For a running run, the typical time left from recent completed "
+                    "runs; None without at least three of them.",
     )
     source_counts: dict[str, int] | None = None
     evidence_incomplete: bool = Field(

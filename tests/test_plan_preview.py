@@ -142,7 +142,7 @@ class EndpointTests(unittest.TestCase):
 
     def test_the_access_check_advertises_previews(self):
         r = self.client.get("/api/access/check", headers={"X-Access-Code": "for-alice"})
-        self.assertEqual(r.json(), {"ok": True, "plan_preview": True})
+        self.assertEqual(r.json(), {"ok": True, "plan_preview": True, "daily_quota": False})
 
     def test_a_preview_returns_the_planner_reading(self):
         r = self._preview()
