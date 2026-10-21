@@ -322,6 +322,7 @@ semantic correctness of all report prose; see the
 | GET | `/health/ready` | Explicit provider/configuration, output and paid-accounting readiness |
 | GET | `/api/health/retrieval?window=20` | Per-lane counts of empty and refused retrieval across recent runs' audits; owner-filtered like `/api/runs`, no topics or run ids |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
+| GET | `/api/quota` | Paid operations left today for the calling code; `null` when uncapped |
 | POST | `/api/plan` | Preview how the planner reads a topic; code holders only, own daily cap, not a paid operation |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
 | GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
@@ -545,6 +546,15 @@ until the terminal record's end, or so far (`active`) while the run is going.
 Scoring's duration includes report finalization. The run header shows them
 folded under "Stage timing"; the live stage list shows them per row. Runs
 started before this field have none.
+
+A running run also carries `eta`: the typical time left, from the medians of
+up to 30 recent completed runs (per stage once at least three recorded stage
+times, else the total), cached for ten minutes. It is `null` with fewer than
+three completed runs, and goes negative once a run is slower than usual,
+which the header shows as "slower than usual" rather than a countdown past
+zero. When a run the page watched finishes in a background tab, the tab
+title changes; a browser notification is added only if the user opted in
+from the run header.
 
 Usage snapshots only increase. `complete`, `lower_bound` and `unavailable`
 are different accounting facts; an interrupted in-flight call can have spend

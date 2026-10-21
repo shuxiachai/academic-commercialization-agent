@@ -586,6 +586,26 @@ def _daily_window_locked() -> date:
     return today
 
 
+def daily_quota(owner: str | None) -> dict | None:
+    """Today's operator-funded paid operations for `owner`; None when uncapped.
+
+    Raises PaidLedgerUnavailable when the ledger cannot be read, the same
+    state that blocks admission.
+    """
+    if not DAILY_CAP:
+        return None
+    with _registry_lock:
+        today = _daily_window_locked()
+        used = _daily_counts.get(owner, 0)
+    resets_at = datetime(today.year, today.month, today.day, tzinfo=UTC) + timedelta(days=1)
+    return {
+        "limit": DAILY_CAP,
+        "used": used,
+        "remaining": max(0, DAILY_CAP - used),
+        "resets_at": resets_at.isoformat(),
+    }
+
+
 def _admit_paid_operation_locked(*, owner: str | None, byok: bool) -> date | None:
     """Check every limit and charge one operation atomically.
 
@@ -1570,6 +1590,14 @@ def get_state(run_id: str) -> dict:
         "checkpointing": checkpointing, "recovery": recovery,
     })
 
+    stage = status.get("stage") or (terminal_record.last_stage if terminal_record else "")
+    timings = stage_timings(
+        status.get("stage_timings"),
+        running=state == "running",
+        ended_at=terminal_record.ended_at if terminal_record is not None else None,
+    )
+    from api.eta import estimate  # api.eta reads run history through this module
+
     from academic_agent.auxiliary_usage import FILE_NAME, read_summary
     auxiliary = read_summary(run_dir / FILE_NAME,
         storage_failed=status.get("auxiliary_usage_storage_failed") is True,
@@ -1581,7 +1609,7 @@ def get_state(run_id: str) -> dict:
         "auxiliary_usage": auxiliary,
         "audit_metadata_unreadable": audit_metadata_unreadable,
         "runtime_metadata_unreadable": runtime_metadata_unreadable,
-        "stage": status.get("stage") or (terminal_record.last_stage if terminal_record else ""),
+        "stage": stage,
         "topic": status.get("topic") or (handle.topic if handle else ""),
         "output_language": status.get("output_language") or "English",
         # This is the immutable identity persisted by the executing worker.
@@ -1593,11 +1621,9 @@ def get_state(run_id: str) -> dict:
         "decision_gate": status.get("decision_gate"),
         "error": error,
         "elapsed_seconds": elapsed,
-        "stage_timings": _stage_timings(
-            status.get("stage_timings"),
-            running=state == "running",
-            ended_at=terminal_record.ended_at if terminal_record is not None else None,
-        ),
+        "stage_timings": timings,
+        # A typical figure from recent completed runs, for a running run only.
+        "eta": estimate(stage, elapsed, timings) if state == "running" else None,
         "source_counts": status.get("source_counts"),
         # True when the run finished but its per-agent evidence files could not
         # be written. The report is still valid; what is missing is the record
@@ -1675,7 +1701,7 @@ def get_state(run_id: str) -> dict:
 _END_STAGES = frozenset({"Done", "Error"})
 
 
-def _stage_timings(
+def stage_timings(
     raw: object, *, running: bool, ended_at: datetime | None,
 ) -> list[dict]:
     """Each stage's start and duration, from the worker's stage_timings.

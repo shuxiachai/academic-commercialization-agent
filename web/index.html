@@ -160,6 +160,7 @@
                 </select>
 
                 <span class="composer__spacer"></span>
+                <span class="composer__quota tabular" id="quota" hidden></span>
                 <span class="composer__count tabular" id="topic-count"></span>
 
                 <button type="submit" class="send-btn" id="run-btn" disabled
@@ -284,6 +285,8 @@
             <span class="pill" id="run-pill"></span>
             <span class="dot-sep"></span>
             <span class="tabular" id="run-elapsed">0:00</span>
+            <span id="run-eta"></span>
+            <button type="button" class="run-notify" id="run-notify" hidden>· Notify me when done</button>
             <span id="run-sources"></span>
             <details class="run-usage" id="run-usage-details" hidden>
               <summary id="run-usage-label">Usage &amp; cost</summary>

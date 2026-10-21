@@ -63,7 +63,7 @@ class ProjectionTests(unittest.TestCase):
     def _durations(self, raw, **kwargs) -> list[tuple[str, int | None, bool]]:
         kwargs.setdefault("running", False)
         kwargs.setdefault("ended_at", None)
-        return [(t["stage"], t["duration_seconds"], t["active"]) for t in runs._stage_timings(raw, **kwargs)]
+        return [(t["stage"], t["duration_seconds"], t["active"]) for t in runs.stage_timings(raw, **kwargs)]
 
     def test_a_stage_lasts_until_the_next_one_and_the_last_until_the_run_ended(self):
         self.assertEqual(self._durations(self.RAW, ended_at=T0 + timedelta(seconds=130)), [
@@ -93,7 +93,7 @@ class ProjectionTests(unittest.TestCase):
             {"stage": "Agent 4", "started_at": _at(0)},
         ]
         self.assertEqual(self._durations(raw, ended_at=T0 + timedelta(seconds=5)), [("Agent 4", 5, False)])
-        self.assertEqual(runs._stage_timings({"not": "a list"}, running=False, ended_at=None), [])
+        self.assertEqual(runs.stage_timings({"not": "a list"}, running=False, ended_at=None), [])
 
 
 class EndpointTests(unittest.TestCase):
