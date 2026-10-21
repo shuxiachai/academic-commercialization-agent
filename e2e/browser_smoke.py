@@ -367,6 +367,14 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
     expect(controls).to_have_text(["Markdown", "PDF", "删除" if chinese else "Delete"])
     expect(actions.get_by_role("link")).to_have_count(2)
     expect(actions.get_by_role("button")).to_have_count(1)
+    # Usage and its accounting caveats are folded by default, one click away.
+    usage_details = page.locator("#run-usage-details")
+    usage_details.evaluate("details => { details.open = false; }")
+    expect(usage_details).to_be_visible()
+    expect(usage_details.locator("summary")).to_have_text("· 用量与费用" if chinese else "· Usage & cost")
+    expect(page.locator("#run-usage")).to_be_hidden()
+    usage_details.locator("summary").click()
+    expect(page.locator("#run-usage")).to_be_visible()
     run_id = urlsplit(page.url).path.rsplit("/", 1)[-1]
     metadata = page.locator("#pane-run .pane__meta > span[id]")
     original = dict(metadata.evaluate_all(
@@ -384,6 +392,10 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
         "run-recovery": "· 恢复检查点已保留" if chinese else "· recovery checkpoint retained",
     }
     set_metadata = """values => {
+        // Measure with usage unfolded: its text is the longest the header holds.
+        const usage = document.getElementById('run-usage-details');
+        usage.hidden = false;
+        usage.open = true;
         for (const [id, value] of Object.entries(values)) document.getElementById(id).textContent = value;
     }"""
     try:
@@ -414,7 +426,7 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
                     const heading = rect(node('.pane__heading')), actions = rect(node('#run-actions'));
                     const style = getComputedStyle(headNode);
                     const contentWidth = head.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-                    const fields = [...pane.querySelectorAll('.pane__meta > span[id]')]
+                    const fields = [...pane.querySelectorAll('.pane__meta > span[id], #run-usage')]
                         .filter(element => element.textContent);
                     const textFits = element => {
                         const box = rect(element), range = document.createRange();
@@ -587,6 +599,8 @@ def _exercise_browser(
             held_progress.pop().continue_()
             expect(page.locator("#run-title")).to_have_text(FIXTURE_TOPIC)
             expect(page.locator("#run-pill")).to_have_text("completed")
+            # Opened already finished, so it is history: no "analysis complete" toast.
+            expect(page.locator(".toast--success")).to_have_count(0)
             terminal = page.locator("#run-terminal")
             expect(terminal).to_have_text("· worker completed")
             expect(terminal).to_have_attribute(
