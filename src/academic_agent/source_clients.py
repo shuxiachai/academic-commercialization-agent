@@ -611,8 +611,14 @@ def default_web_search_client(*, gl: str = "us", hl: str = "en") -> "SerperClien
     return SerperClient(gl=gl, hl=hl)
 
 
+OPENALEX_RATE_LIMITED = (
+    "OpenAlex refused the request (HTTP 429: rate limit or spent daily budget); "
+    "set OPENALEX_API_KEY"
+)
+
+
 class OpenAlexClient:
-    """Client for the OpenAlex Works API (free, no key required)."""
+    """Client for the OpenAlex Works API. OPENALEX_API_KEY is optional but advised."""
 
     _BASE = "https://api.openalex.org/works"
     _SELECT = ",".join([
@@ -628,6 +634,15 @@ class OpenAlexClient:
         mailto = os.getenv("OPENALEX_MAILTO") or os.getenv("CROSSREF_MAILTO")
         ua = "AcademicAgentSourceCollector/1.0"
         self.headers = {"User-Agent": f"{ua} (mailto:{mailto})" if mailto else ua}
+        # Anonymous calls draw on a small daily budget shared by every client
+        # behind the same IP address; once it is spent, OpenAlex answers 429
+        # until midnight UTC. A free key has a budget of its own.
+        key = os.getenv("OPENALEX_API_KEY")
+        if key:
+            self.headers["Authorization"] = f"Bearer {key}"
+        # Set when a request is refused for rate or budget, so the audit can say
+        # so instead of showing an empty result.
+        self.last_error: str | None = None
 
     def search(self, topic: str, rows: int = 15) -> list[dict[str, Any]]:
         # Use default.search (title + abstract) with the core noun phrase so we
@@ -650,6 +665,7 @@ class OpenAlexClient:
                 return payload.get("results") or []
             except HTTPError as exc:
                 if exc.code == 429:
+                    self.last_error = OPENALEX_RATE_LIMITED
                     time.sleep(2 ** attempt)
                     continue
                 return []
@@ -710,6 +726,7 @@ class OpenAlexClient:
                 return payload.get("results") or []
             except HTTPError as exc:
                 if exc.code == 429:
+                    self.last_error = OPENALEX_RATE_LIMITED
                     time.sleep(2 ** attempt)
                     continue
                 return []
@@ -740,6 +757,7 @@ class OpenAlexClient:
                 return payload.get("results") or []
             except HTTPError as exc:
                 if exc.code == 429:
+                    self.last_error = OPENALEX_RATE_LIMITED
                     time.sleep(2 ** attempt)
                     continue
                 return []
@@ -767,6 +785,7 @@ class OpenAlexClient:
                 return payload.get("results") or []
             except HTTPError as exc:
                 if exc.code == 429:
+                    self.last_error = OPENALEX_RATE_LIMITED
                     time.sleep(2 ** attempt)
                     continue
                 return []

@@ -3183,6 +3183,11 @@ def _collect_academic_primary(
         result_count=len(cited_works),
     )
     audits.extend([recent_audit, cited_audit])
+    openalex_error = getattr(openalex, "last_error", None)
+    if openalex_error:
+        # An empty OpenAlex result that was really a refusal must not read as
+        # "no papers on this topic".
+        cited_audit.rejected_reasons.append(openalex_error)
 
     # Recent-slots first, then age-split cited track
     _fill_oa(recent_works, recent_audit, limit=recent_slots)
