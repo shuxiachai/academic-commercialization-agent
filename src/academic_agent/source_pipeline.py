@@ -20,6 +20,7 @@ from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_publ
 from academic_agent.source_title_recovery import recover_official_source_title
 
 from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
+    s2_wait_turn,
     SourceCollectionError,
     _TOPIC_PREPOSITIONS,
     _topic_core_phrase,
@@ -3611,6 +3612,7 @@ def collect_source_collection(
             if _s2_key:
                 _s2_headers["x-api-key"] = _s2_key
             req = Request(s2_url, headers=_s2_headers)
+            s2_wait_turn()  # these lookups run in a pool; S2 allows one per second
             with urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
             count = data.get("citationCount")
