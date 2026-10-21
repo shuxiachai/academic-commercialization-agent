@@ -337,3 +337,32 @@ class ShortfallTopUpTests(TestCase):
 
     def test_collection_does_not_top_up_when_the_minimum_is_met(self) -> None:
         self.assertEqual(self._collect_with_primary(3), [("patents",)])
+
+
+class OpenAlexRefusalAuditTests(TestCase):
+    def test_a_refused_openalex_fetch_is_written_into_the_audit(self):
+        class RefusingOpenAlex:
+            last_error = None
+
+            def _refuse(self, *args, **kwargs):
+                self.last_error = "OpenAlex refused the request (HTTP 429)"
+                return []
+
+            search = search_recent = search_by_topic = fetch_works_by_ids = _refuse
+
+            def fetch_referenced_works(self, *args, **kwargs):
+                return []
+
+        class Empty:
+            def search(self, *args, **kwargs):
+                return []
+
+            def get_mesh_terms(self, *args, **kwargs):
+                return []
+
+        _, audits = pipeline._collect_academic_primary(
+            "Hyperloop transportation system", RefusingOpenAlex(), Empty(), _DATE,
+            maximum_sources=8, pubmed=Empty(), arxiv=Empty(), user_topic="hyperloop",
+        )
+        cited = next(a for a in audits if a.query.startswith("[OA-Cited]"))
+        self.assertIn("OpenAlex refused the request (HTTP 429)", cited.rejected_reasons)

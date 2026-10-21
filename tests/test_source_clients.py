@@ -9,6 +9,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
 from academic_agent.source_clients import (
+    OPENALEX_RATE_LIMITED,
     ArxivClient,
     OpenAlexClient,
     PubMedClient,
@@ -316,3 +317,25 @@ class ArxivParseFeedTests(unittest.TestCase):
         results = self._client()._parse_feed(feed.encode())
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["title"], "OK paper")
+
+
+class OpenAlexKeyAndRefusalTests(unittest.TestCase):
+    """Anonymous OpenAlex calls share a per-IP daily budget; refusals must be visible."""
+
+    def test_an_api_key_is_sent_as_a_bearer_header(self):
+        with patch.dict("os.environ", {"OPENALEX_API_KEY": "k-123"}):
+            client = OpenAlexClient(timeout=5, retries=0)
+        self.assertEqual(client.headers["Authorization"], "Bearer k-123")
+
+    def test_no_key_sends_no_authorization_header(self):
+        with patch.dict("os.environ", {}, clear=True):
+            client = OpenAlexClient(timeout=5, retries=0)
+        self.assertNotIn("Authorization", client.headers)
+
+    @patch("academic_agent.source_clients.time.sleep")
+    @patch("academic_agent.source_clients.urlopen")
+    def test_a_refused_search_is_recorded_not_silent(self, mock_urlopen, _sleep):
+        mock_urlopen.side_effect = HTTPError(url="", code=429, msg="Rate limit exceeded", hdrs=None, fp=None)
+        client = OpenAlexClient(timeout=5, retries=1)
+        self.assertEqual(client.search("hyperloop"), [])
+        self.assertEqual(client.last_error, OPENALEX_RATE_LIMITED)
