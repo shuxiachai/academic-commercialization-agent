@@ -1097,6 +1097,11 @@ def _academic_anchor_topic(
     return display_topic if 2 * len(core & planned) >= len(core) else ""
 
 
+def _legacy_academic_title_gate(title: str, topic: str, user_topic: str = "") -> bool:
+    """The academic gate before R5. Used only to top a shortfall up to the minimum."""
+    return _title_matches_topic(title, topic)
+
+
 def _published_date(item: dict[str, Any]) -> date | None:
     for key in ("published-print", "published-online", "published", "issued"):
         container = item.get(key)
@@ -1357,6 +1362,7 @@ def _academic_source_from_openalex(
     *,
     s2_client: SemanticScholarClient | None = None,
     user_topic: str = "",
+    title_gate: Callable[[str, str, str], bool] | None = None,
 ) -> tuple[EvidenceSource | None, str]:
     title = _clean_text(str(work.get("title") or ""))
     doi_raw = str(work.get("doi") or "").lower().strip()
@@ -1384,7 +1390,7 @@ def _academic_source_from_openalex(
     # Always require a title match regardless of OpenAlex topic classification.
     # topic_match=True only means OpenAlex field labels overlap (e.g. "Manufacturing"),
     # which is too broad — a generic manufacturing paper should not pass title check.
-    if not _academic_title_matches(title, research_topic, user_topic):
+    if not (title_gate or _academic_title_matches)(title, research_topic, user_topic):
         if topic_match is True:
             return None, f"OpenAlex topic matched broadly but title is off-topic: {title!r}"
         elif topic_match is False:
@@ -1491,6 +1497,7 @@ def _academic_source_from_s2(
     research_topic: str,
     *,
     user_topic: str = "",
+    title_gate: Callable[[str, str, str], bool] | None = None,
 ) -> tuple[EvidenceSource | None, str]:
     title = _clean_text(str(paper.get("title") or ""))
     abstract = _clean_text(str(paper.get("abstract") or ""))
@@ -1501,7 +1508,7 @@ def _academic_source_from_s2(
         return None, "Semantic Scholar paper has no title"
     if not doi:
         return None, f"S2 paper has no DOI: {title!r}"
-    if not _academic_title_matches(title, research_topic, user_topic):
+    if not (title_gate or _academic_title_matches)(title, research_topic, user_topic):
         return None, f"S2 title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"S2 abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1561,6 +1568,7 @@ def _academic_source_from_arxiv(
     research_topic: str,
     *,
     user_topic: str = "",
+    title_gate: Callable[[str, str, str], bool] | None = None,
 ) -> tuple["EvidenceSource | None", str]:
     title    = _clean_text(record.get("title") or "")
     abstract = _clean_text(record.get("abstract") or "")
@@ -1573,7 +1581,7 @@ def _academic_source_from_arxiv(
         return None, "arXiv record has no title"
     if not arxiv_url and not doi:
         return None, f"arXiv record has no URL: {title!r}"
-    if not _academic_title_matches(title, research_topic, user_topic):
+    if not (title_gate or _academic_title_matches)(title, research_topic, user_topic):
         return None, f"arXiv title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"arXiv abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1636,6 +1644,7 @@ def _academic_source_from_pubmed(
     research_topic: str,
     *,
     user_topic: str = "",
+    title_gate: Callable[[str, str, str], bool] | None = None,
 ) -> tuple["EvidenceSource | None", str]:
     title    = _clean_text(record.get("title") or "")
     abstract = _clean_text(record.get("abstract") or "")
@@ -1648,7 +1657,7 @@ def _academic_source_from_pubmed(
         return None, "PubMed record has no title"
     if not (doi or pmid):
         return None, f"PubMed record has no DOI or PMID: {title!r}"
-    if not _academic_title_matches(title, research_topic, user_topic):
+    if not (title_gate or _academic_title_matches)(title, research_topic, user_topic):
         return None, f"PubMed title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"PubMed abstract too thin ({len(abstract)} chars): {title!r}"
@@ -3042,9 +3051,14 @@ def _collect_academic_primary(
     pubmed: "PubMedClient | None" = None,
     arxiv: "ArxivClient | None" = None,
     user_topic: str = "",
+    relaxed_reserve: list[Callable[..., tuple[list[EvidenceSource], SearchAudit]]] | None = None,
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
     """Collect academic sources via concurrent multi-API fetch with synonym,
-    topic-cluster, MeSH, and citation-snowball expansion."""
+    topic-cluster, MeSH, and citation-snowball expansion.
+
+    When ``relaxed_reserve`` is a list, a top-up function is appended to it;
+    see _relaxed_top_up_factory.
+    """
     from concurrent.futures import ThreadPoolExecutor
 
     fetch_rows = max(20, maximum_sources * 4)
@@ -3285,7 +3299,67 @@ def _collect_academic_primary(
                     audits.append(sb_audit)
                     _fill_oa(snowball_works, sb_audit, limit=maximum_sources)
 
+    if relaxed_reserve is not None:
+        relaxed_reserve.append(_relaxed_top_up_factory(
+            topic, accessed_date, s2,
+            [
+                (recent_works, _academic_source_from_openalex, topic),
+                (cited_works, _academic_source_from_openalex, topic),
+                *((works, _academic_source_from_openalex, syn) for syn, works in syn_works_map.items()),
+                (s2_papers, _academic_source_from_s2, topic),
+                (pm_papers, _academic_source_from_pubmed, topic),
+                (ax_papers, _academic_source_from_arxiv, topic),
+            ],
+        ))
     return accepted, audits
+
+
+def _relaxed_top_up_factory(
+    topic: str,
+    accessed_date: date,
+    s2: SemanticScholarClient,
+    pools: list[tuple[list[dict[str, Any]], Callable[..., tuple[EvidenceSource | None, str]], str]],
+) -> Callable[[int, Sequence[EvidenceSource]], tuple[list[EvidenceSource], SearchAudit]]:
+    """Admit candidates the pre-R5 gate accepts, only to reach the academic minimum.
+
+    The live check (results-2026-10-21-academic-gate-live-v1.md) found a plan
+    drifting from the user's words leave R5 one paper where the earlier gate
+    found eight, and the run failed. The top-up runs last, after the web
+    fallback, converts the already fetched candidates lazily, and marks each
+    source it admits so the evidence shows how it got in.
+    """
+
+    def top_up(needed: int, kept: Sequence[EvidenceSource]) -> tuple[list[EvidenceSource], SearchAudit]:
+        audit = SearchAudit(
+            domain="academic",
+            query=f"[Relaxed-Title-Gate] {topic}",
+            result_count=sum(len(items) for items, _converter, _match in pools),
+        )
+        added: list[EvidenceSource] = []
+        for items, converter, match_topic in pools:
+            for item in items:
+                if len(added) >= needed:
+                    return added, audit
+                extra = {"s2_client": s2} if converter is _academic_source_from_openalex else {}
+                source, _reason = converter(
+                    item, f"A{len(kept) + len(added) + 1}", accessed_date, match_topic,
+                    title_gate=_legacy_academic_title_gate, **extra,
+                )
+                if source is None or any(
+                    (source.doi and other.doi and source.doi.lower() == other.doi.lower())
+                    or _title_similarity(source.title, other.title) >= _TITLE_NEAR_DUP_THRESHOLD
+                    for other in (*kept, *added)
+                ):
+                    continue
+                source.credibility_reason = (
+                    f"{source.credibility_reason}; admitted by the earlier, looser title "
+                    "gate only to reach the academic minimum"
+                )
+                added.append(source)
+                audit.accepted_source_ids.append(source.source_id)
+        return added, audit
+
+    return top_up
 
 
 def _renumber(sources: list[EvidenceSource], prefix: str) -> None:
@@ -3451,6 +3525,7 @@ def collect_source_collection(
         native_serper = None
 
     # ── Academic: OpenAlex primary, S2 supplement, Serper+Crossref fallback ──
+    relaxed_reserve: list[Callable[..., tuple[list[EvidenceSource], SearchAudit]]] = []
     academic, oa_audits = _collect_academic_primary(
         normalized_topic, resolved_openalex, resolved_s2, resolved_date,
         maximum_sources=maximum_sources,
@@ -3459,6 +3534,7 @@ def collect_source_collection(
         pubmed=pubmed,
         arxiv=arxiv,
         user_topic=academic_anchor,
+        relaxed_reserve=relaxed_reserve,
     )
     all_audits.extend(oa_audits)
 
@@ -3496,6 +3572,12 @@ def collect_source_collection(
                 result_count=0,
                 rejected_reasons=[str(_fb_err)],
             ))
+
+    # Last resort before the shortage error: the earlier title gate, only up to the minimum.
+    if len(academic) < minimum_sources and relaxed_reserve:
+        topped_up, relaxed_audit = relaxed_reserve[0](minimum_sources - len(academic), academic)
+        all_audits.append(relaxed_audit)
+        academic.extend(topped_up)
 
     # Backfill citation_count for any source still missing it.
     # DOI sources → OpenAlex.  arXiv-only sources (no DOI) → Semantic Scholar arXiv lookup.
