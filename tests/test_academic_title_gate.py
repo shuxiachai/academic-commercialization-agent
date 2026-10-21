@@ -229,3 +229,111 @@ class AcademicLaneWiringTests(TestCase):
                         openalex=object(), s2=object(), accessed_date=_DATE,
                     )
                 self.assertEqual(seen["user_topic"], anchor)
+
+
+_FARM_USER = "vertical farming for fresh produce"
+_FARM_PLAN = "Controlled environment agriculture for leafy greens"  # a drifted live plan
+
+
+def _arxiv(title, index):
+    return {
+        "title": title,
+        "abstract": "This study measures yield, energy use and lighting strategies in indoor crop production "
+                    "systems across several commercial facilities.",
+        "arxiv_url": f"https://arxiv.org/abs/2501.0000{index}",
+        "pub_date": "2025-01-15",
+        "authors": "A. Grower",
+    }
+
+
+class ShortfallTopUpTests(TestCase):
+    """results-2026-10-21-academic-gate-live-v1.md: a drifted plan left R5 one paper."""
+
+    def test_a_drifted_plan_retrieves_titles_r5_rejects_and_the_old_gate_admits(self) -> None:
+        title = "Controlled environment agriculture for leafy greens: lighting and energy use"
+        self.assertFalse(pipeline._academic_title_matches(title, _FARM_PLAN, _FARM_USER))
+        self.assertTrue(pipeline._legacy_academic_title_gate(title, _FARM_PLAN, _FARM_USER))
+
+    def test_lanes_accept_an_explicit_gate(self) -> None:
+        record = _arxiv("Controlled environment agriculture for leafy greens: lighting and energy use", 1)
+        rejected, _ = pipeline._academic_source_from_arxiv(record, "A1", _DATE, _FARM_PLAN, user_topic=_FARM_USER)
+        admitted, _ = pipeline._academic_source_from_arxiv(
+            record, "A1", _DATE, _FARM_PLAN, user_topic=_FARM_USER,
+            title_gate=pipeline._legacy_academic_title_gate,
+        )
+        self.assertIsNone(rejected)
+        self.assertIsNotNone(admitted)
+
+    def test_top_up_admits_old_gate_papers_only_up_to_the_need_and_marks_them(self) -> None:
+        kept_source, _ = pipeline._academic_source_from_arxiv(
+            _arxiv("Controlled environment agriculture for leafy greens: lighting and energy use", 1),
+            "A1", _DATE, _FARM_PLAN, title_gate=pipeline._legacy_academic_title_gate,
+        )
+        records = [
+            _arxiv("Controlled environment agriculture for leafy greens: lighting and energy use", 2),  # duplicate
+            _arxiv("Quantum chromodynamics at finite temperature", 3),  # rejected by both gates
+            _arxiv("Controlled environment agriculture for leafy greens in urban rooftops", 4),
+            _arxiv("Energy benchmarking of controlled environment agriculture for leafy greens", 5),
+            _arxiv("Controlled environment agriculture for leafy greens under LED spectra", 6),
+        ]
+        top_up = pipeline._relaxed_top_up_factory(
+            _FARM_PLAN, _DATE, object(), [(records, pipeline._academic_source_from_arxiv, _FARM_PLAN)],
+        )
+        added, audit = top_up(2, [kept_source])
+        self.assertEqual([s.title for s in added], [
+            "Controlled environment agriculture for leafy greens in urban rooftops",
+            "Energy benchmarking of controlled environment agriculture for leafy greens",
+        ])
+        self.assertTrue(all("only to reach the academic minimum" in s.credibility_reason for s in added))
+        self.assertTrue(audit.query.startswith("[Relaxed-Title-Gate]"))
+        self.assertEqual(audit.accepted_source_ids, [s.source_id for s in added])
+
+    def _collect_with_primary(self, accepted_count):
+        calls = []
+
+        class Stop(Exception):
+            pass
+
+        source, _ = pipeline._academic_source_from_arxiv(
+            _arxiv("Vertical farming for fresh produce: a systematic review", 1), "A1", _DATE, _FARM_PLAN,
+            user_topic=_FARM_USER,
+        )
+        source.citation_count = 1  # no citation backfill request
+
+        def primary(*args, relaxed_reserve=None, **kwargs):
+            def top_up(needed, kept):
+                calls.append(("top_up", needed, len(kept)))
+                raise Stop
+
+            relaxed_reserve.append(top_up)
+            return [source] * accepted_count, []
+
+        def domain(domain_name, *args, **kwargs):
+            calls.append(("domain", domain_name))
+            return [], []
+
+        class Lens:  # the first thing collection touches after the academic minimum
+            @property
+            def api_key(self):
+                calls.append(("patents",))
+                raise Stop
+
+        with (
+            patch("academic_agent.language.plan_topic_search",
+                  return_value=TopicSearchPlan(search_topic=_FARM_PLAN)),
+            patch.object(pipeline, "_collect_academic_primary", side_effect=primary),
+            patch.object(pipeline, "_collect_domain", side_effect=domain),
+            patch("socket.socket.connect", side_effect=AssertionError("network forbidden")),
+            self.assertRaises(Stop),
+        ):
+            pipeline.collect_source_collection(
+                _FARM_USER, searcher=lambda query: {"organic": []}, crossref=object(),
+                openalex=object(), s2=object(), lens=Lens(), accessed_date=_DATE,
+            )
+        return calls
+
+    def test_collection_tops_up_last_after_the_web_fallback(self) -> None:
+        self.assertEqual(self._collect_with_primary(1)[:2], [("domain", "academic"), ("top_up", 2, 1)])
+
+    def test_collection_does_not_top_up_when_the_minimum_is_met(self) -> None:
+        self.assertEqual(self._collect_with_primary(3), [("patents",)])
