@@ -38,6 +38,7 @@ from academic_agent.run_spec import (
     RESUME_SNAPSHOT_DIRECTORY,
     DecisionContext,
     RunSpec,
+    SearchPlan,
 )
 from academic_agent.run_terminal import (
     TerminalRecord,
@@ -870,6 +871,7 @@ def _spec_from_submission(
     weight_profile: str | None,
     paper_json_path: str | None,
     decision_context: DecisionContext | None,
+    search_plan: SearchPlan | None = None,
 ) -> RunSpec:
     """Freeze a submission before reserving money or starting its worker."""
 
@@ -892,6 +894,7 @@ def _spec_from_submission(
         weight_profile=weight_profile,
         paper_contribution=paper_contribution,
         decision_context=decision_context,
+        search_plan=search_plan,
     )
 
 
@@ -904,6 +907,7 @@ def start_run(
     byok: BYOKCredentials | None = None,
     owner: str | None = None,
     auxiliary_pdf_reference: dict | None = None,
+    search_plan: SearchPlan | None = None,
 ) -> tuple[str, Path]:
     """Launch a new worker from a durable, non-secret input contract."""
 
@@ -913,6 +917,7 @@ def start_run(
         weight_profile,
         paper_json_path,
         decision_context,
+        search_plan,
     )
     return _start_run_from_spec(spec, byok=byok, owner=owner,
                                 auxiliary_pdf_reference=auxiliary_pdf_reference)

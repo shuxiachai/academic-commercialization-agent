@@ -322,6 +322,7 @@ semantic correctness of all report prose; see the
 | GET | `/health/ready` | Explicit provider/configuration, output and paid-accounting readiness |
 | GET | `/api/health/retrieval?window=20` | Per-lane counts of empty and refused retrieval across recent runs' audits; owner-filtered like `/api/runs`, no topics or run ids |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
+| POST | `/api/plan` | Preview how the planner reads a topic; code holders only, own daily cap, not a paid operation |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
 | GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
 | GET | `/api/runs` | Owner-filtered run history when access control is enabled |
@@ -609,6 +610,12 @@ These are example policy values, not a cost/SLO guarantee.
   admin. A PDF followed by an assessment consumes two units. BYOK is exempt
   from operator-funded daily quota but not host capacity. Zero disables the
   cap; legacy `API_DAILY_RUN_CAP` is a fallback when the new name is unset.
+- `PLAN_PREVIEW_DAILY_LIMIT` (default 20, 0 disables) caps `POST /api/plan`
+  per code and UTC day. A preview is one planner call and does not use a
+  paid operation. The browser shows the reading before a code-funded run;
+  the confirmed or edited plan goes into the RunSpec as `search_plan`, and
+  the worker searches it instead of planning again. The count lives in
+  memory, so a restart resets it.
 - Counts are atomically persisted in
   `outputs/.paid-operation-ledger.json`; restart does not reset that day's
   budget. Unreadable accounting fails closed before paid work.

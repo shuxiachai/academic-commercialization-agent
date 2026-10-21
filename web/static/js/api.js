@@ -295,12 +295,17 @@ export const checkAccess = (code) =>
 
 export const listRuns = (limit = 50) => request(`/api/runs?limit=${limit}`);
 
+// How the planner reads a topic. One small model call on the deployment's
+// key, outside the daily run quota; not a paid POST, so never receipted.
+export const planTopic = (topic) => request("/api/plan", json({ topic }));
+
 export const startRun = ({
   topic,
   language,
   weight_profile,
   paper_id,
   decision_context,
+  search_plan,
 }, receiptKey) => {
   const byok = getByok();
   return request("/api/runs", json({
@@ -311,6 +316,8 @@ export const startRun = ({
     weight_profile: weight_profile || null,
     paper_id: paper_id || null,
     decision_context: decision_context || null,
+    // Present only when the user confirmed a preview; omitted, the worker plans.
+    ...(search_plan ? { search_plan } : {}),
     // Present only in BYOK mode — omitted (not null) so a plain run without
     // these keys still authorizes on the access code alone server-side.
     ...(byok ? byokBody(byok) : {}),
