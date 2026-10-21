@@ -7,6 +7,7 @@ source_pipeline re-exports these symbols for backwards compatibility.
 import json
 import os
 import re
+import threading
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -33,11 +34,31 @@ class SourceCollectionError(RuntimeError):
         self.diagnostics = dict(diagnostics or {})
 
 
+# Semantic Scholar's introductory limit is one request per second across all
+# endpoints, with or without a key, and the key application commits to
+# staying under it. Every Semantic Scholar call in this process takes a turn.
+_S2_MIN_INTERVAL_SECONDS = 1.05
+_s2_turn_lock = threading.Lock()
+_s2_next_turn = 0.0
+
+
+def s2_wait_turn() -> None:
+    """Block until this process may send its next Semantic Scholar request."""
+    global _s2_next_turn
+    with _s2_turn_lock:
+        now = time.monotonic()
+        if _s2_next_turn > now:
+            time.sleep(_s2_next_turn - now)
+            now = time.monotonic()
+        _s2_next_turn = now + _S2_MIN_INTERVAL_SECONDS
+
+
 class SemanticScholarClient:
     """Client for the Semantic Scholar Academic Graph API.
 
-    Free to use without a key (1 req/s). Optional API key raises limits to
-    10 req/s — set SEMANTIC_SCHOLAR_API_KEY in the environment to activate.
+    Anonymous use shares a public pool that answered 429 on every run checked
+    on 2026-10-21; set SEMANTIC_SCHOLAR_API_KEY to use a key. Calls are spaced
+    at least one second apart (s2_wait_turn).
     """
 
     _BASE_URL = "https://api.semanticscholar.org/graph/v1/paper"
@@ -57,6 +78,7 @@ class SemanticScholarClient:
         url = f"{self._BASE_URL}/DOI:{quote(doi, safe='')}?fields=abstract"
         request = Request(url, headers=self.headers)
         try:
+            s2_wait_turn()
             with urlopen(request, timeout=self.timeout) as resp:
                 payload = json.loads(resp.read().decode("utf-8"))
             return str(payload.get("abstract") or "")
@@ -72,6 +94,7 @@ class SemanticScholarClient:
         request = Request(f"{self._SEARCH_URL}?{params}", headers=self.headers)
         for attempt in range(self.retries + 1):
             try:
+                s2_wait_turn()
                 with urlopen(request, timeout=self.timeout) as resp:
                     payload = json.loads(resp.read().decode("utf-8"))
                 return payload.get("data") or []
