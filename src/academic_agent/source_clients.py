@@ -34,6 +34,19 @@ class SourceCollectionError(RuntimeError):
         self.diagnostics = dict(diagnostics or {})
 
 
+# What an academic client records when it gives up. The audit shows these
+# beside the empty result; /api/health/retrieval counts them across runs.
+S2_RATE_LIMITED = (
+    "Semantic Scholar refused the request (HTTP 429: rate limit); "
+    "set SEMANTIC_SCHOLAR_API_KEY"
+)
+PUBMED_RATE_LIMITED = (
+    "PubMed refused the request (HTTP 429: rate limit); set NCBI_API_KEY"
+)
+ARXIV_RATE_LIMITED = "arXiv refused the request (HTTP 429: rate limit)"
+_REQUEST_FAILED_NETWORK = "request failed (network error, timeout or unreadable reply)"
+
+
 # Semantic Scholar's introductory limit is one request per second across all
 # endpoints, with or without a key, and the key application commits to
 # staying under it. Every Semantic Scholar call in this process takes a turn.
@@ -72,6 +85,9 @@ class SemanticScholarClient:
         self.headers: dict[str, str] = {"User-Agent": "AcademicAgentSourceCollector/1.0"}
         if key:
             self.headers["x-api-key"] = key
+        # Set when search gives up, so the audit can tell a refusal from a
+        # topic with no papers. Abstract lookups are best-effort and do not set it.
+        self.last_error: str | None = None
 
     def get_abstract_by_doi(self, doi: str) -> str:
         """Fetch abstract text for a paper by DOI from S2. Returns '' on failure."""
@@ -100,13 +116,18 @@ class SemanticScholarClient:
                 return payload.get("data") or []
             except HTTPError as exc:
                 if exc.code == 429:
+                    if attempt >= self.retries:
+                        self.last_error = S2_RATE_LIMITED
+                        return []
                     retry_after = exc.headers.get("Retry-After") if exc.headers else None
                     wait = float(retry_after) if retry_after else (5 * 2 ** attempt)
                     time.sleep(min(wait, 60))
                     continue
+                self.last_error = f"Semantic Scholar request failed (HTTP {exc.code})"
                 return []
             except (URLError, TimeoutError, OSError, json.JSONDecodeError):
                 if attempt >= self.retries:
+                    self.last_error = f"Semantic Scholar {_REQUEST_FAILED_NETWORK}"
                     return []
                 time.sleep(0.75 * (attempt + 1))
         return []
@@ -132,6 +153,9 @@ class PubMedClient:
         self.retries = retries
         self._api_key = os.getenv("NCBI_API_KEY") or ""
         self._ua = "AcademicAgentSourceCollector/1.0"
+        # Set when a request gives up, so the audit can tell a refusal from a
+        # topic with no papers.
+        self.last_error: str | None = None
 
     def _get(self, url: str) -> bytes:
         req = Request(url, headers={"User-Agent": self._ua})
@@ -141,11 +165,16 @@ class PubMedClient:
                     return resp.read()
             except HTTPError as exc:
                 if exc.code == 429:
+                    if attempt >= self.retries:
+                        self.last_error = PUBMED_RATE_LIMITED
+                        return b""
                     time.sleep(3 * (attempt + 1))
                     continue
+                self.last_error = f"PubMed request failed (HTTP {exc.code})"
                 return b""
             except (URLError, TimeoutError, OSError):
                 if attempt >= self.retries:
+                    self.last_error = f"PubMed {_REQUEST_FAILED_NETWORK}"
                     return b""
                 time.sleep(0.75 * (attempt + 1))
         return b""
@@ -333,6 +362,9 @@ class ArxivClient:
     def __init__(self, *, timeout: int = 30, retries: int = 2) -> None:
         self.timeout = timeout
         self.retries = retries
+        # Set when search gives up, so the audit can tell a refusal from a
+        # topic with no papers.
+        self.last_error: str | None = None
 
     def search(self, topic: str, rows: int = 10) -> list[dict[str, Any]]:
         params = urlencode({
@@ -348,11 +380,16 @@ class ArxivClient:
                     return self._parse_feed(resp.read())
             except HTTPError as exc:
                 if exc.code == 429:
+                    if attempt >= self.retries:
+                        self.last_error = ARXIV_RATE_LIMITED
+                        return []
                     time.sleep(5 * (attempt + 1))
                     continue
+                self.last_error = f"arXiv request failed (HTTP {exc.code})"
                 return []
             except (URLError, TimeoutError, OSError):
                 if attempt >= self.retries:
+                    self.last_error = f"arXiv {_REQUEST_FAILED_NETWORK}"
                     return []
                 time.sleep(1.5 * (attempt + 1))
         return []
@@ -663,8 +700,9 @@ class OpenAlexClient:
         key = os.getenv("OPENALEX_API_KEY")
         if key:
             self.headers["Authorization"] = f"Bearer {key}"
-        # Set when a request is refused for rate or budget, so the audit can say
-        # so instead of showing an empty result.
+        # Set when a search gives up (refused for rate or budget, or failed), so
+        # the audit can say so instead of showing an empty result. A refusal
+        # that a retry recovers from is not recorded.
         self.last_error: str | None = None
 
     def search(self, topic: str, rows: int = 15) -> list[dict[str, Any]]:
@@ -688,12 +726,16 @@ class OpenAlexClient:
                 return payload.get("results") or []
             except HTTPError as exc:
                 if exc.code == 429:
-                    self.last_error = OPENALEX_RATE_LIMITED
+                    if attempt >= self.retries:
+                        self.last_error = OPENALEX_RATE_LIMITED
+                        return []
                     time.sleep(2 ** attempt)
                     continue
+                self.last_error = f"OpenAlex request failed (HTTP {exc.code})"
                 return []
             except (URLError, TimeoutError, OSError, json.JSONDecodeError):
                 if attempt >= self.retries:
+                    self.last_error = f"OpenAlex {_REQUEST_FAILED_NETWORK}"
                     return []
                 time.sleep(0.75 * (attempt + 1))
         return []
@@ -749,12 +791,16 @@ class OpenAlexClient:
                 return payload.get("results") or []
             except HTTPError as exc:
                 if exc.code == 429:
-                    self.last_error = OPENALEX_RATE_LIMITED
+                    if attempt >= self.retries:
+                        self.last_error = OPENALEX_RATE_LIMITED
+                        return []
                     time.sleep(2 ** attempt)
                     continue
+                self.last_error = f"OpenAlex request failed (HTTP {exc.code})"
                 return []
             except (URLError, TimeoutError, OSError, json.JSONDecodeError):
                 if attempt >= self.retries:
+                    self.last_error = f"OpenAlex {_REQUEST_FAILED_NETWORK}"
                     return []
                 time.sleep(0.75 * (attempt + 1))
         return []
@@ -780,12 +826,16 @@ class OpenAlexClient:
                 return payload.get("results") or []
             except HTTPError as exc:
                 if exc.code == 429:
-                    self.last_error = OPENALEX_RATE_LIMITED
+                    if attempt >= self.retries:
+                        self.last_error = OPENALEX_RATE_LIMITED
+                        return []
                     time.sleep(2 ** attempt)
                     continue
+                self.last_error = f"OpenAlex request failed (HTTP {exc.code})"
                 return []
             except (URLError, TimeoutError, OSError, json.JSONDecodeError):
                 if attempt >= self.retries:
+                    self.last_error = f"OpenAlex {_REQUEST_FAILED_NETWORK}"
                     return []
                 time.sleep(0.75 * (attempt + 1))
         return []
@@ -808,12 +858,16 @@ class OpenAlexClient:
                 return payload.get("results") or []
             except HTTPError as exc:
                 if exc.code == 429:
-                    self.last_error = OPENALEX_RATE_LIMITED
+                    if attempt >= self.retries:
+                        self.last_error = OPENALEX_RATE_LIMITED
+                        return []
                     time.sleep(2 ** attempt)
                     continue
+                self.last_error = f"OpenAlex request failed (HTTP {exc.code})"
                 return []
             except (URLError, TimeoutError, OSError, json.JSONDecodeError):
                 if attempt >= self.retries:
+                    self.last_error = f"OpenAlex {_REQUEST_FAILED_NETWORK}"
                     return []
                 time.sleep(0.75 * (attempt + 1))
         return []

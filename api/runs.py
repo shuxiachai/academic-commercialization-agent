@@ -1859,16 +1859,13 @@ def owner_of(run_id: str) -> str | None:
     return _read_owner(run_dir_for(run_id))
 
 
-def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], int]:
-    """Return (summaries, total) for finished and running runs, newest first.
+def run_directories(owner: str | None = None) -> list[Path]:
+    """Run directories, newest first, scoped to `owner` as list_runs is.
 
-    `owner`, when given, scopes the result to runs created under that same
-    access.owner_id() — a code holder sees only their own history, not
-    every code's combined. None means no filter: every run, the behaviour
-    for a deployment with no access code configured at all.
+    Raises OwnerMarkerUnreadable when scoping meets a marker it cannot read.
     """
     if not DEFAULT_OUTPUT_ROOT.is_dir():
-        return [], 0
+        return []
 
     # Match the run_id shape rather than excluding known non-runs one at a
     # time. The old rule skipped only "benchmark", so adding outputs/_papers
@@ -1882,6 +1879,18 @@ def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], in
     )
     if owner is not None:
         dirs = [d for d in dirs if _read_owner(d) == owner]
+    return dirs
+
+
+def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], int]:
+    """Return (summaries, total) for finished and running runs, newest first.
+
+    `owner`, when given, scopes the result to runs created under that same
+    access.owner_id() — a code holder sees only their own history, not
+    every code's combined. None means no filter: every run, the behaviour
+    for a deployment with no access code configured at all.
+    """
+    dirs = run_directories(owner)
     summaries = []
     for d in dirs[:limit]:
         try:
