@@ -8,7 +8,7 @@ import sys
 import warnings
 from datetime import date, datetime, UTC
 from difflib import SequenceMatcher
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from collections.abc import Callable, Mapping, Sequence
 from urllib.error import URLError
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
@@ -33,6 +33,9 @@ from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
     _PM_MONTH,
     _PATENT_STOPWORDS, _PATENT_MAX_QUERY_WORDS, _patent_keywords,
 )
+
+if TYPE_CHECKING:
+    from academic_agent.run_spec import SearchPlan
 
 
 Domain = Literal["academic", "patent", "market"]
@@ -3407,9 +3410,11 @@ def collect_source_collection(
     paper_seed: "EvidenceSource | None" = None,  # noqa: F821
     extra_market_queries: list[str] | None = None,
     weight_profile: str | None = None,
+    search_plan: "SearchPlan | None" = None,
 ) -> SourceCollection:
     # ── Language detection & search planning ─────────────────────────────────
     from academic_agent.language import (
+        TopicSearchPlan, _strip_assessment_terms,
         detect_language, get_lang_info, plan_topic_search, translate_headings,
     )
     from academic_agent.evidence import _REQUIRED_REPORT_HEADINGS
@@ -3426,7 +3431,16 @@ def collect_source_collection(
     lang_code = detect_language(display_topic)
     lang_info = get_lang_info(lang_code)
     is_native = not lang_code.startswith("en")
-    plan = plan_topic_search(display_topic, n=2)
+    if search_plan is not None:
+        # The user confirmed this reading before the run started; planning
+        # again could hand the run a different one.
+        plan = TopicSearchPlan(
+            search_topic=_strip_assessment_terms(search_plan.search_topic),
+            aliases=tuple(_strip_assessment_terms(a) for a in search_plan.aliases),
+            components=search_plan.components,
+        )
+    else:
+        plan = plan_topic_search(display_topic, n=2)
     if not plan.resolved:
         raise SourceCollectionError(
             "Could not identify an assessable technology or research subject "

@@ -532,11 +532,18 @@ let extracting = false;
 // This is tab-local exclusion, not server/provider exactly-once delivery.
 let submitting = false;
 let uploadGeneration = 0;
+// Search-plan preview: offered by the deployment (access check), for code
+// holders only. previewing locks the run button while the reading is fetched;
+// planState holds the reading the panel shows, for the topic it was read from.
+let planPreviewEnabled = false;
+let previewing = false;
+let planState = null;
 
 const topic = $("#topic");
 const count = $("#topic-count");
 const runBtn = $("#run-btn");
 const composer = $("#composer");
+const planPanel = $("#plan-panel");
 const decisionContextInputs = $$('[data-context-field]');
 
 function readDecisionContext() {
@@ -561,9 +568,14 @@ function autosize() {
 }
 
 function syncComposer() {
-  runBtn.disabled = topic.value.trim().length < 3 || extracting || submitting || paidReceipts.state().uncertain;
+  runBtn.disabled = topic.value.trim().length < 3 || extracting || submitting || previewing
+    || paidReceipts.state().uncertain;
   runBtn.title = submitting ? t("msg_submitting")
+    : previewing ? runView.planLabel("previewing")
     : extracting ? t("msg_wait_extract") : t("run_hint");
+  planPanel.querySelectorAll("button, input").forEach((control) => {
+    control.disabled = submitting || paidReceipts.state().uncertain;
+  });
   attachBtn.disabled = extracting || submitting || paidReceipts.state().uncertain;
   // Keep the submitted payload stable in the visible composer as well. The
   // handler guard still matters for programmatic submits and queued events.
@@ -577,6 +589,9 @@ function syncComposer() {
 }
 
 topic.addEventListener("input", syncComposer);
+topic.addEventListener("input", () => {
+  if (planState && topic.value.trim() !== planState.topic) hidePlan();
+});
 topic.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
@@ -594,12 +609,26 @@ $$(".starter").forEach((btn) =>
 
 $("#compose-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (submitting || extracting || topic.value.trim().length < 3) return;
+  if (submitting || extracting || previewing || topic.value.trim().length < 3) return;
   const submittedTopic = topic.value.trim();
+  if (planState?.topic === submittedTopic) {
+    // The panel already shows this topic's reading; Enter must not re-read it.
+    $("#plan-start")?.focus();
+    return;
+  }
   if (
     needsScopeWarning(submittedTopic, { hasPaper: Boolean(attachedPaper) })
     && !confirm(t("confirm_broad_topic"))
   ) return;
+  if (planPreviewEnabled && !byokMode) {
+    await previewPlan(submittedTopic);
+    return;
+  }
+  await submitAssessment(submittedTopic, null);
+});
+
+async function submitAssessment(submittedTopic, searchPlan) {
+  if (submitting || extracting) return;
   submitting = true;
   syncComposer();
 
@@ -610,11 +639,13 @@ $("#compose-form").addEventListener("submit", async (e) => {
       weight_profile: $("#profile").value,
       paper_id: attachedPaper?.paper_id,
       decision_context: readDecisionContext(),
+      search_plan: searchPlan,
     }, key), async (accepted) => {
       requirePaidIdentity(accepted, "run_id");
       rememberAcceptedRun(accepted);
       await openRun(accepted.run_id, { known: accepted });
       topic.value = "";
+      hidePlan();
       clearDecisionContext();
       clearAttachment();
       syncComposer();
@@ -625,7 +656,145 @@ $("#compose-form").addEventListener("submit", async (e) => {
     submitting = false;
     syncComposer();
   }
-});
+}
+
+/* ── Search-plan preview ───────────────────────────────────────────────
+ * The planner's reading of a topic decides every query. A wrong reading
+ * ("hyperloop" renamed, vertical farming drifting) used to show only after
+ * the run had spent its stages and one of the code's daily runs. With a
+ * code, the run button first shows that reading; the user confirms or edits
+ * it, and the run searches exactly that. Unresolved topics stop here. */
+
+async function previewPlan(submittedTopic) {
+  previewing = true;
+  syncComposer();
+  let next;
+  try {
+    const plan = await api.planTopic(submittedTopic);
+    next = plan?.resolved
+      ? { topic: submittedTopic, failure: null, plan: {
+        search_topic: plan.search_topic, aliases: [...plan.aliases], components: [...plan.components] } }
+      : { topic: submittedTopic, failure: "unresolved", plan: null };
+  } catch (err) {
+    if (err.status === 401) {
+      toast(operationErrorMessage(err), "error");
+      return;
+    }
+    next = { topic: submittedTopic, plan: null, reason: err.message,
+      failure: err.code === "plan_preview_limit" ? "limit" : "unavailable" };
+  } finally {
+    previewing = false;
+    syncComposer();
+  }
+  // A reading of a topic the user has since changed would confirm the wrong one.
+  if (topic.value.trim() !== submittedTopic) return;
+  planState = next;
+  renderPlan();
+  (planState.plan ? $("#plan-topic") : $("#plan-start") ?? $("#plan-edit"))?.focus();
+}
+
+function hidePlan() {
+  planState = null;
+  planPanel.hidden = true;
+  planPanel.innerHTML = "";
+}
+
+function readConfirmedPlan() {
+  const searchTopic = planState.plan.search_topic.split(/\s+/).filter(Boolean).join(" ");
+  if (searchTopic.length < 3) return null;
+  // An edited phrase may now equal an alternative; searching it twice adds nothing.
+  const distinct = (phrases) => phrases.filter((p) => p.toLowerCase() !== searchTopic.toLowerCase());
+  const components = distinct(planState.plan.components);
+  return {
+    search_topic: searchTopic,
+    aliases: distinct(planState.plan.aliases),
+    components: components.length >= 2 ? components : [],
+  };
+}
+
+function planNode(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function renderPlan() {
+  if (!planState) return;
+  const label = runView.planLabel;
+  planPanel.innerHTML = "";
+  planPanel.hidden = false;
+  planPanel.append(planNode("h2", "plan-panel__title", label("title")));
+  const message = planState.failure === null ? label("lede")
+    : label(planState.failure).replace("{reason}", planState.reason || "—");
+  planPanel.append(planNode("p", "plan-panel__lede", message));
+
+  if (planState.plan) {
+    const field = planNode("label", "plan-panel__group");
+    const input = planNode("input");
+    input.id = "plan-topic";
+    input.type = "text";
+    input.maxLength = 200;
+    input.value = planState.plan.search_topic;
+    input.addEventListener("input", () => { planState.plan.search_topic = input.value; });
+    input.addEventListener("keydown", (e) => {
+      // Inside the composer form, Enter would otherwise submit it again.
+      if (e.key === "Enter") { e.preventDefault(); startFromPlan(); }
+    });
+    field.append(planNode("span", "plan-panel__label", label("search_topic")), input);
+    planPanel.append(field);
+    for (const kind of ["aliases", "components"]) {
+      const phrases = planState.plan[kind];
+      if (!phrases.length) continue;
+      const group = planNode("div", "plan-panel__group");
+      group.dataset.planGroup = kind;
+      const chips = planNode("ul", "plan-panel__chips");
+      phrases.forEach((phrase, index) => {
+        const chip = planNode("li", "plan-chip");
+        const remove = planNode("button", null, "×");
+        remove.type = "button";
+        remove.setAttribute("aria-label", `${label("remove")}: ${phrase}`);
+        remove.addEventListener("click", () => {
+          planState.plan[kind].splice(index, 1);
+          renderPlan();
+        });
+        chip.append(planNode("span", null, phrase), remove);
+        chips.append(chip);
+      });
+      group.append(planNode("span", "plan-panel__label", label(kind)), chips);
+      planPanel.append(group);
+    }
+  }
+
+  const actions = planNode("div", "plan-panel__actions");
+  if (planState.failure !== "unresolved") {
+    const start = planNode("button", "btn btn--primary", label(planState.plan ? "start" : "start_without"));
+    start.type = "button";
+    start.id = "plan-start";
+    start.addEventListener("click", startFromPlan);
+    actions.append(start);
+  }
+  const edit = planNode("button", "btn btn--secondary", label("edit"));
+  edit.type = "button";
+  edit.id = "plan-edit";
+  edit.addEventListener("click", () => { hidePlan(); topic.focus(); });
+  actions.append(edit);
+  planPanel.append(actions);
+  syncComposer();
+}
+
+async function startFromPlan() {
+  if (!planState || submitting) return;
+  let searchPlan = null;
+  if (planState.plan) {
+    searchPlan = readConfirmedPlan();
+    if (!searchPlan) {
+      toast(runView.planLabel("too_short"), "error");
+      return;
+    }
+  }
+  await submitAssessment(planState.topic, searchPlan);
+}
 
 /* ── Attachment ─────────────────────────────────────────────────────
  * An uploaded paper becomes source A1 and the pipeline searches around its
@@ -869,6 +1038,7 @@ function applyByokMode() {
   byokMode = true;
   api.setAccessCode(null);
   $("#byok-badge").hidden = false;
+  hidePlan();
 }
 
 function showStorageNotice(key = "storage_unavailable") {
@@ -928,6 +1098,7 @@ function applyCodeMode() {
   byokMode = false;
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = false;
+  hidePlan();
 }
 
 $("#code-exit").addEventListener("click", exitCredentials);
@@ -946,7 +1117,8 @@ async function ensureAccess() {
     return;
   }
   try {
-    await api.checkAccess(api.getAccessCode());
+    const access = await api.checkAccess(api.getAccessCode());
+    planPreviewEnabled = access?.plan_preview === true;
     if (api.getAccessCode()) applyCodeMode();
     return;
   } catch (err) {
@@ -1031,7 +1203,8 @@ function showGate(errorKey = null) {
       codeSubmit.disabled = true;
       codeError.hidden = true;
       try {
-        await api.checkAccess(code);
+        const access = await api.checkAccess(code);
+        planPreviewEnabled = access?.plan_preview === true;
         api.setAccessCode(code);
         applyCodeMode();
         finish();
@@ -1094,6 +1267,7 @@ langSelect.value = i18n.language();
 langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
   localizeSourceLocatorLink();
+  renderPlan();
   paintPaidReceipt();
   paintCapacityLabel();
   topic.placeholder = t("topic_placeholder");

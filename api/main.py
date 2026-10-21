@@ -46,7 +46,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import auxiliary_usage, retrieval_health, samples
+from api import auxiliary_usage, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -58,6 +58,8 @@ from api.models import (  # noqa: E402
     MaintenanceTiming,
     PaperExtraction,
     PaidReceipt,
+    PlanPreview,
+    PlanRequest,
     ReadinessStatus,
     ResumeRunRequest,
     RetrievalHealth,
@@ -557,9 +559,39 @@ def access_check() -> dict:
     """No-op the frontend calls to validate a code before storing it.
 
     Reaching this handler at all means the middleware already accepted the
-    header — there is nothing left to verify here.
+    header — there is nothing left to verify here. `plan_preview` tells the
+    browser whether to show POST /api/plan before a code-funded run.
     """
-    return {"ok": True}
+    return {"ok": True, "plan_preview": plan_preview.enabled()}
+
+
+@app.post(
+    "/api/plan",
+    response_model=PlanPreview,
+    tags=["runs"],
+    responses={
+        404: {"description": "Plan previews are turned off on this deployment"},
+        429: {"description": "Daily preview limit reached for this access code"},
+    },
+)
+def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
+    """How the planner reads a topic, before a run is started on it.
+
+    One small model call on the deployment's key, behind the access code. It
+    does not take one of the code's daily runs; it has its own daily cap.
+    Pass the confirmed or edited result to POST /api/runs as `search_plan`.
+    """
+    if not plan_preview.enabled():
+        raise HTTPException(status_code=404, detail="Plan previews are turned off.")
+    try:
+        plan_preview.admit(http_request.state.owner)
+    except plan_preview.PreviewLimitReached as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=f"{exc}. Start the run without a preview, or try again after 00:00 UTC.",
+            headers={"X-Error-Code": "plan_preview_limit"},
+        ) from exc
+    return PlanPreview(**plan_preview.preview(request.topic))
 
 
 _WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
@@ -989,6 +1021,7 @@ def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> R
             decision_context=request.decision_context,
             byok=byok,
             owner=owner,
+            search_plan=request.search_plan,
         )
     except runs.ConcurrencyLimitReached as exc:
         raise HTTPException(

@@ -285,6 +285,48 @@ export function stateLabel(state) {
   return STATE_LABELS[uiLanguage()]?.[state] ?? state;
 }
 
+// Search-plan preview panel, kept out of the byte-frozen i18n.js too.
+const PLAN_STRINGS = {
+  English: {
+    title: "Check the search before starting",
+    lede: "Papers, patents and market sources will be searched with these terms. "
+      + "Edit them if the topic was read wrongly; this check does not use a daily run.",
+    search_topic: "Search phrase",
+    aliases: "Also searched as",
+    components: "Parts searched separately",
+    remove: "Remove",
+    start: "Start assessment",
+    edit: "Change topic",
+    start_without: "Start without a preview",
+    previewing: "Reading the topic…",
+    unresolved: "No technology or research subject could be identified in this description. "
+      + "Name the technology, for example “sodium-ion batteries for grid storage”.",
+    unavailable: "The search preview is unavailable ({reason}). You can start anyway; the run will choose its own search terms.",
+    limit: "Today's search previews are used up. You can start anyway; the run will choose its own search terms.",
+    too_short: "The search phrase needs at least 3 characters.",
+  },
+  "Simplified Chinese": {
+    title: "开始前确认检索方向",
+    lede: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改；这一步不占用每日运行次数。",
+    search_topic: "检索词",
+    aliases: "同时检索",
+    components: "分别检索的组成部分",
+    remove: "移除",
+    start: "开始评估",
+    edit: "修改题目",
+    start_without: "跳过预览直接开始",
+    previewing: "正在理解题目…",
+    unresolved: "没能从描述中识别出可评估的技术或研究对象。请写明具体技术，例如“钠离子电池用于电网储能”。",
+    unavailable: "检索方向预览暂不可用（{reason}）。可以直接开始，由系统自动确定检索词。",
+    limit: "今天的检索预览次数已用完。可以直接开始，由系统自动确定检索词。",
+    too_short: "检索词至少需要 3 个字符。",
+  },
+};
+
+export function planLabel(key) {
+  return (PLAN_STRINGS[uiLanguage()] ?? PLAN_STRINGS.English)[key] ?? PLAN_STRINGS.English[key];
+}
+
 // Short stage names for the one-line timing summary; the stage list keeps the
 // long ones from i18n.js.
 const STAGE_SHORT_LABELS = {

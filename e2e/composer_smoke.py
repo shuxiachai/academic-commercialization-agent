@@ -329,6 +329,108 @@ def _paid_refresh_case(browser, base: str, operation: str) -> int:
         context.close()
 
 
+def _plan_preview_journey(browser, base: str) -> int:
+    """A code holder confirms or edits the planner's reading before a run.
+
+    The run POST carries exactly the confirmed plan; an unresolved topic
+    never reaches it; a refused preview falls back to a plain run.
+    """
+    context = browser.new_context()
+    previews, posts, unexpected, errors = [], [], [], []
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+
+    def intercept(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        if url.netloc != urlsplit(base).netloc:
+            unexpected.append(request.url)
+            route.abort()
+        elif request.method == "POST" and url.path == "/api/plan":
+            previews.append(route)
+        elif request.method == "POST" and url.path == "/api/runs":
+            posts.append(route)  # Never continue to an ASGI paid endpoint.
+        elif request.method != "GET":
+            unexpected.append(f"{request.method} {url.path}")
+            route.abort()
+        elif url.path == "/api/access/check":
+            accepted = request.headers.get("x-access-code") == "fixture-A"
+            _json(route, {"ok": True, "plan_preview": True} if accepted else {"detail": "code required"},
+                  status=200 if accepted else 401)
+        elif url.path == "/api/runs":
+            _json(route, {"runs": []})
+        elif url.path == "/health":
+            _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif url.path == "/" or url.path.startswith("/static/"):
+            route.continue_()
+        else:
+            unexpected.append(url.path)
+            route.abort()
+
+    context.route("**/*", intercept)
+    try:
+        page.goto(base)
+        page.locator("#gate-input").fill("fixture-A")
+        page.locator("#gate-submit").click()
+        expect(page.locator("#gate")).to_be_hidden()
+        topic, run, panel = page.locator("#topic"), page.locator("#run-btn"), page.locator("#plan-panel")
+
+        # Confirm an edited reading: the POST carries exactly what was shown.
+        topic.fill("we want to assess hyperloop commercial potential")
+        run.click()
+        _wait_requests(page, previews, 1)
+        assert previews[0].request.post_data_json == {"topic": "we want to assess hyperloop commercial potential"}
+        expect(run).to_be_disabled()
+        _json(previews[0], {"resolved": True, "search_topic": "hyperloop transportation system",
+                            "aliases": ["vacuum tube maglev train", "evacuated tube transport"],
+                            "components": []})
+        expect(panel).to_be_visible()
+        expect(page.locator("#plan-topic")).to_have_value("hyperloop transportation system")
+        assert not posts, "Previewing must not start a run"
+        topic.press("Enter")  # Same topic: focus the panel, do not read it again.
+        page.wait_for_timeout(30)
+        assert len(previews) == 1
+        panel.locator(".plan-chip").first.locator("button").click()
+        expect(panel.locator(".plan-chip")).to_have_text(["evacuated tube transport×"])
+        page.locator("#plan-topic").fill("  hyperloop   ")
+        page.locator("#plan-start").click()
+        _wait_requests(page, posts, 1)
+        assert posts[0].request.post_data_json["search_plan"] == {
+            "search_topic": "hyperloop", "aliases": ["evacuated tube transport"], "components": []}
+        assert posts[0].request.post_data_json["topic"] == "we want to assess hyperloop commercial potential"
+        _json(posts[0], {"detail": "Fixture rejection"}, status=422)
+        expect(page.locator("#plan-start")).to_be_enabled()
+
+        # Editing the topic retires the old reading; an unresolved one cannot start.
+        topic.fill("the thing our team is working on")
+        expect(panel).to_be_hidden()
+        run.click()
+        _wait_requests(page, previews, 2)
+        _json(previews[1], {"resolved": False, "search_topic": "", "aliases": [], "components": []})
+        expect(panel).to_contain_text("No technology or research subject")
+        expect(page.locator("#plan-start")).to_have_count(0)
+        page.locator("#plan-edit").click()
+        expect(panel).to_be_hidden()
+
+        # A refused preview falls back to a run that plans for itself.
+        topic.fill("sodium-ion batteries for grid storage")
+        run.click()
+        _wait_requests(page, previews, 3)
+        _json(previews[2], {"detail": "20 topic previews already used today"}, status=429,
+              code="plan_preview_limit")
+        expect(panel).to_contain_text("previews are used up")
+        page.locator("#plan-start").click()
+        _wait_requests(page, posts, 2)
+        assert "search_plan" not in posts[1].request.post_data_json
+        _json(posts[1], {"detail": "Fixture rejection"}, status=422)
+        expect(run).to_be_enabled()
+        assert not errors, errors
+        assert not unexpected, unexpected
+        return len(posts)
+    finally:
+        context.close()
+
+
 def main() -> None:
     app = FastAPI()
     reached_server: list[str] = []
@@ -651,6 +753,7 @@ def main() -> None:
             expect(run).to_be_enabled()
             assert len(requests) == 12
             identity_posts = _access_identity_journey(browser, base)
+            plan_posts = _plan_preview_journey(browser, base)
             refresh_posts = _paid_refresh_journey(browser, base)
             history_reads = _history_generation_journey(browser, base)
             recovered_posts = sum(receipt_journey(browser, base, operation, _json)
@@ -666,6 +769,7 @@ def main() -> None:
             browser.close()
     print(json.dumps({"status": "passed", "browser": "chromium", "stubbed_posts": len(requests),
                       "identity_stubbed_posts": identity_posts,
+                      "plan_preview_stubbed_posts": plan_posts,
                       "refresh_stubbed_posts": refresh_posts,
                       "history_held_reads": history_reads,
                       "receipt_recovered_stubbed_posts": recovered_posts,

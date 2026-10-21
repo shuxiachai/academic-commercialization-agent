@@ -896,6 +896,7 @@ def main() -> None:
                 paper_seed=paper_seed,
                 extra_market_queries=extra_market_queries,
                 weight_profile=requested_profile,
+                search_plan=spec.search_plan,
             )
         if not retrieval_reused and args.language and args.language != "Auto (detect from topic)":
             # Map UI dropdown values to canonical API language names.

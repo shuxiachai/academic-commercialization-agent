@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from academic_agent.byok_model import BYOK_MODEL_PATTERN
-from academic_agent.run_spec import AssessmentMode, DecisionContext
+from academic_agent.run_spec import AssessmentMode, DecisionContext, SearchPlan
 from academic_agent.pdf_extractor import PDFInputCoverage
 
 #: "unknown" means the status or terminal file could not be read, not that the run
@@ -77,6 +77,12 @@ class RunRequest(BaseModel):
         description="Optional actor, asset, and decision gate. Omission produces "
                     "an orientation brief rather than actor-specific advice.",
     )
+    search_plan: SearchPlan | None = Field(
+        default=None,
+        description="Search interpretation confirmed from POST /api/plan, used "
+                    "instead of planning again in the worker; omitted, the worker "
+                    "plans the search itself.",
+    )
 
     # Bring-your-own-key: an alternative to the access code for a visitor who
     # is not the deployment owner. Complete or absent: a run either runs on
@@ -125,6 +131,26 @@ class RunRequest(BaseModel):
     @property
     def byok(self) -> bool:
         return self.llm_provider is not None
+
+class PlanRequest(BaseModel):
+    """Body for POST /api/plan."""
+
+    topic: str = Field(min_length=3, max_length=300, description="Research topic as the user typed it")
+
+    @field_validator("topic", mode="before")
+    @classmethod
+    def _strip_topic(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+class PlanPreview(BaseModel):
+    """How the planner reads a topic, for the user to confirm or edit."""
+
+    resolved: bool = Field(description="False when no technology or research subject could be identified.")
+    search_topic: str = Field(description="English phrase sent to every retrieval backend.")
+    aliases: list[str] = Field(description="Equivalent phrasings searched alongside it.")
+    components: list[str] = Field(description="Building blocks searched separately for a combined system.")
+
 
 class ResumeRunRequest(BaseModel):
     """Fresh credentials for POST /api/runs/{run_id}/resume."""
