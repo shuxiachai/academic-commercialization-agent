@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from academic_agent.report_applicability import applicability_for_display
 from api import access, samples
 from api.main import app
 
@@ -64,6 +65,19 @@ class SampleHttpTests(unittest.TestCase):
         self.assertTrue(report.headers["content-type"].startswith("text/markdown"))
         self.assertTrue(report.text.startswith("# "))
         self.assertEqual(history.status_code, 401)
+
+    def test_samples_show_the_applicability_paragraph_without_its_markup(self):
+        """The newer production samples carry the code-owned paragraph, which
+        the shared renderer would show behind a raw comment and a stray '>'."""
+        marker = "<!-- decision-applicability:v1 -->"
+        self.assertIn(marker, samples.read_sample("hyperloop"))
+        for sample in samples.SAMPLES:
+            with self.subTest(slug=sample.slug):
+                served = self.client.get(f"/api/samples/{sample.slug}").text
+                self.assertNotIn(marker, served)
+                self.assertTrue(served.startswith("# "))
+        served = self.client.get("/api/samples/hyperloop").text
+        self.assertIn("\n\n**Assessment applicability (code-derived):** Mode `orientation`.", served)
 
     def test_only_get_is_exempt(self):
         with patch.object(access, "ACCESS_CODE", "secret123"):
@@ -150,7 +164,8 @@ class SampleRenderingTests(unittest.TestCase):
                 const inputs = JSON.parse(readFileSync(process.argv[2], "utf-8"));
                 console.log(JSON.stringify(inputs.map((md) => renderMarkdown(md))));
             """), encoding="utf-8")
-            reports = [samples.read_sample(s.slug) for s in samples.SAMPLES]
+            # As served by /api/samples/{slug}, which the reader renders.
+            reports = [applicability_for_display(samples.read_sample(s.slug)) for s in samples.SAMPLES]
             (work / "inputs.json").write_text(json.dumps(reports), encoding="utf-8")
             result = subprocess.run(
                 [shutil.which("node"), str(work / "run.mjs"), str(work / "inputs.json")],
