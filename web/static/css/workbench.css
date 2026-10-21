@@ -391,6 +391,23 @@
   white-space: nowrap;
 }
 
+/* Usage and its accounting caveats: folded behind one click, never removed. */
+#pane-run .run-usage { min-width: 0; max-width: 100%; }
+#pane-run .run-usage > summary {
+  cursor: pointer;
+  list-style: none;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+#pane-run .run-usage > summary::-webkit-details-marker { display: none; }
+#pane-run .run-usage > summary:hover { color: var(--text-secondary); }
+#pane-run .run-usage[open] { flex-basis: 100%; }
+#pane-run .run-usage > #run-usage {
+  display: block;
+  margin-top: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
 .dot-sep {
   width: 3px; height: 3px;
   border-radius: var(--radius-full);

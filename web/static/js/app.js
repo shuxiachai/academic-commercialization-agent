@@ -133,6 +133,14 @@ function syncSourceLocatorLink(runId = activeRunId) {
   link.href = `/source-locator${typeof runId === "string" && locatorRunPattern.test(runId) ? `#${runId}` : ""}`;
 }
 
+// The server injects an English label; follow the interface language.
+function localizeSourceLocatorLink() {
+  const link = $("#source-locator-link");
+  if (!link) return;
+  link.textContent = runView.headerLabel("source_locator");
+  link.title = runView.headerLabel("source_locator_title");
+}
+
 function showCompose() {
   stopFollowing();
   activeRunId = null;
@@ -192,7 +200,7 @@ function paintHeader({
 
   const pill = $("#run-pill");
   pill.className = `pill pill--${state}`;
-  pill.textContent = state;
+  pill.textContent = runView.stateLabel(state);
 
   if (state === "running") {
     startClock(elapsed_seconds ?? 0);
@@ -212,6 +220,10 @@ function paintHeader({
   const auxiliary = runView.auxiliarySummary(auxiliary_usage);
   spendEl.textContent = [spend, auxiliary].filter(Boolean).join(" · ");
   spendEl.title = [runView.usageTitle(usage, usage_accounting), auxiliary].filter(Boolean).join("\n");
+  // Folded, never dropped: the full accounting text with its caveats stays in
+  // the DOM and one click away, while the header leads with the outcome.
+  $("#run-usage-details").hidden = !spendEl.textContent;
+  $("#run-usage-label").textContent = `· ${runView.headerLabel("usage_details")}`;
 
   // State alone cannot distinguish a worker failure from a watchdog stop, and
   // a missing/unreadable terminal record must not look like an ordinary clean
@@ -366,6 +378,9 @@ async function openRun(runId, { known } = {}) {
     toast(t("msg_history_unavailable"), "error");
   }
 
+  // A run first seen already finished is history, not news: announce only a
+  // completion this page watched happen. (Errors are still always shown.)
+  let watchedActive = false;
   follower = runView.follow(runId, {
     onConnection({ state, lastSuccessAt }) {
       // Connectivity is a fact about our read, not a new worker state. Stop
@@ -376,6 +391,7 @@ async function openRun(runId, { known } = {}) {
       if (state !== "connected") stopClock();
     },
     onUpdate(progress) {
+      if (progress.state === "running") watchedActive = true;
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing);
       runView.renderStages(body, runView.stageStates(progress.stage, progress.state));
@@ -387,7 +403,7 @@ async function openRun(runId, { known } = {}) {
       refreshSidebar();
 
       if (progress.state === "completed") {
-        toast(t("msg_complete"), "success");
+        if (watchedActive) toast(t("msg_complete"), "success");
       } else if (progress.error) {
         toast(progress.error, "error");
       }
@@ -1069,6 +1085,7 @@ const langSelect = $("#ui-lang");
 langSelect.value = i18n.language();
 langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
+  localizeSourceLocatorLink();
   paintPaidReceipt();
   paintCapacityLabel();
   topic.placeholder = t("topic_placeholder");
@@ -1081,6 +1098,7 @@ langSelect.addEventListener("change", () => {
 /* ── Boot ──────────────────────────────────────────────────────────── */
 
 i18n.apply();
+localizeSourceLocatorLink();
 topic.placeholder = t("topic_placeholder");
 syncComposer();
 

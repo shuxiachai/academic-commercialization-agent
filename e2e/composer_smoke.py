@@ -512,7 +512,7 @@ def main() -> None:
             expect(page.locator("#byok-badge")).to_be_visible()
             _json(requests[7], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
             expect(page).to_have_url(f"{base}/run/{run_id}")
-            expect(page.locator("#run-pill")).to_have_text("failed")
+            expect(page.locator("#run-pill")).to_have_text("失败")  # Chinese interface since above
             expect(page.locator("#toasts")).to_contain_text("任务已被接受")
             resume = page.locator(f'[data-resume-run="{run_id}"]')
             resume.click()

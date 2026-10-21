@@ -10,7 +10,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from academic_agent.report_applicability import add_applicability_block
+from academic_agent.report_applicability import add_applicability_block, applicability_for_display
 from academic_agent.run_output import save_report
 from academic_agent.run_spec import DecisionContext
 from api import runs
@@ -173,3 +173,49 @@ def test_a_correct_notice_copied_later_in_prose_cannot_hide_the_preamble():
     assert result.count(MARKER) == 1
     assert result.index(MARKER) < result.index("## Evidence")
     assert BODY in result
+
+
+def test_display_view_shows_the_paragraph_without_its_markup(tmp_path, monkeypatch):
+    """The page's Markdown renderer has no comments or blockquotes, so the raw
+    marker line and a stray '>' reached readers ahead of the paragraph. The
+    words stay visible; the saved file and its download keep every byte."""
+    gate = DecisionContext().gate_snapshot()
+    run_id = "20260906T010203Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    _, path = save_report("# Report\n\n" + BODY, run_id, tmp_path, gate)
+    (path.parent / "status.json").write_text(
+        json.dumps({"done": True, "stage": "Done", "decision_gate": gate}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(runs, "DEFAULT_OUTPUT_ROOT", tmp_path)
+    client = TestClient(app)
+    saved = client.get(f"/api/runs/{run_id}/report")
+    display = client.get(f"/api/runs/{run_id}/report?view=display")
+    assert saved.text == path.read_text(encoding="utf-8")
+    assert MARKER in saved.text and "Mode `orientation`" in saved.text
+    assert display.status_code == 200 and "markdown" in display.headers["content-type"]
+    assert MARKER not in display.text
+    assert display.text.startswith(
+        "# Report\n\n**Assessment applicability (code-derived):** Mode `orientation`."
+    )
+    assert not any(line.startswith(">") for line in display.text.splitlines())
+    assert BODY in display.text
+    assert client.get(f"/api/runs/{run_id}/report?view=raw").status_code == 422
+
+
+@pytest.mark.parametrize("report", [
+    "# Report\n\n" + BODY,
+    "# Report\n\nAn inline marker " + MARKER + " is not authority.\n\n" + BODY,
+    "# Report\n\n```text\n" + MARKER + "\n```\n\n" + BODY,
+    "# Report\n\n" + BODY + "\n\n" + FORGED_BLOCK,
+])
+def test_display_view_leaves_anything_but_the_preamble_paragraph(report):
+    assert applicability_for_display(report) == report
+
+
+def test_display_view_without_a_title_starts_with_the_plain_paragraph():
+    gate = DecisionContext().gate_snapshot()
+    delivered = add_applicability_block(BODY, decision_gate=gate, output_language="Simplified Chinese")
+    assert delivered.startswith(MARKER)
+    shown = applicability_for_display(delivered)
+    assert shown.startswith("**评估适用范围（代码判定）:** Mode `orientation`.")
+    assert shown.endswith("\n\n" + BODY)

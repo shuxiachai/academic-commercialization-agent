@@ -39,6 +39,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from academic_agent.byok_model import BYOK_MODEL_PATTERN  # noqa: E402
+from academic_agent.report_applicability import applicability_for_display  # noqa: E402
 from academic_agent.llm_config import _detect_provider, validate_llm_configuration  # noqa: E402
 from academic_agent.pdf_extractor import (  # noqa: E402
     PaperContribution,
@@ -618,7 +619,8 @@ def read_sample_report(slug: str) -> PlainTextResponse:
         text = samples.read_sample(slug)
     except (KeyError, FileNotFoundError):
         raise HTTPException(status_code=404, detail="No sample with that name.") from None
-    return PlainTextResponse(text, media_type="text/markdown; charset=utf-8")
+    # Samples are read, never downloaded here: render them as the run page does.
+    return PlainTextResponse(applicability_for_display(text), media_type="text/markdown; charset=utf-8")
 
 
 @app.get("/health", response_model=HealthStatus, tags=["meta"])
@@ -1255,8 +1257,14 @@ def delete_run(
         409: {"description": "Run has not produced a report yet"},
     },
 )
-def get_report(run_id: str) -> PlainTextResponse:
-    """The final Markdown report."""
+def get_report(
+    run_id: str,
+    view: Literal["saved", "display"] = Query(
+        default="saved",
+        description="'display' shows the code-owned applicability paragraph as plain prose, without its HTML comment marker",
+    ),
+) -> PlainTextResponse:
+    """The final Markdown report, as saved unless view=display."""
     try:
         state = runs.get_state(run_id)
     except runs.RunNotFound as exc:
@@ -1268,8 +1276,9 @@ def get_report(run_id: str) -> PlainTextResponse:
             status_code=409,
             detail=f"No report available; run state is '{state['state']}'.",
         )
+    text = path.read_text(encoding="utf-8")
     return PlainTextResponse(
-        path.read_text(encoding="utf-8"),
+        applicability_for_display(text) if view == "display" else text,
         media_type="text/markdown; charset=utf-8",
     )
 

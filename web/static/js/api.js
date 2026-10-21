@@ -349,7 +349,8 @@ export const cancelRun = (runId) =>
 export const deleteRun = (runId) =>
   request(`/api/runs/${runId}?intent=delete`, { method: "DELETE" });
 
-export const getReport = (runId) => request(`/api/runs/${runId}/report`);
+// For display; the Markdown download links to the saved file without ?view.
+export const getReport = (runId) => request(`/api/runs/${runId}/report?view=display`);
 
 export const getArtifact = (runId, name) =>
   request(`/api/runs/${runId}/${name}`);

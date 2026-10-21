@@ -233,6 +233,37 @@ const AUXILIARY_STRINGS = {
   },
 };
 
+// Run-header labels, kept out of the byte-frozen i18n.js like AUXILIARY_STRINGS.
+const HEADER_STRINGS = {
+  English: {
+    usage_details: "Usage & cost",
+    source_locator: "Saved-source locator",
+    source_locator_title: "Experimental: pick the saved source behind a question about a report and read its saved text",
+  },
+  "Simplified Chinese": {
+    usage_details: "用量与费用",
+    source_locator: "已保存来源定位",
+    source_locator_title: "实验功能：针对报告中的问题，找出对应的已保存来源并显示其原文",
+  },
+};
+
+// English keeps the API's own state words (the pill uppercases them, and the
+// browser tests read them); Chinese readers get words rather than codes.
+const STATE_LABELS = {
+  "Simplified Chinese": {
+    running: "运行中", completed: "已完成", failed: "失败",
+    cancelled: "已取消", timeout: "已超时", unknown: "状态未知",
+  },
+};
+
+export function headerLabel(key) {
+  return (HEADER_STRINGS[uiLanguage()] ?? HEADER_STRINGS.English)[key] ?? HEADER_STRINGS.English[key];
+}
+
+export function stateLabel(state) {
+  return STATE_LABELS[uiLanguage()]?.[state] ?? state;
+}
+
 /** Independent helper observations; never folded into Crew's numeric total. */
 export function auxiliarySummary(value) {
   const labels = AUXILIARY_STRINGS[uiLanguage()] ?? AUXILIARY_STRINGS.English;
