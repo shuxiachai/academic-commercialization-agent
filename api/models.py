@@ -661,3 +661,28 @@ class ReadinessStatus(BaseModel):
         default=None, description="HTTP supervisor snapshot shared with health. "
                                   "Absent from the standalone configuration-only readiness check.",
     )
+
+
+class RetrievalLaneHealth(BaseModel):
+    lane: str = Field(description="Audit label such as 'OA-Cited', 'S2' or 'market web search'.")
+    observed_runs: int = Field(description="Examined runs whose audit has this lane.")
+    empty_runs: int = Field(description="Runs in which the lane returned no result.")
+    failed_runs: int = Field(description="Runs in which the lane recorded a refusal or failed request.")
+
+
+class RetrievalHealth(BaseModel):
+    """Per-lane counts over recent runs' saved audits; no topics or run ids.
+
+    Scoped like GET /api/runs: a code holder's own runs, every run for the
+    admin code or a deployment without codes.
+    """
+
+    window: int
+    runs_examined: int = Field(description="Newest runs with a saved audit, at most `window`.")
+    lanes: list[RetrievalLaneHealth]
+    failing: list[str] = Field(
+        description="Lanes that failed in at least half of 3 or more observed runs.",
+    )
+    mostly_empty: list[str] = Field(
+        description="Other lanes that returned nothing in at least 80% of 3 or more observed runs.",
+    )
