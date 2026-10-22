@@ -549,6 +549,16 @@ The audit names the publication that was kept. Titles that differ, such as
 translations or retitled continuations, are not merged. See the
 [result](results-2026-10-22-patent-family-v1.md).
 
+Web search also returns patent rows without an applicant. Each accepted
+web-search patent's Google Patents page is read once, first 256 KB only:
+- **Named holder.** The current assignee becomes the row's publisher and joins the assignee list the patent analyst receives.
+- **Inventor-owned patent.** The inventors are named instead, and never listed as a company.
+
+Up to eight pages are read at a time, with a 20-second deadline. A
+`[Patent-Applicants]` audit row lists the rows named and why the others were
+not; retrieval health does not count it as a lane. See the
+[check](results-2026-10-22-patent-applicants-check.md).
+
 The PDF-domain market prelude shares the ordinary query path's previous/current
 calendar-year window. This avoids stale hard-coded years, not stale results in
 general. The report-audit detail tab displays individual coverage counts and

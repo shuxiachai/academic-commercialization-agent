@@ -156,20 +156,21 @@ def stub_llm_calls(monkeypatch, request):
 
 @pytest.fixture(autouse=True)
 def no_real_page_fetches(monkeypatch, request):
-    """Read no web page for a publication date unless a test asks to.
+    """Read no web page for a publication date or a patent applicant unless a test asks to.
 
     collect_source_collection dates each accepted market source from its own
-    page through page_dates.fetch_html. Stubbing that single choke point, as
-    stub_llm_calls does for the LLM, means a new collector test cannot send
-    real requests by forgetting to inject a dater. The stub returns None, as
-    the real function does for a page it cannot read, so the URL-path
-    fallback still runs.
+    page through page_dates.fetch_html, and names each web-search patent's
+    applicant through patent_applicants.fetch_head. Stubbing those choke
+    points, as stub_llm_calls does for the LLM, means a new collector test
+    cannot send real requests by forgetting to inject a lookup. The stubs
+    return None, as the real functions do for a page they cannot read.
 
-    Opt out with @pytest.mark.allow_page_fetch when exercising fetch_html itself.
+    Opt out with @pytest.mark.allow_page_fetch when exercising a fetch itself.
     """
     if request.node.get_closest_marker("allow_page_fetch"):
         return
     monkeypatch.setattr("academic_agent.page_dates.fetch_html", lambda _url: None)
+    monkeypatch.setattr("academic_agent.patent_applicants.fetch_head", lambda _url: None)
 
 
 def pytest_configure(config):
@@ -180,8 +181,8 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers",
-        "allow_page_fetch: test exercises page_dates.fetch_html itself and bypasses the "
-        "offline stub (it must still stub the opener)",
+        "allow_page_fetch: test exercises page_dates.fetch_html or patent_applicants.fetch_head "
+        "itself and bypasses the offline stubs (it must still stub the opener)",
     )
     config.addinivalue_line(
         "markers",
