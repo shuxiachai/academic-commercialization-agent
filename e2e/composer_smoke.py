@@ -432,6 +432,84 @@ def _plan_preview_journey(browser, base: str) -> int:
         context.close()
 
 
+def _decision_context_journey(browser, base: str) -> int:
+    """Picks fill the starred fields, the line says when a GO/NO_GO is possible,
+    and the folded details still reach the run request."""
+    context = browser.new_context()
+    posts, unexpected, errors = [], [], []
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+
+    def intercept(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        if url.netloc != urlsplit(base).netloc:
+            unexpected.append(request.url)
+            route.abort()
+        elif request.method == "POST" and url.path == "/api/runs":
+            posts.append(route)  # Never continue to an ASGI paid endpoint.
+        elif request.method != "GET":
+            unexpected.append(f"{request.method} {url.path}")
+            route.abort()
+        elif url.path == "/api/access/check":
+            accepted = request.headers.get("x-access-code") == "fixture-A"
+            _json(route, {"ok": True} if accepted else {"detail": "code required"},
+                  status=200 if accepted else 401)
+        elif url.path == "/api/runs":
+            _json(route, {"runs": []})
+        elif url.path == "/health":
+            _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif url.path == "/" or url.path.startswith("/static/"):
+            route.continue_()
+        else:
+            unexpected.append(url.path)
+            route.abort()
+
+    context.route("**/*", intercept)
+    try:
+        page.goto(base)
+        page.locator("#gate-input").fill("fixture-A")
+        page.locator("#gate-submit").click()
+        expect(page.locator("#gate")).to_be_hidden()
+        page.locator("#decision-context > summary").click()
+        status = page.locator("#decision-context-status")
+        expect(status).to_have_text("No context yet: the report will be an orientation brief, with no GO/NO_GO.")
+        expect(page.locator("#decision-horizon")).to_be_hidden()
+
+        page.locator("#decision-asset").fill("Lab-scale sulfide solid electrolyte")
+        page.locator("#decision-application").fill("Battery packs for passenger EVs")
+        expect(status).to_have_text("2 of the 4 starred fields filled. A GO/NO_GO for this decision needs all four.")
+        page.get_by_role("button", name="Investor", exact=True).click()
+        expect(page.locator("#decision-owner")).to_have_value("Investor")
+        page.get_by_role("button", name="Invest or pass", exact=True).click()
+        expect(page.locator("#decision-type")).to_have_value("Invest or pass")
+        expect(status).to_contain_text("All 4 starred fields filled")
+        page.locator("#ui-lang").select_option("Simplified Chinese")
+        expect(status).to_contain_text("4 个带 * 的字段都已填写")
+        expect(page.get_by_role("button", name="投资人", exact=True)).to_be_visible()
+        page.locator("#ui-lang").select_option("English")
+
+        page.locator(".decision-context__more > summary").click()
+        page.locator("#decision-horizon").fill("12 months")
+        page.locator("#topic").fill("solid-state batteries for electric vehicles")
+        page.locator("#run-btn").click()
+        _wait_requests(page, posts, 1)
+        assert posts[0].request.post_data_json["decision_context"] == {
+            "asset_description": "Lab-scale sulfide solid electrolyte",
+            "target_application": "Battery packs for passenger EVs",
+            "decision_owner": "Investor",
+            "decision_type": "Invest or pass",
+            "time_horizon": "12 months",
+        }
+        _json(posts[0], {"detail": "Fixture rejection"}, status=422)
+        expect(page.locator("#run-btn")).to_be_enabled()
+        assert not errors, errors
+        assert not unexpected, unexpected
+        return len(posts)
+    finally:
+        context.close()
+
+
 _FAKE_NOTIFICATIONS = """
 window.__notices = [];
 window.__hidden = false;
@@ -856,6 +934,7 @@ def main() -> None:
             assert len(requests) == 12
             identity_posts = _access_identity_journey(browser, base)
             plan_posts = _plan_preview_journey(browser, base)
+            context_posts = _decision_context_journey(browser, base)
             wait_posts = _waiting_journey(browser, base)
             refresh_posts = _paid_refresh_journey(browser, base)
             history_reads = _history_generation_journey(browser, base)
@@ -873,6 +952,7 @@ def main() -> None:
     print(json.dumps({"status": "passed", "browser": "chromium", "stubbed_posts": len(requests),
                       "identity_stubbed_posts": identity_posts,
                       "plan_preview_stubbed_posts": plan_posts,
+                      "decision_context_stubbed_posts": context_posts,
                       "waiting_stubbed_posts": wait_posts,
                       "refresh_stubbed_posts": refresh_posts,
                       "history_held_reads": history_reads,

@@ -61,10 +61,36 @@ function inline(text) {
     .replace(/`(.+?)`/g, "<code>$1</code>")
     // Citation markers get their own affordance: they are the reason the
     // report is auditable, and running them together with prose hides that.
+    // Each opens a card for its sources (attachCitations); a run of
+    // consecutive IDs ("P1, P2, … P8") reads as one range.
     .replace(/\[([APM]\d+(?:\s*,\s*[APM]\d+)*)\]/g,
-             '<span class="cite">[$1]</span>')
+             (_, group) => citeChipHtml(group.split(/\s*,\s*/)))
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
              '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
+/** "P3–P8" for three or more consecutive IDs of one kind, else "A1, M2". */
+function citeLabel(ids) {
+  const numbers = ids.map(id => Number(id.slice(1)));
+  const sameKind = ids.every(id => id[0] === ids[0][0]);
+  const consecutive = numbers.every((n, i) => i === 0 || n === numbers[i - 1] + 1);
+  return ids.length >= 3 && sameKind && consecutive
+    ? `${ids[0]}–${ids[ids.length - 1]}` : ids.join(", ");
+}
+
+// IDs are [APM]\d+ by the caller's pattern, so they are safe in markup.
+function citeChipHtml(ids) {
+  return `<button type="button" class="cite" data-cite="${ids.join(" ")}" ` +
+    `aria-haspopup="dialog" aria-expanded="false">[${citeLabel(ids)}]</button>`;
+}
+
+function citeButton(ids) {
+  const button = el("button", "cite", `[${citeLabel(ids)}]`);
+  button.type = "button";
+  button.dataset.cite = ids.join(" ");
+  button.setAttribute("aria-haspopup", "dialog");
+  button.setAttribute("aria-expanded", "false");
+  return button;
 }
 
 export function renderMarkdown(md) {
@@ -135,6 +161,173 @@ export function renderMarkdown(md) {
   }
   flushAll();
   return out.join("\n");
+}
+
+/* ── Citation cards ────────────────────────────────────────────────────
+ * The report's own reference list is the index: every delivered report ends
+ * with "[A1] Title. Venue. Published: … Credibility: … URL" lines written by
+ * code, and the sample reader has nothing else. So a card needs no request
+ * beyond the report itself. */
+
+const REFERENCE_LINE = /^\[([APM]\d+)\]\s+(.+)$/;
+
+/** id -> { label, published, credibility, url } from a report's references. */
+// Market sources now carry the date their own page states, and in the
+// held-out runs 38 of 85 dated ones were over a year old when collected.
+// Old company news reads as current unless the page says otherwise, so a
+// market source says its age. Papers and patents are old by nature and do not.
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const YEAR_MS = 365.25 * 24 * 3600 * 1000;
+
+/** Whole years from a market source's publication to its access, when one or more; else null. */
+export function marketSourceAge(id, published, accessed) {
+  if (!/^M\d+$/.test(id ?? "") || !ISO_DAY.test(published ?? "") || !ISO_DAY.test(accessed ?? "")) return null;
+  const years = Math.floor((Date.parse(accessed) - Date.parse(published)) / YEAR_MS);
+  return years >= 1 ? years : null;
+}
+
+function ageText(years) {
+  return years === 1 ? t("source_age_one") : t("source_age_many").replace("{n}", String(years));
+}
+
+export function citationIndex(md) {
+  const index = new Map();
+  for (const raw of String(md ?? "").split("\n")) {
+    const match = raw.trim().match(REFERENCE_LINE);
+    if (!match || index.has(match[1])) continue;
+    const text = match[2];
+    const url = text.match(/(https?:\/\/\S+)\s*$/)?.[1].replace(/[).,;]+$/, "") ?? null;
+    // English as saved, or the Chinese labels report_display.py shows.
+    const published = text.match(/Published:\s*([^\s.][^.]*?)\.(?:\s|$)/)?.[1]
+      ?? text.match(/发布：\s*([^\s·]+)/)?.[1] ?? null;
+    const accessed = text.match(/Accessed:\s*(\d{4}-\d{2}-\d{2})/)?.[1]
+      ?? text.match(/访问：\s*(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
+    const credibility = text.match(/Credibility:\s*(high|medium|low)\b/i)?.[1].toLowerCase()
+      ?? { 高: "high", 中: "medium", 低: "low" }[text.match(/可信度：\s*([高中低])/)?.[1]] ?? null;
+    const cut = text.search(/\s(?:Published|Accessed|Type|Credibility):|\s(?:发布|访问|类型|可信度)：/);
+    const label = (cut > 0 ? text.slice(0, cut) : text.replace(/https?:\/\/\S+\s*$/, ""))
+      .trim().replace(/[.\s]+$/, "");
+    const dated = ["n.d", "未注明"].includes(published) ? null : published;
+    index.set(match[1], { label, published: dated, accessed, credibility,
+                          age: marketSourceAge(match[1], dated?.slice(0, 10), accessed),
+                          url: url ? savedSourceUrl(url) : null });
+  }
+  return index;
+}
+
+let openCard = null;
+let cardListeners = false;
+
+function closeCitationCard({ refocus = false } = {}) {
+  if (!openCard) return;
+  const { card, trigger } = openCard;
+  openCard = null;
+  card.remove();
+  trigger.setAttribute("aria-expanded", "false");
+  if (refocus) trigger.focus();
+}
+
+function renderCitationCard(ids, index, onShowInSources) {
+  const card = el("div", "cite-card");
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-label", t("cite_card_label"));
+  const close = el("button", "cite-card__close", "×");
+  close.type = "button";
+  close.setAttribute("aria-label", t("cite_close"));
+  close.addEventListener("click", () => closeCitationCard({ refocus: true }));
+  card.append(close);
+  const list = el("ul", "cite-card__list");
+  for (const id of ids) {
+    const item = el("li", "cite-card__item");
+    item.append(el("span", "cite-card__id", id));
+    const body = el("div", "cite-card__body");
+    const entry = index.get(id);
+    if (!entry) {
+      body.append(el("p", "cite-card__missing", t("cite_unknown")));
+    } else {
+      body.append(el("p", "cite-card__label", entry.label));
+      const meta = [];
+      if (entry.published) meta.push(`${t("cite_published")} ${entry.published.slice(0, 10)}`);
+      if (entry.age) meta.push(ageText(entry.age));
+      if (entry.credibility) meta.push(`${t("cite_credibility")} ${t("tier_" + entry.credibility)}`);
+      if (meta.length) body.append(el("p", "cite-card__meta", meta.join(" · ")));
+      const actions = el("div", "cite-card__actions");
+      if (entry.url) {
+        const link = el("a", "cite-card__open", t("cite_open"));
+        link.href = entry.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        actions.append(link);
+      }
+      if (onShowInSources) {
+        const show = el("button", "cite-card__show", t("cite_in_sources"));
+        show.type = "button";
+        show.addEventListener("click", () => { closeCitationCard(); onShowInSources(id); });
+        actions.append(show);
+      }
+      if (actions.childNodes.length) body.append(actions);
+    }
+    item.append(body);
+    list.append(item);
+  }
+  card.append(list);
+  return card;
+}
+
+function placeCitationCard(card, trigger) {
+  // A narrow screen gets a bottom sheet from CSS; only wide ones follow the chip.
+  if (window.matchMedia?.("(max-width: 640px)").matches) return;
+  const rect = trigger.getBoundingClientRect();
+  const width = card.offsetWidth;
+  const height = card.offsetHeight;
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+  const below = rect.bottom + 6;
+  const top = below + height > window.innerHeight - 8 ? Math.max(8, rect.top - height - 6) : below;
+  card.style.left = `${left}px`;
+  card.style.top = `${top}px`;
+}
+
+/**
+ * Open a card for a citation chip clicked inside `root`.
+ *
+ * `getIndex` resolves to a citationIndex(); the scorecard passes one that
+ * fetches the report on first use. `onShowInSources(id)`, when given, adds a
+ * "Show in Sources" action.
+ */
+function listenForCardDismissal() {
+  // Installed when the first card opens, not at import: the renderer is also
+  // loaded where no card is ever opened.
+  if (cardListeners) return;
+  cardListeners = true;
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeCitationCard({ refocus: true });
+  });
+  document.addEventListener("click", (event) => {
+    if (openCard && !openCard.card.contains(event.target) && event.target !== openCard.trigger) {
+      closeCitationCard();
+    }
+  });
+  window.addEventListener("resize", () => closeCitationCard());
+}
+
+export function attachCitations(root, getIndex, { onShowInSources = null } = {}) {
+  root.addEventListener("click", async (event) => {
+    const trigger = event.target.closest?.(".cite[data-cite]");
+    if (!trigger || !root.contains(trigger)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (openCard?.trigger === trigger) { closeCitationCard(); return; }
+    closeCitationCard();
+    let index;
+    try { index = await getIndex(); } catch { index = new Map(); }
+    const card = renderCitationCard(trigger.dataset.cite.split(" "), index, onShowInSources);
+    listenForCardDismissal();
+    document.body.append(card);
+    placeCitationCard(card, trigger);
+    trigger.setAttribute("aria-expanded", "true");
+    openCard = { card, trigger };
+    card.querySelector(".cite-card__open, .cite-card__show, .cite-card__close")?.focus({ preventScroll: true });
+  });
 }
 
 /* ── Scorecard ─────────────────────────────────────────────────────── */
@@ -208,8 +401,23 @@ function renderScorecard(scores) {
     row.append(label, bar, num);
     if (!valid) row.append(detailUnavailable());
 
-    const rationale = scores[dim.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "") + "_rationale"];
-    if (valid && typeof rationale === "string" && rationale) row.title = rationale;
+    // Shown, not hidden in a hover title: "why 4 / 9" is the question a
+    // reader of a score asks first, and touch screens have no hover.
+    const base = dim.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "");
+    const rationale = scores[base + "_rationale"];
+    if (valid && typeof rationale === "string" && rationale) {
+      const why = el("details", "dim__why");
+      why.append(el("summary", null, t("dim_why").replace("{value}", () => `${value} / ${dim.max}`)));
+      why.append(el("p", "dim__rationale", rationale));
+      const ids = scores[base + "_source_ids"];
+      const cited = detailStrings(ids) ? ids.filter(id => /^[APM]\d+$/.test(id)) : [];
+      if (cited.length) {
+        const line = el("p", "dim__sources", `${t("dim_sources")}: `);
+        line.append(citeButton(cited));
+        why.append(line);
+      }
+      row.append(why);
+    }
 
     grid.append(row);
   }
@@ -225,14 +433,22 @@ function renderScorecard(scores) {
   );
   const signal = Object.hasOwn(scores, "market_uncertainty") && flag === null
     ? "not_triggered" : match && match[0] === flag ? "triggered" : "unavailable";
-  const caveat = el("section", "notes scorecard__market-caveat");
+  // Folded unless the cap actually moved the score: the full disclosure is
+  // one click away, and the line above it says whether anything changed.
+  const caveat = el("details", "notes scorecard__market-caveat");
   caveat.dataset.comparability = "not_assessed";
   caveat.dataset.legacySignal = signal;
-  caveat.append(
-    el("h4", "notes__title", t("market_comparison_title")),
-    el("p", null, t("market_comparison_limit")),
-  );
   const cap = readableMarketCap(scores, signal);
+  caveat.open = Boolean(cap?.applied);
+  const caveatSummary = el("summary", "scorecard__market-summary");
+  caveatSummary.append(
+    el("span", "notes__title", t("market_comparison_title")),
+    el("span", "scorecard__market-status", !cap ? t("market_cap_summary_unknown")
+      : cap.applied ? t("market_cap_summary_applied").replace("{from}", () => String(cap.pre_cap_score))
+        .replace("{to}", () => String(cap.post_cap_score))
+        : t("market_cap_summary_unchanged")),
+  );
+  caveat.append(caveatSummary, el("p", null, t("market_comparison_limit")));
   if (cap) {
     const receipt = el("p", "scorecard__cap-receipt",
       t("market_cap_record") + ": " + cap.pre_cap_score + " → " + cap.post_cap_score + " / 5. " +
@@ -275,24 +491,45 @@ export function decisionApplicability(gate) {
   };
 }
 
+const DECISION_MODES = ["orientation", "decision_context_incomplete", "decision_support"];
+const THRESHOLD_PROVENANCE = ["not_established", "user_supplied_unapproved", "owner_approved"];
+
 function renderDecisionApplicability(gate) {
   const summary = decisionApplicability(gate);
   if (!summary) return null;
   const wrap = el("section", "decision-applicability");
-  wrap.append(el("span", "decision-applicability__title", t("decision_applicability_title")));
-  const details = el("p", "decision-applicability__detail");
-  details.append(
-    document.createTextNode(t("decision_mode") + ": "),
-    el("code", null, summary.mode),
-    document.createTextNode(". "),
-  );
-  details.append(
-    document.createTextNode(summary.applicability + " "),
-    document.createTextNode(t("decision_threshold_provenance") + ": "),
-    el("code", null, summary.provenance),
-  );
-  wrap.append(details);
+  // The codes stay on the element for audit and tests; readers get sentences.
+  wrap.dataset.mode = summary.mode;
+  wrap.dataset.provenance = summary.provenance;
+  wrap.title = `${t("decision_mode")}: ${summary.mode} · ${t("decision_threshold_provenance")}: ${summary.provenance}`;
+  wrap.append(el("span", "decision-applicability__title", t("decision_scope_title")));
+  const mode = DECISION_MODES.includes(summary.mode) ? summary.mode : "unknown";
+  // decision_support is the only mode that permits GO/NO_GO; a gate that says
+  // otherwise is described by its permission, never upgraded by its label.
+  const scope = mode === "decision_support" && !gate.go_no_go_allowed
+    ? summary.applicability : t(`decision_scope_${mode}`);
+  const sentences = [scope];
+  if (THRESHOLD_PROVENANCE.includes(summary.provenance)) {
+    sentences.push(t(`decision_criteria_${summary.provenance}`));
+  }
+  wrap.append(el("p", "decision-applicability__detail", sentences.join(" ")));
   return wrap;
+}
+
+/** "Overall 41.9 / 100 · Early · Technology readiness 4 / 9" above the report. */
+function renderReportScoreLine(scores, onOpenScorecard) {
+  if (!detailRecord(scores) || !scoreNumber(scores.overall_score, 100)) return null;
+  const trl = scoreNumber(scores.trl_score, 9) && scores.trl_score >= 1 ? String(scores.trl_score) : "—";
+  const line = el("div", "report-score");
+  line.append(el("span", "report-score__text", t("report_score_line")
+    .replace("{score}", () => scores.overall_score.toFixed(1))
+    .replace("{band}", () => band(scores.overall_score).name)
+    .replace("{trl}", () => trl)));
+  const open = el("button", "report-score__open", t("report_score_link"));
+  open.type = "button";
+  open.addEventListener("click", onOpenScorecard);
+  line.append(open);
+  return line;
 }
 
 /* ── Public ────────────────────────────────────────────────────────── */
@@ -351,6 +588,20 @@ export async function render(container, runId, progress) {
   container.append(tabs, panels);
 
   const loaded = new Set();
+  // One request each, shared by the tabs and the citation cards.
+  let scoresRequest = null;
+  let indexRequest = null;
+  const scoresOnce = () => (scoresRequest ??= api.getArtifact(runId, "scores"));
+  const indexOnce = () => (indexRequest ??= api.getReport(runId).then(citationIndex));
+  const hasSources = artifacts.includes("sources");
+
+  async function showInSources(id) {
+    await select("sources");
+    const search = panels.querySelector('[data-view="sources"] .sources__search');
+    if (!search) return;
+    search.value = id;
+    search.dispatchEvent(new Event("input"));
+  }
 
   async function select(id) {
     for (const tab of tabs.children) tab.dataset.active = String(tab.dataset.view === id);
@@ -364,12 +615,23 @@ export async function render(container, runId, progress) {
 
     try {
       if (id === "score") {
-        const scores = await api.getArtifact(runId, "scores");
+        const scores = await scoresOnce();
         panel.innerHTML = "";
         panel.append(renderScorecard(scores));
+        attachCitations(panel, indexOnce, { onShowInSources: hasSources ? showInSources : null });
       } else if (id === "report") {
         const md = await api.getReport(runId);
-        panel.innerHTML = `<article class="prose">${renderMarkdown(md)}</article>`;
+        indexRequest ??= Promise.resolve(citationIndex(md));
+        // The score comes from the last agent, after the report was written,
+        // so the report cannot state it; the reader still meets it here.
+        const scores = artifacts.includes("scores") ? await scoresOnce().catch(() => null) : null;
+        panel.innerHTML = "";
+        const line = renderReportScoreLine(scores, () => select("score"));
+        if (line) panel.append(line);
+        const article = el("article", "prose");
+        article.innerHTML = renderMarkdown(md);
+        panel.append(article);
+        attachCitations(article, indexOnce, { onShowInSources: hasSources ? showInSources : null });
       } else if (id === "grounding") {
         const grounding = await api.getArtifact(runId, "grounding");
         panel.innerHTML = "";
@@ -648,7 +910,8 @@ function admitSavedSources(collection) {
       };
       row.source_id = field("source_id", true);
       row.title = field("title", true);
-      for (const key of ["publisher", "published_date", "credibility_tier", "url", "evidence_summary", "summary_source"]) {
+      for (const key of ["publisher", "published_date", "accessed_date", "credibility_tier", "url",
+                         "evidence_summary", "summary_source"]) {
         row[key] = field(key);
       }
       row.href = row.url.text ? savedSourceUrl(row.url.text) : null;
@@ -684,6 +947,8 @@ function renderSavedSource(source) {
     }
     meta.append(tier);
   }
+  const age = marketSourceAge(source.source_id.text, source.published_date.text, source.accessed_date.text);
+  if (age) meta.append(el("span", "source__age", ageText(age)));
   body.append(title, meta);
   if (source.invalid) body.append(el("p", "source__fault", t("sources_record_partial")));
 
@@ -1172,12 +1437,16 @@ export function renderReliability(progress) {
   if (!rows.length) return null;
 
   const verdict = reliabilityVerdict(rows);
-  const wrap = el("section", "reliability");
+  // The verdict is always read before the score. The rows open by default
+  // only when one of them warns; otherwise they are one click away.
+  const wrap = el("details", "reliability");
   wrap.dataset.tone = verdict.tone;
+  wrap.open = verdict.tone === "risk" || verdict.tone === "warn";
 
-  const head = el("div", "reliability__head");
+  const head = el("summary", "reliability__head");
   head.append(el("span", "reliability__title", t("rel_title")));
   head.append(el("strong", "reliability__verdict", verdict.label));
+  head.append(el("span", "reliability__toggle", t("rel_toggle")));
   wrap.append(head);
 
   if (verdict.note) wrap.append(el("p", "reliability__note", verdict.note));

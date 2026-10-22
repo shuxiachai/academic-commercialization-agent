@@ -443,6 +443,21 @@ class SourcePipelineTests(TestCase):
 
 
 
+    def test_a_justia_listing_page_is_not_taken_for_a_patent(self) -> None:
+        snippet = ("Patents assigned to the company: III-V photovoltaic multi-junction solar cell, hinge and "
+                   "lock mechanism for a roll-out solar array, and other records.")
+        listing, reason = _web_source(
+            {"title": "Patents Assigned to Azur Space Solar Power GmbH",
+             "link": "https://patents.justia.com/assignee/azur-space-solar-power-gmbh", "snippet": snippet},
+            "P1", "patent", date(2026, 7, 2), lambda url: (True, ""))
+        self.assertIsNone(listing)
+        self.assertIn("not a patent record", reason)
+        record, _reason = _web_source(
+            {"title": "Patent US12470090: Space-based solar power system",
+             "link": "https://patents.justia.com/patent/12470090", "snippet": snippet},
+            "P1", "patent", date(2026, 7, 2), lambda url: (True, ""))
+        self.assertIsNotNone(record)
+
     def test_market_user_generated_hosts_are_blocked(self) -> None:
         for host in ("www.youtube.com", "www.quora.com", "www.reddit.com"):
             with self.subTest(host=host):
@@ -744,6 +759,56 @@ class SourcePipelineTests(TestCase):
         self.assertTrue(
             any("duplicate patent family title" in reason for reason in rejected_reasons)
         )
+
+    def test_one_invention_under_several_publication_numbers_takes_one_slot(self) -> None:
+        family = "{} - Test commercialization patent family treatment method - Google Patents"
+        same_office = "{} - Test commercialization relay network method - Google Patents"
+        records = [
+            (family.format("AU2022387053A1"), "AU2022387053A1"),
+            (family.format("EP4429671A1"), "EP4429671A1"),
+            (family.format("US20250000881A1"), "US20250000881A1"),
+            # One office, one kind, one title: kept apart, as distinct inventions can be.
+            (same_office.format("CN120811600B"), "CN120811600B"),
+            (same_office.format("CN119766443B"), "CN119766443B"),
+        ]
+
+        def search(query: str) -> dict:
+            if "site:patents" in query or "patent applicant" in query:
+                return {"organic": [
+                    {"title": title, "link": f"https://patents.google.com/patent/{number}/en",
+                     "snippet": _LONG_PATENT_SNIPPET}
+                    for title, number in records
+                ]}
+            return fake_search(query)
+
+        collection = collect_source_collection(
+            "Test commercialization topic",
+            searcher=search,
+            crossref=MatchingCrossref(),
+            openalex=_NullOpenAlex(),
+            s2=_NullS2(),
+            pubmed=_NullPubMed(),
+            arxiv=_NullArXiv(),
+            lens=_NullLens(),
+            url_checker=lambda url: (True, ""),
+            minimum_sources=3,
+            maximum_sources=3,
+            accessed_date=date(2026, 7, 2),
+        )
+
+        self.assertEqual(
+            sorted(str(source.url).split("/")[4] for source in collection.patent_sources),
+            ["AU2022387053A1", "CN119766443B", "CN120811600B"],
+        )
+        rejected_reasons = [
+            reason for audit in collection.audit for reason in audit.rejected_reasons
+        ]
+        for number in ("EP4429671A1", "US20250000881A1"):
+            self.assertIn(
+                f"duplicate patent family (same invention as AU2022387053A1): {family.format(number)}",
+                rejected_reasons,
+            )
+
     def test_generic_crossref_title_is_rejected_as_topic_irrelevant(self) -> None:
         item = {
             "DOI": "10.5860/choice.48-2101",

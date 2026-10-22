@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from academic_agent.report_applicability import applicability_for_display
+from academic_agent.report_display import report_for_display
 from api import access, samples
 from api.main import app
 
@@ -77,7 +77,8 @@ class SampleHttpTests(unittest.TestCase):
                 self.assertNotIn(marker, served)
                 self.assertTrue(served.startswith("# "))
         served = self.client.get("/api/samples/hyperloop").text
-        self.assertIn("\n\n**Assessment applicability (code-derived):** Mode `orientation`.", served)
+        self.assertIn("\n\n**Scope of this assessment:** An orientation brief: no decision context", served)
+        self.assertNotIn("`orientation`", served.split("## Executive Summary", 1)[0])
 
     def test_only_get_is_exempt(self):
         with patch.object(access, "ACCESS_CODE", "secret123"):
@@ -113,6 +114,12 @@ class SampleClientTests(unittest.TestCase):
         self.assertNotRegex(source, r"from\s+[\"']\./api\.js[\"']")
         self.assertNotIn("X-Access-Code", source)
 
+    def test_cards_show_when_a_sample_was_added_not_its_commit(self):
+        source = (_REPO / "web/static/js/samples.js").read_text(encoding="utf-8")
+        meta = re.search(r'el\("span", "sample-card__meta", (.+)\),', source)[1]
+        self.assertIn('t("samples_added")', meta)
+        self.assertNotRegex(meta, r"sample\.commit\b")
+
     def test_main_page_links_to_samples_from_gate_and_composer(self):
         page = (_REPO / "web/index.html").read_text(encoding="utf-8")
         gate = page[page.index('id="gate"'):]
@@ -121,8 +128,8 @@ class SampleClientTests(unittest.TestCase):
         self.assertIn('href="/samples"', compose)
 
     def test_both_languages_define_every_sample_string(self):
-        # A separate table because i18n.js is hash-locked by a frozen
-        # experiment; see the header of samples_i18n.js.
+        # A separate table, written while i18n.js was hash-locked; see the
+        # header of samples_i18n.js.
         source = (_REPO / "web/static/js/samples_i18n.js").read_text(encoding="utf-8")
         english, chinese = source.split('"Simplified Chinese": {', 1)
         keys = set(re.findall(r"^\s+(samples_\w+):", english, re.M))
@@ -144,6 +151,7 @@ class SampleClientTests(unittest.TestCase):
 _ALLOWED_TAGS = {
     "p", "strong", "em", "code", "ul", "li", "h1", "h2", "h3", "h4",
     "div", "table", "thead", "tbody", "tr", "th", "td", "span", "a",
+    "button",  # citation chips, which open the source cards
 }
 
 
@@ -165,7 +173,7 @@ class SampleRenderingTests(unittest.TestCase):
                 console.log(JSON.stringify(inputs.map((md) => renderMarkdown(md))));
             """), encoding="utf-8")
             # As served by /api/samples/{slug}, which the reader renders.
-            reports = [applicability_for_display(samples.read_sample(s.slug)) for s in samples.SAMPLES]
+            reports = [report_for_display(samples.read_sample(s.slug)) for s in samples.SAMPLES]
             (work / "inputs.json").write_text(json.dumps(reports), encoding="utf-8")
             result = subprocess.run(
                 [shutil.which("node"), str(work / "run.mjs"), str(work / "inputs.json")],

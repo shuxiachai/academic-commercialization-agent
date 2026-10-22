@@ -121,6 +121,27 @@
   color: var(--text-secondary);
   text-align: right;
 }
+/* Why each score: folded under its bar, readable on touch screens. */
+.dim__why { grid-column: 1 / -1; margin-top: calc(-1 * var(--space-2)); }
+.dim__why > summary {
+  width: max-content;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.dim__why > summary::-webkit-details-marker { display: none; }
+.dim__why > summary::before { content: "▸ "; }
+.dim__why[open] > summary::before { content: "▾ "; }
+.dim__rationale,
+.dim__sources {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+.dim__sources { color: var(--text-tertiary); font-size: var(--text-xs); }
 
 /* ── Risks and opportunities ── */
 .notes {
@@ -239,7 +260,113 @@
   line-height: 1.6;
   vertical-align: 0.12em;
   white-space: nowrap;
+  margin: 0;
+  cursor: pointer;
 }
+.cite:hover { border-color: var(--accent); }
+.cite[aria-expanded="true"] { background: var(--accent); color: var(--on-accent); }
+.cite:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 1px; }
+
+/* One citation card at a time, beside the chip on wide screens and as a
+   bottom sheet on narrow ones. */
+.cite-card {
+  position: fixed;
+  z-index: 60;
+  width: min(380px, calc(100vw - 16px));
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-sans);
+}
+.cite-card__close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: 0;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+.cite-card__close:hover { color: var(--text-primary); }
+.cite-card__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.cite-card__item { display: grid; grid-template-columns: auto 1fr; gap: var(--space-3); }
+.cite-card__item + .cite-card__item { padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
+.cite-card__id {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding-top: 2px;
+}
+.cite-card__label {
+  margin: 0;
+  padding-right: var(--space-5);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+.cite-card__meta,
+.cite-card__missing { margin: var(--space-1) 0 0; color: var(--text-tertiary); font-size: var(--text-xs); }
+.cite-card__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-2); }
+.cite-card__open,
+.cite-card__show {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cite-card__open::after { content: " ↗"; }
+.cite-card__open:hover,
+.cite-card__show:hover { text-decoration: underline; }
+@media (max-width: 640px) {
+  .cite-card {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 55vh;
+  }
+}
+
+/* The score sits above the report it qualifies: the report is written
+   before scoring, so it cannot state the number itself. */
+.report-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  max-width: 760px;
+  margin: 0 auto var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.report-score__open {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.report-score__open:hover { text-decoration: underline; }
 
 .table-wrap {
   overflow-x: auto;
@@ -341,6 +468,14 @@
 .tier[data-tier="high"]   { background: var(--success-subtle); color: var(--success); }
 .tier[data-tier="medium"] { background: var(--warning-subtle); color: var(--warning); }
 .tier[data-tier="low"]    { background: var(--bg-overlay);     color: var(--text-tertiary); }
+.source__age {
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  background: var(--warning-subtle);
+  color: var(--warning);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
 
 /* Saved-source browsing stays scoped here: retrieval diagnostics reuse the
    older source classes and must not acquire these controls or layout rules. */
@@ -611,7 +746,18 @@
   align-items: baseline;
   gap: var(--space-3);
   flex-wrap: wrap;
+  cursor: pointer;
+  list-style: none;
 }
+.reliability__head::-webkit-details-marker { display: none; }
+.reliability__toggle {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.reliability__toggle::after { content: " ▸"; }
+.reliability[open] .reliability__toggle::after { content: " ▾"; }
 
 .reliability__title {
   color: var(--text-tertiary);
@@ -729,3 +875,20 @@
   color: var(--text-tertiary);
   font-size: var(--text-xs);
 }
+
+/* The market disclosure folds to one line that says whether the cap moved
+   the score; it opens by itself when it did. */
+.scorecard__market-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+.scorecard__market-summary::-webkit-details-marker { display: none; }
+.scorecard__market-summary .notes__title { margin-bottom: 0; }
+.scorecard__market-status { color: var(--text-secondary); font-size: var(--text-sm); }
+.scorecard__market-status::after { content: " ▸"; color: var(--accent); }
+.scorecard__market-caveat[open] .scorecard__market-status::after { content: " ▾"; }
+.scorecard__market-caveat[open] > .scorecard__market-summary { margin-bottom: var(--space-3); }

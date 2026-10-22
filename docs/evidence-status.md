@@ -1,6 +1,6 @@
 # Current evidence status
 
-Current ledger, updated 2026-10-18. The initial documentation consolidation
+Current ledger, updated 2026-10-22. The initial documentation consolidation
 used public main `0fdaa76a107cf034c16c1ffa6e3ae623e4c63fe2` on 2026-09-05;
 its dated baseline is historical, not the identity of every later entry.
 This page separates implemented contracts from observed behaviour and claims
@@ -13,7 +13,8 @@ layers and their limits, and records the bounded contract improvements being
 verified. The local complete regression is 7,417 passed, one existing skipped
 benchmark-dependent test and 1,677 subtests passed; this is not a new remote
 CI or native model observation. Historical totals below retain their original
-revision and date.
+revision and date. On 2026-10-22, main's local complete regression was 7,790
+passed and 2,959 subtests passed.
 
 ## Production capability
 
@@ -194,6 +195,56 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+**Patent relevance v1 (2026-10-22).** No word rule separates off-topic
+patents. Of 134 accepted development patents, 14 were off-topic, and R5 on
+the title (or the title and abstract) removed as many relevant ones; patent
+titles describe the technology generically. The gate is unchanged and the
+test split was not read. A model reading the abstract is the open route.
+Justia listing pages are now rejected as non-records. See the
+[development comparison](results-2026-10-22-patent-relevance-v1-dev.md).
+
+**Patent applicants (2026-10-22).** Web search returned patent rows without an
+applicant: 66 of 69 saved runs named no patent holder. Each web-search
+patent's current assignee is now read from its Google Patents page, and an
+inventor-owned patent names its inventors. The parser was checked on 276
+cached pages:
+- the original assignees and inventors it reads agree with each page's own metadata tags on every page;
+- 87% of pages name a company or institution, and 13% are inventor-owned.
+
+This is a parser check, not a registered experiment. The data is Google's,
+which notes it may be inaccurate. No report-quality effect is claimed. See
+the [check](results-2026-10-22-patent-applicants-check.md).
+
+**Patent family v1 (2026-10-22).** The collector's duplicate-patent check
+compared whole titles, and Google Patents titles carry the publication
+number, so one invention filed in several offices took several slots.
+`same_invention` merges rows that are one publication, or whose titles match
+without numbers and whose numbers come from different offices or are an
+application and a grant. It was shaped on the held-out v2 registries and
+tested once on 46 others, against Google Patents DOCDB families:
+- the current check rejected none of 33 duplicates;
+- the rule rejected 29 rows, with precision 0.93 and recall 0.82.
+
+Both bars hold, so the web-search patent path now uses it. The
+two wrong rejections are one pair, with the same inventor and priority, that
+Google Patents places in different families. No TRL effect is claimed. See
+the [result](results-2026-10-22-patent-family-v1.md).
+
+**Market page dates v1 (2026-10-22).** Web search returns market sources
+undated. `page_dates.py` reads a page's own publication metadata, excluding
+market reports, Wikipedia and home pages. It was registered on the held-out v2
+sources and tested once on 109 admitted URLs from five other batches:
+- coverage was 0.78 (85 dated);
+- precision was 0.88 (the date found within a day on the rendered page);
+- contradictions were 0.024 (two pages print another date of their own).
+
+All three bars hold, so the collector now applies it to each run's accepted
+market sources, and a `[Page-Dates]` audit row records which were dated this
+way. The labels
+are by an AI assistant who was not blind, and P2's margin is two
+contradictions. No TRL effect is claimed. See the
+[result](results-2026-10-22-market-page-dates-v1.md).
+
 **Academic title gate v1 (2026-10-20).** An offline replay of 494 saved
 title-gate decisions. The rule R5 anchors academic acceptance on the user's
 own words. It was registered on the v2 topics and evaluated once on the v1
@@ -204,6 +255,10 @@ request-like inputs and a plural stemmer, and the maintainer delegated the
 registered human check. No TRL effect is shown. See the
 [result](results-2026-10-20-academic-title-gate-v1.md) and the
 [deployment erratum](errata-2026-10-20-academic-title-gate-v1-deployment.md).
+A follow-up on two-word inputs found no adjacency rule worth registering:
+on dev, the removals were off-topic only where the first word has several
+senses ("fusion", "wave"), and R5 stays as deployed. See the
+[development comparison](results-2026-10-22-two-word-gate-v1-dev.md).
 
 **Held-out TRL calibration v2 (2026-10-19).** Ten further topics, registered
 before any run, measured with `qwen3.8-max` and the revised market retrieval
@@ -212,7 +267,12 @@ before any run, measured with `qwen3.8-max` and the revised market retrieval
 topic was inflated, but all three misses that delivered a TRL fell below their
 floor (hyperloop, space-based solar power). Topics and model changed alongside
 retrieval, so no single cause is established. See the
-[result and limits](results-2026-10-19-heldout-trl-v2.md).
+[result and limits](results-2026-10-19-heldout-trl-v2.md). **Erratum:** the
+last five runs were scored with no OpenAlex evidence, because the anonymous
+daily budget ran out mid-batch and refusals were not yet recorded. Two of the
+three below-floor misses are among them; without those five runs, 22/25 are
+in range and one falls below its floor. See the
+[erratum](errata-2026-10-22-openalex-budget-outages.md).
 
 **Held-out TRL calibration (2026-10-18).** Ten topics never run before, with
 ranges fixed from external evidence before any run. Batch `heldout-trl-v1-c`

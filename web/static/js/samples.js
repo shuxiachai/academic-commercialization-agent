@@ -8,7 +8,7 @@
  * real report takes (and the one tests/test_web_markdown.py exercises), so a
  * sample cannot reach innerHTML by a less-checked route. */
 
-import { renderMarkdown } from "./result.js";
+import { attachCitations, citationIndex, renderMarkdown } from "./result.js";
 import * as i18n from "./i18n.js";
 import { applySamples, st as t } from "./samples_i18n.js";
 
@@ -45,7 +45,9 @@ function paintList() {
     if (sample.slug === current) card.setAttribute("aria-current", "page");
     card.append(
       el("span", "sample-card__title", sample.title),
-      el("span", "sample-card__meta", `${sample.committed} · ${sample.commit}`),
+      // The commit stays in the notice above the report; a visitor reading the
+      // list needs only how old the sample is.
+      el("span", "sample-card__meta", t("samples_added").replace("{date}", sample.committed)),
     );
     card.addEventListener("click", (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
@@ -85,6 +87,10 @@ async function open(slug) {
 
   const article = el("article", "prose");
   article.innerHTML = renderMarkdown(markdown);
+  // The sample's own reference list feeds the citation cards; there is no
+  // source registry behind a sample, so there is no "show in Sources" either.
+  const index = citationIndex(markdown);
+  attachCitations(article, () => Promise.resolve(index));
   reader.replaceChildren(historicalNotice(sample), article);
 }
 

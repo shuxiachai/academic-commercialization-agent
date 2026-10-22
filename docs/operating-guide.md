@@ -353,6 +353,15 @@ lists other lanes that returned nothing in at least 80% of them. S2, PubMed
 and arXiv rows exist only when OpenAlex left slots open or the lane failed,
 so their counts cover the runs that needed them.
 
+The Retrieval health workflow reads this endpoint once a day at 09:00 Sydney
+time, using the repository secret `PRODUCTION_ADMIN_CODE`. That secret must hold
+the admin access code, which sees every code's runs; without it the job
+skips.
+- **A lane is failing:** the job opens one `retrieval-health` issue (or comments on the open one) with each lane's counts and the key or quota to check. It then fails, so GitHub sends its failure email.
+- **The lanes answer again:** the job comments on the issue and closes it.
+
+Mostly-empty lanes are listed in the issue but never alert on their own.
+
 `/health.pipeline_revision` is the code this process serves: `git:<commit>`
 on Railway, otherwise a hash of the pipeline sources. After each passing
 Tests run on `main`, the Deploy check workflow polls it for up to 30
@@ -526,6 +535,38 @@ A source-collection failure exposes canonical query, candidate counts and
 rejection reasons instead of silently inventing evidence. Pydantic and local
 guardrails validate structure and source identities; advisory checks cannot
 guarantee factual entailment.
+
+Web search returns market sources undated. After the relevance filter, each
+accepted market source is read once for the publication date its own page
+states in metadata, unless it is a market report, a Wikipedia page or a home
+page. The date comes from JSON-LD, a publication `<meta>` tag, `itemprop`, or
+a full date in the URL path. Up to eight pages are read at a time, and the step
+stops waiting after 20 seconds; a page not read by then stays "n.d.". A
+`[Page-Dates]` row in the retrieval audit lists the sources dated this way and
+notes why each other one was not; retrieval health does not count it as a
+lane. The rule was registered and tested before adoption; see the
+[result](results-2026-10-22-market-page-dates-v1.md).
+
+Patent web search returns one row per publication, so one invention can
+arrive several times: filed in several offices, or published and then
+granted. A patent row is rejected as a duplicate when either holds:
+- it is the same publication as one already accepted, on any host;
+- its title matches once publication numbers and the site name are removed, and the two numbers come from different offices or are an application and a grant.
+
+Same-kind publications from one office stay separate, even with one title.
+The audit names the publication that was kept. Titles that differ, such as
+translations or retitled continuations, are not merged. See the
+[result](results-2026-10-22-patent-family-v1.md).
+
+Web search also returns patent rows without an applicant. Each accepted
+web-search patent's Google Patents page is read once, first 256 KB only:
+- **Named holder.** The current assignee becomes the row's publisher and joins the assignee list the patent analyst receives.
+- **Inventor-owned patent.** The inventors are named instead, and never listed as a company.
+
+Up to eight pages are read at a time, with a 20-second deadline. A
+`[Patent-Applicants]` audit row lists the rows named and why the others were
+not; retrieval health does not count it as a lane. See the
+[check](results-2026-10-22-patent-applicants-check.md).
 
 The PDF-domain market prelude shares the ordinary query path's previous/current
 calendar-year window. This avoids stale hard-coded years, not stale results in
@@ -824,6 +865,15 @@ identity before paid dispatch. Intact successful units are reused without
 another call; occupied failed/partial/corrupt units are refused, not retried.
 Unstarted units can execute. A new measurement requires a new batch. Live-mode
 reuse refers to the stored evidence snapshot, not a fresh search of today's web.
+
+Live retrieval (assessment batches and `--freeze`) needs `OPENALEX_API_KEY` in
+`.env`. `--allow-anonymous-openalex` waives that for a batch small enough for
+the shared anonymous budget of about 15 runs a day. A run whose retrieval
+recorded an OpenAlex refusal or failure is saved as `error_retrieval_refused`
+before its crew stage, and the batch stops there so the remaining units can
+run later under `--resume-batch`. See the
+[2026-10-22 erratum](errata-2026-10-22-openalex-budget-outages.md) for the two
+batches scored without OpenAlex before this check existed.
 Benchmark resume is batch scheduling, not a production recovery child or
 provider-level exactly-once guarantee. Credentials are not in manifests;
 optional source credentials/contact settings are recorded only as presence.

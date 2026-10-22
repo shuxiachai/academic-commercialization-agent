@@ -276,6 +276,33 @@ def _count_rate_limit_hits(text: str) -> int:
     return sum(lowered.count(marker) for marker in _RATE_LIMIT_MARKERS)
 
 
+class RetrievalRefused(RuntimeError):
+    """OpenAlex refused or failed a request; the run stops before the crew."""
+
+
+def _openalex_refusals(audit) -> list[str]:
+    """The OpenAlex refusal or failure notes source collection recorded.
+
+    An empty OpenAlex result used to be indistinguishable from a refusal. On
+    2026-10-19 the anonymous daily budget ran out mid-batch, and the last five
+    held-out v2 runs, then both hyperloop confirmation runs, were scored with
+    no OpenAlex evidence at all; nothing in the results said so.
+    """
+    return sorted({
+        reason for entry in audit for reason in entry.rejected_reasons
+        if reason.startswith(("OpenAlex refused the request", "OpenAlex request failed"))
+    })
+
+
+def _anonymous_openalex_message() -> str:
+    return (
+        "OPENALEX_API_KEY is not set. Anonymous OpenAlex calls share a $0.10 daily "
+        "budget per IP address (about 100 searches, roughly 15 runs), and a batch "
+        "that outruns it scores the rest without OpenAlex. Add a free key to .env, "
+        "or pass --allow-anonymous-openalex for a batch small enough to fit."
+    )
+
+
 def _log(message: str = "") -> None:
     """Print unbuffered.
 
@@ -413,6 +440,10 @@ def run_topic(
             _count_rate_limit_hits(" ".join(entry.rejected_reasons))
             for entry in source_collection.audit
         )
+        refusals = [] if use_fixture else _openalex_refusals(source_collection.audit)
+        if refusals:
+            meta["retrieval_refusals"] = refusals
+            raise RetrievalRefused(refusals[0])
 
         # Steps 1–6: crew run. The crew object is held rather than chained
         # away, because the per-agent token usage lives on it and is only
@@ -485,6 +516,12 @@ def run_topic(
 
         meta["status"] = "success"
 
+    except RetrievalRefused as exc:
+        # Recorded, not scored: the crew never ran on the degraded evidence.
+        meta["status"] = "error_retrieval_refused"
+        meta["error"] = str(exc)
+        _log(f"  [{label}] ✗ OpenAlex refused requests; not scoring this run: {exc}")
+
     except SourceCollectionError as exc:
         # Source collection failed — record separately so we can diagnose
         meta["status"] = "error_sources"
@@ -528,6 +565,10 @@ def _run_serial(selected: list[tuple], dry_run: bool, force: bool = False,
     for i, (num, topic, trl_range, industry, rep) in enumerate(selected):
         meta = run_topic(num, topic, trl_range, industry, dry_run, force, rep, use_fixture, batch)
         results.append(meta)
+        if meta.get("status") == "error_retrieval_refused":
+            _log(f"  ✗ stopping the batch after {i + 1}/{len(selected)} units: OpenAlex is refusing "
+                 "requests. Resume with --resume-batch once it answers again.")
+            break
         if i < len(selected) - 1 and not meta.get("skipped") and not dry_run:
             _log(f"  → pausing {_INTER_RUN_PAUSE}s before next topic")
             time.sleep(_INTER_RUN_PAUSE)
@@ -558,6 +599,10 @@ def _run_concurrent(
             num, rep = futures[fut]
             try:
                 results.append(fut.result())
+                if results[-1].get("status") == "error_retrieval_refused":
+                    cancelled = sum(1 for pending in futures if pending.cancel())
+                    _log(f"  ✗ OpenAlex is refusing requests: {cancelled} unstarted unit(s) cancelled. "
+                         "Resume with --resume-batch once it answers again.")
             except Exception as exc:  # noqa: BLE001 - isolate a crashed worker, never retry it
                 _log(f"  [{num if rep <= 1 else f'{num}#{rep}'}] ✗ worker process died: {exc}")
                 results.append({
@@ -647,6 +692,12 @@ def main() -> None:
     )
     parser.add_argument("--experiment-id", help="New immutable batch name (default: generated unique ID)")
     parser.add_argument("--resume-batch", help="Reuse intact successes from this exact batch; never retry occupied failed units")
+    parser.add_argument(
+        "--allow-anonymous-openalex",
+        action="store_true",
+        help="Run live retrieval without OPENALEX_API_KEY. The shared anonymous budget "
+             "covers roughly 15 runs a day; a refusal still stops the batch.",
+    )
     args = parser.parse_args()
     if args.resume_batch and (args.force or args.experiment_id or args.dry_run or args.freeze):
         parser.error("--resume-batch cannot combine with --force, --experiment-id, --dry-run or --freeze")
@@ -702,6 +753,13 @@ def main() -> None:
     concurrency = min(args.concurrency, len(selected))
     max_rpm = os.getenv("MAX_RPM", "6")
 
+    if not args.dry_run and not args.fixtures:
+        from dotenv import load_dotenv
+
+        load_dotenv(Path(__file__).with_name(".env"), override=False)
+        if not os.getenv("OPENALEX_API_KEY") and not args.allow_anonymous_openalex:
+            parser.error(_anonymous_openalex_message())
+
     batch = None
     if not args.dry_run and not args.freeze:
         from benchmark_identity import prepare_batch
@@ -741,6 +799,11 @@ def main() -> None:
         for num, topic, _trl, _industry in topics:
             _log(f"  [{num}] retrieving — {topic}")
             collection = collect_source_collection(topic)
+            refusals = _openalex_refusals(collection.audit)
+            if refusals:
+                # A fixture captured during a refusal would replay it forever.
+                _log(f"  [{num}] ✗ not frozen, OpenAlex refused requests: {refusals[0]}")
+                sys.exit(1)
             entry = benchmark_fixtures.freeze(
                 num, _slug(topic), topic, collection.model_dump_json(indent=2)
             )

@@ -1,0 +1,69 @@
+name: Retrieval health
+
+# A retrieval lane that refuses requests leaves no error a user sees: the run
+# completes with less evidence. In October 2026 an exhausted OpenAlex budget
+# emptied every OpenAlex lane of seven runs for three days before anyone
+# noticed. Once a day this reads production /api/health/retrieval. While a
+# lane is failing it keeps one issue open, comments on it daily and fails the
+# run, so GitHub sends its failure email. On recovery it closes the issue.
+#
+# Needs the repository secret PRODUCTION_ADMIN_CODE: the admin access code,
+# which sees every code's runs. Without it the job skips.
+on:
+  schedule:
+    - cron: "0 22 * * *"  # 09:00 in Sydney (AEDT)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: retrieval-health
+  cancel-in-progress: false
+
+jobs:
+  production:
+    name: production retrieval lanes answer
+    if: github.repository == 'shuxiachai/academic-commercialization-agent'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://academic-commercialization-agent.up.railway.app' }}
+      HEALTH_CODE: ${{ secrets.PRODUCTION_ADMIN_CODE }}
+      GH_TOKEN: ${{ github.token }}
+      LABEL: retrieval-health
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read production retrieval health and keep the alert issue in step
+        run: |
+          set -euo pipefail
+          if [ -z "${HEALTH_CODE:-}" ]; then
+            echo "::notice::PRODUCTION_ADMIN_CODE is not set; retrieval health was not checked."
+            exit 0
+          fi
+          status=$(curl -sS --max-time 30 -o health.json -w '%{http_code}' \
+            -H "X-Access-Code: $HEALTH_CODE" "$PRODUCTION_URL/api/health/retrieval?window=20" || echo 000)
+          if [ "$status" != "200" ]; then
+            echo "::error::Production retrieval health answered HTTP $status."
+            exit 1
+          fi
+          decision=$(python3 scripts/retrieval_health_alert.py health.json body.md)
+          open_issue=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+          if [ "$decision" = "alert" ]; then
+            if [ -n "$open_issue" ]; then
+              gh issue comment "$open_issue" --body-file body.md
+            else
+              gh label create "$LABEL" --color B60205 \
+                --description "Production retrieval lanes failing" 2>/dev/null || true
+              gh issue create --title "Production retrieval lanes are failing" \
+                --label "$LABEL" --body-file body.md
+            fi
+            echo "::error::Production retrieval lanes are failing; see the $LABEL issue."
+            exit 1
+          fi
+          if [ -n "$open_issue" ]; then
+            gh issue comment "$open_issue" --body-file body.md
+            gh issue close "$open_issue" --reason completed
+          fi
+          echo "Production retrieval lanes are answering."

@@ -17,6 +17,9 @@ from urllib.request import Request, urlopen
 from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
+from academic_agent.page_dates import page_publication_date, should_date
+from academic_agent.patent_applicants import google_patents_url, patent_applicants
+from academic_agent.patent_family import publication_number, same_invention
 from academic_agent.source_title_recovery import recover_official_source_title
 
 from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
@@ -132,6 +135,8 @@ def _detect_weight_profile(topic: str) -> str:
     return "industrial"
 SearchFunction = Callable[[str], dict[str, Any]]
 UrlChecker = Callable[[str], tuple[bool, str]]
+PageDater = Callable[[str, date], tuple[date | None, str]]
+ApplicantLookup = Callable[[str], tuple[list[str], str]]
 
 _DOI_PATTERN = re.compile(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", re.IGNORECASE)
 _TAG_PATTERN = re.compile(r"<[^>]+>")
@@ -2335,6 +2340,11 @@ def _web_source(
             return None, "search result lacks a usable title or URL"
         if host not in _PATENT_HOSTS:
             return None, f"non-primary patent host: {host}"
+        # Justia lists each assignee's and inventor's patents on its own pages.
+        # Such a page is a directory, not a patent record: a held-out run took
+        # "Patents Assigned to Azur Space Solar Power GmbH" for a patent.
+        if host == "patents.justia.com" and not urlsplit(canonical).path.startswith("/patent/"):
+            return None, f"not a patent record (Justia listing page): {canonical}"
         source_type = "patent"
         patent_year = _parse_patent_year(canonical, snippet)
         if host in _OFFICIAL_PATENT_HOSTS:
@@ -2958,6 +2968,22 @@ def _collect_domain(
                         f"duplicate patent family title: {source.title}"
                     )
                     continue
+                # Google Patents titles carry the publication number, so the
+                # whole-title key above never matched one invention filed in
+                # several offices: five of eight slots in one run held the same
+                # treatment. same_invention compares titles without the numbers
+                # (docs/results-2026-10-22-patent-family-v1.md).
+                kept_number = next(
+                    (publication_number(str(kept.url)) for kept in accepted
+                     if same_invention(source.title, str(source.url) if source.url else None,
+                                       kept.title, str(kept.url) if kept.url else None)),
+                    None,
+                )
+                if kept_number is not None:
+                    audit.rejected_reasons.append(
+                        f"duplicate patent family (same invention as {kept_number}): {source.title}"
+                    )
+                    continue
                 seen_patent_titles.add(patent_title_key)
             if domain == "market":
                 if source.source_type in _INSTITUTIONAL_TYPES:
@@ -3393,6 +3419,123 @@ def _renumber(sources: list[EvidenceSource], prefix: str) -> None:
         src.source_id = f"{prefix}{i}"
 
 
+# Web search returns market sources undated, so every report listed them as
+# "n.d." and a 2021 hiring announcement read like this week's news. Each
+# accepted source that should_date() admits takes the publication date its
+# own page states in metadata; the rule was registered and tested once
+# before adoption (docs/results-2026-10-22-market-page-dates-v1.md). The
+# step has a deadline so one slow site cannot hold up the run: a page not
+# read in time stays undated. A "[Page-Dates]" audit row names the sources
+# dated this way; every other dated market source took its date from search.
+_PAGE_DATE_WORKERS = 8
+_PAGE_DATE_DEADLINE_SECONDS = 20.0
+
+
+def _date_market_pages(
+    sources: list[EvidenceSource],
+    accessed_date: date,
+    page_dater: PageDater,
+) -> SearchAudit | None:
+    """Date undated market sources from their own pages; None if none was eligible."""
+    from concurrent.futures import ThreadPoolExecutor, wait
+
+    pending = [
+        source for source in sources
+        if source.published_date is None
+        and should_date(source.source_type, str(source.url) if source.url else None)
+    ]
+    if not pending:
+        return None
+    pool = ThreadPoolExecutor(max_workers=min(_PAGE_DATE_WORKERS, len(pending)))
+    futures = {pool.submit(page_dater, str(source.url), accessed_date): source
+               for source in pending}
+    done, _late = wait(futures, timeout=_PAGE_DATE_DEADLINE_SECONDS)
+    # Late pages are abandoned rather than awaited; each fetch has its own timeout.
+    pool.shutdown(wait=False, cancel_futures=True)
+    dated: list[str] = []
+    notes: list[str] = []
+    for future, source in futures.items():
+        if future not in done:
+            notes.append(f"{source.source_id}: page not read within {_PAGE_DATE_DEADLINE_SECONDS:g} s")
+            continue
+        if future.exception() is not None:
+            notes.append(f"{source.source_id}: page could not be read")
+            continue
+        found, _method = future.result()
+        if found is None or found > accessed_date:
+            notes.append(f"{source.source_id}: no publication date found")
+            continue
+        source.published_date = found
+        dated.append(source.source_id)
+    return SearchAudit(
+        domain="market",
+        query="[Page-Dates] publication date stated by each source's own page",
+        result_count=len(pending),
+        accepted_source_ids=dated,
+        rejected_reasons=notes,
+    )
+
+
+# Web search returns patent rows without an applicant: 66 of 69 saved runs
+# listed none, and each row's publisher read "Google". Each web-search patent
+# takes the current assignee its Google Patents page lists, checked in
+# docs/results-2026-10-22-patent-applicants-check.md, with the same bounded
+# fan-out as page dates. A "[Patent-Applicants]" audit row records which
+# rows were named and why the others were not.
+_APPLICANT_WORKERS = 8
+_APPLICANT_DEADLINE_SECONDS = 20.0
+_APPLICANT_NOTE = (" Applicant: as listed by Google Patents, which notes its list may be "
+                   "inaccurate; not a legal title search.")
+
+
+def _name_patent_applicants(
+    sources: list[EvidenceSource],
+    lookup: ApplicantLookup,
+) -> tuple[dict[str, list[str]], SearchAudit | None]:
+    """Name web-search patents' applicants: ({source_id: company names, [] if inventor-owned}, audit row)."""
+    from concurrent.futures import ThreadPoolExecutor, wait
+
+    pending = [source for source in sources
+               if source.url is not None and google_patents_url(str(source.url))]
+    if not pending:
+        return {}, None
+    pool = ThreadPoolExecutor(max_workers=min(_APPLICANT_WORKERS, len(pending)))
+    futures = {pool.submit(lookup, str(source.url)): source for source in pending}
+    done, _late = wait(futures, timeout=_APPLICANT_DEADLINE_SECONDS)
+    # Late pages are abandoned rather than awaited; each fetch has its own timeout.
+    pool.shutdown(wait=False, cancel_futures=True)
+    companies: dict[str, list[str]] = {}
+    named: list[str] = []
+    notes: list[str] = []
+    for future, source in futures.items():
+        if future not in done:
+            notes.append(f"{source.source_id}: page not read within {_APPLICANT_DEADLINE_SECONDS:g} s")
+            continue
+        if future.exception() is not None:
+            notes.append(f"{source.source_id}: page could not be read")
+            continue
+        names, status = future.result()
+        if status == "named" and names:
+            source.publisher = "; ".join(names)
+            companies[source.source_id] = names
+        elif status == "individual":
+            # Inventor-owned: name the inventors, never list them as companies.
+            source.publisher = ("Individual inventor: " + "; ".join(names)) if names else "Individual inventor"
+            companies[source.source_id] = []
+        else:
+            notes.append(f"{source.source_id}: no applicant found ({status})")
+            continue
+        source.credibility_reason += _APPLICANT_NOTE
+        named.append(source.source_id)
+    return companies, SearchAudit(
+        domain="patent",
+        query="[Patent-Applicants] current assignee from each patent's Google Patents page",
+        result_count=len(pending),
+        accepted_source_ids=named,
+        rejected_reasons=notes,
+    )
+
+
 def collect_source_collection(
     topic: str,
     *,
@@ -3404,6 +3547,8 @@ def collect_source_collection(
     arxiv: "ArxivClient | None" = None,
     lens: "LensPatentClient | None" = None,
     url_checker: UrlChecker = check_public_url,
+    page_dater: PageDater = page_publication_date,
+    patent_applicant_lookup: ApplicantLookup = patent_applicants,
     minimum_sources: int = 3,
     maximum_sources: int = 8,
     accessed_date: date | None = None,
@@ -3966,6 +4111,12 @@ def collect_source_collection(
     _renumber(academic, "A")
     _renumber(patents, "P")
     _renumber(market, "M")
+    page_dates_audit = _date_market_pages(market, resolved_date, page_dater)
+    if page_dates_audit is not None:
+        all_audits.append(page_dates_audit)
+    applicant_names, applicants_audit = _name_patent_applicants(patents, patent_applicant_lookup)
+    if applicants_audit is not None:
+        all_audits.append(applicants_audit)
 
     # Extract unique competitor/assignee names from patent sources.
     _GENERIC_ASSIGNEES = frozenset({
@@ -3977,7 +4128,10 @@ def collect_source_collection(
     patent_assignees: list[str] = []
     for ps in patents:
         raw = (ps.publisher or "").strip()
-        for name in raw.split(","):
+        # Names read from a Google Patents page can hold commas ("University of
+        # California, San Diego"); only Lens publishers are comma-joined lists.
+        names = applicant_names[ps.source_id] if ps.source_id in applicant_names else raw.split(",")
+        for name in names:
             name = name.strip()
             if name and name.lower() not in _GENERIC_ASSIGNEES and name not in seen_assignees:
                 seen_assignees.add(name)
