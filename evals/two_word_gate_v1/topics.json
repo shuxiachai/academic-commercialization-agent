@@ -1,0 +1,19 @@
+{
+ "_how": "Two-content-word English inputs. 'fusion power' is fixed to dev (it motivated the study); the other eleven were shuffled with random.Random(20261021): first five dev, last six test.",
+ "dev": [
+  "fusion power",
+  "carbon capture",
+  "quantum computing",
+  "wave energy",
+  "tidal power",
+  "green hydrogen"
+ ],
+ "test": [
+  "edge computing",
+  "smart grid",
+  "smart glass",
+  "digital twin",
+  "gene therapy",
+  "swarm robotics"
+ ]
+}
