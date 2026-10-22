@@ -1052,6 +1052,15 @@
   font-size: var(--text-2xl);
   letter-spacing: -0.018em;
 }
+.gate__intro {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-overlay);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
 .gate__sub {
   margin-bottom: var(--space-2);
   font-size: var(--text-base);

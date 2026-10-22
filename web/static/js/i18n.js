@@ -347,7 +347,8 @@ const STRINGS = {
 
     // Access gate
     gate_title: "Access code required",
-    gate_sub: "This is a private demo link. Enter the code you were given.",
+    gate_intro: "Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes about 15 minutes.",
+    gate_sub: "This deployment is invite-only. Enter the access code you were given; if you have none, ask whoever shared this link.",
     gate_placeholder: "Access code",
     gate_submit: "Continue",
     gate_error: "That code was not accepted.",
@@ -689,7 +690,8 @@ const STRINGS = {
     run_hint: "开始分析（回车）",
 
     gate_title: "需要访问口令",
-    gate_sub: "这是一个私密演示链接，请输入你收到的口令。",
+    gate_intro: "评估一项技术离商业化还有多远：系统检索论文、专利和市场资料，写出带引用的评估报告和就绪度评分，一次运行约 15 分钟。",
+    gate_sub: "本站仅限受邀使用。请输入你收到的访问口令；如果没有，请向分享此链接的人索取。",
     gate_placeholder: "访问口令",
     gate_submit: "继续",
     gate_error: "口令不正确。",
