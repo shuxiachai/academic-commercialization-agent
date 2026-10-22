@@ -142,7 +142,13 @@ function snapshot() {
     disclosure: texts(root, "sources__disclosure"),
     source_html_writes: walk(sourcePanel).filter(n => n._html).map(n => n._html),
     forbidden_tags: walk(sourcePanel).filter(n => ["img", "script", "iframe", "svg"].includes(n.tag)).map(n => n.tag),
-    report_html: byClass(root, "panel").find(n => n.dataset.view === "report")?.innerHTML ?? null,
+    // The report article's markup. The panel may also hold a score line, and
+    // this fake DOM keeps innerHTML only on the node it was assigned to.
+    report_html: (() => {
+      const panel = byClass(root, "panel").find(n => n.dataset.view === "report");
+      const prose = panel && find(panel, "prose");
+      return prose ? `<article class="prose">${prose.innerHTML ?? ""}</article>` : panel?.innerHTML ?? null;
+    })(),
     active_tab: byClass(root, "tab").find(n => n.dataset.active === "true")?.dataset.view ?? null,
     search: control("sources__search"), clear: control("sources__clear"),
     prev: control("sources__prev"), next: control("sources__next"),

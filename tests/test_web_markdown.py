@@ -205,10 +205,18 @@ class MarkdownEscapingTests(unittest.TestCase):
             self.assertIn(fragment, html)
 
     def test_citation_markers_get_their_own_element(self):
-        """They are what makes the report auditable, so they are marked up."""
+        """They are what makes the report auditable, so each is a control that opens its sources."""
         html, = self._render(["Efficiency reached 26% [A1] and [P2, P3]."])
-        self.assertIn('<span class="cite">[A1]</span>', html)
-        self.assertIn('<span class="cite">[P2, P3]</span>', html)
+        chip = ('<button type="button" class="cite" data-cite="{ids}" '
+                'aria-haspopup="dialog" aria-expanded="false">[{label}]</button>')
+        self.assertIn(chip.format(ids="A1", label="A1"), html)
+        self.assertIn(chip.format(ids="P2 P3", label="P2, P3"), html)
+
+    def test_a_run_of_consecutive_citations_reads_as_a_range(self):
+        html, = self._render(["Filings [P1, P2, P3, P4, P5, P6, P7, P8] and [A1, M2, M3]."])
+        self.assertIn('data-cite="P1 P2 P3 P4 P5 P6 P7 P8"', html)
+        self.assertIn(">[P1–P8]</button>", html)
+        self.assertIn(">[A1, M2, M3]</button>", html)  # mixed kinds stay listed
 
     def test_http_links_are_kept_and_made_safe(self):
         html, = self._render(["See [the paper](https://example.com/a)."])
