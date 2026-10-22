@@ -194,6 +194,14 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+**Patent relevance v1 (2026-10-22).** No word rule separates off-topic
+patents. Of 134 accepted development patents, 14 were off-topic, and R5 on
+the title (or the title and abstract) removed as many relevant ones; patent
+titles describe the technology generically. The gate is unchanged and the
+test split was not read. A model reading the abstract is the open route.
+Justia listing pages are now rejected as non-records. See the
+[development comparison](results-2026-10-22-patent-relevance-v1-dev.md).
+
 **Patent applicants (2026-10-22).** Web search returned patent rows without an
 applicant: 66 of 69 saved runs named no patent holder. Each web-search
 patent's current assignee is now read from its Google Patents page, and an
