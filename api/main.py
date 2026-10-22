@@ -40,7 +40,7 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from academic_agent.byok_model import BYOK_MODEL_PATTERN  # noqa: E402
 from academic_agent.checkpoint_runtime import pipeline_revision  # noqa: E402
-from academic_agent.report_applicability import applicability_for_display  # noqa: E402
+from academic_agent.report_display import report_for_display  # noqa: E402
 from academic_agent.llm_config import _detect_provider, validate_llm_configuration  # noqa: E402
 from academic_agent.pdf_extractor import (  # noqa: E402
     PaperContribution,
@@ -674,7 +674,7 @@ def read_sample_report(slug: str) -> PlainTextResponse:
     except (KeyError, FileNotFoundError):
         raise HTTPException(status_code=404, detail="No sample with that name.") from None
     # Samples are read, never downloaded here: render them as the run page does.
-    return PlainTextResponse(applicability_for_display(text), media_type="text/markdown; charset=utf-8")
+    return PlainTextResponse(report_for_display(text), media_type="text/markdown; charset=utf-8")
 
 
 @app.get("/health", response_model=HealthStatus, tags=["meta"])
@@ -1339,7 +1339,8 @@ def get_report(
     run_id: str,
     view: Literal["saved", "display"] = Query(
         default="saved",
-        description="'display' shows the code-owned applicability paragraph as plain prose, without its HTML comment marker",
+        description="'display' is the report as the page shows it: the code-owned applicability paragraph "
+                    "as sentences and a cleaned reference list; 'saved' is every byte as saved",
     ),
 ) -> PlainTextResponse:
     """The final Markdown report, as saved unless view=display."""
@@ -1356,7 +1357,7 @@ def get_report(
         )
     text = path.read_text(encoding="utf-8")
     return PlainTextResponse(
-        applicability_for_display(text) if view == "display" else text,
+        report_for_display(text) if view == "display" else text,
         media_type="text/markdown; charset=utf-8",
     )
 
@@ -1802,8 +1803,9 @@ def get_report_pdf(run_id: str) -> FileResponse:
         # alone still lets simultaneous first downloads build the same report.
         with pdf_cache_lock(markdown_path.parent):
             if not pdf_cache_complete(pdf_path):
+                # The PDF is read like the page, not like the audit file.
                 _generate_pdf(
-                    markdown_path.read_text(encoding="utf-8"),
+                    report_for_display(markdown_path.read_text(encoding="utf-8")),
                     markdown_path.parent,
                     output_language=state.get("output_language", "English"),
                 )
