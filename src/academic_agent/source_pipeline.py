@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
 from academic_agent.page_dates import page_publication_date, should_date
+from academic_agent.patent_family import publication_number, same_invention
 from academic_agent.source_title_recovery import recover_official_source_title
 
 from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
@@ -2958,6 +2959,22 @@ def _collect_domain(
                 if patent_title_key in seen_patent_titles:
                     audit.rejected_reasons.append(
                         f"duplicate patent family title: {source.title}"
+                    )
+                    continue
+                # Google Patents titles carry the publication number, so the
+                # whole-title key above never matched one invention filed in
+                # several offices: five of eight slots in one run held the same
+                # treatment. same_invention compares titles without the numbers
+                # (docs/results-2026-10-22-patent-family-v1.md).
+                kept_number = next(
+                    (publication_number(str(kept.url)) for kept in accepted
+                     if same_invention(source.title, str(source.url) if source.url else None,
+                                       kept.title, str(kept.url) if kept.url else None)),
+                    None,
+                )
+                if kept_number is not None:
+                    audit.rejected_reasons.append(
+                        f"duplicate patent family (same invention as {kept_number}): {source.title}"
                     )
                     continue
                 seen_patent_titles.add(patent_title_key)
