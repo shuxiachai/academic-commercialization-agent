@@ -204,7 +204,7 @@ tested once on 46 others, against Google Patents DOCDB families:
 - the current check rejected none of 33 duplicates;
 - the rule rejected 29 rows, with precision 0.93 and recall 0.82.
 
-Both bars hold, so production adopts it for the web-search patent path. The
+Both bars hold, so the web-search patent path now uses it. The
 two wrong rejections are one pair, with the same inventor and priority, that
 Google Patents places in different families. No TRL effect is claimed. See
 the [result](results-2026-10-22-patent-family-v1.md).
