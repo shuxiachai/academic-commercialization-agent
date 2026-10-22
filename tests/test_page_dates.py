@@ -81,6 +81,7 @@ class _NoRequests:
         raise AssertionError("no request may be sent")
 
 
+@pytest.mark.allow_page_fetch
 @pytest.mark.parametrize("url", ["http://127.0.0.1/admin", "http://10.0.0.5/x", "file:///etc/passwd",
                                  "http://user:pw@example.com/x"])
 def test_fetching_refuses_a_non_public_address_before_any_request(url):

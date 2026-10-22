@@ -527,6 +527,17 @@ rejection reasons instead of silently inventing evidence. Pydantic and local
 guardrails validate structure and source identities; advisory checks cannot
 guarantee factual entailment.
 
+Web search returns market sources undated. After the relevance filter, each
+accepted market source is read once for the publication date its own page
+states in metadata, unless it is a market report, a Wikipedia page or a home
+page. The date comes from JSON-LD, a publication `<meta>` tag, `itemprop`, or
+a full date in the URL path. Up to eight pages are read at a time, and the step
+stops waiting after 20 seconds; a page not read by then stays "n.d.". A
+`[Page-Dates]` row in the retrieval audit lists the sources dated this way and
+notes why each other one was not; retrieval health does not count it as a
+lane. The rule was registered and tested before adoption; see the
+[result](results-2026-10-22-market-page-dates-v1.md).
+
 The PDF-domain market prelude shares the ordinary query path's previous/current
 calendar-year window. This avoids stale hard-coded years, not stale results in
 general. The report-audit detail tab displays individual coverage counts and
