@@ -194,6 +194,19 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+**Market page dates v1 (2026-10-22).** Web search returns market sources
+undated. `page_dates.py` reads a page's own publication metadata, excluding
+market reports, Wikipedia and home pages. It was registered on the held-out v2
+sources and tested once on 109 admitted URLs from five other batches:
+- coverage was 0.78 (85 dated);
+- precision was 0.88 (the date found within a day on the rendered page);
+- contradictions were 0.024 (two pages print another date of their own).
+
+All three bars hold, so production adopts it for market sources. The labels
+are by an AI assistant who was not blind, and P2's margin is two
+contradictions. No TRL effect is claimed. See the
+[result](results-2026-10-22-market-page-dates-v1.md).
+
 **Academic title gate v1 (2026-10-20).** An offline replay of 494 saved
 title-gate decisions. The rule R5 anchors academic acceptance on the user's
 own words. It was registered on the v2 topics and evaluated once on the v1
