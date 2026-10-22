@@ -204,6 +204,10 @@ request-like inputs and a plural stemmer, and the maintainer delegated the
 registered human check. No TRL effect is shown. See the
 [result](results-2026-10-20-academic-title-gate-v1.md) and the
 [deployment erratum](errata-2026-10-20-academic-title-gate-v1-deployment.md).
+A follow-up on two-word inputs found no adjacency rule worth registering:
+on dev, the removals were off-topic only where the first word has several
+senses ("fusion", "wave"), and R5 stays as deployed. See the
+[development comparison](results-2026-10-22-two-word-gate-v1-dev.md).
 
 **Held-out TRL calibration v2 (2026-10-19).** Ten further topics, registered
 before any run, measured with `qwen3.8-max` and the revised market retrieval
