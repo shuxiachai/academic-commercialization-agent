@@ -324,7 +324,10 @@
 
     <form id="gate-form">
       <h2 class="gate__title" data-i18n="gate_title">Access code required</h2>
-      <p class="gate__sub" data-i18n="gate_sub">This is a private demo link. Enter the code you were given.</p>
+      <!-- A visitor arriving from a shared link meets this before anything
+           else, so it says what the app does before asking for a code. -->
+      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes about 15 minutes.</p>
+      <p class="gate__sub" data-i18n="gate_sub">This deployment is invite-only. Enter the access code you were given; if you have none, ask whoever shared this link.</p>
       <input class="gate__input" id="gate-input" type="password" autocomplete="off"
              data-i18n-placeholder="gate_placeholder" placeholder="Access code">
       <p class="gate__error" id="gate-error" hidden></p>
@@ -354,7 +357,10 @@
       <!-- The model the visitor's own key should use. Required: there is no
            default model. byok_fields.js shows an example as the placeholder. -->
       <input class="gate__input" id="byok-model" type="text" autocomplete="off" spellcheck="false"
-             maxlength="100" required placeholder="Model (required)">
+             maxlength="100" required placeholder="Model (required)" list="byok-model-options">
+      <!-- Suggestions only, filled per provider by byok_fields.js; the field
+           stays empty and required until the visitor picks or types one. -->
+      <datalist id="byok-model-options"></datalist>
       <!-- Tavily first: Serper refuses requests from some hosting providers,
            including this deployment's, so a Serper-only run may find nothing. -->
       <select class="gate__input" id="byok-search" aria-label="Web search service">
