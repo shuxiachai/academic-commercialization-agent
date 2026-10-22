@@ -114,6 +114,12 @@ class SampleClientTests(unittest.TestCase):
         self.assertNotRegex(source, r"from\s+[\"']\./api\.js[\"']")
         self.assertNotIn("X-Access-Code", source)
 
+    def test_cards_show_when_a_sample_was_added_not_its_commit(self):
+        source = (_REPO / "web/static/js/samples.js").read_text(encoding="utf-8")
+        meta = re.search(r'el\("span", "sample-card__meta", (.+)\),', source)[1]
+        self.assertIn('t("samples_added")', meta)
+        self.assertNotRegex(meta, r"sample\.commit\b")
+
     def test_main_page_links_to_samples_from_gate_and_composer(self):
         page = (_REPO / "web/index.html").read_text(encoding="utf-8")
         gate = page[page.index('id="gate"'):]

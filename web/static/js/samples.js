@@ -45,7 +45,9 @@ function paintList() {
     if (sample.slug === current) card.setAttribute("aria-current", "page");
     card.append(
       el("span", "sample-card__title", sample.title),
-      el("span", "sample-card__meta", `${sample.committed} · ${sample.commit}`),
+      // The commit stays in the notice above the report; a visitor reading the
+      // list needs only how old the sample is.
+      el("span", "sample-card__meta", t("samples_added").replace("{date}", sample.committed)),
     );
     card.addEventListener("click", (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
