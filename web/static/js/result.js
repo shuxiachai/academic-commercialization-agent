@@ -172,6 +172,24 @@ export function renderMarkdown(md) {
 const REFERENCE_LINE = /^\[([APM]\d+)\]\s+(.+)$/;
 
 /** id -> { label, published, credibility, url } from a report's references. */
+// Market sources now carry the date their own page states, and in the
+// held-out runs 38 of 85 dated ones were over a year old when collected.
+// Old company news reads as current unless the page says otherwise, so a
+// market source says its age. Papers and patents are old by nature and do not.
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const YEAR_MS = 365.25 * 24 * 3600 * 1000;
+
+/** Whole years from a market source's publication to its access, when one or more; else null. */
+export function marketSourceAge(id, published, accessed) {
+  if (!/^M\d+$/.test(id ?? "") || !ISO_DAY.test(published ?? "") || !ISO_DAY.test(accessed ?? "")) return null;
+  const years = Math.floor((Date.parse(accessed) - Date.parse(published)) / YEAR_MS);
+  return years >= 1 ? years : null;
+}
+
+function ageText(years) {
+  return years === 1 ? t("source_age_one") : t("source_age_many").replace("{n}", String(years));
+}
+
 export function citationIndex(md) {
   const index = new Map();
   for (const raw of String(md ?? "").split("\n")) {
@@ -182,12 +200,16 @@ export function citationIndex(md) {
     // English as saved, or the Chinese labels report_display.py shows.
     const published = text.match(/Published:\s*([^\s.][^.]*?)\.(?:\s|$)/)?.[1]
       ?? text.match(/发布：\s*([^\s·]+)/)?.[1] ?? null;
+    const accessed = text.match(/Accessed:\s*(\d{4}-\d{2}-\d{2})/)?.[1]
+      ?? text.match(/访问：\s*(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
     const credibility = text.match(/Credibility:\s*(high|medium|low)\b/i)?.[1].toLowerCase()
       ?? { 高: "high", 中: "medium", 低: "low" }[text.match(/可信度：\s*([高中低])/)?.[1]] ?? null;
     const cut = text.search(/\s(?:Published|Accessed|Type|Credibility):|\s(?:发布|访问|类型|可信度)：/);
     const label = (cut > 0 ? text.slice(0, cut) : text.replace(/https?:\/\/\S+\s*$/, ""))
       .trim().replace(/[.\s]+$/, "");
-    index.set(match[1], { label, published: ["n.d", "未注明"].includes(published) ? null : published, credibility,
+    const dated = ["n.d", "未注明"].includes(published) ? null : published;
+    index.set(match[1], { label, published: dated, accessed, credibility,
+                          age: marketSourceAge(match[1], dated?.slice(0, 10), accessed),
                           url: url ? savedSourceUrl(url) : null });
   }
   return index;
@@ -226,6 +248,7 @@ function renderCitationCard(ids, index, onShowInSources) {
       body.append(el("p", "cite-card__label", entry.label));
       const meta = [];
       if (entry.published) meta.push(`${t("cite_published")} ${entry.published.slice(0, 10)}`);
+      if (entry.age) meta.push(ageText(entry.age));
       if (entry.credibility) meta.push(`${t("cite_credibility")} ${t("tier_" + entry.credibility)}`);
       if (meta.length) body.append(el("p", "cite-card__meta", meta.join(" · ")));
       const actions = el("div", "cite-card__actions");
@@ -887,7 +910,8 @@ function admitSavedSources(collection) {
       };
       row.source_id = field("source_id", true);
       row.title = field("title", true);
-      for (const key of ["publisher", "published_date", "credibility_tier", "url", "evidence_summary", "summary_source"]) {
+      for (const key of ["publisher", "published_date", "accessed_date", "credibility_tier", "url",
+                         "evidence_summary", "summary_source"]) {
         row[key] = field(key);
       }
       row.href = row.url.text ? savedSourceUrl(row.url.text) : null;
@@ -923,6 +947,8 @@ function renderSavedSource(source) {
     }
     meta.append(tier);
   }
+  const age = marketSourceAge(source.source_id.text, source.published_date.text, source.accessed_date.text);
+  if (age) meta.append(el("span", "source__age", ageText(age)));
   body.append(title, meta);
   if (source.invalid) body.append(el("p", "source__fault", t("sources_record_partial")));
 
