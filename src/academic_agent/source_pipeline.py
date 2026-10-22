@@ -2340,6 +2340,11 @@ def _web_source(
             return None, "search result lacks a usable title or URL"
         if host not in _PATENT_HOSTS:
             return None, f"non-primary patent host: {host}"
+        # Justia lists each assignee's and inventor's patents on its own pages.
+        # Such a page is a directory, not a patent record: a held-out run took
+        # "Patents Assigned to Azur Space Solar Power GmbH" for a patent.
+        if host == "patents.justia.com" and not urlsplit(canonical).path.startswith("/patent/"):
+            return None, f"not a patent record (Justia listing page): {canonical}"
         source_type = "patent"
         patent_year = _parse_patent_year(canonical, snippet)
         if host in _OFFICIAL_PATENT_HOSTS:

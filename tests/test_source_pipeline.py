@@ -443,6 +443,21 @@ class SourcePipelineTests(TestCase):
 
 
 
+    def test_a_justia_listing_page_is_not_taken_for_a_patent(self) -> None:
+        snippet = ("Patents assigned to the company: III-V photovoltaic multi-junction solar cell, hinge and "
+                   "lock mechanism for a roll-out solar array, and other records.")
+        listing, reason = _web_source(
+            {"title": "Patents Assigned to Azur Space Solar Power GmbH",
+             "link": "https://patents.justia.com/assignee/azur-space-solar-power-gmbh", "snippet": snippet},
+            "P1", "patent", date(2026, 7, 2), lambda url: (True, ""))
+        self.assertIsNone(listing)
+        self.assertIn("not a patent record", reason)
+        record, _reason = _web_source(
+            {"title": "Patent US12470090: Space-based solar power system",
+             "link": "https://patents.justia.com/patent/12470090", "snippet": snippet},
+            "P1", "patent", date(2026, 7, 2), lambda url: (True, ""))
+        self.assertIsNotNone(record)
+
     def test_market_user_generated_hosts_are_blocked(self) -> None:
         for host in ("www.youtube.com", "www.quora.com", "www.reddit.com"):
             with self.subTest(host=host):
