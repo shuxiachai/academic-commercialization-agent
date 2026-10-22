@@ -223,8 +223,9 @@ export function usageTitle(usage, accounting = null) {
   return lines.join("\n");
 }
 
-// i18n.js is a byte-frozen SLC observer asset. New production-only labels
-// stay here, not in that historical asset or its manifest/hash allowlist.
+// Production-only labels written while i18n.js was hash-locked by the SLC
+// comparison. That comparison now reads a snapshot (evals/
+// source_locator_observer_v1), so new labels may also go in i18n.js.
 const AUXILIARY_STRINGS = {
   English: {
     aux_not_recorded: "Auxiliary LLM usage not recorded (not zero)",
@@ -252,7 +253,7 @@ const AUXILIARY_STRINGS = {
   },
 };
 
-// Run-header labels, kept out of the byte-frozen i18n.js like AUXILIARY_STRINGS.
+// Run-header labels, kept beside AUXILIARY_STRINGS.
 const HEADER_STRINGS = {
   English: {
     usage_details: "Usage & cost",
@@ -335,7 +336,7 @@ export function stateLabel(state) {
   return STATE_LABELS[uiLanguage()]?.[state] ?? state;
 }
 
-// Search-plan preview panel, kept out of the byte-frozen i18n.js too.
+// Search-plan preview panel.
 const PLAN_STRINGS = {
   English: {
     title: "Check the search before starting",

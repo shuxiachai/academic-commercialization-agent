@@ -55,7 +55,7 @@ def test_fixed_comparison_uses_real_node_and_reports_six_paired_cases(monkeypatc
     sent = json.loads(kwargs["input"])
     manifest = comparison.prepare_manifest()
     assert sent == {
-        "root": str(comparison.ROOT), "payload": comparison._payload(manifest["catalog"]), "report": "",
+        "root": str(comparison.OBSERVER_ROOT), "payload": comparison._payload(manifest["catalog"]), "report": "",
         "actions": [action for case in manifest["cases"] for action in (
             {"search": case["question"]}, {"search": case["keyword_query"]},
         )],
