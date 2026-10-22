@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from academic_agent.report_applicability import applicability_for_display
+from academic_agent.report_display import report_for_display
 from api import access, samples
 from api.main import app
 
@@ -77,7 +77,8 @@ class SampleHttpTests(unittest.TestCase):
                 self.assertNotIn(marker, served)
                 self.assertTrue(served.startswith("# "))
         served = self.client.get("/api/samples/hyperloop").text
-        self.assertIn("\n\n**Assessment applicability (code-derived):** Mode `orientation`.", served)
+        self.assertIn("\n\n**Scope of this assessment:** An orientation brief: no decision context", served)
+        self.assertNotIn("`orientation`", served.split("## Executive Summary", 1)[0])
 
     def test_only_get_is_exempt(self):
         with patch.object(access, "ACCESS_CODE", "secret123"):
@@ -166,7 +167,7 @@ class SampleRenderingTests(unittest.TestCase):
                 console.log(JSON.stringify(inputs.map((md) => renderMarkdown(md))));
             """), encoding="utf-8")
             # As served by /api/samples/{slug}, which the reader renders.
-            reports = [applicability_for_display(samples.read_sample(s.slug)) for s in samples.SAMPLES]
+            reports = [report_for_display(samples.read_sample(s.slug)) for s in samples.SAMPLES]
             (work / "inputs.json").write_text(json.dumps(reports), encoding="utf-8")
             result = subprocess.run(
                 [shutil.which("node"), str(work / "run.mjs"), str(work / "inputs.json")],

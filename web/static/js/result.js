@@ -179,12 +179,15 @@ export function citationIndex(md) {
     if (!match || index.has(match[1])) continue;
     const text = match[2];
     const url = text.match(/(https?:\/\/\S+)\s*$/)?.[1].replace(/[).,;]+$/, "") ?? null;
-    const published = text.match(/Published:\s*([^\s.][^.]*?)\.(?:\s|$)/)?.[1] ?? null;
-    const credibility = text.match(/Credibility:\s*(high|medium|low)\b/i)?.[1].toLowerCase() ?? null;
-    const cut = text.search(/\s(?:Published|Accessed|Type|Credibility):/);
+    // English as saved, or the Chinese labels report_display.py shows.
+    const published = text.match(/Published:\s*([^\s.][^.]*?)\.(?:\s|$)/)?.[1]
+      ?? text.match(/发布：\s*([^\s·]+)/)?.[1] ?? null;
+    const credibility = text.match(/Credibility:\s*(high|medium|low)\b/i)?.[1].toLowerCase()
+      ?? { 高: "high", 中: "medium", 低: "low" }[text.match(/可信度：\s*([高中低])/)?.[1]] ?? null;
+    const cut = text.search(/\s(?:Published|Accessed|Type|Credibility):|\s(?:发布|访问|类型|可信度)：/);
     const label = (cut > 0 ? text.slice(0, cut) : text.replace(/https?:\/\/\S+\s*$/, ""))
       .trim().replace(/[.\s]+$/, "");
-    index.set(match[1], { label, published: published === "n.d" ? null : published, credibility,
+    index.set(match[1], { label, published: ["n.d", "未注明"].includes(published) ? null : published, credibility,
                           url: url ? savedSourceUrl(url) : null });
   }
   return index;

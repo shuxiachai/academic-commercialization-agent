@@ -641,14 +641,15 @@ def _exercise_browser(
             # The shipped subset renderer deliberately falls back to a <p>
             # for blockquotes. Assert the actual visible paragraph contract,
             # not a blockquote element this renderer has never produced.
-            applicability = page.locator("article.prose p").filter(
-                has_text="Assessment applicability (code-derived)"
-            )
+            # The page shows the code-derived gate as sentences; the saved
+            # file keeps its codes (report_display.py).
+            applicability = page.locator("article.prose p").filter(has_text="Scope of this assessment")
             expect(applicability).to_have_count(1)
             expect(applicability).to_be_visible()
-            expect(applicability).to_contain_text("Mode orientation.")
-            expect(applicability).to_contain_text("GO/NO_GO is not assessed.")
-            expect(applicability).to_contain_text("not_established")
+            expect(applicability).to_contain_text("An orientation brief")
+            expect(applicability).to_contain_text("gives no GO/NO_GO for a particular decision-maker.")
+            expect(applicability).to_contain_text("No success criteria were given")
+            expect(applicability).not_to_contain_text("not_established")
             expect(page.locator("article.prose")).not_to_contain_text("Actor-specific GO is approved.")
 
             page.locator('button.tab[data-view="score"]').click()

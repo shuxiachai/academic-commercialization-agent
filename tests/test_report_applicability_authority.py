@@ -194,8 +194,9 @@ def test_display_view_shows_the_paragraph_without_its_markup(tmp_path, monkeypat
     assert MARKER in saved.text and "Mode `orientation`" in saved.text
     assert display.status_code == 200 and "markdown" in display.headers["content-type"]
     assert MARKER not in display.text
+    # The page shows the gate's codes as sentences (report_display.py).
     assert display.text.startswith(
-        "# Report\n\n**Assessment applicability (code-derived):** Mode `orientation`."
+        "# Report\n\n**Scope of this assessment:** An orientation brief: no decision context was given"
     )
     assert not any(line.startswith(">") for line in display.text.splitlines())
     assert BODY in display.text
