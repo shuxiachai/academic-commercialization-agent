@@ -40,14 +40,15 @@ _RENAMED_LABELS = {
     "SemanticScholar": "S2",
     "Serper-Fallback": "academic web search",
 }
-# Audit rows that record a step after retrieval (filtering, page dating), not a
-# search for sources.
+# Audit rows that record a step after retrieval (filtering, page dating, patent
+# applicants), not a search for sources.
 _NOT_RETRIEVAL = frozenset({
     "Relevance-Filter",
     "Relevance-Recovery-Filter",
     "Relaxed-Title-Gate",
     "Deferred-Promotion",
     "Page-Dates",
+    "Patent-Applicants",
 })
 # Notes written when a client gives up, e.g. "Semantic Scholar refused the
 # request (HTTP 429 ...)", "OpenAlex request failed (HTTP 500)", "Tavily search

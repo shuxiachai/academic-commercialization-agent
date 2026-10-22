@@ -194,6 +194,18 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+**Patent applicants (2026-10-22).** Web search returned patent rows without an
+applicant: 66 of 69 saved runs named no patent holder. Each web-search
+patent's current assignee is now read from its Google Patents page, and an
+inventor-owned patent names its inventors. The parser was checked on 276
+cached pages:
+- the original assignees and inventors it reads agree with each page's own metadata tags on every page;
+- 87% of pages name a company or institution, and 13% are inventor-owned.
+
+This is a parser check, not a registered experiment. The data is Google's,
+which notes it may be inaccurate. No report-quality effect is claimed. See
+the [check](results-2026-10-22-patent-applicants-check.md).
+
 **Patent family v1 (2026-10-22).** The collector's duplicate-patent check
 compared whole titles, and Google Patents titles carry the publication
 number, so one invention filed in several offices took several slots.
