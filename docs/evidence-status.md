@@ -216,7 +216,12 @@ before any run, measured with `qwen3.8-max` and the revised market retrieval
 topic was inflated, but all three misses that delivered a TRL fell below their
 floor (hyperloop, space-based solar power). Topics and model changed alongside
 retrieval, so no single cause is established. See the
-[result and limits](results-2026-10-19-heldout-trl-v2.md).
+[result and limits](results-2026-10-19-heldout-trl-v2.md). **Erratum:** the
+last five runs were scored with no OpenAlex evidence, because the anonymous
+daily budget ran out mid-batch and refusals were not yet recorded. Two of the
+three below-floor misses are among them; without those five runs, 22/25 are
+in range and one falls below its floor. See the
+[erratum](errata-2026-10-22-openalex-budget-outages.md).
 
 **Held-out TRL calibration (2026-10-18).** Ten topics never run before, with
 ranges fixed from external evidence before any run. Batch `heldout-trl-v1-c`

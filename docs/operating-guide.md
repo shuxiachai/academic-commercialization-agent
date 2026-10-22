@@ -824,6 +824,15 @@ identity before paid dispatch. Intact successful units are reused without
 another call; occupied failed/partial/corrupt units are refused, not retried.
 Unstarted units can execute. A new measurement requires a new batch. Live-mode
 reuse refers to the stored evidence snapshot, not a fresh search of today's web.
+
+Live retrieval (assessment batches and `--freeze`) needs `OPENALEX_API_KEY` in
+`.env`. `--allow-anonymous-openalex` waives that for a batch small enough for
+the shared anonymous budget of about 15 runs a day. A run whose retrieval
+recorded an OpenAlex refusal or failure is saved as `error_retrieval_refused`
+before its crew stage, and the batch stops there so the remaining units can
+run later under `--resume-batch`. See the
+[2026-10-22 erratum](errata-2026-10-22-openalex-budget-outages.md) for the two
+batches scored without OpenAlex before this check existed.
 Benchmark resume is batch scheduling, not a production recovery child or
 provider-level exactly-once guarantee. Credentials are not in manifests;
 optional source credentials/contact settings are recorded only as presence.
