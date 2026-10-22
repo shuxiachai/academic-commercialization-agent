@@ -1,0 +1,66 @@
+name: Deploy check
+
+# Railway deploys main once the Tests workflow passes, and it can stop doing
+# so without saying anything: on 2026-10-21 five merges never reached
+# production, which was noticed only a day later from a static file's
+# Last-Modified header. This job waits for production /health to report the
+# merged commit, or a later one that contains it, and fails when it does not.
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+# While deploys are held, a newer merge supersedes the older wait.
+concurrency:
+  group: deploy-check
+  cancel-in-progress: true
+
+jobs:
+  production:
+    name: production serves the merged commit
+    if: >-
+      github.repository == 'shuxiachai/academic-commercialization-agent'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://academic-commercialization-agent.up.railway.app' }}
+      TARGET: ${{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Wait up to 30 minutes for production to serve it
+        run: |
+          deadline=$(( $(date +%s) + 30 * 60 ))
+          while :; do
+            live=$(curl -fsS --max-time 20 "$PRODUCTION_URL/health" | jq -r '.pipeline_revision // ""' || true)
+            case "$live" in
+              git:*)
+                sha=${live#git:}
+                if [ "$sha" = "$TARGET" ]; then
+                  echo "Production serves $TARGET."
+                  exit 0
+                fi
+                # A later merge deployed first still contains this one.
+                if [ "$(gh api "repos/$REPO/compare/$TARGET...$sha" --jq .status 2>/dev/null || true)" = "ahead" ]; then
+                  echo "Production serves $sha, which contains $TARGET."
+                  exit 0
+                fi
+                ;;
+              "") ;;  # unreachable, or a version from before this field existed
+              *)
+                echo "::warning::Production reports '$live', not a commit; a deploy cannot be confirmed."
+                exit 0
+                ;;
+            esac
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::Production still serves '${live:-unknown}' 30 minutes after $TARGET passed CI. Check Railway deployments."
+              exit 1
+            fi
+            sleep 60
+          done
