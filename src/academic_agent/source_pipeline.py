@@ -17,6 +17,7 @@ from urllib.request import Request, urlopen
 from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
+from academic_agent.page_dates import page_publication_date, should_date
 from academic_agent.source_title_recovery import recover_official_source_title
 
 from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
@@ -132,6 +133,7 @@ def _detect_weight_profile(topic: str) -> str:
     return "industrial"
 SearchFunction = Callable[[str], dict[str, Any]]
 UrlChecker = Callable[[str], tuple[bool, str]]
+PageDater = Callable[[str, date], tuple[date | None, str]]
 
 _DOI_PATTERN = re.compile(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", re.IGNORECASE)
 _TAG_PATTERN = re.compile(r"<[^>]+>")
@@ -3393,6 +3395,63 @@ def _renumber(sources: list[EvidenceSource], prefix: str) -> None:
         src.source_id = f"{prefix}{i}"
 
 
+# Web search returns market sources undated, so every report listed them as
+# "n.d." and a 2021 hiring announcement read like this week's news. Each
+# accepted source that should_date() admits takes the publication date its
+# own page states in metadata; the rule was registered and tested once
+# before adoption (docs/results-2026-10-22-market-page-dates-v1.md). The
+# step has a deadline so one slow site cannot hold up the run: a page not
+# read in time stays undated. A "[Page-Dates]" audit row names the sources
+# dated this way; every other dated market source took its date from search.
+_PAGE_DATE_WORKERS = 8
+_PAGE_DATE_DEADLINE_SECONDS = 20.0
+
+
+def _date_market_pages(
+    sources: list[EvidenceSource],
+    accessed_date: date,
+    page_dater: PageDater,
+) -> SearchAudit | None:
+    """Date undated market sources from their own pages; None if none was eligible."""
+    from concurrent.futures import ThreadPoolExecutor, wait
+
+    pending = [
+        source for source in sources
+        if source.published_date is None
+        and should_date(source.source_type, str(source.url) if source.url else None)
+    ]
+    if not pending:
+        return None
+    pool = ThreadPoolExecutor(max_workers=min(_PAGE_DATE_WORKERS, len(pending)))
+    futures = {pool.submit(page_dater, str(source.url), accessed_date): source
+               for source in pending}
+    done, _late = wait(futures, timeout=_PAGE_DATE_DEADLINE_SECONDS)
+    # Late pages are abandoned rather than awaited; each fetch has its own timeout.
+    pool.shutdown(wait=False, cancel_futures=True)
+    dated: list[str] = []
+    notes: list[str] = []
+    for future, source in futures.items():
+        if future not in done:
+            notes.append(f"{source.source_id}: page not read within {_PAGE_DATE_DEADLINE_SECONDS:g} s")
+            continue
+        if future.exception() is not None:
+            notes.append(f"{source.source_id}: page could not be read")
+            continue
+        found, _method = future.result()
+        if found is None or found > accessed_date:
+            notes.append(f"{source.source_id}: no publication date found")
+            continue
+        source.published_date = found
+        dated.append(source.source_id)
+    return SearchAudit(
+        domain="market",
+        query="[Page-Dates] publication date stated by each source's own page",
+        result_count=len(pending),
+        accepted_source_ids=dated,
+        rejected_reasons=notes,
+    )
+
+
 def collect_source_collection(
     topic: str,
     *,
@@ -3404,6 +3463,7 @@ def collect_source_collection(
     arxiv: "ArxivClient | None" = None,
     lens: "LensPatentClient | None" = None,
     url_checker: UrlChecker = check_public_url,
+    page_dater: PageDater = page_publication_date,
     minimum_sources: int = 3,
     maximum_sources: int = 8,
     accessed_date: date | None = None,
@@ -3966,6 +4026,9 @@ def collect_source_collection(
     _renumber(academic, "A")
     _renumber(patents, "P")
     _renumber(market, "M")
+    page_dates_audit = _date_market_pages(market, resolved_date, page_dater)
+    if page_dates_audit is not None:
+        all_audits.append(page_dates_audit)
 
     # Extract unique competitor/assignee names from patent sources.
     _GENERIC_ASSIGNEES = frozenset({

@@ -202,7 +202,9 @@ sources and tested once on 109 admitted URLs from five other batches:
 - precision was 0.88 (the date found within a day on the rendered page);
 - contradictions were 0.024 (two pages print another date of their own).
 
-All three bars hold, so production adopts it for market sources. The labels
+All three bars hold, so the collector now applies it to each run's accepted
+market sources, and a `[Page-Dates]` audit row records which were dated this
+way. The labels
 are by an AI assistant who was not blind, and P2's margin is two
 contradictions. No TRL effect is claimed. See the
 [result](results-2026-10-22-market-page-dates-v1.md).
