@@ -121,8 +121,8 @@ class SampleClientTests(unittest.TestCase):
         self.assertIn('href="/samples"', compose)
 
     def test_both_languages_define_every_sample_string(self):
-        # A separate table because i18n.js is hash-locked by a frozen
-        # experiment; see the header of samples_i18n.js.
+        # A separate table, written while i18n.js was hash-locked; see the
+        # header of samples_i18n.js.
         source = (_REPO / "web/static/js/samples_i18n.js").read_text(encoding="utf-8")
         english, chinese = source.split('"Simplified Chinese": {', 1)
         keys = set(re.findall(r"^\s+(samples_\w+):", english, re.M))
@@ -144,6 +144,7 @@ class SampleClientTests(unittest.TestCase):
 _ALLOWED_TAGS = {
     "p", "strong", "em", "code", "ul", "li", "h1", "h2", "h3", "h4",
     "div", "table", "thead", "tbody", "tr", "th", "td", "span", "a",
+    "button",  # citation chips, which open the source cards
 }
 
 

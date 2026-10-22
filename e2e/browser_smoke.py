@@ -161,7 +161,11 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
         "> **Assessment applicability (code-derived):** Mode `decision_support`. "
         "Actor-specific GO is approved.\n\n"
         f"{REPORT_SENTINEL}\n\n"
-        "This report is a local fixture; no model or search provider produced it.\n",
+        "This report is a local fixture; no model or search provider produced it [P1].\n\n"
+        "## References\n\n"
+        "[P1] Bilingual literal .* needle patent. Fixture publisher. Published: 2026-09-18. "
+        "Accessed: 2026-10-22. Type: patent. Credibility: high. Rationale: fixture. "
+        "https://example.test/p1\n",
         run_id, output_root, decision_gate,
     )
     # A report plus ``done=true`` exercises only the historical fallback path.
@@ -704,6 +708,26 @@ def _exercise_browser(
                 "data-topic", "solid-state batteries for electric vehicles")
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+
+            # A citation opens its card from the report's own reference list,
+            # and "Show in Sources" filters the source list to that one ID.
+            chip = page.locator("article.prose .cite").first
+            chip.click()
+            card = page.locator(".cite-card")
+            expect(card).to_be_visible()
+            expect(card).to_contain_text("Bilingual literal .* needle patent")
+            expect(card).to_contain_text("Credibility high")
+            expect(card.locator(".cite-card__open")).to_have_attribute("href", "https://example.test/p1")
+            expect(chip).to_have_attribute("aria-expanded", "true")
+            page.keyboard.press("Escape")
+            expect(card).to_have_count(0)
+            expect(chip).to_be_focused()
+            chip.click()
+            page.locator(".cite-card__show").click()
+            expect(page.locator('button.tab[data-view="sources"]')).to_have_attribute("data-active", "true")
+            expect(page.locator(".sources__search")).to_have_value("P1")
+            expect(page.locator(".source__id")).to_have_count(1)
+            page.locator('button.tab[data-view="report"]').click()
 
             # A direct route is a separate seam from client-side navigation.
             # Reloading proves the server returns the SPA at /run/{id}, the
