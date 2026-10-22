@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
 from academic_agent.page_dates import page_publication_date, should_date
+from academic_agent.patent_applicants import google_patents_url, patent_applicants
 from academic_agent.patent_family import publication_number, same_invention
 from academic_agent.source_title_recovery import recover_official_source_title
 
@@ -135,6 +136,7 @@ def _detect_weight_profile(topic: str) -> str:
 SearchFunction = Callable[[str], dict[str, Any]]
 UrlChecker = Callable[[str], tuple[bool, str]]
 PageDater = Callable[[str, date], tuple[date | None, str]]
+ApplicantLookup = Callable[[str], tuple[list[str], str]]
 
 _DOI_PATTERN = re.compile(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", re.IGNORECASE)
 _TAG_PATTERN = re.compile(r"<[^>]+>")
@@ -3469,6 +3471,66 @@ def _date_market_pages(
     )
 
 
+# Web search returns patent rows without an applicant: 66 of 69 saved runs
+# listed none, and each row's publisher read "Google". Each web-search patent
+# takes the current assignee its Google Patents page lists, checked in
+# docs/results-2026-10-22-patent-applicants-check.md, with the same bounded
+# fan-out as page dates. A "[Patent-Applicants]" audit row records which
+# rows were named and why the others were not.
+_APPLICANT_WORKERS = 8
+_APPLICANT_DEADLINE_SECONDS = 20.0
+_APPLICANT_NOTE = (" Applicant: as listed by Google Patents, which notes its list may be "
+                   "inaccurate; not a legal title search.")
+
+
+def _name_patent_applicants(
+    sources: list[EvidenceSource],
+    lookup: ApplicantLookup,
+) -> tuple[dict[str, list[str]], SearchAudit | None]:
+    """Name web-search patents' applicants: ({source_id: company names, [] if inventor-owned}, audit row)."""
+    from concurrent.futures import ThreadPoolExecutor, wait
+
+    pending = [source for source in sources
+               if source.url is not None and google_patents_url(str(source.url))]
+    if not pending:
+        return {}, None
+    pool = ThreadPoolExecutor(max_workers=min(_APPLICANT_WORKERS, len(pending)))
+    futures = {pool.submit(lookup, str(source.url)): source for source in pending}
+    done, _late = wait(futures, timeout=_APPLICANT_DEADLINE_SECONDS)
+    # Late pages are abandoned rather than awaited; each fetch has its own timeout.
+    pool.shutdown(wait=False, cancel_futures=True)
+    companies: dict[str, list[str]] = {}
+    named: list[str] = []
+    notes: list[str] = []
+    for future, source in futures.items():
+        if future not in done:
+            notes.append(f"{source.source_id}: page not read within {_APPLICANT_DEADLINE_SECONDS:g} s")
+            continue
+        if future.exception() is not None:
+            notes.append(f"{source.source_id}: page could not be read")
+            continue
+        names, status = future.result()
+        if status == "named" and names:
+            source.publisher = "; ".join(names)
+            companies[source.source_id] = names
+        elif status == "individual":
+            # Inventor-owned: name the inventors, never list them as companies.
+            source.publisher = ("Individual inventor: " + "; ".join(names)) if names else "Individual inventor"
+            companies[source.source_id] = []
+        else:
+            notes.append(f"{source.source_id}: no applicant found ({status})")
+            continue
+        source.credibility_reason += _APPLICANT_NOTE
+        named.append(source.source_id)
+    return companies, SearchAudit(
+        domain="patent",
+        query="[Patent-Applicants] current assignee from each patent's Google Patents page",
+        result_count=len(pending),
+        accepted_source_ids=named,
+        rejected_reasons=notes,
+    )
+
+
 def collect_source_collection(
     topic: str,
     *,
@@ -3481,6 +3543,7 @@ def collect_source_collection(
     lens: "LensPatentClient | None" = None,
     url_checker: UrlChecker = check_public_url,
     page_dater: PageDater = page_publication_date,
+    patent_applicant_lookup: ApplicantLookup = patent_applicants,
     minimum_sources: int = 3,
     maximum_sources: int = 8,
     accessed_date: date | None = None,
@@ -4046,6 +4109,9 @@ def collect_source_collection(
     page_dates_audit = _date_market_pages(market, resolved_date, page_dater)
     if page_dates_audit is not None:
         all_audits.append(page_dates_audit)
+    applicant_names, applicants_audit = _name_patent_applicants(patents, patent_applicant_lookup)
+    if applicants_audit is not None:
+        all_audits.append(applicants_audit)
 
     # Extract unique competitor/assignee names from patent sources.
     _GENERIC_ASSIGNEES = frozenset({
@@ -4057,7 +4123,10 @@ def collect_source_collection(
     patent_assignees: list[str] = []
     for ps in patents:
         raw = (ps.publisher or "").strip()
-        for name in raw.split(","):
+        # Names read from a Google Patents page can hold commas ("University of
+        # California, San Diego"); only Lens publishers are comma-joined lists.
+        names = applicant_names[ps.source_id] if ps.source_id in applicant_names else raw.split(",")
+        for name in names:
             name = name.strip()
             if name and name.lower() not in _GENERIC_ASSIGNEES and name not in seen_assignees:
                 seen_assignees.add(name)
