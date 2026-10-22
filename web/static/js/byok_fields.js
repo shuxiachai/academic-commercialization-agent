@@ -1,8 +1,9 @@
 /* Labels and placeholders for the BYOK model and search-service fields.
  *
- * Kept out of i18n.js on purpose: that file's bytes are hash-locked by a frozen
- * experiment, so new strings live here, as the sample-report strings do. The
- * language still comes from i18n.js. Loaded after app.js as its own module,
+ * These strings were kept out of i18n.js while a frozen experiment hash-locked
+ * it; since 2026-10-22 that experiment reads a snapshot (evals/
+ * source_locator_observer_v1), so i18n.js may take new keys. The language
+ * still comes from i18n.js. Loaded after app.js as its own module,
  * because app.js's browser contracts strip and inject its imports.
  *
  * The model field is required: there is no default model, so a visitor's key

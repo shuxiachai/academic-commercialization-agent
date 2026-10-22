@@ -1,9 +1,9 @@
 /* Strings for the sample-report reader and the links to it.
  *
- * Kept out of i18n.js on purpose: that file's bytes are hash-locked by a frozen
- * experiment (report_evidence_source_locator_comparison.py), so adding keys
- * there would invalidate it. The language choice itself still comes from
- * i18n.js, so both tables follow one selector. Elements opt in with
+ * Written while i18n.js was hash-locked by a frozen experiment
+ * (report_evidence_source_locator_comparison.py); since 2026-10-22 that
+ * experiment reads a snapshot instead. The language choice itself still comes
+ * from i18n.js, so both tables follow one selector. Elements opt in with
  * data-samples-i18n rather than data-i18n, which i18n.apply() owns. */
 
 import { language } from "./i18n.js";
