@@ -192,6 +192,7 @@
                 Complete the first four fields for actor-specific decision support. Partial or
                 empty context still runs, but the report will not claim a GO/NO_GO decision.
               </p>
+              <p class="decision-context__status" id="decision-context-status" aria-live="polite"></p>
               <div class="decision-context__grid">
                 <label>
                   <span data-i18n="decision_asset">Asset or research output *</span>
@@ -207,52 +208,73 @@
                             data-i18n-placeholder="decision_application_placeholder"
                             placeholder="Specific customer problem and operating setting"></textarea>
                 </label>
-                <label>
-                  <span data-i18n="decision_owner">Decision owner *</span>
-                  <input id="decision-owner" data-context-field="decision_owner"
-                         maxlength="300" data-i18n-placeholder="decision_owner_placeholder"
-                         placeholder="TTO manager, founder, investor, R&amp;D lead">
-                </label>
-                <label>
-                  <span data-i18n="decision_type">Decision to make *</span>
-                  <input id="decision-type" data-context-field="decision_type"
-                         maxlength="300" data-i18n-placeholder="decision_type_placeholder"
-                         placeholder="License, spin out, pilot, invest, or stop">
-                </label>
-                <label>
-                  <span data-i18n="decision_jurisdiction">Jurisdiction</span>
-                  <input id="decision-jurisdiction" data-context-field="jurisdiction"
-                         maxlength="300" data-i18n-placeholder="decision_jurisdiction_placeholder"
-                         placeholder="Country or regulatory market">
-                </label>
-                <label>
-                  <span data-i18n="decision_horizon">Time horizon</span>
-                  <input id="decision-horizon" data-context-field="time_horizon"
-                         maxlength="300" data-i18n-placeholder="decision_horizon_placeholder"
-                         placeholder="Decision deadline or planning window">
-                </label>
-                <label class="decision-context__wide">
-                  <span data-i18n="decision_constraints">Known constraints</span>
-                  <textarea id="decision-constraints" data-context-field="constraints"
-                            maxlength="1200" rows="3"
-                            data-i18n-placeholder="decision_constraints_placeholder"
-                            placeholder="Budget, evidence threshold, manufacturing, policy, or risk limits"></textarea>
-                </label>
-                <label class="decision-context__wide">
-                  <span data-i18n="decision_success_criteria">Success criteria or decision thresholds</span>
-                  <textarea id="decision-success-criteria" data-context-field="success_criteria"
-                            maxlength="1200" rows="3"
-                            data-i18n-placeholder="decision_success_criteria_placeholder"
-                            placeholder="Exact measures the decision owner will use, if already defined"></textarea>
-                </label>
-                <label>
-                  <span data-i18n="decision_success_authority">Criteria authority</span>
-                  <select id="decision-success-authority" data-context-field="success_criteria_authority">
-                    <option value="" data-i18n="decision_success_unconfirmed">Not confirmed by the decision owner</option>
-                    <option value="owner_approved" data-i18n="decision_success_approved">Explicitly approved by the decision owner</option>
-                  </select>
-                </label>
+                <div class="decision-context__field">
+                  <label>
+                    <span id="decision-owner-label" data-i18n="decision_owner">Decision owner *</span>
+                    <input id="decision-owner" data-context-field="decision_owner"
+                           maxlength="300" data-i18n-placeholder="decision_owner_placeholder"
+                           placeholder="TTO manager, founder, investor, R&amp;D lead">
+                  </label>
+                  <div class="decision-picks" role="group" aria-labelledby="decision-owner-label">
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_investor">Investor</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_tto">Technology transfer office</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_rnd">Corporate R&amp;D lead</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_founder">Startup founder</button>
+                  </div>
+                </div>
+                <div class="decision-context__field">
+                  <label>
+                    <span id="decision-type-label" data-i18n="decision_type">Decision to make *</span>
+                    <input id="decision-type" data-context-field="decision_type"
+                           maxlength="300" data-i18n-placeholder="decision_type_placeholder"
+                           placeholder="License, spin out, pilot, invest, or stop">
+                  </label>
+                  <div class="decision-picks" role="group" aria-labelledby="decision-type-label">
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_invest">Invest or pass</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_license">License the technology</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_pilot">Start a pilot</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_spinout">Form a spin-out</button>
+                  </div>
+                </div>
               </div>
+              <details class="decision-context__more">
+                <summary data-i18n="decision_more">More details (optional)</summary>
+                <div class="decision-context__grid">
+                  <label>
+                    <span data-i18n="decision_jurisdiction">Jurisdiction</span>
+                    <input id="decision-jurisdiction" data-context-field="jurisdiction"
+                           maxlength="300" data-i18n-placeholder="decision_jurisdiction_placeholder"
+                           placeholder="Country or regulatory market">
+                  </label>
+                  <label>
+                    <span data-i18n="decision_horizon">Time horizon</span>
+                    <input id="decision-horizon" data-context-field="time_horizon"
+                           maxlength="300" data-i18n-placeholder="decision_horizon_placeholder"
+                           placeholder="Decision deadline or planning window">
+                  </label>
+                  <label class="decision-context__wide">
+                    <span data-i18n="decision_constraints">Known constraints</span>
+                    <textarea id="decision-constraints" data-context-field="constraints"
+                              maxlength="1200" rows="3"
+                              data-i18n-placeholder="decision_constraints_placeholder"
+                              placeholder="Budget, evidence threshold, manufacturing, policy, or risk limits"></textarea>
+                  </label>
+                  <label class="decision-context__wide">
+                    <span data-i18n="decision_success_criteria">Success criteria or decision thresholds</span>
+                    <textarea id="decision-success-criteria" data-context-field="success_criteria"
+                              maxlength="1200" rows="3"
+                              data-i18n-placeholder="decision_success_criteria_placeholder"
+                              placeholder="Exact measures the decision owner will use, if already defined"></textarea>
+                  </label>
+                  <label>
+                    <span data-i18n="decision_success_authority">Criteria authority</span>
+                    <select id="decision-success-authority" data-context-field="success_criteria_authority">
+                      <option value="" data-i18n="decision_success_unconfirmed">Not confirmed by the decision owner</option>
+                      <option value="owner_approved" data-i18n="decision_success_approved">Explicitly approved by the decision owner</option>
+                    </select>
+                  </label>
+                </div>
+              </details>
               <p class="decision-context__note" data-i18n="decision_context_note">
                 This context is sent to the configured model provider and stored with the run.
                 Criteria are treated as owner-approved only when you explicitly select that status;
@@ -390,5 +412,6 @@
 <script type="module" src="/static/js/byok_fields.js"></script>
 <script type="module" src="/static/js/chrome.js"></script>
 <script type="module" src="/static/js/starters.js"></script>
+<script type="module" src="/static/js/decision_context.js"></script>
 </body>
 </html>

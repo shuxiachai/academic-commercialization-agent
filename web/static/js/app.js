@@ -613,7 +613,11 @@ function readDecisionContext() {
 }
 
 function clearDecisionContext() {
-  for (const input of decisionContextInputs) input.value = "";
+  for (const input of decisionContextInputs) {
+    input.value = "";
+    // decision_context.js recounts the starred fields on input.
+    input.dispatchEvent(new Event("input"));
+  }
 }
 
 
