@@ -4,6 +4,8 @@ Turn a paper or research topic into a **source-linked commercialization assessme
 a scorecard for technology readiness, manufacturing, patents and market, with
 citations to registered sources and the risks spelled out.
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/HyXxY1?referralCode=tyJIJY&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
 [Open the application](https://academic-commercialization-agent.up.railway.app) · [Read sample reports — no key needed](https://academic-commercialization-agent.up.railway.app/samples) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
 
 ![Current result screen showing a real historical run: CRISPR assessment with its automated-checks panel, score dimensions and source counts](assets/screenshot-results.png)
