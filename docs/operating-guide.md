@@ -538,6 +538,17 @@ notes why each other one was not; retrieval health does not count it as a
 lane. The rule was registered and tested before adoption; see the
 [result](results-2026-10-22-market-page-dates-v1.md).
 
+Patent web search returns one row per publication, so one invention can
+arrive several times: filed in several offices, or published and then
+granted. A patent row is rejected as a duplicate when either holds:
+- it is the same publication as one already accepted, on any host;
+- its title matches once publication numbers and the site name are removed, and the two numbers come from different offices or are an application and a grant.
+
+Same-kind publications from one office stay separate, even with one title.
+The audit names the publication that was kept. Titles that differ, such as
+translations or retitled continuations, are not merged. See the
+[result](results-2026-10-22-patent-family-v1.md).
+
 The PDF-domain market prelude shares the ordinary query path's previous/current
 calendar-year window. This avoids stale hard-coded years, not stale results in
 general. The report-audit detail tab displays individual coverage counts and
