@@ -16,7 +16,17 @@ export const MODEL_EXAMPLES = {
   deepseek: "deepseek-chat",
   qwen: "qwen3.8-27b",
   openai: "gpt-4o",
-  anthropic: "claude-sonnet-5",
+  anthropic: "claude-sonnet-5-5",
+};
+
+// Offered in the field's suggestion list; none is pre-filled. The Qwen pair
+// is what this project's runs and evaluations used; the others are the
+// providers' current general models, not measured here.
+export const MODEL_SUGGESTIONS = {
+  deepseek: ["deepseek-chat"],
+  qwen: ["qwen3.8-27b", "qwen3.8-max"],
+  openai: ["gpt-4o"],
+  anthropic: ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"],
 };
 
 const STRINGS = {
@@ -44,6 +54,14 @@ export function applyByokFields(root = document) {
   const provider = $("#byok-provider")?.value;
   const model = $("#byok-model");
   if (model) model.placeholder = t("model_placeholder").replace("{example}", MODEL_EXAMPLES[provider] ?? "");
+  const options = $("#byok-model-options");
+  if (options) {
+    options.replaceChildren(...(MODEL_SUGGESTIONS[provider] ?? []).map((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      return option;
+    }));
+  }
   const search = $("#byok-search")?.value;
   const key = $("#byok-search-key");
   if (key) key.placeholder = t(search === "serper" ? "search_key_serper" : "search_key_tavily");
