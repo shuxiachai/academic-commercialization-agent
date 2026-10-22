@@ -1,27 +1,61 @@
 # Academic Commercialization Assessment Agent
 
-Turn a paper or research topic into a **source-linked commercialization assessment draft**:
-a scorecard for technology readiness, manufacturing, patents and market, with
-citations to registered sources and the risks spelled out.
+**Paper in, cited commercialization triage out.** A multi-agent LLM pipeline
+turns a research paper or topic into a scorecard for technology readiness,
+manufacturing, patents and market, with citations to registered sources and the
+risks spelled out. Its experiments are published with their protocols, failures
+included.
 
-[Open the application](https://academic-commercialization-agent.up.railway.app) · [Read sample reports — no key needed](https://academic-commercialization-agent.up.railway.app/samples) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
+[![Tests](https://github.com/shuxiachai/academic-commercialization-agent/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/shuxiachai/academic-commercialization-agent/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 
+**[▶ Read a finished report — no key, no sign-up](https://academic-commercialization-agent.up.railway.app/samples)** · [Open the application](https://academic-commercialization-agent.up.railway.app) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
+
+<!-- Demo slot: record the walkthrough in docs/demo-script-90s.md, save it as
+     assets/demo.gif and put it in place of the screenshot below. Keep the file
+     to a few MB so the page still loads quickly, and keep a caption that gives
+     the capture date and says the run is real and historical. -->
 ![Current result screen showing a real historical run: CRISPR assessment with its automated-checks panel, score dimensions and source counts](assets/screenshot-results.png)
 
 *Current interface, captured 2026-10-20, showing a real run from 2026-08-09. That run predates today's automated checks, which the panel states; it is not a current-model result.*
 
-**Try it without keys:** the [sample reports page](https://academic-commercialization-agent.up.railway.app/samples)
-shows three finished assessments and makes no model or search request. The same
-reports are in [examples/](examples/README.md), for instance
+## Try it
+
+| Way in | What you need | |
+|---|---|---|
+| **Read sample reports** | Nothing. Five finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-commercialization-agent.up.railway.app/samples) |
+| **Run a new analysis online** | An operator-issued access code **or** BYOK: your own LLM API key and model, plus a Tavily or Serper search key. Incurs provider usage | [Open the app](https://academic-commercialization-agent.up.railway.app) |
+| **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [Quick start](#quick-start) |
+
+The samples are also in [examples/](examples/README.md): two runs from
+2026-10-21, such as [Hyperloop](examples/hyperloop.md), and three from July, such as
 [Solid-state batteries for electric vehicles](examples/solid-state-batteries-ev.md)
 ([frozen 2026-07-19 version, 9673a83](https://github.com/shuxiachai/academic-commercialization-agent/blob/9673a8346c15f11b989ce8fd2d85be484d1c27b3/examples/solid-state-batteries-ev.md)).
-Starting a new analysis needs an operator-issued access code **or** BYOK
-(your own LLM API key and model, plus a Tavily or Serper search key), and incurs provider usage.
-The screenshot and samples are different historical runs; neither represents
-current model accuracy or an up-to-date market assessment.
+The screenshot and samples come from past runs; none of them measures current
+model accuracy or is an up-to-date market assessment.
+
+## What makes it different
+
+- **Evidence first, model second.** Code retrieves, validates and freezes the
+  sources; six LLM stages then reason only over that registry, and the weighted
+  total is computed by code, not the model.
+- **Measured in the open.** Protocols, held-out checks and errata live in the
+  repository. A four-agent variant used 54.89% fewer median tokens than the
+  six-agent default, and the first held-out cohort found TRL scores compressed
+  toward 7, under-scoring mature technologies. See [Measured results](#measured-results).
+- **Built for runs that fail halfway.** An interrupted run resumes from its
+  last validated checkpoint as a new linked run. Paid requests get receipts, so
+  after a lost reply the result can be recovered for up to 24 hours without
+  paying again.
 
 Built with Python, CrewAI, FastAPI and a build-free JavaScript client.
 [Start here: documentation and repository map](docs/README.md) · [Case study](docs/portfolio-case-study.md)
+
+**Want to contribute?** Issues labelled
+[good first issue](https://github.com/shuxiachai/academic-commercialization-agent/labels/good%20first%20issue)
+need no API keys: the test suite and browser smokes make no paid requests.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **Finding your way around:** the application is `src/academic_agent/`, `api/`,
 `web/` and `ui/`; tests are in `tests/` and `e2e/`. The many Python files at the
