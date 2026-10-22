@@ -20,6 +20,7 @@ _RESULT_JS = _REPO / "web" / "static" / "js" / "result.js"
 _I18N_JS = _REPO / "web" / "static" / "js" / "i18n.js"
 
 _HARNESS = r"""
+import fs from "node:fs";
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };
 class Node {
   constructor(tag) { Object.assign(this, { tagName: tag.toUpperCase(), children: [], dataset: {}, attributes: {},
@@ -34,7 +35,7 @@ globalThis.document = { createElement: (tag) => new Node(tag), createTextNode: (
 const flat = (node) => [node, ...(node.children ?? []).flatMap(flat)];
 const mod = await import("./result.mjs");
 const i18n = await import("./i18n.js");
-const input = JSON.parse(process.argv[2]);
+const input = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 if (input.language) i18n.setLanguage?.(input.language);
 const out = {};
 if (input.markdown !== undefined) out.index = Object.fromEntries(mod.citationIndex(input.markdown));
@@ -76,8 +77,10 @@ class ResultReadabilityTests(unittest.TestCase):
         cls._tmp.cleanup()
 
     def _run(self, **payload):
+        # A file, not argv: a whole report exceeds the Windows command-line limit.
+        (self._work / "input.json").write_text(json.dumps(payload), encoding="utf-8")
         result = subprocess.run(
-            [shutil.which("node"), str(self._work / "harness.mjs"), json.dumps(payload)],
+            [shutil.which("node"), str(self._work / "harness.mjs"), str(self._work / "input.json")],
             capture_output=True, text=True, encoding="utf-8", timeout=120, cwd=self._work,
         )
         self.assertEqual(result.returncode, 0, result.stderr[:800])
@@ -94,6 +97,18 @@ class ResultReadabilityTests(unittest.TestCase):
         self.assertEqual(a4["url"], "https://doi.org/10.1109/access.2024.3491904")
         self.assertIsNone(index["M1"]["published"])  # "n.d." is not a date
         self.assertEqual(index["M1"]["credibility"], "low")
+
+    def test_the_chinese_display_of_a_reference_list_is_read_too(self):
+        from academic_agent.report_display import report_for_display
+        shown = report_for_display((_REPO / "examples" / "solid-state-batteries-ev-zh.md").read_text(encoding="utf-8"))
+        self.assertIn("可信度：", shown)
+        index = self._run(markdown=shown)["index"]
+        a1 = index["A1"]
+        self.assertTrue(a1["label"].startswith("Configuring solid-state batteries"))
+        self.assertNotIn("发布", a1["label"])
+        self.assertEqual((a1["published"], a1["credibility"]), ("2021-11-01", "high"))
+        self.assertIsNone(index["M1"]["published"])  # 未注明 is not a date
+        self.assertEqual(index["M1"]["credibility"], "medium")
 
     def test_prose_citations_are_not_mistaken_for_references(self):
         index = self._run(markdown="Efficiency rose [A1].\n\n## References\n\n[A1] Title. Venue. Published: 2021-05-01. https://e.test/a")["index"]
