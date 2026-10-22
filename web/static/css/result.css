@@ -468,6 +468,14 @@
 .tier[data-tier="high"]   { background: var(--success-subtle); color: var(--success); }
 .tier[data-tier="medium"] { background: var(--warning-subtle); color: var(--warning); }
 .tier[data-tier="low"]    { background: var(--bg-overlay);     color: var(--text-tertiary); }
+.source__age {
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  background: var(--warning-subtle);
+  color: var(--warning);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
 
 /* Saved-source browsing stays scoped here: retrieval diagnostics reuse the
    older source classes and must not acquire these controls or layout rules. */
