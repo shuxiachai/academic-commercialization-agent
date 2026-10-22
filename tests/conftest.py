@@ -154,11 +154,34 @@ def stub_llm_calls(monkeypatch, request):
     yield calls
 
 
+@pytest.fixture(autouse=True)
+def no_real_page_fetches(monkeypatch, request):
+    """Read no web page for a publication date unless a test asks to.
+
+    collect_source_collection dates each accepted market source from its own
+    page through page_dates.fetch_html. Stubbing that single choke point, as
+    stub_llm_calls does for the LLM, means a new collector test cannot send
+    real requests by forgetting to inject a dater. The stub returns None, as
+    the real function does for a page it cannot read, so the URL-path
+    fallback still runs.
+
+    Opt out with @pytest.mark.allow_page_fetch when exercising fetch_html itself.
+    """
+    if request.node.get_closest_marker("allow_page_fetch"):
+        return
+    monkeypatch.setattr("academic_agent.page_dates.fetch_html", lambda _url: None)
+
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "allow_llm: test exercises language._llm_call itself and bypasses the "
         "offline stub (it must still stub the HTTP transport)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "allow_page_fetch: test exercises page_dates.fetch_html itself and bypasses the "
+        "offline stub (it must still stub the opener)",
     )
     config.addinivalue_line(
         "markers",
