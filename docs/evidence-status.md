@@ -1,6 +1,6 @@
 # Current evidence status
 
-Current ledger, updated 2026-10-18. The initial documentation consolidation
+Current ledger, updated 2026-10-22. The initial documentation consolidation
 used public main `0fdaa76a107cf034c16c1ffa6e3ae623e4c63fe2` on 2026-09-05;
 its dated baseline is historical, not the identity of every later entry.
 This page separates implemented contracts from observed behaviour and claims
@@ -13,7 +13,8 @@ layers and their limits, and records the bounded contract improvements being
 verified. The local complete regression is 7,417 passed, one existing skipped
 benchmark-dependent test and 1,677 subtests passed; this is not a new remote
 CI or native model observation. Historical totals below retain their original
-revision and date.
+revision and date. On 2026-10-22, main's local complete regression was 7,790
+passed and 2,959 subtests passed.
 
 ## Production capability
 
