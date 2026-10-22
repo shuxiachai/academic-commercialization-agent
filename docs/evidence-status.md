@@ -194,6 +194,21 @@ production incident rates or improved report accuracy. See the
 
 ## Main evaluation ledger
 
+**Patent family v1 (2026-10-22).** The collector's duplicate-patent check
+compared whole titles, and Google Patents titles carry the publication
+number, so one invention filed in several offices took several slots.
+`same_invention` merges rows that are one publication, or whose titles match
+without numbers and whose numbers come from different offices or are an
+application and a grant. It was shaped on the held-out v2 registries and
+tested once on 46 others, against Google Patents DOCDB families:
+- the current check rejected none of 33 duplicates;
+- the rule rejected 29 rows, with precision 0.93 and recall 0.82.
+
+Both bars hold, so production adopts it for the web-search patent path. The
+two wrong rejections are one pair, with the same inventor and priority, that
+Google Patents places in different families. No TRL effect is claimed. See
+the [result](results-2026-10-22-patent-family-v1.md).
+
 **Market page dates v1 (2026-10-22).** Web search returns market sources
 undated. `page_dates.py` reads a page's own publication metadata, excluding
 market reports, Wikipedia and home pages. It was registered on the held-out v2
