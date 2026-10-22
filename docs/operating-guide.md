@@ -353,6 +353,15 @@ lists other lanes that returned nothing in at least 80% of them. S2, PubMed
 and arXiv rows exist only when OpenAlex left slots open or the lane failed,
 so their counts cover the runs that needed them.
 
+The Retrieval health workflow reads this endpoint once a day at 09:00 Sydney
+time, using the repository secret `PRODUCTION_ADMIN_CODE`. That secret must hold
+the admin access code, which sees every code's runs; without it the job
+skips.
+- **A lane is failing:** the job opens one `retrieval-health` issue (or comments on the open one) with each lane's counts and the key or quota to check. It then fails, so GitHub sends its failure email.
+- **The lanes answer again:** the job comments on the issue and closes it.
+
+Mostly-empty lanes are listed in the issue but never alert on their own.
+
 `/health.pipeline_revision` is the code this process serves: `git:<commit>`
 on Railway, otherwise a hash of the pipeline sources. After each passing
 Tests run on `main`, the Deploy check workflow polls it for up to 30
