@@ -39,6 +39,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from academic_agent.byok_model import BYOK_MODEL_PATTERN  # noqa: E402
+from academic_agent.checkpoint_runtime import pipeline_revision  # noqa: E402
 from academic_agent.report_applicability import applicability_for_display  # noqa: E402
 from academic_agent.llm_config import _detect_provider, validate_llm_configuration  # noqa: E402
 from academic_agent.pdf_extractor import (  # noqa: E402
@@ -73,6 +74,8 @@ from api.models import (  # noqa: E402
 )
 
 _LOGGER = logging.getLogger(__name__)
+# Fixed for the life of the process; /health is polled every second.
+_PIPELINE_REVISION = pipeline_revision()
 _REAP_INTERVAL_SECONDS = 30
 _maintenance_task: asyncio.Task | None = None
 _maintenance_checks: dict[str, str] = {}
@@ -704,6 +707,7 @@ def health() -> HealthStatus:
         max_concurrent=runs.MAX_CONCURRENT,
         retention_days=runs.RUN_RETENTION_DAYS,
         llm_provider=provider,
+        pipeline_revision=_PIPELINE_REVISION,
         maintenance=_maintenance_status(),
         source_locator=_source_locator_status(),
     )

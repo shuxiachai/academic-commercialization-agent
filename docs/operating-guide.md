@@ -318,7 +318,7 @@ semantic correctness of all report prose; see the
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/health` | Liveness and capacity snapshot; not proof of report quality |
+| GET | `/health` | Liveness, capacity and the served `pipeline_revision`; not proof of report quality |
 | GET | `/health/ready` | Explicit provider/configuration, output and paid-accounting readiness |
 | GET | `/api/health/retrieval?window=20` | Per-lane counts of empty and refused retrieval across recent runs' audits; owner-filtered like `/api/runs`, no topics or run ids |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
@@ -352,6 +352,14 @@ or more observed runs, usually a missing or exhausted key; `mostly_empty`
 lists other lanes that returned nothing in at least 80% of them. S2, PubMed
 and arXiv rows exist only when OpenAlex left slots open or the lane failed,
 so their counts cover the runs that needed them.
+
+`/health.pipeline_revision` is the code this process serves: `git:<commit>`
+on Railway, otherwise a hash of the pipeline sources. After each passing
+Tests run on `main`, the Deploy check workflow polls it for up to 30
+minutes and fails if production serves neither the merged commit nor a later
+one that contains it, so a stalled Railway deploy shows as a red run instead
+of going unnoticed. Set the repository variable `PRODUCTION_URL` to check
+another deployment.
 
 `/health.maintenance` separately reports the managed background task and its
 last timeout/paper/retention/receipt checks. Initial `not_checked` is not success;

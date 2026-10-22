@@ -703,6 +703,12 @@ class HealthStatus(BaseModel):
                     "after successful extraction.",
     )
     llm_provider: str | None = None
+    pipeline_revision: str | None = Field(
+        default=None,
+        description="Code this process serves: git:<commit> where the platform exposes "
+                    "it (Railway, CI), otherwise a hash of the pipeline sources. "
+                    "Lets a deploy be confirmed rather than inferred.",
+    )
 
     source_locator: SourceLocatorStatus | None = Field(
         default=None, description="Optional locator configuration; null when its entry is not exposed. "
