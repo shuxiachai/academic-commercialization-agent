@@ -129,6 +129,26 @@ class HealthTests(_ApiTestCase):
     def test_reports_resolved_provider(self, _mock):
         self.assertEqual(self.client.get("/health").json()["llm_provider"], "deepseek")
 
+    @patch("api.main.resolve_provider_config")
+    def test_reports_resolved_model_name_only(self, mock_resolve):
+        """The deployment changes QWEN_MODEL without a code change, so the
+        docs point at this field instead of naming a model. Only the name
+        crosses: the same resolution also holds the key and endpoint."""
+        from academic_agent.llm_config import ProviderConfig
+        mock_resolve.return_value = ProviderConfig(
+            "qwen", "qwen3.7-max-preview", "https://dashscope.aliyuncs.com/compatible-mode/v1", "sk-SECRET",
+        )
+        body = self.client.get("/health")
+        self.assertEqual(body.json()["llm_model"], "qwen3.7-max-preview")
+        self.assertNotIn("sk-SECRET", body.text)
+        self.assertNotIn("dashscope", body.text)
+
+    @patch("api.main.resolve_provider_config", side_effect=RuntimeError("No model configured for qwen"))
+    def test_missing_model_reports_null_model_not_500(self, _mock):
+        r = self.client.get("/health")
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(r.json()["llm_model"])
+
     @patch(
         "api.main._detect_provider",
         side_effect=RuntimeError("No LLM API key found."),

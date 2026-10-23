@@ -70,6 +70,22 @@ _PRICING: dict[str, tuple[float, float, float]] = {
     "qwen3.7-plus":       (0.85, 0.85, 3.40),
     "qwen3.8-max":        (2.00, 2.00, 6.00),
     "qwen3.8-27b":        (0.52, 0.52, 3.20),
+    # The public deployment rotates through Model Studio's free-quota models
+    # (1M tokens per model, Beijing region, 90 days), so the rows below cover
+    # that catalogue rather than one chosen model. Read from Alibaba's own
+    # price pages on 2026-10-23, ¥ at ~7.1/USD, highest listed tier or region
+    # so a soft stop can only overstate; cached input at the full input rate
+    # where no cache price is printed. A free-quota run still shows the list
+    # price: that is what the tokens would cost, not what was charged, and
+    # the browser says so next to the figure.
+    # qwen3.7-max: Singapore ¥18.736/¥56.207, cache hit ¥3.747, above the
+    # Beijing ¥12/¥36. Matches qwen3.7-max-preview and the dated snapshots
+    # by prefix; the preview is listed at the Beijing rate without caching.
+    "qwen3.7-max":        (2.64, 0.53, 7.92),
+    # qwen3.7-flash: Beijing top tier (256K<tokens≤1M) ¥1.2/¥4.8.
+    "qwen3.7-flash":      (0.17, 0.17, 0.68),
+    # qwen3.8-flash: Beijing ¥0.8/¥2.7, one tier.
+    "qwen3.8-flash":      (0.12, 0.12, 0.38),
     "gpt-4o-mini":        (0.15, 0.075, 0.60),
     "gpt-4.1":            (2.00, 0.50, 8.00),
     "gpt-4.1-mini":       (0.40, 0.10, 1.60),
@@ -84,6 +100,9 @@ _PRICING_BASIS_OVERRIDES = {
     "qwen3.7-plus": "built-in Qwen3.7 Plus upper bound, third-party listings (as of 2026-10-18)",
     "qwen3.8-max": "built-in Qwen3.8 Max upper bound, third-party listings (as of 2026-10-18)",
     "qwen3.8-27b": "built-in Qwen3.8 27B upper bound, Alibaba and third-party listings (as of 2026-10-19)",
+    "qwen3.7-max": "built-in Qwen3.7 Max upper bound, Alibaba Singapore list price (as of 2026-10-23)",
+    "qwen3.7-flash": "built-in Qwen3.7 Flash upper bound, Alibaba Beijing top tier (as of 2026-10-23)",
+    "qwen3.8-flash": "built-in Qwen3.8 Flash upper bound, Alibaba Beijing list price (as of 2026-10-23)",
 }
 
 # Anthropic bills a cache *write* above the normal input rate. Cache reads are

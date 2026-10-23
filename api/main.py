@@ -41,7 +41,11 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 from academic_agent.byok_model import BYOK_MODEL_PATTERN  # noqa: E402
 from academic_agent.checkpoint_runtime import pipeline_revision  # noqa: E402
 from academic_agent.report_display import report_for_display  # noqa: E402
-from academic_agent.llm_config import _detect_provider, validate_llm_configuration  # noqa: E402
+from academic_agent.llm_config import (  # noqa: E402
+    _detect_provider,
+    resolve_provider_config,
+    validate_llm_configuration,
+)
 from academic_agent.pdf_extractor import (  # noqa: E402
     PaperContribution,
     extract_paper_contribution,
@@ -691,6 +695,14 @@ def health() -> HealthStatus:
         provider = _detect_provider()
     except RuntimeError:
         provider = None
+    # The model name comes from the full resolution, not a second env read:
+    # QWEN_MODEL has a fallback variable and DeepSeek strips a vendor prefix,
+    # and /health must report what a run would actually send. Only the name
+    # is exposed; the resolved config also holds the key and endpoint.
+    try:
+        model = resolve_provider_config().model
+    except RuntimeError:
+        model = None
 
     # One locked snapshot prevents a worker finishing between two reads from
     # producing the impossible-looking state
@@ -707,6 +719,7 @@ def health() -> HealthStatus:
         max_concurrent=runs.MAX_CONCURRENT,
         retention_days=runs.RUN_RETENTION_DAYS,
         llm_provider=provider,
+        llm_model=model,
         pipeline_revision=_PIPELINE_REVISION,
         maintenance=_maintenance_status(),
         source_locator=_source_locator_status(),

@@ -12,13 +12,9 @@ included.
 
 **[▶ Read a finished report — no key, no sign-up](https://academic-commercialization-agent.up.railway.app/samples)** · [Open the application](https://academic-commercialization-agent.up.railway.app) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
 
-<!-- Demo slot: record the walkthrough in docs/demo-script-90s.md, save it as
-     assets/demo.gif and put it in place of the screenshot below. Keep the file
-     to a few MB so the page still loads quickly, and keep a caption that gives
-     the capture date and says the run is real and historical. -->
-![Current result screen showing a real historical run: CRISPR assessment with its automated-checks panel, score dimensions and source counts](assets/screenshot-results.png)
+![Demo: a finished CAR-T assessment opened from the history list, its scorecard, risks and opportunities with citations, the cited report, and one saved source excerpt](assets/demo.gif)
 
-*Current interface, captured 2026-10-20, showing a real run from 2026-08-09. That run predates today's automated checks, which the panel states; it is not a current-model result.*
+*A real run from 2026-08-14 (CAR-T cell therapy for blood cancers, `deepseek-chat`), opened from a local copy in the current interface and captured 2026-10-23; no model or search request was made. It predates today's automated checks, which the panel states; it is not a current-model result.*
 
 ## Try it
 
@@ -155,8 +151,10 @@ proven technologies. Low-maturity topics were not inflated, though the two
 lowest ones were scored below their floor. The topics and the model also
 changed, so the improvement is not attributed to any single change. Treat TRL
 as a coarse signal. See the [v2 result](docs/results-2026-10-19-heldout-trl-v2.md).
-The public deployment has since moved to the smaller `qwen3.8-27b`, which
-neither held-out cohort measured.
+The public deployment rotates through Model Studio's free-quota models and
+is not pinned to either cohort's model; the one it currently requests is in
+`/health` as `llm_model`, and each run page names the model that produced it.
+No held-out cohort has measured those models.
 
 Other completed evidence:
 
@@ -344,13 +342,15 @@ general accuracy score.
 ## Screenshots
 
 <details>
-<summary>Home and report views — current interface, captured 2026-10-20</summary>
+<summary>Home, scorecard and report views — current interface, captured 2026-10-20</summary>
 
 Real historical runs (August 2026) opened in the current interface on a local
-copy; no model or search request was made for these images. The earlier
-captures are at [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512).
+copy; no model or search request was made for these images. The CRISPR run is
+from 2026-08-09 and predates today's automated checks. The earlier captures are
+at [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512).
 
 ![Home screen with real historical runs in the sidebar](assets/screenshot-home.png)
+![Current result screen showing a real historical run: CRISPR assessment with its automated-checks panel, score dimensions and source counts](assets/screenshot-results.png)
 ![Report tab of the same CRISPR run](assets/screenshot-report.png)
 
 </details>
