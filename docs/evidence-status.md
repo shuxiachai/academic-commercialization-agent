@@ -1,6 +1,6 @@
 # Current evidence status
 
-Current ledger, updated 2026-10-22. The initial documentation consolidation
+Current ledger, updated 2026-10-24. The initial documentation consolidation
 used public main `0fdaa76a107cf034c16c1ffa6e3ae623e4c63fe2` on 2026-09-05;
 its dated baseline is historical, not the identity of every later entry.
 This page separates implemented contracts from observed behaviour and claims
@@ -444,6 +444,7 @@ See the [identity maintenance record](results-2026-09-08-browser-access-identity
 |---|---|---|
 | Can the frozen baseline complete with consistent mechanics? | 30/30 completed; 26/30 TRL-range hits; 30/30 correct formula and structure; zero uncited numeric lines; 7/10 topics hit their range in every repetition | Expected ranges were revised after early observations. Not independent accuracy or full hallucination measurement. [CSV](../outputs/benchmark/benchmark_summary.csv), [stability](../outputs/benchmark/benchmark_stability.csv) |
 | Are six nodes necessary? | 90 cells across 1/4/6-node arms; four-node median tokens -54.89%, median cost -47.03% against six-node | Supports examining decomposition, not a universal six-node benefit. [Protocol and analysis](prereg-2026-08-21-agent-topology-ablation.md) |
+| Does that hold on current main with Qwen? | 90 cells, `qwen3.8-flash`, 2026-10-23. Four nodes again much cheaper than six (paired tokens -60.05%, cost -54.41%), but no quality gain over the monolith: fewer contract findings for the monolith (41 against 169), the numeric screen level, no writer retries anywhere. Six-node completion 23/30: the reviewer broke its output contract 7 times | Model, code, writer template and both screens changed together; not attributable to topology. Not the production model. The uncited-claim count includes the new decision-contract lines, and the numeric screen counts unknown-notation figures as unsupported. [Result](results-2026-10-24-agent-topology-ablation-qwen.md) |
 | Does the Reviewer add value? | Two 9-pair reviews; registered retention gate passed, but citation agreement 8/9 and decision agreement 3/9 | Small text-based review, no external-source checks; not source truth. [Result](results-2026-08-23-reviewer-value-audit.md) |
 | Do users prefer the full workflow? | Five reviewers, 20 eligible judgments; each round decision preference 6:4; information gain favoured the monolith 11:5 | Registered success rule failed. Only one actual target user. [Result](results-2026-08-23-user-utility-audit.md) |
 | Does the report help a target decision? | Two users, same frozen topic/report; both retained DEFER, confidence 3→4/5; median usefulness/information gain 3/5 and actionability/trust/acceptance 2/5; both MAYBE on reuse | Estimated revision effort is not observed time saved. No external-source checks, cross-topic validation or adoption. Closed two-slot pilot. [Result](results-2026-08-26-target-user-decision-pilot.md) |
