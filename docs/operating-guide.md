@@ -53,7 +53,27 @@ Auto-selection is DeepSeek → Qwen → Anthropic → OpenAI; unused keys do not
 force extra model calls, but they can change the selected provider if
 `LLM_PROVIDER` is absent. Remove unused template placeholders. Qwen's
 `enable_thinking=false` and JSON Object settings are code-owned pipeline
-contracts, not optional prompt tweaks.
+defaults, not optional prompt tweaks.
+
+Not every model accepts them. `qwen3.7-max-preview` runs only in thinking
+mode: it refused `enable_thinking=false` with HTTP 400, and every run failed
+at its first agent call.
+
+A provider 400 that names `enable_thinking`, `response_format` or
+`temperature` now changes that parameter as the provider asks, and the call
+is resent once. The change is remembered for that endpoint and model for the
+rest of the worker process. The log line `[llm] <model> refused <parameter>`
+records each change. Other refusals still fail the run. Its public error
+then names the cause: a used-up free quota, an unbillable account, a model
+the key cannot use, or a request the model rejected.
+
+**Before switching the model**, run
+`railway run python scripts/check_llm_model.py --long`, or run it locally with
+the same variables. It sends one tiny request down each production call path:
+the planner, and the agents in JSON and free-text mode. It prints what had to
+be adapted. It then times one long answer against the 150-second per-call
+budget. A thinking-only model is slower: each call reasons first, and
+auxiliary calls get 60 seconds instead of 30.
 
 The factory and auxiliary planning/translation share model, key and endpoint
 resolution. Endpoints require HTTPS without credentials/query/fragment; a known
