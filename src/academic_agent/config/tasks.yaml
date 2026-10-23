@@ -368,11 +368,14 @@ report_review_task:
     Each "find" string must identify exactly one passage in the draft. Include
     enough surrounding text to make it unique, but keep both "find" and
     "replace" under 2,000 characters. Keep the plan to at most 20 corrections.
+    Keep each "reason" to at most 300 characters, one sentence naming what
+    changed and why; a single longer reason makes the whole plan invalid.
     If no correction is required, return {"corrections": []}.
   expected_output: >
     Return only one valid JSON object with no Markdown fences or prose:
     {"corrections": [{"find": "<exact unique draft passage>",
-    "replace": "<corrected passage>", "reason": "<what changed and why>"}]}.
+    "replace": "<corrected passage>",
+    "reason": "<what changed and why, at most 300 characters>"}]}.
     Use an empty corrections array when the draft is already valid.
   agent: report_reviewer
 
