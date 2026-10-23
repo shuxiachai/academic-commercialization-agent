@@ -60,13 +60,25 @@ records each change. Other refusals still fail the run. Its public error
 then names the cause: a used-up free quota, an unbillable account, a model
 the key cannot use, or a request the model rejected.
 
+The search planner and translation calls go through a separate helper. If
+the connection fails before the request has been sent (a reset or a cut TLS
+stream), the helper sends it again, up to three attempts in all. The log line
+`[llm] search_planning: <error> before the request was sent` records each
+retry. It does not resend after the request has gone out: a timeout or a
+broken reply may come after the model has already started working, and a
+resend could be billed twice. When the helper fails, the run still searches
+the topic as typed, without alias queries. That fallback raises no error.
+
 **Before switching the model**, run
 `railway run python scripts/check_llm_model.py --long`, or run it locally with
-the same variables. It sends one tiny request down each production call path:
-the planner, and the agents in JSON and free-text mode. It prints what had to
-be adapted. It then times one long answer against the 150-second per-call
-budget. A thinking-only model is slower: each call reasons first, and
-auxiliary calls get 60 seconds instead of 30.
+the same variables. It runs the search planner on its real prompt and fails
+unless the model's own plan comes back with at least one alias. A plan that
+falls back to the typed topic looks like a plan. The script then translates
+one phrase and sends one small request to the agents in JSON mode and in
+free-text mode. It prints what had to be adapted. It then times one long
+answer against the 150-second per-call budget. A thinking-only model is
+slower: each call reasons first, and auxiliary calls get 60 seconds instead
+of 30.
 
 The factory and auxiliary planning/translation share model, key and endpoint
 resolution. Endpoints require HTTPS without credentials/query/fragment; a known

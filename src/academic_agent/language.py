@@ -11,6 +11,8 @@ Used by collect_source_collection() to support multilingual input:
 from dataclasses import dataclass
 import json
 import re
+import time
+from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 # Registry: langdetect code → Serper params + human-readable name + patent country code
@@ -185,11 +187,40 @@ def _refusal_message(exc: BaseException) -> str:
     return f"error code: 400 {body}"
 
 
+# A connection that fails before the request is sent is tried again, up to
+# this many attempts in all. In one local test on 2026-10-23, two of three
+# planner calls to the DashScope endpoint failed this way: a connection reset,
+# and a TLS stream cut off. A production run that day recorded a single failed
+# planner attempt, and a plan preview echoed the topic unchanged. The agents
+# survived because their transport retries. This helper tried once and fell
+# back to the raw topic, so every alias query left the run without a trace
+# anyone would see.
+_UNSENT_ATTEMPTS = 3
+_UNSENT_DELAY_SECONDS = 1.0
+
+
+def _never_sent(exc: BaseException) -> bool:
+    """True for a failure urllib raises before the request finished sending.
+
+    For an HTTP request, urllib raises a bare URLError from h.request only:
+    while connecting, during the TLS handshake, or while sending the request
+    (AbstractHTTPHandler.do_open). The request never arrived whole, so the
+    model cannot have answered it, and a resend cannot be paid for twice.
+    Every other failure is not resent:
+    - An HTTPError is an answer.
+    - A timeout or a dropped stream while waiting for the reply may come after
+      a request the model is already working on. A resend could bill it twice.
+    """
+    return isinstance(exc, URLError) and not isinstance(exc, HTTPError)
+
+
 def _llm_call(prompt: str, *, system: str, max_tokens: int = 400, stage: str = "language_helper") -> str:
-    """One bounded attempt, same resolved identity as the pipeline.
+    """One bounded call, same resolved identity as the pipeline.
 
     A 400 that names a parameter the model refuses (llm_parameter_fallback)
     is resent once per such parameter with the change the provider asks for.
+    A connection that fails before the request is sent is resent, up to
+    _UNSENT_ATTEMPTS in all. Each attempt is its own auxiliary-ledger entry.
 
     Unavailable planning retains the existing untranslated fallback, with an
     explicit warning. Invalid configuration cannot build an empty or
@@ -200,11 +231,13 @@ def _llm_call(prompt: str, *, system: str, max_tokens: int = 400, stage: str = "
     from academic_agent.auxiliary_usage import current, parse_usage
 
     collector = current()
-    for _attempt in range(len(parameter_fallback.PARAMETERS) + 1):
+    adapted = 0
+    unsent = 0
+    while True:
         sequence = None
         usage = None
         outcome = "call_failed"
-        identity, sent, change = None, {}, None
+        identity, sent, change, cause = None, {}, None, ""
         try:
             req, provider, identity, sent = _provider_request(prompt, system, max_tokens)
             model = json.loads(req.data)["model"] if collector is not None else None
@@ -229,18 +262,29 @@ def _llm_call(prompt: str, *, system: str, max_tokens: int = 400, stage: str = "
             return result
         except Exception as exc:  # noqa: BLE001 - optional provider/parse failures degrade visibly
             change = parameter_fallback.adjustment(_refusal_message(exc), sent) if identity else None
-            if change is None:
+            if adapted == len(parameter_fallback.PARAMETERS):
+                change = None  # each parameter has had its one change; stop, do not loop
+            if change is None and not (_never_sent(exc) and unsent + 1 < _UNSENT_ATTEMPTS):
                 import warnings
                 warnings.warn(
                     f"language._llm_call failed ({type(exc).__name__}); falling back to original text",
                     stacklevel=2,
                 )
                 return ""
+            # The class of the socket/TLS failure only; its text is not logged.
+            cause = type(getattr(exc, "reason", exc)).__name__
         finally:
             if collector is not None:
                 collector.settle(sequence, usage, outcome)
-        parameter_fallback.learn(*identity, *change)
-    return ""
+        if change is not None:
+            adapted += 1
+            parameter_fallback.learn(*identity, *change)
+            continue
+        unsent += 1
+        delay = _UNSENT_DELAY_SECONDS * 2 ** (unsent - 1)
+        print(f"[llm] {stage}: {cause} before the request was sent (attempt {unsent}/{_UNSENT_ATTEMPTS}); "
+              f"retrying in {delay:.0f}s", flush=True)
+        time.sleep(delay)
 
 
 def translate_to_language(text: str, target_language_name: str) -> str:

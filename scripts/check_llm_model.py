@@ -4,9 +4,12 @@
     railway run python scripts/check_llm_model.py --long   # with the deployment's own variables
 
 Reads the variables the server reads (LLM_PROVIDER, the provider's key, its
-model variable such as QWEN_MODEL, any *_API_BASE), then sends one tiny
-request down each production call path:
-- the language helper, which plans the search and translates;
+model variable such as QWEN_MODEL, any *_API_BASE), then sends a request down
+each production call path:
+- the search planner, with its real prompt; it passes only when the model's
+  own plan comes back with at least one alias, because a failed planner falls
+  back to the typed topic without an error;
+- the language helper translating one phrase, as it does for non-English input;
 - an agent's LLM in JSON mode, as the evidence, scoring and review agents use it;
 - an agent's LLM in free-text mode, as the report writer uses it.
 
@@ -33,6 +36,9 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 
 # The report writer's longest answers run to about 6,500 tokens (held-out v2).
 _WRITER_TOKENS = 6_500
+# The topic of the production plan preview that echoed itself on 2026-10-23.
+_PLAN_TOPIC = "perovskite solar cells for building-integrated photovoltaics"
+_TRANSLATE_TEXT = "钙钛矿太阳能电池"
 _LONG_PROMPT = ("Write a structured 1,500-word technical brief on perovskite solar cells for building-integrated "
                 "photovoltaics: maturity, stability, manufacturing, market and risks. Use Markdown headings.")
 
@@ -59,12 +65,37 @@ def main(argv: list[str] | None = None) -> int:
     print(f"provider {config.provider} | model {config.model} | endpoint {config.base_url}")
     failures = 0
 
-    start = time.monotonic()
-    reply = language._llm_call("Reply with the single word: ready", system="Answer tersely.", max_tokens=20)
-    ok = bool(reply)
-    failures += not ok
-    _line("language helper (search planning, translation)", ok, time.monotonic() - start,
-          repr(reply[:40]) if ok else "no answer; in a run this falls back to the raw topic silently")
+    # The helper's real prompts, not a ping. A 20-token "ready" check could
+    # pass while the planner's own call failed and its plan fell back to the
+    # typed topic, which is what production served on 2026-10-23. The replies
+    # are recorded because a fallback plan looks like a plan.
+    replies: dict[str, str] = {}
+    helper = language._llm_call
+
+    def recording(prompt, *, stage="language_helper", **kwargs):
+        replies[stage] = helper(prompt, stage=stage, **kwargs)
+        return replies[stage]
+
+    language._llm_call = recording
+    try:
+        start = time.monotonic()
+        plan = language.plan_topic_search(_PLAN_TOPIC)
+        tagged = [language._TOPIC_PLAN_LINE.match(line.strip())
+                  for line in replies.get("search_planning", "").splitlines()]
+        ok = any(m and m.group(1).upper() == "SEARCH_TOPIC" for m in tagged) and plan.resolved and bool(plan.aliases)
+        failures += not ok
+        _line("search planner (real prompt)", ok, time.monotonic() - start,
+              f"{plan.search_topic!r} + {len(plan.aliases)} alias(es)" if ok else
+              "no plan from the model; a run falls back to the typed topic and drops every alias query")
+
+        start = time.monotonic()
+        english = language.translate_to_english(_TRANSLATE_TEXT)
+        ok = bool(replies.get("translation")) and english != _TRANSLATE_TEXT
+        failures += not ok
+        _line("language helper, translation", ok, time.monotonic() - start,
+              repr(english[:40]) if ok else "no translation; non-English input is searched untranslated")
+    finally:
+        language._llm_call = helper
 
     for json_mode, label in ((True, "agent LLM, JSON mode"), (False, "agent LLM, free text (report writer)")):
         start = time.monotonic()
