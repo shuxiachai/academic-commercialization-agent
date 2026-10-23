@@ -9,6 +9,7 @@
 # are supported tools, and the benchmark's Windows spawn path needs Windows.
 test_ablation.py
 test_ablation_crew_inputs.py
+test_ablation_outcomes.py
 test_ablation_reviewer_plan.py
 test_anonymous_openalex_search.py
 test_checkpoint_fault_audit.py
