@@ -62,11 +62,20 @@ the key cannot use, or a request the model rejected.
 
 **Before switching the model**, run
 `railway run python scripts/check_llm_model.py --long`, or run it locally with
-the same variables. It sends one tiny request down each production call path:
-the planner, and the agents in JSON and free-text mode. It prints what had to
-be adapted. It then times one long answer against the 150-second per-call
-budget. A thinking-only model is slower: each call reasons first, and
-auxiliary calls get 60 seconds instead of 30.
+the same variables. It runs the real search planner, which must return
+aliases, and sends one tiny request to the agents in JSON and free-text mode.
+It prints what had to be adapted.
+
+It then times one long answer against the per-call budget. An estimate over
+budget is a warning, because provider speed varies by the hour.
+
+A thinking-only model reasons before every answer, so it gets more time:
+- auxiliary calls get 120 seconds instead of 60;
+- each agent call gets 300 seconds instead of 150.
+
+The longer bounds come from 2026-10-23. qwen3.7-max-preview took up to 29
+seconds just to refuse a request. The report writer's 8,400-token answer ran
+past 150 seconds once.
 
 The factory and auxiliary planning/translation share model, key and endpoint
 resolution. Endpoints require HTTPS without credentials/query/fragment; a known

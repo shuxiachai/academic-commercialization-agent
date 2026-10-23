@@ -210,9 +210,11 @@ def _llm_call(prompt: str, *, system: str, max_tokens: int = 400, stage: str = "
             model = json.loads(req.data)["model"] if collector is not None else None
             if collector is not None:
                 sequence = collector.begin(stage, "http_attempt", model)
-            # Thinking mode, for a model that cannot turn it off, reasons before
-            # it answers; a planning call took ~20s of the old 30s bound.
-            with urlopen(req, timeout=60 if sent.get("enable_thinking") is True else 30) as resp:
+            # qwen3.7-max-preview took 5-29 s to refuse thinking-off and 28-42 s
+            # to answer a planning request with thinking on (2026-10-23). At the
+            # old 30 s bound the refusal itself timed out, so nothing was learned
+            # and planning fell back to the raw topic.
+            with urlopen(req, timeout=120 if sent.get("enable_thinking") is True else 60) as resp:
                 data = json.loads(resp.read())
             if collector is not None:
                 usage = parse_usage(data.get("usage"), model) if isinstance(data, dict) else None
