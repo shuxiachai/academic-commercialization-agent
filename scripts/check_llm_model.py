@@ -15,9 +15,10 @@ for example thinking mode for a model that cannot turn it off.
 
 ``--long`` also times one long answer, a few thousand tokens. It estimates
 whether the report writer's call fits the per-call budget the worker gives
-each agent.
+each agent. Provider speed varies by the hour, so an estimate over budget is
+a warning, not a failure: runs at that speed would time out once and retry.
 
-Exits 1 when a path fails. The few requests are billed like any other.
+Exits 1 when a call path fails. The few requests are billed like any other.
 """
 
 from __future__ import annotations
@@ -31,14 +32,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 
-# The report writer's longest answers run to about 6,500 tokens (held-out v2).
-_WRITER_TOKENS = 6_500
+# The report writer's answer: about 6,500 tokens without thinking (held-out
+# v2), 8,400 with it (qwen3.7-max-preview, 2026-10-23).
+_WRITER_TOKENS = {False: 6_500, True: 8_500}
+_PLANNER_TOPIC = "perovskite solar cells for building-integrated photovoltaics"
 _LONG_PROMPT = ("Write a structured 1,500-word technical brief on perovskite solar cells for building-integrated "
                 "photovoltaics: maturity, stability, manufacturing, market and risks. Use Markdown headings.")
 
 
-def _line(label: str, ok: bool, seconds: float, detail: str) -> None:
-    print(f"{'PASS' if ok else 'FAIL'}  {label:46} {seconds:5.1f}s  {detail}")
+def _line(label: str, ok: bool, seconds: float, detail: str, *, warn: bool = False) -> None:
+    verdict = "PASS" if ok else ("WARN" if warn else "FAIL")
+    print(f"{verdict}  {label:46} {seconds:5.1f}s  {detail}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -51,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv(ROOT / ".env")  # never overrides variables already set
     from academic_agent import language
     from academic_agent import llm_parameter_fallback as fallback
-    from academic_agent.llm_config import create_llm, resolve_provider_config
+    from academic_agent.llm_config import _THINKING_TIMEOUT_FACTOR, create_llm, resolve_provider_config
     from academic_agent.runtime_budget import REQUEST_TIMEOUT_SECONDS
     from api.runs import _public_failure_reason
 
@@ -59,12 +63,15 @@ def main(argv: list[str] | None = None) -> int:
     print(f"provider {config.provider} | model {config.model} | endpoint {config.base_url}")
     failures = 0
 
+    # The planner itself, not a toy call: a slow refusal timed out at the
+    # helper's bound while a one-word probe passed (2026-10-23).
     start = time.monotonic()
-    reply = language._llm_call("Reply with the single word: ready", system="Answer tersely.", max_tokens=20)
-    ok = bool(reply)
+    plan = language.plan_topic_search(_PLANNER_TOPIC, n=2)
+    ok = bool(plan.aliases)
     failures += not ok
-    _line("language helper (search planning, translation)", ok, time.monotonic() - start,
-          repr(reply[:40]) if ok else "no answer; in a run this falls back to the raw topic silently")
+    _line("search planner (language helper)", ok, time.monotonic() - start,
+          f"aliases {list(plan.aliases)}" if ok else
+          "no aliases: the planner failed and a run would fall back to the raw topic")
 
     for json_mode, label in ((True, "agent LLM, JSON mode"), (False, "agent LLM, free text (report writer)")):
         start = time.monotonic()
@@ -83,13 +90,16 @@ def main(argv: list[str] | None = None) -> int:
         start = time.monotonic()
         out = str(create_llm().call([{"role": "user", "content": _LONG_PROMPT}]))
         seconds = time.monotonic() - start
-        tokens = max(1, len(out) // 4)  # content only; thinking tokens are on top
-        estimate = _WRITER_TOKENS / (tokens / seconds)
-        ok = estimate < REQUEST_TIMEOUT_SECONDS
-        failures += not ok
-        _line("long answer, writer-sized estimate", ok, seconds,
-              f"~{tokens / seconds:.0f} content tokens/s; a {_WRITER_TOKENS}-token report ~{estimate:.0f}s "
-              f"of the {REQUEST_TIMEOUT_SECONDS}s per-call budget")
+        tokens = max(1, len(out) // 4)  # content only; thinking time is in the seconds
+        thinking = fallback.learned(config.base_url, config.model).get("enable_thinking") is True
+        writer_tokens = _WRITER_TOKENS[thinking]
+        estimate = writer_tokens / (tokens / seconds)
+        budget = REQUEST_TIMEOUT_SECONDS * (_THINKING_TIMEOUT_FACTOR if thinking else 1)
+        detail = (f"~{tokens / seconds:.0f} content tokens/s; a {writer_tokens}-token report ~{estimate:.0f}s "
+                  f"of the {budget}s per-call budget")
+        if estimate >= budget:
+            detail += "; at this speed the writer's call would time out once and retry"
+        _line("long answer, writer-sized estimate", estimate < budget, seconds, detail, warn=True)
 
     learned = fallback.learned(config.base_url, config.model)
     if learned:

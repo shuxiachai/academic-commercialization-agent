@@ -308,6 +308,33 @@ def _apply_parameter(llm, parameter: str, value: object) -> None:
         llm.temperature = None
 
 
+# A model that cannot turn thinking off reasons before every answer. On
+# qwen3.7-max-preview the report writer's answer grew from about 6,500 to
+# 8,400 tokens, and its stage took 223 s against the 150-second per-call
+# budget: one attempt timed out, was billed, and was retried
+# (2026-10-23). Such a model gets twice the per-call time, once per LLM.
+# Every other model keeps runtime_budget.REQUEST_TIMEOUT_SECONDS.
+_THINKING_TIMEOUT_FACTOR = 2
+
+
+def _give_thinking_time(llm, budget: "_CallBudget") -> None:
+    """Double this LLM's per-call timeout, and the window a call needs, once."""
+    if getattr(llm, "_academic_agent_thinking_time", False):
+        return
+    llm._academic_agent_thinking_time = True
+    timeout = getattr(llm, "timeout", None)
+    if isinstance(timeout, (int, float)) and timeout > 0:
+        longer = timeout * _THINKING_TIMEOUT_FACTOR
+        llm.timeout = longer
+        # CrewAI builds its OpenAI client once, at construction; with_options
+        # is the SDK's own way to copy a client with a different timeout.
+        client = getattr(llm, "_client", None)
+        if client is not None and hasattr(client, "with_options"):
+            llm._client = client.with_options(timeout=longer)
+    if budget.request_timeout_seconds > 0:
+        budget.request_timeout_seconds *= _THINKING_TIMEOUT_FACTOR
+
+
 def _wrap_with_retry(llm):
     """Add retry to an LLM instance by replacing its bound `call`.
 
@@ -332,6 +359,8 @@ def _wrap_with_retry(llm):
         if identity is not None:
             for parameter, value in parameter_fallback.learned(*identity).items():
                 _apply_parameter(llm, parameter, value)
+            if _sent_parameters(llm).get("enable_thinking") is True:
+                _give_thinking_time(llm, budget)
         adapted = 0
         attempt = 1
         while True:
@@ -345,6 +374,8 @@ def _wrap_with_retry(llm):
                     adapted += 1
                     parameter_fallback.learn(*identity, *change)
                     _apply_parameter(llm, *change)
+                    if change == ("enable_thinking", True):
+                        _give_thinking_time(llm, budget)
                     continue
                 if attempt == _MAX_ATTEMPTS or not _is_retryable(exc):
                     raise

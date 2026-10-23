@@ -28,7 +28,10 @@ def qwen(monkeypatch):
     for name, value in {"LLM_PROVIDER": "qwen", "QWEN_MODEL": "qwen3.7-max-preview",
                         "DASHSCOPE_API_KEY": "sk-test"}.items():
         monkeypatch.setenv(name, value)
-    monkeypatch.setattr("academic_agent.language._llm_call", lambda *a, **k: "ready")
+    from academic_agent.language import TopicSearchPlan
+
+    monkeypatch.setattr("academic_agent.language.plan_topic_search", lambda topic, n=2: TopicSearchPlan(
+        search_topic=topic, aliases=("perovskite BIPV", "perovskite building photovoltaics")))
     # The developer's own .env must not reach the check under test.
     monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **k: False)
 
