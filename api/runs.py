@@ -1381,6 +1381,29 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str], ...] = (
         "An upstream provider rejected authentication. "
         "Check the configured credentials.",
     ),
+    # A model switch can leave the deployment pointing at a model its key
+    # cannot use. Each case says what the operator has to change; the provider
+    # body itself stays in the run's error artifact.
+    (
+        ("freetieronly", "free tier", "free quota"),
+        "The configured model's free quota is used up. "
+        "Switch to another model or enable paid use, then retry.",
+    ),
+    (
+        ("arrearage", "good standing", "overdue payment"),
+        "The model provider account cannot be billed. "
+        "Check its balance, then retry.",
+    ),
+    (
+        ("model_not_found", "does not exist or you do not have access", "model not exist"),
+        "The configured model is not available to this deployment's key. "
+        "Check the model setting.",
+    ),
+    (
+        ("invalid_parameter_error", "invalidparameter"),
+        "The configured model rejected the request. "
+        "Check that the model setting names a model this pipeline supports.",
+    ),
     (
         (
             "rate limit",

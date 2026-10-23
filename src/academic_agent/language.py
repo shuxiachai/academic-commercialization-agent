@@ -138,7 +138,12 @@ def urlopen(request, *, timeout):
 
 
 def _provider_request(prompt: str, system: str, max_tokens: int):
-    """Resolve all three identity components together, including for Qwen."""
+    """Resolve all three identity components together, including for Qwen.
+
+    Returns the request, the provider, the (endpoint, model) identity and
+    the optional parameters sent, so a refused parameter can be adapted.
+    """
+    from academic_agent import llm_parameter_fallback as parameter_fallback
     from academic_agent.llm_config import resolve_provider_config
 
     config = resolve_provider_config()
@@ -160,54 +165,82 @@ def _provider_request(prompt: str, system: str, max_tokens: int):
             # urllib already serializes the wire body; SDK extra_body is not
             # a JSON wrapper. This matches the main adapter's non-thinking mode.
             payload["enable_thinking"] = False
-    return Request(url, data=json.dumps(payload).encode("utf-8"),
-                   headers=headers, method="POST"), config.provider
+    identity = (config.base_url, config.model)
+    parameter_fallback.apply_to_payload(payload, parameter_fallback.learned(*identity))
+    sent = {name: payload[name] for name in parameter_fallback.PARAMETERS if name in payload}
+    return (Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"),
+            config.provider, identity, sent)
+
+
+def _refusal_message(exc: BaseException) -> str:
+    """The provider's own 400 message, read only to match it (never logged)."""
+    from urllib.error import HTTPError
+
+    if not isinstance(exc, HTTPError) or exc.code != 400:
+        return ""
+    try:
+        body = exc.read().decode("utf-8", errors="replace")
+    except Exception:  # noqa: BLE001 - an unreadable body adapts nothing
+        return ""
+    return f"error code: 400 {body}"
 
 
 def _llm_call(prompt: str, *, system: str, max_tokens: int = 400, stage: str = "language_helper") -> str:
     """One bounded attempt, same resolved identity as the pipeline.
+
+    A 400 that names a parameter the model refuses (llm_parameter_fallback)
+    is resent once per such parameter with the change the provider asks for.
 
     Unavailable planning retains the existing untranslated fallback, with an
     explicit warning. Invalid configuration cannot build an empty or
     wrong-provider request. Do not log exception text: HTTP errors and model
     response/parse errors can contain credentials or unpublished input.
     """
+    from academic_agent import llm_parameter_fallback as parameter_fallback
     from academic_agent.auxiliary_usage import current, parse_usage
 
     collector = current()
-    sequence = None
-    usage = None
-    outcome = "call_failed"
-    try:
-        req, provider = _provider_request(prompt, system, max_tokens)
-        model = json.loads(req.data)["model"] if collector is not None else None
-        if collector is not None:
-            sequence = collector.begin(stage, "http_attempt", model)
-        with urlopen(req, timeout=30) as resp:
-            data = json.loads(resp.read())
-        if collector is not None:
-            usage = parse_usage(data.get("usage"), model) if isinstance(data, dict) else None
-        outcome = "response_invalid"
-        if provider == "anthropic":
-            result = "".join(
-                block.get("text", "")
-                for block in data.get("content", [])
-                if block.get("type") == "text"
-            ).strip()
-        else:
-            result = data["choices"][0]["message"]["content"].strip()
-        outcome = "returned"
-        return result
-    except Exception as exc:  # noqa: BLE001 - optional provider/parse failures degrade visibly
-        import warnings
-        warnings.warn(
-            f"language._llm_call failed ({type(exc).__name__}); falling back to original text",
-            stacklevel=2,
-        )
-        return ""
-    finally:
-        if collector is not None:
-            collector.settle(sequence, usage, outcome)
+    for _attempt in range(len(parameter_fallback.PARAMETERS) + 1):
+        sequence = None
+        usage = None
+        outcome = "call_failed"
+        identity, sent, change = None, {}, None
+        try:
+            req, provider, identity, sent = _provider_request(prompt, system, max_tokens)
+            model = json.loads(req.data)["model"] if collector is not None else None
+            if collector is not None:
+                sequence = collector.begin(stage, "http_attempt", model)
+            # Thinking mode, for a model that cannot turn it off, reasons before
+            # it answers; a planning call took ~20s of the old 30s bound.
+            with urlopen(req, timeout=60 if sent.get("enable_thinking") is True else 30) as resp:
+                data = json.loads(resp.read())
+            if collector is not None:
+                usage = parse_usage(data.get("usage"), model) if isinstance(data, dict) else None
+            outcome = "response_invalid"
+            if provider == "anthropic":
+                result = "".join(
+                    block.get("text", "")
+                    for block in data.get("content", [])
+                    if block.get("type") == "text"
+                ).strip()
+            else:
+                result = data["choices"][0]["message"]["content"].strip()
+            outcome = "returned"
+            return result
+        except Exception as exc:  # noqa: BLE001 - optional provider/parse failures degrade visibly
+            change = parameter_fallback.adjustment(_refusal_message(exc), sent) if identity else None
+            if change is None:
+                import warnings
+                warnings.warn(
+                    f"language._llm_call failed ({type(exc).__name__}); falling back to original text",
+                    stacklevel=2,
+                )
+                return ""
+        finally:
+            if collector is not None:
+                collector.settle(sequence, usage, outcome)
+        parameter_fallback.learn(*identity, *change)
+    return ""
 
 
 def translate_to_language(text: str, target_language_name: str) -> str:
