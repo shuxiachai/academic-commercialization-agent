@@ -271,6 +271,7 @@ const HEADER_STRINGS = {
     quota_title: "Each run and each PDF extraction uses one. Resets at 00:00 UTC ({time} your time).",
     source_locator: "Saved-source locator",
     source_locator_title: "Experimental: pick the saved source behind a question about a report and read its saved text",
+    identity_title: "The model this run's stages requested and the pipeline code that served it. The deployment changes models without notice; neither name is a quality measurement.",
   },
   "Simplified Chinese": {
     usage_details: "用量与费用",
@@ -288,6 +289,7 @@ const HEADER_STRINGS = {
     quota_title: "每次运行和每次 PDF 提取各占 1 次。每天 UTC 0 点重置（你的当地时间 {time}）。",
     source_locator: "已保存来源定位",
     source_locator_title: "实验功能：针对报告中的问题，找出对应的已保存来源并显示其原文",
+    identity_title: "本次运行各阶段请求的模型，以及产出它的流水线代码版本。本站会不定期更换模型；两者都不是质量指标。",
   },
 };
 
@@ -302,6 +304,27 @@ const STATE_LABELS = {
 
 export function headerLabel(key) {
   return (HEADER_STRINGS[uiLanguage()] ?? HEADER_STRINGS.English)[key] ?? HEADER_STRINGS.English[key];
+}
+
+/**
+ * "qwen3.7-max · git:1b69b06": which model and which code produced a run.
+ *
+ * The public deployment rotates models without a code change, so two runs a
+ * week apart can come from different models while the page looks the same.
+ * The model names come from the usage record (one per Crew node, usually all
+ * the same), so a run still going shows only its revision until usage lands.
+ * Nothing here is a quality claim; the tooltip says so.
+ */
+export function identitySummary(usage, pipelineRevision) {
+  const models = [...new Set((usage?.agents ?? []).map((a) => a?.model).filter(Boolean))];
+  const parts = [models.join(", ")];
+  if (typeof pipelineRevision === "string" && pipelineRevision) {
+    // git:<40 hex> reads as its short form; any other revision string
+    // (a source hash) is kept whole, since no prefix of it is conventional.
+    const git = /^git:([0-9a-f]{7})[0-9a-f]*$/.exec(pipelineRevision);
+    parts.push(git ? `git:${git[1]}` : pipelineRevision);
+  }
+  return parts.filter(Boolean).join(" · ");
 }
 
 /** "about 6 min left" for a running run's eta; "" without one. */

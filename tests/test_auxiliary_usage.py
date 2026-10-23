@@ -131,7 +131,13 @@ def test_unknown_model_and_legacy_or_corrupt_sidecar_are_not_empty_success(tmp_p
     assert broken.summary()["record_state"] == "write_failed" and path.read_bytes() == before
 
 
-@pytest.mark.parametrize("model", ["qwen3.7-plus", "qwen3.8-max", "qwen3.8-27b"])
+@pytest.mark.parametrize("model", [
+    "qwen3.7-plus", "qwen3.8-max", "qwen3.8-27b",
+    # Not in the exact table: admitted by vendor prefix. The deployment
+    # rotates through free-quota models, and the 2026-10-23 switch to the
+    # preview recorded every helper call as unknown with no tokens.
+    "qwen3.7-max-preview", "qwen3.8-flash", "deepseek-v5-lite", "gpt-5-mini",
+])
 def test_production_qwen_models_are_known_helper_identities(model, tmp_path):
     """Helper calls on the current production models must not be recorded as
     unknown-model observations with no tokens."""
@@ -141,6 +147,24 @@ def test_production_qwen_models_are_known_helper_identities(model, tmp_path):
     collector.finish()
     assert collector.summary()["call_count"] == 1
     assert collector.summary()["observed_tokens"] == 12
+
+
+@pytest.mark.parametrize("model", [
+    "SECRET/qwen3.7-max",        # a path: the vendor prefix is not at the start
+    "qwen3.7-max?key=SECRET",    # not a plain identifier, whatever it starts with
+    "qwenSECRET" * 20,           # a plain identifier, but over the length bound
+    "llama-4-maverick",          # a plain identifier from no vendor with a token convention
+])
+def test_prefix_admission_still_rejects_non_identifiers_and_unknown_vendors(model, tmp_path):
+    """Prefix matching widened admission; it must not widen what a raw string
+    can carry into the ledger, and an unknown vendor has no token convention."""
+    assert aux.provider_for(model) is None
+    collector = ledger(tmp_path)
+    seq = collector.begin("translation", "http_attempt", model)
+    collector.settle(seq, aux.parse_usage(USAGE, model), "returned")
+    collector.finish()
+    assert collector.summary()["observed_cost_usd"] is None
+    assert "SECRET" not in (tmp_path / aux.FILE_NAME).read_text()
 
 
 def test_same_call_finalization_is_not_cumulative(tmp_path):
@@ -679,8 +703,11 @@ def test_actual_run_header_keeps_auxiliary_scope_separate_and_clears_stale_dom(p
     collector.finish()
     (directory / "status.json").write_text(json.dumps({
         "topic": "Synthetic header run", "stage": "review",
+        # The worker's own persisted identity, which the API never backfills.
+        "pipeline_revision": "git:1b69b0689495037e4ead95c27ea200f04043e191",
         "usage": {"total_tokens": 999, "cost_usd": 0.1234, "cost_complete": True,
-                  "accounting_scope": "crew_nodes", "agents": []},
+                  "accounting_scope": "crew_nodes",
+                  "agents": [{"role": "Scorer", "model": "qwen3.7-max-preview", "total_tokens": 999}]},
         "usage_accounting": {"state": "unavailable", "run_complete": False,
                              "in_flight_request_may_have_spent": True},
     }), encoding="utf-8")

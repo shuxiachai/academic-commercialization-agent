@@ -57,6 +57,7 @@ class UsageSummaryTests(unittest.TestCase):
             globalThis.localStorage = { getItem: () => null, setItem: () => {} };
             const {
                 terminalSummary, terminalTitle, usageSummary, usageTitle, runtimeMetadataSummary,
+                identitySummary,
             } = await import("./run.mjs");
             const payload = JSON.parse(process.argv[2]);
             const usage = payload?.usage ?? null;
@@ -69,6 +70,7 @@ class UsageSummaryTests(unittest.TestCase):
                 terminalSummary: terminalSummary(terminal, state),
                 terminalTitle: terminalTitle(terminal, state),
                 runtimeSummary: runtimeMetadataSummary(payload?.runtimeFields ?? []),
+                identity: identitySummary(usage, payload?.pipelineRevision ?? null),
             }));
         """), encoding="utf-8")
         cls._work = work
@@ -94,6 +96,7 @@ class UsageSummaryTests(unittest.TestCase):
         terminal=None,
         state: str = "",
         runtime_fields=None,
+        pipeline_revision=None,
     ) -> dict:
         payload = {
             "usage": usage,
@@ -101,6 +104,7 @@ class UsageSummaryTests(unittest.TestCase):
             "terminal": terminal,
             "state": state,
             "runtimeFields": runtime_fields,
+            "pipelineRevision": pipeline_revision,
         }
         result = subprocess.run(
             [_node(), str(self._work / "harness.mjs"), json.dumps(payload)],
@@ -109,6 +113,29 @@ class UsageSummaryTests(unittest.TestCase):
         if result.returncode != 0:
             self.fail(f"harness failed: {result.stderr[:400]}")
         return json.loads(result.stdout)
+
+    def test_identity_names_the_model_and_the_short_revision(self):
+        """The deployment rotates models without a code change, so a run page
+        that did not name its model would read as today's model."""
+        out = self._render(
+            {"total_tokens": 100, "agents": [
+                {"role": "Academic", "model": "qwen3.7-max-preview"},
+                {"role": "Scorer", "model": "qwen3.7-max-preview"},
+            ]},
+            pipeline_revision="git:1b69b0689495037e4ead95c27ea200f04043e191",
+        )
+        self.assertEqual(out["identity"], "qwen3.7-max-preview · git:1b69b06")
+
+    def test_identity_shows_only_the_revision_until_usage_lands(self):
+        """A run still going has no usage record; the revision alone is still
+        true, and an empty model must not render as a stray separator."""
+        out = self._render(None, state="running", pipeline_revision="git:1b69b0689495037e4ead95c27ea200f04043e191")
+        self.assertEqual(out["identity"], "git:1b69b06")
+        # A source-hash revision has no conventional short form; keep it whole.
+        out = self._render({"total_tokens": 1, "agents": [{"role": "A", "model": "m"}]},
+                           pipeline_revision="src:abc")
+        self.assertEqual(out["identity"], "m · src:abc")
+        self.assertEqual(self._render(None)["identity"], "")
 
     def test_priced_run_shows_tokens_and_cost(self):
         out = self._render({

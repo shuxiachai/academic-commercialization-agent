@@ -703,6 +703,14 @@ class HealthStatus(BaseModel):
                     "after successful extraction.",
     )
     llm_provider: str | None = None
+    llm_model: str | None = Field(
+        default=None,
+        description="Model name a run on the deployment's own key would request, from the "
+                    "same resolution the worker uses. Reported because the public "
+                    "deployment changes models without a code change, so docs point "
+                    "here instead of naming one. Null when no provider or model is "
+                    "configured. A name is not proof the provider serves it.",
+    )
     pipeline_revision: str | None = Field(
         default=None,
         description="Code this process serves: git:<commit> where the platform exposes "
