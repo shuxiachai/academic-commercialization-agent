@@ -30,10 +30,10 @@ def test_each_failure_message_gets_its_cause(message, cause):
     assert audit.failure_cause(message) == cause
 
 
-def _cell(tmp_path, index, *, attempts, status="success", error="", reasons=None):
+def _cell(tmp_path, index, *, attempts, status="success", error="", reasons=None, block=None):
     directory = tmp_path / f"{index:03d}-full"
-    directory.mkdir()
-    meta = {"variant": "full", "status": status, "error": error,
+    directory.mkdir(parents=True)
+    meta = {"variant": "full", "status": status, "error": error, "block_id": block or f"{index:02d}-r1",
             "guardrails": {"report_review_task": {"attempts": attempts}}}
     (directory / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
     if reasons is not None:
@@ -55,3 +55,18 @@ def test_attempts_terminal_failures_and_accepted_reasons_are_counted_separately(
     assert result["terminal_causes"]["find_not_unique"] == 1
     assert (result["accepted_plans"], result["accepted_corrections"]) == (2, 3)
     assert result["accepted_reason_chars"]["max"] == 260
+
+
+def test_blocks_are_paired_before_and_after_and_unmatched_blocks_are_named(tmp_path):
+    before, after = tmp_path / "before", tmp_path / "after"
+    _cell(before, 1, block="01-r1", attempts=[{"passed": False, "failure": TOO_LONG},
+                                             {"passed": False, "failure": TOO_LONG}], status="error_crew")
+    _cell(before, 2, block="01-r2", attempts=[{"passed": True}])
+    _cell(before, 3, block="02-r1", attempts=[{"passed": True}])
+    _cell(after, 1, block="01-r1", attempts=[{"passed": True}])
+    _cell(after, 2, block="01-r2", attempts=[{"passed": False, "failure": TOO_MANY}, {"passed": True}])
+    result = audit.paired(before, after)
+    assert (result["blocks"], result["only_in_baseline"], result["only_in_experiment"]) == (2, ["02-r1"], [])
+    assert result["first_failed_on_reason"] == {"before_only": 1, "after_only": 0, "both": 0, "neither": 1}
+    assert result["first_failed"] == {"before_only": 1, "after_only": 1, "both": 0, "neither": 0}
+    assert result["terminal"] == {"before_only": 1, "after_only": 0, "both": 0, "neither": 1}

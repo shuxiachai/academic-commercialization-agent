@@ -108,11 +108,49 @@ def audit(experiment: Path) -> dict[str, Any]:
     }
 
 
+def per_block(experiment: Path) -> dict[str, dict[str, bool]]:
+    """Reviewer outcome of each six-node cell, keyed by topic/repetition block."""
+    blocks = {}
+    for path in sorted(experiment.glob("*/meta.json")):
+        cell = json.loads(path.read_text(encoding="utf-8"))
+        if cell.get("variant") != "full":
+            continue
+        attempts = ((cell.get("guardrails") or {}).get("report_review_task") or {}).get("attempts") or []
+        first_failed = bool(attempts) and not attempts[0].get("passed")
+        blocks[str(cell.get("block_id"))] = {
+            "first_failed": first_failed,
+            "first_failed_on_reason": first_failed and failure_cause(attempts[0].get("failure", "")) == "reason_too_long",
+            "terminal": cell.get("status") != "success",
+        }
+    return blocks
+
+
+def paired(baseline: Path, experiment: Path) -> dict[str, Any]:
+    """Before/after transitions on the blocks both experiments ran."""
+    before, after = per_block(baseline), per_block(experiment)
+    common = sorted(set(before) & set(after))
+    result: dict[str, Any] = {"blocks": len(common),
+                              "only_in_baseline": sorted(set(before) - set(after)),
+                              "only_in_experiment": sorted(set(after) - set(before))}
+    for key in ("first_failed_on_reason", "first_failed", "terminal"):
+        result[key] = {
+            "before_only": sum(before[b][key] and not after[b][key] for b in common),
+            "after_only": sum(after[b][key] and not before[b][key] for b in common),
+            "both": sum(before[b][key] and after[b][key] for b in common),
+            "neither": sum(not before[b][key] and not after[b][key] for b in common),
+        }
+    return result
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("experiment", type=Path)
+    parser.add_argument("--baseline", type=Path, help="also pair each block with this earlier experiment")
     args = parser.parse_args(argv)
-    print(json.dumps(audit(args.experiment), indent=2))
+    report = audit(args.experiment)
+    if args.baseline:
+        report["paired_with_baseline"] = {"baseline": args.baseline.name, **paired(args.baseline, args.experiment)}
+    print(json.dumps(report, indent=2))
     return 0
 
 
