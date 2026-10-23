@@ -24,9 +24,16 @@ uv sync
 ```
 
 For Qwen, explicitly set `LLM_PROVIDER=qwen`, `DASHSCOPE_API_KEY` and
-`QWEN_MODEL`. The public deployment uses `qwen3.8-27b` (since 2026-10-19;
-`qwen3.8-max` from 2026-10-18). Both accept the pipeline's JSON Object output
-with thinking disabled. Held-out v2 measured `qwen3.8-max`, not the 27B model.
+`QWEN_MODEL`. The public deployment rotates through Model Studio's free-quota
+models (1M tokens per model in the Beijing region, 90 days) by changing
+`QWEN_MODEL` alone; `/health.llm_model` reports the current name and each run
+page names the model that produced it. `qwen3.8-max` and `qwen3.8-27b` are
+known to accept the pipeline's JSON Object output with thinking disabled; a
+model listed as thinking-only may not. Held-out v2 measured `qwen3.8-max`;
+no other deployed model has been measured. After a switch, run one short
+topic and check three things before relying on it: the run completes, the
+scorecard shows scores (the JSON contract held), and the run title is still
+the topic you entered (the language helper did not rewrite it).
 There is no built-in default model (removed 2026-10-20; it was `qwen3.5-plus`).
 An unset `QWEN_MODEL` uses `OPENAI_MODEL_NAME` when that is set; otherwise
 readiness reports the missing variable and every run fails before its first
@@ -382,6 +389,9 @@ skips.
 
 Mostly-empty lanes are listed in the issue but never alert on their own.
 
+`/health.llm_model` is the model name a run on the deployment's own key would
+request, from the same resolution the worker uses; it changes with
+`QWEN_MODEL` and is not proof that the provider serves that name.
 `/health.pipeline_revision` is the code this process serves: `git:<commit>`
 on Railway, otherwise a hash of the pipeline sources. After each passing
 Tests run on `main`, the Deploy check workflow polls it for up to 30

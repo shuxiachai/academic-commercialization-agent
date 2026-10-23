@@ -100,6 +100,17 @@ if (fault === "drop_auxiliary") context.runView.auxiliarySummary = () => "";
 
 paint(known); // Actual status response, with both a new charge and a PDF reference.
 assertKnownHeader();
+// The model name rides inside usage.agents and the revision on the status
+// body itself; both must reach the header from the actual HTTP response, not
+// only from a formatter fed by hand. The run page is where a reader learns
+// which model produced a report on a deployment that rotates models.
+assert.equal(known.usage.agents[0].model, "qwen3.7-max-preview", "fixture must name a model");
+assert.match(known.pipeline_revision ?? "", /\S/, "status body must carry the revision");
+const identity = get("#run-identity");
+assert.match(identity.textContent, /qwen3\.7-max-preview/, "run header lost the model name");
+assert.match(identity.textContent, new RegExp(known.pipeline_revision.slice(0, 11).replace(/[.]/g, "\\.")),
+  "run header lost the pipeline revision");
+assert.match(identity.title, /neither name is a quality measurement/);
 
 paint(missing); // Actual progress response after removing the sidecar.
 assertUnavailableAuxiliary(/not recorded/);
