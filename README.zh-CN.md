@@ -10,12 +10,9 @@
 
 **[▶ 免 Key、免注册，先读一份完整报告](https://academic-commercialization-agent.up.railway.app/samples)** · [打开在线应用](https://academic-commercialization-agent.up.railway.app) · [本地运行](#快速启动) · [English](README.md)
 
-<!-- 演示位：按 docs/demo-script-90s.md 录制演示，保存为 assets/demo.gif，
-     替换下面的截图。文件控制在几 MB 以内，保证页面加载不慢；保留说明
-     截取日期、且注明是真实历史运行的图注。 -->
-![当前结果界面中的一次真实历史运行：CRISPR 评估的自动检查面板、评分维度与来源数量](assets/screenshot-results.png)
+![演示：从历史列表打开一份已完成的 CAR-T 评估，依次查看评分卡、带引用的风险与机会、带引用的报告正文，以及一条已保存的来源摘录](assets/demo.gif)
 
-*当前界面，2026-10-20 截取，展示的是 2026-08-09 的一次真实运行。该运行早于现在的自动检查，面板对此有说明；不代表当前模型的结果。*
+*2026-08-14 的一次真实运行（CAR-T 细胞疗法治疗血液肿瘤，`deepseek-chat`），在本地副本中用当前界面打开，2026-10-23 录制；录制时没有发起任何模型或检索请求。该运行早于现在的自动检查，面板对此有说明；不代表当前模型的结果。*
 
 ## 上手方式
 
@@ -291,12 +288,14 @@ Kubernetes 本身不能解决这些缺口。
 ## 界面截图
 
 <details>
-<summary>首页与报告界面 — 当前界面，2026-10-20 截取</summary>
+<summary>首页、评分卡与报告界面 — 当前界面，2026-10-20 截取</summary>
 
 在本地副本中用当前界面打开 2026 年 8 月的真实历史运行截取，截图过程未发起任何模型或检索请求。
+其中 CRISPR 运行来自 2026-08-09，早于现在的自动检查。
 旧版截图见版本 [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512)。
 
 ![首页，侧栏为真实历史运行](assets/screenshot-home.png)
+![当前结果界面中的一次真实历史运行：CRISPR 评估的自动检查面板、评分维度与来源数量](assets/screenshot-results.png)
 ![同一次 CRISPR 运行的报告页](assets/screenshot-report.png)
 
 </details>
