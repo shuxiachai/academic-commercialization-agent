@@ -66,9 +66,10 @@ The six-node arm of experiment `outputs/ablation/20261023T111632Z-737ef33c`:
 ## Design
 
 - **Arm.** Only `full`, the production six-node crew, with the same 30
-  topic/repetition blocks as the baseline, run serially in order:
-  `ablation.py --variants full`. The plan-only listing shows one cell for
-  `--pilot` and 30 for `--full`.
+  topic/repetition blocks as the baseline, run serially in order. The runs
+  use the runner's targeted `--only` scope; the commands are below. Their
+  plan-only listings show exactly one cell for the pilot and 30 for the
+  rerun.
 - **Code.** The runtime code is `main` plus this intervention. The study runs
   at this branch's pushed commit and is merged only after the result. This
   document and the code are pushed before any paid call.
@@ -131,7 +132,7 @@ outcomes here, because both drifted (see the baseline's result).
 **Stage 1, pilot.** One six-node cell on case 03:
 
 ```bash
-uv run python ablation.py --pilot --variants full --execute --stop-after-usd 0.10
+uv run python ablation.py --only 03 --variants full --repeat 1 --execute --stop-after-usd 0.10
 ```
 
 Stop before Stage 2 if the cell breaks any of the August study's five stop
@@ -147,7 +148,9 @@ A reviewer failure in the pilot is not a stop rule.
 **Stage 2, rerun.** 30 cells:
 
 ```bash
-uv run python ablation.py --full --variants full --execute --confirm-full-study --stop-after-usd 1.00
+uv run python ablation.py --only 01 --only 02 --only 03 --only 04 --only 05 \
+  --only 06 --only 07 --only 08 --only 09 --only 10 \
+  --variants full --repeat 3 --execute --stop-after-usd 1.00
 ```
 
 **Budget.** At most $1.00 recorded for Stage 2. The baseline arm recorded
@@ -156,6 +159,22 @@ $0.384383 for the same 30 cells.
 **Failures and interruptions.** Failed cells are retained, whatever their
 cause, and never rerun. An interruption resumes under the same experiment ID.
 No earlier experiment directory is written.
+
+## Amendment before any call
+
+The first pushed version of this document (`8fcbdf6`) registered two
+commands:
+- `--pilot --variants full` for the pilot;
+- `--full --variants full --confirm-full-study` for the rerun.
+
+The runner refuses both for a paid run. Its `--pilot` and `--full` guards
+encode the August protocol, which runs all three arms. The pilot attempt
+exited during argument parsing: no request was sent and no experiment
+directory was created.
+
+The commands above express the same cells with `--only`. Their plan-only
+listings match the earlier ones: 1 and 30 cells, in the same order. No
+outcome, threshold, budget or other part of the design changed.
 
 ## Limits
 
