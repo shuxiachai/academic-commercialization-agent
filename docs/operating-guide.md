@@ -67,11 +67,22 @@ records each change. Other refusals still fail the run. Its public error
 then names the cause: a used-up free quota, an unbillable account, a model
 the key cannot use, or a request the model rejected.
 
+The search planner and translation calls go through a separate helper. If
+the connection fails before the request has been sent (a reset, a cut TLS
+stream, or a connect that timed out), the helper sends it again, up to three
+attempts in all. The log line
+`[llm] search_planning: <error> before the request was sent` records each
+retry. It does not resend after the request has gone out: a timeout or a
+broken reply may come after the model has already started working, and a
+resend could be billed twice. When the helper fails, the run still searches
+the topic as typed, without alias queries. That fallback raises no error.
+
 **Before switching the model**, run
 `railway run python scripts/check_llm_model.py --long`, or run it locally with
 the same variables. It runs the real search planner, which must return
-aliases, and sends one tiny request to the agents in JSON and free-text mode.
-It prints what had to be adapted.
+aliases (a plan that falls back to the typed topic has none). It translates
+one phrase. It then sends one tiny request to the agents in JSON mode and in
+free-text mode. It prints what had to be adapted.
 
 It then times one long answer against the per-call budget. An estimate over
 budget is a warning, because provider speed varies by the hour.

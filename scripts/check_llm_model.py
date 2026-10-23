@@ -4,9 +4,12 @@
     railway run python scripts/check_llm_model.py --long   # with the deployment's own variables
 
 Reads the variables the server reads (LLM_PROVIDER, the provider's key, its
-model variable such as QWEN_MODEL, any *_API_BASE), then sends one tiny
-request down each production call path:
-- the language helper, which plans the search and translates;
+model variable such as QWEN_MODEL, any *_API_BASE), then sends a request down
+each production call path:
+- the search planner, with its real prompt; it passes only when the model's
+  own plan comes back with at least one alias, because a failed planner falls
+  back to the typed topic without an error;
+- the language helper translating one phrase, as it does for non-English input;
 - an agent's LLM in JSON mode, as the evidence, scoring and review agents use it;
 - an agent's LLM in free-text mode, as the report writer uses it.
 
@@ -36,6 +39,7 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 # v2), 8,400 with it (qwen3.7-max-preview, 2026-10-23).
 _WRITER_TOKENS = {False: 6_500, True: 8_500}
 _PLANNER_TOPIC = "perovskite solar cells for building-integrated photovoltaics"
+_TRANSLATE_TEXT = "钙钛矿太阳能电池"
 _LONG_PROMPT = ("Write a structured 1,500-word technical brief on perovskite solar cells for building-integrated "
                 "photovoltaics: maturity, stability, manufacturing, market and risks. Use Markdown headings.")
 
@@ -72,6 +76,14 @@ def main(argv: list[str] | None = None) -> int:
     _line("search planner (language helper)", ok, time.monotonic() - start,
           f"aliases {list(plan.aliases)}" if ok else
           "no aliases: the planner failed and a run would fall back to the raw topic")
+
+    # A failed translation returns its input unchanged, so that is the signal.
+    start = time.monotonic()
+    english = language.translate_to_english(_TRANSLATE_TEXT)
+    ok = english != _TRANSLATE_TEXT
+    failures += not ok
+    _line("language helper, translation", ok, time.monotonic() - start,
+          repr(english[:40]) if ok else "no translation; non-English input would be searched untranslated")
 
     for json_mode, label in ((True, "agent LLM, JSON mode"), (False, "agent LLM, free text (report writer)")):
         start = time.monotonic()
