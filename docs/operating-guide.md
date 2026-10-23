@@ -24,9 +24,16 @@ uv sync
 ```
 
 For Qwen, explicitly set `LLM_PROVIDER=qwen`, `DASHSCOPE_API_KEY` and
-`QWEN_MODEL`. The public deployment uses `qwen3.8-27b` (since 2026-10-19;
-`qwen3.8-max` from 2026-10-18). Both accept the pipeline's JSON Object output
-with thinking disabled. Held-out v2 measured `qwen3.8-max`, not the 27B model.
+`QWEN_MODEL`. The public deployment rotates through Model Studio's free-quota
+models (1M tokens per model in the Beijing region, 90 days) by changing
+`QWEN_MODEL` alone; `/health.llm_model` reports the current name and each run
+page names the model that produced it. `qwen3.8-max` and `qwen3.8-27b` are
+known to accept the pipeline's JSON Object output with thinking disabled; a
+model listed as thinking-only may not. Held-out v2 measured `qwen3.8-max`;
+no other deployed model has been measured. After a switch, run one short
+topic and check three things before relying on it: the run completes, the
+scorecard shows scores (the JSON contract held), and the run title is still
+the topic you entered (the language helper did not rewrite it).
 There is no built-in default model (removed 2026-10-20; it was `qwen3.5-plus`).
 An unset `QWEN_MODEL` uses `OPENAI_MODEL_NAME` when that is set; otherwise
 readiness reports the missing variable and every run fails before its first
@@ -61,8 +68,9 @@ then names the cause: a used-up free quota, an unbillable account, a model
 the key cannot use, or a request the model rejected.
 
 The search planner and translation calls go through a separate helper. If
-the connection fails before the request has been sent (a reset or a cut TLS
-stream), the helper sends it again, up to three attempts in all. The log line
+the connection fails before the request has been sent (a reset, a cut TLS
+stream, or a connect that timed out), the helper sends it again, up to three
+attempts in all. The log line
 `[llm] search_planning: <error> before the request was sent` records each
 retry. It does not resend after the request has gone out: a timeout or a
 broken reply may come after the model has already started working, and a
@@ -71,14 +79,21 @@ the topic as typed, without alias queries. That fallback raises no error.
 
 **Before switching the model**, run
 `railway run python scripts/check_llm_model.py --long`, or run it locally with
-the same variables. It runs the search planner on its real prompt and fails
-unless the model's own plan comes back with at least one alias. A plan that
-falls back to the typed topic looks like a plan. The script then translates
-one phrase and sends one small request to the agents in JSON mode and in
-free-text mode. It prints what had to be adapted. It then times one long
-answer against the 150-second per-call budget. A thinking-only model is
-slower: each call reasons first, and auxiliary calls get 60 seconds instead
-of 30.
+the same variables. It runs the real search planner, which must return
+aliases (a plan that falls back to the typed topic has none). It translates
+one phrase. It then sends one tiny request to the agents in JSON mode and in
+free-text mode. It prints what had to be adapted.
+
+It then times one long answer against the per-call budget. An estimate over
+budget is a warning, because provider speed varies by the hour.
+
+A thinking-only model reasons before every answer, so it gets more time:
+- auxiliary calls get 120 seconds instead of 60;
+- each agent call gets 300 seconds instead of 150.
+
+The longer bounds come from 2026-10-23. qwen3.7-max-preview took up to 29
+seconds just to refuse a request. The report writer's 8,400-token answer ran
+past 150 seconds once.
 
 The factory and auxiliary planning/translation share model, key and endpoint
 resolution. Endpoints require HTTPS without credentials/query/fragment; a known
@@ -394,6 +409,9 @@ skips.
 
 Mostly-empty lanes are listed in the issue but never alert on their own.
 
+`/health.llm_model` is the model name a run on the deployment's own key would
+request, from the same resolution the worker uses; it changes with
+`QWEN_MODEL` and is not proof that the provider serves that name.
 `/health.pipeline_revision` is the code this process serves: `git:<commit>`
 on Railway, otherwise a hash of the pipeline sources. After each passing
 Tests run on `main`, the Deploy check workflow polls it for up to 30

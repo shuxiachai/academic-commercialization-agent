@@ -151,8 +151,10 @@ proven technologies. Low-maturity topics were not inflated, though the two
 lowest ones were scored below their floor. The topics and the model also
 changed, so the improvement is not attributed to any single change. Treat TRL
 as a coarse signal. See the [v2 result](docs/results-2026-10-19-heldout-trl-v2.md).
-The public deployment has since moved to the smaller `qwen3.8-27b`, which
-neither held-out cohort measured.
+The public deployment rotates through Model Studio's free-quota models and
+is not pinned to either cohort's model; the one it currently requests is in
+`/health` as `llm_model`, and each run page names the model that produced it.
+No held-out cohort has measured those models.
 
 Other completed evidence:
 

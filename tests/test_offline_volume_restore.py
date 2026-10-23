@@ -311,7 +311,10 @@ def application_readers(monkeypatch, offline_guard):
     monkeypatch.setitem(sys.modules, spec.name, module)
     monkeypatch.setenv("SOURCE_LOCATOR_ENABLED", "0")
     provider_config = ModuleType("academic_agent.llm_config")
-    for name in ("_detect_provider", "validate_llm_configuration"):
+    # Every name main imports from llm_config, each a fail-fast guard: /health
+    # resolves the model through resolve_provider_config, and these readers
+    # must never reach a credential or an SDK.
+    for name in ("_detect_provider", "resolve_provider_config", "validate_llm_configuration"):
         setattr(provider_config, name, None)
         offline_guard.block(provider_config, name)
     ignored_dotenv = Mock(return_value=False)

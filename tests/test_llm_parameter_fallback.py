@@ -12,7 +12,7 @@ import pytest
 
 from academic_agent import language
 from academic_agent import llm_parameter_fallback as fallback
-from academic_agent.llm_config import _wrap_with_retry
+from academic_agent.llm_config import _wrap_with_retry, configure_llm_deadline
 from api.runs import _public_failure_reason
 
 BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -60,6 +60,8 @@ class _Provider:
 
     def __init__(self, model="qwen3.7-max-preview", refuse=lambda shape: None):
         self.base_url, self.model = BASE, model
+        self.timeout = 150.0
+        self._client = _Client(150.0)
         self.additional_params = {"extra_body": {"enable_thinking": False}}
         self.response_format = {"type": "json_object"}
         self.temperature = 0.0
@@ -74,6 +76,16 @@ class _Provider:
         if error:
             raise RuntimeError(error)
         return "ok"
+
+
+class _Client:
+    """The OpenAI SDK client's with_options, which copies a client with new options."""
+
+    def __init__(self, timeout):
+        self.timeout = timeout
+
+    def with_options(self, *, timeout):
+        return _Client(timeout)
 
 
 def thinking_only(shape):
@@ -95,11 +107,27 @@ def test_a_thinking_only_model_is_answered_with_thinking_on_and_that_is_remember
     assert second.sent == [{"enable_thinking": True, "response_format": {"type": "json_object"}, "temperature": 0.0}]
 
 
+def test_a_thinking_only_model_gets_twice_the_per_call_time_once():
+    provider = _Provider(refuse=thinking_only)
+    llm = configure_llm_deadline(_wrap_with_retry(provider), deadline_monotonic=None, stage="Writer",
+                                 request_timeout_seconds=150)
+    llm.call(MESSAGES)
+    llm.call(MESSAGES)
+    assert (provider.timeout, provider._client.timeout) == (300.0, 300.0)
+    assert llm._academic_agent_call_budget.request_timeout_seconds == 300
+
+    # A later agent's LLM starts from what was learned, and gets the time at once.
+    later = _Provider(refuse=thinking_only)
+    _wrap_with_retry(later).call(MESSAGES)
+    assert (later.timeout, later._client.timeout, len(later.sent)) == (300.0, 300.0, 1)
+
+
 def test_a_model_that_accepts_the_default_keeps_thinking_off():
     provider = _Provider(model="qwen3.8-27b")
     assert _wrap_with_retry(provider).call(MESSAGES) == "ok"
     assert [s["enable_thinking"] for s in provider.sent] == [False]
     assert fallback.learned(BASE, "qwen3.8-27b") == {}
+    assert (provider.timeout, provider._client.timeout) == (150.0, 150.0)
 
 
 def test_what_one_model_learns_does_not_change_another():
@@ -155,11 +183,12 @@ class _Resp:
 
 @pytest.mark.allow_llm
 def test_the_language_helper_adapts_the_same_way_and_shares_what_it_learned():
-    bodies = []
+    bodies, timeouts = [], []
 
     def fake_urlopen(request, timeout=None):
         body = json.loads(request.data)
         bodies.append(body)
+        timeouts.append(timeout)
         if body.get("enable_thinking") is False:
             reply = {"error": {"message": "<400> InternalError.Algo.InvalidParameter: The value of the "
                                           "enable_thinking parameter is restricted to True.",
@@ -172,6 +201,8 @@ def test_the_language_helper_adapts_the_same_way_and_shares_what_it_learned():
         assert language._llm_call("plan this", system="s") == "ready"
         assert language._llm_call("plan that", system="s") == "ready"
     assert [b["enable_thinking"] for b in bodies] == [False, True, True]
+    # A slow refusal must arrive inside the bound, and thinking takes longer still.
+    assert timeouts == [60, 120, 120]
     assert fallback.learned(BASE, "qwen3.7-max-preview") == {"enable_thinking": True}
 
     # The agents' LLMs in the same process start from what the helper learned.

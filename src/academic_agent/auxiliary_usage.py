@@ -2,8 +2,9 @@
 
 This is accounting, never admission or retry authority. A pending call may
 have spent. SDK counters are a lower bound: project and SDK retries are hidden.
-Only fixed categories, exact known model names and validated numbers cross
-this boundary. No prompt, response, endpoint, credential or exception is saved.
+Only fixed categories, plain model names from known vendors and validated
+numbers cross this boundary. No prompt, response, endpoint, credential or
+exception is saved.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from academic_agent.byok_model import BYOK_MODEL_PATTERN
 from academic_agent.token_usage import price_for
 
 FILE_NAME = "auxiliary_usage.json"
@@ -34,6 +36,27 @@ MODELS = {
     "gpt-4.1-mini": "openai", "claude-sonnet-5": "anthropic",
     "claude-opus-4": "anthropic", "claude-sonnet-4": "anthropic", "claude-haiku-4": "anthropic",
 }
+# The public deployment rotates through Model Studio's free-quota models, so
+# an exact list went stale with every switch and helper calls on the new
+# model were recorded as unknown with no tokens. A vendor prefix decides the
+# token convention (only Anthropic's counters are disjoint), which is all the
+# ledger needs from the name. Longest prefix first is not needed: none nests.
+_VENDOR_PREFIXES = (
+    ("qwen", "qwen"), ("deepseek", "deepseek"), ("gpt-", "openai"), ("claude", "anthropic"),
+)
+
+
+def provider_for(model) -> str | None:
+    """Vendor convention for `model`, or None when the name is not admitted.
+
+    A name that is not a plain identifier never reaches the ledger: a raw
+    string that failed resolution upstream can carry a path or a secret.
+    """
+    if not isinstance(model, str) or not BYOK_MODEL_PATTERN.fullmatch(model):
+        return None
+    if model in MODELS:
+        return MODELS[model]
+    return next((vendor for prefix, vendor in _VENDOR_PREFIXES if model.startswith(prefix)), None)
 
 
 class _Strict(BaseModel):
@@ -58,7 +81,7 @@ class Call(_Strict):
 
     @model_validator(mode="after")
     def facts(self):
-        if self.model is not None and self.model not in MODELS:
+        if self.model is not None and provider_for(self.model) is None:
             raise ValueError("Unknown model identity")
         if (self.state == "pending") != (self.outcome is None):
             raise ValueError("Invalid settlement")
@@ -69,7 +92,7 @@ class Call(_Strict):
         if self.tokens is not None:
             if self.model is None:
                 raise ValueError("Unknown token convention")
-            if MODELS[self.model] != "anthropic" and (
+            if provider_for(self.model) != "anthropic" and (
                 self.tokens.cached_prompt_tokens > self.tokens.prompt_tokens
                 or self.tokens.cache_creation_tokens != 0
             ):
@@ -127,7 +150,7 @@ def _cost(call: Call) -> float | None:
     if price is None:
         return None
     t = call.tokens
-    prompt = t.prompt_tokens if MODELS[call.model] == "anthropic" else t.prompt_tokens - t.cached_prompt_tokens
+    prompt = t.prompt_tokens if provider_for(call.model) == "anthropic" else t.prompt_tokens - t.cached_prompt_tokens
     amount = (prompt * price.input + t.cached_prompt_tokens * price.cached
               + t.cache_creation_tokens * price.input * 1.25 + t.completion_tokens * price.output) / 1_000_000
     return round(amount, 6) if math.isfinite(amount) and amount >= 0 else None
@@ -139,7 +162,7 @@ def project(ledger: Ledger) -> dict:
     for call in ledger.calls:
         tokens = call.tokens
         total = None if tokens is None else tokens.prompt_tokens + tokens.completion_tokens
-        if total is not None and MODELS[call.model] == "anthropic":
+        if total is not None and provider_for(call.model) == "anthropic":
             total += tokens.cached_prompt_tokens + tokens.cache_creation_tokens
         price = price_for(call.model, allow_env_override=False) if call.model else None
         rows.append({
@@ -333,7 +356,7 @@ class Collector:
                 self.ledger.storage_failed = True
                 self._save()
                 return None
-            model = model if isinstance(model, str) and model in MODELS else None
+            model = model if provider_for(model) is not None else None
             sequence = len(self.ledger.calls)
             self.ledger.calls.append(Call(sequence=sequence, stage=stage, unit=unit, model=model))
             self._save()  # Before HTTP/SDK dispatch, not after a returned body.
@@ -386,9 +409,10 @@ def current():
 
 def parse_usage(data, model, *, sdk=False) -> Tokens | None:
     """Defaults in a nonempty SDK summary do not prove a free invocation."""
-    if not isinstance(model, str) or model not in MODELS or not isinstance(data, dict):
+    vendor = provider_for(model)
+    if vendor is None or not isinstance(data, dict):
         return None
-    anthropic = MODELS[model] == "anthropic"
+    anthropic = vendor == "anthropic"
     try:
         if sdk or not anthropic:
             values = {"prompt_tokens": data.get("prompt_tokens"), "completion_tokens": data.get("completion_tokens")}

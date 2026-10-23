@@ -196,7 +196,7 @@ function startClock(fromSeconds) {
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
   terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
-  stage_timings, eta,
+  stage_timings, eta, pipeline_revision,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -220,6 +220,14 @@ function paintHeader({
   const summary = runView.sourceSummary(source_counts);
   const el = $("#run-sources");
   el.textContent = summary ? `· ${summary}` : "";
+
+  // Which model and which code: the deployment swaps models without notice,
+  // so a report must say what produced it rather than leave the reader to
+  // assume today's model. Both values ride on the status payload already.
+  const identity = runView.identitySummary(usage, pipeline_revision);
+  const identityEl = $("#run-identity");
+  identityEl.textContent = identity ? `· ${identity}` : "";
+  identityEl.title = identity ? runView.headerLabel("identity_title") : "";
 
   // Shown for failed runs too: a run that died halfway still spent whatever
   // it spent, and that is the bill nobody can otherwise estimate.
