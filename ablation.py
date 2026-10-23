@@ -26,7 +26,7 @@ from collections.abc import Callable, Sequence
 
 import benchmark_fixtures
 from ablation_check import analyse_report, reviewer_correction_count, write_summaries
-from benchmark import TOPICS, _slug
+from benchmark import TOPICS, _crew_inputs, _slug
 
 # CrewAI 1.14.7 inspects a guardrail's raw runtime signature without resolving
 # postponed annotations. Enabling ``from __future__ import annotations`` makes
@@ -733,13 +733,13 @@ def run_cell(
 
         if exec_time is not None and exec_time > 0:
             result, _worker_stopped = _execute_cell_with_deadline(
-                lambda: crew_obj.kickoff(inputs=collection.crew_inputs()),
+                lambda: crew_obj.kickoff(inputs=_crew_inputs(collection)),
                 exec_time=exec_time,
                 cancel_event=cancel_event,
                 cancel_callback=cancel_cb,
             )
         else:
-            result = crew_obj.kickoff(inputs=collection.crew_inputs())
+            result = crew_obj.kickoff(inputs=_crew_inputs(collection))
 
         task_outputs = list(getattr(result, "tasks_output", None) or [])
         draft, delivered = select_report_outputs(cell.variant, task_outputs)
