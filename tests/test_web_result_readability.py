@@ -45,7 +45,10 @@ if (input.scores) {
     summary: n.children[0].textContent, rationale: n.children[1].textContent,
     cites: flat(n).filter(c => c.className === "cite").map(c => c.dataset.cite) }));
   const caveat = nodes.find(n => (n.className ?? "").includes("scorecard__market-caveat"));
-  out.caveat = { tag: caveat.tagName, open: caveat.open };
+  out.caveat = { tag: caveat.tagName, open: caveat.open,
+                 title: flat(caveat).find(n => n.className === "notes__title")?.textContent,
+                 status: nodes.find(n => n.className === "scorecard__market-status")?.textContent,
+                 receipt: nodes.some(n => n.className === "scorecard__cap-receipt") };
 }
 if (input.card) {
   const index = mod.citationIndex(input.card.markdown);
@@ -177,9 +180,40 @@ class ResultReadabilityTests(unittest.TestCase):
         self.assertEqual(why[0]["cites"], ["A2 M3"])
         self.assertEqual(why[1]["cites"], [])
 
-    def test_the_market_disclosure_folds_unless_the_cap_moved_the_score(self):
+    def test_a_run_without_a_cap_record_says_so_rather_than_unreadable(self):
+        """A run from before the receipt existed never wrote one. "Record
+        unreadable" read as a fault; a damaged record still says unreadable."""
         caveat = self._run(scores={"overall_score": 50, "market_accessibility": 3})["caveat"]
-        self.assertEqual(caveat, {"tag": "DETAILS", "open": False})
+        self.assertEqual((caveat["tag"], caveat["open"]), ("DETAILS", False))
+        self.assertEqual(caveat["title"], "Market comparison: not assessed")
+        self.assertEqual(caveat["status"], "No adjustment record for this run")
+        damaged = self._run(scores={"overall_score": 50, "market_accessibility": 3,
+                                    "market_cap_audit": {"version": "legacy-market-cap-audit-v1"}})["caveat"]
+        self.assertEqual(damaged["status"], "Adjustment record unreadable")
+
+    # The scores a 2026-10-23 production run delivered: the cap moved 4 -> 3.5.
+    _CAPPED = {"overall_score": 71.3, "trl_score": 7, "mrl_score": 7.5, "patent_strength": 3,
+               "market_accessibility": 3.5, "evidence_confidence": 3.5,
+               "market_uncertainty": "high (91× spread: 0.058–5.3 bn USD)",
+               "market_cap_audit": {"version": "legacy-market-cap-audit-v1", "pre_cap_score": 4.0,
+                                    "post_cap_score": 3.5, "cap": 3.5, "triggered": True, "applied": True,
+                                    "deduction": 0.5, "reason": "legacy_untyped_spread_gt_5"}}
+
+    def test_a_cap_that_moved_the_score_is_one_plain_line_with_the_receipt_folded(self):
+        """It used to open, putting the legacy-rule wording above the risks on
+        the runs a reader worries about most. Folded, the summary still says
+        that comparability was not assessed (the title), that the score moved
+        and why (the status). The receipt is still there, one click away."""
+        caveat = self._run(scores=self._CAPPED)["caveat"]
+        self.assertEqual((caveat["tag"], caveat["open"], caveat["receipt"]), ("DETAILS", False, True))
+        self.assertEqual(caveat["title"], "Market comparison: not assessed")
+        self.assertEqual(caveat["status"],
+                         "Capped at 3.5 / 5 (was 4): the market figures in the sources differ by more than 5×")
+        # The untyped amounts behind the legacy flag never appear as USD sizes.
+        self.assertNotIn("USD", caveat["status"])
+        zh = self._run(scores=self._CAPPED, language="Simplified Chinese")["caveat"]
+        self.assertEqual(zh["title"], "市场估值可比性：未核实")
+        self.assertEqual(zh["status"], "市场分数封顶为 3.5 / 5（原为 4）：来源中的市场相关数字相差超过 5 倍")
 
     def test_the_scope_line_is_a_sentence_with_the_codes_kept_aside(self):
         gate = {"mode": "orientation", "go_no_go_allowed": False,

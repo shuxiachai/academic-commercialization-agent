@@ -745,7 +745,14 @@ def _exercise_browser(
             # above. Verify the same disk bytes over HTTP and actual Chromium;
             # neither a computed field alone nor an old 3.5 score proves this.
             page.goto(f"{base_url}/run/{cap_run_id}", wait_until="domcontentloaded")
+            # Folded even though the cap moved the score: the summary says so in
+            # plain words, and the receipt is one click away rather than open.
+            caveat = page.locator(".scorecard__market-caveat")
+            expect(caveat.locator(".scorecard__market-status")).to_have_text(
+                "Capped at 3.5 / 5 (was 5): the market figures in the sources differ by more than 5×")
             receipt = page.locator(".scorecard__cap-receipt")
+            expect(receipt).to_be_hidden()
+            caveat.locator("summary").click()
             expect(receipt).to_be_visible()
             expect(receipt).to_have_attribute("data-applied", "true")
             expect(receipt).to_contain_text("5 → 3.5 / 5")

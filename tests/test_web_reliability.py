@@ -50,10 +50,14 @@ class ReliabilityPanelTests(unittest.TestCase):
 
         (work / "harness.mjs").write_text(textwrap.dedent("""
             globalThis.localStorage = { getItem: () => null, setItem: () => {} };
-            const { reliabilityRows, reliabilityVerdict } = await import("./result.mjs");
+            globalThis.document = { querySelectorAll: () => [], documentElement: {} };
+            const { reliabilityRows, reliabilityVerdict, groundingNumbers } = await import("./result.mjs");
+            const i18n = await import("./i18n.js");
+            if (process.argv[3]) i18n.setLanguage?.(process.argv[3]);
             const progress = JSON.parse(process.argv[2]);
             const rows = reliabilityRows(progress);
-            console.log(JSON.stringify({ rows, verdict: reliabilityVerdict(rows) }));
+            console.log(JSON.stringify({ rows, verdict: reliabilityVerdict(rows),
+                                         numbers: groundingNumbers(progress) }));
         """), encoding="utf-8")
         cls._work = work
 
@@ -68,9 +72,9 @@ class ReliabilityPanelTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._tmp.cleanup()
 
-    def _panel(self, **progress) -> dict:
+    def _panel(self, language: str = "", **progress) -> dict:
         result = subprocess.run(
-            [_node(), str(self._work / "harness.mjs"), json.dumps(progress)],
+            [_node(), str(self._work / "harness.mjs"), json.dumps(progress), language],
             capture_output=True, text=True, encoding="utf-8", timeout=120, cwd=self._work,
         )
         if result.returncode != 0:
@@ -387,6 +391,78 @@ class ReliabilityPanelTests(unittest.TestCase):
         panel = self._panel(source_counts={"academic": 8, "patent": 8, "market": 8})
         row = self._row(panel, "report-audit")
         self.assertEqual(row["tone"], "muted")
+
+    # ── The headline and the counts beneath it ────────────────────────────
+
+    # The checks a 2026-10-23 production run recorded: three clean, the
+    # citation check partly undecidable, the report audit with nothing to do.
+    _PRODUCTION_RUN = {
+        "consistency": {"blockers": 0, "warnings": 0},
+        "quality_review": {"status": "passed", "unapplied_corrections": 0},
+        "claim_grounding": {"status": "completed", "checked": 1, "ungrounded": 0, "unverifiable": 5},
+        "report_audit": {"status": "not_applicable", "findings": 0},
+        "source_counts": {"academic": 3, "patent": 8, "market": 7},
+        "authority_coverage": {"status": "not_applicable"},
+        "component_coverage": {"status": "not_applicable"},
+    }
+
+    def test_the_headline_counts_what_the_checks_found(self):
+        """That run's headline was "Too little could be checked to say":
+        true, and nothing a reader could act on. It now gives the counts."""
+        panel = self._panel(**self._PRODUCTION_RUN)
+        self.assertEqual(panel["verdict"]["tone"], "muted")
+        self.assertEqual(panel["verdict"]["label"],
+                         "3 of 5 checks found no problem; 2 could not give a result")
+        self.assertEqual(panel["numbers"], "Numerical claims: 1 of 6 matched the source cited for them; "
+                                           "5 could not be checked automatically")
+
+    def test_the_counts_read_the_same_in_chinese(self):
+        panel = self._panel(language="Simplified Chinese", **self._PRODUCTION_RUN)
+        self.assertEqual(panel["verdict"]["label"], "5 项检查中 3 项未发现问题，2 项无法给出结论")
+        self.assertEqual(panel["numbers"], "含数字的论断：6 条中有 1 条与所引来源一致；5 条无法自动核对")
+
+    def test_flagged_and_conflicting_headlines_count_their_rows(self):
+        warn = self._panel(claim_grounding={"status": "completed", "checked": 7, "ungrounded": 2,
+                                            "unverifiable": 0},
+                           consistency={"blockers": 0, "warnings": 0})
+        self.assertEqual(warn["verdict"]["label"],
+                         "1 of 2 checks flagged something to read before relying on this report")
+        self.assertEqual(warn["numbers"], "Numerical claims: 5 of 7 matched the source cited for them; 2 did not")
+        self.assertIn("2 of 7 checked numerical claims", self._row(warn, "grounding")["detail"])
+        risk = self._panel(consistency={"blockers": 1, "warnings": 0},
+                           quality_review={"status": "passed"})
+        self.assertEqual(risk["verdict"]["label"], "1 of 2 checks found a conflict in this report")
+
+    def test_a_clean_headline_counts_its_checks_without_calling_them_verification(self):
+        panel = self._panel(consistency={"blockers": 0, "warnings": 0},
+                            quality_review={"status": "passed"},
+                            claim_grounding={"status": "completed", "checked": 4, "ungrounded": 0,
+                                             "unverifiable": 0})
+        self.assertEqual(panel["verdict"]["label"], "All 3 checks found no problem")
+        self.assertIn("not verification", panel["verdict"]["note"].lower())
+        one = self._panel(consistency={"blockers": 0, "warnings": 0})
+        self.assertEqual(one["verdict"]["label"], "The only check found no problem")
+
+    def test_no_counts_line_when_there_is_nothing_countable_to_say(self):
+        """A missing, failed, damaged or empty check must not become a number."""
+        cases = {
+            "absent": {"consistency": {"blockers": 0, "warnings": 0}},
+            "failed": {"claim_grounding": {"status": "unavailable", "checked": 3, "ungrounded": 0,
+                                           "unverifiable": 0}},
+            "not applicable": {"claim_grounding": {"status": "not_applicable"}},
+            "nothing screened": {"claim_grounding": {"status": "completed", "checked": 0, "ungrounded": 0,
+                                                     "unverifiable": 0}},
+            "unreadable": {"claim_grounding": {"status": "completed", "checked": 1, "ungrounded": 0,
+                                               "unverifiable": 5},
+                           "audit_metadata_unreadable": ["claim_grounding"]},
+            "impossible": {"claim_grounding": {"status": "completed", "checked": 1, "ungrounded": 2,
+                                               "unverifiable": 0}},
+            "not a count": {"claim_grounding": {"status": "completed", "checked": "1", "ungrounded": 0,
+                                                "unverifiable": 5}},
+        }
+        for name, progress in cases.items():
+            with self.subTest(case=name):
+                self.assertIsNone(self._panel(**progress)["numbers"])
 
 
 @unittest.skipUnless(_node(), "node not installed")
