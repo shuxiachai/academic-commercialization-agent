@@ -196,7 +196,7 @@ function startClock(fromSeconds) {
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
   terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
-  stage_timings, eta, pipeline_revision,
+  stage_timings, eta, pipeline_revision, error, daily_charge,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -256,6 +256,13 @@ function paintHeader({
   const terminalSummary = runView.terminalSummary(terminal, state);
   terminalEl.textContent = terminalSummary ? `· ${terminalSummary}` : "";
   terminalEl.title = runView.terminalTitle(terminal, state);
+
+  // Why it ended and whether it spent one of today's runs, kept with the run
+  // rather than in a toast that is gone before the page is read again.
+  const outcomeEl = $("#run-outcome");
+  const outcome = runView.outcomeSummary({ state, error, daily_charge, checkpointing });
+  outcomeEl.textContent = outcome;
+  outcomeEl.hidden = !outcome;
 
   // Terminal success is still usable when its live projection is damaged,
   // but missing audit fields must not silently masquerade as a clean read.
@@ -347,7 +354,9 @@ function paintActions(state, checkpointing = null) {
     const sourceRunId = activeRunId;
     const resume = document.createElement("button");
     resume.type = "button";
-    resume.className = "btn btn--secondary";
+    // The main thing to do with a run that stopped short, so it reads as
+    // such; what it costs is said in the outcome line above the actions.
+    resume.className = "btn btn--primary";
     resume.textContent = t("resume");
     resume.dataset.resumeRun = sourceRunId;
     resume.disabled = pendingResumes.has(sourceRunId) || paidReceipts.state().uncertain;

@@ -1413,6 +1413,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         # Unknown is retryable, not evidence that execution finished.
         done=state["state"] in {"completed", "failed", "cancelled", "timeout"},
         error=state.get("error"),
+        daily_charge=state.get("daily_charge", "not_recorded"),
         elapsed_seconds=state.get("elapsed_seconds"),
         stage_timings=state.get("stage_timings", []),
         eta=state.get("eta"),

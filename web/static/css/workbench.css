@@ -422,6 +422,16 @@
   overflow-wrap: anywhere;
 }
 
+/* Why a run ended and whether it spent one of today's runs: a full line under
+   the metadata, in body text rather than the metadata's tertiary grey. */
+#pane-run .run-outcome {
+  margin: var(--space-2) 0 0;
+  max-width: 72ch;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
 .dot-sep {
   width: 3px; height: 3px;
   border-radius: var(--radius-full);
