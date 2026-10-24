@@ -272,6 +272,12 @@ const HEADER_STRINGS = {
     source_locator: "Saved-source locator",
     source_locator_title: "Experimental: pick the saved source behind a question about a report and read its saved text",
     identity_title: "The model this run's stages requested and the pipeline code that served it. The deployment changes models without notice; neither name is a quality measurement.",
+    // Beside a failed run's reason: a code holder has three runs a day and
+    // should not have to guess whether a failure spent one of them.
+    outcome_charged: "This run counted toward today's quota.",
+    outcome_charged_resume: "Resuming from the checkpoint uses another.",
+    outcome_refunded: "This run did not count toward today's quota: it failed before any work began.",
+    outcome_not_charged: "This run did not use the daily quota.",
   },
   "Simplified Chinese": {
     usage_details: "用量与费用",
@@ -290,6 +296,10 @@ const HEADER_STRINGS = {
     source_locator: "已保存来源定位",
     source_locator_title: "实验功能：针对报告中的问题，找出对应的已保存来源并显示其原文",
     identity_title: "本次运行各阶段请求的模型，以及产出它的流水线代码版本。本站会不定期更换模型；两者都不是质量指标。",
+    outcome_charged: "本次运行已计入今日额度。",
+    outcome_charged_resume: "从检查点续跑会再用 1 次。",
+    outcome_refunded: "本次运行未计入今日额度：它在开始工作前就失败了。",
+    outcome_not_charged: "本次运行不占用每日额度。",
   },
 };
 
@@ -465,6 +475,32 @@ export function runtimeMetadataSummary(fields = []) {
  * code verbatim: hiding a future reason behind a generic state would make the
  * browser less inspectable than the API, while textContent keeps it inert.
  */
+/**
+ * Why a run ended, and whether it spent one of today's runs; "" otherwise.
+ *
+ * A toast with the reason disappears, and a run opened from the list later
+ * never had one. This line stays with the run. The quota sentence comes
+ * only from the API's launch-time record: an old run without one, or a
+ * damaged one, gets the reason alone rather than a guess.
+ */
+export function outcomeSummary({ state, error, daily_charge, checkpointing } = {}) {
+  if (!["failed", "timeout", "cancelled"].includes(state)) return "";
+  const parts = [];
+  if (typeof error === "string" && error) parts.push(error);
+  if (daily_charge === "charged") {
+    parts.push(headerLabel("outcome_charged"));
+    const committed = checkpointing?.committed_nodes;
+    if (Array.isArray(committed) && committed.includes("retrieval")) {
+      parts.push(headerLabel("outcome_charged_resume"));
+    }
+  } else if (daily_charge === "refunded") {
+    parts.push(headerLabel("outcome_refunded"));
+  } else if (daily_charge === "not_charged") {
+    parts.push(headerLabel("outcome_not_charged"));
+  }
+  return parts.join(" ");
+}
+
 export function terminalSummary(terminal, state = "") {
   const terminalStates = new Set(["completed", "failed", "cancelled", "timeout"]);
   if (!terminal) {

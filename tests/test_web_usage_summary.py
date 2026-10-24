@@ -55,11 +55,14 @@ class UsageSummaryTests(unittest.TestCase):
         # do not depend on whatever language a developer last selected.
         (work / "harness.mjs").write_text(textwrap.dedent("""
             globalThis.localStorage = { getItem: () => null, setItem: () => {} };
+            globalThis.document = { querySelectorAll: () => [], documentElement: {} };
             const {
                 terminalSummary, terminalTitle, usageSummary, usageTitle, runtimeMetadataSummary,
-                identitySummary,
+                identitySummary, outcomeSummary,
             } = await import("./run.mjs");
+            const i18n = await import("./i18n.js");
             const payload = JSON.parse(process.argv[2]);
+            if (payload?.language) i18n.setLanguage(payload.language);
             const usage = payload?.usage ?? null;
             const accounting = payload?.accounting ?? null;
             const terminal = payload?.terminal ?? null;
@@ -71,6 +74,7 @@ class UsageSummaryTests(unittest.TestCase):
                 terminalTitle: terminalTitle(terminal, state),
                 runtimeSummary: runtimeMetadataSummary(payload?.runtimeFields ?? []),
                 identity: identitySummary(usage, payload?.pipelineRevision ?? null),
+                outcome: outcomeSummary(payload?.outcome ?? {}),
             }));
         """), encoding="utf-8")
         cls._work = work
@@ -356,6 +360,68 @@ class UsageSummaryTests(unittest.TestCase):
         self.assertIn("terminalSummary(terminal, state)", source)
         self.assertIn("terminalTitle(terminal, state)", source)
         self.assertIn('id="run-terminal"', markup)
+
+    # ── Why a run ended, and whether it spent one of today's runs ────────
+
+    _OPERATOR_SIDE = ("The model this deployment is set to rejected the request. "
+                      "Nothing in your request caused this; the operator can find it by the run ID.")
+    _RESUMABLE = {"state": "partial", "committed_nodes": ["retrieval"], "errors": []}
+
+    # Not "_outcome": unittest.TestCase already owns that name.
+    def _outcome_line(self, language: str | None = None, **outcome) -> str:
+        payload = {"outcome": outcome, "language": language}
+        result = subprocess.run(
+            [_node(), str(self._work / "harness.mjs"), json.dumps(payload)],
+            capture_output=True, text=True, encoding="utf-8", timeout=120, cwd=self._work,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr[:800])
+        return json.loads(result.stdout)["outcome"]
+
+    def test_a_charged_failure_says_so_and_what_resuming_costs(self):
+        """The 2026-10-23 production failure: a code holder lost one of three
+        daily runs to the operator's model switch and was told to check a
+        setting they do not have. The line now says whose problem it was,
+        that the run counted, and that resuming uses another."""
+        text = self._outcome_line(state="failed", error=self._OPERATOR_SIDE, daily_charge="charged",
+                             checkpointing=self._RESUMABLE)
+        self.assertEqual(text, self._OPERATOR_SIDE + " This run counted toward today's quota. "
+                                                     "Resuming from the checkpoint uses another.")
+        # Without a checkpoint there is nothing to resume, so no cost sentence for it.
+        without = self._outcome_line(state="failed", error=self._OPERATOR_SIDE, daily_charge="charged",
+                                checkpointing={"state": "partial", "committed_nodes": []})
+        self.assertTrue(without.endswith("This run counted toward today's quota."))
+
+    def test_the_same_line_in_chinese(self):
+        text = self._outcome_line(language="Simplified Chinese", state="failed", error=self._OPERATOR_SIDE,
+                             daily_charge="charged", checkpointing=self._RESUMABLE)
+        self.assertEqual(text, self._OPERATOR_SIDE + " 本次运行已计入今日额度。 从检查点续跑会再用 1 次。")
+
+    def test_refunded_and_uncharged_runs_say_which(self):
+        self.assertEqual(
+            self._outcome_line(state="failed", error="The analysis failed.", daily_charge="refunded"),
+            "The analysis failed. This run did not count toward today's quota: it failed before any work began.")
+        self.assertEqual(
+            self._outcome_line(state="timeout", error="Took too long.", daily_charge="not_charged"),
+            "Took too long. This run did not use the daily quota.")
+
+    def test_no_quota_sentence_is_invented_for_an_unrecorded_or_unreadable_charge(self):
+        for charge in ("not_recorded", "unreadable", None):
+            with self.subTest(charge=charge):
+                self.assertEqual(self._outcome_line(state="failed", error="The analysis failed.", daily_charge=charge),
+                                 "The analysis failed.")
+
+    def test_only_a_run_that_stopped_short_gets_the_line(self):
+        for state in ("completed", "running", "unknown", ""):
+            with self.subTest(state=state):
+                self.assertEqual(self._outcome_line(state=state, error="stale", daily_charge="charged"), "")
+        self.assertEqual(self._outcome_line(state="cancelled", daily_charge="charged"),
+                         "This run counted toward today's quota.")
+
+    def test_app_delivers_the_outcome_line_to_its_own_dom_seam(self):
+        source = _APP_JS.read_text(encoding="utf-8")
+        markup = _INDEX_HTML.read_text(encoding="utf-8")
+        self.assertIn("outcomeSummary({ state, error, daily_charge, checkpointing })", source)
+        self.assertIn('id="run-outcome"', markup)
 
 
 @unittest.skipUnless(_node(), "node not installed")
