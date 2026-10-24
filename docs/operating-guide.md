@@ -371,6 +371,8 @@ semantic correctness of all report prose; see the
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
 | GET | `/api/quota` | Paid operations left today for the calling code; `null` when uncapped |
 | POST | `/api/plan` | Preview how the planner reads a topic; code holders only, own daily cap, not a paid operation |
+| GET | `/api/runs/{run_id}/feedback` | The caller's own answer about a delivered report, if any. Authorized like a mutation: a code-owned run answers to its code or the admin, an ownerless run to whoever holds its URL |
+| POST | `/api/runs/{run_id}/feedback` | One click on a delivered report: did it change the reader's view (`yes`/`no`/`unsure`) and which part mattered. Fixed words, no text; one record per responder, replaced on a later answer; kept in the run's `feedback.json` for `scripts/ops_report.py`. Not a paid operation |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
 | GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
 | GET | `/api/runs` | Owner-filtered run history when access control is enabled |

@@ -152,6 +152,26 @@ class PlanPreview(BaseModel):
     components: list[str] = Field(description="Building blocks searched separately for a combined system.")
 
 
+class FeedbackRequest(BaseModel):
+    """Body for POST /api/runs/{run_id}/feedback: one click, fixed words, no text."""
+
+    model_config = {"extra": "forbid"}
+
+    changed_view: Literal["yes", "no", "unsure"] = Field(
+        description="Whether the report changed how the reader sees the decision.")
+    part: Literal["scorecard", "report", "sources", "checks"] | None = Field(
+        default=None, description="The part that mattered most, when the reader says.")
+
+
+class FeedbackState(BaseModel):
+    """The caller's own recorded answer about a run, or none."""
+
+    recorded: bool
+    changed_view: Literal["yes", "no", "unsure"] | None = None
+    part: Literal["scorecard", "report", "sources", "checks"] | None = None
+    recorded_at: str | None = None
+
+
 class ResumeRunRequest(BaseModel):
     """Fresh credentials for POST /api/runs/{run_id}/resume."""
 

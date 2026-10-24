@@ -40,6 +40,9 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from academic_agent.byok_model import BYOK_MODEL_PATTERN  # noqa: E402
 from academic_agent.checkpoint_runtime import pipeline_revision  # noqa: E402
+# A run-directory record, like run_terminal and auxiliary_usage, so the ops
+# report can read it without importing the API.
+from academic_agent import report_feedback as feedback  # noqa: E402
 from academic_agent.report_display import report_for_display  # noqa: E402
 from academic_agent.llm_config import (  # noqa: E402
     _detect_provider,
@@ -64,6 +67,8 @@ from api.models import (  # noqa: E402
     MaintenanceTiming,
     PaperExtraction,
     PaidReceipt,
+    FeedbackRequest,
+    FeedbackState,
     PlanPreview,
     PlanRequest,
     ReadinessStatus,
@@ -1838,6 +1843,105 @@ def get_report_pdf(run_id: str) -> FileResponse:
     return FileResponse(
         pdf_path, media_type="application/pdf", filename=f"{run_id}.pdf"
     )
+
+
+def _feedback_run(run_id: str, http_request: Request):
+    """Authorize as a mutation and resolve the run and the responder.
+
+    404 when the run is unknown or not the caller's. The responder is who the
+    answer is filed under: an ownerless run has one, whoever holds its URL,
+    whatever code they also present; a code-owned run files under the code
+    that answered (the owner's or the admin's), or under the owner when no
+    gate is configured and there is no code to tell callers apart.
+    """
+    _authorize_run_mutation(run_id, http_request)
+    try:
+        state = runs.get_state(run_id)
+        owner = runs.owner_of(run_id)
+    except runs.RunNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except runs.OwnerMarkerUnreadable as exc:
+        raise HTTPException(
+            status_code=503, detail="Run authorization is temporarily unavailable. Retry later.",
+        ) from exc
+    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    if owner is None:
+        responder = feedback.responder_key(None)
+    else:
+        responder = access.owner_id(matched) if matched else owner
+    return state, runs.run_dir_for(run_id), responder
+
+
+def _feedback_state(record: dict | None) -> FeedbackState:
+    if record is None:
+        return FeedbackState(recorded=False)
+    return FeedbackState(recorded=True, changed_view=record["changed_view"],
+                         part=record.get("part"), recorded_at=record["recorded_at"])
+
+
+@app.get(
+    "/api/runs/{run_id}/feedback",
+    response_model=FeedbackState,
+    tags=["runs"],
+    responses={
+        404: {"description": "Unknown run_id, or a code-owned run without its code"},
+        503: {"description": "The stored feedback could not be read"},
+    },
+)
+def get_feedback(run_id: str, http_request: Request) -> FeedbackState:
+    """The caller's own answer about this report, if they gave one.
+
+    Registered before /api/runs/{run_id}/{artifact}, which would otherwise
+    take "feedback" as an artifact name. Reading needs what writing needs: a
+    code-owned run answers only to its code or the admin, an ownerless run to
+    whoever holds its URL. Answers are kept per responder, so no reader sees
+    another's.
+    """
+    _state, run_dir, responder = _feedback_run(run_id, http_request)
+    try:
+        record = feedback.read(run_dir, responder)
+    except feedback.FeedbackUnreadable as exc:
+        raise HTTPException(
+            status_code=503, detail="Stored feedback is unreadable; no answer is claimed.",
+        ) from exc
+    return _feedback_state(record)
+
+
+@app.post(
+    "/api/runs/{run_id}/feedback",
+    response_model=FeedbackState,
+    tags=["runs"],
+    responses={
+        404: {"description": "Unknown run_id, or a code-owned run without its code"},
+        409: {"description": "The run delivered no report to answer about"},
+        503: {"description": "The answer could not be stored"},
+    },
+)
+def post_feedback(run_id: str, body: FeedbackRequest, http_request: Request) -> FeedbackState:
+    """Record one reader's answer about a delivered report.
+
+    Not a paid operation, and bounded without a cap of its own: the body is
+    a closed vocabulary and each responder holds one record, so the most a
+    caller can do is change their own answer. A run that delivered no report
+    has nothing to answer about.
+    """
+    state, run_dir, responder = _feedback_run(run_id, http_request)
+    if state["state"] != "completed":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Feedback is recorded for delivered reports only; this run is '{state['state']}'.",
+        )
+    try:
+        record = feedback.record(run_dir, responder, body.changed_view, body.part)
+    except feedback.FeedbackUnreadable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Stored feedback is unreadable, so a new answer cannot be added to it.",
+        ) from exc
+    except OSError as exc:
+        _LOGGER.exception("Feedback could not be stored for run %s", run_id)
+        raise HTTPException(status_code=503, detail="The answer could not be stored. Retry later.") from exc
+    return _feedback_state(record)
 
 
 @app.get(
