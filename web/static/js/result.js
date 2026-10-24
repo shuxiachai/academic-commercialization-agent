@@ -358,6 +358,19 @@ function readableMarketCap(scores, signal) {
   return a;
 }
 
+// A run from before the receipt existed has no record to read; a damaged
+// receipt has one that cannot be trusted. Both stay unknown, but saying
+// "unreadable" about a record that was never written reads as a fault.
+function marketCapSummary(scores, cap) {
+  if (!cap) {
+    return t(Object.hasOwn(scores, "market_cap_audit") ? "market_cap_summary_unknown" : "market_cap_summary_absent");
+  }
+  if (!cap.applied) return t("market_cap_summary_unchanged");
+  return t("market_cap_summary_applied")
+    .replace("{from}", () => String(cap.pre_cap_score))
+    .replace("{to}", () => String(cap.post_cap_score));
+}
+
 function renderScorecard(scores) {
   const wrap = el("section", "scorecard");
   if (!detailRecord(scores)) { wrap.append(detailUnavailable()); return wrap; }
@@ -433,20 +446,20 @@ function renderScorecard(scores) {
   );
   const signal = Object.hasOwn(scores, "market_uncertainty") && flag === null
     ? "not_triggered" : match && match[0] === flag ? "triggered" : "unavailable";
-  // Folded unless the cap actually moved the score: the full disclosure is
-  // one click away, and the line above it says whether anything changed.
+  // Always folded. The title keeps the non-assessment ("not assessed"), and
+  // the line beside it says in plain words whether the score moved and why;
+  // the receipt and the legacy-rule wording sit one click away. It used to
+  // open whenever the cap moved the score, which put that engineering text
+  // above the risks on exactly the runs a reader worries about most.
   const caveat = el("details", "notes scorecard__market-caveat");
   caveat.dataset.comparability = "not_assessed";
   caveat.dataset.legacySignal = signal;
   const cap = readableMarketCap(scores, signal);
-  caveat.open = Boolean(cap?.applied);
+  caveat.open = false;
   const caveatSummary = el("summary", "scorecard__market-summary");
   caveatSummary.append(
     el("span", "notes__title", t("market_comparison_title")),
-    el("span", "scorecard__market-status", !cap ? t("market_cap_summary_unknown")
-      : cap.applied ? t("market_cap_summary_applied").replace("{from}", () => String(cap.pre_cap_score))
-        .replace("{to}", () => String(cap.post_cap_score))
-        : t("market_cap_summary_unchanged")),
+    el("span", "scorecard__market-status", marketCapSummary(scores, cap)),
   );
   caveat.append(caveatSummary, el("p", null, t("market_comparison_limit")));
   if (cap) {
@@ -1284,7 +1297,8 @@ export function reliabilityRows(progress) {
                   label: t("rel_grounding"), detail: t("rel_grounding_not_applicable") });
     } else if (ungrounded > 0) {
       rows.push({ id: "grounding", tone: "warn", label: t("rel_grounding"),
-                  detail: t("rel_grounding_flagged").replace("{count}", ungrounded) });
+                  detail: t("rel_grounding_flagged").replace("{count}", ungrounded)
+                    .replace("{checked}", checked) });
     } else if (status === "partial") {
       rows.push({ id: "grounding", tone: "muted", label: t("rel_grounding"),
                   detail: t("rel_grounding_degraded")
@@ -1301,6 +1315,7 @@ export function reliabilityRows(progress) {
       rows.push({ id: "grounding", tone: "muted", label: t("rel_grounding"),
                   detail: t("rel_grounding_partial")
                     .replace("{checked}", checked)
+                    .replace("{total}", checked + unverifiable)
                     .replace("{unverifiable}", unverifiable) });
     } else {
       rows.push({ id: "grounding", tone: "ok", label: t("rel_grounding"),
@@ -1419,17 +1434,57 @@ export function reliabilityRows(progress) {
   return rows;
 }
 
-/** The panel's headline, from the worst row present. */
+/**
+ * The panel's headline: the worst row sets the tone, and the label counts the
+ * rows behind it. "Too little could be checked to say" was true but gave a
+ * reader nothing to act on; "3 of 5 checks found no problem; 2 could not give
+ * a result" says the same with the numbers that make it checkable.
+ */
 export function reliabilityVerdict(rows) {
-  if (!rows.length) return { tone: "muted", label: t("rel_verdict_unknown") };
+  if (!rows.length) return { tone: "muted", label: t("rel_verdict_none") };
+  const total = rows.length;
+  const count = tone => rows.filter(row => row.tone === tone).length;
+  const fill = (key, values) => Object.entries(values).reduce(
+    (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), t(key));
   const worst = rows.reduce(
     (acc, row) => (_TONE_RANK[row.tone] > _TONE_RANK[acc] ? row.tone : acc), "ok");
-  if (worst === "risk") return { tone: "risk", label: t("rel_verdict_risk") };
-  if (worst === "warn") return { tone: "warn", label: t("rel_verdict_review") };
-  if (worst === "ok") {
-    return { tone: "ok", label: t("rel_verdict_clear"), note: t("rel_verdict_clear_sub") };
+  if (worst === "risk") {
+    return { tone: "risk", label: fill("rel_verdict_risk", { count: count("risk"), total }) };
   }
-  return { tone: "muted", label: t("rel_verdict_unknown") };
+  if (worst === "warn") {
+    return { tone: "warn", label: fill("rel_verdict_review", { count: count("warn"), total }) };
+  }
+  if (worst === "ok") {
+    return { tone: "ok", note: t("rel_verdict_clear_sub"),
+             label: total === 1 ? t("rel_verdict_clear_one") : fill("rel_verdict_clear", { total }) };
+  }
+  return { tone: "muted",
+           label: fill("rel_verdict_unknown", { ok: count("ok"), muted: count("muted"), total }) };
+}
+
+/**
+ * The citation check's counts as one plain line under the headline, or null.
+ *
+ * Shown in the panel's summary, so it is read without opening the rows. Null
+ * when there is nothing countable to say: no check, a failed or unreadable
+ * one, no numerical claim at all, or counts that do not add up. The row then
+ * says which of those it was; a damaged count never becomes a number here.
+ */
+export function groundingNumbers(progress) {
+  const grounding = progress.claim_grounding;
+  if (!detailRecord(grounding) || (progress.audit_metadata_unreadable ?? []).includes("claim_grounding")) {
+    return null;
+  }
+  if (["failed", "unavailable", "not_applicable"].includes(grounding.status)) return null;
+  const { checked, ungrounded, unverifiable } = grounding;
+  if (![checked, ungrounded, unverifiable].every(detailCount) || ungrounded > checked) return null;
+  const total = checked + unverifiable;
+  if (!total) return null;
+  const parts = [t("rel_numbers").replace("{matched}", () => String(checked - ungrounded))
+    .replace("{total}", () => String(total))];
+  if (ungrounded) parts.push(t("rel_numbers_mismatch").replace("{count}", () => String(ungrounded)));
+  if (unverifiable) parts.push(t("rel_numbers_unverifiable").replace("{count}", () => String(unverifiable)));
+  return parts.join(t("rel_numbers_sep"));
 }
 
 export function renderReliability(progress) {
@@ -1447,6 +1502,8 @@ export function renderReliability(progress) {
   head.append(el("span", "reliability__title", t("rel_title")));
   head.append(el("strong", "reliability__verdict", verdict.label));
   head.append(el("span", "reliability__toggle", t("rel_toggle")));
+  const numbers = groundingNumbers(progress);
+  if (numbers) head.append(el("span", "reliability__numbers", numbers));
   wrap.append(head);
 
   if (verdict.note) wrap.append(el("p", "reliability__note", verdict.note));

@@ -774,6 +774,15 @@
   font-weight: 600;
 }
 
+/* The citation counts take a line of their own under the verdict, still in
+   the summary, so they are read before anyone opens the rows. */
+.reliability__numbers {
+  order: 1;
+  flex-basis: 100%;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
 .reliability__note {
   color: var(--text-tertiary);
   font-size: var(--text-xs);
