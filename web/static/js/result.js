@@ -547,6 +547,81 @@ function renderReportScoreLine(scores, onOpenScorecard) {
 
 /* ── Public ────────────────────────────────────────────────────────── */
 
+/* ── Reader feedback ───────────────────────────────────────────────────
+ * One click under the tabs: did the report change how the reader sees the
+ * decision, and which part mattered. A closed vocabulary and no text, kept
+ * with the run for the operator's ops report. Nobody else's answer is shown.
+ */
+const FEEDBACK_ANSWERS = ["yes", "no", "unsure"];
+const FEEDBACK_PARTS = ["scorecard", "report", "sources", "checks"];
+
+/**
+ * The feedback block for one recorded state. `onAnswer(changed_view, part)`
+ * runs on a click. Pure in the state, so it can be asserted on without a
+ * network; the mount below fetches, renders, and re-renders on each reply.
+ */
+export function feedbackView(state, onAnswer = () => {}) {
+  const recorded = Boolean(state?.recorded);
+  const wrap = el("section", "feedback");
+  wrap.dataset.recorded = String(recorded);
+  wrap.append(el("h4", "feedback__title", t("feedback_title")));
+
+  const choices = el("div", "feedback__choices");
+  for (const answer of FEEDBACK_ANSWERS) {
+    const button = el("button", "btn btn--secondary feedback__answer", t("feedback_" + answer));
+    button.type = "button";
+    button.dataset.answer = answer;
+    button.setAttribute("aria-pressed", String(state?.changed_view === answer));
+    button.addEventListener("click", () => onAnswer(answer, state?.part ?? null));
+    choices.append(button);
+  }
+  wrap.append(choices);
+
+  // The part question follows an answer; asked first it reads as a form.
+  const parts = el("div", "feedback__parts");
+  parts.hidden = !recorded;
+  parts.append(el("span", "feedback__parts-label", t("feedback_part_title")));
+  for (const part of FEEDBACK_PARTS) {
+    const button = el("button", "btn btn--secondary feedback__part", t("feedback_part_" + part));
+    button.type = "button";
+    button.dataset.part = part;
+    button.setAttribute("aria-pressed", String(state?.part === part));
+    button.addEventListener("click", () => onAnswer(state.changed_view, part));
+    parts.append(button);
+  }
+  wrap.append(parts);
+
+  const status = el("p", "feedback__status");
+  if (state?.failed) status.textContent = t("feedback_failed");
+  else if (recorded) status.textContent = `${t("feedback_recorded")} ${t("feedback_change")}`;
+  else status.textContent = t("feedback_note");
+  wrap.append(status);
+  return wrap;
+}
+
+function renderFeedback(container, runId) {
+  let node = null;
+  let current = { recorded: false };
+  const paint = (state) => {
+    current = state;
+    const next = feedbackView(state, submit);
+    if (node) node.replaceWith(next); else container.append(next);
+    node = next;
+  };
+  async function submit(changed_view, part) {
+    for (const button of node.querySelectorAll("button")) button.disabled = true;
+    try {
+      paint(await api.sendFeedback(runId, { changed_view, part }));
+    } catch {
+      // Keep what was recorded; the failed save is the one fact to add.
+      paint({ ...current, failed: true });
+    }
+  }
+  // A reader who cannot answer (a shared link to a code-owned run, or a
+  // deployment fault) gets no block at all rather than a broken control.
+  api.getFeedback(runId).then(paint).catch(() => {});
+}
+
 export async function render(container, runId, progress) {
   container.innerHTML = "";
   const artifacts = progress.artifacts ?? [];
@@ -599,6 +674,10 @@ export async function render(container, runId, progress) {
   }
 
   container.append(tabs, panels);
+
+  // Under the tabs, for a delivered report only. Mounted after the panels
+  // so a slow or refused feedback read never delays the report itself.
+  if (progress.state === "completed") renderFeedback(container, runId);
 
   const loaded = new Set();
   // One request each, shared by the tabs and the citation cards.

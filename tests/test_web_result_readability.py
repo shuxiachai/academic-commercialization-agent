@@ -60,6 +60,19 @@ if (input.sources) {
   out.ages = rows.map(row => flat(mod._testRenderSavedSource(row))
     .filter(n => n.className === "source__age").map(n => n.textContent));
 }
+if (input.feedback) {
+  const clicks = [];
+  const nodes = flat(mod._testFeedbackView(input.feedback, (answer, part) => clicks.push([answer, part])));
+  const button = (n) => ({ text: n.textContent, pressed: n.attributes["aria-pressed"] });
+  out.feedback = {
+    recorded: nodes[0].dataset.recorded,
+    title: nodes.find(n => n.className === "feedback__title").textContent,
+    answers: nodes.filter(n => n.className.includes("feedback__answer")).map(button),
+    parts_hidden: nodes.find(n => n.className === "feedback__parts").hidden,
+    parts: nodes.filter(n => n.className.includes("feedback__part ") || n.className.endsWith("feedback__part")).map(button),
+    status: nodes.find(n => n.className === "feedback__status").textContent,
+  };
+}
 if (input.gate) {
   const nodes = flat(mod._testRenderDecisionApplicability(input.gate));
   out.scope = { text: nodes.filter(n => n.className === "decision-applicability__detail").map(n => n.textContent),
@@ -83,6 +96,7 @@ class ResultReadabilityTests(unittest.TestCase):
         source += "export const _testRenderCitationCard = renderCitationCard;\n"
         source += "export const _testAdmitSavedSources = admitSavedSources;\n"
         source += "export const _testRenderSavedSource = renderSavedSource;\n"
+        source += "export const _testFeedbackView = feedbackView;\n"
         (work / "result.mjs").write_text(source, encoding="utf-8")
         shutil.copy2(_I18N_JS, work / "i18n.js")
         (work / "harness.mjs").write_text(textwrap.dedent(_HARNESS), encoding="utf-8")
@@ -225,6 +239,37 @@ class ResultReadabilityTests(unittest.TestCase):
         self.assertIn("analyst's proposals", scope["text"][0])
         zh = self._run(gate=gate, language="Simplified Chinese")["scope"]
         self.assertIn("方向性简报", zh["text"][0])
+
+    # ── Reader feedback ───────────────────────────────────────────────────
+
+    def test_an_unanswered_report_asks_one_question_and_holds_the_second(self):
+        view = self._run(feedback={"recorded": False})["feedback"]
+        self.assertEqual(view["recorded"], "false")
+        self.assertEqual(view["title"], "Did this report change how you see the decision?")
+        self.assertEqual([a["text"] for a in view["answers"]], ["Yes", "No", "Not sure"])
+        self.assertTrue(all(a["pressed"] == "false" for a in view["answers"]))
+        self.assertTrue(view["parts_hidden"])
+        self.assertIn("nothing else is collected", view["status"])
+
+    def test_a_recorded_answer_is_shown_as_pressed_with_the_part_question(self):
+        view = self._run(feedback={"recorded": True, "changed_view": "no", "part": "sources",
+                                   "recorded_at": "2026-10-24T10:00:00+00:00"})["feedback"]
+        self.assertEqual(view["recorded"], "true")
+        self.assertEqual([a["pressed"] for a in view["answers"]], ["false", "true", "false"])
+        self.assertFalse(view["parts_hidden"])
+        self.assertEqual([p["text"] for p in view["parts"]], ["Scorecard", "Report", "Sources", "Automated checks"])
+        self.assertEqual([p["pressed"] for p in view["parts"]], ["false", "false", "true", "false"])
+        self.assertEqual(view["status"], "Recorded with this run. Click another answer to change it.")
+
+    def test_a_failed_save_keeps_the_answer_and_says_so(self):
+        view = self._run(feedback={"recorded": True, "changed_view": "yes", "part": None, "failed": True})["feedback"]
+        self.assertEqual([a["pressed"] for a in view["answers"]], ["true", "false", "false"])
+        self.assertEqual(view["status"], "Your answer could not be saved. Try again.")
+
+    def test_the_question_reads_in_chinese(self):
+        view = self._run(feedback={"recorded": False}, language="Simplified Chinese")["feedback"]
+        self.assertEqual(view["title"], "这份报告改变了你对这项决策的看法吗？")
+        self.assertEqual([a["text"] for a in view["answers"]], ["改变了", "没有", "说不准"])
 
     def test_a_support_label_without_permission_is_not_upgraded(self):
         gate = {"mode": "decision_support", "go_no_go_allowed": False,

@@ -572,6 +572,44 @@
 
 /* ═══ Misc ═════════════════════════════════════════════════════════════ */
 
+/* Reader feedback: one block under the tabs, for a delivered report only. */
+.feedback {
+  margin-top: var(--space-8);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+}
+.feedback__title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-3);
+}
+.feedback__choices,
+.feedback__parts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.feedback__parts { margin-top: var(--space-3); }
+.feedback__parts-label {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  margin-right: var(--space-1);
+}
+.feedback .btn[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.feedback__status {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
 .empty-note {
   padding: var(--space-8);
   text-align: center;

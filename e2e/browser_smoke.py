@@ -545,6 +545,11 @@ def _exercise_browser(
                 route.abort("blockedbyclient")
                 return
             if request.method not in {"GET", "HEAD", "OPTIONS"}:
+                if request.method == "POST" and parsed.path == f"/api/runs/{run_id}/feedback":
+                    # Unpaid and bounded to a closed vocabulary; the one write
+                    # this journey makes on purpose, verified on disk below.
+                    route.continue_()
+                    return
                 mutation_attempts.append(f"{request.method} {parsed.path}")
                 route.abort("blockedbyclient")
                 return
@@ -672,6 +677,26 @@ def _exercise_browser(
             expect(audit_panel).not_to_contain_text("No issue was found")
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_be_visible()
+
+            # Reader feedback: one click crosses the real route to disk, the
+            # second question appears, and the recorded answer is what the API
+            # reads back under the same code. Neither click is a paid request.
+            feedback = page.locator(".feedback")
+            expect(feedback).to_be_visible()
+            expect(feedback.locator(".feedback__parts")).to_be_hidden()
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path == f"/api/runs/{run_id}/feedback"
+                and response.request.method == "POST",
+            ) as answered:
+                feedback.get_by_role("button", name="Yes", exact=True).click()
+            assert answered.value.status == 200
+            expect(feedback.locator(".feedback__status")).to_contain_text("Recorded with this run.")
+            expect(feedback.locator(".feedback__parts")).to_be_visible()
+            feedback.get_by_role("button", name="Report", exact=True).click()
+            expect(feedback.get_by_role("button", name="Report", exact=True)).to_have_attribute("aria-pressed", "true")
+            recorded = page.request.get(f"{base_url}/api/runs/{run_id}/feedback",
+                                        headers={"X-Access-Code": ACCESS_CODE}).json()
+            assert (recorded["recorded"], recorded["changed_view"], recorded["part"]) == (True, "yes", "report")
 
             # Disk -> real HTTP JSON -> actual Chromium textContent, with one
             # source GET per render. Language switching intentionally re-renders;
