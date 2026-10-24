@@ -105,8 +105,9 @@ numbers are the point; if you want to revisit one, beat the number.
   within a run.
 - **Do not "improve" claim-grounding coverage by scraping more abstracts.**
   Checked: academic sources are already 68/68 with real abstracts. The only
-  remaining headroom is the patent domain, and it needs a free Lens key, not
-  code.
+  remaining headroom is the patent domain, which would need a Lens API key.
+  On 2026-10-24 the maintainer decided not to adopt Lens because of its cost,
+  so treat patent-domain coverage as fixed rather than proposing Lens again.
 - **Do not upgrade CrewAI on main.** Pinned at `1.14.7`. If it needs upgrading,
   do it on a branch with a full benchmark comparison.
 
