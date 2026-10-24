@@ -305,6 +305,13 @@ class RunProgress(BaseModel):
     )
     done: bool = False
     error: str | None = None
+    daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
+        default="not_recorded",
+        description="Whether this run spent one of its owner's daily paid operations: charged; "
+                    "refunded (the worker never launched); not_charged (own key, or no cap); "
+                    "not_recorded (the run predates the marker); unreadable. A run that launched "
+                    "and then failed stays charged.",
+    )
     elapsed_seconds: int | None = None
     stage_timings: list[StageTiming] = Field(
         default_factory=list,
@@ -468,6 +475,13 @@ class RunStatus(BaseModel):
     )
     output_language: str = "English"
     error: str | None = None
+    daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
+        default="not_recorded",
+        description="Whether this run spent one of its owner's daily paid operations: charged; "
+                    "refunded (the worker never launched); not_charged (own key, or no cap); "
+                    "not_recorded (the run predates the marker); unreadable. A run that launched "
+                    "and then failed stays charged.",
+    )
     elapsed_seconds: int | None = None
     stage_timings: list[StageTiming] = Field(
         default_factory=list,

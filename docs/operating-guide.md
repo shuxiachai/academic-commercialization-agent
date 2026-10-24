@@ -65,7 +65,10 @@ is resent once. The change is remembered for that endpoint and model for the
 rest of the worker process. The log line `[llm] <model> refused <parameter>`
 records each change. Other refusals still fail the run. Its public error
 then names the cause: a used-up free quota, an unbillable account, a model
-the key cannot use, or a request the model rejected.
+the key cannot use, or a request the model rejected. For a run made under an
+access code, the message says that the cause is on the deployment's side and
+that nothing in the request caused it; a run on the visitor's own key keeps
+the wording that says what to check, since the key and model are theirs.
 
 The search planner and translation calls go through a separate helper. If
 the connection fails before the request has been sent (a reset, a cut TLS
@@ -719,6 +722,10 @@ These are example policy values, not a cost/SLO guarantee.
   admin. A PDF followed by an assessment consumes two units. BYOK is exempt
   from operator-funded daily quota but not host capacity. Zero disables the
   cap; legacy `API_DAILY_RUN_CAP` is a fallback when the new name is unset.
+  A run is charged when it is admitted and stays charged if its worker fails
+  later; only a launch that never started a worker is refunded. Each run
+  records which applied (`daily_charge` on its status), and a failed run's
+  page says whether it counted and that resuming uses another unit.
 - `PLAN_PREVIEW_DAILY_LIMIT` (default 20, 0 disables) caps `POST /api/plan`
   per code and UTC day. A preview is one planner call and does not use a
   paid operation. The browser shows the reading before a code-funded run;

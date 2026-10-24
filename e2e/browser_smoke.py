@@ -21,7 +21,7 @@ import sys
 import threading
 import time
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -841,6 +841,20 @@ def _exercise_browser(
                 else:
                     expect(page.locator("#run-runtime-record")).to_have_text("")
 
+            # The reason stays on the page beside whether the run counted, and
+            # Resume is the primary action. The malformed-checkpoint fixture
+            # has no charge marker: it gets the reason alone, not a guessed
+            # quota line.
+            outcome = page.locator("#run-outcome")
+            expect(outcome).to_have_text(
+                "The model this deployment is set to rejected the request. Nothing in your request "
+                "caused this; the operator can find it by the run ID. This run counted toward "
+                "today's quota. Resuming from the checkpoint uses another.")
+            expect(page.locator("#run-actions").get_by_role(
+                "button", name="Resume from checkpoint", exact=True)).to_have_class("btn btn--primary")
+            page.goto(f"{base_url}/run/{bad_resume_id}", wait_until="domcontentloaded")
+            expect(outcome).to_have_text("The analysis failed. Retry or contact the operator with the run ID.")
+
             # A BYOK history GET failing transiently is not a failed worker.
             # Keep its capability entry visible, unknown and non-destructive,
             # then prove a successful reload restores the real completed row.
@@ -928,6 +942,7 @@ def main() -> None:
     with TemporaryDirectory(prefix=".browser-smoke-", dir=PROJECT_ROOT) as temp_dir:
         output_root = Path(temp_dir) / "outputs"
         app, access = _configure_isolated_app(output_root)
+        from api import runs as api_runs  # configured by the call above
         run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
         save_source_collection(
             json.dumps(_saved_source_fixture(), ensure_ascii=False), run_id, output_root,
@@ -999,6 +1014,17 @@ def main() -> None:
                     "state": "partial",
                     "committed_nodes": "not_retrieval" if index == 1 else ["retrieval"],
                 }
+                if index == 2:
+                    # The 2026-10-23 production failure as a code-funded run
+                    # that launched: its page must say whose problem it was
+                    # and that the run spent one of the day's slots. The
+                    # marker is the one the API writes, not a hand-made copy.
+                    status_path = output_root / runtime_id / "status.json"
+                    status = json.loads(status_path.read_text(encoding="utf-8"))
+                    status["error"] = ("BadRequestError: Error code: 400 - InvalidParameter: The value "
+                                       "of the enable_thinking parameter is restricted to True.")
+                    status_path.write_text(json.dumps(status), encoding="utf-8")
+                    api_runs._write_daily_charge(output_root / runtime_id, date.today())
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
             audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id)

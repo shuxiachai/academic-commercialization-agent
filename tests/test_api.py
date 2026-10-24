@@ -969,3 +969,56 @@ class RateLimitTests(_ApiTestCase):
         self.main._RATE_LIMIT_REQUESTS = 0
         for _ in range(20):
             self.assertEqual(self.client.get("/api/runs").status_code, 200)
+
+
+class FailedRunOutcomeTests(_ApiTestCase):
+    """What a failed run's page can say: whose problem it was, and whether it counted.
+
+    Both endpoints derive these from get_state(), so each is checked on the
+    status and the progress route. RunProgress names every field by hand and
+    has dropped new ones before.
+    """
+
+    _REJECTED = ("BadRequestError: Error code: 400 - {'error': {'message': '<400> InternalError.Algo."
+                 "InvalidParameter: The value of the enable_thinking parameter is restricted to True.'}}")
+    _OPERATOR_SIDE = ("The model this deployment is set to rejected the request. "
+                      "Nothing in your request caused this; the operator can find it by the run ID.")
+
+    def _both(self, rid: str) -> list[dict]:
+        return [self.client.get(f"/api/runs/{rid}").json(),
+                self.client.get(f"/api/runs/{rid}/progress").json()]
+
+    def test_a_code_funded_failure_says_it_is_on_the_operators_side(self):
+        """The 2026-10-23 production failure: the operator had switched to a
+        thinking-only model. The code holder who read "check the model
+        setting" has no such setting."""
+        rid = self._make_run(status={"done": False, "error": self._REJECTED})
+        (self.tmp / rid / ".owner").write_text("code-hash", encoding="utf-8")
+        for body in self._both(rid):
+            self.assertEqual(body["state"], "failed")
+            self.assertEqual(body["error"], self._OPERATOR_SIDE)
+            self.assertNotIn("enable_thinking", body["error"])
+
+    def test_a_run_on_the_visitors_own_key_keeps_the_actionable_wording(self):
+        rid = self._make_run(status={"done": False, "error": self._REJECTED})
+        for body in self._both(rid):
+            self.assertIn("Check that the model setting names a model this pipeline supports", body["error"])
+
+    def test_daily_charge_reaches_both_endpoints_without_guessing(self):
+        cases = {
+            "not_recorded": None,
+            "charged": {"schema_version": 1, "charged": True, "charged_on": "2026-10-23", "refunded": False},
+            "refunded": {"schema_version": 1, "charged": True, "charged_on": "2026-10-23", "refunded": True},
+            "not_charged": {"schema_version": 1, "charged": False, "charged_on": None, "refunded": False},
+            # Damaged or wrongly shaped: neither becomes "free".
+            "unreadable": "{not json",
+        }
+        cases["unreadable-shape"] = {"charged": "yes", "refunded": False}
+        for name, marker in cases.items():
+            with self.subTest(marker=name):
+                rid = self._make_run(status={"done": False, "error": "boom"})
+                if marker is not None:
+                    text = marker if isinstance(marker, str) else json.dumps(marker)
+                    (self.tmp / rid / ".daily_charge").write_text(text, encoding="utf-8")
+                for body in self._both(rid):
+                    self.assertEqual(body["daily_charge"], name.split("-")[0])
