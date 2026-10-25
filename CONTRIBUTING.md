@@ -56,6 +56,20 @@ installed packages. CI still runs serially: on a saturated four-core runner
 a few timing-sensitive concurrency tests fail intermittently in parallel, so
 confirm a parallel-only failure with a serial rerun before chasing it.
 
+The guides link to sites this repository does not control (provider docs, the
+live app, commit permalinks). `tests/test_public_docs.py` resolves only
+repository-relative paths and deliberately makes no network request, so check
+the external ones before sending a documentation change:
+
+```bash
+uv run python scripts/check_external_links.py
+```
+
+It reads the same guides that test lists, requests every `http(s)` link with a
+timeout and a short pause per host, prints what is broken, and exits non-zero
+if anything is. A 403 or 429 is a warning, not a failure: those hosts block
+bots, and a bot-blocked page is not a dead page.
+
 Tests of closed experiments, audits and probes are marked `experiment`
 ([list](tests/experiment_tests.txt)); they take about 80% of suite time for
 code the app and pipeline never import. `uv run pytest -m "not experiment"`
