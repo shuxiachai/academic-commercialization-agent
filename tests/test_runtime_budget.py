@@ -69,3 +69,33 @@ def test_direct_cli_run_remains_explicitly_unbounded() -> None:
 def test_invalid_wall_deadline_is_rejected(deadline: float) -> None:
     with pytest.raises(ValueError, match="deadline"):
         RuntimeBudget.from_wall_deadline(deadline, 1_800)
+
+
+def test_a_wall_deadline_already_passed_yields_elapsed_deadlines_not_an_error() -> None:
+    budget = RuntimeBudget.from_wall_deadline(1_000.0, 30, wall_now=2_000.0, monotonic_now=50.0)
+    assert budget.active
+    assert budget.hard_deadline_monotonic == 50.0
+    assert budget.paid_work_deadline == 50.0 - budget.finalization_reserve_seconds
+    assert budget.reviewer_deadline == 50.0 - budget.reviewer_reserve_seconds
+
+
+@pytest.mark.parametrize("index", [0, 1, 2, 3, 5, -1, 99])
+def test_only_the_reviewer_index_gets_the_reviewer_reserve(index: int) -> None:
+    budget = RuntimeBudget.from_wall_deadline(1_000.0, 30, wall_now=100.0, monotonic_now=0.0)
+    assert budget.deadline_for_agent(index) == budget.paid_work_deadline
+    assert budget.deadline_for_agent(4) == budget.reviewer_deadline
+
+
+@pytest.mark.parametrize("timeout", [0, -5])
+def test_a_non_positive_timeout_is_rejected_whenever_a_deadline_is_set(timeout: int) -> None:
+    with pytest.raises(ValueError):
+        RuntimeBudget.from_wall_deadline(100.0, timeout, wall_now=1.0, monotonic_now=1.0)
+
+
+def test_an_unbounded_budget_has_no_deadlines_at_all() -> None:
+    budget = RuntimeBudget.from_wall_deadline(None, None)
+    assert not budget.active
+    assert budget.reviewer_deadline is None
+    assert budget.paid_work_deadline is None
+    assert budget.deadline_for_agent(4) is None
+    assert budget.public_snapshot()["hard_deadline_at"] is None

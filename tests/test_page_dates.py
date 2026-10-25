@@ -87,3 +87,67 @@ class _NoRequests:
 def test_fetching_refuses_a_non_public_address_before_any_request(url):
     with patch.object(page_dates, "build_opener", return_value=_NoRequests()):
         assert page_dates.fetch_html(url) is None
+
+
+# ---------------------------------------------------------------------------
+# Boundaries: the day window, the ISO shape, and what counts as a path
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("value,expected", [
+    ("2026-10-22", date(2026, 10, 22)),                # the access day itself is allowed
+    ("2026-10-23", None),                              # one day later is not
+    ("1990-01-01", date(1990, 1, 1)),                  # the earliest allowed day
+    ("1989-12-31", None),                              # one day earlier is not
+    ("2026-02-30", None),                              # well formed, impossible
+    ("2026-1-5", None),                                # partial fields are not ISO
+    (" 2026-10-22", date(2026, 10, 22)),               # leading whitespace is tolerated
+    ("2026-10-22T23:59:59+10:00", date(2026, 10, 22)),  # the time part is ignored
+    ("2026-10-22extra", None),                         # trailing junk is not
+    (["2026-10-22"], None),                            # a JSON-LD list is not a date
+    (20261022, None),
+    (None, None),
+])
+def test_the_date_window_and_the_iso_shape_are_exact(value, expected):
+    assert page_dates._parse(value, TODAY) == expected
+
+
+@pytest.mark.parametrize("url,expected", [
+    ("https://e.test/2026/10/22", (date(2026, 10, 22), "url_path")),
+    ("https://e.test/2026/10/22/#section", (date(2026, 10, 22), "url_path")),
+    ("https://e.test/2026/13/01/a", (None, "none")),       # no thirteenth month
+    ("https://e.test/2026/10/22x", (None, "none")),         # the day must end its segment
+    ("https://e.test/a/1989/01/01/", (None, "none")),       # before the window
+    ("https://e.test/?p=/2026/10/22/", (None, "none")),     # the query is not the path
+])
+def test_only_a_full_date_in_the_path_itself_counts(url, expected):
+    assert date_from_url(url, TODAY) == expected
+
+
+@pytest.mark.parametrize("source_type,url,expected", [
+    ("other", "https://e.test/?q=1", False),               # a query string is not a page path
+    ("other", "https://e.test//", False),
+    ("other", "https://de.wikipedia.org/wiki/X", False),   # every Wikipedia subdomain
+    ("other", "https://notwikipedia.org/wiki/X", True),    # but not a look-alike host
+    (None, None, False),
+])
+def test_path_and_host_edge_cases_for_dating(source_type, url, expected):
+    assert should_date(source_type, url) is expected
+
+
+def test_an_impossible_json_ld_date_does_not_hide_a_later_valid_one():
+    page = html('<script type="application/ld+json">{"@graph": [{"datePublished": "2030-01-01"}, '
+                '{"datePublished": "2026-05-05"}]}</script>'
+                '<meta property="article:published_time" content="2026-01-01">')
+    assert date_from_html(page, "https://e.test/a", TODAY) == (date(2026, 5, 5), "json_ld")
+
+
+def test_a_top_level_json_ld_array_is_walked_and_a_list_valued_date_is_not_a_date():
+    array = html('<script type="application/ld+json">[{"datePublished": "2026-03-03"}]</script>')
+    assert date_from_html(array, "https://e.test/a", TODAY) == (date(2026, 3, 3), "json_ld")
+    listed = html('<script type="application/ld+json">{"datePublished": ["2026-03-03"]}</script>')
+    assert date_from_html(listed, "https://e.test/a", TODAY) == (None, "none")
+
+
+def test_meta_attribute_names_are_matched_without_regard_to_case():
+    page = html('<META PROPERTY="Article:Published_Time" CONTENT="2026-04-04">')
+    assert date_from_html(page, "https://e.test/a", TODAY) == (date(2026, 4, 4), "meta")

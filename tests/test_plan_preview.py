@@ -195,3 +195,24 @@ class EndpointTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SearchPlanBoundaryTests(unittest.TestCase):
+    """Phrases exactly at the planner's bounds, and duplicates in another case."""
+
+    def test_phrases_exactly_at_the_planner_bounds_are_accepted(self):
+        self.assertEqual(SearchPlan(search_topic="abc").search_topic, "abc")
+        self.assertEqual(len(SearchPlan(search_topic="x" * 200).search_topic), 200)
+        self.assertEqual(len(SearchPlan(search_topic=" ".join(["w"] * 24)).search_topic.split()), 24)
+        self.assertEqual(SearchPlan(search_topic="  abc   def  ").search_topic, "abc def")
+
+    def test_duplicates_are_caught_without_regard_to_case(self):
+        with self.assertRaises(ValidationError):
+            SearchPlan(search_topic="abc", aliases=("ABC",))
+        with self.assertRaises(ValidationError):
+            SearchPlan(search_topic="abc", aliases=("same", "SAME"))
+
+    def test_a_two_character_topic_is_too_short_in_any_script(self):
+        with self.assertRaises(ValidationError):
+            SearchPlan(search_topic="中文")
+        self.assertEqual(SearchPlan(search_topic="中文话题").search_topic, "中文话题")

@@ -360,3 +360,36 @@ class RealReportsTests(unittest.TestCase):
                     "a real report was flagged; check precision before shipping")
         if not checked:
             self.skipTest("no complete runs on disk")
+
+
+class ScoreBoundaryTests(unittest.TestCase):
+    """The thresholds are floors: a score exactly at one is not a contradiction."""
+
+    def test_a_score_exactly_at_the_floor_passes_and_just_below_does_not(self):
+        strong = _report(recommendation="We recommend immediate commercialization.")
+        self.assertEqual(check(strong, {"overall_score": 60}).findings, ())
+        self.assertEqual(len(check(strong, {"overall_score": 59.999}).findings), 1)
+        measured = _report(recommendation="We strongly recommend a pilot.")
+        self.assertEqual(check(measured, {"overall_score": 55}).findings, ())
+        self.assertEqual(len(check(measured, {"overall_score": 54.9}).findings), 1)
+
+    def test_a_numeric_string_score_is_read_and_a_non_numeric_one_is_survived(self):
+        strong = _report(recommendation="We recommend immediate commercialization.")
+        self.assertEqual(len(check(strong, {"overall_score": "45"}).findings), 1)
+        broken = check(strong, {"overall_score": "n/a"})
+        self.assertFalse(broken.checked)
+        self.assertIn("ValueError", broken.error or "")
+
+    def test_a_missing_or_null_overall_score_checks_nothing_but_is_not_unchecked(self):
+        strong = _report(recommendation="We recommend immediate commercialization.")
+        for scores in ({"overall_score": None}, {"trl_score": 3}):
+            with self.subTest(scores=scores):
+                result = check(strong, scores)
+                self.assertTrue(result.checked)
+                self.assertEqual(result.findings, ())
+
+    def test_only_a_level_two_heading_with_a_space_opens_a_conclusion_section(self):
+        body = "We recommend immediate commercialization.\n"
+        self.assertEqual(len(check("## EXECUTIVE SUMMARY\n" + body, {"overall_score": 10}).findings), 1)
+        self.assertFalse(check("### Executive Summary\n" + body, {"overall_score": 10}).checked)
+        self.assertFalse(check("##Executive Summary\n" + body, {"overall_score": 10}).checked)
