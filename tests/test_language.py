@@ -208,6 +208,50 @@ def test_topic_plan_falls_back_to_the_original_english_input_when_call_fails():
     assert plan == TopicSearchPlan(search_topic=raw, aliases=())
 
 
+def test_a_plan_that_only_dropped_the_inputs_function_words_keeps_the_inputs_wording():
+    """The production run of 2026-10-25: the search topic came back as the
+    typed topic minus its "for", and both aliases read the same way."""
+    raw = "Binder-free hard carbon anode optimization for sodium-ion batteries"
+    response = (
+        "SEARCH_TOPIC: Binder-free hard carbon anode optimization sodium-ion batteries\n"
+        "ALIAS: Binderless hard carbon negative electrode sodium-ion battery performance"
+    )
+    with patch("academic_agent.language._llm_call", return_value=response):
+        plan = plan_topic_search(raw)
+    assert plan.search_topic == raw
+    assert plan.aliases == ("Binderless hard carbon negative electrode sodium-ion battery performance",)
+
+
+def test_a_plan_that_changes_a_content_word_is_the_planners_reading_and_is_kept():
+    raw = "Perovskite solar cells with improved stability in humid environments"
+    response = ("SEARCH_TOPIC: Perovskite solar cells humidity stability\n"
+                "ALIAS: Moisture resistance of perovskite photovoltaics")
+    with patch("academic_agent.language._llm_call", return_value=response):
+        plan = plan_topic_search(raw)
+    assert plan.search_topic == "Perovskite solar cells humidity stability"
+
+
+def test_the_wording_guard_does_not_put_request_framing_back():
+    raw = "assess the commercial potential of hyperloop for freight"
+    with patch("academic_agent.language._llm_call", return_value="SEARCH_TOPIC: hyperloop for freight"):
+        plan = plan_topic_search(raw)
+    assert plan.search_topic == "hyperloop for freight"
+
+
+def test_the_wording_guard_leaves_non_english_input_to_the_planner():
+    raw = "钠离子电池用无粘结剂硬碳负极"
+    with patch("academic_agent.language._llm_call",
+               return_value="SEARCH_TOPIC: binder-free hard carbon anodes for sodium-ion batteries"):
+        plan = plan_topic_search(raw)
+    assert plan.search_topic == "binder-free hard carbon anodes for sodium-ion batteries"
+
+
+def test_the_planner_is_told_to_keep_function_words():
+    with patch("academic_agent.language._llm_call", return_value="") as call:
+        plan_topic_search("solid-state batteries for electric vehicles")
+    assert "keeping function words such as 'for'" in call.call_args.args[0]
+
+
 # ---------------------------------------------------------------------------
 # translate_headings — LLM failure graceful degradation
 # ---------------------------------------------------------------------------

@@ -75,6 +75,26 @@ def no_real_llm_configuration(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_real_arxiv_lookup(monkeypatch):
+    """Keep the uploaded-paper title lookup off the network in every test.
+
+    extract_paper_contribution asks arXiv for the title whenever the text
+    carries no identifier, which is what most test PDFs look like, and a
+    lookup that cannot run degrades to "unavailable" rather than failing. So
+    an unpatched test would pass offline, and online would send a real
+    request per extraction. Refusing at the single fetch seam makes that
+    path deterministic; a test of the lookup itself patches the seam or
+    passes title_lookup.
+    """
+    from academic_agent import pdf_extractor
+
+    def refuse(query, *, timeout):
+        raise OSError("tests do not reach arXiv; patch _fetch_arxiv_feed or pass title_lookup")
+
+    monkeypatch.setattr(pdf_extractor, "_fetch_arxiv_feed", refuse)
+
+
+@pytest.fixture(autouse=True)
 def no_real_runtime_limits(monkeypatch):
     """Do not let import-time .env caps decide which isolated tests get 429.
 

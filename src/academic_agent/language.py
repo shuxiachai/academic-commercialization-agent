@@ -331,6 +331,39 @@ def _strip_assessment_terms(value: str) -> str:
     return stripped if len(stripped) >= 3 else value
 
 
+# Words whose removal changes the grammar of a phrase but not what it names.
+_FUNCTION_WORDS = frozenset({
+    "a", "an", "the", "of", "for", "in", "on", "to", "with", "and", "via",
+    "from", "into", "by", "at", "using", "under", "between", "as", "toward",
+    "towards", "within", "through",
+})
+
+
+def _content_words(phrase: str) -> list[str]:
+    return [w for w in (t.strip(".,;:()[]\"'").casefold() for t in phrase.split())
+            if w and w not in _FUNCTION_WORDS]
+
+
+def _prefer_input_wording(raw: str, search_topic: str) -> str:
+    """Keep the user's phrase when the planner only dropped its function words.
+
+    Asked for a concise topic, a model sometimes returns the English input
+    compressed into a keyword string: "Binder-free hard carbon anode
+    optimization for sodium-ion batteries" came back without its "for", and
+    both aliases in the same production run read the same way. Retrieval
+    backends ignore such words anyway; the agents' prompts and the preview
+    panel do not, and showed the user an ungrammatical reading of their own
+    topic. When the planner's phrase names exactly the same things in the
+    same order, the user's wording is the better one. A rephrasing that
+    changes any content word is the planner's call and is kept.
+    """
+    if search_topic.casefold() == raw.casefold():
+        return search_topic
+    if _content_words(search_topic) == _content_words(raw) and len(search_topic.split()) < len(raw.split()):
+        return raw
+    return search_topic
+
+
 def plan_topic_search(topic: str, n: int = 2) -> TopicSearchPlan:
     """Turn free-form user language into one faithful academic search plan.
 
@@ -369,6 +402,9 @@ def plan_topic_search(topic: str, n: int = 2) -> TopicSearchPlan:
         "If the input combines two or more independently searchable technical "
         "building blocks, list each one as a COMPONENT. Do not treat a broad "
         "application, outcome, customer, or constraint as a component.\n\n"
+        "Write SEARCH_TOPIC and each ALIAS as a grammatical noun phrase of the "
+        "kind a paper title uses, keeping function words such as 'for', 'of' "
+        "and 'in'; do not compress them into a keyword list.\n\n"
         "Return exactly these plain-text tags, with no JSON, numbering, or explanation:\n"
         "SEARCH_TOPIC: <concise English research topic, normally 3-12 words>\n"
         "ALIAS: <a close equivalent academic phrasing>\n"
@@ -406,6 +442,9 @@ def plan_topic_search(topic: str, n: int = 2) -> TopicSearchPlan:
 
     if search_topic.casefold() in _UNRESOLVED_TOPIC_VALUES:
         return TopicSearchPlan(search_topic="", resolved=False)
+
+    if search_topic and detect_language(raw).startswith("en"):
+        search_topic = _prefer_input_wording(raw, search_topic)
 
     # A verbose explanation that happens to carry a tag is still not a search
     # phrase. Falling back is safer than silently sending model commentary to
