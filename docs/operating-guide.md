@@ -338,9 +338,16 @@ release checks.
 PDF extraction responses and stored metadata include `input_coverage` with the
 actual scanned/included/truncated/omitted pages and character budget. This is
 sampling visibility, not full-paper reading or section-level understanding.
-`locator_status` describes a text candidate or conflict, not a verified paper
+`locator_status` describes a candidate or conflict, not a verified paper
 identity; reachable upload locators no longer imply high credibility. See the
 [input and identity contract](results-2026-09-10-evidence-pdf-terminal-boundaries.md).
+When the text carries no DOI or arXiv identifier, the title is looked up once on
+the arXiv query API (no key, 8-second bound); an exact title match whose first
+author the extraction also read becomes `title_match_candidate` with the record
+as `candidate_url`, and `public_record_lookup` says whether that lookup matched,
+found nothing, or could not run. A1's credibility reason states the same in
+words, so the report's reference list no longer paraphrases "no candidate" as
+the paper lacking a DOI. The candidate is never A1's citation identity.
 
 The composer permits one in-flight submission and one serial PDF extraction,
 never both at once. It preserves an existing topic when a paper is attached;

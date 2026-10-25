@@ -233,8 +233,10 @@ class PaperExtraction(BaseModel):
     abstract_excerpt: str = ""
     input_coverage: PDFInputCoverage = Field(default_factory=PDFInputCoverage)
     locator_status: Literal[
-        "text_candidate", "conflicting_candidates", "no_public_candidate", "legacy_unverified",
+        "text_candidate", "title_match_candidate", "conflicting_candidates",
+        "no_public_candidate", "legacy_unverified",
     ] = "legacy_unverified"
+    public_record_lookup: Literal["not_attempted", "matched", "no_match", "unavailable"] = "not_attempted"
 
 
 class PaidReceipt(BaseModel):

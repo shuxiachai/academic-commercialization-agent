@@ -9,10 +9,13 @@ require pypdfium2 and a live LLM respectively.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from academic_agent import pdf_extractor
 from academic_agent.pdf_extractor import (
     A1_SUMMARY_MAX_CHARS,
     PaperContribution,
+    TitleLookup,
     _detect_paper_language,
     _find_arxiv_url,
     _find_doi,
@@ -353,6 +356,74 @@ class PaperLocatorVerificationTests(unittest.TestCase):
         self.assertEqual(src.source_id, "A1")
         self.assertEqual(src.title, "Solid Electrolyte Interface Study")
         self.assertIn("novel solid electrolyte", src.evidence_summary)
+
+
+# ---------------------------------------------------------------------------
+# _arxiv_title_lookup — a public record found by title, offered as a candidate
+# ---------------------------------------------------------------------------
+
+_TITLE = ("Influence of Electrode Thickness and Electrolyte Composition on SEI Formation "
+          "and Cycle Stability in Binder-Free Hard Carbon Anodes for Na-Ion Batteries")
+
+
+def _feed(*entries: tuple[str, str, str]) -> bytes:
+    """An arXiv Atom feed of (id, title, first author) entries."""
+    body = "".join(
+        f"<entry><id>http://arxiv.org/abs/{arxiv_id}</id><title>{title}</title>"
+        f"<author><name>{author}</name></author></entry>"
+        for arxiv_id, title, author in entries)
+    return ('<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">'
+            f"<title>arXiv Query</title>{body}</feed>").encode()
+
+
+class ArxivTitleLookupTests(unittest.TestCase):
+    """Exact title, confirmed by author, and never more than a candidate."""
+
+    def _lookup(self, feed, title=_TITLE, authors="Tien-Nguyen-Khoi Trinh, Adrian Beda"):
+        with patch.object(pdf_extractor, "_fetch_arxiv_feed", return_value=feed) as fetch:
+            result = pdf_extractor._arxiv_title_lookup(title, authors)
+        return result, fetch
+
+    def test_the_paper_arxiv_serves_without_a_stamp_is_found_by_its_title(self):
+        # The real feed wraps long titles over lines; normalisation must not care.
+        wrapped = _TITLE.replace(" and Cycle", "\n  and Cycle")
+        result, fetch = self._lookup(_feed(("2610.06253v1", wrapped, "Tien-Nguyen-Khoi Trinh")))
+        self.assertEqual(result, TitleLookup("matched", "https://arxiv.org/abs/2610.06253"))
+        self.assertEqual(fetch.call_args.args[0], f'ti:"{_TITLE}"')
+        self.assertEqual(fetch.call_args.kwargs["timeout"], pdf_extractor._ARXIV_LOOKUP_TIMEOUT_SECONDS)
+
+    def test_a_record_with_a_different_title_is_not_a_match(self):
+        result, _ = self._lookup(_feed(("2610.06253v1", _TITLE + " Revisited", "Tien-Nguyen-Khoi Trinh")))
+        self.assertEqual(result, TitleLookup("no_match"))
+
+    def test_the_same_title_by_other_authors_is_not_a_match(self):
+        result, _ = self._lookup(_feed(("2610.06253v1", _TITLE, "Someone Else")))
+        self.assertEqual(result, TitleLookup("no_match"))
+
+    def test_without_extracted_authors_a_long_title_is_enough_and_a_short_one_is_not_asked(self):
+        result, _ = self._lookup(_feed(("2610.06253v1", _TITLE, "Someone Else")), authors="")
+        self.assertEqual(result.outcome, "matched")
+        result, fetch = self._lookup(_feed(("2301.00001v1", "Hard Carbon Anodes", "Kim")),
+                                     title="Hard Carbon Anodes", authors="")
+        self.assertEqual(result, TitleLookup("no_match"))
+        fetch.assert_not_called()
+
+    def test_the_matching_entry_is_found_among_others_and_its_version_is_dropped(self):
+        result, _ = self._lookup(_feed(("2401.11111v2", "Something About Hard Carbon", "Kim"),
+                                       ("2610.06253v3", _TITLE, "T. N. K. Trinh")))
+        self.assertEqual(result.url, "https://arxiv.org/abs/2610.06253")
+
+    def test_a_failed_or_unparseable_request_is_unavailable_not_absent(self):
+        with patch.object(pdf_extractor, "_fetch_arxiv_feed", side_effect=OSError("timed out")):
+            self.assertEqual(pdf_extractor._arxiv_title_lookup(_TITLE, "Trinh"), TitleLookup("unavailable"))
+        with patch.object(pdf_extractor, "_fetch_arxiv_feed", return_value=b"<html>rate limited"):
+            self.assertEqual(pdf_extractor._arxiv_title_lookup(_TITLE, "Trinh"), TitleLookup("unavailable"))
+
+    def test_quotes_in_a_title_cannot_break_the_phrase_query(self):
+        _, fetch = self._lookup(_feed(), title='The "Smart" Grid Problem in Six Words Here')
+        query = fetch.call_args.args[0]
+        self.assertTrue(query.startswith('ti:"') and query.endswith('"'))
+        self.assertEqual(query.count('"'), 2)
 
 
 if __name__ == "__main__":

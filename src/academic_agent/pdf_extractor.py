@@ -6,10 +6,14 @@ import hashlib
 import json
 import re
 import threading
+import urllib.parse
+import urllib.request
+import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from contextlib import closing
 from datetime import date
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 from pydantic import BaseModel, Field
 
@@ -17,6 +21,87 @@ from pydantic import BaseModel, Field
 _DOI_RE    = re.compile(r"\b(10\.\d{4,9}/[^\s,;<>\"')\]]+)", re.IGNORECASE)
 _ARXIV_RE  = re.compile(r"arXiv[:\s]+(\d{4}\.\d{4,5})(?:v\d+)?", re.IGNORECASE)
 _ARXIV_URL_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})", re.IGNORECASE)
+
+#: Where a paper whose text carries no identifier is looked up by title.
+#: arXiv's query API needs no key, and its terms of use ask for one request
+#: at a time; one bounded call per upload, after paid admission has already
+#: serialised uploads, keeps to that. The timeout bounds the upload's wait,
+#: not the model call that precedes it.
+_ARXIV_QUERY_URL = "https://export.arxiv.org/api/query"
+_ARXIV_LOOKUP_TIMEOUT_SECONDS = 8.0
+_ARXIV_USER_AGENT = "academic-commercialization-agent (uploaded-paper title lookup)"
+#: Below this many words a title alone is not distinctive enough to name a
+#: paper; without authors to confirm, such a title is not looked up.
+_TITLE_LOOKUP_MIN_WORDS = 6
+_ATOM = "{http://www.w3.org/2005/Atom}"
+
+LookupOutcome = Literal["not_attempted", "matched", "no_match", "unavailable"]
+
+
+class TitleLookup(NamedTuple):
+    """What a public-record title lookup found, and whether it could run.
+
+    ``no_match`` and ``unavailable`` are kept apart on purpose: the first is
+    a statement about arXiv, the second about our network, and the reference
+    list should not turn a timeout into "not on arXiv".
+    """
+
+    outcome: LookupOutcome
+    url: str | None = None
+
+
+def _normalise_title(text: str) -> str:
+    """Casefold and keep only letters and digits, so punctuation, line breaks
+    and TeX escapes in a feed title cannot hide an exact match."""
+    return " ".join(re.sub(r"[^0-9a-z]+", " ", text.casefold()).split())
+
+
+def _fetch_arxiv_feed(query: str, *, timeout: float) -> bytes:
+    """One GET against the arXiv query API. Tests replace this seam."""
+    url = f"{_ARXIV_QUERY_URL}?{urllib.parse.urlencode({'search_query': query, 'max_results': 5})}"
+    request = urllib.request.Request(url, headers={"User-Agent": _ARXIV_USER_AGENT})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read()
+
+
+def _arxiv_title_lookup(title: str, authors: str) -> TitleLookup:
+    """Find the arXiv record whose title is the extracted title.
+
+    An uploaded manuscript often carries no identifier at all: arXiv does
+    not stamp every PDF-only submission (the paper this was built against is
+    served by arXiv without one), and an author's own file predates its DOI.
+    Reading the text alone then reports no public record for a paper that
+    has one, and the report went on to treat that as a finding about the
+    paper. One title lookup offers the record as a candidate.
+
+    It stays a candidate: a title match is not manuscript verification, and
+    two documents can share a title. So the match is exact on the normalised
+    title, the record's first author must be among the authors the
+    extraction read when it read any, and a short title is not looked up
+    without authors to confirm it.
+    """
+    wanted = _normalise_title(title)
+    known_authors = _normalise_title(authors).split()
+    if not wanted or (not known_authors and len(wanted.split()) < _TITLE_LOOKUP_MIN_WORDS):
+        return TitleLookup("no_match")
+    try:
+        feed = _fetch_arxiv_feed(f'ti:"{title.replace(chr(34), " ")}"', timeout=_ARXIV_LOOKUP_TIMEOUT_SECONDS)
+        entries = ET.fromstring(feed).findall(f"{_ATOM}entry")
+    except Exception as exc:
+        # Any failure here means the lookup did not happen, never "not on arXiv".
+        print(f"[pdf] arXiv title lookup unavailable: {type(exc).__name__}: {exc}", flush=True)
+        return TitleLookup("unavailable")
+    for entry in entries:
+        if _normalise_title(entry.findtext(f"{_ATOM}title") or "") != wanted:
+            continue
+        first_author = _normalise_title(entry.findtext(f"{_ATOM}author/{_ATOM}name") or "").split()
+        if known_authors and first_author and first_author[-1] not in known_authors:
+            continue
+        identifier = re.search(r"(\d{4}\.\d{4,5})", entry.findtext(f"{_ATOM}id") or "")
+        if identifier:
+            return TitleLookup("matched", f"https://arxiv.org/abs/{identifier.group(1)}")
+    return TitleLookup("no_match")
+
 
 # Marks a synthesised DOI, as opposed to one registered with a real agency.
 _PLACEHOLDER_DOI_PREFIX = "10.0000/uploaded-"
@@ -66,8 +151,13 @@ class PaperContribution(BaseModel):
     abstract_excerpt: str = ""
     input_coverage: PDFInputCoverage = Field(default_factory=PDFInputCoverage)
     locator_status: Literal[
-        "text_candidate", "conflicting_candidates", "no_public_candidate", "legacy_unverified",
+        "text_candidate", "title_match_candidate", "conflicting_candidates",
+        "no_public_candidate", "legacy_unverified",
     ] = "legacy_unverified"
+    #: Whether the text carried no identifier and arXiv was asked for the
+    #: title, and what it said. Extractions saved before the lookup existed
+    #: read as not attempted.
+    public_record_lookup: LookupOutcome = "not_attempted"
 
 
 #: How many pages may be read from one document, however long it is.
@@ -365,12 +455,14 @@ def extract_paper_contribution(
     llm_provider: str | None = None,
     llm_api_key: str | None = None,
     llm_model: str | None = None,
+    title_lookup: Callable[[str, str], TitleLookup] | None = None,
 ) -> PaperContribution:
     """Extract structured contribution metadata from an academic PDF using LLM.
 
     llm_provider/llm_api_key bill the extraction to a visitor bringing their
     own key, and llm_model optionally names the model for that key. Omitted,
-    it runs on the deployment's own credentials as before.
+    it runs on the deployment's own credentials as before. title_lookup
+    replaces the arXiv title lookup, for tests and offline callers.
     """
     coverage: dict = {}
     text = extract_pdf_text(pdf_path, coverage=coverage)
@@ -396,8 +488,16 @@ def extract_paper_contribution(
     # a DOI in a bibliography is not proof of this document's identity.
     model_doi = data.get("doi")
     model_url = data.get("url")
+    # Only when the text names nothing is the title looked up; a text
+    # identifier, even a bibliography one, is the stronger candidate and the
+    # lookup would just add a network wait to the upload.
+    lookup = TitleLookup("not_attempted")
+    if not doi_found and not arxiv_url:
+        lookup = (title_lookup or _arxiv_title_lookup)(
+            str(data.get("title") or ""), str(data.get("authors") or ""))
+    data["public_record_lookup"] = lookup.outcome
     data["candidate_doi"] = doi_found
-    data["candidate_url"] = f"https://doi.org/{doi_found}" if doi_found else arxiv_url
+    data["candidate_url"] = f"https://doi.org/{doi_found}" if doi_found else arxiv_url or lookup.url
     conflict = bool(
         (model_doi and model_doi != doi_found)
         or (model_url and model_url != data["candidate_url"])
@@ -405,7 +505,8 @@ def extract_paper_contribution(
     )
     data["locator_status"] = (
         "conflicting_candidates" if conflict else
-        "text_candidate" if doi_found or arxiv_url else "no_public_candidate"
+        "text_candidate" if doi_found or arxiv_url else
+        "title_match_candidate" if lookup.url else "no_public_candidate"
     )
     # Never trust model-supplied coverage/identity fields, even if valid JSON.
     data["input_coverage"] = PDFInputCoverage.model_validate(coverage)
@@ -485,6 +586,34 @@ def _a1_summary(pc: PaperContribution) -> str:
     return f"{contribution} {tail}"
 
 
+def _locator_note(pc: PaperContribution) -> str:
+    """Say what was found about the paper's public record, in plain words.
+
+    The note used to name the status code. The writer then paraphrased
+    ``no_public_candidate`` as the paper "lacking a registered DOI or
+    independent peer-review verification": our not finding a record had
+    become a finding about the paper, in the reader's reference list.
+    """
+    candidate = pc.candidate_url or (f"https://doi.org/{pc.candidate_doi}" if pc.candidate_doi else "")
+    if pc.locator_status == "text_candidate":
+        return (f"The document text carries an identifier ({candidate}); a bibliography can cite "
+                "other work, so it stays a candidate rather than this paper's citation identity.")
+    if pc.locator_status == "title_match_candidate":
+        return (f"The document text carries no DOI or arXiv identifier; an arXiv record has the same "
+                f"title ({candidate}). A title match is not manuscript verification, so it stays a "
+                "candidate rather than the citation identity.")
+    if pc.locator_status == "conflicting_candidates":
+        return ("Identifiers in the document text and identifiers named by the extraction model "
+                "disagree, so none was adopted as the citation identity.")
+    if pc.locator_status == "no_public_candidate":
+        tail = {
+            "no_match": " and arXiv lists no record with this title",
+            "unavailable": "; the arXiv title lookup was unavailable",
+        }.get(pc.public_record_lookup, "")
+        return f"The document text carries no DOI or arXiv identifier{tail}."
+    return "This extraction predates locator candidates; none was recorded."
+
+
 def paper_to_evidence_source(
     pc: PaperContribution,
     url_checker: "UrlChecker | None" = None,  # noqa: F821
@@ -508,8 +637,7 @@ def paper_to_evidence_source(
         credibility_tier="medium",
         credibility_reason=(
             "Uploaded paper; document identity and claim support have not been independently checked. "
-            f"Candidate locators are excluded from citation identity ({pc.locator_status}); "
-            "the synthetic upload identifier is not a registered DOI."
+            f"{_locator_note(pc)} The identifier shown is an upload placeholder, not a registered DOI."
         ),
         evidence_summary=_a1_summary(pc), citation_count=None,
     )
