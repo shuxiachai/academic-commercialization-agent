@@ -527,3 +527,138 @@ class PerDomainReportingTests(TestCase):
 
         self.assertEqual(summary["status"], "failed")
         self.assertNotIn("private disk path", str(summary))
+
+
+class FigureNotationBoundaryTests(TestCase):
+    """Separators, signs, exponents and scripts at the edges of the lexer."""
+
+    def test_a_comma_before_one_or_two_digits_is_a_decimal_comma(self):
+        """'0,49 miliardi' was read as 49: every figure of an Italian report
+        on disk was off a hundredfold, on both sides of the comparison."""
+        self.assertEqual(checkable_figures("26,1%"), [("26.1", "%")])
+        self.assertEqual(checkable_figures("12,5 mm"), [("12.5", "mm")])
+        self.assertEqual(checkable_figures("-26,1%"), [("-26.1", "%")])
+        self.assertEqual(checkable_figures("1234,5%"), [("1234.5", "%")])
+        self.assertEqual(checkable_figures("0,49 miliardi")[0][0], "0.49")
+
+    def test_three_digit_groups_remain_thousands_separators(self):
+        self.assertEqual(checkable_figures("1,000 cycles"), [("1000", "cycles")])
+        self.assertEqual(checkable_figures("1,000.5 kg"), [("1000.5", "kg")])
+        self.assertEqual(checkable_figures("1,00,000 kg"), [("100000", "kg")])
+
+    def test_signs_and_exponents_normalise_to_one_spelling(self):
+        self.assertEqual(checkable_figures("−5 °C"), [("-5", "°c")])
+        self.assertEqual(checkable_figures("1e3 kg"), [("1000", "kg")])
+        self.assertEqual(checkable_figures("1e-3%"), [("0.001", "%")])
+
+    def test_ranges_powers_and_unknown_units_abstain_rather_than_guess(self):
+        for text in ("10–20%", "5 ×10^3 K", "328 mAh/g", "1.5 mM"):
+            with self.subTest(text=text):
+                figures = checkable_figures(text)
+                self.assertEqual(len(figures), 1)
+                self.assertTrue(figures[0][1].startswith("?unknown:"), figures)
+
+    def test_fullwidth_digits_and_percent_are_not_read(self):
+        """Pinned, not endorsed: a Chinese report writing ５０％ states a figure
+        this screen cannot see, so it is neither checked nor flagged."""
+        self.assertEqual(checkable_figures("５０％"), [])
+        self.assertEqual(checkable_figures("50 ％"), [])
+
+    def test_a_claim_may_round_a_source_figure_but_not_add_precision_to_it(self):
+        from academic_agent.claim_grounding import _same_numeric_value
+
+        self.assertTrue(_same_numeric_value("26", "26.1"))
+        self.assertFalse(_same_numeric_value("26.1", "26"))
+        self.assertTrue(_same_numeric_value("0.5", ".5"))
+        self.assertTrue(_same_numeric_value("100", "1e2"))
+        self.assertFalse(_same_numeric_value("abc", "abc"))
+
+
+class ScreenEdgeTests(TestCase):
+    """Paths the coverage run showed untested: notation limits, date ranges,
+    the unit on each side of a comparison, and how an unknown unit is reported."""
+
+    def test_milli_and_mega_prefixes_never_become_the_same_unit(self):
+        self.assertEqual(checkable_figures("1.5 mWh"), [("1.5", "milliwatt-hour")])
+        self.assertEqual(checkable_figures("1.5 MWh"), [("1.5", "mwh")])
+        self.assertEqual(checkable_figures("2.5 mPa"), [("2.5", "millipascal")])
+
+    def test_absurdly_long_or_large_notation_is_unknown_not_a_number(self):
+        for text in ("1" * 140 + " kg", "1e200 kg", "1e-150%"):
+            with self.subTest(text=text[:20]):
+                figures = checkable_figures(text)
+                self.assertEqual(len(figures), 1)
+                self.assertEqual(figures[0][1], "?unknown:numeric notation")
+
+    def test_year_ranges_and_small_count_ranges_are_not_figures_but_a_large_range_is_visible(self):
+        self.assertEqual(checkable_figures("the 2020-2024 programme"), [])
+        self.assertEqual(checkable_figures("funded 2019–23"), [])
+        self.assertEqual(checkable_figures("TRL 4-5 today"), [])
+        self.assertEqual(checkable_figures("costs 1000-2000"), [("1000-2000", "?unknown:numeric notation")])
+
+    def test_a_rendered_figure_keeps_its_unit_spacing(self):
+        report = _Report(
+            findings=[_Finding("F1", "Energy density reached 500 Wh/kg at 26.1% efficiency.", ["A1"])],
+            sources=[_Source("A1", _abstract("The cell delivered 500 Wh/kg and 26.1% efficiency."))],
+        )
+        shown = check_report(report).checks[0].as_dict()
+        self.assertEqual(shown["status"], "grounded")
+        self.assertEqual(shown["grounded_figures"], ["500 wh/kg", "26.1%"])
+
+    def test_non_finite_values_never_compare_equal(self):
+        from academic_agent.claim_grounding import _same_numeric_value
+
+        self.assertFalse(_same_numeric_value("Infinity", "Infinity"))
+        self.assertFalse(_same_numeric_value("NaN", "NaN"))
+        self.assertFalse(_same_numeric_value("1", "Infinity"))
+
+    def test_an_unknown_unit_on_either_side_neither_supports_nor_accuses(self):
+        from academic_agent.claim_grounding import _supported
+
+        self.assertFalse(_supported("26.1", "%", [("26.1", "?unknown:foo")], "26.1 foo"))
+        self.assertFalse(_supported("26.1", "?unknown:foo", [("26.1", "%")], "26.1%"))
+        # The unitless fallback skips haystack figures with an unknown suffix too.
+        self.assertFalse(_supported("1000", "", [], "about 1000 foo"))
+        self.assertTrue(_supported("1000", "", [], "1e kg then 1000 of them"))
+
+    def test_an_unrecognised_unit_in_the_claim_is_reported_as_notation_not_as_a_result(self):
+        """The production walkthrough's own case: 328 mAh/g is a real figure
+        this screen cannot compare, and the source saying the same thing must
+        not turn it into a pass, nor its silence into an accusation."""
+        report = _Report(
+            findings=[_Finding("F1", "Capacity reached 328 mAh/g.", ["A1"])],
+            sources=[_Source("A1", _abstract("A reversible capacity of 328 mAh/g was measured."))],
+        )
+        audit = check_report(report).as_dict()
+        self.assertEqual((audit["checked"], audit["ungrounded"], audit["unverifiable"]), (0, 0, 1))
+        self.assertIn("unrecognised numeric or unit notation", audit["findings"][0]["unverifiable_reason"])
+
+    def test_identical_claims_with_the_same_sources_collapse_but_different_sources_do_not(self):
+        findings = [_Finding("F1", "Efficiency reached 26.1%.", ["A1"]),
+                    _Finding("F2", "Efficiency reached 26.1%.", ["A1"]),
+                    _Finding("F3", "Efficiency reached 26.1%.", ["A2"])]
+        sources = [_Source("A1", _abstract("Efficiency reached 26.1%.")),
+                   _Source("A2", _abstract("Efficiency reached 26.1%."))]
+        audit = check_report(_Report(findings, sources)).as_dict()
+        self.assertEqual(audit["duplicates_collapsed"], 1)
+        self.assertEqual(audit["checked"], 2)
+
+    def test_structured_fields_count_as_what_the_source_states(self):
+        """"10,614 citations for the 2012 paper" was once reported absent from
+        a source that carried the number in citation_count."""
+        source = _Source("A1", _abstract("A foundational paper."))
+        source.citation_count = 10614
+        source.published_date = "2012-05-01"
+        report = _Report([_Finding("F1", "The paper has 10,614 citations.", ["A1"])], [source])
+        audit = check_report(report).as_dict()
+        self.assertEqual((audit["checked"], audit["ungrounded"]), (1, 0))
+
+    def test_the_substantive_summary_boundary_is_exact(self):
+        from academic_agent.claim_grounding import _SUBSTANTIVE_SUMMARY_CHARS, _source_is_checkable
+
+        short = _Source("A1", "x" * (_SUBSTANTIVE_SUMMARY_CHARS - 1), summary_source=None)
+        long = _Source("A1", "x" * _SUBSTANTIVE_SUMMARY_CHARS, summary_source=None)
+        snippet = _Source("A1", "x" * 5000, summary_source="search_snippet")
+        self.assertFalse(_source_is_checkable(short))
+        self.assertTrue(_source_is_checkable(long))
+        self.assertFalse(_source_is_checkable(snippet))

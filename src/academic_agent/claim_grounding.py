@@ -208,10 +208,18 @@ class GroundingReport:
         return data
 
 
+# A comma followed by one or two digits and nothing more is a decimal comma
+# ("0,49 miliardi", "26,1%"), never thousands grouping, which always comes in
+# threes. Stripping it read 0,49 as 49: a hundredfold error on the figures of
+# every report written in a comma-decimal language.
+_DECIMAL_COMMA = re.compile(r"^([+\-−]?\d+),(\d{1,2})$")
+
+
 def _normalize_number(raw: str) -> str:
     """'1,250.0' -> '1250'. Thousands separators and trailing zeros are
     formatting, not content, and a claim that writes 26.10% against a source
     that writes 26.1% is quoting the same figure."""
+    raw = _DECIMAL_COMMA.sub(r"\1.\2", raw.strip())
     cleaned = re.sub(r"\s+", "", raw.replace(",", "").replace("−", "-")).lstrip("+").rstrip(".")
     if len(cleaned) > 128:
         raise ValueError("numeric notation exceeds screen bounds")

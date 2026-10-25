@@ -497,3 +497,55 @@ class PaperOwnerCorruptionTests(_PapersTestBase):
         for owner in (None, "alice-hash"):
             with self.subTest(owner=owner), self.assertRaises(papers.PaperNotFound):
                 papers.extraction_path_for_run(paper_id, owner=owner)
+
+
+class PaperIdShapeTests(unittest.TestCase):
+    """The id is a bearer capability: anything but the exact generated shape is refused."""
+
+    def test_only_a_lowercase_32_hex_suffix_is_valid(self):
+        self.assertTrue(papers._is_valid_paper_id("paper-" + "a" * 32))
+        self.assertTrue(papers._is_valid_paper_id(papers.create_paper_id()))
+        for bad in ("paper-" + "A" * 32, "paper-" + "a" * 31, "paper-" + "a" * 33, "paper-" + "g" * 32,
+                    "paper-" + "a" * 32 + "\n", " paper-" + "a" * 32, "PAPER-" + "a" * 32, "", None, 123):
+            with self.subTest(bad=bad):
+                self.assertFalse(papers._is_valid_paper_id(bad))
+
+
+class PaperStorageFailureTests(unittest.TestCase):
+    """Storage failures must leave no half-made capability and never widen access."""
+
+    def setUp(self):
+        self._root = TemporaryDirectory()
+        self._patch = patch.object(papers, "PAPERS_ROOT", Path(self._root.name))
+        self._patch.start()
+        self.addCleanup(self._patch.stop)
+        self.addCleanup(self._root.cleanup)
+
+    def test_a_failed_owner_marker_write_leaves_nothing_behind(self):
+        with patch.object(Path, "write_text", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                papers.save_upload(b"%PDF-1.4 body", owner="owner-abc")
+        self.assertEqual(list(Path(self._root.name).iterdir()), [])
+
+    def test_an_unreadable_owner_marker_denies_rather_than_falling_back_to_ownerless(self):
+        paper_id, _ = papers.save_upload(b"%PDF-1.4 body", owner="owner-abc")
+        papers.save_extraction(paper_id, {"title": "t"})
+        with patch.object(Path, "read_text", side_effect=OSError("locked")):
+            for owner in ("owner-abc", None):
+                with self.subTest(owner=owner), self.assertRaises(papers.PaperNotFound):
+                    papers.extraction_path_for_run(paper_id, owner=owner)
+
+    def test_a_failed_extraction_write_discards_the_upload_and_raises(self):
+        paper_id, pdf_path = papers.save_upload(b"%PDF-1.4 body")
+        with patch.object(Path, "write_text", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                papers.save_extraction(paper_id, {"title": "t"})
+        self.assertFalse(papers.paper_dir(paper_id).exists())
+        self.assertFalse(pdf_path.exists())
+
+    def test_a_discard_that_cannot_delete_does_not_raise_or_name_the_paper(self):
+        paper_id, _ = papers.save_upload(b"%PDF-1.4 body")
+        with patch.object(papers.shutil, "rmtree", side_effect=OSError("busy")), \
+             self.assertLogs(papers._LOGGER, level="WARNING") as logs:
+            papers.discard(paper_id)
+        self.assertTrue(all(paper_id not in line for line in logs.output))

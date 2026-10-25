@@ -381,3 +381,36 @@ def test_an_unreachable_endpoint_still_degrades_to_the_original():
          patch("academic_agent.language.urlopen", side_effect=OSError("no network")), \
          pytest.warns(UserWarning, match="OSError"):
         assert translate_to_english("固态电池") == "固态电池"
+
+
+# ---------------------------------------------------------------------------
+# detect_language at the edges: empty, symbolic, mixed and non-English Latin
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("text,expected", [
+    ("", "en"), ("   ", "en"), ("12345", "en"), ("🔋🔋", "en"),
+    ("ＰＥＭ", "en"),                 # fullwidth Latin is still Latin
+    ("a中", "zh-cn"),                 # one CJK character decides
+    ("電池 battery", "zh-cn"),
+    ("こんにちは電池", "ja"),          # kana wins over shared kanji
+    ("Батарея", "ru"),
+    ("بطارية", "ar"),
+])
+def test_detect_language_on_empty_symbolic_and_mixed_script_input(text, expected):
+    assert detect_language(text) == expected
+
+
+def test_latin_script_languages_other_than_english_read_as_english():
+    """A known limit, pinned so a change to it is deliberate: only scripts are
+    told apart, so a French or German topic is planned as English input."""
+    assert detect_language("Batterie à l'état solide") == "en"
+    assert detect_language("Festkörperbatterie") == "en"
+
+
+def test_stripping_keeps_a_value_that_is_nothing_but_the_assessment():
+    from academic_agent.language import _strip_assessment_terms
+
+    assert _strip_assessment_terms("market analysis") == "market analysis"
+    assert _strip_assessment_terms("investment case") == "investment case"
+    assert _strip_assessment_terms("techno-economic analysis for perovskite cells") == "perovskite cells"
+    assert _strip_assessment_terms("hyperloop commercial potential") == "hyperloop"

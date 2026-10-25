@@ -279,3 +279,37 @@ def test_candidate_writer_persists_every_decision_and_refuses_overwrite() -> Non
     assert known["baseline_matches_expectation"] == "False"
     assert known["candidate_matches_expectation"] == "True"
     assert known["candidate_title"] == "FDA 510(k) record K222658"
+
+
+@pytest.mark.parametrize("title,expected", [
+    ("WWW.FDA.GOV", ("host_or_url_only",)),
+    ("fda.gov/", ("host_or_url_only",)),
+    ("https://www.fda.gov/x/", ("host_or_url_only",)),
+    ("\ufffd", ("encoding_replacement_character",)),
+    ("Tab\there", ("unicode_control_character",)),
+    ("b I b I fda.gov", ("fragmented_single_letter_tokens",)),
+    ("b I b fda.gov", ()),             # three fragments are below the bar
+    ("b I b I elsewhere.org", ()),     # four fragments without the host are not
+    ("Phase I b trial", ()),           # legitimate single letters stay
+    ("x", ()),
+])
+def test_structural_defects_at_their_thresholds(title, expected) -> None:
+    from academic_agent.source_title_recovery import structural_title_defects
+
+    assert structural_title_defects(title, "https://www.fda.gov/x") == expected
+
+
+@pytest.mark.parametrize("url,category,expected", [
+    ("https://accessdata.fda.gov/cdrh510k/k123456.PDF", "regulatory", "FDA 510(k) record K123456"),
+    ("https://www.accessdata.fda.gov/CDRH510K/K123456.pdf", "regulatory", "FDA 510(k) record K123456"),
+    ("https://accessdata.fda.gov.evil.example/CDRH510K/K123456.pdf", "regulatory", None),
+    ("https://accessdata.fda.gov/CDRH510K/K12345.pdf", "regulatory", None),
+    ("https://accessdata.fda.gov/CDRH510K/K123456.pdf", "clinical_registry", None),
+    ("https://clinicaltrials.gov/study/nct12345678", "clinical_registry", "ClinicalTrials.gov study NCT12345678"),
+    ("https://clinicaltrials.gov/study/NCT12345678/results", "clinical_registry", None),
+    ("https://clinicaltrials.gov/study/NCT12345678", "regulatory", None),
+])
+def test_identifier_labels_need_the_exact_host_path_shape_and_category(url, category, expected) -> None:
+    from academic_agent.source_title_recovery import _neutral_identifier_label
+
+    assert _neutral_identifier_label(url, category) == expected

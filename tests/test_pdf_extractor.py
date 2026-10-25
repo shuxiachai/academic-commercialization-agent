@@ -428,3 +428,56 @@ class ArxivTitleLookupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# Boundaries: the page-scan ceiling, the summary cut, the title and the placeholder
+# ---------------------------------------------------------------------------
+
+class PageScanBoundaryTests(unittest.TestCase):
+    """_pages_to_scan at the edges of its ceiling and below three pages."""
+
+    def test_documents_up_to_the_ceiling_are_read_in_full(self):
+        for n in (0, 1, 2, 3, 7, pdf_extractor._MAX_PAGES_SCANNED):
+            with self.subTest(pages=n):
+                self.assertEqual(pdf_extractor._pages_to_scan(n), list(range(n)))
+
+    def test_one_page_over_the_ceiling_starts_sampling_and_keeps_head_and_tail(self):
+        ceiling = pdf_extractor._MAX_PAGES_SCANNED
+        for n in (ceiling + 1, ceiling + 2, 1000, 10000):
+            with self.subTest(pages=n):
+                pages = pdf_extractor._pages_to_scan(n)
+                self.assertEqual(len(pages), ceiling)
+                self.assertEqual(pages, sorted(set(pages)))
+                self.assertTrue(all(0 <= i < n for i in pages))
+                self.assertEqual(pages[:3], [0, 1, 2])
+                self.assertEqual(pages[-2:], [n - 2, n - 1])
+
+
+class ShortenBoundaryTests(unittest.TestCase):
+
+    def test_text_at_or_under_the_limit_is_untouched(self):
+        self.assertEqual(pdf_extractor._shorten("", 5), "")
+        self.assertEqual(pdf_extractor._shorten("abc", 3), "abc")
+
+    def test_one_character_over_the_limit_is_cut_and_marked(self):
+        shortened = pdf_extractor._shorten("abcd", 3)
+        self.assertTrue(shortened.endswith("…"))
+        self.assertLessEqual(len(shortened), 3)
+
+    def test_the_cut_never_exceeds_the_limit_for_prose_or_cjk(self):
+        for text, limit in (("hello world foo", 11), ("hello world foo", 12),
+                            ("中文很长的句子" * 10, 20), ("a" * 100, 50)):
+            with self.subTest(text=text[:10], limit=limit):
+                shortened = pdf_extractor._shorten(text, limit)
+                self.assertLessEqual(len(shortened), limit)
+                self.assertTrue(shortened.endswith("…"))
+
+    def test_the_placeholder_doi_is_stable_and_defined_even_for_an_empty_title(self):
+        self.assertTrue(pdf_extractor._placeholder_doi("").startswith(pdf_extractor._PLACEHOLDER_DOI_PREFIX))
+        self.assertEqual(pdf_extractor._placeholder_doi("x"), pdf_extractor._placeholder_doi("x"))
+        self.assertNotEqual(pdf_extractor._placeholder_doi("x"), pdf_extractor._placeholder_doi("y"))
+
+    def test_title_normalisation_keeps_only_letters_and_digits(self):
+        self.assertEqual(pdf_extractor._normalise_title("!!! ... ---"), "")
+        self.assertEqual(pdf_extractor._normalise_title("Na-Ion 2.0:\n β-phase"), "na ion 2 0 phase")
