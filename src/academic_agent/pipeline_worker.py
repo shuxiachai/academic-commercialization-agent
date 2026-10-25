@@ -1276,7 +1276,9 @@ def main() -> None:
         with telemetry.span("report_score_consistency", "EVALUATOR"):
             consistency = save_consistency(
                 report_raw or "", scores_raw, run_id=args.run_id,
-                output_root=DEFAULT_OUTPUT_ROOT)
+                output_root=DEFAULT_OUTPUT_ROOT,
+                output_language=source_collection.output_language,
+                localized_headings=tuple(source_collection.localized_headings or ()))
         if consistency and consistency.get("blockers"):
             print(f"[consistency] {consistency['blockers']} finding(s): the "
                   f"report's recommendation disagrees with its own scorecard",
