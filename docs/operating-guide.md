@@ -536,6 +536,13 @@ than defaulting missing data to zero or agreement. This neither rewrites stored
 artifacts nor changes scoring/heuristics. Healthy report tabs remain usable.
 Normalized dimensions accept fractions in 1..maximum, not just rubric integers.
 
+The report-versus-scorecard check reads English and Simplified Chinese
+conclusions. It finds the two conclusion sections by built-in heading stems and
+by the run's own translated headings, so a Chinese run gets a verdict; a report
+in a language without a phrase table is left unchecked, which the reliability
+panel shows as "not run", never as consistent. See the
+[Chinese calibration](results-2026-10-25-report-score-consistency-chinese.md).
+
 If browser storage is denied, credentials can be held only in page memory and
 preferences use safe defaults. Bookmark accepted run links. A failed persistent
 logout returns to the gate without reloading stale credentials; clear site data

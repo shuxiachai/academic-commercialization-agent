@@ -1331,9 +1331,10 @@ export function reliabilityRows(progress) {
 
   const consistency = progress.consistency;
   if (consistency == null) {
-    // Distinct from "consistent". The check reads English conclusions, so a
-    // Chinese or Japanese report simply is not covered — and reporting that
-    // as a pass would be the exact overclaim this panel exists to prevent.
+    // Distinct from "consistent". The check reads English and Chinese
+    // conclusions, so a Japanese or German report simply is not covered — and
+    // reporting that as a pass would be the exact overclaim this panel exists
+    // to prevent.
     rows.push({ id: "consistency", tone: "muted",
                 label: t("rel_consistency"), detail: t("rel_consistency_unchecked") });
   } else if (consistency.blockers > 0) {
