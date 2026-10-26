@@ -21,14 +21,16 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import http.client
 import re
 import sys
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Sequence, TextIO
+from typing import TextIO
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -125,6 +127,10 @@ def fetch_status(url: str, timeout: float) -> tuple[int | None, str | None]:
         return None, str(exc.reason)
     except TimeoutError:
         return None, f"no response within {timeout:g}s"
+    except OSError as exc:
+        return None, f"{type(exc).__name__}: {exc}"
+    except http.client.HTTPException as exc:
+        return None, f"{type(exc).__name__}: {exc}"
 
 
 def check_links(

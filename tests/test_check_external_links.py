@@ -8,10 +8,12 @@ the ``error::UserWarning`` filter stays satisfied.
 from __future__ import annotations
 
 import ast
+import http.client
 import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.check_external_links import (
     DOCUMENTS,
@@ -194,6 +196,35 @@ class ReportTests(unittest.TestCase):
 
         self.assertEqual(report(results, stream=stream), 1)
         self.assertIn("FAIL 500 https://example.com/broken", stream.getvalue())
+
+    def test_connection_errors_are_reported_instead_of_escaping(self):
+        link = Link("https://unreachable.example/", ("docs/README.md",))
+        errors = (
+            ConnectionResetError("connection reset"),
+            http.client.IncompleteRead(b"partial", 10),
+        )
+
+        for error in errors:
+            with self.subTest(exception=type(error).__name__):
+                stream = io.StringIO()
+                with patch(
+                    "scripts.check_external_links.urllib.request.urlopen",
+                    side_effect=error,
+                ):
+                    results = check_links(
+                        [link],
+                        delay=0.0,
+                        clock=lambda: 0.0,
+                        sleep=lambda _: None,
+                    )
+
+                exit_code = report(results, stream=stream)
+
+                self.assertEqual(exit_code, 1)
+                self.assertIn(
+                    f"FAIL no response ({type(error).__name__}: {error})",
+                    stream.getvalue(),
+                )
 
 
 if __name__ == "__main__":
