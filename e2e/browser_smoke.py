@@ -517,6 +517,143 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
         page.set_viewport_size({"width": 1280, "height": 720})
 
 
+def _exercise_sample_print(page: Page, base_url: str) -> int:
+    """Print every committed sample under dark mode without changing screen layout."""
+    page.emulate_media(media="screen", color_scheme="dark")
+    response = page.goto(f"{base_url}/samples", wait_until="domcontentloaded")
+    assert response is not None and response.ok, "The public sample reader did not load."
+    # The catalog is the expected list, so adding a sample cannot silently
+    # reduce this contract to a hard-coded count that no longer matches.
+    listed = page.request.get(f"{base_url}/api/samples")
+    assert listed.status == 200, "The sample catalog did not answer."
+    expected = [item["slug"] for item in listed.json()]
+    assert expected, "The sample catalog is empty."
+    cards = page.locator(".samples__list .sample-card")
+    expect(cards).to_have_count(len(expected))
+    slugs = []
+    for index in range(cards.count()):
+        href = cards.nth(index).get_attribute("href")
+        assert href is not None, "A sample card has no deep link."
+        slugs.append(urlsplit(href).path.rsplit("/", 1)[-1])
+    assert slugs == expected, f"Cards do not match the catalog: {slugs!r} != {expected!r}"
+
+    table_rows = 0
+    card_checked = False
+    for slug in slugs:
+        response = page.goto(f"{base_url}/samples/{slug}", wait_until="domcontentloaded")
+        assert response is not None and response.ok, f"Sample {slug} did not load."
+        notice = page.locator("#sample-reader > .samples__notice")
+        report = page.locator("#sample-reader > article.prose")
+        expect(notice).to_be_visible()
+        expect(report).to_be_visible()
+        page.evaluate("() => document.fonts.ready")
+
+        def screen_state():
+            return page.evaluate("""() => {
+                const selectors = [".samples__head", ".samples__intro", ".samples__list",
+                    ".samples__reader", "#sample-reader .prose"];
+                return Object.fromEntries(selectors.map((selector) => {
+                    const element = document.querySelector(selector);
+                    const style = getComputedStyle(element);
+                    const rect = element.getBoundingClientRect();
+                    return [selector, {
+                        display: style.display, color: style.color,
+                        background: style.backgroundColor, maxWidth: style.maxWidth,
+                        x: rect.x, y: rect.y + window.scrollY, width: rect.width, height: rect.height,
+                    }];
+                }));
+            }""")
+
+        before = screen_state()
+        # The citation card is a screen-only popover; printing must not put it
+        # on the page. Check it on the first sample that has a citation chip.
+        citation = page.locator("#sample-reader .cite[data-cite]").first
+        citation_open = not card_checked and citation.count() > 0
+        if citation_open:
+            card_checked = True
+            citation.click()
+            expect(page.locator("body > .cite-card")).to_be_visible()
+
+        page.emulate_media(media="print", color_scheme="dark")
+        for selector in (".samples__head", ".samples__intro", ".samples__list",
+                         ".samples__reader > .empty-note"):
+            expect(page.locator(selector)).to_be_hidden()
+        expect(notice).to_be_visible()
+        expect(report).to_be_visible()
+        if citation_open:
+            expect(page.locator("body > .cite-card")).to_be_hidden()
+
+        printed = page.evaluate("""() => {
+            const $ = (selector) => document.querySelector(selector);
+            const style = (element) => getComputedStyle(element);
+            const reader = $("#sample-reader");
+            const report = $("#sample-reader .prose");
+            const reportElements = [report, ...report.querySelectorAll("*")];
+            const badColors = reportElements
+                .filter((element) => style(element).color !== "rgb(0, 0, 0)")
+                .map((element) => `${element.tagName}.${element.className}: ${style(element).color}`);
+            const badBackgrounds = reportElements
+                .filter((element) => style(element).backgroundColor !== "rgb(255, 255, 255)")
+                .map((element) => `${element.tagName}.${element.className}: ${style(element).backgroundColor}`);
+            const headings = [...report.querySelectorAll("h1, h2, h3, h4")];
+            const rows = [...report.querySelectorAll("tr")];
+            const tableWraps = [...report.querySelectorAll(".table-wrap")];
+            const rect = report.getBoundingClientRect();
+            const readerRect = reader.getBoundingClientRect();
+            return {
+                bodyColor: style(document.body).color,
+                bodyBackground: style(document.body).backgroundColor,
+                sampleMaxWidth: style($(".samples")).maxWidth,
+                reportMaxWidth: style(report).maxWidth,
+                reportFillsReader: Math.abs(rect.width - readerRect.width) < 1,
+                readerChildren: [...reader.children].map((element) => element.className),
+                badColors, badBackgrounds,
+                headingBreakInside: headings.map((element) => style(element).breakInside),
+                headingBreakAfter: headings.map((element) => style(element).breakAfter),
+                rowBreakInside: rows.map((element) => style(element).breakInside),
+                tableHeaderDisplay: [...report.querySelectorAll("thead")]
+                    .map((element) => style(element).display),
+                tableWrapOverflow: tableWraps.map((element) => style(element).overflowX),
+                tableRows: rows.length,
+            };
+        }""")
+        assert printed["bodyColor"] == "rgb(0, 0, 0)", (slug, printed)
+        assert printed["bodyBackground"] == "rgb(255, 255, 255)", (slug, printed)
+        assert printed["sampleMaxWidth"] == "none", (slug, printed)
+        assert printed["reportMaxWidth"] == "none" and printed["reportFillsReader"], (slug, printed)
+        assert printed["readerChildren"] == ["samples__notice", "prose"], (slug, printed)
+        assert not printed["badColors"], (slug, printed["badColors"][:5])
+        assert not printed["badBackgrounds"], (slug, printed["badBackgrounds"][:5])
+        assert printed["headingBreakInside"] and all(
+            value == "avoid" for value in printed["headingBreakInside"]
+        ), (slug, printed["headingBreakInside"])
+        assert all(value in {"avoid", "avoid-page"} for value in printed["headingBreakAfter"]), (
+            slug, printed["headingBreakAfter"]
+        )
+        assert all(value == "avoid" for value in printed["rowBreakInside"]), (slug, printed["rowBreakInside"])
+        assert all(value == "table-header-group" for value in printed["tableHeaderDisplay"]), (
+            slug, printed["tableHeaderDisplay"]
+        )
+        assert all(value == "visible" for value in printed["tableWrapOverflow"]), (
+            slug, printed["tableWrapOverflow"]
+        )
+        table_rows += printed["tableRows"]
+
+        pdf = page.pdf(print_background=True)
+        assert pdf.startswith(b"%PDF-"), f"Chromium did not produce a PDF for {slug}."
+        page.emulate_media(media="screen", color_scheme="dark")
+        if citation_open:
+            citation.click()
+            expect(page.locator("body > .cite-card")).to_have_count(0)
+        after = screen_state()
+        assert after == before, f"Print styles changed the screen layout for {slug}: {before!r} -> {after!r}"
+
+    assert table_rows > 0, "No committed sample exercised table-row pagination."
+    assert card_checked, "No committed sample exposed a citation chip to print."
+    page.emulate_media(media="screen", color_scheme="light")
+    return len(slugs)
+
+
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
     runtime_ids: tuple[str, str, str], cap_run_id: str,
@@ -583,6 +720,7 @@ def _exercise_browser(
         page.on("pageerror", lambda error: page_errors.append(str(error)))
 
         try:
+            sample_print_reports = _exercise_sample_print(page, base_url)
             response = page.goto(base_url, wait_until="domcontentloaded")
             assert response is not None and response.ok, "The SPA entry point did not load."
             csp = response.headers.get("content-security-policy", "")
@@ -958,6 +1096,7 @@ def _exercise_browser(
         "mutation_attempts": len(mutation_attempts),
         "expected_unauthorized_responses": len(expected_auth_failures),
         "expected_history_unavailable_responses": len(expected_history_failures),
+        "sample_print_reports": sample_print_reports,
         "console_errors": len(unexpected_console_errors),
         "page_errors": len(page_errors),
     }

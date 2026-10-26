@@ -110,3 +110,77 @@
 
 /* Wide report tables scroll inside their own box, never the page. */
 .samples .table-wrap { overflow-x: auto; }
+
+/* Paper should contain the selected report, not the reader's controls or theme.
+ * Literal black/white instead of the colour tokens on purpose: the tokens are
+ * swapped by the dark-mode block, and a printed report must stay dark-on-white
+ * even when the system is in dark mode. The colour rule reaches every
+ * descendant so a nested code, quote or table style cannot reintroduce a
+ * themed colour inside the report. */
+@media print {
+  :root { color-scheme: light; }
+
+  body {
+    min-height: auto;
+    background: white;
+    color: black;
+  }
+
+  .samples {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .samples__head,
+  .samples__intro,
+  .samples__list,
+  .samples__reader > .empty-note,
+  .samples__reader > .skeleton,
+  .cite-card {
+    display: none;
+  }
+
+  .samples__notice {
+    background: white;
+    border-left-color: black;
+    color: black;
+  }
+
+  .samples__reader .prose,
+  .samples__reader .prose * {
+    background: white;
+    color: black;
+  }
+
+  .samples__reader .prose {
+    width: 100%;
+    max-width: none;
+  }
+
+  .samples .table-wrap {
+    overflow: visible;
+    border-color: black;
+    background: white;
+  }
+
+  .samples__reader .prose th { white-space: normal; }
+  .samples__reader .prose ::marker { color: black; }
+
+  .samples__reader .prose h1,
+  .samples__reader .prose h2,
+  .samples__reader .prose h3,
+  .samples__reader .prose h4 {
+    break-inside: avoid;
+    break-after: avoid-page;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+  }
+
+  .samples__reader .prose thead { display: table-header-group; }
+
+  .samples__reader .prose tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
