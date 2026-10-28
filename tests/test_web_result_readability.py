@@ -39,8 +39,26 @@ const input = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 if (input.language) i18n.setLanguage?.(input.language);
 const out = {};
 if (input.markdown !== undefined) out.index = Object.fromEntries(mod.citationIndex(input.markdown));
+if (input.estimates !== undefined) {
+  const found = mod.marketEstimates(input.estimates);
+  out.estimates = {
+    rows: found.rows.map(r => ({ id: r.id, firm: r.firm, scope: r.scope?.key ?? null, year: r.year,
+                                 currency: r.currency, billions: r.billions, figure: r.figure })),
+    groups: found.groups.map(g => ({ key: g.scope.key, label: g.scope.label, ids: g.rows.map(r => `${r.id}:${r.year}`) })),
+    unscoped: found.unscoped.map(r => r.id), firms: found.firms, scopes: found.scopes, ratio: found.sameScopeYearRatio,
+  };
+}
 if (input.scores) {
-  const nodes = flat(mod._testRenderScorecard(input.scores));
+  const nodes = flat(mod._testRenderScorecard(input.scores, input.sources_for_scorecard ?? null));
+  const block = nodes.find(n => n.className === "market-estimates");
+  out.market_block = block ? {
+    figures: block.dataset.figures, scopes: block.dataset.scopes,
+    lede: flat(block).find(n => n.className === "market-estimates__lede")?.textContent,
+    headings: flat(block).filter(n => n.className === "market-estimates__scope").map(n => n.textContent),
+    rows: flat(block).filter(n => n.className === "market-estimates__row").length,
+    cites: flat(block).filter(n => n.className === "cite").map(n => n.dataset.cite),
+    note: flat(block).find(n => n.className === "market-estimates__note")?.textContent,
+  } : null;
   out.why = nodes.filter(n => n.className === "dim__why").map(n => ({
     summary: n.children[0].textContent, rationale: n.children[1].textContent,
     cites: flat(n).filter(c => c.className === "cite").map(c => c.dataset.cite) }));
@@ -277,6 +295,122 @@ class ResultReadabilityTests(unittest.TestCase):
         text = self._run(gate=gate)["scope"]["text"][0]
         self.assertIn("is not assessed", text)
         self.assertNotIn("allows a GO/NO_GO", text)
+
+
+def _market(*rows):
+    """A sources artifact with the given market rows (title, summary, publisher)."""
+    return {"market_sources": [
+        {"source_id": f"M{i + 1}", "title": title, "evidence_summary": summary, "publisher": publisher,
+         "url": "https://m.example/x", "source_type": "market_report"}
+        for i, (title, summary, publisher) in enumerate(rows)]}
+
+
+@unittest.skipUnless(shutil.which("node"), "node not installed")
+class MarketEstimatesTests(unittest.TestCase):
+    """Market-size figures are listed under the market their own source names.
+
+    Measured on 181 saved runs before this was written: pooling every figure
+    gave a median 157x spread, and the same title-scope and year still differ
+    7x between firms. So the block is a reading aid: what each number is, who
+    said it, for which year. It compares nothing across markets and leaves the
+    score alone."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _run(self, **payload):
+        return ResultReadabilityTests._run(self, **payload)
+
+    def test_spelling_and_plural_variants_of_one_market_are_one_group_named_by_the_first(self):
+        found = self._run(estimates=_market(
+            ("CAR T-cell Therapy Market Size Report, 2026-2033", "valued at $5.8 billion in 2025", "Grandviewresearch"),
+            ("CAR-T Cell Therapies Market to reach USD 42.61 billion by 2035", "USD 12.88 billion in 2025", "Yahoo"),
+            ("Solid State Battery Market", "$1.6 billion in 2025", "Fortune"),
+            ("Solid-State Battery Market Size", "USD 0.26 billion in 2025", "Sns"),
+        ))["estimates"]
+        self.assertEqual([g["label"] for g in found["groups"]], ["CAR T-cell Therapy", "Solid State Battery"])
+        self.assertEqual(found["groups"][0]["ids"], ["M1:2025", "M2:2025"])
+        self.assertEqual((found["scopes"], found["firms"]), (2, 4))
+
+    def test_a_figure_repeated_in_one_summary_is_listed_once_with_its_own_year(self):
+        found = self._run(estimates=_market(
+            ("Hard Carbon Anode Materials Market", "valued at USD 500 million in 2024, growing from USD 500 million "
+             "in 2025 to USD 1.2 billion by 2033", "Futuremarketinsights"),
+        ))["estimates"]
+        self.assertEqual([(r["figure"], r["year"]) for r in found["rows"]],
+                         [("USD 500 million", "2024"), ("USD 1.2 billion", "2033")])
+
+    def test_the_year_after_a_figure_wins_over_the_one_before_it(self):
+        found = self._run(estimates=_market(
+            ("Sodium-ion Battery Market", "In 2024 the market was USD 2 billion by 2030", "Mordor"),
+            ("Sodium-ion Battery Market Size", "During 2023 analysts expected growth; revenue of USD 3 billion", "Sns"),
+        ))["estimates"]
+        self.assertEqual([r["year"] for r in found["rows"]], ["2030", "2023"])
+
+    def test_the_only_comparison_is_within_one_market_year_and_currency(self):
+        same = self._run(estimates=_market(
+            ("Perovskite Solar Cell Market", "US$ 2 billion in 2025", "A"),
+            ("Perovskite Solar Cells Market Report", "USD 4 billion in 2025", "B"),
+            ("Perovskite Solar Cell Market", "€ 40 billion in 2025", "C"),            # another currency
+            ("Perovskite Solar Cell Market", "USD 400 billion in 2030", "D"),         # another year
+            ("Battery Market", "$1 billion in 2025", "E"),                           # another market
+        ))["estimates"]
+        self.assertEqual(same["ratio"], 2.0)
+        self.assertEqual(sorted({r["currency"] for r in same["rows"]}), ["EUR", "USD"])
+        alone = self._run(estimates=_market(("Perovskite Solar Cell Market", "USD 2 billion in 2025", "A"),
+                                            ("Perovskite Solar Cell Market", "USD 9 billion in 2030", "B")))["estimates"]
+        self.assertIsNone(alone["ratio"])
+
+    def test_a_source_whose_title_names_no_market_keeps_its_figures_apart(self):
+        found = self._run(estimates=_market(
+            ("UNIGRID Begins Commercial-Scale Deliveries of Sodium-Ion Batteries", "a USD 12 million order", "Yahoo"),
+            ("Sodium-Ion Battery Market", "USD 2 billion in 2025", "Sns"),
+        ))["estimates"]
+        self.assertEqual(found["unscoped"], ["M1"])
+        self.assertEqual(found["scopes"], 1)
+
+    def test_malformed_sources_yield_no_figures_and_no_error(self):
+        for bad in (None, [], {}, {"market_sources": "x"}, {"market_sources": [None, 3, {"source_id": "A1", "title": 1}]},
+                    {"market_sources": [{"source_id": "M1", "title": None, "evidence_summary": None}]}):
+            with self.subTest(bad=bad):
+                found = self._run(estimates=bad)["estimates"]
+                self.assertEqual((found["rows"], found["groups"], found["ratio"]), ([], [], None))
+
+    def test_the_scorecard_lists_the_figures_inside_the_folded_market_disclosure(self):
+        scores = {"overall_score": 50.0, "trl_score": 4.0, "mrl_score": 3.0, "patent_strength": 3.0,
+                  "market_accessibility": 2.5, "evidence_confidence": 2.0, "market_uncertainty": None}
+        sources = _market(("Hard Carbon Anode Materials Market", "USD 0.5 billion in 2024", "Futuremarketinsights"),
+                          ("Sodium-ion Battery Market", "USD 2 billion in 2025 and USD 44 billion by 2035", "Yahoo"),
+                          ("Sodium-ion Battery Market Size", "USD 4 billion in 2025", "Sns"))
+        shown = self._run(scores=scores, sources_for_scorecard=sources)
+        block = shown["market_block"]
+        self.assertEqual((block["figures"], block["scopes"], block["rows"]), ("4", "2", 4))
+        self.assertEqual(block["headings"], ["Sodium-ion Battery", "Hard Carbon Anode Materials"])
+        self.assertEqual(block["lede"], "4 market-size figures from 3 sources cover 2 differently defined markets. "
+                                        "Within one market and year, the figures differ by up to 2.0×.")
+        self.assertEqual(block["cites"], ["M2", "M3", "M2", "M1"])  # by year within a market, then by id
+        self.assertIn("score above is unchanged", block["note"])
+        self.assertEqual(shown["caveat"]["title"], "Market comparison: not assessed")
+        self.assertFalse(shown["caveat"]["open"])
+
+    def test_without_the_sources_artifact_the_scorecard_is_as_before(self):
+        scores = {"overall_score": 50.0, "market_accessibility": 2.5, "market_uncertainty": None}
+        self.assertIsNone(self._run(scores=scores)["market_block"])
+
+    def test_no_figure_and_the_chinese_wording_are_both_said(self):
+        scores = {"overall_score": 50.0, "market_accessibility": 2.5, "market_uncertainty": None}
+        none = self._run(scores=scores, sources_for_scorecard=_market(("Sodium-ion Battery Market", "no numbers here", "X")))
+        self.assertEqual(none["market_block"]["lede"], "The saved market sources state no market-size figure.")
+        zh = self._run(language="Simplified Chinese", scores=scores,
+                       sources_for_scorecard=_market(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
+                                                     ("Sodium-ion Battery Market", "USD 30 billion in 2025", "Yahoo")))
+        self.assertEqual(zh["market_block"]["lede"], "2 个市场规模数字来自 2 个来源，涉及 1 个定义不同的市场。同一市场、同一年份的数字最大相差 15 倍。")
+        self.assertIn("上方评分不变", zh["market_block"]["note"])
 
 
 if __name__ == "__main__":

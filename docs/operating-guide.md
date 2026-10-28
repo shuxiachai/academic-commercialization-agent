@@ -125,6 +125,14 @@ Fresh/restored score artifacts include `market_comparison`; the raw
 USD data. A missing or null flag must not be called a comparison pass. The
 historical numeric cap and existing report prose are unchanged. See the
 [delivery contract](results-2026-09-11-market-score-delivery-disclosure.md).
+Inside that folded disclosure the result page now lists every market-size
+figure the saved market sources state, each under the market its own source
+names (read from the source title) with the publisher and the year written
+beside it. Figures are compared only within one market, one year and one
+currency, and only to say how far they differ; across markets they are listed,
+never converted or compared, and the score is untouched. Measured on 181 saved
+runs before this was added: pooling every figure gave a median 157x spread, and
+the same title-scope and year still differed 7x between firms.
 
 New production-validated scores additionally carry `market_cap_audit`: the
 normalized pre/post market score, actual market-point deduction, trigger and

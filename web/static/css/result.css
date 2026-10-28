@@ -939,3 +939,30 @@
 .scorecard__market-status::after { content: " ▸"; color: var(--accent); }
 .scorecard__market-caveat[open] .scorecard__market-status::after { content: " ▾"; }
 .scorecard__market-caveat[open] > .scorecard__market-summary { margin-bottom: var(--space-3); }
+
+/* The market-size figures, each under the market its source names. A reading
+   aid inside the folded disclosure: compact, and never louder than the score. */
+.market-estimates { margin: var(--space-3) 0; }
+.market-estimates__lede { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+.market-estimates__group + .market-estimates__group { margin-top: var(--space-3); }
+.market-estimates__scope {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.market-estimates__table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.market-estimates__table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  padding: 0 var(--space-3) var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+}
+.market-estimates__table td {
+  padding: var(--space-1) var(--space-3) var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.market-estimates__figure { white-space: nowrap; }
+.market-estimates__note { margin: var(--space-2) 0 0; font-size: var(--text-xs); color: var(--text-tertiary); }
