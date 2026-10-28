@@ -837,11 +837,17 @@ def _exercise_browser(
             assert (recorded["recorded"], recorded["changed_view"], recorded["part"]) == (True, "yes", "report")
 
             # Disk -> real HTTP JSON -> actual Chromium textContent, with one
-            # source GET per render. Language switching intentionally re-renders;
+            # source GET per render. A render opens the score tab, which reads
+            # the sources once for its market figures and shares them with the
+            # sources tab. Language switching intentionally re-renders;
             # searching, expanding, paging and revisiting tabs must not re-fetch.
             for chinese in (False, True):
                 if chinese:
-                    page.locator("#ui-lang").select_option("Simplified Chinese")
+                    with page.expect_response(
+                        lambda response: urlsplit(response.url).path == f"/api/runs/{run_id}/sources",
+                    ) as source_read:
+                        page.locator("#ui-lang").select_option("Simplified Chinese")
+                    assert source_read.value.status == 200 and source_read.value.request.method == "GET"
                     expect(page.locator('button.tab[data-view="sources"]')).to_have_text("来源")
                     # Relabelled from the last reading at once, well inside the
                     # 10s idle poll that used to be the only thing changing it.
@@ -850,12 +856,9 @@ def _exercise_browser(
                     expect(starter).to_have_text("电动汽车用固态电池")
                     expect(starter).to_have_attribute("data-topic", "电动汽车用固态电池")
                 before_sources = source_requests
-                with page.expect_response(
-                    lambda response: urlsplit(response.url).path == f"/api/runs/{run_id}/sources",
-                ) as source_read:
-                    page.locator('button.tab[data-view="sources"]').click()
-                assert source_read.value.status == 200 and source_read.value.request.method == "GET"
-                collection = source_read.value.json()
+                page.locator('button.tab[data-view="sources"]').click()
+                # Outside the page's own network, so it is not counted as a render GET.
+                collection = page.request.get(f"{base_url}/api/runs/{run_id}/sources").json()
                 assert collection == _saved_source_fixture()
                 _exercise_sources_panel(page, collection, chinese=chinese)
                 page.locator('button.tab[data-view="report"]').click()
@@ -863,7 +866,9 @@ def _exercise_browser(
                 _assert_run_header_layout(page, chinese=chinese)
                 page.locator('button.tab[data-view="sources"]').click()
                 expect(page.locator(".source__id")).to_have_count(50)
-                assert source_requests == before_sources + 1, "Sources controls/tab revisits must use exactly one GET per render."
+                assert source_requests == before_sources, (
+                    "Opening, searching, paging and revisiting the sources tab must not re-fetch: "
+                    "the render's one GET, made for the score tab, is shared.")
             assert source_requests == 2, "Two language renders must produce exactly two source GETs."
             page.locator("#ui-lang").select_option("English")
             expect(page.locator('button.tab[data-view="sources"]')).to_have_text("Sources")
