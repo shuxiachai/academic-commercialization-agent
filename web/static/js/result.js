@@ -358,6 +358,150 @@ function readableMarketCap(scores, signal) {
   return a;
 }
 
+/* ── Market-size figures, by the market each source names ──────────── */
+
+// Every market-size figure the run's market sources state, kept with the
+// market its own source defines (read from the source title: "Hard Carbon
+// Anode Materials Market Size…" names hard carbon anode materials) and the
+// year written next to it. Figures sit side by side only within one market,
+// one year and one currency; across markets they are listed, never compared,
+// and the score is never touched. Measured on 181 saved runs before this was
+// written: pooling every figure gave a median 157× spread, and the same
+// title-scope and year still differ 7× between firms. Grouping is a reading
+// aid that tells a reader what each number is, not a reconciliation.
+const ESTIMATE_RE = /(USD|US\$|\$|€|EUR|£|GBP)\s*(\d[\d,]*(?:\.\d+)?)\s*(trillion|billion|million|bn|mn)\b/giu;
+const ESTIMATE_YEAR_RE = /\b(20\d{2})\b/u;
+const ESTIMATE_YEARS_RE = /\b(20\d{2})\b/gu;
+const TITLE_SCOPE_RE = /^(?:(?:global|worldwide|u\.s\.|us|north america|europe|china|asia[- ]pacific|india)\s+)?(.+?)\s+market\b/iu;
+const SCOPE_NOISE = new Set(["the", "a", "an", "global", "worldwide"]);
+const ESTIMATE_ROW_LIMIT = 200;
+
+function titleScope(title) {
+  if (typeof title !== "string") return null;
+  const flat = title.replace(/[|–—]/g, "-").replace(/\s+/g, " ").trim();
+  const match = flat.match(TITLE_SCOPE_RE);
+  if (!match) return null;
+  const words = match[1].split(" ").filter(w => w && !SCOPE_NOISE.has(w.toLowerCase()));
+  // The last words name the thing; anything earlier is a qualifier. The key
+  // ignores spacing, hyphens, case and a plural: "CAR T-cell Therapy",
+  // "CAR-T Cell Therapies" and "Solid-State Battery" / "Solid State Battery"
+  // are each one market, as the saved runs spell them.
+  const tail = words.slice(-4);
+  let key = tail.join("").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (key.endsWith("ies")) key = key.slice(0, -3) + "y";
+  else if (key.endsWith("s") && !key.endsWith("ss")) key = key.slice(0, -1);
+  return key ? { key, label: tail.join(" ") } : null;
+}
+
+const CURRENCY_NAMES = { "$": "USD", "US$": "USD", "USD": "USD", "€": "EUR", "EUR": "EUR", "£": "GBP", "GBP": "GBP" };
+
+function estimateYear(text, start, end) {
+  const after = text.slice(end, end + 45).match(ESTIMATE_YEAR_RE);
+  if (after) return after[1];
+  const before = [...text.slice(Math.max(0, start - 45), start).matchAll(ESTIMATE_YEARS_RE)];
+  return before.length ? before[before.length - 1][1] : null;
+}
+
+export function marketEstimates(sources) {
+  const rows = [];
+  const list = detailRecord(sources) && Array.isArray(sources.market_sources) ? sources.market_sources : [];
+  for (const source of list.slice(0, ESTIMATE_ROW_LIMIT)) {
+    if (!detailRecord(source) || typeof source.source_id !== "string" || !/^M\d+$/.test(source.source_id)) continue;
+    const text = typeof source.evidence_summary === "string" ? source.evidence_summary : "";
+    const scope = titleScope(source.title);
+    const firm = typeof source.publisher === "string" && source.publisher.trim() ? source.publisher.trim() : null;
+    // A summary often repeats one figure ("valued at X in 2025 … from X in
+    // 2026 to Y by 2035"); the first mention carries its own year, later ones
+    // sit next to somebody else's. One row per figure per source.
+    const seen = new Set();
+    for (const match of text.matchAll(ESTIMATE_RE)) {
+      const value = Number(match[2].replace(/,/g, ""));
+      if (!Number.isFinite(value) || value <= 0) continue;
+      const unit = match[3].toLowerCase();
+      const billions = value * (unit === "trillion" ? 1000 : unit === "million" || unit === "mn" ? 0.001 : 1);
+      const currency = CURRENCY_NAMES[match[1].toUpperCase()] ?? match[1].toUpperCase();
+      const mark = `${currency}|${billions}`;
+      if (seen.has(mark)) continue;
+      seen.add(mark);
+      rows.push({
+        id: source.source_id, firm, scope, billions, currency,
+        year: estimateYear(text, match.index, match.index + match[0].length),
+        figure: match[0].replace(/\s+/g, " "),
+      });
+    }
+  }
+  const groups = new Map();
+  for (const row of rows) {
+    const key = row.scope ? row.scope.key : "";
+    if (!groups.has(key)) groups.set(key, { scope: row.scope, rows: [] });  // first spelling names the group
+    groups.get(key).rows.push(row);
+  }
+  // Within one market, one year and one currency: the only comparison made.
+  let ratio = null;
+  for (const group of groups.values()) {
+    if (!group.scope) continue;
+    const bins = new Map();
+    for (const row of group.rows) {
+      if (!row.year) continue;
+      const key = `${row.year}|${row.currency}`;
+      bins.set(key, [...(bins.get(key) ?? []), row.billions]);
+    }
+    for (const values of bins.values()) {
+      if (values.length < 2) continue;
+      const spread = Math.max(...values) / Math.min(...values);
+      ratio = ratio === null ? spread : Math.max(ratio, spread);
+    }
+  }
+  const byYear = (a, b) => (a.year ?? "9999").localeCompare(b.year ?? "9999")
+    || a.id.localeCompare(b.id, undefined, { numeric: true });
+  const scoped = [...groups.values()].filter(g => g.scope).sort((a, b) => b.rows.length - a.rows.length);
+  for (const group of groups.values()) group.rows.sort(byYear);
+  return {
+    rows, groups: scoped, unscoped: groups.get("")?.rows ?? [],
+    firms: new Set(rows.map(r => r.firm ?? r.id)).size, scopes: scoped.length, sameScopeYearRatio: ratio,
+  };
+}
+
+function renderMarketEstimates(sources) {
+  const found = marketEstimates(sources);
+  const wrap = el("div", "market-estimates");
+  wrap.dataset.figures = String(found.rows.length);
+  wrap.dataset.scopes = String(found.scopes);
+  if (!found.rows.length) {
+    wrap.append(el("p", "market-estimates__lede", t("market_estimates_none")));
+    return wrap;
+  }
+  const fill = (key, values) => Object.entries(values).reduce(
+    (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), t(key));
+  const ratio = found.sameScopeYearRatio;
+  const spread = ratio === null ? t("market_estimates_no_pair")
+    : fill("market_estimates_same", { ratio: ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1) });
+  wrap.append(el("p", "market-estimates__lede",
+    fill("market_estimates_headline", { n: found.rows.length, firms: found.firms, scopes: found.scopes, spread })));
+  const sections = [...found.groups, ...(found.unscoped.length ? [{ scope: null, rows: found.unscoped }] : [])];
+  for (const group of sections) {
+    const section = el("div", "market-estimates__group");
+    section.dataset.scope = group.scope ? group.scope.key : "";
+    section.append(el("h4", "market-estimates__scope", group.scope ? group.scope.label : t("market_estimates_unscoped")));
+    const table = el("table", "market-estimates__table");
+    const head = el("tr", null);
+    for (const column of ["source", "firm", "year", "figure"]) head.append(el("th", null, t(`market_estimates_col_${column}`)));
+    table.append(head);
+    for (const row of group.rows) {
+      const line = el("tr", "market-estimates__row");
+      const source = el("td", "market-estimates__source");
+      source.append(citeButton([row.id]));
+      line.append(source, el("td", null, row.firm ?? "—"), el("td", "tabular", row.year ?? "—"),
+                  el("td", "tabular market-estimates__figure", row.figure));
+      table.append(line);
+    }
+    section.append(table);
+    wrap.append(section);
+  }
+  wrap.append(el("p", "market-estimates__note", t("market_estimates_note")));
+  return wrap;
+}
+
 // A run from before the receipt existed has no record to read; a damaged
 // receipt has one that cannot be trusted. Both stay unknown, but saying
 // "unreadable" about a record that was never written reads as a fault.
@@ -371,7 +515,7 @@ function marketCapSummary(scores, cap) {
     .replace("{to}", () => String(cap.post_cap_score));
 }
 
-function renderScorecard(scores) {
+function renderScorecard(scores, sources = null) {
   const wrap = el("section", "scorecard");
   if (!detailRecord(scores)) { wrap.append(detailUnavailable()); return wrap; }
   const overall = scores.overall_score;
@@ -462,6 +606,9 @@ function renderScorecard(scores) {
     el("span", "scorecard__market-status", marketCapSummary(scores, cap)),
   );
   caveat.append(caveatSummary, el("p", null, t("market_comparison_limit")));
+  // The figures themselves, each under the market its source names, so the
+  // reader sees what the untyped spread was made of instead of one ratio.
+  if (sources !== null) caveat.append(renderMarketEstimates(sources));
   if (cap) {
     const receipt = el("p", "scorecard__cap-receipt",
       t("market_cap_record") + ": " + cap.pre_cap_score + " → " + cap.post_cap_score + " / 5. " +
@@ -686,6 +833,8 @@ export async function render(container, runId, progress) {
   const scoresOnce = () => (scoresRequest ??= api.getArtifact(runId, "scores"));
   const indexOnce = () => (indexRequest ??= api.getReport(runId).then(citationIndex));
   const hasSources = artifacts.includes("sources");
+  let sourcesRequest = null;
+  const sourcesOnce = () => (sourcesRequest ??= api.getArtifact(runId, "sources"));
 
   async function showInSources(id) {
     await select("sources");
@@ -707,9 +856,12 @@ export async function render(container, runId, progress) {
 
     try {
       if (id === "score") {
-        const scores = await scoresOnce();
+        // The market figures come from the sources artifact; a refused or
+        // failed read leaves the scorecard without them, never without itself.
+        const [scores, sources] = await Promise.all([
+          scoresOnce(), hasSources ? sourcesOnce().catch(() => null) : null]);
         panel.innerHTML = "";
-        panel.append(renderScorecard(scores));
+        panel.append(renderScorecard(scores, sources));
         attachCitations(panel, indexOnce, { onShowInSources: hasSources ? showInSources : null });
       } else if (id === "report") {
         const md = await api.getReport(runId);
@@ -741,13 +893,14 @@ export async function render(container, runId, progress) {
         panel.innerHTML = "";
         panel.append(renderReportAudit(audit));
       } else {
-        const sources = await api.getArtifact(runId, "sources");
+        const sources = await sourcesOnce();
         panel.innerHTML = "";
         panel.append(renderSources(sources));
       }
     } catch (err) {
       panel.innerHTML = "";
       if (id === "sources") {
+        sourcesRequest = null;  // let a retry re-fetch
         // Saved private text may occur in server, parser or network messages.
         // A failed read is not an empty registry; never echo its raw message.
         const message = err?.status === 409 ? "sources_unavailable"
