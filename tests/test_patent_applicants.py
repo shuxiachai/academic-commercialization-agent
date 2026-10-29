@@ -11,7 +11,9 @@ import pytest
 
 from academic_agent import patent_applicants, source_pipeline
 from academic_agent.evidence import EvidenceSource
-from academic_agent.patent_applicants import applicants, assignees_from_html, google_patents_url
+from academic_agent.patent_applicants import (
+    applicants, assignees_from_html, google_patents_url, patent_dates, patent_page_facts,
+)
 from academic_agent.source_pipeline import _name_patent_applicants, collect_source_collection
 from api.retrieval_health import run_lanes
 from tests.test_source_pipeline import (
@@ -27,14 +29,19 @@ from tests.test_source_pipeline import (
 _NOTE = "(The listed assignees may be inaccurate. Google has not performed a legal analysis.)"
 
 
-def header(*, inventors=("Ada Lovelace",), current=(), original=(), before: str = "") -> str:
+def header(*, inventors=("Ada Lovelace",), current=(), original=(), before: str = "",
+           publication: str | None = "2012-05-15") -> str:
     """A Google Patents header block, in the order the real pages use."""
     def dds(prop, names):
         return "".join(f'<dd itemprop="{prop}" repeat> {name} </dd>' for name in names)
+    dates = ('<dt>Priority date</dt><dd><time itemprop="priorityDate" datetime="2005-04-15">2005-04-15</time></dd>'
+             '<dt>Filing date</dt><dd><time itemprop="filingDate" datetime="2006-03-08">2006-03-08</time></dd>')
+    if publication:
+        dates += f'<dt>Publication date</dt><dd><time itemprop="publicationDate" datetime="{publication}">x</time></dd>'
     return (f"<html><body>{before}<dl><dt>Inventor</dt>{dds('inventor', inventors)}"
             + (f"<dt>Current Assignee {_NOTE}</dt>{dds('assigneeCurrent', current)}" if current else "")
             + (f"<dt>Original Assignee</dt>{dds('assigneeOriginal', original)}" if original else "")
-            + "<dt>Priority date</dt><dd><time>2005-04-15</time></dd></dl></body></html>")
+            + dates + "</dl></body></html>")
 
 
 def test_the_current_assignee_is_the_applicant_when_it_differs_from_the_original():
@@ -92,7 +99,9 @@ def test_fetching_refuses_a_non_public_address_before_any_request(url):
 def test_a_page_that_cannot_be_read_or_mapped_names_nobody():
     with patch.object(patent_applicants, "fetch_head", return_value=None):
         assert patent_applicants.patent_applicants("https://patents.google.com/patent/US1/en") == ([], "unreadable")
+        assert patent_page_facts("https://patents.google.com/patent/US1/en") == ([], "unreadable", {})
     assert patent_applicants.patent_applicants("https://patents.justia.com/assignee/x") == ([], "no_number")
+    assert patent_page_facts("https://patents.justia.com/assignee/x") == ([], "no_number", {})
 
 
 _SUMMARY = ("Official patent database record for the claimed invention, verified against the national "
@@ -128,10 +137,11 @@ def test_named_inventor_owned_failing_and_late_rows_each_get_their_due(monkeypat
 
     started = time.monotonic()
     try:
-        names, audit = _name_patent_applicants(rows, lookup)
+        names, [audit] = _name_patent_applicants(rows, lookup)   # a two-value lookup dates nothing
         assert time.monotonic() - started < 2
     finally:
         release.set()
+    assert [r.published_date for r in rows] == [None] * 5
     assert "https://www.lens.org/lens/patent/123" not in asked
     assert names == {"P1": ["University of California, San Diego"], "P2": []}
     assert [r.publisher for r in rows] == ["University of California, San Diego",
@@ -170,4 +180,70 @@ def test_the_collector_lists_applicants_as_competitors_with_their_commas_intact(
 def test_by_default_the_collector_reads_the_patents_google_patents_page(monkeypatch):
     pages = {"https://patents.google.com/patent/US10000002/en": header(current=("Climeworks AG",))}
     monkeypatch.setattr("academic_agent.patent_applicants.fetch_head", pages.get)
-    assert _collect().patent_assignees == ["Climeworks AG"]
+    collection = _collect()
+    assert collection.patent_assignees == ["Climeworks AG"]
+    dated = {str(s.url).rsplit("/", 1)[-1]: s.published_date for s in collection.patent_sources}
+    assert dated["US10000002"] == date(2012, 5, 15)   # from the page, whatever the row had
+    [row] = [r for r in collection.audit if r.query.startswith("[Patent-Dates]")]
+    assert row.accepted_source_ids == [s.source_id for s in collection.patent_sources
+                                       if str(s.url).endswith("US10000002")]
+
+
+# ---------------------------------------------------------------------------
+# Dates: the same page, read once, dates the row
+# ---------------------------------------------------------------------------
+
+def test_the_header_dates_are_read_and_a_malformed_one_is_left_out():
+    assert patent_dates(header()) == {"priority": date(2005, 4, 15), "filing": date(2006, 3, 8),
+                                      "publication": date(2012, 5, 15)}
+    assert patent_dates(header(publication=None)) == {"priority": date(2005, 4, 15), "filing": date(2006, 3, 8)}
+    assert patent_dates(header(publication="2012-13-45")) == {"priority": date(2005, 4, 15), "filing": date(2006, 3, 8)}
+    assert patent_dates("<html></html>") == {}
+
+
+def test_the_first_statement_of_a_date_wins_over_a_cited_patents_later_one():
+    page = header() + '<table><td><time itemprop="publicationDate" datetime="1999-01-01">x</time></td></table>'
+    assert patent_dates(page)["publication"] == date(2012, 5, 15)
+
+
+def test_page_facts_carry_names_status_and_dates_together():
+    with patch.object(patent_applicants, "fetch_head", return_value=header(current=("Climeworks AG",))):
+        assert patent_page_facts("https://patents.google.com/patent/US1/en") == (
+            ["Climeworks AG"], "named",
+            {"priority": date(2005, 4, 15), "filing": date(2006, 3, 8), "publication": date(2012, 5, 15)})
+
+
+def test_the_page_date_fills_an_undated_row_and_replaces_a_number_derived_one():
+    """The saved registries dated a web-search patent to 1 January of the year
+    in its number; on 30 sampled pages none matched the real date and ten had
+    the wrong year. The page wins, and a replacement is written down."""
+    rows = [patent("P1", "https://patents.google.com/patent/US1/en"),
+            patent("P2", "https://patents.google.com/patent/US2/en"),
+            patent("P3", "https://patents.google.com/patent/US3/en"),
+            patent("P4", "https://patents.google.com/patent/US4/en")]
+    rows[1].published_date = date(2017, 1, 1)
+    rows[2].published_date = date(2012, 5, 15)
+
+    def lookup(url):
+        if url.endswith("US4/en"):
+            return [], "none", {"priority": date(2005, 4, 15)}       # a page without a publication date
+        return ["Acme"], "named", {"publication": date(2012, 5, 15), "priority": date(2005, 4, 15)}
+
+    names, audits = _name_patent_applicants(rows, lookup)
+    assert [r.published_date for r in rows] == [date(2012, 5, 15), date(2012, 5, 15), date(2012, 5, 15), None]
+    assert names == {"P1": ["Acme"], "P2": ["Acme"], "P3": ["Acme"]}
+    assert [a.query.split("]")[0] for a in audits] == ["[Patent-Applicants", "[Patent-Dates"]
+    dates = audits[1]
+    assert dates.result_count == 4
+    assert dates.accepted_source_ids == ["P1", "P2", "P3"]
+    assert dates.rejected_reasons == ["P2: 2017-01-01 replaced by 2012-05-15 from the page",
+                                      "P4: page states no publication date"]
+
+
+def test_an_unreadable_page_dates_nothing_and_says_so_once():
+    rows = [patent("P1", "https://patents.google.com/patent/US1/en")]
+    rows[0].published_date = date(2017, 1, 1)
+    names, audits = _name_patent_applicants(rows, lambda url: ([], "unreadable", {}))
+    assert rows[0].published_date == date(2017, 1, 1)
+    assert audits[0].rejected_reasons == ["P1: no applicant found (unreadable)"]
+    assert audits[1].accepted_source_ids == [] and audits[1].rejected_reasons == []
