@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
 from academic_agent.page_dates import page_publication_date, should_date
-from academic_agent.patent_applicants import google_patents_url, patent_applicants
+from academic_agent.patent_applicants import google_patents_url, patent_page_facts
 from academic_agent.patent_family import publication_number, same_invention
 from academic_agent.source_title_recovery import recover_official_source_title
 
@@ -136,7 +136,9 @@ def _detect_weight_profile(topic: str) -> str:
 SearchFunction = Callable[[str], dict[str, Any]]
 UrlChecker = Callable[[str], tuple[bool, str]]
 PageDater = Callable[[str, date], tuple[date | None, str]]
-ApplicantLookup = Callable[[str], tuple[list[str], str]]
+# (names, status) or, from the page reader, (names, status, dates); an older
+# two-value lookup still names applicants and simply dates nothing.
+ApplicantLookup = Callable[[str], "tuple[list[str], str] | tuple[list[str], str, dict[str, date]]"]
 
 _DOI_PATTERN = re.compile(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", re.IGNORECASE)
 _TAG_PATTERN = re.compile(r"<[^>]+>")
@@ -3491,14 +3493,21 @@ _APPLICANT_NOTE = (" Applicant: as listed by Google Patents, which notes its lis
 def _name_patent_applicants(
     sources: list[EvidenceSource],
     lookup: ApplicantLookup,
-) -> tuple[dict[str, list[str]], SearchAudit | None]:
-    """Name web-search patents' applicants: ({source_id: company names, [] if inventor-owned}, audit row)."""
+) -> tuple[dict[str, list[str]], list[SearchAudit]]:
+    """Name web-search patents' applicants, and date them, from one read of each patent's page.
+
+    Returns ({source_id: company names, [] if inventor-owned}, audit rows): one
+    row for the applicants and, when the lookup reports dates, one for them.
+    The page's publication date replaces the row's date whatever it was: the
+    row had at best the year out of the publication number as 1 January, and
+    on the saved registries a third of those years were wrong.
+    """
     from concurrent.futures import ThreadPoolExecutor, wait
 
     pending = [source for source in sources
                if source.url is not None and google_patents_url(str(source.url))]
     if not pending:
-        return {}, None
+        return {}, []
     pool = ThreadPoolExecutor(max_workers=min(_APPLICANT_WORKERS, len(pending)))
     futures = {pool.submit(lookup, str(source.url)): source for source in pending}
     done, _late = wait(futures, timeout=_APPLICANT_DEADLINE_SECONDS)
@@ -3507,6 +3516,9 @@ def _name_patent_applicants(
     companies: dict[str, list[str]] = {}
     named: list[str] = []
     notes: list[str] = []
+    dated: list[str] = []
+    date_notes: list[str] = []
+    saw_dates = False
     for future, source in futures.items():
         if future not in done:
             notes.append(f"{source.source_id}: page not read within {_APPLICANT_DEADLINE_SECONDS:g} s")
@@ -3514,7 +3526,18 @@ def _name_patent_applicants(
         if future.exception() is not None:
             notes.append(f"{source.source_id}: page could not be read")
             continue
-        names, status = future.result()
+        names, status, *extra = future.result()
+        if extra:
+            saw_dates = True
+            published = extra[0].get("publication") if isinstance(extra[0], dict) else None
+            if isinstance(published, date):
+                if source.published_date is not None and source.published_date != published:
+                    date_notes.append(f"{source.source_id}: {source.published_date.isoformat()} replaced by "
+                                      f"{published.isoformat()} from the page")
+                source.published_date = published
+                dated.append(source.source_id)
+            elif status not in {"unreadable", "no_number"}:
+                date_notes.append(f"{source.source_id}: page states no publication date")
         if status == "named" and names:
             source.publisher = "; ".join(names)
             companies[source.source_id] = names
@@ -3527,13 +3550,22 @@ def _name_patent_applicants(
             continue
         source.credibility_reason += _APPLICANT_NOTE
         named.append(source.source_id)
-    return companies, SearchAudit(
+    audits = [SearchAudit(
         domain="patent",
         query="[Patent-Applicants] current assignee from each patent's Google Patents page",
         result_count=len(pending),
         accepted_source_ids=named,
         rejected_reasons=notes,
-    )
+    )]
+    if saw_dates:
+        audits.append(SearchAudit(
+            domain="patent",
+            query="[Patent-Dates] publication date from each patent's Google Patents page",
+            result_count=len(pending),
+            accepted_source_ids=dated,
+            rejected_reasons=date_notes,
+        ))
+    return companies, audits
 
 
 def collect_source_collection(
@@ -3548,7 +3580,7 @@ def collect_source_collection(
     lens: "LensPatentClient | None" = None,
     url_checker: UrlChecker = check_public_url,
     page_dater: PageDater = page_publication_date,
-    patent_applicant_lookup: ApplicantLookup = patent_applicants,
+    patent_applicant_lookup: ApplicantLookup = patent_page_facts,
     minimum_sources: int = 3,
     maximum_sources: int = 8,
     accessed_date: date | None = None,
@@ -4114,9 +4146,8 @@ def collect_source_collection(
     page_dates_audit = _date_market_pages(market, resolved_date, page_dater)
     if page_dates_audit is not None:
         all_audits.append(page_dates_audit)
-    applicant_names, applicants_audit = _name_patent_applicants(patents, patent_applicant_lookup)
-    if applicants_audit is not None:
-        all_audits.append(applicants_audit)
+    applicant_names, applicant_audits = _name_patent_applicants(patents, patent_applicant_lookup)
+    all_audits.extend(applicant_audits)
 
     # Extract unique competitor/assignee names from patent sources.
     _GENERIC_ASSIGNEES = frozenset({

@@ -119,6 +119,14 @@ not connected. Do not configure or purchase optional keys merely to run tests.
 
 ## Web, CLI and HTTP API
 
+Web-search patents are dated from their own Google Patents page, the one
+already read for the applicant: the header's publication date replaces the
+row's date whatever it was, because the row had at best the year out of the
+publication number as 1 January, and on 60 pages sampled on 2026-10-29 none of
+30 such dates matched the page and 10 had the wrong year. The `[Patent-Dates]`
+audit row lists the rows dated and every replacement.
+
+
 The scorecard explicitly labels market-estimate comparability as not assessed.
 Fresh/restored score artifacts include `market_comparison`; the raw
 `market_uncertainty` string remains a legacy untyped diagnostic, not verified

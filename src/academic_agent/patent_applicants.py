@@ -14,12 +14,21 @@ it is the party to approach now. "Individual" means the patent is owned by
 its inventor: it is never listed as a company, and the inventors are named
 instead. Google warns that its assignee list may be inaccurate, so a source
 records where the name came from.
+
+The same header states the patent's dates. Web search gave a patent row no
+date either: 44% of the 4,091 patent rows in the saved registries had none,
+and the rest carried the year read out of the publication number as
+1 January. On 60 of those pages sampled on 2026-10-29, every one stated a
+publication date inside the bytes already read, none of the 30 existing dates
+matched it exactly, and 10 of the 30 had the wrong year. The page's
+publication date therefore replaces whatever the row had.
 """
 
 from __future__ import annotations
 
 import html as html_lib
 import re
+from datetime import date
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import Request, build_opener
@@ -44,6 +53,8 @@ _BLOCKS = {
                               ("inventors", "Inventor", "inventor"))
 }
 _DD_TEXT = re.compile(r">([^<]*)</dd>")
+# <time itemprop="publicationDate" datetime="2024-03-26">, in the header's date list.
+_DATES = re.compile(r'itemprop="(publicationDate|priorityDate|filingDate)"[^>]*\bdatetime="(\d{4}-\d{2}-\d{2})"')
 
 
 def google_patents_url(url: str | None) -> str | None:
@@ -75,6 +86,24 @@ def applicants(html: str) -> tuple[list[str], str]:
     return [], "none"
 
 
+def patent_dates(html: str) -> dict[str, date]:
+    """{"publication" | "priority" | "filing": date} from the header's dated <time> tags.
+
+    The first statement of each kind wins; a malformed date is left out rather
+    than guessed, so a row keeps whatever it had.
+    """
+    found: dict[str, date] = {}
+    for kind, text in _DATES.findall(html):
+        key = kind.removesuffix("Date")
+        if key in found:
+            continue
+        try:
+            found[key] = date.fromisoformat(text)
+        except ValueError:
+            continue
+    return found
+
+
 def fetch_head(url: str) -> str | None:
     """The page's first MAX_BYTES as text, following only public redirects."""
     opener = build_opener(_NoRedirectHandler)
@@ -99,12 +128,22 @@ def fetch_head(url: str) -> str | None:
     return None
 
 
-def patent_applicants(url: str) -> tuple[list[str], str]:
-    """(names, status) for a patent URL; status adds "unreadable" and "no_number"."""
+def patent_page_facts(url: str) -> tuple[list[str], str, dict[str, date]]:
+    """(names, status, dates) for a patent URL, from one read of its Google Patents page.
+
+    status adds "unreadable" and "no_number"; dates is empty in both cases.
+    """
     page_url = google_patents_url(url)
     if page_url is None:
-        return [], "no_number"
+        return [], "no_number", {}
     html = fetch_head(page_url)
     if html is None:
-        return [], "unreadable"
-    return applicants(html)
+        return [], "unreadable", {}
+    names, status = applicants(html)
+    return names, status, patent_dates(html)
+
+
+def patent_applicants(url: str) -> tuple[list[str], str]:
+    """(names, status) for a patent URL; status adds "unreadable" and "no_number"."""
+    names, status, _dates = patent_page_facts(url)
+    return names, status
