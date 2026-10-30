@@ -570,6 +570,15 @@ in a language without a phrase table is left unchecked, which the reliability
 panel shows as "not run", never as consistent. See the
 [Chinese calibration](results-2026-10-25-report-score-consistency-chinese.md).
 
+The checks write their reasons into the artifacts as English sentences, and
+artifacts are never rewritten. The page says each recognised sentence again in
+the interface language from its parts: the report-versus-scorecard finding (its
+phrase, score and floor), the three reasons a numeric claim could not be
+checked, the search layer's rejection notes in a failed run's diagnostics (the
+title or locator is left as written), and domain names in the check panel. In
+English every recognised sentence is shown word for word; a sentence the page
+does not recognise is shown as written in either language, never guessed at.
+
 If browser storage is denied, credentials can be held only in page memory and
 preferences use safe defaults. Bookmark accepted run links. A failed persistent
 logout returns to the gate without reloading stale credentials; clear site data

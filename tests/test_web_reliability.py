@@ -103,7 +103,8 @@ class ReliabilityPanelTests(unittest.TestCase):
         panel = self._panel(failed_domains=["market"], source_counts={"academic": 8})
         row = self._row(panel, "sources")
         self.assertEqual(row["tone"], "warn")
-        self.assertIn("market", row["detail"])
+        # Named as the source lists name it, not by its key.
+        self.assertIn("Market", row["detail"])
 
     def test_missing_clinical_authority_category_is_a_warning(self):
         """Missing coverage is a warning, never proof that no record exists."""
@@ -310,7 +311,7 @@ class ReliabilityPanelTests(unittest.TestCase):
         )
         row = self._row(panel, "sources")
         self.assertEqual(row["tone"], "warn")
-        self.assertIn("patent", row["detail"])
+        self.assertIn("Patents", row["detail"])
         self.assertIn("unreadable", row["detail"])
 
     def test_the_worst_finding_decides_the_verdict(self):
@@ -354,7 +355,7 @@ class ReliabilityPanelTests(unittest.TestCase):
         )
         row = self._row(panel, "grounding")
         self.assertEqual(row["tone"], "muted")
-        self.assertIn("patent", row["detail"])
+        self.assertIn("Patents", row["detail"])
 
     def test_old_run_without_grounding_status_is_explicitly_unknown(self):
         panel = self._panel(source_counts={"academic": 8, "patent": 8, "market": 8})

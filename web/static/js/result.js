@@ -1251,7 +1251,7 @@ export function renderGrounding(data) {
     const why = row.status === "ungrounded"
       ? t("grounding_missing").replace("{figures}",
           (row.ungrounded_figures ?? []).join(", "))
-      : row.unverifiable_reason ?? "";
+      : groundingReason(row.unverifiable_reason ?? "");
     if (why) item.append(el("span", "grounding__why", why));
     list.append(item);
   }
@@ -1259,6 +1259,119 @@ export function renderGrounding(data) {
   wrap.append(list);
   return wrap;
 }
+
+/* ── Check wording ─────────────────────────────────────────────────────
+ * The checks write their reasons into the run's artifacts as English
+ * sentences, and artifacts are never rewritten. So the page reads each
+ * sentence back into the parts the check decided on (the phrase it found,
+ * the score, the title it rejected) and says them again in the reader's
+ * language. A sentence it does not recognise is shown as written: English
+ * is still an answer, and a guessed translation is not.
+ */
+const CONSISTENCY_DETAIL = /^The conclusions say (?:'(.*)'|"(.*)") while the overall score is (\d+(?:\.\d+)?), below the (\d+(?:\.\d+)?) this phrasing implies\.$/;
+
+/** The report-versus-scorecard finding, in the reader's language. */
+function consistencyDetail(finding) {
+  const m = finding.kind === "recommendation_exceeds_score" ? CONSISTENCY_DETAIL.exec(finding.detail) : null;
+  if (!m) return finding.detail;
+  return t("consistency_exceeds").replace("{phrase}", m[1] ?? m[2])
+    .replace("{score}", m[3]).replace("{floor}", m[4]);
+}
+
+const GROUNDING_REASONS = new Map([
+  ["cites no source present in the registry", "grounding_reason_no_source"],
+  ["every cited source carries only a search snippet, which is a fragment — a figure missing from it is not evidence the source lacks it",
+    "grounding_reason_snippets"],
+  ["unrecognised numeric or unit notation prevents numeric comparison", "grounding_reason_notation"],
+]);
+
+/** Why a numeric claim could not be checked, in the reader's language. */
+function groundingReason(reason) {
+  return GROUNDING_REASONS.has(reason) ? t(GROUNDING_REASONS.get(reason)) : reason;
+}
+
+// The search layer's rejection notes. Each pattern captures the parts that
+// vary (a score, a count, the source the note is about) and leaves the
+// title or locator as written: translating a title would hide which source
+// was meant. Order matters only where one pattern is a prefix of another.
+const SOURCE_SYSTEMS = "OpenAlex|Semantic Scholar|S2|arXiv|PubMed|Lens patent";
+// Each provider names its records differently in the notes ("OpenAlex work",
+// "S2 paper"); the Chinese wording names the provider the reader knows.
+const RECORD_SYSTEMS = {
+  "OpenAlex work": "OpenAlex", "Semantic Scholar paper": "Semantic Scholar", "S2 paper": "Semantic Scholar",
+  "arXiv record": "arXiv", "PubMed record": "PubMed", "Lens patent": "Lens",
+};
+const SYSTEM_NAMES = { S2: "Semantic Scholar", "Lens patent": "Lens" };
+const IDENTIFIER_NAMES = { "DOI or PMID": "DOI 或 PMID", lens_id: "Lens ID" };
+const RECORD_NOUNS = Object.keys(RECORD_SYSTEMS).join("|");
+const REJECTION_PATTERNS = [
+  [/^score=(\d+(?:\.\d+)?) \(min=(\d+(?:\.\d+)?)\) — removed '(.*)'$/s, "reject_relevance_score", ["score", "min", "subject"]],
+  [/^query source limit reached \((\d+)\); later results not read$/, "reject_query_limit", ["n"]],
+  [/^duplicates academic DOI: (.*)$/s, "reject_duplicate_doi", ["subject"]],
+  [/^duplicates academic title: (.*)$/s, "reject_duplicates_academic_title", ["subject"]],
+  [/^duplicate academic title: (.*)$/s, "reject_duplicate_academic_title", ["subject"]],
+  [/^duplicate patent family title: (.*)$/s, "reject_duplicate_family_title", ["subject"]],
+  [/^duplicate patent family \(same invention as (.*?)\): (.*)$/s, "reject_duplicate_family", ["kept", "subject"]],
+  [/^duplicate source: (.*)$/s, "reject_duplicate_source", ["subject"]],
+  [/^deferred \(authority category already covered\): (.*)$/s, "reject_deferred_authority", ["subject"]],
+  [/^deferred \(institutional cap\): (.*)$/s, "reject_deferred_institutional", ["subject"]],
+  [/^deferred \(market-report cap\): (.*)$/s, "reject_deferred_market_report", ["subject"]],
+  [/^deferred \(encyclopedia cap\): (.*)$/s, "reject_deferred_encyclopedia", ["subject"]],
+  [/^evidence summary too thin \((\d+) chars\): (.*)$/s, "reject_summary_thin", ["n", "subject"]],
+  [/^market summary lacks core topic keywords: (.*)$/s, "reject_market_keywords", ["subject"]],
+  [/^patent title not relevant to topic \(score (\d+(?:\.\d+)?)\): (.*)$/s, "reject_patent_relevance", ["score", "subject"]],
+  [/^patent targets cathode, topic focuses on anode: (.*)$/s, "reject_patent_cathode", ["subject"]],
+  [/^patent targets anode, topic focuses on cathode: (.*)$/s, "reject_patent_anode", ["subject"]],
+  [/^no Crossref metadata matched title (.*)$/s, "reject_crossref_no_match", ["subject"]],
+  [/^Crossref record lacks DOI, title, or publisher$/, "reject_crossref_incomplete", []],
+  [/^Crossref title is not relevant to research topic or its retrieval aliases: (.*)$/s, "reject_crossref_relevance", ["subject"]],
+  [/^search result snippet or URL cites a different DOI: (.*)$/s, "reject_doi_conflict", ["subject"]],
+  [/^search snippet contains a truncated or unverifiable DOI reference$/, "reject_doi_truncated", []],
+  [/^Crossref publication date is in the future$/, "reject_crossref_future_date", []],
+  [new RegExp(`^(${RECORD_NOUNS}) has no title$`), "reject_no_title", ["record"]],
+  [new RegExp(`^(${RECORD_NOUNS}) has no (DOI or PMID|DOI|URL|lens_id): (.*)$`, "s"),
+    "reject_no_identifier", ["record", "identifier", "subject"]],
+  [/^OpenAlex peer-review artifact \(not a paper\): (.*)$/s, "reject_peer_review_artifact", ["subject"]],
+  [/^OpenAlex topic matched broadly but title is off-topic: (.*)$/s, "reject_openalex_broad_topic", ["subject"]],
+  [/^OpenAlex topics indicate off-topic paper: (.*)$/s, "reject_openalex_off_topic", ["subject"]],
+  [new RegExp(`^(${SOURCE_SYSTEMS}) title not relevant to topic: (.*)$`, "s"), "reject_title_relevance", ["system", "subject"]],
+  [/^Lens patent title not relevant to battery-free topic: (.*)$/s, "reject_lens_battery_free", ["subject"]],
+  [new RegExp(`^(${SOURCE_SYSTEMS}) abstract too thin \\((\\d+) chars\\): (.*)$`, "s"), "reject_abstract_thin", ["system", "n", "subject"]],
+  [/^abstract too thin \((\d+) chars\): (.*)$/s, "reject_abstract_thin_plain", ["n", "subject"]],
+  [new RegExp(`^(${SOURCE_SYSTEMS}) publication date in future: (.*)$`, "s"), "reject_future_date", ["system", "subject"]],
+  [/^search result lacks a usable title or URL$/, "reject_no_title_or_url", []],
+  [/^invalid URL: (.*)$/s, "reject_invalid_url", ["subject"]],
+  [/^non-primary patent host: (.*)$/s, "reject_patent_host", ["subject"]],
+  [/^not a patent record \(Justia listing page\): (.*)$/s, "reject_justia_listing", ["subject"]],
+  [/^market host is blocked or not approved: (.*)$/s, "reject_market_host", ["subject"]],
+  [/^official source title is structurally unusable \((.*)\) and its URL has no supported identifier$/s,
+    "reject_official_title", ["detail"]],
+];
+
+/** One of the search layer's rejection notes, in the reader's language. */
+function rejectionReason(reason) {
+  if (typeof reason !== "string") return "";
+  for (const [pattern, key, names] of REJECTION_PATTERNS) {
+    const m = pattern.exec(reason);
+    if (!m) continue;
+    let text = t(key);
+    names.forEach((name, i) => {
+      const value = m[i + 1];
+      // The English table repeats the note word for word, so it takes the
+      // captured text as is; the Chinese table takes the reader-facing name.
+      text = text.replace(`{${name}}`, value);
+      if (name === "record") text = text.replace("{system_name}", RECORD_SYSTEMS[value]);
+      if (name === "system") text = text.replace("{system_name}", SYSTEM_NAMES[value] ?? value);
+      if (name === "identifier") text = text.replace("{identifier_name}", IDENTIFIER_NAMES[value] ?? value);
+    });
+    return text;
+  }
+  return reason;
+}
+
+/** A source domain key as the reader sees it in the source lists. */
+const domainLabel = key => Object.hasOwn(DOMAIN_LABELS, key) ? t(DOMAIN_LABELS[key]) : String(key);
+const domainList = keys => (Array.isArray(keys) ? keys : []).map(domainLabel).join(", ");
 
 /* ── Failed retrieval diagnostics ─────────────────────────────────────
  * A failed pre-agent run has no validated_sources.json, so this is the only
@@ -1308,7 +1421,7 @@ export function renderRetrievalDiagnostics(data) {
     const body = el("div", "source__body");
     body.append(el("span", "source__link", entry.query || "—"));
     const summary = t("retrieval_query_summary")
-      .replace("{domain}", entry.domain || "academic")
+      .replace("{domain}", domainLabel(entry.domain || "academic"))
       .replace("{results}", String(entry.result_count ?? 0))
       .replace("{accepted}", String(entry.accepted_source_ids?.length ?? 0));
     body.append(el("span", "source__meta", summary));
@@ -1319,7 +1432,7 @@ export function renderRetrievalDiagnostics(data) {
     if (reasons.length) {
       body.append(el("span", "source__meta", t("retrieval_rejections")));
       const reasonList = el("ul", "notes__list");
-      for (const reason of reasons) reasonList.append(el("li", null, reason));
+      for (const reason of reasons) reasonList.append(el("li", null, rejectionReason(reason)));
       body.append(reasonList);
     }
     item.append(body);
@@ -1681,7 +1794,7 @@ export function renderConsistency(data) {
   const list = el("ul", "consistency__list");
   for (const finding of findings) {
     const item = el("li", `consistency__item consistency__item--${finding.severity}`);
-    item.append(el("p", "consistency__detail", finding.detail));
+    item.append(el("p", "consistency__detail", consistencyDetail(finding)));
     if (finding.excerpt) {
       // Quoted, not paraphrased. The whole value of the finding is that a
       // reader can go and judge the sentence for themselves rather than
@@ -1776,7 +1889,7 @@ export function reliabilityRows(progress) {
     } else if (status === "partial") {
       rows.push({ id: "grounding", tone: "muted", label: t("rel_grounding"),
                   detail: t("rel_grounding_degraded")
-                    .replace("{domains}", unavailableDomains.join(", ")) });
+                    .replace("{domains}", domainList(unavailableDomains)) });
     } else if (checked === 0) {
       // Zero unsupported out of zero checked. Shown as "nothing could be
       // checked" rather than as a clean result, because the two are opposite
@@ -1827,7 +1940,7 @@ export function reliabilityRows(progress) {
 
   if (failed.length) {
     rows.push({ id: "sources", tone: "warn", label: t("rel_sources"),
-                detail: t("rel_sources_failed").replace("{domains}", failed.join(", ")) });
+                detail: t("rel_sources_failed").replace("{domains}", domainList(failed)) });
   } else if (progress.source_counts) {
     rows.push({ id: "sources", tone: "ok",
                 label: t("rel_sources"), detail: t("rel_sources_ok") });
