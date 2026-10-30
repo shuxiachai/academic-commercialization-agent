@@ -779,6 +779,57 @@
 .reliability[data-tone="ok"]    { border-left-color: var(--success); }
 .reliability[data-tone="muted"] { border-left-color: var(--border-strong); }
 
+/* The decision brief: the verdict and the four things a decision needs,
+   before the tabs. Same card as the reliability block, so the two read as
+   one layer above the detail. */
+.brief {
+  border: 1px solid var(--border-subtle);
+  border-left-width: 3px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+.brief[data-tone="success"] { border-left-color: var(--success); }
+.brief[data-tone="accent"]  { border-left-color: var(--accent); }
+.brief[data-tone="warning"] { border-left-color: var(--warning); }
+.brief[data-tone="muted"]   { border-left-color: var(--border-strong); }
+.brief__head { display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
+.brief__title {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.brief__verdict { color: var(--text-primary); font-size: var(--text-md); }
+.brief__readiness { color: var(--text-secondary); font-size: var(--text-sm); }
+.brief__lines { margin-top: var(--space-2); }
+.brief__line { margin: 0 0 var(--space-1); font-size: var(--text-sm); color: var(--text-secondary); }
+.brief__summary q { color: var(--text-primary); }
+.brief__label {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+.brief__summary .brief__label { display: inline; margin: 0; }
+.brief__cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+@media (max-width: 720px) { .brief__cards { grid-template-columns: 1fr; } }
+.brief__card { font-size: var(--text-sm); color: var(--text-primary); }
+.brief__text { margin: 0; }
+.brief__empty { color: var(--text-tertiary); }
+.brief__changers { margin-top: var(--space-3); }
+.brief__changer-list { margin: 0; padding-left: 1.2em; font-size: var(--text-sm); color: var(--text-primary); }
+.brief__changer { margin: 0 0 var(--space-1); }
+.brief__note { margin: var(--space-3) 0 0; font-size: var(--text-xs); color: var(--text-tertiary); }
+
 .reliability__head {
   display: flex;
   align-items: baseline;
