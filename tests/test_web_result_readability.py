@@ -120,6 +120,21 @@ if (input.gate) {
   out.scope = { text: nodes.filter(n => n.className === "decision-applicability__detail").map(n => n.textContent),
                 mode: nodes[0].dataset.mode, codes: nodes.filter(n => n.tagName === "CODE").length };
 }
+if (input.checks) {
+  const c = input.checks;
+  const texts = (node, cls) => flat(node).filter(n => n.className === cls).map(n => n.textContent);
+  out.checks = {};
+  if (c.consistency) out.checks.consistency = texts(mod.renderConsistency(c.consistency), "consistency__detail");
+  if (c.grounding) out.checks.grounding = texts(mod.renderGrounding(c.grounding), "grounding__why");
+  if (c.retrieval) {
+    const nodes = flat(mod.renderRetrievalDiagnostics(c.retrieval));
+    out.checks.retrieval = {
+      summaries: nodes.filter(n => n.className === "source__meta").map(n => n.textContent),
+      reasons: nodes.filter(n => n.tagName === "LI" && n.className === "").map(n => n.textContent),
+    };
+  }
+  if (c.progress) out.checks.rows = Object.fromEntries(mod.reliabilityRows(c.progress).map(r => [r.id, r.detail]));
+}
 console.log(JSON.stringify(out));
 """
 
@@ -593,6 +608,157 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertTrue(shown["lines"][0].startswith("最强维度：专利地位 3 / 5；最弱维度：制造就绪度 3.5 / 10。"))
         self.assertEqual(shown["changers"][0][1], "更多高可信度来源：证据可信度目前 2 / 5。")
         self.assertIn("没有新的模型调用", shown["note"])
+
+
+class CheckWordingTests(unittest.TestCase):
+    """The checks write their reasons into the artifacts as English sentences.
+    The page says them again in the reader's language from their parts, and
+    shows anything it does not recognise exactly as written."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _run(self, **payload):
+        return ResultReadabilityTests._run(self, **payload)
+
+    def _checks(self, language=None, **checks):
+        payload = {"checks": checks}
+        if language:
+            payload["language"] = language
+        return self._run(**payload)["checks"]
+
+    _EXCEEDS = ("The conclusions say 'ready for market' while the overall score is 42.5, "
+                "below the 70 this phrasing implies.")
+
+    def _consistency(self, detail=_EXCEEDS, kind="recommendation_exceeds_score"):
+        return {"checked": True, "blockers": 1, "warnings": 0,
+                "findings": [{"severity": "blocker", "kind": kind, "detail": detail,
+                              "excerpt": "The technology is ready for market."}]}
+
+    def test_the_consistency_finding_is_said_in_chinese_from_its_parts(self):
+        shown = self._checks("Simplified Chinese", consistency=self._consistency())["consistency"]
+        self.assertEqual(shown, ["报告结论中出现“ready for market”，而总分为 42.5，低于这种措辞所隐含的 70 分。"])
+
+    def test_the_consistency_finding_is_unchanged_in_english(self):
+        shown = self._checks(consistency=self._consistency())["consistency"]
+        self.assertEqual(shown, [self._EXCEEDS])
+
+    def test_a_phrase_with_an_apostrophe_is_read_from_its_double_quotes(self):
+        detail = ("The conclusions say \"it's ready\" while the overall score is 42, "
+                  "below the 70 this phrasing implies.")
+        shown = self._checks("Simplified Chinese", consistency=self._consistency(detail))["consistency"]
+        self.assertEqual(shown, ["报告结论中出现“it's ready”，而总分为 42，低于这种措辞所隐含的 70 分。"])
+
+    def test_a_finding_the_page_does_not_recognise_stays_as_written(self):
+        other = "The report promises a timeline the scorecard does not support."
+        shown = self._checks("Simplified Chinese",
+                             consistency=self._consistency(other, kind="timeline_exceeds_score"))["consistency"]
+        self.assertEqual(shown, [other])
+        # The right kind with a differently worded sentence is not guessed at either.
+        shown = self._checks("Simplified Chinese", consistency=self._consistency(other))["consistency"]
+        self.assertEqual(shown, [other])
+
+    _REASONS = [
+        "cites no source present in the registry",
+        "every cited source carries only a search snippet, which is a fragment — "
+        "a figure missing from it is not evidence the source lacks it",
+        "unrecognised numeric or unit notation prevents numeric comparison",
+        "every cited source carries only a search snippet",  # a truncated historical note
+    ]
+
+    def _grounding(self):
+        return {"checked": 0, "ungrounded": 0, "unverifiable": len(self._REASONS),
+                "findings": [{"finding_id": f"MF{i}", "status": "unverifiable", "claim": "x",
+                              "unverifiable_reason": reason} for i, reason in enumerate(self._REASONS, 1)]}
+
+    def test_each_grounding_reason_is_said_in_chinese_and_the_unknown_one_is_not(self):
+        shown = self._checks("Simplified Chinese", grounding=self._grounding())["grounding"]
+        self.assertEqual(shown, [
+            "引用的来源不在来源登记表中",
+            "所引来源都只有搜索摘要片段；片段里没有某个数字，不能说明来源本身没有",
+            "数字或单位写法无法识别，无法做数值比对",
+            "every cited source carries only a search snippet",
+        ])
+
+    def test_grounding_reasons_are_unchanged_in_english(self):
+        self.assertEqual(self._checks(grounding=self._grounding())["grounding"], self._REASONS)
+
+    _NOTES = [
+        "score=2 (min=4) — removed 'Solid electrolytes: a review'",
+        "query source limit reached (12); later results not read",
+        "duplicate patent family (same invention as US1234): Battery cell B",
+        "deferred (market-report cap): 'Market report 2026'",
+        "evidence summary too thin (31 chars): 'Short'",
+        "patent title not relevant to topic (score 0.1): 'Chair'",
+        "no Crossref metadata matched title 'Some paper' (3 candidates)",
+        "Crossref publication date is in the future",
+        "OpenAlex work has no title",
+        "S2 paper has no DOI: 'S2 paper'",
+        "PubMed record has no DOI or PMID: 'PubMed paper'",
+        "Lens patent has no lens_id: 'Lens patent'",
+        "arXiv abstract too thin (9 chars): 'arXiv thin'",
+        "abstract too thin (40 chars): 'Thin'",
+        "S2 publication date in future: 2031",
+        "duplicates academic title: A review of anodes",
+        "duplicate academic title: A review of anodes",
+        "official source title is structurally unusable (too short) and its URL has no supported identifier",
+        "something the search layer has never said: 'kept: as is'",
+    ]
+
+    def _retrieval(self, domain="patent"):
+        return {"accepted_sources": 1, "required_sources": 3, "input_topic": "anodes", "search_topic": "anodes",
+                "aliases": [], "audit": [{"domain": domain, "query": "anode patents", "result_count": 20,
+                                          "accepted_source_ids": ["P1"], "rejected_reasons": self._NOTES}]}
+
+    def test_rejection_notes_are_said_in_chinese_with_the_source_left_as_written(self):
+        shown = self._checks("Simplified Chinese", retrieval=self._retrieval())["retrieval"]
+        self.assertEqual(shown["reasons"], [
+            "相关度 2（最低要求 4）——已移除“Solid electrolytes: a review”",
+            "单条查询的来源数已达上限（12），后续结果未读取",
+            "同一专利族（与 US1234 是同一项发明）：Battery cell B",
+            "暂缓（市场报告已达上限）：'Market report 2026'",
+            "证据摘要过短（31 个字符）：'Short'",
+            "专利标题与主题不相关（相关度 0.1）：'Chair'",
+            "Crossref 中没有与该标题匹配的元数据 'Some paper' (3 candidates)",
+            "Crossref 的发表日期在未来",
+            "OpenAlex 记录没有标题",
+            "Semantic Scholar 记录缺少 DOI：'S2 paper'",
+            "PubMed 记录缺少 DOI 或 PMID：'PubMed paper'",
+            "Lens 记录缺少 Lens ID：'Lens patent'",
+            "arXiv 摘要过短（9 个字符）：'arXiv thin'",
+            "摘要过短（40 个字符）：'Thin'",
+            "Semantic Scholar 的发表日期在未来：2031",
+            "与已有学术来源的标题重复：A review of anodes",
+            "与已有学术来源的标题重复：A review of anodes",
+            "官方来源的标题结构不可用（too short），且网址没有受支持的标识符",
+            "something the search layer has never said: 'kept: as is'",
+        ])
+        self.assertEqual(shown["summaries"][0], "专利 · 20 个候选 · 1 个通过")
+
+    def test_rejection_notes_are_unchanged_in_english(self):
+        shown = self._checks(retrieval=self._retrieval())["retrieval"]
+        self.assertEqual(shown["reasons"], self._NOTES)
+        self.assertEqual(shown["summaries"][0], "Patents · 20 candidates · 1 accepted")
+
+    def test_an_unknown_domain_key_is_shown_as_the_key(self):
+        shown = self._checks("Simplified Chinese", retrieval=self._retrieval(domain="regulatory"))["retrieval"]
+        self.assertTrue(shown["summaries"][0].startswith("regulatory · "))
+
+    def test_domain_names_in_the_check_panel_follow_the_source_lists(self):
+        progress = {"source_counts": {"academic": 4, "patent": 0, "market": 3}, "failed_domains": ["patent"],
+                    "claim_grounding": {"status": "partial", "checked": 3, "ungrounded": 0, "unverifiable": 1,
+                                        "unavailable_domains": ["market", "other"]}}
+        rows = self._checks("Simplified Chinese", progress=progress)["rows"]
+        self.assertIn("未包含 专利", rows["sources"])
+        self.assertIn("市场, other", rows["grounding"])
+        rows = self._checks(progress=progress)["rows"]
+        self.assertIn("without Patents", rows["sources"])
+        self.assertIn("Market, other", rows["grounding"])
 
 
 if __name__ == "__main__":
