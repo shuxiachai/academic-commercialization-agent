@@ -676,6 +676,227 @@ function renderDecisionApplicability(gate) {
   return wrap;
 }
 
+
+/* ── Decision brief ────────────────────────────────────────────────────
+ * One screen above the tabs: the verdict, the strongest piece of evidence
+ * behind it, the biggest risk, the first recommended step, and what new
+ * evidence would move the number. Every line is read from an artifact the
+ * reader can open below (scorecard, report, sources, checks) and names
+ * where it came from. Nothing here is a new judgement and no model is
+ * called: a reader who has thirty seconds gets the same facts a reader of
+ * the whole report gets, in the order a decision needs them. */
+
+const CITATION_RUN = /[[(]\s*([APM]\d+(?:\s*[,;]\s*[APM]\d+)*)\s*[\])]/g;
+const SUMMARY_HEADINGS = /executive summary|执行摘要/i;
+const RECOMMENDATION_HEADINGS = /commercialization opportunities|商业化机遇|商业化机会/i;
+const BRIEF_SENTENCE_LIMIT = 240;
+
+// Text with its citation markers turned into the buttons the report uses.
+function citedText(text) {
+  const span = el("span", "brief__text");
+  let last = 0;
+  for (const match of text.matchAll(CITATION_RUN)) {
+    if (match.index > last) span.append(text.slice(last, match.index));
+    span.append(citeButton(match[1].split(/\s*[,;]\s*/)));
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) span.append(text.slice(last));
+  return span;
+}
+
+// "This assessment synthesizes evidence from four papers…" opens a fifth of
+// the saved reports; it describes the report, not the technology.
+const METHOD_OPENER = /^(?:this|the)\s+(?:assessment|report|analysis|document|evaluation)\b|^本(?:报告|评估|分析|文)/iu;
+
+function sentencesOf(text) {
+  const clean = text.replace(CITATION_RUN, "").replace(/\*\*/g, "").replace(/\s+/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1").replace(/\(\s*\)/g, "").trim();
+  return clean.match(/[^.!?。！？]+[.!?。！？]+|[^.!?。！？]+$/gu)?.map(s => s.trim()).filter(Boolean) ?? [];
+}
+
+function firstSentence(text, { skipMethod = false } = {}) {
+  const sentences = sentencesOf(text);
+  let sentence = sentences.find(s => !(skipMethod && METHOD_OPENER.test(s))) ?? sentences[0] ?? "";
+  if (sentence.length > BRIEF_SENTENCE_LIMIT) {
+    const cut = sentence.slice(0, BRIEF_SENTENCE_LIMIT - 1);
+    const space = cut.lastIndexOf(" ");
+    sentence = (space > BRIEF_SENTENCE_LIMIT - 40 ? cut.slice(0, space) : cut).replace(/[\s,;:]+$/, "") + "…";
+  }
+  return sentence || null;
+}
+
+/** The first sentence of the report's own executive summary, or null. */
+function executiveSummaryLead(markdown) {
+  let inside = false;
+  for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
+    if (/^##\s/.test(line)) { inside = SUMMARY_HEADINGS.test(line); continue; }
+    if (/^#\s/.test(line) || !inside) continue;
+    const text = line.trim();
+    if (text && !/^[-*]\s|^\d+[.)]\s|^###|^>/.test(text)) return firstSentence(text, { skipMethod: true });
+  }
+  return null;
+}
+
+/** The first list item of the recommendations section, or null. */
+function firstRecommendation(markdown) {
+  let inside = false;
+  for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
+    if (/^##\s/.test(line)) { inside = RECOMMENDATION_HEADINGS.test(line); continue; }
+    if (!inside || /^>/.test(line.trim())) continue;
+    // A list item, or a paragraph that opens with a bold heading ("**Opportunity 1: …**").
+    const item = line.match(/^\s*(?:[-*]|\d+[.)])\s+(.+)$/) ?? line.match(/^\s*(\*\*.+)$/);
+    if (item) return firstSentence(item[1]) || null;
+  }
+  return null;
+}
+
+const SOURCE_LISTS = ["academic_sources", "patent_sources", "market_sources"];
+const TIER_RANK = { high: 0, medium: 1, low: 2 };
+
+/** The best-rated of the cited sources: {id, title, tier, year}; {id} without a registry; null without ids. */
+function pickEvidence(ids, sources) {
+  if (!ids.length) return null;
+  const rows = new Map();
+  if (detailRecord(sources)) {
+    for (const list of SOURCE_LISTS) {
+      for (const row of Array.isArray(sources[list]) ? sources[list] : []) {
+        if (detailRecord(row) && typeof row.source_id === "string") rows.set(row.source_id, row);
+      }
+    }
+  }
+  const known = ids.map(id => ({ id, row: rows.get(id) }));
+  known.sort((a, b) => (TIER_RANK[a.row?.credibility_tier] ?? 3) - (TIER_RANK[b.row?.credibility_tier] ?? 3));
+  const { id, row } = known[0];
+  if (!row) return { id };
+  const tier = TIER_RANK[row.credibility_tier] !== undefined ? row.credibility_tier : null;
+  const year = typeof row.published_date === "string" && /^\d{4}/.test(row.published_date) ? row.published_date.slice(0, 4) : null;
+  return { id, title: typeof row.title === "string" ? row.title : null, tier, year };
+}
+
+const DOMAIN_LABELS = { academic: "group_academic", patent: "group_patents", market: "group_market" };
+const BRIEF_CHANGERS_LIMIT = 4;
+
+/** What new evidence would move the verdict, read from the checks that qualify it. */
+function whatWouldChange(scores, progress) {
+  const out = [];
+  const grounding = detailRecord(progress?.claim_grounding) ? progress.claim_grounding : null;
+  if (scoreNumber(scores.evidence_confidence, 5) && scores.evidence_confidence < 3) {
+    out.push({ key: "brief_change_evidence", value: scores.evidence_confidence });
+  }
+  if ((scoreNumber(scores.market_accessibility, 5) && scores.market_accessibility <= 2.5) || scores.market_uncertainty) {
+    out.push({ key: "brief_change_market" });
+  }
+  if (grounding && detailCount(grounding.ungrounded) && grounding.ungrounded > 0) {
+    out.push({ key: "brief_change_ungrounded", n: grounding.ungrounded });
+  } else if (grounding && grounding.checked === 0 && detailCount(grounding.unverifiable) && grounding.unverifiable > 0) {
+    out.push({ key: "brief_change_grounding", n: grounding.unverifiable });
+  }
+  if (detailRecord(progress?.consistency) && detailCount(progress.consistency.blockers) && progress.consistency.blockers > 0) {
+    out.push({ key: "brief_change_consistency" });
+  }
+  const counts = detailRecord(progress?.source_counts) ? progress.source_counts : null;
+  for (const domain of ["academic", "patent", "market"]) {
+    if (counts && detailCount(counts[domain]) && counts[domain] < 3) out.push({ key: "brief_change_sources", domain, n: counts[domain] });
+  }
+  if (progress?.decision_gate?.mode !== "decision_support") out.push({ key: "brief_change_context" });
+  return out.slice(0, BRIEF_CHANGERS_LIMIT);
+}
+
+export function decisionBrief({ scores, markdown = "", sources = null, progress = null }) {
+  if (!detailRecord(scores) || !scoreNumber(scores.overall_score, 100)) return null;
+  const overall = scores.overall_score;
+  const dims = DIMENSIONS
+    .map(dim => ({ ...dim, value: scores[dim.key] }))
+    .filter(dim => scoreNumber(dim.value, dim.max) && dim.value >= 1)
+    .map(dim => ({ ...dim, share: dim.value / dim.max }));
+  const strongest = dims.length ? dims.reduce((a, b) => (b.share > a.share ? b : a)) : null;
+  const weakest = dims.length ? dims.reduce((a, b) => (b.share < a.share ? b : a)) : null;
+  const trl = typeof scores.trl_label === "string" && scores.trl_label.trim() ? scores.trl_label.trim()
+    : scoreNumber(scores.trl_score, 9) && scores.trl_score >= 1 ? `TRL ${scores.trl_score}` : null;
+  const text = typeof markdown === "string" ? markdown : "";
+  const base = strongest ? strongest.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "") : null;
+  const citedIds = base && detailStrings(scores[base + "_source_ids"])
+    ? scores[base + "_source_ids"].filter(id => /^[APM]\d+$/.test(id)) : [];
+  const risk = detailStrings(scores.key_risks) && scores.key_risks[0]?.trim() ? scores.key_risks[0].trim() : null;
+  const opportunity = detailStrings(scores.key_opportunities) && scores.key_opportunities[0]?.trim()
+    ? scores.key_opportunities[0].trim() : null;
+  return {
+    overall, band: band(overall), trl,
+    mrl: scoreNumber(scores.mrl_score, 10) && scores.mrl_score >= 1 ? scores.mrl_score : null,
+    strongest, weakest,
+    summary: executiveSummaryLead(text),
+    evidence: pickEvidence(citedIds, sources),
+    risk,
+    next: firstRecommendation(text) ?? opportunity,
+    changers: whatWouldChange(scores, progress),
+  };
+}
+
+const fillText = (key, values = {}) => Object.entries(values).reduce(
+  (out, [name, value]) => out.replace(`{${name}}`, () => String(value)), t(key));
+
+function renderDecisionBrief(data) {
+  const wrap = el("section", "brief");
+  wrap.dataset.tone = data.band.tone;
+  const head = el("div", "brief__head");
+  head.append(el("span", "brief__title", t("brief_title")));
+  head.append(el("strong", "brief__verdict", fillText("brief_verdict", { band: data.band.name, score: data.overall.toFixed(1) })));
+  const readiness = [data.trl, data.mrl !== null ? fillText("brief_mrl", { mrl: data.mrl }) : null].filter(Boolean).join(" · ");
+  if (readiness) head.append(el("span", "brief__readiness", readiness));
+  wrap.append(head);
+
+  const lines = el("div", "brief__lines");
+  if (data.strongest && data.weakest) {
+    lines.append(el("p", "brief__line brief__dims", fillText("brief_dims", {
+      strong: t(data.strongest.label), strong_value: `${data.strongest.value} / ${data.strongest.max}`,
+      weak: t(data.weakest.label), weak_value: `${data.weakest.value} / ${data.weakest.max}`,
+    })));
+  }
+  if (data.summary) {
+    const line = el("p", "brief__line brief__summary");
+    line.append(el("span", "brief__label", t("brief_report_says") + " "), el("q", null, data.summary));
+    lines.append(line);
+  }
+  wrap.append(lines);
+
+  const cards = el("div", "brief__cards");
+  const card = (name, label, body) => {
+    const node = el("div", "brief__card");
+    node.dataset.card = name;
+    node.append(el("span", "brief__label", label));
+    node.append(body);
+    cards.append(node);
+  };
+  if (data.evidence) {
+    const body = el("p", "brief__text");
+    body.append(citeButton([data.evidence.id]));
+    const parts = [data.evidence.title, data.evidence.tier ? t("tier_" + data.evidence.tier) : null, data.evidence.year].filter(Boolean);
+    if (parts.length) body.append(" " + parts.join(" · "));
+    card("evidence", t("brief_evidence"), body);
+  } else {
+    card("evidence", t("brief_evidence"), el("p", "brief__text brief__empty", t("brief_evidence_none")));
+  }
+  card("risk", t("brief_risk"), data.risk ? citedText(data.risk) : el("p", "brief__text brief__empty", t("brief_risk_none")));
+  card("next", t("brief_next"), data.next ? citedText(data.next) : el("p", "brief__text brief__empty", t("brief_next_none")));
+  wrap.append(cards);
+
+  const changers = el("div", "brief__changers");
+  changers.append(el("span", "brief__label", t("brief_changers")));
+  const list = el("ul", "brief__changer-list");
+  const items = data.changers.length ? data.changers : [{ key: "brief_change_none" }];
+  for (const item of items) {
+    const li = el("li", "brief__changer", fillText(item.key, {
+      value: item.value, n: item.n, domain: item.domain ? t(DOMAIN_LABELS[item.domain]) : "",
+    }));
+    li.dataset.reason = item.key.replace("brief_change_", "");
+    list.append(li);
+  }
+  changers.append(list);
+  wrap.append(changers);
+  wrap.append(el("p", "brief__note", t("brief_note")));
+  return wrap;
+}
+
 /** "Overall 41.9 / 100 · Early · Technology readiness 4 / 9" above the report. */
 function renderReportScoreLine(scores, onOpenScorecard) {
   if (!detailRecord(scores) || !scoreNumber(scores.overall_score, 100)) return null;
@@ -805,6 +1026,10 @@ export async function render(container, runId, progress) {
   const reliability = renderReliability(progress);
   const applicability = renderDecisionApplicability(progress.decision_gate);
   if (applicability) container.append(applicability);
+  // The brief needs the scorecard, the report and the sources; it fills in
+  // below once they arrive, and a run without a scorecard has none.
+  const briefSlot = progress.state === "completed" && artifacts.includes("scores") ? el("div", "brief-slot") : null;
+  if (briefSlot) container.append(briefSlot);
   if (reliability) container.append(reliability);
 
   for (const view of views) {
@@ -831,10 +1056,26 @@ export async function render(container, runId, progress) {
   let scoresRequest = null;
   let indexRequest = null;
   const scoresOnce = () => (scoresRequest ??= api.getArtifact(runId, "scores"));
-  const indexOnce = () => (indexRequest ??= api.getReport(runId).then(citationIndex));
+  let reportRequest = null;
+  const reportOnce = () => (reportRequest ??= api.getReport(runId));
+  const indexOnce = () => (indexRequest ??= reportOnce().then(citationIndex));
   const hasSources = artifacts.includes("sources");
   let sourcesRequest = null;
   const sourcesOnce = () => (sourcesRequest ??= api.getArtifact(runId, "sources"));
+
+  if (briefSlot) {
+    // A failed report or sources read costs the brief a line, never the brief;
+    // a failed scorecard read removes the slot, since there is nothing to say.
+    Promise.all([scoresOnce(), reportOnce().catch(() => ""), hasSources ? sourcesOnce().catch(() => null) : null])
+      .then(([scores, markdown, sources]) => {
+        const data = decisionBrief({ scores, markdown, sources, progress });
+        if (!data) { briefSlot.remove(); return; }
+        const node = renderDecisionBrief(data);
+        briefSlot.replaceWith(node);
+        attachCitations(node, indexOnce, { onShowInSources: hasSources ? showInSources : null });
+      })
+      .catch(() => briefSlot.remove());
+  }
 
   async function showInSources(id) {
     await select("sources");
@@ -864,7 +1105,7 @@ export async function render(container, runId, progress) {
         panel.append(renderScorecard(scores, sources));
         attachCitations(panel, indexOnce, { onShowInSources: hasSources ? showInSources : null });
       } else if (id === "report") {
-        const md = await api.getReport(runId);
+        const md = await reportOnce();
         indexRequest ??= Promise.resolve(citationIndex(md));
         // The score comes from the last agent, after the report was written,
         // so the report cannot state it; the reader still meets it here.

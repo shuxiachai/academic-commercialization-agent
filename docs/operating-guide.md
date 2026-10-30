@@ -119,6 +119,17 @@ not connected. Do not configure or purchase optional keys merely to run tests.
 
 ## Web, CLI and HTTP API
 
+A completed run's result page opens with a decision brief above the tabs: the
+band and score with both readiness levels, the strongest and weakest dimension,
+the first sentence of the report's own executive summary (skipping an opener
+that describes the report rather than the technology), the best-rated source
+the strongest dimension cites, the scorecard's first risk, the first item or
+bold-led paragraph of the recommendations section, and what would change the
+verdict, read from the checks (evidence confidence, market comparability,
+grounding, consistency, thin domains, a missing decision context). Every line
+comes from an artifact the tabs show; nothing is a new judgement and no model
+is called. A run without a readable scorecard has no brief.
+
 Web-search patents are dated from their own Google Patents page, the one
 already read for the applicant: the header's publication date replaces the
 row's date whatever it was, because the row had at best the year out of the

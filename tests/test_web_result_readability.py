@@ -48,6 +48,30 @@ if (input.estimates !== undefined) {
     unscoped: found.unscoped.map(r => r.id), firms: found.firms, scopes: found.scopes, ratio: found.sameScopeYearRatio,
   };
 }
+if (input.brief) {
+  const data = mod.decisionBrief(input.brief);
+  out.brief = data && {
+    band: data.band.name, overall: data.overall, trl: data.trl, mrl: data.mrl,
+    strongest: data.strongest && [data.strongest.key, data.strongest.value],
+    weakest: data.weakest && [data.weakest.key, data.weakest.value],
+    summary: data.summary, evidence: data.evidence, risk: data.risk, next: data.next, changers: data.changers,
+  };
+  if (data) {
+    const nodes = flat(mod._testRenderDecisionBrief(data));
+    const text = (node) => flat(node).map(n => n.textContent || n.text || "").join("");
+    out.brief_view = {
+      tone: nodes[0].dataset.tone,
+      title: nodes.find(n => n.className === "brief__title")?.textContent,
+      verdict: nodes.find(n => n.className === "brief__verdict")?.textContent,
+      readiness: nodes.find(n => n.className === "brief__readiness")?.textContent ?? null,
+      lines: nodes.filter(n => (n.className ?? "").startsWith("brief__line ")).map(text),
+      cards: Object.fromEntries(nodes.filter(n => n.className === "brief__card").map(n => [n.dataset.card, text(n)])),
+      cites: nodes.filter(n => n.className === "cite").map(n => n.dataset.cite),
+      changers: nodes.filter(n => n.className === "brief__changer").map(n => [n.dataset.reason, n.textContent]),
+      note: nodes.find(n => n.className === "brief__note")?.textContent,
+    };
+  }
+}
 if (input.scores) {
   const nodes = flat(mod._testRenderScorecard(input.scores, input.sources_for_scorecard ?? null));
   const block = nodes.find(n => n.className === "market-estimates");
@@ -115,6 +139,7 @@ class ResultReadabilityTests(unittest.TestCase):
         source += "export const _testAdmitSavedSources = admitSavedSources;\n"
         source += "export const _testRenderSavedSource = renderSavedSource;\n"
         source += "export const _testFeedbackView = feedbackView;\n"
+        source += "export const _testRenderDecisionBrief = renderDecisionBrief;\n"
         (work / "result.mjs").write_text(source, encoding="utf-8")
         shutil.copy2(_I18N_JS, work / "i18n.js")
         (work / "harness.mjs").write_text(textwrap.dedent(_HARNESS), encoding="utf-8")
@@ -411,6 +436,163 @@ class MarketEstimatesTests(unittest.TestCase):
                                                      ("Sodium-ion Battery Market", "USD 30 billion in 2025", "Yahoo")))
         self.assertEqual(zh["market_block"]["lede"], "2 个市场规模数字来自 2 个来源，涉及 1 个定义不同的市场。同一市场、同一年份的数字最大相差 15 倍。")
         self.assertIn("上方评分不变", zh["market_block"]["note"])
+
+
+_SCORES = {
+    "overall_score": 50.0, "trl_score": 4.0, "trl_label": "TRL 4 (component validated in laboratory)",
+    "mrl_score": 3.5, "patent_strength": 3.0, "market_accessibility": 2.5, "evidence_confidence": 2.0,
+    "patent_source_ids": ["P1", "P2"], "market_uncertainty": None,
+    "key_risks": ["No named commercial actors in the market registry (M2, M3)."],
+    "key_opportunities": ["Patent white space in manufacturing scalability [P4]."],
+}
+_REPORT = """# Academic Commercialization Assessment: solid-state batteries
+
+## Executive Summary
+
+This assessment synthesizes evidence from four papers [A1, A2], eight patents and eight market sources to evaluate solid-state batteries. The technology shows promise for higher energy density [A1][A3], yet barriers remain unresolved. More text.
+
+## 1. Technology Overview & Maturity
+
+The incumbent is commercially available today.
+
+## 5. Commercialization Opportunities & Recommendations
+
+> **Analyst inference note:** Recommendations are analyst inferences.
+
+### 5.1 Near-Term Opportunities
+
+**Semi-solid-state batteries as an entry point.** Semi-solid cells appear in production EVs [M2]. *Analyst inference:* early share.
+
+## Evidence Limitations
+
+Sources are sparse.
+"""
+_SOURCES = {"academic_sources": [], "market_sources": [],
+            "patent_sources": [{"source_id": "P1", "title": "Older cell patent", "credibility_tier": "medium", "published_date": "2019-01-01"},
+                               {"source_id": "P2", "title": "All-solid-state battery system", "credibility_tier": "high", "published_date": "2023-05-04"}]}
+_PROGRESS = {"state": "completed", "source_counts": {"academic": 4, "patent": 8, "market": 8},
+             "claim_grounding": {"checked": 0, "ungrounded": 0, "unverifiable": 2}, "consistency": {"blockers": 0},
+             "decision_gate": {"mode": "orientation"}}
+
+
+@unittest.skipUnless(shutil.which("node"), "node not installed")
+class DecisionBriefTests(unittest.TestCase):
+    """One screen above the tabs, read from the run's own artifacts: the verdict,
+    the strongest evidence, the biggest risk, the first step, and what would
+    move the number. No sentence is new and no model is called."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _run(self, **payload):
+        return ResultReadabilityTests._run(self, **payload)
+
+    def _brief(self, **over):
+        payload = {"scores": _SCORES, "markdown": _REPORT, "sources": _SOURCES, "progress": _PROGRESS}
+        payload.update(over)
+        return self._run(brief=payload)
+
+    def test_the_verdict_names_the_band_the_score_and_both_readiness_levels(self):
+        shown = self._brief()["brief_view"]
+        self.assertEqual(shown["title"], "Decision brief")
+        self.assertEqual(shown["verdict"], "Early · 50.0 / 100")
+        self.assertEqual(shown["readiness"], "TRL 4 (component validated in laboratory) · Manufacturing readiness 3.5 / 10")
+        self.assertEqual(shown["tone"], "warning")
+
+    def test_the_strongest_and_weakest_dimensions_are_compared_by_their_share_of_the_scale(self):
+        data = self._brief()["brief"]
+        self.assertEqual(data["strongest"], ["patent_strength", 3.0])      # 3/5 beats 4/9 and 3.5/10
+        self.assertEqual(data["weakest"], ["mrl_score", 3.5])
+        line = self._brief()["brief_view"]["lines"][0]
+        self.assertEqual(line, "Strongest dimension: Patent position 3 / 5. Weakest: Manufacturing readiness 3.5 / 10.")
+
+    def test_the_reports_own_summary_skips_the_methodological_opener_and_its_citations(self):
+        data = self._brief()["brief"]
+        self.assertEqual(data["summary"], "The technology shows promise for higher energy density, yet barriers remain unresolved.")
+        plain = self._brief(markdown="## Executive Summary\n\nSolid-state cells are early [A1].\n")["brief"]
+        self.assertEqual(plain["summary"], "Solid-state cells are early.")
+        self.assertIsNone(self._brief(markdown="")["brief"]["summary"])
+
+    def test_the_strongest_evidence_is_the_best_rated_source_cited_by_the_strongest_dimension(self):
+        data = self._brief()["brief"]
+        self.assertEqual(data["evidence"], {"id": "P2", "title": "All-solid-state battery system", "tier": "high", "year": "2023"})
+        without_registry = self._brief(sources=None)["brief"]
+        self.assertEqual(without_registry["evidence"], {"id": "P1"})
+        uncited = self._brief(scores={**_SCORES, "patent_source_ids": []})["brief"]
+        self.assertIsNone(uncited["evidence"])
+        card = self._brief()["brief_view"]["cards"]["evidence"]
+        self.assertIn("All-solid-state battery system · high · 2023", card)
+
+    def test_the_first_step_is_the_recommendations_sections_first_item_and_falls_back_to_the_first_opportunity(self):
+        data = self._brief()["brief"]
+        self.assertEqual(data["next"], "Semi-solid-state batteries as an entry point.")
+        listed = self._brief(markdown=_REPORT.replace("**Semi-solid-state batteries as an entry point.** Semi-solid",
+                                                      "1. **Build a pilot line.** Semi-solid"))["brief"]
+        self.assertEqual(listed["next"], "Build a pilot line.")
+        fallback = self._brief(markdown="## Executive Summary\n\nShort.\n")["brief"]
+        self.assertEqual(fallback["next"], "Patent white space in manufacturing scalability [P4].")
+
+    def test_a_report_saved_with_windows_line_endings_reads_the_same(self):
+        """The benchmark corpus is CRLF; a bold-led recommendation there was
+        missed because "." never matches a carriage return."""
+        crlf = _REPORT.replace("\n", "\r\n")
+        data = self._brief(markdown=crlf)["brief"]
+        self.assertEqual(data["next"], "Semi-solid-state batteries as an entry point.")
+        self.assertEqual(data["summary"], "The technology shows promise for higher energy density, yet barriers remain unresolved.")
+
+    def test_the_risk_and_the_step_keep_their_citations_as_buttons(self):
+        shown = self._brief(markdown="")["brief_view"]
+        self.assertEqual(shown["cards"]["risk"], "Biggest riskNo named commercial actors in the market registry [M2, M3].")
+        self.assertEqual(shown["cites"], ["P2", "M2 M3", "P4"])
+
+    def test_what_would_change_the_verdict_is_read_from_the_checks(self):
+        data = self._brief()["brief"]
+        self.assertEqual(data["changers"], [
+            {"key": "brief_change_evidence", "value": 2.0},
+            {"key": "brief_change_market"},
+            {"key": "brief_change_grounding", "n": 2},
+            {"key": "brief_change_context"},
+        ])
+        shown = self._brief()["brief_view"]["changers"]
+        self.assertEqual([reason for reason, _ in shown], ["evidence", "market", "grounding", "context"])
+        self.assertEqual(shown[0][1], "More high-credibility sources: evidence confidence is 2 / 5.")
+
+    def test_a_clean_run_with_a_decision_context_says_nothing_qualifies_the_score(self):
+        scores = {**_SCORES, "evidence_confidence": 4.0, "market_accessibility": 4.0}
+        progress = {**_PROGRESS, "claim_grounding": {"checked": 5, "ungrounded": 0, "unverifiable": 0},
+                    "decision_gate": {"mode": "decision_support"}}
+        data = self._brief(scores=scores, progress=progress)["brief"]
+        self.assertEqual(data["changers"], [])
+        shown = self._brief(scores=scores, progress=progress)["brief_view"]["changers"]
+        self.assertEqual(shown, [["none", "Nothing in the checks qualifies the score; new evidence in any domain would still move it."]])
+
+    def test_ungrounded_claims_and_thin_domains_are_named_before_the_context_line(self):
+        progress = {**_PROGRESS, "claim_grounding": {"checked": 3, "ungrounded": 1, "unverifiable": 0},
+                    "consistency": {"blockers": 1}, "source_counts": {"academic": 2, "patent": 8, "market": 8}}
+        data = self._brief(progress=progress)["brief"]
+        self.assertEqual([c["key"] for c in data["changers"]],
+                         ["brief_change_evidence", "brief_change_market", "brief_change_ungrounded", "brief_change_consistency"])
+        shown = self._brief(progress=progress, scores={**_SCORES, "evidence_confidence": 4.0, "market_accessibility": 4.0})
+        self.assertEqual([r for r, _ in shown["brief_view"]["changers"]], ["ungrounded", "consistency", "sources", "context"])
+        self.assertEqual(shown["brief_view"]["changers"][2][1], "More Academic sources: only 2 were found.")
+
+    def test_without_a_readable_scorecard_there_is_no_brief(self):
+        self.assertIsNone(self._run(brief={"scores": {"overall_score": "n/a"}, "markdown": _REPORT})["brief"])
+        self.assertIsNone(self._run(brief={"scores": None})["brief"])
+
+    def test_the_chinese_brief_uses_chinese_labels_around_the_reports_own_words(self):
+        shown = self._run(language="Simplified Chinese",
+                          brief={"scores": _SCORES, "markdown": _REPORT, "sources": _SOURCES, "progress": _PROGRESS})["brief_view"]
+        self.assertEqual(shown["title"], "决策简报")
+        self.assertEqual(shown["verdict"], "早期 · 50.0 / 100")
+        self.assertTrue(shown["lines"][0].startswith("最强维度：专利地位 3 / 5；最弱维度：制造就绪度 3.5 / 10。"))
+        self.assertEqual(shown["changers"][0][1], "更多高可信度来源：证据可信度目前 2 / 5。")
+        self.assertIn("没有新的模型调用", shown["note"])
 
 
 if __name__ == "__main__":
