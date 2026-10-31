@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ablation
-from ablation import GuardrailRecorder, ScheduleCell
-from ablation_check import (
+from experiments.pipeline_audits import ablation
+from experiments.pipeline_audits.ablation import GuardrailRecorder, ScheduleCell
+from experiments.pipeline_audits.ablation_check import (
     SUMMARY_COLUMNS,
     analyse_numeric_grounding,
     analyse_report,

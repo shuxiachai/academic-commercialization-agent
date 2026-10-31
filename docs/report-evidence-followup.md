@@ -32,7 +32,7 @@ complete saved text within the 1,500-code-point limit. Missing, blank, declined,
 out-of-scope and failed/unavailable cases remain distinct. It reuses the frozen
 catalog and reader without rewriting the earlier conversation experiments.
 
-Run `uv run python report_evidence_source_locator_demo.py` for the no-argument
+Run `uv run python -m experiments.report_evidence_canaries.report_evidence_source_locator_demo` for the no-argument
 synthetic `scripted_offline` demonstration. It reads no credentials or files and
 does not contact a model. Native selection quality, benefit over the Sources
 browser, private-data authority and production admission are still unestablished.
@@ -207,8 +207,8 @@ the [aggregate result](results-2026-09-17-claim-proposition-contrast.md) records
 three matching proposals and the limitations of AI-generated development labels.
 
 ```bash
-uv run python report_evidence_contrast_check.py --review-input
-uv run python report_evidence_contrast_check.py
+uv run python -m experiments.report_evidence_canaries.report_evidence_contrast_check --review-input
+uv run python -m experiments.report_evidence_canaries.report_evidence_contrast_check
 ```
 
 The first command prints the allowlisted question/source view; the second
@@ -448,7 +448,7 @@ either as provider behavior.
 
 The [new protocol](prereg-2026-09-15-report-evidence-stage-qwen-canary.md)
 freezes SQ01/SQ02 separately from the failed original batch. The new command
-`report_evidence_stage_canary.py` defaults to identity checking, not execution.
+`experiments/report_evidence_canaries/report_evidence_stage_canary.py` defaults to identity checking, not execution.
 It requires an exact committed version and the new fixture's SHA-256 before
 any credential lookup, output creation or possible provider request. Its
 execution path composes the actual stage policy and separate HTTP adapter.
@@ -458,7 +458,7 @@ default check; selecting HEAD here identifies the checkout, not a paid approval:
 
 ```powershell
 $commit = git rev-parse HEAD
-uv run python report_evidence_stage_canary.py --expected-commit $commit --expected-fixture-sha256 93d3872b7789a1ff99fbe236274a0ec7a52ce987ece9d53f63e4080fba27ffa6
+uv run python -m experiments.report_evidence_canaries.report_evidence_stage_canary --expected-commit $commit --expected-fixture-sha256 93d3872b7789a1ff99fbe236274a0ec7a52ce987ece9d53f63e4080fba27ffa6
 ```
 
 Do not add `--authorize-paid` or an output directory to a dry check. Code-owned
@@ -503,7 +503,7 @@ the prerequisite; the adapter does not add missing instructions. Body encoding,
 reservation hash and actual HTTP agree on the complete final request. The core
 continues to reject prose, fences, malformed envelopes and invalid evidence IDs.
 
-The separate `report_evidence_final_json_canary.py` entry defaults to committed
+The separate `experiments/report_evidence_canaries/report_evidence_final_json_canary.py` entry defaults to committed
 identity checking only, before key/output/network work. JQ01/JQ02 are new
 synthetic controls, not repaired or repeated SQ outcomes. Live use requires
 the final implementation identity, fixture hash and applicable bounded user
@@ -514,7 +514,7 @@ For a committed checkout, the default identity-only check is:
 
 ```powershell
 $commit = git rev-parse HEAD
-uv run python report_evidence_final_json_canary.py --expected-commit $commit --expected-fixture-sha256 f0e8233a7b0e0d86783f069d96880ace941cd0ac16dbfa934e723d653febb5ca
+uv run python -m experiments.report_evidence_canaries.report_evidence_final_json_canary --expected-commit $commit --expected-fixture-sha256 f0e8233a7b0e0d86783f069d96880ace941cd0ac16dbfa934e723d653febb5ca
 ```
 
 Do not supply an output path or paid acknowledgement to this check. It must

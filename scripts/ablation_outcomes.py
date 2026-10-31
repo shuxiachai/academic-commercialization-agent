@@ -293,7 +293,7 @@ def _grounding_recount(markdown: str, allowed: dict[str, Any], *, production_unk
 
 
 def grounding_recount(experiment: Path, cells: list[dict[str, Any]]) -> dict[str, Any]:
-    from ablation_check import _without_reviewer_notes
+    from experiments.pipeline_audits.ablation_check import _without_reviewer_notes
     from academic_agent.source_pipeline import SourceCollection
 
     mismatches, result = [], {}

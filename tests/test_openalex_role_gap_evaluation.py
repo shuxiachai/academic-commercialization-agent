@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-import openalex_role_gap_evaluation as live
+from experiments.openalex_retrieval import openalex_role_gap_evaluation as live
 from academic_agent.evidence_gap import ValidatedGapCall
 from academic_agent.tools.evidence_search import (
     ProviderResultRejection,
@@ -18,7 +18,7 @@ from academic_agent.tools.evidence_search import (
     ToolEvidenceCandidate,
     ToolProviderUsage,
 )
-from openalex_role_gap_unseen import (
+from experiments.openalex_retrieval.openalex_role_gap_unseen import (
     DEFAULT_FIXTURE_PATH,
     OpenAlexRoleGapPreflightError,
     PreparedRoleGapCase,
@@ -640,7 +640,7 @@ def test_implementation_hash_drift_fails_before_factory_and_output(
     factory = RecordingFactory(output)
     monkeypatch.setitem(
         live.EXPECTED_IMPLEMENTATION_SHA256,
-        "openalex_role_gap_unseen.py",
+        "experiments/openalex_retrieval/openalex_role_gap_unseen.py",
         "0" * 64,
     )
 

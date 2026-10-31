@@ -10,15 +10,15 @@ from pathlib import Path
 
 import pytest
 
-import openalex_role_gap_evaluation as live
-import openalex_role_gap_evaluation_review as review
+from experiments.openalex_retrieval import openalex_role_gap_evaluation as live
+from experiments.openalex_retrieval import openalex_role_gap_evaluation_review as review
 from academic_agent.evidence_gap import ValidatedGapCall
 from academic_agent.tools.evidence_search import (
     ToolAdapterResponse,
     ToolEvidenceCandidate,
     ToolProviderUsage,
 )
-from openalex_role_gap_unseen import (
+from experiments.openalex_retrieval.openalex_role_gap_unseen import (
     PreparedRoleGapCase,
     RoleGapClosureOption,
     load_frozen_cases,

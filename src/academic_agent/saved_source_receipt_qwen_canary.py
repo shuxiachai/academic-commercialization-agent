@@ -45,7 +45,7 @@ IDENTITY_SEEDS = (
     ".gitattributes", ".github/workflows/test.yml", "pyproject.toml", "uv.lock", "AGENTS.md", FIXTURE, PROTOCOL,
     "docs/saved-source-paid-controller.md", "docs/saved-source-receipt-entry.md",
     "docs/prereg-2026-09-18-source-locator-qwen-transport.md",
-    "saved_source_receipt_qwen_canary.py",
+    "experiments/report_evidence_canaries/saved_source_receipt_qwen_canary.py",
     "src/academic_agent/saved_source_receipt_qwen_canary.py",
     "src/academic_agent/saved_source_receipt_qwen_adapter.py",
     "src/academic_agent/saved_source_loader.py",

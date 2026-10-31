@@ -22,7 +22,7 @@ import tomllib
 import httpx
 import pytest
 
-import report_evidence_claim_contrast_canary as cli
+from experiments.report_evidence_canaries import report_evidence_claim_contrast_canary as cli
 from academic_agent import report_evidence_claim_contrast_qwen_canary as canary
 from academic_agent.report_evidence_claim_qwen_transport import ClaimQwenLedger
 
@@ -207,7 +207,7 @@ os._Environ.get = getenv
 pathlib.Path.mkdir = blocked
 httpx.AsyncClient = httpx.Client = blocked
 socket.create_connection = blocked
-import report_evidence_claim_contrast_canary
+from experiments.report_evidence_canaries import report_evidence_claim_contrast_canary
 from academic_agent import report_evidence_claim_contrast_qwen_canary as runner
 assert "dotenv" not in sys.modules
 assert "academic_agent.report_evidence_claim_qwen_canary" not in sys.modules
@@ -230,7 +230,7 @@ print("import_only_no_effects")
 def test_static_closure_and_exact_ledger_are_bound(offline):
     """Copying tiny helpers must not pull old JQ/guarded runners into this identity."""
     assert canary.ClaimQwenLedger is ClaimQwenLedger
-    pending = ["src/academic_agent/report_evidence_claim_contrast_qwen_canary.py", "report_evidence_claim_contrast_canary.py"]
+    pending = ["src/academic_agent/report_evidence_claim_contrast_qwen_canary.py", "experiments/report_evidence_canaries/report_evidence_claim_contrast_canary.py"]
     seen = set()
     while pending:
         name = pending.pop()

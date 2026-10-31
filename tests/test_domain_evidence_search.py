@@ -24,7 +24,7 @@ from academic_agent.tools.evidence_search import (
     ToolEvidenceCandidate,
     ToolProviderUsage,
 )
-from evidence_gap_phase4_audit import load_frozen_cases
+from experiments.evidence_gap.evidence_gap_phase4_audit import load_frozen_cases
 
 
 _ACADEMIC_QUERY = (

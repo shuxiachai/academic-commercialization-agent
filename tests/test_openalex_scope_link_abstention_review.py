@@ -11,14 +11,14 @@ from pathlib import Path
 
 import pytest
 
-import openalex_scope_link_abstention_review as diagnostic
+from experiments.openalex_retrieval import openalex_scope_link_abstention_review as diagnostic
 from academic_agent.evidence_gap import ValidatedGapCall
 from academic_agent.openalex_claim_scope import OpenAlexClaimScopeCandidate
 from academic_agent.tools.evidence_search import ToolEvidenceCandidate, ToolProviderUsage
 from academic_agent.tools.openalex_claim_scope_search import (
     OpenAlexClaimScopeAdapterResponse,
 )
-from openalex_scope_link_abstention_review import (
+from experiments.openalex_retrieval.openalex_scope_link_abstention_review import (
     DECLARATION_FIELDS,
     LABEL_FIELDS,
     ScopeLinkDiagnosticError,
@@ -26,8 +26,8 @@ from openalex_scope_link_abstention_review import (
     prepare_packet,
     summarize_packet,
 )
-from openalex_scope_link_live import execute_live_study
-from openalex_scope_link_unseen import PreparedScopeLinkCase, load_frozen_cases
+from experiments.openalex_retrieval.openalex_scope_link_live import execute_live_study
+from experiments.openalex_retrieval.openalex_scope_link_unseen import PreparedScopeLinkCase, load_frozen_cases
 
 
 class _LegacyEncodedStdout:

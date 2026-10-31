@@ -1,4 +1,6 @@
 .env
+# Account and session store (api/accounts.py), wherever ACCOUNTS_DB points.
+*.sqlite3
 .venv/
 __pycache__/
 *.pyc

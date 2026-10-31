@@ -1,0 +1,12 @@
+# Only the GitHub Actions pins. Python dependencies are not here on purpose:
+# uv.lock is bound into frozen experiment identities (see AGENTS.md), so a
+# dependency bump is a reviewed change with its own tests, not a bot's PR.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"

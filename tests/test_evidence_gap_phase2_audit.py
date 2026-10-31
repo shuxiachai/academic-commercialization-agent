@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from evidence_gap_phase2_audit import (
+from experiments.evidence_gap.evidence_gap_phase2_audit import (
     Phase2AuditError,
     Phase2Challenge,
     run_challenge,
