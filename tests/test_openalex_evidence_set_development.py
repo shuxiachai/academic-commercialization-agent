@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-import openalex_evidence_set_development as development
+from experiments.openalex_retrieval import openalex_evidence_set_development as development
 from academic_agent.tools.deepseek_evidence_judge import (
     DeepSeekJudgeAdapterError,
     DeepSeekJudgeRequest,
@@ -689,7 +689,7 @@ def test_live_cli_requires_an_explicit_judge_provider(monkeypatch, tmp_path):
         sys,
         "argv",
         [
-            "openalex_evidence_set_development.py",
+            "experiments/openalex_retrieval/openalex_evidence_set_development.py",
             "--execute-live",
             "--output-dir",
             str(tmp_path / "unused"),

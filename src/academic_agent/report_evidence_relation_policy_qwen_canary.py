@@ -55,7 +55,7 @@ IDENTITY_PATHS = tuple(dict.fromkeys((
     ".gitattributes", "src/academic_agent/__init__.py", *FROZEN_DEPENDENCY_COUPLING,
     "src/academic_agent/report_evidence_relation_policy_qwen_transport.py",
     "src/academic_agent/report_evidence_relation_policy_qwen_canary.py",
-    "report_evidence_relation_policy_canary.py",
+    "experiments/report_evidence_canaries/report_evidence_relation_policy_canary.py",
     "tests/test_report_evidence_relation_policy_qwen_canary.py",
     "tests/test_report_evidence_relation_policy.py",
     "tests/test_report_evidence_relation_policy_qwen_transport.py",

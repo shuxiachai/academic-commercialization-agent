@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-import openalex_role_slot_development as development
+from experiments.openalex_retrieval import openalex_role_slot_development as development
 from academic_agent.openalex_claim_scope import OpenAlexClaimScopeCandidate
 from academic_agent.tools.evidence_search import (
     ProviderResultRejection,
@@ -491,14 +491,14 @@ def test_live_cli_refuses_unseen_before_execution(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["openalex_role_slot_development.py", "--execute-live", "--cohort", "unseen"],
+        ["experiments/openalex_retrieval/openalex_role_slot_development.py", "--execute-live", "--cohort", "unseen"],
     )
     with pytest.raises(SystemExit, match="refuses the unseen cohort"):
         development.main()
 
 
 def test_production_worker_remains_disconnected_from_v6_runtime():
-    root = Path(development.__file__).resolve().parent
+    root = Path(development.__file__).resolve().parents[2]
     production_sources = (
         root / "src/academic_agent/pipeline_worker.py",
         root / "src/academic_agent/crew.py",

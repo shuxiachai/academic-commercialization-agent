@@ -19,8 +19,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import ablation
-from ablation import ScheduleCell
+from experiments.pipeline_audits import ablation
+from experiments.pipeline_audits.ablation import ScheduleCell
 
 # The pattern CrewAI interpolates; JSON examples in the templates contain
 # quotes or spaces inside their braces and so never match it.

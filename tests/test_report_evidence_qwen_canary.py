@@ -9,7 +9,7 @@ import tomllib
 
 import pytest
 
-import report_evidence_followup_canary as cli
+from experiments.report_evidence_canaries import report_evidence_followup_canary as cli
 import academic_agent.report_evidence_qwen_canary as canary
 from academic_agent.report_evidence_qwen_transport import QwenFollowupTransport
 from test_report_evidence_qwen_transport import (

@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-import evidence_gap_phase3_audit as phase3
+from experiments.evidence_gap import evidence_gap_phase3_audit as phase3
 from academic_agent.tools.evidence_search import (
     ProviderResultRejection,
     ToolAdapterFailure,
@@ -21,7 +21,7 @@ from academic_agent.tools.evidence_search import (
     ToolEvidenceCandidate,
     ToolProviderUsage,
 )
-from evidence_gap_phase3_audit import (
+from experiments.evidence_gap.evidence_gap_phase3_audit import (
     DEFAULT_MANIFEST_PATH,
     EXPECTED_FIXTURE_SHA256,
     Phase3AuditError,
@@ -367,7 +367,7 @@ def test_live_cli_projection_survives_strict_gbk_stdout(tmp_path, monkeypatch):
         sys,
         "argv",
         [
-            "evidence_gap_phase3_audit.py",
+            "experiments/evidence_gap/evidence_gap_phase3_audit.py",
             "--execute-live",
             "--output-dir",
             str(tmp_path / "unused"),

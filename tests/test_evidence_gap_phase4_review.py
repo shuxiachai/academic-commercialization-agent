@@ -16,8 +16,8 @@ from academic_agent.tools.evidence_search import (
     ToolEvidenceCandidate,
     ToolProviderUsage,
 )
-from evidence_gap_phase4_live import execute_live_study
-from evidence_gap_phase4_review import (
+from experiments.evidence_gap.evidence_gap_phase4_live import execute_live_study
+from experiments.evidence_gap.evidence_gap_phase4_review import (
     DECLARATION_FIELDS,
     REVIEW_FIELDS,
     Phase4ReviewError,

@@ -15,7 +15,7 @@ import pytest
 from academic_agent import report_evidence_source_locator as locator
 from academic_agent.report_evidence_catalog_followup import build_catalog
 from academic_agent.report_evidence_snapshot import ReportEvidenceSnapshot, SnapshotSource, content_hash
-from report_evidence_source_locator_demo import main, synthetic_snapshot
+from experiments.report_evidence_canaries.report_evidence_source_locator_demo import main, synthetic_snapshot
 
 
 def canonical(value):
@@ -410,7 +410,7 @@ def test_demo_is_scripted_no_io_and_no_generated_answer(monkeypatch, capsys):
 def test_demo_cli_rejects_arguments_without_echo():
     root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
-        [sys.executable, str(root / "report_evidence_source_locator_demo.py"), "--key=PRIVATE_ARGUMENT"],
+        [sys.executable, str(root / "experiments/report_evidence_canaries/report_evidence_source_locator_demo.py"), "--key=PRIVATE_ARGUMENT"],
         cwd=root, capture_output=True, text=True, check=False,
     )
     assert result.returncode != 0 and result.stdout == ""

@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-import openalex_role_slot_development as development
-import openalex_role_slot_failure_review as diagnostic
+from experiments.openalex_retrieval import openalex_role_slot_development as development
+from experiments.openalex_retrieval import openalex_role_slot_failure_review as diagnostic
 from academic_agent.openalex_claim_scope import OpenAlexClaimScopeCandidate
 from academic_agent.tools.evidence_search import (
     ToolEvidenceCandidate,
@@ -25,7 +25,7 @@ from academic_agent.tools.qwen_role_slot_judge import (
     QwenRoleSlotResponse,
     QwenRoleSlotUsage,
 )
-from openalex_role_slot_failure_review import (
+from experiments.openalex_retrieval.openalex_role_slot_failure_review import (
     LABEL_FIELDS,
     RoleSlotFailureReviewError,
     create_source_lock,

@@ -10,15 +10,15 @@ from pathlib import Path
 
 import pytest
 
-import evidence_gap_openalex_review as openalex_review
+from experiments.evidence_gap import evidence_gap_openalex_review as openalex_review
 from academic_agent.evidence_gap import ValidatedGapCall
 from academic_agent.tools.evidence_search import (
     ToolAdapterResponse,
     ToolEvidenceCandidate,
     ToolProviderUsage,
 )
-from evidence_gap_openalex_live import execute_live_study
-from evidence_gap_openalex_review import (
+from experiments.evidence_gap.evidence_gap_openalex_live import execute_live_study
+from experiments.evidence_gap.evidence_gap_openalex_review import (
     DECLARATION_FIELDS,
     REVIEW_FIELDS,
     AnonymousOpenAlexReviewError,
@@ -27,7 +27,7 @@ from evidence_gap_openalex_review import (
     summarize_packet,
     write_summary,
 )
-from evidence_gap_phase4_audit import load_frozen_cases
+from experiments.evidence_gap.evidence_gap_phase4_audit import load_frozen_cases
 
 
 def _response(

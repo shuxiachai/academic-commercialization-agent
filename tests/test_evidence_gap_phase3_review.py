@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-import evidence_gap_phase3_review as phase3_review
-from evidence_gap_phase3_review import (
+from experiments.evidence_gap import evidence_gap_phase3_review as phase3_review
+from experiments.evidence_gap.evidence_gap_phase3_review import (
     CANDIDATE_FIELDS,
     DECLARATION_FIELDS,
     FROZEN_CASES,

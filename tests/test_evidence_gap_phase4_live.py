@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import evidence_gap_phase4_live as phase4_live
+from experiments.evidence_gap import evidence_gap_phase4_live as phase4_live
 from academic_agent.evidence_gap import ValidatedGapCall
 from academic_agent.tools.evidence_search import (
     ProviderResultRejection,
@@ -16,8 +16,8 @@ from academic_agent.tools.evidence_search import (
     ToolEvidenceCandidate,
     ToolProviderUsage,
 )
-from evidence_gap_phase4_audit import load_frozen_cases
-from evidence_gap_phase4_live import (
+from experiments.evidence_gap.evidence_gap_phase4_audit import load_frozen_cases
+from experiments.evidence_gap.evidence_gap_phase4_live import (
     Phase4LiveError,
     execute_live_study,
 )

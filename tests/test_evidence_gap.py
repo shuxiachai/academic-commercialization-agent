@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 from pydantic import ValidationError
 
-import evidence_gap_audit
+from experiments.evidence_gap import evidence_gap_audit
 from academic_agent.evidence import EvidenceSource
 from academic_agent.evidence_gap import (
     EVIDENCE_GAP_SHADOW_FILENAME,

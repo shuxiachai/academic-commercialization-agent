@@ -16,7 +16,7 @@ import httpx
 from importlib.metadata import PackageNotFoundError
 import pytest
 
-import report_evidence_final_json_canary as cli
+from experiments.report_evidence_canaries import report_evidence_final_json_canary as cli
 from academic_agent import report_evidence_followup as core
 from academic_agent import report_evidence_final_json_qwen_canary as canary
 from academic_agent.report_evidence_final_json_qwen_transport import FinalJsonQwenLedger, final_json_configuration
@@ -230,7 +230,7 @@ def test_cli_identity_failures_precede_all_effects(offline, monkeypatch, capsys,
         path.write_bytes(changed)
         offline["committed"][canary.FIXTURE] = changed
     elif defect == "untracked":
-        del offline["committed"]["report_evidence_final_json_canary.py"]
+        del offline["committed"]["experiments/report_evidence_canaries/report_evidence_final_json_canary.py"]
     else:
         def git(*operation):
             if defect == "unavailable":
@@ -772,7 +772,7 @@ def test_identity_freeze_includes_new_contract_and_reused_sources(offline):
         "src/academic_agent/report_evidence_stage_qwen_transport.py",
         "src/academic_agent/report_evidence_final_json_qwen_transport.py",
         "src/academic_agent/report_evidence_final_json_qwen_canary.py",
-        "report_evidence_final_json_canary.py",
+        "experiments/report_evidence_canaries/report_evidence_final_json_canary.py",
         "tests/test_report_evidence_final_json_qwen_transport.py",
         "tests/test_report_evidence_final_json_qwen_canary.py",
         "docs/prereg-2026-09-16-report-evidence-final-json-qwen.md",

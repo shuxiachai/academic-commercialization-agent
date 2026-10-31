@@ -35,7 +35,7 @@ IDENTITY_PATHS = tuple(dict.fromkeys((
     ".gitattributes", "src/academic_agent/__init__.py", *FROZEN_DEPENDENCY_COUPLING,
     "src/academic_agent/report_evidence_stage_qwen_transport.py",
     "src/academic_agent/report_evidence_stage_qwen_canary.py",
-    "report_evidence_stage_canary.py", "tests/test_report_evidence_stage_qwen_canary.py",
+    "experiments/report_evidence_canaries/report_evidence_stage_canary.py", "tests/test_report_evidence_stage_qwen_canary.py",
     "tests/test_report_evidence_stage_qwen_transport.py", FIXTURE, PROTOCOL,
 )))
 DEPENDENCIES = (
