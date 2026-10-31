@@ -34,12 +34,16 @@ _CONDITION_CELLS = {_PLAIN_IF: _CELLS - _CANONICAL, _COVERAGE_IF: _CANONICAL}
 
 # Each reviewed upstream action.yml declares Node 24. Astral does not expose
 # a floating v10 alias, so its full reviewed release remains intentional.
+# Each action is pinned to the commit its reviewed tag pointed at when it was
+# reviewed (the tag is kept as a comment in the workflow). A tag can be moved
+# by whoever controls the action's repository; a commit cannot. Dependabot
+# proposes the next commit when a new release appears.
 _REVIEWED_NODE24_REFS = {
-    "actions/checkout": "v7",
-    "actions/upload-artifact": "v6",
-    "astral-sh/setup-uv": "v10.0.1",
-    "docker/build-push-action": "v7",
-    "docker/setup-buildx-action": "v4",
+    "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",            # v7
+    "actions/upload-artifact": "b7c566a772e6b6bfb58ed0dc250532a479d7789f",     # v6
+    "astral-sh/setup-uv": "20cfd1bf945f4377ade1205e4dbc17946fc9a30d",         # v10.0.1
+    "docker/build-push-action": "c3c9e263c25d99ce0380d002d59b67737d91b0dc",   # v7
+    "docker/setup-buildx-action": "f87e5991a6d7451dcb8d9637bfbc97413f497069", # v4
 }
 _CHECK_NAMES = {
     "test": "pytest (${{ matrix.os }}, py${{ matrix.python-version }})",
@@ -107,11 +111,12 @@ def _assert_test_execution(jobs):
 
     steps = job["steps"]
     checkout = _one_index([
-        i for i, step in enumerate(steps) if step.get("uses") == "actions/checkout@v7"
+        i for i, step in enumerate(steps)
+        if step.get("uses") == f"actions/checkout@{_REVIEWED_NODE24_REFS['actions/checkout']}"
     ])
     setup = _one_index([
         i for i, step in enumerate(steps)
-        if step.get("uses") == "astral-sh/setup-uv@v10.0.1"
+        if step.get("uses") == f"astral-sh/setup-uv@{_REVIEWED_NODE24_REFS['astral-sh/setup-uv']}"
     ])
     assert steps[setup]["with"]["python-version"] == _PYTHON
     sync = _run_index(steps, f"uv sync --python {_PYTHON}")
@@ -281,7 +286,7 @@ def test_browser_contract_rejects_nonexecuting_journey(update):
         _assert_browser(jobs)
 
 
-@pytest.mark.parametrize("ref", ["actions/checkout@v6", "astral-sh/setup-uv@v10"])
+@pytest.mark.parametrize("ref", ["actions/checkout@v7", "astral-sh/setup-uv@v10.0.1"])
 def test_action_contract_rejects_unreviewed_refs(ref):
     """Inspect actual uses nodes even if another valid ref still exists elsewhere."""
     jobs = _jobs()
