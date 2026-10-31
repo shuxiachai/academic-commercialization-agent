@@ -244,7 +244,7 @@ uv run python benchmark.py --dry-run
 | `scripts/` | 运维报告、离线审计与脚本化演示 |
 | `docs/` | 当前文档，以及带日期的预注册、结果与勘误；[从导航页开始](docs/README.md) |
 | 根目录 `benchmark*.py` | 上文的基准命令 |
-| 其他根目录 `*.py`（`openalex_*`、`evidence_gap_*`、`report_evidence_*`、`ablation*` 等） | 实验运行脚本。运行或理解应用都不需要它们 |
+| 其他根目录 `*.py`（`openalex_*`、`evidence_gap_*`、`report_evidence_*`、`ablation*` 等） | 实验运行脚本。运行或理解应用都不需要它们；[逐个说明](docs/root-scripts.md)各属于哪项研究 |
 
 这些实验脚本是有意留在根目录的：对应的实验协议锁定了源文件路径和哈希，
 搬动它们会让这些记录失效（见[实验档案索引](docs/experiment-index.md)）。新工具请放在 `scripts/` 下。

@@ -282,7 +282,7 @@ the repository root are something else: frozen experiment runners.
 | `scripts/` | Operational report, offline audits and scripted demos |
 | `docs/` | Current guides plus dated protocols, results and errata; [start at the map](docs/README.md) |
 | Root `benchmark*.py` | The benchmark commands above |
-| Other root `*.py` (`openalex_*`, `evidence_gap_*`, `report_evidence_*`, `ablation*`, …) | Experiment runners. Not needed to run or understand the application |
+| Other root `*.py` (`openalex_*`, `evidence_gap_*`, `report_evidence_*`, `ablation*`, …) | Experiment runners. Not needed to run or understand the application; [each one is named](docs/root-scripts.md) with the study it belongs to |
 
 The experiment runners stay at the root deliberately: their protocols lock
 source file paths and hashes, so moving them would invalidate those records
