@@ -6,12 +6,15 @@
  */
 
 export class ApiError extends Error {
-  constructor(status, detail, code = null, auxiliary_usage = null) {
+  constructor(status, detail, code = null, auxiliary_usage = null, body = null) {
     super(detail || `Request failed (${status})`);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.auxiliary_usage = auxiliary_usage;
+    // The parsed JSON refusal, when there was one: a 401 from the access
+    // check carries the sign-in options the gate needs.
+    this.body = body;
   }
 }
 
@@ -237,8 +240,10 @@ async function request(path, options = {}) {
       && sessionAt === sessionSelection && !reason) setSessionToken(null);
     let detail = "";
     let auxiliary = null;
+    let parsed = null;
     try {
       const body = await response.json();
+      parsed = body && typeof body === "object" ? body : null;
       detail = body.detail ?? "";
       auxiliary = body.auxiliary_usage ?? null;
     } catch {
@@ -246,7 +251,7 @@ async function request(path, options = {}) {
     }
     // Additive response metadata keeps the legacy string detail contract.
     // Status 429 alone cannot distinguish daily quota from transient capacity.
-    throw new ApiError(response.status, detail, response.headers.get("X-Error-Code"), auxiliary);
+    throw new ApiError(response.status, detail, response.headers.get("X-Error-Code"), auxiliary, parsed);
   }
 
   if (response.status === 204) return null;

@@ -71,6 +71,12 @@ class DisabledTests(unittest.TestCase):
             self.assertEqual(self.client.get("/api/runs").status_code, 200)
         self.assertIsNone(listed.call_args.kwargs["owner"])
 
+    def test_a_code_gated_refusal_has_no_accounts_field(self):
+        with patch.object(access, "ACCESS_CODE", "code-1"):
+            response = self.client.get("/api/runs")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json(), {"detail": "Missing or invalid access code."})
+
     def test_a_stray_bearer_token_is_ignored_when_accounts_are_off(self):
         with patch.object(runs, "list_runs", return_value=([], 0)):
             self.assertEqual(self.client.get("/api/runs", headers={"Authorization": "Bearer nonsense"}).status_code, 200)
@@ -169,6 +175,10 @@ class GateTests(_AccountsHttp):
         response = self.client.get("/api/runs")
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["detail"], "Sign in to use this deployment.")
+        # The refusal carries what the gate should offer, so the page's boot
+        # stays one request; without accounts the body is the bare detail.
+        self.assertEqual(response.json()["accounts"],
+                         {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             self.assertEqual(self.client.get("/api/runs").json()["detail"], "Sign in, or provide a valid access code.")
 

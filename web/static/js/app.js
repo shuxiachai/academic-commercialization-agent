@@ -1265,15 +1265,13 @@ $("#account-keys").addEventListener("click", async () => {
 
 async function ensureAccess() {
   try {
-    // Keys alone are an identity only where the deployment has no accounts;
-    // with a session stored, the access check below decides instead.
+    // Keys alone boot without a request, as they always have. With a session
+    // stored, the access check below decides instead; on a deployment with
+    // accounts, a keys-only visitor learns to sign in at their first paid
+    // request and reaches the gate through the badge.
     if (api.getByok() && !api.getSessionToken()) {
-      const config = await api.authConfig().catch(() => null);
-      authConfig = config?.enabled ? config : null;
-      if (!authConfig) {
-        applyByokMode();
-        return;
-      }
+      applyByokMode();
+      return;
     }
   } catch (err) {
     if (err.code !== "invalid_byok") throw err;
@@ -1300,8 +1298,9 @@ async function ensureAccess() {
     return;
   } catch (err) {
     if (err.status !== 401) throw err;
+    // The refusal says what the gate may offer; no second request needed.
+    authConfig = err.body?.accounts ?? null;
   }
-  if (authConfig === null) authConfig = await api.authConfig().catch(() => null);
   await showGate();
 }
 

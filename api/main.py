@@ -518,7 +518,14 @@ async def _access_gate(request: Request, call_next):
 
     who = identity.resolve(request)
     if who.anonymous and identity.required():
-        return JSONResponse({"detail": _ANONYMOUS_DETAIL()}, status_code=401)
+        body = {"detail": _ANONYMOUS_DETAIL()}
+        if accounts.enabled():
+            # The refusal tells the page what the gate should offer, so the
+            # boot stays one request whether the deployment uses codes or
+            # accounts; the shipped-client smoke accounts for every request.
+            body["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
+                                "signup": accounts.signup_mode(), "access_codes": access.gate_enabled()}
+        return JSONResponse(body, status_code=401)
     # Who answered, if anyone — GET /api/runs uses this to show each code
     # holder or account only the runs made under their own identity. None
     # means "don't filter": with neither codes nor accounts configured there
