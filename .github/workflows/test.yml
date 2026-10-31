@@ -248,4 +248,4 @@ jobs:
           docker run --rm academic-agent:ci python -c "from api import samples; [samples.read_sample(s.slug) for s in samples.SAMPLES]"
 
           echo "Excluded development files must not ship"
-          docker run --rm academic-agent:ci sh -c '! ls -d tests docs evals ablation.py 2>/dev/null | grep .'
+          docker run --rm academic-agent:ci sh -c '! ls -d tests docs evals experiments benchmark.py 2>/dev/null | grep .'

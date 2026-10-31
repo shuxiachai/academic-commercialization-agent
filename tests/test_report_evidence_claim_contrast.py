@@ -219,7 +219,7 @@ socket.socket.connect = socket.socket.connect_ex = denied
 if sys.argv.pop(1) == "fail":
     import academic_agent.report_evidence_claim_contrast as contrast
     contrast.rehearse = lambda cases: {"mechanical_passed": False, "provider_calls": 0}
-sys.argv[0] = "report_evidence_contrast_check.py"
+sys.argv[0] = "experiments/report_evidence_canaries/report_evidence_contrast_check.py"
 try:
     runpy.run_path(sys.argv[0], run_name="__main__")
 finally:

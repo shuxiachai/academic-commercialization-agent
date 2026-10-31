@@ -50,7 +50,7 @@ IDENTITY_PATHS = tuple(dict.fromkeys((
     "src/academic_agent/report_evidence_claim_qwen_transport.py",
     "tests/test_report_evidence_claim_qwen_transport.py",
     "src/academic_agent/report_evidence_claim_contrast_qwen_canary.py",
-    "report_evidence_claim_contrast_canary.py", "tests/test_report_evidence_claim_contrast_qwen_canary.py",
+    "experiments/report_evidence_canaries/report_evidence_claim_contrast_canary.py", "tests/test_report_evidence_claim_contrast_qwen_canary.py",
     "src/academic_agent/report_evidence_claim_contrast.py",
     "tests/test_report_evidence_claim_contrast.py",
     "docs/prereg-2026-09-17-claim-proposition-contrast.md",

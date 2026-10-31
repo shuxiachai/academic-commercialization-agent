@@ -8,7 +8,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from evidence_gap_phase4_audit import (
+from experiments.evidence_gap.evidence_gap_phase4_audit import (
     DEFAULT_MANIFEST_PATH,
     EXPECTED_FIXTURE_SHA256,
     Phase4AuditError,

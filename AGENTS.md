@@ -162,18 +162,18 @@ These are not style preferences; each came from a specific failure.
 | Trace export | `src/academic_agent/observability/` | [Observability contract](docs/observability.md) |
 | Tool Calling experiments | `evidence_gap*.py`, `openalex_*.py`, `src/academic_agent/tools/` | [Version ledger](docs/evidence-status.md#tool-calling-experiments), exact experiment pre-registration |
 | Isolated saved-evidence follow-up | `report_evidence_snapshot.py`, `report_evidence_followup.py`, `report_evidence_guarded_followup.py`, `report_evidence_stage_qwen_transport.py`, `report_evidence_qwen_transport.py`, `report_evidence_qwen_canary.py` | [Read-only conversation contract](docs/report-evidence-followup.md), [offline stage policy](docs/prereg-2026-09-15-report-evidence-stage-policy.md), [stage-aware transport protocol](docs/prereg-2026-09-15-report-evidence-stage-qwen-transport.md) and [frozen synthetic canary](docs/prereg-2026-09-14-report-evidence-followup-qwen.md); never reuse the old runner/authorization for the new transport; no production route |
-| Offline evidence and user studies | `outputs/benchmark/`, `benchmark_check.py`, `ops_report.py`, `user_utility_audit.py`, `checkpoint_fault_audit.py` | [Experiment index](docs/experiment-index.md), source locks and method declarations |
-| Stage-aware synthetic canary | `report_evidence_stage_qwen_canary.py`, root `report_evidence_stage_canary.py` | [New protocol](docs/prereg-2026-09-15-report-evidence-stage-qwen-canary.md); default identity check only, fresh commit/fixture authorization required for live use; keep old manifests and allowances separate |
-| Final-only JSON follow-up candidate | `report_evidence_final_json_qwen_transport.py`, `report_evidence_final_json_qwen_canary.py`, root `report_evidence_final_json_canary.py` | [JQ protocol](docs/prereg-2026-09-16-report-evidence-final-json-qwen.md); JSON Object only in final-only requests, strict parser unchanged; freeze new identity and keep SQ/FQ closed, no production route |
-| Bounded metadata discovery candidate | `report_evidence_catalog_followup.py`, root `report_evidence_catalog_demo.py` | [Offline catalog protocol](docs/prereg-2026-09-16-report-evidence-catalog.md); title/ID metadata is not read evidence; callback-only wrapper/demo, one visible-ID read then final-only, no production route |
+| Offline evidence and user studies | `outputs/benchmark/`, `benchmark_check.py`, `ops_report.py`, `user_utility_audit.py`, `experiments/pipeline_audits/checkpoint_fault_audit.py` | [Experiment index](docs/experiment-index.md), source locks and method declarations |
+| Stage-aware synthetic canary | `report_evidence_stage_qwen_canary.py`, `experiments/report_evidence_canaries/report_evidence_stage_canary.py` | [New protocol](docs/prereg-2026-09-15-report-evidence-stage-qwen-canary.md); default identity check only, fresh commit/fixture authorization required for live use; keep old manifests and allowances separate |
+| Final-only JSON follow-up candidate | `report_evidence_final_json_qwen_transport.py`, `report_evidence_final_json_qwen_canary.py`, `experiments/report_evidence_canaries/report_evidence_final_json_canary.py` | [JQ protocol](docs/prereg-2026-09-16-report-evidence-final-json-qwen.md); JSON Object only in final-only requests, strict parser unchanged; freeze new identity and keep SQ/FQ closed, no production route |
+| Bounded metadata discovery candidate | `report_evidence_catalog_followup.py`, `scripts/demos/report_evidence_catalog_demo.py` | [Offline catalog protocol](docs/prereg-2026-09-16-report-evidence-catalog.md); title/ID metadata is not read evidence; callback-only wrapper/demo, one visible-ID read then final-only, no production route |
 | Catalog-native Qwen wire contract | `report_evidence_catalog_qwen_transport.py` | [Separate offline protocol](docs/prereg-2026-09-16-report-evidence-catalog-qwen-transport.md); bind the trusted snapshot/catalog and single conversation, preserve the full HTTP byte bound and usage ledger; no production route |
-| Catalog-native synthetic canary | `report_evidence_catalog_qwen_canary.py`, root `report_evidence_catalog_canary.py` | [Separate CQ protocol](docs/prereg-2026-09-16-report-evidence-catalog-qwen-canary.md); two fresh synthetic cases, four total requests, first failure stops; offline manifest is not live authority, no old batch reuse or production activation |
+| Catalog-native synthetic canary | `report_evidence_catalog_qwen_canary.py`, `experiments/report_evidence_canaries/report_evidence_catalog_canary.py` | [Separate CQ protocol](docs/prereg-2026-09-16-report-evidence-catalog-qwen-canary.md); two fresh synthetic cases, four total requests, first failure stops; offline manifest is not live authority, no old batch reuse or production activation |
 | Public documentation | `README.md`, `README.zh-CN.md`, `docs/` | `tests/test_public_docs.py`; both languages must retain the full executable benchmark contract |
 | Real saved-report follow-up preparation | `report_evidence_real_saved_eval.py` | [Local-only RS protocol](docs/prereg-2026-09-16-report-evidence-real-saved-offline.md); private raw report/source/question/label binding, explicit scripted callbacks only, no live runner or real-data transmission authority |
-| Isolated real saved-report Qwen pilot | `report_evidence_real_saved_qwen_canary.py`, root `report_evidence_real_saved_canary.py` | [Separate RS live protocol](docs/prereg-2026-09-16-report-evidence-real-saved-qwen.md); exact private packet and current-code identities, four sequential requests maximum, fixed single-batch output, first failure stops, separate LLM review never human gold; no production route |
+| Isolated real saved-report Qwen pilot | `report_evidence_real_saved_qwen_canary.py`, `experiments/report_evidence_canaries/report_evidence_real_saved_canary.py` | [Separate RS live protocol](docs/prereg-2026-09-16-report-evidence-real-saved-qwen.md); exact private packet and current-code identities, four sequential requests maximum, fixed single-batch output, first failure stops, separate LLM review never human gold; no production route |
 | Offline claim-relative follow-up | `report_evidence_claim_relation.py` | [New offline contract](docs/prereg-2026-09-16-followup-claim-relation.md); caller-owned claim, unverified model relationship, code-derived delivery, actual callback byte/delivery checks; no provider adapter or historical relabeling |
 | Claim-relative native Qwen candidate | `report_evidence_claim_qwen_transport.py` | [Separate offline wire protocol](docs/prereg-2026-09-16-claim-qwen-transport.md); bind trusted claim/snapshot before the first request, preserve four-field native content and complete receipt/window checks, compare full wire bytes to the journal; no live runner or production route |
-| Claim-relative synthetic Qwen canary | `report_evidence_claim_qwen_canary.py`, root `report_evidence_claim_canary.py` | [Separate CLQ protocol](docs/prereg-2026-09-16-claim-qwen-canary.md); three fresh single-source controls, six requests maximum, first-failure stop and separate blind LLM review; fixed single-batch output, no private RS data or production route |
+| Claim-relative synthetic Qwen canary | `report_evidence_claim_qwen_canary.py`, `experiments/report_evidence_canaries/report_evidence_claim_canary.py` | [Separate CLQ protocol](docs/prereg-2026-09-16-claim-qwen-canary.md); three fresh single-source controls, six requests maximum, first-failure stop and separate blind LLM review; fixed single-batch output, no private RS data or production route |
 
 CLQ is closed: six requests passed per-case mechanical checks but matched only
 2/3 frozen relation labels. Blind LLM review diagnosed the recording-versus-
@@ -495,7 +495,7 @@ native journal gates. Six requests and USD 0.10 are ceilings, not proof of
 dispatch or consent. Exact-tree validation, independent review and green CI
 precede any native use; old PCQ/CLQ outputs and private RS data stay separate.
 The new `report_evidence_relation_policy_qwen_canary.py` under `src/academic_agent/`
-and root `report_evidence_relation_policy_canary.py` have a
+and `experiments/report_evidence_canaries/report_evidence_relation_policy_canary.py` have a
 [separate verification record](docs/results-2026-09-18-relation-policy-qwen-runner.md).
 Default CLI verifies identity only. A successful script/intercepted HTTP test
 is not a live result, a new private-data grant or production admission.
@@ -541,7 +541,12 @@ contract must not retrospectively repair this result or enable production.
   report improvement and production authorization are separate gates.
 - Do not relocate experimental modules as a cosmetic cleanup: frozen runners
   bind fixture bytes, source files and dependency hashes. A path or hash change
-  can invalidate a paid protocol before it makes a request.
+  can invalidate a paid protocol before it makes a request. The one relocation
+  made, root scripts to `experiments/<study>/` on 2026-10-31, was done after
+  every study had closed, keeps the recorded layout at the tag
+  `archive/root-experiments-2026-10`, and is accounted for in a
+  [dated erratum](docs/errata-2026-10-31-experiment-scripts-relocation.md);
+  `experiments/` is now the frozen location.
 - Raw reviewer files stay private. A declaration correction must retain the
   original, the amendment and the limits of its provenance. Never infer a
   missing judgment merely to complete a denominator.

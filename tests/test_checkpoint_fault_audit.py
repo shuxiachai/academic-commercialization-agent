@@ -12,7 +12,7 @@ import pytest
 
 from academic_agent.evidence import EvidenceSource
 from academic_agent.source_pipeline import SourceCollection
-from checkpoint_fault_audit import (
+from experiments.pipeline_audits.checkpoint_fault_audit import (
     Fixture,
     SCENARIOS,
     check_experiment,

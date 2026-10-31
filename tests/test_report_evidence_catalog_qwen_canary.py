@@ -18,7 +18,7 @@ import tomllib
 import httpx
 import pytest
 
-import report_evidence_catalog_canary as cli
+from experiments.report_evidence_canaries import report_evidence_catalog_canary as cli
 from academic_agent import report_evidence_catalog_qwen_canary as canary
 from academic_agent.report_evidence_final_json_qwen_canary import _publish_result as frozen_publish
 
@@ -196,7 +196,7 @@ os._Environ.get = getenv
 pathlib.Path.mkdir = blocked
 httpx.AsyncClient = httpx.Client = blocked
 socket.create_connection = blocked
-import report_evidence_catalog_canary
+from experiments.report_evidence_canaries import report_evidence_catalog_canary
 assert "dotenv" not in sys.modules
 print("import_only_no_effects")
 '''
@@ -277,7 +277,7 @@ def test_source_lf_comparison_preserves_raw_disk_hash(offline):
 def test_executing_import_closure_is_bound_and_publisher_is_directly_reused(offline):
     """Imported helper modules execute too; a coupling list alone must not omit them."""
     assert canary._publish_result is frozen_publish
-    pending = ["src/academic_agent/report_evidence_catalog_qwen_canary.py", "report_evidence_catalog_canary.py"]
+    pending = ["src/academic_agent/report_evidence_catalog_qwen_canary.py", "experiments/report_evidence_canaries/report_evidence_catalog_canary.py"]
     seen = set()
     while pending:
         name = pending.pop()

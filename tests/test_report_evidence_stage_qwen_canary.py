@@ -16,7 +16,7 @@ import httpx
 from importlib.metadata import PackageNotFoundError
 import pytest
 
-import report_evidence_stage_canary as cli
+from experiments.report_evidence_canaries import report_evidence_stage_canary as cli
 from academic_agent import report_evidence_followup as core
 from academic_agent import report_evidence_stage_qwen_canary as canary
 from academic_agent.report_evidence_stage_qwen_transport import StageQwenLedger, stage_configuration
@@ -229,7 +229,7 @@ def test_cli_identity_failures_precede_all_effects(offline, monkeypatch, capsys,
         path.write_bytes(changed)
         offline["committed"][canary.FIXTURE] = changed
     elif defect == "untracked":
-        del offline["committed"]["report_evidence_stage_canary.py"]
+        del offline["committed"]["experiments/report_evidence_canaries/report_evidence_stage_canary.py"]
     else:
         def git(*operation):
             if defect == "unavailable":
