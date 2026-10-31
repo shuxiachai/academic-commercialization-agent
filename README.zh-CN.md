@@ -185,6 +185,9 @@ uv run academic_agent --topic "solid-state batteries for electric vehicles"
 
 ## 安全与部署
 
+进入方式按部署选择：不设门禁（本地使用）、由运营者发放并计费的访问口令，或邮箱加密码的账号。
+账号登录后自行添加 API Key 来支付运行费用（[说明](docs/operating-guide.md#accounts)），密钥只留在用户的浏览器里，服务器不会保存。
+
 运行链接具有 **128 位随机性**，是读取能力凭证：知道完整链接的人可以
 读取该运行，直到留存策略删除它。修改口令归属的运行还需 owner/admin
 口令；无归属 BYOK 运行没有第二个服务端身份。不要公开私人运行链接。

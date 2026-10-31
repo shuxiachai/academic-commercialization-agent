@@ -78,6 +78,25 @@ export function setAccessCode(code) {
   return accessSlot.write(code || null);
 }
 
+/* ── Account session ──────────────────────────────────────────────────
+ * Set only when a deployment enables accounts (see api/accounts.py). The
+ * token is a bearer credential the server returned once at sign-in; like the
+ * access code it is kept in localStorage so a reload stays signed in, and
+ * forgotten when the server answers 401 to a request that carried it. An
+ * account never carries API keys: those stay in the BYOK slot below and go
+ * out with each request, as they always did. */
+
+const SESSION_KEY = "session-token";
+const sessionSlot = credentialSlot("localStorage", SESSION_KEY, true);
+let sessionSelection = 0;
+export const getSessionToken = () => sessionSlot.read();
+export const sessionClearConflict = () => sessionSlot.clearConflict();
+
+export function setSessionToken(token) {
+  sessionSelection += 1;
+  return sessionSlot.write(token || null);
+}
+
 /* ── Bring-your-own-key ───────────────────────────────────────────────
  * The open alternative to the access code: a visitor's own LLM + Serper
  * keys, billed to them. sessionStorage rather than localStorage — these are
@@ -86,7 +105,7 @@ export function setAccessCode(code) {
 
 const BYOK_KEY = "byok-credentials";
 const byokSlot = credentialSlot("sessionStorage", BYOK_KEY);
-export const storageDegraded = () => accessSlot.degraded() || byokSlot.degraded();
+export const storageDegraded = () => accessSlot.degraded() || byokSlot.degraded() || sessionSlot.degraded();
 
 // Absence selects operator billing; corruption must never mean absence.
 // Keep this allowlist aligned with API models and the visible provider select.
@@ -188,8 +207,11 @@ async function request(path, options = {}) {
     "paid_ack_unknown");
   const stored = getAccessCode();
   const selection = accessSelection;
+  const session = getSessionToken();
+  const sessionAt = sessionSelection;
   const headers = {
     ...(stored ? { "X-Access-Code": stored } : {}),
+    ...(session ? { Authorization: `Bearer ${session}` } : {}),
     ...(options.headers || {}),
   };
 
@@ -208,6 +230,11 @@ async function request(path, options = {}) {
     // new choice, not authority for an old A response to clear that choice.
     if (response.status === 401 && stored && headers["X-Access-Code"] === stored
       && selection === accessSelection) setAccessCode(null);
+    // A 401 that names a reason other than the session (an account without
+    // keys, say) is a refusal of this request, not a sign-out.
+    const reason = response.headers.get("X-Error-Code");
+    if (response.status === 401 && session && headers.Authorization === `Bearer ${session}`
+      && sessionAt === sessionSelection && !reason) setSessionToken(null);
     let detail = "";
     let auxiliary = null;
     try {
@@ -292,6 +319,16 @@ export const health = () => request("/health");
 // none) to find out whether the deployment is gated at all.
 export const checkAccess = (code) =>
   request("/api/access/check", { headers: code ? { "X-Access-Code": code } : {} });
+
+/* ── Accounts ─────────────────────────────────────────────────────────
+ * Ungated: tells the gate what to offer. Sign-up and sign-in return the
+ * session token once; the caller stores it with setSessionToken. */
+export const authConfig = () => request("/api/auth/config");
+export const register = (email, password, invite = null) =>
+  request("/api/auth/register", json({ email, password, ...(invite ? { invite } : {}) }));
+export const login = (email, password) => request("/api/auth/login", json({ email, password }));
+export const logout = () => request("/api/auth/logout", { method: "POST" });
+export const me = () => request("/api/auth/me");
 
 export const listRuns = (limit = 50) => request(`/api/runs?limit=${limit}`);
 

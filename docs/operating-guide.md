@@ -768,6 +768,9 @@ RUN_RETENTION_DAYS=30
 These are example policy values, not a cost/SLO guarantee.
 
 - `ACCESS_CODES` supports multiple comma-separated codes;
+- `ACCOUNTS_DB` turns on email-and-password accounts (next section);
+- `FORWARDED_ALLOW_IPS=*` behind the platform proxy, so rate limits and
+  sign-in lockout see the visitor's address rather than the proxy's;
   `ACCESS_CODE_ADMIN` additionally sees combined code-owned history.
   Histories are partitioned by hashed owner tags, not separate deployments.
 - `API_DAILY_PAID_OPERATION_CAP` is per validated code and UTC day, including
@@ -798,6 +801,45 @@ These are example policy values, not a cost/SLO guarantee.
 - `GET /api/samples` and `GET /api/samples/{slug}` stay open on a gated
   deployment. They serve only the allowlisted files under `examples/`, read
   no deployment state and spend nothing; other methods on those paths are gated.
+
+### Accounts
+
+Setting `ACCOUNTS_DB` to a file path (on persistent storage; on Railway, under
+the mounted volume) enables sign-up and sign-in at `/api/auth/*` and a sign-in
+form on the gate. An account is an identity and a history scope, nothing more:
+its runs, uploads and receipts are tagged `user:<id>` and listed only to it,
+and it pays for every paid operation with its own LLM and search keys, sent
+with each request exactly as the bring-your-own-key path always sent them.
+The server never stores an account's keys; the browser keeps them in session
+storage and the page says so. A signed-in request without keys is refused
+with `byok_required`, never billed to the deployment. Plan previews and the
+daily operator quota do not apply to accounts, because both spend the
+deployment's key.
+
+Accounts and access codes coexist. A valid `X-Access-Code` header takes
+precedence over a session token, keeps its operator billing and its own
+history scope, and nothing changes for code holders. With accounts enabled an
+anonymous visitor must sign in or present a code; the key-only path that an
+ungated or code-gated deployment offers is closed, since keys alone are no
+longer an identity. `ACCOUNTS_SIGNUP` is `open`, `invite` (registration
+needs `ACCOUNTS_INVITE_CODE`) or `closed` (existing accounts keep working).
+`ACCOUNTS_ADMIN_EMAILS` names accounts that see every owner's history,
+labelled by email or code; it is read per request, so it can change without a
+migration. Registration verifies no email, so an address on the admin list
+can be registered only with the invite code, in every mode: set the code and
+register the operator's own address before opening sign-up, or whoever types
+that address first becomes the administrator. Passwords are hashed with
+scrypt; session tokens are stored as SHA-256 and expire after 30 days. Eight
+failed sign-ins lock that email for that source address for fifteen minutes,
+and fifty from anywhere lock the email itself, so a stranger cannot lock a
+user out by guessing at their address while a guesser who rotates addresses
+is still stopped. The source address is what the ASGI server reports after
+its proxy-trust decision: behind Railway's proxy set `FORWARDED_ALLOW_IPS=*`
+in the service environment, or every visitor shares one address, one lockout
+and one rate-limit bucket. There is no password reset or email verification
+yet: an operator can disable an account with `api.accounts.set_disabled`
+from a shell, and both flows need an email service, which is a separate
+decision. Until then, `invite` mode is the safer default for a public URL.
 
 ### Run links, BYOK and retention
 

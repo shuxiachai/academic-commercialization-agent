@@ -53,12 +53,16 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     PaperContribution,
     extract_paper_contribution,
 )
-from api import access, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
+from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
 from api import auxiliary_usage, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
 from api.models import (  # noqa: E402
+    AuthConfig,
+    AuthCredentials,
+    AuthMe,
+    AuthSession,
     BYOK_PROVIDERS,
     CleanupSummary,
     DailyQuota,
@@ -391,15 +395,14 @@ def _client_key(request: Request) -> str:
     the ASGI server. Reading X-Forwarded-For again here would bypass that trust
     decision and let a direct caller choose a new address on every request.
     """
-    try:
-        matched = access.matching_code(request.headers.get("x-access-code"))
-    except (TypeError, ValueError):
-        # Header decoding is Latin-1; HMAC accepts only ASCII strings. A
-        # malformed code still spends the IP bucket and reaches the endpoint's
-        # strict rejection. This is not an authenticated identity or a grant.
-        matched = None
-    if matched:
-        return f"code:{access.owner_id(matched)}"
+    # A malformed code or token is anonymous here (identity.resolve never
+    # raises): it still spends the IP bucket and reaches the endpoint's strict
+    # rejection. This is not an authenticated identity or a grant.
+    who = identity.resolve(request)
+    if who.kind == "code":
+        return f"code:{who.tag}"
+    if who.kind == "user":
+        return f"{who.tag}"
     return f"ip:{request.client.host if request.client else 'unknown'}"
 
 
@@ -499,6 +502,10 @@ async def _access_gate(request: Request, call_next):
         return await call_next(request)
     if path.startswith("/api/runs/"):
         return await call_next(request)
+    if path in _AUTH_OPEN_PATHS.get(request.method, ()):
+        # Signing up and signing in are how an anonymous visitor stops being
+        # one; the config read tells the page whether to offer them at all.
+        return await call_next(request)
     if path == "/api/receipts" and request.method == "GET":
         # Receipt keys are header-only read capabilities. The handler still
         # requires the original code for code-owned records, including when
@@ -509,21 +516,67 @@ async def _access_gate(request: Request, call_next):
         # legacy global gate is disabled. Preserve its bounded safe diagnostics.
         return await call_next(request)
 
-    matched = access.matching_code(request.headers.get("x-access-code"))
-    if access.gate_enabled() and matched is None:
-        return JSONResponse({"detail": "Missing or invalid access code."}, status_code=401)
-    # Which code answered, if any — GET /api/runs uses this to show each
-    # code holder only the runs made under their own code. None means
-    # "don't filter": with the gate disabled there is no code to scope by
-    # (matching the single-tenant behaviour from before multiple codes
-    # existed), and the admin code deliberately opts out of scoping so its
-    # holder sees every code's history at once.
-    request.state.is_admin = matched is not None and access.is_admin(matched)
-    if request.state.is_admin:
-        request.state.owner = None
-    else:
-        request.state.owner = access.owner_id(matched) if matched else None
+    who = identity.resolve(request)
+    if who.anonymous and identity.required():
+        return JSONResponse({"detail": _ANONYMOUS_DETAIL()}, status_code=401)
+    # Who answered, if anyone — GET /api/runs uses this to show each code
+    # holder or account only the runs made under their own identity. None
+    # means "don't filter": with neither codes nor accounts configured there
+    # is nothing to scope by (the single-tenant behaviour from before either
+    # existed), and an admin deliberately opts out of scoping to see every
+    # identity's history at once.
+    request.state.is_admin = who.is_admin
+    request.state.owner = who.owner
     return await call_next(request)
+
+
+_AUTH_OPEN_PATHS = {
+    "GET": ("/api/auth/config",),
+    "POST": ("/api/auth/register", "/api/auth/login"),
+}
+
+
+def _ANONYMOUS_DETAIL() -> str:  # noqa: N802 - reads as the constant it replaces
+    if accounts.enabled() and access.gate_enabled():
+        return "Sign in, or provide a valid access code."
+    if accounts.enabled():
+        return "Sign in to use this deployment."
+    return "Missing or invalid access code."
+
+
+def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None:
+    """Authorize a paid operation and name the owner tag it is recorded under.
+
+    Three callers (runs, resumes, uploads) and the receipt claim used to make
+    this decision separately from the access header alone. The rules, in one
+    place:
+
+    - An account always pays with its own keys: without them the request is
+      refused with `byok_required`, never billed to the deployment. Its runs
+      are tagged to the account, so they appear in its history.
+    - A code holder is billed to the deployment and tagged to the code; a
+      code holder who brings keys anyway is untagged, as before.
+    - Anonymous requests: refused when accounts are enabled (sign in first),
+      refused without keys when the gate is on, otherwise untagged.
+    """
+    who = identity.resolve(http_request)
+    if who.kind == "user":
+        if not byok:
+            raise HTTPException(
+                status_code=401,
+                detail="Accounts run on their own API keys. Add your LLM key, model and a "
+                       "search key, then retry; this deployment does not pay for account runs.",
+                headers={"X-Error-Code": "byok_required"},
+            )
+        return who.tag
+    if who.kind == "code":
+        return None if byok else who.tag
+    if accounts.enabled():
+        raise HTTPException(status_code=401, detail=_ANONYMOUS_DETAIL(),
+                            headers={"X-Error-Code": "sign_in_required"})
+    if not byok and access.gate_enabled():
+        raise HTTPException(status_code=401, detail=detail)
+    return None
 
 
 def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
@@ -538,11 +591,11 @@ def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
     confirm to a caller probing ids that a given run exists. Capability URLs
     are credentials, but their entropy is not a reason to leak their validity.
     """
-    if not access.gate_enabled():
+    if not identity.required():
         return                      # nothing configured to authorize against
 
-    matched = access.matching_code(http_request.headers.get("x-access-code"))
-    if matched is not None and access.is_admin(matched):
+    who = identity.resolve(http_request)
+    if who.is_admin:
         return
 
     try:
@@ -563,20 +616,105 @@ def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
         # else in the deployment references these runs.
         return
 
-    if matched is None or access.owner_id(matched) != owner:
+    if who.tag != owner:
         raise HTTPException(status_code=404, detail=f"No run with id {run_id}")
 
 
 @app.get("/api/access/check", include_in_schema=False)
-def access_check() -> dict:
+def access_check(http_request: Request) -> dict:
     """No-op the frontend calls to validate a code before storing it.
 
     Reaching this handler at all means the middleware already accepted the
     header — there is nothing left to verify here. `plan_preview` and
     `daily_quota` tell the browser whether POST /api/plan and GET /api/quota
-    are worth calling on this deployment.
+    are worth calling on this deployment. On a deployment with accounts the
+    answer also says which account, if any, the request was, so the page
+    learns everything about its identity from this one boot request.
     """
-    return {"ok": True, "plan_preview": plan_preview.enabled(), "daily_quota": bool(runs.DAILY_CAP)}
+    payload = {"ok": True, "plan_preview": plan_preview.enabled(), "daily_quota": bool(runs.DAILY_CAP)}
+    if accounts.enabled():
+        payload["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
+                               "signup": accounts.signup_mode(), "access_codes": access.gate_enabled()}
+        who = identity.resolve(http_request)
+        payload["account"] = {"email": who.user.email, "admin": who.is_admin} if who.kind == "user" else None
+    return payload
+
+
+# ── Accounts ─────────────────────────────────────────────────────────────────
+# Email-and-password identities (api/accounts.py). Keys are never stored:
+# an account scopes history and authorizes requests; its runs still carry the
+# account's own LLM and search keys, request by request, like any BYOK run.
+
+def _client_address(http_request: Request) -> str | None:
+    """The caller's address as the ASGI server reports it after its own
+    proxy-trust decision (FORWARDED_ALLOW_IPS); never a header read here."""
+    return http_request.client.host if http_request.client else None
+
+
+def _account_refusal(exc: accounts.AccountError) -> HTTPException:
+    status = {"invalid_credentials": 401, "locked": 429, "disabled": 403, "invite_required": 403,
+              "signup_closed": 403, "email_taken": 409, "accounts_disabled": 404}.get(exc.code, 422)
+    headers = {"X-Error-Code": exc.code}
+    if exc.code == "locked":
+        headers["Retry-After"] = str(accounts.LOCKOUT_SECONDS)
+    return HTTPException(status_code=status, detail=exc.message, headers=headers)
+
+
+@app.get("/api/auth/config", response_model=AuthConfig, tags=["accounts"])
+def auth_config() -> AuthConfig:
+    """What the sign-in screen should offer. Ungated: it is how a visitor
+    learns whether this deployment has accounts, codes, or neither."""
+    return AuthConfig(enabled=accounts.enabled(), signup_open=accounts.enabled() and accounts.signup_open(),
+                      signup=accounts.signup_mode() if accounts.enabled() else "closed",
+                      access_codes=access.gate_enabled())
+
+
+@app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],
+          responses={403: {"description": "Sign-up is closed"}, 409: {"description": "Email already registered"},
+                     422: {"description": "Invalid email or weak password"}})
+def auth_register(request: AuthCredentials, http_request: Request, response: Response) -> AuthSession:
+    """Create an account and sign it in. Sends the session token once."""
+    if not accounts.enabled():
+        raise HTTPException(status_code=404, detail="Accounts are not enabled on this deployment.")
+    try:
+        accounts.register(request.email, request.password, invite=request.invite)
+        token, user = accounts.login(request.email, request.password, client=_client_address(http_request))
+    except accounts.AccountError as exc:
+        raise _account_refusal(exc) from None
+    response.headers["Cache-Control"] = "no-store"
+    return AuthSession(token=token, email=user.email, admin=user.admin)
+
+
+@app.post("/api/auth/login", response_model=AuthSession, tags=["accounts"],
+          responses={401: {"description": "Email or password not accepted"},
+                     429: {"description": "Too many failed attempts for this email"}})
+def auth_login(request: AuthCredentials, http_request: Request, response: Response) -> AuthSession:
+    if not accounts.enabled():
+        raise HTTPException(status_code=404, detail="Accounts are not enabled on this deployment.")
+    try:
+        token, user = accounts.login(request.email, request.password, client=_client_address(http_request))
+    except accounts.AccountError as exc:
+        raise _account_refusal(exc) from None
+    response.headers["Cache-Control"] = "no-store"
+    return AuthSession(token=token, email=user.email, admin=user.admin)
+
+
+@app.post("/api/auth/logout", status_code=204, tags=["accounts"])
+def auth_logout(http_request: Request) -> Response:
+    """End the presented session. Idempotent: an unknown token is already out."""
+    accounts.logout(identity._bearer(http_request))
+    return Response(status_code=204)
+
+
+@app.get("/api/auth/me", response_model=AuthMe, tags=["accounts"],
+         responses={404: {"description": "The request is not an account session"}})
+def auth_me(http_request: Request) -> AuthMe:
+    """The signed-in account, for the page to show. The middleware already
+    admitted the request; this only says which kind of identity it was."""
+    who = identity.resolve(http_request)
+    if who.kind != "user":
+        raise HTTPException(status_code=404, detail="Not signed in with an account.")
+    return AuthMe(email=who.user.email, admin=who.is_admin)
 
 
 @app.get("/api/quota", response_model=DailyQuota | None, tags=["runs"])
@@ -586,9 +724,9 @@ def daily_quota(http_request: Request) -> DailyQuota | None:
     Counted per validated code (the admin code too), as admission counts
     them. A BYOK visitor has no code and no operator-funded quota.
     """
-    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    who = identity.resolve(http_request)
     try:
-        quota = runs.daily_quota(access.owner_id(matched) if matched else None)
+        quota = runs.daily_quota(who.tag if who.kind == "code" else None)
     except runs.PaidLedgerUnavailable as exc:
         _LOGGER.exception("Paid-operation ledger unreadable for the quota view")
         raise HTTPException(status_code=503, detail="Daily quota is temporarily unavailable.") from exc
@@ -613,6 +751,11 @@ def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
     """
     if not plan_preview.enabled():
         raise HTTPException(status_code=404, detail="Plan previews are turned off.")
+    if identity.resolve(http_request).kind == "user":
+        # The preview runs on the deployment's key. An account's own run plans
+        # with the account's key inside the worker, so nothing is lost.
+        raise HTTPException(status_code=404, detail="Plan previews are not available to accounts.",
+                            headers={"X-Error-Code": "byok_required"})
     try:
         plan_preview.admit(http_request.state.owner)
     except plan_preview.PreviewLimitReached as exc:
@@ -884,10 +1027,8 @@ def _claim_receipt(http_request: Request, *, byok: bool, kind: str, payload: dic
         # Backwards-compatible direct clients retain their old contract.
         # First-party clients always opt in; do not claim unkeyed idempotency.
         return None, None
-    matched = access.matching_code(http_request.headers.get("x-access-code"))
-    if not byok and access.gate_enabled() and matched is None:
-        raise HTTPException(401, "Provide the access code or complete BYOK credentials.")
-    owner = access.owner_id(matched) if matched and not byok else None
+    owner = _paid_owner(http_request, byok=byok,
+                        detail="Provide the access code or complete BYOK credentials.")
     return receipts.claim(runs.DEFAULT_OUTPUT_ROOT, key, owner, kind, payload)
 
 
@@ -969,10 +1110,8 @@ def get_paid_receipt(http_request: Request, response: Response) -> PaidReceipt:
     A pending resource id is an intended target, not proof of process launch.
     """
     key = http_request.headers.get("Idempotency-Key", "")
-    matched = access.matching_code(http_request.headers.get("x-access-code"))
-    record = receipts.lookup(runs.DEFAULT_OUTPUT_ROOT, key,
-                             access.owner_id(matched) if matched else None,
-                             admin=matched is not None and access.is_admin(matched))
+    who = identity.resolve(http_request)
+    record = receipts.lookup(runs.DEFAULT_OUTPUT_ROOT, key, who.tag, admin=who.is_admin)
     public = receipts.public_record(record)
     if record["kind"] == "paper" and record.get("resource_id"):
         public["auxiliary_usage"] = auxiliary_usage.paper_summary(record["resource_id"])
@@ -1022,21 +1161,15 @@ def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> R
     caller) — not gated by the middleware because that choice needs the
     parsed body.
     """
-    matched = access.matching_code(http_request.headers.get("x-access-code"))
-    # matched is None both when no code was configured at all (nothing to
-    # check against — must not block) and when one was configured but this
-    # request's code was missing/wrong (must block unless BYOK) — gate_enabled()
-    # is what tells those two apart.
-    if matched is None and not request.byok and access.gate_enabled():
-        raise HTTPException(
-            status_code=401,
-            detail="Provide the access code, or your own llm_provider/llm_api_key "
-                   "and a tavily_api_key or serper_api_key.",
-        )
-    # BYOK runs get no owner tag at all — never recorded in anyone's history,
-    # billed to the requester, gone once the tab closes (frontend keeps its
-    # own session-only list; see web/static/js/app.js).
-    owner = access.owner_id(matched) if matched and not request.byok else None
+    # A code holder's BYOK run gets no owner tag — never recorded in anyone's
+    # history, billed to the requester, gone once the tab closes (the frontend
+    # keeps its own session-only list; see web/static/js/app.js). An account's
+    # BYOK run is tagged to the account: that is what the account is for.
+    owner = _paid_owner(
+        http_request, byok=request.byok,
+        detail="Provide the access code, or your own llm_provider/llm_api_key "
+               "and a tavily_api_key or serper_api_key.",
+    )
 
     paper_json_path: str | None = None
     auxiliary_pdf_reference = None
@@ -1130,13 +1263,8 @@ def _resume_run_without_receipt(run_id: str, request: ResumeRunRequest, http_req
     back to execution rather than becoming an unearned successful recovery.
     """
     _authorize_run_mutation(run_id, http_request)
-    matched = access.matching_code(http_request.headers.get("x-access-code"))
-    if matched is None and not request.byok and access.gate_enabled():
-        raise HTTPException(
-            status_code=401,
-            detail="Provide the access code, or fresh BYOK credentials to resume.",
-        )
-    owner = access.owner_id(matched) if matched and not request.byok else None
+    owner = _paid_owner(http_request, byok=request.byok,
+                        detail="Provide the access code, or fresh BYOK credentials to resume.")
     byok = _byok_credentials(request)
 
     try:
@@ -1240,7 +1368,7 @@ def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200
         # not "who ran it" — the entire reason to hold the admin code
         # rather than just leaving the gate unfiltered for everyone.
         for summary in summaries:
-            summary["owner_label"] = access.label_for_owner(summary.pop("_owner", None))
+            summary["owner_label"] = identity.label_for_owner(summary.pop("_owner", None))
     else:
         for summary in summaries:
             summary.pop("_owner", None)
@@ -1656,13 +1784,8 @@ async def upload_paper(
             detail="llm_model is required with llm_provider: there is no default model.",
         )
     byok = bool(llm_provider)
-    matched = access.matching_code(http_request.headers.get("x-access-code"))
-    if matched is None and not byok and access.gate_enabled():
-        raise HTTPException(
-            status_code=401,
-            detail="Provide the access code, or your own llm_provider/llm_api_key.",
-        )
-    owner = access.owner_id(matched) if matched and not byok else None
+    owner = _paid_owner(http_request, byok=byok,
+                        detail="Provide the access code, or your own llm_provider/llm_api_key.")
 
     try:
         data = await _read_capped(file, papers.MAX_UPLOAD_BYTES)
@@ -1865,11 +1988,11 @@ def _feedback_run(run_id: str, http_request: Request):
         raise HTTPException(
             status_code=503, detail="Run authorization is temporarily unavailable. Retry later.",
         ) from exc
-    matched = access.matching_code(http_request.headers.get("x-access-code"))
+    who = identity.resolve(http_request)
     if owner is None:
         responder = feedback.responder_key(None)
     else:
-        responder = access.owner_id(matched) if matched else owner
+        responder = who.tag if who.tag is not None else owner
     return state, runs.run_dir_for(run_id), responder
 
 

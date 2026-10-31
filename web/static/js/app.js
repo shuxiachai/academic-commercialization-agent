@@ -53,6 +53,8 @@ function toast(message, variant = "") {
 
 function operationErrorMessage(err) {
   if (err.code === "invalid_byok") return t("invalid_byok");
+  if (err.code === "byok_required") return t("msg_byok_required");
+  if (err.code === "sign_in_required") return t("msg_sign_in_required");
   if (err.code === "paid_ack_unknown") return t("msg_paid_ack_unknown");
   if (err.code === "paid_receipt_pending") return t("paid_receipt_unknown");
   const key = {
@@ -67,7 +69,9 @@ function operationErrorMessage(err) {
 }
 
 function rememberAcceptedRun(accepted) {
-  if (!byokMode) return;
+  // An account's BYOK runs are tagged to it server-side; only a code-less
+  // visitor's runs need the session-only list.
+  if (!byokMode || accountMode) return;
   try {
     api.addByokRun(accepted.run_id, accepted.topic);
   } catch {
@@ -78,6 +82,12 @@ function rememberAcceptedRun(accepted) {
 }
 
 async function performPaidRequest(request, deliver, operation = "run") {
+  // An account pays with its own keys. Ask for them here, once, rather than
+  // letting the server refuse with byok_required after the intent is recorded.
+  if (accountMode && !api.getByok()) {
+    await showGate(null, { keysOnly: true });
+    if (!api.getByok()) { toast(t("msg_byok_required"), "error"); return; }
+  }
   // Validate locally before recording intent; invalid BYOK cannot cause a
   // request, select operator billing, or manufacture an uncertain receipt.
   api.getByok();
@@ -525,7 +535,7 @@ async function handleDeleteRun(runId, topic) {
   // BYOK history is a client-only list (see api.getByokRuns) — the server
   // has no owner tag to have deleted anything from in the first place, so
   // this is the only place that ever learns the run is gone.
-  if (byokMode) api.removeByokRun(runId);
+  if (byokMode && !accountMode) api.removeByokRun(runId);
   toast(t("msg_deleted"));
   // The follower already stopped polling once this run reached a terminal
   // state (see run.js follow()), so nothing else will notice it vanished —
@@ -542,7 +552,7 @@ async function refreshSidebar() {
   // visitor has no code at all, so this builds the same view from the
   // session-only list of run ids api.addByokRun() has been recording —
   // gone once the tab closes, complete for as long as it's open.
-  if (byokMode) {
+  if (byokMode && !accountMode) {
     const list = $("#runlist");
     const entries = api.getByokRuns();
     if (!entries.length) {
@@ -595,6 +605,17 @@ async function refreshSidebar() {
  * reads it and runs first — a `let` further down is a temporal dead zone, and
  * the boot-time call threw before anything rendered. */
 let extracting = false;
+// Identity flags, declared up here for the same reason: refreshSidebar and
+// rememberAcceptedRun read them, and both can run before the gate section
+// below has been evaluated.
+let byokMode = false;
+// A signed-in account (api/accounts.py). Its runs are paid for with the keys
+// in the BYOK slot, so byokMode is true as well once keys are added; what
+// differs is that the server tags and lists its runs, and that it never
+// draws on the deployment's key (no plan preview, no operator quota).
+let accountMode = false;
+let accountEmail = null;
+let authConfig = null;
 // A disabled button is only a projection, not an operation lock: input events
 // used to re-enable it while a paid POST was still awaiting acknowledgement.
 // This is tab-local exclusion, not server/provider exactly-once delivery.
@@ -696,7 +717,7 @@ $("#compose-form").addEventListener("submit", async (e) => {
     needsScopeWarning(submittedTopic, { hasPaper: Boolean(attachedPaper) })
     && !confirm(t("confirm_broad_topic"))
   ) return;
-  if (planPreviewEnabled && !byokMode) {
+  if (planPreviewEnabled && !byokMode && !accountMode) {
     await previewPlan(submittedTopic);
     return;
   }
@@ -789,7 +810,7 @@ function paintQuota() {
 
 async function refreshQuota() {
   const generation = ++quotaGeneration;
-  if (!quotaEnabled || byokMode) {
+  if (!quotaEnabled || byokMode || accountMode) {
     lastQuota = null;
     paintQuota();
     return;
@@ -1136,7 +1157,23 @@ function paintCapacityLabel() {
  * cheap way to check a BYOK key without spending a real call — so a bad key
  * only surfaces once a run actually fails, with the provider's own error. */
 
-let byokMode = false;
+
+function applyAccountMode(me) {
+  receiptViewGeneration++;
+  $("#paid-receipt-results").innerHTML = "";
+  invalidateSidebar();
+  accountMode = true;
+  accountEmail = me.email;
+  api.setAccessCode(null);
+  byokMode = Boolean(api.getByok());
+  $("#byok-badge").hidden = true;
+  $("#code-badge").hidden = true;
+  $("#account-email").textContent = t("account_badge").replace("{email}", me.email);
+  $("#account-email").title = me.email;   // the badge ellipsizes a long address
+  $("#account-badge").hidden = false;
+  hidePlan();
+  refreshQuota();
+}
 
 function applyByokMode() {
   receiptViewGeneration++;
@@ -1175,7 +1212,13 @@ async function exitCredentials() {
   syncComposer();
   const byokCleared = api.setByok(null);
   const codeCleared = api.setAccessCode(null);
-  if (byokCleared && codeCleared && receiptsCleared) { location.reload(); return; }
+  if (accountMode) {
+    // Best effort: the token is forgotten locally either way, and the server
+    // expires it on its own schedule if this request is lost.
+    try { await api.logout(); } catch { /* already out, or unreachable */ }
+  }
+  const sessionCleared = api.setSessionToken(null);
+  if (byokCleared && codeCleared && sessionCleared && receiptsCleared) { location.reload(); return; }
   // Failed removal or a different shared selection must not be undone by
   // reloading: that would read stale/other credentials again. End this page's
   // session and ask for explicit login, without claiming global sign-out.
@@ -1183,11 +1226,14 @@ async function exitCredentials() {
   stopClock();
   activeRunId = null;
   byokMode = false;
+  accountMode = false;
+  accountEmail = null;
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = true;
+  $("#account-badge").hidden = true;
   $("#pane-run").hidden = true;
   $("#pane-compose").hidden = true;
-  showStorageNotice(api.accessCodeClearConflict() && byokCleared
+  showStorageNotice((api.accessCodeClearConflict() || api.sessionClearConflict()) && byokCleared
     ? "storage_other_identity" : "storage_logout_incomplete");
   await showGate();
   showCompose();
@@ -1210,12 +1256,24 @@ function applyCodeMode() {
 }
 
 $("#code-exit").addEventListener("click", exitCredentials);
+$("#account-exit").addEventListener("click", exitCredentials);
+// Change or add keys without signing out; the account's history stays.
+$("#account-keys").addEventListener("click", async () => {
+  if (submitting || extracting) return;
+  await showGate(null, { keysOnly: true });
+});
 
 async function ensureAccess() {
   try {
-    if (api.getByok()) {
-      applyByokMode();
-      return;
+    // Keys alone are an identity only where the deployment has no accounts;
+    // with a session stored, the access check below decides instead.
+    if (api.getByok() && !api.getSessionToken()) {
+      const config = await api.authConfig().catch(() => null);
+      authConfig = config?.enabled ? config : null;
+      if (!authConfig) {
+        applyByokMode();
+        return;
+      }
     }
   } catch (err) {
     if (err.code !== "invalid_byok") throw err;
@@ -1225,15 +1283,25 @@ async function ensureAccess() {
     return;
   }
   try {
+    // One boot request, carrying the stored code and session, answers
+    // everything: whether the deployment is gated, whether this is an
+    // account, and what the gate should offer if it is not.
     const access = await api.checkAccess(api.getAccessCode());
     planPreviewEnabled = access?.plan_preview === true;
     quotaEnabled = access?.daily_quota === true;
+    authConfig = access?.accounts ?? null;
+    if (access?.account) {
+      applyAccountMode(access.account);
+      if (!api.getByok()) await showGate(null, { keysOnly: true });
+      return;
+    }
     if (api.getAccessCode()) applyCodeMode();
     refreshQuota();
     return;
   } catch (err) {
     if (err.status !== 401) throw err;
   }
+  if (authConfig === null) authConfig = await api.authConfig().catch(() => null);
   await showGate();
 }
 
@@ -1262,25 +1330,74 @@ async function showByokRetention() {
   }
 }
 
-function showGate(errorKey = null) {
+function showGate(errorKey = null, { keysOnly = false } = {}) {
   const gate = $("#gate");
   const codeForm = $("#gate-form");
   const codeInput = $("#gate-input");
   const codeError = $("#gate-error");
   const codeSubmit = $("#gate-submit");
   const byokForm = $("#byok-form");
+  const accountForm = $("#account-form");
+  const accountError = $("#account-error");
+  const accountSubmit = $("#account-submit");
+  const accountsOn = Boolean(authConfig?.enabled);
+  // Whether the key form belongs to a signed-in account (keys saved, no
+  // payer change) or to an anonymous visitor (keys are the identity).
+  const forAccount = () => accountMode;
+  let creating = false;
+  let inviteNeeded = false;
 
   // Storage-denied logout reuses this document. Clear previous inputs and
   // replace the gate-owned handlers below instead of accumulating closures
   // that would validate one submission several times after repeated login.
   codeForm.reset();
   byokForm.reset();
+  accountForm.reset();
   codeError.hidden = !errorKey;
   codeError.textContent = errorKey ? t(errorKey) : "";
+  accountError.hidden = true;
   gate.hidden = false;
-  codeForm.hidden = false;
-  byokForm.hidden = true;
-  codeInput.focus();
+
+  const showKeys = () => {
+    codeForm.hidden = true;
+    accountForm.hidden = true;
+    byokForm.hidden = false;
+    const account = forAccount();
+    $("#byok-account-note").hidden = !account;
+    $("#byok-sub").hidden = account;
+    if (account) $("#byok-account-note").textContent = t("byok_account_note").replace("{email}", accountEmail);
+    $("#byok-submit").textContent = account ? t("byok_save") : t("byok_submit");
+    $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
+    $("#byok-skip").hidden = !account;
+    $("#byok-llm-key").focus();
+    showByokRetention();
+  };
+  const showAccount = () => {
+    codeForm.hidden = true;
+    byokForm.hidden = true;
+    accountForm.hidden = false;
+    $("#account-title").textContent = t(creating ? "account_title_create" : "account_title");
+    accountSubmit.textContent = t(creating ? "account_create" : "account_sign_in");
+    $("#account-toggle").textContent = t(creating ? "account_toggle_to_sign_in" : "account_toggle_to_create");
+    $("#account-toggle").hidden = !creating && !authConfig?.signup_open;
+    $("#account-to-code").hidden = !authConfig?.access_codes;
+    $("#account-password").autocomplete = creating ? "new-password" : "current-password";
+    // Invite mode asks up front; a reserved address asks after the server
+    // says so (invite_required), so the field stays hidden until needed.
+    $("#account-invite").hidden = !(creating && (authConfig?.signup === "invite" || inviteNeeded));
+    $("#account-email-input").focus();
+  };
+  const showCode = () => {
+    accountForm.hidden = true;
+    byokForm.hidden = true;
+    codeForm.hidden = false;
+    $("#gate-to-byok").hidden = accountsOn;
+    $("#gate-to-account").hidden = !accountsOn;
+    codeInput.focus();
+  };
+  if (keysOnly) showKeys();
+  else if (accountsOn) showAccount();
+  else showCode();
 
   return new Promise((resolve) => {
     let finished = false;
@@ -1293,16 +1410,67 @@ function showGate(errorKey = null) {
 
     $("#gate-to-byok").onclick = () => {
       if (codeSubmit.disabled || finished) return;
-      codeForm.hidden = true;
-      byokForm.hidden = false;
-      $("#byok-llm-key").focus();
-      showByokRetention();
+      showKeys();
+    };
+    $("#gate-to-account").onclick = () => {
+      if (codeSubmit.disabled || finished) return;
+      showAccount();
+    };
+    $("#account-to-code").onclick = () => {
+      if (accountSubmit.disabled || finished) return;
+      showCode();
+    };
+    $("#account-toggle").onclick = () => {
+      if (accountSubmit.disabled || finished) return;
+      creating = !creating;
+      accountError.hidden = true;
+      showAccount();
     };
     $("#byok-to-gate").onclick = () => {
       if (codeSubmit.disabled || finished) return;
-      byokForm.hidden = true;
-      codeForm.hidden = false;
-      codeInput.focus();
+      if (accountsOn && !authConfig?.access_codes) showAccount();
+      else showCode();
+    };
+    $("#byok-skip").onclick = () => {
+      if (finished) return;
+      finish();
+    };
+
+    accountForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const email = $("#account-email-input").value.trim();
+      const password = $("#account-password").value;
+      if (!email || !password || accountSubmit.disabled || finished) return;
+      accountSubmit.disabled = true;
+      accountError.hidden = true;
+      try {
+        const invite = $("#account-invite").value.trim() || null;
+        const session = creating ? await api.register(email, password, invite) : await api.login(email, password);
+        api.setSessionToken(session.token);
+        applyAccountMode(session);
+        if (api.getByok()) { finish(); return; }
+        // Keys next, on the same card: the account is in, the runs still
+        // need something to pay with.
+        showKeys();
+      } catch (err) {
+        const key = {
+          invalid_credentials: "account_error_credentials", email_taken: "account_error_taken",
+          weak_password: "account_error_weak", invalid_email: "account_error_email",
+          signup_closed: "account_error_closed", locked: "account_error_locked",
+          invite_required: "account_error_invite",
+        }[err.code];
+        accountError.textContent = key ? t(key) : err.message;
+        accountError.hidden = false;
+        if (err.code === "invite_required") {
+          inviteNeeded = true;
+          $("#account-invite").hidden = false;
+          $("#account-invite").focus();
+        } else {
+          $("#account-password").select();
+        }
+      } finally {
+        accountSubmit.disabled = false;
+      }
     };
 
     codeForm.onsubmit = async (e) => {
@@ -1344,6 +1512,13 @@ function showGate(errorKey = null) {
         api.setByok({ provider, llmKey, search, searchKey, ...(model ? { model } : {}) });
       } catch (err) {
         toast(operationErrorMessage(err), "error");
+        return;
+      }
+      if (forAccount()) {
+        // Keys saved for the account; the identity and its history are unchanged.
+        byokMode = true;
+        invalidateSidebar();
+        finish();
         return;
       }
       applyByokMode();
