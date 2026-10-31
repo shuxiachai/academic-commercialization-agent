@@ -1169,11 +1169,22 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   font-weight: 500;
 }
 .byok-badge #byok-exit,
-.byok-badge #code-exit {
+.byok-badge #code-exit,
+.byok-badge #account-keys,
+.byok-badge #account-exit {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
   flex-shrink: 0;
+  white-space: nowrap;
+}
+/* An email can be long; the badge keeps one line and lets it ellipsize. */
+.byok-badge--account #account-email {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .workbench[data-collapsed="true"] .byok-badge { display: none; }
 

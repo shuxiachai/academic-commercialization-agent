@@ -797,6 +797,38 @@ class RetrievalLaneHealth(BaseModel):
     failed_runs: int = Field(description="Runs in which the lane recorded a refusal or failed request.")
 
 
+class AuthCredentials(BaseModel):
+    """Sign-up and sign-in share one body; api.accounts applies the policy."""
+
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=200)
+    invite: str | None = Field(default=None, max_length=200,
+                               description="Invite code; needed in invite mode and for a reserved (admin) address.")
+
+
+class AuthSession(BaseModel):
+    """Returned once, at sign-up or sign-in. The token is a bearer credential:
+    send it as `Authorization: Bearer <token>`; it is never shown again."""
+
+    token: str
+    email: str
+    admin: bool = False
+
+
+class AuthMe(BaseModel):
+    email: str
+    admin: bool = False
+
+
+class AuthConfig(BaseModel):
+    """What the sign-in screen offers on this deployment."""
+
+    enabled: bool = Field(description="Accounts exist here (ACCOUNTS_DB is set).")
+    signup_open: bool = Field(description="New accounts can be created (open or invite mode).")
+    signup: str = Field(default="closed", description="open, invite or closed.")
+    access_codes: bool = Field(description="An operator access code is also accepted.")
+
+
 class RetrievalHealth(BaseModel):
     """Per-lane counts over recent runs' saved audits; no topics or run ids.
 

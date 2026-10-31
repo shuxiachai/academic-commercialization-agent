@@ -74,6 +74,14 @@
       <button type="button" id="code-exit" data-i18n="code_exit">Log out</button>
     </div>
 
+    <!-- An account: the third identity, exclusive with the two above. Its
+         runs use the keys in the BYOK slot and are listed from the server. -->
+    <div class="byok-badge byok-badge--account" id="account-badge" hidden>
+      <span id="account-email"></span>
+      <button type="button" id="account-keys" data-i18n="account_keys">API keys</button>
+      <button type="button" id="account-exit" data-i18n="account_exit">Sign out</button>
+    </div>
+
     <div class="sidebar__foot">
       <!-- SOURCE_LOCATOR_LINK -->
       <div class="capacity" id="capacity" title="Concurrent run slots">
@@ -360,6 +368,28 @@
 <div class="gate" id="gate" hidden>
   <div class="gate__card">
 
+    <!-- Accounts (api/accounts.py): shown first when the deployment has them.
+         One form signs in or creates an account; the button text follows the
+         mode. Keys are asked for afterwards and never leave this browser
+         except with the operations the account starts. -->
+    <form id="account-form" hidden>
+      <h2 class="gate__title" id="account-title" data-i18n="account_title">Sign in</h2>
+      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes about 15 minutes.</p>
+      <p class="gate__sub" data-i18n="account_sub">Runs are paid for with API keys you add after signing in. Your keys stay in this browser and are sent only with the operations you start; this server never stores them.</p>
+      <input class="gate__input" id="account-email-input" type="email" autocomplete="username" required
+             maxlength="254" data-i18n-placeholder="account_email_placeholder" placeholder="Email">
+      <input class="gate__input" id="account-password" type="password" autocomplete="current-password" required
+             minlength="10" maxlength="200" data-i18n-placeholder="account_password_placeholder" placeholder="Password (at least 10 characters)">
+      <!-- Shown when registration needs an invite code: in invite mode, or
+           for an address the operator reserved for an administrator. -->
+      <input class="gate__input" id="account-invite" type="text" autocomplete="off" spellcheck="false" maxlength="200"
+             data-i18n-placeholder="account_invite_placeholder" placeholder="Invite code" hidden>
+      <p class="gate__error" id="account-error" hidden></p>
+      <button type="submit" class="btn btn--primary" id="account-submit" data-i18n="account_sign_in">Sign in</button>
+      <button type="button" class="gate__switch" id="account-toggle" data-i18n="account_toggle_to_create">No account? Create one</button>
+      <button type="button" class="gate__switch" id="account-to-code" data-i18n="account_to_code" hidden>Use an access code instead</button>
+    </form>
+
     <form id="gate-form">
       <h2 class="gate__title" data-i18n="gate_title">Access code required</h2>
       <!-- A visitor arriving from a shared link meets this before anything
@@ -371,13 +401,17 @@
       <p class="gate__error" id="gate-error" hidden></p>
       <button type="submit" class="btn btn--primary" id="gate-submit" data-i18n="gate_submit">Continue</button>
       <button type="button" class="gate__switch" id="gate-to-byok" data-i18n="gate_no_code">No code? Use your own API keys instead</button>
+      <button type="button" class="gate__switch" id="gate-to-account" data-i18n="gate_to_account" hidden>Sign in with an account instead</button>
     </form>
 
     <!-- Bring-your-own-key: an open alternative to the code, billed to
          whoever fills this in rather than to the deployment owner. -->
     <form id="byok-form" hidden>
       <h2 class="gate__title" data-i18n="byok_title">Use your own API keys</h2>
-      <p class="gate__sub" data-i18n="byok_sub">Your keys are sent to this server and the selected providers only for operations you start. They are not written to run artifacts and disappear from this browser when the tab closes.</p>
+      <!-- Shown instead of the sentence below once an account is signed in:
+           the same promise, addressed to the account. -->
+      <p class="gate__sub" id="byok-account-note" hidden></p>
+      <p class="gate__sub" id="byok-sub" data-i18n="byok_sub">Your keys are sent to this server and the selected providers only for operations you start. They are not written to run artifacts and disappear from this browser when the tab closes.</p>
       <!-- Filled from /health when this form is opened, because the number is
            the deployment's, not the page's. The sentence above is about the
            keys; this one is about extracted metadata and the assessment, which
@@ -414,6 +448,7 @@
       </p>
       <button type="submit" class="btn btn--primary" id="byok-submit" data-i18n="byok_submit">Start</button>
       <button type="button" class="gate__switch" id="byok-to-gate" data-i18n="byok_have_code">I have an access code</button>
+      <button type="button" class="gate__switch" id="byok-skip" data-i18n="byok_skip" hidden>Add keys later</button>
     </form>
 
     <!-- Outside both forms so it shows whichever one is up. A visitor with
