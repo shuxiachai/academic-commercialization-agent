@@ -18,9 +18,17 @@ const reader = $("#sample-reader");
 
 let samples = [];
 let current = null;
+// The sample whose report is on screen, null while one loads or after a failure.
+let rendered = null;
 // A slow response for a sample the visitor has already left must not paint
 // over the one they chose next.
 let generation = 0;
+// From this width the contents sit beside the report and start open; below
+// it they are a block above the report and start closed. samples.css uses
+// the same width.
+const wide = window.matchMedia?.("(min-width: 1280px)");
+let contents = null;
+wide?.addEventListener?.("change", () => { if (contents) contents.open = wide.matches; });
 // Served for /samples and every /samples/<slug>; shown again whenever no
 // sample matches, so an unknown slug does not keep the last sample's name.
 const defaultTitle = document.title;
@@ -71,6 +79,32 @@ function showTitle(sample) {
   document.title = sample ? `${sample.title} · ${t("samples_title")}` : defaultTitle;
 }
 
+/** A contents list linking every section heading of the rendered article.
+ * The ids come from a counter, not the heading text, so the Chinese sample
+ * gets working links too. Built from the article it is shown with, so
+ * another sample or a language switch cannot keep stale entries. */
+function contentsFor(article) {
+  const headings = [...article.querySelectorAll("h2")];
+  if (!headings.length) return null;
+  const list = el("ol");
+  headings.forEach((heading, index) => {
+    heading.id = `section-${index + 1}`;
+    const link = el("a", null, heading.textContent);
+    link.href = `#${heading.id}`;
+    const item = el("li");
+    item.append(link);
+    list.append(item);
+  });
+  const block = el("details");
+  block.open = wide?.matches ?? false;
+  block.append(el("summary", null, t("samples_contents")), list);
+  const nav = el("nav", "samples__toc");
+  nav.setAttribute("aria-label", t("samples_contents"));
+  nav.append(block);
+  contents = block;
+  return { nav, headings };
+}
+
 function historicalNotice(sample) {
   const text = t("samples_historical")
     .replace("{date}", sample.committed)
@@ -81,6 +115,8 @@ function historicalNotice(sample) {
 async function open(slug) {
   const sample = samples.find((item) => item.slug === slug);
   current = sample ? slug : null;
+  rendered = null;
+  contents = null;
   paintList();
   showTitle(sample);
   if (!sample) { note("samples_missing"); return; }
@@ -104,7 +140,14 @@ async function open(slug) {
   // source registry behind a sample, so there is no "show in Sources" either.
   const index = citationIndex(markdown);
   attachCitations(article, () => Promise.resolve(index));
-  reader.replaceChildren(historicalNotice(sample), article);
+  const toc = contentsFor(article);
+  reader.replaceChildren(historicalNotice(sample), ...(toc ? [toc.nav] : []), article);
+  rendered = slug;
+  // The browser looked for a #section-N target before the report existed:
+  // a shared link to a section, Back to one from another sample, or a
+  // language switch while reading one.
+  const anchor = location.hash ? location.hash.slice(1) : "";
+  toc?.headings.find((heading) => heading.id === anchor)?.scrollIntoView();
 }
 
 function route() {
@@ -122,7 +165,13 @@ langSelect.addEventListener("change", () => {
   applySamples();
   if (current) open(current);
 });
-window.addEventListener("popstate", route);
+window.addEventListener("popstate", () => {
+  // Following a contents link changes only the fragment, and Chromium fires
+  // popstate for it. The browser has already scrolled to the heading, so
+  // re-reading the sample would only throw the position away.
+  if (rendered && (slugFromLocation() ?? samples[0]?.slug) === rendered) return;
+  route();
+});
 
 i18n.apply();
 applySamples();
