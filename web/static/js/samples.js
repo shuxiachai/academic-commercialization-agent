@@ -21,6 +21,9 @@ let current = null;
 // A slow response for a sample the visitor has already left must not paint
 // over the one they chose next.
 let generation = 0;
+// Served for /samples and every /samples/<slug>; shown again whenever no
+// sample matches, so an unknown slug does not keep the last sample's name.
+const defaultTitle = document.title;
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -59,6 +62,15 @@ function paintList() {
   }));
 }
 
+/** Name the tab after the open sample, so tabs, bookmarks and history entries
+ * for different samples can be told apart. Set when the selection changes,
+ * like the list's aria-current, not after the fetch: a slow response for a
+ * sample already left is dropped by `generation` and must not leave its name
+ * behind either. */
+function showTitle(sample) {
+  document.title = sample ? `${sample.title} · ${t("samples_title")}` : defaultTitle;
+}
+
 function historicalNotice(sample) {
   const text = t("samples_historical")
     .replace("{date}", sample.committed)
@@ -70,6 +82,7 @@ async function open(slug) {
   const sample = samples.find((item) => item.slug === slug);
   current = sample ? slug : null;
   paintList();
+  showTitle(sample);
   if (!sample) { note("samples_missing"); return; }
 
   const mine = ++generation;
@@ -99,7 +112,7 @@ function route() {
   // rather than an empty reader the visitor has to work out how to fill.
   const slug = slugFromLocation() ?? samples[0]?.slug ?? null;
   if (slug) open(slug);
-  else note("samples_choose");
+  else { showTitle(null); note("samples_choose"); }
 }
 
 const langSelect = $("#ui-lang");
