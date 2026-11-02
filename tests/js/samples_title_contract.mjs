@@ -22,6 +22,8 @@ class Element {
   replaceChildren(...nodes) { this._text = ""; this.html = ""; this.children = nodes; }
   setAttribute(name, value) { this.attributes[name] = String(value); }
   addEventListener(name, callback) { (this.listeners[name] ??= []).push(callback); }
+  // The stub renderer emits no headings, so the contents list (#285) stays empty here.
+  querySelectorAll() { return []; }
   fire(name, event = {}) {
     for (const callback of this.listeners[name] ?? []) callback({ preventDefault() {}, button: 0, ...event });
   }
