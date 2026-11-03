@@ -34,6 +34,9 @@ _FILE_EVENTS = {
     "sqlite3.connect",
 }
 _SPAWN_EVENTS = {"subprocess.Popen", "os.posix_spawn", "os.spawn", "os.exec", "os.system", "os.fork", "os.startfile"}
+# Python 3.11's platform module reads the Windows version by running these
+# through cmd.exe (3.12 asks WMI instead): a local probe, not a worker.
+_PLATFORM_VER_PROBES = ('/c "ver"', '/c "command /c ver"', '/c "cmd /c ver"')
 
 
 def _loopback(host):
@@ -73,6 +76,9 @@ def audit(event, args):
         network.append(f"{event} {args[1]!r}")
         raise ConnectionRefusedError("ui demo test: no external network")
     if event in _SPAWN_EVENTS:
+        if (sys.platform == "win32" and event == "subprocess.Popen" and isinstance(args[1], str)
+                and args[1].endswith(_PLATFORM_VER_PROBES)):
+            return
         spawned.append(f"{event} {str(args[:2])[:200]}")
         raise PermissionError("ui demo test: no new processes")
     if event in _FILE_EVENTS and any(_under_outputs(arg) for arg in args[:2] if isinstance(arg, (str, bytes, os.PathLike))):
