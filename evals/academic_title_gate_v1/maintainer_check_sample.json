@@ -1,0 +1,131 @@
+{
+ "_how": "Test rows where R5 and the production gate disagree (all if <= 30), plus 10 agreeing rows drawn with random.Random(20261020); shuffled with the same generator, then grouped by topic. Shown to the maintainer as topic + title only.",
+ "rows": [
+  {
+   "n": 1,
+   "id": "test-0273",
+   "topic": "DNA data storage",
+   "title": "A human gut metagenome-assembled genome catalogue spanning 41 countries supports genome-scale metabolic models."
+  },
+  {
+   "n": 2,
+   "id": "test-0262",
+   "topic": "direct air capture of carbon dioxide",
+   "title": "Carbon capture and storage (CCS): the way forward"
+  },
+  {
+   "n": 3,
+   "id": "test-0299",
+   "topic": "drone delivery of medical supplies",
+   "title": "Unmanned aerial vehicle (drones) in public health: A SWOT analysis."
+  },
+  {
+   "n": 4,
+   "id": "test-0295",
+   "topic": "drone delivery of medical supplies",
+   "title": "Optimization approaches for civil applications of unmanned aerial vehicles (UAVs) or aerial drones: A survey"
+  },
+  {
+   "n": 5,
+   "id": "test-0301",
+   "topic": "drone delivery of medical supplies",
+   "title": "Unmanned Aerial Vehicles (UAVs): A Survey on Civil Applications and Key Research Challenges"
+  },
+  {
+   "n": 6,
+   "id": "test-0298",
+   "topic": "drone delivery of medical supplies",
+   "title": "Towards the Unmanned Aerial Vehicles (UAVs): A Comprehensive Review"
+  },
+  {
+   "n": 7,
+   "id": "test-0329",
+   "topic": "fusion power",
+   "title": "Investigating the degree of \"stigma\" associated with nuclear energy technologies: A cross-cultural examination of the case of fusion power."
+  },
+  {
+   "n": 8,
+   "id": "test-0311",
+   "topic": "fusion power",
+   "title": "Back to the future - from nuclear energy to AI."
+  },
+  {
+   "n": 9,
+   "id": "test-0348",
+   "topic": "fusion power",
+   "title": "Recent advances in solid-state nuclear magnetic resonance studies on membrane fusion proteins."
+  },
+  {
+   "n": 10,
+   "id": "test-0346",
+   "topic": "fusion power",
+   "title": "PI3KC3 complex subunit NRBF2 is required for apoptotic cell clearance to restrict intestinal inflammation."
+  },
+  {
+   "n": 11,
+   "id": "test-0343",
+   "topic": "fusion power",
+   "title": "Nuclear phenomena in low-energy nuclear reaction research."
+  },
+  {
+   "n": 12,
+   "id": "test-0317",
+   "topic": "fusion power",
+   "title": "Emerging activated tungsten dust: Source, environmental behaviors, and health effects."
+  },
+  {
+   "n": 13,
+   "id": "test-0322",
+   "topic": "fusion power",
+   "title": "Fusion power."
+  },
+  {
+   "n": 14,
+   "id": "test-0391",
+   "topic": "precision fermentation for dairy proteins",
+   "title": "Food consumption trends and drivers"
+  },
+  {
+   "n": 15,
+   "id": "test-0384",
+   "topic": "precision fermentation for dairy proteins",
+   "title": "Allergenicity Assessment of Precision Fermentation-Derived Food Proteins."
+  },
+  {
+   "n": 16,
+   "id": "test-0390",
+   "topic": "precision fermentation for dairy proteins",
+   "title": "Fermentation for Designing Innovative Plant-Based Meat and Dairy Alternatives."
+  },
+  {
+   "n": 17,
+   "id": "test-0434",
+   "topic": "small modular reactors for grid electricity",
+   "title": "In-orbit Radiation Damage Characterization of SiPMs in the GRID-02 CubeSat Detector"
+  },
+  {
+   "n": 18,
+   "id": "test-0466",
+   "topic": "人工光合作用制备太阳能燃料",
+   "title": "The path towards sustainable energy"
+  },
+  {
+   "n": 19,
+   "id": "test-0458",
+   "topic": "人工光合作用制备太阳能燃料",
+   "title": "Planetary Boundaries: Exploring the Safe Operating Space for Humanity"
+  },
+  {
+   "n": 20,
+   "id": "test-0487",
+   "topic": "漂浮式海上风电",
+   "title": "Offshore wind profile characteristics and their impact on floating wind turbine power production"
+  },
+  {
+   "n": 21,
+   "id": "test-0477",
+   "topic": "漂浮式海上风电",
+   "title": "Dynamic behaviour and power performance of a Septon semisubmersible floating wind turbine integrated with wave energy converters."
+  }
+ ]
+}

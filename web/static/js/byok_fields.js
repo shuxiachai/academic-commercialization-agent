@@ -1,8 +1,9 @@
 /* Labels and placeholders for the BYOK model and search-service fields.
  *
- * Kept out of i18n.js on purpose: that file's bytes are hash-locked by a frozen
- * experiment, so new strings live here, as the sample-report strings do. The
- * language still comes from i18n.js. Loaded after app.js as its own module,
+ * These strings were kept out of i18n.js while a frozen experiment hash-locked
+ * it; since 2026-10-22 that experiment reads a snapshot (evals/
+ * source_locator_observer_v1), so i18n.js may take new keys. The language
+ * still comes from i18n.js. Loaded after app.js as its own module,
  * because app.js's browser contracts strip and inject its imports.
  *
  * The model field is required: there is no default model, so a visitor's key
@@ -15,7 +16,17 @@ export const MODEL_EXAMPLES = {
   deepseek: "deepseek-chat",
   qwen: "qwen3.8-27b",
   openai: "gpt-4o",
-  anthropic: "claude-sonnet-5",
+  anthropic: "claude-sonnet-5-5",
+};
+
+// Offered in the field's suggestion list; none is pre-filled. The Qwen pair
+// is what this project's runs and evaluations used; the others are the
+// providers' current general models, not measured here.
+export const MODEL_SUGGESTIONS = {
+  deepseek: ["deepseek-chat"],
+  qwen: ["qwen3.8-27b", "qwen3.8-max"],
+  openai: ["gpt-4o"],
+  anthropic: ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"],
 };
 
 const STRINGS = {
@@ -43,6 +54,14 @@ export function applyByokFields(root = document) {
   const provider = $("#byok-provider")?.value;
   const model = $("#byok-model");
   if (model) model.placeholder = t("model_placeholder").replace("{example}", MODEL_EXAMPLES[provider] ?? "");
+  const options = $("#byok-model-options");
+  if (options) {
+    options.replaceChildren(...(MODEL_SUGGESTIONS[provider] ?? []).map((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      return option;
+    }));
+  }
   const search = $("#byok-search")?.value;
   const key = $("#byok-search-key");
   if (key) key.placeholder = t(search === "serper" ? "search_key_serper" : "search_key_tavily");

@@ -6,6 +6,20 @@
 <meta name="color-scheme" content="light dark">
 <title>Commercialization Assessment</title>
 <meta name="description" content="Six AI agents assess the commercialization readiness of academic research, producing a scored report with verifiable citations.">
+<!-- Link previews for chat apps and social sites. Their crawlers run no script
+     and resolve no relative URL, so these name the public deployment's origin;
+     a self-hosted copy would point them at its own. The image is a copy of
+     assets/social-preview.png, kept equal by tests/test_share_preview.py. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Academic Commercialization Assessment">
+<meta property="og:title" content="Academic Commercialization Assessment Agent">
+<meta property="og:description" content="Turn a research paper or topic into a cited commercialization triage report: technology readiness, manufacturing, patents and market, with the risks spelled out.">
+<meta property="og:url" content="https://academic-commercialization-agent.up.railway.app/">
+<meta property="og:image" content="https://academic-commercialization-agent.up.railway.app/static/brand/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="From a paper or research topic to a cited assessment draft, beside a real historical scorecard">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/svg+xml" href="/static/brand/aca-mark.svg">
 <link rel="stylesheet" href="/static/css/tokens.css">
 <link rel="stylesheet" href="/static/css/base.css">
@@ -23,7 +37,7 @@
     <div class="sidebar__head">
       <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
         <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
-        <span class="brand__name">Assessment</span>
+        <span class="brand__name" data-i18n="brand">Assessment</span>
       </a>
       <button type="button" class="icon-btn sidebar__collapse" id="collapse-btn"
               aria-label="Collapse sidebar" title="Toggle sidebar">
@@ -60,6 +74,14 @@
       <button type="button" id="code-exit" data-i18n="code_exit">Log out</button>
     </div>
 
+    <!-- An account: the third identity, exclusive with the two above. Its
+         runs use the keys in the BYOK slot and are listed from the server. -->
+    <div class="byok-badge byok-badge--account" id="account-badge" hidden>
+      <span id="account-email"></span>
+      <button type="button" id="account-keys" data-i18n="account_keys">API keys</button>
+      <button type="button" id="account-exit" data-i18n="account_exit">Sign out</button>
+    </div>
+
     <div class="sidebar__foot">
       <!-- SOURCE_LOCATOR_LINK -->
       <div class="capacity" id="capacity" title="Concurrent run slots">
@@ -87,7 +109,7 @@
       </button>
       <a class="brand" href="/" tabindex="-1" aria-hidden="true">
         <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
-        <span class="brand__name">Assessment</span>
+        <span class="brand__name" data-i18n="brand">Assessment</span>
       </a>
     </div>
     <div class="scrim" id="sidebar-scrim" hidden></div>
@@ -160,6 +182,7 @@
                 </select>
 
                 <span class="composer__spacer"></span>
+                <span class="composer__quota tabular" id="quota" hidden></span>
                 <span class="composer__count tabular" id="topic-count"></span>
 
                 <button type="submit" class="send-btn" id="run-btn" disabled
@@ -178,6 +201,10 @@
               </p>
             </div>
 
+            <!-- Filled by app.js when a code holder submits: the planner's
+                 reading of the topic, to confirm or edit before the run. -->
+            <div class="plan-panel" id="plan-panel" hidden aria-live="polite"></div>
+
             <details class="decision-context" id="decision-context">
               <summary>
                 <span data-i18n="decision_context_title">Add decision context</span>
@@ -187,6 +214,7 @@
                 Complete the first four fields for actor-specific decision support. Partial or
                 empty context still runs, but the report will not claim a GO/NO_GO decision.
               </p>
+              <p class="decision-context__status" id="decision-context-status" aria-live="polite"></p>
               <div class="decision-context__grid">
                 <label>
                   <span data-i18n="decision_asset">Asset or research output *</span>
@@ -202,52 +230,73 @@
                             data-i18n-placeholder="decision_application_placeholder"
                             placeholder="Specific customer problem and operating setting"></textarea>
                 </label>
-                <label>
-                  <span data-i18n="decision_owner">Decision owner *</span>
-                  <input id="decision-owner" data-context-field="decision_owner"
-                         maxlength="300" data-i18n-placeholder="decision_owner_placeholder"
-                         placeholder="TTO manager, founder, investor, R&amp;D lead">
-                </label>
-                <label>
-                  <span data-i18n="decision_type">Decision to make *</span>
-                  <input id="decision-type" data-context-field="decision_type"
-                         maxlength="300" data-i18n-placeholder="decision_type_placeholder"
-                         placeholder="License, spin out, pilot, invest, or stop">
-                </label>
-                <label>
-                  <span data-i18n="decision_jurisdiction">Jurisdiction</span>
-                  <input id="decision-jurisdiction" data-context-field="jurisdiction"
-                         maxlength="300" data-i18n-placeholder="decision_jurisdiction_placeholder"
-                         placeholder="Country or regulatory market">
-                </label>
-                <label>
-                  <span data-i18n="decision_horizon">Time horizon</span>
-                  <input id="decision-horizon" data-context-field="time_horizon"
-                         maxlength="300" data-i18n-placeholder="decision_horizon_placeholder"
-                         placeholder="Decision deadline or planning window">
-                </label>
-                <label class="decision-context__wide">
-                  <span data-i18n="decision_constraints">Known constraints</span>
-                  <textarea id="decision-constraints" data-context-field="constraints"
-                            maxlength="1200" rows="3"
-                            data-i18n-placeholder="decision_constraints_placeholder"
-                            placeholder="Budget, evidence threshold, manufacturing, policy, or risk limits"></textarea>
-                </label>
-                <label class="decision-context__wide">
-                  <span data-i18n="decision_success_criteria">Success criteria or decision thresholds</span>
-                  <textarea id="decision-success-criteria" data-context-field="success_criteria"
-                            maxlength="1200" rows="3"
-                            data-i18n-placeholder="decision_success_criteria_placeholder"
-                            placeholder="Exact measures the decision owner will use, if already defined"></textarea>
-                </label>
-                <label>
-                  <span data-i18n="decision_success_authority">Criteria authority</span>
-                  <select id="decision-success-authority" data-context-field="success_criteria_authority">
-                    <option value="" data-i18n="decision_success_unconfirmed">Not confirmed by the decision owner</option>
-                    <option value="owner_approved" data-i18n="decision_success_approved">Explicitly approved by the decision owner</option>
-                  </select>
-                </label>
+                <div class="decision-context__field">
+                  <label>
+                    <span id="decision-owner-label" data-i18n="decision_owner">Decision owner *</span>
+                    <input id="decision-owner" data-context-field="decision_owner"
+                           maxlength="300" data-i18n-placeholder="decision_owner_placeholder"
+                           placeholder="TTO manager, founder, investor, R&amp;D lead">
+                  </label>
+                  <div class="decision-picks" role="group" aria-labelledby="decision-owner-label">
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_investor">Investor</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_tto">Technology transfer office</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_rnd">Corporate R&amp;D lead</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_founder">Startup founder</button>
+                  </div>
+                </div>
+                <div class="decision-context__field">
+                  <label>
+                    <span id="decision-type-label" data-i18n="decision_type">Decision to make *</span>
+                    <input id="decision-type" data-context-field="decision_type"
+                           maxlength="300" data-i18n-placeholder="decision_type_placeholder"
+                           placeholder="License, spin out, pilot, invest, or stop">
+                  </label>
+                  <div class="decision-picks" role="group" aria-labelledby="decision-type-label">
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_invest">Invest or pass</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_license">License the technology</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_pilot">Start a pilot</button>
+                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_spinout">Form a spin-out</button>
+                  </div>
+                </div>
               </div>
+              <details class="decision-context__more">
+                <summary data-i18n="decision_more">More details (optional)</summary>
+                <div class="decision-context__grid">
+                  <label>
+                    <span data-i18n="decision_jurisdiction">Jurisdiction</span>
+                    <input id="decision-jurisdiction" data-context-field="jurisdiction"
+                           maxlength="300" data-i18n-placeholder="decision_jurisdiction_placeholder"
+                           placeholder="Country or regulatory market">
+                  </label>
+                  <label>
+                    <span data-i18n="decision_horizon">Time horizon</span>
+                    <input id="decision-horizon" data-context-field="time_horizon"
+                           maxlength="300" data-i18n-placeholder="decision_horizon_placeholder"
+                           placeholder="Decision deadline or planning window">
+                  </label>
+                  <label class="decision-context__wide">
+                    <span data-i18n="decision_constraints">Known constraints</span>
+                    <textarea id="decision-constraints" data-context-field="constraints"
+                              maxlength="1200" rows="3"
+                              data-i18n-placeholder="decision_constraints_placeholder"
+                              placeholder="Budget, evidence threshold, manufacturing, policy, or risk limits"></textarea>
+                  </label>
+                  <label class="decision-context__wide">
+                    <span data-i18n="decision_success_criteria">Success criteria or decision thresholds</span>
+                    <textarea id="decision-success-criteria" data-context-field="success_criteria"
+                              maxlength="1200" rows="3"
+                              data-i18n-placeholder="decision_success_criteria_placeholder"
+                              placeholder="Exact measures the decision owner will use, if already defined"></textarea>
+                  </label>
+                  <label>
+                    <span data-i18n="decision_success_authority">Criteria authority</span>
+                    <select id="decision-success-authority" data-context-field="success_criteria_authority">
+                      <option value="" data-i18n="decision_success_unconfirmed">Not confirmed by the decision owner</option>
+                      <option value="owner_approved" data-i18n="decision_success_approved">Explicitly approved by the decision owner</option>
+                    </select>
+                  </label>
+                </div>
+              </details>
               <p class="decision-context__note" data-i18n="decision_context_note">
                 This context is sent to the configured model provider and stored with the run.
                 Criteria are treated as owner-approved only when you explicitly select that status;
@@ -280,8 +329,18 @@
             <span class="pill" id="run-pill"></span>
             <span class="dot-sep"></span>
             <span class="tabular" id="run-elapsed">0:00</span>
+            <span id="run-eta"></span>
+            <button type="button" class="run-notify" id="run-notify" hidden>· Notify me when done</button>
             <span id="run-sources"></span>
-            <span id="run-usage" class="tabular"></span>
+            <span id="run-identity" class="tabular"></span>
+            <details class="run-usage" id="run-usage-details" hidden>
+              <summary id="run-usage-label">Usage &amp; cost</summary>
+              <span id="run-usage" class="tabular"></span>
+            </details>
+            <details class="run-usage" id="run-timing-details" hidden>
+              <summary id="run-timing-label">Stage timing</summary>
+              <span id="run-timing" class="tabular"></span>
+            </details>
             <span id="run-terminal"></span>
             <span id="run-status-record"></span>
             <span id="run-runtime-record"></span>
@@ -289,6 +348,7 @@
             <span id="run-connection" role="status" aria-live="polite"></span>
             <span id="run-recovery"></span>
           </div>
+          <p class="run-outcome" id="run-outcome" hidden></p>
         </div>
         <div class="pane__actions" id="run-actions"></div>
       </header>
@@ -308,21 +368,50 @@
 <div class="gate" id="gate" hidden>
   <div class="gate__card">
 
+    <!-- Accounts (api/accounts.py): shown first when the deployment has them.
+         One form signs in or creates an account; the button text follows the
+         mode. Keys are asked for afterwards and never leave this browser
+         except with the operations the account starts. -->
+    <form id="account-form" hidden>
+      <h2 class="gate__title" id="account-title" data-i18n="account_title">Sign in</h2>
+      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes about 15 minutes.</p>
+      <p class="gate__sub" data-i18n="account_sub">Runs are paid for with API keys you add after signing in. Your keys stay in this browser and are sent only with the operations you start; this server never stores them.</p>
+      <input class="gate__input" id="account-email-input" type="email" autocomplete="username" required
+             maxlength="254" data-i18n-placeholder="account_email_placeholder" placeholder="Email">
+      <input class="gate__input" id="account-password" type="password" autocomplete="current-password" required
+             minlength="10" maxlength="200" data-i18n-placeholder="account_password_placeholder" placeholder="Password (at least 10 characters)">
+      <!-- Shown when registration needs an invite code: in invite mode, or
+           for an address the operator reserved for an administrator. -->
+      <input class="gate__input" id="account-invite" type="text" autocomplete="off" spellcheck="false" maxlength="200"
+             data-i18n-placeholder="account_invite_placeholder" placeholder="Invite code" hidden>
+      <p class="gate__error" id="account-error" hidden></p>
+      <button type="submit" class="btn btn--primary" id="account-submit" data-i18n="account_sign_in">Sign in</button>
+      <button type="button" class="gate__switch" id="account-toggle" data-i18n="account_toggle_to_create">No account? Create one</button>
+      <button type="button" class="gate__switch" id="account-to-code" data-i18n="account_to_code" hidden>Use an access code instead</button>
+    </form>
+
     <form id="gate-form">
       <h2 class="gate__title" data-i18n="gate_title">Access code required</h2>
-      <p class="gate__sub" data-i18n="gate_sub">This is a private demo link. Enter the code you were given.</p>
+      <!-- A visitor arriving from a shared link meets this before anything
+           else, so it says what the app does before asking for a code. -->
+      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes about 15 minutes.</p>
+      <p class="gate__sub" data-i18n="gate_sub">This deployment is invite-only. Enter the access code you were given; if you have none, ask whoever shared this link.</p>
       <input class="gate__input" id="gate-input" type="password" autocomplete="off"
              data-i18n-placeholder="gate_placeholder" placeholder="Access code">
       <p class="gate__error" id="gate-error" hidden></p>
       <button type="submit" class="btn btn--primary" id="gate-submit" data-i18n="gate_submit">Continue</button>
       <button type="button" class="gate__switch" id="gate-to-byok" data-i18n="gate_no_code">No code? Use your own API keys instead</button>
+      <button type="button" class="gate__switch" id="gate-to-account" data-i18n="gate_to_account" hidden>Sign in with an account instead</button>
     </form>
 
     <!-- Bring-your-own-key: an open alternative to the code, billed to
          whoever fills this in rather than to the deployment owner. -->
     <form id="byok-form" hidden>
       <h2 class="gate__title" data-i18n="byok_title">Use your own API keys</h2>
-      <p class="gate__sub" data-i18n="byok_sub">Your keys are sent to this server and the selected providers only for operations you start. They are not written to run artifacts and disappear from this browser when the tab closes.</p>
+      <!-- Shown instead of the sentence below once an account is signed in:
+           the same promise, addressed to the account. -->
+      <p class="gate__sub" id="byok-account-note" hidden></p>
+      <p class="gate__sub" id="byok-sub" data-i18n="byok_sub">Your keys are sent to this server and the selected providers only for operations you start. They are not written to run artifacts and disappear from this browser when the tab closes.</p>
       <!-- Filled from /health when this form is opened, because the number is
            the deployment's, not the page's. The sentence above is about the
            keys; this one is about extracted metadata and the assessment, which
@@ -340,7 +429,10 @@
       <!-- The model the visitor's own key should use. Required: there is no
            default model. byok_fields.js shows an example as the placeholder. -->
       <input class="gate__input" id="byok-model" type="text" autocomplete="off" spellcheck="false"
-             maxlength="100" required placeholder="Model (required)">
+             maxlength="100" required placeholder="Model (required)" list="byok-model-options">
+      <!-- Suggestions only, filled per provider by byok_fields.js; the field
+           stays empty and required until the visitor picks or types one. -->
+      <datalist id="byok-model-options"></datalist>
       <!-- Tavily first: Serper refuses requests from some hosting providers,
            including this deployment's, so a Serper-only run may find nothing. -->
       <select class="gate__input" id="byok-search" aria-label="Web search service">
@@ -356,6 +448,7 @@
       </p>
       <button type="submit" class="btn btn--primary" id="byok-submit" data-i18n="byok_submit">Start</button>
       <button type="button" class="gate__switch" id="byok-to-gate" data-i18n="byok_have_code">I have an access code</button>
+      <button type="button" class="gate__switch" id="byok-skip" data-i18n="byok_skip" hidden>Add keys later</button>
     </form>
 
     <!-- Outside both forms so it shows whichever one is up. A visitor with
@@ -370,5 +463,6 @@
 <script type="module" src="/static/js/byok_fields.js"></script>
 <script type="module" src="/static/js/chrome.js"></script>
 <script type="module" src="/static/js/starters.js"></script>
+<script type="module" src="/static/js/decision_context.js"></script>
 </body>
 </html>

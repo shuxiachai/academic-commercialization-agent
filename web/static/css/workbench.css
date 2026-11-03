@@ -391,6 +391,47 @@
   white-space: nowrap;
 }
 
+/* Opt-in completion notice; shown only while the browser has not been asked. */
+#pane-run .run-notify {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+#pane-run .run-notify:hover { color: var(--text-secondary); }
+
+/* Usage and its accounting caveats, and stage timing: folded behind one click, never removed. */
+#pane-run .run-usage { min-width: 0; max-width: 100%; }
+#pane-run .run-usage > summary {
+  cursor: pointer;
+  list-style: none;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+#pane-run .run-usage > summary::-webkit-details-marker { display: none; }
+#pane-run .run-usage > summary:hover { color: var(--text-secondary); }
+#pane-run .run-usage[open] { flex-basis: 100%; }
+#pane-run .run-usage > #run-usage,
+#pane-run .run-usage > #run-timing {
+  display: block;
+  margin-top: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+/* Why a run ended and whether it spent one of today's runs: a full line under
+   the metadata, in body text rather than the metadata's tertiary grey. */
+#pane-run .run-outcome {
+  margin: var(--space-2) 0 0;
+  max-width: 72ch;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
 .dot-sep {
   width: 3px; height: 3px;
   border-radius: var(--radius-full);
@@ -595,6 +636,13 @@
   color: var(--text-secondary);
 }
 
+.composer__quota {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.composer__quota--empty { color: var(--danger); }
+
 .composer__privacy {
   margin: 0 var(--space-4) var(--space-4);
   padding-top: var(--space-3);
@@ -602,6 +650,86 @@
   color: var(--text-tertiary);
   font-size: var(--text-xs);
   line-height: 1.5;
+}
+
+/* Search-plan preview: the planner's reading of the topic, confirmed or
+   edited before a code-funded run starts. */
+.plan-panel {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
+}
+.plan-panel__title {
+  margin: 0 0 var(--space-2);
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.plan-panel__lede {
+  margin: 0 0 var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+.plan-panel__label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.plan-panel__group { display: block; margin-bottom: var(--space-3); }
+.plan-panel__group input {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.plan-panel__group input:focus { outline: none; border-color: var(--accent); }
+.plan-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.plan-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px 2px 2px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.plan-chip button {
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+}
+.plan-chip button:hover { color: var(--text-primary); }
+.plan-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
 }
 
 .decision-context {
@@ -705,6 +833,27 @@
   box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 .decision-context__wide { grid-column: 1 / -1; }
+.decision-context__field { display: grid; gap: var(--space-2); align-content: start; }
+.decision-picks { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.decision-picks .chip-btn { height: 26px; font-size: var(--text-xs); }
+.decision-context__status {
+  margin: 0 var(--space-4) var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.decision-context__more {
+  margin: 0 var(--space-4) var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+.decision-context__more > summary {
+  padding: var(--space-3) 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.decision-context__more > .decision-context__grid { padding: 0 0 var(--space-2); }
 
 @media (max-width: 640px) {
   .decision-context__grid { grid-template-columns: 1fr; }
@@ -934,6 +1083,15 @@
   font-size: var(--text-2xl);
   letter-spacing: -0.018em;
 }
+.gate__intro {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-overlay);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
 .gate__sub {
   margin-bottom: var(--space-2);
   font-size: var(--text-base);
@@ -1011,11 +1169,22 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   font-weight: 500;
 }
 .byok-badge #byok-exit,
-.byok-badge #code-exit {
+.byok-badge #code-exit,
+.byok-badge #account-keys,
+.byok-badge #account-exit {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
   flex-shrink: 0;
+  white-space: nowrap;
+}
+/* An email can be long; the badge keeps one line and lets it ellipsize. */
+.byok-badge--account #account-email {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .workbench[data-collapsed="true"] .byok-badge { display: none; }
 

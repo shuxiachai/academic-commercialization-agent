@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import openalex_precision_unseen as unseen
-
-
+from experiments.openalex_retrieval import openalex_precision_unseen as unseen
 def test_dry_run_expands_exact_unseen_contract_without_live_authority():
     result = unseen.dry_run()
 
@@ -121,7 +119,7 @@ def test_correction_refuses_to_retarget_when_expected_phrases_drift(tmp_path):
 
 
 def test_preflight_source_does_not_import_provider_or_live_runner():
-    source = Path("openalex_precision_unseen.py").read_text(encoding="utf-8")
+    source = Path("experiments/openalex_retrieval/openalex_precision_unseen.py").read_text(encoding="utf-8")
 
     assert "anonymous_openalex_search" not in source
     assert "evidence_gap_openalex_live" not in source

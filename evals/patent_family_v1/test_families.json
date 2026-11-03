@@ -1,0 +1,5292 @@
+{
+ "patents": [
+  {
+   "number": "US10144533B2",
+   "url": "https://patents.google.com/patent/US10144533B2/en",
+   "title": "US10144533B2 - Large-scale space-based solar power station: multi-scale modular space power - Google Patents",
+   "status": 200,
+   "own": "US10144533",
+   "docdb": [
+    "WO2015179213A2",
+    "WO2015175839A1",
+    "US10340698B2",
+    "US20160376037A1",
+    "US20160380580A1",
+    "WO2015179213A3"
+   ],
+   "direct": [
+    "US20160380580A1"
+   ]
+  },
+  {
+   "number": "US3781647A",
+   "url": "https://patents.google.com/patent/US3781647A/en",
+   "title": "US3781647A - Method and apparatus for converting solar radiation to electrical power - Google Patents",
+   "status": 200,
+   "own": "US3781647",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US20100276547A1",
+   "url": "https://patents.google.com/patent/US20100276547A1/en",
+   "title": "US20100276547A1 - Systems for solar power beaming from space - Google Patents",
+   "status": 200,
+   "own": "US20100276547A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US9346563B1",
+   "url": "https://patents.google.com/patent/US9346563B1/en",
+   "title": "US9346563B1 - Solar powered space weapon - Google Patents",
+   "status": 200,
+   "own": "US9346563",
+   "docdb": [
+    "US8991766B1",
+    "US8757552B1",
+    "US9511881B1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US9511881B1",
+   "url": "https://patents.google.com/patent/US9511881B1/en",
+   "title": "US9511881B1 - Dispersed space based laser weapon - Google Patents",
+   "status": 200,
+   "own": "US9511881",
+   "docdb": [
+    "US8991766B1",
+    "US8757552B1",
+    "US9346563B1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20100224696A1",
+   "url": "https://patents.google.com/patent/US20100224696A1/en",
+   "title": "US20100224696A1 - Weather management using space-based power system - Google Patents",
+   "status": 200,
+   "own": "US20100224696A1",
+   "docdb": [
+    "US20110204159A1",
+    "US20060201547A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20240022118A1",
+   "url": "https://patents.google.com/patent/US20240022118A1/en",
+   "title": "US20240022118A1 - Space-based solar power system - Google Patents",
+   "status": 200,
+   "own": "US20240022118A1",
+   "docdb": [
+    "EP4555625A1",
+    "CN119547325A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US6936760B2",
+   "url": "https://patents.google.com/patent/US6936760B2/en",
+   "title": "US6936760B2 - Space-based power system - Google Patents",
+   "status": 200,
+   "own": "US6936760",
+   "docdb": [
+    "WO2004049538A2",
+    "BRPI0316651B1",
+    "EP1570531B1",
+    "AU2003298746A8",
+    "CN100521250C",
+    "JP4478031B2",
+    "EP2360097A2",
+    "ES2372535T3",
+    "US20060185726A1",
+    "CA2507237C",
+    "RU2005120149A",
+    "EP1570531A2",
+    "RU2009144709A",
+    "RU2587209C2",
+    "RU2587209C9",
+    "CN1742379A",
+    "EP1570531A4",
+    "BR0316651A",
+    "US7612284B2",
+    "JP2006507974A",
+    "WO2004049538A3",
+    "CA2507237A1",
+    "US20040173257A1",
+    "AU2003298746A1",
+    "ATE521537T1"
+   ],
+   "direct": [
+    "US20040173257A1"
+   ]
+  },
+  {
+   "number": "WO2023022074",
+   "url": "https://patentscope.wipo.int/search/en/WO2023022074",
+   "title": "glass substrate for space-based solar power generation",
+   "status": 200,
+   "own": "WO2023022074A1",
+   "docdb": [
+    "CN117813269A",
+    "US20240300848A1",
+    "JP2025126190A",
+    "JP7712608B2",
+    "JPWO2023022074A1",
+    "JP2025105785A",
+    "DE112022004003T5",
+    "JP7769316B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2015179213",
+   "url": "https://patentscope.wipo.int/search/en/WO2015179213",
+   "title": "1. wo2015179213 - large-scale space-based solar power station",
+   "status": 200,
+   "own": "WO2015179213A2",
+   "docdb": [
+    "US10144533B2",
+    "WO2015175839A1",
+    "US10340698B2",
+    "US20160376037A1",
+    "US20160380580A1",
+    "WO2015179213A3"
+   ],
+   "direct": [
+    "WO2015179213A3"
+   ]
+  },
+  {
+   "number": "US6194790",
+   "url": "https://patents.justia.com/patent/6194790",
+   "title": "Solar sail for power generation",
+   "status": 200,
+   "own": "US6194790",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2026046134",
+   "url": "https://patentscope.wipo.int/search/en/WO2026046134",
+   "title": "PEROVSKITE SOLAR CELL AND PREPARATION METHOD THEREFOR, PHOTOVOLTAIC MODULE, POWER GENERATION DEVICE, AND ELECTRIC DEVICE",
+   "status": 200,
+   "own": "WO2026046134A1",
+   "docdb": [
+    "CN121646110A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2025193925",
+   "url": "https://patentscope.wipo.int/search/en/WO2025193925",
+   "title": "WO2025193925 SIMULTANEOUS SUB-AMBIENT DAYTIME RADIATIVE COOLING AND PHOTOVOLTAIC POWER GENERATION FROM THE SAME AREA",
+   "status": 200,
+   "own": "WO2025193925A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2013188128A1",
+   "url": "https://patents.google.com/patent/WO2013188128A1/un",
+   "title": "WO2013188128A1 - Small modular reactor safety systems",
+   "status": 200,
+   "own": "WO2013188128A1",
+   "docdb": [
+    "EP2862176A1",
+    "CN104520939A",
+    "EP2862176B1",
+    "CN104520939B",
+    "EP2862176A4",
+    "KR102111813B1",
+    "KR20150023678A",
+    "US9275761B2",
+    "JP6243903B2",
+    "JP2015519583A",
+    "US20130336441A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2015085241A1",
+   "url": "https://patents.google.com/patent/WO2015085241A1/en",
+   "title": "Slimm-scalable liquid metal cooled small modular reactor",
+   "status": 200,
+   "own": "WO2015085241A1",
+   "docdb": [
+    "US20160329113A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US7482607B2",
+   "url": "https://patents.google.com/patent/US7482607B2/en",
+   "title": "US7482607B2 - Method and apparatus for producing x-rays, ion beams and nuclear fusion energy - Google Patents",
+   "status": 200,
+   "own": "US7482607",
+   "docdb": [
+    "CA2642749C",
+    "CA2642749A1",
+    "ES2671448T3",
+    "EP1989714A4",
+    "WO2008054463A2",
+    "CN101443853B",
+    "AU2007314648B2",
+    "AU2007314648A1",
+    "EP1989714B1",
+    "WO2008054463A3",
+    "CN101443853A",
+    "EP1989714A2",
+    "US20070201598A1"
+   ],
+   "direct": [
+    "US20070201598A1"
+   ]
+  },
+  {
+   "number": "CN2563708Y",
+   "url": "https://patents.google.com/patent/CN2563708Y/en",
+   "title": "CN2563708Y - Controllable nuclear fusion power device",
+   "status": 200,
+   "own": "CN2563708Y",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2018208953A1",
+   "url": "https://patents.google.com/patent/WO2018208953A1/en",
+   "title": "WO2018208953A1 - Generating nuclear fusion reactions with the use of ion beam injection in high pressure magnetic cusp devices - Google Patents",
+   "status": 200,
+   "own": "WO2018208953A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US6888434B2",
+   "url": "https://patents.google.com/patent/US6888434B2/en",
+   "title": "US6888434B2 - Nuclear fusion reactor incorporating spherical electromagnetic fields to contain and extract energy - Google Patents",
+   "status": 200,
+   "own": "US6888434",
+   "docdb": [
+    "US7079001B2",
+    "US20050157832A1",
+    "US20040251996A1",
+    "US20020101949A1"
+   ],
+   "direct": [
+    "US20040251996A1"
+   ]
+  },
+  {
+   "number": "US20030002610A1",
+   "url": "https://patents.google.com/patent/US20030002610A1/en",
+   "title": "Nuclear fusion and energy conversion apparatus",
+   "status": 200,
+   "own": "US20030002610A1",
+   "docdb": [
+    "EP1371064A2",
+    "WO2002086908A8",
+    "US10079075B2",
+    "WO2002086908A2",
+    "WO2002086908A3"
+   ],
+   "direct": [
+    "US10079075B2"
+   ]
+  },
+  {
+   "number": "EP0461690A2",
+   "url": "https://patents.google.com/patent/EP0461690A2/en",
+   "title": "EP0461690A2 - Cold nuclear fusion thermal generator",
+   "status": 200,
+   "own": "EP0461690A2",
+   "docdb": [
+    "EP0461690A3"
+   ],
+   "direct": [
+    "EP0461690A3"
+   ]
+  },
+  {
+   "number": "US4172008A",
+   "url": "https://patents.google.com/patent/US4172008A/en",
+   "title": "US4172008A - Nuclear fusion reactor - Google Patents",
+   "status": 200,
+   "own": "US4172008",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2026030948",
+   "url": "https://patentscope.wipo.int/search/ru/detail.jsf;jsessionid=D4D1CC68985D20FB71A632558BC3ADB6.wapp1nB?docId=WO2026030948",
+   "title": "positive ion cyclic collision nuclear fusion reactor",
+   "status": 200,
+   "own": "WO2026030948A1",
+   "docdb": [
+    "WO2026031925A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20230000564A1",
+   "url": "https://patents.google.com/patent/US20230000564A1/en",
+   "title": "US20230000564A1 - Systems and methods for high-bandwidth minimally invasive brain-computer interfaces - Google Patents",
+   "status": 200,
+   "own": "US20230000564A1",
+   "docdb": [
+    "WO2023278888A1",
+    "US12508084B2",
+    "US20250082414A1",
+    "US20260124002A1",
+    "US12508079B2",
+    "AU2022303400A1",
+    "EP4363040A4",
+    "AU2022303400B2",
+    "EP4363040A1"
+   ],
+   "direct": [
+    "US12508079B2"
+   ]
+  },
+  {
+   "number": "US11269414B2",
+   "url": "https://patents.google.com/patent/US11269414B2/ko",
+   "title": "US11269414B2 - Brain-computer interface with high-speed eye tracking features - Google Patents",
+   "status": 200,
+   "own": "US11269414",
+   "docdb": [
+    "KR102718810B1",
+    "JP2024167203A",
+    "US20220404910A1",
+    "US11972049B2",
+    "EP3672478A4",
+    "EP3672478B1",
+    "KR20200101906A",
+    "JP2020532031A",
+    "US12455625B2",
+    "CN111629653A",
+    "CN111629653B",
+    "US20250053238A1",
+    "EP3672478A1",
+    "US20200192478A1",
+    "WO2019040665A1",
+    "JP7532249B2"
+   ],
+   "direct": [
+    "US20200192478A1"
+   ]
+  },
+  {
+   "number": "US7120486B2",
+   "url": "https://patents.google.com/patent/US7120486B2/en",
+   "title": "US7120486B2 - Brain computer interface - Google Patents",
+   "status": 200,
+   "own": "US7120486",
+   "docdb": [
+    "WO2005060827A1",
+    "US20050131311A1",
+    "CA2547768A1",
+    "EP1691682A1",
+    "EP1691682A4",
+    "CA2547768C"
+   ],
+   "direct": [
+    "US20050131311A1"
+   ]
+  },
+  {
+   "number": "US9468541B2",
+   "url": "https://patents.google.com/patent/US9468541B2/en",
+   "title": "US9468541B2 - Time domain-based methods for noninvasive brain-machine interfaces - Google Patents",
+   "status": 200,
+   "own": "US9468541",
+   "docdb": [
+    "WO2011140303A1",
+    "US20140058528A1"
+   ],
+   "direct": [
+    "US20140058528A1"
+   ]
+  },
+  {
+   "number": "WO2018109715",
+   "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2018109715",
+   "title": "BRAIN COMPUTER INTERFACE SYSTEMS AND METHODS OF USE THEREOF",
+   "status": 200,
+   "own": "WO2018109715A1",
+   "docdb": [
+    "EP3554627A1",
+    "JP2020501743A",
+    "KR20190097146A",
+    "CN110248697A",
+    "US20200023189A1",
+    "CA3046937A1",
+    "AU2017377015A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20230279756A1",
+   "url": "https://patents.google.com/patent/US20230279756A1/en",
+   "title": "US20230279756A1 - Small modular nuclear reactor integrated energy systems for industrial applications, such as enhanced oil recovery operations - Google Patents",
+   "status": 200,
+   "own": "US20230279756A1",
+   "docdb": [
+    "GB202413691D0",
+    "WO2023167768A2",
+    "WO2023167768A3",
+    "US12247471B2",
+    "GB2631361A",
+    "CA3244256A1"
+   ],
+   "direct": [
+    "US12247471B2"
+   ]
+  },
+  {
+   "number": "US20240124985A1",
+   "url": "https://patents.google.com/patent/US20240124985A1/de",
+   "title": "US20240124985A1 - Small modular nuclear reactor integrated energy systems for in-situ, on-demand hydrogen generation and/or the production of sodium formate - Google Patents",
+   "status": 200,
+   "own": "US20240124985A1",
+   "docdb": [
+    "WO2024081935A1",
+    "KR20250089517A",
+    "CA3268125A1",
+    "JP2025534668A",
+    "EP4602625A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20110049992A1",
+   "url": "https://patents.google.com/patent/US20110049992A1/en",
+   "title": "US20110049992A1 - Systems, methods, and devices including modular, fixed and transportable structures incorporating solar and wind generation technologies for production of electricity - Google Patents",
+   "status": 200,
+   "own": "US20110049992A1",
+   "docdb": [
+    "US20170012464A1",
+    "US10852037B2",
+    "US9422922B2"
+   ],
+   "direct": [
+    "US9422922B2"
+   ]
+  },
+  {
+   "number": "US9422922B2",
+   "url": "https://patents.google.com/patent/US9422922B2/en",
+   "title": "US9422922B2 - Systems, methods, and devices including modular, fixed and transportable structures incorporating solar and wind generation technologies for production of electricity - Google Patents",
+   "status": 200,
+   "own": "US9422922",
+   "docdb": [
+    "US20170012464A1",
+    "US20110049992A1",
+    "US10852037B2"
+   ],
+   "direct": [
+    "US20110049992A1"
+   ]
+  },
+  {
+   "number": "US10852037B2",
+   "url": "https://patents.google.com/patent/US10852037B2/en",
+   "title": "US10852037B2 - Systems, methods, and devices including modular, fixed and transportable structures incorporating solar and wind generation technologies for production of electricity - Google Patents",
+   "status": 200,
+   "own": "US10852037",
+   "docdb": [
+    "US20170012464A1",
+    "US20110049992A1",
+    "US9422922B2"
+   ],
+   "direct": [
+    "US20170012464A1"
+   ]
+  },
+  {
+   "number": "CA2602288C",
+   "url": "https://patents.google.com/patent/CA2602288C/en",
+   "title": "CA2602288C - Modular system for generating electricity from moving fluid - Google Patents",
+   "status": 200,
+   "own": "CA2602288C",
+   "docdb": [
+    "CA2602288A1"
+   ],
+   "direct": [
+    "CA2602288A1"
+   ]
+  },
+  {
+   "number": "US8177480B2",
+   "url": "https://patents.google.com/patent/US8177480B2/en",
+   "title": "US8177480B2 - Modular system for generating electricity from moving fluid - Google Patents",
+   "status": 200,
+   "own": "US8177480",
+   "docdb": [
+    "WO2006108264A9",
+    "US20090026767A1",
+    "CA2531708A1",
+    "WO2006108264A1"
+   ],
+   "direct": [
+    "US20090026767A1"
+   ]
+  },
+  {
+   "number": "US9082516B2",
+   "url": "https://patents.google.com/patent/US9082516B2/en",
+   "title": "US9082516B2 - Apparatus, systems and methods for fusion based power generation and engine thrust generation - Google Patents",
+   "status": 200,
+   "own": "US9082516",
+   "docdb": [
+    "WO2013112221A2",
+    "WO2013112221A3",
+    "CA2854823A1",
+    "CA2854823C",
+    "US20140023170A1",
+    "US9524802B2",
+    "US20150364220A1"
+   ],
+   "direct": [
+    "US20140023170A1"
+   ]
+  },
+  {
+   "number": "US20220375629A1",
+   "url": "https://patents.google.com/patent/US20220375629A1/en",
+   "title": "US20220375629A1 - Methods, devices and systems for fusion reactions - Google Patents",
+   "status": 200,
+   "own": "US20220375629A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US9947420B2",
+   "url": "https://patents.google.com/patent/US9947420B2/en",
+   "title": "US9947420B2 - Magnetic field plasma confinement for compact fusion power - Google Patents",
+   "status": 200,
+   "own": "US9947420",
+   "docdb": [
+    "ZA201507819B",
+    "US20140301518A1",
+    "US20140301517A1",
+    "EP2981967A1",
+    "WO2014204553A3",
+    "CA2908465A1",
+    "JP2016521359A",
+    "AU2014281138B2",
+    "CL2015002948A1",
+    "PL2981967T3",
+    "EP2981971A2",
+    "KR102201954B1",
+    "WO2014165641A1",
+    "DK2981967T3",
+    "SG11201508212SA",
+    "PT2981967T",
+    "CA2908480A1",
+    "SA515361258B1",
+    "AU2014248145B2",
+    "WO2014204558A2",
+    "EP2981971B1",
+    "CA2908465C",
+    "ES2640459T3",
+    "US9928926B2",
+    "KR20150136538A",
+    "US20140301519A1",
+    "BR112015025235A2",
+    "AU2014248145A1",
+    "EP2981969A2",
+    "KR102197522B1",
+    "EP2981969B1",
+    "NZ712921A",
+    "IL241924B",
+    "JP6563897B2",
+    "EP2981967B1",
+    "JP6571634B2",
+    "CA2908480C",
+    "KR20150139564A",
+    "WO2014204558A3",
+    "US9928927B2",
+    "JP2016521358A",
+    "WO2014204553A2",
+    "BR112015025235B1",
+    "SG11201508228SA",
+    "AU2014281138A1"
+   ],
+   "direct": [
+    "US20140301518A1"
+   ]
+  },
+  {
+   "number": "US20120014491A1",
+   "url": "https://patents.google.com/patent/US20120014491A1/en",
+   "title": "US20120014491A1 - Nuclear fusion power plant having a liquid reactor core of molten glass that is made laseractive and functions as a tritium breeding blanket which is capable of acousticly compressing/confining fuel so that it radiates and triggers outgoing laser cascades that will reflect from the blast chamber's spherical inside wall and return like photonic Tsunamis, crushing, heating, and causing thermonuclear ignition of the fuel so that heat engines and piezoelectric harvesters can convert the released energy into electricity - Google Patents",
+   "status": 200,
+   "own": "US20120014491A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2022161934",
+   "url": "https://patentscope.wipo.int/search/en/WO2022161934",
+   "title": "systems and methods for non-thermal fusion enhancement using ...",
+   "status": 200,
+   "own": "WO2022161934A2",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US12106204B2",
+   "url": "https://patents.google.com/patent/US12106204B2/zh",
+   "title": "Adaptive brain-computer interface decoding method based on ...",
+   "status": 200,
+   "own": "US12106204",
+   "docdb": [
+    "WO2022142653A1",
+    "CN112764526A",
+    "CN112764526B",
+    "US20230244909A1"
+   ],
+   "direct": [
+    "US20230244909A1"
+   ]
+  },
+  {
+   "number": "US20230133022A1",
+   "url": "https://patents.google.com/patent/US20230133022A1/en",
+   "title": "US20230133022A1 - Brain computer interface (bci) system that can be implemented on multiple devices - Google Patents",
+   "status": 200,
+   "own": "US20230133022A1",
+   "docdb": [
+    "US11972050B2",
+    "US20240256043A1"
+   ],
+   "direct": [
+    "US11972050B2"
+   ]
+  },
+  {
+   "number": "WO2020212952A1",
+   "url": "https://patents.google.com/patent/WO2020212952A1/en",
+   "title": "WO2020212952A1 - Treatment of depression and other various disorders with psilocybin - Google Patents",
+   "status": 200,
+   "own": "WO2020212952A1",
+   "docdb": [
+    "AU2020259406A1",
+    "US12433904B2",
+    "US11738035B2",
+    "JP2022529476A",
+    "US12611418B2",
+    "JP2025036702A",
+    "WO2020212948A1",
+    "CA3138094A1",
+    "US11865126B2",
+    "CA3138100A1",
+    "US20220169668A1",
+    "CN113993523A",
+    "US20250302851A1",
+    "AU2020257625B2",
+    "AU2026204322A1",
+    "KR20220008824A",
+    "TW202103699A",
+    "JP2025036703A",
+    "JP2025039633A",
+    "US20230000883A1",
+    "US20260207639A1",
+    "EP3955918A1",
+    "JP2022529781A",
+    "AU2020258086B2",
+    "CA3138008A1",
+    "US20220088041A1",
+    "US12377112B2",
+    "US20230330117A1",
+    "AU2020259406B2",
+    "US20230124137A1",
+    "CN113993522A",
+    "US12447164B2",
+    "US20230023092A1",
+    "KR20220009954A",
+    "US20250367223A1",
+    "AU2026205455A1",
+    "US11564935B2",
+    "US20240252521A1",
+    "AU2020257625A1",
+    "AU2026204976A1",
+    "EP3955936A1",
+    "JP2022529353A",
+    "WO2020212951A1",
+    "KR20220009955A",
+    "AU2020258086A1",
+    "CN114206349A",
+    "EP3955919A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20250000881A1",
+   "url": "https://patents.google.com/patent/US20250000881A1/boite-100-ogives-Hornady-Match-HP-cal-224-22-poids-53grs--item-6527213.html",
+   "title": "Treatment of treatment resistant depression with psilocybin",
+   "status": 200,
+   "own": "US20250000881A1",
+   "docdb": [
+    "EP4429671A1",
+    "KR20240110816A",
+    "JP2024543379A",
+    "MX2024005632A",
+    "WO2023086252A1",
+    "AU2022387053A1",
+    "CA3237885A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US10869844B2",
+   "url": "https://patents.google.com/patent/US10869844B2/en",
+   "title": "US10869844B2 - Methods for the treatment of depression - Google Patents",
+   "status": 200,
+   "own": "US10869844",
+   "docdb": [
+    "MX2017003366A",
+    "EP3193853A1",
+    "JP2021054829A",
+    "IL251068A0",
+    "EP3725307A1",
+    "CN107208133A",
+    "US11173134B2",
+    "WO2016044150A1",
+    "IL279119A",
+    "US11311500B2",
+    "MA40620A",
+    "US20250255835A1",
+    "US20210106545A1",
+    "JP2017528483A",
+    "US20160074340A1",
+    "US20230089113A1",
+    "US20210308076A1",
+    "AU2015318123A1",
+    "KR20170054470A",
+    "CA2961208A1",
+    "US20200246279A1"
+   ],
+   "direct": [
+    "US20200246279A1"
+   ]
+  },
+  {
+   "number": "US20210137908A1",
+   "url": "https://patents.google.com/patent/US20210137908A1/en",
+   "title": "US20210137908A1 - 5-ht2a agonists for use in treatment of depression - Google Patents",
+   "status": 200,
+   "own": "US20210137908A1",
+   "docdb": [
+    "AU2020379225A1",
+    "ES2953926T3",
+    "FI3962601T3",
+    "MA55821B1",
+    "PT3962601T",
+    "EP3962601B1",
+    "IL292585B2",
+    "US11642336B2",
+    "ZA202204809B",
+    "CN114761083B",
+    "IL292585B1",
+    "BR112022008037A2",
+    "HRP20230856T1",
+    "SI3962601T1",
+    "JP2023501275A",
+    "MA55821A",
+    "DK3962601T3",
+    "IL292585A",
+    "US20210330658A1",
+    "AU2020379225B2",
+    "US20220062257A1",
+    "US11633390B2",
+    "LT3962601T",
+    "CA3156513A1",
+    "JP7566021B2",
+    "EP3962601A1",
+    "MD3962601T2",
+    "US11246860B2",
+    "HUE062369T2",
+    "PL3962601T3",
+    "CN114761083A",
+    "WO2021089824A1"
+   ],
+   "direct": [
+    "US11246860B2"
+   ]
+  },
+  {
+   "number": "EP3501542A1",
+   "url": "https://patents.google.com/patent/EP3501542A1/en",
+   "title": "EP3501542A1 - Esketamine for the treatment of depression - Google Patents",
+   "status": 200,
+   "own": "EP3501542A1",
+   "docdb": [
+    "PH12020500555A1",
+    "CN117531017A",
+    "IL319020A",
+    "EP3501542B1",
+    "CN112423789A",
+    "NZ765616A",
+    "JP2024001204A",
+    "TW202415363A",
+    "TWI843711B",
+    "KR102966746B1",
+    "US11707440B2",
+    "EP4755453A3",
+    "JP2026027257A",
+    "DK3501542T3",
+    "FI3501542T3",
+    "BR112020012473A2",
+    "KR20200113197A",
+    "JP2021506924A",
+    "TW201940162A",
+    "AU2018282466A1",
+    "PT3501542T",
+    "MX2020006650A",
+    "HRP20260519T1",
+    "US20240000728A1",
+    "IL275482A",
+    "US20210386688A1",
+    "WO2019126108A1",
+    "EP4755453A2",
+    "SMT202600184T1",
+    "IL275482B1",
+    "JP7807870B2",
+    "SG11202005896WA",
+    "AU2024227438B2",
+    "KR20240011237A",
+    "MA47719B1",
+    "CA3086478A1",
+    "LT3501542T",
+    "MX2023012450A",
+    "US20250332121A1",
+    "ES3068171T3",
+    "MA47719A",
+    "RU2020123893A3",
+    "AU2024227438A1",
+    "RU2020123893A",
+    "SI3501542T1",
+    "KR20260085455A",
+    "RS68008B1",
+    "JOP20200156A1",
+    "PL3501542T3"
+   ],
+   "direct": [
+    "EP3501542B1"
+   ]
+  },
+  {
+   "number": "EP3731815A1",
+   "url": "https://patents.google.com/patent/EP3731815A1/en",
+   "title": "EP3731815A1 - Dry powder ketamine composition for use in the treatment of depression by pulmonary administration - Google Patents",
+   "status": 200,
+   "own": "EP3731815A1",
+   "docdb": [
+    "DK3731815T3",
+    "JP2021510682A",
+    "JP7315556B2",
+    "BR112020013282A2",
+    "MX2020006900A",
+    "PT3505157T",
+    "US12440440B2",
+    "CA3087090A1",
+    "PL3505157T3",
+    "EA202091618A1",
+    "CN111818912A",
+    "PL3731815T3",
+    "HUE058320T2",
+    "WO2019129397A1",
+    "AU2025201057A1",
+    "PT3731815T",
+    "AU2018395791A1",
+    "EP3505157B1",
+    "ES2907781T3",
+    "KR20200105857A",
+    "US20250170059A1",
+    "ES2907692T3",
+    "US20250090457A1",
+    "KR102763099B1",
+    "EP3731815B1",
+    "AU2018395791B2",
+    "EP3505157A1",
+    "US20200337999A1",
+    "DK3505157T3",
+    "KR20250024526A",
+    "HUE058099T2"
+   ],
+   "direct": [
+    "EP3731815B1"
+   ]
+  },
+  {
+   "number": "CN102133216A",
+   "url": "https://patents.google.com/patent/CN102133216A/en",
+   "title": "CN102133216A - Combined medicine for curing treatment-resistant depression and applications thereof - Google Patents",
+   "status": 200,
+   "own": "CN102133216A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US11801256B2",
+   "url": "https://patents.google.com/patent/US11801256B2/en",
+   "title": "US11801256B2 - Antidepressant-psilocybin co-treatment ...",
+   "status": 200,
+   "own": "US11801256",
+   "docdb": [
+    "US20220387456A1",
+    "WO2022259046A1"
+   ],
+   "direct": [
+    "US20220387456A1"
+   ]
+  },
+  {
+   "number": "US12257547B2",
+   "url": "https://patents.google.com/patent/US12257547B2/zh",
+   "title": "US12257547B2 - Direct air capture system - Google Patents",
+   "status": 200,
+   "own": "US12257547",
+   "docdb": [
+    "EP4440725B1",
+    "CN118591410A",
+    "CL2024002228A1",
+    "EP4440725C0",
+    "AU2023211002A1",
+    "EP4440725A1",
+    "CA3244418A1",
+    "WO2023144018A1",
+    "ES3072443T3",
+    "CN118591410B",
+    "AU2023211002B2",
+    "EP4218989A1",
+    "US20250001357A1"
+   ],
+   "direct": [
+    "US20250001357A1"
+   ]
+  },
+  {
+   "number": "US20170106330A1",
+   "url": "https://patents.google.com/patent/US20170106330A1/en",
+   "title": "US20170106330A1 - Direct air capture device - Google Patents",
+   "status": 200,
+   "own": "US20170106330A1",
+   "docdb": [
+    "US10232305B2",
+    "EP3151947B1",
+    "CN106488795B",
+    "WO2015185434A1",
+    "EP3151947A1",
+    "CN106488795A"
+   ],
+   "direct": [
+    "US10232305B2"
+   ]
+  },
+  {
+   "number": "US20170203249A1",
+   "url": "https://patents.google.com/patent/US20170203249A1/es",
+   "title": "US20170203249A1 - Steam assisted vacuum desorption process for carbon dioxide capture - Google Patents",
+   "status": 200,
+   "own": "US20170203249A1",
+   "docdb": [
+    "WO2016005226A1",
+    "JP2017528318A",
+    "EP3166708A1",
+    "US10279306B2",
+    "JP6622302B2",
+    "EP3166708B1"
+   ],
+   "direct": [
+    "US10279306B2"
+   ]
+  },
+  {
+   "number": "WO2022109746A1",
+   "url": "https://patents.google.com/patent/WO2022109746A1/en",
+   "title": "WO2022109746A1 - Direct air capture and concentration of co2 using adsorbents - Google Patents",
+   "status": 200,
+   "own": "WO2022109746A1",
+   "docdb": [
+    "DK202370339A1",
+    "EP4251304A1",
+    "EP4251304A4",
+    "US20240001286A1",
+    "CA3200387A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2025012458A1",
+   "url": "https://patents.google.com/patent/WO2025012458A1/en",
+   "title": "WO2025012458A1 - Calcium hydroxide composition and carbon removal in air using the same - Google Patents",
+   "status": 200,
+   "own": "WO2025012458A1",
+   "docdb": [
+    "EP4743210A1",
+    "US20250041797A1",
+    "AU2024287841A1",
+    "CL2025004071A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2021188547A1",
+   "url": "https://patents.google.com/patent/WO2021188547A1/en",
+   "title": "WO2021188547A1 - Autothermal direct air capture system - Google Patents",
+   "status": 200,
+   "own": "WO2021188547A1",
+   "docdb": [
+    "US20230158451A1",
+    "EP4121191A1",
+    "EP4121191A4"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2019092128A1",
+   "url": "https://patents.google.com/patent/WO2019092128A1/en",
+   "title": "WO2019092128A1 - Materials for the direct capture of carbon dioxide from atmospheric air - Google Patents",
+   "status": 200,
+   "own": "WO2019092128A1",
+   "docdb": [
+    "US11612879B2",
+    "WO2019092127A1",
+    "EP3706898B1",
+    "US20210187480A1",
+    "EP3706898A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US8119091B2",
+   "url": "https://patents.google.com/patent/US8119091B2/en",
+   "title": "US8119091B2 - Carbon dioxide capture - Google Patents",
+   "status": 200,
+   "own": "US8119091",
+   "docdb": [
+    "US20100034724A1",
+    "EP2303432A4",
+    "WO2009155539A3",
+    "CN102112208A",
+    "EP2303432A2",
+    "CA2728521A1",
+    "WO2009155539A2"
+   ],
+   "direct": [
+    "US20100034724A1"
+   ]
+  },
+  {
+   "number": "CN114127416A",
+   "url": "https://patents.google.com/patent/CN114127416A/en",
+   "title": "CN114127416A - Floating wind turbine including integrated substation - Google Patents",
+   "status": 200,
+   "own": "CN114127416A",
+   "docdb": [
+    "US12173686B2",
+    "KR20220025024A",
+    "JP2022544482A",
+    "EP4013961B1",
+    "EP4013961A1",
+    "US20220299011A1",
+    "JP7350986B2",
+    "TW202108446A",
+    "AU2020333165B2",
+    "ES2948015T3",
+    "KR102668342B1",
+    "DE102019122110A1",
+    "CA3140738A1",
+    "WO2021032422A1",
+    "TWI856143B",
+    "PT4013961T",
+    "MX2022001994A",
+    "BR112021025078A2",
+    "AU2020333165A1",
+    "NZ783421A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US7612462B2",
+   "url": "https://patents.google.com/patent/US7612462B2/no",
+   "title": "US7612462B2 - Floating wind turbine system",
+   "status": 200,
+   "own": "US7612462",
+   "docdb": [
+    "CN101918704A",
+    "CN101918704B",
+    "GB201005807D0",
+    "WO2009048830A1",
+    "GB2473897B",
+    "US20090091136A1",
+    "GB2473897A"
+   ],
+   "direct": [
+    "US20090091136A1"
+   ]
+  },
+  {
+   "number": "US11149716B2",
+   "url": "https://patents.google.com/patent/US11149716B2/en",
+   "title": "Offshore wind-solar-aquaculture integrated floater",
+   "status": 200,
+   "own": "US11149716",
+   "docdb": [
+    "US20210025369A1",
+    "CN110050740A",
+    "WO2020220913A1",
+    "CN110050740B"
+   ],
+   "direct": [
+    "US20210025369A1"
+   ]
+  },
+  {
+   "number": "US20190078556A1",
+   "url": "https://patents.google.com/patent/US20190078556A1/en",
+   "title": "US20190078556A1 - A floating wind turbine and a method ...",
+   "status": 200,
+   "own": "US20190078556A1",
+   "docdb": [
+    "EP3430259C0",
+    "EP3430259A1",
+    "US11208987B2",
+    "JP2019509217A",
+    "WO2017157399A1",
+    "CN109154280A",
+    "EP3430259A4",
+    "EP3430259B1"
+   ],
+   "direct": [
+    "US11208987B2"
+   ]
+  },
+  {
+   "number": "US20140339828A1",
+   "url": "https://patents.google.com/patent/US20140339828A1/en",
+   "title": "System and method for controlling offshore floating wind ...",
+   "status": 200,
+   "own": "US20140339828A1",
+   "docdb": [
+    "EP2992208A4",
+    "JP2020125755A",
+    "ES2769353T3",
+    "EP2992208B1",
+    "DK2992208T3",
+    "PT3366567T",
+    "TR201808860T4",
+    "JP6426718B2",
+    "ES2681271T3",
+    "WO2014189978A2",
+    "DK3366567T3",
+    "US10267293B2",
+    "US9879654B2",
+    "PL3366567T3",
+    "JP2019052647A",
+    "PT2992208T",
+    "EP2992208A2",
+    "PL2992208T3",
+    "JP6695401B2",
+    "JP2016521812A",
+    "EP3366567A1",
+    "WO2014189978A3",
+    "EP3366567B1",
+    "US20180119672A1"
+   ],
+   "direct": [
+    "US9879654B2"
+   ]
+  },
+  {
+   "number": "WO2019095487A1",
+   "url": "https://patents.google.com/patent/WO2019095487A1/en",
+   "title": "Integrated device for offshore floating wind turbine and fish ...",
+   "status": 200,
+   "own": "WO2019095487A1",
+   "docdb": [
+    "US20190141963A1",
+    "US10716296B2",
+    "CN107878698B",
+    "CN107878698A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "GB2473897A",
+   "url": "https://patents.google.com/patent/GB2473897A/en",
+   "title": "Floating wind turbine system - GB2473897A",
+   "status": 200,
+   "own": "GB2473897A",
+   "docdb": [
+    "CN101918704A",
+    "CN101918704B",
+    "US7612462B2",
+    "GB201005807D0",
+    "WO2009048830A1",
+    "GB2473897B",
+    "US20090091136A1"
+   ],
+   "direct": [
+    "GB201005807D0",
+    "GB2473897B"
+   ]
+  },
+  {
+   "number": "US20140196654A1",
+   "url": "https://patents.google.com/patent/US20140196654A1/en",
+   "title": "Floating Wind Turbine Platform with Ballast Control and ...",
+   "status": 200,
+   "own": "US20140196654A1",
+   "docdb": [
+    "AU2009238456A1",
+    "KR101713618B1",
+    "CN103786837A",
+    "KR20170042815A",
+    "KR20180137619A",
+    "PL2271547T3",
+    "CN103786837B",
+    "CN107399411B",
+    "DK2271547T3",
+    "EP2727813A1",
+    "CN102015435A",
+    "US9446822B2",
+    "US20150367918A1",
+    "JP5760133B2",
+    "US20130276687A1",
+    "JP5760132B2",
+    "ZA201007419B",
+    "EP2271547B1",
+    "ES2643906T3",
+    "US8471396B2",
+    "KR101933168B1",
+    "BRPI0911567A8",
+    "DK2727813T3",
+    "CA2719694A1",
+    "WO2009131826A3",
+    "BRPI0911567A2",
+    "CA2719694C",
+    "US8692401B2",
+    "ES2456345T3",
+    "KR102027445B1",
+    "CN107399411A",
+    "KR101726988B1",
+    "EP2271547A2",
+    "JP2015037935A",
+    "US20110037264A1",
+    "US9139266B2",
+    "AU2009238456B2",
+    "CN102015435B",
+    "JP2015180823A",
+    "KR20160040306A",
+    "PL2727813T3",
+    "JP2015016860A",
+    "KR20110015418A",
+    "WO2009131826A2",
+    "PT2727813T",
+    "PT2271547E",
+    "BRPI0911567B1",
+    "EP2727813B1",
+    "EP2271547A4",
+    "JP2011521820A"
+   ],
+   "direct": [
+    "US9139266B2"
+   ]
+  },
+  {
+   "number": "CN102686707A",
+   "url": "https://patents.google.com/patent/CN102686707A/en",
+   "title": "CN102686707A - Artificial photosynthesis",
+   "status": 200,
+   "own": "CN102686707A",
+   "docdb": [
+    "BR112012003866A2",
+    "CA2771660A1",
+    "CA2771660C",
+    "WO2011020825A1",
+    "US8519012B2",
+    "AU2010285025A1",
+    "EP2467451A1",
+    "US20120222951A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20120222951A1",
+   "url": "https://patents.google.com/patent/US20120222951A1/en",
+   "title": "US20120222951A1 - Artificial photosynthesis",
+   "status": 200,
+   "own": "US20120222951A1",
+   "docdb": [
+    "BR112012003866A2",
+    "CA2771660A1",
+    "CA2771660C",
+    "WO2011020825A1",
+    "US8519012B2",
+    "AU2010285025A1",
+    "EP2467451A1",
+    "CN102686707A"
+   ],
+   "direct": [
+    "US8519012B2"
+   ]
+  },
+  {
+   "number": "US8519012B2",
+   "url": "https://patents.google.com/patent/US8519012B2/en",
+   "title": "US8519012B2 - Artificial photosynthesis",
+   "status": 200,
+   "own": "US8519012",
+   "docdb": [
+    "BR112012003866A2",
+    "CA2771660A1",
+    "CA2771660C",
+    "WO2011020825A1",
+    "AU2010285025A1",
+    "EP2467451A1",
+    "CN102686707A",
+    "US20120222951A1"
+   ],
+   "direct": [
+    "US20120222951A1"
+   ]
+  },
+  {
+   "number": "US12263461",
+   "url": "https://patents.justia.com/patent/12263461",
+   "title": "Synthetic fuel production system and related techniques",
+   "status": 200,
+   "own": "US12263461",
+   "docdb": [
+    "US20220161222A1",
+    "US11850566B2",
+    "US20240123422A1"
+   ],
+   "direct": [
+    "US20240123422A1"
+   ]
+  },
+  {
+   "number": "WO2022004812",
+   "url": "https://patentscope.wipo.int/search/en/WO2022004812",
+   "title": "PERYLENE DIMER COMPOUND, PRODUCTION METHOD THEREFOR, POLYMER OF PERYLENE DIMER COMPOUND AND PRODUCTION METHOD THEREFOR, ORGANIC THIN-FILM SOLAR BATTERY, ELECTRODE MATERIAL, AND ALKALI ION SECONDARY BATTERY",
+   "status": 200,
+   "own": "WO2022004812A1",
+   "docdb": [
+    "JPWO2022004812A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2025126798",
+   "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2025126798",
+   "title": "WO2025126798 ADHESIVE COMPOSITION AND SHEET-LIKE GASKET, FLOOR MATERIAL, SEALING MATERIAL FOR AUTOMOBILE DOOR INNER SECTION, CUSHIONING MATERIAL FOR FUEL TANK, SEALING MATERIAL FOR ELECTRONIC COMPONENT, CUSHIONING MATERIAL FOR LITHIUM ION BATTERY, SEALING MATERIAL FOR USE BETWEEN SOLAR CELL PANEL AN...",
+   "status": 200,
+   "own": "WO2025126798A1",
+   "docdb": [
+    "CN122228309A",
+    "JPWO2025126798A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "KR102876623B1",
+   "url": "https://patents.google.com/patent/KR102876623B1/en",
+   "title": "KR102876623B1 - Passive Cooling System for Small Modular Reactors - Google Patents",
+   "status": 200,
+   "own": "KR102876623B1",
+   "docdb": [
+    "KR20250089695A",
+    "KR20250090242A",
+    "KR102898194B1",
+    "WO2025127276A1"
+   ],
+   "direct": [
+    "KR20250089695A"
+   ]
+  },
+  {
+   "number": "KR102992555B1",
+   "url": "https://patents.google.com/patent/KR102992555B1/en",
+   "title": "KR102992555B1 - Main Control Room system In Nuclear Power Plant comprising Small Modular Reactor - Google Patents",
+   "status": 200,
+   "own": "KR102992555B1",
+   "docdb": [
+    "WO2025254302A1",
+    "KR20250175034A",
+    "KR20250175308A"
+   ],
+   "direct": [
+    "KR20250175034A"
+   ]
+  },
+  {
+   "number": "WO2025254302",
+   "url": "https://patentscope.wipo.int/search/en/WO2025254302",
+   "title": "WO2025254302 MAIN CONTROL ROOM SYSTEM FOR NUCLEAR POWER PLANT INCLUDING SMALL MODULAR NUCLEAR REACTORS",
+   "status": 200,
+   "own": "WO2025254302A1",
+   "docdb": [
+    "KR102992555B1",
+    "KR20250175034A",
+    "KR20250175308A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2024237981",
+   "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2024237981",
+   "title": "WO2024237981 COMBINED HYDROGEN SUPPLY AND FUEL CELL PROCESSES FOR INCREASED EFFICIENCY OF ELECTRICITY GENERATION",
+   "status": 200,
+   "own": "WO2024237981A1",
+   "docdb": [
+    "AU2024274080A1",
+    "US12113254B1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20170147025A1",
+   "url": "https://patents.google.com/patent/US20170147025A1/en",
+   "title": "US20170147025A1 - Systems and methods for microgrid power generation management with selective disconnect - Google Patents",
+   "status": 200,
+   "own": "US20170147025A1",
+   "docdb": [
+    "US9880580B2",
+    "US20140288722A1",
+    "US8751036B2",
+    "US9563248B2",
+    "US20130079943A1"
+   ],
+   "direct": [
+    "US9880580B2"
+   ]
+  },
+  {
+   "number": "WO2018175532A1",
+   "url": "https://patents.google.com/patent/WO2018175532A1/en",
+   "title": "WO2018175532A1 - Optimized nuclear fuel core design for a small modular reactor - Google Patents",
+   "status": 200,
+   "own": "WO2018175532A1",
+   "docdb": [
+    "US20220076853A1",
+    "EP3607559A1",
+    "EP3607559B1",
+    "US20180277260A1",
+    "CN110462748A",
+    "US11205521B2",
+    "EP3607559A4"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US8918225B2",
+   "url": "https://patents.google.com/patent/US8918225B2/en",
+   "title": "US8918225B2 - Renewable energy-based electricity grid infrastructure and method of grid infrastructure automation and operation - Google Patents",
+   "status": 200,
+   "own": "US8918225",
+   "docdb": [
+    "US20150105924A1",
+    "US20150105928A1",
+    "US20120150361A1"
+   ],
+   "direct": [
+    "US20120150361A1"
+   ]
+  },
+  {
+   "number": "US20110075783A1",
+   "url": "https://patents.google.com/patent/US20110075783A1/en",
+   "title": "US20110075783A1 - Economical Method to Ignite a Nuclear Fusion Reaction and Generate Energy - Google Patents",
+   "status": 200,
+   "own": "US20110075783A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2022264567A1",
+   "url": "https://patents.google.com/patent/WO2022264567A1/en",
+   "title": "WO2022264567A1 - High voltage and high pressure direct application type nuclear fusion method - Google Patents",
+   "status": 200,
+   "own": "WO2022264567A1",
+   "docdb": [
+    "JP2022191576A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20080008286A1",
+   "url": "https://patents.google.com/patent/US20080008286A1/en",
+   "title": "US20080008286A1 - Fusion energy production - Google Patents",
+   "status": 200,
+   "own": "US20080008286A1",
+   "docdb": [
+    "US20120057666A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "CN101364450B",
+   "url": "https://patents.google.com/patent/CN101364450B/en",
+   "title": "CN101364450B - Method implementing nuclear fusion reaction based on sound cavitation effect - Google Patents",
+   "status": 200,
+   "own": "CN101364450B",
+   "docdb": [
+    "CN101364450A"
+   ],
+   "direct": [
+    "CN101364450A"
+   ]
+  },
+  {
+   "number": "GB2461267A",
+   "url": "https://patents.google.com/patent/GB2461267A/en",
+   "title": "GB2461267A - Nuclear fusion reactor - Google Patents",
+   "status": 200,
+   "own": "GB2461267A",
+   "docdb": [
+    "GB0811535D0",
+    "GB2461267B"
+   ],
+   "direct": [
+    "GB0811535D0",
+    "GB2461267B"
+   ]
+  },
+  {
+   "number": "WO1990013124A1",
+   "url": "https://patents.google.com/patent/WO1990013124A1/en",
+   "title": "WO1990013124A1 - Cold nuclear fusion method and apparatus - Google Patents",
+   "status": 200,
+   "own": "WO1990013124A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US20120008728A1",
+   "url": "https://patents.google.com/patent/US20120008728A1/en",
+   "title": "US20120008728A1 - Resonant Vacuum Arc Discharge Apparatus for Nuclear Fusion - Google Patents",
+   "status": 200,
+   "own": "US20120008728A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2026083208A1",
+   "url": "https://patents.google.com/patent/WO2026083208A1/en",
+   "title": "WO2026083208A1 - Apparatuses and methods for nuclear fusion via tandem mirror - Google Patents",
+   "status": 200,
+   "own": "WO2026083208A1",
+   "docdb": [
+    "US20260112509A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20240009480A1",
+   "url": "https://patents.google.com/patent/US20240009480A1/en",
+   "title": "US20240009480A1 - Wireless brain-computer interface - Google Patents",
+   "status": 200,
+   "own": "US20240009480A1",
+   "docdb": [
+    "WO2022049105A1",
+    "EP4208096A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2026107516A1",
+   "url": "https://patents.google.com/patent/WO2026107516A1/en",
+   "title": "WO2026107516A1 - Authenticated user control of a brain-computer interface - Google Patents",
+   "status": 200,
+   "own": "WO2026107516A1",
+   "docdb": [
+    "US20260142838A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "AU2022387053A1",
+   "url": "https://patents.google.com/patent/AU2022387053A1/enAug",
+   "title": "AU2022387053A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+   "status": 200,
+   "own": "AU2022387053A1",
+   "docdb": [
+    "EP4429671A1",
+    "KR20240110816A",
+    "JP2024543379A",
+    "MX2024005632A",
+    "WO2023086252A1",
+    "US20250000881A1",
+    "CA3237885A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "EP4429671A1",
+   "url": "https://patents.google.com/patent/EP4429671A1/enAug",
+   "title": "EP4429671A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+   "status": 200,
+   "own": "EP4429671A1",
+   "docdb": [
+    "KR20240110816A",
+    "JP2024543379A",
+    "MX2024005632A",
+    "WO2023086252A1",
+    "US20250000881A1",
+    "AU2022387053A1",
+    "CA3237885A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "CA3237885A1",
+   "url": "https://patents.google.com/patent/CA3237885A1/and",
+   "title": "CA3237885A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+   "status": 200,
+   "own": "CA3237885A1",
+   "docdb": [
+    "EP4429671A1",
+    "KR20240110816A",
+    "JP2024543379A",
+    "MX2024005632A",
+    "WO2023086252A1",
+    "US20250000881A1",
+    "AU2022387053A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2023086252",
+   "url": "https://patentscope.wipo.int/search/en/WO2023086252",
+   "title": "treatment of treatment resistant depression with psilocybin",
+   "status": 200,
+   "own": "WO2023086252A1",
+   "docdb": [
+    "EP4429671A1",
+    "KR20240110816A",
+    "JP2024543379A",
+    "MX2024005632A",
+    "US20250000881A1",
+    "AU2022387053A1",
+    "CA3237885A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2025097041",
+   "url": "https://patentscope.wipo.int/search/en/WO2025097041",
+   "title": "METHODS FOR THE DETECTION AND TREATMENT OF RESISTANT CANCERS CO-EXPRESSING ALPP AND/OR ALPG/ALPPL2",
+   "status": 200,
+   "own": "WO2025097041A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US20250032429A1",
+   "url": "https://patents.google.com/patent/US20250032429A1/en",
+   "title": "US20250032429A1 - 2-fluorodeschloroketamine for treatment of depression, including treatment-resistant depression - Google Patents",
+   "status": 200,
+   "own": "US20250032429A1",
+   "docdb": [
+    "KR20240093579A",
+    "CA3233107A1",
+    "WO2023067505A1",
+    "JP2024538015A",
+    "EP4419092A1",
+    "CN118401239A",
+    "AU2022374097A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US10098854B2",
+   "url": "https://patents.google.com/patent/US10098854B2/en",
+   "title": "US10098854B2 - Method for the treatment of depression - Google Patents",
+   "status": 200,
+   "own": "US10098854",
+   "docdb": [
+    "EP3179993A4",
+    "US20160045455A1",
+    "KR20170040800A",
+    "EP3179993A1",
+    "AU2020281101A1",
+    "MX2017001908A",
+    "IL279627A",
+    "CA2957926A1",
+    "AU2015301782A1",
+    "AU2015301782B2",
+    "CN106714789A",
+    "JP2017524719A",
+    "EP3179993B1",
+    "JP6545788B2",
+    "WO2016025581A1",
+    "IL250490A0",
+    "MA40462A"
+   ],
+   "direct": [
+    "US20160045455A1"
+   ]
+  },
+  {
+   "number": "AU2024355392A1",
+   "url": "https://patents.google.com/patent/AU2024355392A1/en",
+   "title": "AU2024355392A1 - Direct air capture of carbon dioxide with molecular polyamines - Google Patents",
+   "status": 200,
+   "own": "AU2024355392A1",
+   "docdb": [
+    "CN121866100A",
+    "US20260208103A1",
+    "EP4788466A1",
+    "WO2025076148A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20230023050A1",
+   "url": "https://patents.google.com/patent/US20230023050A1/en",
+   "title": "US20230023050A1 - Rotating continuous multi-capture systems and apparatus for improved direct air capture of carbon dioxide (dac+) - Google Patents",
+   "status": 200,
+   "own": "US20230023050A1",
+   "docdb": [
+    "AU2020386642A2",
+    "BR112022009939A2",
+    "CA3162284A1",
+    "AU2020386642A1",
+    "WO2021102385A1",
+    "JP2023502736A",
+    "JP2026041779A",
+    "KR20220121806A",
+    "EP4061507A1",
+    "US12172123B2",
+    "CN115515700A",
+    "CN115515700B",
+    "MX2022006108A",
+    "EP4061507A4",
+    "US20250050264A1",
+    "CN121731952A",
+    "IL293183A"
+   ],
+   "direct": [
+    "US12172123B2"
+   ]
+  },
+  {
+   "number": "GB2592707A",
+   "url": "https://patents.google.com/patent/GB2592707A/en",
+   "title": "GB2592707A - Providing heat energy to direct air carbon dioxide capture processes using waste heat from data centre - Google Patents",
+   "status": 200,
+   "own": "GB2592707A",
+   "docdb": [
+    "GB202018646D0",
+    "WO2022112366A1",
+    "GB2592707B"
+   ],
+   "direct": [
+    "GB202018646D0",
+    "GB2592707B"
+   ]
+  },
+  {
+   "number": "US12064725B1",
+   "url": "https://patents.google.com/patent/US12064725B1/en",
+   "title": "US12064725B1 - Air-liquid contactor for carbon dioxide direct air capture using aqueous solvent - Google Patents",
+   "status": 200,
+   "own": "US12064725",
+   "docdb": [
+    "WO2024205622A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20230191322A1",
+   "url": "https://patents.google.com/patent/US20230191322A1/en",
+   "title": "US20230191322A1 - Systems and methods for direct air carbon dioxide capture - Google Patents",
+   "status": 200,
+   "own": "US20230191322A1",
+   "docdb": [
+    "EP4448148A2",
+    "KR20240134132A",
+    "AU2022413289A1",
+    "US12030016B2",
+    "US20240238721A1",
+    "WO2023114474A3",
+    "WO2023114474A2",
+    "CA3241195A1",
+    "JP2024545883A",
+    "EP4448148A4"
+   ],
+   "direct": [
+    "US12030016B2"
+   ]
+  },
+  {
+   "number": "US11701616B2",
+   "url": "https://patents.google.com/patent/US11701616B2/en",
+   "title": "US11701616B2 - Sorbent emitter for direct air capture of carbon dioxide - Google Patents",
+   "status": 200,
+   "own": "US11701616",
+   "docdb": [
+    "US20220241727A1"
+   ],
+   "direct": [
+    "US20220241727A1"
+   ]
+  },
+  {
+   "number": "WO2021111366A1",
+   "url": "https://patents.google.com/patent/WO2021111366A1/en",
+   "title": "WO2021111366A1 - Direct capture of carbon dioxide - Google Patents",
+   "status": 200,
+   "own": "WO2021111366A1",
+   "docdb": [
+    "KR20220104056A",
+    "US12172127B2",
+    "US20250065265A1",
+    "US12465889B2",
+    "MX2022006790A",
+    "US12220661B1",
+    "JP2023504522A",
+    "US20230001351A1",
+    "AU2020398088A1",
+    "US20250032979A1",
+    "US12357946B2",
+    "JP7696899B2",
+    "CA3160050A1",
+    "CN114901382A",
+    "JP2025134769A",
+    "US20250144566A1",
+    "CN114901382B",
+    "EP4069403A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2025114891A2",
+   "url": "https://patents.google.com/patent/WO2025114891A2/en",
+   "title": "WO2025114891A2 - System and method for pressurized direct air capture of carbon dioxide - Google Patents",
+   "status": 200,
+   "own": "WO2025114891A2",
+   "docdb": [
+    "US20250170520A1",
+    "US20260124573A1",
+    "US12533628B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US12098111B2",
+   "url": "https://patents.google.com/patent/US12098111B2/en",
+   "title": "US12098111B2 - Process for capture of carbon dioxide from air and the direct conversion of carbon dioxide into fuels and chemicals - Google Patents",
+   "status": 200,
+   "own": "US12098111",
+   "docdb": [
+    "KR20230004859A",
+    "US20230373882A1",
+    "CN120393654A",
+    "WO2021225642A8",
+    "JP2023528732A",
+    "CA3180810A1",
+    "CN115485052A",
+    "MX2022013763A",
+    "BR112022021340A2",
+    "CL2022002929A1",
+    "EP4146372A4",
+    "JP2025106343A",
+    "US20210340076A1",
+    "AU2021268532B2",
+    "CL2023003804A1",
+    "CA3215266C",
+    "JP7660138B2",
+    "KR102910324B1",
+    "US11560343B2",
+    "CN115485052B",
+    "CA3180810C",
+    "US20250263349A1",
+    "AU2021268532A1",
+    "CA3247245A1",
+    "CA3215266A1",
+    "EP4146372A1",
+    "WO2021225642A1"
+   ],
+   "direct": [
+    "US20230373882A1"
+   ]
+  },
+  {
+   "number": "WO2022112366A1",
+   "url": "https://patents.google.com/patent/WO2022112366A1",
+   "title": "WO2022112366A1 - Providing heat energy to direct air carbon dioxide capture processes using waste heat from data centre - Google Patents",
+   "status": 200,
+   "own": "WO2022112366A1",
+   "docdb": [
+    "GB202018646D0",
+    "GB2592707A",
+    "GB2592707B"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20220081072A1",
+   "url": "https://patents.google.com/patent/US20220081072A1",
+   "title": "US20220081072A1 - Floating wind turbine support - Google Patents",
+   "status": 200,
+   "own": "US20220081072A1",
+   "docdb": [
+    "CN113227570B",
+    "CN113227570A",
+    "US12054228B2",
+    "DK3899260T3",
+    "EP3899260B1",
+    "PL3899260T3",
+    "CA3124322A1",
+    "ES2967419T3",
+    "JP2022514415A",
+    "KR102761887B1",
+    "EP3899260A1",
+    "JP7524191B2",
+    "PT3899260T",
+    "WO2020127804A1",
+    "KR20210109560A"
+   ],
+   "direct": [
+    "US12054228B2"
+   ]
+  },
+  {
+   "number": "CN114291222A",
+   "url": "https://patents.google.com/patent/CN114291222A/en",
+   "title": "CN114291222A - Offshore wind power generation platform, floating foundation and transportation method thereof - Google Patents",
+   "status": 200,
+   "own": "CN114291222A",
+   "docdb": [
+    "WO2023108853A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US12049766B1",
+   "url": "https://patents.google.com/patent/US12049766B1/en",
+   "title": "US12049766B1 - Tensegrity offshore wind power generation support structure - Google Patents",
+   "status": 200,
+   "own": "US12049766",
+   "docdb": [
+    "CN116201696A",
+    "CN116201696B"
+   ],
+   "direct": []
+  },
+  {
+   "number": "CN109973314B",
+   "url": "https://patents.google.com/patent/CN109973314B/en",
+   "title": "CN109973314B - A new type of offshore floating feng shui synchronous generator set - Google Patents",
+   "status": 200,
+   "own": "CN109973314B",
+   "docdb": [
+    "CN109973314A"
+   ],
+   "direct": [
+    "CN109973314A"
+   ]
+  },
+  {
+   "number": "CN223396339U",
+   "url": "https://patents.google.com/patent/CN223396339U/en",
+   "title": "CN223396339U - A floating support structure for offshore wind turbines - Google Patents",
+   "status": 200,
+   "own": "CN223396339U",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "CN118289158A",
+   "url": "https://patents.google.com/patent/CN118289158A/en",
+   "title": "CN118289158A - Semi-submersible type offshore floating wind power foundation platform - Google Patents",
+   "status": 200,
+   "own": "CN118289158A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "CN112145365B",
+   "url": "https://patents.google.com/patent/CN112145365B/en?oq=CN+112145365+B",
+   "title": "CN112145365B - Offshore floating wind turbine generator system based on single column foundation with damper - Google Patents",
+   "status": 200,
+   "own": "CN112145365B",
+   "docdb": [
+    "CN112145365A"
+   ],
+   "direct": [
+    "CN112145365A"
+   ]
+  },
+  {
+   "number": "CN120391368A",
+   "url": "https://patents.google.com/patent/CN120391368A/en",
+   "title": "CN120391368A - A floating offshore wind power fusion system based on fishery-wind complementarity - Google Patents",
+   "status": 200,
+   "own": "CN120391368A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "CN104627331A",
+   "url": "https://patents.google.com/patent/CN104627331A/en",
+   "title": "CN104627331A - Wind power generation floating foundation - Google Patents",
+   "status": 200,
+   "own": "CN104627331A",
+   "docdb": [
+    "CN104627331B"
+   ],
+   "direct": [
+    "CN104627331B"
+   ]
+  },
+  {
+   "number": "CN224267860U",
+   "url": "https://patents.google.com/patent/CN224267860U/en",
+   "title": "CN224267860U - A floating offshore wind power integration system based on fishery-wind complementarity - Google Patents",
+   "status": 200,
+   "own": "CN224267860U",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2018047113A1",
+   "url": "https://patents.google.com/patent/WO2018047113A1/en",
+   "title": "WO2018047113A1 - Flexible artificial leaves for hydrogen production and methods for making - Google Patents",
+   "status": 200,
+   "own": "WO2018047113A1",
+   "docdb": [
+    "US20190358605A1",
+    "EP4385945A1",
+    "EP3800161A1",
+    "US11529605B2",
+    "EP3509984A1",
+    "US20230105347A1",
+    "EP3800161B1",
+    "US12697599B2",
+    "EP3509984B1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "CN118725224B",
+   "url": "https://patents.google.com/patent/CN118725224B/en",
+   "title": "CN118725224B - Preparation of Schiff base covalent organic framework material and artificial photosynthesis urea - Google Patents",
+   "status": 200,
+   "own": "CN118725224B",
+   "docdb": [
+    "CN118725224A"
+   ],
+   "direct": [
+    "CN118725224A"
+   ]
+  },
+  {
+   "number": "US20090013593",
+   "url": "https://patents.justia.com/patent/20090013593",
+   "title": "Fuel production from atmospheric CO2 and H20 by artificial ...",
+   "status": 200,
+   "own": "US20090013593A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US20230390724A1",
+   "url": "https://patents.google.com/patent/US20230390724A1/en",
+   "title": "US20230390724A1 - Photocatalyst suspension reactor for solar fuel formation - Google Patents",
+   "status": 200,
+   "own": "US20230390724A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US4568435A",
+   "url": "https://patents.google.com/patent/US4568435A/en",
+   "title": "US4568435A - Method for improving product yields in an anionic metalloporphyrin-based artificial photosynthesis system - Google Patents",
+   "status": 200,
+   "own": "US4568435",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US4868123A",
+   "url": "https://patents.google.com/patent/US4868123A/en",
+   "title": "US4868123A - Apparatus for the intensive, controlled production of microorganisms by photosynthesis - Google Patents",
+   "status": 200,
+   "own": "US4868123",
+   "docdb": [
+    "EP0310522B1",
+    "IL87832A",
+    "DE3888274T2",
+    "IL87832A0",
+    "AU2294788A",
+    "FR2621323A1",
+    "AU614241B2",
+    "EP0310522A1",
+    "FR2621323B1",
+    "JPH01108973A",
+    "DE3888274D1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US10384195B2",
+   "url": "https://patents.google.com/patent/US10384195B2/ja",
+   "title": "US10384195B2 - Artificial photosynthesis module - Google Patents",
+   "status": 200,
+   "own": "US10384195",
+   "docdb": [
+    "WO2017145707A1",
+    "JPWO2017145707A1",
+    "US20180361363A1",
+    "JP6470868B2"
+   ],
+   "direct": [
+    "US20180361363A1"
+   ]
+  },
+  {
+   "number": "EP4341373A2",
+   "url": "https://patents.google.com/patent/EP4341373A2/en",
+   "title": "EP4341373A2 - Systems for end-to-end optimization of precision fermentation-produced animal proteins in food applications - Google Patents",
+   "status": 200,
+   "own": "EP4341373A2",
+   "docdb": [
+    "WO2022246284A3",
+    "WO2022246284A2",
+    "US20240161873A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2022246284A3",
+   "url": "https://patents.google.com/patent/WO2022246284A3/en",
+   "title": "WO2022246284A3 - Systems for end-to-end optimization of precision fermentation-produced animal proteins in food applications - Google Patents",
+   "status": 200,
+   "own": "WO2022246284A3",
+   "docdb": [
+    "EP4341373A2",
+    "WO2022246284A2",
+    "US20240161873A1"
+   ],
+   "direct": [
+    "WO2022246284A2"
+   ]
+  },
+  {
+   "number": "CA3243597A1",
+   "url": "https://patents.google.com/patent/CA3243597A1/en",
+   "title": "CA3243597A1 - Modified dairy proteins, methods for their production and use - Google Patents",
+   "status": 200,
+   "own": "CA3243597A1",
+   "docdb": [
+    "AR128072A1",
+    "IL313779A",
+    "US20250059246A1",
+    "AU2022417596A1",
+    "WO2023119200A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20250059246A1",
+   "url": "https://patents.google.com/patent/US20250059246A1/en",
+   "title": "Modified dairy proteins, methods for their production and use",
+   "status": 200,
+   "own": "US20250059246A1",
+   "docdb": [
+    "AR128072A1",
+    "IL313779A",
+    "AU2022417596A1",
+    "CA3243597A1",
+    "WO2023119200A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2023229029",
+   "url": "https://patentscope.wipo.int/search/en/WO2023229029",
+   "title": "HETERODIMERIC PROTEIN PRODUCTION METHOD, DIMERIC PROTEIN, MONOMERIC PROTEIN, AND TARGET RESPONSIVE HETERODIMERIC PROTEIN SCREENING METHOD",
+   "status": 200,
+   "own": "WO2023229029A1",
+   "docdb": [
+    "JPWO2023229029A1",
+    "EP4538377A4",
+    "US20260055207A1",
+    "EP4538377A1",
+    "CN119630796A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2023052927",
+   "url": "https://patentscope.wipo.int/search/en/WO2023052927",
+   "title": "PRODUCTION OF SINGLE CELL PROTEIN BY GAS FERMENTATION",
+   "status": 200,
+   "own": "WO2023052927A1",
+   "docdb": [
+    "EP4391820A4",
+    "EP4391820A1",
+    "US20240294865A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2005013710A1",
+   "url": "https://patents.google.com/patent/WO2005013710A1/en",
+   "title": "WO2005013710A1 - Production of milk protein ingredient with high whey protein content - Google Patents",
+   "status": 200,
+   "own": "WO2005013710A1",
+   "docdb": [
+    "KR20060057596A",
+    "BRPI0413383A",
+    "US20070020371A1",
+    "AU2004263068A1",
+    "RU2006106924A",
+    "NZ527436A",
+    "MXPA06001281A",
+    "CA2534915A1",
+    "JP2007501611A",
+    "EP1659875A1",
+    "CN1832687A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2022090547",
+   "url": "https://patentscope.wipo.int/search/en/WO2022090547",
+   "title": "PRODUCTION OF CAROTENOIDS BY FERMENTATION",
+   "status": 200,
+   "own": "WO2022090547A1",
+   "docdb": [
+    "US20240226088A1",
+    "US20250345322A1",
+    "US12383549B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "EP3582622A1",
+   "url": "https://patents.google.com/patent/EP3582622A1/en",
+   "title": "EP3582622A1 - High-protein, acidified, liquid dairy product having a reduced viscosity, method of producing it, and related ingredients - Google Patents",
+   "status": 200,
+   "own": "EP3582622A1",
+   "docdb": [
+    "WO2018149869A1",
+    "DK3582622T3",
+    "EP3582622B1",
+    "JP2020507330A",
+    "ES2967096T3",
+    "EP4295694A2",
+    "JP7212624B2",
+    "US20200008439A1",
+    "CN110621164A",
+    "US20220225629A1",
+    "JP2023017803A",
+    "PT3582622T",
+    "FI3582622T3",
+    "EP4295694A3",
+    "US12290079B2",
+    "PL3582622T3",
+    "US11324229B2",
+    "CN110621164B",
+    "HRP20231746T1",
+    "US20260157386A1"
+   ],
+   "direct": [
+    "EP3582622B1"
+   ]
+  },
+  {
+   "number": "US20060159804A1",
+   "url": "https://patents.google.com/patent/US20060159804A1/en",
+   "title": "US20060159804A1 - Dairy protein process and applications thereof - Google Patents",
+   "status": 200,
+   "own": "US20060159804A1",
+   "docdb": [
+    "JP4579696B2",
+    "AU2003288836A1",
+    "AU2003288836B2",
+    "EP1583428A1",
+    "CN1731933A",
+    "BR0317760A",
+    "EP1583428A4",
+    "JP2006512073A",
+    "NZ523394A",
+    "MXPA05006913A",
+    "KR20050113600A",
+    "WO2004057971A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20150320062A1",
+   "url": "https://patents.google.com/patent/US20150320062A1/en",
+   "title": "US20150320062A1 - Process for making high-protein dairy product - Google Patents",
+   "status": 200,
+   "own": "US20150320062A1",
+   "docdb": [
+    "US9040107B2",
+    "US9167826B1",
+    "US20150374004A1",
+    "US9723852B2",
+    "US20150118358A1",
+    "US9723853B2",
+    "US20160000102A1"
+   ],
+   "direct": [
+    "US9167826B1"
+   ]
+  },
+  {
+   "number": "US20230420045A1",
+   "url": "https://patents.google.com/patent/US20230420045A1/en",
+   "title": "US20230420045A1 - DNA-Based Data Storage Systems - Google Patents",
+   "status": 200,
+   "own": "US20230420045A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US10902939B2",
+   "url": "https://patents.google.com/patent/US10902939B2/en",
+   "title": "US10902939B2 - Methods and systems for DNA data storage - Google Patents",
+   "status": 200,
+   "own": "US10902939",
+   "docdb": [
+    "WO2018132457A1",
+    "EP3568407A4",
+    "US20190355442A1",
+    "KR20190116297A",
+    "US20210225461A1",
+    "EP3568407A1",
+    "KR102622275B1",
+    "CA3052062A1",
+    "CN110431148A"
+   ],
+   "direct": [
+    "US20190355442A1"
+   ]
+  },
+  {
+   "number": "US20190317684A1",
+   "url": "https://patents.google.com/patent/US20190317684A1/en",
+   "title": "US20190317684A1 - Dna digital data storage device and method, and decoding method of dna digital data - Google Patents",
+   "status": 200,
+   "own": "US20190317684A1",
+   "docdb": [
+    "KR102138864B1",
+    "KR20190118853A",
+    "US10929039B2"
+   ],
+   "direct": [
+    "US10929039B2"
+   ]
+  },
+  {
+   "number": "US12277999B2",
+   "url": "https://patents.google.com/patent/US12277999B2/en",
+   "title": "Re-writable DNA-based digital storage with random access",
+   "status": 200,
+   "own": "US12277999",
+   "docdb": [
+    "US20200035331A1",
+    "US10566077B1"
+   ],
+   "direct": [
+    "US20200035331A1"
+   ]
+  },
+  {
+   "number": "US11538554B1",
+   "url": "https://patents.google.com/patent/US11538554B1/en",
+   "title": "US11538554B1 - Nick-based data storage in native nucleic acids - Google Patents",
+   "status": 200,
+   "own": "US11538554",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US12355468",
+   "url": "https://patents.justia.com/patent/12355468",
+   "title": "U.S. Patent for DNA storage error correction code architecture ...",
+   "status": 200,
+   "own": "US12355468",
+   "docdb": [
+    "US20250183915A1",
+    "WO2025122205A1"
+   ],
+   "direct": [
+    "US20250183915A1"
+   ]
+  },
+  {
+   "number": "US10370246B1",
+   "url": "https://patents.google.com/patent/US10370246B1/en",
+   "title": "Portable and low-error DNA-based data storage",
+   "status": 200,
+   "own": "US10370246",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US12236354B2",
+   "url": "https://patents.google.com/patent/US12236354B2/en",
+   "title": "Systems for nucleic acid-based data storage",
+   "status": 200,
+   "own": "US12236354",
+   "docdb": [
+    "US20250028974A1",
+    "US20200250546A1",
+    "WO2018094115A1",
+    "KR20230074828A",
+    "US10650312B2",
+    "AU2017363146A1",
+    "AU2017363139A1",
+    "AU2017363146B2",
+    "JP7107956B2",
+    "JP2020507168A",
+    "US20180137418A1",
+    "US11763169B2",
+    "US11379729B2",
+    "KR20190109393A",
+    "JP2023029836A",
+    "JP7579305B2",
+    "KR102995741B1",
+    "US12001962B2",
+    "KR102534408B1",
+    "JP7179008B2",
+    "US20230376787A1",
+    "EP3542294C0",
+    "EP3542295A4",
+    "KR20230054484A",
+    "WO2018094108A1",
+    "AU2017363139B2",
+    "JP7586880B2",
+    "EP3542294B1",
+    "GB2563105B",
+    "EP4424824A2",
+    "US20230376788A1",
+    "CA3043887A1",
+    "JP2022165973A",
+    "US20240013063A1",
+    "KR102812665B1",
+    "AU2024200559A1",
+    "US20230376786A1",
+    "GB2563105A",
+    "KR102521152B1",
+    "EP4424824A3",
+    "US20200401903A1",
+    "EP3542295A1",
+    "JP2020515243A",
+    "US20190362814A1",
+    "KR20190110526A",
+    "GB201721459D0",
+    "EP3542294A4",
+    "ES2979182T3",
+    "CA3043884A1",
+    "EP3542294A1",
+    "AU2023285827A1"
+   ],
+   "direct": [
+    "US20250028974A1"
+   ]
+  },
+  {
+   "number": "US10936953B2",
+   "url": "https://patents.google.com/patent/US10936953B2/en",
+   "title": "US10936953B2 - DNA-based digital information storage with sidewall electrodes - Google Patents",
+   "status": 200,
+   "own": "US10936953",
+   "docdb": [
+    "JP2021509752A",
+    "US20210142182A1",
+    "IL312616B2",
+    "US20190244109A1",
+    "IL312616B1",
+    "CN112041438A",
+    "IL275818B1",
+    "EP4715681A2",
+    "EP3735459B1",
+    "EP3735459A1",
+    "IL319334A",
+    "AU2025201812A1",
+    "CN120485344A",
+    "GB202011281D0",
+    "KR20200106067A",
+    "AU2019205269A1",
+    "KR102804057B1",
+    "US12086722B2",
+    "AU2019205269B2",
+    "IL275818A",
+    "AU2019205269B9",
+    "CN112041438B",
+    "CA3088911A1",
+    "EP3735459A4",
+    "IL275818B2",
+    "KR20250069684A",
+    "EP4715681A3",
+    "IL312616A",
+    "JP7191448B2",
+    "GB2585506A",
+    "WO2019136175A1",
+    "SG11202006460SA"
+   ],
+   "direct": [
+    "US20190244109A1"
+   ]
+  },
+  {
+   "number": "WO2016059610A1",
+   "url": "https://patents.google.com/patent/WO2016059610A1/en",
+   "title": "WO2016059610A1 - A biomolecule based data storage system - Google Patents",
+   "status": 200,
+   "own": "WO2016059610A1",
+   "docdb": [
+    "SG11201703138RA",
+    "US20170249345A1",
+    "JP2017538234A",
+    "CA2964985A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20260228122A1",
+   "url": "https://patents.google.com/patent/US20260228122A1/en",
+   "title": "US20260228122A1 - High-capacity storage of digital information in dna - Google Patents",
+   "status": 200,
+   "own": "US20260228122A1",
+   "docdb": [
+    "AU2020202857B2",
+    "IL290490B1",
+    "AU2024201484B2",
+    "US10387301B2",
+    "JP6674518B2",
+    "US11892945B2",
+    "IL235954B",
+    "AU2013269536A1",
+    "EP3346404B1",
+    "AU2018247323B2",
+    "EP3346404A1",
+    "AU2022203933A1",
+    "IN2014DN09960A",
+    "DK3346404T3",
+    "CN107055468A",
+    "ES3028417T3",
+    "AU2013269536B2",
+    "SG11201407818PA",
+    "DK2856375T3",
+    "JP2019023890A",
+    "CN104520864A",
+    "AU2020202857A1",
+    "EP4524821A2",
+    "US20150261664A1",
+    "US20220043743A1",
+    "JP2021144745A",
+    "IL264325B",
+    "IL277102B",
+    "JP6896905B2",
+    "IL277102A",
+    "US20190370164A1",
+    "WO2013178801A3",
+    "CN104520864B",
+    "IL290490B2",
+    "JP7431775B2",
+    "JP2020119576A",
+    "JP2015529864A",
+    "IL235954A0",
+    "AU2024201484A1",
+    "HK1257702A1",
+    "EP2856375B1",
+    "RU2014152796A",
+    "AU2025271481A1",
+    "EP4524821A3",
+    "HK1208937A1",
+    "IL290490A",
+    "WO2013178801A2",
+    "US20230281112A9",
+    "AU2018247323A1",
+    "US20230325308A9",
+    "US20220043744A1",
+    "CA2874540A1",
+    "ES2698609T3",
+    "US20230214319A9",
+    "EP2856375A2",
+    "KR20150016572A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US11727817B2",
+   "url": "https://patents.google.com/patent/US11727817B2/en",
+   "title": "US11727817B2 - Unmanned aerial vehicle delivery system for delivery of medical or emergency supplies - Google Patents",
+   "status": 200,
+   "own": "US11727817",
+   "docdb": [
+    "CA3080629A1",
+    "US20230410670A1",
+    "US12354488B2",
+    "US20210390869A1",
+    "WO2019079905A1",
+    "US20190130770A1",
+    "US11127305B2"
+   ],
+   "direct": [
+    "US20210390869A1"
+   ]
+  },
+  {
+   "number": "US8948935B1",
+   "url": "https://patents.google.com/patent/US8948935B1/en",
+   "title": "US8948935B1 - Providing a medical support device via an unmanned aerial vehicle - Google Patents",
+   "status": 200,
+   "own": "US8948935",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US9305280B1",
+   "url": "https://patents.google.com/patent/US9305280B1/en",
+   "title": "US9305280B1 - Airborne fulfillment center utilizing unmanned aerial vehicles for item delivery - Google Patents",
+   "status": 200,
+   "own": "US9305280",
+   "docdb": [
+    "US10346789B1",
+    "US10032125B1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20220223056A1",
+   "url": "https://patents.google.com/patent/US20220223056A1/en",
+   "title": "US20220223056A1 - Unmanned aerial vehicle systems - Google Patents",
+   "status": 200,
+   "own": "US20220223056A1",
+   "docdb": [
+    "US20200265726A1",
+    "US10586464B2",
+    "US20170069214A1",
+    "US11145212B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "CN120952294A",
+   "url": "https://patents.google.com/patent/CN120952294A/en",
+   "title": "An Optimization Method for Unmanned Aerial Vehicle (UAV) ...",
+   "status": 200,
+   "own": "CN120952294A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US12030664",
+   "url": "https://patents.justia.com/patent/12030664",
+   "title": "Unmanned aerial vehicle and method for indicating a landing zone",
+   "status": 200,
+   "own": "US12030664",
+   "docdb": [
+    "CA3080223A1",
+    "US20210292004A1",
+    "US11053021B2",
+    "WO2019079903A1",
+    "US20190127083A1"
+   ],
+   "direct": [
+    "US20210292004A1"
+   ]
+  },
+  {
+   "number": "US9536216B1",
+   "url": "https://patents.google.com/patent/US9536216B1/en",
+   "title": "Delivery of packages by unmanned aerial vehicles",
+   "status": 200,
+   "own": "US9536216",
+   "docdb": [
+    "US11120391B1",
+    "US10510036B1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20260267358",
+   "url": "https://patents.justia.com/patent/20260267358",
+   "title": "Fault Management for Unmanned Aerial Vehicles",
+   "status": 404,
+   "own": null,
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US12218370B2",
+   "url": "https://patents.google.com/patent/US12218370B2",
+   "title": "US12218370B2 - Unmanned aerial vehicle (UAV) landing gear system for holding delivery canisters - Google Patents",
+   "status": 200,
+   "own": "US12218370",
+   "docdb": [
+    "US12451550B2",
+    "US20220315222A1",
+    "US12100853B2",
+    "US20220320669A1",
+    "US20220315209A1",
+    "US20220315246A1"
+   ],
+   "direct": [
+    "US20220315209A1"
+   ]
+  },
+  {
+   "number": "US9307383B1",
+   "url": "https://patents.google.com/patent/US9307383B1/en",
+   "title": "US9307383B1 - Request apparatus for delivery of medical support implement by UAV - Google Patents",
+   "status": 200,
+   "own": "US9307383",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US9573684B2",
+   "url": "https://patents.google.com/patent/US9573684B2/en",
+   "title": "US9573684B2 - Unmanned aerial vehicle delivery system - Google Patents",
+   "status": 200,
+   "own": "US9573684",
+   "docdb": [
+    "US20220058965A1",
+    "US20190347942A1",
+    "US10403155B2",
+    "US20240161636A1",
+    "CA2927096A1",
+    "WO2015061008A1",
+    "US11749125B2",
+    "US20170110017A1",
+    "US20150120094A1",
+    "US11195422B2",
+    "US12394324B2",
+    "CA2927096C"
+   ],
+   "direct": [
+    "US20150120094A1"
+   ]
+  },
+  {
+   "number": "EP3458328A1",
+   "url": "https://patents.google.com/patent/EP3458328A1/de",
+   "title": "EP3458328A1 - Station mit schleifenkonfiguration für hyperloop-transportsystem - Google Patents",
+   "status": 200,
+   "own": "EP3458328A1",
+   "docdb": [
+    "ES2920147T3",
+    "WO2017201435A1",
+    "US20170334312A1",
+    "EP3458328A4",
+    "US10493859B2",
+    "EP3458328B1",
+    "CN109311484A"
+   ],
+   "direct": [
+    "EP3458328A4",
+    "EP3458328B1"
+   ]
+  },
+  {
+   "number": "US20170334312A1",
+   "url": "https://patents.google.com/patent/US20170334312A1/en",
+   "title": "US20170334312A1 - Station with loop configuration for hyperloop transportation system - Google Patents",
+   "status": 200,
+   "own": "US20170334312A1",
+   "docdb": [
+    "ES2920147T3",
+    "WO2017201435A1",
+    "EP3458328A4",
+    "EP3458328A1",
+    "US10493859B2",
+    "EP3458328B1",
+    "CN109311484A"
+   ],
+   "direct": [
+    "US10493859B2"
+   ]
+  },
+  {
+   "number": "US20190300301A1",
+   "url": "https://patents.google.com/patent/US20190300301A1/en",
+   "title": "US20190300301A1 - Transportation system - Google Patents",
+   "status": 200,
+   "own": "US20190300301A1",
+   "docdb": [
+    "US9604798B2",
+    "WO2016126501A1",
+    "KR101922197B1",
+    "EP3253612B1",
+    "EP3253612A1",
+    "KR102397877B1",
+    "ES2925373T3",
+    "JP6530083B2",
+    "US20220106136A1",
+    "US10370204B2",
+    "EP3253636A4",
+    "WO2016126504A1",
+    "WO2016126497A1",
+    "EP3253612A4",
+    "US20160230350A1",
+    "EP4098504A1",
+    "WO2016126495A1",
+    "CA2975711A1",
+    "US9511959B2",
+    "WO2016126496A1",
+    "US9718630B2",
+    "US9517901B2",
+    "US20160229416A1",
+    "JP2018513665A",
+    "KR20180084154A",
+    "US20160229646A1",
+    "US20210253379A1",
+    "KR102490998B1",
+    "EP3253636B1",
+    "EP3253636A1",
+    "CN107406009A",
+    "KR20170125340A",
+    "KR20220066421A",
+    "US20160229418A1",
+    "WO2016126503A1",
+    "US11772914B2",
+    "AU2016215689A1",
+    "US20160229419A1",
+    "US20160229417A1",
+    "EP3888995A1",
+    "US10093493B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "GB2527854B",
+   "url": "https://patents.google.com/patent/GB2527854B/un",
+   "title": "GB2527854B - Zero Energy Transportation System - Google Patents",
+   "status": 200,
+   "own": "GB2527854B",
+   "docdb": [
+    "US20160121908A1",
+    "GB2527854A",
+    "GB201412440D0",
+    "WO2014177914A1"
+   ],
+   "direct": [
+    "GB2527854A",
+    "GB201412440D0"
+   ]
+  },
+  {
+   "number": "WO2014177914A1",
+   "url": "https://patents.google.com/patent/WO2014177914A1/un",
+   "title": "WO2014177914A1 - Zero energy transportation system - Google Patents",
+   "status": 200,
+   "own": "WO2014177914A1",
+   "docdb": [
+    "US20160121908A1",
+    "GB2527854A",
+    "GB201412440D0",
+    "GB2527854B"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US7114882B1",
+   "url": "https://patents.google.com/patent/US7114882B1/en",
+   "title": "US7114882B1 - Aqua-terra planetary transport system and development pneumatic and electro-magnetic underwater tube-link transportation system - Google Patents",
+   "status": 200,
+   "own": "US7114882",
+   "docdb": [
+    "US20060233616A1",
+    "WO2005085534A1"
+   ],
+   "direct": [
+    "US20060233616A1"
+   ]
+  },
+  {
+   "number": "WO2009098617",
+   "url": "https://patentscope.wipo.int/search/zh/detail.jsf?docId=WO2009098617&recNum=1&maxRec=1&tab=PCT+Biblio",
+   "title": "CONTAINER FOR CONTAINING A LIVING ORGANISM, A DOCKING STATION AND A TRANSPORTATION SYSTEM",
+   "status": 200,
+   "own": "WO2009098617A1",
+   "docdb": [
+    "CN101939232A",
+    "US9718605B2",
+    "EP2242706A1",
+    "US20110000807A1",
+    "CN101939232B",
+    "ATE526254T1",
+    "JP2011515070A",
+    "TW200951040A",
+    "JP5314706B2",
+    "EP2242706B1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20230114494",
+   "url": "https://patents.justia.com/patent/20230114494",
+   "title": "U.S. Patent Application for System and Method for Hyperloop Transponder Communication Patent Application (Application #20230114494 issued April 13, 2023) - Justia Patents Search",
+   "status": 200,
+   "own": "US20230114494A1",
+   "docdb": [],
+   "direct": []
+  }
+ ],
+ "registries": [
+  {
+   "batch": "academic-gate-live-v1",
+   "run": "V06-space-based-solar-power",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US10144533B2/en",
+     "title": "US10144533B2 - Large-scale space-based solar power station: multi-scale modular space power - Google Patents",
+     "number": "US10144533B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US3781647A/en",
+     "title": "US3781647A - Method and apparatus for converting solar radiation to electrical power - Google Patents",
+     "number": "US3781647A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20100276547A1/en",
+     "title": "US20100276547A1 - Systems for solar power beaming from space - Google Patents",
+     "number": "US20100276547A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US9346563B1/en",
+     "title": "US9346563B1 - Solar powered space weapon - Google Patents",
+     "number": "US9346563B1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US9511881B1/en",
+     "title": "US9511881B1 - Dispersed space based laser weapon - Google Patents",
+     "number": "US9511881B1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20100224696A1/en",
+     "title": "US20100224696A1 - Weather management using space-based power system - Google Patents",
+     "number": "US20100224696A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20240022118A1/en",
+     "title": "US20240022118A1 - Space-based solar power system - Google Patents",
+     "number": "US20240022118A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US6936760B2/en",
+     "title": "US6936760B2 - Space-based power system - Google Patents",
+     "number": "US6936760B2"
+    }
+   ]
+  },
+  {
+   "batch": "academic-gate-live-v1",
+   "run": "V06-space-based-solar-power__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20100276547A1/en",
+     "title": "US20100276547A1 - Systems for solar power beaming from space - Google Patents",
+     "number": "US20100276547A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10144533B2/en",
+     "title": "US10144533B2 - Large-scale space-based solar power station: multi-scale modular space power - Google Patents",
+     "number": "US10144533B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US3781647A/en",
+     "title": "US3781647A - Method and apparatus for converting solar radiation to electrical power - Google Patents",
+     "number": "US3781647A"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/WO2023022074",
+     "title": "glass substrate for space-based solar power generation",
+     "number": "WO2023022074"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US6936760B2/en",
+     "title": "US6936760B2 - Space-based power system - Google Patents",
+     "number": "US6936760B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/WO2015179213",
+     "title": "1. wo2015179213 - large-scale space-based solar power station",
+     "number": "WO2015179213"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20100224696A1/en",
+     "title": "US20100224696A1 - Weather management using space-based power system - Google Patents",
+     "number": "US20100224696A1"
+    }
+   ]
+  },
+  {
+   "batch": "academic-gate-live-v1",
+   "run": "V06-space-based-solar-power__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20100276547A1/en",
+     "title": "US20100276547A1 - Systems for solar power beaming from space - Google Patents",
+     "number": "US20100276547A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10144533B2/en",
+     "title": "US10144533B2 - Large-scale space-based solar power station: multi-scale modular space power - Google Patents",
+     "number": "US10144533B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US3781647A/en",
+     "title": "US3781647A - Method and apparatus for converting solar radiation to electrical power - Google Patents",
+     "number": "US3781647A"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.justia.com/patent/6194790",
+     "title": "Solar sail for power generation",
+     "number": "US6194790"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US6936760B2/en",
+     "title": "US6936760B2 - Space-based power system - Google Patents",
+     "number": "US6936760B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20100224696A1/en",
+     "title": "US20100224696A1 - Weather management using space-based power system - Google Patents",
+     "number": "US20100224696A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2026046134",
+     "title": "PEROVSKITE SOLAR CELL AND PREPARATION METHOD THEREFOR, PHOTOVOLTAIC MODULE, POWER GENERATION DEVICE, AND ELECTRIC DEVICE",
+     "number": "WO2026046134"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2025193925",
+     "title": "WO2025193925 SIMULTANEOUS SUB-AMBIENT DAYTIME RADIATIVE COOLING AND PHOTOVOLTAIC POWER GENERATION FROM THE SAME AREA",
+     "number": "WO2025193925"
+    }
+   ]
+  },
+  {
+   "batch": "academic-gate-live-v1",
+   "run": "V06-space-based-solar-power__r4",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20100276547A1/en",
+     "title": "US20100276547A1 - Systems for solar power beaming from space - Google Patents",
+     "number": "US20100276547A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10144533B2/en",
+     "title": "US10144533B2 - Large-scale space-based solar power station: multi-scale modular space power - Google Patents",
+     "number": "US10144533B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US3781647A/en",
+     "title": "US3781647A - Method and apparatus for converting solar radiation to electrical power - Google Patents",
+     "number": "US3781647A"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/WO2023022074",
+     "title": "glass substrate for space-based solar power generation",
+     "number": "WO2023022074"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.justia.com/patent/6194790",
+     "title": "Solar sail for power generation",
+     "number": "US6194790"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US6936760B2/en",
+     "title": "US6936760B2 - Space-based power system - Google Patents",
+     "number": "US6936760B2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2015179213",
+     "title": "1. wo2015179213 - large-scale space-based solar power station",
+     "number": "WO2015179213"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US20100224696A1/en",
+     "title": "US20100224696A1 - Weather management using space-based power system - Google Patents",
+     "number": "US20100224696A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1",
+   "run": "H01-small-modular-reactors-for-grid-electricity",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2013188128A1/un",
+     "title": "WO2013188128A1 - Small modular reactor safety systems",
+     "number": "WO2013188128A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/WO2015085241A1/en",
+     "title": "Slimm-scalable liquid metal cooled small modular reactor",
+     "number": "WO2015085241A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1",
+   "run": "H02-fusion-power",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US7482607B2/en",
+     "title": "US7482607B2 - Method and apparatus for producing x-rays, ion beams and nuclear fusion energy - Google Patents",
+     "number": "US7482607B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN2563708Y/en",
+     "title": "CN2563708Y - Controllable nuclear fusion power device",
+     "number": "CN2563708Y"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/WO2018208953A1/en",
+     "title": "WO2018208953A1 - Generating nuclear fusion reactions with the use of ion beam injection in high pressure magnetic cusp devices - Google Patents",
+     "number": "WO2018208953A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US6888434B2/en",
+     "title": "US6888434B2 - Nuclear fusion reactor incorporating spherical electromagnetic fields to contain and extract energy - Google Patents",
+     "number": "US6888434B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20030002610A1/en",
+     "title": "Nuclear fusion and energy conversion apparatus",
+     "number": "US20030002610A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/EP0461690A2/en",
+     "title": "EP0461690A2 - Cold nuclear fusion thermal generator",
+     "number": "EP0461690A2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US4172008A/en",
+     "title": "US4172008A - Nuclear fusion reactor - Google Patents",
+     "number": "US4172008A"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/ru/detail.jsf;jsessionid=D4D1CC68985D20FB71A632558BC3ADB6.wapp1nB?docId=WO2026030948",
+     "title": "positive ion cyclic collision nuclear fusion reactor",
+     "number": "WO2026030948"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1",
+   "run": "H03-implantable-brain-computer-interfaces-for-par",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20230000564A1/en",
+     "title": "US20230000564A1 - Systems and methods for high-bandwidth minimally invasive brain-computer interfaces - Google Patents",
+     "number": "US20230000564A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US11269414B2/ko",
+     "title": "US11269414B2 - Brain-computer interface with high-speed eye tracking features - Google Patents",
+     "number": "US11269414B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US7120486B2/en",
+     "title": "US7120486B2 - Brain computer interface - Google Patents",
+     "number": "US7120486B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US9468541B2/en",
+     "title": "US9468541B2 - Time domain-based methods for noninvasive brain-machine interfaces - Google Patents",
+     "number": "US9468541B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=US357156534&_cid=P12-MB21FG-94818-2",
+     "title": "US11301044 Wearable brain computer interface",
+     "number": null
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2018109715",
+     "title": "BRAIN COMPUTER INTERFACE SYSTEMS AND METHODS OF USE THEREOF",
+     "number": "WO2018109715"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=CN453021991",
+     "title": "CN119620861 Multi-agent cooperative control system based on multi-mode brain-computer interface-visual tracking",
+     "number": null
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-b",
+   "run": "H01-small-modular-reactors-for-grid-electricity",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2015085241A1/en",
+     "title": "WO2015085241A1 - Slimm-scalable liquid metal cooled small modular reactor - Google Patents",
+     "number": "WO2015085241A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20230279756A1/en",
+     "title": "US20230279756A1 - Small modular nuclear reactor integrated energy systems for industrial applications, such as enhanced oil recovery operations - Google Patents",
+     "number": "US20230279756A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20240124985A1/de",
+     "title": "US20240124985A1 - Small modular nuclear reactor integrated energy systems for in-situ, on-demand hydrogen generation and/or the production of sodium formate - Google Patents",
+     "number": "US20240124985A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20110049992A1/en",
+     "title": "US20110049992A1 - Systems, methods, and devices including modular, fixed and transportable structures incorporating solar and wind generation technologies for production of electricity - Google Patents",
+     "number": "US20110049992A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US9422922B2/en",
+     "title": "US9422922B2 - Systems, methods, and devices including modular, fixed and transportable structures incorporating solar and wind generation technologies for production of electricity - Google Patents",
+     "number": "US9422922B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US10852037B2/en",
+     "title": "US10852037B2 - Systems, methods, and devices including modular, fixed and transportable structures incorporating solar and wind generation technologies for production of electricity - Google Patents",
+     "number": "US10852037B2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/CA2602288C/en",
+     "title": "CA2602288C - Modular system for generating electricity from moving fluid - Google Patents",
+     "number": "CA2602288C"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US8177480B2/en",
+     "title": "US8177480B2 - Modular system for generating electricity from moving fluid - Google Patents",
+     "number": "US8177480B2"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-b",
+   "run": "H02-fusion-power",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US9082516B2/en",
+     "title": "US9082516B2 - Apparatus, systems and methods for fusion based power generation and engine thrust generation - Google Patents",
+     "number": "US9082516B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN2563708Y/en",
+     "title": "CN2563708Y - Controllable nuclear fusion power device - Google Patents",
+     "number": "CN2563708Y"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20220375629A1/en",
+     "title": "US20220375629A1 - Methods, devices and systems for fusion reactions - Google Patents",
+     "number": "US20220375629A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US9947420B2/en",
+     "title": "US9947420B2 - Magnetic field plasma confinement for compact fusion power - Google Patents",
+     "number": "US9947420B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=CN159139103",
+     "title": "Salt stratum dissolved cavity geothermal power generation system",
+     "number": null
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20120014491A1/en",
+     "title": "US20120014491A1 - Nuclear fusion power plant having a liquid reactor core of molten glass that is made laseractive and functions as a tritium breeding blanket which is capable of acousticly compressing/confining fuel so that it radiates and triggers outgoing laser cascades that will reflect from the blast chamber's spherical inside wall and return like photonic Tsunamis, crushing, heating, and causing thermonuclear ignition of the fuel so that heat engines and piezoelectric harvesters can convert the released energy into electricity - Google Patents",
+     "number": "US20120014491A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2022161934",
+     "title": "systems and methods for non-thermal fusion enhancement using ...",
+     "number": "WO2022161934"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-b",
+   "run": "H03-implantable-brain-computer-interfaces-for-par",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20230000564A1/en",
+     "title": "US20230000564A1 - Systems and methods for high-bandwidth minimally invasive brain-computer interfaces - Google Patents",
+     "number": "US20230000564A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US11269414B2/ko",
+     "title": "US11269414B2 - Brain-computer interface with high-speed eye tracking features - Google Patents",
+     "number": "US11269414B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=US357156534&_cid=P12-MB21FG-94818-2",
+     "title": "US11301044 Wearable brain computer interface",
+     "number": null
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2018109715",
+     "title": "BRAIN COMPUTER INTERFACE SYSTEMS AND METHODS OF USE THEREOF",
+     "number": "WO2018109715"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=CN453021991",
+     "title": "CN119620861 Multi-agent cooperative control system based on multi-mode brain-computer interface-visual tracking",
+     "number": null
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US12106204B2/zh",
+     "title": "Adaptive brain-computer interface decoding method based on ...",
+     "number": "US12106204B2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20230133022A1/en",
+     "title": "US20230133022A1 - Brain computer interface (bci) system that can be implemented on multiple devices - Google Patents",
+     "number": "US20230133022A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-b",
+   "run": "H04-psilocybin-therapy-for-treatment-resistant-de",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2020212952A1/en",
+     "title": "WO2020212952A1 - Treatment of depression and other various disorders with psilocybin - Google Patents",
+     "number": "WO2020212952A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20250000881A1/boite-100-ogives-Hornady-Match-HP-cal-224-22-poids-53grs--item-6527213.html",
+     "title": "Treatment of treatment resistant depression with psilocybin",
+     "number": "US20250000881A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US10869844B2/en",
+     "title": "US10869844B2 - Methods for the treatment of depression - Google Patents",
+     "number": "US10869844B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20210137908A1/en",
+     "title": "US20210137908A1 - 5-ht2a agonists for use in treatment of depression - Google Patents",
+     "number": "US20210137908A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/EP3501542A1/en",
+     "title": "EP3501542A1 - Esketamine for the treatment of depression - Google Patents",
+     "number": "EP3501542A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/EP3731815A1/en",
+     "title": "EP3731815A1 - Dry powder ketamine composition for use in the treatment of depression by pulmonary administration - Google Patents",
+     "number": "EP3731815A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/CN102133216A/en",
+     "title": "CN102133216A - Combined medicine for curing treatment-resistant depression and applications thereof - Google Patents",
+     "number": "CN102133216A"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US11801256B2/en",
+     "title": "US11801256B2 - Antidepressant-psilocybin co-treatment ...",
+     "number": "US11801256B2"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-b",
+   "run": "H05-direct-air-capture-of-carbon-dioxide",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US12257547B2/zh",
+     "title": "US12257547B2 - Direct air capture system - Google Patents",
+     "number": "US12257547B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20170106330A1/en",
+     "title": "US20170106330A1 - Direct air capture device - Google Patents",
+     "number": "US20170106330A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20170203249A1/es",
+     "title": "US20170203249A1 - Steam assisted vacuum desorption process for carbon dioxide capture - Google Patents",
+     "number": "US20170203249A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/WO2022109746A1/en",
+     "title": "WO2022109746A1 - Direct air capture and concentration of co2 using adsorbents - Google Patents",
+     "number": "WO2022109746A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/WO2025012458A1/en",
+     "title": "WO2025012458A1 - Calcium hydroxide composition and carbon removal in air using the same - Google Patents",
+     "number": "WO2025012458A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/WO2021188547A1/en",
+     "title": "WO2021188547A1 - Autothermal direct air capture system - Google Patents",
+     "number": "WO2021188547A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/WO2019092128A1/en",
+     "title": "WO2019092128A1 - Materials for the direct capture of carbon dioxide from atmospheric air - Google Patents",
+     "number": "WO2019092128A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US8119091B2/en",
+     "title": "US8119091B2 - Carbon dioxide capture - Google Patents",
+     "number": "US8119091B2"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-b",
+   "run": "H06-漂浮式海上风电",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN114127416A/en",
+     "title": "CN114127416A - Floating wind turbine including integrated substation - Google Patents",
+     "number": "CN114127416A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US7612462B2/no",
+     "title": "US7612462B2 - Floating wind turbine system",
+     "number": "US7612462B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US11149716B2/en",
+     "title": "Offshore wind-solar-aquaculture integrated floater",
+     "number": "US11149716B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20190078556A1/en",
+     "title": "US20190078556A1 - A floating wind turbine and a method ...",
+     "number": "US20190078556A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20140339828A1/en",
+     "title": "System and method for controlling offshore floating wind ...",
+     "number": "US20140339828A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/WO2019095487A1/en",
+     "title": "Integrated device for offshore floating wind turbine and fish ...",
+     "number": "WO2019095487A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/GB2473897A/en",
+     "title": "Floating wind turbine system - GB2473897A",
+     "number": "GB2473897A"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US20140196654A1/en",
+     "title": "Floating Wind Turbine Platform with Ballast Control and ...",
+     "number": "US20140196654A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-b",
+   "run": "H07-人工光合作用制备太阳能燃料",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN102686707A/en",
+     "title": "CN102686707A - Artificial photosynthesis",
+     "number": "CN102686707A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20120222951A1/en",
+     "title": "US20120222951A1 - Artificial photosynthesis",
+     "number": "US20120222951A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US8519012B2/en",
+     "title": "US8519012B2 - Artificial photosynthesis",
+     "number": "US8519012B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.justia.com/patent/12263461",
+     "title": "Synthetic fuel production system and related techniques",
+     "number": "US12263461"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/WO2022004812",
+     "title": "PERYLENE DIMER COMPOUND, PRODUCTION METHOD THEREFOR, POLYMER OF PERYLENE DIMER COMPOUND AND PRODUCTION METHOD THEREFOR, ORGANIC THIN-FILM SOLAR BATTERY, ELECTRODE MATERIAL, AND ALKALI ION SECONDARY BATTERY",
+     "number": "WO2022004812"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2025126798",
+     "title": "WO2025126798 ADHESIVE COMPOSITION AND SHEET-LIKE GASKET, FLOOR MATERIAL, SEALING MATERIAL FOR AUTOMOBILE DOOR INNER SECTION, CUSHIONING MATERIAL FOR FUEL TANK, SEALING MATERIAL FOR ELECTRONIC COMPONENT, CUSHIONING MATERIAL FOR LITHIUM ION BATTERY, SEALING MATERIAL FOR USE BETWEEN SOLAR CELL PANEL AN...",
+     "number": "WO2025126798"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H01-small-modular-reactors-for-grid-electricity",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2015085241A1/en",
+     "title": "WO2015085241A1 - Slimm-scalable liquid metal cooled small modular reactor - Google Patents",
+     "number": "WO2015085241A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/KR102876623B1/en",
+     "title": "KR102876623B1 - Passive Cooling System for Small Modular Reactors - Google Patents",
+     "number": "KR102876623B1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/KR102992555B1/en",
+     "title": "KR102992555B1 - Main Control Room system In Nuclear Power Plant comprising Small Modular Reactor - Google Patents",
+     "number": "KR102992555B1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/WO2025254302",
+     "title": "WO2025254302 MAIN CONTROL ROOM SYSTEM FOR NUCLEAR POWER PLANT INCLUDING SMALL MODULAR NUCLEAR REACTORS",
+     "number": "WO2025254302"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2024237981",
+     "title": "WO2024237981 COMBINED HYDROGEN SUPPLY AND FUEL CELL PROCESSES FOR INCREASED EFFICIENCY OF ELECTRICITY GENERATION",
+     "number": "WO2024237981"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/WO2013188128A1/un",
+     "title": "WO2013188128A1 - Small modular reactor safety systems - Google Patents",
+     "number": "WO2013188128A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20170147025A1/en",
+     "title": "US20170147025A1 - Systems and methods for microgrid power generation management with selective disconnect - Google Patents",
+     "number": "US20170147025A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H01-small-modular-reactors-for-grid-electricity__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2015085241A1/en",
+     "title": "WO2015085241A1 - Slimm-scalable liquid metal cooled small modular reactor - Google Patents",
+     "number": "WO2015085241A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20240124985A1/de",
+     "title": "US20240124985A1 - Small modular nuclear reactor integrated energy systems for in-situ, on-demand hydrogen generation and/or the production of sodium formate - Google Patents",
+     "number": "US20240124985A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/WO2018175532A1/en",
+     "title": "WO2018175532A1 - Optimized nuclear fuel core design for a small modular reactor - Google Patents",
+     "number": "WO2018175532A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20230279756A1/en",
+     "title": "US20230279756A1 - Small modular nuclear reactor integrated energy systems for industrial applications, such as enhanced oil recovery operations - Google Patents",
+     "number": "US20230279756A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20110049992A1/en",
+     "title": "US20110049992A1 - Systems, methods, and devices including modular, fixed and transportable structures incorporating solar and wind generation technologies for production of electricity - Google Patents",
+     "number": "US20110049992A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US8177480B2/en",
+     "title": "US8177480B2 - Modular system for generating electricity from moving fluid - Google Patents",
+     "number": "US8177480B2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US8918225B2/en",
+     "title": "US8918225B2 - Renewable energy-based electricity grid infrastructure and method of grid infrastructure automation and operation - Google Patents",
+     "number": "US8918225B2"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/CA2602288C/en",
+     "title": "CA2602288C - Modular system for generating electricity from moving fluid - Google Patents",
+     "number": "CA2602288C"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H01-small-modular-reactors-for-grid-electricity__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2015085241A1/en",
+     "title": "WO2015085241A1 - Slimm-scalable liquid metal cooled small modular reactor - Google Patents",
+     "number": "WO2015085241A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/KR102876623B1/en",
+     "title": "KR102876623B1 - Passive Cooling System for Small Modular Reactors - Google Patents",
+     "number": "KR102876623B1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patentscope.wipo.int/search/en/WO2025254302",
+     "title": "WO2025254302 MAIN CONTROL ROOM SYSTEM FOR NUCLEAR POWER PLANT INCLUDING SMALL MODULAR NUCLEAR REACTORS",
+     "number": "WO2025254302"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2024237981",
+     "title": "WO2024237981 COMBINED HYDROGEN SUPPLY AND FUEL CELL PROCESSES FOR INCREASED EFFICIENCY OF ELECTRICITY GENERATION",
+     "number": "WO2024237981"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/WO2013188128A1/un",
+     "title": "WO2013188128A1 - Small modular reactor safety systems - Google Patents",
+     "number": "WO2013188128A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H02-fusion-power",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US7482607B2/en",
+     "title": "US7482607B2 - Method and apparatus for producing x-rays, ion beams and nuclear fusion energy - Google Patents",
+     "number": "US7482607B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20110075783A1/en",
+     "title": "US20110075783A1 - Economical Method to Ignite a Nuclear Fusion Reaction and Generate Energy - Google Patents",
+     "number": "US20110075783A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/WO2022264567A1/en",
+     "title": "WO2022264567A1 - High voltage and high pressure direct application type nuclear fusion method - Google Patents",
+     "number": "WO2022264567A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20080008286A1/en",
+     "title": "US20080008286A1 - Fusion energy production - Google Patents",
+     "number": "US20080008286A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/WO2018208953A1/en",
+     "title": "WO2018208953A1 - Generating nuclear fusion reactions with the use of ion beam injection in high pressure magnetic cusp devices - Google Patents",
+     "number": "WO2018208953A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/EP0461690A2/en",
+     "title": "EP0461690A2 - Cold nuclear fusion thermal generator - Google Patents",
+     "number": "EP0461690A2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20030002610A1/en",
+     "title": "US20030002610A1 - Nuclear fusion and energy conversion apparatus - Google Patents",
+     "number": "US20030002610A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/ru/detail.jsf;jsessionid=D4D1CC68985D20FB71A632558BC3ADB6.wapp1nB?docId=WO2026030948",
+     "title": "positive ion cyclic collision nuclear fusion reactor",
+     "number": "WO2026030948"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H02-fusion-power__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN101364450B/en",
+     "title": "CN101364450B - Method implementing nuclear fusion reaction based on sound cavitation effect - Google Patents",
+     "number": "CN101364450B"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20030002610A1/en",
+     "title": "US20030002610A1 - Nuclear fusion and energy conversion apparatus - Google Patents",
+     "number": "US20030002610A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US7482607B2/en",
+     "title": "US7482607B2 - Method and apparatus for producing x-rays, ion beams and nuclear fusion energy - Google Patents",
+     "number": "US7482607B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/WO2022264567A1/en",
+     "title": "WO2022264567A1 - High voltage and high pressure direct application type nuclear fusion method - Google Patents",
+     "number": "WO2022264567A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/EP0461690A2/en",
+     "title": "EP0461690A2 - Cold nuclear fusion thermal generator - Google Patents",
+     "number": "EP0461690A2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/GB2461267A/en",
+     "title": "GB2461267A - Nuclear fusion reactor - Google Patents",
+     "number": "GB2461267A"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/WO1990013124A1/en",
+     "title": "WO1990013124A1 - Cold nuclear fusion method and apparatus - Google Patents",
+     "number": "WO1990013124A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US20120008728A1/en",
+     "title": "US20120008728A1 - Resonant Vacuum Arc Discharge Apparatus for Nuclear Fusion - Google Patents",
+     "number": "US20120008728A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H02-fusion-power__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US7482607B2/en",
+     "title": "US7482607B2 - Method and apparatus for producing x-rays, ion beams and nuclear fusion energy - Google Patents",
+     "number": "US7482607B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20110075783A1/en",
+     "title": "US20110075783A1 - Economical Method to Ignite a Nuclear Fusion Reaction and Generate Energy - Google Patents",
+     "number": "US20110075783A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/WO2022264567A1/en",
+     "title": "WO2022264567A1 - High voltage and high pressure direct application type nuclear fusion method - Google Patents",
+     "number": "WO2022264567A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/WO2026083208A1/en",
+     "title": "WO2026083208A1 - Apparatuses and methods for nuclear fusion via tandem mirror - Google Patents",
+     "number": "WO2026083208A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/EP0461690A2/en",
+     "title": "EP0461690A2 - Cold nuclear fusion thermal generator - Google Patents",
+     "number": "EP0461690A2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20030002610A1/en",
+     "title": "US20030002610A1 - Nuclear fusion and energy conversion apparatus - Google Patents",
+     "number": "US20030002610A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US6888434B2/en",
+     "title": "US6888434B2 - Nuclear fusion reactor incorporating spherical electromagnetic fields to contain and extract energy - Google Patents",
+     "number": "US6888434B2"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/ru/detail.jsf;jsessionid=D4D1CC68985D20FB71A632558BC3ADB6.wapp1nB?docId=WO2026030948",
+     "title": "positive ion cyclic collision nuclear fusion reactor",
+     "number": "WO2026030948"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H03-implantable-brain-computer-interfaces-for-par",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20230000564A1/en",
+     "title": "US20230000564A1 - Systems and methods for high-bandwidth minimally invasive brain-computer interfaces - Google Patents",
+     "number": "US20230000564A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20240009480A1/en",
+     "title": "US20240009480A1 - Wireless brain-computer interface - Google Patents",
+     "number": "US20240009480A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20230133022A1/en",
+     "title": "US20230133022A1 - Brain computer interface (bci) system that can be implemented on multiple devices - Google Patents",
+     "number": "US20230133022A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US7120486B2/en",
+     "title": "US7120486B2 - Brain computer interface - Google Patents",
+     "number": "US7120486B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=US357156534&_cid=P12-MB21FG-94818-2",
+     "title": "US11301044 Wearable brain computer interface",
+     "number": null
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2018109715",
+     "title": "BRAIN COMPUTER INTERFACE SYSTEMS AND METHODS OF USE THEREOF",
+     "number": "WO2018109715"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=CN453021991",
+     "title": "CN119620861 Multi-agent cooperative control system based on multi-mode brain-computer interface-visual tracking",
+     "number": null
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H03-implantable-brain-computer-interfaces-for-par__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20230000564A1/en",
+     "title": "US20230000564A1 - Systems and methods for high-bandwidth minimally invasive brain-computer interfaces - Google Patents",
+     "number": "US20230000564A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US11269414B2/ko",
+     "title": "US11269414B2 - Brain-computer interface with high-speed eye tracking features - Google Patents",
+     "number": "US11269414B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20240009480A1/en",
+     "title": "US20240009480A1 - Wireless brain-computer interface - Google Patents",
+     "number": "US20240009480A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/WO2026107516A1/en",
+     "title": "WO2026107516A1 - Authenticated user control of a brain-computer interface - Google Patents",
+     "number": "WO2026107516A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20230133022A1/en",
+     "title": "US20230133022A1 - Brain computer interface (bci) system that can be implemented on multiple devices - Google Patents",
+     "number": "US20230133022A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=US357156534&_cid=P12-MB21FG-94818-2",
+     "title": "US11301044 Wearable brain computer interface",
+     "number": null
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2018109715",
+     "title": "BRAIN COMPUTER INTERFACE SYSTEMS AND METHODS OF USE THEREOF",
+     "number": "WO2018109715"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=CN453021991",
+     "title": "CN119620861 Multi-agent cooperative control system based on multi-mode brain-computer interface-visual tracking",
+     "number": null
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H03-implantable-brain-computer-interfaces-for-par__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20230000564A1/en",
+     "title": "US20230000564A1 - Systems and methods for high-bandwidth minimally invasive brain-computer interfaces - Google Patents",
+     "number": "US20230000564A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US11269414B2/ko",
+     "title": "US11269414B2 - Brain-computer interface with high-speed eye tracking features - Google Patents",
+     "number": "US11269414B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20240009480A1/en",
+     "title": "US20240009480A1 - Wireless brain-computer interface - Google Patents",
+     "number": "US20240009480A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/WO2026107516A1/en",
+     "title": "WO2026107516A1 - Authenticated user control of a brain-computer interface - Google Patents",
+     "number": "WO2026107516A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20230133022A1/en",
+     "title": "US20230133022A1 - Brain computer interface (bci) system that can be implemented on multiple devices - Google Patents",
+     "number": "US20230133022A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=US357156534&_cid=P12-MB21FG-94818-2",
+     "title": "US11301044 Wearable brain computer interface",
+     "number": null
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2018109715",
+     "title": "BRAIN COMPUTER INTERFACE SYSTEMS AND METHODS OF USE THEREOF",
+     "number": "WO2018109715"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=CN453021991",
+     "title": "CN119620861 Multi-agent cooperative control system based on multi-mode brain-computer interface-visual tracking",
+     "number": null
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H04-psilocybin-therapy-for-treatment-resistant-de",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2020212952A1/en",
+     "title": "WO2020212952A1 - Treatment of depression and other various disorders with psilocybin - Google Patents",
+     "number": "WO2020212952A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US11801256B2/en",
+     "title": "US11801256B2 - Antidepressant-psilocybin co-treatment to assist psychotherapy - Google Patents",
+     "number": "US11801256B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/AU2022387053A1/enAug",
+     "title": "AU2022387053A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "AU2022387053A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/EP4429671A1/enAug",
+     "title": "EP4429671A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "EP4429671A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20250000881A1/boite-100-ogives-Hornady-Match-HP-cal-224-22-poids-53grs--item-6527213.html",
+     "title": "US20250000881A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "US20250000881A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/CA3237885A1/and",
+     "title": "CA3237885A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "CA3237885A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2023086252",
+     "title": "treatment of treatment resistant depression with psilocybin",
+     "number": "WO2023086252"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2025097041",
+     "title": "METHODS FOR THE DETECTION AND TREATMENT OF RESISTANT CANCERS CO-EXPRESSING ALPP AND/OR ALPG/ALPPL2",
+     "number": "WO2025097041"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H04-psilocybin-therapy-for-treatment-resistant-de__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US11801256B2/en",
+     "title": "US11801256B2 - Antidepressant-psilocybin co-treatment to assist psychotherapy - Google Patents",
+     "number": "US11801256B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/WO2020212952A1/en",
+     "title": "WO2020212952A1 - Treatment of depression and other various disorders with psilocybin - Google Patents",
+     "number": "WO2020212952A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/EP4429671A1/enAug",
+     "title": "EP4429671A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "EP4429671A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20250000881A1/boite-100-ogives-Hornady-Match-HP-cal-224-22-poids-53grs--item-6527213.html",
+     "title": "US20250000881A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "US20250000881A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CA3237885A1/and",
+     "title": "CA3237885A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "CA3237885A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/WO2023086252",
+     "title": "treatment of treatment resistant depression with psilocybin",
+     "number": "WO2023086252"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/EP3731815A1/en",
+     "title": "EP3731815A1 - Dry powder ketamine composition for use in the treatment of depression by pulmonary administration - Google Patents",
+     "number": "EP3731815A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US20250032429A1/en",
+     "title": "US20250032429A1 - 2-fluorodeschloroketamine for treatment of depression, including treatment-resistant depression - Google Patents",
+     "number": "US20250032429A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H04-psilocybin-therapy-for-treatment-resistant-de__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2020212952A1/en",
+     "title": "WO2020212952A1 - Treatment of depression and other various disorders with psilocybin - Google Patents",
+     "number": "WO2020212952A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US11801256B2/en",
+     "title": "US11801256B2 - Antidepressant-psilocybin co-treatment to assist psychotherapy - Google Patents",
+     "number": "US11801256B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/EP4429671A1/enAug",
+     "title": "EP4429671A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "EP4429671A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20250000881A1/boite-100-ogives-Hornady-Match-HP-cal-224-22-poids-53grs--item-6527213.html",
+     "title": "US20250000881A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "US20250000881A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CA3237885A1/and",
+     "title": "CA3237885A1 - Treatment of treatment resistant depression with psilocybin - Google Patents",
+     "number": "CA3237885A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/WO2023086252",
+     "title": "treatment of treatment resistant depression with psilocybin",
+     "number": "WO2023086252"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US10098854B2/en",
+     "title": "US10098854B2 - Method for the treatment of depression - Google Patents",
+     "number": "US10098854B2"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/EP3731815A1/en",
+     "title": "EP3731815A1 - Dry powder ketamine composition for use in the treatment of depression by pulmonary administration - Google Patents",
+     "number": "EP3731815A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H05-direct-air-capture-of-carbon-dioxide",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/AU2024355392A1/en",
+     "title": "AU2024355392A1 - Direct air capture of carbon dioxide with molecular polyamines - Google Patents",
+     "number": "AU2024355392A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US12257547B2/zh",
+     "title": "US12257547B2 - Direct air capture system - Google Patents",
+     "number": "US12257547B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20170106330A1/en",
+     "title": "US20170106330A1 - Direct air capture device - Google Patents",
+     "number": "US20170106330A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20170203249A1/es",
+     "title": "US20170203249A1 - Steam assisted vacuum desorption process for carbon dioxide capture - Google Patents",
+     "number": "US20170203249A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/WO2025012458A1/en",
+     "title": "WO2025012458A1 - Calcium hydroxide composition and carbon removal in air using the same - Google Patents",
+     "number": "WO2025012458A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20230023050A1/en",
+     "title": "US20230023050A1 - Rotating continuous multi-capture systems and apparatus for improved direct air capture of carbon dioxide (dac+) - Google Patents",
+     "number": "US20230023050A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/WO2019092128A1/en",
+     "title": "WO2019092128A1 - Materials for the direct capture of carbon dioxide from atmospheric air - Google Patents",
+     "number": "WO2019092128A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/GB2592707A/en",
+     "title": "GB2592707A - Providing heat energy to direct air carbon dioxide capture processes using waste heat from data centre - Google Patents",
+     "number": "GB2592707A"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H05-direct-air-capture-of-carbon-dioxide__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US12064725B1/en",
+     "title": "US12064725B1 - Air-liquid contactor for carbon dioxide direct air capture using aqueous solvent - Google Patents",
+     "number": "US12064725B1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20230191322A1/en",
+     "title": "US20230191322A1 - Systems and methods for direct air carbon dioxide capture - Google Patents",
+     "number": "US20230191322A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US11701616B2/en",
+     "title": "US11701616B2 - Sorbent emitter for direct air capture of carbon dioxide - Google Patents",
+     "number": "US11701616B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/WO2021111366A1/en",
+     "title": "WO2021111366A1 - Direct capture of carbon dioxide - Google Patents",
+     "number": "WO2021111366A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/WO2025114891A2/en",
+     "title": "WO2025114891A2 - System and method for pressurized direct air capture of carbon dioxide - Google Patents",
+     "number": "WO2025114891A2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US12098111B2/en",
+     "title": "US12098111B2 - Process for capture of carbon dioxide from air and the direct conversion of carbon dioxide into fuels and chemicals - Google Patents",
+     "number": "US12098111B2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/WO2022112366A1",
+     "title": "WO2022112366A1 - Providing heat energy to direct air carbon dioxide capture processes using waste heat from data centre - Google Patents",
+     "number": "WO2022112366A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/GB2592707A/en",
+     "title": "GB2592707A - Providing heat energy to direct air carbon dioxide capture processes using waste heat from data centre - Google Patents",
+     "number": "GB2592707A"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H05-direct-air-capture-of-carbon-dioxide__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/AU2024355392A1/en",
+     "title": "AU2024355392A1 - Direct air capture of carbon dioxide with molecular polyamines - Google Patents",
+     "number": "AU2024355392A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US12257547B2/zh",
+     "title": "US12257547B2 - Direct air capture system - Google Patents",
+     "number": "US12257547B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20170106330A1/en",
+     "title": "US20170106330A1 - Direct air capture device - Google Patents",
+     "number": "US20170106330A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20170203249A1/es",
+     "title": "US20170203249A1 - Steam assisted vacuum desorption process for carbon dioxide capture - Google Patents",
+     "number": "US20170203249A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/WO2025012458A1/en",
+     "title": "WO2025012458A1 - Calcium hydroxide composition and carbon removal in air using the same - Google Patents",
+     "number": "WO2025012458A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20230023050A1/en",
+     "title": "US20230023050A1 - Rotating continuous multi-capture systems and apparatus for improved direct air capture of carbon dioxide (dac+) - Google Patents",
+     "number": "US20230023050A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/WO2019092128A1/en",
+     "title": "WO2019092128A1 - Materials for the direct capture of carbon dioxide from atmospheric air - Google Patents",
+     "number": "WO2019092128A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/GB2592707A/en",
+     "title": "GB2592707A - Providing heat energy to direct air carbon dioxide capture processes using waste heat from data centre - Google Patents",
+     "number": "GB2592707A"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H06-漂浮式海上风电",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20140196654A1/en",
+     "title": "US20140196654A1 - Floating Wind Turbine Platform with Ballast Control and Mooring System - Google Patents",
+     "number": "US20140196654A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN114127416A/en",
+     "title": "CN114127416A - Floating wind turbine including integrated substation - Google Patents",
+     "number": "CN114127416A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20190078556A1/en",
+     "title": "US20190078556A1 - A floating wind turbine and a method for the installation of such floating wind turbine - Google Patents",
+     "number": "US20190078556A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20220081072A1",
+     "title": "US20220081072A1 - Floating wind turbine support - Google Patents",
+     "number": "US20220081072A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US11149716B2/en",
+     "title": "US11149716B2 - Offshore wind-solar-aquaculture integrated floater - Google Patents",
+     "number": "US11149716B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20140339828A1/en",
+     "title": "US20140339828A1 - System and method for controlling offshore floating wind turbine platforms - Google Patents",
+     "number": "US20140339828A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/WO2019095487A1/en",
+     "title": "WO2019095487A1 - Integrated device for offshore floating wind turbine and fish cage farming - Google Patents",
+     "number": "WO2019095487A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/CN114291222A/en",
+     "title": "CN114291222A - Offshore wind power generation platform, floating foundation and transportation method thereof - Google Patents",
+     "number": "CN114291222A"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H06-漂浮式海上风电__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US12049766B1/en",
+     "title": "US12049766B1 - Tensegrity offshore wind power generation support structure - Google Patents",
+     "number": "US12049766B1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20140196654A1/en",
+     "title": "US20140196654A1 - Floating Wind Turbine Platform with Ballast Control and Mooring System - Google Patents",
+     "number": "US20140196654A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20220081072A1",
+     "title": "US20220081072A1 - Floating wind turbine support - Google Patents",
+     "number": "US20220081072A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/CN114291222A/en",
+     "title": "CN114291222A - Offshore wind power generation platform, floating foundation and transportation method thereof - Google Patents",
+     "number": "CN114291222A"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN114127416A/en",
+     "title": "CN114127416A - Floating wind turbine including integrated substation - Google Patents",
+     "number": "CN114127416A"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/CN109973314B/en",
+     "title": "CN109973314B - A new type of offshore floating feng shui synchronous generator set - Google Patents",
+     "number": "CN109973314B"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20190078556A1/en",
+     "title": "US20190078556A1 - A floating wind turbine and a method for the installation of such floating wind turbine - Google Patents",
+     "number": "US20190078556A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/WO2019095487A1/en",
+     "title": "WO2019095487A1 - Integrated device for offshore floating wind turbine and fish cage farming - Google Patents",
+     "number": "WO2019095487A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H06-漂浮式海上风电__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN223396339U/en",
+     "title": "CN223396339U - A floating support structure for offshore wind turbines - Google Patents",
+     "number": "CN223396339U"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN118289158A/en",
+     "title": "CN118289158A - Semi-submersible type offshore floating wind power foundation platform - Google Patents",
+     "number": "CN118289158A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/CN112145365B/en?oq=CN+112145365+B",
+     "title": "CN112145365B - Offshore floating wind turbine generator system based on single column foundation with damper - Google Patents",
+     "number": "CN112145365B"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/CN120391368A/en",
+     "title": "CN120391368A - A floating offshore wind power fusion system based on fishery-wind complementarity - Google Patents",
+     "number": "CN120391368A"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN109973314B/en",
+     "title": "CN109973314B - A new type of offshore floating feng shui synchronous generator set - Google Patents",
+     "number": "CN109973314B"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/CN104627331A/en",
+     "title": "CN104627331A - Wind power generation floating foundation - Google Patents",
+     "number": "CN104627331A"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/CN224267860U/en",
+     "title": "CN224267860U - A floating offshore wind power integration system based on fishery-wind complementarity - Google Patents",
+     "number": "CN224267860U"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US20190078556A1/en",
+     "title": "US20190078556A1 - A floating wind turbine and a method for the installation of such floating wind turbine - Google Patents",
+     "number": "US20190078556A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H07-人工光合作用制备太阳能燃料",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2018047113A1/en",
+     "title": "WO2018047113A1 - Flexible artificial leaves for hydrogen production and methods for making - Google Patents",
+     "number": "WO2018047113A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN102686707A/en",
+     "title": "CN102686707A - Artificial photosynthesis - Google Patents",
+     "number": "CN102686707A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20120222951A1/en",
+     "title": "US20120222951A1 - Artificial photosynthesis - Google Patents",
+     "number": "US20120222951A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US8519012B2/en",
+     "title": "US8519012B2 - Artificial photosynthesis - Google Patents",
+     "number": "US8519012B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN118725224B/en",
+     "title": "CN118725224B - Preparation of Schiff base covalent organic framework material and artificial photosynthesis urea - Google Patents",
+     "number": "CN118725224B"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.justia.com/patent/20090013593",
+     "title": "Fuel production from atmospheric CO2 and H20 by artificial ...",
+     "number": "US20090013593"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2022004812",
+     "title": "PERYLENE DIMER COMPOUND, PRODUCTION METHOD THEREFOR, POLYMER OF PERYLENE DIMER COMPOUND AND PRODUCTION METHOD THEREFOR, ORGANIC THIN-FILM SOLAR BATTERY, ELECTRODE MATERIAL, AND ALKALI ION SECONDARY BATTERY",
+     "number": "WO2022004812"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2025126798",
+     "title": "WO2025126798 ADHESIVE COMPOSITION AND SHEET-LIKE GASKET, FLOOR MATERIAL, SEALING MATERIAL FOR AUTOMOBILE DOOR INNER SECTION, CUSHIONING MATERIAL FOR FUEL TANK, SEALING MATERIAL FOR ELECTRONIC COMPONENT, CUSHIONING MATERIAL FOR LITHIUM ION BATTERY, SEALING MATERIAL FOR USE BETWEEN SOLAR CELL PANEL AN...",
+     "number": "WO2025126798"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H07-人工光合作用制备太阳能燃料__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20230390724A1/en",
+     "title": "US20230390724A1 - Photocatalyst suspension reactor for solar fuel formation - Google Patents",
+     "number": "US20230390724A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN102686707A/en",
+     "title": "CN102686707A - Artificial photosynthesis - Google Patents",
+     "number": "CN102686707A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20120222951A1/en",
+     "title": "US20120222951A1 - Artificial photosynthesis - Google Patents",
+     "number": "US20120222951A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US8519012B2/en",
+     "title": "US8519012B2 - Artificial photosynthesis - Google Patents",
+     "number": "US8519012B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN118725224B/en",
+     "title": "CN118725224B - Preparation of Schiff base covalent organic framework material and artificial photosynthesis urea - Google Patents",
+     "number": "CN118725224B"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US4568435A/en",
+     "title": "US4568435A - Method for improving product yields in an anionic metalloporphyrin-based artificial photosynthesis system - Google Patents",
+     "number": "US4568435A"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US4868123A/en",
+     "title": "US4868123A - Apparatus for the intensive, controlled production of microorganisms by photosynthesis - Google Patents",
+     "number": "US4868123A"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US10384195B2/ja",
+     "title": "US10384195B2 - Artificial photosynthesis module - Google Patents",
+     "number": "US10384195B2"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H07-人工光合作用制备太阳能燃料__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2018047113A1/en",
+     "title": "WO2018047113A1 - Flexible artificial leaves for hydrogen production and methods for making - Google Patents",
+     "number": "WO2018047113A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN102686707A/en",
+     "title": "CN102686707A - Artificial photosynthesis - Google Patents",
+     "number": "CN102686707A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20120222951A1/en",
+     "title": "US20120222951A1 - Artificial photosynthesis - Google Patents",
+     "number": "US20120222951A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US8519012B2/en",
+     "title": "US8519012B2 - Artificial photosynthesis - Google Patents",
+     "number": "US8519012B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN118725224B/en",
+     "title": "CN118725224B - Preparation of Schiff base covalent organic framework material and artificial photosynthesis urea - Google Patents",
+     "number": "CN118725224B"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.justia.com/patent/12263461",
+     "title": "Synthetic fuel production system and related techniques",
+     "number": "US12263461"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2022004812",
+     "title": "PERYLENE DIMER COMPOUND, PRODUCTION METHOD THEREFOR, POLYMER OF PERYLENE DIMER COMPOUND AND PRODUCTION METHOD THEREFOR, ORGANIC THIN-FILM SOLAR BATTERY, ELECTRODE MATERIAL, AND ALKALI ION SECONDARY BATTERY",
+     "number": "WO2022004812"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2025126798",
+     "title": "WO2025126798 ADHESIVE COMPOSITION AND SHEET-LIKE GASKET, FLOOR MATERIAL, SEALING MATERIAL FOR AUTOMOBILE DOOR INNER SECTION, CUSHIONING MATERIAL FOR FUEL TANK, SEALING MATERIAL FOR ELECTRONIC COMPONENT, CUSHIONING MATERIAL FOR LITHIUM ION BATTERY, SEALING MATERIAL FOR USE BETWEEN SOLAR CELL PANEL AN...",
+     "number": "WO2025126798"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H08-precision-fermentation-for-dairy-proteins",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/EP4341373A2/en",
+     "title": "EP4341373A2 - Systems for end-to-end optimization of precision fermentation-produced animal proteins in food applications - Google Patents",
+     "number": "EP4341373A2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/WO2022246284A3/en",
+     "title": "WO2022246284A3 - Systems for end-to-end optimization of precision fermentation-produced animal proteins in food applications - Google Patents",
+     "number": "WO2022246284A3"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H08-precision-fermentation-for-dairy-proteins__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2022246284A3/en",
+     "title": "WO2022246284A3 - Systems for end-to-end optimization of precision fermentation-produced animal proteins in food applications - Google Patents",
+     "number": "WO2022246284A3"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CA3243597A1/en",
+     "title": "CA3243597A1 - Modified dairy proteins, methods for their production and use - Google Patents",
+     "number": "CA3243597A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20250059246A1/en",
+     "title": "Modified dairy proteins, methods for their production and use",
+     "number": "US20250059246A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/WO2023229029",
+     "title": "HETERODIMERIC PROTEIN PRODUCTION METHOD, DIMERIC PROTEIN, MONOMERIC PROTEIN, AND TARGET RESPONSIVE HETERODIMERIC PROTEIN SCREENING METHOD",
+     "number": "WO2023229029"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/WO2023052927",
+     "title": "PRODUCTION OF SINGLE CELL PROTEIN BY GAS FERMENTATION",
+     "number": "WO2023052927"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/WO2005013710A1/en",
+     "title": "WO2005013710A1 - Production of milk protein ingredient with high whey protein content - Google Patents",
+     "number": "WO2005013710A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2022090547",
+     "title": "PRODUCTION OF CAROTENOIDS BY FERMENTATION",
+     "number": "WO2022090547"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/EP3582622A1/en",
+     "title": "EP3582622A1 - High-protein, acidified, liquid dairy product having a reduced viscosity, method of producing it, and related ingredients - Google Patents",
+     "number": "EP3582622A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H08-precision-fermentation-for-dairy-proteins__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2022246284A3/en",
+     "title": "WO2022246284A3 - Systems for end-to-end optimization of precision fermentation-produced animal proteins in food applications - Google Patents",
+     "number": "WO2022246284A3"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CA3243597A1/en",
+     "title": "CA3243597A1 - Modified dairy proteins, methods for their production and use - Google Patents",
+     "number": "CA3243597A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20250059246A1/en",
+     "title": "US20250059246A1 - Modified dairy proteins, methods for their production and use - Google Patents",
+     "number": "US20250059246A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/WO2023229029",
+     "title": "HETERODIMERIC PROTEIN PRODUCTION METHOD, DIMERIC PROTEIN, MONOMERIC PROTEIN, AND TARGET RESPONSIVE HETERODIMERIC PROTEIN SCREENING METHOD",
+     "number": "WO2023229029"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20060159804A1/en",
+     "title": "US20060159804A1 - Dairy protein process and applications thereof - Google Patents",
+     "number": "US20060159804A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20150320062A1/en",
+     "title": "US20150320062A1 - Process for making high-protein dairy product - Google Patents",
+     "number": "US20150320062A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2023052927",
+     "title": "PRODUCTION OF SINGLE CELL PROTEIN BY GAS FERMENTATION",
+     "number": "WO2023052927"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2022090547",
+     "title": "PRODUCTION OF CAROTENOIDS BY FERMENTATION",
+     "number": "WO2022090547"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H09-dna-data-storage",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20230420045A1/en",
+     "title": "US20230420045A1 - DNA-Based Data Storage Systems - Google Patents",
+     "number": "US20230420045A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10902939B2/en",
+     "title": "US10902939B2 - Methods and systems for DNA data storage - Google Patents",
+     "number": "US10902939B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20190317684A1/en",
+     "title": "US20190317684A1 - Dna digital data storage device and method, and decoding method of dna digital data - Google Patents",
+     "number": "US20190317684A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US12277999B2/en",
+     "title": "Re-writable DNA-based digital storage with random access",
+     "number": "US12277999B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US11538554B1/en",
+     "title": "US11538554B1 - Nick-based data storage in native nucleic acids - Google Patents",
+     "number": "US11538554B1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.justia.com/patent/12355468",
+     "title": "U.S. Patent for DNA storage error correction code architecture ...",
+     "number": "US12355468"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US10370246B1/en",
+     "title": "Portable and low-error DNA-based data storage",
+     "number": "US10370246B1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US12236354B2/en",
+     "title": "Systems for nucleic acid-based data storage",
+     "number": "US12236354B2"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H09-dna-data-storage__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20230420045A1/en",
+     "title": "US20230420045A1 - DNA-Based Data Storage Systems - Google Patents",
+     "number": "US20230420045A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US12277999B2/en",
+     "title": "US12277999B2 - Re-writable DNA-based digital storage with random access - Google Patents",
+     "number": "US12277999B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US10370246B1/en",
+     "title": "US10370246B1 - Portable and low-error DNA-based data storage - Google Patents",
+     "number": "US10370246B1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US10902939B2/en",
+     "title": "US10902939B2 - Methods and systems for DNA data storage - Google Patents",
+     "number": "US10902939B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US10936953B2/en",
+     "title": "US10936953B2 - DNA-based digital information storage with sidewall electrodes - Google Patents",
+     "number": "US10936953B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20190317684A1/en",
+     "title": "US20190317684A1 - Dna digital data storage device and method, and decoding method of dna digital data - Google Patents",
+     "number": "US20190317684A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/WO2016059610A1/en",
+     "title": "WO2016059610A1 - A biomolecule based data storage system - Google Patents",
+     "number": "WO2016059610A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US12236354B2/en",
+     "title": "US12236354B2 - Systems for nucleic acid-based data storage - Google Patents",
+     "number": "US12236354B2"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H09-dna-data-storage__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20230420045A1/en",
+     "title": "US20230420045A1 - DNA-Based Data Storage Systems - Google Patents",
+     "number": "US20230420045A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US12277999B2/en",
+     "title": "US12277999B2 - Re-writable DNA-based digital storage with random access - Google Patents",
+     "number": "US12277999B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US10370246B1/en",
+     "title": "US10370246B1 - Portable and low-error DNA-based data storage - Google Patents",
+     "number": "US10370246B1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US10902939B2/en",
+     "title": "US10902939B2 - Methods and systems for DNA data storage - Google Patents",
+     "number": "US10902939B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20260228122A1/en",
+     "title": "US20260228122A1 - High-capacity storage of digital information in dna - Google Patents",
+     "number": "US20260228122A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US10936953B2/en",
+     "title": "US10936953B2 - DNA-based digital information storage with sidewall electrodes - Google Patents",
+     "number": "US10936953B2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/WO2016059610A1/en",
+     "title": "WO2016059610A1 - A biomolecule based data storage system - Google Patents",
+     "number": "WO2016059610A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US12236354B2/en",
+     "title": "US12236354B2 - Systems for nucleic acid-based data storage - Google Patents",
+     "number": "US12236354B2"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H10-drone-delivery-of-medical-supplies",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US11727817B2/en",
+     "title": "US11727817B2 - Unmanned aerial vehicle delivery system for delivery of medical or emergency supplies - Google Patents",
+     "number": "US11727817B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US8948935B1/en",
+     "title": "US8948935B1 - Providing a medical support device via an unmanned aerial vehicle - Google Patents",
+     "number": "US8948935B1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US9305280B1/en",
+     "title": "US9305280B1 - Airborne fulfillment center utilizing unmanned aerial vehicles for item delivery - Google Patents",
+     "number": "US9305280B1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20220223056A1/en",
+     "title": "US20220223056A1 - Unmanned aerial vehicle systems - Google Patents",
+     "number": "US20220223056A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN120952294A/en",
+     "title": "An Optimization Method for Unmanned Aerial Vehicle (UAV) ...",
+     "number": "CN120952294A"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.justia.com/patent/12030664",
+     "title": "Unmanned aerial vehicle and method for indicating a landing zone",
+     "number": "US12030664"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US9536216B1/en",
+     "title": "Delivery of packages by unmanned aerial vehicles",
+     "number": "US9536216B1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/20260267358",
+     "title": "Fault Management for Unmanned Aerial Vehicles",
+     "number": "US20260267358"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H10-drone-delivery-of-medical-supplies__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN120952294A/en",
+     "title": "CN120952294A - An Optimization Method for Unmanned Aerial Vehicle (UAV) Medical Supply Delivery - Google Patents",
+     "number": "CN120952294A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US11727817B2/en",
+     "title": "US11727817B2 - Unmanned aerial vehicle delivery system for delivery of medical or emergency supplies - Google Patents",
+     "number": "US11727817B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US12218370B2",
+     "title": "US12218370B2 - Unmanned aerial vehicle (UAV) landing gear system for holding delivery canisters - Google Patents",
+     "number": "US12218370B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US9536216B1/en",
+     "title": "US9536216B1 - Delivery of packages by unmanned aerial vehicles - Google Patents",
+     "number": "US9536216B1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US8948935B1/en",
+     "title": "US8948935B1 - Providing a medical support device via an unmanned aerial vehicle - Google Patents",
+     "number": "US8948935B1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US9307383B1/en",
+     "title": "US9307383B1 - Request apparatus for delivery of medical support implement by UAV - Google Patents",
+     "number": "US9307383B1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US9573684B2/en",
+     "title": "US9573684B2 - Unmanned aerial vehicle delivery system - Google Patents",
+     "number": "US9573684B2"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US9305280B1/en",
+     "title": "US9305280B1 - Airborne fulfillment center utilizing unmanned aerial vehicles for item delivery - Google Patents",
+     "number": "US9305280B1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v1-c",
+   "run": "H10-drone-delivery-of-medical-supplies__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN120952294A/en",
+     "title": "CN120952294A - An Optimization Method for Unmanned Aerial Vehicle (UAV) Medical Supply Delivery - Google Patents",
+     "number": "CN120952294A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US11727817B2/en",
+     "title": "US11727817B2 - Unmanned aerial vehicle delivery system for delivery of medical or emergency supplies - Google Patents",
+     "number": "US11727817B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US12218370B2",
+     "title": "US12218370B2 - Unmanned aerial vehicle (UAV) landing gear system for holding delivery canisters - Google Patents",
+     "number": "US12218370B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US9536216B1/en",
+     "title": "US9536216B1 - Delivery of packages by unmanned aerial vehicles - Google Patents",
+     "number": "US9536216B1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US8948935B1/en",
+     "title": "US8948935B1 - Providing a medical support device via an unmanned aerial vehicle - Google Patents",
+     "number": "US8948935B1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US9307383B1/en",
+     "title": "US9307383B1 - Request apparatus for delivery of medical support implement by UAV - Google Patents",
+     "number": "US9307383B1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US9573684B2/en",
+     "title": "US9573684B2 - Unmanned aerial vehicle delivery system - Google Patents",
+     "number": "US9573684B2"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/12030664",
+     "title": "Unmanned aerial vehicle and method for indicating a landing zone",
+     "number": "US12030664"
+    }
+   ]
+  },
+  {
+   "batch": "hyperloop-confirm-v1",
+   "run": "V07-hyperloop",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/EP3458328A1/de",
+     "title": "EP3458328A1 - Station mit schleifenkonfiguration für hyperloop-transportsystem - Google Patents",
+     "number": "EP3458328A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20170334312A1/en",
+     "title": "US20170334312A1 - Station with loop configuration for hyperloop transportation system - Google Patents",
+     "number": "US20170334312A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20190300301A1/en",
+     "title": "US20190300301A1 - Transportation system - Google Patents",
+     "number": "US20190300301A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/GB2527854B/un",
+     "title": "GB2527854B - Zero Energy Transportation System - Google Patents",
+     "number": "GB2527854B"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/WO2014177914A1/un",
+     "title": "WO2014177914A1 - Zero energy transportation system - Google Patents",
+     "number": "WO2014177914A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US7114882B1/en",
+     "title": "US7114882B1 - Aqua-terra planetary transport system and development pneumatic and electro-magnetic underwater tube-link transportation system - Google Patents",
+     "number": "US7114882B1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/zh/detail.jsf?docId=WO2009098617&recNum=1&maxRec=1&tab=PCT+Biblio",
+     "title": "CONTAINER FOR CONTAINING A LIVING ORGANISM, A DOCKING STATION AND A TRANSPORTATION SYSTEM",
+     "number": "WO2009098617"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/20230114494",
+     "title": "U.S. Patent Application for System and Method for Hyperloop Transponder Communication Patent Application (Application #20230114494 issued April 13, 2023) - Justia Patents Search",
+     "number": "US20230114494"
+    }
+   ]
+  },
+  {
+   "batch": "hyperloop-confirm-v1",
+   "run": "V07-hyperloop__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/EP3458328A1/de",
+     "title": "EP3458328A1 - Station mit schleifenkonfiguration für hyperloop-transportsystem - Google Patents",
+     "number": "EP3458328A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20170334312A1/en",
+     "title": "US20170334312A1 - Station with loop configuration for hyperloop transportation system - Google Patents",
+     "number": "US20170334312A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20190300301A1/en",
+     "title": "US20190300301A1 - Transportation system - Google Patents",
+     "number": "US20190300301A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/GB2527854B/un",
+     "title": "GB2527854B - Zero Energy Transportation System - Google Patents",
+     "number": "GB2527854B"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/WO2014177914A1/un",
+     "title": "WO2014177914A1 - Zero energy transportation system - Google Patents",
+     "number": "WO2014177914A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US7114882B1/en",
+     "title": "US7114882B1 - Aqua-terra planetary transport system and development pneumatic and electro-magnetic underwater tube-link transportation system - Google Patents",
+     "number": "US7114882B1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/zh/detail.jsf?docId=WO2009098617&recNum=1&maxRec=1&tab=PCT+Biblio",
+     "title": "CONTAINER FOR CONTAINING A LIVING ORGANISM, A DOCKING STATION AND A TRANSPORTATION SYSTEM",
+     "number": "WO2009098617"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/20230114494",
+     "title": "U.S. Patent Application for System and Method for Hyperloop Transponder Communication Patent Application (Application #20230114494 issued April 13, 2023) - Justia Patents Search",
+     "number": "US20230114494"
+    }
+   ]
+  }
+ ]
+}

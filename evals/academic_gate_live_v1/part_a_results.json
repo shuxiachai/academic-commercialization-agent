@@ -1,0 +1,2211 @@
+[
+ {
+  "id": "H01",
+  "display_topic": "small modular reactors for grid electricity",
+  "research_topic": "small modular reactors for grid electricity generation",
+  "aliases": [
+   "SMR integration into electrical power grids",
+   "nuclear microreactors for utility-scale power supply"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H01-small-modular-reactors-for-grid-electricity",
+  "anchor": "small modular reactors for grid electricity",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Energy storage options for small modular reactor - data centre co-location: a systematic review",
+      "doi": "10.5281/zenodo.23422459",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "LEVELIZED COST OF ELECTRICITY FOR UZBEKISTAN'S FIRST SMALL MODULAR REACTORS: A PROBABILISTIC ASSESSMENT OF THE ROLE OF CAPITAL COSTS, CONSTRUCTION RISKS, AND THE COST OF CAPITAL",
+      "doi": "10.5281/zenodo.23351829",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Research on power distribution reconstruction for small modular reactors based on PINN",
+      "doi": "10.1016/j.jandt.2026.10.005",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Multi-Physics Analysis of SMART Small Modular Reactor Benchmark Problems Using the Coupled McCARD/MATRA Code System",
+      "doi": "10.3390/pr14203281",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Historical insights from past SMRs used in nuclear propulsion and electricity generation in remote locations.",
+      "doi": "10.1080/09553002.2026.2629246",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Dynamic Stability Assessment of Grid-Connected Data Centers Powered by Small Modular Reactors",
+      "doi": "10.1109/PESGM58988.2026.11693234",
+      "lane": "arXiv"
+     },
+     {
+      "title": "Technical Overview of Recent Developments in Small Modular Reactors in the United States",
+      "doi": null,
+      "lane": "arXiv"
+     },
+     {
+      "title": "Techno-Economic Boundary Analysis of Small Modular Reactor Cogeneration for Hyperscale Data Center IT and Cooling Loads",
+      "doi": null,
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 9
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Energy storage options for small modular reactor - data centre co-location: a systematic review",
+      "doi": "10.5281/zenodo.23422459",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "LEVELIZED COST OF ELECTRICITY FOR UZBEKISTAN'S FIRST SMALL MODULAR REACTORS: A PROBABILISTIC ASSESSMENT OF THE ROLE OF CAPITAL COSTS, CONSTRUCTION RISKS, AND THE COST OF CAPITAL",
+      "doi": "10.5281/zenodo.23351829",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Research on power distribution reconstruction for small modular reactors based on PINN",
+      "doi": "10.1016/j.jandt.2026.10.005",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Multi-Physics Analysis of SMART Small Modular Reactor Benchmark Problems Using the Coupled McCARD/MATRA Code System",
+      "doi": "10.3390/pr14203281",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Historical insights from past SMRs used in nuclear propulsion and electricity generation in remote locations.",
+      "doi": "10.1080/09553002.2026.2629246",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Dynamic Stability Assessment of Grid-Connected Data Centers Powered by Small Modular Reactors",
+      "doi": "10.1109/PESGM58988.2026.11693234",
+      "lane": "arXiv"
+     },
+     {
+      "title": "Technical Overview of Recent Developments in Small Modular Reactors in the United States",
+      "doi": null,
+      "lane": "arXiv"
+     },
+     {
+      "title": "Techno-Economic Boundary Analysis of Small Modular Reactor Cogeneration for Hyperscale Data Center IT and Cooling Loads",
+      "doi": null,
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "H02",
+  "display_topic": "fusion power",
+  "research_topic": "nuclear fusion energy generation",
+  "aliases": [
+   "controlled thermonuclear fusion",
+   "magnetic confinement fusion"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H02-fusion-power",
+  "anchor": "fusion power",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "THE EL-RAKHAWI FUSION-NEUTRAL BATTERY ARCHITECTURE (FNBA): INTEGRATED SAFE NUCLEAR FUSION ENERGY GENERATION AND SUSTAINABLE CONDUCTIVE ENERGY STORAGE FOR ZERO-EMISSION MOBILITY AND HEAVY INDUSTRY",
+      "doi": "10.5281/zenodo.23423008",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Nuclear Combustion: Energy Generation Through Fusion-Induced Nuclear Relaxation",
+      "doi": "10.5281/zenodo.20589337",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Artificial Intelligence-Driven Optimization of Tokamak Plasma Confinement for Sustainable Nuclear Fusion Energy Generation",
+      "doi": "10.5281/zenodo.21963678",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Unpacking public support for nuclear energy: A twin conjoint experiment on innovative nuclear fusion and next-generation fission technologies",
+      "doi": "10.1016/j.enpol.2025.115007",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Liquid metals power advanced nuclear energy systems.",
+      "doi": "10.1016/j.xinn.2025.100959",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Back to the future - from nuclear energy to AI.",
+      "doi": "10.1186/s42467-025-00017-y",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Advances, Challenges, and Future Perspectives of Microwave Reflectometry for Plasma Position and Shape Control on Future Nuclear Fusion Devices.",
+      "doi": "10.3390/s23083926",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Feasibility of D-D Nuclear Fusion Achieved by Chemical Methods: Quantum Chemical Analysis.",
+      "doi": "10.1021/acsomega.5c01651",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 9
+   },
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "THE EL-RAKHAWI FUSION-NEUTRAL BATTERY ARCHITECTURE (FNBA): INTEGRATED SAFE NUCLEAR FUSION ENERGY GENERATION AND SUSTAINABLE CONDUCTIVE ENERGY STORAGE FOR ZERO-EMISSION MOBILITY AND HEAVY INDUSTRY",
+      "doi": "10.5281/zenodo.23423008",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Nuclear Combustion: Energy Generation Through Fusion-Induced Nuclear Relaxation",
+      "doi": "10.5281/zenodo.20589337",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Artificial Intelligence-Driven Optimization of Tokamak Plasma Confinement for Sustainable Nuclear Fusion Energy Generation",
+      "doi": "10.5281/zenodo.21963678",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Unpacking public support for nuclear energy: A twin conjoint experiment on innovative nuclear fusion and next-generation fission technologies",
+      "doi": "10.1016/j.enpol.2025.115007",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Liquid metals power advanced nuclear energy systems.",
+      "doi": "10.1016/j.xinn.2025.100959",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Advances, Challenges, and Future Perspectives of Microwave Reflectometry for Plasma Position and Shape Control on Future Nuclear Fusion Devices.",
+      "doi": "10.3390/s23083926",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Feasibility of D-D Nuclear Fusion Achieved by Chemical Methods: Quantum Chemical Analysis.",
+      "doi": "10.1021/acsomega.5c01651",
+      "lane": "PubMed"
+     },
+     {
+      "title": "A high-density and high-confinement tokamak plasma regime for fusion energy.",
+      "doi": "10.1038/s41586-024-07313-3",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "H03",
+  "display_topic": "implantable brain-computer interfaces for paralysis",
+  "research_topic": "implantable brain-computer interfaces for paralysis",
+  "aliases": [
+   "invasive neural interfaces for motor restoration",
+   "intracortical brain-machine interfaces for paralysis"
+  ],
+  "weight_profile": "biomedical",
+  "from_run": "heldout-trl-v1-c/H03-implantable-brain-computer-interfaces-for-par",
+  "anchor": "implantable brain-computer interfaces for paralysis",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Correction: Perioperative management for invasive brain–computer interface implantation under surgical navigation in a patient with traumatic spinal cord injury: a case report",
+      "doi": "10.3389/fnhum.2026.1995038",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "IMPLANTABLE BRAIN-COMPUTER INTERFACE-BASED SPEECH NEUROPROSTHESES FOR RESTORING COMMUNICATION IN PATIENTS WITH AMYOTROPHIC LATERAL SCLEROSIS: A SCOPING REVIEW",
+      "doi": "10.17605/osf.io/g3d6w",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Bidirectional Wireless Communication for Weakly Coupled Implantable Brain-Computer Interfaces",
+      "doi": "10.48550/arxiv.2609.05786",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "An Implant-to-Wearable IR-UWB Transmitter-Receiver Architecture and Layered Protocol for High-Density Brain-Computer Interfaces",
+      "doi": "10.48550/arxiv.2609.22207",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Brain Computer Interfaces, a Review",
+      "doi": "10.3390/s120201211",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "An Integrated Brain-Machine Interface Platform With Thousands of Channels",
+      "doi": "10.2196/16194",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "A survey of signal processing algorithms in brain–computer interfaces based on electrical brain signals",
+      "doi": "10.1088/1741-2560/4/2/r03",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "Review of Recent Advances in Implantable Brain-Computer Interfaces for the Restoration of Motor Function in Patients With Paralysis",
+      "doi": "10.12659/msm.951925",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 9
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Correction: Perioperative management for invasive brain–computer interface implantation under surgical navigation in a patient with traumatic spinal cord injury: a case report",
+      "doi": "10.3389/fnhum.2026.1995038",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "IMPLANTABLE BRAIN-COMPUTER INTERFACE-BASED SPEECH NEUROPROSTHESES FOR RESTORING COMMUNICATION IN PATIENTS WITH AMYOTROPHIC LATERAL SCLEROSIS: A SCOPING REVIEW",
+      "doi": "10.17605/osf.io/g3d6w",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Bidirectional Wireless Communication for Weakly Coupled Implantable Brain-Computer Interfaces",
+      "doi": "10.48550/arxiv.2609.05786",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "An Implant-to-Wearable IR-UWB Transmitter-Receiver Architecture and Layered Protocol for High-Density Brain-Computer Interfaces",
+      "doi": "10.48550/arxiv.2609.22207",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Brain Computer Interfaces, a Review",
+      "doi": "10.3390/s120201211",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "An Integrated Brain-Machine Interface Platform With Thousands of Channels",
+      "doi": "10.2196/16194",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "A survey of signal processing algorithms in brain–computer interfaces based on electrical brain signals",
+      "doi": "10.1088/1741-2560/4/2/r03",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "Review of Recent Advances in Implantable Brain-Computer Interfaces for the Restoration of Motor Function in Patients With Paralysis",
+      "doi": "10.12659/msm.951925",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "H04",
+  "display_topic": "psilocybin therapy for treatment-resistant depression",
+  "research_topic": "psilocybin therapy for treatment-resistant depression",
+  "aliases": [],
+  "weight_profile": "biomedical",
+  "from_run": "heldout-trl-v1-c/H04-psilocybin-therapy-for-treatment-resistant-de",
+  "anchor": "psilocybin therapy for treatment-resistant depression",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Music for psilocybin therapy and the temporal arc of psychedelic experience",
+      "doi": "10.1038/s41598-026-73400-2",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Preparing the body for psilocybin therapy: receptive and generative interoception in cancer patients",
+      "doi": "10.3389/fpsyt.2026.1890966",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "701. Efficacy and safety of COMP360 psilocybin therapy in anorexia nervosa: a proof-of-concept study",
+      "doi": "10.1093/ijnp/pyag040.475",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "429. Association between subjective experiences and symptom improvement following psilocybin therapy in Japanese patients with treatment-resistant depression: an open-label study",
+      "doi": "10.1093/ijnp/pyag040.300",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Psilocybin with psychological support for treatment-resistant depression: an open-label feasibility study",
+      "doi": "10.1016/s2215-0366(16)30065-7",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Single-Dose Psilocybin for a Treatment-Resistant Episode of Major Depression",
+      "doi": "10.1056/nejmoa2206443",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Psilocybin-assisted treatment for alcohol dependence: A proof-of-concept study",
+      "doi": "10.1177/0269881114565144",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Psilocybin with psychological support for treatment-resistant depression: six-month follow-up",
+      "doi": "10.1007/s00213-017-4771-x",
+      "lane": "OA-Cited"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 7
+   },
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Music for psilocybin therapy and the temporal arc of psychedelic experience",
+      "doi": "10.1038/s41598-026-73400-2",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Preparing the body for psilocybin therapy: receptive and generative interoception in cancer patients",
+      "doi": "10.3389/fpsyt.2026.1890966",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "701. Efficacy and safety of COMP360 psilocybin therapy in anorexia nervosa: a proof-of-concept study",
+      "doi": "10.1093/ijnp/pyag040.475",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "429. Association between subjective experiences and symptom improvement following psilocybin therapy in Japanese patients with treatment-resistant depression: an open-label study",
+      "doi": "10.1093/ijnp/pyag040.300",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Psilocybin with psychological support for treatment-resistant depression: an open-label feasibility study",
+      "doi": "10.1016/s2215-0366(16)30065-7",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Single-Dose Psilocybin for a Treatment-Resistant Episode of Major Depression",
+      "doi": "10.1056/nejmoa2206443",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Psilocybin-assisted treatment for alcohol dependence: A proof-of-concept study",
+      "doi": "10.1177/0269881114565144",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Psilocybin with psychological support for treatment-resistant depression: six-month follow-up",
+      "doi": "10.1007/s00213-017-4771-x",
+      "lane": "OA-Cited"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "H05",
+  "display_topic": "direct air capture of carbon dioxide",
+  "research_topic": "direct air capture of carbon dioxide",
+  "aliases": [
+   "direct air capture technology",
+   "atmospheric CO2 removal"
+  ],
+  "weight_profile": "clean_tech",
+  "from_run": "heldout-trl-v1-c/H05-direct-air-capture-of-carbon-dioxide",
+  "anchor": "direct air capture of carbon dioxide",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Ultrasonic‐Swing Carbon Dioxide Release Using Aralkylamines for Direct Air Capture",
+      "doi": "10.1002/cmtd.70147",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Direct Air Capture of Carbon Dioxide: Process Design and Cost",
+      "doi": "10.63090/ijtrs/3139.1788.0017",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Amine-Functionalized Covalent Organic Framework for Direct Air Capture of Carbon Dioxide",
+      "doi": "10.1021/acs.energyfuels.6c00750",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "A Review on Direct Air Capture of Carbon Dioxide: Sorbent Materials, Process Engineering, Industrial Scale-Up, and Future Perspectives",
+      "doi": "10.1021/acs.energyfuels.6c01174",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "FLUXNET: A New Tool to Study the Temporal and Spatial Variability of Ecosystem–Scale Carbon Dioxide, Water Vapor, and Energy Flux Densities",
+      "doi": "10.1175/1520-0477(2001)082<2415:fantts>2.3.co;2",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "Water-Enhanced Direct Air Capture of Carbon Dioxide in Metal-Organic Frameworks.",
+      "doi": "10.1021/jacs.3c14125",
+      "lane": "S2"
+     },
+     {
+      "title": "Distributed direct air capture of carbon dioxide by synergistic water harvesting",
+      "doi": "10.1038/s41467-024-53961-4",
+      "lane": "S2"
+     },
+     {
+      "title": "Exploring Phosphonium‐Based Anion Exchange Polymers for Moisture Swing Direct Air Capture of Carbon Dioxide",
+      "doi": "10.1002/marc.202401073",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 7
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Ultrasonic‐Swing Carbon Dioxide Release Using Aralkylamines for Direct Air Capture",
+      "doi": "10.1002/cmtd.70147",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Direct Air Capture of Carbon Dioxide: Process Design and Cost",
+      "doi": "10.63090/ijtrs/3139.1788.0017",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Amine-Functionalized Covalent Organic Framework for Direct Air Capture of Carbon Dioxide",
+      "doi": "10.1021/acs.energyfuels.6c00750",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "A Review on Direct Air Capture of Carbon Dioxide: Sorbent Materials, Process Engineering, Industrial Scale-Up, and Future Perspectives",
+      "doi": "10.1021/acs.energyfuels.6c01174",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Carbon capture and storage (CCS): the way forward",
+      "doi": "10.1039/c7ee02342a",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Water-Enhanced Direct Air Capture of Carbon Dioxide in Metal-Organic Frameworks.",
+      "doi": "10.1021/jacs.3c14125",
+      "lane": "S2"
+     },
+     {
+      "title": "Distributed direct air capture of carbon dioxide by synergistic water harvesting",
+      "doi": "10.1038/s41467-024-53961-4",
+      "lane": "S2"
+     },
+     {
+      "title": "Exploring Phosphonium‐Based Anion Exchange Polymers for Moisture Swing Direct Air Capture of Carbon Dioxide",
+      "doi": "10.1002/marc.202401073",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "H06",
+  "display_topic": "漂浮式海上风电",
+  "research_topic": "floating offshore wind energy systems",
+  "aliases": [
+   "floating wind turbine technology",
+   "floating offshore wind farms"
+  ],
+  "weight_profile": "clean_tech",
+  "from_run": "heldout-trl-v1-c/H06-漂浮式海上风电",
+  "anchor": "",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Mooring system analysis for a 15 MW semi-submersible floating offshore wind turbine in deep-sea deployment: Case study for Morro Bay Wind Energy Area, California",
+      "doi": "10.1016/j.marstruc.2026.104242",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Fault ride-through and grid disturbance mitigation for the stability of grid-connected floating offshore wind energy conversion systems",
+      "doi": "10.1016/j.jestch.2026.102507",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Storms on wind-energy turbine systems: A multi-dimensional architecture for storm-resilient onshore, offshore, and floating wind fleets",
+      "doi": "10.1177/0309524x261468590",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Stability analysis of integrating a floating offshore wind farm with renewable energy farms fed to a multimachine power system through a multi-terminal high-voltage direct-current link based on a modular multilevel converter",
+      "doi": "10.1049/icp.2026.1898",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Grand challenges in the science of wind energy",
+      "doi": "10.1126/science.aau2027",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Inspection of Floating Offshore Wind Turbines Using Multi-Rotor Unmanned Aerial Vehicles: Literature Review and Trends.",
+      "doi": "10.3390/s24030911",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Adapting floating offshore wind-hydrogen systems for emerging markets: the case of the Ica region, Peru.",
+      "doi": "10.1007/s40868-026-00215-1",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Efficient preliminary floating offshore wind turbine design and testing methodologies and application to a concrete spar design.",
+      "doi": "10.1098/rsta.2014.0350",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 9
+   },
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Mooring system analysis for a 15 MW semi-submersible floating offshore wind turbine in deep-sea deployment: Case study for Morro Bay Wind Energy Area, California",
+      "doi": "10.1016/j.marstruc.2026.104242",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Fault ride-through and grid disturbance mitigation for the stability of grid-connected floating offshore wind energy conversion systems",
+      "doi": "10.1016/j.jestch.2026.102507",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Storms on wind-energy turbine systems: A multi-dimensional architecture for storm-resilient onshore, offshore, and floating wind fleets",
+      "doi": "10.1177/0309524x261468590",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Stability analysis of integrating a floating offshore wind farm with renewable energy farms fed to a multimachine power system through a multi-terminal high-voltage direct-current link based on a modular multilevel converter",
+      "doi": "10.1049/icp.2026.1898",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Grand challenges in the science of wind energy",
+      "doi": "10.1126/science.aau2027",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Inspection of Floating Offshore Wind Turbines Using Multi-Rotor Unmanned Aerial Vehicles: Literature Review and Trends.",
+      "doi": "10.3390/s24030911",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Adapting floating offshore wind-hydrogen systems for emerging markets: the case of the Ica region, Peru.",
+      "doi": "10.1007/s40868-026-00215-1",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Efficient preliminary floating offshore wind turbine design and testing methodologies and application to a concrete spar design.",
+      "doi": "10.1098/rsta.2014.0350",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "H07",
+  "display_topic": "人工光合作用制备太阳能燃料",
+  "research_topic": "artificial photosynthesis for solar fuel production",
+  "aliases": [
+   "photocatalytic water splitting and CO2 reduction",
+   "solar-to-fuel energy conversion systems"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H07-人工光合作用制备太阳能燃料",
+  "anchor": "",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "THE CONVERGENT FRONTIER INTELLIGENCE FRAMEWORK FROM ARTIFICIAL CONSCIOUSNESS TO SYNTHETIC PHOTOSYNTHESIS A Unified Theory of AGI, Biocomputing, Room-Temperature Superconductivity, Artificial Photosynthesis, and Frontier Law",
+      "doi": "10.5281/zenodo.23461842",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Comparative Screening of MDEA, TSA and PSA/VPSA for CO2 Capture Upstream of Artificial Photosynthesis",
+      "doi": "10.3390/en19204873",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Semi‐Artificial Photosynthesis Enables Light‐Driven Biomanufacturing in Non‐Photosynthetic Bacteria",
+      "doi": "10.1002/advs.78265",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Design and Synthesis of an Indoloquinoxaline Non‐Fullerene Acceptor—Polythiophene Donor‐Based Double Cable Polymer as an All‐Organic Photocatalyst for Artificial Photosynthesis of H 2 O 2",
+      "doi": "10.1002/chem.71783",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Graphitic Carbon Nitride (g-C 3 N 4 )-Based Photocatalysts for Artificial Photosynthesis and Environmental Remediation: Are We a Step Closer To Achieving Sustainability?",
+      "doi": "10.1021/acs.chemrev.6b00075",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Photoinduced electron transfer in supramolecular systems for artificial photosynthesis",
+      "doi": "10.1021/cr00011a005",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Status and perspectives of CO2 conversion into fuels and chemicals by catalytic, photocatalytic and electrocatalytic processes",
+      "doi": "10.1039/c3ee41272e",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "Artificial photosynthesis for production of hydrogen peroxide and its fuel cells.",
+      "doi": "10.1016/j.bbabio.2015.08.012",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 7
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "THE CONVERGENT FRONTIER INTELLIGENCE FRAMEWORK FROM ARTIFICIAL CONSCIOUSNESS TO SYNTHETIC PHOTOSYNTHESIS A Unified Theory of AGI, Biocomputing, Room-Temperature Superconductivity, Artificial Photosynthesis, and Frontier Law",
+      "doi": "10.5281/zenodo.23461842",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Comparative Screening of MDEA, TSA and PSA/VPSA for CO2 Capture Upstream of Artificial Photosynthesis",
+      "doi": "10.3390/en19204873",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Semi‐Artificial Photosynthesis Enables Light‐Driven Biomanufacturing in Non‐Photosynthetic Bacteria",
+      "doi": "10.1002/advs.78265",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Design and Synthesis of an Indoloquinoxaline Non‐Fullerene Acceptor—Polythiophene Donor‐Based Double Cable Polymer as an All‐Organic Photocatalyst for Artificial Photosynthesis of H 2 O 2",
+      "doi": "10.1002/chem.71783",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Graphitic Carbon Nitride (g-C 3 N 4 )-Based Photocatalysts for Artificial Photosynthesis and Environmental Remediation: Are We a Step Closer To Achieving Sustainability?",
+      "doi": "10.1021/acs.chemrev.6b00075",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Photoinduced electron transfer in supramolecular systems for artificial photosynthesis",
+      "doi": "10.1021/cr00011a005",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Artificial photosynthesis for production of hydrogen peroxide and its fuel cells.",
+      "doi": "10.1016/j.bbabio.2015.08.012",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Solar fuels via artificial photosynthesis.",
+      "doi": "10.1021/ar900209b",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "H08",
+  "display_topic": "precision fermentation for dairy proteins",
+  "research_topic": "precision fermentation for dairy proteins",
+  "aliases": [],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H08-precision-fermentation-for-dairy-proteins",
+  "anchor": "precision fermentation for dairy proteins",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "RNA thermometers as temperature-dependent tools for enhanced recombinant protein production in precision fermentation",
+      "doi": "10.1186/s12934-026-03143-2",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "EL-RAKHAWI INTEGRATED SYSTEM FOR PHOTO-ACOUSTIC SELF-SEPARATING PRECISION FERMENTATION WITH CLOSED-LOOP NUTRIENT RECOVERY",
+      "doi": "10.5281/zenodo.23338701",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Precision Fermentation for Sustainable Food Production: Technological Advances, Food Applications, Sustainability, Challenges and Future Perspectives",
+      "doi": "10.33003/fjs-2026-1018-5892",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Exploring an effect-directed approach as a screening tool for the safety assessment of precision fermentation-derived dairy proteins: Evidence from AR and AhR activation",
+      "doi": "10.1016/j.jfca.2026.109544",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Harnessing Fungal Secretion Systems for Precision Fermentation of Food Proteins.",
+      "doi": "10.1021/acssynbio.5c00521",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Fermentation for Designing Innovative Plant-Based Meat and Dairy Alternatives.",
+      "doi": "10.3390/foods12051005",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Food proteins from yeast-based precision fermentation: Simple purification of recombinant β-lactoglobulin using polyphosphate.",
+      "doi": "10.1016/j.foodres.2023.113801",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Allergenicity Assessment of Precision Fermentation-Derived Food Proteins.",
+      "doi": "10.3390/foods15173153",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 7
+   },
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "RNA thermometers as temperature-dependent tools for enhanced recombinant protein production in precision fermentation",
+      "doi": "10.1186/s12934-026-03143-2",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "EL-RAKHAWI INTEGRATED SYSTEM FOR PHOTO-ACOUSTIC SELF-SEPARATING PRECISION FERMENTATION WITH CLOSED-LOOP NUTRIENT RECOVERY",
+      "doi": "10.5281/zenodo.23338701",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Precision Fermentation for Sustainable Food Production: Technological Advances, Food Applications, Sustainability, Challenges and Future Perspectives",
+      "doi": "10.33003/fjs-2026-1018-5892",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Exploring an effect-directed approach as a screening tool for the safety assessment of precision fermentation-derived dairy proteins: Evidence from AR and AhR activation",
+      "doi": "10.1016/j.jfca.2026.109544",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Harnessing Fungal Secretion Systems for Precision Fermentation of Food Proteins.",
+      "doi": "10.1021/acssynbio.5c00521",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Food proteins from yeast-based precision fermentation: Simple purification of recombinant β-lactoglobulin using polyphosphate.",
+      "doi": "10.1016/j.foodres.2023.113801",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Allergenicity Assessment of Precision Fermentation-Derived Food Proteins.",
+      "doi": "10.3390/foods15173153",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Biotechnology Approaches to Dairy Alternatives Through Precision Fermentation and Cellular Agriculture.",
+      "doi": "10.5851/kosfa.2025.e33",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "H09",
+  "display_topic": "DNA data storage",
+  "research_topic": "DNA-based digital data storage systems",
+  "aliases": [
+   "molecular data archiving",
+   "synthetic DNA information encoding"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H09-dna-data-storage",
+  "anchor": "DNA data storage",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "An Efficient Encoding Mechanism for Digital Microfluidic-based DNA Data Storage Systems",
+      "doi": "10.21203/rs.3.rs-4263925/v1",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Navigating Imaginaries of DNA-Based Digital Data Storage",
+      "doi": "10.1145/3491102.3501911",
+      "lane": "S2"
+     },
+     {
+      "title": "A Novel DNA-based Data Storage Simulation Platform with the JPEG Standards",
+      "doi": "10.1109/ceeis65979.2025.00014",
+      "lane": "S2"
+     },
+     {
+      "title": "Empowering DNA-Based Information Processing: Computation and Data Storage.",
+      "doi": "10.1021/acsami.4c13948",
+      "lane": "S2"
+     },
+     {
+      "title": "A digital twin for DNA data storage based on comprehensive quantification of errors and biases",
+      "doi": "10.1038/s41467-023-41729-1",
+      "lane": "S2"
+     },
+     {
+      "title": "Private Information Retrieval for Large-Scale DNA-Based Data Storage",
+      "doi": "10.48550/arxiv.2606.14557",
+      "lane": "S2"
+     },
+     {
+      "title": "Bio-inspired approaches to in vivo DNA data storage systems.",
+      "doi": "10.1039/d6mh00728g",
+      "lane": "S2"
+     },
+     {
+      "title": "A Segmented-Edit Error-Correcting Code With Re-Synchronization Function for DNA-Based Storage Systems",
+      "doi": "10.1109/tetc.2022.3225570",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 7
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "An Efficient Encoding Mechanism for Digital Microfluidic-based DNA Data Storage Systems",
+      "doi": "10.21203/rs.3.rs-4263925/v1",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Navigating Imaginaries of DNA-Based Digital Data Storage",
+      "doi": "10.1145/3491102.3501911",
+      "lane": "S2"
+     },
+     {
+      "title": "A Novel DNA-based Data Storage Simulation Platform with the JPEG Standards",
+      "doi": "10.1109/ceeis65979.2025.00014",
+      "lane": "S2"
+     },
+     {
+      "title": "Empowering DNA-Based Information Processing: Computation and Data Storage.",
+      "doi": "10.1021/acsami.4c13948",
+      "lane": "S2"
+     },
+     {
+      "title": "A digital twin for DNA data storage based on comprehensive quantification of errors and biases",
+      "doi": "10.1038/s41467-023-41729-1",
+      "lane": "S2"
+     },
+     {
+      "title": "Private Information Retrieval for Large-Scale DNA-Based Data Storage",
+      "doi": "10.48550/arxiv.2606.14557",
+      "lane": "S2"
+     },
+     {
+      "title": "Bio-inspired approaches to in vivo DNA data storage systems.",
+      "doi": "10.1039/d6mh00728g",
+      "lane": "S2"
+     },
+     {
+      "title": "A Segmented-Edit Error-Correcting Code With Re-Synchronization Function for DNA-Based Storage Systems",
+      "doi": "10.1109/tetc.2022.3225570",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "H10",
+  "display_topic": "drone delivery of medical supplies",
+  "research_topic": "unmanned aerial vehicle delivery of medical supplies",
+  "aliases": [
+   "UAV logistics for healthcare distribution",
+   "drone-based last-mile medical transport"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H10-drone-delivery-of-medical-supplies",
+  "anchor": "drone delivery of medical supplies",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Delivery of Medical Supplies to Remote Locations via Unmanned Aerial Vehicles: Approaches, Challenges, and Solutions",
+      "doi": "10.1016/j.trpro.2025.03.047",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Unmanned Aerial Vehicles (UAVs): A Survey on Civil Applications and Key Research Challenges",
+      "doi": "10.1109/access.2019.2909530",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Unmanned aerial vehicles (UAVs): practical aspects, applications, open challenges, security issues, and future trends",
+      "doi": "10.1007/s11370-022-00452-4",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Optimization approaches for civil applications of unmanned aerial vehicles (UAVs) or aerial drones: A survey",
+      "doi": "10.1002/net.21818",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Towards the Unmanned Aerial Vehicles (UAVs): A Comprehensive Review",
+      "doi": "10.3390/drones6060147",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Unmanned Aerial Vehicle Mediated Drug Delivery for First Aid.",
+      "doi": "10.1002/adma.202208648",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Using the Unmanned Aerial Vehicle Delivery Decision Tool to Consider Transporting Medical Supplies via Drone.",
+      "doi": "10.9745/ghsp-d-19-00119",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Human drone interaction in delivery of medical supplies: A scoping review of experimental studies.",
+      "doi": "10.1371/journal.pone.0267664",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 8
+   },
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Delivery of Medical Supplies to Remote Locations via Unmanned Aerial Vehicles: Approaches, Challenges, and Solutions",
+      "doi": "10.1016/j.trpro.2025.03.047",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Optimization approaches for civil applications of unmanned aerial vehicles (UAVs) or aerial drones: A survey",
+      "doi": "10.1002/net.21818",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Unmanned Aerial Vehicle Mediated Drug Delivery for First Aid.",
+      "doi": "10.1002/adma.202208648",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Using the Unmanned Aerial Vehicle Delivery Decision Tool to Consider Transporting Medical Supplies via Drone.",
+      "doi": "10.9745/ghsp-d-19-00119",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Human drone interaction in delivery of medical supplies: A scoping review of experimental studies.",
+      "doi": "10.1371/journal.pone.0267664",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Effect of unmanned aerial vehicle (drone) delivery on blood product delivery time and wastage in Rwanda: a retrospective, cross-sectional study and time series analysis.",
+      "doi": "10.1016/s2214-109x(22)00048-1",
+      "lane": "PubMed"
+     },
+     {
+      "title": "The feasibility of medical unmanned aerial systems in suburban areas.",
+      "doi": "10.1016/j.ajem.2021.08.064",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Unmanned aerial vehicle (drones) in public health: A SWOT analysis.",
+      "doi": "10.4103/jfmpc.jfmpc_413_18",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "V01",
+  "display_topic": "robotic-assisted surgery",
+  "research_topic": "Robotic-assisted surgery",
+  "aliases": [
+   "Robot-assisted surgical intervention",
+   "Computer-assisted minimally invasive surgery"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V01-robotic-assisted-surgery",
+  "anchor": "robotic-assisted surgery",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "PHYSIOTHERAPY IN ROBOTIC-ASSISTED ABDOMINAL SURGERY: BRIDGING PHYSIOLOGICAL RATIONALE AND CLINICAL PRACTICE — A NARRATIVE REVIEW",
+      "doi": "10.25258/ijddt.16.70s.43",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Unveiling the Chasm in Japanese robot-assisted surgery diffusion: the interplay of surgical volume and intra-specialty spillover",
+      "doi": "10.1007/s11701-026-04049-2",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Robot-Assisted Surgery for Cervical Cancer: A Systematic Review of Clinical Outcomes",
+      "doi": "10.62225/2583049x.2026.6.5.6987",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Latest Outcomes in Robotic-Assisted Bariatric Surgery: Contemporary Analysis of Laparoscopic Versus Robotic Sleeve Gastrectomy and Roux-en-Y Gastric Bypass",
+      "doi": "10.1097/sle.0000000000001518",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Laparoscopic Robotic Assisted Surgery in Reproductive Medicine.",
+      "doi": "10.1016/j.arcmed.2024.103137",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Robotic-assisted abdominal aortic surgery: evidence and techniques.",
+      "doi": "10.1007/s11701-022-01390-0",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Robotic-assisted fertility sparing surgery in gynecological oncology.",
+      "doi": "10.1016/j.bpobgyn.2024.102485",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Cardiothoracic robotic assisted surgery in times of COVID-19.",
+      "doi": "10.1007/s11701-020-01090-7",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 10
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Adoption of robot-assisted minimally invasive surgery across surgical specialties in France: a nationwide population-based study",
+      "doi": "10.1007/s11701-026-04081-2",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "PHYSIOTHERAPY IN ROBOTIC-ASSISTED ABDOMINAL SURGERY: BRIDGING PHYSIOLOGICAL RATIONALE AND CLINICAL PRACTICE — A NARRATIVE REVIEW",
+      "doi": "10.25258/ijddt.16.70s.43",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Anesthetic management for patients with morbid obesity undergoing robot-assisted gynecological surgery: pathophysiology, risks, and contemporary approaches (a narrative review)",
+      "doi": "10.17116/anaesthesiology2026051114",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Current Status, Clinical Outcomes and Socioeconomic Challenges of Uniportal Video-Assisted Thoracoscopic Surgery in Japan Compared with Robot-Assisted Thoracic Surgery: A Narrative Review",
+      "doi": "10.3390/cancers18203318",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Laparoscopic Robotic Assisted Surgery in Reproductive Medicine.",
+      "doi": "10.1016/j.arcmed.2024.103137",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Robotic-assisted abdominal aortic surgery: evidence and techniques.",
+      "doi": "10.1007/s11701-022-01390-0",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Robotic-assisted fertility sparing surgery in gynecological oncology.",
+      "doi": "10.1016/j.bpobgyn.2024.102485",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Cardiothoracic robotic assisted surgery in times of COVID-19.",
+      "doi": "10.1007/s11701-020-01090-7",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "V02",
+  "display_topic": "continuous glucose monitoring for diabetes",
+  "research_topic": "Continuous glucose monitoring for diabetes management",
+  "aliases": [
+   "Real-time subcutaneous glucose sensing in diabetes mellitus",
+   "Ambulatory glycemic monitoring systems for diabetic patients"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V02-continuous-glucose-monitoring-for-diabetes",
+  "anchor": "continuous glucose monitoring for diabetes",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Intraoperative Continuous Glucose Monitor Sensor‐Receiver Connectivity Is Maintained With Alternative Sensor Placement: A Pilot Study",
+      "doi": "10.1111/dom.71442",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Continuous Glucose Monitoring Is Not Ready for the Diagnosis of Prediabetes",
+      "doi": "10.1177/15209156261485015",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Opening the black box of continuous glucose monitoring: how app features drive behavior change. A poster for ADA Tech 2026",
+      "doi": "10.6084/m9.figshare.34692744",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Agreement between Garmin and Ultrahuman wearables and their association with continuous glucose monitoring: an n-of-1 study",
+      "doi": "10.64898/2026.10.13.758757",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Intensive Blood Glucose Control and Vascular Outcomes in Patients with Type 2 Diabetes",
+      "doi": "10.1056/nejmoa0802987",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Continuous glucose monitoring for the routine care of type 2 diabetes mellitus.",
+      "doi": "10.1038/s41574-024-00973-1",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Continuous Glucose Monitoring for Diabetes Management During Pregnancy: Evidence, Practical Tips, and Common Pitfalls.",
+      "doi": "10.1097/aog.0000000000005669",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Application of continuous glucose monitoring and automated insulin delivery technologies for pregnant women with type 1, type 2, or gestational diabetes: an international consensus statement.",
+      "doi": "10.1016/s2213-8587(25)00335-3",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 8
+   },
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Intraoperative Continuous Glucose Monitor Sensor‐Receiver Connectivity Is Maintained With Alternative Sensor Placement: A Pilot Study",
+      "doi": "10.1111/dom.71442",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Continuous Glucose Monitoring Is Not Ready for the Diagnosis of Prediabetes",
+      "doi": "10.1177/15209156261485015",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Opening the black box of continuous glucose monitoring: how app features drive behavior change. A poster for ADA Tech 2026",
+      "doi": "10.6084/m9.figshare.34692744",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Agreement between Garmin and Ultrahuman wearables and their association with continuous glucose monitoring: an n-of-1 study",
+      "doi": "10.64898/2026.10.13.758757",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Intensive Blood Glucose Control and Vascular Outcomes in Patients with Type 2 Diabetes",
+      "doi": "10.1056/nejmoa0802987",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Clinical Targets for Continuous Glucose Monitoring Data Interpretation: Recommendations From the International Consensus on Time in Range",
+      "doi": "10.2337/dci19-0028",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "Continuous glucose monitoring for the routine care of type 2 diabetes mellitus.",
+      "doi": "10.1038/s41574-024-00973-1",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Continuous Glucose Monitoring for Diabetes Management During Pregnancy: Evidence, Practical Tips, and Common Pitfalls.",
+      "doi": "10.1097/aog.0000000000005669",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "V03",
+  "display_topic": "enhanced geothermal systems for electricity generation",
+  "research_topic": "Enhanced geothermal systems for electricity generation",
+  "aliases": [
+   "Engineered geothermal systems for power production",
+   "Hot dry rock geothermal energy conversion"
+  ],
+  "weight_profile": "clean_tech",
+  "from_run": "heldout-trl-v2/V03-enhanced-geothermal-systems-for-electricity-g",
+  "anchor": "enhanced geothermal systems for electricity generation",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Numerical study of heat extraction from an enhanced geothermal system combined with closed coaxial heat exchangers in complex fractured reservoirs",
+      "doi": "10.1016/j.energy.2026.142785",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Thermal Performance Comparison of Planar and Non- Planar Fractures in Enhanced Geothermal Systems",
+      "doi": "10.2118/233846-ms",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "De-Risking Enhanced Geothermal Systems Across the Full Project Lifecycle: A Probabilistic Framework for Exploration, Development, and Portfolio Integration",
+      "doi": "10.2118/233894-ms",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Staged Field Development Planning for Enhanced Geothermal Systems Under Thermal and Economic Constraints",
+      "doi": "10.2118/233859-ms",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Sustainable Energy Transition for Renewable and Low Carbon Grid Electricity Generation and Supply",
+      "doi": "10.3389/fenrg.2021.743114",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "Enhanced geothermal systems for clean firm energy generation",
+      "doi": "10.1038/s44359-024-00019-9",
+      "lane": "S2"
+     },
+     {
+      "title": "Numerical Study on the Influence of Well Layout on Electricity Generation Performance of Enhanced Geothermal Systems",
+      "doi": "10.3390/pr9081474",
+      "lane": "S2"
+     },
+     {
+      "title": "Enhanced Geothermal Systems for the Future Power System: Cost Estimation and Flexibility Considerations",
+      "doi": "10.1109/isgteurope64741.2025.11305383",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 7
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Numerical study of heat extraction from an enhanced geothermal system combined with closed coaxial heat exchangers in complex fractured reservoirs",
+      "doi": "10.1016/j.energy.2026.142785",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Thermal Performance Comparison of Planar and Non- Planar Fractures in Enhanced Geothermal Systems",
+      "doi": "10.2118/233846-ms",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "De-Risking Enhanced Geothermal Systems Across the Full Project Lifecycle: A Probabilistic Framework for Exploration, Development, and Portfolio Integration",
+      "doi": "10.2118/233894-ms",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Staged Field Development Planning for Enhanced Geothermal Systems Under Thermal and Economic Constraints",
+      "doi": "10.2118/233859-ms",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Enhanced geothermal systems for clean firm energy generation",
+      "doi": "10.1038/s44359-024-00019-9",
+      "lane": "S2"
+     },
+     {
+      "title": "Numerical Study on the Influence of Well Layout on Electricity Generation Performance of Enhanced Geothermal Systems",
+      "doi": "10.3390/pr9081474",
+      "lane": "S2"
+     },
+     {
+      "title": "Enhanced Geothermal Systems for the Future Power System: Cost Estimation and Flexibility Considerations",
+      "doi": "10.1109/isgteurope64741.2025.11305383",
+      "lane": "S2"
+     },
+     {
+      "title": "The role of computational geomechanics in the design, operation and control of Enhanced Geothermal Systems for district heating",
+      "doi": "10.56952/arma-2026-0759",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "V04",
+  "display_topic": "pig kidney xenotransplantation",
+  "research_topic": "Porcine kidney xenotransplantation",
+  "aliases": [
+   "Pig-to-human renal xenotransplantation",
+   "Cross-species kidney transplantation"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V04-pig-kidney-xenotransplantation",
+  "anchor": "pig kidney xenotransplantation",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Porcine kidney xenotransplantation: From primate models to clinical reality",
+      "doi": "10.1002/ame2.70195",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Porcine Xenotransplantation in End-Stage Kidney Disease",
+      "doi": "10.1056/nejmc2508235",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Infectious disease surveillance and management in clinical xenotransplantation: Experience with the first human porcine kidney transplant",
+      "doi": "10.1016/j.ajt.2025.06.016",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Xenotransplantation of a Porcine Kidney for End-Stage Kidney Disease",
+      "doi": "10.1056/nejmoa2412747",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Results of Two Cases of Pig-to-Human Kidney Xenotransplantation",
+      "doi": "10.1056/nejmoa2120238",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "First clinical-grade porcine kidney xenotransplant using a human decedent model",
+      "doi": "10.1111/ajt.16930",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Genetically Modified Porcine-to-Human Cardiac Xenotransplantation",
+      "doi": "10.1056/nejmoa2201422",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "Consistent survival in consecutive cases of life-supporting porcine kidney xenotransplantation using 10GE source pigs",
+      "doi": "10.1038/s41467-024-47679-6",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 12
+   },
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Porcine kidney xenotransplantation: From primate models to clinical reality",
+      "doi": "10.1002/ame2.70195",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Infectious disease surveillance and management in clinical xenotransplantation: Experience with the first human porcine kidney transplant",
+      "doi": "10.1016/j.ajt.2025.06.016",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Xenotransplantation of a Porcine Kidney for End-Stage Kidney Disease",
+      "doi": "10.1056/nejmoa2412747",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "447.2: Consistent long-term survival in consecutive cases of life-supporting porcine kidney xenotransplantation using 10GE source pigs.",
+      "doi": "10.1097/01.tp.0001066604.82246.8d",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Results of Two Cases of Pig-to-Human Kidney Xenotransplantation",
+      "doi": "10.1056/nejmoa2120238",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "First clinical-grade porcine kidney xenotransplant using a human decedent model",
+      "doi": "10.1111/ajt.16930",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Genetically Modified Porcine-to-Human Cardiac Xenotransplantation",
+      "doi": "10.1056/nejmoa2201422",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "Porcine kidney xenotransplantation as a bridge to allotransplantation: a first-in-human study.",
+      "doi": "10.1016/s0140-6736(26)01295-x",
+      "lane": "S2"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "V05",
+  "display_topic": "battery-electric aircraft for regional passenger flights",
+  "research_topic": "Battery-electric aircraft for regional passenger transport",
+  "aliases": [
+   "All-electric regional aviation",
+   "Zero-emission short-haul air mobility"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V05-battery-electric-aircraft-for-regional-passen",
+  "anchor": "battery-electric aircraft for regional passenger flights",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Wing Structural Sizing Insights for a Large Battery-Electric Aircraft",
+      "doi": "10.2514/1.c038775",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Degradation-aware co-design and multi-level energy management of fuel cell–battery powertrains for hybrid-electric aircraft",
+      "doi": "10.1016/j.ijhydene.2026.157813",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Impact of Mission Duration on Capacity, Power, and Structural Degradation of High-Power Electric Aircraft Battery Cells",
+      "doi": "10.5281/zenodo.22969738",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "System-Level Implications of Fast Battery Charging During the Turnaround of Hybrid-Electric Aircraft",
+      "doi": "10.3390/su18189463",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Passenger life-saving in a badly damaged aircraft scenario",
+      "doi": null,
+      "lane": "arXiv"
+     },
+     {
+      "title": "Airport Gate Scheduling for Passengers, Aircraft, and Operation",
+      "doi": "10.2514/1.D0079",
+      "lane": "arXiv"
+     },
+     {
+      "title": "The promise of energy-efficient battery-powered urban aircraft",
+      "doi": "10.1073/pnas.2111164118",
+      "lane": "arXiv"
+     },
+     {
+      "title": "System-level thermal and electrical modeling of battery systems for electric aircraft design",
+      "doi": null,
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 7
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Wing Structural Sizing Insights for a Large Battery-Electric Aircraft",
+      "doi": "10.2514/1.c038775",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Degradation-aware co-design and multi-level energy management of fuel cell–battery powertrains for hybrid-electric aircraft",
+      "doi": "10.1016/j.ijhydene.2026.157813",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Impact of Mission Duration on Capacity, Power, and Structural Degradation of High-Power Electric Aircraft Battery Cells",
+      "doi": "10.5281/zenodo.22969738",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "System-Level Implications of Fast Battery Charging During the Turnaround of Hybrid-Electric Aircraft",
+      "doi": "10.3390/su18189463",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Passenger life-saving in a badly damaged aircraft scenario",
+      "doi": null,
+      "lane": "arXiv"
+     },
+     {
+      "title": "The promise of energy-efficient battery-powered urban aircraft",
+      "doi": "10.1073/pnas.2111164118",
+      "lane": "arXiv"
+     },
+     {
+      "title": "System-level thermal and electrical modeling of battery systems for electric aircraft design",
+      "doi": null,
+      "lane": "arXiv"
+     },
+     {
+      "title": "Universal Battery Performance and Degradation Model for Electric Aircraft",
+      "doi": null,
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "V06",
+  "display_topic": "space-based solar power",
+  "research_topic": "Space-based solar power systems",
+  "aliases": [
+   "Space solar power generation",
+   "Orbital photovoltaic energy transmission"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V06-space-based-solar-power",
+  "anchor": "space-based solar power",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Orbital and RF Power Beaming Analysis for Space-Based Solar Power Systems",
+      "doi": "10.3390/en19153558",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Comparative Assessment of Space-Based Solar Power and Terrestrial Photovoltaic Systems",
+      "doi": "10.61359/11.2106-2618",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "The Research Trend on Space-Based Solar Power (SBSP) System",
+      "doi": "10.52912/jsta.2026.6.2.107",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Next-Generation Civilization \"Satellite Mobile Communication & Power Supply\" Integrated Infrastructure System by Quantum Thought Circuit OS ASI — Two-Part Structure Part I: Comprehensive Study on Hybrid Communication Networks, Space-Based Solar Power Supply, Smartphone-Centric Hierarchical Power Distribution, Spatial Dynamic Infrastructure, Packetized Power, ISAC+P, Metasurface Path Control, and an Autonomous Distributed Integrated Foundation Based on Quantum Thought Circuit OS ASI Part II: Integrated Study on Autonomous Data-Centric Distributed Protection Architecture with Self-Defensive Structures, Multi-Path Compliance, and Metabolic Anomaly Detection",
+      "doi": "10.5281/zenodo.19098298",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "A comprehensive review on space solar power satellite: an idiosyncratic approach.",
+      "doi": "10.1007/s11356-022-19560-w",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Towards net zero: A technological review on the potential of space-based solar power and wireless power transmission.",
+      "doi": "10.1016/j.heliyon.2024.e29996",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Development of the optical waveguide solar lighting system for space-based plant growing.",
+      "doi": null,
+      "lane": "PubMed"
+     },
+     {
+      "title": "Stability Analysis in Large-scale Centralized Bidirectional Inverter-based Stations Connected to Bulk Power Systems through AC and DC Connections",
+      "doi": null,
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 8
+   },
+   "new": {
+    "count": 7,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Orbital and RF Power Beaming Analysis for Space-Based Solar Power Systems",
+      "doi": "10.3390/en19153558",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Comparative Assessment of Space-Based Solar Power and Terrestrial Photovoltaic Systems",
+      "doi": "10.61359/11.2106-2618",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "The Research Trend on Space-Based Solar Power (SBSP) System",
+      "doi": "10.52912/jsta.2026.6.2.107",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Next-Generation Civilization \"Satellite Mobile Communication & Power Supply\" Integrated Infrastructure System by Quantum Thought Circuit OS ASI — Two-Part Structure Part I: Comprehensive Study on Hybrid Communication Networks, Space-Based Solar Power Supply, Smartphone-Centric Hierarchical Power Distribution, Spatial Dynamic Infrastructure, Packetized Power, ISAC+P, Metasurface Path Control, and an Autonomous Distributed Integrated Foundation Based on Quantum Thought Circuit OS ASI Part II: Integrated Study on Autonomous Data-Centric Distributed Protection Architecture with Self-Defensive Structures, Multi-Path Compliance, and Metabolic Anomaly Detection",
+      "doi": "10.5281/zenodo.19098298",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "A comprehensive review on space solar power satellite: an idiosyncratic approach.",
+      "doi": "10.1007/s11356-022-19560-w",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Towards net zero: A technological review on the potential of space-based solar power and wireless power transmission.",
+      "doi": "10.1016/j.heliyon.2024.e29996",
+      "lane": "PubMed"
+     },
+     {
+      "title": "High-Fidelity Solar Power Income Modeling for Solar-Electric UAVs: Development and Flight Test Based Verification",
+      "doi": null,
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 2
+   }
+  }
+ },
+ {
+  "id": "V07",
+  "display_topic": "hyperloop",
+  "research_topic": "Hyperloop high-speed vacuum tube transportation",
+  "aliases": [
+   "Vacuum train transportation system",
+   "Evacuated tube transport"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V07-hyperloop",
+  "anchor": "hyperloop",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "How Can Autonomous and Connected Vehicles, Electromobility, BRT, Hyperloop, Shared Use Mobility and Mobility-As-A-Service Shape Transport Futures for the Context of Smart Cities?",
+      "doi": "10.3390/urbansci1040036",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Numerical Analysis of Aerodynamic Characteristics of Hyperloop System",
+      "doi": "10.3390/en12030518",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Prospects and Challenges of the Hyperloop Transportation System: A Systematic Technology Review",
+      "doi": "10.1109/access.2021.3057788",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "A Study of Non-Symmetric Double-Sided Linear Induction Motor for Hyperloop All-In-One System (Propulsion, Levitation, and Guidance)",
+      "doi": "10.1109/tmag.2018.2848292",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Sub-Sonic Linear Synchronous Motors Using Superconducting Magnets for the Hyperloop",
+      "doi": "10.3390/en12244611",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Hyperloop transport technology assessment and system analysis",
+      "doi": "10.1080/03081060.2020.1828935",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Analysis and modelling of performances of the HL (Hyperloop) transport system",
+      "doi": "10.1186/s12544-018-0312-x",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Aerodynamic study of a Hyperloop pod equipped with compressor to overcome the Kantrowitz limit",
+      "doi": "10.1016/j.jweia.2021.104784",
+      "lane": "OA-Cited"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 7
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Prospects and Challenges of the Hyperloop Transportation System: A Systematic Technology Review",
+      "doi": "10.1109/access.2021.3057788",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "TransPod Ultra-High-Speed Tube Transportation: Dynamics of Vehicles and Infrastructure",
+      "doi": "10.1016/j.proeng.2017.09.142",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Estimation of direct energy consumption and CO2 emission by high speed rail, transrapid maglev and hyperloop passenger transport systems",
+      "doi": "10.1080/15568318.2020.1789780",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Study of a Null-Flux Coil Electrodynamic Suspension Structure for Evacuated Tube Transportation",
+      "doi": "10.3390/sym11101239",
+      "lane": "OA-Cited"
+     },
+     {
+      "title": "Can Hyperloops Substitute High Speed Rails in the Future?",
+      "doi": null,
+      "lane": "arXiv"
+     },
+     {
+      "title": "A 3D Non-stationary MmWave Channel Model for Vacuum Tube Ultra-High-Speed Train Channels",
+      "doi": null,
+      "lane": "arXiv"
+     },
+     {
+      "title": "Laser-Driven High-Velocity Microparticle Launcher In Atmosphere And Under Vacuum",
+      "doi": "10.1016/j.ijimpeng.2019.103465",
+      "lane": "arXiv"
+     },
+     {
+      "title": "Modelling of dislocation generation and interaction during high-speed deformation of metals",
+      "doi": "10.1080/10420150211412",
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 2
+   }
+  }
+ },
+ {
+  "id": "V08",
+  "display_topic": "量子密钥分发网络",
+  "research_topic": "Quantum key distribution networks",
+  "aliases": [
+   "QKD network architectures",
+   "Quantum-secured communication networks"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V08-量子密钥分发网络",
+  "anchor": "",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Performance Evaluation of Quantum Key Distribution in Secure Communication Networks: A Link-to-User Simulation Study",
+      "doi": "10.5281/zenodo.23447797",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Quantum Key Distribution (QKD) and Entanglement Routing in Quantum Networks: Protocols, Repeater Topologies, and Co-Existence with Post-Quantum Cryptography",
+      "doi": "10.5281/zenodo.23415971",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "EUV Lithography and Programmable Nanostructures at the Limit English Introduction and Research Abstract This monograph develops a falsifiable research program for using extreme-ultraviolet lithography to manufacture nanostructures with verified optical, electrical, mechanical, or quantum-sensitive functions. Its premise is deliberately stricter than \"smaller features are better.\" A structure qualifies only when mask intent, exposure, resist chemistry, transferred geometry, and terminal function can be linked through traceable evidence on blind wafer locations. Scientific position The core candidate expression is Y_prog = P(G in Ω_G, F in Ω_F) − λ_D D_stoch − λ_C C_EUV. It treats success as probability mass inside a joint geometry–function acceptance region, discounted by stochastic-defect burden and EUV route cost. All variables, units, normalizations, uncertainty models, and domains must be preregistered. Safety, rights, irreversible harm, missing primary evidence, and terminal functional degradation are hard vetoes that cannot be compensated by a weighted score. Architecture and contents The book contains a scientific-boundary statement, a five-layer architecture, a reading guide, thirty distinct formula derivations, eighty-two chapters with five research sections each, two hundred Research Gates, thirty-three Phoenix Answer Embryos, and two hundred thirty-three Easter-Egg Equations. Every chapter moves from claim and mechanism to experiment, adversarial validation, transfer, and successor use. The single-section-per-page format keeps each decision object visually intact. Layer 01 · Functional grammar: Define geometric primitives, functions, and unacceptable defects before optimization. Layer 02 · Joint stochastic physics: Model source, mask, resist, development, and transfer with visible uncertainty. Layer 03 · Cross-field experiment: Randomize focus and dose across wafer positions and preserve evidence ancestry. Layer 04 · Functional closure: Close the loop on terminal function and distribution tails rather than CD alone. Layer 05 · Portability and succession: Require reconstruction on a second platform and preserve the authority to reject or retire the route. What makes the study testable The minimum prototype prints three parameterized structure families with explicit functional readouts on the same wafer, randomizes focus and dose, and holds out fields from model fitting. A mature design-rule-plus-OPC flow and an electron-beam small-batch route serve as strong comparators. The claim fails when gains disappear outside selected fields, when rare fatal defects are dominated by unmodeled stochasticity, when pattern transfer destroys the functional benefit, or when the cost ceiling is exceeded. Evidence and DOI strategy DOI-bearing sources anchor EUV image formation, stochastic resist physics, secondary-electron chemistry, mask three-dimensional effects, curvilinear inverse lithography, actinic inspection, and nanoscale metrology. Citations support known mechanisms and constraints; they do not convert proposed results into completed experiments. The companion workbook maps DOI records, chapter interfaces, equations, and all Research Gates. Central deliverable The final Phoenix Answer Embryo is the Programmable EUV Structure Atlas: a reconstructable evidence object binding layout grammar, process windows, stochastic defects, terminal functions, negative cases, and successor decisions. Its deepest criterion is not permanence. It is whether a later team can reproduce, refute, fork, or responsibly retire the work without needing the original authors. Selected DOI anchors R01 — Extreme ultraviolet lithography. Nature Reviews Methods Primers 4, 84 (2024). 10.1038/s43586-024-00361-z R02 — Lithography at EUV wavelengths. Nature Photonics 4, 809–811 (2010). 10.1038/nphoton.2010.277 R03 — Lithography gets extreme. Nature Photonics 4, 24–26 (2010). 10.1038/nphoton.2009.251 R04 — Pushing the limits of lithography. Nature 406, 1027–1031 (2000). 10.1038/35023233 R05 — Beyond EUV lithography: a comparative study of efficient photoresists' performance. Scientific Reports 5, 9235 (2015). 10.1038/srep09235 R06 — Key Role of Very Low Energy Electrons in Tin-Based Molecular Resists for EUV Nanolithography. ACS Applied Materials & Interfaces (2020). 10.1021/acsami.9b19004 R07 — Mean Free Path of Electrons in Organic Photoresists for EUV Lithography. ACS Applied Materials & Interfaces (2023). 10.1021/acsami.3c05884 R08 — Extreme Ultraviolet Lithographic Performance and Reaction Mechanism of Polymeric Resist. Chemistry of Materials (2024). 10.1021/acs.chemmater.3c02628 R09 — In Situ Analysis of Electron-Induced Chemical Transformations in Hybrid Thin Films. ACS Applied Materials & Interfaces (2025). 10.1021/acsami.4c19426 R10 — Effect of Networking Density on Molecular Layer Deposited Alucone Resists. ACS Applied Materials & Interfaces (2025). 10.1021/acsami.5c13361 R11 — Contribution of EUV resist counti",
+      "doi": "10.5281/zenodo.23395509",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "The Integration of Quantum Key Distribution and Zero Trust Security in 5G Networks: A Comprehensive Review",
+      "doi": "10.14445/22315381/ijett-v74i9p132",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Networking Feasibility of Quantum Key Distribution Constellation Networks.",
+      "doi": "10.3390/e24020298",
+      "lane": "PubMed"
+     },
+     {
+      "title": "An Efficient Routing Protocol for Quantum Key Distribution Networks.",
+      "doi": "10.3390/e24070911",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Advances in Chip-Based Quantum Key Distribution.",
+      "doi": "10.3390/e24101334",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Microsatellite-based real-time quantum key distribution.",
+      "doi": "10.1038/s41586-025-08739-z",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 9
+   },
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Performance Evaluation of Quantum Key Distribution in Secure Communication Networks: A Link-to-User Simulation Study",
+      "doi": "10.5281/zenodo.23447797",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Quantum Key Distribution (QKD) and Entanglement Routing in Quantum Networks: Protocols, Repeater Topologies, and Co-Existence with Post-Quantum Cryptography",
+      "doi": "10.5281/zenodo.23415971",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "The Integration of Quantum Key Distribution and Zero Trust Security in 5G Networks: A Comprehensive Review",
+      "doi": "10.14445/22315381/ijett-v74i9p132",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Genetic algorithm-enhanced neural network for parameter optimization of quantum key distribution",
+      "doi": "10.1016/j.engappai.2026.116395",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Field test of quantum key distribution in the Tokyo QKD Network",
+      "doi": "10.1364/oe.19.010387",
+      "lane": "OA-Syn"
+     },
+     {
+      "title": "Networking Feasibility of Quantum Key Distribution Constellation Networks.",
+      "doi": "10.3390/e24020298",
+      "lane": "PubMed"
+     },
+     {
+      "title": "An Efficient Routing Protocol for Quantum Key Distribution Networks.",
+      "doi": "10.3390/e24070911",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Advances in Chip-Based Quantum Key Distribution.",
+      "doi": "10.3390/e24101334",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "V09",
+  "display_topic": "特高压直流输电",
+  "research_topic": "Ultra-high voltage direct current power transmission",
+  "aliases": [
+   "UHVDC transmission systems",
+   "Extra-high-voltage HVDC power transfer"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V09-特高压直流输电",
+  "anchor": "",
+  "first_arm": "new",
+  "arms": {
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Optimization of Ultra-High Voltage Direct Current Power Transmission Curve for High Proportion New Energy Bases",
+      "doi": "10.1007/978-981-97-9184-2_30",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "High-power hybrid commutated converter for carbon-neutral power transmission.",
+      "doi": "10.1038/s41467-026-75691-5",
+      "lane": "PubMed"
+     },
+     {
+      "title": "A Novel Ultra-High Voltage Direct Current Line Fault Diagnosis Method Based on Principal Component Analysis and Kernel Density Estimation.",
+      "doi": "10.3390/s25030642",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Development and Application of a Wireless Sensor for Space Charge Density Measurement in an Ultra-High-Voltage, Direct-Current Environment.",
+      "doi": "10.3390/s16101743",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Anomaly Detection of Acoustic Signals in Ultra-High Voltage Converter Valves Based on the FAVAE-AS.",
+      "doi": "10.3390/s25154716",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Characterization of a high-resolution 2D transmission ion chamber for independent validation of proton pencil beam scanning of conventional and FLASH dose delivery.",
+      "doi": "10.1002/mp.14882",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Optimal Distributed Feedback Voltage Control under Limited Reactive Power",
+      "doi": "10.1109/TPWRS.2019.2931685",
+      "lane": "arXiv"
+     },
+     {
+      "title": "Optimisation of power transmission systems using a discrete Tabu Search method",
+      "doi": null,
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 10
+   },
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "Optimization of Ultra-High Voltage Direct Current Power Transmission Curve for High Proportion New Energy Bases",
+      "doi": "10.1007/978-981-97-9184-2_30",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "High-power hybrid commutated converter for carbon-neutral power transmission.",
+      "doi": "10.1038/s41467-026-75691-5",
+      "lane": "PubMed"
+     },
+     {
+      "title": "A Novel Ultra-High Voltage Direct Current Line Fault Diagnosis Method Based on Principal Component Analysis and Kernel Density Estimation.",
+      "doi": "10.3390/s25030642",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Development and Application of a Wireless Sensor for Space Charge Density Measurement in an Ultra-High-Voltage, Direct-Current Environment.",
+      "doi": "10.3390/s16101743",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Anomaly Detection of Acoustic Signals in Ultra-High Voltage Converter Valves Based on the FAVAE-AS.",
+      "doi": "10.3390/s25154716",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Characterization of a high-resolution 2D transmission ion chamber for independent validation of proton pencil beam scanning of conventional and FLASH dose delivery.",
+      "doi": "10.1002/mp.14882",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Optimal Distributed Feedback Voltage Control under Limited Reactive Power",
+      "doi": "10.1109/TPWRS.2019.2931685",
+      "lane": "arXiv"
+     },
+     {
+      "title": "Optimisation of power transmission systems using a discrete Tabu Search method",
+      "doi": null,
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ },
+ {
+  "id": "V10",
+  "display_topic": "vertical farming for fresh produce",
+  "research_topic": "Vertical farming systems for fresh produce cultivation",
+  "aliases": [
+   "Indoor vertical agriculture for horticultural crops",
+   "Controlled environment agriculture with vertical growing systems"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V10-vertical-farming-for-fresh-produce",
+  "anchor": "vertical farming for fresh produce",
+  "first_arm": "old",
+  "arms": {
+   "old": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "THE EL-RAKHAWI QUANTUM FOOD SECURITY AND VERTICAL AGRONOMY SYSTEM (QFS) Unifying Smart Vertical Farming, Quantum-Tuned Photonics, Atmospheric Microbiome Engineering, and Predictive AI for the Absolute Eradication of Global Hunger and Agricultural Ecological Collapse",
+      "doi": "10.5281/zenodo.23292244",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Rethinking Urban Food Systems through Urban Agriculture and Vertical Farming for Health and Environment: A Systematic Review",
+      "doi": "10.5281/zenodo.23099766",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Beyond soil: An analysis of diverse growing media in vertical farming systems",
+      "doi": "10.14719/tcb.9476",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Preharvest exposure to far-red and UVA light enhances growth and pigment content of oakleaf lettuce in an indoor vertical farming system",
+      "doi": "10.3389/fhort.2026.1971896",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Current status and future challenges in implementing and upscaling vertical farming systems.",
+      "doi": "10.1038/s43016-021-00402-w",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Vertical farming increases lettuce yield per unit area compared to conventional horizontal hydroponics.",
+      "doi": "10.1002/fes3.83",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Optimized Potting Media and Vertical Farming Enhance High-Value Crop Productivity in Riverine Lands of Bangladesh.",
+      "doi": "10.1002/pei3.70197",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Containerized Vertical Farming Using Cobots",
+      "doi": "10.1109/ICRA57147.2024.10609985",
+      "lane": "arXiv"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 8
+   },
+   "new": {
+    "count": 8,
+    "fallback_triggered": false,
+    "sources": [
+     {
+      "title": "THE EL-RAKHAWI QUANTUM FOOD SECURITY AND VERTICAL AGRONOMY SYSTEM (QFS) Unifying Smart Vertical Farming, Quantum-Tuned Photonics, Atmospheric Microbiome Engineering, and Predictive AI for the Absolute Eradication of Global Hunger and Agricultural Ecological Collapse",
+      "doi": "10.5281/zenodo.23292244",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Rethinking Urban Food Systems through Urban Agriculture and Vertical Farming for Health and Environment: A Systematic Review",
+      "doi": "10.5281/zenodo.23099766",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Beyond soil: An analysis of diverse growing media in vertical farming systems",
+      "doi": "10.14719/tcb.9476",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Preharvest exposure to far-red and UVA light enhances growth and pigment content of oakleaf lettuce in an indoor vertical farming system",
+      "doi": "10.3389/fhort.2026.1971896",
+      "lane": "OA-Recent"
+     },
+     {
+      "title": "Current status and future challenges in implementing and upscaling vertical farming systems.",
+      "doi": "10.1038/s43016-021-00402-w",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Life cycle assessment of microgreen production: effects of indoor vertical farm management on yield and environmental performance.",
+      "doi": "10.1038/s41598-023-38325-0",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Vertical farming increases lettuce yield per unit area compared to conventional horizontal hydroponics.",
+      "doi": "10.1002/fes3.83",
+      "lane": "PubMed"
+     },
+     {
+      "title": "Optimized Potting Media and Vertical Farming Enhance High-Value Crop Productivity in Riverine Lands of Bangladesh.",
+      "doi": "10.1002/pei3.70197",
+      "lane": "PubMed"
+     }
+    ],
+    "fetch_errors": [],
+    "live_calls": 0
+   }
+  }
+ }
+]

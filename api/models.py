@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from academic_agent.byok_model import BYOK_MODEL_PATTERN
-from academic_agent.run_spec import AssessmentMode, DecisionContext
+from academic_agent.run_spec import AssessmentMode, DecisionContext, SearchPlan
 from academic_agent.pdf_extractor import PDFInputCoverage
 
 #: "unknown" means the status or terminal file could not be read, not that the run
@@ -77,6 +77,12 @@ class RunRequest(BaseModel):
         description="Optional actor, asset, and decision gate. Omission produces "
                     "an orientation brief rather than actor-specific advice.",
     )
+    search_plan: SearchPlan | None = Field(
+        default=None,
+        description="Search interpretation confirmed from POST /api/plan, used "
+                    "instead of planning again in the worker; omitted, the worker "
+                    "plans the search itself.",
+    )
 
     # Bring-your-own-key: an alternative to the access code for a visitor who
     # is not the deployment owner. Complete or absent: a run either runs on
@@ -125,6 +131,46 @@ class RunRequest(BaseModel):
     @property
     def byok(self) -> bool:
         return self.llm_provider is not None
+
+class PlanRequest(BaseModel):
+    """Body for POST /api/plan."""
+
+    topic: str = Field(min_length=3, max_length=300, description="Research topic as the user typed it")
+
+    @field_validator("topic", mode="before")
+    @classmethod
+    def _strip_topic(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+class PlanPreview(BaseModel):
+    """How the planner reads a topic, for the user to confirm or edit."""
+
+    resolved: bool = Field(description="False when no technology or research subject could be identified.")
+    search_topic: str = Field(description="English phrase sent to every retrieval backend.")
+    aliases: list[str] = Field(description="Equivalent phrasings searched alongside it.")
+    components: list[str] = Field(description="Building blocks searched separately for a combined system.")
+
+
+class FeedbackRequest(BaseModel):
+    """Body for POST /api/runs/{run_id}/feedback: one click, fixed words, no text."""
+
+    model_config = {"extra": "forbid"}
+
+    changed_view: Literal["yes", "no", "unsure"] = Field(
+        description="Whether the report changed how the reader sees the decision.")
+    part: Literal["scorecard", "report", "sources", "checks"] | None = Field(
+        default=None, description="The part that mattered most, when the reader says.")
+
+
+class FeedbackState(BaseModel):
+    """The caller's own recorded answer about a run, or none."""
+
+    recorded: bool
+    changed_view: Literal["yes", "no", "unsure"] | None = None
+    part: Literal["scorecard", "report", "sources", "checks"] | None = None
+    recorded_at: str | None = None
+
 
 class ResumeRunRequest(BaseModel):
     """Fresh credentials for POST /api/runs/{run_id}/resume."""
@@ -187,8 +233,10 @@ class PaperExtraction(BaseModel):
     abstract_excerpt: str = ""
     input_coverage: PDFInputCoverage = Field(default_factory=PDFInputCoverage)
     locator_status: Literal[
-        "text_candidate", "conflicting_candidates", "no_public_candidate", "legacy_unverified",
+        "text_candidate", "title_match_candidate", "conflicting_candidates",
+        "no_public_candidate", "legacy_unverified",
     ] = "legacy_unverified"
+    public_record_lookup: Literal["not_attempted", "matched", "no_match", "unavailable"] = "not_attempted"
 
 
 class PaidReceipt(BaseModel):
@@ -212,6 +260,37 @@ class StepEvent(BaseModel):
     agent: str = ""
     thought: str = ""
     tool: str = ""
+
+
+class StageTiming(BaseModel):
+    stage: str = Field(description="The worker's stage label, as in `stage`.")
+    started_at: AwareDatetime
+    duration_seconds: int | None = Field(
+        default=None,
+        description="Until the next stage began or the run ended; so far while "
+                    "`active`. None when the end is unknown. The last agent stage "
+                    "includes report finalization.",
+    )
+    active: bool = Field(default=False, description="The stage the run is in now.")
+
+
+class RunEta(BaseModel):
+    remaining_seconds: int = Field(
+        description="Typical time left; negative once the run is slower than usual.",
+    )
+    basis_runs: int = Field(description="Recent completed runs the estimate is drawn from.")
+    basis: Literal["stages", "total"] = Field(
+        description="Per-stage medians when enough runs recorded stage times, else the median total.",
+    )
+
+
+class DailyQuota(BaseModel):
+    """Operator-funded paid operations today for the calling access code."""
+
+    limit: int
+    used: int
+    remaining: int
+    resets_at: AwareDatetime
 
 
 class RunProgress(BaseModel):
@@ -248,7 +327,24 @@ class RunProgress(BaseModel):
     )
     done: bool = False
     error: str | None = None
+    daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
+        default="not_recorded",
+        description="Whether this run spent one of its owner's daily paid operations: charged; "
+                    "refunded (the worker never launched); not_charged (own key, or no cap); "
+                    "not_recorded (the run predates the marker); unreadable. A run that launched "
+                    "and then failed stays charged.",
+    )
     elapsed_seconds: int | None = None
+    stage_timings: list[StageTiming] = Field(
+        default_factory=list,
+        description="When each stage began and how long it took. Empty for runs "
+                    "that predate stage timing.",
+    )
+    eta: RunEta | None = Field(
+        default=None,
+        description="For a running run, the typical time left from recent completed "
+                    "runs; None without at least three of them.",
+    )
     source_counts: dict[str, int] | None = None
     evidence_incomplete: bool = Field(
         default=False,
@@ -401,7 +497,24 @@ class RunStatus(BaseModel):
     )
     output_language: str = "English"
     error: str | None = None
+    daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
+        default="not_recorded",
+        description="Whether this run spent one of its owner's daily paid operations: charged; "
+                    "refunded (the worker never launched); not_charged (own key, or no cap); "
+                    "not_recorded (the run predates the marker); unreadable. A run that launched "
+                    "and then failed stays charged.",
+    )
     elapsed_seconds: int | None = None
+    stage_timings: list[StageTiming] = Field(
+        default_factory=list,
+        description="When each stage began and how long it took. Empty for runs "
+                    "that predate stage timing.",
+    )
+    eta: RunEta | None = Field(
+        default=None,
+        description="For a running run, the typical time left from recent completed "
+                    "runs; None without at least three of them.",
+    )
     source_counts: dict[str, int] | None = None
     evidence_incomplete: bool = Field(
         default=False,
@@ -626,6 +739,20 @@ class HealthStatus(BaseModel):
                     "after successful extraction.",
     )
     llm_provider: str | None = None
+    llm_model: str | None = Field(
+        default=None,
+        description="Model name a run on the deployment's own key would request, from the "
+                    "same resolution the worker uses. Reported because the public "
+                    "deployment changes models without a code change, so docs point "
+                    "here instead of naming one. Null when no provider or model is "
+                    "configured. A name is not proof the provider serves it.",
+    )
+    pipeline_revision: str | None = Field(
+        default=None,
+        description="Code this process serves: git:<commit> where the platform exposes "
+                    "it (Railway, CI), otherwise a hash of the pipeline sources. "
+                    "Lets a deploy be confirmed rather than inferred.",
+    )
 
     source_locator: SourceLocatorStatus | None = Field(
         default=None, description="Optional locator configuration; null when its entry is not exposed. "
@@ -660,4 +787,61 @@ class ReadinessStatus(BaseModel):
     maintenance: MaintenanceStatus | None = Field(
         default=None, description="HTTP supervisor snapshot shared with health. "
                                   "Absent from the standalone configuration-only readiness check.",
+    )
+
+
+class RetrievalLaneHealth(BaseModel):
+    lane: str = Field(description="Audit label such as 'OA-Cited', 'S2' or 'market web search'.")
+    observed_runs: int = Field(description="Examined runs whose audit has this lane.")
+    empty_runs: int = Field(description="Runs in which the lane returned no result.")
+    failed_runs: int = Field(description="Runs in which the lane recorded a refusal or failed request.")
+
+
+class AuthCredentials(BaseModel):
+    """Sign-up and sign-in share one body; api.accounts applies the policy."""
+
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=200)
+    invite: str | None = Field(default=None, max_length=200,
+                               description="Invite code; needed in invite mode and for a reserved (admin) address.")
+
+
+class AuthSession(BaseModel):
+    """Returned once, at sign-up or sign-in. The token is a bearer credential:
+    send it as `Authorization: Bearer <token>`; it is never shown again."""
+
+    token: str
+    email: str
+    admin: bool = False
+
+
+class AuthMe(BaseModel):
+    email: str
+    admin: bool = False
+
+
+class AuthConfig(BaseModel):
+    """What the sign-in screen offers on this deployment."""
+
+    enabled: bool = Field(description="Accounts exist here (ACCOUNTS_DB is set).")
+    signup_open: bool = Field(description="New accounts can be created (open or invite mode).")
+    signup: str = Field(default="closed", description="open, invite or closed.")
+    access_codes: bool = Field(description="An operator access code is also accepted.")
+
+
+class RetrievalHealth(BaseModel):
+    """Per-lane counts over recent runs' saved audits; no topics or run ids.
+
+    Scoped like GET /api/runs: a code holder's own runs, every run for the
+    admin code or a deployment without codes.
+    """
+
+    window: int
+    runs_examined: int = Field(description="Newest runs with a saved audit, at most `window`.")
+    lanes: list[RetrievalLaneHealth]
+    failing: list[str] = Field(
+        description="Lanes that failed in at least half of 3 or more observed runs.",
+    )
+    mostly_empty: list[str] = Field(
+        description="Other lanes that returned nothing in at least 80% of 3 or more observed runs.",
     )

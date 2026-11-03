@@ -38,6 +38,7 @@ from academic_agent.run_spec import (
     RESUME_SNAPSHOT_DIRECTORY,
     DecisionContext,
     RunSpec,
+    SearchPlan,
 )
 from academic_agent.run_terminal import (
     TerminalRecord,
@@ -123,6 +124,48 @@ _CANCEL_MARKER = "cancelled.marker"
 # for any deployment with no code configured — both cases mean "no owner",
 # not "everyone's owner", so those runs never appear in a filtered list.
 _OWNER_FILE = ".owner"
+
+# Whether this run spent one of its owner's daily paid operations. Written by
+# the API at launch and rewritten on a launch-failure refund, so the run page
+# can say whether a run that later failed already counted toward the day. The
+# marker informs the page only: admission and refunds read the daily ledger.
+_CHARGE_FILE = ".daily_charge"
+_CHARGE_SCHEMA_VERSION = 1
+
+
+def _write_daily_charge(run_dir: Path, charged_on: date | None, *, refunded: bool = False) -> None:
+    payload = {
+        "schema_version": _CHARGE_SCHEMA_VERSION,
+        "charged": charged_on is not None,
+        "charged_on": charged_on.isoformat() if charged_on is not None else None,
+        "refunded": refunded,
+    }
+    (run_dir / _CHARGE_FILE).write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+
+
+def _read_daily_charge(run_dir: Path) -> str:
+    """One of charged, refunded, not_charged, not_recorded or unreadable.
+
+    A run from before the marker existed is "not_recorded", a damaged marker
+    "unreadable": neither is collapsed into "not_charged", which would tell a
+    code holder that a run was free when nothing says so.
+    """
+    path = run_dir / _CHARGE_FILE
+    if not path.exists():
+        return "not_recorded"
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "unreadable"
+    if (
+        not isinstance(record, dict)
+        or not isinstance(record.get("charged"), bool)
+        or not isinstance(record.get("refunded"), bool)
+    ):
+        return "unreadable"
+    if not record["charged"]:
+        return "not_charged"
+    return "refunded" if record["refunded"] else "charged"
 
 _ARTIFACTS = {
     "report":  "commercialization_report.md",
@@ -585,6 +628,26 @@ def _daily_window_locked() -> date:
     return today
 
 
+def daily_quota(owner: str | None) -> dict | None:
+    """Today's operator-funded paid operations for `owner`; None when uncapped.
+
+    Raises PaidLedgerUnavailable when the ledger cannot be read, the same
+    state that blocks admission.
+    """
+    if not DAILY_CAP:
+        return None
+    with _registry_lock:
+        today = _daily_window_locked()
+        used = _daily_counts.get(owner, 0)
+    resets_at = datetime(today.year, today.month, today.day, tzinfo=UTC) + timedelta(days=1)
+    return {
+        "limit": DAILY_CAP,
+        "used": used,
+        "remaining": max(0, DAILY_CAP - used),
+        "resets_at": resets_at.isoformat(),
+    }
+
+
 def _admit_paid_operation_locked(*, owner: str | None, byok: bool) -> date | None:
     """Check every limit and charge one operation atomically.
 
@@ -774,6 +837,7 @@ def _start_run_from_spec(
         spec_path = spec.save(run_dir)
         if owner is not None:
             (run_dir / _OWNER_FILE).write_text(owner, encoding="utf-8")
+        _write_daily_charge(run_dir, charged_on)
         if resume_from is not None:
             # Snapshot before Popen. The source can be deleted manually or by
             # retention while the child is starting; making the worker read
@@ -844,11 +908,19 @@ def _start_run_from_spec(
             # No worker exists, so no LLM/search provider could have been
             # reached. Unlike a failed running worker, this attempt is safe
             # to refund rather than silently consuming the user's day.
-            if not _refund_daily_charge_locked(owner, charged_on):
+            refunded = _refund_daily_charge_locked(owner, charged_on)
+            if not refunded:
                 print(
                     "[api] paid-operation refund could not be persisted; charge retained",
                     file=sys.stderr,
                 )
+        if refunded and charged_on is not None and run_dir.is_dir():
+            # The ledger refund above is what reopens the day. The marker only
+            # tells the page, so its failure must not replace the launch error.
+            try:
+                _write_daily_charge(run_dir, charged_on, refunded=True)
+            except OSError:
+                print("[api] daily-charge marker could not record the refund", file=sys.stderr)
         raise
 
     with _registry_lock:
@@ -870,6 +942,7 @@ def _spec_from_submission(
     weight_profile: str | None,
     paper_json_path: str | None,
     decision_context: DecisionContext | None,
+    search_plan: SearchPlan | None = None,
 ) -> RunSpec:
     """Freeze a submission before reserving money or starting its worker."""
 
@@ -892,6 +965,7 @@ def _spec_from_submission(
         weight_profile=weight_profile,
         paper_contribution=paper_contribution,
         decision_context=decision_context,
+        search_plan=search_plan,
     )
 
 
@@ -904,6 +978,7 @@ def start_run(
     byok: BYOKCredentials | None = None,
     owner: str | None = None,
     auxiliary_pdf_reference: dict | None = None,
+    search_plan: SearchPlan | None = None,
 ) -> tuple[str, Path]:
     """Launch a new worker from a durable, non-secret input contract."""
 
@@ -913,6 +988,7 @@ def start_run(
         weight_profile,
         paper_json_path,
         decision_context,
+        search_plan,
     )
     return _start_run_from_spec(spec, byok=byok, owner=owner,
                                 auxiliary_pdf_reference=auxiliary_pdf_reference)
@@ -1339,10 +1415,16 @@ def _failure_reason(run_dir: Path) -> str:
 
 
 _TIMEOUT_FAILURE_MARKERS = ("timed out", "timeout", "deadline exceeded")
-_PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str], ...] = (
+# A code-funded run's reader did not configure the model or the key; the
+# operator did. Telling them to "check the model setting" sends them to a
+# setting they cannot see. The third element is the message for that reader;
+# None keeps the one message for both.
+_OPERATOR_SIDE = " Nothing in your request caused this; the operator can find it by the run ID."
+_PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str, str | None], ...] = (
     (
         _TIMEOUT_FAILURE_MARKERS,
         "The analysis exceeded its time limit. Retry with a narrower topic.",
+        None,
     ),
     (
         (
@@ -1355,6 +1437,34 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str], ...] = (
         ),
         "An upstream provider rejected authentication. "
         "Check the configured credentials.",
+        "The deployment's model provider rejected its credentials." + _OPERATOR_SIDE,
+    ),
+    # A model switch can leave the deployment pointing at a model its key
+    # cannot use. Each case says what the operator has to change; the provider
+    # body itself stays in the run's error artifact.
+    (
+        ("freetieronly", "free tier", "free quota"),
+        "The configured model's free quota is used up. "
+        "Switch to another model or enable paid use, then retry.",
+        "The free quota of the model this deployment uses is used up." + _OPERATOR_SIDE,
+    ),
+    (
+        ("arrearage", "good standing", "overdue payment"),
+        "The model provider account cannot be billed. "
+        "Check its balance, then retry.",
+        "The deployment's model provider account cannot be billed." + _OPERATOR_SIDE,
+    ),
+    (
+        ("model_not_found", "does not exist or you do not have access", "model not exist"),
+        "The configured model is not available to this deployment's key. "
+        "Check the model setting.",
+        "The model this deployment is set to is not available to its key." + _OPERATOR_SIDE,
+    ),
+    (
+        ("invalid_parameter_error", "invalidparameter"),
+        "The configured model rejected the request. "
+        "Check that the model setting names a model this pipeline supports.",
+        "The model this deployment is set to rejected the request." + _OPERATOR_SIDE,
     ),
     (
         (
@@ -1365,6 +1475,7 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str], ...] = (
             "error code: 429",
         ),
         "An upstream provider rate or quota limit was reached. Retry later.",
+        None,
     ),
     (
         (
@@ -1375,6 +1486,7 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str], ...] = (
         ),
         "The system could not collect enough validated evidence for this topic. "
         "Retry later or refine the topic.",
+        None,
     ),
     (
         (
@@ -1386,6 +1498,7 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str], ...] = (
         ),
         "An upstream model returned an unsupported response format. "
         "Retry the analysis.",
+        None,
     ),
     (
         (
@@ -1396,6 +1509,7 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str], ...] = (
         ),
         "The generated analysis did not pass the evidence-quality checks. "
         "Retry the analysis.",
+        None,
     ),
     (
         (
@@ -1408,6 +1522,7 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str], ...] = (
             "service unavailable",
         ),
         "An upstream service could not be reached. Retry later.",
+        None,
     ),
 )
 
@@ -1417,17 +1532,20 @@ def _is_timeout_failure(raw_reason: object) -> bool:
     return any(marker in lowered for marker in _TIMEOUT_FAILURE_MARKERS)
 
 
-def _public_failure_reason(raw_reason: object) -> str:
+def _public_failure_reason(raw_reason: object, *, code_funded: bool = False) -> str:
     """Map untrusted diagnostics to a stable client-safe category.
 
     Error artifacts remain untouched for operator debugging. Returning only
     allowlisted prose here prevents provider bodies, credentials, prompts,
     and host paths from being reflected by status and list endpoints.
+
+    `code_funded` selects the wording for a run made under an access code,
+    whose reader cannot act on the deployment's model or key settings.
     """
     lowered = str(raw_reason).lower()
-    for markers, message in _PUBLIC_FAILURE_CATEGORIES:
+    for markers, message, operator_side in _PUBLIC_FAILURE_CATEGORIES:
         if any(marker in lowered for marker in markers):
-            return message
+            return operator_side if code_funded and operator_side else message
     return "The analysis failed. Retry or contact the operator with the run ID."
 
 
@@ -1482,6 +1600,9 @@ def get_state(run_id: str) -> dict:
         status, status_record_state = {}, "unreadable"
     status, audit_metadata_unreadable = project_audit_metadata(status)
     terminal_record, terminal_projection = _read_terminal(run_dir)
+    # Presence alone chooses the wording; an unreadable marker is handled by
+    # the authorization paths, which must not be collapsed into "ownerless".
+    code_funded = (run_dir / _OWNER_FILE).exists()
 
     if occupied:
         state = "running"
@@ -1499,7 +1620,8 @@ def get_state(run_id: str) -> dict:
                     "last validated checkpoint or start a new run."
                 )
             elif state == "failed":
-                error = _public_failure_reason(status.get("error") or _failure_reason(run_dir))
+                error = _public_failure_reason(status.get("error") or _failure_reason(run_dir),
+                                               code_funded=code_funded)
             else:
                 error = None
         elif terminal_projection is not None:
@@ -1515,7 +1637,7 @@ def get_state(run_id: str) -> dict:
             if (run_dir / _CANCEL_MARKER).exists():
                 state, error = "cancelled", "Cancelled by request."
             elif status.get("error"):
-                state, error = "failed", _public_failure_reason(status["error"])
+                state, error = "failed", _public_failure_reason(status["error"], code_funded=code_funded)
             elif status.get("done"):
                 state, error = "completed", None
             elif status_record_state == "unreadable":
@@ -1526,7 +1648,7 @@ def get_state(run_id: str) -> dict:
             else:
                 reason = _failure_reason(run_dir)
                 state = "timeout" if _is_timeout_failure(reason) else "failed"
-                error = _public_failure_reason(reason)
+                error = _public_failure_reason(reason, code_funded=code_funded)
 
     usage = status.get("usage")
     usage_accounting = status.get("usage_accounting")
@@ -1565,6 +1687,14 @@ def get_state(run_id: str) -> dict:
         "checkpointing": checkpointing, "recovery": recovery,
     })
 
+    stage = status.get("stage") or (terminal_record.last_stage if terminal_record else "")
+    timings = stage_timings(
+        status.get("stage_timings"),
+        running=state == "running",
+        ended_at=terminal_record.ended_at if terminal_record is not None else None,
+    )
+    from api.eta import estimate  # api.eta reads run history through this module
+
     from academic_agent.auxiliary_usage import FILE_NAME, read_summary
     auxiliary = read_summary(run_dir / FILE_NAME,
         storage_failed=status.get("auxiliary_usage_storage_failed") is True,
@@ -1576,7 +1706,7 @@ def get_state(run_id: str) -> dict:
         "auxiliary_usage": auxiliary,
         "audit_metadata_unreadable": audit_metadata_unreadable,
         "runtime_metadata_unreadable": runtime_metadata_unreadable,
-        "stage": status.get("stage") or (terminal_record.last_stage if terminal_record else ""),
+        "stage": stage,
         "topic": status.get("topic") or (handle.topic if handle else ""),
         "output_language": status.get("output_language") or "English",
         # This is the immutable identity persisted by the executing worker.
@@ -1587,7 +1717,14 @@ def get_state(run_id: str) -> dict:
         "pipeline_revision": status.get("pipeline_revision"),
         "decision_gate": status.get("decision_gate"),
         "error": error,
+        # Whether this run spent one of its owner's daily paid operations, so
+        # a failed run's page can say so beside the reason. Read from the
+        # launch-time marker, never inferred from the state or the ledger.
+        "daily_charge": _read_daily_charge(run_dir),
         "elapsed_seconds": elapsed,
+        "stage_timings": timings,
+        # A typical figure from recent completed runs, for a running run only.
+        "eta": estimate(stage, elapsed, timings) if state == "running" else None,
         "source_counts": status.get("source_counts"),
         # True when the run finished but its per-agent evidence files could not
         # be written. The report is still valid; what is missing is the record
@@ -1659,6 +1796,55 @@ def get_state(run_id: str) -> dict:
         "recovery": runtime["recovery"],
         "artifacts": available_artifacts(run_dir),
     }
+
+
+# Stage strings that mark the end of the run rather than a stage of it.
+_END_STAGES = frozenset({"Done", "Error"})
+
+
+def stage_timings(
+    raw: object, *, running: bool, ended_at: datetime | None,
+) -> list[dict]:
+    """Each stage's start and duration, from the worker's stage_timings.
+
+    A stage lasts until the next one starts; the last one until the run's
+    terminal record, or until now while the run is still going (`active`).
+    A run without a terminal record and no later stage has no end to measure
+    against, so its last duration is None. Malformed entries are skipped.
+    """
+    entries: list[tuple[str, datetime]] = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        stage, started = item.get("stage"), item.get("started_at")
+        if not isinstance(stage, str) or not stage or not isinstance(started, str):
+            continue
+        try:
+            started_at = datetime.fromisoformat(started)
+        except ValueError:
+            continue
+        if started_at.tzinfo is not None:
+            entries.append((stage[:200], started_at))
+    timings = []
+    for index, (stage, started_at) in enumerate(entries[:32]):
+        if stage in _END_STAGES:
+            continue
+        active = False
+        if index + 1 < len(entries):
+            end: datetime | None = entries[index + 1][1]
+        elif running:
+            end, active = datetime.now(UTC), True
+        else:
+            end = ended_at
+        timings.append({
+            "stage": stage,
+            "started_at": started_at.isoformat(),
+            "duration_seconds": (
+                max(0, int((end - started_at).total_seconds())) if end is not None else None
+            ),
+            "active": active,
+        })
+    return timings
 
 
 def _started_at(run_id: str) -> str:
@@ -1805,16 +1991,13 @@ def owner_of(run_id: str) -> str | None:
     return _read_owner(run_dir_for(run_id))
 
 
-def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], int]:
-    """Return (summaries, total) for finished and running runs, newest first.
+def run_directories(owner: str | None = None) -> list[Path]:
+    """Run directories, newest first, scoped to `owner` as list_runs is.
 
-    `owner`, when given, scopes the result to runs created under that same
-    access.owner_id() — a code holder sees only their own history, not
-    every code's combined. None means no filter: every run, the behaviour
-    for a deployment with no access code configured at all.
+    Raises OwnerMarkerUnreadable when scoping meets a marker it cannot read.
     """
     if not DEFAULT_OUTPUT_ROOT.is_dir():
-        return [], 0
+        return []
 
     # Match the run_id shape rather than excluding known non-runs one at a
     # time. The old rule skipped only "benchmark", so adding outputs/_papers
@@ -1828,6 +2011,18 @@ def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], in
     )
     if owner is not None:
         dirs = [d for d in dirs if _read_owner(d) == owner]
+    return dirs
+
+
+def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], int]:
+    """Return (summaries, total) for finished and running runs, newest first.
+
+    `owner`, when given, scopes the result to runs created under that same
+    access.owner_id() — a code holder sees only their own history, not
+    every code's combined. None means no filter: every run, the behaviour
+    for a deployment with no access code configured at all.
+    """
+    dirs = run_directories(owner)
     summaries = []
     for d in dirs[:limit]:
         try:

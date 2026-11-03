@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import openalex_evidence_set_unseen as unseen
-
-
+from experiments.openalex_retrieval import openalex_evidence_set_unseen as unseen
 def test_dry_run_expands_all_frozen_identities_without_live_authority():
     result = unseen.dry_run()
 
@@ -173,7 +171,7 @@ def test_request_and_judge_caps_remain_one_search_and_two_passes_per_case(
 
 
 def test_preflight_imports_neither_provider_model_nor_execution_client():
-    source = Path("openalex_evidence_set_unseen.py").read_text(encoding="utf-8")
+    source = Path("experiments/openalex_retrieval/openalex_evidence_set_unseen.py").read_text(encoding="utf-8")
 
     assert "anonymous_openalex_search" not in source
     assert "openalex_claim_scope_search" not in source

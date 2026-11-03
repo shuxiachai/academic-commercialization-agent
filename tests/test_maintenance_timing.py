@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from api import main, runs
 from api.models import ReadinessStatus
+from tests.scripted_waits import SCENARIO, STEP
 
 
 STAGES = ("timeouts", "papers", "retention", "receipts", "auxiliary_usage")
@@ -108,7 +109,7 @@ def test_running_attempt_preserves_previous_result_and_completion_time(clock, st
 
     def slow():
         entered.set()
-        assert release.wait(15), "test did not release maintenance"
+        assert release.wait(STEP), "test did not release maintenance"
         if failure:
             raise PermissionError("private fixture path")
         return []
@@ -116,7 +117,7 @@ def test_running_attempt_preserves_previous_result_and_completion_time(clock, st
     async def exercise():
         task = asyncio.create_task(main._maintenance_stage(stage, slow))
         try:
-            assert await asyncio.to_thread(entered.wait, 10)
+            assert await asyncio.to_thread(entered.wait, STEP)
             clock.advance(45)
             for _ in range(2):
                 task.cancel()
@@ -136,7 +137,7 @@ def test_running_attempt_preserves_previous_result_and_completion_time(clock, st
         finally:
             release.set()
             with contextlib.suppress(asyncio.CancelledError):
-                await asyncio.wait_for(task, 10)
+                await asyncio.wait_for(task, SCENARIO)
 
     asyncio.run(exercise())
     after, responses = read_both()
@@ -173,12 +174,12 @@ def test_first_inflight_attempt_has_no_fabricated_completion(clock, stage):
 
     def first():
         entered.set()
-        assert release.wait(15)
+        assert release.wait(STEP)
 
     async def exercise():
         task = asyncio.create_task(main._maintenance_stage(stage, first))
         try:
-            assert await asyncio.to_thread(entered.wait, 10)
+            assert await asyncio.to_thread(entered.wait, STEP)
             clock.advance(8)
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main.app), base_url="http://test") as client:
                 for route in ("/health", "/health/ready"):
@@ -190,7 +191,7 @@ def test_first_inflight_attempt_has_no_fabricated_completion(clock, stage):
                     assert all(value is None for key, value in timing.items() if key.startswith("last_"))
         finally:
             release.set()
-            await asyncio.wait_for(task, 10)
+            await asyncio.wait_for(task, SCENARIO)
 
     asyncio.run(exercise())
 

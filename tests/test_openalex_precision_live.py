@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import openalex_precision_live as live
+from experiments.openalex_retrieval import openalex_precision_live as live
 from academic_agent.evidence_gap import ValidatedGapCall
 from academic_agent.tools.evidence_search import (
     ProviderResultRejection,
@@ -16,11 +16,11 @@ from academic_agent.tools.evidence_search import (
     ToolEvidenceCandidate,
     ToolProviderUsage,
 )
-from openalex_precision_live import (
+from experiments.openalex_retrieval.openalex_precision_live import (
     OpenAlexPrecisionLiveError,
     execute_live_study,
 )
-from openalex_precision_unseen import PreparedUnseenCase, load_frozen_cases
+from experiments.openalex_retrieval.openalex_precision_unseen import PreparedUnseenCase, load_frozen_cases
 
 
 def _accepted_candidate(

@@ -374,6 +374,27 @@ class Qwen35PlusPricingTests(TestCase):
         self.assertIn("2026-10-19", small.basis)
         self.assertNotIn(PRICES_AS_OF, small.basis)
 
+    def test_free_quota_catalogue_rows_price_the_rotating_deployment(self):
+        """The public deployment switched to qwen3.7-max-preview on 2026-10-23
+        with no row to match; the run page would have read "unpriced" and the
+        soft stop could not apply. The preview and dated snapshots must find
+        the base row by prefix, and the flash tiers must carry their own date."""
+        with _clean_env():
+            preview = price_for("qwen3.7-max-preview")
+            snapshot = price_for("qwen3.7-max-2026-06-08")
+            flash37, flash38 = price_for("qwen3.7-flash"), price_for("qwen3.8-flash")
+        self.assertEqual((preview.input, preview.cached, preview.output), (2.64, 0.53, 7.92))
+        self.assertEqual((snapshot.input, snapshot.output), (2.64, 7.92))
+        self.assertEqual((flash37.input, flash37.cached, flash37.output), (0.17, 0.17, 0.68))
+        self.assertEqual((flash38.input, flash38.cached, flash38.output), (0.12, 0.12, 0.38))
+        for price in (preview, flash37, flash38):
+            self.assertIn("upper bound", price.basis)
+            self.assertIn("2026-10-23", price.basis)
+            self.assertNotIn(PRICES_AS_OF, price.basis)
+        # The Max row names a region so a reader can re-check it; the preview
+        # is listed only in Beijing, so an overstated basis is the honest one.
+        self.assertIn("Singapore", preview.basis)
+
     def test_qwen_cached_tokens_are_a_subset_of_prompt_input(self):
         """DashScope follows the OpenAI nested cached-token convention.
 

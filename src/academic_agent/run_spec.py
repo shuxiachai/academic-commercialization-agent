@@ -211,6 +211,57 @@ class DecisionContext(BaseModel):
         }
 
 
+def _plan_phrase(value: str, *, label: str, max_chars: int, max_words: int) -> str:
+    phrase = " ".join(value.split())
+    if not 3 <= len(phrase) <= max_chars or len(phrase.split()) > max_words:
+        raise ValueError(
+            f"{label} must be 3-{max_chars} characters and at most {max_words} words"
+        )
+    return phrase
+
+
+class SearchPlan(BaseModel):
+    """The search interpretation a user confirmed before starting the run.
+
+    The planner's reading of a topic decides every query, and a wrong reading
+    used to surface only after the run's paid stages had spent on off-topic
+    sources. A confirmed plan replaces the worker's own planning call; the
+    bounds match what the planner itself may produce.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    search_topic: str
+    aliases: tuple[str, ...] = Field(default=(), max_length=2)
+    components: tuple[str, ...] = Field(default=(), max_length=4)
+
+    @field_validator("search_topic")
+    @classmethod
+    def _search_topic(cls, value: str) -> str:
+        return _plan_phrase(value, label="search_topic", max_chars=200, max_words=24)
+
+    @field_validator("aliases")
+    @classmethod
+    def _aliases(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        return tuple(_plan_phrase(v, label="alias", max_chars=180, max_words=20) for v in value)
+
+    @field_validator("components")
+    @classmethod
+    def _components(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        phrases = tuple(_plan_phrase(v, label="component", max_chars=120, max_words=12) for v in value)
+        # One component is just another alias; the planner drops it too.
+        return phrases if len(phrases) >= 2 else ()
+
+    @model_validator(mode="after")
+    def _distinct(self) -> "SearchPlan":
+        seen = {self.search_topic.casefold()}
+        for phrase in (*self.aliases, *self.components):
+            if phrase.casefold() in seen:
+                raise ValueError(f"search plan repeats {phrase!r}")
+            seen.add(phrase.casefold())
+        return self
+
+
 class RunSpec(BaseModel):
     """Frozen request values needed to repeat or resume a run."""
 
@@ -226,6 +277,9 @@ class RunSpec(BaseModel):
     weight_profile: str | None = Field(default=None, max_length=100)
     paper_contribution: dict[str, Any] | None = None
     decision_context: DecisionContext | None = None
+    # None: the worker plans the search itself, as every run before plan
+    # previews did. Part of the retrieval identity through the spec hash.
+    search_plan: SearchPlan | None = None
 
     @field_validator("topic")
     @classmethod

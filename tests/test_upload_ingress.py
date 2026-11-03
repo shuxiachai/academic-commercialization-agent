@@ -15,6 +15,7 @@ from starlette.responses import Response
 # unrelated offline admission tests inherit the developer's wallet setting.
 from api import access, papers, runs, upload_boundary
 from api import main
+from tests.scripted_waits import SCENARIO, STEP
 
 
 def multipart(size=64, count=1):
@@ -139,7 +140,7 @@ def test_upload_deadline_closes_parser_files(ingress, monkeypatch, kind):
 
     async def exercise():
         # Missing rejection or a bypassed wait must fail, never hang the suite.
-        return await asyncio.wait_for(post(chunks()), 5)
+        return await asyncio.wait_for(post(chunks()), SCENARIO)
 
     # Keep the production 30s/120s constants and assert their chosen wait at
     # the seam. Total expiry jumps only this module's clock after file-open;
@@ -184,7 +185,7 @@ def test_parser_capacity_rejects_before_receive_and_recovers(ingress, monkeypatc
 
         first = asyncio.create_task(post(held()))
         try:
-            await asyncio.wait_for(started.wait(), 2)
+            await asyncio.wait_for(started.wait(), STEP)
             response = await post(multipart())
             assert response.status_code == 429
             assert response.headers["X-Error-Code"] == "upload_capacity"
@@ -249,11 +250,11 @@ def test_parser_slot_is_released_before_paid_work(monkeypatch, tmp_path):
             return f"status={response.status_code},code={safe_code}"
 
         try:
-            done, _ = await asyncio.wait(tasks, timeout=2, return_when=asyncio.FIRST_COMPLETED)
+            done, _ = await asyncio.wait(tasks, timeout=STEP, return_when=asyncio.FIRST_COMPLETED)
             assert waiter in done and first not in done, "paid entry not observed; first=" + task_state(first)
             second = asyncio.create_task(post(multipart()))
             tasks.add(second)
-            done, _ = await asyncio.wait({second}, timeout=2)
+            done, _ = await asyncio.wait({second}, timeout=STEP)
             assert second in done and not second.cancelled(), "second=" + task_state(second)
             assert second.exception() is None, "second=" + task_state(second)
             assert second.result().status_code == 401, "second=" + task_state(second)
@@ -264,10 +265,10 @@ def test_parser_slot_is_released_before_paid_work(monkeypatch, tmp_path):
             release.set()
             waiter.cancel()
             cleanup_errors = []
-            # Each drain phase has the original two-second watchdog. wait()
+            # Each drain phase has its own STEP watchdog (tests/scripted_waits.py). wait()
             # does not silently extend it while waiting for cancellation.
             try:
-                _, pending = await asyncio.wait(tasks, timeout=2)
+                _, pending = await asyncio.wait(tasks, timeout=STEP)
             except BaseException as exc:
                 cleanup_errors.append("drain_type=" + type(exc).__name__)
                 pending = {task for task in tasks if not task.done()}
@@ -276,7 +277,7 @@ def test_parser_slot_is_released_before_paid_work(monkeypatch, tmp_path):
             if pending:
                 cleanup_errors.append("drain_required_cancellation")
                 try:
-                    _, pending = await asyncio.wait(pending, timeout=2)
+                    _, pending = await asyncio.wait(pending, timeout=STEP)
                 except BaseException as exc:
                     cleanup_errors.append("cancel_drain_type=" + type(exc).__name__)
             if pending:
@@ -353,7 +354,7 @@ def test_upload_deadline_after_parser_handoff(ingress, monkeypatch, released):
 
     async def exercise():
         boundary = upload_boundary.PaperUploadBoundary(parsed_app)
-        await asyncio.wait_for(boundary(scope, receive, send), 2)
+        await asyncio.wait_for(boundary(scope, receive, send), SCENARIO)
 
     asyncio.run(exercise())
     starts = [message for message in sent if message["type"] == "http.response.start"]

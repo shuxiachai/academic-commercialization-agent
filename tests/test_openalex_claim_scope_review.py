@@ -10,15 +10,15 @@ from pathlib import Path
 
 import pytest
 
-import openalex_claim_scope_review as claim_review
+from experiments.openalex_retrieval import openalex_claim_scope_review as claim_review
 from academic_agent.evidence_gap import ValidatedGapCall
 from academic_agent.openalex_claim_scope import OpenAlexClaimScopeCandidate
 from academic_agent.tools.evidence_search import ToolEvidenceCandidate, ToolProviderUsage
 from academic_agent.tools.openalex_claim_scope_search import (
     OpenAlexClaimScopeAdapterResponse,
 )
-from openalex_claim_scope_live import execute_live_study
-from openalex_claim_scope_review import (
+from experiments.openalex_retrieval.openalex_claim_scope_live import execute_live_study
+from experiments.openalex_retrieval.openalex_claim_scope_review import (
     DECLARATION_FIELDS,
     REVIEW_FIELDS,
     ClaimScopeReviewError,
@@ -26,7 +26,7 @@ from openalex_claim_scope_review import (
     prepare_packet,
     summarize_packet,
 )
-from openalex_claim_scope_unseen import PreparedClaimScopeCase, load_frozen_cases
+from experiments.openalex_retrieval.openalex_claim_scope_unseen import PreparedClaimScopeCase, load_frozen_cases
 
 
 def _candidate(

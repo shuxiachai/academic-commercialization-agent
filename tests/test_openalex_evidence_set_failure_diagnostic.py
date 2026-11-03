@@ -9,11 +9,11 @@ from typing import cast
 
 import pytest
 
-import openalex_evidence_set_failure_diagnostic as diagnostic
+from experiments.openalex_retrieval import openalex_evidence_set_failure_diagnostic as diagnostic
 from academic_agent.openalex_evidence_set import (
     EvidenceSetCaseAudit,
 )
-from openalex_evidence_set_development import (
+from experiments.openalex_retrieval.openalex_evidence_set_development import (
     DevelopmentExecution,
     DevelopmentManifest,
     DevelopmentPacketRow,

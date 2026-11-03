@@ -109,6 +109,25 @@ class RequiredModelTests(unittest.TestCase):
         app = (_WEB / "app.js").read_text(encoding="utf-8")
         self.assertIn("if (!llmKey || !model || !searchKey) return;", app)
 
+    def test_suggestions_are_offered_but_never_filled_in(self):
+        """A suggestion list helps a visitor name a model; it must not become a default."""
+        from academic_agent.llm_config import BYOK_MODEL_PATTERN
+
+        source = (_WEB / "byok_fields.js").read_text(encoding="utf-8")
+        block = re.search(r"MODEL_SUGGESTIONS = \{(.*?)\};", source, re.S).group(1)
+        rows = dict(re.findall(r"(\w+):\s*\[([^\]]*)\]", block))
+        self.assertEqual(set(rows), set(BYOK_PROVIDERS))
+        for provider, names in rows.items():
+            models = re.findall(r'"([^"]+)"', names)
+            self.assertTrue(models, provider)
+            for model in models:
+                self.assertRegex(model, rf"^{BYOK_MODEL_PATTERN.pattern}$")
+        index = (_WEB.parents[1] / "index.html").read_text(encoding="utf-8")
+        field = re.search(r'<input[^>]*id="byok-model"[^>]*>', index).group(0)
+        self.assertIn('list="byok-model-options"', field)
+        self.assertNotIn("value=", field)
+        self.assertIn('<datalist id="byok-model-options"></datalist>', index)
+
     def test_the_browser_model_check_matches_the_server_pattern(self):
         from academic_agent.llm_config import BYOK_MODEL_PATTERN
 

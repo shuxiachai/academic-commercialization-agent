@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from api import main, papers, runs
 from api.models import ReadinessStatus
+from tests.scripted_waits import SCENARIO, STEP
 
 
 @pytest.fixture
@@ -255,13 +256,13 @@ def test_running_and_cancel_draining_attempt_does_not_publish_tally_early(cleanu
     def held(*, cleanup):
         result = original(cleanup=cleanup)
         entered.set()
-        assert release.wait(15)
+        assert release.wait(STEP)
         return result
 
     async def exercise():
         task = asyncio.create_task(main._maintenance_stage(stage, held, collect_cleanup=True))
         try:
-            assert await asyncio.to_thread(entered.wait, 10)
+            assert await asyncio.to_thread(entered.wait, STEP)
             for _ in range(2):
                 task.cancel()
                 await asyncio.sleep(0)
@@ -275,7 +276,7 @@ def test_running_and_cancel_draining_attempt_does_not_publish_tally_early(cleanu
         finally:
             release.set()
             with contextlib.suppress(asyncio.CancelledError):
-                await asyncio.wait_for(task, 10)
+                await asyncio.wait_for(task, SCENARIO)
     asyncio.run(exercise())
     after = read_cleanup(stage)
     assert after["state"] == "complete" and after["deleted"] == 1 and after["failed"] == 0

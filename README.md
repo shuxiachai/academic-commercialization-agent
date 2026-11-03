@@ -1,27 +1,57 @@
 # Academic Commercialization Assessment Agent
 
-Turn a paper or research topic into a **source-linked commercialization assessment draft**:
-a scorecard for technology readiness, manufacturing, patents and market, with
-citations to registered sources and the risks spelled out.
+**Paper in, cited commercialization triage out.** A multi-agent LLM pipeline
+turns a research paper or topic into a scorecard for technology readiness,
+manufacturing, patents and market, with citations to registered sources and the
+risks spelled out. Its experiments are published with their protocols, failures
+included.
 
-[Open the application](https://academic-commercialization-agent.up.railway.app) · [Read sample reports — no key needed](https://academic-commercialization-agent.up.railway.app/samples) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
+[![Tests](https://github.com/shuxiachai/academic-commercialization-agent/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/shuxiachai/academic-commercialization-agent/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 
-![Current result screen showing a real historical run: CRISPR assessment with its automated-checks panel, score dimensions and source counts](assets/screenshot-results.png)
+**[▶ Read a finished report — no key, no sign-up](https://academic-commercialization-agent.up.railway.app/samples)** · [Open the application](https://academic-commercialization-agent.up.railway.app) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
 
-*Current interface, captured 2026-10-20, showing a real run from 2026-08-09. That run predates today's automated checks, which the panel states; it is not a current-model result.*
+![Demo: a finished CAR-T assessment opened from the history list, its scorecard, risks and opportunities with citations, the cited report, and one saved source excerpt](assets/demo.gif)
 
-**Try it without keys:** the [sample reports page](https://academic-commercialization-agent.up.railway.app/samples)
-shows three finished assessments and makes no model or search request. The same
-reports are in [examples/](examples/README.md), for instance
+*A real run from 2026-08-14 (CAR-T cell therapy for blood cancers, `deepseek-chat`), opened from a local copy in the current interface and captured 2026-10-23; no model or search request was made. It predates today's automated checks, which the panel states; it is not a current-model result.*
+
+## Try it
+
+| Way in | What you need | |
+|---|---|---|
+| **Read sample reports** | Nothing. Five finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-commercialization-agent.up.railway.app/samples) |
+| **Run a new analysis online** | An operator-issued access code **or** BYOK: your own LLM API key and model, plus a Tavily or Serper search key. Incurs provider usage | [Open the app](https://academic-commercialization-agent.up.railway.app) |
+| **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [Quick start](#quick-start) |
+
+The samples are also in [examples/](examples/README.md): two runs from
+2026-10-21, such as [Hyperloop](examples/hyperloop.md), and three from July, such as
 [Solid-state batteries for electric vehicles](examples/solid-state-batteries-ev.md)
 ([frozen 2026-07-19 version, 9673a83](https://github.com/shuxiachai/academic-commercialization-agent/blob/9673a8346c15f11b989ce8fd2d85be484d1c27b3/examples/solid-state-batteries-ev.md)).
-Starting a new analysis needs an operator-issued access code **or** BYOK
-(your own LLM API key and model, plus a Tavily or Serper search key), and incurs provider usage.
-The screenshot and samples are different historical runs; neither represents
-current model accuracy or an up-to-date market assessment.
+The screenshot and samples come from past runs; none of them measures current
+model accuracy or is an up-to-date market assessment.
+
+## What makes it different
+
+- **Evidence first, model second.** Code retrieves, validates and freezes the
+  sources; six LLM stages then reason only over that registry, and the weighted
+  total is computed by code, not the model.
+- **Measured in the open.** Protocols, held-out checks and errata live in the
+  repository. A four-agent variant used 54.89% fewer median tokens than the
+  six-agent default, and the first held-out cohort found TRL scores compressed
+  toward 7, under-scoring mature technologies. See [Measured results](#measured-results).
+- **Built for runs that fail halfway.** An interrupted run resumes from its
+  last validated checkpoint as a new linked run. Paid requests get receipts, so
+  after a lost reply the result can be recovered for up to 24 hours without
+  paying again.
 
 Built with Python, CrewAI, FastAPI and a build-free JavaScript client.
 [Start here: documentation and repository map](docs/README.md) · [Case study](docs/portfolio-case-study.md)
+
+**Want to contribute?** Issues labelled
+[good first issue](https://github.com/shuxiachai/academic-commercialization-agent/labels/good%20first%20issue)
+need no API keys: the test suite and browser smokes make no paid requests.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **Finding your way around:** the application is `src/academic_agent/`, `api/`,
 `web/` and `ui/`; tests are in `tests/` and `e2e/`. The many Python files at the
@@ -121,8 +151,10 @@ proven technologies. Low-maturity topics were not inflated, though the two
 lowest ones were scored below their floor. The topics and the model also
 changed, so the improvement is not attributed to any single change. Treat TRL
 as a coarse signal. See the [v2 result](docs/results-2026-10-19-heldout-trl-v2.md).
-The public deployment has since moved to the smaller `qwen3.8-27b`, which
-neither held-out cohort measured.
+The public deployment rotates through Model Studio's free-quota models and
+is not pinned to either cohort's model; the one it currently requests is in
+`/health` as `llm_model`, and each run page names the model that produced it.
+No held-out cohort has measured those models.
 
 Other completed evidence:
 
@@ -185,6 +217,11 @@ See the [operating guide](docs/operating-guide.md) for HTTP endpoints, output
 files, Docker, access codes, BYOK, tracing and recovery.
 
 ## Security and deployment
+
+Three ways in, chosen per deployment: no gate (local use), operator access
+codes billed to the deployment, or email-and-password accounts that pay with
+the keys they add after signing in ([how](docs/operating-guide.md#accounts)).
+An account's keys stay in its browser and are never stored by the server.
 
 Run URLs carry **128 bits of randomness** and act as read capabilities:
 anyone with the full URL can read that run until retention removes it.
@@ -250,11 +287,12 @@ the repository root are something else: frozen experiment runners.
 | `scripts/` | Operational report, offline audits and scripted demos |
 | `docs/` | Current guides plus dated protocols, results and errata; [start at the map](docs/README.md) |
 | Root `benchmark*.py` | The benchmark commands above |
-| Other root `*.py` (`openalex_*`, `evidence_gap_*`, `report_evidence_*`, `ablation*`, …) | Experiment runners. Not needed to run or understand the application |
+| `experiments/` | Runners, preflights and review tools of closed experiments, one directory per study; [each one is named](docs/experiments-map.md) with its record. Not needed to run or understand the application |
 
-The experiment runners stay at the root deliberately: their protocols lock
-source file paths and hashes, so moving them would invalidate those records
-(see the [experiment index](docs/experiment-index.md)). New tools go under `scripts/`.
+The experiment files are frozen where they are: their protocols lock paths and
+hashes, and the layout they recorded before 2026-10-31 is kept at the tag
+`archive/root-experiments-2026-10` (see the [experiment index](docs/experiment-index.md)).
+New tools go under `scripts/`.
 
 ## Limitations and open questions
 
@@ -310,13 +348,15 @@ general accuracy score.
 ## Screenshots
 
 <details>
-<summary>Home and report views — current interface, captured 2026-10-20</summary>
+<summary>Home, scorecard and report views — current interface, captured 2026-10-20</summary>
 
 Real historical runs (August 2026) opened in the current interface on a local
-copy; no model or search request was made for these images. The earlier
-captures are at [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512).
+copy; no model or search request was made for these images. The CRISPR run is
+from 2026-08-09 and predates today's automated checks. The earlier captures are
+at [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/commit/a343a95590ad83f0edec4002e3489355fc96a512).
 
 ![Home screen with real historical runs in the sidebar](assets/screenshot-home.png)
+![Current result screen showing a real historical run: CRISPR assessment with its automated-checks panel, score dimensions and source counts](assets/screenshot-results.png)
 ![Report tab of the same CRISPR run](assets/screenshot-report.png)
 
 </details>
@@ -324,7 +364,8 @@ captures are at [a343a95](https://github.com/shuxiachai/academic-commercializati
 ## Author and more projects
 
 Created by [shuxiachai](https://github.com/shuxiachai).
-Contributor: [Song Guoyu (@7776403yu)](https://github.com/7776403yu).
+Contributors: [Song Guoyu (@7776403yu)](https://github.com/7776403yu),
+[@xiaobaozhou165-sudo](https://github.com/xiaobaozhou165-sudo).
 Explore [more projects on the author's GitHub profile](https://github.com/shuxiachai).
 
 ## License

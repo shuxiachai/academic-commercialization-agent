@@ -1,8 +1,13 @@
 """Fixed offline observation of public bibliography title search.
 
 This module projects only the frozen public report's reference IDs and titles
-into the shipped Sources renderer.  It does not read a source registry, call a
-provider, accept a user path/query, or change any runtime route.
+into the Sources renderer as shipped on 2026-09-19.  It does not read a source
+registry, call a provider, accept a user path/query, or change any runtime route.
+
+The observer is a byte-identical snapshot of that renderer under
+``evals/source_locator_observer_v1``. It used to be the live web files, which
+froze the product UI for as long as the comparison had to stay reproducible;
+see docs/errata-2026-10-22-source-locator-observer-snapshot.md.
 """
 
 from __future__ import annotations
@@ -20,7 +25,9 @@ METHOD_ID = "report_evidence_source_locator_comparison_v1"
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "tests/fixtures/report_evidence_source_locator_comparison.json"
 REPORT = ROOT / "examples/solid-state-batteries-ev.md"
-CONTRACT = ROOT / "tests/js/source_browser_contract.mjs"
+# ASSETS paths are relative to this snapshot, not to the live web/ tree.
+OBSERVER_ROOT = ROOT / "evals/source_locator_observer_v1"
+CONTRACT = OBSERVER_ROOT / "tests/js/source_browser_contract.mjs"
 FIXTURE_SHA256 = "74bc2a26041a9365802d635e7e348387a47ce48404718793a2e5ce2f78c0e867"
 REPORT_SHA256_LF = "8fac15788439fecf6a6fbdcd32e4aea069ad8cfbb721aa54bd3abd8a8ee984cd"
 ASSETS = (
@@ -77,7 +84,7 @@ def _load_fixture() -> dict[str, Any]:
 
 
 def _asset_hashes() -> dict[str, str]:
-    hashes = {path: _lf_sha256(_read(ROOT / path)) for path, _ in ASSETS}
+    hashes = {path: _lf_sha256(_read(OBSERVER_ROOT / path)) for path, _ in ASSETS}
     if any(hashes[path] != expected for path, expected in ASSETS):
         raise ComparisonUnavailable("observer_asset_drift")
     return hashes
@@ -127,7 +134,7 @@ def _run_node(manifest: dict[str, Any]) -> dict[str, Any]:
     actions = [action for case in manifest["cases"] for action in (
         {"search": case["question"]}, {"search": case["keyword_query"]},
     )]
-    input_value = {"root": str(ROOT), "payload": _payload(manifest["catalog"]), "report": "", "actions": actions}
+    input_value = {"root": str(OBSERVER_ROOT), "payload": _payload(manifest["catalog"]), "report": "", "actions": actions}
     try:
         completed = subprocess.run(
             [node, str(CONTRACT)], input=json.dumps(input_value, ensure_ascii=False), text=True,

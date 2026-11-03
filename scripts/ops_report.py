@@ -50,6 +50,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 # Repository and src path bootstrap must precede this project import.
 from academic_agent.run_terminal import TerminalRecordUnreadable, load_terminal_record  # noqa: E402
+from academic_agent import report_feedback as feedback  # noqa: E402
 
 OUTPUT_ROOT = ROOT / "outputs"
 
@@ -230,6 +231,10 @@ def collect(root: Path) -> list[dict]:
             "failed": outcome in {"failed", "timeout"},
             "cause": _specific_cause(error) if error else "",
             "usage": status.get("usage"),
+            # Reader answers recorded with the run: a list of {changed_view,
+            # part}, [] when none, None when the file is damaged. An
+            # unanswered report says nothing either way.
+            "feedback": feedback.responses(directory),
             "checks": {
                 "claim grounding": _check_state(status, "claim_grounding"),
                 "checkpointing": _check_state(status, "checkpointing", "state"),
@@ -343,6 +348,27 @@ def _print_check_coverage(runs: list[dict]) -> None:
         print(f"  {check:<18} {rendered}")
 
 
+def _print_feedback(runs: list[dict]) -> None:
+    """Did the report change the reader's view? The project's open question,
+    answered one click at a time; counted only over reports that answered."""
+    answered = [r for r in runs if r["feedback"]]
+    damaged = sum(1 for r in runs if r["feedback"] is None)
+    delivered = sum(1 for r in runs if r["outcome"] == "completed")
+    note = f"; {damaged} feedback file(s) unreadable" if damaged else ""
+    print(f"\nReader feedback ({len(answered)} of {delivered} delivered report(s) answered{note})")
+    print("-" * 68)
+    if not answered:
+        print("  none recorded; an unanswered report says nothing either way")
+        return
+    views = Counter(a["changed_view"] for r in answered for a in r["feedback"])
+    print("  changed the reader's view: "
+          + ", ".join(f"{k}={views[k]}" for k in ("yes", "no", "unsure")))
+    parts = Counter(a["part"] for r in answered for a in r["feedback"] if a.get("part"))
+    if parts:
+        print("  part that mattered most:   "
+              + ", ".join(f"{k}={v}" for k, v in parts.most_common()))
+
+
 def _print_cost(runs: list[dict]) -> None:
     priced = [r["usage"] for r in runs
               if isinstance(r.get("usage"), dict) and r["usage"].get("cost_usd") is not None]
@@ -380,6 +406,7 @@ def main() -> None:
     _print_causes(runs)
     _print_inputs(runs)
     _print_check_coverage(runs)
+    _print_feedback(runs)
     _print_cost(runs)
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 
 from fastapi.testclient import TestClient
+from tests.scripted_waits import SCENARIO
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,7 +60,7 @@ function runtime({ old = false, absent = false } = {}) {
   if (absent) delete ids['source-locator-link'];
   // Use the shipped $ helper with the same DOM API as the composer harness.
   const context = { document: { querySelector: sel => ids[sel.slice(1)] ?? null }, location: { pathname: '/' }, topic,
-    history: { pushState() {} }, stopClock() {}, refreshSidebar() {}, scheduleCapacity() {}, toast() {}, t: x => x,
+    history: { pushState() {} }, stopClock() {}, refreshSidebar() {}, scheduleCapacity() {}, refreshQuota() {}, toast() {}, t: x => x,
     openRun: id => { context.opened = id; } };
   const active = 'let activeRunId = null; let follower = null;';
   const oldShowRun = showRun.replace('  syncSourceLocatorLink();\n', '');
@@ -98,6 +99,6 @@ console.log('real SPA view probe and stale-link reinjection verified');
 '''
     completed = subprocess.run(["node", "--input-type=module", "-e", probe],
                                input=json.dumps({"source": source, "A": RUN_A, "B": RUN_B}),
-                               capture_output=True, text=True, encoding="utf-8", timeout=15, check=False)
+                               capture_output=True, text=True, encoding="utf-8", timeout=SCENARIO, check=False)
     assert completed.returncode == 0, completed.stderr
     assert "real SPA view probe and stale-link reinjection verified" in completed.stdout

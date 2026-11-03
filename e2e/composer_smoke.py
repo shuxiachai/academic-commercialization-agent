@@ -9,6 +9,7 @@ This complements, rather than relaxes, the read-only browser_smoke contract.
 from __future__ import annotations
 
 import json
+import re
 import time
 from urllib.parse import urlsplit
 
@@ -329,6 +330,287 @@ def _paid_refresh_case(browser, base: str, operation: str) -> int:
         context.close()
 
 
+def _plan_preview_journey(browser, base: str) -> int:
+    """A code holder confirms or edits the planner's reading before a run.
+
+    The run POST carries exactly the confirmed plan; an unresolved topic
+    never reaches it; a refused preview falls back to a plain run.
+    """
+    context = browser.new_context()
+    previews, posts, unexpected, errors = [], [], [], []
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+
+    def intercept(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        if url.netloc != urlsplit(base).netloc:
+            unexpected.append(request.url)
+            route.abort()
+        elif request.method == "POST" and url.path == "/api/plan":
+            previews.append(route)
+        elif request.method == "POST" and url.path == "/api/runs":
+            posts.append(route)  # Never continue to an ASGI paid endpoint.
+        elif request.method != "GET":
+            unexpected.append(f"{request.method} {url.path}")
+            route.abort()
+        elif url.path == "/api/access/check":
+            accepted = request.headers.get("x-access-code") == "fixture-A"
+            _json(route, {"ok": True, "plan_preview": True} if accepted else {"detail": "code required"},
+                  status=200 if accepted else 401)
+        elif url.path == "/api/runs":
+            _json(route, {"runs": []})
+        elif url.path == "/health":
+            _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif url.path == "/" or url.path.startswith("/static/"):
+            route.continue_()
+        else:
+            unexpected.append(url.path)
+            route.abort()
+
+    context.route("**/*", intercept)
+    try:
+        page.goto(base)
+        page.locator("#gate-input").fill("fixture-A")
+        page.locator("#gate-submit").click()
+        expect(page.locator("#gate")).to_be_hidden()
+        topic, run, panel = page.locator("#topic"), page.locator("#run-btn"), page.locator("#plan-panel")
+
+        # Confirm an edited reading: the POST carries exactly what was shown.
+        topic.fill("we want to assess hyperloop commercial potential")
+        run.click()
+        _wait_requests(page, previews, 1)
+        assert previews[0].request.post_data_json == {"topic": "we want to assess hyperloop commercial potential"}
+        expect(run).to_be_disabled()
+        _json(previews[0], {"resolved": True, "search_topic": "hyperloop transportation system",
+                            "aliases": ["vacuum tube maglev train", "evacuated tube transport"],
+                            "components": []})
+        expect(panel).to_be_visible()
+        expect(page.locator("#plan-topic")).to_have_value("hyperloop transportation system")
+        assert not posts, "Previewing must not start a run"
+        topic.press("Enter")  # Same topic: focus the panel, do not read it again.
+        page.wait_for_timeout(30)
+        assert len(previews) == 1
+        panel.locator(".plan-chip").first.locator("button").click()
+        expect(panel.locator(".plan-chip")).to_have_text(["evacuated tube transport×"])
+        page.locator("#plan-topic").fill("  hyperloop   ")
+        page.locator("#plan-start").click()
+        _wait_requests(page, posts, 1)
+        assert posts[0].request.post_data_json["search_plan"] == {
+            "search_topic": "hyperloop", "aliases": ["evacuated tube transport"], "components": []}
+        assert posts[0].request.post_data_json["topic"] == "we want to assess hyperloop commercial potential"
+        _json(posts[0], {"detail": "Fixture rejection"}, status=422)
+        expect(page.locator("#plan-start")).to_be_enabled()
+
+        # Editing the topic retires the old reading; an unresolved one cannot start.
+        topic.fill("the thing our team is working on")
+        expect(panel).to_be_hidden()
+        run.click()
+        _wait_requests(page, previews, 2)
+        _json(previews[1], {"resolved": False, "search_topic": "", "aliases": [], "components": []})
+        expect(panel).to_contain_text("No technology or research subject")
+        expect(page.locator("#plan-start")).to_have_count(0)
+        page.locator("#plan-edit").click()
+        expect(panel).to_be_hidden()
+
+        # A refused preview falls back to a run that plans for itself.
+        topic.fill("sodium-ion batteries for grid storage")
+        run.click()
+        _wait_requests(page, previews, 3)
+        _json(previews[2], {"detail": "20 topic previews already used today"}, status=429,
+              code="plan_preview_limit")
+        expect(panel).to_contain_text("previews are used up")
+        page.locator("#plan-start").click()
+        _wait_requests(page, posts, 2)
+        assert "search_plan" not in posts[1].request.post_data_json
+        _json(posts[1], {"detail": "Fixture rejection"}, status=422)
+        expect(run).to_be_enabled()
+        assert not errors, errors
+        assert not unexpected, unexpected
+        return len(posts)
+    finally:
+        context.close()
+
+
+def _decision_context_journey(browser, base: str) -> int:
+    """Picks fill the starred fields, the line says when a GO/NO_GO is possible,
+    and the folded details still reach the run request."""
+    context = browser.new_context()
+    posts, unexpected, errors = [], [], []
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+
+    def intercept(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        if url.netloc != urlsplit(base).netloc:
+            unexpected.append(request.url)
+            route.abort()
+        elif request.method == "POST" and url.path == "/api/runs":
+            posts.append(route)  # Never continue to an ASGI paid endpoint.
+        elif request.method != "GET":
+            unexpected.append(f"{request.method} {url.path}")
+            route.abort()
+        elif url.path == "/api/access/check":
+            accepted = request.headers.get("x-access-code") == "fixture-A"
+            _json(route, {"ok": True} if accepted else {"detail": "code required"},
+                  status=200 if accepted else 401)
+        elif url.path == "/api/runs":
+            _json(route, {"runs": []})
+        elif url.path == "/health":
+            _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif url.path == "/" or url.path.startswith("/static/"):
+            route.continue_()
+        else:
+            unexpected.append(url.path)
+            route.abort()
+
+    context.route("**/*", intercept)
+    try:
+        page.goto(base)
+        page.locator("#gate-input").fill("fixture-A")
+        page.locator("#gate-submit").click()
+        expect(page.locator("#gate")).to_be_hidden()
+        page.locator("#decision-context > summary").click()
+        status = page.locator("#decision-context-status")
+        expect(status).to_have_text("No context yet: the report will be an orientation brief, with no GO/NO_GO.")
+        expect(page.locator("#decision-horizon")).to_be_hidden()
+
+        page.locator("#decision-asset").fill("Lab-scale sulfide solid electrolyte")
+        page.locator("#decision-application").fill("Battery packs for passenger EVs")
+        expect(status).to_have_text("2 of the 4 starred fields filled. A GO/NO_GO for this decision needs all four.")
+        page.get_by_role("button", name="Investor", exact=True).click()
+        expect(page.locator("#decision-owner")).to_have_value("Investor")
+        page.get_by_role("button", name="Invest or pass", exact=True).click()
+        expect(page.locator("#decision-type")).to_have_value("Invest or pass")
+        expect(status).to_contain_text("All 4 starred fields filled")
+        page.locator("#ui-lang").select_option("Simplified Chinese")
+        expect(status).to_contain_text("4 个带 * 的字段都已填写")
+        expect(page.get_by_role("button", name="投资人", exact=True)).to_be_visible()
+        page.locator("#ui-lang").select_option("English")
+
+        page.locator(".decision-context__more > summary").click()
+        page.locator("#decision-horizon").fill("12 months")
+        page.locator("#topic").fill("solid-state batteries for electric vehicles")
+        page.locator("#run-btn").click()
+        _wait_requests(page, posts, 1)
+        assert posts[0].request.post_data_json["decision_context"] == {
+            "asset_description": "Lab-scale sulfide solid electrolyte",
+            "target_application": "Battery packs for passenger EVs",
+            "decision_owner": "Investor",
+            "decision_type": "Invest or pass",
+            "time_horizon": "12 months",
+        }
+        _json(posts[0], {"detail": "Fixture rejection"}, status=422)
+        expect(page.locator("#run-btn")).to_be_enabled()
+        assert not errors, errors
+        assert not unexpected, unexpected
+        return len(posts)
+    finally:
+        context.close()
+
+
+_FAKE_NOTIFICATIONS = """
+window.__notices = [];
+window.__hidden = false;
+Object.defineProperty(document, "hidden", { configurable: true, get: () => window.__hidden });
+class FakeNotification {
+  static permission = "default";
+  static requestPermission() { FakeNotification.permission = "granted"; return Promise.resolve("granted"); }
+  constructor(title, options) { window.__notices.push([title, options?.body ?? ""]); }
+  close() {}
+}
+window.Notification = FakeNotification;
+"""
+
+
+def _waiting_journey(browser, base: str) -> int:
+    """Runs left today, time left, and a finish notice for a background tab."""
+    context = browser.new_context()
+    context.add_init_script(_FAKE_NOTIFICATIONS)
+    posts, unexpected, errors = [], [], []
+    quota = {"limit": 3, "used": 1, "remaining": 2, "resets_at": "2026-10-22T00:00:00+00:00"}
+    run_id = "20261021T000000Z-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    progress = {"run_id": run_id, "topic": "Sodium-ion batteries", "state": "running",
+                "stage": "Agent 4 — Report Writing", "steps": [], "artifacts": [], "elapsed_seconds": 420,
+                "eta": {"remaining_seconds": 330, "basis_runs": 12, "basis": "stages"}}
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+
+    def intercept(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        if url.netloc != urlsplit(base).netloc:
+            unexpected.append(request.url)
+            route.abort()
+        elif request.method == "POST" and url.path == "/api/runs":
+            posts.append(route)  # Never continue to an ASGI paid endpoint.
+        elif request.method != "GET":
+            unexpected.append(f"{request.method} {url.path}")
+            route.abort()
+        elif url.path == "/api/access/check":
+            accepted = request.headers.get("x-access-code") == "fixture-A"
+            _json(route, {"ok": True, "daily_quota": True} if accepted else {"detail": "code required"},
+                  status=200 if accepted else 401)
+        elif url.path == "/api/quota":
+            _json(route, quota)
+        elif url.path == "/api/runs":
+            _json(route, {"runs": []})
+        elif url.path == f"/api/runs/{run_id}/progress":
+            _json(route, progress)
+        elif url.path == "/health":
+            _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif url.path == "/" or url.path.startswith("/static/"):
+            route.continue_()
+        else:
+            unexpected.append(url.path)
+            route.abort()
+
+    context.route("**/*", intercept)
+    try:
+        page.goto(base)
+        page.locator("#gate-input").fill("fixture-A")
+        page.locator("#gate-submit").click()
+        expect(page.locator("#quota")).to_have_text("2 of 3 runs left today")
+        expect(page.locator("#quota")).to_have_attribute("title", re.compile("PDF extraction uses one"))
+
+        # Without a preview advertised, the run button submits as before.
+        page.locator("#topic").fill("sodium-ion batteries for grid storage")
+        quota.update(used=2, remaining=1)
+        page.locator("#run-btn").click()
+        _wait_requests(page, posts, 1)
+        assert "search_plan" not in posts[0].request.post_data_json
+        _json(posts[0], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
+        expect(page.locator("#run-eta")).to_have_text("· about 6 min left")
+        expect(page.locator("#run-eta")).to_have_attribute("title", re.compile("last 12 completed runs"))
+
+        # Asked only from the button; once granted, the button goes away.
+        notify = page.locator("#run-notify")
+        expect(notify).to_have_text("· Notify me when done")
+        notify.click()
+        expect(notify).to_be_hidden()
+
+        # The tab is in the background when the run finishes.
+        page.evaluate("window.__hidden = true")
+        progress.update(state="completed", stage="Done", eta=None)
+        expect(page).to_have_title(re.compile("^✓ Assessment complete"), timeout=8000)
+        assert page.evaluate("window.__notices") == [["Assessment complete", "Sodium-ion batteries"]]
+        expect(page.locator("#run-eta")).to_have_text("")
+        page.evaluate("window.__hidden = false; document.dispatchEvent(new Event('visibilitychange'))")
+        expect(page).to_have_title("Commercialization Assessment")
+
+        # Back in the composer the count is fresh; an exhausted day says when it resets.
+        quota.update(used=3, remaining=0)
+        page.locator("#new-run-btn").click()
+        expect(page.locator("#quota")).to_contain_text("No runs left today")
+        expect(page.locator("#quota")).to_have_class(re.compile("composer__quota--empty"))
+        assert not errors, errors
+        assert not unexpected, unexpected
+        return len(posts)
+    finally:
+        context.close()
+
+
 def main() -> None:
     app = FastAPI()
     reached_server: list[str] = []
@@ -512,7 +794,7 @@ def main() -> None:
             expect(page.locator("#byok-badge")).to_be_visible()
             _json(requests[7], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
             expect(page).to_have_url(f"{base}/run/{run_id}")
-            expect(page.locator("#run-pill")).to_have_text("failed")
+            expect(page.locator("#run-pill")).to_have_text("失败")  # Chinese interface since above
             expect(page.locator("#toasts")).to_contain_text("任务已被接受")
             resume = page.locator(f'[data-resume-run="{run_id}"]')
             resume.click()
@@ -651,6 +933,9 @@ def main() -> None:
             expect(run).to_be_enabled()
             assert len(requests) == 12
             identity_posts = _access_identity_journey(browser, base)
+            plan_posts = _plan_preview_journey(browser, base)
+            context_posts = _decision_context_journey(browser, base)
+            wait_posts = _waiting_journey(browser, base)
             refresh_posts = _paid_refresh_journey(browser, base)
             history_reads = _history_generation_journey(browser, base)
             recovered_posts = sum(receipt_journey(browser, base, operation, _json)
@@ -666,6 +951,9 @@ def main() -> None:
             browser.close()
     print(json.dumps({"status": "passed", "browser": "chromium", "stubbed_posts": len(requests),
                       "identity_stubbed_posts": identity_posts,
+                      "plan_preview_stubbed_posts": plan_posts,
+                      "decision_context_stubbed_posts": context_posts,
+                      "waiting_stubbed_posts": wait_posts,
                       "refresh_stubbed_posts": refresh_posts,
                       "history_held_reads": history_reads,
                       "receipt_recovered_stubbed_posts": recovered_posts,

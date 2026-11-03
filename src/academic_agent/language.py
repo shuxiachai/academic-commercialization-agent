@@ -11,6 +11,8 @@ Used by collect_source_collection() to support multilingual input:
 from dataclasses import dataclass
 import json
 import re
+import time
+from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 # Registry: langdetect code → Serper params + human-readable name + patent country code
@@ -138,7 +140,12 @@ def urlopen(request, *, timeout):
 
 
 def _provider_request(prompt: str, system: str, max_tokens: int):
-    """Resolve all three identity components together, including for Qwen."""
+    """Resolve all three identity components together, including for Qwen.
+
+    Returns the request, the provider, the (endpoint, model) identity and
+    the optional parameters sent, so a refused parameter can be adapted.
+    """
+    from academic_agent import llm_parameter_fallback as parameter_fallback
     from academic_agent.llm_config import resolve_provider_config
 
     config = resolve_provider_config()
@@ -160,54 +167,126 @@ def _provider_request(prompt: str, system: str, max_tokens: int):
             # urllib already serializes the wire body; SDK extra_body is not
             # a JSON wrapper. This matches the main adapter's non-thinking mode.
             payload["enable_thinking"] = False
-    return Request(url, data=json.dumps(payload).encode("utf-8"),
-                   headers=headers, method="POST"), config.provider
+    identity = (config.base_url, config.model)
+    parameter_fallback.apply_to_payload(payload, parameter_fallback.learned(*identity))
+    sent = {name: payload[name] for name in parameter_fallback.PARAMETERS if name in payload}
+    return (Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"),
+            config.provider, identity, sent)
+
+
+def _refusal_message(exc: BaseException) -> str:
+    """The provider's own 400 message, read only to match it (never logged)."""
+    from urllib.error import HTTPError
+
+    if not isinstance(exc, HTTPError) or exc.code != 400:
+        return ""
+    try:
+        body = exc.read().decode("utf-8", errors="replace")
+    except Exception:  # noqa: BLE001 - an unreadable body adapts nothing
+        return ""
+    return f"error code: 400 {body}"
+
+
+# A connection that fails before the request is sent is tried again, up to
+# this many attempts in all. In one local test on 2026-10-23, two of three
+# planner calls to the DashScope endpoint failed this way: a connection reset,
+# and a TLS stream cut off. A production run that day recorded a single failed
+# planner attempt, and a plan preview echoed the topic unchanged. The agents
+# survived because their transport retries. This helper tried once and fell
+# back to the raw topic, so every alias query left the run without a trace
+# anyone would see.
+_UNSENT_ATTEMPTS = 3
+_UNSENT_DELAY_SECONDS = 1.0
+
+
+def _never_sent(exc: BaseException) -> bool:
+    """True for a failure urllib raises before the request finished sending.
+
+    For an HTTP request, urllib raises a bare URLError from h.request only:
+    while connecting, during the TLS handshake, or while sending the request
+    (AbstractHTTPHandler.do_open). The request never arrived whole, so the
+    model cannot have answered it, and a resend cannot be paid for twice.
+    Every other failure is not resent:
+    - An HTTPError is an answer.
+    - A timeout or a dropped stream while waiting for the reply may come after
+      a request the model is already working on. A resend could bill it twice.
+    """
+    return isinstance(exc, URLError) and not isinstance(exc, HTTPError)
 
 
 def _llm_call(prompt: str, *, system: str, max_tokens: int = 400, stage: str = "language_helper") -> str:
-    """One bounded attempt, same resolved identity as the pipeline.
+    """One bounded call, same resolved identity as the pipeline.
+
+    A 400 that names a parameter the model refuses (llm_parameter_fallback)
+    is resent once per such parameter with the change the provider asks for.
+    A connection that fails before the request is sent is resent, up to
+    _UNSENT_ATTEMPTS in all. Each attempt is its own auxiliary-ledger entry.
 
     Unavailable planning retains the existing untranslated fallback, with an
     explicit warning. Invalid configuration cannot build an empty or
     wrong-provider request. Do not log exception text: HTTP errors and model
     response/parse errors can contain credentials or unpublished input.
     """
+    from academic_agent import llm_parameter_fallback as parameter_fallback
     from academic_agent.auxiliary_usage import current, parse_usage
 
     collector = current()
-    sequence = None
-    usage = None
-    outcome = "call_failed"
-    try:
-        req, provider = _provider_request(prompt, system, max_tokens)
-        model = json.loads(req.data)["model"] if collector is not None else None
-        if collector is not None:
-            sequence = collector.begin(stage, "http_attempt", model)
-        with urlopen(req, timeout=30) as resp:
-            data = json.loads(resp.read())
-        if collector is not None:
-            usage = parse_usage(data.get("usage"), model) if isinstance(data, dict) else None
-        outcome = "response_invalid"
-        if provider == "anthropic":
-            result = "".join(
-                block.get("text", "")
-                for block in data.get("content", [])
-                if block.get("type") == "text"
-            ).strip()
-        else:
-            result = data["choices"][0]["message"]["content"].strip()
-        outcome = "returned"
-        return result
-    except Exception as exc:  # noqa: BLE001 - optional provider/parse failures degrade visibly
-        import warnings
-        warnings.warn(
-            f"language._llm_call failed ({type(exc).__name__}); falling back to original text",
-            stacklevel=2,
-        )
-        return ""
-    finally:
-        if collector is not None:
-            collector.settle(sequence, usage, outcome)
+    adapted = 0
+    unsent = 0
+    while True:
+        sequence = None
+        usage = None
+        outcome = "call_failed"
+        identity, sent, change, cause = None, {}, None, ""
+        try:
+            req, provider, identity, sent = _provider_request(prompt, system, max_tokens)
+            model = json.loads(req.data)["model"] if collector is not None else None
+            if collector is not None:
+                sequence = collector.begin(stage, "http_attempt", model)
+            # qwen3.7-max-preview took 5-29 s to refuse thinking-off and 28-42 s
+            # to answer a planning request with thinking on (2026-10-23). At the
+            # old 30 s bound the refusal itself timed out, so nothing was learned
+            # and planning fell back to the raw topic.
+            with urlopen(req, timeout=120 if sent.get("enable_thinking") is True else 60) as resp:
+                data = json.loads(resp.read())
+            if collector is not None:
+                usage = parse_usage(data.get("usage"), model) if isinstance(data, dict) else None
+            outcome = "response_invalid"
+            if provider == "anthropic":
+                result = "".join(
+                    block.get("text", "")
+                    for block in data.get("content", [])
+                    if block.get("type") == "text"
+                ).strip()
+            else:
+                result = data["choices"][0]["message"]["content"].strip()
+            outcome = "returned"
+            return result
+        except Exception as exc:  # noqa: BLE001 - optional provider/parse failures degrade visibly
+            change = parameter_fallback.adjustment(_refusal_message(exc), sent) if identity else None
+            if adapted == len(parameter_fallback.PARAMETERS):
+                change = None  # each parameter has had its one change; stop, do not loop
+            if change is None and not (_never_sent(exc) and unsent + 1 < _UNSENT_ATTEMPTS):
+                import warnings
+                warnings.warn(
+                    f"language._llm_call failed ({type(exc).__name__}); falling back to original text",
+                    stacklevel=2,
+                )
+                return ""
+            # The class of the socket/TLS failure only; its text is not logged.
+            cause = type(getattr(exc, "reason", exc)).__name__
+        finally:
+            if collector is not None:
+                collector.settle(sequence, usage, outcome)
+        if change is not None:
+            adapted += 1
+            parameter_fallback.learn(*identity, *change)
+            continue
+        unsent += 1
+        delay = _UNSENT_DELAY_SECONDS * 2 ** (unsent - 1)
+        print(f"[llm] {stage}: {cause} before the request was sent (attempt {unsent}/{_UNSENT_ATTEMPTS}); "
+              f"retrying in {delay:.0f}s", flush=True)
+        time.sleep(delay)
 
 
 def translate_to_language(text: str, target_language_name: str) -> str:
@@ -230,6 +309,59 @@ def translate_to_language(text: str, target_language_name: str) -> str:
 def _clean_topic_plan_value(value: str) -> str:
     """Remove formatting wrappers without changing technical punctuation."""
     return " ".join(value.strip().strip("'\"").split())
+
+
+# The assessment a request asks for is what the pipeline produces, not a
+# research subject. Even with the prompt saying so, qwen3.8-27b translated
+# "帮我评估 hyperloop 的商业潜力" as "Hyperloop commercial viability", and the
+# academic lanes found no paper under that phrase.
+_ASSESSMENT_TERMS = re.compile(
+    r"\b(?:techno-)?(?:commerciali[sz]ation|commercial|economic|market|business|investment)\s+"
+    r"(?:potential|viability|feasibility|prospects?|outlook|value|case|assessment|analysis)\b"
+    r"(?:\s+(?:of|for|in)\b)?",
+    re.IGNORECASE,
+)
+_DANGLING_CONNECTOR = re.compile(r"^(?:and|of|for|in)\s+|\s+(?:and|of|for|in)$", re.IGNORECASE)
+
+
+def _strip_assessment_terms(value: str) -> str:
+    """Drop requested-assessment phrases; keep the value if little would remain."""
+    stripped = " ".join(_ASSESSMENT_TERMS.sub(" ", value).split())
+    stripped = _DANGLING_CONNECTOR.sub("", stripped).strip(" ,;:-")
+    return stripped if len(stripped) >= 3 else value
+
+
+# Words whose removal changes the grammar of a phrase but not what it names.
+_FUNCTION_WORDS = frozenset({
+    "a", "an", "the", "of", "for", "in", "on", "to", "with", "and", "via",
+    "from", "into", "by", "at", "using", "under", "between", "as", "toward",
+    "towards", "within", "through",
+})
+
+
+def _content_words(phrase: str) -> list[str]:
+    return [w for w in (t.strip(".,;:()[]\"'").casefold() for t in phrase.split())
+            if w and w not in _FUNCTION_WORDS]
+
+
+def _prefer_input_wording(raw: str, search_topic: str) -> str:
+    """Keep the user's phrase when the planner only dropped its function words.
+
+    Asked for a concise topic, a model sometimes returns the English input
+    compressed into a keyword string: "Binder-free hard carbon anode
+    optimization for sodium-ion batteries" came back without its "for", and
+    both aliases in the same production run read the same way. Retrieval
+    backends ignore such words anyway; the agents' prompts and the preview
+    panel do not, and showed the user an ungrammatical reading of their own
+    topic. When the planner's phrase names exactly the same things in the
+    same order, the user's wording is the better one. A rephrasing that
+    changes any content word is the planner's call and is kept.
+    """
+    if search_topic.casefold() == raw.casefold():
+        return search_topic
+    if _content_words(search_topic) == _content_words(raw) and len(search_topic.split()) < len(raw.split()):
+        return raw
+    return search_topic
 
 
 def plan_topic_search(topic: str, n: int = 2) -> TopicSearchPlan:
@@ -258,12 +390,21 @@ def plan_topic_search(topic: str, n: int = 2) -> TopicSearchPlan:
         "Convert the user input below into a faithful academic literature-search plan.\n"
         "Remove conversational/request framing (for example, 'we are building', "
         "'help me assess', or 'is it valuable') but preserve the actual technology, "
-        "method, application, and constraints. Translate to English when needed. "
-        "Do not invent a technology or narrow the scope beyond the input. Use "
-        "established scholarly vocabulary rather than repeating the same words. "
+        "method, application, and constraints. The assessment the user asks for "
+        "(commercial potential, viability, feasibility, market value, business case, "
+        "investment) is what this system produces, not a research subject: leave it "
+        "out of SEARCH_TOPIC and the aliases. Translate to English when needed. "
+        "Do not invent a technology or narrow the scope beyond the input. Keep "
+        "the input's own name for the technology or subject in SEARCH_TOPIC, "
+        "even a coined or brand-like term such as 'hyperloop', because papers "
+        "use it in their titles; express the rest in established scholarly "
+        "vocabulary, and put alternative terms in the ALIAS lines. "
         "If the input combines two or more independently searchable technical "
         "building blocks, list each one as a COMPONENT. Do not treat a broad "
         "application, outcome, customer, or constraint as a component.\n\n"
+        "Write SEARCH_TOPIC and each ALIAS as a grammatical noun phrase of the "
+        "kind a paper title uses, keeping function words such as 'for', 'of' "
+        "and 'in'; do not compress them into a keyword list.\n\n"
         "Return exactly these plain-text tags, with no JSON, numbering, or explanation:\n"
         "SEARCH_TOPIC: <concise English research topic, normally 3-12 words>\n"
         "ALIAS: <a close equivalent academic phrasing>\n"
@@ -293,14 +434,17 @@ def plan_topic_search(topic: str, n: int = 2) -> TopicSearchPlan:
         value = _clean_topic_plan_value(raw_value)
         normalized_label = label.upper()
         if normalized_label == "SEARCH_TOPIC":
-            search_topic = value
+            search_topic = _strip_assessment_terms(value)
         elif normalized_label == "ALIAS" and value:
-            aliases.append(value)
+            aliases.append(_strip_assessment_terms(value))
         elif normalized_label == "COMPONENT" and value:
             components.append(value)
 
     if search_topic.casefold() in _UNRESOLVED_TOPIC_VALUES:
         return TopicSearchPlan(search_topic="", resolved=False)
+
+    if search_topic and detect_language(raw).startswith("en"):
+        search_topic = _prefer_input_wording(raw, search_topic)
 
     # A verbose explanation that happens to carry a tag is still not a search
     # phrase. Falling back is safer than silently sending model commentary to

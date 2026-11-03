@@ -297,12 +297,17 @@ def save_consistency(
     scores_raw: str | None,
     run_id: str,
     output_root: Path = DEFAULT_OUTPUT_ROOT,
+    *,
+    output_language: str | None = None,
+    localized_headings: Sequence[str] = (),
 ) -> dict | None:
     """Check the finished report against its scorecard; return a summary.
 
     Runs after both exist, which is the only moment either can be compared
     with the other: the reviewer never sees the scorecard and the scorer never
-    sees the reviewed report.
+    sees the reviewed report. output_language and localized_headings are the
+    run's own, so a translated report is read under its own headings and a
+    language the check cannot read is left unchecked rather than passed.
 
     Reports rather than blocks, for the same reason the citation screen does.
     A phrase table is a heuristic, and rejecting a finished six-agent run on
@@ -319,7 +324,8 @@ def save_consistency(
             scores = json.loads(scores_raw)
         except (json.JSONDecodeError, TypeError):
             return None
-        result = check(report_markdown, scores)
+        result = check(report_markdown, scores, output_language=output_language,
+                       localized_headings=localized_headings)
         if not result.checked:
             return None
         payload = result.as_dict()

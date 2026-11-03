@@ -5,8 +5,8 @@
  * topic yields an English report. Chinese topics are fine downstream: the
  * pipeline plans its English search phrase from any topic language.
  *
- * Kept out of i18n.js (hash-locked by a frozen experiment, see
- * samples_i18n.js) and out of app.js (its browser contracts strip imports).
+ * Kept out of i18n.js (written while it was hash-locked, see samples_i18n.js)
+ * and out of app.js (its browser contracts strip imports).
  * app.js reads data-topic at click time, so rewriting it here is enough.
  * Loaded after app.js, so app.js has already switched the language by the
  * time this change listener runs. */

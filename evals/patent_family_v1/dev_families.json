@@ -1,0 +1,3683 @@
+{
+ "patents": [
+  {
+   "number": "US20220338945A1",
+   "url": "https://patents.google.com/patent/US20220338945A1/en",
+   "title": "Systems and methods for robotic-assisted surgery",
+   "status": 200,
+   "own": "US20220338945A1",
+   "docdb": [
+    "EP4034018A1",
+    "WO2021062315A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20150119637A1",
+   "url": "https://patents.google.com/patent/US20150119637A1/en",
+   "title": "US20150119637A1 - System for robotic-assisted endolumenal surgery and related methods - Google Patents",
+   "status": 200,
+   "own": "US20150119637A1",
+   "docdb": [
+    "EP3689284B1",
+    "KR20160105773A",
+    "EP3060157A1",
+    "EP3060157B1",
+    "US10405940B2",
+    "JP6932757B2",
+    "CN105939647A",
+    "CN111166274B",
+    "JP2020096807A",
+    "JP6656148B2",
+    "US9844412B2",
+    "KR102332023B1",
+    "EP3689284A1",
+    "US20190223974A1",
+    "US9763741B2",
+    "US20150164595A1",
+    "US20150164594A1",
+    "US12491042B2",
+    "WO2015061756A1",
+    "US20150119638A1",
+    "EP3060157A4",
+    "US20190336238A1",
+    "US20230404701A1",
+    "US10219874B2",
+    "JP2017502709A",
+    "CN111166274A",
+    "US20150164596A1",
+    "CN105939647B",
+    "US10405939B2"
+   ],
+   "direct": [
+    "US9763741B2"
+   ]
+  },
+  {
+   "number": "WO2011156733A2",
+   "url": "https://patents.google.com/patent/WO2011156733A2/en",
+   "title": "WO2011156733A2 - Suture delivery tools for endoscopic and robot-assisted surgery and methods - Google Patents",
+   "status": 200,
+   "own": "WO2011156733A2",
+   "docdb": [
+    "CN104873237A",
+    "ES2912898T3",
+    "ES2615229T3",
+    "EP3155978A3",
+    "US9955962B2",
+    "CN104873237B",
+    "KR20130087496A",
+    "CN103068323B",
+    "EP3155978A2",
+    "EP2579787B1",
+    "CA2801271A1",
+    "AU2011265232B2",
+    "EP2579787A2",
+    "EP3155978B1",
+    "AU2011265232A1",
+    "MX337815B",
+    "EP2579787A4",
+    "KR101859360B1",
+    "RU2568538C2",
+    "BR112012031606A8",
+    "NZ604320A",
+    "RU2012157810A",
+    "CA2801271C",
+    "JP2013533762A",
+    "MX2012014456A",
+    "BR112012031606A2",
+    "CN103068323A",
+    "BR112012031606B1",
+    "US20140039527A1",
+    "WO2011156733A3",
+    "JP5897560B2"
+   ],
+   "direct": [
+    "WO2011156733A3"
+   ]
+  },
+  {
+   "number": "WO2025019837",
+   "url": "https://patentscope.wipo.int/search/en/WO2025019837",
+   "title": "robotic assisted ophthalmic surgery system",
+   "status": 200,
+   "own": "WO2025019837A1",
+   "docdb": [
+    "CN121793919A",
+    "EP4746797A1",
+    "JP2026525997A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2014201165",
+   "url": "https://patentscope.wipo.int/search/en/WO2014201165",
+   "title": "system for robotic assisted cataract surgery",
+   "status": 200,
+   "own": "WO2014201165A1",
+   "docdb": [
+    "US10744035B2",
+    "US20140364870A1",
+    "US12521277B2",
+    "US20240358551A1",
+    "US20200360183A1",
+    "US11974948B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2016083189",
+   "url": "http://patentscope.wipo.int/search/en/WO2016083189",
+   "title": "WO/2016/083189 DEVICE FOR ROBOT-ASSISTED SURGERY",
+   "status": 200,
+   "own": "WO2016083189A1",
+   "docdb": [
+    "RU2017122268A3",
+    "DE102014117407A1",
+    "JP2018500070A",
+    "BR112017010278B1",
+    "RU2017122268A",
+    "CA2963326C",
+    "US11103321B2",
+    "CN107072733B",
+    "US20170348063A1",
+    "CN107072733A",
+    "ZA201700657B",
+    "BR112017010278A2",
+    "EP3223738B1",
+    "RU2704961C2",
+    "JP6652775B2",
+    "CA2963326A1",
+    "EP3223738A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2019071189",
+   "url": "https://patentscope.wipo.int/search/en/WO2019071189",
+   "title": "methods and systems for performing computer assisted surgery",
+   "status": 200,
+   "own": "WO2019071189A2",
+   "docdb": [
+    "US12616528B2",
+    "US11678939B2",
+    "US20200146754A1",
+    "EP3691558A4",
+    "US11950858B2",
+    "WO2019071189A3",
+    "AU2018346790B2",
+    "US20240245469A1",
+    "US20230263579A1",
+    "AU2018346790A1",
+    "EP3691558A2",
+    "EP3691558B1"
+   ],
+   "direct": [
+    "WO2019071189A3"
+   ]
+  },
+  {
+   "number": "WO2019079212",
+   "url": "https://patentscope.wipo.int/search/en/WO2019079212",
+   "title": "robot-assisted surgical guide system for performing surgery",
+   "status": 200,
+   "own": "WO2019079212A1",
+   "docdb": [
+    "US20190110846A1",
+    "ES2945960T3",
+    "CA3053652C",
+    "EP3697290A1",
+    "CA3053652A1",
+    "EP3697290A4",
+    "CN110461221B",
+    "EP3697290B1",
+    "CN110461221A",
+    "US11058500B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US9855103B2",
+   "url": "https://patents.google.com/patent/US9855103B2/zh",
+   "title": "US9855103B2 - Robotic device and system software, hardware and methods of use for image-guided and robot-assisted surgery - Google Patents",
+   "status": 200,
+   "own": "US9855103",
+   "docdb": [
+    "KR20150060735A",
+    "JP2015527144A",
+    "WO2014036034A1",
+    "CA2883469A1",
+    "EP2887884A4",
+    "MX2015002537A",
+    "BR112015004353A2",
+    "ZA201502007B",
+    "EP2887884A1",
+    "RU2015110976A",
+    "EP2887884B1",
+    "CN104780849B",
+    "AU2013308959A1",
+    "CN104780849A",
+    "US20140058407A1",
+    "HK1211821A1"
+   ],
+   "direct": [
+    "US20140058407A1"
+   ]
+  },
+  {
+   "number": "US20170135772A1",
+   "url": "https://patents.google.com/patent/US20170135772A1/en",
+   "title": "Robotic device for image-guided surgery and interventions",
+   "status": 200,
+   "own": "US20170135772A1",
+   "docdb": [
+    "US10136955B2"
+   ],
+   "direct": [
+    "US10136955B2"
+   ]
+  },
+  {
+   "number": "US11595242B2",
+   "url": "https://patents.google.com/patent/US11595242B2/en",
+   "title": "US11595242B2 - Robotic surgical devices, systems and related methods - Google Patents",
+   "status": 200,
+   "own": "US11595242",
+   "docdb": [
+    "JP2017121518A",
+    "US20160015461A1",
+    "CA3082073A1",
+    "EP2732344A4",
+    "US10111711B2",
+    "EP2732344B1",
+    "US20130178867A1",
+    "EP2732344A1",
+    "US11909576B2",
+    "JP2014531219A",
+    "JP2019005629A",
+    "CA2841459C",
+    "WO2013009887A1",
+    "US20190028326A1",
+    "US20240414046A1",
+    "US12323289B2",
+    "EP3588217A1",
+    "US9089353B2",
+    "US20210344554A1",
+    "JP6419875B2",
+    "JP6106169B2",
+    "CA3082073C",
+    "US11032125B2",
+    "CA2841459A1",
+    "US20230171147A1"
+   ],
+   "direct": [
+    "US20210344554A1"
+   ]
+  },
+  {
+   "number": "US9795446B2",
+   "url": "https://patents.google.com/patent/US9795446B2/en",
+   "title": "US9795446B2 - Systems and methods for interactive user interfaces for robotic minimally invasive surgical systems - Google Patents",
+   "status": 200,
+   "own": "US9795446",
+   "docdb": [
+    "US8398541B2",
+    "US20130245375A1",
+    "US20090036902A1"
+   ],
+   "direct": [
+    "US20130245375A1"
+   ]
+  },
+  {
+   "number": "US20260272585",
+   "url": "https://patents.justia.com/patent/20260272585",
+   "title": "surgeon console for a robotic surgical system",
+   "status": 404,
+   "own": null,
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US9545288B2",
+   "url": "https://patents.google.com/patent/US9545288B2/en",
+   "title": "US9545288B2 - Systems and devices for a counter balanced surgical robot - Google Patents",
+   "status": 200,
+   "own": "US9545288",
+   "docdb": [
+    "US20170112505A1",
+    "US20140343567A1",
+    "US10010331B2"
+   ],
+   "direct": [
+    "US20140343567A1"
+   ]
+  },
+  {
+   "number": "US20250041000A1",
+   "url": "https://patents.google.com/patent/US20250041000A1",
+   "title": "US20250041000A1 - Display arrangements for robot-assisted surgical platforms - Google Patents",
+   "status": 200,
+   "own": "US20250041000A1",
+   "docdb": [
+    "CN111565666A",
+    "BR112020013059A2",
+    "EP3635742B1",
+    "CN111565666B",
+    "CN111512391B",
+    "EP3635742A1",
+    "JP7757362B2",
+    "JP7286652B2",
+    "EP3634250C0",
+    "WO2019130100A1",
+    "JP7258891B2",
+    "US20190201135A1",
+    "US11058498B2",
+    "EP3634297C0",
+    "EP3634297B1",
+    "WO2019130099A1",
+    "CN111542271B",
+    "EP3635742C0",
+    "WO2019130098A1",
+    "WO2019130101A1",
+    "US11213359B2",
+    "US12137991B2",
+    "JP2021509305A",
+    "EP3634250A1",
+    "EP3634297A1",
+    "EP3634250B1",
+    "CN111542271A",
+    "US20190201142A1",
+    "EP3635734A1",
+    "CN111512391A",
+    "US20230116571A1",
+    "CN111527551B",
+    "JP2021509033A",
+    "JP7416693B2",
+    "US20190201145A1",
+    "BR112020013116A2",
+    "BR112020013062A2",
+    "BR112020013153A2",
+    "CN111527551A",
+    "JP2021509034A",
+    "JP2023165014A",
+    "US20190201118A1",
+    "JP2021509314A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US11432885B2",
+   "url": "https://patents.google.com/patent/US11432885B2/en",
+   "title": "US11432885B2 - Sensing arrangements for robot-assisted surgical platforms - Google Patents",
+   "status": 200,
+   "own": "US11432885",
+   "docdb": [
+    "CN111566749B",
+    "CN111566749A",
+    "BR112020012672A2",
+    "US20190201120A1",
+    "US20220409302A1",
+    "WO2019130092A1",
+    "JP2021509037A",
+    "JP7225247B2",
+    "EP3635739A1"
+   ],
+   "direct": [
+    "US20190201120A1"
+   ]
+  },
+  {
+   "number": "US9786202B2",
+   "url": "https://patents.google.com/patent/US9786202B2/en",
+   "title": "US9786202B2 - Robot assisted surgical training - Google Patents",
+   "status": 200,
+   "own": "US9786202",
+   "docdb": [
+    "WO2011108994A1",
+    "SG10201501706YA",
+    "US20130196300A1",
+    "SG183927A1"
+   ],
+   "direct": [
+    "US20130196300A1"
+   ]
+  },
+  {
+   "number": "US20140316434A1",
+   "url": "https://patents.google.com/patent/US20140316434A1/en",
+   "title": "US20140316434A1 - Systems and methods for robot-assisted transurethral exploration and intervention - Google Patents",
+   "status": 200,
+   "own": "US20140316434A1",
+   "docdb": [
+    "US9956042B2"
+   ],
+   "direct": [
+    "US9956042B2"
+   ]
+  },
+  {
+   "number": "WO2026135636A1",
+   "url": "https://patents.google.com/patent/WO2026135636A1/en",
+   "title": "WO2026135636A1 - Continuous glucose monitoring (cgm) device",
+   "status": 200,
+   "own": "WO2026135636A1",
+   "docdb": [
+    "EP4759223A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US10357606B2",
+   "url": "https://patents.google.com/patent/US10357606B2/en",
+   "title": "US10357606B2 - System and method for integration of insulin pumps and continuous glucose monitoring - Google Patents",
+   "status": 200,
+   "own": "US10357606",
+   "docdb": [
+    "USD938457S1",
+    "US12251536B2",
+    "US20230191027A1",
+    "US20250177649A1",
+    "US11607492B2",
+    "WO2014158961A1",
+    "US20140276419A1",
+    "US20160199571A1",
+    "EP2968748A4",
+    "EP2968748A1",
+    "US20200101226A1",
+    "EP2968748B1"
+   ],
+   "direct": [
+    "US20140276419A1"
+   ]
+  },
+  {
+   "number": "US20040186365A1",
+   "url": "https://patents.google.com/patent/US20040186365A1/en",
+   "title": "US20040186365A1 - Continuous glucose monitoring system and methods of use - Google Patents",
+   "status": 200,
+   "own": "US20040186365A1",
+   "docdb": [
+    "US10750952B2",
+    "US7811231B2",
+    "US9962091B2",
+    "EP1578262A2",
+    "US20120232368A1",
+    "US20200359905A1",
+    "EP1578262A4",
+    "WO2004061420A2",
+    "US20180214029A1",
+    "US20140121477A1",
+    "AU2003303597A1",
+    "US8622903B2",
+    "US8187183B2",
+    "WO2004061420A3",
+    "US20110028817A1",
+    "AU2003303597A8"
+   ],
+   "direct": [
+    "US7811231B2"
+   ]
+  },
+  {
+   "number": "US20210401331A1",
+   "url": "https://patents.google.com/patent/US20210401331A1/en",
+   "title": "US20210401331A1 - Glucose Monitoring Smart Watch - Google Patents",
+   "status": 200,
+   "own": "US20210401331A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2021040878",
+   "url": "https://patentscope.wipo.int/search/en/WO2021040878",
+   "title": "non-invasive glucose monitoring by raman spectroscopy",
+   "status": 200,
+   "own": "WO2021040878A1",
+   "docdb": [
+    "US20210059582A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2025253234",
+   "url": "https://patentscope.wipo.int/search/en/WO2025253234",
+   "title": "non-invasive blood glucose monitoring device and system",
+   "status": 200,
+   "own": "WO2025253234A1",
+   "docdb": [
+    "IT202400012931A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2008064053",
+   "url": "http://patentscope.wipo.int/search/en/WO2008064053",
+   "title": "system and method for diabetes management using consumer ...",
+   "status": 200,
+   "own": "WO2008064053A2",
+   "docdb": [
+    "WO2008064053A3",
+    "JP5797224B2",
+    "EP2084634A2",
+    "JP2013176579A",
+    "WO2008064053A9",
+    "EP2386971A2",
+    "EP2386971A3",
+    "JP2010510586A",
+    "US20080119705A1",
+    "CA2667386C",
+    "CA2667386A1",
+    "JP5259611B2"
+   ],
+   "direct": [
+    "WO2008064053A3",
+    "WO2008064053A9"
+   ]
+  },
+  {
+   "number": "US10610154B2",
+   "url": "https://patents.google.com/patent/US10610154B2/en",
+   "title": "US10610154B2 - Unified platform for monitoring and control of blood glucose levels in diabetic patients - Google Patents",
+   "status": 200,
+   "own": "US10610154",
+   "docdb": [
+    "US20150018633A1",
+    "EP2723229A4",
+    "CA2840362C",
+    "CN103889317B",
+    "EP2723229A2",
+    "WO2012178134A3",
+    "US20250235155A1",
+    "US20200214629A1",
+    "JP2014524791A",
+    "CA2840362A1",
+    "BR112013033254A2",
+    "AU2012272668B2",
+    "AU2012272668A1",
+    "US12324682B2",
+    "RU2013156970A",
+    "WO2012178134A2",
+    "EP2723229B1",
+    "CN103889317A"
+   ],
+   "direct": [
+    "US20150018633A1"
+   ]
+  },
+  {
+   "number": "US20250259727A1",
+   "url": "https://patents.google.com/patent/US20250259727A1/en",
+   "title": "US20250259727A1 - Machine-learning-based meal detection and size estimation using continuous glucose monitoring (cgm) and insulin data - Google Patents",
+   "status": 200,
+   "own": "US20250259727A1",
+   "docdb": [
+    "WO2023212738A1",
+    "EP4514423A1",
+    "EP4514423A4"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20140197042A1",
+   "url": "https://patents.google.com/patent/US20140197042A1/en",
+   "title": "US20140197042A1 - Saliva Glucose Monitoring System - Google Patents",
+   "status": 200,
+   "own": "US20140197042A1",
+   "docdb": [
+    "US10732139B2",
+    "WO2014110492A3",
+    "US9244035B2",
+    "WO2014110492A2",
+    "CN111044591A",
+    "CN105102972A",
+    "HK1217364A1",
+    "EP2943784A2",
+    "US20160097734A1",
+    "EP2943784A4"
+   ],
+   "direct": [
+    "US9244035B2"
+   ]
+  },
+  {
+   "number": "US10478101B1",
+   "url": "https://patents.google.com/patent/US10478101B1/en",
+   "title": "US10478101B1 - Continuous glucose monitoring based on remote sensing of variations of parameters of a SiC implanted antenna - Google Patents",
+   "status": 200,
+   "own": "US10478101",
+   "docdb": [
+    "US20220404016A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "CN117166966B",
+   "url": "https://patents.google.com/patent/CN117166966B/en",
+   "title": "CN117166966B - A completion string and method for a hot dry rock-enhanced geothermal system - Google Patents",
+   "status": 200,
+   "own": "CN117166966B",
+   "docdb": [
+    "CN117166966A"
+   ],
+   "direct": [
+    "CN117166966A"
+   ]
+  },
+  {
+   "number": "US20230114197A1",
+   "url": "https://patents.google.com/patent/US20230114197A1/en",
+   "title": "US20230114197A1 - Optimized CO2 Sequestration and Enhanced Geothermal System - Google Patents",
+   "status": 200,
+   "own": "US20230114197A1",
+   "docdb": [
+    "JP2024538018A",
+    "EP4416365A4",
+    "CN118414471A",
+    "CN118414471B",
+    "EP4416365A1",
+    "US11732929B2",
+    "AU2022366734A1",
+    "WO2023064214A1",
+    "JP7763541B2",
+    "EP4416365B1",
+    "CA3231237A1"
+   ],
+   "direct": [
+    "US11732929B2"
+   ]
+  },
+  {
+   "number": "US20260185747",
+   "url": "https://patents.justia.com/patent/20260185747",
+   "title": "enhanced geothermal system",
+   "status": 200,
+   "own": "US20260185747A1",
+   "docdb": [
+    "US12584660B2",
+    "EP4747474A1",
+    "US20250027687A1",
+    "WO2025019064A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2022269337",
+   "url": "https://patentscope.wipo.int/search/en/WO2022269337",
+   "title": "enhanced geothermal reservoir recovery systems and methods",
+   "status": 200,
+   "own": "WO2022269337A1",
+   "docdb": [
+    "US20220412608A1",
+    "CA3123239A1",
+    "CA3123239C",
+    "US11959665B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2023064214",
+   "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2023064214",
+   "title": "optimized co2 sequestration and enhanced geothermal system",
+   "status": 200,
+   "own": "WO2023064214A1",
+   "docdb": [
+    "JP2024538018A",
+    "EP4416365A4",
+    "CN118414471A",
+    "CN118414471B",
+    "EP4416365A1",
+    "US20230114197A1",
+    "US11732929B2",
+    "AU2022366734A1",
+    "JP7763541B2",
+    "EP4416365B1",
+    "CA3231237A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2023192412",
+   "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2023192412",
+   "title": "system and method for enhanced geothermal energy extraction",
+   "status": 200,
+   "own": "WO2023192412A1",
+   "docdb": [
+    "PE20242310A1",
+    "US12291951B2",
+    "EP4500094A1",
+    "US11828147B2",
+    "US20240044232A1",
+    "EP4500094A4",
+    "US20230313652A1",
+    "CA3246930A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20260258792",
+   "url": "https://patents.justia.com/patent/20260258792",
+   "title": "Combined Power Generation using Geothermal and Solar Energy",
+   "status": 404,
+   "own": null,
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US8833475",
+   "url": "https://patents.justia.com/patent/8833475",
+   "title": "Carbon dioxide-based geothermal energy generation systems ...",
+   "status": 200,
+   "own": "US8833475",
+   "docdb": [
+    "AU2010223059A1",
+    "US8316955B2",
+    "EP2406562A4",
+    "US20130062890A1",
+    "EP2406562A2",
+    "WO2010104599A3",
+    "EP2406562B1",
+    "AU2010223059B2",
+    "WO2010104599A2",
+    "US20120001429A1",
+    "CA2753393C",
+    "CA2753393A1"
+   ],
+   "direct": [
+    "US20130062890A1"
+   ]
+  },
+  {
+   "number": "WO2025188841A1",
+   "url": "https://patents.google.com/patent/WO2025188841A1",
+   "title": "WO2025188841A1 - Helical well architecture for enhanced geothermal systems - Google Patents",
+   "status": 200,
+   "own": "WO2025188841A1",
+   "docdb": [
+    "WO2025188841A8"
+   ],
+   "direct": [
+    "WO2025188841A8"
+   ]
+  },
+  {
+   "number": "US20140110107A1",
+   "url": "https://patents.google.com/patent/US20140110107A1/en",
+   "title": "US20140110107A1 - Enhanced geothermal systems and reservoir optimization - Google Patents",
+   "status": 200,
+   "own": "US20140110107A1",
+   "docdb": [
+    "US8640772B2",
+    "NZ590312A",
+    "WO2010005990A2",
+    "US8272437B2",
+    "EP2310767A2",
+    "AU2009268685A1",
+    "WO2010005990A3",
+    "US20130056198A1",
+    "US20100000736A1",
+    "HUE028944T2",
+    "US9376885B2",
+    "EP2310767B1"
+   ],
+   "direct": [
+    "US9376885B2"
+   ]
+  },
+  {
+   "number": "US20230098906A1",
+   "url": "https://patents.google.com/patent/US20230098906A1/en",
+   "title": "US20230098906A1 - Natural enhanced geothermal system using a hot sedimentary aquifer - Google Patents",
+   "status": 200,
+   "own": "US20230098906A1",
+   "docdb": [
+    "AU2020430096B2",
+    "MX2022010068A",
+    "AU2020430096A1",
+    "US12372273B2",
+    "CA3168540A1",
+    "EP4107446A1",
+    "EP4107446A4",
+    "WO2021167701A1",
+    "BR112022016544A2"
+   ],
+   "direct": [
+    "US12372273B2"
+   ]
+  },
+  {
+   "number": "US20260243234",
+   "url": "https://patents.justia.com/patent/20260243234",
+   "title": "geothermal power systems and processes",
+   "status": 200,
+   "own": "US20260243234A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "CN116280223A",
+   "url": "https://patents.google.com/patent/CN116280223A/en",
+   "title": "CN116280223A - Electric VTOL aircraft with swappable battery ...",
+   "status": 200,
+   "own": "CN116280223A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US20210291996A1",
+   "url": "https://patents.google.com/patent/US20210291996A1/en",
+   "title": "US20210291996A1 - Electric aircraft with pod mounted ...",
+   "status": 200,
+   "own": "US20210291996A1",
+   "docdb": [
+    "WO2019241581A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2024121079A1",
+   "url": "https://patents.google.com/patent/WO2024121079A1/en",
+   "title": "WO2024121079A1 - Design principles for electric aircraft ...",
+   "status": 200,
+   "own": "WO2024121079A1",
+   "docdb": [
+    "US20260208849A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "EP3998208B1",
+   "url": "https://patents.google.com/patent/EP3998208B1/en",
+   "title": "EP3998208B1 - Battery aircraft integration - Google Patents",
+   "status": 200,
+   "own": "EP3998208B1",
+   "docdb": [
+    "WO2022175116A1",
+    "US20220267017A1",
+    "CN114954958B",
+    "JP2024506981A",
+    "CN114954958A",
+    "KR20230147654A",
+    "EP3998208A1"
+   ],
+   "direct": [
+    "EP3998208A1"
+   ]
+  },
+  {
+   "number": "US9242728B2",
+   "url": "https://patents.google.com/patent/US9242728B2/en",
+   "title": "US9242728B2 - All-electric multirotor full-scale aircraft for ...",
+   "status": 200,
+   "own": "US9242728",
+   "docdb": [
+    "US20150353192A1"
+   ],
+   "direct": [
+    "US20150353192A1"
+   ]
+  },
+  {
+   "number": "US9764822B2",
+   "url": "https://patents.google.com/patent/US9764822B2/en",
+   "title": "US9764822B2 - Clean fuel electric multirotor aircraft for ...",
+   "status": 200,
+   "own": "US9764822",
+   "docdb": [
+    "WO2015168320A1",
+    "US20190329868A1",
+    "AU2018208669A1",
+    "CA2947422C",
+    "US10370088B2",
+    "EP3137376A1",
+    "AU2018208669B2",
+    "JP6567652B2",
+    "JP6844811B2",
+    "US20160200421A1",
+    "HUE049822T2",
+    "US11390374B2",
+    "AU2015253168A1",
+    "CA2947422A1",
+    "JP2021091405A",
+    "AU2015253168B2",
+    "CA3140006A1",
+    "EP3137376B1",
+    "EP3137376A4",
+    "JP2017514755A",
+    "EP3748452C0",
+    "JP2019214370A",
+    "EP3748452B1",
+    "JP7024950B2",
+    "EP3748452A1",
+    "US20180001994A1"
+   ],
+   "direct": [
+    "US20160200421A1"
+   ]
+  },
+  {
+   "number": "WO2025088278",
+   "url": "https://patentscope.wipo.int/search/en/WO2025088278",
+   "title": "WO2025088278 ELECTRIC OR HYBRID-ELECTRIC PROPULSION AIRCRAFT WITH AERODYNAMIC BRAKING IMPLEMENTED BY THE ROTOR OF AN ELECTRIC MACHINE, AND MOTOR UNIT FOR SUCH AN AIRCRAFT",
+   "status": 200,
+   "own": "WO2025088278A1",
+   "docdb": [
+    "CN122181099A",
+    "FR3154707B1",
+    "FR3154707A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2026020392",
+   "url": "https://patentscope.wipo.int/search/en/WO2026020392",
+   "title": "BATTERY CELL, BATTERY AND ELECTRIC DEVICE",
+   "status": 200,
+   "own": "WO2026020392A1",
+   "docdb": [
+    "CN122374926A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20200346769A1",
+   "url": "https://patents.google.com/patent/US20200346769A1/en",
+   "title": "US20200346769A1 - System and methods for implementing regional air transit network using hybrid-electric aircraft - Google Patents",
+   "status": 200,
+   "own": "US20200346769A1",
+   "docdb": [
+    "US20160236790A1",
+    "GB201705048D0",
+    "BR112017003985A2",
+    "AU2015361236A1",
+    "US11866184B2",
+    "CN115946858A",
+    "US12385745B2",
+    "US11104444B2",
+    "CN115946858B",
+    "WO2016093905A1",
+    "EP3657468A1",
+    "JP7886372B2",
+    "EP3186998A4",
+    "US20240391596A1",
+    "CN107211287A",
+    "US20260104259A1",
+    "JP2017527059A",
+    "JP2022122967A",
+    "EP3186998A1",
+    "US9561860B2",
+    "CA2996844A1",
+    "US20180134400A1",
+    "JP2021012729A",
+    "US10501194B2",
+    "US20220219827A1",
+    "GB2544944B",
+    "GB2544944A",
+    "JP7084458B2",
+    "JP7602511B2",
+    "JP2024161357A"
+   ],
+   "direct": [
+    "US11104444B2"
+   ]
+  },
+  {
+   "number": "WO2018175349A1",
+   "url": "https://patents.google.com/patent/WO2018175349A1/en",
+   "title": "WO2018175349A1 - Hybrid-electric aircraft, and methods, apparatus and systems for facilitating same - Google Patents",
+   "status": 200,
+   "own": "WO2018175349A1",
+   "docdb": [
+    "US20200290742A1",
+    "US12162620B2",
+    "US20250313339A1",
+    "US11465763B2",
+    "US20230182908A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2016093905A1",
+   "url": "https://patents.google.com/patent/WO2016093905A1/en",
+   "title": "WO2016093905A1 - System and methods for implementing regional air transit network using hybrid-electric aircraft - Google Patents",
+   "status": 200,
+   "own": "WO2016093905A1",
+   "docdb": [
+    "US20160236790A1",
+    "GB201705048D0",
+    "BR112017003985A2",
+    "AU2015361236A1",
+    "US11866184B2",
+    "CN115946858A",
+    "US12385745B2",
+    "US11104444B2",
+    "CN115946858B",
+    "EP3657468A1",
+    "JP7886372B2",
+    "EP3186998A4",
+    "US20200346769A1",
+    "US20240391596A1",
+    "CN107211287A",
+    "US20260104259A1",
+    "JP2017527059A",
+    "JP2022122967A",
+    "EP3186998A1",
+    "US9561860B2",
+    "CA2996844A1",
+    "US20180134400A1",
+    "JP2021012729A",
+    "US10501194B2",
+    "US20220219827A1",
+    "GB2544944B",
+    "GB2544944A",
+    "JP7084458B2",
+    "JP7602511B2",
+    "JP2024161357A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US12068498B1",
+   "url": "https://patents.google.com/patent/US12068498B1/en",
+   "title": "US12068498B1 - Systems and methods for improved battery assemblies for EVTOL aircraft - Google Patents",
+   "status": 200,
+   "own": "US12068498",
+   "docdb": [
+    "US20240297397A1",
+    "US12695153B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20120209456A1",
+   "url": "https://patents.google.com/patent/US20120209456A1/en",
+   "title": "US20120209456A1 - Parallel Hybrid-Electric Propulsion Systems for Unmanned Aircraft - Google Patents",
+   "status": 200,
+   "own": "US20120209456A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2026025955",
+   "url": "https://patentscope.wipo.int/search/en/WO2026025955",
+   "title": "LITHIUM-ION BATTERY CELL, LITHIUM-ION BATTERY, AND ELECTRIC DEVICE",
+   "status": 200,
+   "own": "WO2026025955A1",
+   "docdb": [
+    "CN121439696A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "AU2015361236A1",
+   "url": "https://patents.google.com/patent/AU2015361236A1/zh",
+   "title": "AU2015361236A1 - System and methods for implementing regional air transit network using hybrid-electric aircraft - Google Patents",
+   "status": 200,
+   "own": "AU2015361236A1",
+   "docdb": [
+    "US20160236790A1",
+    "GB201705048D0",
+    "BR112017003985A2",
+    "US11866184B2",
+    "CN115946858A",
+    "US12385745B2",
+    "US11104444B2",
+    "CN115946858B",
+    "WO2016093905A1",
+    "EP3657468A1",
+    "JP7886372B2",
+    "EP3186998A4",
+    "US20200346769A1",
+    "US20240391596A1",
+    "CN107211287A",
+    "US20260104259A1",
+    "JP2017527059A",
+    "JP2022122967A",
+    "EP3186998A1",
+    "US9561860B2",
+    "CA2996844A1",
+    "US20180134400A1",
+    "JP2021012729A",
+    "US10501194B2",
+    "US20220219827A1",
+    "GB2544944B",
+    "GB2544944A",
+    "JP7084458B2",
+    "JP7602511B2",
+    "JP2024161357A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20030230671A1",
+   "url": "https://patents.google.com/patent/US20030230671A1/en",
+   "title": "US20030230671A1 - Fuel cell powered electric aircraft - Google Patents",
+   "status": 200,
+   "own": "US20030230671A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US20140367510A1",
+   "url": "https://patents.google.com/patent/US20140367510A1/en",
+   "title": "US20140367510A1 - Aircraft with electric propulsion means - Google Patents",
+   "status": 200,
+   "own": "US20140367510A1",
+   "docdb": [
+    "CN104229144B",
+    "FR3006997B1",
+    "FR3006997A1",
+    "CN104229144A",
+    "US9950801B2"
+   ],
+   "direct": [
+    "US9950801B2"
+   ]
+  },
+  {
+   "number": "US20100276547A1",
+   "url": "https://patents.google.com/patent/US20100276547A1/en",
+   "title": "US20100276547A1 - Systems for solar power beaming from space - Google Patents",
+   "status": 200,
+   "own": "US20100276547A1",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US10144533B2",
+   "url": "https://patents.google.com/patent/US10144533B2/en",
+   "title": "US10144533B2 - Large-scale space-based solar power ...",
+   "status": 200,
+   "own": "US10144533",
+   "docdb": [
+    "WO2015179213A2",
+    "WO2015175839A1",
+    "US10340698B2",
+    "US20160376037A1",
+    "US20160380580A1",
+    "WO2015179213A3"
+   ],
+   "direct": [
+    "US20160380580A1"
+   ]
+  },
+  {
+   "number": "US3781647A",
+   "url": "https://patents.google.com/patent/US3781647A/en",
+   "title": "US3781647A - Method and apparatus for converting solar radiation to electrical power - Google Patents",
+   "status": 200,
+   "own": "US3781647",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US20240022118A1",
+   "url": "https://patents.google.com/patent/US20240022118A1/en",
+   "title": "US20240022118A1 - Space-based solar power system - Google Patents",
+   "status": 200,
+   "own": "US20240022118A1",
+   "docdb": [
+    "EP4555625A1",
+    "CN119547325A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US6936760B2",
+   "url": "https://patents.google.com/patent/US6936760B2/en",
+   "title": "US6936760B2 - Space-based power system - Google Patents",
+   "status": 200,
+   "own": "US6936760",
+   "docdb": [
+    "WO2004049538A2",
+    "BRPI0316651B1",
+    "EP1570531B1",
+    "AU2003298746A8",
+    "CN100521250C",
+    "JP4478031B2",
+    "EP2360097A2",
+    "ES2372535T3",
+    "US20060185726A1",
+    "CA2507237C",
+    "RU2005120149A",
+    "EP1570531A2",
+    "RU2009144709A",
+    "RU2587209C2",
+    "RU2587209C9",
+    "CN1742379A",
+    "EP1570531A4",
+    "BR0316651A",
+    "US7612284B2",
+    "JP2006507974A",
+    "WO2004049538A3",
+    "CA2507237A1",
+    "US20040173257A1",
+    "AU2003298746A1",
+    "ATE521537T1"
+   ],
+   "direct": [
+    "US20040173257A1"
+   ]
+  },
+  {
+   "number": "US9346563B1",
+   "url": "https://patents.google.com/patent/US9346563B1/en",
+   "title": "US9346563B1 - Solar powered space weapon - Google Patents",
+   "status": 200,
+   "own": "US9346563",
+   "docdb": [
+    "US8991766B1",
+    "US8757552B1",
+    "US9511881B1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US9511881B1",
+   "url": "https://patents.google.com/patent/US9511881B1/en",
+   "title": "US9511881B1 - Dispersed space based laser weapon - Google Patents",
+   "status": 200,
+   "own": "US9511881",
+   "docdb": [
+    "US8991766B1",
+    "US8757552B1",
+    "US9346563B1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20100224696",
+   "url": "https://patents.justia.com/patent/20100224696",
+   "title": "weather management using space-based power system",
+   "status": 200,
+   "own": "US20100224696A1",
+   "docdb": [
+    "US20110204159A1",
+    "US20060201547A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20100224696A1",
+   "url": "https://patents.google.com/patent/US20100224696A1/en",
+   "title": "US20100224696A1 - Weather management using space-based power system - Google Patents",
+   "status": 200,
+   "own": "US20100224696A1",
+   "docdb": [
+    "US20110204159A1",
+    "US20060201547A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US12470090",
+   "url": "https://patents.justia.com/patent/12470090",
+   "title": "U.S. Patent for Space-based solar power system Patent (Patent # 12,470,090 issued November 11, 2025) - Justia Patents Search",
+   "status": 404,
+   "own": null,
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US12679564",
+   "url": "https://patents.justia.com/patent/12679564",
+   "title": "Space-based data centers",
+   "status": 200,
+   "own": "US12679564",
+   "docdb": [
+    "WO2025183745A9",
+    "EP4788593A2",
+    "AU2024430751A1",
+    "CN122349501A",
+    "US20260152294A1",
+    "US20250108938A1",
+    "KR20260100652A",
+    "WO2025183745A2",
+    "WO2025183745A3"
+   ],
+   "direct": [
+    "US20250108938A1"
+   ]
+  },
+  {
+   "number": "WO2022090212A1",
+   "url": "https://patents.google.com/patent/WO2022090212A1/en",
+   "title": "A tube transport system for very high vehicle speeds and ...",
+   "status": 200,
+   "own": "WO2022090212A1",
+   "docdb": [
+    "JP7846909B2",
+    "US20230399030A1",
+    "SA523440432B1",
+    "EP4232337B1",
+    "RS67717B1",
+    "EP4232337A1",
+    "JP2023547956A",
+    "EP4232337C0",
+    "CA3199941A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US2488287A",
+   "url": "https://patents.google.com/patent/US2488287A/en",
+   "title": "US2488287A - Apparatus for vacuum tube transportation - Google Patents",
+   "status": 200,
+   "own": "US2488287",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US20260265856",
+   "url": "https://patents.justia.com/patent/20260265856",
+   "title": "steel material for vacuum tube and method of manufacturing same",
+   "status": 404,
+   "own": null,
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US2511979A",
+   "url": "https://patents.google.com/patent/US2511979A/en",
+   "title": "US2511979A - Vacuum tube transportation system - Google Patents",
+   "status": 200,
+   "own": "US2511979",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "KR102414696B1",
+   "url": "https://patents.google.com/patent/KR102414696B1/en",
+   "title": "KR102414696B1 - Crack repairing material of concrete vacuum tube segment using ultra high performance concrete (uhpc) for hyper speed transportation system, and crack repairing method for the same - Google Patents",
+   "status": 200,
+   "own": "KR102414696B1",
+   "docdb": [
+    "KR102414696B9",
+    "US20220135088A1",
+    "US11472445B2",
+    "KR20220060092A"
+   ],
+   "direct": [
+    "KR102414696B9",
+    "KR20220060092A"
+   ]
+  },
+  {
+   "number": "US20220388788A1",
+   "url": "https://patents.google.com/patent/US20220388788A1/en",
+   "title": "High-speed pressure based propulsion system for ...",
+   "status": 200,
+   "own": "US20220388788A1",
+   "docdb": [
+    "US11858756B2"
+   ],
+   "direct": [
+    "US11858756B2"
+   ]
+  },
+  {
+   "number": "US8505463B2",
+   "url": "https://patents.google.com/patent/US8505463B2/de",
+   "title": "US8505463B2 - Wheel-type ultra high speed railway system - Google Patents",
+   "status": 200,
+   "own": "US8505463",
+   "docdb": [
+    "WO2010076992A3",
+    "US20110259236A1",
+    "WO2010076992A9",
+    "WO2010076992A2",
+    "KR101006849B1",
+    "KR20100079850A"
+   ],
+   "direct": [
+    "US20110259236A1"
+   ]
+  },
+  {
+   "number": "EP3458328A1",
+   "url": "https://patents.google.com/patent/EP3458328A1/en",
+   "title": "EP3458328A1 - Station with loop configuration for hyperloop transportation system - Google Patents",
+   "status": 200,
+   "own": "EP3458328A1",
+   "docdb": [
+    "ES2920147T3",
+    "WO2017201435A1",
+    "US20170334312A1",
+    "EP3458328A4",
+    "US10493859B2",
+    "EP3458328B1",
+    "CN109311484A"
+   ],
+   "direct": [
+    "EP3458328A4",
+    "EP3458328B1"
+   ]
+  },
+  {
+   "number": "CN101823488A",
+   "url": "https://patents.google.com/patent/CN101823488A/en",
+   "title": "CN101823488A - Vacuum pipeline docking technology and high-speed permanent maglev train system - Google Patents",
+   "status": 200,
+   "own": "CN101823488A",
+   "docdb": [
+    "CN102361775A",
+    "WO2010099748A1",
+    "CN104097528A",
+    "CN102361775B",
+    "CN104097528B"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US10286928B1",
+   "url": "https://patents.google.com/patent/US10286928B1/en",
+   "title": "US10286928B1 - Method of using air and helium in low-pressure tube transportation systems - Google Patents",
+   "status": 200,
+   "own": "US10286928",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2023138115",
+   "url": "https://patentscope.wipo.int/search/en/WO2023138115",
+   "title": "INTERMEDIATE-FREQUENCY FURNACE-LF FURNACE-VD PROCESS FOR SMELTING HIGH-SPEED STEEL",
+   "status": 200,
+   "own": "WO2023138115A1",
+   "docdb": [
+    "CN114411046B",
+    "US20240150860A1",
+    "CN114411046A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2017121064",
+   "url": "https://patentscope.wipo.int/search/en/WO2017121064",
+   "title": "DOUBLE PLANETARY GEAR TRAIN SPEED REDUCER FOR USE IN HIGH-POWER SCRAPER CONVEYOR",
+   "status": 200,
+   "own": "WO2017121064A1",
+   "docdb": [
+    "CN105526331A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20170334312A1",
+   "url": "https://patents.google.com/patent/US20170334312A1/en",
+   "title": "US20170334312A1 - Station with loop configuration for hyperloop transportation system - Google Patents",
+   "status": 200,
+   "own": "US20170334312A1",
+   "docdb": [
+    "ES2920147T3",
+    "WO2017201435A1",
+    "EP3458328A4",
+    "EP3458328A1",
+    "US10493859B2",
+    "EP3458328B1",
+    "CN109311484A"
+   ],
+   "direct": [
+    "US10493859B2"
+   ]
+  },
+  {
+   "number": "WO2003080896",
+   "url": "https://patentscope.wipo.int/search/en/WO2003080896",
+   "title": "HIGH SPEED ACID COPPER PLATING",
+   "status": 200,
+   "own": "WO2003080896A1",
+   "docdb": [
+    "EP1485522A4",
+    "EP1485522A1",
+    "US6676823B1",
+    "AU2003218199A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US10708046B1",
+   "url": "https://patents.google.com/patent/US10708046B1/en",
+   "title": "US10708046B1 - Quantum resistant blockchain with multi-dimensional quantum key distribution - Google Patents",
+   "status": 200,
+   "own": "US10708046",
+   "docdb": [
+    "US20200344051A1",
+    "US11621836B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "CN114175570A",
+   "url": "https://patents.google.com/patent/CN114175570A/en",
+   "title": "CN114175570A - System and method for quantum key distribution over hybrid quantum channels - Google Patents",
+   "status": 200,
+   "own": "CN114175570A",
+   "docdb": [
+    "EP3742664A1",
+    "CN114175570B",
+    "JP2022535712A",
+    "US12052352B2",
+    "WO2020233988A1",
+    "CA3140101A1",
+    "US20220224523A1",
+    "JP7589175B2",
+    "KR20220047541A"
+   ],
+   "direct": [
+    "CN114175570B"
+   ]
+  },
+  {
+   "number": "US8050566B2",
+   "url": "https://patents.google.com/patent/US8050566B2/en",
+   "title": "US8050566B2 - System and methods for quantum key distribution over WDM links - Google Patents",
+   "status": 200,
+   "own": "US8050566",
+   "docdb": [
+    "EP1927209B1",
+    "WO2007033561A1",
+    "CN101204034A",
+    "US20120002968A1",
+    "KR101003886B1",
+    "EP1927209A1",
+    "US20100074447A1",
+    "US20070065155A1",
+    "CN101204034B",
+    "EP1927209A4",
+    "KR20080034211A",
+    "US7639947B2",
+    "HK1118652A1",
+    "JP2009509367A"
+   ],
+   "direct": [
+    "US20100074447A1"
+   ]
+  },
+  {
+   "number": "US20130251145A1",
+   "url": "https://patents.google.com/patent/US20130251145A1/en",
+   "title": "US20130251145A1 - Quantum key distribution - Google Patents",
+   "status": 200,
+   "own": "US20130251145A1",
+   "docdb": [
+    "GB201020424D0",
+    "US9692595B2",
+    "EP2647155A2",
+    "WO2012072983A2",
+    "EP2647155B1",
+    "WO2012072983A3",
+    "JP2013544479A",
+    "JP5936618B2"
+   ],
+   "direct": [
+    "US9692595B2"
+   ]
+  },
+  {
+   "number": "US11930106B2",
+   "url": "https://patents.google.com/patent/US11930106B2/en",
+   "title": "US11930106B2 - Quantum communication system that switches between quantum key distribution (QKD) protocols and associated methods - Google Patents",
+   "status": 200,
+   "own": "US11930106",
+   "docdb": [
+    "EP3813294B1",
+    "US20250080336A1",
+    "US20220353067A1",
+    "US12309265B2",
+    "US20210119786A1",
+    "EP3813294A1",
+    "US11418330B2"
+   ],
+   "direct": [
+    "US20220353067A1"
+   ]
+  },
+  {
+   "number": "CN119766443B",
+   "url": "https://patents.google.com/patent/CN119766443B/en",
+   "title": "CN119766443B - A centralized quantum key relay network and ...",
+   "status": 200,
+   "own": "CN119766443B",
+   "docdb": [
+    "CN119766443A"
+   ],
+   "direct": [
+    "CN119766443A"
+   ]
+  },
+  {
+   "number": "US20240007277A1",
+   "url": "https://patents.google.com/patent/US20240007277A1/en",
+   "title": "Network apparatus for quantum key distribution, and ...",
+   "status": 200,
+   "own": "US20240007277A1",
+   "docdb": [
+    "US12355870B2",
+    "JP2023175604A",
+    "EP4287552B1",
+    "JP7476275B2",
+    "KR20230166281A",
+    "KR102814559B1",
+    "CN117200986A",
+    "EP4287552A1"
+   ],
+   "direct": [
+    "US12355870B2"
+   ]
+  },
+  {
+   "number": "US7889868B2",
+   "url": "https://patents.google.com/patent/US7889868B2/zh",
+   "title": "US7889868B2 - Quantum key distribution system",
+   "status": 200,
+   "own": "US7889868",
+   "docdb": [
+    "EP1929686A4",
+    "CN101292455A",
+    "CA2623575C",
+    "US20120195428A1",
+    "WO2007041178A2",
+    "EP1929686A2",
+    "WO2007041178A3",
+    "KR20080056273A",
+    "US20070076884A1",
+    "KR101262688B1",
+    "CA2623575A1",
+    "JP2009510927A",
+    "US8488790B2"
+   ],
+   "direct": [
+    "US20070076884A1"
+   ]
+  },
+  {
+   "number": "CN121150945A",
+   "url": "https://patents.google.com/patent/CN121150945A/en",
+   "title": "CN121150945A - Quantum key distribution-based remote sensing data processing methods and electronic devices - Google Patents",
+   "status": 200,
+   "own": "CN121150945A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "CN120811600B",
+   "url": "https://patents.google.com/patent/CN120811600B/en",
+   "title": "CN120811600B - A centralized quantum key relay network and key distribution method - Google Patents",
+   "status": 200,
+   "own": "CN120811600B",
+   "docdb": [
+    "CN120811600A"
+   ],
+   "direct": [
+    "CN120811600A"
+   ]
+  },
+  {
+   "number": "EP3243295B1",
+   "url": "https://patents.google.com/patent/EP3243295B1/en",
+   "title": "EP3243295B1 - Quantum key distribution system, method and apparatus based on trusted relay - Google Patents",
+   "status": 200,
+   "own": "EP3243295B1",
+   "docdb": [
+    "KR20170115055A",
+    "TW201633742A",
+    "CN105827397A",
+    "JP2018502514A",
+    "US10348493B2",
+    "JP6783772B2",
+    "US20160248581A1",
+    "WO2016112086A1",
+    "CN105827397B",
+    "EP3243295A4",
+    "EP3243295A1",
+    "TWI676384B"
+   ],
+   "direct": [
+    "EP3243295A4",
+    "EP3243295A1"
+   ]
+  },
+  {
+   "number": "CN121750212A",
+   "url": "https://patents.google.com/patent/CN121750212A/en",
+   "title": "CN121750212A - Resource management method, device, equipment and medium of quantum key distribution network - Google Patents",
+   "status": 200,
+   "own": "CN121750212A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "CN121814309A",
+   "url": "https://patents.google.com/patent/CN121814309A/en",
+   "title": "CN121814309A - Quantum key distribution and wavelength division multiplexing cooperative scheduling method for metropolitan area optical network - Google Patents",
+   "status": 200,
+   "own": "CN121814309A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "CN104092538A",
+   "url": "https://patents.google.com/patent/CN104092538A/en",
+   "title": "CN104092538A - Multi-user wavelength division multiplexing QKD network system and its key distribution and sharing method - Google Patents",
+   "status": 200,
+   "own": "CN104092538A",
+   "docdb": [
+    "CN104092538B"
+   ],
+   "direct": [
+    "CN104092538B"
+   ]
+  },
+  {
+   "number": "CN105207130A",
+   "url": "https://patents.google.com/patent/CN105207130A/en",
+   "title": "CN105207130A - Underground Modular HVDC Power Transmission System - Google Patents",
+   "status": 200,
+   "own": "CN105207130A",
+   "docdb": [
+    "CA2811262A1",
+    "WO2011032127A2",
+    "HK1219353A1",
+    "CN102687356B",
+    "CA2811262C",
+    "US9590409B2",
+    "MY159848A",
+    "CN102687356A",
+    "US20120181082A1",
+    "US20140202765A1",
+    "WO2011032127A3",
+    "US8796552B2",
+    "CN105207130B"
+   ],
+   "direct": [
+    "CN105207130B"
+   ]
+  },
+  {
+   "number": "CA2811262C",
+   "url": "https://patents.google.com/patent/CA2811262C/en",
+   "title": "Underground modular high-voltage direct current electric ...",
+   "status": 200,
+   "own": "CA2811262C",
+   "docdb": [
+    "CA2811262A1",
+    "WO2011032127A2",
+    "HK1219353A1",
+    "CN102687356B",
+    "US9590409B2",
+    "CN105207130A",
+    "MY159848A",
+    "CN102687356A",
+    "US20120181082A1",
+    "US20140202765A1",
+    "WO2011032127A3",
+    "US8796552B2",
+    "CN105207130B"
+   ],
+   "direct": [
+    "CA2811262A1"
+   ]
+  },
+  {
+   "number": "CN121705640A",
+   "url": "https://patents.google.com/patent/CN121705640A/en",
+   "title": "Extra-high voltage direct current transmission system fault ...",
+   "status": 200,
+   "own": "CN121705640A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "WO2011032127",
+   "url": "https://patentscope.wipo.int/search/en/WO2011032127",
+   "title": "underground modular high-voltage direct current electric power ...",
+   "status": 200,
+   "own": "WO2011032127A2",
+   "docdb": [
+    "CA2811262A1",
+    "HK1219353A1",
+    "CN102687356B",
+    "CA2811262C",
+    "US9590409B2",
+    "CN105207130A",
+    "MY159848A",
+    "CN102687356A",
+    "US20120181082A1",
+    "US20140202765A1",
+    "WO2011032127A3",
+    "US8796552B2",
+    "CN105207130B"
+   ],
+   "direct": [
+    "WO2011032127A3"
+   ]
+  },
+  {
+   "number": "US8737096B2",
+   "url": "https://patents.google.com/patent/US8737096B2/en",
+   "title": "Tapping power from a HVDC transmission system",
+   "status": 200,
+   "own": "US8737096",
+   "docdb": [
+    "WO2008094086A1",
+    "EP2122797A1",
+    "EP2122797B1",
+    "US20100091527A1",
+    "CN101573850A",
+    "CN101573850B",
+    "EP2122797A4"
+   ],
+   "direct": [
+    "US20100091527A1"
+   ]
+  },
+  {
+   "number": "CN202249073U",
+   "url": "https://patents.google.com/patent/CN202249073U/en",
+   "title": "shaped angle tower of extra-high-voltage direct current ...",
+   "status": 200,
+   "own": "CN202249073U",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "US20140268926A1",
+   "url": "https://patents.google.com/patent/US20140268926A1/en",
+   "title": "High voltage direct current (hvdc) converter system and ...",
+   "status": 200,
+   "own": "US20140268926A1",
+   "docdb": [
+    "CA2905234C",
+    "WO2014158514A1",
+    "CN105210277B",
+    "CA2905234A1",
+    "US9099936B2",
+    "BR112015022620A2",
+    "EP2973965A1",
+    "CN105210277A"
+   ],
+   "direct": [
+    "US9099936B2"
+   ]
+  },
+  {
+   "number": "CN202710634U",
+   "url": "https://patents.google.com/patent/CN202710634U/en",
+   "title": "High-voltage dc voltage divider - CN202710634U",
+   "status": 200,
+   "own": "CN202710634U",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "CN103746400A",
+   "url": "https://patents.google.com/patent/CN103746400A/en",
+   "title": "CN103746400A - Last circuit breaker and last line protection method for high-voltage direct current power transmission - Google Patents",
+   "status": 200,
+   "own": "CN103746400A",
+   "docdb": [
+    "CN103746400B"
+   ],
+   "direct": [
+    "CN103746400B"
+   ]
+  },
+  {
+   "number": "CN115940242A",
+   "url": "https://patents.google.com/patent/CN115940242A/en",
+   "title": "CN115940242A - A series direct current transmission system and power balancing method - Google Patents",
+   "status": 200,
+   "own": "CN115940242A",
+   "docdb": [
+    "CN115940242B"
+   ],
+   "direct": [
+    "CN115940242B"
+   ]
+  },
+  {
+   "number": "CN103606854A",
+   "url": "https://patents.google.com/patent/CN103606854A/en",
+   "title": "CN103606854A - Operating method for replacing tension insulator on super and ultra-high voltage direct current transmission line in electrified mode - Google Patents",
+   "status": 200,
+   "own": "CN103606854A",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "CN204231035U",
+   "url": "https://patents.google.com/patent/CN204231035U/en",
+   "title": "CN204231035U - A kind of power supply based on ultra-high-tension power transmission line is got can circuit - Google Patents",
+   "status": 200,
+   "own": "CN204231035U",
+   "docdb": [],
+   "direct": []
+  },
+  {
+   "number": "EP3751692B1",
+   "url": "https://patents.google.com/patent/EP3751692B1/en",
+   "title": "EP3751692B1 - High voltage direct current power transmission station - Google Patents",
+   "status": 200,
+   "own": "EP3751692B1",
+   "docdb": [
+    "EP3751692C0",
+    "EP3751692A1",
+    "US20200395741A1",
+    "US11303101B2"
+   ],
+   "direct": [
+    "EP3751692C0",
+    "EP3751692A1"
+   ]
+  },
+  {
+   "number": "US20220400623A1",
+   "url": "https://patents.google.com/patent/US20220400623A1/en",
+   "title": "US20220400623A1 - Vertical farming systems and methods - Google Patents",
+   "status": 200,
+   "own": "US20220400623A1",
+   "docdb": [
+    "EP4104673A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20190159415A1",
+   "url": "https://patents.google.com/patent/US20190159415A1/en",
+   "title": "US20190159415A1 - Vertical farming systems and methods - Google Patents",
+   "status": 200,
+   "own": "US20190159415A1",
+   "docdb": [
+    "US11483988B2",
+    "EP3716752A1",
+    "EP3716752C0",
+    "WO2019109006A1",
+    "EP3716752A4",
+    "US20230020175A1",
+    "EP3716752B1"
+   ],
+   "direct": [
+    "US11483988B2"
+   ]
+  },
+  {
+   "number": "US11937561B2",
+   "url": "https://patents.google.com/patent/US11937561B2/fr",
+   "title": "US11937561B2 - Mobile and modular cultivation systems for vertical farming - Google Patents",
+   "status": 200,
+   "own": "US11937561",
+   "docdb": [
+    "WO2020041762A1",
+    "US20210195847A1"
+   ],
+   "direct": [
+    "US20210195847A1"
+   ]
+  },
+  {
+   "number": "WO2020041762A1",
+   "url": "https://patents.google.com/patent/WO2020041762A1/en",
+   "title": "WO2020041762A1 - Mobile and modular cultivation systems for vertical farming - Google Patents",
+   "status": 200,
+   "own": "WO2020041762A1",
+   "docdb": [
+    "US20210195847A1",
+    "US11937561B2"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20190307077A1",
+   "url": "https://patents.google.com/patent/US20190307077A1/en",
+   "title": "US20190307077A1 - Automated vertical farming system using mobile robots - Google Patents",
+   "status": 200,
+   "own": "US20190307077A1",
+   "docdb": [
+    "JP7478317B2",
+    "US11778956B2",
+    "JP2021517467A",
+    "EP3772903A1",
+    "WO2019195027A1"
+   ],
+   "direct": [
+    "US11778956B2"
+   ]
+  },
+  {
+   "number": "US11778956B2",
+   "url": "https://patents.google.com/patent/US11778956B2/en",
+   "title": "US11778956B2 - Automated vertical farming system using mobile robots - Google Patents",
+   "status": 200,
+   "own": "US11778956",
+   "docdb": [
+    "JP7478317B2",
+    "US20190307077A1",
+    "JP2021517467A",
+    "EP3772903A1",
+    "WO2019195027A1"
+   ],
+   "direct": [
+    "US20190307077A1"
+   ]
+  },
+  {
+   "number": "EP4622444A1",
+   "url": "https://patents.google.com/patent/EP4622444A1/en",
+   "title": "EP4622444A1 - Vertical farming system - Google Patents",
+   "status": 200,
+   "own": "EP4622444A1",
+   "docdb": [
+    "TW202430024A",
+    "NO20221266A1",
+    "KR20250112826A",
+    "JP2025539817A",
+    "NO347966B1",
+    "WO2024110162A1",
+    "CN120265125A"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US12239059",
+   "url": "https://patents.justia.com/patent/12239059",
+   "title": "System and method for vertical farming",
+   "status": 200,
+   "own": "US12239059",
+   "docdb": [
+    "US12245556B1",
+    "US20250204345A1",
+    "JP2025100304A",
+    "US20250221350A1",
+    "US20250204344A1",
+    "US20250204342A1",
+    "US20250204341A1",
+    "US12433211B2",
+    "US20250204500A1",
+    "US12520783B2",
+    "US12514180B2",
+    "JP2026120516A",
+    "US20250204346A1",
+    "JP7829843B2",
+    "US20250204343A1",
+    "US20250302013A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US12114619B2",
+   "url": "https://patents.google.com/patent/US12114619B2/en",
+   "title": "US12114619B2 - Vertical farming/gardening systems and methods of growing and/or dehydrating therewith - Google Patents",
+   "status": 200,
+   "own": "US12114619",
+   "docdb": [
+    "US20230067626A1"
+   ],
+   "direct": [
+    "US20230067626A1"
+   ]
+  },
+  {
+   "number": "WO2018013161A1",
+   "url": "https://patents.google.com/patent/WO2018013161A1/en",
+   "title": "WO2018013161A1 - Environmentally controlled vertical farming system - Google Patents",
+   "status": 200,
+   "own": "WO2018013161A1",
+   "docdb": [
+    "US20180014485A1",
+    "US20180014471A1",
+    "US20210235643A1",
+    "US20180014486A1",
+    "US10306847B2",
+    "WO2018013162A1",
+    "US10973185B2",
+    "WO2018013163A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US10306847B2",
+   "url": "https://patents.google.com/patent/US10306847B2/fr",
+   "title": "US10306847B2 - Environmentally controlled vertical farming system - Google Patents",
+   "status": 200,
+   "own": "US10306847",
+   "docdb": [
+    "US20180014485A1",
+    "US20180014471A1",
+    "US20210235643A1",
+    "US20180014486A1",
+    "WO2018013161A1",
+    "WO2018013162A1",
+    "US10973185B2",
+    "WO2018013163A1"
+   ],
+   "direct": [
+    "US20180014485A1"
+   ]
+  },
+  {
+   "number": "WO2018013162A1",
+   "url": "https://patents.google.com/patent/WO2018013162A1/en",
+   "title": "WO2018013162A1 - Vertical growth tower and module for an environmentally controlled vertical farming system movement - Google Patents",
+   "status": 200,
+   "own": "WO2018013162A1",
+   "docdb": [
+    "US20180014485A1",
+    "US20180014471A1",
+    "US20210235643A1",
+    "US20180014486A1",
+    "WO2018013161A1",
+    "US10306847B2",
+    "US10973185B2",
+    "WO2018013163A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20250160266",
+   "url": "https://patents.justia.com/patent/20250160266",
+   "title": "U.S. Patent Application for COMBINED NET HOUSE AND VERTICAL FARMING SYSTEM Patent Application (Application #20250160266 issued May 22, 2025)",
+   "status": 200,
+   "own": "US20250160266A1",
+   "docdb": [
+    "WO2023152540A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "US20180014486A1",
+   "url": "https://patents.google.com/patent/US20180014486A1/en",
+   "title": "US20180014486A1 - Control and sensor systems for an environmentally controlled vertical farming system - Google Patents",
+   "status": 200,
+   "own": "US20180014486A1",
+   "docdb": [
+    "US20180014485A1",
+    "US20180014471A1",
+    "US20210235643A1",
+    "WO2018013161A1",
+    "US10306847B2",
+    "WO2018013162A1",
+    "US10973185B2",
+    "WO2018013163A1"
+   ],
+   "direct": [
+    "US10973185B2"
+   ]
+  },
+  {
+   "number": "US12408603B2",
+   "url": "https://patents.google.com/patent/US12408603B2/pl",
+   "title": "US12408603B2 - Vertical farming apparatus and a method of vertical farming - Google Patents",
+   "status": 200,
+   "own": "US12408603",
+   "docdb": [
+    "MX2021010591A",
+    "DK3964051T3",
+    "US20220071111A1",
+    "EP3964051A1",
+    "AU2021225176B2",
+    "FI3964051T3",
+    "EP3964051B1",
+    "ES3036828T3",
+    "AU2021225176A1",
+    "LT3964051T",
+    "HUE073453T2",
+    "SMT202500284T1",
+    "RS67197B1",
+    "JP2022044578A",
+    "HRP20251210T1",
+    "PT3964051T",
+    "SI3964051T1",
+    "EP3964051B8",
+    "CA3129235A1",
+    "PL3964051T3"
+   ],
+   "direct": [
+    "US20220071111A1"
+   ]
+  },
+  {
+   "number": "US20200329654A1",
+   "url": "https://patents.google.com/patent/US20200329654A1/en",
+   "title": "US20200329654A1 - System and method for vertical farming - Google Patents",
+   "status": 200,
+   "own": "US20200329654A1",
+   "docdb": [
+    "WO2019118138A1",
+    "CA3086467A1"
+   ],
+   "direct": []
+  },
+  {
+   "number": "WO2020041762",
+   "url": "https://patentscope.wipo.int/search/en/WO2020041762",
+   "title": "MOBILE AND MODULAR CULTIVATION SYSTEMS FOR VERTICAL FARMING",
+   "status": 200,
+   "own": "WO2020041762A1",
+   "docdb": [
+    "US20210195847A1",
+    "US11937561B2"
+   ],
+   "direct": []
+  }
+ ],
+ "registries": [
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V01-robotic-assisted-surgery",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20220338945A1/en",
+     "title": "Systems and methods for robotic-assisted surgery",
+     "number": "US20220338945A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20150119637A1/en",
+     "title": "US20150119637A1 - System for robotic-assisted endolumenal surgery and related methods - Google Patents",
+     "number": "US20150119637A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/WO2011156733A2/en",
+     "title": "WO2011156733A2 - Suture delivery tools for endoscopic and robot-assisted surgery and methods - Google Patents",
+     "number": "WO2011156733A2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/WO2025019837",
+     "title": "robotic assisted ophthalmic surgery system",
+     "number": "WO2025019837"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/WO2014201165",
+     "title": "system for robotic assisted cataract surgery",
+     "number": "WO2014201165"
+    },
+    {
+     "source_id": "P6",
+     "url": "http://patentscope.wipo.int/search/en/WO2016083189",
+     "title": "WO/2016/083189 DEVICE FOR ROBOT-ASSISTED SURGERY",
+     "number": "WO2016083189"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2019071189",
+     "title": "methods and systems for performing computer assisted surgery",
+     "number": "WO2019071189"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2019079212",
+     "title": "robot-assisted surgical guide system for performing surgery",
+     "number": "WO2019079212"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V01-robotic-assisted-surgery__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US9855103B2/zh",
+     "title": "US9855103B2 - Robotic device and system software, hardware and methods of use for image-guided and robot-assisted surgery - Google Patents",
+     "number": "US9855103B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20170135772A1/en",
+     "title": "Robotic device for image-guided surgery and interventions",
+     "number": "US20170135772A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20150119637A1/en",
+     "title": "US20150119637A1 - System for robotic-assisted endolumenal surgery and related methods - Google Patents",
+     "number": "US20150119637A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US11595242B2/en",
+     "title": "US11595242B2 - Robotic surgical devices, systems and related methods - Google Patents",
+     "number": "US11595242B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US9795446B2/en",
+     "title": "US9795446B2 - Systems and methods for interactive user interfaces for robotic minimally invasive surgical systems - Google Patents",
+     "number": "US9795446B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20220338945A1/en",
+     "title": "US20220338945A1 - Systems and methods for robotic-assisted surgery - Google Patents",
+     "number": "US20220338945A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.justia.com/patent/20260272585",
+     "title": "surgeon console for a robotic surgical system",
+     "number": "US20260272585"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US9545288B2/en",
+     "title": "US9545288B2 - Systems and devices for a counter balanced surgical robot - Google Patents",
+     "number": "US9545288B2"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V01-robotic-assisted-surgery__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US9855103B2/zh",
+     "title": "US9855103B2 - Robotic device and system software, hardware and methods of use for image-guided and robot-assisted surgery - Google Patents",
+     "number": "US9855103B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20250041000A1",
+     "title": "US20250041000A1 - Display arrangements for robot-assisted surgical platforms - Google Patents",
+     "number": "US20250041000A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US11432885B2/en",
+     "title": "US11432885B2 - Sensing arrangements for robot-assisted surgical platforms - Google Patents",
+     "number": "US11432885B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US9786202B2/en",
+     "title": "US9786202B2 - Robot assisted surgical training - Google Patents",
+     "number": "US9786202B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20150119637A1/en",
+     "title": "US20150119637A1 - System for robotic-assisted endolumenal surgery and related methods - Google Patents",
+     "number": "US20150119637A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US11595242B2/en",
+     "title": "US11595242B2 - Robotic surgical devices, systems and related methods - Google Patents",
+     "number": "US11595242B2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20140316434A1/en",
+     "title": "US20140316434A1 - Systems and methods for robot-assisted transurethral exploration and intervention - Google Patents",
+     "number": "US20140316434A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US20220338945A1/en",
+     "title": "US20220338945A1 - Systems and methods for robotic-assisted surgery - Google Patents",
+     "number": "US20220338945A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V02-continuous-glucose-monitoring-for-diabetes",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2026135636A1/en",
+     "title": "WO2026135636A1 - Continuous glucose monitoring (cgm) device",
+     "number": "WO2026135636A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10357606B2/en",
+     "title": "US10357606B2 - System and method for integration of insulin pumps and continuous glucose monitoring - Google Patents",
+     "number": "US10357606B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20040186365A1/en",
+     "title": "US20040186365A1 - Continuous glucose monitoring system and methods of use - Google Patents",
+     "number": "US20040186365A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20210401331A1/en",
+     "title": "US20210401331A1 - Glucose Monitoring Smart Watch - Google Patents",
+     "number": "US20210401331A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/WO2021040878",
+     "title": "non-invasive glucose monitoring by raman spectroscopy",
+     "number": "WO2021040878"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/WO2025253234",
+     "title": "non-invasive blood glucose monitoring device and system",
+     "number": "WO2025253234"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/es/detail.jsf;jsessionid=8E600F7867700600441F19F022F6BF4F.wapp2nB?docId=CN370180949&_cid=P21-LVQJI0-79806-1",
+     "title": "Diabetes digital health management system based on big data",
+     "number": null
+    },
+    {
+     "source_id": "P8",
+     "url": "http://patentscope.wipo.int/search/en/WO2008064053",
+     "title": "system and method for diabetes management using consumer ...",
+     "number": "WO2008064053"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V02-continuous-glucose-monitoring-for-diabetes__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2026135636A1/en",
+     "title": "WO2026135636A1 - Continuous glucose monitoring (cgm) device - Google Patents",
+     "number": "WO2026135636A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10610154B2/en",
+     "title": "US10610154B2 - Unified platform for monitoring and control of blood glucose levels in diabetic patients - Google Patents",
+     "number": "US10610154B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20250259727A1/en",
+     "title": "US20250259727A1 - Machine-learning-based meal detection and size estimation using continuous glucose monitoring (cgm) and insulin data - Google Patents",
+     "number": "US20250259727A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20140197042A1/en",
+     "title": "US20140197042A1 - Saliva Glucose Monitoring System - Google Patents",
+     "number": "US20140197042A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20040186365A1/en",
+     "title": "US20040186365A1 - Continuous glucose monitoring system and methods of use - Google Patents",
+     "number": "US20040186365A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US10478101B1/en",
+     "title": "US10478101B1 - Continuous glucose monitoring based on remote sensing of variations of parameters of a SiC implanted antenna - Google Patents",
+     "number": "US10478101B1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20210401331A1/en",
+     "title": "US20210401331A1 - Glucose Monitoring Smart Watch - Google Patents",
+     "number": "US20210401331A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf;jsessionid=785B1D23A01517C9A003AEB1BCF649F3.wapp1nB?docId=CN370180949&_cid=P11-MIX3GJ-51654-1",
+     "title": "Diabetes digital health management system based on big ...",
+     "number": null
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V02-continuous-glucose-monitoring-for-diabetes__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2026135636A1/en",
+     "title": "WO2026135636A1 - Continuous glucose monitoring (cgm) device - Google Patents",
+     "number": "WO2026135636A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10610154B2/en",
+     "title": "US10610154B2 - Unified platform for monitoring and control of blood glucose levels in diabetic patients - Google Patents",
+     "number": "US10610154B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20250259727A1/en",
+     "title": "US20250259727A1 - Machine-learning-based meal detection and size estimation using continuous glucose monitoring (cgm) and insulin data - Google Patents",
+     "number": "US20250259727A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20140197042A1/en",
+     "title": "US20140197042A1 - Saliva Glucose Monitoring System - Google Patents",
+     "number": "US20140197042A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20040186365A1/en",
+     "title": "US20040186365A1 - Continuous glucose monitoring system and methods of use - Google Patents",
+     "number": "US20040186365A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US10478101B1/en",
+     "title": "US10478101B1 - Continuous glucose monitoring based on remote sensing of variations of parameters of a SiC implanted antenna - Google Patents",
+     "number": "US10478101B1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20210401331A1/en",
+     "title": "US20210401331A1 - Glucose Monitoring Smart Watch - Google Patents",
+     "number": "US20210401331A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf;jsessionid=785B1D23A01517C9A003AEB1BCF649F3.wapp1nB?docId=CN370180949&_cid=P11-MIX3GJ-51654-1",
+     "title": "Diabetes digital health management system based on big ...",
+     "number": null
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V03-enhanced-geothermal-systems-for-electricity-g",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN117166966B/en",
+     "title": "CN117166966B - A completion string and method for a hot dry rock-enhanced geothermal system - Google Patents",
+     "number": "CN117166966B"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20230114197A1/en",
+     "title": "US20230114197A1 - Optimized CO2 Sequestration and Enhanced Geothermal System - Google Patents",
+     "number": "US20230114197A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.justia.com/patent/20260185747",
+     "title": "enhanced geothermal system",
+     "number": "US20260185747"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/WO2022269337",
+     "title": "enhanced geothermal reservoir recovery systems and methods",
+     "number": "WO2022269337"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2023064214",
+     "title": "optimized co2 sequestration and enhanced geothermal system",
+     "number": "WO2023064214"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=WO2023192412",
+     "title": "system and method for enhanced geothermal energy extraction",
+     "number": "WO2023192412"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.justia.com/patent/20260258792",
+     "title": "Combined Power Generation using Geothermal and Solar Energy",
+     "number": "US20260258792"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/8833475",
+     "title": "Carbon dioxide-based geothermal energy generation systems ...",
+     "number": "US8833475"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V03-enhanced-geothermal-systems-for-electricity-g__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2025188841A1",
+     "title": "WO2025188841A1 - Helical well architecture for enhanced geothermal systems - Google Patents",
+     "number": "WO2025188841A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20140110107A1/en",
+     "title": "US20140110107A1 - Enhanced geothermal systems and reservoir optimization - Google Patents",
+     "number": "US20140110107A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20230098906A1/en",
+     "title": "US20230098906A1 - Natural enhanced geothermal system using a hot sedimentary aquifer - Google Patents",
+     "number": "US20230098906A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20230114197A1/en",
+     "title": "US20230114197A1 - Optimized CO2 Sequestration and Enhanced Geothermal System - Google Patents",
+     "number": "US20230114197A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/WO2022269337",
+     "title": "enhanced geothermal reservoir recovery systems and methods",
+     "number": "WO2022269337"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.justia.com/patent/20260258792",
+     "title": "Combined Power Generation using Geothermal and Solar Energy",
+     "number": "US20260258792"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.justia.com/patent/20260243234",
+     "title": "geothermal power systems and processes",
+     "number": "US20260243234"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/8833475",
+     "title": "Carbon dioxide-based geothermal energy generation systems ...",
+     "number": "US8833475"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V03-enhanced-geothermal-systems-for-electricity-g__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2025188841A1",
+     "title": "WO2025188841A1 - Helical well architecture for enhanced geothermal systems - Google Patents",
+     "number": "WO2025188841A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20140110107A1/en",
+     "title": "US20140110107A1 - Enhanced geothermal systems and reservoir optimization - Google Patents",
+     "number": "US20140110107A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.justia.com/patent/20260258792",
+     "title": "U.S. Patent Application for Combined Power Generation using Geothermal and Solar Energy Patent Application (Application #20260258792 issued September 3, 2026) - Justia Patents Search",
+     "number": "US20260258792"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20230098906A1/en",
+     "title": "US20230098906A1 - Natural enhanced geothermal system using a hot sedimentary aquifer - Google Patents",
+     "number": "US20230098906A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN117166966B/en",
+     "title": "CN117166966B - A completion string and method for a hot dry rock-enhanced geothermal system - Google Patents",
+     "number": "CN117166966B"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20230114197A1/en",
+     "title": "US20230114197A1 - Optimized CO2 Sequestration and Enhanced Geothermal System - Google Patents",
+     "number": "US20230114197A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2022269337",
+     "title": "enhanced geothermal reservoir recovery systems and methods",
+     "number": "WO2022269337"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/20260243234",
+     "title": "geothermal power systems and processes",
+     "number": "US20260243234"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V05-battery-electric-aircraft-for-regional-passen",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN116280223A/en",
+     "title": "CN116280223A - Electric VTOL aircraft with swappable battery ...",
+     "number": "CN116280223A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20210291996A1/en",
+     "title": "US20210291996A1 - Electric aircraft with pod mounted ...",
+     "number": "US20210291996A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/WO2024121079A1/en",
+     "title": "WO2024121079A1 - Design principles for electric aircraft ...",
+     "number": "WO2024121079A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/EP3998208B1/en",
+     "title": "EP3998208B1 - Battery aircraft integration - Google Patents",
+     "number": "EP3998208B1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US9242728B2/en",
+     "title": "US9242728B2 - All-electric multirotor full-scale aircraft for ...",
+     "number": "US9242728B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US9764822B2/en",
+     "title": "US9764822B2 - Clean fuel electric multirotor aircraft for ...",
+     "number": "US9764822B2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2025088278",
+     "title": "WO2025088278 ELECTRIC OR HYBRID-ELECTRIC PROPULSION AIRCRAFT WITH AERODYNAMIC BRAKING IMPLEMENTED BY THE ROTOR OF AN ELECTRIC MACHINE, AND MOTOR UNIT FOR SUCH AN AIRCRAFT",
+     "number": "WO2025088278"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2026020392",
+     "title": "BATTERY CELL, BATTERY AND ELECTRIC DEVICE",
+     "number": "WO2026020392"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V05-battery-electric-aircraft-for-regional-passen__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20200346769A1/en",
+     "title": "US20200346769A1 - System and methods for implementing regional air transit network using hybrid-electric aircraft - Google Patents",
+     "number": "US20200346769A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/WO2018175349A1/en",
+     "title": "WO2018175349A1 - Hybrid-electric aircraft, and methods, apparatus and systems for facilitating same - Google Patents",
+     "number": "WO2018175349A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/WO2016093905A1/en",
+     "title": "WO2016093905A1 - System and methods for implementing regional air transit network using hybrid-electric aircraft - Google Patents",
+     "number": "WO2016093905A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US12068498B1/en",
+     "title": "US12068498B1 - Systems and methods for improved battery assemblies for EVTOL aircraft - Google Patents",
+     "number": "US12068498B1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20120209456A1/en",
+     "title": "US20120209456A1 - Parallel Hybrid-Electric Propulsion Systems for Unmanned Aircraft - Google Patents",
+     "number": "US20120209456A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/WO2025088278",
+     "title": "WO2025088278 ELECTRIC OR HYBRID-ELECTRIC PROPULSION AIRCRAFT WITH AERODYNAMIC BRAKING IMPLEMENTED BY THE ROTOR OF AN ELECTRIC MACHINE, AND MOTOR UNIT FOR SUCH AN AIRCRAFT",
+     "number": "WO2025088278"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2026020392",
+     "title": "BATTERY CELL, BATTERY AND ELECTRIC DEVICE",
+     "number": "WO2026020392"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2026025955",
+     "title": "LITHIUM-ION BATTERY CELL, LITHIUM-ION BATTERY, AND ELECTRIC DEVICE",
+     "number": "WO2026025955"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V05-battery-electric-aircraft-for-regional-passen__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20200346769A1/en",
+     "title": "US20200346769A1 - System and methods for implementing regional air transit network using hybrid-electric aircraft - Google Patents",
+     "number": "US20200346769A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/WO2018175349A1/en",
+     "title": "WO2018175349A1 - Hybrid-electric aircraft, and methods, apparatus and systems for facilitating same - Google Patents",
+     "number": "WO2018175349A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/WO2016093905A1/en",
+     "title": "WO2016093905A1 - System and methods for implementing regional air transit network using hybrid-electric aircraft - Google Patents",
+     "number": "WO2016093905A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/AU2015361236A1/zh",
+     "title": "AU2015361236A1 - System and methods for implementing regional air transit network using hybrid-electric aircraft - Google Patents",
+     "number": "AU2015361236A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20030230671A1/en",
+     "title": "US20030230671A1 - Fuel cell powered electric aircraft - Google Patents",
+     "number": "US20030230671A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20140367510A1/en",
+     "title": "US20140367510A1 - Aircraft with electric propulsion means - Google Patents",
+     "number": "US20140367510A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/WO2025088278",
+     "title": "WO2025088278 ELECTRIC OR HYBRID-ELECTRIC PROPULSION AIRCRAFT WITH AERODYNAMIC BRAKING IMPLEMENTED BY THE ROTOR OF AN ELECTRIC MACHINE, AND MOTOR UNIT FOR SUCH AN AIRCRAFT",
+     "number": "WO2025088278"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2026020392",
+     "title": "BATTERY CELL, BATTERY AND ELECTRIC DEVICE",
+     "number": "WO2026020392"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V06-space-based-solar-power",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20100276547A1/en",
+     "title": "US20100276547A1 - Systems for solar power beaming from space - Google Patents",
+     "number": "US20100276547A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10144533B2/en",
+     "title": "US10144533B2 - Large-scale space-based solar power ...",
+     "number": "US10144533B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US3781647A/en",
+     "title": "US3781647A - Method and apparatus for converting solar radiation to electrical power - Google Patents",
+     "number": "US3781647A"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20240022118A1/en",
+     "title": "US20240022118A1 - Space-based solar power system - Google Patents",
+     "number": "US20240022118A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US6936760B2/en",
+     "title": "US6936760B2 - Space-based power system - Google Patents",
+     "number": "US6936760B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US9346563B1/en",
+     "title": "US9346563B1 - Solar powered space weapon - Google Patents",
+     "number": "US9346563B1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US9511881B1/en",
+     "title": "US9511881B1 - Dispersed space based laser weapon - Google Patents",
+     "number": "US9511881B1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/20100224696",
+     "title": "weather management using space-based power system",
+     "number": "US20100224696"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V06-space-based-solar-power__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20100276547A1/en",
+     "title": "US20100276547A1 - Systems for solar power beaming from space - Google Patents",
+     "number": "US20100276547A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10144533B2/en",
+     "title": "US10144533B2 - Large-scale space-based solar power station: multi-scale modular space power - Google Patents",
+     "number": "US10144533B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US20240022118A1/en",
+     "title": "US20240022118A1 - Space-based solar power system - Google Patents",
+     "number": "US20240022118A1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US6936760B2/en",
+     "title": "US6936760B2 - Space-based power system - Google Patents",
+     "number": "US6936760B2"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20100224696A1/en",
+     "title": "US20100224696A1 - Weather management using space-based power system - Google Patents",
+     "number": "US20100224696A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.justia.com/patent/12470090",
+     "title": "U.S. Patent for Space-based solar power system Patent (Patent # 12,470,090 issued November 11, 2025) - Justia Patents Search",
+     "number": "US12470090"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.justia.com/assignee/azur-space-solar-power-gmbh",
+     "title": "Patents Assigned to Azur Space Solar Power GmbH",
+     "number": null
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/assignee/deployable-space-systems-inc",
+     "title": "Patents Assigned to Deployable Space Systems, Inc.",
+     "number": null
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V06-space-based-solar-power__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20100276547A1/en",
+     "title": "US20100276547A1 - Systems for solar power beaming from space - Google Patents",
+     "number": "US20100276547A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US10144533B2/en",
+     "title": "US10144533B2 - Large-scale space-based solar power station: multi-scale modular space power - Google Patents",
+     "number": "US10144533B2"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US3781647A/en",
+     "title": "US3781647A - Method and apparatus for converting solar radiation to electrical power - Google Patents",
+     "number": "US3781647A"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20240022118A1/en",
+     "title": "US20240022118A1 - Space-based solar power system - Google Patents",
+     "number": "US20240022118A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US6936760B2/en",
+     "title": "US6936760B2 - Space-based power system - Google Patents",
+     "number": "US6936760B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20100224696A1/en",
+     "title": "US20100224696A1 - Weather management using space-based power system - Google Patents",
+     "number": "US20100224696A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.justia.com/patent/20100224696",
+     "title": "weather management using space-based power system",
+     "number": "US20100224696"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/12679564",
+     "title": "Space-based data centers",
+     "number": "US12679564"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V07-hyperloop",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2022090212A1/en",
+     "title": "A tube transport system for very high vehicle speeds and ...",
+     "number": "WO2022090212A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US2488287A/en",
+     "title": "US2488287A - Apparatus for vacuum tube transportation - Google Patents",
+     "number": "US2488287A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.justia.com/patent/20260265856",
+     "title": "steel material for vacuum tube and method of manufacturing same",
+     "number": "US20260265856"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US2511979A/en",
+     "title": "US2511979A - Vacuum tube transportation system - Google Patents",
+     "number": "US2511979A"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/KR102414696B1/en",
+     "title": "KR102414696B1 - Crack repairing material of concrete vacuum tube segment using ultra high performance concrete (uhpc) for hyper speed transportation system, and crack repairing method for the same - Google Patents",
+     "number": "KR102414696B1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20220388788A1/en",
+     "title": "High-speed pressure based propulsion system for ...",
+     "number": "US20220388788A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US8505463B2/de",
+     "title": "US8505463B2 - Wheel-type ultra high speed railway system - Google Patents",
+     "number": "US8505463B2"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/EP3458328A1/en",
+     "title": "EP3458328A1 - Station with loop configuration for hyperloop transportation system - Google Patents",
+     "number": "EP3458328A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V07-hyperloop__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2022090212A1/en",
+     "title": "WO2022090212A1 - A tube transport system for very high vehicle speeds and a method of operating a tube transport system - Google Patents",
+     "number": "WO2022090212A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US2511979A/en",
+     "title": "US2511979A - Vacuum tube transportation system - Google Patents",
+     "number": "US2511979A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/CN101823488A/en",
+     "title": "CN101823488A - Vacuum pipeline docking technology and high-speed permanent maglev train system - Google Patents",
+     "number": "CN101823488A"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US10286928B1/en",
+     "title": "US10286928B1 - Method of using air and helium in low-pressure tube transportation systems - Google Patents",
+     "number": "US10286928B1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20220388788A1/en",
+     "title": "US20220388788A1 - High-speed pressure based propulsion system for transporting resources - Google Patents",
+     "number": "US20220388788A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/WO2023138115",
+     "title": "INTERMEDIATE-FREQUENCY FURNACE-LF FURNACE-VD PROCESS FOR SMELTING HIGH-SPEED STEEL",
+     "number": "WO2023138115"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=US319661591&docAn=15801261",
+     "title": "US10945311 High temperature substrate heater for use in high and ultra-high vacuum systems",
+     "number": null
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2017121064",
+     "title": "DOUBLE PLANETARY GEAR TRAIN SPEED REDUCER FOR USE IN HIGH-POWER SCRAPER CONVEYOR",
+     "number": "WO2017121064"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V07-hyperloop__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/WO2022090212A1/en",
+     "title": "WO2022090212A1 - A tube transport system for very high vehicle speeds and a method of operating a tube transport system - Google Patents",
+     "number": "WO2022090212A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US2511979A/en",
+     "title": "US2511979A - Vacuum tube transportation system - Google Patents",
+     "number": "US2511979A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/CN101823488A/en",
+     "title": "CN101823488A - Vacuum pipeline docking technology and high-speed permanent maglev train system - Google Patents",
+     "number": "CN101823488A"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20170334312A1/en",
+     "title": "US20170334312A1 - Station with loop configuration for hyperloop transportation system - Google Patents",
+     "number": "US20170334312A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patentscope.wipo.int/search/en/WO2023138115",
+     "title": "INTERMEDIATE-FREQUENCY FURNACE-LF FURNACE-VD PROCESS FOR SMELTING HIGH-SPEED STEEL",
+     "number": "WO2023138115"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patentscope.wipo.int/search/en/WO2003080896",
+     "title": "HIGH SPEED ACID COPPER PLATING",
+     "number": "WO2003080896"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patentscope.wipo.int/search/en/detail.jsf?docId=US319661591&docAn=15801261",
+     "title": "US10945311 High temperature substrate heater for use in high and ultra-high vacuum systems",
+     "number": null
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2017121064",
+     "title": "DOUBLE PLANETARY GEAR TRAIN SPEED REDUCER FOR USE IN HIGH-POWER SCRAPER CONVEYOR",
+     "number": "WO2017121064"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V08-量子密钥分发网络",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US10708046B1/en",
+     "title": "US10708046B1 - Quantum resistant blockchain with multi-dimensional quantum key distribution - Google Patents",
+     "number": "US10708046B1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN114175570A/en",
+     "title": "CN114175570A - System and method for quantum key distribution over hybrid quantum channels - Google Patents",
+     "number": "CN114175570A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US8050566B2/en",
+     "title": "US8050566B2 - System and methods for quantum key distribution over WDM links - Google Patents",
+     "number": "US8050566B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/US20130251145A1/en",
+     "title": "US20130251145A1 - Quantum key distribution - Google Patents",
+     "number": "US20130251145A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US11930106B2/en",
+     "title": "US11930106B2 - Quantum communication system that switches between quantum key distribution (QKD) protocols and associated methods - Google Patents",
+     "number": "US11930106B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/CN119766443B/en",
+     "title": "CN119766443B - A centralized quantum key relay network and ...",
+     "number": "CN119766443B"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20240007277A1/en",
+     "title": "Network apparatus for quantum key distribution, and ...",
+     "number": "US20240007277A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/US7889868B2/zh",
+     "title": "US7889868B2 - Quantum key distribution system",
+     "number": "US7889868B2"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V08-量子密钥分发网络__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN121150945A/en",
+     "title": "CN121150945A - Quantum key distribution-based remote sensing data processing methods and electronic devices - Google Patents",
+     "number": "CN121150945A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN120811600B/en",
+     "title": "CN120811600B - A centralized quantum key relay network and key distribution method - Google Patents",
+     "number": "CN120811600B"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/EP3243295B1/en",
+     "title": "EP3243295B1 - Quantum key distribution system, method and apparatus based on trusted relay - Google Patents",
+     "number": "EP3243295B1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/CN121750212A/en",
+     "title": "CN121750212A - Resource management method, device, equipment and medium of quantum key distribution network - Google Patents",
+     "number": "CN121750212A"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN121814309A/en",
+     "title": "CN121814309A - Quantum key distribution and wavelength division multiplexing cooperative scheduling method for metropolitan area optical network - Google Patents",
+     "number": "CN121814309A"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/CN104092538A/en",
+     "title": "CN104092538A - Multi-user wavelength division multiplexing QKD network system and its key distribution and sharing method - Google Patents",
+     "number": "CN104092538A"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20240007277A1/en",
+     "title": "US20240007277A1 - Network apparatus for quantum key distribution, and operation method for quantum key distribution network - Google Patents",
+     "number": "US20240007277A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/CN119766443B/en",
+     "title": "CN119766443B - A centralized quantum key relay network and key distribution method - Google Patents",
+     "number": "CN119766443B"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V08-量子密钥分发网络__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN121150945A/en",
+     "title": "CN121150945A - Quantum key distribution-based remote sensing data processing methods and electronic devices - Google Patents",
+     "number": "CN121150945A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN120811600B/en",
+     "title": "CN120811600B - A centralized quantum key relay network and key distribution method - Google Patents",
+     "number": "CN120811600B"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/EP3243295B1/en",
+     "title": "EP3243295B1 - Quantum key distribution system, method and apparatus based on trusted relay - Google Patents",
+     "number": "EP3243295B1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/CN121750212A/en",
+     "title": "CN121750212A - Resource management method, device, equipment and medium of quantum key distribution network - Google Patents",
+     "number": "CN121750212A"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN121814309A/en",
+     "title": "CN121814309A - Quantum key distribution and wavelength division multiplexing cooperative scheduling method for metropolitan area optical network - Google Patents",
+     "number": "CN121814309A"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/CN104092538A/en",
+     "title": "CN104092538A - Multi-user wavelength division multiplexing QKD network system and its key distribution and sharing method - Google Patents",
+     "number": "CN104092538A"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20240007277A1/en",
+     "title": "US20240007277A1 - Network apparatus for quantum key distribution, and operation method for quantum key distribution network - Google Patents",
+     "number": "US20240007277A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/CN119766443B/en",
+     "title": "CN119766443B - A centralized quantum key relay network and key distribution method - Google Patents",
+     "number": "CN119766443B"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V09-特高压直流输电",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN105207130A/en",
+     "title": "CN105207130A - Underground Modular HVDC Power Transmission System - Google Patents",
+     "number": "CN105207130A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CA2811262C/en",
+     "title": "Underground modular high-voltage direct current electric ...",
+     "number": "CA2811262C"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/CN121705640A/en",
+     "title": "Extra-high voltage direct current transmission system fault ...",
+     "number": "CN121705640A"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patentscope.wipo.int/search/en/WO2011032127",
+     "title": "underground modular high-voltage direct current electric power ...",
+     "number": "WO2011032127"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US8737096B2/en",
+     "title": "Tapping power from a HVDC transmission system",
+     "number": "US8737096B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/CN202249073U/en",
+     "title": "shaped angle tower of extra-high-voltage direct current ...",
+     "number": "CN202249073U"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20140268926A1/en",
+     "title": "High voltage direct current (hvdc) converter system and ...",
+     "number": "US20140268926A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/CN202710634U/en",
+     "title": "High-voltage dc voltage divider - CN202710634U",
+     "number": "CN202710634U"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V09-特高压直流输电__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN103746400A/en",
+     "title": "CN103746400A - Last circuit breaker and last line protection method for high-voltage direct current power transmission - Google Patents",
+     "number": "CN103746400A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN105207130A/en",
+     "title": "CN105207130A - Underground Modular HVDC Power Transmission System - Google Patents",
+     "number": "CN105207130A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/CN121705640A/en",
+     "title": "CN121705640A - Extra-high voltage direct current transmission system fault intelligent analysis method, system and storage medium based on domestic artificial intelligent large model frame - Google Patents",
+     "number": "CN121705640A"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/CN115940242A/en",
+     "title": "CN115940242A - A series direct current transmission system and power balancing method - Google Patents",
+     "number": "CN115940242A"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN103606854A/en",
+     "title": "CN103606854A - Operating method for replacing tension insulator on super and ultra-high voltage direct current transmission line in electrified mode - Google Patents",
+     "number": "CN103606854A"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/CA2811262C/en",
+     "title": "CA2811262C - Underground modular high-voltage direct current electric power transmission system - Google Patents",
+     "number": "CA2811262C"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/CN204231035U/en",
+     "title": "CN204231035U - A kind of power supply based on ultra-high-tension power transmission line is got can circuit - Google Patents",
+     "number": "CN204231035U"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/CN202249073U/en",
+     "title": "CN202249073U - Gan (Chinese character)-shaped angle tower of extra-high-voltage direct current transmission line - Google Patents",
+     "number": "CN202249073U"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V09-特高压直流输电__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/CN103746400A/en",
+     "title": "CN103746400A - Last circuit breaker and last line protection method for high-voltage direct current power transmission - Google Patents",
+     "number": "CN103746400A"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/CN105207130A/en",
+     "title": "CN105207130A - Underground Modular HVDC Power Transmission System - Google Patents",
+     "number": "CN105207130A"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/EP3751692B1/en",
+     "title": "EP3751692B1 - High voltage direct current power transmission station - Google Patents",
+     "number": "EP3751692B1"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/CN121705640A/en",
+     "title": "CN121705640A - Extra-high voltage direct current transmission system fault intelligent analysis method, system and storage medium based on domestic artificial intelligent large model frame - Google Patents",
+     "number": "CN121705640A"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/CN115940242A/en",
+     "title": "CN115940242A - A series direct current transmission system and power balancing method - Google Patents",
+     "number": "CN115940242A"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/CA2811262C/en",
+     "title": "CA2811262C - Underground modular high-voltage direct current electric power transmission system - Google Patents",
+     "number": "CA2811262C"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/CN204231035U/en",
+     "title": "CN204231035U - A kind of power supply based on ultra-high-tension power transmission line is got can circuit - Google Patents",
+     "number": "CN204231035U"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/CN202249073U/en",
+     "title": "CN202249073U - Gan (Chinese character)-shaped angle tower of extra-high-voltage direct current transmission line - Google Patents",
+     "number": "CN202249073U"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V10-vertical-farming-for-fresh-produce",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US20220400623A1/en",
+     "title": "US20220400623A1 - Vertical farming systems and methods - Google Patents",
+     "number": "US20220400623A1"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/US20190159415A1/en",
+     "title": "US20190159415A1 - Vertical farming systems and methods - Google Patents",
+     "number": "US20190159415A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US11937561B2/fr",
+     "title": "US11937561B2 - Mobile and modular cultivation systems for vertical farming - Google Patents",
+     "number": "US11937561B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/WO2020041762A1/en",
+     "title": "WO2020041762A1 - Mobile and modular cultivation systems for vertical farming - Google Patents",
+     "number": "WO2020041762A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20190307077A1/en",
+     "title": "US20190307077A1 - Automated vertical farming system using mobile robots - Google Patents",
+     "number": "US20190307077A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US11778956B2/en",
+     "title": "US11778956B2 - Automated vertical farming system using mobile robots - Google Patents",
+     "number": "US11778956B2"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/EP4622444A1/en",
+     "title": "EP4622444A1 - Vertical farming system - Google Patents",
+     "number": "EP4622444A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.justia.com/patent/12239059",
+     "title": "System and method for vertical farming",
+     "number": "US12239059"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V10-vertical-farming-for-fresh-produce__r2",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US12114619B2/en",
+     "title": "US12114619B2 - Vertical farming/gardening systems and methods of growing and/or dehydrating therewith - Google Patents",
+     "number": "US12114619B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/WO2018013161A1/en",
+     "title": "WO2018013161A1 - Environmentally controlled vertical farming system - Google Patents",
+     "number": "WO2018013161A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US10306847B2/fr",
+     "title": "US10306847B2 - Environmentally controlled vertical farming system - Google Patents",
+     "number": "US10306847B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/WO2018013162A1/en",
+     "title": "WO2018013162A1 - Vertical growth tower and module for an environmentally controlled vertical farming system movement - Google Patents",
+     "number": "WO2018013162A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US20220400623A1/en",
+     "title": "US20220400623A1 - Vertical farming systems and methods - Google Patents",
+     "number": "US20220400623A1"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.justia.com/patent/20250160266",
+     "title": "U.S. Patent Application for COMBINED NET HOUSE AND VERTICAL FARMING SYSTEM Patent Application (Application #20250160266 issued May 22, 2025)",
+     "number": "US20250160266"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/US20180014486A1/en",
+     "title": "US20180014486A1 - Control and sensor systems for an environmentally controlled vertical farming system - Google Patents",
+     "number": "US20180014486A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patents.google.com/patent/WO2020041762A1/en",
+     "title": "WO2020041762A1 - Mobile and modular cultivation systems for vertical farming - Google Patents",
+     "number": "WO2020041762A1"
+    }
+   ]
+  },
+  {
+   "batch": "heldout-trl-v2",
+   "run": "V10-vertical-farming-for-fresh-produce__r3",
+   "patents": [
+    {
+     "source_id": "P1",
+     "url": "https://patents.google.com/patent/US12114619B2/en",
+     "title": "US12114619B2 - Vertical farming/gardening systems and methods of growing and/or dehydrating therewith - Google Patents",
+     "number": "US12114619B2"
+    },
+    {
+     "source_id": "P2",
+     "url": "https://patents.google.com/patent/WO2018013161A1/en",
+     "title": "WO2018013161A1 - Environmentally controlled vertical farming system - Google Patents",
+     "number": "WO2018013161A1"
+    },
+    {
+     "source_id": "P3",
+     "url": "https://patents.google.com/patent/US10306847B2/fr",
+     "title": "US10306847B2 - Environmentally controlled vertical farming system - Google Patents",
+     "number": "US10306847B2"
+    },
+    {
+     "source_id": "P4",
+     "url": "https://patents.google.com/patent/WO2018013162A1/en",
+     "title": "WO2018013162A1 - Vertical growth tower and module for an environmentally controlled vertical farming system movement - Google Patents",
+     "number": "WO2018013162A1"
+    },
+    {
+     "source_id": "P5",
+     "url": "https://patents.google.com/patent/US12408603B2/pl",
+     "title": "US12408603B2 - Vertical farming apparatus and a method of vertical farming - Google Patents",
+     "number": "US12408603B2"
+    },
+    {
+     "source_id": "P6",
+     "url": "https://patents.google.com/patent/US20200329654A1/en",
+     "title": "US20200329654A1 - System and method for vertical farming - Google Patents",
+     "number": "US20200329654A1"
+    },
+    {
+     "source_id": "P7",
+     "url": "https://patents.google.com/patent/WO2020041762A1/en",
+     "title": "WO2020041762A1 - Mobile and modular cultivation systems for vertical farming - Google Patents",
+     "number": "WO2020041762A1"
+    },
+    {
+     "source_id": "P8",
+     "url": "https://patentscope.wipo.int/search/en/WO2020041762",
+     "title": "MOBILE AND MODULAR CULTIVATION SYSTEMS FOR VERTICAL FARMING",
+     "number": "WO2020041762"
+    }
+   ]
+  }
+ ]
+}

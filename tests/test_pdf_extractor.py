@@ -9,10 +9,13 @@ require pypdfium2 and a live LLM respectively.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from academic_agent import pdf_extractor
 from academic_agent.pdf_extractor import (
     A1_SUMMARY_MAX_CHARS,
     PaperContribution,
+    TitleLookup,
     _detect_paper_language,
     _find_arxiv_url,
     _find_doi,
@@ -355,5 +358,126 @@ class PaperLocatorVerificationTests(unittest.TestCase):
         self.assertIn("novel solid electrolyte", src.evidence_summary)
 
 
+# ---------------------------------------------------------------------------
+# _arxiv_title_lookup — a public record found by title, offered as a candidate
+# ---------------------------------------------------------------------------
+
+_TITLE = ("Influence of Electrode Thickness and Electrolyte Composition on SEI Formation "
+          "and Cycle Stability in Binder-Free Hard Carbon Anodes for Na-Ion Batteries")
+
+
+def _feed(*entries: tuple[str, str, str]) -> bytes:
+    """An arXiv Atom feed of (id, title, first author) entries."""
+    body = "".join(
+        f"<entry><id>http://arxiv.org/abs/{arxiv_id}</id><title>{title}</title>"
+        f"<author><name>{author}</name></author></entry>"
+        for arxiv_id, title, author in entries)
+    return ('<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">'
+            f"<title>arXiv Query</title>{body}</feed>").encode()
+
+
+class ArxivTitleLookupTests(unittest.TestCase):
+    """Exact title, confirmed by author, and never more than a candidate."""
+
+    def _lookup(self, feed, title=_TITLE, authors="Tien-Nguyen-Khoi Trinh, Adrian Beda"):
+        with patch.object(pdf_extractor, "_fetch_arxiv_feed", return_value=feed) as fetch:
+            result = pdf_extractor._arxiv_title_lookup(title, authors)
+        return result, fetch
+
+    def test_the_paper_arxiv_serves_without_a_stamp_is_found_by_its_title(self):
+        # The real feed wraps long titles over lines; normalisation must not care.
+        wrapped = _TITLE.replace(" and Cycle", "\n  and Cycle")
+        result, fetch = self._lookup(_feed(("2610.06253v1", wrapped, "Tien-Nguyen-Khoi Trinh")))
+        self.assertEqual(result, TitleLookup("matched", "https://arxiv.org/abs/2610.06253"))
+        self.assertEqual(fetch.call_args.args[0], f'ti:"{_TITLE}"')
+        self.assertEqual(fetch.call_args.kwargs["timeout"], pdf_extractor._ARXIV_LOOKUP_TIMEOUT_SECONDS)
+
+    def test_a_record_with_a_different_title_is_not_a_match(self):
+        result, _ = self._lookup(_feed(("2610.06253v1", _TITLE + " Revisited", "Tien-Nguyen-Khoi Trinh")))
+        self.assertEqual(result, TitleLookup("no_match"))
+
+    def test_the_same_title_by_other_authors_is_not_a_match(self):
+        result, _ = self._lookup(_feed(("2610.06253v1", _TITLE, "Someone Else")))
+        self.assertEqual(result, TitleLookup("no_match"))
+
+    def test_without_extracted_authors_a_long_title_is_enough_and_a_short_one_is_not_asked(self):
+        result, _ = self._lookup(_feed(("2610.06253v1", _TITLE, "Someone Else")), authors="")
+        self.assertEqual(result.outcome, "matched")
+        result, fetch = self._lookup(_feed(("2301.00001v1", "Hard Carbon Anodes", "Kim")),
+                                     title="Hard Carbon Anodes", authors="")
+        self.assertEqual(result, TitleLookup("no_match"))
+        fetch.assert_not_called()
+
+    def test_the_matching_entry_is_found_among_others_and_its_version_is_dropped(self):
+        result, _ = self._lookup(_feed(("2401.11111v2", "Something About Hard Carbon", "Kim"),
+                                       ("2610.06253v3", _TITLE, "T. N. K. Trinh")))
+        self.assertEqual(result.url, "https://arxiv.org/abs/2610.06253")
+
+    def test_a_failed_or_unparseable_request_is_unavailable_not_absent(self):
+        with patch.object(pdf_extractor, "_fetch_arxiv_feed", side_effect=OSError("timed out")):
+            self.assertEqual(pdf_extractor._arxiv_title_lookup(_TITLE, "Trinh"), TitleLookup("unavailable"))
+        with patch.object(pdf_extractor, "_fetch_arxiv_feed", return_value=b"<html>rate limited"):
+            self.assertEqual(pdf_extractor._arxiv_title_lookup(_TITLE, "Trinh"), TitleLookup("unavailable"))
+
+    def test_quotes_in_a_title_cannot_break_the_phrase_query(self):
+        _, fetch = self._lookup(_feed(), title='The "Smart" Grid Problem in Six Words Here')
+        query = fetch.call_args.args[0]
+        self.assertTrue(query.startswith('ti:"') and query.endswith('"'))
+        self.assertEqual(query.count('"'), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# Boundaries: the page-scan ceiling, the summary cut, the title and the placeholder
+# ---------------------------------------------------------------------------
+
+class PageScanBoundaryTests(unittest.TestCase):
+    """_pages_to_scan at the edges of its ceiling and below three pages."""
+
+    def test_documents_up_to_the_ceiling_are_read_in_full(self):
+        for n in (0, 1, 2, 3, 7, pdf_extractor._MAX_PAGES_SCANNED):
+            with self.subTest(pages=n):
+                self.assertEqual(pdf_extractor._pages_to_scan(n), list(range(n)))
+
+    def test_one_page_over_the_ceiling_starts_sampling_and_keeps_head_and_tail(self):
+        ceiling = pdf_extractor._MAX_PAGES_SCANNED
+        for n in (ceiling + 1, ceiling + 2, 1000, 10000):
+            with self.subTest(pages=n):
+                pages = pdf_extractor._pages_to_scan(n)
+                self.assertEqual(len(pages), ceiling)
+                self.assertEqual(pages, sorted(set(pages)))
+                self.assertTrue(all(0 <= i < n for i in pages))
+                self.assertEqual(pages[:3], [0, 1, 2])
+                self.assertEqual(pages[-2:], [n - 2, n - 1])
+
+
+class ShortenBoundaryTests(unittest.TestCase):
+
+    def test_text_at_or_under_the_limit_is_untouched(self):
+        self.assertEqual(pdf_extractor._shorten("", 5), "")
+        self.assertEqual(pdf_extractor._shorten("abc", 3), "abc")
+
+    def test_one_character_over_the_limit_is_cut_and_marked(self):
+        shortened = pdf_extractor._shorten("abcd", 3)
+        self.assertTrue(shortened.endswith("…"))
+        self.assertLessEqual(len(shortened), 3)
+
+    def test_the_cut_never_exceeds_the_limit_for_prose_or_cjk(self):
+        for text, limit in (("hello world foo", 11), ("hello world foo", 12),
+                            ("中文很长的句子" * 10, 20), ("a" * 100, 50)):
+            with self.subTest(text=text[:10], limit=limit):
+                shortened = pdf_extractor._shorten(text, limit)
+                self.assertLessEqual(len(shortened), limit)
+                self.assertTrue(shortened.endswith("…"))
+
+    def test_the_placeholder_doi_is_stable_and_defined_even_for_an_empty_title(self):
+        self.assertTrue(pdf_extractor._placeholder_doi("").startswith(pdf_extractor._PLACEHOLDER_DOI_PREFIX))
+        self.assertEqual(pdf_extractor._placeholder_doi("x"), pdf_extractor._placeholder_doi("x"))
+        self.assertNotEqual(pdf_extractor._placeholder_doi("x"), pdf_extractor._placeholder_doi("y"))
+
+    def test_title_normalisation_keeps_only_letters_and_digits(self):
+        self.assertEqual(pdf_extractor._normalise_title("!!! ... ---"), "")
+        self.assertEqual(pdf_extractor._normalise_title("Na-Ion 2.0:\n β-phase"), "na ion 2 0 phase")

@@ -151,7 +151,7 @@ commercialization_report_writer:
     Technology maturity rule: In the Technology Overview section, describe the
     technology's development stage using qualitative, evidence-based language —
     do NOT write a TRL number or range anywhere in the report body. Examples:
-      "proof-of-concept stage with no clinical validation yet"
+      "proof-of-concept stage with no full-scale or field validation yet"
       "laboratory-validated component, not yet demonstrated at system level"
       "prototype demonstrated in operational conditions with limited deployment"
     Quantitative TRL scoring is performed exclusively by the Scorer agent to

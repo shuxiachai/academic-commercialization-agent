@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import openalex_scope_link_unseen as unseen
-
-
+from experiments.openalex_retrieval import openalex_scope_link_unseen as unseen
 def test_dry_run_expands_the_exact_unseen_contract_without_live_authority():
     result = unseen.dry_run()
 
@@ -133,7 +131,7 @@ def test_profile_role_drift_changes_the_preflight_identity(tmp_path):
 
 
 def test_preflight_source_imports_neither_provider_nor_live_runner():
-    source = Path("openalex_scope_link_unseen.py").read_text(encoding="utf-8")
+    source = Path("experiments/openalex_retrieval/openalex_scope_link_unseen.py").read_text(encoding="utf-8")
 
     assert "openalex_claim_scope_search" not in source
     assert "anonymous_openalex_search" not in source

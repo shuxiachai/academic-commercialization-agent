@@ -21,7 +21,7 @@ import sys
 import threading
 import time
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -122,6 +122,17 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
         decision_gate=decision_gate, output_language="English", run_id=run_id, output_root=output_root,
     )
     (run_dir / ".owner").write_text(owner, encoding="utf-8")
+    started_at = datetime.now(UTC).replace(microsecond=0)
+    ended_at = started_at + timedelta(seconds=7)
+    # Worker stage labels and when each began; Done marks the end of scoring.
+    stage_offsets = (
+        ("Source Collection & Validation", 0),
+        ("Phase 1 — Evidence Collection (Academic · Patent · Market)", 1),
+        ("Agent 4 — Report Writing", 3),
+        ("Agent 5 — Quality Review & Citation Check", 4),
+        ("Agent 6 — Commercialization Scoring", 5),
+        ("Done", 6),
+    )
     (run_dir / "status.json").write_text(
         json.dumps(
             {
@@ -132,6 +143,10 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
                 "decision_gate": decision_gate,
                 "report_audit": report_audit,
                 "source_counts": {"academic": 3, "patent": 2, "market": 4},
+                "stage_timings": [
+                    {"stage": stage, "started_at": (started_at + timedelta(seconds=offset)).isoformat()}
+                    for stage, offset in stage_offsets
+                ],
             },
             indent=2,
         ),
@@ -146,7 +161,11 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
         "> **Assessment applicability (code-derived):** Mode `decision_support`. "
         "Actor-specific GO is approved.\n\n"
         f"{REPORT_SENTINEL}\n\n"
-        "This report is a local fixture; no model or search provider produced it.\n",
+        "This report is a local fixture; no model or search provider produced it [P1].\n\n"
+        "## References\n\n"
+        "[P1] Bilingual literal .* needle patent. Fixture publisher. Published: 2026-09-18. "
+        "Accessed: 2026-10-22. Type: patent. Credibility: high. Rationale: fixture. "
+        "https://example.test/p1\n",
         run_id, output_root, decision_gate,
     )
     # A report plus ``done=true`` exercises only the historical fallback path.
@@ -154,8 +173,6 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
     # the complete disk -> FastAPI projection -> JavaScript -> DOM seam that a
     # paid run uses. The explicit zero snapshot means "observed zero calls";
     # None would mean accounting failed and is invalid for a completed run.
-    started_at = datetime.now(UTC).replace(microsecond=0)
-    ended_at = started_at + timedelta(seconds=7)
     accounting = UsageAccounting(
         state="complete",
         snapshot_at=ended_at,
@@ -367,6 +384,22 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
     expect(controls).to_have_text(["Markdown", "PDF", "删除" if chinese else "Delete"])
     expect(actions.get_by_role("link")).to_have_count(2)
     expect(actions.get_by_role("button")).to_have_count(1)
+    # Usage and its accounting caveats are folded by default, one click away.
+    usage_details = page.locator("#run-usage-details")
+    usage_details.evaluate("details => { details.open = false; }")
+    expect(usage_details).to_be_visible()
+    expect(usage_details.locator("summary")).to_have_text("· 用量与费用" if chinese else "· Usage & cost")
+    expect(page.locator("#run-usage")).to_be_hidden()
+    usage_details.locator("summary").click()
+    expect(page.locator("#run-usage")).to_be_visible()
+    timing_details = page.locator("#run-timing-details")
+    timing_details.evaluate("details => { details.open = false; }")
+    expect(timing_details.locator("summary")).to_have_text("· 阶段耗时" if chinese else "· Stage timing")
+    expect(page.locator("#run-timing")).to_be_hidden()
+    timing_details.locator("summary").click()
+    expect(page.locator("#run-timing")).to_have_text(
+        "来源 0:01 · 证据分析 0:02 · 报告撰写 0:01 · 审查 0:01 · 评分 0:01" if chinese
+        else "Sources 0:01 · Evidence 0:02 · Report 0:01 · Review 0:01 · Scoring 0:01")
     run_id = urlsplit(page.url).path.rsplit("/", 1)[-1]
     metadata = page.locator("#pane-run .pane__meta > span[id]")
     original = dict(metadata.evaluate_all(
@@ -384,6 +417,12 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
         "run-recovery": "· 恢复检查点已保留" if chinese else "· recovery checkpoint retained",
     }
     set_metadata = """values => {
+        // Measure with usage and timing unfolded: the longest text the header holds.
+        for (const id of ['run-usage-details', 'run-timing-details']) {
+            const details = document.getElementById(id);
+            details.hidden = false;
+            details.open = true;
+        }
         for (const [id, value] of Object.entries(values)) document.getElementById(id).textContent = value;
     }"""
     try:
@@ -414,7 +453,7 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
                     const heading = rect(node('.pane__heading')), actions = rect(node('#run-actions'));
                     const style = getComputedStyle(headNode);
                     const contentWidth = head.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-                    const fields = [...pane.querySelectorAll('.pane__meta > span[id]')]
+                    const fields = [...pane.querySelectorAll('.pane__meta > span[id], #run-usage, #run-timing')]
                         .filter(element => element.textContent);
                     const textFits = element => {
                         const box = rect(element), range = document.createRange();
@@ -478,6 +517,328 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
         page.set_viewport_size({"width": 1280, "height": 720})
 
 
+def _exercise_sample_print(page: Page, base_url: str) -> int:
+    """Print every committed sample under dark mode without changing screen layout."""
+    page.emulate_media(media="screen", color_scheme="dark")
+    response = page.goto(f"{base_url}/samples", wait_until="domcontentloaded")
+    assert response is not None and response.ok, "The public sample reader did not load."
+    # The catalog is the expected list, so adding a sample cannot silently
+    # reduce this contract to a hard-coded count that no longer matches.
+    listed = page.request.get(f"{base_url}/api/samples")
+    assert listed.status == 200, "The sample catalog did not answer."
+    expected = [item["slug"] for item in listed.json()]
+    assert expected, "The sample catalog is empty."
+    cards = page.locator(".samples__list .sample-card")
+    expect(cards).to_have_count(len(expected))
+    slugs = []
+    for index in range(cards.count()):
+        href = cards.nth(index).get_attribute("href")
+        assert href is not None, "A sample card has no deep link."
+        slugs.append(urlsplit(href).path.rsplit("/", 1)[-1])
+    assert slugs == expected, f"Cards do not match the catalog: {slugs!r} != {expected!r}"
+
+    table_rows = 0
+    card_checked = False
+    for slug in slugs:
+        response = page.goto(f"{base_url}/samples/{slug}", wait_until="domcontentloaded")
+        assert response is not None and response.ok, f"Sample {slug} did not load."
+        notice = page.locator("#sample-reader > .samples__notice")
+        report = page.locator("#sample-reader > article.prose")
+        expect(notice).to_be_visible()
+        expect(report).to_be_visible()
+        page.evaluate("() => document.fonts.ready")
+
+        def screen_state():
+            return page.evaluate("""() => {
+                const selectors = [".samples__head", ".samples__intro", ".samples__list",
+                    ".samples__reader", "#sample-reader .prose"];
+                return Object.fromEntries(selectors.map((selector) => {
+                    const element = document.querySelector(selector);
+                    const style = getComputedStyle(element);
+                    const rect = element.getBoundingClientRect();
+                    return [selector, {
+                        display: style.display, color: style.color,
+                        background: style.backgroundColor, maxWidth: style.maxWidth,
+                        x: rect.x, y: rect.y + window.scrollY, width: rect.width, height: rect.height,
+                    }];
+                }));
+            }""")
+
+        before = screen_state()
+        # The citation card is a screen-only popover; printing must not put it
+        # on the page. Check it on the first sample that has a citation chip.
+        citation = page.locator("#sample-reader .cite[data-cite]").first
+        citation_open = not card_checked and citation.count() > 0
+        if citation_open:
+            card_checked = True
+            citation.click()
+            expect(page.locator("body > .cite-card")).to_be_visible()
+
+        page.emulate_media(media="print", color_scheme="dark")
+        for selector in (".samples__head", ".samples__intro", ".samples__list",
+                         ".samples__reader > .empty-note", ".samples__toc"):
+            expect(page.locator(selector)).to_be_hidden()
+        expect(notice).to_be_visible()
+        expect(report).to_be_visible()
+        if citation_open:
+            expect(page.locator("body > .cite-card")).to_be_hidden()
+
+        printed = page.evaluate("""() => {
+            const $ = (selector) => document.querySelector(selector);
+            const style = (element) => getComputedStyle(element);
+            const reader = $("#sample-reader");
+            const report = $("#sample-reader .prose");
+            const reportElements = [report, ...report.querySelectorAll("*")];
+            const badColors = reportElements
+                .filter((element) => style(element).color !== "rgb(0, 0, 0)")
+                .map((element) => `${element.tagName}.${element.className}: ${style(element).color}`);
+            const badBackgrounds = reportElements
+                .filter((element) => style(element).backgroundColor !== "rgb(255, 255, 255)")
+                .map((element) => `${element.tagName}.${element.className}: ${style(element).backgroundColor}`);
+            const headings = [...report.querySelectorAll("h1, h2, h3, h4")];
+            const rows = [...report.querySelectorAll("tr")];
+            const tableWraps = [...report.querySelectorAll(".table-wrap")];
+            const rect = report.getBoundingClientRect();
+            const readerRect = reader.getBoundingClientRect();
+            return {
+                bodyColor: style(document.body).color,
+                bodyBackground: style(document.body).backgroundColor,
+                sampleMaxWidth: style($(".samples")).maxWidth,
+                reportMaxWidth: style(report).maxWidth,
+                reportFillsReader: Math.abs(rect.width - readerRect.width) < 1,
+                readerChildren: [...reader.children].map((element) => element.className),
+                badColors, badBackgrounds,
+                headingBreakInside: headings.map((element) => style(element).breakInside),
+                headingBreakAfter: headings.map((element) => style(element).breakAfter),
+                rowBreakInside: rows.map((element) => style(element).breakInside),
+                tableHeaderDisplay: [...report.querySelectorAll("thead")]
+                    .map((element) => style(element).display),
+                tableWrapOverflow: tableWraps.map((element) => style(element).overflowX),
+                tableRows: rows.length,
+            };
+        }""")
+        assert printed["bodyColor"] == "rgb(0, 0, 0)", (slug, printed)
+        assert printed["bodyBackground"] == "rgb(255, 255, 255)", (slug, printed)
+        assert printed["sampleMaxWidth"] == "none", (slug, printed)
+        assert printed["reportMaxWidth"] == "none" and printed["reportFillsReader"], (slug, printed)
+        # The contents are screen navigation; print hides them like the list.
+        assert printed["readerChildren"] == ["samples__notice", "samples__toc", "prose"], (slug, printed)
+        assert not printed["badColors"], (slug, printed["badColors"][:5])
+        assert not printed["badBackgrounds"], (slug, printed["badBackgrounds"][:5])
+        assert printed["headingBreakInside"] and all(
+            value == "avoid" for value in printed["headingBreakInside"]
+        ), (slug, printed["headingBreakInside"])
+        assert all(value in {"avoid", "avoid-page"} for value in printed["headingBreakAfter"]), (
+            slug, printed["headingBreakAfter"]
+        )
+        assert all(value == "avoid" for value in printed["rowBreakInside"]), (slug, printed["rowBreakInside"])
+        assert all(value == "table-header-group" for value in printed["tableHeaderDisplay"]), (
+            slug, printed["tableHeaderDisplay"]
+        )
+        assert all(value == "visible" for value in printed["tableWrapOverflow"]), (
+            slug, printed["tableWrapOverflow"]
+        )
+        table_rows += printed["tableRows"]
+
+        pdf = page.pdf(print_background=True)
+        assert pdf.startswith(b"%PDF-"), f"Chromium did not produce a PDF for {slug}."
+        page.emulate_media(media="screen", color_scheme="dark")
+        if citation_open:
+            citation.click()
+            expect(page.locator("body > .cite-card")).to_have_count(0)
+        after = screen_state()
+        assert after == before, f"Print styles changed the screen layout for {slug}: {before!r} -> {after!r}"
+
+    assert table_rows > 0, "No committed sample exercised table-row pagination."
+    assert card_checked, "No committed sample exposed a citation chip to print."
+    page.emulate_media(media="screen", color_scheme="light")
+    return len(slugs)
+
+
+_CONTENTS_STATE = """() => {
+    const reader = document.querySelector("#sample-reader");
+    const toc = reader.querySelector(":scope > nav.samples__toc");
+    const article = reader.querySelector(":scope > article.prose");
+    const box = (element) => {
+        const rect = element.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom };
+    };
+    const headings = [...article.querySelectorAll("h2")];
+    return {
+        tocs: document.querySelectorAll(".samples__toc").length,
+        label: toc.getAttribute("aria-label"),
+        summary: toc.querySelector("summary").textContent,
+        open: toc.querySelector("details").open,
+        headings: headings.map((heading) => [heading.id, heading.textContent]),
+        links: [...toc.querySelectorAll("a")].map((link) => [link.getAttribute("href"), link.textContent]),
+        idCounts: headings.map((heading) => document.querySelectorAll(`[id="${heading.id}"]`).length),
+        reader: box(reader), toc: box(toc), list: box(toc.querySelector("details")), article: box(article),
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+    };
+}"""
+
+
+def _exercise_sample_contents(page: Page, base_url: str) -> int:
+    """Link every section of every committed sample, beside the report or above it (#285).
+
+    A contents link changes only the URL fragment, and Chromium fires popstate
+    for that; the reader used to answer popstate by reading and rendering the
+    sample again. So each jump also checks that the article is the same node
+    and that no second read of the sample went out.
+    """
+    listed = page.request.get(f"{base_url}/api/samples")
+    assert listed.status == 200, "The sample catalog did not answer."
+    slugs = [item["slug"] for item in listed.json()]
+    assert len(slugs) >= 2, "The contents journey needs two samples."
+    reads: list[str] = []
+
+    def record_read(request) -> None:
+        path = urlsplit(request.url).path
+        if path.startswith("/api/samples/"):
+            reads.append(path.rsplit("/", 1)[-1])
+
+    def shown() -> None:
+        expect(page.locator("#sample-reader > nav.samples__toc a").first).to_be_attached()
+        page.evaluate("() => { window.__smokeArticle = document.querySelector('#sample-reader > article'); }")
+
+    def load(slug: str, fragment: str = "") -> None:
+        response = page.goto(f"{base_url}/samples/{slug}{fragment}", wait_until="domcontentloaded")
+        assert response is not None and response.ok, f"Sample {slug} did not load."
+        shown()
+
+    def show(index: int) -> str:
+        """Open a sample from its card, as a reader does. One read rather than a
+        page load: the whole smoke shares one loopback rate-limit bucket
+        (API_RATE_LIMIT_PER_MINUTE), and reloading the page per sample spent
+        enough of it to turn later steps' requests into 429s."""
+        slug = slugs[index]
+        page.locator(".samples__list .sample-card").nth(index).click()
+        page.wait_for_function("(suffix) => location.pathname.endsWith(suffix)", arg=f"/{slug}")
+        shown()
+        return slug
+
+    def state(slug: str, label: str = "Contents") -> dict:
+        current = page.evaluate(_CONTENTS_STATE)
+        # Ids from a counter, not the heading text: one sample is in Chinese.
+        expected = [[f"section-{number}", text] for number, (_, text) in enumerate(current["headings"], start=1)]
+        assert current["headings"] and current["headings"] == expected, (slug, current["headings"])
+        assert current["links"] == [[f"#{hid}", text] for hid, text in expected], (slug, current["links"])
+        assert current["idCounts"] == [1] * len(expected), (slug, current["idCounts"])
+        assert (current["tocs"], current["label"], current["summary"]) == (1, label, label), (slug, current)
+        assert 0 <= current["toc"]["x"] and current["toc"]["right"] <= current["clientWidth"], (slug, current["toc"])
+        return current
+
+    def focus_in_contents(presses: int = 1) -> str | None:
+        """Press Tab until focus is inside the contents (at most `presses` times); name what has it.
+
+        Focus scrolls the page smoothly (base.css), and Chromium drops a
+        fragment jump that starts while that scroll is still moving, so wait
+        for it to stop, as a person's next key press would.
+        """
+        for _ in range(presses):
+            page.keyboard.press("Tab")
+            page.wait_for_function("""() => {
+                const still = window.__smokeScrollY === window.scrollY;
+                window.__smokeScrollY = window.scrollY;
+                return still;
+            }""", polling=100)
+            focused = page.evaluate("""() => {
+                const active = document.activeElement;
+                return active.closest(".samples__toc") ? (active.getAttribute("href") ?? active.tagName) : null;
+            }""")
+            if focused:
+                return focused
+        return None
+
+    def settle_at(section: str) -> None:
+        # base.css scrolls smoothly: wait until the heading has stopped near the top.
+        page.wait_for_function("""(id) => {
+            // Missing while a re-rendered report loads; arrive() then names the re-read.
+            const heading = document.getElementById(id);
+            if (!heading) return false;
+            const top = heading.getBoundingClientRect().top;
+            const still = window.__smokeTop === top;
+            window.__smokeTop = top;
+            return still && top >= 0 && top <= 64;
+        }""", arg=section, polling=100)
+
+    def arrive(slug: str, section: str, before: int) -> None:
+        settle_at(section)
+        assert urlsplit(page.url).fragment == section, (slug, page.url)
+        assert reads[before:] == [], f"Following a contents link read {slug} again: {reads[before:]!r}"
+        assert page.evaluate("() => document.querySelector('#sample-reader > article') === window.__smokeArticle"), (
+            f"Following a contents link re-rendered {slug}."
+        )
+
+    page.on("request", record_read)
+    try:
+        page.set_viewport_size({"width": 1280, "height": 720})
+        load(slugs[0])
+        for index in range(len(slugs)):
+            slug = show(index)
+            wide = state(slug)
+            assert wide["open"], (slug, "the contents start open beside the report")
+            assert wide["toc"]["x"] >= wide["reader"]["right"], (slug, wide["reader"], wide["toc"])
+            # Beside the report, not past the window's edge. (Some reports already
+            # scroll sideways at phone width without contents, so only here.)
+            assert wide["scrollWidth"] <= wide["clientWidth"], (slug, "horizontal scroll", wide)
+            # Keyboard only: Tab from the language menu into the contents, then Enter.
+            page.focus("#ui-lang")
+            assert focus_in_contents(40) == "SUMMARY", slug
+            for target in ("#section-1", "#section-2", "#section-3"):
+                assert focus_in_contents() == target, (slug, target)
+            before = len(reads)
+            page.keyboard.press("Enter")
+            arrive(slug, "section-3", before)
+            stuck = page.evaluate(_CONTENTS_STATE)["list"]
+            assert 0 <= stuck["y"] <= 32, (slug, "the contents stay in view while reading", stuck)
+            page.go_back()
+            page.wait_for_function("() => !location.hash")
+            assert reads[before:] == [] and page.evaluate(
+                "() => document.querySelector('#sample-reader > article') === window.__smokeArticle"
+            ), f"Back from a section of {slug} reloaded the sample."
+
+        # A shared link to a section opens the report at that section.
+        load(slugs[0], "#section-4")
+        settle_at("section-4")
+
+        # Narrow: a closed block above the report, opened from the keyboard.
+        page.set_viewport_size({"width": 390, "height": 844})
+        show(0)
+        narrow = state(slugs[0])
+        assert not narrow["open"], "The contents start closed above a narrow report."
+        assert narrow["toc"]["bottom"] <= narrow["article"]["y"], (narrow["toc"], narrow["article"])
+        assert abs(narrow["toc"]["x"] - narrow["article"]["x"]) < 1, (narrow["toc"], narrow["article"])
+        expect(page.locator(".samples__toc a").first).to_be_hidden()
+        page.focus("#ui-lang")
+        assert focus_in_contents(40) == "SUMMARY"
+        page.keyboard.press("Enter")
+        expect(page.locator(".samples__toc a").first).to_be_visible()
+        assert focus_in_contents() == "#section-1"
+        before = len(reads)
+        page.keyboard.press("Enter")
+        arrive(slugs[0], "section-1", before)
+        # Widening moves the contents beside the report, open; narrowing again closes them.
+        page.set_viewport_size({"width": 1280, "height": 720})
+        expect(page.locator(".samples__toc details")).to_have_attribute("open", "")
+        page.set_viewport_size({"width": 390, "height": 844})
+        expect(page.locator(".samples__toc details")).not_to_have_attribute("open", "")
+
+        # A language switch and another sample each rebuild the one list.
+        page.set_viewport_size({"width": 1280, "height": 720})
+        page.select_option("#ui-lang", "Simplified Chinese")
+        expect(page.locator(".samples__toc summary")).to_have_text("目录")
+        state(slugs[0], "目录")
+        page.select_option("#ui-lang", "English")
+        expect(page.locator(".samples__toc summary")).to_have_text("Contents")
+        state(show(1))
+    finally:
+        page.remove_listener("request", record_read)
+        page.set_viewport_size({"width": 1280, "height": 720})
+    return len(slugs)
+
+
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
     runtime_ids: tuple[str, str, str], cap_run_id: str,
@@ -506,6 +867,11 @@ def _exercise_browser(
                 route.abort("blockedbyclient")
                 return
             if request.method not in {"GET", "HEAD", "OPTIONS"}:
+                if request.method == "POST" and parsed.path == f"/api/runs/{run_id}/feedback":
+                    # Unpaid and bounded to a closed vocabulary; the one write
+                    # this journey makes on purpose, verified on disk below.
+                    route.continue_()
+                    return
                 mutation_attempts.append(f"{request.method} {parsed.path}")
                 route.abort("blockedbyclient")
                 return
@@ -539,6 +905,8 @@ def _exercise_browser(
         page.on("pageerror", lambda error: page_errors.append(str(error)))
 
         try:
+            sample_print_reports = _exercise_sample_print(page, base_url)
+            sample_contents_reports = _exercise_sample_contents(page, base_url)
             response = page.goto(base_url, wait_until="domcontentloaded")
             assert response is not None and response.ok, "The SPA entry point did not load."
             csp = response.headers.get("content-security-policy", "")
@@ -587,6 +955,8 @@ def _exercise_browser(
             held_progress.pop().continue_()
             expect(page.locator("#run-title")).to_have_text(FIXTURE_TOPIC)
             expect(page.locator("#run-pill")).to_have_text("completed")
+            # Opened already finished, so it is history: no "analysis complete" toast.
+            expect(page.locator(".toast--success")).to_have_count(0)
             terminal = page.locator("#run-terminal")
             expect(terminal).to_have_text("· worker completed")
             expect(terminal).to_have_attribute(
@@ -600,14 +970,15 @@ def _exercise_browser(
             # The shipped subset renderer deliberately falls back to a <p>
             # for blockquotes. Assert the actual visible paragraph contract,
             # not a blockquote element this renderer has never produced.
-            applicability = page.locator("article.prose p").filter(
-                has_text="Assessment applicability (code-derived)"
-            )
+            # The page shows the code-derived gate as sentences; the saved
+            # file keeps its codes (report_display.py).
+            applicability = page.locator("article.prose p").filter(has_text="Scope of this assessment")
             expect(applicability).to_have_count(1)
             expect(applicability).to_be_visible()
-            expect(applicability).to_contain_text("Mode orientation.")
-            expect(applicability).to_contain_text("GO/NO_GO is not assessed.")
-            expect(applicability).to_contain_text("not_established")
+            expect(applicability).to_contain_text("An orientation brief")
+            expect(applicability).to_contain_text("gives no GO/NO_GO for a particular decision-maker.")
+            expect(applicability).to_contain_text("No success criteria were given")
+            expect(applicability).not_to_contain_text("not_established")
             expect(page.locator("article.prose")).not_to_contain_text("Actor-specific GO is approved.")
 
             page.locator('button.tab[data-view="score"]').click()
@@ -631,12 +1002,38 @@ def _exercise_browser(
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_be_visible()
 
+            # Reader feedback: one click crosses the real route to disk, the
+            # second question appears, and the recorded answer is what the API
+            # reads back under the same code. Neither click is a paid request.
+            feedback = page.locator(".feedback")
+            expect(feedback).to_be_visible()
+            expect(feedback.locator(".feedback__parts")).to_be_hidden()
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path == f"/api/runs/{run_id}/feedback"
+                and response.request.method == "POST",
+            ) as answered:
+                feedback.get_by_role("button", name="Yes", exact=True).click()
+            assert answered.value.status == 200
+            expect(feedback.locator(".feedback__status")).to_contain_text("Recorded with this run.")
+            expect(feedback.locator(".feedback__parts")).to_be_visible()
+            feedback.get_by_role("button", name="Report", exact=True).click()
+            expect(feedback.get_by_role("button", name="Report", exact=True)).to_have_attribute("aria-pressed", "true")
+            recorded = page.request.get(f"{base_url}/api/runs/{run_id}/feedback",
+                                        headers={"X-Access-Code": ACCESS_CODE}).json()
+            assert (recorded["recorded"], recorded["changed_view"], recorded["part"]) == (True, "yes", "report")
+
             # Disk -> real HTTP JSON -> actual Chromium textContent, with one
-            # source GET per render. Language switching intentionally re-renders;
+            # source GET per render. A render opens the score tab, which reads
+            # the sources once for its market figures and shares them with the
+            # sources tab. Language switching intentionally re-renders;
             # searching, expanding, paging and revisiting tabs must not re-fetch.
             for chinese in (False, True):
                 if chinese:
-                    page.locator("#ui-lang").select_option("Simplified Chinese")
+                    with page.expect_response(
+                        lambda response: urlsplit(response.url).path == f"/api/runs/{run_id}/sources",
+                    ) as source_read:
+                        page.locator("#ui-lang").select_option("Simplified Chinese")
+                    assert source_read.value.status == 200 and source_read.value.request.method == "GET"
                     expect(page.locator('button.tab[data-view="sources"]')).to_have_text("来源")
                     # Relabelled from the last reading at once, well inside the
                     # 10s idle poll that used to be the only thing changing it.
@@ -645,12 +1042,9 @@ def _exercise_browser(
                     expect(starter).to_have_text("电动汽车用固态电池")
                     expect(starter).to_have_attribute("data-topic", "电动汽车用固态电池")
                 before_sources = source_requests
-                with page.expect_response(
-                    lambda response: urlsplit(response.url).path == f"/api/runs/{run_id}/sources",
-                ) as source_read:
-                    page.locator('button.tab[data-view="sources"]').click()
-                assert source_read.value.status == 200 and source_read.value.request.method == "GET"
-                collection = source_read.value.json()
+                page.locator('button.tab[data-view="sources"]').click()
+                # Outside the page's own network, so it is not counted as a render GET.
+                collection = page.request.get(f"{base_url}/api/runs/{run_id}/sources").json()
                 assert collection == _saved_source_fixture()
                 _exercise_sources_panel(page, collection, chinese=chinese)
                 page.locator('button.tab[data-view="report"]').click()
@@ -658,7 +1052,9 @@ def _exercise_browser(
                 _assert_run_header_layout(page, chinese=chinese)
                 page.locator('button.tab[data-view="sources"]').click()
                 expect(page.locator(".source__id")).to_have_count(50)
-                assert source_requests == before_sources + 1, "Sources controls/tab revisits must use exactly one GET per render."
+                assert source_requests == before_sources, (
+                    "Opening, searching, paging and revisiting the sources tab must not re-fetch: "
+                    "the render's one GET, made for the score tab, is shared.")
             assert source_requests == 2, "Two language renders must produce exactly two source GETs."
             page.locator("#ui-lang").select_option("English")
             expect(page.locator('button.tab[data-view="sources"]')).to_have_text("Sources")
@@ -668,6 +1064,26 @@ def _exercise_browser(
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
 
+            # A citation opens its card from the report's own reference list,
+            # and "Show in Sources" filters the source list to that one ID.
+            chip = page.locator("article.prose .cite").first
+            chip.click()
+            card = page.locator(".cite-card")
+            expect(card).to_be_visible()
+            expect(card).to_contain_text("Bilingual literal .* needle patent")
+            expect(card).to_contain_text("Credibility high")
+            expect(card.locator(".cite-card__open")).to_have_attribute("href", "https://example.test/p1")
+            expect(chip).to_have_attribute("aria-expanded", "true")
+            page.keyboard.press("Escape")
+            expect(card).to_have_count(0)
+            expect(chip).to_be_focused()
+            chip.click()
+            page.locator(".cite-card__show").click()
+            expect(page.locator('button.tab[data-view="sources"]')).to_have_attribute("data-active", "true")
+            expect(page.locator(".sources__search")).to_have_value("P1")
+            expect(page.locator(".source__id")).to_have_count(1)
+            page.locator('button.tab[data-view="report"]').click()
+
             # A direct route is a separate seam from client-side navigation.
             # Reloading proves the server returns the SPA at /run/{id}, the
             # stored code re-authorizes, and the report reaches the DOM again.
@@ -675,12 +1091,22 @@ def _exercise_browser(
             expect(page.locator("#run-terminal")).to_have_text("· worker completed")
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+            # status.json stage start times -> API durations -> folded header summary.
+            expect(page.locator("#run-timing")).to_have_text(
+                "Sources 0:01 · Evidence 0:02 · Report 0:01 · Review 0:01 · Scoring 0:01")
 
             # A new arithmetic receipt is distinct from the legacy unknown
             # above. Verify the same disk bytes over HTTP and actual Chromium;
             # neither a computed field alone nor an old 3.5 score proves this.
             page.goto(f"{base_url}/run/{cap_run_id}", wait_until="domcontentloaded")
+            # Folded even though the cap moved the score: the summary says so in
+            # plain words, and the receipt is one click away rather than open.
+            caveat = page.locator(".scorecard__market-caveat")
+            expect(caveat.locator(".scorecard__market-status")).to_have_text(
+                "Capped at 3.5 / 5 (was 5): the market figures in the sources differ by more than 5×")
             receipt = page.locator(".scorecard__cap-receipt")
+            expect(receipt).to_be_hidden()
+            caveat.locator("summary").click()
             expect(receipt).to_be_visible()
             expect(receipt).to_have_attribute("data-applied", "true")
             expect(receipt).to_contain_text("5 → 3.5 / 5")
@@ -712,6 +1138,9 @@ def _exercise_browser(
             expect(page.locator("#run-usage")).to_contain_text("partial usage")
             expect(page.locator('.stage[data-state="done"]')).to_have_count(0)
             expect(page.locator('.stage[data-state="pending"]')).to_have_count(5)
+            # Recorded durations stay in the header; unverified rows show none.
+            expect(page.locator(".stage .stage__meta")).to_have_count(0)
+            expect(page.locator("#run-timing")).to_contain_text("Sources 0:01")
             expect(page.locator("#run-actions button")).to_have_count(0)
 
             # Nested faults are weaker than completion or the report itself.
@@ -765,6 +1194,20 @@ def _exercise_browser(
                     expect(page.locator("#run-runtime-record")).to_contain_text("Checkpoint persistence")
                 else:
                     expect(page.locator("#run-runtime-record")).to_have_text("")
+
+            # The reason stays on the page beside whether the run counted, and
+            # Resume is the primary action. The malformed-checkpoint fixture
+            # has no charge marker: it gets the reason alone, not a guessed
+            # quota line.
+            outcome = page.locator("#run-outcome")
+            expect(outcome).to_have_text(
+                "The model this deployment is set to rejected the request. Nothing in your request "
+                "caused this; the operator can find it by the run ID. This run counted toward "
+                "today's quota. Resuming from the checkpoint uses another.")
+            expect(page.locator("#run-actions").get_by_role(
+                "button", name="Resume from checkpoint", exact=True)).to_have_class("btn btn--primary")
+            page.goto(f"{base_url}/run/{bad_resume_id}", wait_until="domcontentloaded")
+            expect(outcome).to_have_text("The analysis failed. Retry or contact the operator with the run ID.")
 
             # A BYOK history GET failing transiently is not a failed worker.
             # Keep its capability entry visible, unknown and non-destructive,
@@ -844,6 +1287,8 @@ def _exercise_browser(
         "mutation_attempts": len(mutation_attempts),
         "expected_unauthorized_responses": len(expected_auth_failures),
         "expected_history_unavailable_responses": len(expected_history_failures),
+        "sample_print_reports": sample_print_reports,
+        "sample_contents_reports": sample_contents_reports,
         "console_errors": len(unexpected_console_errors),
         "page_errors": len(page_errors),
     }
@@ -853,6 +1298,7 @@ def main() -> None:
     with TemporaryDirectory(prefix=".browser-smoke-", dir=PROJECT_ROOT) as temp_dir:
         output_root = Path(temp_dir) / "outputs"
         app, access = _configure_isolated_app(output_root)
+        from api import runs as api_runs  # configured by the call above
         run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
         save_source_collection(
             json.dumps(_saved_source_fixture(), ensure_ascii=False), run_id, output_root,
@@ -924,6 +1370,17 @@ def main() -> None:
                     "state": "partial",
                     "committed_nodes": "not_retrieval" if index == 1 else ["retrieval"],
                 }
+                if index == 2:
+                    # The 2026-10-23 production failure as a code-funded run
+                    # that launched: its page must say whose problem it was
+                    # and that the run spent one of the day's slots. The
+                    # marker is the one the API writes, not a hand-made copy.
+                    status_path = output_root / runtime_id / "status.json"
+                    status = json.loads(status_path.read_text(encoding="utf-8"))
+                    status["error"] = ("BadRequestError: Error code: 400 - InvalidParameter: The value "
+                                       "of the enable_thinking parameter is restricted to True.")
+                    status_path.write_text(json.dumps(status), encoding="utf-8")
+                    api_runs._write_daily_charge(output_root / runtime_id, date.today())
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
             audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id)

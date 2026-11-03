@@ -18,7 +18,7 @@ import tomllib
 import httpx
 import pytest
 
-import report_evidence_real_saved_canary as cli
+from experiments.report_evidence_canaries import report_evidence_real_saved_canary as cli
 from academic_agent import report_evidence_real_saved_qwen_canary as canary
 from academic_agent.report_evidence_final_json_qwen_canary import _publish_result as frozen_publish
 
@@ -873,7 +873,7 @@ def test_publication_order_and_no_overwrite(offline, publication_io):
 def test_executing_import_closure_including_publisher_is_bound(offline):
     """Imports execute even when only one helper is used; no hidden old-runner dependency is omitted."""
     assert canary._publish_result is frozen_publish
-    pending = ["src/academic_agent/report_evidence_real_saved_qwen_canary.py", "report_evidence_real_saved_canary.py"]
+    pending = ["src/academic_agent/report_evidence_real_saved_qwen_canary.py", "experiments/report_evidence_canaries/report_evidence_real_saved_canary.py"]
     seen = set()
     while pending:
         name = pending.pop()
@@ -926,7 +926,7 @@ os._Environ.get = getenv
 pathlib.Path.mkdir = blocked
 httpx.AsyncClient = httpx.Client = blocked
 socket.create_connection = blocked
-import report_evidence_real_saved_canary
+from experiments.report_evidence_canaries import report_evidence_real_saved_canary
 assert "dotenv" not in sys.modules
 print("import_only_no_effects")
 '''

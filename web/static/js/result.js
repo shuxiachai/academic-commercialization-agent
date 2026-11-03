@@ -61,10 +61,36 @@ function inline(text) {
     .replace(/`(.+?)`/g, "<code>$1</code>")
     // Citation markers get their own affordance: they are the reason the
     // report is auditable, and running them together with prose hides that.
+    // Each opens a card for its sources (attachCitations); a run of
+    // consecutive IDs ("P1, P2, … P8") reads as one range.
     .replace(/\[([APM]\d+(?:\s*,\s*[APM]\d+)*)\]/g,
-             '<span class="cite">[$1]</span>')
+             (_, group) => citeChipHtml(group.split(/\s*,\s*/)))
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
              '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
+/** "P3–P8" for three or more consecutive IDs of one kind, else "A1, M2". */
+function citeLabel(ids) {
+  const numbers = ids.map(id => Number(id.slice(1)));
+  const sameKind = ids.every(id => id[0] === ids[0][0]);
+  const consecutive = numbers.every((n, i) => i === 0 || n === numbers[i - 1] + 1);
+  return ids.length >= 3 && sameKind && consecutive
+    ? `${ids[0]}–${ids[ids.length - 1]}` : ids.join(", ");
+}
+
+// IDs are [APM]\d+ by the caller's pattern, so they are safe in markup.
+function citeChipHtml(ids) {
+  return `<button type="button" class="cite" data-cite="${ids.join(" ")}" ` +
+    `aria-haspopup="dialog" aria-expanded="false">[${citeLabel(ids)}]</button>`;
+}
+
+function citeButton(ids) {
+  const button = el("button", "cite", `[${citeLabel(ids)}]`);
+  button.type = "button";
+  button.dataset.cite = ids.join(" ");
+  button.setAttribute("aria-haspopup", "dialog");
+  button.setAttribute("aria-expanded", "false");
+  return button;
 }
 
 export function renderMarkdown(md) {
@@ -137,6 +163,173 @@ export function renderMarkdown(md) {
   return out.join("\n");
 }
 
+/* ── Citation cards ────────────────────────────────────────────────────
+ * The report's own reference list is the index: every delivered report ends
+ * with "[A1] Title. Venue. Published: … Credibility: … URL" lines written by
+ * code, and the sample reader has nothing else. So a card needs no request
+ * beyond the report itself. */
+
+const REFERENCE_LINE = /^\[([APM]\d+)\]\s+(.+)$/;
+
+/** id -> { label, published, credibility, url } from a report's references. */
+// Market sources now carry the date their own page states, and in the
+// held-out runs 38 of 85 dated ones were over a year old when collected.
+// Old company news reads as current unless the page says otherwise, so a
+// market source says its age. Papers and patents are old by nature and do not.
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const YEAR_MS = 365.25 * 24 * 3600 * 1000;
+
+/** Whole years from a market source's publication to its access, when one or more; else null. */
+export function marketSourceAge(id, published, accessed) {
+  if (!/^M\d+$/.test(id ?? "") || !ISO_DAY.test(published ?? "") || !ISO_DAY.test(accessed ?? "")) return null;
+  const years = Math.floor((Date.parse(accessed) - Date.parse(published)) / YEAR_MS);
+  return years >= 1 ? years : null;
+}
+
+function ageText(years) {
+  return years === 1 ? t("source_age_one") : t("source_age_many").replace("{n}", String(years));
+}
+
+export function citationIndex(md) {
+  const index = new Map();
+  for (const raw of String(md ?? "").split("\n")) {
+    const match = raw.trim().match(REFERENCE_LINE);
+    if (!match || index.has(match[1])) continue;
+    const text = match[2];
+    const url = text.match(/(https?:\/\/\S+)\s*$/)?.[1].replace(/[).,;]+$/, "") ?? null;
+    // English as saved, or the Chinese labels report_display.py shows.
+    const published = text.match(/Published:\s*([^\s.][^.]*?)\.(?:\s|$)/)?.[1]
+      ?? text.match(/发布：\s*([^\s·]+)/)?.[1] ?? null;
+    const accessed = text.match(/Accessed:\s*(\d{4}-\d{2}-\d{2})/)?.[1]
+      ?? text.match(/访问：\s*(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
+    const credibility = text.match(/Credibility:\s*(high|medium|low)\b/i)?.[1].toLowerCase()
+      ?? { 高: "high", 中: "medium", 低: "low" }[text.match(/可信度：\s*([高中低])/)?.[1]] ?? null;
+    const cut = text.search(/\s(?:Published|Accessed|Type|Credibility):|\s(?:发布|访问|类型|可信度)：/);
+    const label = (cut > 0 ? text.slice(0, cut) : text.replace(/https?:\/\/\S+\s*$/, ""))
+      .trim().replace(/[.\s]+$/, "");
+    const dated = ["n.d", "未注明"].includes(published) ? null : published;
+    index.set(match[1], { label, published: dated, accessed, credibility,
+                          age: marketSourceAge(match[1], dated?.slice(0, 10), accessed),
+                          url: url ? savedSourceUrl(url) : null });
+  }
+  return index;
+}
+
+let openCard = null;
+let cardListeners = false;
+
+function closeCitationCard({ refocus = false } = {}) {
+  if (!openCard) return;
+  const { card, trigger } = openCard;
+  openCard = null;
+  card.remove();
+  trigger.setAttribute("aria-expanded", "false");
+  if (refocus) trigger.focus();
+}
+
+function renderCitationCard(ids, index, onShowInSources) {
+  const card = el("div", "cite-card");
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-label", t("cite_card_label"));
+  const close = el("button", "cite-card__close", "×");
+  close.type = "button";
+  close.setAttribute("aria-label", t("cite_close"));
+  close.addEventListener("click", () => closeCitationCard({ refocus: true }));
+  card.append(close);
+  const list = el("ul", "cite-card__list");
+  for (const id of ids) {
+    const item = el("li", "cite-card__item");
+    item.append(el("span", "cite-card__id", id));
+    const body = el("div", "cite-card__body");
+    const entry = index.get(id);
+    if (!entry) {
+      body.append(el("p", "cite-card__missing", t("cite_unknown")));
+    } else {
+      body.append(el("p", "cite-card__label", entry.label));
+      const meta = [];
+      if (entry.published) meta.push(`${t("cite_published")} ${entry.published.slice(0, 10)}`);
+      if (entry.age) meta.push(ageText(entry.age));
+      if (entry.credibility) meta.push(`${t("cite_credibility")} ${t("tier_" + entry.credibility)}`);
+      if (meta.length) body.append(el("p", "cite-card__meta", meta.join(" · ")));
+      const actions = el("div", "cite-card__actions");
+      if (entry.url) {
+        const link = el("a", "cite-card__open", t("cite_open"));
+        link.href = entry.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        actions.append(link);
+      }
+      if (onShowInSources) {
+        const show = el("button", "cite-card__show", t("cite_in_sources"));
+        show.type = "button";
+        show.addEventListener("click", () => { closeCitationCard(); onShowInSources(id); });
+        actions.append(show);
+      }
+      if (actions.childNodes.length) body.append(actions);
+    }
+    item.append(body);
+    list.append(item);
+  }
+  card.append(list);
+  return card;
+}
+
+function placeCitationCard(card, trigger) {
+  // A narrow screen gets a bottom sheet from CSS; only wide ones follow the chip.
+  if (window.matchMedia?.("(max-width: 640px)").matches) return;
+  const rect = trigger.getBoundingClientRect();
+  const width = card.offsetWidth;
+  const height = card.offsetHeight;
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+  const below = rect.bottom + 6;
+  const top = below + height > window.innerHeight - 8 ? Math.max(8, rect.top - height - 6) : below;
+  card.style.left = `${left}px`;
+  card.style.top = `${top}px`;
+}
+
+/**
+ * Open a card for a citation chip clicked inside `root`.
+ *
+ * `getIndex` resolves to a citationIndex(); the scorecard passes one that
+ * fetches the report on first use. `onShowInSources(id)`, when given, adds a
+ * "Show in Sources" action.
+ */
+function listenForCardDismissal() {
+  // Installed when the first card opens, not at import: the renderer is also
+  // loaded where no card is ever opened.
+  if (cardListeners) return;
+  cardListeners = true;
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeCitationCard({ refocus: true });
+  });
+  document.addEventListener("click", (event) => {
+    if (openCard && !openCard.card.contains(event.target) && event.target !== openCard.trigger) {
+      closeCitationCard();
+    }
+  });
+  window.addEventListener("resize", () => closeCitationCard());
+}
+
+export function attachCitations(root, getIndex, { onShowInSources = null } = {}) {
+  root.addEventListener("click", async (event) => {
+    const trigger = event.target.closest?.(".cite[data-cite]");
+    if (!trigger || !root.contains(trigger)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (openCard?.trigger === trigger) { closeCitationCard(); return; }
+    closeCitationCard();
+    let index;
+    try { index = await getIndex(); } catch { index = new Map(); }
+    const card = renderCitationCard(trigger.dataset.cite.split(" "), index, onShowInSources);
+    listenForCardDismissal();
+    document.body.append(card);
+    placeCitationCard(card, trigger);
+    trigger.setAttribute("aria-expanded", "true");
+    openCard = { card, trigger };
+    card.querySelector(".cite-card__open, .cite-card__show, .cite-card__close")?.focus({ preventScroll: true });
+  });
+}
+
 /* ── Scorecard ─────────────────────────────────────────────────────── */
 
 // Read validation only: never repair stored JSON or recompute its score.
@@ -165,7 +358,164 @@ function readableMarketCap(scores, signal) {
   return a;
 }
 
-function renderScorecard(scores) {
+/* ── Market-size figures, by the market each source names ──────────── */
+
+// Every market-size figure the run's market sources state, kept with the
+// market its own source defines (read from the source title: "Hard Carbon
+// Anode Materials Market Size…" names hard carbon anode materials) and the
+// year written next to it. Figures sit side by side only within one market,
+// one year and one currency; across markets they are listed, never compared,
+// and the score is never touched. Measured on 181 saved runs before this was
+// written: pooling every figure gave a median 157× spread, and the same
+// title-scope and year still differ 7× between firms. Grouping is a reading
+// aid that tells a reader what each number is, not a reconciliation.
+const ESTIMATE_RE = /(USD|US\$|\$|€|EUR|£|GBP)\s*(\d[\d,]*(?:\.\d+)?)\s*(trillion|billion|million|bn|mn)\b/giu;
+const ESTIMATE_YEAR_RE = /\b(20\d{2})\b/u;
+const ESTIMATE_YEARS_RE = /\b(20\d{2})\b/gu;
+const TITLE_SCOPE_RE = /^(?:(?:global|worldwide|u\.s\.|us|north america|europe|china|asia[- ]pacific|india)\s+)?(.+?)\s+market\b/iu;
+const SCOPE_NOISE = new Set(["the", "a", "an", "global", "worldwide"]);
+const ESTIMATE_ROW_LIMIT = 200;
+
+function titleScope(title) {
+  if (typeof title !== "string") return null;
+  const flat = title.replace(/[|–—]/g, "-").replace(/\s+/g, " ").trim();
+  const match = flat.match(TITLE_SCOPE_RE);
+  if (!match) return null;
+  const words = match[1].split(" ").filter(w => w && !SCOPE_NOISE.has(w.toLowerCase()));
+  // The last words name the thing; anything earlier is a qualifier. The key
+  // ignores spacing, hyphens, case and a plural: "CAR T-cell Therapy",
+  // "CAR-T Cell Therapies" and "Solid-State Battery" / "Solid State Battery"
+  // are each one market, as the saved runs spell them.
+  const tail = words.slice(-4);
+  let key = tail.join("").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (key.endsWith("ies")) key = key.slice(0, -3) + "y";
+  else if (key.endsWith("s") && !key.endsWith("ss")) key = key.slice(0, -1);
+  return key ? { key, label: tail.join(" ") } : null;
+}
+
+const CURRENCY_NAMES = { "$": "USD", "US$": "USD", "USD": "USD", "€": "EUR", "EUR": "EUR", "£": "GBP", "GBP": "GBP" };
+
+function estimateYear(text, start, end) {
+  const after = text.slice(end, end + 45).match(ESTIMATE_YEAR_RE);
+  if (after) return after[1];
+  const before = [...text.slice(Math.max(0, start - 45), start).matchAll(ESTIMATE_YEARS_RE)];
+  return before.length ? before[before.length - 1][1] : null;
+}
+
+export function marketEstimates(sources) {
+  const rows = [];
+  const list = detailRecord(sources) && Array.isArray(sources.market_sources) ? sources.market_sources : [];
+  for (const source of list.slice(0, ESTIMATE_ROW_LIMIT)) {
+    if (!detailRecord(source) || typeof source.source_id !== "string" || !/^M\d+$/.test(source.source_id)) continue;
+    const text = typeof source.evidence_summary === "string" ? source.evidence_summary : "";
+    const scope = titleScope(source.title);
+    const firm = typeof source.publisher === "string" && source.publisher.trim() ? source.publisher.trim() : null;
+    // A summary often repeats one figure ("valued at X in 2025 … from X in
+    // 2026 to Y by 2035"); the first mention carries its own year, later ones
+    // sit next to somebody else's. One row per figure per source.
+    const seen = new Set();
+    for (const match of text.matchAll(ESTIMATE_RE)) {
+      const value = Number(match[2].replace(/,/g, ""));
+      if (!Number.isFinite(value) || value <= 0) continue;
+      const unit = match[3].toLowerCase();
+      const billions = value * (unit === "trillion" ? 1000 : unit === "million" || unit === "mn" ? 0.001 : 1);
+      const currency = CURRENCY_NAMES[match[1].toUpperCase()] ?? match[1].toUpperCase();
+      const mark = `${currency}|${billions}`;
+      if (seen.has(mark)) continue;
+      seen.add(mark);
+      rows.push({
+        id: source.source_id, firm, scope, billions, currency,
+        year: estimateYear(text, match.index, match.index + match[0].length),
+        figure: match[0].replace(/\s+/g, " "),
+      });
+    }
+  }
+  const groups = new Map();
+  for (const row of rows) {
+    const key = row.scope ? row.scope.key : "";
+    if (!groups.has(key)) groups.set(key, { scope: row.scope, rows: [] });  // first spelling names the group
+    groups.get(key).rows.push(row);
+  }
+  // Within one market, one year and one currency: the only comparison made.
+  let ratio = null;
+  for (const group of groups.values()) {
+    if (!group.scope) continue;
+    const bins = new Map();
+    for (const row of group.rows) {
+      if (!row.year) continue;
+      const key = `${row.year}|${row.currency}`;
+      bins.set(key, [...(bins.get(key) ?? []), row.billions]);
+    }
+    for (const values of bins.values()) {
+      if (values.length < 2) continue;
+      const spread = Math.max(...values) / Math.min(...values);
+      ratio = ratio === null ? spread : Math.max(ratio, spread);
+    }
+  }
+  const byYear = (a, b) => (a.year ?? "9999").localeCompare(b.year ?? "9999")
+    || a.id.localeCompare(b.id, undefined, { numeric: true });
+  const scoped = [...groups.values()].filter(g => g.scope).sort((a, b) => b.rows.length - a.rows.length);
+  for (const group of groups.values()) group.rows.sort(byYear);
+  return {
+    rows, groups: scoped, unscoped: groups.get("")?.rows ?? [],
+    firms: new Set(rows.map(r => r.firm ?? r.id)).size, scopes: scoped.length, sameScopeYearRatio: ratio,
+  };
+}
+
+function renderMarketEstimates(sources) {
+  const found = marketEstimates(sources);
+  const wrap = el("div", "market-estimates");
+  wrap.dataset.figures = String(found.rows.length);
+  wrap.dataset.scopes = String(found.scopes);
+  if (!found.rows.length) {
+    wrap.append(el("p", "market-estimates__lede", t("market_estimates_none")));
+    return wrap;
+  }
+  const fill = (key, values) => Object.entries(values).reduce(
+    (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), t(key));
+  const ratio = found.sameScopeYearRatio;
+  const spread = ratio === null ? t("market_estimates_no_pair")
+    : fill("market_estimates_same", { ratio: ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1) });
+  wrap.append(el("p", "market-estimates__lede",
+    fill("market_estimates_headline", { n: found.rows.length, firms: found.firms, scopes: found.scopes, spread })));
+  const sections = [...found.groups, ...(found.unscoped.length ? [{ scope: null, rows: found.unscoped }] : [])];
+  for (const group of sections) {
+    const section = el("div", "market-estimates__group");
+    section.dataset.scope = group.scope ? group.scope.key : "";
+    section.append(el("h4", "market-estimates__scope", group.scope ? group.scope.label : t("market_estimates_unscoped")));
+    const table = el("table", "market-estimates__table");
+    const head = el("tr", null);
+    for (const column of ["source", "firm", "year", "figure"]) head.append(el("th", null, t(`market_estimates_col_${column}`)));
+    table.append(head);
+    for (const row of group.rows) {
+      const line = el("tr", "market-estimates__row");
+      const source = el("td", "market-estimates__source");
+      source.append(citeButton([row.id]));
+      line.append(source, el("td", null, row.firm ?? "—"), el("td", "tabular", row.year ?? "—"),
+                  el("td", "tabular market-estimates__figure", row.figure));
+      table.append(line);
+    }
+    section.append(table);
+    wrap.append(section);
+  }
+  wrap.append(el("p", "market-estimates__note", t("market_estimates_note")));
+  return wrap;
+}
+
+// A run from before the receipt existed has no record to read; a damaged
+// receipt has one that cannot be trusted. Both stay unknown, but saying
+// "unreadable" about a record that was never written reads as a fault.
+function marketCapSummary(scores, cap) {
+  if (!cap) {
+    return t(Object.hasOwn(scores, "market_cap_audit") ? "market_cap_summary_unknown" : "market_cap_summary_absent");
+  }
+  if (!cap.applied) return t("market_cap_summary_unchanged");
+  return t("market_cap_summary_applied")
+    .replace("{from}", () => String(cap.pre_cap_score))
+    .replace("{to}", () => String(cap.post_cap_score));
+}
+
+function renderScorecard(scores, sources = null) {
   const wrap = el("section", "scorecard");
   if (!detailRecord(scores)) { wrap.append(detailUnavailable()); return wrap; }
   const overall = scores.overall_score;
@@ -208,8 +558,23 @@ function renderScorecard(scores) {
     row.append(label, bar, num);
     if (!valid) row.append(detailUnavailable());
 
-    const rationale = scores[dim.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "") + "_rationale"];
-    if (valid && typeof rationale === "string" && rationale) row.title = rationale;
+    // Shown, not hidden in a hover title: "why 4 / 9" is the question a
+    // reader of a score asks first, and touch screens have no hover.
+    const base = dim.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "");
+    const rationale = scores[base + "_rationale"];
+    if (valid && typeof rationale === "string" && rationale) {
+      const why = el("details", "dim__why");
+      why.append(el("summary", null, t("dim_why").replace("{value}", () => `${value} / ${dim.max}`)));
+      why.append(el("p", "dim__rationale", rationale));
+      const ids = scores[base + "_source_ids"];
+      const cited = detailStrings(ids) ? ids.filter(id => /^[APM]\d+$/.test(id)) : [];
+      if (cited.length) {
+        const line = el("p", "dim__sources", `${t("dim_sources")}: `);
+        line.append(citeButton(cited));
+        why.append(line);
+      }
+      row.append(why);
+    }
 
     grid.append(row);
   }
@@ -225,14 +590,25 @@ function renderScorecard(scores) {
   );
   const signal = Object.hasOwn(scores, "market_uncertainty") && flag === null
     ? "not_triggered" : match && match[0] === flag ? "triggered" : "unavailable";
-  const caveat = el("section", "notes scorecard__market-caveat");
+  // Always folded. The title keeps the non-assessment ("not assessed"), and
+  // the line beside it says in plain words whether the score moved and why;
+  // the receipt and the legacy-rule wording sit one click away. It used to
+  // open whenever the cap moved the score, which put that engineering text
+  // above the risks on exactly the runs a reader worries about most.
+  const caveat = el("details", "notes scorecard__market-caveat");
   caveat.dataset.comparability = "not_assessed";
   caveat.dataset.legacySignal = signal;
-  caveat.append(
-    el("h4", "notes__title", t("market_comparison_title")),
-    el("p", null, t("market_comparison_limit")),
-  );
   const cap = readableMarketCap(scores, signal);
+  caveat.open = false;
+  const caveatSummary = el("summary", "scorecard__market-summary");
+  caveatSummary.append(
+    el("span", "notes__title", t("market_comparison_title")),
+    el("span", "scorecard__market-status", marketCapSummary(scores, cap)),
+  );
+  caveat.append(caveatSummary, el("p", null, t("market_comparison_limit")));
+  // The figures themselves, each under the market its source names, so the
+  // reader sees what the untyped spread was made of instead of one ratio.
+  if (sources !== null) caveat.append(renderMarketEstimates(sources));
   if (cap) {
     const receipt = el("p", "scorecard__cap-receipt",
       t("market_cap_record") + ": " + cap.pre_cap_score + " → " + cap.post_cap_score + " / 5. " +
@@ -275,27 +651,344 @@ export function decisionApplicability(gate) {
   };
 }
 
+const DECISION_MODES = ["orientation", "decision_context_incomplete", "decision_support"];
+const THRESHOLD_PROVENANCE = ["not_established", "user_supplied_unapproved", "owner_approved"];
+
 function renderDecisionApplicability(gate) {
   const summary = decisionApplicability(gate);
   if (!summary) return null;
   const wrap = el("section", "decision-applicability");
-  wrap.append(el("span", "decision-applicability__title", t("decision_applicability_title")));
-  const details = el("p", "decision-applicability__detail");
-  details.append(
-    document.createTextNode(t("decision_mode") + ": "),
-    el("code", null, summary.mode),
-    document.createTextNode(". "),
-  );
-  details.append(
-    document.createTextNode(summary.applicability + " "),
-    document.createTextNode(t("decision_threshold_provenance") + ": "),
-    el("code", null, summary.provenance),
-  );
-  wrap.append(details);
+  // The codes stay on the element for audit and tests; readers get sentences.
+  wrap.dataset.mode = summary.mode;
+  wrap.dataset.provenance = summary.provenance;
+  wrap.title = `${t("decision_mode")}: ${summary.mode} · ${t("decision_threshold_provenance")}: ${summary.provenance}`;
+  wrap.append(el("span", "decision-applicability__title", t("decision_scope_title")));
+  const mode = DECISION_MODES.includes(summary.mode) ? summary.mode : "unknown";
+  // decision_support is the only mode that permits GO/NO_GO; a gate that says
+  // otherwise is described by its permission, never upgraded by its label.
+  const scope = mode === "decision_support" && !gate.go_no_go_allowed
+    ? summary.applicability : t(`decision_scope_${mode}`);
+  const sentences = [scope];
+  if (THRESHOLD_PROVENANCE.includes(summary.provenance)) {
+    sentences.push(t(`decision_criteria_${summary.provenance}`));
+  }
+  wrap.append(el("p", "decision-applicability__detail", sentences.join(" ")));
   return wrap;
 }
 
+
+/* ── Decision brief ────────────────────────────────────────────────────
+ * One screen above the tabs: the verdict, the strongest piece of evidence
+ * behind it, the biggest risk, the first recommended step, and what new
+ * evidence would move the number. Every line is read from an artifact the
+ * reader can open below (scorecard, report, sources, checks) and names
+ * where it came from. Nothing here is a new judgement and no model is
+ * called: a reader who has thirty seconds gets the same facts a reader of
+ * the whole report gets, in the order a decision needs them. */
+
+const CITATION_RUN = /[[(]\s*([APM]\d+(?:\s*[,;]\s*[APM]\d+)*)\s*[\])]/g;
+const SUMMARY_HEADINGS = /executive summary|执行摘要/i;
+const RECOMMENDATION_HEADINGS = /commercialization opportunities|商业化机遇|商业化机会/i;
+const BRIEF_SENTENCE_LIMIT = 240;
+
+// Text with its citation markers turned into the buttons the report uses.
+function citedText(text) {
+  const span = el("span", "brief__text");
+  let last = 0;
+  for (const match of text.matchAll(CITATION_RUN)) {
+    if (match.index > last) span.append(text.slice(last, match.index));
+    span.append(citeButton(match[1].split(/\s*[,;]\s*/)));
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) span.append(text.slice(last));
+  return span;
+}
+
+// "This assessment synthesizes evidence from four papers…" opens a fifth of
+// the saved reports; it describes the report, not the technology.
+const METHOD_OPENER = /^(?:this|the)\s+(?:assessment|report|analysis|document|evaluation)\b|^本(?:报告|评估|分析|文)/iu;
+
+function sentencesOf(text) {
+  const clean = text.replace(CITATION_RUN, "").replace(/\*\*/g, "").replace(/\s+/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1").replace(/\(\s*\)/g, "").trim();
+  return clean.match(/[^.!?。！？]+[.!?。！？]+|[^.!?。！？]+$/gu)?.map(s => s.trim()).filter(Boolean) ?? [];
+}
+
+function firstSentence(text, { skipMethod = false } = {}) {
+  const sentences = sentencesOf(text);
+  let sentence = sentences.find(s => !(skipMethod && METHOD_OPENER.test(s))) ?? sentences[0] ?? "";
+  if (sentence.length > BRIEF_SENTENCE_LIMIT) {
+    const cut = sentence.slice(0, BRIEF_SENTENCE_LIMIT - 1);
+    const space = cut.lastIndexOf(" ");
+    sentence = (space > BRIEF_SENTENCE_LIMIT - 40 ? cut.slice(0, space) : cut).replace(/[\s,;:]+$/, "") + "…";
+  }
+  return sentence || null;
+}
+
+/** The first sentence of the report's own executive summary, or null. */
+function executiveSummaryLead(markdown) {
+  let inside = false;
+  for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
+    if (/^##\s/.test(line)) { inside = SUMMARY_HEADINGS.test(line); continue; }
+    if (/^#\s/.test(line) || !inside) continue;
+    const text = line.trim();
+    if (text && !/^[-*]\s|^\d+[.)]\s|^###|^>/.test(text)) return firstSentence(text, { skipMethod: true });
+  }
+  return null;
+}
+
+/** The first list item of the recommendations section, or null. */
+function firstRecommendation(markdown) {
+  let inside = false;
+  for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
+    if (/^##\s/.test(line)) { inside = RECOMMENDATION_HEADINGS.test(line); continue; }
+    if (!inside || /^>/.test(line.trim())) continue;
+    // A list item, or a paragraph that opens with a bold heading ("**Opportunity 1: …**").
+    const item = line.match(/^\s*(?:[-*]|\d+[.)])\s+(.+)$/) ?? line.match(/^\s*(\*\*.+)$/);
+    if (item) return firstSentence(item[1]) || null;
+  }
+  return null;
+}
+
+const SOURCE_LISTS = ["academic_sources", "patent_sources", "market_sources"];
+const TIER_RANK = { high: 0, medium: 1, low: 2 };
+
+/** The best-rated of the cited sources: {id, title, tier, year}; {id} without a registry; null without ids. */
+function pickEvidence(ids, sources) {
+  if (!ids.length) return null;
+  const rows = new Map();
+  if (detailRecord(sources)) {
+    for (const list of SOURCE_LISTS) {
+      for (const row of Array.isArray(sources[list]) ? sources[list] : []) {
+        if (detailRecord(row) && typeof row.source_id === "string") rows.set(row.source_id, row);
+      }
+    }
+  }
+  const known = ids.map(id => ({ id, row: rows.get(id) }));
+  known.sort((a, b) => (TIER_RANK[a.row?.credibility_tier] ?? 3) - (TIER_RANK[b.row?.credibility_tier] ?? 3));
+  const { id, row } = known[0];
+  if (!row) return { id };
+  const tier = TIER_RANK[row.credibility_tier] !== undefined ? row.credibility_tier : null;
+  const year = typeof row.published_date === "string" && /^\d{4}/.test(row.published_date) ? row.published_date.slice(0, 4) : null;
+  return { id, title: typeof row.title === "string" ? row.title : null, tier, year };
+}
+
+const DOMAIN_LABELS = { academic: "group_academic", patent: "group_patents", market: "group_market" };
+const BRIEF_CHANGERS_LIMIT = 4;
+
+/** What new evidence would move the verdict, read from the checks that qualify it. */
+function whatWouldChange(scores, progress) {
+  const out = [];
+  const grounding = detailRecord(progress?.claim_grounding) ? progress.claim_grounding : null;
+  if (scoreNumber(scores.evidence_confidence, 5) && scores.evidence_confidence < 3) {
+    out.push({ key: "brief_change_evidence", value: scores.evidence_confidence });
+  }
+  if ((scoreNumber(scores.market_accessibility, 5) && scores.market_accessibility <= 2.5) || scores.market_uncertainty) {
+    out.push({ key: "brief_change_market" });
+  }
+  if (grounding && detailCount(grounding.ungrounded) && grounding.ungrounded > 0) {
+    out.push({ key: "brief_change_ungrounded", n: grounding.ungrounded });
+  } else if (grounding && grounding.checked === 0 && detailCount(grounding.unverifiable) && grounding.unverifiable > 0) {
+    out.push({ key: "brief_change_grounding", n: grounding.unverifiable });
+  }
+  if (detailRecord(progress?.consistency) && detailCount(progress.consistency.blockers) && progress.consistency.blockers > 0) {
+    out.push({ key: "brief_change_consistency" });
+  }
+  const counts = detailRecord(progress?.source_counts) ? progress.source_counts : null;
+  for (const domain of ["academic", "patent", "market"]) {
+    if (counts && detailCount(counts[domain]) && counts[domain] < 3) out.push({ key: "brief_change_sources", domain, n: counts[domain] });
+  }
+  if (progress?.decision_gate?.mode !== "decision_support") out.push({ key: "brief_change_context" });
+  return out.slice(0, BRIEF_CHANGERS_LIMIT);
+}
+
+export function decisionBrief({ scores, markdown = "", sources = null, progress = null }) {
+  if (!detailRecord(scores) || !scoreNumber(scores.overall_score, 100)) return null;
+  const overall = scores.overall_score;
+  const dims = DIMENSIONS
+    .map(dim => ({ ...dim, value: scores[dim.key] }))
+    .filter(dim => scoreNumber(dim.value, dim.max) && dim.value >= 1)
+    .map(dim => ({ ...dim, share: dim.value / dim.max }));
+  const strongest = dims.length ? dims.reduce((a, b) => (b.share > a.share ? b : a)) : null;
+  const weakest = dims.length ? dims.reduce((a, b) => (b.share < a.share ? b : a)) : null;
+  const trl = typeof scores.trl_label === "string" && scores.trl_label.trim() ? scores.trl_label.trim()
+    : scoreNumber(scores.trl_score, 9) && scores.trl_score >= 1 ? `TRL ${scores.trl_score}` : null;
+  const text = typeof markdown === "string" ? markdown : "";
+  const base = strongest ? strongest.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "") : null;
+  const citedIds = base && detailStrings(scores[base + "_source_ids"])
+    ? scores[base + "_source_ids"].filter(id => /^[APM]\d+$/.test(id)) : [];
+  const risk = detailStrings(scores.key_risks) && scores.key_risks[0]?.trim() ? scores.key_risks[0].trim() : null;
+  const opportunity = detailStrings(scores.key_opportunities) && scores.key_opportunities[0]?.trim()
+    ? scores.key_opportunities[0].trim() : null;
+  return {
+    overall, band: band(overall), trl,
+    mrl: scoreNumber(scores.mrl_score, 10) && scores.mrl_score >= 1 ? scores.mrl_score : null,
+    strongest, weakest,
+    summary: executiveSummaryLead(text),
+    evidence: pickEvidence(citedIds, sources),
+    risk,
+    next: firstRecommendation(text) ?? opportunity,
+    changers: whatWouldChange(scores, progress),
+  };
+}
+
+const fillText = (key, values = {}) => Object.entries(values).reduce(
+  (out, [name, value]) => out.replace(`{${name}}`, () => String(value)), t(key));
+
+function renderDecisionBrief(data) {
+  const wrap = el("section", "brief");
+  wrap.dataset.tone = data.band.tone;
+  const head = el("div", "brief__head");
+  head.append(el("span", "brief__title", t("brief_title")));
+  head.append(el("strong", "brief__verdict", fillText("brief_verdict", { band: data.band.name, score: data.overall.toFixed(1) })));
+  const readiness = [data.trl, data.mrl !== null ? fillText("brief_mrl", { mrl: data.mrl }) : null].filter(Boolean).join(" · ");
+  if (readiness) head.append(el("span", "brief__readiness", readiness));
+  wrap.append(head);
+
+  const lines = el("div", "brief__lines");
+  if (data.strongest && data.weakest) {
+    lines.append(el("p", "brief__line brief__dims", fillText("brief_dims", {
+      strong: t(data.strongest.label), strong_value: `${data.strongest.value} / ${data.strongest.max}`,
+      weak: t(data.weakest.label), weak_value: `${data.weakest.value} / ${data.weakest.max}`,
+    })));
+  }
+  if (data.summary) {
+    const line = el("p", "brief__line brief__summary");
+    line.append(el("span", "brief__label", t("brief_report_says") + " "), el("q", null, data.summary));
+    lines.append(line);
+  }
+  wrap.append(lines);
+
+  const cards = el("div", "brief__cards");
+  const card = (name, label, body) => {
+    const node = el("div", "brief__card");
+    node.dataset.card = name;
+    node.append(el("span", "brief__label", label));
+    node.append(body);
+    cards.append(node);
+  };
+  if (data.evidence) {
+    const body = el("p", "brief__text");
+    body.append(citeButton([data.evidence.id]));
+    const parts = [data.evidence.title, data.evidence.tier ? t("tier_" + data.evidence.tier) : null, data.evidence.year].filter(Boolean);
+    if (parts.length) body.append(" " + parts.join(" · "));
+    card("evidence", t("brief_evidence"), body);
+  } else {
+    card("evidence", t("brief_evidence"), el("p", "brief__text brief__empty", t("brief_evidence_none")));
+  }
+  card("risk", t("brief_risk"), data.risk ? citedText(data.risk) : el("p", "brief__text brief__empty", t("brief_risk_none")));
+  card("next", t("brief_next"), data.next ? citedText(data.next) : el("p", "brief__text brief__empty", t("brief_next_none")));
+  wrap.append(cards);
+
+  const changers = el("div", "brief__changers");
+  changers.append(el("span", "brief__label", t("brief_changers")));
+  const list = el("ul", "brief__changer-list");
+  const items = data.changers.length ? data.changers : [{ key: "brief_change_none" }];
+  for (const item of items) {
+    const li = el("li", "brief__changer", fillText(item.key, {
+      value: item.value, n: item.n, domain: item.domain ? t(DOMAIN_LABELS[item.domain]) : "",
+    }));
+    li.dataset.reason = item.key.replace("brief_change_", "");
+    list.append(li);
+  }
+  changers.append(list);
+  wrap.append(changers);
+  wrap.append(el("p", "brief__note", t("brief_note")));
+  return wrap;
+}
+
+/** "Overall 41.9 / 100 · Early · Technology readiness 4 / 9" above the report. */
+function renderReportScoreLine(scores, onOpenScorecard) {
+  if (!detailRecord(scores) || !scoreNumber(scores.overall_score, 100)) return null;
+  const trl = scoreNumber(scores.trl_score, 9) && scores.trl_score >= 1 ? String(scores.trl_score) : "—";
+  const line = el("div", "report-score");
+  line.append(el("span", "report-score__text", t("report_score_line")
+    .replace("{score}", () => scores.overall_score.toFixed(1))
+    .replace("{band}", () => band(scores.overall_score).name)
+    .replace("{trl}", () => trl)));
+  const open = el("button", "report-score__open", t("report_score_link"));
+  open.type = "button";
+  open.addEventListener("click", onOpenScorecard);
+  line.append(open);
+  return line;
+}
+
 /* ── Public ────────────────────────────────────────────────────────── */
+
+/* ── Reader feedback ───────────────────────────────────────────────────
+ * One click under the tabs: did the report change how the reader sees the
+ * decision, and which part mattered. A closed vocabulary and no text, kept
+ * with the run for the operator's ops report. Nobody else's answer is shown.
+ */
+const FEEDBACK_ANSWERS = ["yes", "no", "unsure"];
+const FEEDBACK_PARTS = ["scorecard", "report", "sources", "checks"];
+
+/**
+ * The feedback block for one recorded state. `onAnswer(changed_view, part)`
+ * runs on a click. Pure in the state, so it can be asserted on without a
+ * network; the mount below fetches, renders, and re-renders on each reply.
+ */
+export function feedbackView(state, onAnswer = () => {}) {
+  const recorded = Boolean(state?.recorded);
+  const wrap = el("section", "feedback");
+  wrap.dataset.recorded = String(recorded);
+  wrap.append(el("h4", "feedback__title", t("feedback_title")));
+
+  const choices = el("div", "feedback__choices");
+  for (const answer of FEEDBACK_ANSWERS) {
+    const button = el("button", "btn btn--secondary feedback__answer", t("feedback_" + answer));
+    button.type = "button";
+    button.dataset.answer = answer;
+    button.setAttribute("aria-pressed", String(state?.changed_view === answer));
+    button.addEventListener("click", () => onAnswer(answer, state?.part ?? null));
+    choices.append(button);
+  }
+  wrap.append(choices);
+
+  // The part question follows an answer; asked first it reads as a form.
+  const parts = el("div", "feedback__parts");
+  parts.hidden = !recorded;
+  parts.append(el("span", "feedback__parts-label", t("feedback_part_title")));
+  for (const part of FEEDBACK_PARTS) {
+    const button = el("button", "btn btn--secondary feedback__part", t("feedback_part_" + part));
+    button.type = "button";
+    button.dataset.part = part;
+    button.setAttribute("aria-pressed", String(state?.part === part));
+    button.addEventListener("click", () => onAnswer(state.changed_view, part));
+    parts.append(button);
+  }
+  wrap.append(parts);
+
+  const status = el("p", "feedback__status");
+  if (state?.failed) status.textContent = t("feedback_failed");
+  else if (recorded) status.textContent = `${t("feedback_recorded")} ${t("feedback_change")}`;
+  else status.textContent = t("feedback_note");
+  wrap.append(status);
+  return wrap;
+}
+
+function renderFeedback(container, runId) {
+  let node = null;
+  let current = { recorded: false };
+  const paint = (state) => {
+    current = state;
+    const next = feedbackView(state, submit);
+    if (node) node.replaceWith(next); else container.append(next);
+    node = next;
+  };
+  async function submit(changed_view, part) {
+    for (const button of node.querySelectorAll("button")) button.disabled = true;
+    try {
+      paint(await api.sendFeedback(runId, { changed_view, part }));
+    } catch {
+      // Keep what was recorded; the failed save is the one fact to add.
+      paint({ ...current, failed: true });
+    }
+  }
+  // A reader who cannot answer (a shared link to a code-owned run, or a
+  // deployment fault) gets no block at all rather than a broken control.
+  api.getFeedback(runId).then(paint).catch(() => {});
+}
 
 export async function render(container, runId, progress) {
   container.innerHTML = "";
@@ -333,6 +1026,10 @@ export async function render(container, runId, progress) {
   const reliability = renderReliability(progress);
   const applicability = renderDecisionApplicability(progress.decision_gate);
   if (applicability) container.append(applicability);
+  // The brief needs the scorecard, the report and the sources; it fills in
+  // below once they arrive, and a run without a scorecard has none.
+  const briefSlot = progress.state === "completed" && artifacts.includes("scores") ? el("div", "brief-slot") : null;
+  if (briefSlot) container.append(briefSlot);
   if (reliability) container.append(reliability);
 
   for (const view of views) {
@@ -350,7 +1047,43 @@ export async function render(container, runId, progress) {
 
   container.append(tabs, panels);
 
+  // Under the tabs, for a delivered report only. Mounted after the panels
+  // so a slow or refused feedback read never delays the report itself.
+  if (progress.state === "completed") renderFeedback(container, runId);
+
   const loaded = new Set();
+  // One request each, shared by the tabs and the citation cards.
+  let scoresRequest = null;
+  let indexRequest = null;
+  const scoresOnce = () => (scoresRequest ??= api.getArtifact(runId, "scores"));
+  let reportRequest = null;
+  const reportOnce = () => (reportRequest ??= api.getReport(runId));
+  const indexOnce = () => (indexRequest ??= reportOnce().then(citationIndex));
+  const hasSources = artifacts.includes("sources");
+  let sourcesRequest = null;
+  const sourcesOnce = () => (sourcesRequest ??= api.getArtifact(runId, "sources"));
+
+  if (briefSlot) {
+    // A failed report or sources read costs the brief a line, never the brief;
+    // a failed scorecard read removes the slot, since there is nothing to say.
+    Promise.all([scoresOnce(), reportOnce().catch(() => ""), hasSources ? sourcesOnce().catch(() => null) : null])
+      .then(([scores, markdown, sources]) => {
+        const data = decisionBrief({ scores, markdown, sources, progress });
+        if (!data) { briefSlot.remove(); return; }
+        const node = renderDecisionBrief(data);
+        briefSlot.replaceWith(node);
+        attachCitations(node, indexOnce, { onShowInSources: hasSources ? showInSources : null });
+      })
+      .catch(() => briefSlot.remove());
+  }
+
+  async function showInSources(id) {
+    await select("sources");
+    const search = panels.querySelector('[data-view="sources"] .sources__search');
+    if (!search) return;
+    search.value = id;
+    search.dispatchEvent(new Event("input"));
+  }
 
   async function select(id) {
     for (const tab of tabs.children) tab.dataset.active = String(tab.dataset.view === id);
@@ -364,12 +1097,26 @@ export async function render(container, runId, progress) {
 
     try {
       if (id === "score") {
-        const scores = await api.getArtifact(runId, "scores");
+        // The market figures come from the sources artifact; a refused or
+        // failed read leaves the scorecard without them, never without itself.
+        const [scores, sources] = await Promise.all([
+          scoresOnce(), hasSources ? sourcesOnce().catch(() => null) : null]);
         panel.innerHTML = "";
-        panel.append(renderScorecard(scores));
+        panel.append(renderScorecard(scores, sources));
+        attachCitations(panel, indexOnce, { onShowInSources: hasSources ? showInSources : null });
       } else if (id === "report") {
-        const md = await api.getReport(runId);
-        panel.innerHTML = `<article class="prose">${renderMarkdown(md)}</article>`;
+        const md = await reportOnce();
+        indexRequest ??= Promise.resolve(citationIndex(md));
+        // The score comes from the last agent, after the report was written,
+        // so the report cannot state it; the reader still meets it here.
+        const scores = artifacts.includes("scores") ? await scoresOnce().catch(() => null) : null;
+        panel.innerHTML = "";
+        const line = renderReportScoreLine(scores, () => select("score"));
+        if (line) panel.append(line);
+        const article = el("article", "prose");
+        article.innerHTML = renderMarkdown(md);
+        panel.append(article);
+        attachCitations(article, indexOnce, { onShowInSources: hasSources ? showInSources : null });
       } else if (id === "grounding") {
         const grounding = await api.getArtifact(runId, "grounding");
         panel.innerHTML = "";
@@ -387,13 +1134,14 @@ export async function render(container, runId, progress) {
         panel.innerHTML = "";
         panel.append(renderReportAudit(audit));
       } else {
-        const sources = await api.getArtifact(runId, "sources");
+        const sources = await sourcesOnce();
         panel.innerHTML = "";
         panel.append(renderSources(sources));
       }
     } catch (err) {
       panel.innerHTML = "";
       if (id === "sources") {
+        sourcesRequest = null;  // let a retry re-fetch
         // Saved private text may occur in server, parser or network messages.
         // A failed read is not an empty registry; never echo its raw message.
         const message = err?.status === 409 ? "sources_unavailable"
@@ -503,7 +1251,7 @@ export function renderGrounding(data) {
     const why = row.status === "ungrounded"
       ? t("grounding_missing").replace("{figures}",
           (row.ungrounded_figures ?? []).join(", "))
-      : row.unverifiable_reason ?? "";
+      : groundingReason(row.unverifiable_reason ?? "");
     if (why) item.append(el("span", "grounding__why", why));
     list.append(item);
   }
@@ -511,6 +1259,119 @@ export function renderGrounding(data) {
   wrap.append(list);
   return wrap;
 }
+
+/* ── Check wording ─────────────────────────────────────────────────────
+ * The checks write their reasons into the run's artifacts as English
+ * sentences, and artifacts are never rewritten. So the page reads each
+ * sentence back into the parts the check decided on (the phrase it found,
+ * the score, the title it rejected) and says them again in the reader's
+ * language. A sentence it does not recognise is shown as written: English
+ * is still an answer, and a guessed translation is not.
+ */
+const CONSISTENCY_DETAIL = /^The conclusions say (?:'(.*)'|"(.*)") while the overall score is (\d+(?:\.\d+)?), below the (\d+(?:\.\d+)?) this phrasing implies\.$/;
+
+/** The report-versus-scorecard finding, in the reader's language. */
+function consistencyDetail(finding) {
+  const m = finding.kind === "recommendation_exceeds_score" ? CONSISTENCY_DETAIL.exec(finding.detail) : null;
+  if (!m) return finding.detail;
+  return t("consistency_exceeds").replace("{phrase}", m[1] ?? m[2])
+    .replace("{score}", m[3]).replace("{floor}", m[4]);
+}
+
+const GROUNDING_REASONS = new Map([
+  ["cites no source present in the registry", "grounding_reason_no_source"],
+  ["every cited source carries only a search snippet, which is a fragment — a figure missing from it is not evidence the source lacks it",
+    "grounding_reason_snippets"],
+  ["unrecognised numeric or unit notation prevents numeric comparison", "grounding_reason_notation"],
+]);
+
+/** Why a numeric claim could not be checked, in the reader's language. */
+function groundingReason(reason) {
+  return GROUNDING_REASONS.has(reason) ? t(GROUNDING_REASONS.get(reason)) : reason;
+}
+
+// The search layer's rejection notes. Each pattern captures the parts that
+// vary (a score, a count, the source the note is about) and leaves the
+// title or locator as written: translating a title would hide which source
+// was meant. Order matters only where one pattern is a prefix of another.
+const SOURCE_SYSTEMS = "OpenAlex|Semantic Scholar|S2|arXiv|PubMed|Lens patent";
+// Each provider names its records differently in the notes ("OpenAlex work",
+// "S2 paper"); the Chinese wording names the provider the reader knows.
+const RECORD_SYSTEMS = {
+  "OpenAlex work": "OpenAlex", "Semantic Scholar paper": "Semantic Scholar", "S2 paper": "Semantic Scholar",
+  "arXiv record": "arXiv", "PubMed record": "PubMed", "Lens patent": "Lens",
+};
+const SYSTEM_NAMES = { S2: "Semantic Scholar", "Lens patent": "Lens" };
+const IDENTIFIER_NAMES = { "DOI or PMID": "DOI 或 PMID", lens_id: "Lens ID" };
+const RECORD_NOUNS = Object.keys(RECORD_SYSTEMS).join("|");
+const REJECTION_PATTERNS = [
+  [/^score=(\d+(?:\.\d+)?) \(min=(\d+(?:\.\d+)?)\) — removed '(.*)'$/s, "reject_relevance_score", ["score", "min", "subject"]],
+  [/^query source limit reached \((\d+)\); later results not read$/, "reject_query_limit", ["n"]],
+  [/^duplicates academic DOI: (.*)$/s, "reject_duplicate_doi", ["subject"]],
+  [/^duplicates academic title: (.*)$/s, "reject_duplicates_academic_title", ["subject"]],
+  [/^duplicate academic title: (.*)$/s, "reject_duplicate_academic_title", ["subject"]],
+  [/^duplicate patent family title: (.*)$/s, "reject_duplicate_family_title", ["subject"]],
+  [/^duplicate patent family \(same invention as (.*?)\): (.*)$/s, "reject_duplicate_family", ["kept", "subject"]],
+  [/^duplicate source: (.*)$/s, "reject_duplicate_source", ["subject"]],
+  [/^deferred \(authority category already covered\): (.*)$/s, "reject_deferred_authority", ["subject"]],
+  [/^deferred \(institutional cap\): (.*)$/s, "reject_deferred_institutional", ["subject"]],
+  [/^deferred \(market-report cap\): (.*)$/s, "reject_deferred_market_report", ["subject"]],
+  [/^deferred \(encyclopedia cap\): (.*)$/s, "reject_deferred_encyclopedia", ["subject"]],
+  [/^evidence summary too thin \((\d+) chars\): (.*)$/s, "reject_summary_thin", ["n", "subject"]],
+  [/^market summary lacks core topic keywords: (.*)$/s, "reject_market_keywords", ["subject"]],
+  [/^patent title not relevant to topic \(score (\d+(?:\.\d+)?)\): (.*)$/s, "reject_patent_relevance", ["score", "subject"]],
+  [/^patent targets cathode, topic focuses on anode: (.*)$/s, "reject_patent_cathode", ["subject"]],
+  [/^patent targets anode, topic focuses on cathode: (.*)$/s, "reject_patent_anode", ["subject"]],
+  [/^no Crossref metadata matched title (.*)$/s, "reject_crossref_no_match", ["subject"]],
+  [/^Crossref record lacks DOI, title, or publisher$/, "reject_crossref_incomplete", []],
+  [/^Crossref title is not relevant to research topic or its retrieval aliases: (.*)$/s, "reject_crossref_relevance", ["subject"]],
+  [/^search result snippet or URL cites a different DOI: (.*)$/s, "reject_doi_conflict", ["subject"]],
+  [/^search snippet contains a truncated or unverifiable DOI reference$/, "reject_doi_truncated", []],
+  [/^Crossref publication date is in the future$/, "reject_crossref_future_date", []],
+  [new RegExp(`^(${RECORD_NOUNS}) has no title$`), "reject_no_title", ["record"]],
+  [new RegExp(`^(${RECORD_NOUNS}) has no (DOI or PMID|DOI|URL|lens_id): (.*)$`, "s"),
+    "reject_no_identifier", ["record", "identifier", "subject"]],
+  [/^OpenAlex peer-review artifact \(not a paper\): (.*)$/s, "reject_peer_review_artifact", ["subject"]],
+  [/^OpenAlex topic matched broadly but title is off-topic: (.*)$/s, "reject_openalex_broad_topic", ["subject"]],
+  [/^OpenAlex topics indicate off-topic paper: (.*)$/s, "reject_openalex_off_topic", ["subject"]],
+  [new RegExp(`^(${SOURCE_SYSTEMS}) title not relevant to topic: (.*)$`, "s"), "reject_title_relevance", ["system", "subject"]],
+  [/^Lens patent title not relevant to battery-free topic: (.*)$/s, "reject_lens_battery_free", ["subject"]],
+  [new RegExp(`^(${SOURCE_SYSTEMS}) abstract too thin \\((\\d+) chars\\): (.*)$`, "s"), "reject_abstract_thin", ["system", "n", "subject"]],
+  [/^abstract too thin \((\d+) chars\): (.*)$/s, "reject_abstract_thin_plain", ["n", "subject"]],
+  [new RegExp(`^(${SOURCE_SYSTEMS}) publication date in future: (.*)$`, "s"), "reject_future_date", ["system", "subject"]],
+  [/^search result lacks a usable title or URL$/, "reject_no_title_or_url", []],
+  [/^invalid URL: (.*)$/s, "reject_invalid_url", ["subject"]],
+  [/^non-primary patent host: (.*)$/s, "reject_patent_host", ["subject"]],
+  [/^not a patent record \(Justia listing page\): (.*)$/s, "reject_justia_listing", ["subject"]],
+  [/^market host is blocked or not approved: (.*)$/s, "reject_market_host", ["subject"]],
+  [/^official source title is structurally unusable \((.*)\) and its URL has no supported identifier$/s,
+    "reject_official_title", ["detail"]],
+];
+
+/** One of the search layer's rejection notes, in the reader's language. */
+function rejectionReason(reason) {
+  if (typeof reason !== "string") return "";
+  for (const [pattern, key, names] of REJECTION_PATTERNS) {
+    const m = pattern.exec(reason);
+    if (!m) continue;
+    let text = t(key);
+    names.forEach((name, i) => {
+      const value = m[i + 1];
+      // The English table repeats the note word for word, so it takes the
+      // captured text as is; the Chinese table takes the reader-facing name.
+      text = text.replace(`{${name}}`, value);
+      if (name === "record") text = text.replace("{system_name}", RECORD_SYSTEMS[value]);
+      if (name === "system") text = text.replace("{system_name}", SYSTEM_NAMES[value] ?? value);
+      if (name === "identifier") text = text.replace("{identifier_name}", IDENTIFIER_NAMES[value] ?? value);
+    });
+    return text;
+  }
+  return reason;
+}
+
+/** A source domain key as the reader sees it in the source lists. */
+const domainLabel = key => Object.hasOwn(DOMAIN_LABELS, key) ? t(DOMAIN_LABELS[key]) : String(key);
+const domainList = keys => (Array.isArray(keys) ? keys : []).map(domainLabel).join(", ");
 
 /* ── Failed retrieval diagnostics ─────────────────────────────────────
  * A failed pre-agent run has no validated_sources.json, so this is the only
@@ -560,7 +1421,7 @@ export function renderRetrievalDiagnostics(data) {
     const body = el("div", "source__body");
     body.append(el("span", "source__link", entry.query || "—"));
     const summary = t("retrieval_query_summary")
-      .replace("{domain}", entry.domain || "academic")
+      .replace("{domain}", domainLabel(entry.domain || "academic"))
       .replace("{results}", String(entry.result_count ?? 0))
       .replace("{accepted}", String(entry.accepted_source_ids?.length ?? 0));
     body.append(el("span", "source__meta", summary));
@@ -571,7 +1432,7 @@ export function renderRetrievalDiagnostics(data) {
     if (reasons.length) {
       body.append(el("span", "source__meta", t("retrieval_rejections")));
       const reasonList = el("ul", "notes__list");
-      for (const reason of reasons) reasonList.append(el("li", null, reason));
+      for (const reason of reasons) reasonList.append(el("li", null, rejectionReason(reason)));
       body.append(reasonList);
     }
     item.append(body);
@@ -648,7 +1509,8 @@ function admitSavedSources(collection) {
       };
       row.source_id = field("source_id", true);
       row.title = field("title", true);
-      for (const key of ["publisher", "published_date", "credibility_tier", "url", "evidence_summary", "summary_source"]) {
+      for (const key of ["publisher", "published_date", "accessed_date", "credibility_tier", "url",
+                         "evidence_summary", "summary_source"]) {
         row[key] = field(key);
       }
       row.href = row.url.text ? savedSourceUrl(row.url.text) : null;
@@ -684,6 +1546,8 @@ function renderSavedSource(source) {
     }
     meta.append(tier);
   }
+  const age = marketSourceAge(source.source_id.text, source.published_date.text, source.accessed_date.text);
+  if (age) meta.append(el("span", "source__age", ageText(age)));
   body.append(title, meta);
   if (source.invalid) body.append(el("p", "source__fault", t("sources_record_partial")));
 
@@ -930,7 +1794,7 @@ export function renderConsistency(data) {
   const list = el("ul", "consistency__list");
   for (const finding of findings) {
     const item = el("li", `consistency__item consistency__item--${finding.severity}`);
-    item.append(el("p", "consistency__detail", finding.detail));
+    item.append(el("p", "consistency__detail", consistencyDetail(finding)));
     if (finding.excerpt) {
       // Quoted, not paraphrased. The whole value of the finding is that a
       // reader can go and judge the sentence for themselves rather than
@@ -974,9 +1838,10 @@ export function reliabilityRows(progress) {
 
   const consistency = progress.consistency;
   if (consistency == null) {
-    // Distinct from "consistent". The check reads English conclusions, so a
-    // Chinese or Japanese report simply is not covered — and reporting that
-    // as a pass would be the exact overclaim this panel exists to prevent.
+    // Distinct from "consistent". The check reads English and Chinese
+    // conclusions, so a Japanese or German report simply is not covered — and
+    // reporting that as a pass would be the exact overclaim this panel exists
+    // to prevent.
     rows.push({ id: "consistency", tone: "muted",
                 label: t("rel_consistency"), detail: t("rel_consistency_unchecked") });
   } else if (consistency.blockers > 0) {
@@ -1019,11 +1884,12 @@ export function reliabilityRows(progress) {
                   label: t("rel_grounding"), detail: t("rel_grounding_not_applicable") });
     } else if (ungrounded > 0) {
       rows.push({ id: "grounding", tone: "warn", label: t("rel_grounding"),
-                  detail: t("rel_grounding_flagged").replace("{count}", ungrounded) });
+                  detail: t("rel_grounding_flagged").replace("{count}", ungrounded)
+                    .replace("{checked}", checked) });
     } else if (status === "partial") {
       rows.push({ id: "grounding", tone: "muted", label: t("rel_grounding"),
                   detail: t("rel_grounding_degraded")
-                    .replace("{domains}", unavailableDomains.join(", ")) });
+                    .replace("{domains}", domainList(unavailableDomains)) });
     } else if (checked === 0) {
       // Zero unsupported out of zero checked. Shown as "nothing could be
       // checked" rather than as a clean result, because the two are opposite
@@ -1036,6 +1902,7 @@ export function reliabilityRows(progress) {
       rows.push({ id: "grounding", tone: "muted", label: t("rel_grounding"),
                   detail: t("rel_grounding_partial")
                     .replace("{checked}", checked)
+                    .replace("{total}", checked + unverifiable)
                     .replace("{unverifiable}", unverifiable) });
     } else {
       rows.push({ id: "grounding", tone: "ok", label: t("rel_grounding"),
@@ -1073,7 +1940,7 @@ export function reliabilityRows(progress) {
 
   if (failed.length) {
     rows.push({ id: "sources", tone: "warn", label: t("rel_sources"),
-                detail: t("rel_sources_failed").replace("{domains}", failed.join(", ")) });
+                detail: t("rel_sources_failed").replace("{domains}", domainList(failed)) });
   } else if (progress.source_counts) {
     rows.push({ id: "sources", tone: "ok",
                 label: t("rel_sources"), detail: t("rel_sources_ok") });
@@ -1154,17 +2021,57 @@ export function reliabilityRows(progress) {
   return rows;
 }
 
-/** The panel's headline, from the worst row present. */
+/**
+ * The panel's headline: the worst row sets the tone, and the label counts the
+ * rows behind it. "Too little could be checked to say" was true but gave a
+ * reader nothing to act on; "3 of 5 checks found no problem; 2 could not give
+ * a result" says the same with the numbers that make it checkable.
+ */
 export function reliabilityVerdict(rows) {
-  if (!rows.length) return { tone: "muted", label: t("rel_verdict_unknown") };
+  if (!rows.length) return { tone: "muted", label: t("rel_verdict_none") };
+  const total = rows.length;
+  const count = tone => rows.filter(row => row.tone === tone).length;
+  const fill = (key, values) => Object.entries(values).reduce(
+    (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), t(key));
   const worst = rows.reduce(
     (acc, row) => (_TONE_RANK[row.tone] > _TONE_RANK[acc] ? row.tone : acc), "ok");
-  if (worst === "risk") return { tone: "risk", label: t("rel_verdict_risk") };
-  if (worst === "warn") return { tone: "warn", label: t("rel_verdict_review") };
-  if (worst === "ok") {
-    return { tone: "ok", label: t("rel_verdict_clear"), note: t("rel_verdict_clear_sub") };
+  if (worst === "risk") {
+    return { tone: "risk", label: fill("rel_verdict_risk", { count: count("risk"), total }) };
   }
-  return { tone: "muted", label: t("rel_verdict_unknown") };
+  if (worst === "warn") {
+    return { tone: "warn", label: fill("rel_verdict_review", { count: count("warn"), total }) };
+  }
+  if (worst === "ok") {
+    return { tone: "ok", note: t("rel_verdict_clear_sub"),
+             label: total === 1 ? t("rel_verdict_clear_one") : fill("rel_verdict_clear", { total }) };
+  }
+  return { tone: "muted",
+           label: fill("rel_verdict_unknown", { ok: count("ok"), muted: count("muted"), total }) };
+}
+
+/**
+ * The citation check's counts as one plain line under the headline, or null.
+ *
+ * Shown in the panel's summary, so it is read without opening the rows. Null
+ * when there is nothing countable to say: no check, a failed or unreadable
+ * one, no numerical claim at all, or counts that do not add up. The row then
+ * says which of those it was; a damaged count never becomes a number here.
+ */
+export function groundingNumbers(progress) {
+  const grounding = progress.claim_grounding;
+  if (!detailRecord(grounding) || (progress.audit_metadata_unreadable ?? []).includes("claim_grounding")) {
+    return null;
+  }
+  if (["failed", "unavailable", "not_applicable"].includes(grounding.status)) return null;
+  const { checked, ungrounded, unverifiable } = grounding;
+  if (![checked, ungrounded, unverifiable].every(detailCount) || ungrounded > checked) return null;
+  const total = checked + unverifiable;
+  if (!total) return null;
+  const parts = [t("rel_numbers").replace("{matched}", () => String(checked - ungrounded))
+    .replace("{total}", () => String(total))];
+  if (ungrounded) parts.push(t("rel_numbers_mismatch").replace("{count}", () => String(ungrounded)));
+  if (unverifiable) parts.push(t("rel_numbers_unverifiable").replace("{count}", () => String(unverifiable)));
+  return parts.join(t("rel_numbers_sep"));
 }
 
 export function renderReliability(progress) {
@@ -1172,12 +2079,18 @@ export function renderReliability(progress) {
   if (!rows.length) return null;
 
   const verdict = reliabilityVerdict(rows);
-  const wrap = el("section", "reliability");
+  // The verdict is always read before the score. The rows open by default
+  // only when one of them warns; otherwise they are one click away.
+  const wrap = el("details", "reliability");
   wrap.dataset.tone = verdict.tone;
+  wrap.open = verdict.tone === "risk" || verdict.tone === "warn";
 
-  const head = el("div", "reliability__head");
+  const head = el("summary", "reliability__head");
   head.append(el("span", "reliability__title", t("rel_title")));
   head.append(el("strong", "reliability__verdict", verdict.label));
+  head.append(el("span", "reliability__toggle", t("rel_toggle")));
+  const numbers = groundingNumbers(progress);
+  if (numbers) head.append(el("span", "reliability__numbers", numbers));
   wrap.append(head);
 
   if (verdict.note) wrap.append(el("p", "reliability__note", verdict.note));

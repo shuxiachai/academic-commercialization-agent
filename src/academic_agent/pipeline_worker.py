@@ -109,7 +109,8 @@ def _review_quality_from_outputs(tasks_output: list[Any]) -> dict[str, Any]:
             "reason": "Reviewer output was empty after crew completion.",
         }
 
-    from academic_agent.evidence import reviewer_quality_summary
+    # Also counts over-long edits skipped by reviewer_plan_bounds.
+    from academic_agent.reviewer_plan_bounds import reviewer_quality_summary
 
     return reviewer_quality_summary(raw)
 
@@ -413,6 +414,7 @@ def _merge_status_fields(
     source_counts: dict | None,
     topic: str | None,
     pipeline_revision: str | None = None,
+    now: str | None = None,
 ) -> dict:
     """Build the next status.json payload from the previous one plus updates.
 
@@ -453,6 +455,13 @@ def _merge_status_fields(
         data["source_counts"] = source_counts
     if topic is not None:
         data["topic"] = topic
+    # When each stage began, so a slow run shows where its time went. A write
+    # that repeats the current stage does not restart its clock.
+    timings = list(existing.get("stage_timings") or [])
+    if now is not None and (not timings or timings[-1].get("stage") != stage):
+        timings.append({"stage": stage, "started_at": now})
+    if timings:
+        data["stage_timings"] = timings
     return data
 
 
@@ -600,6 +609,7 @@ def main() -> None:
                 source_counts=source_counts,
                 topic=topic,
                 pipeline_revision=pipeline_revision,
+                now=datetime.now(UTC).isoformat(),
             )
             if evidence_incomplete is not None:
                 data["evidence_incomplete"] = evidence_incomplete
@@ -886,6 +896,7 @@ def main() -> None:
                 paper_seed=paper_seed,
                 extra_market_queries=extra_market_queries,
                 weight_profile=requested_profile,
+                search_plan=spec.search_plan,
             )
         if not retrieval_reused and args.language and args.language != "Auto (detect from topic)":
             # Map UI dropdown values to canonical API language names.
@@ -1265,7 +1276,9 @@ def main() -> None:
         with telemetry.span("report_score_consistency", "EVALUATOR"):
             consistency = save_consistency(
                 report_raw or "", scores_raw, run_id=args.run_id,
-                output_root=DEFAULT_OUTPUT_ROOT)
+                output_root=DEFAULT_OUTPUT_ROOT,
+                output_language=source_collection.output_language,
+                localized_headings=tuple(source_collection.localized_headings or ()))
         if consistency and consistency.get("blockers"):
             print(f"[consistency] {consistency['blockers']} finding(s): the "
                   f"report's recommendation disagrees with its own scorecard",

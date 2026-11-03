@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-import openalex_scope_link_live as live
+from experiments.openalex_retrieval import openalex_scope_link_live as live
 from academic_agent.evidence_gap import ValidatedGapCall
 from academic_agent.openalex_claim_scope import OpenAlexClaimScopeCandidate
 from academic_agent.tools.evidence_search import (
@@ -20,11 +20,11 @@ from academic_agent.tools.evidence_search import (
 from academic_agent.tools.openalex_claim_scope_search import (
     OpenAlexClaimScopeAdapterResponse,
 )
-from openalex_scope_link_live import (
+from experiments.openalex_retrieval.openalex_scope_link_live import (
     OpenAlexScopeLinkLiveError,
     execute_live_study,
 )
-from openalex_scope_link_unseen import PreparedScopeLinkCase, load_frozen_cases
+from experiments.openalex_retrieval.openalex_scope_link_unseen import PreparedScopeLinkCase, load_frozen_cases
 
 
 def _accepted_candidate(

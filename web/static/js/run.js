@@ -36,28 +36,47 @@ function stageIndex(stage) {
   return STAGES.findIndex((s) => stage.includes(s.match));
 }
 
+/** Seconds spent in each stage, by stage id, from the API's stage_timings. */
+function stageSeconds(timings) {
+  const seconds = {};
+  for (const timing of Array.isArray(timings) ? timings : []) {
+    const index = stageIndex(timing?.stage);
+    if (index === -1 || !Number.isFinite(timing.duration_seconds)) continue;
+    const { id } = STAGES[index];
+    seconds[id] = (seconds[id] ?? 0) + timing.duration_seconds;
+  }
+  return seconds;
+}
+
 /**
- * Per-stage state for the current status.
+ * Per-stage state for the current status, with the time each stage took.
  *
  * "Done" is reported as its own stage rather than as the last one, so a
  * completed run marks every stage done instead of leaving the final one
  * looking stuck.
  */
-export function stageStates(stage, state) {
+export function stageStates(stage, state, timings = []) {
   // The mutable stage can still say Done when a stronger outcome is damaged
   // or the process failed during finalization. Only verified completion may
   // paint every stage green; unknown cannot certify even a partial prefix.
   const done = state === "completed";
   const failed = state === "failed" || state === "timeout";
   const current = stageIndex(stage);
+  const seconds = stageSeconds(timings);
 
+  const stateOf = (i) => {
+    if (state === "unknown") return "pending";
+    if (done) return "done";
+    if (current === -1) return "pending";
+    if (i < current) return "done";
+    if (i > current) return "pending";
+    return failed ? "failed" : "active";
+  };
+  // A pending row shows no time, even when an unverifiable outcome has
+  // repainted stages the worker did record as finished.
   return STAGES.map((s, i) => {
-    if (state === "unknown") return { ...s, state: "pending" };
-    if (done) return { ...s, state: "done" };
-    if (current === -1) return { ...s, state: "pending" };
-    if (i < current) return { ...s, state: "done" };
-    if (i > current) return { ...s, state: "pending" };
-    return { ...s, state: failed ? "failed" : "active" };
+    const rowState = stateOf(i);
+    return { ...s, state: rowState, seconds: rowState === "pending" ? null : seconds[s.id] ?? null };
   });
 }
 
@@ -204,8 +223,9 @@ export function usageTitle(usage, accounting = null) {
   return lines.join("\n");
 }
 
-// i18n.js is a byte-frozen SLC observer asset. New production-only labels
-// stay here, not in that historical asset or its manifest/hash allowlist.
+// Production-only labels written while i18n.js was hash-locked by the SLC
+// comparison. That comparison now reads a snapshot (evals/
+// source_locator_observer_v1), so new labels may also go in i18n.js.
 const AUXILIARY_STRINGS = {
   English: {
     aux_not_recorded: "Auxiliary LLM usage not recorded (not zero)",
@@ -232,6 +252,184 @@ const AUXILIARY_STRINGS = {
     aux_limits: "不含 Crew／搜索提供商费用；不是完整账单",
   },
 };
+
+// Run-header labels, kept beside AUXILIARY_STRINGS.
+const HEADER_STRINGS = {
+  English: {
+    usage_details: "Usage & cost",
+    stage_timing: "Stage timing",
+    eta_left: "about {minutes} min left",
+    eta_soon: "under a minute left",
+    eta_over: "slower than usual",
+    eta_title: "Typical time from the last {runs} completed runs on this deployment; not a guarantee.",
+    notify: "Notify me when done",
+    notify_title: "Shows a browser notification when this run finishes while the tab is in the background.",
+    finished_ok: "Assessment complete",
+    finished_bad: "Assessment did not finish",
+    quota_left: "{remaining} of {limit} runs left today",
+    quota_none: "No runs left today · resets {time}",
+    quota_title: "Each run and each PDF extraction uses one. Resets at 00:00 UTC ({time} your time).",
+    source_locator: "Saved-source locator",
+    source_locator_title: "Experimental: pick the saved source behind a question about a report and read its saved text",
+    identity_title: "The model this run's stages requested and the pipeline code that served it. The deployment changes models without notice; neither name is a quality measurement.",
+    // Beside a failed run's reason: a code holder has three runs a day and
+    // should not have to guess whether a failure spent one of them.
+    outcome_charged: "This run counted toward today's quota.",
+    outcome_charged_resume: "Resuming from the checkpoint uses another.",
+    outcome_refunded: "This run did not count toward today's quota: it failed before any work began.",
+    outcome_not_charged: "This run did not use the daily quota.",
+  },
+  "Simplified Chinese": {
+    usage_details: "用量与费用",
+    stage_timing: "阶段耗时",
+    eta_left: "预计还需约 {minutes} 分钟",
+    eta_soon: "预计不到 1 分钟",
+    eta_over: "比平时慢",
+    eta_title: "按本站最近 {runs} 次完成运行的典型用时估算，仅供参考。",
+    notify: "完成时提醒我",
+    notify_title: "标签页在后台时，运行结束后弹出浏览器通知。",
+    finished_ok: "评估已完成",
+    finished_bad: "评估未完成",
+    quota_left: "今日剩余 {remaining}/{limit} 次",
+    quota_none: "今日次数已用完 · {time} 重置",
+    quota_title: "每次运行和每次 PDF 提取各占 1 次。每天 UTC 0 点重置（你的当地时间 {time}）。",
+    source_locator: "已保存来源定位",
+    source_locator_title: "实验功能：针对报告中的问题，找出对应的已保存来源并显示其原文",
+    identity_title: "本次运行各阶段请求的模型，以及产出它的流水线代码版本。本站会不定期更换模型；两者都不是质量指标。",
+    outcome_charged: "本次运行已计入今日额度。",
+    outcome_charged_resume: "从检查点续跑会再用 1 次。",
+    outcome_refunded: "本次运行未计入今日额度：它在开始工作前就失败了。",
+    outcome_not_charged: "本次运行不占用每日额度。",
+  },
+};
+
+// English keeps the API's own state words (the pill uppercases them, and the
+// browser tests read them); Chinese readers get words rather than codes.
+const STATE_LABELS = {
+  "Simplified Chinese": {
+    running: "运行中", completed: "已完成", failed: "失败",
+    cancelled: "已取消", timeout: "已超时", unknown: "状态未知",
+  },
+};
+
+export function headerLabel(key) {
+  return (HEADER_STRINGS[uiLanguage()] ?? HEADER_STRINGS.English)[key] ?? HEADER_STRINGS.English[key];
+}
+
+/**
+ * "qwen3.7-max · git:1b69b06": which model and which code produced a run.
+ *
+ * The public deployment rotates models without a code change, so two runs a
+ * week apart can come from different models while the page looks the same.
+ * The model names come from the usage record (one per Crew node, usually all
+ * the same), so a run still going shows only its revision until usage lands.
+ * Nothing here is a quality claim; the tooltip says so.
+ */
+export function identitySummary(usage, pipelineRevision) {
+  const models = [...new Set((usage?.agents ?? []).map((a) => a?.model).filter(Boolean))];
+  const parts = [models.join(", ")];
+  if (typeof pipelineRevision === "string" && pipelineRevision) {
+    // git:<40 hex> reads as its short form; any other revision string
+    // (a source hash) is kept whole, since no prefix of it is conventional.
+    const git = /^git:([0-9a-f]{7})[0-9a-f]*$/.exec(pipelineRevision);
+    parts.push(git ? `git:${git[1]}` : pipelineRevision);
+  }
+  return parts.filter(Boolean).join(" · ");
+}
+
+/** "about 6 min left" for a running run's eta; "" without one. */
+export function etaSummary(eta) {
+  const seconds = eta?.remaining_seconds;
+  if (!Number.isFinite(seconds)) return "";
+  if (seconds <= 0) return headerLabel("eta_over");
+  if (seconds < 60) return headerLabel("eta_soon");
+  return headerLabel("eta_left").replace("{minutes}", String(Math.ceil(seconds / 60)));
+}
+
+export function etaTitle(eta) {
+  return Number.isFinite(eta?.basis_runs) ? headerLabel("eta_title").replace("{runs}", String(eta.basis_runs)) : "";
+}
+
+/** Composer line for GET /api/quota; text "" when the deployment has no cap. */
+export function quotaSummary(quota) {
+  if (!quota || !Number.isFinite(quota.limit) || !Number.isFinite(quota.remaining)) {
+    return { text: "", title: "", exhausted: false };
+  }
+  const reset = new Date(quota.resets_at);
+  const time = Number.isNaN(reset.getTime()) ? "00:00 UTC"
+    : reset.toLocaleTimeString(uiLanguage() === "Simplified Chinese" ? "zh-CN" : "en", { hour: "2-digit", minute: "2-digit" });
+  const exhausted = quota.remaining <= 0;
+  const text = headerLabel(exhausted ? "quota_none" : "quota_left")
+    .replace("{remaining}", String(quota.remaining)).replace("{limit}", String(quota.limit))
+    .replace("{time}", time);
+  return { text, title: headerLabel("quota_title").replace("{time}", time), exhausted };
+}
+
+export function stateLabel(state) {
+  return STATE_LABELS[uiLanguage()]?.[state] ?? state;
+}
+
+// Search-plan preview panel.
+const PLAN_STRINGS = {
+  English: {
+    title: "Check the search before starting",
+    lede: "Papers, patents and market sources will be searched with these terms. "
+      + "Edit them if the topic was read wrongly; this check does not use a daily run.",
+    search_topic: "Search phrase",
+    aliases: "Also searched as",
+    components: "Parts searched separately",
+    remove: "Remove",
+    start: "Start assessment",
+    edit: "Change topic",
+    start_without: "Start without a preview",
+    previewing: "Reading the topic…",
+    unresolved: "No technology or research subject could be identified in this description. "
+      + "Name the technology, for example “sodium-ion batteries for grid storage”.",
+    unavailable: "The search preview is unavailable ({reason}). You can start anyway; the run will choose its own search terms.",
+    limit: "Today's search previews are used up. You can start anyway; the run will choose its own search terms.",
+    too_short: "The search phrase needs at least 3 characters.",
+  },
+  "Simplified Chinese": {
+    title: "开始前确认检索方向",
+    lede: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改；这一步不占用每日运行次数。",
+    search_topic: "检索词",
+    aliases: "同时检索",
+    components: "分别检索的组成部分",
+    remove: "移除",
+    start: "开始评估",
+    edit: "修改题目",
+    start_without: "跳过预览直接开始",
+    previewing: "正在理解题目…",
+    unresolved: "没能从描述中识别出可评估的技术或研究对象。请写明具体技术，例如“钠离子电池用于电网储能”。",
+    unavailable: "检索方向预览暂不可用（{reason}）。可以直接开始，由系统自动确定检索词。",
+    limit: "今天的检索预览次数已用完。可以直接开始，由系统自动确定检索词。",
+    too_short: "检索词至少需要 3 个字符。",
+  },
+};
+
+export function planLabel(key) {
+  return (PLAN_STRINGS[uiLanguage()] ?? PLAN_STRINGS.English)[key] ?? PLAN_STRINGS.English[key];
+}
+
+// Short stage names for the one-line timing summary; the stage list keeps the
+// long ones from i18n.js.
+const STAGE_SHORT_LABELS = {
+  English: { sources: "Sources", evidence: "Evidence", report: "Report", review: "Review", scoring: "Scoring" },
+  "Simplified Chinese": { sources: "来源", evidence: "证据分析", report: "报告撰写", review: "审查", scoring: "评分" },
+};
+
+/** "Sources 0:40 · Evidence 1:00 · Report 0:25…" from stage_timings; "" without any. */
+export function timingSummary(timings) {
+  const labels = STAGE_SHORT_LABELS[uiLanguage()] ?? STAGE_SHORT_LABELS.English;
+  const seconds = stageSeconds(timings);
+  const active = new Set((Array.isArray(timings) ? timings : [])
+    .filter((timing) => timing?.active)
+    .map((timing) => STAGES[stageIndex(timing.stage)]?.id));
+  return STAGES
+    .filter((s) => seconds[s.id] != null)
+    .map((s) => `${labels[s.id]} ${formatDuration(seconds[s.id])}${active.has(s.id) ? "…" : ""}`)
+    .join(" · ");
+}
 
 /** Independent helper observations; never folded into Crew's numeric total. */
 export function auxiliarySummary(value) {
@@ -277,6 +475,32 @@ export function runtimeMetadataSummary(fields = []) {
  * code verbatim: hiding a future reason behind a generic state would make the
  * browser less inspectable than the API, while textContent keeps it inert.
  */
+/**
+ * Why a run ended, and whether it spent one of today's runs; "" otherwise.
+ *
+ * A toast with the reason disappears, and a run opened from the list later
+ * never had one. This line stays with the run. The quota sentence comes
+ * only from the API's launch-time record: an old run without one, or a
+ * damaged one, gets the reason alone rather than a guess.
+ */
+export function outcomeSummary({ state, error, daily_charge, checkpointing } = {}) {
+  if (!["failed", "timeout", "cancelled"].includes(state)) return "";
+  const parts = [];
+  if (typeof error === "string" && error) parts.push(error);
+  if (daily_charge === "charged") {
+    parts.push(headerLabel("outcome_charged"));
+    const committed = checkpointing?.committed_nodes;
+    if (Array.isArray(committed) && committed.includes("retrieval")) {
+      parts.push(headerLabel("outcome_charged_resume"));
+    }
+  } else if (daily_charge === "refunded") {
+    parts.push(headerLabel("outcome_refunded"));
+  } else if (daily_charge === "not_charged") {
+    parts.push(headerLabel("outcome_not_charged"));
+  }
+  return parts.join(" ");
+}
+
 export function terminalSummary(terminal, state = "") {
   const terminalStates = new Set(["completed", "failed", "cancelled", "timeout"]);
   if (!terminal) {
@@ -337,6 +561,12 @@ export function renderStages(container, stages) {
     label.textContent = t(stage.key);
 
     row.append(dot, label);
+    if (stage.seconds != null) {
+      const time = document.createElement("span");
+      time.className = "stage__meta";
+      time.textContent = formatDuration(stage.seconds);
+      row.append(time);
+    }
     list.append(row);
   }
   container.append(list);

@@ -1,0 +1,216 @@
+[
+ {
+  "id": "H01",
+  "display_topic": "small modular reactors for grid electricity",
+  "research_topic": "small modular reactors for grid electricity generation",
+  "aliases": [
+   "SMR integration into electrical power grids",
+   "nuclear microreactors for utility-scale power supply"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H01-small-modular-reactors-for-grid-electricity"
+ },
+ {
+  "id": "H02",
+  "display_topic": "fusion power",
+  "research_topic": "nuclear fusion energy generation",
+  "aliases": [
+   "controlled thermonuclear fusion",
+   "magnetic confinement fusion"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H02-fusion-power"
+ },
+ {
+  "id": "H03",
+  "display_topic": "implantable brain-computer interfaces for paralysis",
+  "research_topic": "implantable brain-computer interfaces for paralysis",
+  "aliases": [
+   "invasive neural interfaces for motor restoration",
+   "intracortical brain-machine interfaces for paralysis"
+  ],
+  "weight_profile": "biomedical",
+  "from_run": "heldout-trl-v1-c/H03-implantable-brain-computer-interfaces-for-par"
+ },
+ {
+  "id": "H04",
+  "display_topic": "psilocybin therapy for treatment-resistant depression",
+  "research_topic": "psilocybin therapy for treatment-resistant depression",
+  "aliases": [],
+  "weight_profile": "biomedical",
+  "from_run": "heldout-trl-v1-c/H04-psilocybin-therapy-for-treatment-resistant-de"
+ },
+ {
+  "id": "H05",
+  "display_topic": "direct air capture of carbon dioxide",
+  "research_topic": "direct air capture of carbon dioxide",
+  "aliases": [
+   "direct air capture technology",
+   "atmospheric CO2 removal"
+  ],
+  "weight_profile": "clean_tech",
+  "from_run": "heldout-trl-v1-c/H05-direct-air-capture-of-carbon-dioxide"
+ },
+ {
+  "id": "H06",
+  "display_topic": "漂浮式海上风电",
+  "research_topic": "floating offshore wind energy systems",
+  "aliases": [
+   "floating wind turbine technology",
+   "floating offshore wind farms"
+  ],
+  "weight_profile": "clean_tech",
+  "from_run": "heldout-trl-v1-c/H06-漂浮式海上风电"
+ },
+ {
+  "id": "H07",
+  "display_topic": "人工光合作用制备太阳能燃料",
+  "research_topic": "artificial photosynthesis for solar fuel production",
+  "aliases": [
+   "photocatalytic water splitting and CO2 reduction",
+   "solar-to-fuel energy conversion systems"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H07-人工光合作用制备太阳能燃料"
+ },
+ {
+  "id": "H08",
+  "display_topic": "precision fermentation for dairy proteins",
+  "research_topic": "precision fermentation for dairy proteins",
+  "aliases": [],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H08-precision-fermentation-for-dairy-proteins"
+ },
+ {
+  "id": "H09",
+  "display_topic": "DNA data storage",
+  "research_topic": "DNA-based digital data storage systems",
+  "aliases": [
+   "molecular data archiving",
+   "synthetic DNA information encoding"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H09-dna-data-storage"
+ },
+ {
+  "id": "H10",
+  "display_topic": "drone delivery of medical supplies",
+  "research_topic": "unmanned aerial vehicle delivery of medical supplies",
+  "aliases": [
+   "UAV logistics for healthcare distribution",
+   "drone-based last-mile medical transport"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v1-c/H10-drone-delivery-of-medical-supplies"
+ },
+ {
+  "id": "V01",
+  "display_topic": "robotic-assisted surgery",
+  "research_topic": "Robotic-assisted surgery",
+  "aliases": [
+   "Robot-assisted surgical intervention",
+   "Computer-assisted minimally invasive surgery"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V01-robotic-assisted-surgery"
+ },
+ {
+  "id": "V02",
+  "display_topic": "continuous glucose monitoring for diabetes",
+  "research_topic": "Continuous glucose monitoring for diabetes management",
+  "aliases": [
+   "Real-time subcutaneous glucose sensing in diabetes mellitus",
+   "Ambulatory glycemic monitoring systems for diabetic patients"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V02-continuous-glucose-monitoring-for-diabetes"
+ },
+ {
+  "id": "V03",
+  "display_topic": "enhanced geothermal systems for electricity generation",
+  "research_topic": "Enhanced geothermal systems for electricity generation",
+  "aliases": [
+   "Engineered geothermal systems for power production",
+   "Hot dry rock geothermal energy conversion"
+  ],
+  "weight_profile": "clean_tech",
+  "from_run": "heldout-trl-v2/V03-enhanced-geothermal-systems-for-electricity-g"
+ },
+ {
+  "id": "V04",
+  "display_topic": "pig kidney xenotransplantation",
+  "research_topic": "Porcine kidney xenotransplantation",
+  "aliases": [
+   "Pig-to-human renal xenotransplantation",
+   "Cross-species kidney transplantation"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V04-pig-kidney-xenotransplantation"
+ },
+ {
+  "id": "V05",
+  "display_topic": "battery-electric aircraft for regional passenger flights",
+  "research_topic": "Battery-electric aircraft for regional passenger transport",
+  "aliases": [
+   "All-electric regional aviation",
+   "Zero-emission short-haul air mobility"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V05-battery-electric-aircraft-for-regional-passen"
+ },
+ {
+  "id": "V06",
+  "display_topic": "space-based solar power",
+  "research_topic": "Space-based solar power systems",
+  "aliases": [
+   "Space solar power generation",
+   "Orbital photovoltaic energy transmission"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V06-space-based-solar-power"
+ },
+ {
+  "id": "V07",
+  "display_topic": "hyperloop",
+  "research_topic": "Hyperloop high-speed vacuum tube transportation",
+  "aliases": [
+   "Vacuum train transportation system",
+   "Evacuated tube transport"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V07-hyperloop"
+ },
+ {
+  "id": "V08",
+  "display_topic": "量子密钥分发网络",
+  "research_topic": "Quantum key distribution networks",
+  "aliases": [
+   "QKD network architectures",
+   "Quantum-secured communication networks"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V08-量子密钥分发网络"
+ },
+ {
+  "id": "V09",
+  "display_topic": "特高压直流输电",
+  "research_topic": "Ultra-high voltage direct current power transmission",
+  "aliases": [
+   "UHVDC transmission systems",
+   "Extra-high-voltage HVDC power transfer"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V09-特高压直流输电"
+ },
+ {
+  "id": "V10",
+  "display_topic": "vertical farming for fresh produce",
+  "research_topic": "Vertical farming systems for fresh produce cultivation",
+  "aliases": [
+   "Indoor vertical agriculture for horticultural crops",
+   "Controlled environment agriculture with vertical growing systems"
+  ],
+  "weight_profile": "industrial",
+  "from_run": "heldout-trl-v2/V10-vertical-farming-for-fresh-produce"
+ }
+]

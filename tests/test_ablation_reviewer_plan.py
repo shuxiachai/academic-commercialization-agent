@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import ablation
-
-
+from experiments.pipeline_audits import ablation
 def _attempt(raw: str, *, passed: bool) -> ablation.GuardrailAttempt:
     return ablation.GuardrailAttempt(
         task_name="report_review_task",

@@ -7,7 +7,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-import openalex_role_slot_development as development
+from experiments.openalex_retrieval import openalex_role_slot_development as development
 from academic_agent.openalex_claim_scope import OpenAlexClaimScopeCandidate
 from academic_agent.tools.evidence_search import ToolEvidenceCandidate, ToolProviderUsage
 from academic_agent.tools.openalex_claim_scope_search import (

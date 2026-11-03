@@ -16,6 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api import access, main, runs
+from tests.scripted_waits import STEP
 
 
 _REAL_POPEN = subprocess.Popen
@@ -67,7 +68,7 @@ def held_stop(monkeypatch, fixture, method, phase):
 
     def hold(*args, **kwargs):
         reached.set()
-        assert release.wait(15), "test did not release stop seam"
+        assert release.wait(STEP), "test did not release stop seam"
         return original(*args, **kwargs)
 
     if phase == "process":
@@ -78,11 +79,11 @@ def held_stop(monkeypatch, fixture, method, phase):
     with ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(operation)
         try:
-            assert reached.wait(15), "stop never reached held seam"
+            assert reached.wait(STEP), "stop never reached held seam"
             yield
         finally:
             release.set()
-        result = future.result(timeout=15)
+        result = future.result(timeout=STEP)
         if method == "cancel":
             assert result.status_code == 200
         else:

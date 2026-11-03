@@ -20,6 +20,7 @@ from academic_agent.saved_source_loader import SavedSourceLoader
 from api import access, runs
 from api import saved_source_controller as controller
 from api import saved_source_receipts as receipts
+from tests.scripted_waits import SCENARIO, STEP
 
 RUN_ID = "20260919T123456Z-0123456789abcdef0123456789abcdef"
 CODE = "synthetic-owner-code"
@@ -91,15 +92,8 @@ def run(value, receipt_key=None, question=QUESTION, code=CODE):
     return asyncio.run(value.execute(receipt_key or key(), RUN_ID, question, code))
 
 
-# Upper bound for a scripted thread to reach or be released from its event.
-# Not a performance budget: these paths fsync receipts and ledgers, and with
-# the suite running in parallel on a Windows CI runner the same steps took
-# 10-27 s instead of 2-4 s. A wait that is never satisfied still fails.
-_SCRIPTED_WAIT = 30
-
-
 async def observed(event):
-    assert await asyncio.to_thread(event.wait, _SCRIPTED_WAIT), "Worker did not reach the scripted event"
+    assert await asyncio.to_thread(event.wait, STEP), "Worker did not reach the scripted event"
 
 
 def test_real_load_projection_and_replay_preserve_all_frozen_fields(setup, monkeypatch):
@@ -267,12 +261,12 @@ def test_cancellation_before_admission_is_free_after_entry_keeps_ownership(setup
     def load(run_id):
         if stage == "loader":
             entered.set()
-            assert release.wait(_SCRIPTED_WAIT)
+            assert release.wait(STEP)
         return SavedSourceLoader(root)(run_id)
     def selected(request):
         if stage == "selector":
             entered.set()
-            assert release.wait(_SCRIPTED_WAIT)
+            assert release.wait(STEP)
         return callback(request)
     value = make(selected, load)
     receipt_key = key()
@@ -317,7 +311,7 @@ def test_cancelled_queued_startup_never_creates_intent_or_loader_thread(setup):
         asyncio.get_running_loop().set_default_executor(pool)
         def occupy():
             entered.set()
-            assert release.wait(_SCRIPTED_WAIT)
+            assert release.wait(STEP)
         occupied = asyncio.get_running_loop().run_in_executor(None, occupy)
         while not entered.is_set():
             await asyncio.sleep(0)
@@ -333,7 +327,7 @@ def test_cancelled_queued_startup_never_creates_intent_or_loader_thread(setup):
         await occupied
         # This barrier runs after the abandoned begin in the single executor.
         await asyncio.to_thread(lambda: None)
-    asyncio.run(asyncio.wait_for(scenario(), 8))
+    asyncio.run(asyncio.wait_for(scenario(), SCENARIO))
     assert not (root / receipts.FILENAME).exists()
     assert callback.call_count == count() == 0
     assert not value._threads
@@ -345,7 +339,7 @@ def test_revocation_while_loader_blocked_prevents_paid_entry(setup, monkeypatch)
     callback = Mock(side_effect=select)
     def load(run_id):
         entered.set()
-        assert release.wait(_SCRIPTED_WAIT)
+        assert release.wait(STEP)
         return SavedSourceLoader(root)(run_id)
     value = make(callback, load)
     async def scenario():
@@ -406,7 +400,7 @@ def test_physical_post_target_exit_retains_shared_and_local_ownership_and_drains
             super().run()
             if self.name == "saved-source-controller":
                 exited_target.set()
-                assert release.wait(8)
+                assert release.wait(STEP)
     monkeypatch.setattr(threading, "Thread", DelayedExit)
     value = make()
     async def scenario():
@@ -441,7 +435,7 @@ def test_physical_post_target_exit_retains_shared_and_local_ownership_and_drains
         assert runs.active_paid_operation_count() == 0
         with runs.reserve_inline_paid_operation(owner=access.owner_id(CODE), byok=False):
             assert runs.active_paid_operation_count() == 1
-    asyncio.run(asyncio.wait_for(scenario(), 10))
+    asyncio.run(asyncio.wait_for(scenario(), SCENARIO))
 
 
 def test_new_process_reads_completed_and_orphan_pending_without_selector(setup):
@@ -467,7 +461,7 @@ print(json.dumps(asyncio.run(check())))
 '''
     result = subprocess.run([sys.executable, "-X", "utf8", "-c", script], input=json.dumps({
         "root": str(root), "code": CODE, "keys": [completed_key, pending_key],
-    }), text=True, encoding="utf-8", capture_output=True, timeout=15, check=True)
+    }), text=True, encoding="utf-8", capture_output=True, timeout=SCENARIO, check=True)
     completed, pending = json.loads(result.stdout)
     assert completed["result"] == first["result"]
     assert completed["delivery_snapshot_reads"] == 1
@@ -484,11 +478,11 @@ def test_thread_lease_byok_share_and_existing_inline_behavior(setup, monkeypatch
     def worker():
         runs.reserve_thread_paid_operation(owner=None, byok=True)
         entered.set()
-        assert release.wait(_SCRIPTED_WAIT)
+        assert release.wait(STEP)
     thread = threading.Thread(target=worker)
     thread.start()
     try:
-        assert entered.wait(_SCRIPTED_WAIT)
+        assert entered.wait(STEP)
         with pytest.raises(runs.ConcurrencyLimitReached), runs.reserve_inline_paid_operation(owner=None, byok=True):
             pytest.fail("BYOK share must count dedicated thread")
         with runs.reserve_inline_paid_operation(owner=access.owner_id(CODE), byok=False):
@@ -568,7 +562,7 @@ def test_duplicate_race_one_callback_charge_and_bounded_loader_threads(setup):
     callback = Mock(side_effect=select)
     def load(run_id):
         entered.set()
-        assert release.wait(_SCRIPTED_WAIT)
+        assert release.wait(STEP)
         return SavedSourceLoader(root)(run_id)
     value = make(callback, load)
     receipt_key = key()
@@ -622,7 +616,7 @@ def test_admitted_selector_blocks_actual_pdf_and_run_admission(setup):
     entered, release = threading.Event(), threading.Event()
     def callback(request):
         entered.set()
-        assert release.wait(_SCRIPTED_WAIT)
+        assert release.wait(STEP)
         return select(request)
     value = make(callback)
     async def scenario():

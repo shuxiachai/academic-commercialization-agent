@@ -24,7 +24,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-import report_evidence_relation_policy_canary as cli
+from experiments.report_evidence_canaries import report_evidence_relation_policy_canary as cli
 from academic_agent import report_evidence_relation_policy_qwen_canary as runner
 from academic_agent.report_evidence_relation_policy_qwen_transport import RelationPolicyQwenLedger
 
@@ -218,7 +218,7 @@ def test_identity_only_cli_and_exact_projection(offline, capsys):
 def test_static_and_fresh_import_closure(offline):
     """Include the RP adapter itself and entrypoints, not only its coupling list."""
     assert runner.RelationPolicyQwenLedger is RelationPolicyQwenLedger
-    pending = ["src/academic_agent/report_evidence_relation_policy_qwen_canary.py", "report_evidence_relation_policy_canary.py"]
+    pending = ["src/academic_agent/report_evidence_relation_policy_qwen_canary.py", "experiments/report_evidence_canaries/report_evidence_relation_policy_canary.py"]
     seen = set()
     while pending:
         name = pending.pop()
@@ -253,7 +253,7 @@ def getenv(self, name, *args):
 os._Environ.get = getenv
 pathlib.Path.mkdir = blocked
 httpx.AsyncClient = httpx.Client = socket.create_connection = blocked
-import report_evidence_relation_policy_canary
+from experiments.report_evidence_canaries import report_evidence_relation_policy_canary
 from academic_agent import report_evidence_relation_policy_qwen_canary as runner
 assert "dotenv" not in sys.modules
 for name, module in tuple(sys.modules.items()):

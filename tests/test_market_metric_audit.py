@@ -9,6 +9,7 @@ import sys
 import pytest
 
 from academic_agent import market_metric_audit as audit
+from tests.scripted_waits import SCENARIO
 
 
 def report(*claims):
@@ -206,7 +207,7 @@ def write_unit(root, name="unit", *, mode="live", score=3.5):
 
 def run_cli(root, output):
     return subprocess.run([sys.executable, "-m", "academic_agent.market_metric_audit", "--input", str(root),
-                           "--output", str(output)], capture_output=True, text=True, timeout=20, check=False)
+                           "--output", str(output)], capture_output=True, text=True, timeout=SCENARIO, check=False)
 
 
 def test_cli_delivers_manifest_counts_and_unknown_cap_effect_without_rewriting_inputs(tmp_path):

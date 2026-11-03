@@ -8,7 +8,7 @@ import sys
 import warnings
 from datetime import date, datetime, UTC
 from difflib import SequenceMatcher
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from collections.abc import Callable, Mapping, Sequence
 from urllib.error import URLError
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
@@ -17,9 +17,13 @@ from urllib.request import Request, urlopen
 from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
+from academic_agent.page_dates import page_publication_date, should_date
+from academic_agent.patent_applicants import google_patents_url, patent_page_facts
+from academic_agent.patent_family import publication_number, same_invention
 from academic_agent.source_title_recovery import recover_official_source_title
 
 from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
+    s2_wait_turn,
     SourceCollectionError,
     _TOPIC_PREPOSITIONS,
     _topic_core_phrase,
@@ -32,6 +36,9 @@ from academic_agent.source_clients import (  # noqa: F401  (re-exported below)
     _PM_MONTH,
     _PATENT_STOPWORDS, _PATENT_MAX_QUERY_WORDS, _patent_keywords,
 )
+
+if TYPE_CHECKING:
+    from academic_agent.run_spec import SearchPlan
 
 
 Domain = Literal["academic", "patent", "market"]
@@ -128,6 +135,10 @@ def _detect_weight_profile(topic: str) -> str:
     return "industrial"
 SearchFunction = Callable[[str], dict[str, Any]]
 UrlChecker = Callable[[str], tuple[bool, str]]
+PageDater = Callable[[str, date], tuple[date | None, str]]
+# (names, status) or, from the page reader, (names, status, dates); an older
+# two-value lookup still names applicants and simply dates nothing.
+ApplicantLookup = Callable[[str], "tuple[list[str], str] | tuple[list[str], str, dict[str, date]]"]
 
 _DOI_PATTERN = re.compile(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", re.IGNORECASE)
 _TAG_PATTERN = re.compile(r"<[^>]+>")
@@ -987,6 +998,121 @@ def _title_matches_topic(title: str, topic: str) -> bool:
             return False
     return True
 
+
+# Academic title gate: rule R5 of docs/prereg-2026-10-20-academic-title-gate-v1.md
+# (result: docs/results-2026-10-20-academic-title-gate-v1.md). The planned
+# search phrase adds category words ("high-speed", "power") that unrelated
+# titles share, and a title with only the user's one distinctive word failed
+# the two-word overlap. So the gate is anchored on the words the user typed.
+# Patents keep _title_matches_topic.
+_ACADEMIC_FUNCTION_WORDS = frozenset({
+    "for", "the", "and", "of", "in", "on", "to", "with", "via", "from", "into",
+    "by", "a", "an", "its", "their", "as", "at", "or",
+})
+# "-based" compounds ("space-based") split into a word most titles contain.
+_ACADEMIC_EXTRA_STOPWORDS = frozenset({"based"})
+# The replay covered inputs of up to six content words; see _academic_anchor_topic.
+_MAX_USER_CORE_WORDS = 6
+
+
+def _academic_stem(token: str) -> str:
+    """Strip plurals and "-ing" so "farms" meets "farming" and "drones" meets "drone".
+
+    R5 as registered cut "-es" after any letter, turning "drones" into "dron"
+    and "interfaces" into "interfac"; that lost four relevant test titles.
+    "-es" now goes only after s, x, z, ch or sh, and "-ies" becomes "-y".
+    """
+    if token.endswith("ies") and len(token) >= 6:
+        return token[:-3] + "y"
+    if token.endswith(("sses", "xes", "zes", "ches", "shes")) and len(token) - 2 >= 4:
+        return token[:-2]
+    if token.endswith("ing") and len(token) - 3 >= 4:
+        return token[:-3]
+    if token.endswith("s") and not token.endswith("ss") and len(token) - 1 >= 4:
+        return token[:-1]
+    return token
+
+
+def _academic_content_words(text: str) -> list[str]:
+    return [
+        _academic_stem(word)
+        for word in _WORD_PATTERN.findall(text.lower())
+        if len(word) >= 3
+        and word not in _ACADEMIC_FUNCTION_WORDS
+        and word not in _TOPIC_STOPWORDS
+        and word not in _ACADEMIC_EXTRA_STOPWORDS
+    ]
+
+
+def _academic_phrase_matches(title: str, phrase: str) -> bool:
+    """_title_matches_topic's test on stemmed words of three or more letters.
+
+    At least two shared words; from three phrase words on, a matched pair
+    adjacent in the phrase must also be adjacent in the title.
+    """
+    phrase_words = _academic_content_words(phrase)
+    if not phrase_words:
+        return True
+    title_words = [_academic_stem(word) for word in _WORD_PATTERN.findall(title.lower())]
+    overlap = set(phrase_words) & set(title_words)
+    if len(overlap) < 2:
+        return False
+    if len(set(phrase_words)) >= 3:
+        title_bigrams = set(zip(title_words, title_words[1:], strict=False))
+        matched_pairs = [
+            pair
+            for pair in zip(phrase_words, phrase_words[1:], strict=False)
+            if pair[0] in overlap and pair[1] in overlap
+        ]
+        if matched_pairs and not any(pair in title_bigrams for pair in matched_pairs):
+            return False
+    return True
+
+
+def _academic_title_matches(title: str, topic: str, user_topic: str = "") -> bool:
+    """Whether an academic title is about the topic the user asked for.
+
+    ``topic`` is the planned search phrase (or an alias); ``user_topic`` is
+    the submitted topic from _academic_anchor_topic. One user word
+    ("hyperloop") must appear in the title. Several must match as a phrase,
+    or the planned phrase must match and one of them appear. Without user
+    words (Chinese input, or no anchor) the planned phrase alone decides.
+    """
+    core = set(_academic_content_words(user_topic))
+    if not core:
+        return _academic_phrase_matches(title, topic)
+    title_words = {_academic_stem(word) for word in _WORD_PATTERN.findall(title.lower())}
+    if len(core) == 1:
+        return bool(core & title_words)
+    if _academic_phrase_matches(title, user_topic):
+        return True
+    return bool(core & title_words) and _academic_phrase_matches(title, topic)
+
+
+def _academic_anchor_topic(
+    display_topic: str, search_topic: str, aliases: Sequence[str] = ()
+) -> str:
+    """The submitted text when it names a topic, else "" (no anchor).
+
+    The replay inputs were short topics ("hyperloop", "fusion power"), and
+    every plan kept at least half of their words. A request such as "We are
+    building an LLM for scriptwriting; assess its value" carries words no
+    paper title uses, and the planner keeps one of six. Such an input, or
+    one longer than the replay's six words, leaves the planned phrase to
+    decide.
+    """
+    core = set(_academic_content_words(display_topic))
+    if not core or len(core) > _MAX_USER_CORE_WORDS:
+        return ""
+    planned = set(_academic_content_words(" ".join((search_topic, *aliases))))
+    return display_topic if 2 * len(core & planned) >= len(core) else ""
+
+
+def _legacy_academic_title_gate(title: str, topic: str, user_topic: str = "") -> bool:
+    """The academic gate before R5. Used only to top a shortfall up to the minimum."""
+    return _title_matches_topic(title, topic)
+
+
 def _published_date(item: dict[str, Any]) -> date | None:
     for key in ("published-print", "published-online", "published", "issued"):
         container = item.get(key)
@@ -1038,6 +1164,7 @@ def _academic_source(
     research_topic: str,
     *,
     aliases: Sequence[str] = (),
+    user_topic: str = "",
 ) -> tuple[EvidenceSource | None, str]:
     item, reason = _resolve_crossref_item(result, crossref)
     if item is None:
@@ -1049,7 +1176,7 @@ def _academic_source(
         return None, "Crossref record lacks DOI, title, or publisher"
     validation_topics = tuple(dict.fromkeys((research_topic, *aliases)))
     if not any(
-        _title_matches_topic(title, validation_topic)
+        _academic_title_matches(title, validation_topic, user_topic)
         for validation_topic in validation_topics
     ):
         return None, (
@@ -1245,6 +1372,8 @@ def _academic_source_from_openalex(
     research_topic: str,
     *,
     s2_client: SemanticScholarClient | None = None,
+    user_topic: str = "",
+    title_gate: Callable[[str, str, str], bool] | None = None,
 ) -> tuple[EvidenceSource | None, str]:
     title = _clean_text(str(work.get("title") or ""))
     doi_raw = str(work.get("doi") or "").lower().strip()
@@ -1272,7 +1401,7 @@ def _academic_source_from_openalex(
     # Always require a title match regardless of OpenAlex topic classification.
     # topic_match=True only means OpenAlex field labels overlap (e.g. "Manufacturing"),
     # which is too broad — a generic manufacturing paper should not pass title check.
-    if not _title_matches_topic(title, research_topic):
+    if not (title_gate or _academic_title_matches)(title, research_topic, user_topic):
         if topic_match is True:
             return None, f"OpenAlex topic matched broadly but title is off-topic: {title!r}"
         elif topic_match is False:
@@ -1377,6 +1506,9 @@ def _academic_source_from_s2(
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    user_topic: str = "",
+    title_gate: Callable[[str, str, str], bool] | None = None,
 ) -> tuple[EvidenceSource | None, str]:
     title = _clean_text(str(paper.get("title") or ""))
     abstract = _clean_text(str(paper.get("abstract") or ""))
@@ -1387,7 +1519,7 @@ def _academic_source_from_s2(
         return None, "Semantic Scholar paper has no title"
     if not doi:
         return None, f"S2 paper has no DOI: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    if not (title_gate or _academic_title_matches)(title, research_topic, user_topic):
         return None, f"S2 title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"S2 abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1445,6 +1577,9 @@ def _academic_source_from_arxiv(
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    user_topic: str = "",
+    title_gate: Callable[[str, str, str], bool] | None = None,
 ) -> tuple["EvidenceSource | None", str]:
     title    = _clean_text(record.get("title") or "")
     abstract = _clean_text(record.get("abstract") or "")
@@ -1457,7 +1592,7 @@ def _academic_source_from_arxiv(
         return None, "arXiv record has no title"
     if not arxiv_url and not doi:
         return None, f"arXiv record has no URL: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    if not (title_gate or _academic_title_matches)(title, research_topic, user_topic):
         return None, f"arXiv title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"arXiv abstract too thin ({len(abstract)} chars): {title!r}"
@@ -1518,6 +1653,9 @@ def _academic_source_from_pubmed(
     source_id: str,
     accessed_date: date,
     research_topic: str,
+    *,
+    user_topic: str = "",
+    title_gate: Callable[[str, str, str], bool] | None = None,
 ) -> tuple["EvidenceSource | None", str]:
     title    = _clean_text(record.get("title") or "")
     abstract = _clean_text(record.get("abstract") or "")
@@ -1530,7 +1668,7 @@ def _academic_source_from_pubmed(
         return None, "PubMed record has no title"
     if not (doi or pmid):
         return None, f"PubMed record has no DOI or PMID: {title!r}"
-    if not _title_matches_topic(title, research_topic):
+    if not (title_gate or _academic_title_matches)(title, research_topic, user_topic):
         return None, f"PubMed title not relevant to topic: {title!r}"
     if len(abstract) < 60:
         return None, f"PubMed abstract too thin ({len(abstract)} chars): {title!r}"
@@ -2204,6 +2342,11 @@ def _web_source(
             return None, "search result lacks a usable title or URL"
         if host not in _PATENT_HOSTS:
             return None, f"non-primary patent host: {host}"
+        # Justia lists each assignee's and inventor's patents on its own pages.
+        # Such a page is a directory, not a patent record: a held-out run took
+        # "Patents Assigned to Azur Space Solar Power GmbH" for a patent.
+        if host == "patents.justia.com" and not urlsplit(canonical).path.startswith("/patent/"):
+            return None, f"not a patent record (Justia listing page): {canonical}"
         source_type = "patent"
         patent_year = _parse_patent_year(canonical, snippet)
         if host in _OFFICIAL_PATENT_HOSTS:
@@ -2662,6 +2805,7 @@ def _collect_domain(
     blocked_titles: set[str] | None = None,
     research_aliases: Sequence[str] = (),
     query_limits: Mapping[str, int] | None = None,
+    user_topic: str = "",
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
     prefix = {"academic": "A", "patent": "P", "market": "M"}[domain]
     accepted: list[EvidenceSource] = []
@@ -2754,7 +2898,7 @@ def _collect_domain(
             if domain == "academic":
                 source, reason = _academic_source(
                     result, _tmp_src_id, crossref, accessed_date, research_topic,
-                    aliases=research_aliases,
+                    aliases=research_aliases, user_topic=user_topic,
                 )
             else:
                 source, reason = _web_source(
@@ -2824,6 +2968,22 @@ def _collect_domain(
                 if patent_title_key in seen_patent_titles:
                     audit.rejected_reasons.append(
                         f"duplicate patent family title: {source.title}"
+                    )
+                    continue
+                # Google Patents titles carry the publication number, so the
+                # whole-title key above never matched one invention filed in
+                # several offices: five of eight slots in one run held the same
+                # treatment. same_invention compares titles without the numbers
+                # (docs/results-2026-10-22-patent-family-v1.md).
+                kept_number = next(
+                    (publication_number(str(kept.url)) for kept in accepted
+                     if same_invention(source.title, str(source.url) if source.url else None,
+                                       kept.title, str(kept.url) if kept.url else None)),
+                    None,
+                )
+                if kept_number is not None:
+                    audit.rejected_reasons.append(
+                        f"duplicate patent family (same invention as {kept_number}): {source.title}"
                     )
                     continue
                 seen_patent_titles.add(patent_title_key)
@@ -2922,9 +3082,15 @@ def _collect_academic_primary(
     synonyms: list[str] | None = None,
     pubmed: "PubMedClient | None" = None,
     arxiv: "ArxivClient | None" = None,
+    user_topic: str = "",
+    relaxed_reserve: list[Callable[..., tuple[list[EvidenceSource], SearchAudit]]] | None = None,
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
     """Collect academic sources via concurrent multi-API fetch with synonym,
-    topic-cluster, MeSH, and citation-snowball expansion."""
+    topic-cluster, MeSH, and citation-snowball expansion.
+
+    When ``relaxed_reserve`` is a list, a top-up function is appended to it;
+    see _relaxed_top_up_factory.
+    """
     from concurrent.futures import ThreadPoolExecutor
 
     fetch_rows = max(20, maximum_sources * 4)
@@ -2981,7 +3147,8 @@ def _collect_academic_primary(
                 break
             src_id = f"A{len(accepted) + 1}"
             source, reason = _academic_source_from_openalex(
-                work, src_id, accessed_date, match_topic, s2_client=s2
+                work, src_id, accessed_date, match_topic, s2_client=s2,
+                user_topic=user_topic,
             )
             if source is None:
                 audit.rejected_reasons.append(reason)
@@ -2994,7 +3161,9 @@ def _collect_academic_primary(
             if len(accepted) >= limit:
                 break
             src_id = f"A{len(accepted) + 1}"
-            source, reason = converter(paper, src_id, accessed_date, topic)
+            source, reason = converter(
+                paper, src_id, accessed_date, topic, user_topic=user_topic
+            )
             if source is None:
                 audit.rejected_reasons.append(reason)
                 continue
@@ -3023,7 +3192,7 @@ def _collect_academic_primary(
                 domain="academic",
                 query=f"[{label}] {topic}",
                 result_count=0,
-                rejected_reasons=[str(exc)],
+                rejected_reasons=[f"request failed: {exc}"],
             ))
             return []
 
@@ -3068,6 +3237,9 @@ def _collect_academic_primary(
         _fill_oa(syn_works, syn_audit, limit=maximum_sources, match_topic=syn)
 
     # S2 / PubMed / arXiv supplements when still short
+    s2_audit: SearchAudit | None = None
+    pm_audit: SearchAudit | None = None
+    ax_audit: SearchAudit | None = None
     if len(accepted) < maximum_sources:
         s2_audit = SearchAudit(domain="academic", query=f"[S2] {topic}", result_count=len(s2_papers))
         audits.append(s2_audit)
@@ -3162,13 +3334,238 @@ def _collect_academic_primary(
                     audits.append(sb_audit)
                     _fill_oa(snowball_works, sb_audit, limit=maximum_sources)
 
+    # An empty result that was really a refusal or a failure must not read as
+    # "no papers on this topic". The S2/PubMed/arXiv rows exist only when the
+    # earlier lanes left slots open, so a refusal gets a row of its own; every
+    # OpenAlex call shares one client, noted on the OA-Cited row.
+    for label, client, audit, fetched in (
+        ("OA-Cited", openalex, cited_audit, cited_works),
+        ("S2", s2, s2_audit, s2_papers),
+        ("PubMed", pubmed_client, pm_audit, pm_papers),
+        ("arXiv", arxiv_client, ax_audit, ax_papers),
+    ):
+        error = getattr(client, "last_error", None)
+        if not error:
+            continue
+        if audit is None:
+            audit = SearchAudit(domain="academic", query=f"[{label}] {topic}", result_count=len(fetched))
+            audits.append(audit)
+        audit.rejected_reasons.append(error)
+
+    if relaxed_reserve is not None:
+        relaxed_reserve.append(_relaxed_top_up_factory(
+            topic, accessed_date, s2,
+            [
+                (recent_works, _academic_source_from_openalex, topic),
+                (cited_works, _academic_source_from_openalex, topic),
+                *((works, _academic_source_from_openalex, syn) for syn, works in syn_works_map.items()),
+                (s2_papers, _academic_source_from_s2, topic),
+                (pm_papers, _academic_source_from_pubmed, topic),
+                (ax_papers, _academic_source_from_arxiv, topic),
+            ],
+        ))
     return accepted, audits
+
+
+def _relaxed_top_up_factory(
+    topic: str,
+    accessed_date: date,
+    s2: SemanticScholarClient,
+    pools: list[tuple[list[dict[str, Any]], Callable[..., tuple[EvidenceSource | None, str]], str]],
+) -> Callable[[int, Sequence[EvidenceSource]], tuple[list[EvidenceSource], SearchAudit]]:
+    """Admit candidates the pre-R5 gate accepts, only to reach the academic minimum.
+
+    The live check (results-2026-10-21-academic-gate-live-v1.md) found a plan
+    drifting from the user's words leave R5 one paper where the earlier gate
+    found eight, and the run failed. The top-up runs last, after the web
+    fallback, converts the already fetched candidates lazily, and marks each
+    source it admits so the evidence shows how it got in.
+    """
+
+    def top_up(needed: int, kept: Sequence[EvidenceSource]) -> tuple[list[EvidenceSource], SearchAudit]:
+        audit = SearchAudit(
+            domain="academic",
+            query=f"[Relaxed-Title-Gate] {topic}",
+            result_count=sum(len(items) for items, _converter, _match in pools),
+        )
+        added: list[EvidenceSource] = []
+        for items, converter, match_topic in pools:
+            for item in items:
+                if len(added) >= needed:
+                    return added, audit
+                extra = {"s2_client": s2} if converter is _academic_source_from_openalex else {}
+                source, _reason = converter(
+                    item, f"A{len(kept) + len(added) + 1}", accessed_date, match_topic,
+                    title_gate=_legacy_academic_title_gate, **extra,
+                )
+                if source is None or any(
+                    (source.doi and other.doi and source.doi.lower() == other.doi.lower())
+                    or _title_similarity(source.title, other.title) >= _TITLE_NEAR_DUP_THRESHOLD
+                    for other in (*kept, *added)
+                ):
+                    continue
+                source.credibility_reason = (
+                    f"{source.credibility_reason}; admitted by the earlier, looser title "
+                    "gate only to reach the academic minimum"
+                )
+                added.append(source)
+                audit.accepted_source_ids.append(source.source_id)
+        return added, audit
+
+    return top_up
 
 
 def _renumber(sources: list[EvidenceSource], prefix: str) -> None:
     """Reassign sequential source IDs in-place after merging from multiple providers."""
     for i, src in enumerate(sources, start=1):
         src.source_id = f"{prefix}{i}"
+
+
+# Web search returns market sources undated, so every report listed them as
+# "n.d." and a 2021 hiring announcement read like this week's news. Each
+# accepted source that should_date() admits takes the publication date its
+# own page states in metadata; the rule was registered and tested once
+# before adoption (docs/results-2026-10-22-market-page-dates-v1.md). The
+# step has a deadline so one slow site cannot hold up the run: a page not
+# read in time stays undated. A "[Page-Dates]" audit row names the sources
+# dated this way; every other dated market source took its date from search.
+_PAGE_DATE_WORKERS = 8
+_PAGE_DATE_DEADLINE_SECONDS = 20.0
+
+
+def _date_market_pages(
+    sources: list[EvidenceSource],
+    accessed_date: date,
+    page_dater: PageDater,
+) -> SearchAudit | None:
+    """Date undated market sources from their own pages; None if none was eligible."""
+    from concurrent.futures import ThreadPoolExecutor, wait
+
+    pending = [
+        source for source in sources
+        if source.published_date is None
+        and should_date(source.source_type, str(source.url) if source.url else None)
+    ]
+    if not pending:
+        return None
+    pool = ThreadPoolExecutor(max_workers=min(_PAGE_DATE_WORKERS, len(pending)))
+    futures = {pool.submit(page_dater, str(source.url), accessed_date): source
+               for source in pending}
+    done, _late = wait(futures, timeout=_PAGE_DATE_DEADLINE_SECONDS)
+    # Late pages are abandoned rather than awaited; each fetch has its own timeout.
+    pool.shutdown(wait=False, cancel_futures=True)
+    dated: list[str] = []
+    notes: list[str] = []
+    for future, source in futures.items():
+        if future not in done:
+            notes.append(f"{source.source_id}: page not read within {_PAGE_DATE_DEADLINE_SECONDS:g} s")
+            continue
+        if future.exception() is not None:
+            notes.append(f"{source.source_id}: page could not be read")
+            continue
+        found, _method = future.result()
+        if found is None or found > accessed_date:
+            notes.append(f"{source.source_id}: no publication date found")
+            continue
+        source.published_date = found
+        dated.append(source.source_id)
+    return SearchAudit(
+        domain="market",
+        query="[Page-Dates] publication date stated by each source's own page",
+        result_count=len(pending),
+        accepted_source_ids=dated,
+        rejected_reasons=notes,
+    )
+
+
+# Web search returns patent rows without an applicant: 66 of 69 saved runs
+# listed none, and each row's publisher read "Google". Each web-search patent
+# takes the current assignee its Google Patents page lists, checked in
+# docs/results-2026-10-22-patent-applicants-check.md, with the same bounded
+# fan-out as page dates. A "[Patent-Applicants]" audit row records which
+# rows were named and why the others were not.
+_APPLICANT_WORKERS = 8
+_APPLICANT_DEADLINE_SECONDS = 20.0
+_APPLICANT_NOTE = (" Applicant: as listed by Google Patents, which notes its list may be "
+                   "inaccurate; not a legal title search.")
+
+
+def _name_patent_applicants(
+    sources: list[EvidenceSource],
+    lookup: ApplicantLookup,
+) -> tuple[dict[str, list[str]], list[SearchAudit]]:
+    """Name web-search patents' applicants, and date them, from one read of each patent's page.
+
+    Returns ({source_id: company names, [] if inventor-owned}, audit rows): one
+    row for the applicants and, when the lookup reports dates, one for them.
+    The page's publication date replaces the row's date whatever it was: the
+    row had at best the year out of the publication number as 1 January, and
+    on the saved registries a third of those years were wrong.
+    """
+    from concurrent.futures import ThreadPoolExecutor, wait
+
+    pending = [source for source in sources
+               if source.url is not None and google_patents_url(str(source.url))]
+    if not pending:
+        return {}, []
+    pool = ThreadPoolExecutor(max_workers=min(_APPLICANT_WORKERS, len(pending)))
+    futures = {pool.submit(lookup, str(source.url)): source for source in pending}
+    done, _late = wait(futures, timeout=_APPLICANT_DEADLINE_SECONDS)
+    # Late pages are abandoned rather than awaited; each fetch has its own timeout.
+    pool.shutdown(wait=False, cancel_futures=True)
+    companies: dict[str, list[str]] = {}
+    named: list[str] = []
+    notes: list[str] = []
+    dated: list[str] = []
+    date_notes: list[str] = []
+    saw_dates = False
+    for future, source in futures.items():
+        if future not in done:
+            notes.append(f"{source.source_id}: page not read within {_APPLICANT_DEADLINE_SECONDS:g} s")
+            continue
+        if future.exception() is not None:
+            notes.append(f"{source.source_id}: page could not be read")
+            continue
+        names, status, *extra = future.result()
+        if extra:
+            saw_dates = True
+            published = extra[0].get("publication") if isinstance(extra[0], dict) else None
+            if isinstance(published, date):
+                if source.published_date is not None and source.published_date != published:
+                    date_notes.append(f"{source.source_id}: {source.published_date.isoformat()} replaced by "
+                                      f"{published.isoformat()} from the page")
+                source.published_date = published
+                dated.append(source.source_id)
+            elif status not in {"unreadable", "no_number"}:
+                date_notes.append(f"{source.source_id}: page states no publication date")
+        if status == "named" and names:
+            source.publisher = "; ".join(names)
+            companies[source.source_id] = names
+        elif status == "individual":
+            # Inventor-owned: name the inventors, never list them as companies.
+            source.publisher = ("Individual inventor: " + "; ".join(names)) if names else "Individual inventor"
+            companies[source.source_id] = []
+        else:
+            notes.append(f"{source.source_id}: no applicant found ({status})")
+            continue
+        source.credibility_reason += _APPLICANT_NOTE
+        named.append(source.source_id)
+    audits = [SearchAudit(
+        domain="patent",
+        query="[Patent-Applicants] current assignee from each patent's Google Patents page",
+        result_count=len(pending),
+        accepted_source_ids=named,
+        rejected_reasons=notes,
+    )]
+    if saw_dates:
+        audits.append(SearchAudit(
+            domain="patent",
+            query="[Patent-Dates] publication date from each patent's Google Patents page",
+            result_count=len(pending),
+            accepted_source_ids=dated,
+            rejected_reasons=date_notes,
+        ))
+    return companies, audits
 
 
 def collect_source_collection(
@@ -3182,15 +3579,19 @@ def collect_source_collection(
     arxiv: "ArxivClient | None" = None,
     lens: "LensPatentClient | None" = None,
     url_checker: UrlChecker = check_public_url,
+    page_dater: PageDater = page_publication_date,
+    patent_applicant_lookup: ApplicantLookup = patent_page_facts,
     minimum_sources: int = 3,
     maximum_sources: int = 8,
     accessed_date: date | None = None,
     paper_seed: "EvidenceSource | None" = None,  # noqa: F821
     extra_market_queries: list[str] | None = None,
     weight_profile: str | None = None,
+    search_plan: "SearchPlan | None" = None,
 ) -> SourceCollection:
     # ── Language detection & search planning ─────────────────────────────────
     from academic_agent.language import (
+        TopicSearchPlan, _strip_assessment_terms,
         detect_language, get_lang_info, plan_topic_search, translate_headings,
     )
     from academic_agent.evidence import _REQUIRED_REPORT_HEADINGS
@@ -3207,7 +3608,16 @@ def collect_source_collection(
     lang_code = detect_language(display_topic)
     lang_info = get_lang_info(lang_code)
     is_native = not lang_code.startswith("en")
-    plan = plan_topic_search(display_topic, n=2)
+    if search_plan is not None:
+        # The user confirmed this reading before the run started; planning
+        # again could hand the run a different one.
+        plan = TopicSearchPlan(
+            search_topic=_strip_assessment_terms(search_plan.search_topic),
+            aliases=tuple(_strip_assessment_terms(a) for a in search_plan.aliases),
+            components=search_plan.components,
+        )
+    else:
+        plan = plan_topic_search(display_topic, n=2)
     if not plan.resolved:
         raise SourceCollectionError(
             "Could not identify an assessable technology or research subject "
@@ -3241,6 +3651,8 @@ def collect_source_collection(
         )
     native_topic = display_topic if is_native else None
     topic_synonyms = list(plan.aliases)
+    # The words the user typed anchor the academic title gate, when they name a topic.
+    academic_anchor = _academic_anchor_topic(display_topic, normalized_topic, topic_synonyms)
     # A caller-supplied profile decides retrieval, not just scoring. It used to
     # be applied by the worker *after* this function returned, which meant a
     # user who corrected an auto-detection to "biomedical" got biomedical
@@ -3326,6 +3738,7 @@ def collect_source_collection(
         native_serper = None
 
     # ── Academic: OpenAlex primary, S2 supplement, Serper+Crossref fallback ──
+    relaxed_reserve: list[Callable[..., tuple[list[EvidenceSource], SearchAudit]]] = []
     academic, oa_audits = _collect_academic_primary(
         normalized_topic, resolved_openalex, resolved_s2, resolved_date,
         maximum_sources=maximum_sources,
@@ -3333,6 +3746,8 @@ def collect_source_collection(
         synonyms=topic_synonyms,
         pubmed=pubmed,
         arxiv=arxiv,
+        user_topic=academic_anchor,
+        relaxed_reserve=relaxed_reserve,
     )
     all_audits.extend(oa_audits)
 
@@ -3352,6 +3767,7 @@ def collect_source_collection(
                 blocked_dois=existing_dois,
                 blocked_titles={src.title for src in academic},
                 research_aliases=topic_synonyms,
+                user_topic=academic_anchor,
             )
             all_audits.extend(fb_audits)
             for src in fallback:
@@ -3369,6 +3785,12 @@ def collect_source_collection(
                 result_count=0,
                 rejected_reasons=[str(_fb_err)],
             ))
+
+    # Last resort before the shortage error: the earlier title gate, only up to the minimum.
+    if len(academic) < minimum_sources and relaxed_reserve:
+        topped_up, relaxed_audit = relaxed_reserve[0](minimum_sources - len(academic), academic)
+        all_audits.append(relaxed_audit)
+        academic.extend(topped_up)
 
     # Backfill citation_count for any source still missing it.
     # DOI sources → OpenAlex.  arXiv-only sources (no DOI) → Semantic Scholar arXiv lookup.
@@ -3397,6 +3819,7 @@ def collect_source_collection(
             if _s2_key:
                 _s2_headers["x-api-key"] = _s2_key
             req = Request(s2_url, headers=_s2_headers)
+            s2_wait_turn()  # these lookups run in a pool; S2 allows one per second
             with urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
             count = data.get("citationCount")
@@ -3682,6 +4105,7 @@ def collect_source_collection(
             },
             blocked_titles={source.title for source in previously_seen},
             research_aliases=topic_synonyms,
+            user_topic=academic_anchor,
         )
         all_audits.extend(recovery_audits)
         recovered, recovery_removed = _filter_by_relevance(
@@ -3719,6 +4143,11 @@ def collect_source_collection(
     _renumber(academic, "A")
     _renumber(patents, "P")
     _renumber(market, "M")
+    page_dates_audit = _date_market_pages(market, resolved_date, page_dater)
+    if page_dates_audit is not None:
+        all_audits.append(page_dates_audit)
+    applicant_names, applicant_audits = _name_patent_applicants(patents, patent_applicant_lookup)
+    all_audits.extend(applicant_audits)
 
     # Extract unique competitor/assignee names from patent sources.
     _GENERIC_ASSIGNEES = frozenset({
@@ -3730,7 +4159,10 @@ def collect_source_collection(
     patent_assignees: list[str] = []
     for ps in patents:
         raw = (ps.publisher or "").strip()
-        for name in raw.split(","):
+        # Names read from a Google Patents page can hold commas ("University of
+        # California, San Diego"); only Lens publishers are comma-joined lists.
+        names = applicant_names[ps.source_id] if ps.source_id in applicant_names else raw.split(",")
+        for name in names:
             name = name.strip()
             if name and name.lower() not in _GENERIC_ASSIGNEES and name not in seen_assignees:
                 seen_assignees.add(name)

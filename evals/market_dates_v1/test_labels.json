@@ -1,0 +1,65 @@
+{
+ "_rubric": "Labelled by an AI assistant from the full rendered text cached by verify.py, for each dated row it did not find. contradicted: the page prints this article's own publication date more than one day from the extracted date. not_printed: no publication date is shown; update dates, today's date and other articles' dates do not count. unreadable: rendering failed or was blocked. Two labels were added because none of the three fit: same_date_other_form (the page prints the extracted date in a form the registered search misses) and month_only_consistent (the page prints only a month, which contains the extracted date). Neither added label counts toward P1, which is the registered search alone, or toward P2.",
+ "labels": [
+  {
+   "url": "https://www.energy.gov/articles/fact-sheet-energy-department-delivering-accelerating-deployment-nuclear-power",
+   "date": "2026-01-07",
+   "label": "contradicted",
+   "note": "the byline under the title reads 'January 19, 2026'"
+  },
+  {
+   "url": "https://newmarketpitch.com/blogs/news/brain-computer-interface-top-startups-valuation",
+   "date": "2026-07-13",
+   "label": "not_printed",
+   "note": "only update dates: 'Updated 10 October 2026', 'Last updated: 10 October 2026'"
+  },
+  {
+   "url": "https://newmarketpitch.com/blogs/news/brain-computer-interface-list-deals",
+   "date": "2026-10-10",
+   "label": "not_printed",
+   "note": "only update dates: 'Updated 6 October 2026', four days before the extracted date"
+  },
+  {
+   "url": "https://www.cbinsights.com/research/leading-brain-computer-interface-startups",
+   "date": "2025-09-18",
+   "label": "same_date_other_form",
+   "note": "prints 'SEPTEMBER 18, 2025'; the search is case-sensitive"
+  },
+  {
+   "url": "https://paradromics.com/blog/china-bci-developments",
+   "date": "2026-04-30",
+   "label": "same_date_other_form",
+   "note": "prints 'APR 30, 2026' above the title; the search is case-sensitive"
+  },
+  {
+   "url": "https://cbinsights.com/research/leading-brain-computer-interface-startups",
+   "date": "2025-09-18",
+   "label": "same_date_other_form",
+   "note": "prints 'SEPTEMBER 18, 2025'; the search is case-sensitive"
+  },
+  {
+   "url": "https://www.landbase.com/blog/fastest-growing-carbon-capture-companies-startups",
+   "date": "2024-05-01",
+   "label": "contradicted",
+   "note": "prints 'August 18, 2026' above the title; the text describes 2026 events"
+  },
+  {
+   "url": "https://techxplore.com/news/2025-06-artificial-photosynthesis-surpasses-key-efficiency.html",
+   "date": "2025-06-27",
+   "label": "unreadable",
+   "note": "a bot-check page; the URL carries 2025-06"
+  },
+  {
+   "url": "https://bioprocesstools.com/blog/precision-fermentation-economics",
+   "date": "2026-04-07",
+   "label": "month_only_consistent",
+   "note": "byline 'April 2026 | Last updated: July 2026'"
+  },
+  {
+   "url": "https://sofinnovapartners.com/news/verley-becomes-first-company-to-receive-fda-no-questions-letter-for-functionalized-dairy-proteins-made-via-precision-fermentation",
+   "date": "2025-10-09",
+   "label": "same_date_other_form",
+   "note": "prints '9 October, 2025' above the title; the comma form is not searched"
+  }
+ ]
+}

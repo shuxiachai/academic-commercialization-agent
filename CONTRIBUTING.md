@@ -17,9 +17,9 @@ requests.
 
 | | Where |
 |---|---|
-| **Good for a first PR** | The main web client (`web/index.html`, `web/samples.html`, `web/static/` except the files in the last row; new UI strings go in a small module of their own, like `web/static/js/samples_i18n.js`); `ui/` readers and PDF export; current guides (`README*`, `CONTRIBUTING.md`, `docs/operating-guide.md`, `docs/README.md`); new tests in `tests/` and `e2e/`; new tools under `scripts/` |
-| **Open an issue first** | Production pipeline and retrieval (`src/academic_agent/crew.py`, `source_pipeline.py`, `evidence.py`, `config/`); API access, BYOK and billing boundaries in `api/`; anything that changes scores, prompts or providers |
-| **Do not change** | `web/static/js/i18n.js`, `web/static/js/result.js`, `tests/js/source_browser_contract.mjs` and `AGENTS.md` (frozen experiments hash their bytes); the experimental pages `web/saved-source-*/` and `web/source-locator/`; the root experiment scripts and the experimental modules in `src/academic_agent/` (their paths and bytes are bound the same way); dated documents `docs/prereg-*`, `docs/results-*`, `docs/errata-*`, `docs/protocol-*`; fixtures in `tests/fixtures/`, `evals/` and `benchmark_fixtures/`. Touch `pyproject.toml` and `uv.lock` only as far as your change needs |
+| **Good for a first PR** | The main web client (`web/index.html`, `web/samples.html`, `web/static/`; new UI strings go in `web/static/js/i18n.js`, in English and Chinese); `ui/` readers and PDF export; current guides (`README*`, `CONTRIBUTING.md`, `docs/operating-guide.md`, `docs/README.md`); new tests in `tests/` and `e2e/`; new tools under `scripts/` |
+| **Open an issue first** | Production pipeline and retrieval (`src/academic_agent/crew.py`, `source_pipeline.py`, `config/`); API access, BYOK and billing boundaries in `api/`; anything that changes scores, prompts or providers |
+| **Do not change** | `src/academic_agent/evidence.py` (frozen experiments hash its bytes, and their tests fail on any edit; to change its behaviour, wrap it as `reviewer_plan_bounds.py` does); `AGENTS.md`, the maintainer's instructions to assistants; the experimental pages `web/saved-source-*/` and `web/source-locator/`; the experiment scripts under `experiments/` and the experimental modules in `src/academic_agent/` (their paths and bytes are bound the same way); dated documents `docs/prereg-*`, `docs/results-*`, `docs/errata-*`, `docs/protocol-*`; fixtures in `tests/fixtures/`, `evals/` and `benchmark_fixtures/`. Touch `pyproject.toml` and `uv.lock` only as far as your change needs |
 
 If a change you need falls in the last row, open an issue and explain why;
 the frozen material belongs to closed studies whose results depend on it.
@@ -55,6 +55,20 @@ tests start a fresh interpreter that may only read the project's own
 installed packages. CI still runs serially: on a saturated four-core runner
 a few timing-sensitive concurrency tests fail intermittently in parallel, so
 confirm a parallel-only failure with a serial rerun before chasing it.
+
+The guides link to sites this repository does not control (provider docs, the
+live app, commit permalinks). `tests/test_public_docs.py` resolves only
+repository-relative paths and deliberately makes no network request, so check
+the external ones before sending a documentation change:
+
+```bash
+uv run python scripts/check_external_links.py
+```
+
+It reads the same guides that test lists, requests every `http(s)` link with a
+timeout and a short pause per host, prints what is broken, and exits non-zero
+if anything is. A 403 or 429 is a warning, not a failure: those hosts block
+bots, and a bot-blocked page is not a dead page.
 
 Tests of closed experiments, audits and probes are marked `experiment`
 ([list](tests/experiment_tests.txt)); they take about 80% of suite time for

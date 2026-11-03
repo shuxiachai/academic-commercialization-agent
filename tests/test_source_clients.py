@@ -8,7 +8,10 @@ import xml.etree.ElementTree as ET
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
+import pytest
+
 from academic_agent.source_clients import (
+    OPENALEX_RATE_LIMITED,
     ArxivClient,
     OpenAlexClient,
     PubMedClient,
@@ -316,3 +319,69 @@ class ArxivParseFeedTests(unittest.TestCase):
         results = self._client()._parse_feed(feed.encode())
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["title"], "OK paper")
+
+
+@pytest.fixture(autouse=True)
+def _fresh_semantic_scholar_turn():
+    """Each test starts with no pending Semantic Scholar wait."""
+    import academic_agent.source_clients as clients
+    clients._s2_next_turn = 0.0
+
+
+class OpenAlexKeyAndRefusalTests(unittest.TestCase):
+    """Anonymous OpenAlex calls share a per-IP daily budget; refusals must be visible."""
+
+    def test_an_api_key_is_sent_as_a_bearer_header(self):
+        with patch.dict("os.environ", {"OPENALEX_API_KEY": "k-123"}):
+            client = OpenAlexClient(timeout=5, retries=0)
+        self.assertEqual(client.headers["Authorization"], "Bearer k-123")
+
+    def test_no_key_sends_no_authorization_header(self):
+        with patch.dict("os.environ", {}, clear=True):
+            client = OpenAlexClient(timeout=5, retries=0)
+        self.assertNotIn("Authorization", client.headers)
+
+    @patch("academic_agent.source_clients.time.sleep")
+    @patch("academic_agent.source_clients.urlopen")
+    def test_a_refused_search_is_recorded_not_silent(self, mock_urlopen, _sleep):
+        mock_urlopen.side_effect = HTTPError(url="", code=429, msg="Rate limit exceeded", hdrs=None, fp=None)
+        client = OpenAlexClient(timeout=5, retries=1)
+        self.assertEqual(client.search("hyperloop"), [])
+        self.assertEqual(client.last_error, OPENALEX_RATE_LIMITED)
+
+
+class SemanticScholarPacingTests(unittest.TestCase):
+    """The key application commits to one request per second on every endpoint."""
+
+    def setUp(self):
+        import academic_agent.source_clients as clients
+        self.clients = clients
+        clients._s2_next_turn = 0.0
+
+    def test_consecutive_turns_are_at_least_one_second_apart(self):
+        clock = [100.0]
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        with patch.object(self.clients.time, "monotonic", side_effect=lambda: clock[0]), \
+                patch.object(self.clients.time, "sleep", side_effect=sleep) as slept:
+            self.clients.s2_wait_turn()
+            self.clients.s2_wait_turn()
+        slept.assert_called_once()
+        self.assertGreaterEqual(slept.call_args.args[0], 1.0)
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_every_semantic_scholar_request_waits_its_turn(self, mock_urlopen):
+        mock_urlopen.return_value = _FakeResponse({"data": [], "abstract": ""})
+        with patch("academic_agent.source_clients.s2_wait_turn") as turn:
+            client = SemanticScholarClient(timeout=5, retries=0)
+            client.search("hyperloop")
+            client.get_abstract_by_doi("10.1/x")
+        self.assertEqual(turn.call_count, 2)
+
+    def test_the_arxiv_citation_backfill_waits_its_turn_too(self):
+        import inspect
+
+        from academic_agent import source_pipeline
+        self.assertIn("s2_wait_turn()", inspect.getsource(source_pipeline.collect_source_collection))

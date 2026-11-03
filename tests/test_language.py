@@ -146,6 +146,35 @@ def test_compound_topic_keeps_independently_searchable_components():
     )
 
 
+def test_the_requested_assessment_is_stripped_from_the_plan():
+    """qwen3.8-27b translated this request into "Hyperloop commercial viability",
+    and no paper title carries that phrase (2026-10-21 production smoke run)."""
+    response = (
+        "SEARCH_TOPIC: Hyperloop commercial viability\n"
+        "ALIAS: Economic feasibility of hyperloop transportation systems\n"
+        "ALIAS: Business case for vacuum tube transit"
+    )
+    with patch("academic_agent.language._llm_call", return_value=response):
+        plan = plan_topic_search("帮我评估 hyperloop 的商业潜力")
+
+    assert plan == TopicSearchPlan(
+        search_topic="Hyperloop",
+        aliases=("hyperloop transportation systems", "vacuum tube transit"),
+    )
+
+
+def test_assessment_stripping_leaves_research_subjects_alone():
+    from academic_agent.language import _strip_assessment_terms
+
+    for kept in ("Electricity market design", "Market-based carbon pricing",
+                 "Economic dispatch of power systems", "Business process automation",
+                 "Commercial potential"):
+        assert _strip_assessment_terms(kept) == kept
+    assert _strip_assessment_terms("Techno-economic analysis of green hydrogen") == "green hydrogen"
+    assert _strip_assessment_terms(
+        "Market analysis and investment assessment for vacuum tube transit") == "vacuum tube transit"
+
+
 def test_a_single_component_line_is_ignored_as_an_eager_alias():
     response = (
         "SEARCH_TOPIC: direct air capture sorbents\n"
@@ -177,6 +206,50 @@ def test_topic_plan_falls_back_to_the_original_english_input_when_call_fails():
         plan = plan_topic_search(raw)
 
     assert plan == TopicSearchPlan(search_topic=raw, aliases=())
+
+
+def test_a_plan_that_only_dropped_the_inputs_function_words_keeps_the_inputs_wording():
+    """The production run of 2026-10-25: the search topic came back as the
+    typed topic minus its "for", and both aliases read the same way."""
+    raw = "Binder-free hard carbon anode optimization for sodium-ion batteries"
+    response = (
+        "SEARCH_TOPIC: Binder-free hard carbon anode optimization sodium-ion batteries\n"
+        "ALIAS: Binderless hard carbon negative electrode sodium-ion battery performance"
+    )
+    with patch("academic_agent.language._llm_call", return_value=response):
+        plan = plan_topic_search(raw)
+    assert plan.search_topic == raw
+    assert plan.aliases == ("Binderless hard carbon negative electrode sodium-ion battery performance",)
+
+
+def test_a_plan_that_changes_a_content_word_is_the_planners_reading_and_is_kept():
+    raw = "Perovskite solar cells with improved stability in humid environments"
+    response = ("SEARCH_TOPIC: Perovskite solar cells humidity stability\n"
+                "ALIAS: Moisture resistance of perovskite photovoltaics")
+    with patch("academic_agent.language._llm_call", return_value=response):
+        plan = plan_topic_search(raw)
+    assert plan.search_topic == "Perovskite solar cells humidity stability"
+
+
+def test_the_wording_guard_does_not_put_request_framing_back():
+    raw = "assess the commercial potential of hyperloop for freight"
+    with patch("academic_agent.language._llm_call", return_value="SEARCH_TOPIC: hyperloop for freight"):
+        plan = plan_topic_search(raw)
+    assert plan.search_topic == "hyperloop for freight"
+
+
+def test_the_wording_guard_leaves_non_english_input_to_the_planner():
+    raw = "钠离子电池用无粘结剂硬碳负极"
+    with patch("academic_agent.language._llm_call",
+               return_value="SEARCH_TOPIC: binder-free hard carbon anodes for sodium-ion batteries"):
+        plan = plan_topic_search(raw)
+    assert plan.search_topic == "binder-free hard carbon anodes for sodium-ion batteries"
+
+
+def test_the_planner_is_told_to_keep_function_words():
+    with patch("academic_agent.language._llm_call", return_value="") as call:
+        plan_topic_search("solid-state batteries for electric vehicles")
+    assert "keeping function words such as 'for'" in call.call_args.args[0]
 
 
 # ---------------------------------------------------------------------------
@@ -308,3 +381,36 @@ def test_an_unreachable_endpoint_still_degrades_to_the_original():
          patch("academic_agent.language.urlopen", side_effect=OSError("no network")), \
          pytest.warns(UserWarning, match="OSError"):
         assert translate_to_english("固态电池") == "固态电池"
+
+
+# ---------------------------------------------------------------------------
+# detect_language at the edges: empty, symbolic, mixed and non-English Latin
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("text,expected", [
+    ("", "en"), ("   ", "en"), ("12345", "en"), ("🔋🔋", "en"),
+    ("ＰＥＭ", "en"),                 # fullwidth Latin is still Latin
+    ("a中", "zh-cn"),                 # one CJK character decides
+    ("電池 battery", "zh-cn"),
+    ("こんにちは電池", "ja"),          # kana wins over shared kanji
+    ("Батарея", "ru"),
+    ("بطارية", "ar"),
+])
+def test_detect_language_on_empty_symbolic_and_mixed_script_input(text, expected):
+    assert detect_language(text) == expected
+
+
+def test_latin_script_languages_other_than_english_read_as_english():
+    """A known limit, pinned so a change to it is deliberate: only scripts are
+    told apart, so a French or German topic is planned as English input."""
+    assert detect_language("Batterie à l'état solide") == "en"
+    assert detect_language("Festkörperbatterie") == "en"
+
+
+def test_stripping_keeps_a_value_that_is_nothing_but_the_assessment():
+    from academic_agent.language import _strip_assessment_terms
+
+    assert _strip_assessment_terms("market analysis") == "market analysis"
+    assert _strip_assessment_terms("investment case") == "investment case"
+    assert _strip_assessment_terms("techno-economic analysis for perovskite cells") == "perovskite cells"
+    assert _strip_assessment_terms("hyperloop commercial potential") == "hyperloop"

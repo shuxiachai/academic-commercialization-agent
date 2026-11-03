@@ -30,6 +30,7 @@ from pydantic import ValidationError
 from api import access, papers, runs
 from api.main import app
 from api.models import RunRequest
+from tests.scripted_waits import STEP
 
 
 class AccessCheckTests(unittest.TestCase):
@@ -477,11 +478,33 @@ class DailyCapTests(_RunLifecycleTestBase):
                 with self.assertRaises(OSError):
                     runs.start_run("never launched", owner="alice")
 
+            # The directory it left says so too: the page must not tell alice
+            # that a run which never started spent one of her day's slots.
+            [never_launched] = [p for p in Path(self._tmp.name).iterdir() if p.is_dir()]
+            self.assertEqual(runs.get_state(never_launched.name)["daily_charge"], "refunded")
+
             # A persisted refund, not the old in-memory value, must reopen it.
             runs._daily_counts = {}
             runs._daily_date = None
             with patch("api.runs.subprocess.Popen", _FakeProc):
                 runs.start_run("first billable attempt", owner="alice")
+
+    def test_a_launched_run_records_whether_it_spent_a_daily_slot(self):
+        """Written at launch, so a worker that dies later cannot leave the
+        question open; read beside a failure by the run page."""
+        with patch.object(runs, "DAILY_CAP", 3), \
+             patch.object(runs, "MAX_CONCURRENT", 100), \
+             patch("api.runs.subprocess.Popen", _FakeProc):
+            charged, _ = runs.start_run("code holder's run", owner="alice")
+            free, _ = runs.start_run("visitor's run", byok=runs.BYOKCredentials("deepseek", "k", "s"))
+        self.assertEqual(runs.get_state(charged)["daily_charge"], "charged")
+        self.assertEqual(runs.get_state(free)["daily_charge"], "not_charged")
+
+        with patch.object(runs, "DAILY_CAP", 0), \
+             patch.object(runs, "MAX_CONCURRENT", 100), \
+             patch("api.runs.subprocess.Popen", _FakeProc):
+            uncapped, _ = runs.start_run("uncapped deployment", owner="alice")
+        self.assertEqual(runs.get_state(uncapped)["daily_charge"], "not_charged")
 
 
 class PaperPaidBoundaryTests(_RunLifecycleTestBase):
@@ -640,7 +663,7 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
         def blocking_extractor(*_args, **_kwargs):
             started.set()
             try:
-                if not release.wait(timeout=2):
+                if not release.wait(timeout=STEP):
                     raise TimeoutError("test did not release extractor")
                 return self._contribution()
             finally:
@@ -672,7 +695,7 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
                 )
             )
             try:
-                self.assertTrue(await asyncio.to_thread(started.wait, 1))
+                self.assertTrue(await asyncio.to_thread(started.wait, STEP))
                 task.cancel()
                 with self.assertRaises(asyncio.CancelledError):
                     await task
@@ -681,7 +704,7 @@ class PaperPaidBoundaryTests(_RunLifecycleTestBase):
                 release.set()
                 await upload.close()
 
-            self.assertTrue(await asyncio.to_thread(finished.wait, 1))
+            self.assertTrue(await asyncio.to_thread(finished.wait, STEP))
             for _ in range(100):
                 if runs.active_paid_operation_count() == 0:
                     break

@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 
 from crewai import LLM
 
+from academic_agent import llm_parameter_fallback as parameter_fallback
 from academic_agent.byok_model import BYOK_MODEL_PATTERN, MODEL_ENV_NAMES  # noqa: F401 - re-exported
 from academic_agent.runtime_budget import WORKER_LLM_TIMEOUT_ENV
 
@@ -274,6 +275,66 @@ def _is_retryable(exc: BaseException) -> bool:
                                    "502", "503", "504"))
 
 
+def _sent_parameters(llm) -> dict[str, object]:
+    """The optional parameters llm_parameter_fallback may change, as this LLM sends them."""
+    sent: dict[str, object] = {}
+    body = (getattr(llm, "additional_params", None) or {}).get("extra_body") or {}
+    if "enable_thinking" in body:
+        sent["enable_thinking"] = body["enable_thinking"]
+    if getattr(llm, "response_format", None) is not None:
+        sent["response_format"] = llm.response_format
+    if getattr(llm, "temperature", None) is not None:
+        sent["temperature"] = llm.temperature
+    return sent
+
+
+def _apply_parameter(llm, parameter: str, value: object) -> None:
+    """Change one optional parameter on a CrewAI provider instance before its next call."""
+    if parameter == "enable_thinking":
+        params = dict(getattr(llm, "additional_params", None) or {})
+        body = dict(params.get("extra_body") or {})
+        if value is parameter_fallback.OMIT:
+            body.pop("enable_thinking", None)
+        else:
+            body["enable_thinking"] = value
+        if body:
+            params["extra_body"] = body
+        else:
+            params.pop("extra_body", None)
+        llm.additional_params = params
+    elif parameter == "response_format":
+        llm.response_format = None
+    elif parameter == "temperature":
+        llm.temperature = None
+
+
+# A model that cannot turn thinking off reasons before every answer. On
+# qwen3.7-max-preview the report writer's answer grew from about 6,500 to
+# 8,400 tokens, and its stage took 223 s against the 150-second per-call
+# budget: one attempt timed out, was billed, and was retried
+# (2026-10-23). Such a model gets twice the per-call time, once per LLM.
+# Every other model keeps runtime_budget.REQUEST_TIMEOUT_SECONDS.
+_THINKING_TIMEOUT_FACTOR = 2
+
+
+def _give_thinking_time(llm, budget: "_CallBudget") -> None:
+    """Double this LLM's per-call timeout, and the window a call needs, once."""
+    if getattr(llm, "_academic_agent_thinking_time", False):
+        return
+    llm._academic_agent_thinking_time = True
+    timeout = getattr(llm, "timeout", None)
+    if isinstance(timeout, (int, float)) and timeout > 0:
+        longer = timeout * _THINKING_TIMEOUT_FACTOR
+        llm.timeout = longer
+        # CrewAI builds its OpenAI client once, at construction; with_options
+        # is the SDK's own way to copy a client with a different timeout.
+        client = getattr(llm, "_client", None)
+        if client is not None and hasattr(client, "with_options"):
+            llm._client = client.with_options(timeout=longer)
+    if budget.request_timeout_seconds > 0:
+        budget.request_timeout_seconds *= _THINKING_TIMEOUT_FACTOR
+
+
 def _wrap_with_retry(llm):
     """Add retry to an LLM instance by replacing its bound `call`.
 
@@ -282,17 +343,40 @@ def _wrap_with_retry(llm):
     `isinstance(LLM(...), LLM)` is False. Subclassing it produces an object
     that bypasses the factory and lacks the provider behaviour entirely.
     Wrapping the instance the factory built leaves that behaviour intact.
+
+    A parameter the model refuses (llm_parameter_fallback) is adapted and
+    the call resent at once, remembered for the instance's endpoint and
+    model. That resend does not use a transport retry: the provider billed
+    nothing and asked for a different request, not for patience.
     """
     inner = llm.call
     budget = _CallBudget()
+    base, model = getattr(llm, "base_url", None), getattr(llm, "model", None)
+    identity = (base.rstrip("/"), model) if isinstance(base, str) and isinstance(model, str) else None
 
     @functools.wraps(inner)
     def call_with_retry(*args, **kwargs):
-        for attempt in range(1, _MAX_ATTEMPTS + 1):
+        if identity is not None:
+            for parameter, value in parameter_fallback.learned(*identity).items():
+                _apply_parameter(llm, parameter, value)
+            if _sent_parameters(llm).get("enable_thinking") is True:
+                _give_thinking_time(llm, budget)
+        adapted = 0
+        attempt = 1
+        while True:
             budget.require_window()
             try:
                 return inner(*args, **kwargs)
             except BaseException as exc:      # noqa: BLE001 - re-raised below
+                change = (parameter_fallback.adjustment(f"{type(exc).__name__}: {exc}", _sent_parameters(llm))
+                          if identity is not None else None)
+                if change is not None and adapted < len(parameter_fallback.PARAMETERS):
+                    adapted += 1
+                    parameter_fallback.learn(*identity, *change)
+                    _apply_parameter(llm, *change)
+                    if change == ("enable_thinking", True):
+                        _give_thinking_time(llm, budget)
+                    continue
                 if attempt == _MAX_ATTEMPTS or not _is_retryable(exc):
                     raise
                 # Jitter so six agents recovering from one outage do not all
@@ -311,6 +395,7 @@ def _wrap_with_retry(llm):
                     flush=True,
                 )
                 time.sleep(delay)
+                attempt += 1
 
     llm.call = call_with_retry
     # A private attribute is the seam between factory-time wrapping and the

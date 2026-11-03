@@ -75,6 +75,26 @@ def no_real_llm_configuration(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_real_arxiv_lookup(monkeypatch):
+    """Keep the uploaded-paper title lookup off the network in every test.
+
+    extract_paper_contribution asks arXiv for the title whenever the text
+    carries no identifier, which is what most test PDFs look like, and a
+    lookup that cannot run degrades to "unavailable" rather than failing. So
+    an unpatched test would pass offline, and online would send a real
+    request per extraction. Refusing at the single fetch seam makes that
+    path deterministic; a test of the lookup itself patches the seam or
+    passes title_lookup.
+    """
+    from academic_agent import pdf_extractor
+
+    def refuse(query, *, timeout):
+        raise OSError("tests do not reach arXiv; patch _fetch_arxiv_feed or pass title_lookup")
+
+    monkeypatch.setattr(pdf_extractor, "_fetch_arxiv_feed", refuse)
+
+
+@pytest.fixture(autouse=True)
 def no_real_runtime_limits(monkeypatch):
     """Do not let import-time .env caps decide which isolated tests get 429.
 
@@ -154,11 +174,35 @@ def stub_llm_calls(monkeypatch, request):
     yield calls
 
 
+@pytest.fixture(autouse=True)
+def no_real_page_fetches(monkeypatch, request):
+    """Read no web page for a publication date or a patent applicant unless a test asks to.
+
+    collect_source_collection dates each accepted market source from its own
+    page through page_dates.fetch_html, and names each web-search patent's
+    applicant through patent_applicants.fetch_head. Stubbing those choke
+    points, as stub_llm_calls does for the LLM, means a new collector test
+    cannot send real requests by forgetting to inject a lookup. The stubs
+    return None, as the real functions do for a page they cannot read.
+
+    Opt out with @pytest.mark.allow_page_fetch when exercising a fetch itself.
+    """
+    if request.node.get_closest_marker("allow_page_fetch"):
+        return
+    monkeypatch.setattr("academic_agent.page_dates.fetch_html", lambda _url: None)
+    monkeypatch.setattr("academic_agent.patent_applicants.fetch_head", lambda _url: None)
+
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "allow_llm: test exercises language._llm_call itself and bypasses the "
         "offline stub (it must still stub the HTTP transport)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "allow_page_fetch: test exercises page_dates.fetch_html or patent_applicants.fetch_head "
+        "itself and bypasses the offline stubs (it must still stub the opener)",
     )
     config.addinivalue_line(
         "markers",

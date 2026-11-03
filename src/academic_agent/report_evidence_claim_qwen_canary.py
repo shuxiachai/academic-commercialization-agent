@@ -48,7 +48,7 @@ IDENTITY_PATHS = tuple(dict.fromkeys((
     "src/academic_agent/report_evidence_claim_qwen_transport.py",
     "tests/test_report_evidence_claim_qwen_transport.py",
     "src/academic_agent/report_evidence_claim_qwen_canary.py",
-    "report_evidence_claim_canary.py", "tests/test_report_evidence_claim_qwen_canary.py",
+    "experiments/report_evidence_canaries/report_evidence_claim_canary.py", "tests/test_report_evidence_claim_qwen_canary.py",
     FIXTURE, PROTOCOL,
 )))
 DEPENDENCIES = (

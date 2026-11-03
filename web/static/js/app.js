@@ -53,6 +53,8 @@ function toast(message, variant = "") {
 
 function operationErrorMessage(err) {
   if (err.code === "invalid_byok") return t("invalid_byok");
+  if (err.code === "byok_required") return t("msg_byok_required");
+  if (err.code === "sign_in_required") return t("msg_sign_in_required");
   if (err.code === "paid_ack_unknown") return t("msg_paid_ack_unknown");
   if (err.code === "paid_receipt_pending") return t("paid_receipt_unknown");
   const key = {
@@ -67,7 +69,9 @@ function operationErrorMessage(err) {
 }
 
 function rememberAcceptedRun(accepted) {
-  if (!byokMode) return;
+  // An account's BYOK runs are tagged to it server-side; only a code-less
+  // visitor's runs need the session-only list.
+  if (!byokMode || accountMode) return;
   try {
     api.addByokRun(accepted.run_id, accepted.topic);
   } catch {
@@ -78,6 +82,12 @@ function rememberAcceptedRun(accepted) {
 }
 
 async function performPaidRequest(request, deliver, operation = "run") {
+  // An account pays with its own keys. Ask for them here, once, rather than
+  // letting the server refuse with byok_required after the intent is recorded.
+  if (accountMode && !api.getByok()) {
+    await showGate(null, { keysOnly: true });
+    if (!api.getByok()) { toast(t("msg_byok_required"), "error"); return; }
+  }
   // Validate locally before recording intent; invalid BYOK cannot cause a
   // request, select operator billing, or manufacture an uncertain receipt.
   api.getByok();
@@ -133,6 +143,14 @@ function syncSourceLocatorLink(runId = activeRunId) {
   link.href = `/source-locator${typeof runId === "string" && locatorRunPattern.test(runId) ? `#${runId}` : ""}`;
 }
 
+// The server injects an English label; follow the interface language.
+function localizeSourceLocatorLink() {
+  const link = $("#source-locator-link");
+  if (!link) return;
+  link.textContent = runView.headerLabel("source_locator");
+  link.title = runView.headerLabel("source_locator_title");
+}
+
 function showCompose() {
   stopFollowing();
   activeRunId = null;
@@ -146,6 +164,7 @@ function showCompose() {
   // state we just left, so without this a run starting waits out the idle
   // delay before the display starts tracking it.
   scheduleCapacity();
+  refreshQuota();
   $("#topic").focus();
 }
 
@@ -187,12 +206,13 @@ function startClock(fromSeconds) {
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
   terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
+  stage_timings, eta, pipeline_revision, error, daily_charge,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
   const pill = $("#run-pill");
   pill.className = `pill pill--${state}`;
-  pill.textContent = state;
+  pill.textContent = runView.stateLabel(state);
 
   if (state === "running") {
     startClock(elapsed_seconds ?? 0);
@@ -201,9 +221,23 @@ function paintHeader({
     $("#run-elapsed").textContent = runView.formatDuration(elapsed_seconds);
   }
 
+  // A typical figure from recent runs, for a run still going.
+  const etaText = state === "running" ? runView.etaSummary(eta) : "";
+  $("#run-eta").textContent = etaText ? `· ${etaText}` : "";
+  $("#run-eta").title = etaText ? runView.etaTitle(eta) : "";
+  paintNotifyButton(state);
+
   const summary = runView.sourceSummary(source_counts);
   const el = $("#run-sources");
   el.textContent = summary ? `· ${summary}` : "";
+
+  // Which model and which code: the deployment swaps models without notice,
+  // so a report must say what produced it rather than leave the reader to
+  // assume today's model. Both values ride on the status payload already.
+  const identity = runView.identitySummary(usage, pipeline_revision);
+  const identityEl = $("#run-identity");
+  identityEl.textContent = identity ? `· ${identity}` : "";
+  identityEl.title = identity ? runView.headerLabel("identity_title") : "";
 
   // Shown for failed runs too: a run that died halfway still spent whatever
   // it spent, and that is the bill nobody can otherwise estimate.
@@ -212,6 +246,17 @@ function paintHeader({
   const auxiliary = runView.auxiliarySummary(auxiliary_usage);
   spendEl.textContent = [spend, auxiliary].filter(Boolean).join(" · ");
   spendEl.title = [runView.usageTitle(usage, usage_accounting), auxiliary].filter(Boolean).join("\n");
+  // Folded, never dropped: the full accounting text with its caveats stays in
+  // the DOM and one click away, while the header leads with the outcome.
+  $("#run-usage-details").hidden = !spendEl.textContent;
+  $("#run-usage-label").textContent = `· ${runView.headerLabel("usage_details")}`;
+
+  // Where the time went, folded the same way. The stage list shows it while
+  // the run is going; the finished view replaces that list.
+  const timingEl = $("#run-timing");
+  timingEl.textContent = runView.timingSummary(stage_timings);
+  $("#run-timing-details").hidden = !timingEl.textContent;
+  $("#run-timing-label").textContent = `· ${runView.headerLabel("stage_timing")}`;
 
   // State alone cannot distinguish a worker failure from a watchdog stop, and
   // a missing/unreadable terminal record must not look like an ordinary clean
@@ -221,6 +266,13 @@ function paintHeader({
   const terminalSummary = runView.terminalSummary(terminal, state);
   terminalEl.textContent = terminalSummary ? `· ${terminalSummary}` : "";
   terminalEl.title = runView.terminalTitle(terminal, state);
+
+  // Why it ended and whether it spent one of today's runs, kept with the run
+  // rather than in a toast that is gone before the page is read again.
+  const outcomeEl = $("#run-outcome");
+  const outcome = runView.outcomeSummary({ state, error, daily_charge, checkpointing });
+  outcomeEl.textContent = outcome;
+  outcomeEl.hidden = !outcome;
 
   // Terminal success is still usable when its live projection is damaged,
   // but missing audit fields must not silently masquerade as a clean read.
@@ -312,7 +364,9 @@ function paintActions(state, checkpointing = null) {
     const sourceRunId = activeRunId;
     const resume = document.createElement("button");
     resume.type = "button";
-    resume.className = "btn btn--secondary";
+    // The main thing to do with a run that stopped short, so it reads as
+    // such; what it costs is said in the outcome line above the actions.
+    resume.className = "btn btn--primary";
     resume.textContent = t("resume");
     resume.dataset.resumeRun = sourceRunId;
     resume.disabled = pendingResumes.has(sourceRunId) || paidReceipts.state().uncertain;
@@ -351,6 +405,49 @@ function paintActions(state, checkpointing = null) {
   actions.append(del);
 }
 
+/* ── Finish notice ─────────────────────────────────────────────────────
+ * A run takes ten to twenty minutes and people switch tabs. When a run this
+ * page watched finishes in a background tab, the tab title says so, and a
+ * browser notification appears if the user opted in from the run header.
+ * Permission is asked only from that button, never unprompted. */
+
+const baseTitle = document.title;
+const notificationsAvailable = () => typeof Notification !== "undefined";
+let notifyState = "";
+
+function paintNotifyButton(state) {
+  notifyState = state;
+  const button = $("#run-notify");
+  button.hidden = !(state === "running" && notificationsAvailable() && Notification.permission === "default");
+  button.textContent = `· ${runView.headerLabel("notify")}`;
+  button.title = runView.headerLabel("notify_title");
+}
+
+$("#run-notify").addEventListener("click", async () => {
+  if (!notificationsAvailable()) return;
+  try { await Notification.requestPermission(); }
+  catch { /* A refused or unsupported prompt leaves the title notice. */ }
+  paintNotifyButton(notifyState);
+});
+
+function announceFinish(progress) {
+  if (!document.hidden) return;
+  const label = runView.headerLabel(progress.state === "completed" ? "finished_ok" : "finished_bad");
+  document.title = `${progress.state === "completed" ? "✓" : "✗"} ${label} · ${baseTitle}`;
+  if (notificationsAvailable() && Notification.permission === "granted") {
+    try {
+      const notice = new Notification(label, { body: progress.topic || "", tag: progress.run_id });
+      notice.onclick = () => { window.focus(); notice.close(); };
+    } catch {
+      // Some mobile browsers allow notifications only from a service worker.
+    }
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) document.title = baseTitle;
+});
+
 async function openRun(runId, { known } = {}) {
   stopFollowing();
   showRun(runId);
@@ -366,6 +463,9 @@ async function openRun(runId, { known } = {}) {
     toast(t("msg_history_unavailable"), "error");
   }
 
+  // A run first seen already finished is history, not news: announce only a
+  // completion this page watched happen. (Errors are still always shown.)
+  let watchedActive = false;
   follower = runView.follow(runId, {
     onConnection({ state, lastSuccessAt }) {
       // Connectivity is a fact about our read, not a new worker state. Stop
@@ -376,21 +476,23 @@ async function openRun(runId, { known } = {}) {
       if (state !== "connected") stopClock();
     },
     onUpdate(progress) {
+      if (progress.state === "running") watchedActive = true;
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing);
-      runView.renderStages(body, runView.stageStates(progress.stage, progress.state));
+      runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
     },
     onDone(progress) {
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing);
-      runView.renderStages(body, runView.stageStates(progress.stage, progress.state));
+      runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
       refreshSidebar();
 
       if (progress.state === "completed") {
-        toast(t("msg_complete"), "success");
+        if (watchedActive) toast(t("msg_complete"), "success");
       } else if (progress.error) {
         toast(progress.error, "error");
       }
+      if (watchedActive) announceFinish(progress);
 
       // A failed run keeps its stage list and may now expose a retrieval
       // diagnostic artifact. Where it stopped and what the search rejected
@@ -433,7 +535,7 @@ async function handleDeleteRun(runId, topic) {
   // BYOK history is a client-only list (see api.getByokRuns) — the server
   // has no owner tag to have deleted anything from in the first place, so
   // this is the only place that ever learns the run is gone.
-  if (byokMode) api.removeByokRun(runId);
+  if (byokMode && !accountMode) api.removeByokRun(runId);
   toast(t("msg_deleted"));
   // The follower already stopped polling once this run reached a terminal
   // state (see run.js follow()), so nothing else will notice it vanished —
@@ -450,7 +552,7 @@ async function refreshSidebar() {
   // visitor has no code at all, so this builds the same view from the
   // session-only list of run ids api.addByokRun() has been recording —
   // gone once the tab closes, complete for as long as it's open.
-  if (byokMode) {
+  if (byokMode && !accountMode) {
     const list = $("#runlist");
     const entries = api.getByokRuns();
     if (!entries.length) {
@@ -503,16 +605,38 @@ async function refreshSidebar() {
  * reads it and runs first — a `let` further down is a temporal dead zone, and
  * the boot-time call threw before anything rendered. */
 let extracting = false;
+// Identity flags, declared up here for the same reason: refreshSidebar and
+// rememberAcceptedRun read them, and both can run before the gate section
+// below has been evaluated.
+let byokMode = false;
+// A signed-in account (api/accounts.py). Its runs are paid for with the keys
+// in the BYOK slot, so byokMode is true as well once keys are added; what
+// differs is that the server tags and lists its runs, and that it never
+// draws on the deployment's key (no plan preview, no operator quota).
+let accountMode = false;
+let accountEmail = null;
+let authConfig = null;
 // A disabled button is only a projection, not an operation lock: input events
 // used to re-enable it while a paid POST was still awaiting acknowledgement.
 // This is tab-local exclusion, not server/provider exactly-once delivery.
 let submitting = false;
 let uploadGeneration = 0;
+// Search-plan preview: offered by the deployment (access check), for code
+// holders only. previewing locks the run button while the reading is fetched;
+// planState holds the reading the panel shows, for the topic it was read from.
+let planPreviewEnabled = false;
+let previewing = false;
+let planState = null;
+// Paid operations left today: shown when the deployment advertises a cap.
+let quotaEnabled = false;
+let quotaGeneration = 0;
+let lastQuota = null;
 
 const topic = $("#topic");
 const count = $("#topic-count");
 const runBtn = $("#run-btn");
 const composer = $("#composer");
+const planPanel = $("#plan-panel");
 const decisionContextInputs = $$('[data-context-field]');
 
 function readDecisionContext() {
@@ -527,7 +651,11 @@ function readDecisionContext() {
 }
 
 function clearDecisionContext() {
-  for (const input of decisionContextInputs) input.value = "";
+  for (const input of decisionContextInputs) {
+    input.value = "";
+    // decision_context.js recounts the starred fields on input.
+    input.dispatchEvent(new Event("input"));
+  }
 }
 
 
@@ -537,9 +665,14 @@ function autosize() {
 }
 
 function syncComposer() {
-  runBtn.disabled = topic.value.trim().length < 3 || extracting || submitting || paidReceipts.state().uncertain;
+  runBtn.disabled = topic.value.trim().length < 3 || extracting || submitting || previewing
+    || paidReceipts.state().uncertain;
   runBtn.title = submitting ? t("msg_submitting")
+    : previewing ? runView.planLabel("previewing")
     : extracting ? t("msg_wait_extract") : t("run_hint");
+  planPanel.querySelectorAll("button, input").forEach((control) => {
+    control.disabled = submitting || paidReceipts.state().uncertain;
+  });
   attachBtn.disabled = extracting || submitting || paidReceipts.state().uncertain;
   // Keep the submitted payload stable in the visible composer as well. The
   // handler guard still matters for programmatic submits and queued events.
@@ -553,6 +686,9 @@ function syncComposer() {
 }
 
 topic.addEventListener("input", syncComposer);
+topic.addEventListener("input", () => {
+  if (planState && topic.value.trim() !== planState.topic) hidePlan();
+});
 topic.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
@@ -570,12 +706,26 @@ $$(".starter").forEach((btn) =>
 
 $("#compose-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (submitting || extracting || topic.value.trim().length < 3) return;
+  if (submitting || extracting || previewing || topic.value.trim().length < 3) return;
   const submittedTopic = topic.value.trim();
+  if (planState?.topic === submittedTopic) {
+    // The panel already shows this topic's reading; Enter must not re-read it.
+    $("#plan-start")?.focus();
+    return;
+  }
   if (
     needsScopeWarning(submittedTopic, { hasPaper: Boolean(attachedPaper) })
     && !confirm(t("confirm_broad_topic"))
   ) return;
+  if (planPreviewEnabled && !byokMode && !accountMode) {
+    await previewPlan(submittedTopic);
+    return;
+  }
+  await submitAssessment(submittedTopic, null);
+});
+
+async function submitAssessment(submittedTopic, searchPlan) {
+  if (submitting || extracting) return;
   submitting = true;
   syncComposer();
 
@@ -586,11 +736,13 @@ $("#compose-form").addEventListener("submit", async (e) => {
       weight_profile: $("#profile").value,
       paper_id: attachedPaper?.paper_id,
       decision_context: readDecisionContext(),
+      search_plan: searchPlan,
     }, key), async (accepted) => {
       requirePaidIdentity(accepted, "run_id");
       rememberAcceptedRun(accepted);
       await openRun(accepted.run_id, { known: accepted });
       topic.value = "";
+      hidePlan();
       clearDecisionContext();
       clearAttachment();
       syncComposer();
@@ -600,8 +752,176 @@ $("#compose-form").addEventListener("submit", async (e) => {
   } finally {
     submitting = false;
     syncComposer();
+    refreshQuota();
   }
-});
+}
+
+/* ── Search-plan preview ───────────────────────────────────────────────
+ * The planner's reading of a topic decides every query. A wrong reading
+ * ("hyperloop" renamed, vertical farming drifting) used to show only after
+ * the run had spent its stages and one of the code's daily runs. With a
+ * code, the run button first shows that reading; the user confirms or edits
+ * it, and the run searches exactly that. Unresolved topics stop here. */
+
+async function previewPlan(submittedTopic) {
+  previewing = true;
+  syncComposer();
+  let next;
+  try {
+    const plan = await api.planTopic(submittedTopic);
+    next = plan?.resolved
+      ? { topic: submittedTopic, failure: null, plan: {
+        search_topic: plan.search_topic, aliases: [...plan.aliases], components: [...plan.components] } }
+      : { topic: submittedTopic, failure: "unresolved", plan: null };
+  } catch (err) {
+    if (err.status === 401) {
+      toast(operationErrorMessage(err), "error");
+      return;
+    }
+    next = { topic: submittedTopic, plan: null, reason: err.message,
+      failure: err.code === "plan_preview_limit" ? "limit" : "unavailable" };
+  } finally {
+    previewing = false;
+    syncComposer();
+  }
+  // A reading of a topic the user has since changed would confirm the wrong one.
+  if (topic.value.trim() !== submittedTopic) return;
+  planState = next;
+  renderPlan();
+  (planState.plan ? $("#plan-topic") : $("#plan-start") ?? $("#plan-edit"))?.focus();
+}
+
+function hidePlan() {
+  planState = null;
+  planPanel.hidden = true;
+  planPanel.innerHTML = "";
+}
+
+/* Remaining daily runs, so a code holder learns of the cap before a
+ * submission is refused rather than from the refusal. */
+function paintQuota() {
+  const el = $("#quota");
+  const summary = runView.quotaSummary(lastQuota);
+  el.hidden = !summary.text;
+  el.textContent = summary.text;
+  el.title = summary.title;
+  el.classList?.toggle("composer__quota--empty", summary.exhausted);
+}
+
+async function refreshQuota() {
+  const generation = ++quotaGeneration;
+  if (!quotaEnabled || byokMode || accountMode) {
+    lastQuota = null;
+    paintQuota();
+    return;
+  }
+  try {
+    const quota = await api.getQuota();
+    if (generation !== quotaGeneration) return;
+    lastQuota = quota;
+  } catch {
+    if (generation !== quotaGeneration) return;
+    lastQuota = null;
+  }
+  paintQuota();
+}
+
+function readConfirmedPlan() {
+  const searchTopic = planState.plan.search_topic.split(/\s+/).filter(Boolean).join(" ");
+  if (searchTopic.length < 3) return null;
+  // An edited phrase may now equal an alternative; searching it twice adds nothing.
+  const distinct = (phrases) => phrases.filter((p) => p.toLowerCase() !== searchTopic.toLowerCase());
+  const components = distinct(planState.plan.components);
+  return {
+    search_topic: searchTopic,
+    aliases: distinct(planState.plan.aliases),
+    components: components.length >= 2 ? components : [],
+  };
+}
+
+function planNode(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function renderPlan() {
+  if (!planState) return;
+  const label = runView.planLabel;
+  planPanel.innerHTML = "";
+  planPanel.hidden = false;
+  planPanel.append(planNode("h2", "plan-panel__title", label("title")));
+  const message = planState.failure === null ? label("lede")
+    : label(planState.failure).replace("{reason}", planState.reason || "—");
+  planPanel.append(planNode("p", "plan-panel__lede", message));
+
+  if (planState.plan) {
+    const field = planNode("label", "plan-panel__group");
+    const input = planNode("input");
+    input.id = "plan-topic";
+    input.type = "text";
+    input.maxLength = 200;
+    input.value = planState.plan.search_topic;
+    input.addEventListener("input", () => { planState.plan.search_topic = input.value; });
+    input.addEventListener("keydown", (e) => {
+      // Inside the composer form, Enter would otherwise submit it again.
+      if (e.key === "Enter") { e.preventDefault(); startFromPlan(); }
+    });
+    field.append(planNode("span", "plan-panel__label", label("search_topic")), input);
+    planPanel.append(field);
+    for (const kind of ["aliases", "components"]) {
+      const phrases = planState.plan[kind];
+      if (!phrases.length) continue;
+      const group = planNode("div", "plan-panel__group");
+      group.dataset.planGroup = kind;
+      const chips = planNode("ul", "plan-panel__chips");
+      phrases.forEach((phrase, index) => {
+        const chip = planNode("li", "plan-chip");
+        const remove = planNode("button", null, "×");
+        remove.type = "button";
+        remove.setAttribute("aria-label", `${label("remove")}: ${phrase}`);
+        remove.addEventListener("click", () => {
+          planState.plan[kind].splice(index, 1);
+          renderPlan();
+        });
+        chip.append(planNode("span", null, phrase), remove);
+        chips.append(chip);
+      });
+      group.append(planNode("span", "plan-panel__label", label(kind)), chips);
+      planPanel.append(group);
+    }
+  }
+
+  const actions = planNode("div", "plan-panel__actions");
+  if (planState.failure !== "unresolved") {
+    const start = planNode("button", "btn btn--primary", label(planState.plan ? "start" : "start_without"));
+    start.type = "button";
+    start.id = "plan-start";
+    start.addEventListener("click", startFromPlan);
+    actions.append(start);
+  }
+  const edit = planNode("button", "btn btn--secondary", label("edit"));
+  edit.type = "button";
+  edit.id = "plan-edit";
+  edit.addEventListener("click", () => { hidePlan(); topic.focus(); });
+  actions.append(edit);
+  planPanel.append(actions);
+  syncComposer();
+}
+
+async function startFromPlan() {
+  if (!planState || submitting) return;
+  let searchPlan = null;
+  if (planState.plan) {
+    searchPlan = readConfirmedPlan();
+    if (!searchPlan) {
+      toast(runView.planLabel("too_short"), "error");
+      return;
+    }
+  }
+  await submitAssessment(planState.topic, searchPlan);
+}
 
 /* ── Attachment ─────────────────────────────────────────────────────
  * An uploaded paper becomes source A1 and the pipeline searches around its
@@ -717,6 +1037,7 @@ async function uploadPaper(file) {
     // Always update the control, even when an existing topic meant that
     // paintAttachment did not auto-fill it (and therefore did not sync it).
     syncComposer();
+    refreshQuota();
   }
 }
 
@@ -836,7 +1157,23 @@ function paintCapacityLabel() {
  * cheap way to check a BYOK key without spending a real call — so a bad key
  * only surfaces once a run actually fails, with the provider's own error. */
 
-let byokMode = false;
+
+function applyAccountMode(me) {
+  receiptViewGeneration++;
+  $("#paid-receipt-results").innerHTML = "";
+  invalidateSidebar();
+  accountMode = true;
+  accountEmail = me.email;
+  api.setAccessCode(null);
+  byokMode = Boolean(api.getByok());
+  $("#byok-badge").hidden = true;
+  $("#code-badge").hidden = true;
+  $("#account-email").textContent = t("account_badge").replace("{email}", me.email);
+  $("#account-email").title = me.email;   // the badge ellipsizes a long address
+  $("#account-badge").hidden = false;
+  hidePlan();
+  refreshQuota();
+}
 
 function applyByokMode() {
   receiptViewGeneration++;
@@ -845,6 +1182,8 @@ function applyByokMode() {
   byokMode = true;
   api.setAccessCode(null);
   $("#byok-badge").hidden = false;
+  hidePlan();
+  refreshQuota();
 }
 
 function showStorageNotice(key = "storage_unavailable") {
@@ -873,7 +1212,13 @@ async function exitCredentials() {
   syncComposer();
   const byokCleared = api.setByok(null);
   const codeCleared = api.setAccessCode(null);
-  if (byokCleared && codeCleared && receiptsCleared) { location.reload(); return; }
+  if (accountMode) {
+    // Best effort: the token is forgotten locally either way, and the server
+    // expires it on its own schedule if this request is lost.
+    try { await api.logout(); } catch { /* already out, or unreachable */ }
+  }
+  const sessionCleared = api.setSessionToken(null);
+  if (byokCleared && codeCleared && sessionCleared && receiptsCleared) { location.reload(); return; }
   // Failed removal or a different shared selection must not be undone by
   // reloading: that would read stale/other credentials again. End this page's
   // session and ask for explicit login, without claiming global sign-out.
@@ -881,11 +1226,14 @@ async function exitCredentials() {
   stopClock();
   activeRunId = null;
   byokMode = false;
+  accountMode = false;
+  accountEmail = null;
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = true;
+  $("#account-badge").hidden = true;
   $("#pane-run").hidden = true;
   $("#pane-compose").hidden = true;
-  showStorageNotice(api.accessCodeClearConflict() && byokCleared
+  showStorageNotice((api.accessCodeClearConflict() || api.sessionClearConflict()) && byokCleared
     ? "storage_other_identity" : "storage_logout_incomplete");
   await showGate();
   showCompose();
@@ -904,13 +1252,24 @@ function applyCodeMode() {
   byokMode = false;
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = false;
+  hidePlan();
 }
 
 $("#code-exit").addEventListener("click", exitCredentials);
+$("#account-exit").addEventListener("click", exitCredentials);
+// Change or add keys without signing out; the account's history stays.
+$("#account-keys").addEventListener("click", async () => {
+  if (submitting || extracting) return;
+  await showGate(null, { keysOnly: true });
+});
 
 async function ensureAccess() {
   try {
-    if (api.getByok()) {
+    // Keys alone boot without a request, as they always have. With a session
+    // stored, the access check below decides instead; on a deployment with
+    // accounts, a keys-only visitor learns to sign in at their first paid
+    // request and reaches the gate through the badge.
+    if (api.getByok() && !api.getSessionToken()) {
       applyByokMode();
       return;
     }
@@ -922,11 +1281,25 @@ async function ensureAccess() {
     return;
   }
   try {
-    await api.checkAccess(api.getAccessCode());
+    // One boot request, carrying the stored code and session, answers
+    // everything: whether the deployment is gated, whether this is an
+    // account, and what the gate should offer if it is not.
+    const access = await api.checkAccess(api.getAccessCode());
+    planPreviewEnabled = access?.plan_preview === true;
+    quotaEnabled = access?.daily_quota === true;
+    authConfig = access?.accounts ?? null;
+    if (access?.account) {
+      applyAccountMode(access.account);
+      if (!api.getByok()) await showGate(null, { keysOnly: true });
+      return;
+    }
     if (api.getAccessCode()) applyCodeMode();
+    refreshQuota();
     return;
   } catch (err) {
     if (err.status !== 401) throw err;
+    // The refusal says what the gate may offer; no second request needed.
+    authConfig = err.body?.accounts ?? null;
   }
   await showGate();
 }
@@ -956,25 +1329,74 @@ async function showByokRetention() {
   }
 }
 
-function showGate(errorKey = null) {
+function showGate(errorKey = null, { keysOnly = false } = {}) {
   const gate = $("#gate");
   const codeForm = $("#gate-form");
   const codeInput = $("#gate-input");
   const codeError = $("#gate-error");
   const codeSubmit = $("#gate-submit");
   const byokForm = $("#byok-form");
+  const accountForm = $("#account-form");
+  const accountError = $("#account-error");
+  const accountSubmit = $("#account-submit");
+  const accountsOn = Boolean(authConfig?.enabled);
+  // Whether the key form belongs to a signed-in account (keys saved, no
+  // payer change) or to an anonymous visitor (keys are the identity).
+  const forAccount = () => accountMode;
+  let creating = false;
+  let inviteNeeded = false;
 
   // Storage-denied logout reuses this document. Clear previous inputs and
   // replace the gate-owned handlers below instead of accumulating closures
   // that would validate one submission several times after repeated login.
   codeForm.reset();
   byokForm.reset();
+  accountForm.reset();
   codeError.hidden = !errorKey;
   codeError.textContent = errorKey ? t(errorKey) : "";
+  accountError.hidden = true;
   gate.hidden = false;
-  codeForm.hidden = false;
-  byokForm.hidden = true;
-  codeInput.focus();
+
+  const showKeys = () => {
+    codeForm.hidden = true;
+    accountForm.hidden = true;
+    byokForm.hidden = false;
+    const account = forAccount();
+    $("#byok-account-note").hidden = !account;
+    $("#byok-sub").hidden = account;
+    if (account) $("#byok-account-note").textContent = t("byok_account_note").replace("{email}", accountEmail);
+    $("#byok-submit").textContent = account ? t("byok_save") : t("byok_submit");
+    $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
+    $("#byok-skip").hidden = !account;
+    $("#byok-llm-key").focus();
+    showByokRetention();
+  };
+  const showAccount = () => {
+    codeForm.hidden = true;
+    byokForm.hidden = true;
+    accountForm.hidden = false;
+    $("#account-title").textContent = t(creating ? "account_title_create" : "account_title");
+    accountSubmit.textContent = t(creating ? "account_create" : "account_sign_in");
+    $("#account-toggle").textContent = t(creating ? "account_toggle_to_sign_in" : "account_toggle_to_create");
+    $("#account-toggle").hidden = !creating && !authConfig?.signup_open;
+    $("#account-to-code").hidden = !authConfig?.access_codes;
+    $("#account-password").autocomplete = creating ? "new-password" : "current-password";
+    // Invite mode asks up front; a reserved address asks after the server
+    // says so (invite_required), so the field stays hidden until needed.
+    $("#account-invite").hidden = !(creating && (authConfig?.signup === "invite" || inviteNeeded));
+    $("#account-email-input").focus();
+  };
+  const showCode = () => {
+    accountForm.hidden = true;
+    byokForm.hidden = true;
+    codeForm.hidden = false;
+    $("#gate-to-byok").hidden = accountsOn;
+    $("#gate-to-account").hidden = !accountsOn;
+    codeInput.focus();
+  };
+  if (keysOnly) showKeys();
+  else if (accountsOn) showAccount();
+  else showCode();
 
   return new Promise((resolve) => {
     let finished = false;
@@ -987,16 +1409,67 @@ function showGate(errorKey = null) {
 
     $("#gate-to-byok").onclick = () => {
       if (codeSubmit.disabled || finished) return;
-      codeForm.hidden = true;
-      byokForm.hidden = false;
-      $("#byok-llm-key").focus();
-      showByokRetention();
+      showKeys();
+    };
+    $("#gate-to-account").onclick = () => {
+      if (codeSubmit.disabled || finished) return;
+      showAccount();
+    };
+    $("#account-to-code").onclick = () => {
+      if (accountSubmit.disabled || finished) return;
+      showCode();
+    };
+    $("#account-toggle").onclick = () => {
+      if (accountSubmit.disabled || finished) return;
+      creating = !creating;
+      accountError.hidden = true;
+      showAccount();
     };
     $("#byok-to-gate").onclick = () => {
       if (codeSubmit.disabled || finished) return;
-      byokForm.hidden = true;
-      codeForm.hidden = false;
-      codeInput.focus();
+      if (accountsOn && !authConfig?.access_codes) showAccount();
+      else showCode();
+    };
+    $("#byok-skip").onclick = () => {
+      if (finished) return;
+      finish();
+    };
+
+    accountForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const email = $("#account-email-input").value.trim();
+      const password = $("#account-password").value;
+      if (!email || !password || accountSubmit.disabled || finished) return;
+      accountSubmit.disabled = true;
+      accountError.hidden = true;
+      try {
+        const invite = $("#account-invite").value.trim() || null;
+        const session = creating ? await api.register(email, password, invite) : await api.login(email, password);
+        api.setSessionToken(session.token);
+        applyAccountMode(session);
+        if (api.getByok()) { finish(); return; }
+        // Keys next, on the same card: the account is in, the runs still
+        // need something to pay with.
+        showKeys();
+      } catch (err) {
+        const key = {
+          invalid_credentials: "account_error_credentials", email_taken: "account_error_taken",
+          weak_password: "account_error_weak", invalid_email: "account_error_email",
+          signup_closed: "account_error_closed", locked: "account_error_locked",
+          invite_required: "account_error_invite",
+        }[err.code];
+        accountError.textContent = key ? t(key) : err.message;
+        accountError.hidden = false;
+        if (err.code === "invite_required") {
+          inviteNeeded = true;
+          $("#account-invite").hidden = false;
+          $("#account-invite").focus();
+        } else {
+          $("#account-password").select();
+        }
+      } finally {
+        accountSubmit.disabled = false;
+      }
     };
 
     codeForm.onsubmit = async (e) => {
@@ -1007,9 +1480,12 @@ function showGate(errorKey = null) {
       codeSubmit.disabled = true;
       codeError.hidden = true;
       try {
-        await api.checkAccess(code);
+        const access = await api.checkAccess(code);
+        planPreviewEnabled = access?.plan_preview === true;
+        quotaEnabled = access?.daily_quota === true;
         api.setAccessCode(code);
         applyCodeMode();
+        refreshQuota();
         finish();
       } catch (err) {
         codeError.textContent = err.status === 401 ? t("gate_error") : err.message;
@@ -1035,6 +1511,13 @@ function showGate(errorKey = null) {
         api.setByok({ provider, llmKey, search, searchKey, ...(model ? { model } : {}) });
       } catch (err) {
         toast(operationErrorMessage(err), "error");
+        return;
+      }
+      if (forAccount()) {
+        // Keys saved for the account; the identity and its history are unchanged.
+        byokMode = true;
+        invalidateSidebar();
+        finish();
         return;
       }
       applyByokMode();
@@ -1069,6 +1552,9 @@ const langSelect = $("#ui-lang");
 langSelect.value = i18n.language();
 langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
+  localizeSourceLocatorLink();
+  renderPlan();
+  paintQuota();
   paintPaidReceipt();
   paintCapacityLabel();
   topic.placeholder = t("topic_placeholder");
@@ -1081,6 +1567,7 @@ langSelect.addEventListener("change", () => {
 /* ── Boot ──────────────────────────────────────────────────────────── */
 
 i18n.apply();
+localizeSourceLocatorLink();
 topic.placeholder = t("topic_placeholder");
 syncComposer();
 

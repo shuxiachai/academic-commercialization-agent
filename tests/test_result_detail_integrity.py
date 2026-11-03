@@ -69,6 +69,7 @@ class Element {
  constructor(tag){Object.assign(this,{tag,children:[],dataset:{},style:{},textContent:'',className:''});}
  append(...items){this.children.push(...items);}
  addEventListener(){}
+ setAttribute(){}
  set innerHTML(value){this.children=[];}
  querySelector(selector){const id=selector.match(/data-view="([^"]+)"/)[1];return this.children.find(n=>n.dataset.view===id);}
 }

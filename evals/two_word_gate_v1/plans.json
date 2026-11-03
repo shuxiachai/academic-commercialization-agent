@@ -1,0 +1,143 @@
+[
+ {
+  "split": "dev",
+  "display_topic": "fusion power",
+  "research_topic": "fusion power",
+  "aliases": [
+   "controlled nuclear fusion energy",
+   "magnetic confinement fusion"
+  ],
+  "weight_profile": "industrial",
+  "anchor": "fusion power",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "dev",
+  "display_topic": "carbon capture",
+  "research_topic": "Carbon capture",
+  "aliases": [
+   "CO2 capture",
+   "Carbon dioxide removal"
+  ],
+  "weight_profile": "industrial",
+  "anchor": "carbon capture",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "dev",
+  "display_topic": "quantum computing",
+  "research_topic": "Quantum computing",
+  "aliases": [
+   "Quantum information processing",
+   "Quantum computation"
+  ],
+  "weight_profile": "industrial",
+  "anchor": "quantum computing",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "dev",
+  "display_topic": "wave energy",
+  "research_topic": "Wave energy conversion",
+  "aliases": [
+   "Ocean wave power generation",
+   "Marine renewable energy harvesting"
+  ],
+  "weight_profile": "clean_tech",
+  "anchor": "wave energy",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "dev",
+  "display_topic": "tidal power",
+  "research_topic": "Tidal power generation",
+  "aliases": [
+   "Tidal energy conversion",
+   "Marine tidal energy harvesting"
+  ],
+  "weight_profile": "industrial",
+  "anchor": "tidal power",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "dev",
+  "display_topic": "green hydrogen",
+  "research_topic": "Green hydrogen production and utilization",
+  "aliases": [
+   "Renewable hydrogen generation",
+   "Low-carbon hydrogen energy systems"
+  ],
+  "weight_profile": "clean_tech",
+  "anchor": "green hydrogen",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "test",
+  "display_topic": "edge computing",
+  "research_topic": "Edge computing",
+  "aliases": [
+   "Fog computing",
+   "Mobile edge computing"
+  ],
+  "weight_profile": "industrial",
+  "anchor": "edge computing",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "test",
+  "display_topic": "smart grid",
+  "research_topic": "Smart grid",
+  "aliases": [
+   "Advanced power grid",
+   "Intelligent energy distribution system"
+  ],
+  "weight_profile": "clean_tech",
+  "anchor": "smart grid",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "test",
+  "display_topic": "smart glass",
+  "research_topic": "smart glass",
+  "aliases": [],
+  "weight_profile": "industrial",
+  "anchor": "smart glass",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "test",
+  "display_topic": "digital twin",
+  "research_topic": "Digital twin technology",
+  "aliases": [
+   "Virtual model of physical system",
+   "Cyber-physical system simulation"
+  ],
+  "weight_profile": "industrial",
+  "anchor": "digital twin",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "test",
+  "display_topic": "gene therapy",
+  "research_topic": "Gene therapy",
+  "aliases": [
+   "Genetic modification for therapeutic purposes",
+   "Nucleic acid-based medical intervention"
+  ],
+  "weight_profile": "biomedical",
+  "anchor": "gene therapy",
+  "planner_model": "qwen3.8-27b"
+ },
+ {
+  "split": "test",
+  "display_topic": "swarm robotics",
+  "research_topic": "Swarm robotics",
+  "aliases": [
+   "Multi-robot systems",
+   "Collective robotic behavior"
+  ],
+  "weight_profile": "industrial",
+  "anchor": "swarm robotics",
+  "planner_model": "qwen3.8-27b"
+ }
+]

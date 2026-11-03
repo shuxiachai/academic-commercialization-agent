@@ -23,6 +23,7 @@ from api.saved_source_receipts import ReceiptError
 from tests.test_saved_source_controller import CODE, QUESTION, RUN_ID, TEXT, key
 from tests.test_saved_source_receipt_app import boundary as boundary, count, headers
 from tests.test_saved_source_usage_app import FAKE_KEY, native as native
+from tests.scripted_waits import STEP
 
 URL = production.POST_PATH.replace("{run_id}", RUN_ID)
 SETTINGS = production.Settings(True, True, 2, Decimal("0.03"), Decimal("1"))
@@ -300,7 +301,7 @@ def test_shutdown_drains_actual_native_owner_after_waiter_cancellation(prepared)
 
     def held_key():
         entered.set()
-        assert release.wait(10)
+        assert release.wait(STEP)
         return FAKE_KEY
     runtime = prepared.build(key_loader=held_key)
 
@@ -308,7 +309,7 @@ def test_shutdown_drains_actual_native_owner_after_waiter_cancellation(prepared)
         request = asyncio.create_task(runtime.controller.execute(key(), RUN_ID, QUESTION, CODE))
         close = None
         try:
-            assert await asyncio.to_thread(entered.wait, 5)
+            assert await asyncio.to_thread(entered.wait, STEP)
             request.cancel()
             with suppress(asyncio.CancelledError):
                 await request

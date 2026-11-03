@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 
 from academic_agent.source_pipeline import _queries
-from market_retrieval_probe import (
+from experiments.pipeline_audits.market_retrieval_probe import (
     ANCHOR_ALIASES,
     ANCHOR_ENTITIES,
     mentions,

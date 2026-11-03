@@ -55,7 +55,7 @@ IDENTITY_PATHS = tuple(dict.fromkeys((
     "src/academic_agent/report_evidence_guarded_followup.py",
     "src/academic_agent/report_evidence_real_saved_eval.py",
     "src/academic_agent/report_evidence_real_saved_qwen_canary.py",
-    "report_evidence_real_saved_canary.py", "tests/test_report_evidence_real_saved_qwen_canary.py",
+    "experiments/report_evidence_canaries/report_evidence_real_saved_canary.py", "tests/test_report_evidence_real_saved_qwen_canary.py",
     PROTOCOL, OFFLINE_PROTOCOL,
 )))
 DEPENDENCIES = (

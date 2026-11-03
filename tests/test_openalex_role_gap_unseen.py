@@ -8,9 +8,7 @@ import socket
 
 import pytest
 
-import openalex_role_gap_unseen as unseen
-
-
+from experiments.openalex_retrieval import openalex_role_gap_unseen as unseen
 def _write_fixture(tmp_path: Path, payload: dict[str, object]) -> tuple[Path, str]:
     fixture = tmp_path / "challenge.json"
     fixture.write_text(
@@ -446,7 +444,7 @@ def test_dry_run_opens_no_socket_even_when_socket_creation_is_blocked(monkeypatc
 
 
 def test_preflight_imports_no_provider_model_execution_or_private_review_code():
-    source = Path("openalex_role_gap_unseen.py").read_text(encoding="utf-8")
+    source = Path("experiments/openalex_retrieval/openalex_role_gap_unseen.py").read_text(encoding="utf-8")
 
     for forbidden in (
         "anonymous_openalex_search",

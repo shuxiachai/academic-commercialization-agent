@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Nothing here writes to the repository: the token is read-only even if the
+# repository default ever changes.
+permissions:
+  contents: read
+
 # Every JavaScript action below deliberately uses a major whose official
 # action.yml declares Node 24.  Older majors still appear to pass because
 # GitHub temporarily forces them onto Node 24, but that compatibility shim emits
@@ -24,10 +29,10 @@ jobs:
         python-version: ["3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Install uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
         with:
           version: "latest"
           python-version: ${{ matrix.python-version }}
@@ -79,9 +84,9 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
         with:
           version: "latest"
           python-version: "3.12"
@@ -120,10 +125,10 @@ jobs:
     name: browser smoke (Chromium, zero-provider)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Install uv and Python 3.12
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
         with:
           version: "latest"
           python-version: "3.12"
@@ -178,7 +183,7 @@ jobs:
 
       - name: Upload the failure screenshot
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
         with:
           name: browser-smoke-failure
           path: output/playwright/
@@ -189,9 +194,9 @@ jobs:
     name: docker build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4
 
       # The image build runs scripts/verify_container_fonts.py, and that check
       # is the point of this job. The font the exporter needs is decided by two
@@ -206,7 +211,7 @@ jobs:
       # Nothing in the test suite can catch that: it depends on which font
       # files the base image happens to contain.
       - name: Build image (runs the CJK font check)
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7
         with:
           context: .
           push: false
@@ -248,4 +253,4 @@ jobs:
           docker run --rm academic-agent:ci python -c "from api import samples; [samples.read_sample(s.slug) for s in samples.SAMPLES]"
 
           echo "Excluded development files must not ship"
-          docker run --rm academic-agent:ci sh -c '! ls -d tests docs evals ablation.py 2>/dev/null | grep .'
+          docker run --rm academic-agent:ci sh -c '! ls -d tests docs evals experiments benchmark.py 2>/dev/null | grep .'

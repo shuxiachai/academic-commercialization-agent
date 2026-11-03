@@ -18,6 +18,7 @@ import sys
 from unittest import TestCase, mock
 
 from academic_agent import main as cli
+from tests.scripted_waits import SCENARIO
 
 
 def _args(**over) -> argparse.Namespace:
@@ -40,7 +41,7 @@ class ModuleExecutionTests(TestCase):
             capture_output=True,
             text=True,
             check=False,
-            timeout=10,
+            timeout=SCENARIO,
         )
         self.assertEqual(completed.returncode, 0)
         self.assertIn("--topic", completed.stdout)

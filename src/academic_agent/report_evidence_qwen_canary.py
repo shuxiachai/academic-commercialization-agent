@@ -40,7 +40,7 @@ IDENTITY_PATHS = (
     "src/academic_agent/report_evidence_followup.py",
     "src/academic_agent/report_evidence_qwen_transport.py",
     "src/academic_agent/report_evidence_qwen_canary.py",
-    "report_evidence_followup_canary.py", FIXTURE,
+    "experiments/report_evidence_canaries/report_evidence_followup_canary.py", FIXTURE,
     "tests/test_report_evidence_qwen_transport.py",
     "tests/test_report_evidence_qwen_canary.py", "pyproject.toml", "uv.lock",
     "docs/prereg-2026-09-14-report-evidence-followup-qwen.md",

@@ -85,6 +85,7 @@ def test_no_listed_file_targets_code_the_app_or_pipeline_runs():
         {p.stem for p in (ROOT / "src" / "academic_agent").rglob("*.py")}
         | {p.stem for p in (ROOT / "api").glob("*.py")}
         | {p.stem for p in ROOT.glob("*.py")}
+        | {p.stem for p in (ROOT / "experiments").rglob("*.py")}
         | {p.stem for p in (ROOT / "scripts").rglob("*.py")}
     ) - {"__init__"}
     for name in sorted(experiment_test_files()):

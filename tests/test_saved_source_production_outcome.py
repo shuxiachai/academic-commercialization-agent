@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 
 from api import saved_source_production_assets as assets
+from tests.scripted_waits import SCENARIO
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,7 +48,7 @@ assert.equal(node.textContent, '');
 console.log('safe outcome rendering verified');
 '''
     completed = subprocess.run(["node", "--input-type=module", "-e", probe, module], input=json.dumps({}),
-                               capture_output=True, text=True, encoding="utf-8", timeout=15, check=False)
+                               capture_output=True, text=True, encoding="utf-8", timeout=SCENARIO, check=False)
     assert completed.returncode == 0, completed.stderr
     assert "safe outcome rendering verified" in completed.stdout
 
@@ -157,6 +158,6 @@ console.log('production entry hooks and negative controls verified');
 '''
     completed = subprocess.run(["node", "--input-type=module", "-e", probe],
                                input=json.dumps({"modules": modules, "html": assets.page_response(True).body.decode()}),
-                               capture_output=True, text=True, encoding="utf-8", timeout=15, check=False)
+                               capture_output=True, text=True, encoding="utf-8", timeout=SCENARIO, check=False)
     assert completed.returncode == 0, completed.stderr
     assert "production entry hooks and negative controls verified" in completed.stdout

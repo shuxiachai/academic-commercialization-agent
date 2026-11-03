@@ -24,9 +24,16 @@ uv sync
 ```
 
 For Qwen, explicitly set `LLM_PROVIDER=qwen`, `DASHSCOPE_API_KEY` and
-`QWEN_MODEL`. The public deployment uses `qwen3.8-27b` (since 2026-10-19;
-`qwen3.8-max` from 2026-10-18). Both accept the pipeline's JSON Object output
-with thinking disabled. Held-out v2 measured `qwen3.8-max`, not the 27B model.
+`QWEN_MODEL`. The public deployment rotates through Model Studio's free-quota
+models (1M tokens per model in the Beijing region, 90 days) by changing
+`QWEN_MODEL` alone; `/health.llm_model` reports the current name and each run
+page names the model that produced it. `qwen3.8-max` and `qwen3.8-27b` are
+known to accept the pipeline's JSON Object output with thinking disabled; a
+model listed as thinking-only may not. Held-out v2 measured `qwen3.8-max`;
+no other deployed model has been measured. After a switch, run one short
+topic and check three things before relying on it: the run completes, the
+scorecard shows scores (the JSON contract held), and the run title is still
+the topic you entered (the language helper did not rewrite it).
 There is no built-in default model (removed 2026-10-20; it was `qwen3.5-plus`).
 An unset `QWEN_MODEL` uses `OPENAI_MODEL_NAME` when that is set; otherwise
 readiness reports the missing variable and every run fails before its first
@@ -46,7 +53,50 @@ Auto-selection is DeepSeek → Qwen → Anthropic → OpenAI; unused keys do not
 force extra model calls, but they can change the selected provider if
 `LLM_PROVIDER` is absent. Remove unused template placeholders. Qwen's
 `enable_thinking=false` and JSON Object settings are code-owned pipeline
-contracts, not optional prompt tweaks.
+defaults, not optional prompt tweaks.
+
+Not every model accepts them. `qwen3.7-max-preview` runs only in thinking
+mode: it refused `enable_thinking=false` with HTTP 400, and every run failed
+at its first agent call.
+
+A provider 400 that names `enable_thinking`, `response_format` or
+`temperature` now changes that parameter as the provider asks, and the call
+is resent once. The change is remembered for that endpoint and model for the
+rest of the worker process. The log line `[llm] <model> refused <parameter>`
+records each change. Other refusals still fail the run. Its public error
+then names the cause: a used-up free quota, an unbillable account, a model
+the key cannot use, or a request the model rejected. For a run made under an
+access code, the message says that the cause is on the deployment's side and
+that nothing in the request caused it; a run on the visitor's own key keeps
+the wording that says what to check, since the key and model are theirs.
+
+The search planner and translation calls go through a separate helper. If
+the connection fails before the request has been sent (a reset, a cut TLS
+stream, or a connect that timed out), the helper sends it again, up to three
+attempts in all. The log line
+`[llm] search_planning: <error> before the request was sent` records each
+retry. It does not resend after the request has gone out: a timeout or a
+broken reply may come after the model has already started working, and a
+resend could be billed twice. When the helper fails, the run still searches
+the topic as typed, without alias queries. That fallback raises no error.
+
+**Before switching the model**, run
+`railway run python scripts/check_llm_model.py --long`, or run it locally with
+the same variables. It runs the real search planner, which must return
+aliases (a plan that falls back to the typed topic has none). It translates
+one phrase. It then sends one tiny request to the agents in JSON mode and in
+free-text mode. It prints what had to be adapted.
+
+It then times one long answer against the per-call budget. An estimate over
+budget is a warning, because provider speed varies by the hour.
+
+A thinking-only model reasons before every answer, so it gets more time:
+- auxiliary calls get 120 seconds instead of 60;
+- each agent call gets 300 seconds instead of 150.
+
+The longer bounds come from 2026-10-23. qwen3.7-max-preview took up to 29
+seconds just to refuse a request. The report writer's 8,400-token answer ran
+past 150 seconds once.
 
 The factory and auxiliary planning/translation share model, key and endpoint
 resolution. Endpoints require HTTPS without credentials/query/fragment; a known
@@ -69,12 +119,39 @@ not connected. Do not configure or purchase optional keys merely to run tests.
 
 ## Web, CLI and HTTP API
 
+A completed run's result page opens with a decision brief above the tabs: the
+band and score with both readiness levels, the strongest and weakest dimension,
+the first sentence of the report's own executive summary (skipping an opener
+that describes the report rather than the technology), the best-rated source
+the strongest dimension cites, the scorecard's first risk, the first item or
+bold-led paragraph of the recommendations section, and what would change the
+verdict, read from the checks (evidence confidence, market comparability,
+grounding, consistency, thin domains, a missing decision context). Every line
+comes from an artifact the tabs show; nothing is a new judgement and no model
+is called. A run without a readable scorecard has no brief.
+
+Web-search patents are dated from their own Google Patents page, the one
+already read for the applicant: the header's publication date replaces the
+row's date whatever it was, because the row had at best the year out of the
+publication number as 1 January, and on 60 pages sampled on 2026-10-29 none of
+30 such dates matched the page and 10 had the wrong year. The `[Patent-Dates]`
+audit row lists the rows dated and every replacement.
+
+
 The scorecard explicitly labels market-estimate comparability as not assessed.
 Fresh/restored score artifacts include `market_comparison`; the raw
 `market_uncertainty` string remains a legacy untyped diagnostic, not verified
 USD data. A missing or null flag must not be called a comparison pass. The
 historical numeric cap and existing report prose are unchanged. See the
 [delivery contract](results-2026-09-11-market-score-delivery-disclosure.md).
+Inside that folded disclosure the result page now lists every market-size
+figure the saved market sources state, each under the market its own source
+names (read from the source title) with the publisher and the year written
+beside it. Figures are compared only within one market, one year and one
+currency, and only to say how far they differ; across markets they are listed,
+never converted or compared, and the score is untouched. Measured on 181 saved
+runs before this was added: pooling every figure gave a median 157x spread, and
+the same title-scope and year still differed 7x between firms.
 
 New production-validated scores additionally carry `market_cap_audit`: the
 normalized pre/post market score, actual market-point deduction, trigger and
@@ -288,9 +365,16 @@ release checks.
 PDF extraction responses and stored metadata include `input_coverage` with the
 actual scanned/included/truncated/omitted pages and character budget. This is
 sampling visibility, not full-paper reading or section-level understanding.
-`locator_status` describes a text candidate or conflict, not a verified paper
+`locator_status` describes a candidate or conflict, not a verified paper
 identity; reachable upload locators no longer imply high credibility. See the
 [input and identity contract](results-2026-09-10-evidence-pdf-terminal-boundaries.md).
+When the text carries no DOI or arXiv identifier, the title is looked up once on
+the arXiv query API (no key, 8-second bound); an exact title match whose first
+author the extraction also read becomes `title_match_candidate` with the record
+as `candidate_url`, and `public_record_lookup` says whether that lookup matched,
+found nothing, or could not run. A1's credibility reason states the same in
+words, so the report's reference list no longer paraphrases "no candidate" as
+the paper lacking a DOI. The candidate is never A1's citation identity.
 
 The composer permits one in-flight submission and one serial PDF extraction,
 never both at once. It preserves an existing topic when a paper is attached;
@@ -318,9 +402,14 @@ semantic correctness of all report prose; see the
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/health` | Liveness and capacity snapshot; not proof of report quality |
+| GET | `/health` | Liveness, capacity and the served `pipeline_revision`; not proof of report quality |
 | GET | `/health/ready` | Explicit provider/configuration, output and paid-accounting readiness |
+| GET | `/api/health/retrieval?window=20` | Per-lane counts of empty and refused retrieval across recent runs' audits; owner-filtered like `/api/runs`, no topics or run ids |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
+| GET | `/api/quota` | Paid operations left today for the calling code; `null` when uncapped |
+| POST | `/api/plan` | Preview how the planner reads a topic; code holders only, own daily cap, not a paid operation |
+| GET | `/api/runs/{run_id}/feedback` | The caller's own answer about a delivered report, if any. Authorized like a mutation: a code-owned run answers to its code or the admin, an ownerless run to whoever holds its URL |
+| POST | `/api/runs/{run_id}/feedback` | One click on a delivered report: did it change the reader's view (`yes`/`no`/`unsure`) and which part mattered. Fixed words, no text; one record per responder, replaced on a later answer; kept in the run's `feedback.json` for `scripts/ops_report.py`. Not a paid operation |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
 | GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
 | GET | `/api/runs` | Owner-filtered run history when access control is enabled |
@@ -340,6 +429,35 @@ Readiness performs an isolated real-file write per request; concurrent probes
 do not share a filename. A cleanup-only failure is named separately from a
 write failure. This is local readiness, not provider connectivity or model
 quality verification. See the [maintenance contract](results-2026-09-06-maintenance-readiness-query-audit.md).
+
+`/api/health/retrieval` reads the saved audits of the newest runs and counts,
+per lane (`OA-Cited`, `S2`, `PubMed`, `market web search`, ...), the runs in
+which that lane returned nothing and the runs in which it recorded a refusal
+or failed request. `failing` lists lanes that failed in at least half of three
+or more observed runs, usually a missing or exhausted key; `mostly_empty`
+lists other lanes that returned nothing in at least 80% of them. S2, PubMed
+and arXiv rows exist only when OpenAlex left slots open or the lane failed,
+so their counts cover the runs that needed them.
+
+The Retrieval health workflow reads this endpoint once a day at 09:00 Sydney
+time, using the repository secret `PRODUCTION_ADMIN_CODE`. That secret must hold
+the admin access code, which sees every code's runs; without it the job
+skips.
+- **A lane is failing:** the job opens one `retrieval-health` issue (or comments on the open one) with each lane's counts and the key or quota to check. It then fails, so GitHub sends its failure email.
+- **The lanes answer again:** the job comments on the issue and closes it.
+
+Mostly-empty lanes are listed in the issue but never alert on their own.
+
+`/health.llm_model` is the model name a run on the deployment's own key would
+request, from the same resolution the worker uses; it changes with
+`QWEN_MODEL` and is not proof that the provider serves that name.
+`/health.pipeline_revision` is the code this process serves: `git:<commit>`
+on Railway, otherwise a hash of the pipeline sources. After each passing
+Tests run on `main`, the Deploy check workflow polls it for up to 30
+minutes and fails if production serves neither the merged commit nor a later
+one that contains it, so a stalled Railway deploy shows as a red run instead
+of going unnoticed. Set the repository variable `PRODUCTION_URL` to check
+another deployment.
 
 `/health.maintenance` separately reports the managed background task and its
 last timeout/paper/retention/receipt checks. Initial `not_checked` is not success;
@@ -445,6 +563,22 @@ than defaulting missing data to zero or agreement. This neither rewrites stored
 artifacts nor changes scoring/heuristics. Healthy report tabs remain usable.
 Normalized dimensions accept fractions in 1..maximum, not just rubric integers.
 
+The report-versus-scorecard check reads English and Simplified Chinese
+conclusions. It finds the two conclusion sections by built-in heading stems and
+by the run's own translated headings, so a Chinese run gets a verdict; a report
+in a language without a phrase table is left unchecked, which the reliability
+panel shows as "not run", never as consistent. See the
+[Chinese calibration](results-2026-10-25-report-score-consistency-chinese.md).
+
+The checks write their reasons into the artifacts as English sentences, and
+artifacts are never rewritten. The page says each recognised sentence again in
+the interface language from its parts: the report-versus-scorecard finding (its
+phrase, score and floor), the three reasons a numeric claim could not be
+checked, the search layer's rejection notes in a failed run's diagnostics (the
+title or locator is left as written), and domain names in the check panel. In
+English every recognised sentence is shown word for word; a sentence the page
+does not recognise is shown as written in either language, never guessed at.
+
 If browser storage is denied, credentials can be held only in page memory and
 preferences use safe defaults. Bookmark accepted run links. A failed persistent
 logout returns to the gate without reloading stale credentials; clear site data
@@ -507,6 +641,38 @@ rejection reasons instead of silently inventing evidence. Pydantic and local
 guardrails validate structure and source identities; advisory checks cannot
 guarantee factual entailment.
 
+Web search returns market sources undated. After the relevance filter, each
+accepted market source is read once for the publication date its own page
+states in metadata, unless it is a market report, a Wikipedia page or a home
+page. The date comes from JSON-LD, a publication `<meta>` tag, `itemprop`, or
+a full date in the URL path. Up to eight pages are read at a time, and the step
+stops waiting after 20 seconds; a page not read by then stays "n.d.". A
+`[Page-Dates]` row in the retrieval audit lists the sources dated this way and
+notes why each other one was not; retrieval health does not count it as a
+lane. The rule was registered and tested before adoption; see the
+[result](results-2026-10-22-market-page-dates-v1.md).
+
+Patent web search returns one row per publication, so one invention can
+arrive several times: filed in several offices, or published and then
+granted. A patent row is rejected as a duplicate when either holds:
+- it is the same publication as one already accepted, on any host;
+- its title matches once publication numbers and the site name are removed, and the two numbers come from different offices or are an application and a grant.
+
+Same-kind publications from one office stay separate, even with one title.
+The audit names the publication that was kept. Titles that differ, such as
+translations or retitled continuations, are not merged. See the
+[result](results-2026-10-22-patent-family-v1.md).
+
+Web search also returns patent rows without an applicant. Each accepted
+web-search patent's Google Patents page is read once, first 256 KB only:
+- **Named holder.** The current assignee becomes the row's publisher and joins the assignee list the patent analyst receives.
+- **Inventor-owned patent.** The inventors are named instead, and never listed as a company.
+
+Up to eight pages are read at a time, with a 20-second deadline. A
+`[Patent-Applicants]` audit row lists the rows named and why the others were
+not; retrieval health does not count it as a lane. See the
+[check](results-2026-10-22-patent-applicants-check.md).
+
 The PDF-domain market prelude shares the ordinary query path's previous/current
 calendar-year window. This avoids stale hard-coded years, not stale results in
 general. The report-audit detail tab displays individual coverage counts and
@@ -527,6 +693,22 @@ retries. Defaults reserve closeout time before the 30-minute watchdog:
 60-second closeout reserve. Direct CLI runs are operator-controlled and do
 not inherit the API watchdog. UI and both run endpoints distinguish terminal
 reason, stop method and elapsed time.
+
+The worker records when each stage began (`stage_timings` in `status.json`).
+Both run endpoints return each stage's duration: until the next stage began,
+until the terminal record's end, or so far (`active`) while the run is going.
+Scoring's duration includes report finalization. The run header shows them
+folded under "Stage timing"; the live stage list shows them per row. Runs
+started before this field have none.
+
+A running run also carries `eta`: the typical time left, from the medians of
+up to 30 recent completed runs (per stage once at least three recorded stage
+times, else the total), cached for ten minutes. It is `null` with fewer than
+three completed runs, and goes negative once a run is slower than usual,
+which the header shows as "slower than usual" rather than a countdown past
+zero. When a run the page watched finishes in a background tab, the tab
+title changes; a browser notification is added only if the user opted in
+from the run header.
 
 Usage snapshots only increase. `complete`, `lower_bound` and `unavailable`
 are different accounting facts; an interrupted in-flight call can have spend
@@ -586,12 +768,25 @@ RUN_RETENTION_DAYS=30
 These are example policy values, not a cost/SLO guarantee.
 
 - `ACCESS_CODES` supports multiple comma-separated codes;
+- `ACCOUNTS_DB` turns on email-and-password accounts (next section);
+- `FORWARDED_ALLOW_IPS=*` behind the platform proxy, so rate limits and
+  sign-in lockout see the visitor's address rather than the proxy's;
   `ACCESS_CODE_ADMIN` additionally sees combined code-owned history.
   Histories are partitioned by hashed owner tags, not separate deployments.
 - `API_DAILY_PAID_OPERATION_CAP` is per validated code and UTC day, including
   admin. A PDF followed by an assessment consumes two units. BYOK is exempt
   from operator-funded daily quota but not host capacity. Zero disables the
   cap; legacy `API_DAILY_RUN_CAP` is a fallback when the new name is unset.
+  A run is charged when it is admitted and stays charged if its worker fails
+  later; only a launch that never started a worker is refunded. Each run
+  records which applied (`daily_charge` on its status), and a failed run's
+  page says whether it counted and that resuming uses another unit.
+- `PLAN_PREVIEW_DAILY_LIMIT` (default 20, 0 disables) caps `POST /api/plan`
+  per code and UTC day. A preview is one planner call and does not use a
+  paid operation. The browser shows the reading before a code-funded run;
+  the confirmed or edited plan goes into the RunSpec as `search_plan`, and
+  the worker searches it instead of planning again. The count lives in
+  memory, so a restart resets it.
 - Counts are atomically persisted in
   `outputs/.paid-operation-ledger.json`; restart does not reset that day's
   budget. Unreadable accounting fails closed before paid work.
@@ -606,6 +801,45 @@ These are example policy values, not a cost/SLO guarantee.
 - `GET /api/samples` and `GET /api/samples/{slug}` stay open on a gated
   deployment. They serve only the allowlisted files under `examples/`, read
   no deployment state and spend nothing; other methods on those paths are gated.
+
+### Accounts
+
+Setting `ACCOUNTS_DB` to a file path (on persistent storage; on Railway, under
+the mounted volume) enables sign-up and sign-in at `/api/auth/*` and a sign-in
+form on the gate. An account is an identity and a history scope, nothing more:
+its runs, uploads and receipts are tagged `user:<id>` and listed only to it,
+and it pays for every paid operation with its own LLM and search keys, sent
+with each request exactly as the bring-your-own-key path always sent them.
+The server never stores an account's keys; the browser keeps them in session
+storage and the page says so. A signed-in request without keys is refused
+with `byok_required`, never billed to the deployment. Plan previews and the
+daily operator quota do not apply to accounts, because both spend the
+deployment's key.
+
+Accounts and access codes coexist. A valid `X-Access-Code` header takes
+precedence over a session token, keeps its operator billing and its own
+history scope, and nothing changes for code holders. With accounts enabled an
+anonymous visitor must sign in or present a code; the key-only path that an
+ungated or code-gated deployment offers is closed, since keys alone are no
+longer an identity. `ACCOUNTS_SIGNUP` is `open`, `invite` (registration
+needs `ACCOUNTS_INVITE_CODE`) or `closed` (existing accounts keep working).
+`ACCOUNTS_ADMIN_EMAILS` names accounts that see every owner's history,
+labelled by email or code; it is read per request, so it can change without a
+migration. Registration verifies no email, so an address on the admin list
+can be registered only with the invite code, in every mode: set the code and
+register the operator's own address before opening sign-up, or whoever types
+that address first becomes the administrator. Passwords are hashed with
+scrypt; session tokens are stored as SHA-256 and expire after 30 days. Eight
+failed sign-ins lock that email for that source address for fifteen minutes,
+and fifty from anywhere lock the email itself, so a stranger cannot lock a
+user out by guessing at their address while a guesser who rotates addresses
+is still stopped. The source address is what the ASGI server reports after
+its proxy-trust decision: behind Railway's proxy set `FORWARDED_ALLOW_IPS=*`
+in the service environment, or every visitor shares one address, one lockout
+and one rate-limit bucket. There is no password reset or email verification
+yet: an operator can disable an account with `api.accounts.set_disabled`
+from a shell, and both flows need an email service, which is a separate
+decision. Until then, `invite` mode is the safer default for a public URL.
 
 ### Run links, BYOK and retention
 
@@ -782,6 +1016,15 @@ identity before paid dispatch. Intact successful units are reused without
 another call; occupied failed/partial/corrupt units are refused, not retried.
 Unstarted units can execute. A new measurement requires a new batch. Live-mode
 reuse refers to the stored evidence snapshot, not a fresh search of today's web.
+
+Live retrieval (assessment batches and `--freeze`) needs `OPENALEX_API_KEY` in
+`.env`. `--allow-anonymous-openalex` waives that for a batch small enough for
+the shared anonymous budget of about 15 runs a day. A run whose retrieval
+recorded an OpenAlex refusal or failure is saved as `error_retrieval_refused`
+before its crew stage, and the batch stops there so the remaining units can
+run later under `--resume-batch`. See the
+[2026-10-22 erratum](errata-2026-10-22-openalex-budget-outages.md) for the two
+batches scored without OpenAlex before this check existed.
 Benchmark resume is batch scheduling, not a production recovery child or
 provider-level exactly-once guarantee. Credentials are not in manifests;
 optional source credentials/contact settings are recorded only as presence.

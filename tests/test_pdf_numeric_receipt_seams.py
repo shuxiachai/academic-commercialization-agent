@@ -14,6 +14,7 @@ from academic_agent.claim_grounding import check_report
 from api import access, main, papers, receipts, runs
 from tests.test_pdf_input_identity_boundaries import _pdf, fields
 from tests.test_server_receipts import contribution, headers, paid_api  # noqa: F401
+from tests.scripted_waits import STEP
 
 
 @pytest.mark.parametrize('filename', ['pdf_extractor.py', 'claim_grounding.py'])
@@ -129,7 +130,7 @@ def test_actual_pdf_thread_publishes_failure_even_without_waiter(paid_api, monke
 
         def extract(*_args, **_kwargs):
             loop.call_soon_threadsafe(entered.set)
-            assert release.wait(5)
+            assert release.wait(STEP)
             if failure != 'storage':
                 raise failures[failure]('SECRET_PROVIDER_EXCERPT')
             return contribution()
@@ -138,7 +139,7 @@ def test_actual_pdf_thread_publishes_failure_even_without_waiter(paid_api, monke
         with receipts.activate(ticket):
             waiter = asyncio.create_task(main._process_uploaded_paper(paper_id, str(path)))
         try:
-            assert await asyncio.wait_for(entered.wait(), 3)
+            assert await asyncio.wait_for(entered.wait(), STEP)
             assert not waiter.done(), 'The worker must remain held before waiter cancellation'
             if cancel:
                 waiter.cancel()

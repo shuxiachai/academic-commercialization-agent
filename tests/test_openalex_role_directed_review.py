@@ -10,15 +10,15 @@ from pathlib import Path
 
 import pytest
 
-import openalex_role_directed_live as live
-import openalex_role_directed_review as review
+from experiments.openalex_retrieval import openalex_role_directed_live as live
+from experiments.openalex_retrieval import openalex_role_directed_review as review
 from academic_agent.evidence_gap import ValidatedGapCall
 from academic_agent.tools.evidence_search import (
     ToolAdapterResponse,
     ToolEvidenceCandidate,
     ToolProviderUsage,
 )
-from openalex_role_directed_unseen import (
+from experiments.openalex_retrieval.openalex_role_directed_unseen import (
     RetrievalLaneId,
     load_frozen_cases,
 )

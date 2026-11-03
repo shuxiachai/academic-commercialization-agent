@@ -108,6 +108,28 @@ _OWNED_BLOCK = re.compile(
 _OPENING_TITLE = re.compile(r"\A(?:[ \t]*\r?\n)*# [^\r\n]*(?:\r?\n|$)")
 
 
+def applicability_for_display(report: str) -> str:
+    """The report as a page renders it: the delivered paragraph as plain prose.
+
+    The browser's Markdown renderer has neither HTML comments nor blockquotes,
+    so readers saw the raw marker line and a stray ">" before the paragraph
+    the page means them to read. Only the code-owned block in its delivered
+    position (after the opening H1, or first) changes, and its words stay;
+    the saved file and its download keep every byte.
+    """
+
+    match = _OWNED_BLOCK.search(report)
+    if match is None:
+        return report
+    prefix = report[:match.start()]
+    title = _OPENING_TITLE.match(prefix)
+    if prefix.strip() and (title is None or prefix[title.end():].strip()):
+        return report
+    lines = match.group().splitlines()[1:]  # drop the marker line
+    paragraph = "\n".join(re.sub(r"^>[ \t]?", "", line) for line in lines if line.strip())
+    return report[:match.start()] + paragraph + report[match.end():]
+
+
 def add_applicability_block(
     report: str,
     *,

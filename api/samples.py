@@ -33,6 +33,23 @@ class Sample:
 
 
 SAMPLES: tuple[Sample, ...] = (
+    # Production runs of 2026-10-21 (pipeline a8cc424, qwen3.8-27b), kept verbatim.
+    Sample(
+        slug="hyperloop",
+        file="hyperloop.md",
+        title="Hyperloop",
+        topic="hyperloop",
+        committed="2026-10-21",
+        commit="a8cc424",
+    ),
+    Sample(
+        slug="solid-state-batteries-ev-zh",
+        file="solid-state-batteries-ev-zh.md",
+        title="电动汽车用固态电池",
+        topic="电动汽车用固态电池",
+        committed="2026-10-21",
+        commit="a8cc424",
+    ),
     Sample(
         slug="solid-state-batteries-ev",
         file="solid-state-batteries-ev.md",

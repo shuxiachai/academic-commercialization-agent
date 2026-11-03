@@ -10,9 +10,7 @@ from pathlib import Path
 import pytest
 
 import academic_agent.evidence as evidence_module
-import openalex_role_slot_unseen as unseen
-
-
+from experiments.openalex_retrieval import openalex_role_slot_unseen as unseen
 def test_development_dry_run_expands_all_identities_without_live_authority():
     result = unseen.dry_run("development")
 
@@ -208,7 +206,7 @@ def test_dry_run_opens_no_socket_even_when_socket_creation_is_blocked(monkeypatc
 
 
 def test_preflight_imports_no_provider_model_or_execution_client():
-    source = Path("openalex_role_slot_unseen.py").read_text(encoding="utf-8")
+    source = Path("experiments/openalex_retrieval/openalex_role_slot_unseen.py").read_text(encoding="utf-8")
 
     assert "anonymous_openalex_search" not in source
     assert "qwen_evidence_judge" not in source
