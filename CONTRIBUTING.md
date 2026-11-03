@@ -165,6 +165,22 @@ upload/submission races, accepted-run navigation and translated admission errors
 unexpected requests fail the audit. It does not relax the original journey's
 read-only guard or contact any model/search provider.
 
+### Local UI demo
+
+```bash
+uv run python -m scripts.demos.ui_demo
+```
+
+Serves the real web client on loopback with three completed fixture runs and
+prints the URL and the access code; Ctrl+C stops it and removes its temporary
+directory. Static files are read from disk, so an edit under `web/` shows on
+reload. It needs no `.env` and no keys: it refuses to start while a provider
+key is set in the environment, blanks the keys before importing the app so
+`.env` cannot load them, and answers only GET, HEAD and OPTIONS, so starting a
+run, uploading a paper or signing up gets a 405 instead of reaching a
+provider. It writes nothing under `outputs/`; `tests/test_ui_demo.py` checks
+these in a child process.
+
 ## What to contribute
 
 - Focused bug fixes with an observed failure, a boundary assertion and a
@@ -209,6 +225,7 @@ documentation change is not that authorization.
 | Worker, recovery and terminal truth | `src/academic_agent/pipeline_worker.py`, `checkpoint_runtime.py`, `run_terminal.py` |
 | Configured roles and tasks | `src/academic_agent/config/` |
 | Zero-provider browser journey | `e2e/browser_smoke.py` |
+| Local UI demo (no keys) | `scripts/demos/ui_demo.py`, sharing `e2e/isolated_app.py` with the smoke |
 
 The detailed boundary map is in [AGENTS.md](AGENTS.md#layout-and-boundary-specific-reading).
 
