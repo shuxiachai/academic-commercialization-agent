@@ -576,7 +576,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
 
         page.emulate_media(media="print", color_scheme="dark")
         for selector in (".samples__head", ".samples__intro", ".samples__list",
-                         ".samples__reader > .empty-note"):
+                         ".samples__reader > .empty-note", ".samples__toc"):
             expect(page.locator(selector)).to_be_hidden()
         expect(notice).to_be_visible()
         expect(report).to_be_visible()
@@ -621,7 +621,8 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         assert printed["bodyBackground"] == "rgb(255, 255, 255)", (slug, printed)
         assert printed["sampleMaxWidth"] == "none", (slug, printed)
         assert printed["reportMaxWidth"] == "none" and printed["reportFillsReader"], (slug, printed)
-        assert printed["readerChildren"] == ["samples__notice", "prose"], (slug, printed)
+        # The contents are screen navigation; print hides them like the list.
+        assert printed["readerChildren"] == ["samples__notice", "samples__toc", "prose"], (slug, printed)
         assert not printed["badColors"], (slug, printed["badColors"][:5])
         assert not printed["badBackgrounds"], (slug, printed["badBackgrounds"][:5])
         assert printed["headingBreakInside"] and all(
@@ -651,6 +652,190 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
     assert table_rows > 0, "No committed sample exercised table-row pagination."
     assert card_checked, "No committed sample exposed a citation chip to print."
     page.emulate_media(media="screen", color_scheme="light")
+    return len(slugs)
+
+
+_CONTENTS_STATE = """() => {
+    const reader = document.querySelector("#sample-reader");
+    const toc = reader.querySelector(":scope > nav.samples__toc");
+    const article = reader.querySelector(":scope > article.prose");
+    const box = (element) => {
+        const rect = element.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom };
+    };
+    const headings = [...article.querySelectorAll("h2")];
+    return {
+        tocs: document.querySelectorAll(".samples__toc").length,
+        label: toc.getAttribute("aria-label"),
+        summary: toc.querySelector("summary").textContent,
+        open: toc.querySelector("details").open,
+        headings: headings.map((heading) => [heading.id, heading.textContent]),
+        links: [...toc.querySelectorAll("a")].map((link) => [link.getAttribute("href"), link.textContent]),
+        idCounts: headings.map((heading) => document.querySelectorAll(`[id="${heading.id}"]`).length),
+        reader: box(reader), toc: box(toc), list: box(toc.querySelector("details")), article: box(article),
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+    };
+}"""
+
+
+def _exercise_sample_contents(page: Page, base_url: str) -> int:
+    """Link every section of every committed sample, beside the report or above it (#285).
+
+    A contents link changes only the URL fragment, and Chromium fires popstate
+    for that; the reader used to answer popstate by reading and rendering the
+    sample again. So each jump also checks that the article is the same node
+    and that no second read of the sample went out.
+    """
+    listed = page.request.get(f"{base_url}/api/samples")
+    assert listed.status == 200, "The sample catalog did not answer."
+    slugs = [item["slug"] for item in listed.json()]
+    assert len(slugs) >= 2, "The contents journey needs two samples."
+    reads: list[str] = []
+
+    def record_read(request) -> None:
+        path = urlsplit(request.url).path
+        if path.startswith("/api/samples/"):
+            reads.append(path.rsplit("/", 1)[-1])
+
+    def shown() -> None:
+        expect(page.locator("#sample-reader > nav.samples__toc a").first).to_be_attached()
+        page.evaluate("() => { window.__smokeArticle = document.querySelector('#sample-reader > article'); }")
+
+    def load(slug: str, fragment: str = "") -> None:
+        response = page.goto(f"{base_url}/samples/{slug}{fragment}", wait_until="domcontentloaded")
+        assert response is not None and response.ok, f"Sample {slug} did not load."
+        shown()
+
+    def show(index: int) -> str:
+        """Open a sample from its card, as a reader does. One read rather than a
+        page load: the whole smoke shares one loopback rate-limit bucket
+        (API_RATE_LIMIT_PER_MINUTE), and reloading the page per sample spent
+        enough of it to turn later steps' requests into 429s."""
+        slug = slugs[index]
+        page.locator(".samples__list .sample-card").nth(index).click()
+        page.wait_for_function("(suffix) => location.pathname.endsWith(suffix)", arg=f"/{slug}")
+        shown()
+        return slug
+
+    def state(slug: str, label: str = "Contents") -> dict:
+        current = page.evaluate(_CONTENTS_STATE)
+        # Ids from a counter, not the heading text: one sample is in Chinese.
+        expected = [[f"section-{number}", text] for number, (_, text) in enumerate(current["headings"], start=1)]
+        assert current["headings"] and current["headings"] == expected, (slug, current["headings"])
+        assert current["links"] == [[f"#{hid}", text] for hid, text in expected], (slug, current["links"])
+        assert current["idCounts"] == [1] * len(expected), (slug, current["idCounts"])
+        assert (current["tocs"], current["label"], current["summary"]) == (1, label, label), (slug, current)
+        assert 0 <= current["toc"]["x"] and current["toc"]["right"] <= current["clientWidth"], (slug, current["toc"])
+        return current
+
+    def focus_in_contents(presses: int = 1) -> str | None:
+        """Press Tab until focus is inside the contents (at most `presses` times); name what has it.
+
+        Focus scrolls the page smoothly (base.css), and Chromium drops a
+        fragment jump that starts while that scroll is still moving, so wait
+        for it to stop, as a person's next key press would.
+        """
+        for _ in range(presses):
+            page.keyboard.press("Tab")
+            page.wait_for_function("""() => {
+                const still = window.__smokeScrollY === window.scrollY;
+                window.__smokeScrollY = window.scrollY;
+                return still;
+            }""", polling=100)
+            focused = page.evaluate("""() => {
+                const active = document.activeElement;
+                return active.closest(".samples__toc") ? (active.getAttribute("href") ?? active.tagName) : null;
+            }""")
+            if focused:
+                return focused
+        return None
+
+    def settle_at(section: str) -> None:
+        # base.css scrolls smoothly: wait until the heading has stopped near the top.
+        page.wait_for_function("""(id) => {
+            // Missing while a re-rendered report loads; arrive() then names the re-read.
+            const heading = document.getElementById(id);
+            if (!heading) return false;
+            const top = heading.getBoundingClientRect().top;
+            const still = window.__smokeTop === top;
+            window.__smokeTop = top;
+            return still && top >= 0 && top <= 64;
+        }""", arg=section, polling=100)
+
+    def arrive(slug: str, section: str, before: int) -> None:
+        settle_at(section)
+        assert urlsplit(page.url).fragment == section, (slug, page.url)
+        assert reads[before:] == [], f"Following a contents link read {slug} again: {reads[before:]!r}"
+        assert page.evaluate("() => document.querySelector('#sample-reader > article') === window.__smokeArticle"), (
+            f"Following a contents link re-rendered {slug}."
+        )
+
+    page.on("request", record_read)
+    try:
+        page.set_viewport_size({"width": 1280, "height": 720})
+        load(slugs[0])
+        for index in range(len(slugs)):
+            slug = show(index)
+            wide = state(slug)
+            assert wide["open"], (slug, "the contents start open beside the report")
+            assert wide["toc"]["x"] >= wide["reader"]["right"], (slug, wide["reader"], wide["toc"])
+            # Beside the report, not past the window's edge. (Some reports already
+            # scroll sideways at phone width without contents, so only here.)
+            assert wide["scrollWidth"] <= wide["clientWidth"], (slug, "horizontal scroll", wide)
+            # Keyboard only: Tab from the language menu into the contents, then Enter.
+            page.focus("#ui-lang")
+            assert focus_in_contents(40) == "SUMMARY", slug
+            for target in ("#section-1", "#section-2", "#section-3"):
+                assert focus_in_contents() == target, (slug, target)
+            before = len(reads)
+            page.keyboard.press("Enter")
+            arrive(slug, "section-3", before)
+            stuck = page.evaluate(_CONTENTS_STATE)["list"]
+            assert 0 <= stuck["y"] <= 32, (slug, "the contents stay in view while reading", stuck)
+            page.go_back()
+            page.wait_for_function("() => !location.hash")
+            assert reads[before:] == [] and page.evaluate(
+                "() => document.querySelector('#sample-reader > article') === window.__smokeArticle"
+            ), f"Back from a section of {slug} reloaded the sample."
+
+        # A shared link to a section opens the report at that section.
+        load(slugs[0], "#section-4")
+        settle_at("section-4")
+
+        # Narrow: a closed block above the report, opened from the keyboard.
+        page.set_viewport_size({"width": 390, "height": 844})
+        show(0)
+        narrow = state(slugs[0])
+        assert not narrow["open"], "The contents start closed above a narrow report."
+        assert narrow["toc"]["bottom"] <= narrow["article"]["y"], (narrow["toc"], narrow["article"])
+        assert abs(narrow["toc"]["x"] - narrow["article"]["x"]) < 1, (narrow["toc"], narrow["article"])
+        expect(page.locator(".samples__toc a").first).to_be_hidden()
+        page.focus("#ui-lang")
+        assert focus_in_contents(40) == "SUMMARY"
+        page.keyboard.press("Enter")
+        expect(page.locator(".samples__toc a").first).to_be_visible()
+        assert focus_in_contents() == "#section-1"
+        before = len(reads)
+        page.keyboard.press("Enter")
+        arrive(slugs[0], "section-1", before)
+        # Widening moves the contents beside the report, open; narrowing again closes them.
+        page.set_viewport_size({"width": 1280, "height": 720})
+        expect(page.locator(".samples__toc details")).to_have_attribute("open", "")
+        page.set_viewport_size({"width": 390, "height": 844})
+        expect(page.locator(".samples__toc details")).not_to_have_attribute("open", "")
+
+        # A language switch and another sample each rebuild the one list.
+        page.set_viewport_size({"width": 1280, "height": 720})
+        page.select_option("#ui-lang", "Simplified Chinese")
+        expect(page.locator(".samples__toc summary")).to_have_text("目录")
+        state(slugs[0], "目录")
+        page.select_option("#ui-lang", "English")
+        expect(page.locator(".samples__toc summary")).to_have_text("Contents")
+        state(show(1))
+    finally:
+        page.remove_listener("request", record_read)
+        page.set_viewport_size({"width": 1280, "height": 720})
     return len(slugs)
 
 
@@ -721,6 +906,7 @@ def _exercise_browser(
 
         try:
             sample_print_reports = _exercise_sample_print(page, base_url)
+            sample_contents_reports = _exercise_sample_contents(page, base_url)
             response = page.goto(base_url, wait_until="domcontentloaded")
             assert response is not None and response.ok, "The SPA entry point did not load."
             csp = response.headers.get("content-security-policy", "")
@@ -1102,6 +1288,7 @@ def _exercise_browser(
         "expected_unauthorized_responses": len(expected_auth_failures),
         "expected_history_unavailable_responses": len(expected_history_failures),
         "sample_print_reports": sample_print_reports,
+        "sample_contents_reports": sample_contents_reports,
         "console_errors": len(unexpected_console_errors),
         "page_errors": len(page_errors),
     }
