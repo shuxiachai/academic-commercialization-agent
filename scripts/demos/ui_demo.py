@@ -13,12 +13,14 @@ Keys in ``.env`` do not count: it blanks every provider key before importing
 the app, and ``load_dotenv`` never overrides a variable that is already set.
 It answers only GET, HEAD and OPTIONS, which is all the read journeys need:
 starting a run, uploading a paper or signing up gets a 405 before any code
-that could reach a provider runs. Nothing is written under ``outputs/``, and
-the temporary directory is removed on Ctrl+C.
+that could reach a provider runs. It reads and drops the request's body
+first, so the connection closes cleanly. Nothing is written under
+``outputs/``, and the temporary directory is removed on Ctrl+C.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import signal
@@ -72,13 +74,26 @@ def provider_keys_set() -> list[str]:
 
 
 class ReadOnly:
-    """Answer 405 to every request that is not a read, before the app sees it."""
+    """Answer 405 to every request that is not a read, before the app sees it.
 
-    def __init__(self, app: ASGIApp) -> None:
+    The body is read and dropped before the answer. Answering first closes the
+    connection with the body still unread, and the server's TCP stack then
+    resets it. A client that has not read the 405 yet gets a connection reset
+    instead: urllib does for an 8 MB body every time on Linux, and the demo
+    test's walk got one on a Windows runner (#319). Browsers still show the 405.
+    Reading stops at ``body_limit`` bytes, the most the real app accepts, after
+    ``idle_seconds`` without data, or when the client goes away.
+    """
+
+    def __init__(self, app: ASGIApp, *, body_limit: int, idle_seconds: float) -> None:
         self.app = app
+        self.body_limit = body_limit
+        self.idle_seconds = idle_seconds
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http" and scope["method"] not in READ_METHODS:
+            if not await self._drain(receive):
+                return  # The client is gone; there is no one to answer.
             response = JSONResponse(
                 {"detail": "The UI demo is read-only: it serves fixture runs and makes no provider calls."},
                 status_code=405,
@@ -87,6 +102,21 @@ class ReadOnly:
             await response(scope, receive, send)
             return
         await self.app(scope, receive, send)
+
+    async def _drain(self, receive: Receive) -> bool:
+        """Read and drop the request body; False if the client disconnected."""
+        read = 0
+        while read <= self.body_limit:
+            try:
+                message = await asyncio.wait_for(receive(), self.idle_seconds)
+            except TimeoutError:
+                return True
+            if message["type"] == "http.disconnect":
+                return False
+            read += len(message.get("body", b""))
+            if not message.get("more_body", False):
+                return True
+        return True
 
 
 def _configure_app(output_root: Path):
@@ -136,7 +166,14 @@ def ui_demo(fixture_runs: int = FIXTURE_RUNS) -> Iterator[tuple[str, str]]:
                 # have something to show; the others are report-only.
                 save_source_collection(json.dumps(_saved_source_fixture(), ensure_ascii=False), run_id, output_root)
                 save_scores(json.dumps(_SCORES), run_id, output_root)
-        with _serve(ReadOnly(app)) as url:
+        # The largest body the app takes is a paper upload; the upload
+        # boundary allows the same total and the same idle wait.
+        from api import papers
+        from api.upload_boundary import MAX_MULTIPART_OVERHEAD_BYTES, UPLOAD_IDLE_SECONDS
+
+        guarded = ReadOnly(app, body_limit=papers.MAX_UPLOAD_BYTES + MAX_MULTIPART_OVERHEAD_BYTES,
+                           idle_seconds=UPLOAD_IDLE_SECONDS)
+        with _serve(guarded) as url:
             yield url, ACCESS_CODE
 
 

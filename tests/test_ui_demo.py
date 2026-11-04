@@ -9,11 +9,18 @@ process and every file access under outputs/ while it serves.
 
 from __future__ import annotations
 
+import asyncio
+import errno
+import io
 import json
 import os
 import re
+import socket
 import subprocess
 import sys
+import threading
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -23,7 +30,7 @@ from scripts.demos import ui_demo
 ROOT = Path(__file__).resolve().parents[1]
 
 _CHILD = r'''
-import io, ipaddress, json, os, sys, time, urllib.error, urllib.request
+import http.client, io, ipaddress, json, os, sys, time, urllib.error, urllib.parse, urllib.request
 
 ROOT = os.getcwd()
 OUTPUTS = os.path.join(ROOT, "outputs")
@@ -131,10 +138,15 @@ ui_demo._configure_app = configured
 def call(url, method="GET", body=None, headers=None):
     request = urllib.request.Request(url, data=body, method=method, headers=headers or {})
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            return response.status, dict(response.headers), response.read()
-    except urllib.error.HTTPError as exc:
-        return exc.code, dict(exc.headers), exc.read()
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return response.status, dict(response.headers), response.read()
+        except urllib.error.HTTPError as exc:
+            return exc.code, dict(exc.headers), exc.read()
+    # A reset, a timeout or a short body, also while reading an error's body:
+    # name the request, or a repeat on CI cannot say which one (#319).
+    except (OSError, http.client.HTTPException) as exc:
+        raise RuntimeError(f"{method} {urllib.parse.urlsplit(url).path} failed: {exc!r}") from exc
 
 
 if scenario == "late_key":
@@ -200,6 +212,11 @@ with ui_demo.ui_demo() as (url, code):
     byok_run = json.dumps({"topic": "Recycling sulfide solid-state electrolytes", **fields,
                            "serper_api_key": "ui-demo-serper"}).encode()
     refused["byok run"] = list(call(url + "/api/runs", "POST", byok_run, {"Content-Type": "application/json"})[:1])
+    # A body the guard does not read is reset with the connection: urllib got
+    # "Connection reset by peer" for this on Linux every time.
+    # Kept out of refused, so that only the walk's routes are checked there.
+    status, headers, _ = call(url + "/api/runs", "POST", b"x" * (8 * 1024 * 1024), {"Content-Type": "application/json"})
+    large_body = [status, headers.get("x-error-code")]
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline and any(
             value == "not_checked" for value in main._maintenance_checks.values()):
@@ -210,7 +227,8 @@ with ui_demo.ui_demo() as (url, code):
 
 print(json.dumps({
     "network": network, "spawned": spawned, "outputs": outputs, "statuses": statuses, "refused": refused,
-    "maintenance": maintenance, "dotenv_keys": dotenv_keys, "dotenv_calls": len(dotenv_calls),
+    "large_body": large_body, "maintenance": maintenance,
+    "dotenv_keys": dotenv_keys, "dotenv_calls": len(dotenv_calls),
     "crewai_at_import": crewai_at_import, "sigint_default": sigint_default,
     "playwright_loaded": "playwright" in sys.modules,
     "temp_removed": not os.path.exists(seen["temp_dir"]),
@@ -251,6 +269,8 @@ def test_served_demo_makes_no_external_request_and_leaves_outputs_alone():
     assert result["maintenance"] and "not_checked" not in result["maintenance"].values()
     # Every route that is not a read was refused by the demo, not by its handler.
     assert result["refused"]["byok upload"] == [405] and result["refused"]["byok run"] == [405]
+    # An 8 MB body is read before the 405, so the answer arrives instead of a reset.
+    assert result["large_body"] == [405, "ui_demo_read_only"]
     route_refusals = {key: value for key, value in result["refused"].items() if not key.startswith("byok")}
     assert route_refusals, "the app has write routes; the walk found none"
     assert all(value == [405, "ui_demo_read_only"] for value in route_refusals.values()), route_refusals
@@ -312,3 +332,136 @@ def test_provider_key_list_covers_every_key_the_code_reads():
         read |= set(re.findall(r"\b[A-Z][A-Z0-9_]*_API_KEY\b", path.read_text(encoding="utf-8")))
     assert read, "found no provider key names to compare"
     assert read - _NOT_PROVIDER_KEYS <= set(ui_demo.PROVIDER_KEYS), sorted(read - _NOT_PROVIDER_KEYS - set(ui_demo.PROVIDER_KEYS))
+
+
+# ReadOnly on its own: a scripted ASGI receive, so these run the same on every OS.
+
+def _guard(messages, *, body_limit=1024, idle_seconds=5.0):
+    """Run ReadOnly on one POST; return (log of receive/send/app events, messages sent)."""
+    log, sent = [], []
+    queue = iter(messages)
+
+    async def receive():
+        log.append("receive")
+        message = next(queue, None)
+        if message is None:  # nothing more is coming: wait like a stalled client
+            await asyncio.Event().wait()
+        return message
+
+    async def send(message):
+        log.append("send")
+        sent.append(message)
+
+    async def app(scope, receive, send):
+        log.append("app")
+
+    guard = ui_demo.ReadOnly(app, body_limit=body_limit, idle_seconds=idle_seconds)
+    scope = {"type": "http", "method": "POST", "path": "/api/runs", "headers": []}
+    asyncio.run(asyncio.wait_for(guard(scope, receive, send), 5))
+    return log, sent
+
+
+def _body(chunk, more):
+    return {"type": "http.request", "body": chunk, "more_body": more}
+
+
+def test_the_guard_reads_the_whole_body_before_it_answers():
+    log, sent = _guard([_body(b"a" * 100, True), _body(b"b" * 100, True), _body(b"c", False)])
+    assert log == ["receive"] * 3 + ["send"] * 2
+    assert sent[0]["type"] == "http.response.start" and sent[0]["status"] == 405
+    assert (b"x-error-code", b"ui_demo_read_only") in sent[0]["headers"]
+
+
+def test_the_guard_stops_reading_past_the_limit_and_still_answers():
+    log, sent = _guard([_body(b"x" * 4, True)] * 100, body_limit=10)
+    assert log.count("receive") == 3  # 4, 8, then 12 bytes > 10
+    assert sent[0]["status"] == 405
+
+
+def test_the_guard_answers_after_an_idle_wait():
+    log, sent = _guard([_body(b"x", True)], idle_seconds=0.05)
+    assert log.count("receive") == 2 and sent[0]["status"] == 405
+
+
+def test_the_guard_does_not_answer_a_client_that_left():
+    log, sent = _guard([_body(b"x", True), {"type": "http.disconnect"}])
+    assert log == ["receive", "receive"] and sent == []
+
+
+def test_reads_reach_the_app_without_the_guard_touching_the_body():
+    log = []
+
+    async def receive():
+        log.append("receive")
+        return _body(b"", False)
+
+    async def app(scope, receive, send):
+        log.append("app")
+
+    guard = ui_demo.ReadOnly(app, body_limit=10, idle_seconds=5.0)
+    for method in ("GET", "HEAD", "OPTIONS"):
+        asyncio.run(guard({"type": "http", "method": method, "path": "/", "headers": []}, receive, None))
+    assert log == ["app"] * 3
+
+
+def _walk_call():
+    """call() from the child's source, defined in this process."""
+    source = re.search(r"\ndef call\(.*?\n(?=\n\S)", _CHILD, re.S).group(0)
+    namespace = {}
+    exec("import http.client, urllib.error, urllib.parse, urllib.request\n" + source, namespace)
+    return namespace["call"]
+
+
+def test_a_failed_call_in_the_walk_names_its_request():
+    """A reset on CI said only ConnectionResetError (#319); the walk's call() now says which request."""
+    with socket.socket() as probe:  # a loopback port with nothing listening
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    with pytest.raises(RuntimeError, match=r"^POST /api/runs failed: "):
+        _walk_call()(f"http://127.0.0.1:{port}/api/runs", "POST", b"{}")
+
+
+def test_a_reset_while_reading_an_error_body_names_its_request(monkeypatch):
+    """exc.read() runs inside the HTTPError handler, where the handler beside it cannot catch a reset.
+
+    Scripted: a real reset can arrive before the status line is read, and the
+    test would then cover urlopen() instead of the error body.
+    """
+
+    class ResetBody(io.BytesIO):
+        def read(self, *args):
+            raise ConnectionResetError(errno.ECONNRESET, "Connection reset by peer")
+
+    def refuse_then_reset(request, timeout):
+        raise urllib.error.HTTPError(request.full_url, 405, "Method Not Allowed", {}, ResetBody())
+
+    monkeypatch.setattr(urllib.request, "urlopen", refuse_then_reset)
+    with pytest.raises(RuntimeError, match=r"^POST /api/runs failed: ConnectionResetError\("):
+        _walk_call()("http://127.0.0.1:9/api/runs", "POST", b"{}")
+
+
+def test_a_short_body_names_its_request():
+    """http.client.IncompleteRead is not an OSError, so call() names it separately."""
+    with socket.socket() as server:
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        port = server.getsockname()[1]
+
+        def answer_short():
+            conn, _ = server.accept()
+            with conn:
+                conn.settimeout(10)
+                request = b""
+                while b"\r\n\r\n" not in request:
+                    request += conn.recv(4096)
+                conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\nshort")
+                conn.shutdown(socket.SHUT_WR)
+                while conn.recv(4096):  # until the client closes, so that nothing is left unread to reset
+                    pass
+
+        thread = threading.Thread(target=answer_short, daemon=True)
+        thread.start()
+        with pytest.raises(RuntimeError, match=r"^GET /api/runs failed: IncompleteRead\("):
+            _walk_call()(f"http://127.0.0.1:{port}/api/runs")
+        thread.join(10)
+    assert not thread.is_alive()
