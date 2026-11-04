@@ -194,7 +194,9 @@
                 </button>
               </div>
 
-              <input type="file" id="pdf-input" accept=".pdf,application/pdf" class="visually-hidden">
+              <!-- Out of the Tab order: #attach-btn opens it, and focused itself it
+                   was an invisible 1 px stop between the bar and the context. -->
+              <input type="file" id="pdf-input" accept=".pdf,application/pdf" class="visually-hidden" tabindex="-1">
               <div class="composer__attachment" id="attachment" hidden></div>
               <p class="composer__privacy" data-i18n="paper_privacy">
                 Selected PDF text is sent to the configured model provider. The raw PDF is deleted after successful extraction; extracted metadata expires within 24 hours if no run uses it.
@@ -462,6 +464,7 @@
 <script type="module" src="/static/js/samples_links.js"></script>
 <script type="module" src="/static/js/byok_fields.js"></script>
 <script type="module" src="/static/js/chrome.js"></script>
+<script type="module" src="/static/js/gate_focus.js"></script>
 <script type="module" src="/static/js/starters.js"></script>
 <script type="module" src="/static/js/decision_context.js"></script>
 </body>
