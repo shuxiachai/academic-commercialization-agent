@@ -180,6 +180,7 @@ def _assert_browser(jobs):
         "uv run --python 3.12 --group e2e playwright install --with-deps chromium",
         "uv run --python 3.12 --group e2e python -m e2e.browser_smoke",
         "uv run --python 3.12 --group e2e python -m e2e.composer_smoke",
+        "uv run --python 3.12 --group e2e python -m e2e.keyboard_smoke",
     )
     indices = [_run_index(job["steps"], command) for command in commands]
     assert indices == sorted(indices)
