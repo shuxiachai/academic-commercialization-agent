@@ -33,6 +33,20 @@ def test_phone_menu_labels_exist_in_both_interface_languages():
     assert "chrome.js" not in (ROOT / "web/static/js/app.js").read_text(encoding="utf-8")
 
 
+def test_keyboard_focus_fixes_load_beside_app_js():
+    """#237: the gate's inert workbench and a file input that is not a Tab stop.
+
+    e2e/keyboard_smoke.py checks the behaviour in Chromium; this keeps the
+    wiring it depends on in place in every pytest cell.
+    """
+    scripts = re.findall(r'<script type="module" src="/static/js/(\w+)\.js"></script>', INDEX)
+    assert scripts.index("gate_focus") > scripts.index("app")
+    assert "gate_focus.js" not in (ROOT / "web/static/js/app.js").read_text(encoding="utf-8")
+    # #attach-btn opens the file picker; the input itself is visually hidden.
+    assert re.search(r'<input type="file" id="pdf-input"[^>]*class="visually-hidden"[^>]*tabindex="-1"', INDEX)
+    assert '<button type="button" class="chip-btn" id="attach-btn"' in INDEX
+
+
 def test_starter_topics_have_a_chinese_entry_for_every_button():
     """A Chinese reader got English starters, and so English reports under "auto"."""
     buttons = re.findall(r'<button type="button" class="starter" data-topic="([^"]+)">', INDEX)

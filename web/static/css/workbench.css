@@ -529,21 +529,15 @@
 
 /* Focus is expressed once, by the container: base.css's outline would draw a
    second rectangle inside the first. Keyboard users lose nothing, because
-   that border is the focus indicator. The chips and send button on the bar
-   below sit inside the same focused container. */
-.composer__input:focus-visible,
-.composer__bar .chip-btn:focus-visible,
-.composer__bar .chip-select:focus-visible,
-.composer__bar .send-btn:focus-visible {
+   that border is the focus indicator. */
+.composer__input:focus-visible {
   outline: none;
 }
-/* Except when the container itself is not the thing being focused — tabbing
-   between chips still needs to show which one is active. */
-.composer__bar .chip-btn:focus-visible,
-.composer__bar .chip-select:focus-visible,
-.composer__bar .send-btn:focus-visible {
-  box-shadow: 0 0 0 3px var(--accent-ring);
-}
+/* The chips and the send button keep base.css's outline. They sit inside the
+   already-focused container, so tabbing between them changes nothing on its
+   border, and the translucent 3px shadow that used to mark them stayed under
+   3:1 against the bar in both themes: e2e/keyboard_smoke.py measured no
+   pixel of it at that contrast. */
 
 .composer__bar {
   display: flex;

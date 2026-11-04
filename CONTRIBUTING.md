@@ -153,6 +153,7 @@ uv sync --group e2e
 uv run --group e2e playwright install chromium
 uv run --group e2e python -m e2e.browser_smoke
 uv run --group e2e python -m e2e.composer_smoke
+uv run --group e2e python -m e2e.keyboard_smoke
 ```
 
 This uses real Chromium and the real loopback application with fixture runs.
@@ -164,6 +165,16 @@ server that has no paid API routes. Browser-intercepted POST responses exercise
 upload/submission races, accepted-run navigation and translated admission errors;
 unexpected requests fail the audit. It does not relax the original journey's
 read-only guard or contact any model/search provider.
+
+The keyboard journey uses the same kind of server and presses only Tab,
+Shift+Tab, Enter, Space and Escape, in the light and the dark scheme. At
+desktop width it opens BYOK from the access gate, types the keys and submits
+a run; at phone width it opens and closes the menu. Focus must stay inside the
+gate and the open menu, never land on a control that is off screen or covered,
+and every focused control must show a ring that changes at 3:1 contrast. When
+you add a control to these screens, run it: a ring that is too faint, or a
+control the closed menu still lets Tab reach, fails it with the control's name.
+`tests/test_keyboard_smoke.py` rejects a click, `fill()` or scripted focus in it.
 
 ### Local UI demo
 
