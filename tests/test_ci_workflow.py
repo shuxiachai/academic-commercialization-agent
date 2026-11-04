@@ -40,8 +40,8 @@ _CONDITION_CELLS = {_PLAIN_IF: _CELLS - _CANONICAL, _COVERAGE_IF: _CANONICAL}
 # proposes the next commit when a new release appears.
 _REVIEWED_NODE24_REFS = {
     "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",            # v7
-    "actions/upload-artifact": "b7c566a772e6b6bfb58ed0dc250532a479d7789f",     # v6
-    "astral-sh/setup-uv": "20cfd1bf945f4377ade1205e4dbc17946fc9a30d",         # v10.0.1
+    "actions/upload-artifact": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",     # v7.0.2
+    "astral-sh/setup-uv": "68559e99cc807c1eb7e9238fd43a15bba460eec2",         # v10.3.3
     "docker/build-push-action": "c3c9e263c25d99ce0380d002d59b67737d91b0dc",   # v7
     "docker/setup-buildx-action": "f87e5991a6d7451dcb8d9637bfbc97413f497069", # v4
 }
@@ -286,7 +286,7 @@ def test_browser_contract_rejects_nonexecuting_journey(update):
         _assert_browser(jobs)
 
 
-@pytest.mark.parametrize("ref", ["actions/checkout@v7", "astral-sh/setup-uv@v10.0.1"])
+@pytest.mark.parametrize("ref", ["actions/checkout@v7", "astral-sh/setup-uv@v10.3.3"])
 def test_action_contract_rejects_unreviewed_refs(ref):
     """Inspect actual uses nodes even if another valid ref still exists elsewhere."""
     jobs = _jobs()
