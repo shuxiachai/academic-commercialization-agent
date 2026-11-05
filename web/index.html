@@ -378,7 +378,7 @@
     <form id="account-form" hidden>
       <h2 class="gate__title" id="account-title" data-i18n="account_title">Sign in</h2>
       <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes about 15 minutes.</p>
-      <p class="gate__sub" data-i18n="account_sub">Runs are paid for with API keys you add after signing in. Your keys stay in this browser and are sent only with the operations you start; this server never stores them.</p>
+      <p class="gate__sub" data-i18n="account_sub">Runs are paid for with API keys you add after signing in. Your keys stay in this browser and are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
       <input class="gate__input" id="account-email-input" type="email" autocomplete="username" required
              maxlength="254" data-i18n-placeholder="account_email_placeholder" placeholder="Email">
       <input class="gate__input" id="account-password" type="password" autocomplete="current-password" required
@@ -454,6 +454,9 @@
            costs and who bills it. The figure is one measured run, said as
            such; it is not a quote. -->
       <p class="gate__hint" data-i18n="byok_guide">New to this? One model key and one search key are enough. A full assessment takes about 15 minutes; one measured run used about 70,000 model tokens. Your providers bill you directly, and this service adds nothing.</p>
+      <!-- What a provider said about the keys, for a signed-in account
+           saving them. Never a dead end: the same keys can be saved anyway. -->
+      <p class="gate__error" id="byok-error" role="alert" hidden></p>
       <button type="submit" class="btn btn--primary" id="byok-submit" data-i18n="byok_submit">Start</button>
       <button type="button" class="gate__switch" id="byok-to-gate" data-i18n="byok_have_code">I have an access code</button>
       <button type="button" class="gate__switch" id="byok-skip" data-i18n="byok_skip" hidden>Add keys later</button>
