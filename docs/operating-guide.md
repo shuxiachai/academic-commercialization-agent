@@ -857,8 +857,16 @@ and one rate-limit bucket. A signed-in account can change its password
 papers and receipts before the account row and cannot be undone; both ask for
 the password again, and a wrong one counts toward the same lockout as a
 sign-in. A run that is still going must be cancelled before the account can
-be deleted. There is no password reset or email verification
-yet: an operator can disable an account with `api.accounts.set_disabled`
+be deleted. There is no self-service password reset or email verification
+yet. A person who forgets their password asks the operator, who runs
+`python -m api.account_admin reset-password <email>` in the service's own
+shell (on Railway, a shell in the running service such as `railway ssh`). It
+sets a random password, prints it once,
+ends every session of the account and clears its sign-in lockout; it is not
+an HTTP route. Registration verifies no email, so the operator is the check
+that the person asking owns the account: send the new password to the
+account's own address. An operator can also disable an account with
+`api.accounts.set_disabled`
 from a shell, and both flows need an email service, which is a separate
 decision. Until then, `invite` mode is the safer default for a public URL.
 

@@ -361,6 +361,33 @@ def set_disabled(email: object, disabled: bool) -> bool:
         return changed
 
 
+def reset_password(email: object, new: object) -> int:
+    """Operator reset: set a password without knowing the current one.
+
+    Reached only from the operator's shell (api/account_admin.py); no HTTP
+    route calls it, because nothing a visitor can send should be able to
+    replace a password it cannot prove it knows.
+
+    Every session of the account ends, since the reason for a reset may be
+    that someone else has the old password. The lockout rows for the address
+    go too: a person who was locked out while guessing their own password
+    can sign in with the new one at once. A disabled account stays disabled;
+    re-enabling is a separate decision (`set_disabled`). Returns how many
+    sessions ended.
+    """
+    email = normalize_email(email)
+    _check_password(new, email)
+    with _database() as db, db:
+        row = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+        if row is None:
+            raise AccountError("unknown_account", "No account has this email address.")
+        db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(new), row["id"]))
+        ended = db.execute("DELETE FROM sessions WHERE user_id = ?", (row["id"],)).rowcount
+        db.execute("DELETE FROM login_throttle WHERE key = ? OR key LIKE ?",
+                   (f"email:{email}", f"source:{email}|%"))
+        return ended
+
+
 def change_password(user: User, current: object, new: object, *, keep_token: object = None,
                     client: str | None = None, now: float | None = None) -> int:
     """Set a new password after confirming the current one.
