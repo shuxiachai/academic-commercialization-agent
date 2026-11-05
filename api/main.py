@@ -66,6 +66,7 @@ from api.models import (  # noqa: E402
     AuthMe,
     AuthSession,
     PasswordChange,
+    SiteInfo,
     BYOK_PROVIDERS,
     CleanupSummary,
     DailyQuota,
@@ -503,6 +504,9 @@ async def _access_gate(request: Request, call_next):
         return await call_next(request)
     if request.method == "GET" and (path == "/api/samples" or path.startswith("/api/samples/")):
         return await call_next(request)
+    if request.method == "GET" and path == "/api/site":
+        # What the privacy page states about this deployment; nothing private.
+        return await call_next(request)
     if path.startswith("/api/runs/"):
         return await call_next(request)
     if path in _AUTH_OPEN_PATHS.get(request.method, ()):
@@ -648,6 +652,15 @@ def access_check(http_request: Request) -> dict:
         who = identity.resolve(http_request)
         payload["account"] = {"email": who.user.email, "admin": who.is_admin} if who.kind == "user" else None
     return payload
+
+
+@app.get("/api/site", response_model=SiteInfo, tags=["site"])
+def site_info() -> SiteInfo:
+    """The facts about this deployment that its privacy page states: how long
+    assessments are kept and who to ask. Ungated; nothing here is private."""
+    contact = (os.getenv("OPERATOR_CONTACT") or "").strip()
+    return SiteInfo(retention_days=runs.RUN_RETENTION_DAYS or None, contact=contact[:300] or None,
+                    accounts=accounts.enabled())
 
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
@@ -893,6 +906,16 @@ if _WEB_ROOT.is_dir():
         this one is to be readable by someone who has no code.
         """
         return FileResponse(_WEB_ROOT / "samples.html", media_type="text/html")
+
+    @app.get("/privacy", include_in_schema=False)
+    def _privacy_page() -> FileResponse:
+        """Serve the privacy and terms page.
+
+        Its own document for the same reason as the sample reader: it has to
+        be readable before signing in, which is when someone decides whether
+        to hand this deployment a paper and an email address.
+        """
+        return FileResponse(_WEB_ROOT / "privacy.html", media_type="text/html")
 
 
 @app.get("/api/samples", tags=["samples"])

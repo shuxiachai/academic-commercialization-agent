@@ -389,6 +389,7 @@
              data-i18n-placeholder="account_invite_placeholder" placeholder="Invite code" hidden>
       <p class="gate__error" id="account-error" hidden></p>
       <button type="submit" class="btn btn--primary" id="account-submit" data-i18n="account_sign_in">Sign in</button>
+      <p class="gate__hint"><a href="/privacy" target="_blank" rel="noopener" data-i18n="account_legal">Creating an account means accepting the privacy and terms notes: what is stored, and what never is.</a></p>
       <button type="button" class="gate__switch" id="account-toggle" data-i18n="account_toggle_to_create">No account? Create one</button>
       <button type="button" class="gate__switch" id="account-to-code" data-i18n="account_to_code" hidden>Use an access code instead</button>
     </form>
@@ -449,6 +450,10 @@
         platform.openai.com/api-keys · console.anthropic.com — plus app.tavily.com
         (recommended) or serper.dev for search.
       </p>
+      <!-- For someone who has never done this: what is enough, what it
+           costs and who bills it. The figure is one measured run, said as
+           such; it is not a quote. -->
+      <p class="gate__hint" data-i18n="byok_guide">New to this? One model key and one search key are enough. A full assessment takes about 15 minutes; one measured run used about 70,000 model tokens. Your providers bill you directly, and this service adds nothing.</p>
       <button type="submit" class="btn btn--primary" id="byok-submit" data-i18n="byok_submit">Start</button>
       <button type="button" class="gate__switch" id="byok-to-gate" data-i18n="byok_have_code">I have an access code</button>
       <button type="button" class="gate__switch" id="byok-skip" data-i18n="byok_skip" hidden>Add keys later</button>
@@ -482,7 +487,9 @@
 
     <!-- Outside both forms so it shows whichever one is up. A visitor with
          neither a code nor keys otherwise has nothing to look at here. -->
-    <p class="gate__samples"><a href="/samples" data-samples-i18n="samples_link">Browse sample reports — no key needed</a></p>
+    <p class="gate__samples"><a href="/samples" data-samples-i18n="samples_link">Browse sample reports — no key needed</a>
+      <span class="gate__sep" aria-hidden="true">·</span>
+      <a href="/privacy" data-i18n="legal_link">Privacy and terms</a></p>
 
   </div>
 </div>

@@ -1127,6 +1127,8 @@
   text-underline-offset: 3px;
 }
 .gate__switch:hover { color: var(--accent); text-decoration-color: currentColor; }
+.gate__sep { margin: 0 var(--space-2); color: var(--text-disabled); }
+.gate__hint a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .gate__samples {
   margin-top: var(--space-5);
   padding-top: var(--space-4);

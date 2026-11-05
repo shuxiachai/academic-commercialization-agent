@@ -820,6 +820,14 @@ class AuthMe(BaseModel):
     admin: bool = False
 
 
+class SiteInfo(BaseModel):
+    """What the privacy page says about this deployment."""
+
+    retention_days: int | None = Field(description="Days an assessment is kept; null when kept until deleted.")
+    contact: str | None = Field(description="The operator's contact line (OPERATOR_CONTACT), if set.")
+    accounts: bool = Field(description="Email-and-password accounts are enabled.")
+
+
 class PasswordChange(BaseModel):
     current_password: str = Field(max_length=200)
     new_password: str = Field(max_length=200)
