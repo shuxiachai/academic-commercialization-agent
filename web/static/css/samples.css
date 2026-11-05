@@ -108,6 +108,15 @@
   line-height: var(--leading-normal);
 }
 
+.samples__download {
+  display: inline-block;
+  margin-bottom: var(--space-6);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.samples__download:hover { color: var(--accent); }
+
 /* Wide report tables scroll inside their own box, never the page. */
 .samples .table-wrap { overflow-x: auto; }
 

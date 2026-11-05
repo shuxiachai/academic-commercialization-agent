@@ -21,6 +21,7 @@ const STRINGS = {
     samples_read_failed: "This report could not be loaded.",
     samples_missing: "No sample with that name.",
     samples_contents: "Contents",
+    samples_download: "Download Markdown",
   },
   "Simplified Chinese": {
     samples_link: "无需 Key，先看示例报告",
@@ -34,6 +35,7 @@ const STRINGS = {
     samples_read_failed: "这份报告加载失败。",
     samples_missing: "没有这个示例。",
     samples_contents: "目录",
+    samples_download: "下载 Markdown",
   },
 };
 

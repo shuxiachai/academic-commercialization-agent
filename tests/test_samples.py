@@ -120,6 +120,32 @@ class SampleClientTests(unittest.TestCase):
         self.assertIn('t("samples_added")', meta)
         self.assertNotRegex(meta, r"sample\.commit\b")
 
+    def test_each_sample_offers_its_markdown_as_a_plain_download_link(self):
+        source = (_REPO / "web/static/js/samples.js").read_text(encoding="utf-8")
+        body = re.search(r"function downloadLink\(sample\) \{(.+?)\n\}", source, re.S)[1]
+        # The file the reader already renders, saved under the sample's name.
+        self.assertIn("`/api/samples/${encodeURIComponent(sample.slug)}`", body)
+        self.assertIn("link.download = `${sample.slug}.md`", body)
+        self.assertIn('t("samples_download")', body)
+        # A plain same-origin anchor: no extra request, nothing credentialed.
+        self.assertNotIn("fetch(", body)
+        self.assertNotIn("X-Access-Code", body)
+        # Built with the report, so it follows the sample on screen.
+        self.assertRegex(
+            source,
+            r"reader\.replaceChildren\(\s*historicalNotice\(sample\), downloadLink\(sample\)",
+        )
+
+    def test_download_filenames_are_clean_and_the_target_needs_no_code(self):
+        client = TestClient(app)
+        with patch.object(access, "ACCESS_CODE", "secret123"):
+            for sample in samples.SAMPLES:
+                with self.subTest(slug=sample.slug):
+                    self.assertRegex(f"{sample.slug}.md", r"^[a-z0-9-]+\.md$")
+                    served = client.get(f"/api/samples/{sample.slug}")
+                    self.assertEqual(served.status_code, 200)
+                    self.assertTrue(served.headers["content-type"].startswith("text/markdown"))
+
     def test_main_page_links_to_samples_from_gate_and_composer(self):
         page = (_REPO / "web/index.html").read_text(encoding="utf-8")
         gate = page[page.index('id="gate"'):]
