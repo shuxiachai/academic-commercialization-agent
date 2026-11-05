@@ -1406,6 +1406,27 @@ async function showByokRetention() {
   }
 }
 
+/* What to tell an account about keys a provider did not accept, or null.
+ *
+ * Names the service, never quotes it: provider error text can repeat part of
+ * the key. A model the provider does not list is reported the same way, since
+ * a misspelt model name fails a run exactly as a wrong key does. */
+const PROVIDER_NAMES = { deepseek: "DeepSeek", qwen: "Qwen", openai: "OpenAI", anthropic: "Anthropic" };
+const SEARCH_NAMES = { tavily: "Tavily", serper: "Serper" };
+function keyProblem(verdict, creds) {
+  if (!verdict || verdict.checked === false) return null;
+  const provider = PROVIDER_NAMES[creds.provider] ?? creds.provider;
+  const service = SEARCH_NAMES[creds.search] ?? creds.search;
+  const problems = [];
+  if (verdict.llm === "rejected") problems.push(t("byok_rejected_llm").replace("{provider}", provider));
+  else if (verdict.model === "not_listed") {
+    problems.push(t("byok_model_not_listed").replace("{provider}", provider).replace("{model}", creds.model));
+  }
+  if (verdict.search === "rejected") problems.push(t("byok_rejected_search").replace("{service}", service));
+  // One line each (the element keeps line breaks): reads the same in every language.
+  return problems.length ? [...problems, t("byok_problem_next")].join("\n") : null;
+}
+
 function showGate(errorKey = null, { keysOnly = false } = {}) {
   const gate = $("#gate");
   const codeForm = $("#gate-form");
@@ -1435,6 +1456,25 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
   accountError.hidden = true;
   gate.hidden = false;
 
+  const byokError = $("#byok-error");
+  const byokSubmit = $("#byok-submit");
+  // The key set a provider objected to and the person chose to keep anyway.
+  let overridden = null;
+  let checking = false;
+  const byokLabel = () => t(overridden ? "byok_save_anyway" : forAccount() ? "byok_save" : "byok_submit");
+  const clearKeyProblem = () => {
+    overridden = null;
+    byokError.hidden = true;
+    byokError.textContent = "";
+    if (!checking) byokSubmit.textContent = byokLabel();
+  };
+  byokError.hidden = true;
+  byokSubmit.disabled = false;
+  // Any edit asks for a fresh check: "save anyway" belongs to the exact keys
+  // the provider was asked about, not to whatever is typed next.
+  byokForm.oninput = clearKeyProblem;
+  byokForm.onchange = clearKeyProblem;
+
   const showKeys = () => {
     codeForm.hidden = true;
     accountForm.hidden = true;
@@ -1443,7 +1483,7 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
     $("#byok-account-note").hidden = !account;
     $("#byok-sub").hidden = account;
     if (account) $("#byok-account-note").textContent = t("byok_account_note").replace("{email}", accountEmail);
-    $("#byok-submit").textContent = account ? t("byok_save") : t("byok_submit");
+    clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
     $("#byok-llm-key").focus();
@@ -1574,9 +1614,9 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
       }
     };
 
-    byokForm.onsubmit = (e) => {
+    byokForm.onsubmit = async (e) => {
       e.preventDefault();
-      if (codeSubmit.disabled || finished) return;
+      if (codeSubmit.disabled || finished || checking) return;
       const provider = $("#byok-provider").value;
       const llmKey = $("#byok-llm-key").value.trim();
       // Required, like the keys: there is no default model to fall back on.
@@ -1584,9 +1624,47 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
       const search = $("#byok-search").value;
       const searchKey = $("#byok-search-key").value.trim();
       if (!llmKey || !model || !searchKey) return;
+      const creds = { provider, llmKey, search, searchKey, ...(model ? { model } : {}) };
+
+      // An account saving keys has the providers asked about them first. Only
+      // an account: for an anonymous visitor the keys are the identity and
+      // saving them stays the single synchronous step it has always been.
+      let unverified = false;
+      const fingerprint = JSON.stringify(creds);
+      if (forAccount() && authConfig?.key_check === true && overridden !== fingerprint) {
+        checking = true;
+        byokSubmit.disabled = true;
+        byokSubmit.textContent = t("byok_checking");
+        byokError.hidden = true;
+        let verdict = null;
+        try {
+          verdict = await api.checkKeys(creds);
+        } catch {
+          // No answer is not a refusal: a check that cannot run never stands
+          // between an account and keys that may be perfectly good.
+          verdict = null;
+        }
+        checking = false;
+        byokSubmit.disabled = false;
+        byokSubmit.textContent = byokLabel();
+        // The gate may have moved on while the providers were being asked.
+        if (finished || byokForm.hidden || !forAccount()) return;
+        const problem = keyProblem(verdict, creds);
+        if (problem) {
+          overridden = fingerprint;
+          byokError.textContent = problem;
+          byokError.hidden = false;
+          // The card scrolls; keep what the provider said next to the button just pressed.
+          byokError.scrollIntoView?.({ block: "nearest" });
+          byokSubmit.textContent = byokLabel();
+          return;
+        }
+        unverified = !verdict || verdict.checked === false
+          || verdict.llm !== "accepted" || verdict.search !== "accepted";
+      }
 
       try {
-        api.setByok({ provider, llmKey, search, searchKey, ...(model ? { model } : {}) });
+        api.setByok(creds);
       } catch (err) {
         toast(operationErrorMessage(err), "error");
         return;
@@ -1595,6 +1673,7 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
         // Keys saved for the account; the identity and its history are unchanged.
         byokMode = true;
         invalidateSidebar();
+        if (unverified) toast(t("byok_unverified"));
         finish();
         return;
       }

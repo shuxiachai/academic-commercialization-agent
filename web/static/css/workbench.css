@@ -1107,6 +1107,9 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
+/* One provider's answer per line. */
+#byok-error { white-space: pre-line; }
+
 .gate__error {
   font-size: var(--text-sm);
   color: var(--danger);

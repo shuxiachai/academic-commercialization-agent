@@ -62,7 +62,8 @@ class DisabledTests(unittest.TestCase):
 
     def test_config_says_disabled_and_the_rest_is_absent(self):
         config = self.client.get("/api/auth/config").json()
-        self.assertEqual(config, {"enabled": False, "signup_open": False, "signup": "closed", "access_codes": False})
+        self.assertEqual(config, {"enabled": False, "signup_open": False, "signup": "closed", "access_codes": False,
+                                  "key_check": False})
         self.assertEqual(self.client.post("/api/auth/register", json={"email": "a@b.co", "password": PASSWORD}).status_code, 404)
         self.assertEqual(self.client.post("/api/auth/login", json={"email": "a@b.co", "password": PASSWORD}).status_code, 404)
         self.assertEqual(self.client.get("/api/auth/me").status_code, 404)
@@ -85,7 +86,7 @@ class DisabledTests(unittest.TestCase):
 class SignUpAndSignInTests(_AccountsHttp):
     def test_config_is_readable_without_credentials(self):
         self.assertEqual(self.client.get("/api/auth/config").json(),
-                         {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False})
+                         {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             self.assertTrue(self.client.get("/api/auth/config").json()["access_codes"])
 
@@ -95,7 +96,8 @@ class SignUpAndSignInTests(_AccountsHttp):
         self.assertEqual(anonymous.status_code, 401)
         check = self.client.get("/api/access/check", headers=self._bearer(session["token"])).json()
         self.assertEqual(check["account"], {"email": "alice@example.com", "admin": False})
-        self.assertEqual(check["accounts"], {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False})
+        self.assertEqual(check["accounts"], {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False,
+                                             "key_check": True})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             by_code = self.client.get("/api/access/check", headers={"X-Access-Code": "code-1"}).json()
         self.assertIsNone(by_code["account"])
@@ -178,7 +180,7 @@ class GateTests(_AccountsHttp):
         # The refusal carries what the gate should offer, so the page's boot
         # stays one request; without accounts the body is the bare detail.
         self.assertEqual(response.json()["accounts"],
-                         {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False})
+                         {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             self.assertEqual(self.client.get("/api/runs").json()["detail"], "Sign in, or provide a valid access code.")
 
