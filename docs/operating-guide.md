@@ -913,6 +913,56 @@ previously shared capability URLs are not thereby revoked. See the
 Strict CSP and security headers constrain the static client and report rendering.
 They do not replace source validation, access control or retention.
 
+### Backing up accounts
+
+Every account is one SQLite file, `ACCOUNTS_DB`. If it is lost or damaged,
+every sign-in is gone with it and nothing in the product can bring it back.
+Assessments can be run again at a cost; accounts cannot.
+
+```bash
+python -m api.account_backup backup  /app/outputs/backups/accounts-2026-11-05.sqlite3
+python -m api.account_backup verify  <file>
+python -m api.account_backup restore <file> --replace-live
+```
+
+Run them in the service's own shell, where `ACCOUNTS_DB` is set.
+
+- **Backup** copies the live file through SQLite's backup interface, so the
+  snapshot is consistent while the service is writing; a plain file copy is
+  not. The copy is checked before it gets its final name, and an existing
+  file is never overwritten. Give each backup a dated name.
+- **Verify** opens a file read-only and reports whether it is a whole account
+  database, how many accounts it holds and its SHA-256. It changes nothing.
+- **Restore** refuses without `--replace-live`. It first sets the current
+  file aside as `<name>.before-restore-<UTC time>`, damaged or not, so a
+  restore from the wrong backup can itself be undone by restoring that file.
+  It then copies the backup in and clears every session and sign-in lockout.
+  The service does not need to stop.
+
+What a restore does to people: everyone signs in again, with the password
+they had when the backup was made. Accounts created after the backup are
+gone. A password changed after it reverts. An account deleted after it comes
+back, without its assessments.
+
+The backup holds password hashes and session-token hashes. It is written
+readable by its owner only; keep it that way, and keep a copy somewhere other
+than the volume it protects. A copy on the same volume survives a bad change
+or a deleted file, not the loss of the volume. The platform's own volume
+backups, where the plan has them, cover that case and everything else under
+`outputs/`.
+
+The drill is `tests/test_account_backup.py`, and it runs with the suite: it
+loses the live database three ways (deleted, damaged, changed for the worse)
+and signs in from the restored one each time. Run it once by hand on the
+real deployment too, because a backup nobody has restored is a hope: take a
+backup, run `verify` on it, copy it off the volume, and run `verify` on the
+copy. Restoring on the live deployment signs everyone out, so rehearse the
+restore itself on a local copy: set `ACCOUNTS_DB` to an empty path, run
+`restore <copy> --replace-live`, and sign in.
+
+How often to back up is the operator's call and depends on how many accounts
+a day would hurt to lose. Nothing here runs on a schedule.
+
 ### Docker and Railway
 
 ```bash
