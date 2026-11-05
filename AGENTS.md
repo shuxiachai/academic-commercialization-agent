@@ -110,6 +110,12 @@ numbers are the point; if you want to revisit one, beat the number.
   so treat patent-domain coverage as fixed rather than proposing Lens again.
 - **Do not upgrade CrewAI on main.** Pinned at `1.14.7`. If it needs upgrading,
   do it on a branch with a full benchmark comparison.
+  1.15.29 was compared on 2026-11-05 and not adopted. By the rule stated in
+  advance one topic left its TRL range. Separately, 1.15.29 can replace the
+  evidence registry with a model-written summary when the model is missing
+  from its context-window catalogue
+  ([result](docs/results-2026-11-05-crewai-1.15.29-comparison.md)). The four
+  open Dependabot alerts (mcp, opentelemetry-api) are held by this pin.
 
 Two TRL rubric hypotheses were pre-registered and **both falsified** (see
 `docs/`). If you want to improve calibration, the next step is a different
