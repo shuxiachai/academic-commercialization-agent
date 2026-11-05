@@ -1128,7 +1128,11 @@
 }
 .gate__switch:hover { color: var(--accent); text-decoration-color: currentColor; }
 .gate__sep { margin: 0 var(--space-2); color: var(--text-disabled); }
-.gate__hint a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+/* A link that wraps has a box spanning two lines whose middle is nobody's
+   text: a keyboard user's focus ring would enclose empty space, and the
+   keyboard smoke reads that as a covered control. Keep each link one box. */
+.gate__samples a { display: inline-block; }
+.gate__hint a { display: inline-block; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .gate__samples {
   margin-top: var(--space-5);
   padding-top: var(--space-4);
