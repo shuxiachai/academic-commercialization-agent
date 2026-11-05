@@ -334,6 +334,10 @@ export const register = (email, password, invite = null) =>
 export const login = (email, password) => request("/api/auth/login", json({ email, password }));
 export const logout = () => request("/api/auth/logout", { method: "POST" });
 export const me = () => request("/api/auth/me");
+// Both need the password again: a session alone cannot change or erase an account.
+export const changePassword = (current_password, new_password) =>
+  request("/api/auth/password", json({ current_password, new_password }));
+export const deleteAccount = (password) => request("/api/auth/delete-account", json({ password }));
 
 export const listRuns = (limit = 50) => request(`/api/runs?limit=${limit}`);
 

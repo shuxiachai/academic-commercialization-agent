@@ -78,6 +78,7 @@
          runs use the keys in the BYOK slot and are listed from the server. -->
     <div class="byok-badge byok-badge--account" id="account-badge" hidden>
       <span id="account-email"></span>
+      <button type="button" id="account-manage" data-i18n="account_manage">Account</button>
       <button type="button" id="account-keys" data-i18n="account_keys">API keys</button>
       <button type="button" id="account-exit" data-i18n="account_exit">Sign out</button>
     </div>
@@ -452,6 +453,32 @@
       <button type="button" class="gate__switch" id="byok-to-gate" data-i18n="byok_have_code">I have an access code</button>
       <button type="button" class="gate__switch" id="byok-skip" data-i18n="byok_skip" hidden>Add keys later</button>
     </form>
+
+    <!-- Account self-service, opened from the sidebar badge. Two forms so
+         Enter submits the one being typed in; both ask for the password
+         again, because a session alone must not change or erase an account. -->
+    <div id="account-settings" hidden>
+      <h2 class="gate__title" data-i18n="account_settings_title">Account</h2>
+      <p class="gate__sub" id="account-settings-email"></p>
+      <form id="settings-password-form">
+        <h3 class="gate__section" data-i18n="account_password_title">Change password</h3>
+        <input class="gate__input" id="settings-current-password" type="password" autocomplete="current-password" required
+               maxlength="200" data-i18n-placeholder="account_current_password" placeholder="Current password">
+        <input class="gate__input" id="settings-new-password" type="password" autocomplete="new-password" required
+               minlength="10" maxlength="200" data-i18n-placeholder="account_new_password" placeholder="New password (at least 10 characters)">
+        <p class="gate__error" id="settings-password-error" hidden></p>
+        <button type="submit" class="btn btn--primary" id="settings-password-submit" data-i18n="account_password_submit">Change password</button>
+      </form>
+      <form id="settings-delete-form">
+        <h3 class="gate__section" data-i18n="account_delete_title">Delete account</h3>
+        <p class="gate__sub" data-i18n="account_delete_sub">Deletes this account with every assessment, uploaded paper and receipt recorded under it. This cannot be undone.</p>
+        <input class="gate__input" id="settings-delete-password" type="password" autocomplete="current-password" required
+               maxlength="200" data-i18n-placeholder="account_delete_password" placeholder="Password, to confirm">
+        <p class="gate__error" id="settings-delete-error" hidden></p>
+        <button type="submit" class="btn gate__danger" id="settings-delete-submit" data-i18n="account_delete_submit">Delete account and all data</button>
+      </form>
+      <button type="button" class="gate__switch" id="settings-close" data-i18n="account_settings_close">Close</button>
+    </div>
 
     <!-- Outside both forms so it shows whichever one is up. A visitor with
          neither a code nor keys otherwise has nothing to look at here. -->

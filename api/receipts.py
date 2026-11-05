@@ -254,6 +254,19 @@ def validate(root: Path):
         db.execute("SELECT key_hash, state FROM receipts LIMIT 1")
 
 
+def forget_owner(root: Path, owner: str) -> int:
+    """Delete every receipt recorded under `owner`; for account deletion.
+
+    A receipt is a read capability over a paid result. Once the account and
+    its runs are gone the rows point at nothing and name an identity that no
+    longer exists.
+    """
+    if not (root / ".paid-receipts.sqlite3").exists():
+        return 0
+    with _database(root) as db, db:
+        return db.execute("DELETE FROM receipts WHERE owner=?", (owner,)).rowcount
+
+
 def prune(root: Path) -> int:
     """Independent maintenance; deletion never re-enables an expired key.
 

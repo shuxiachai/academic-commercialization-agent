@@ -1991,6 +1991,17 @@ def owner_of(run_id: str) -> str | None:
     return _read_owner(run_dir_for(run_id))
 
 
+def active_run_ids(owner: str) -> list[str]:
+    """Runs of `owner` that are live, launching or stopping right now.
+
+    Account deletion asks this first: a run that is still writing cannot be
+    deleted, and deleting everything else around it would leave an orphan.
+    """
+    with _registry_lock:
+        live = [run_id for run_id, handle in _registry.items() if _occupies_slot(run_id, handle)]
+    return [run_id for run_id in live if _read_owner(run_dir_for(run_id)) == owner]
+
+
 def run_directories(owner: str | None = None) -> list[Path]:
     """Run directories, newest first, scoped to `owner` as list_runs is.
 

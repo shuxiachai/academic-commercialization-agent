@@ -130,6 +130,28 @@ def _read_owner(directory: Path) -> str | None:
     return owner
 
 
+def discard_owned(owner: str) -> int:
+    """Remove every upload recorded under `owner`. Returns how many.
+
+    For account deletion. An upload whose ownership cannot be read is left
+    alone: it may be someone else's, and the pruner removes it within a day.
+    """
+    if not PAPERS_ROOT.is_dir():
+        return 0
+    removed = 0
+    for directory in PAPERS_ROOT.iterdir():
+        if not directory.is_dir() or not _is_valid_paper_id(directory.name):
+            continue
+        try:
+            if _read_owner(directory) != owner:
+                continue
+        except PaperNotFound:
+            continue
+        discard(directory.name)
+        removed += 1
+    return removed
+
+
 def discard(paper_id: str) -> None:
     """Remove an upload and anything stored beside it. Never raises.
 

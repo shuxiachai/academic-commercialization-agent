@@ -198,6 +198,49 @@ class LoginAndSessionTests(_AccountsCase):
             self.assertEqual(accounts.signup_mode(), "closed")     # a typo never opens sign-up
             self.assertFalse(accounts.signup_open())
 
+    def test_changing_the_password_needs_the_current_one_and_ends_other_sessions(self):
+        here, _ = accounts.login("alice@example.com", PASSWORD_OK)
+        elsewhere, _ = accounts.login("alice@example.com", PASSWORD_OK)
+        with self.assertRaises(accounts.AccountError) as ctx:
+            accounts.change_password(self.user, "not the current one", "a brand new long password", keep_token=here)
+        self.assertEqual(ctx.exception.code, "invalid_credentials")
+        for weak in ("short", PASSWORD_OK, "alice@example.com"):
+            with self.subTest(new=weak), self.assertRaises(accounts.AccountError) as ctx:
+                accounts.change_password(self.user, PASSWORD_OK, weak, keep_token=here)
+            self.assertEqual(ctx.exception.code, "weak_password")
+        ended = accounts.change_password(self.user, PASSWORD_OK, "a brand new long password", keep_token=here)
+        self.assertEqual(ended, 1)
+        self.assertIsNotNone(accounts.session_user(here))       # this device stays in
+        self.assertIsNone(accounts.session_user(elsewhere))     # the other does not
+        with self.assertRaises(accounts.AccountError):
+            accounts.login("alice@example.com", PASSWORD_OK)    # the old password is dead
+        self.assertTrue(accounts.login("alice@example.com", "a brand new long password")[0])
+
+    def test_wrong_current_passwords_count_toward_the_same_lockout_as_sign_in(self):
+        for _ in range(accounts.LOCKOUT_FAILURES):
+            with self.assertRaises(accounts.AccountError):
+                accounts.change_password(self.user, "guess", "a brand new long password", client="203.0.113.9", now=9_000)
+        with self.assertRaises(accounts.AccountError) as ctx:
+            accounts.change_password(self.user, PASSWORD_OK, "a brand new long password", client="203.0.113.9", now=9_001)
+        self.assertEqual(ctx.exception.code, "locked")
+        with self.assertRaises(accounts.AccountError) as ctx:
+            accounts.delete_account(self.user, PASSWORD_OK, client="203.0.113.9", now=9_001)
+        self.assertEqual(ctx.exception.code, "locked")
+
+    def test_deleting_the_account_needs_the_password_and_frees_the_email(self):
+        token, _ = accounts.login("alice@example.com", PASSWORD_OK)
+        with self.assertRaises(accounts.AccountError) as ctx:
+            accounts.delete_account(self.user, "not the password")
+        self.assertEqual(ctx.exception.code, "invalid_credentials")
+        self.assertIsNotNone(accounts.session_user(token))      # nothing happened
+        accounts.delete_account(self.user, PASSWORD_OK)
+        self.assertIsNone(accounts.session_user(token))
+        self.assertIsNone(accounts.label_for_owner(self.user.owner))
+        with self.assertRaises(accounts.AccountError):
+            accounts.login("alice@example.com", PASSWORD_OK)
+        again = accounts.register("alice@example.com", PASSWORD_OK)
+        self.assertNotEqual(again.id, self.user.id)             # a new identity, not the old history
+
     def test_unknown_malformed_and_oversized_tokens_resolve_to_nobody(self):
         for token in (None, "", "x" * 129, "not-a-token", 12):
             self.assertIsNone(accounts.session_user(token), token)

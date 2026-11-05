@@ -1262,6 +1262,83 @@ $("#account-keys").addEventListener("click", async () => {
   if (submitting || extracting) return;
   await showGate(null, { keysOnly: true });
 });
+$("#account-manage").addEventListener("click", () => {
+  if (submitting || extracting || pendingResumes.size) return;
+  showAccountSettings();
+});
+
+/* Account self-service: change the password, or delete the account with
+ * everything recorded under it. Shown on the gate card because it is the
+ * same kind of moment: the page stops and asks who you are again. Both
+ * actions send the password; the server refuses a session alone. */
+function showAccountSettings() {
+  const gate = $("#gate");
+  const panel = $("#account-settings");
+  const passwordForm = $("#settings-password-form");
+  const deleteForm = $("#settings-delete-form");
+  const passwordError = $("#settings-password-error");
+  const deleteError = $("#settings-delete-error");
+  for (const id of ["#gate-form", "#byok-form", "#account-form"]) $(id).hidden = true;
+  passwordForm.reset();
+  deleteForm.reset();
+  passwordError.hidden = true;
+  deleteError.hidden = true;
+  $("#account-settings-email").textContent = t("account_badge").replace("{email}", accountEmail ?? "");
+  panel.hidden = false;
+  gate.hidden = false;
+  $("#settings-current-password").focus();
+
+  const close = () => { panel.hidden = true; gate.hidden = true; };
+  const message = (err) => {
+    const key = {
+      invalid_credentials: "account_error_current", weak_password: "account_error_same",
+      locked: "account_error_locked", active_runs: "account_error_active_runs",
+    }[err.code];
+    return key ? t(key) : err.message;
+  };
+  $("#settings-close").onclick = close;
+
+  passwordForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const submit = $("#settings-password-submit");
+    if (submit.disabled) return;
+    submit.disabled = true;
+    passwordError.hidden = true;
+    try {
+      await api.changePassword($("#settings-current-password").value, $("#settings-new-password").value);
+      toast(t("account_password_changed"), "success");
+      close();
+    } catch (err) {
+      passwordError.textContent = message(err);
+      passwordError.hidden = false;
+    } finally {
+      submit.disabled = false;
+    }
+  };
+
+  deleteForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const submit = $("#settings-delete-submit");
+    if (submit.disabled || !confirm(t("account_delete_confirm"))) return;
+    submit.disabled = true;
+    deleteError.hidden = true;
+    try {
+      await api.deleteAccount($("#settings-delete-password").value);
+    } catch (err) {
+      deleteError.textContent = message(err);
+      deleteError.hidden = false;
+      submit.disabled = false;
+      return;
+    }
+    // The account is gone server-side. Forget everything that named it here,
+    // then start over as a visitor; a failed local removal still ends up at
+    // the gate, because the stored token no longer opens anything.
+    api.clearReceiptJournal();
+    api.setByok(null);
+    api.setSessionToken(null);
+    location.reload();
+  };
+}
 
 async function ensureAccess() {
   try {
@@ -1352,6 +1429,7 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
   codeForm.reset();
   byokForm.reset();
   accountForm.reset();
+  $("#account-settings").hidden = true;
   codeError.hidden = !errorKey;
   codeError.textContent = errorKey ? t(errorKey) : "";
   accountError.hidden = true;

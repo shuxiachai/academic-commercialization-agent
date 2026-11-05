@@ -237,6 +237,29 @@ def register(email: object, password: object, *, invite: object = None, now: flo
         return User(id=cursor.lastrowid, email=email)
 
 
+def _refuse_if_locked(db, keys, stamp: int) -> None:
+    for key, _ in keys:
+        row = db.execute("SELECT locked_until FROM login_throttle WHERE key = ?", (key,)).fetchone()
+        if row is not None and row["locked_until"] > stamp:
+            raise AccountError("locked", "Too many failed sign-ins. Try again in a few minutes.")
+
+
+def _confirm_password(db, user: "User", password: object, client: str | None, stamp: int) -> None:
+    """Re-check the password of an already signed-in account.
+
+    A session is not enough to change the password or delete the account: a
+    borrowed laptop or a stolen token would otherwise be the whole account.
+    Wrong guesses count against the same lockout as a sign-in, so a stolen
+    session cannot be used to guess the password either.
+    """
+    keys = _throttle_keys(user.email, client)
+    _refuse_if_locked(db, keys, stamp)
+    row = db.execute("SELECT password_hash FROM users WHERE id = ?", (user.id,)).fetchone()
+    if row is None or not isinstance(password, str) or not verify_password(password, row["password_hash"]):
+        _record_failure(db, keys, stamp)
+        raise AccountError("invalid_credentials", "The current password was not accepted.")
+
+
 def _throttle_keys(email: str, client: str | None) -> tuple[tuple[str, int], ...]:
     """(key, threshold) pairs a failure counts against: the email from this
     source, and the email from anywhere."""
@@ -259,10 +282,7 @@ def login(email: object, password: object, *, client: str | None = None,
         password = ""
     keys = _throttle_keys(email, client)
     with _database() as db:
-        for key, _ in keys:
-            row = db.execute("SELECT locked_until FROM login_throttle WHERE key = ?", (key,)).fetchone()
-            if row is not None and row["locked_until"] > stamp:
-                raise AccountError("locked", "Too many failed sign-ins. Try again in a few minutes.")
+        _refuse_if_locked(db, keys, stamp)
         user = db.execute("SELECT id, email, password_hash, disabled FROM users WHERE email = ?", (email,)).fetchone()
         stored = user["password_hash"] if user is not None else hash_password("placeholder-timing-only")
         if user is None or not verify_password(password, stored):
@@ -339,6 +359,54 @@ def set_disabled(email: object, disabled: bool) -> bool:
         if changed and disabled:
             db.execute("DELETE FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = ?)", (email,))
         return changed
+
+
+def change_password(user: User, current: object, new: object, *, keep_token: object = None,
+                    client: str | None = None, now: float | None = None) -> int:
+    """Set a new password after confirming the current one.
+
+    Every other session of the account ends: whoever changed the password
+    wants the old one to stop working everywhere. The session that made the
+    change (`keep_token`) stays signed in. Returns how many sessions ended.
+    """
+    stamp = int(now if now is not None else time.time())
+    with _database() as db:
+        _confirm_password(db, user, current, client, stamp)
+        _check_password(new, user.email)
+        if new == current:
+            raise AccountError("weak_password", "The new password must differ from the current one.")
+        keep = _token_hash(keep_token) if isinstance(keep_token, str) and keep_token else ""
+        with db:
+            db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(new), user.id))
+            return db.execute("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?",
+                              (user.id, keep)).rowcount
+
+
+def delete_account(user: User, password: object, *, client: str | None = None,
+                   now: float | None = None) -> None:
+    """Remove the account, its sessions and its lockout rows.
+
+    The caller deletes what the account owns (runs, uploads, receipts) first
+    and calls this last, so a failure part-way leaves an account that can
+    sign in and try again rather than data nobody can reach.
+    """
+    stamp = int(now if now is not None else time.time())
+    with _database() as db:
+        _confirm_password(db, user, password, client, stamp)
+        with db:
+            db.execute("DELETE FROM sessions WHERE user_id = ?", (user.id,))
+            db.execute("DELETE FROM users WHERE id = ?", (user.id,))
+            db.execute("DELETE FROM login_throttle WHERE key = ? OR key LIKE ?",
+                       (f"email:{user.email}", f"source:{user.email}|%"))
+
+
+def confirm_password(user: User, password: object, *, client: str | None = None,
+                     now: float | None = None) -> None:
+    """Public form of the re-check, for a caller that must verify before it
+    starts deleting things."""
+    stamp = int(now if now is not None else time.time())
+    with _database() as db:
+        _confirm_password(db, user, password, client, stamp)
 
 
 def is_user_owner(owner: object) -> bool:

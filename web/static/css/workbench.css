@@ -1164,6 +1164,7 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
 }
 .byok-badge #byok-exit,
 .byok-badge #code-exit,
+.byok-badge #account-manage,
 .byok-badge #account-keys,
 .byok-badge #account-exit {
   color: inherit;
@@ -1181,6 +1182,33 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   white-space: nowrap;
 }
 .workbench[data-collapsed="true"] .byok-badge { display: none; }
+
+/* Account panel inside the gate card: laid out like the forms around it. */
+#account-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+#account-settings[hidden] { display: none; }
+#account-settings form + form {
+  margin-top: var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+/* The sample-report link belongs to a visitor deciding whether to come in. */
+#account-settings:not([hidden]) ~ .gate__samples { display: none; }
+.gate__section {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin: 0;
+}
+.gate__danger {
+  justify-content: center;
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+  background: transparent;
+}
+.gate__danger:hover { background: var(--danger-subtle); }
 
 /* ═══ Toasts ═══════════════════════════════════════════════════════════ */
 
