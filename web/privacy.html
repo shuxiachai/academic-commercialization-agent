@@ -60,7 +60,7 @@
     <p>When you start a paid operation, the server keeps a short record so that a lost reply can be recovered without starting the operation twice. It holds a fingerprint of the request and the reply that was accepted, never the keys, and is deleted after 24 hours.</p>
 
     <h2>What is never stored</h2>
-    <p>Your model and search API keys. They stay in your browser tab, are sent with each operation you start, are handed to the worker that runs it, and are gone when it ends. They are not written to assessments, receipts, logs or any database. Closing the tab removes them from the browser.</p>
+    <p>Your model and search API keys. They stay in your browser tab, are sent with each operation you start, are handed to the worker that runs it, and are gone when it ends. If you are signed in, they are also sent once when you save them, so that each provider can be asked whether it accepts its key. That check reads the provider's model list and the search service's account record; it requests no completion, runs no search and is not billed. They are not written to assessments, receipts, logs or any database. Closing the tab removes them from the browser.</p>
 
     <h2>Who else sees your content</h2>
     <p>An assessment cannot be made without sending parts of it elsewhere:</p>
@@ -126,7 +126,7 @@
     <p>发起付费操作时，服务器会保留一条简短记录，用于在回包丢失时找回结果而不重复发起。记录里只有请求的指纹和被接受的回包，不含密钥，24 小时后删除。</p>
 
     <h2>从不保存什么</h2>
-    <p>你的模型与检索 API Key。它们只留在你的浏览器标签页里，随你发起的每次操作发送，交给执行该操作的工作进程，操作结束即消失。它们不会写入评估、收据、日志或任何数据库。关闭标签页后，浏览器里也不再保留。</p>
+    <p>你的模型与检索 API Key。它们只留在你的浏览器标签页里，随你发起的每次操作发送，交给执行该操作的工作进程，操作结束即消失。如果你已登录，保存密钥时还会发送一次，用来向各服务商确认它是否接受对应的密钥。这次校验只读取模型服务商的模型列表和检索服务的账户记录，不请求生成，不执行检索，也不计费。它们不会写入评估、收据、日志或任何数据库。关闭标签页后，浏览器里也不再保留。</p>
 
     <h2>还有谁会看到你的内容</h2>
     <p>完成一次评估必须把其中一部分发往别处：</p>

@@ -857,10 +857,38 @@ and one rate-limit bucket. A signed-in account can change its password
 papers and receipts before the account row and cannot be undone; both ask for
 the password again, and a wrong one counts toward the same lockout as a
 sign-in. A run that is still going must be cancelled before the account can
-be deleted. There is no password reset or email verification
-yet: an operator can disable an account with `api.accounts.set_disabled`
+be deleted. There is no self-service password reset or email verification
+yet. A person who forgets their password asks the operator, who runs
+`python -m api.account_admin reset-password <email>` in the service's own
+shell (on Railway, a shell in the running service such as `railway ssh`). It
+sets a random password, prints it once,
+ends every session of the account and clears its sign-in lockout; it is not
+an HTTP route. Registration verifies no email, so the operator is the check
+that the person asking owns the account: send the new password to the
+account's own address. An operator can also disable an account with
+`api.accounts.set_disabled`
 from a shell, and both flows need an email service, which is a separate
 decision. Until then, `invite` mode is the safer default for a public URL.
+
+When an account saves its keys, the page first asks the server what the
+providers say about them (`POST /api/keys/check`). The server makes one
+unbilled read per service: the model provider's model list, and the search
+service's account or usage record. It requests no completion and runs no
+search. Each request goes to the provider's own host, the one a run with
+those keys would use; an operator gateway set through `QWEN_API_BASE` or
+`OPENAI_API_BASE` never receives an account's key, and redirects are not
+followed. There are three answers per key. `accepted` and `rejected` are
+what the provider said. `unverified` covers everything that is not an answer
+about the key: a timeout, a server error, a key that is real but may not
+list models. A rejected key or a model the provider does not list is shown
+in the form, and the same keys can still be saved with a second click, so
+the check advises and never blocks. Without an answer the keys are saved
+and the account is told they were not checked. The endpoint is for signed-in
+accounts only, at most ten checks per account in ten minutes; keys are not
+stored, logged or returned, and a malformed body is refused without
+quoting it. `KEY_CHECK=off` turns the check off: the page stops asking and
+keys are saved as they were before it existed. Visitors who use their own
+keys without an account are not offered the check.
 
 ### Run links, BYOK and retention
 

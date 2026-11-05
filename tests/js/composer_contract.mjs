@@ -40,7 +40,7 @@ function fixture(receiptStore = new Map()) {
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
-    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts"].includes(url), `Unexpected HTTP: ${url}`);
+    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check"].includes(url), `Unexpected HTTP: ${url}`);
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
@@ -533,6 +533,82 @@ const scenarios = {
         f.respond(0, { detail: "legacy reason" }, 429, code); await pending;
         assert.equal(f.get("#toasts").children.at(-1).textContent, message);
       }
+    }
+  },
+  async account_keys() {
+    // A signed-in account saving keys: the providers are asked first, their
+    // refusal is advice and never a dead end, and no answer never blocks.
+    const outcome = process.argv[3];
+    const f = fixture();
+    f.run(`accountMode = true; accountEmail = 'a@example.com';
+      authConfig = { enabled: true, key_check: ${outcome !== 'off'} }`);
+    const gate = f.run('showGate(null, { keysOnly: true })');
+    const fill = (llmKey) => {
+      f.get('#byok-provider').value = 'qwen'; f.get('#byok-model').value = 'qwen3.8-27b';
+      f.get('#byok-llm-key').value = llmKey;
+      f.get('#byok-search').value = 'tavily'; f.get('#byok-search-key').value = 'fixture-search';
+    };
+    const send = () => f.get('#byok-form').onsubmit({preventDefault(){}});
+    fill('fixture-A');
+    const first = send();
+    if (outcome === 'off') {
+      await first; await gate;
+      assert.equal(f.requests.length, 0, 'A deployment without the check is asked nothing');
+      assert.equal(api.getByok()?.llmKey, 'fixture-A');
+      assert.equal(f.get('#toasts').children.length, 0);
+      return;
+    }
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.requests[0].url, '/api/keys/check');
+    const sent = JSON.parse(f.requests[0].options.body);
+    assert.deepEqual(sent, {llm_provider:'qwen', llm_api_key:'fixture-A', llm_model:'qwen3.8-27b', tavily_api_key:'fixture-search'});
+    assert.equal(api.getByok(), null, 'Nothing is saved while the providers are being asked');
+    assert.equal(f.get('#byok-submit').disabled, true);
+    assert.equal(f.get('#byok-submit').textContent, 'byok_checking');
+    await send();
+    assert.equal(f.requests.length, 1, 'A second submit while checking asks nobody again');
+    if (outcome === 'accepted') {
+      f.respond(0, {checked:true, llm:'accepted', model:'listed', search:'accepted'}); await first; await gate;
+      assert.equal(api.getByok()?.llmKey, 'fixture-A');
+      assert.equal(f.get('#toasts').children.length, 0);
+      assert.equal(f.get('#byok-error').hidden, true);
+    } else if (outcome === 'unreachable' || outcome === 'unverified') {
+      if (outcome === 'unreachable') f.respond(0, {detail:'fixture'}, 500);
+      else f.respond(0, {checked:true, llm:'unverified', model:'unknown', search:'accepted'});
+      await first; await gate;
+      assert.equal(api.getByok()?.llmKey, 'fixture-A', 'A check without an answer does not block saving');
+      assert.equal(f.get('#toasts').children.at(-1).textContent, 'byok_unverified');
+    } else if (outcome === 'left') {
+      // The person closed the form while the providers were being asked.
+      f.get('#byok-skip').onclick(); await gate;
+      f.respond(0, {checked:true, llm:'accepted', model:'listed', search:'accepted'}); await first;
+      assert.equal(api.getByok(), null, 'A late answer cannot save keys into a gate that has closed');
+    } else {
+      const verdict = outcome === 'model'
+        ? {checked:true, llm:'accepted', model:'not_listed', search:'accepted'}
+        : {checked:true, llm:'rejected', model:'unknown', search:'rejected'};
+      f.respond(0, verdict); await first;
+      assert.equal(api.getByok(), null, 'Keys a provider objected to are not saved by the first submit');
+      assert.equal(f.get('#byok-error').hidden, false);
+      const said = f.get('#byok-error').textContent;
+      if (outcome === 'model') assert.equal(said, 'byok_model_not_listed\nbyok_problem_next');
+      else assert.equal(said, 'byok_rejected_llm\nbyok_rejected_search\nbyok_problem_next');
+      assert.ok(!said.includes('fixture-A'), 'The message never repeats a key');
+      assert.equal(f.get('#byok-submit').textContent, 'byok_save_anyway');
+      assert.equal(f.get('#byok-submit').disabled, false);
+      // An edit withdraws "save anyway": different keys are asked about again.
+      fill('fixture-B'); f.get('#byok-form').oninput();
+      assert.equal(f.get('#byok-error').hidden, true);
+      assert.equal(f.get('#byok-submit').textContent, 'byok_save');
+      const second = send();
+      assert.equal(f.requests.length, 2);
+      assert.equal(JSON.parse(f.requests[1].options.body).llm_api_key, 'fixture-B');
+      f.respond(1, verdict); await second;
+      assert.equal(api.getByok(), null);
+      // The same keys again are the person's decision: saved with no request.
+      await send(); await gate;
+      assert.equal(f.requests.length, 2);
+      assert.equal(api.getByok()?.llmKey, 'fixture-B');
     }
   },
 };

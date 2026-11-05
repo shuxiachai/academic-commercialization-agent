@@ -75,6 +75,9 @@ def _configure_isolated_app(output_root: Path):
     # collector credentials in the parent environment.
     os.environ["AGENT_OBSERVABILITY_ENABLED"] = "false"
     os.environ["OTEL_SDK_DISABLED"] = "true"
+    # A zero-provider journey must stay that way if one ever signs in and
+    # saves keys: with the check on, the server would ask real providers.
+    os.environ["KEY_CHECK"] = "off"
     os.environ["ACCESS_CODE"] = ACCESS_CODE
     os.environ.pop("ACCESS_CODES", None)
     os.environ.pop("ACCESS_CODE_ADMIN", None)
