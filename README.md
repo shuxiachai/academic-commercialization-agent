@@ -222,6 +222,8 @@ Three ways in, chosen per deployment: no gate (local use), operator access
 codes billed to the deployment, or email-and-password accounts that pay with
 the keys they add after signing in ([how](docs/operating-guide.md#accounts)).
 An account's keys stay in its browser and are never stored by the server.
+Every deployment serves a [privacy and terms page](web/privacy.html) at
+`/privacy` that says what is stored and who else sees a topic.
 
 Run URLs carry **128 bits of randomness** and act as read capabilities:
 anyone with the full URL can read that run until retention removes it.

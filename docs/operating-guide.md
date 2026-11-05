@@ -802,6 +802,21 @@ These are example policy values, not a cost/SLO guarantee.
   deployment. They serve only the allowlisted files under `examples/`, read
   no deployment state and spend nothing; other methods on those paths are gated.
 
+### Privacy and terms page
+
+`/privacy` is served without credentials and says, in English and Chinese,
+what a deployment stores (account email and password hash, assessments for the
+retention period, extracted paper summaries, 24-hour receipts), what it never
+stores (visitors' API keys), who else receives a topic (the chosen model and
+search providers, the public literature and patent services), that a run link
+is a read capability, and the terms of use. Every statement describes what the
+code does; `tests/test_privacy_page.py` ties the stated periods and provider
+names to the constants they come from, so a behaviour change that the page
+does not follow fails a test. The retention period and the contact line are
+read from `GET /api/site` (`RUN_RETENTION_DAYS`, `OPERATOR_CONTACT`), because
+they belong to the deployment, not the page. Set `OPERATOR_CONTACT` on a
+public deployment.
+
 ### Accounts
 
 Setting `ACCOUNTS_DB` to a file path (on persistent storage; on Railway, under

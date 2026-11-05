@@ -243,3 +243,14 @@
     page-break-inside: avoid;
   }
 }
+
+/* ── Privacy and terms ──────────────────────────────────────────────── */
+.legal__body {
+  max-width: 46rem;
+  margin: var(--space-6) auto var(--space-8);
+}
+.legal__body[hidden] { display: none; }
+.legal__updated {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

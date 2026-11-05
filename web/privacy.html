@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="English">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Privacy and terms · Commercialization Assessment</title>
+<meta name="description" content="What this service stores, what it never stores, who else sees your topic, and the terms of use.">
+<link rel="icon" type="image/svg+xml" href="/static/brand/aca-mark.svg">
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/result.css">
+<link rel="stylesheet" href="/static/css/samples.css">
+</head>
+<body>
+
+<!-- A separate document, like /samples: readable before signing in, which is
+     when someone decides whether to. Both languages are in the markup so the
+     page reads without scripts; privacy.js shows the reader's one and fills
+     in the two values that belong to the deployment rather than the page
+     (how long runs are kept, and who to contact). Every statement here is a
+     description of what the code does, not a promise added on top of it:
+     change the behaviour and this page changes in the same commit. -->
+<div class="samples legal">
+  <header class="samples__head">
+    <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
+      <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
+      <span class="brand__name">Assessment</span>
+    </a>
+    <div class="samples__nav">
+      <a class="samples__back" href="/" data-legal="back">Back to the app</a>
+      <select class="bare-select" id="ui-lang" aria-label="Interface language">
+        <option value="English">EN</option>
+        <option value="Simplified Chinese">中文</option>
+      </select>
+    </div>
+  </header>
+
+  <article class="prose legal__body" lang="en" data-lang-block="en">
+    <h1>Privacy and terms</h1>
+    <p class="legal__updated">Last updated 5 November 2026.</p>
+
+    <h2>In short</h2>
+    <ul>
+      <li>Your API keys are never stored on this server.</li>
+      <li>An account is an email address and a password hash. Nothing else about you is collected.</li>
+      <li>Your topic, and the text selected from a paper you upload, are sent to the model and search services needed to assess them.</li>
+      <li>Reports are kept <span data-retention="en">for the period this deployment sets</span>, and you can delete them, or your whole account, yourself.</li>
+      <li>No cookies, no analytics, no advertising, no third-party scripts.</li>
+    </ul>
+
+    <h2>What is stored</h2>
+    <h3>Your account</h3>
+    <p>Your email address, a salted scrypt hash of your password, and a hash of each sign-in session. The password itself and the session token are never written down. The email is not verified and no email is ever sent to it.</p>
+    <h3>Your assessments</h3>
+    <p>The topic you entered, the decision context if you gave one, the sources retrieved, the report, the scorecard and the automated checks. They are kept on this server <span data-retention="en">for the period this deployment sets</span>. <span data-retention-auto>After that they are deleted automatically.</span> You can delete any assessment from its page at any time.</p>
+    <h3>Papers you upload</h3>
+    <p>The PDF is read once to extract the contribution it describes. The original file is deleted as soon as extraction succeeds. The extracted summary is kept with the assessment that uses it; if no assessment uses it, it is deleted within 24 hours.</p>
+    <h3>Receipts</h3>
+    <p>When you start a paid operation, the server keeps a short record so that a lost reply can be recovered without starting the operation twice. It holds a fingerprint of the request and the reply that was accepted, never the keys, and is deleted after 24 hours.</p>
+
+    <h2>What is never stored</h2>
+    <p>Your model and search API keys. They stay in your browser tab, are sent with each operation you start, are handed to the worker that runs it, and are gone when it ends. They are not written to assessments, receipts, logs or any database. Closing the tab removes them from the browser.</p>
+
+    <h2>Who else sees your content</h2>
+    <p>An assessment cannot be made without sending parts of it elsewhere:</p>
+    <ul>
+      <li><strong>The model provider you choose</strong> (DeepSeek, Alibaba Model Studio, OpenAI or Anthropic) receives your topic, the text selected from an uploaded paper, and the retrieved sources, under your own key and that provider's terms.</li>
+      <li><strong>The web search service you choose</strong> (Tavily or Serper) receives search queries derived from your topic.</li>
+      <li><strong>Public literature and patent services</strong> (OpenAlex, Crossref, Semantic Scholar, arXiv, PubMed, Google Patents and, where configured, Lens) receive search queries derived from your topic. They do not receive your paper.</li>
+      <li><strong>The websites of the sources found</strong> are fetched to read their publication details, as any reader's browser would.</li>
+    </ul>
+    <p>If your topic or paper is confidential, consider what a search query built from it would reveal before you run it.</p>
+
+    <h2>Links to an assessment</h2>
+    <p>Each assessment has a long random address. Anyone who has that address can read the assessment without signing in, which is what lets you share a report. Cancelling, deleting or resuming an assessment made under an account needs that account. Share the link only with people who should read the report.</p>
+
+    <h2>Your browser</h2>
+    <p>The page keeps your language choice and your sign-in session in the browser's local storage, and your API keys in session storage for the open tab. There are no cookies. Nothing on the page loads from another site.</p>
+
+    <h2>Operational records</h2>
+    <p>The server logs each request's path and result, without its body, your keys or your password. Where the operator has enabled tracing, it records timings and outcomes of each stage; it excludes your topic, your text, prompts and keys.</p>
+
+    <h2>Your controls</h2>
+    <ul>
+      <li>Delete an assessment from its page.</li>
+      <li>Change your password from the Account panel; other devices are signed out.</li>
+      <li>Delete your account from the Account panel. This removes every assessment, uploaded paper and receipt recorded under it, and cannot be undone.</li>
+    </ul>
+    <p>There is no password reset yet. If you lose your password, contact the operator.</p>
+
+    <h2>Terms of use</h2>
+    <ul>
+      <li><strong>Not professional advice.</strong> A report is an automated reading of public sources. It is not investment, legal, regulatory or patent advice. Read the sources it cites before acting on it; the automated checks shown with each report say where it is weakest.</li>
+      <li><strong>Your keys, your costs.</strong> Operations you start are billed to you by the providers whose keys you supply. This service does not charge you and cannot refund them.</li>
+      <li><strong>Your right to upload.</strong> Upload only papers you are allowed to send to the model provider you chose.</li>
+      <li><strong>Fair use.</strong> Do not use the service to attack it or others, or to get around its limits. The operator may disable an account that does.</li>
+      <li><strong>No warranty.</strong> The service is provided as it is, without a guarantee of availability or accuracy. It may be changed or withdrawn.</li>
+    </ul>
+
+    <h2>Contact</h2>
+    <p>Questions about this page or your data: <span data-contact="en">the operator of this deployment, or the issue tracker of the <a href="https://github.com/shuxiachai/academic-commercialization-agent">project repository</a></span>. The software is open source; what this page describes can be checked against the code there.</p>
+  </article>
+
+  <article class="prose legal__body" lang="zh-CN" data-lang-block="zh">
+    <h1>隐私与条款</h1>
+    <p class="legal__updated">最近更新：2026 年 11 月 5 日。</p>
+
+    <h2>概要</h2>
+    <ul>
+      <li>你的 API Key 不会保存在本服务器上。</li>
+      <li>账号只包含一个邮箱和密码哈希，不收集关于你的其他信息。</li>
+      <li>你输入的主题，以及从上传论文中选取的文本，会发送给完成评估所需的模型与检索服务。</li>
+      <li>报告保留<span data-retention="zh">本部署设定的期限</span>；你可以自行删除报告，也可以注销整个账号。</li>
+      <li>没有 Cookie，没有统计分析，没有广告，没有第三方脚本。</li>
+    </ul>
+
+    <h2>保存了什么</h2>
+    <h3>你的账号</h3>
+    <p>邮箱地址、加盐的 scrypt 密码哈希，以及每次登录会话的哈希。密码本身和会话令牌都不落盘。邮箱不做验证，也不会向它发送任何邮件。</p>
+    <h3>你的评估</h3>
+    <p>你输入的主题、填写的决策背景（如有）、检索到的来源、报告、评分卡和自动检查结果。它们在本服务器上保留<span data-retention="zh">本部署设定的期限</span>。<span data-retention-auto>到期后自动删除。</span>你可以随时在评估页面删除任意一条。</p>
+    <h3>你上传的论文</h3>
+    <p>PDF 只读取一次，用来提取其中描述的贡献。提取成功后原始文件立即删除。提取出的摘要随使用它的评估一起保存；如果没有评估使用它，会在 24 小时内删除。</p>
+    <h3>收据</h3>
+    <p>发起付费操作时，服务器会保留一条简短记录，用于在回包丢失时找回结果而不重复发起。记录里只有请求的指纹和被接受的回包，不含密钥，24 小时后删除。</p>
+
+    <h2>从不保存什么</h2>
+    <p>你的模型与检索 API Key。它们只留在你的浏览器标签页里，随你发起的每次操作发送，交给执行该操作的工作进程，操作结束即消失。它们不会写入评估、收据、日志或任何数据库。关闭标签页后，浏览器里也不再保留。</p>
+
+    <h2>还有谁会看到你的内容</h2>
+    <p>完成一次评估必须把其中一部分发往别处：</p>
+    <ul>
+      <li><strong>你选择的模型服务商</strong>（DeepSeek、阿里云百炼、OpenAI 或 Anthropic）会收到你的主题、从上传论文中选取的文本，以及检索到的来源；使用的是你自己的 Key，适用该服务商的条款。</li>
+      <li><strong>你选择的网页检索服务</strong>（Tavily 或 Serper）会收到由主题生成的检索词。</li>
+      <li><strong>公开的文献与专利服务</strong>（OpenAlex、Crossref、Semantic Scholar、arXiv、PubMed、Google Patents，以及在已配置时的 Lens）会收到由主题生成的检索词，不会收到你的论文。</li>
+      <li><strong>检索到的来源所在的网站</strong>会被访问，以读取其发布信息，与普通读者的浏览器访问无异。</li>
+    </ul>
+    <p>如果你的主题或论文需要保密，运行前请考虑由它生成的检索词会暴露什么。</p>
+
+    <h2>评估的链接</h2>
+    <p>每条评估有一个很长的随机地址。拿到这个地址的人无需登录就能阅读该评估，这也是报告可以分享的原因。取消、删除或恢复账号名下的评估需要登录该账号。请只把链接发给应该读到报告的人。</p>
+
+    <h2>你的浏览器</h2>
+    <p>页面把语言选择和登录会话保存在浏览器的本地存储里，把 API Key 保存在当前标签页的会话存储里。没有 Cookie，页面上没有任何内容从其他网站加载。</p>
+
+    <h2>运行记录</h2>
+    <p>服务器日志记录每个请求的路径和结果，不记录请求内容、密钥或密码。运营者启用追踪时，会记录各阶段的耗时与结果，其中不包含你的主题、文本、提示词和密钥。</p>
+
+    <h2>你可以做的</h2>
+    <ul>
+      <li>在评估页面删除该评估。</li>
+      <li>在"账号"面板修改密码，其他设备会随之退出登录。</li>
+      <li>在"账号"面板注销账号。名下的全部评估、上传的论文和收据会一并删除，无法恢复。</li>
+    </ul>
+    <p>目前还没有找回密码功能。如果忘记密码，请联系运营者。</p>
+
+    <h2>使用条款</h2>
+    <ul>
+      <li><strong>不构成专业意见。</strong>报告是对公开来源的自动化解读，不是投资、法律、监管或专利方面的意见。据此行动前请阅读报告引用的来源；每份报告附带的自动检查会指出它最薄弱的地方。</li>
+      <li><strong>密钥与费用由你承担。</strong>你发起的操作由你提供密钥的服务商直接向你计费。本服务不向你收费，也无法退款。</li>
+      <li><strong>上传的权利。</strong>只上传你有权发送给所选模型服务商的论文。</li>
+      <li><strong>合理使用。</strong>不得利用本服务攻击本服务或他人，也不得规避其限制。运营者可以停用违反者的账号。</li>
+      <li><strong>不作保证。</strong>本服务按现状提供，不保证可用性或准确性，并可能变更或停止。</li>
+    </ul>
+
+    <h2>联系方式</h2>
+    <p>关于本页或你的数据的问题，请联系<span data-contact="zh">本部署的运营者，或在<a href="https://github.com/shuxiachai/academic-commercialization-agent">项目仓库</a>提交 Issue</span>。软件是开源的，本页所述都可以对照仓库里的代码核实。</p>
+  </article>
+</div>
+
+<script type="module" src="/static/js/privacy.js"></script>
+</body>
+</html>
