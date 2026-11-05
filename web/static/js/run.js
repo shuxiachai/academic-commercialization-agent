@@ -475,6 +475,59 @@ export function runtimeMetadataSummary(fields = []) {
  * code verbatim: hiding a future reason behind a generic state would make the
  * browser less inspectable than the API, while textContent keeps it inert.
  */
+/* Why a run stopped, in the reader's language.
+ *
+ * English is the API's own sentence, shown as sent: it is the one the server
+ * allowlists, and a second English copy here could only drift from it. For
+ * another language the API's `error_code` names the cause and `funded_by`
+ * says who can act on it, and this table words the pair. A code this table
+ * does not know, or a reply without one, keeps the API's sentence rather
+ * than a guess; tests/test_failure_reasons.py keeps the table complete.
+ *
+ * Three readers, as in api/runs.py: `deployment` is a run under an access
+ * code, whose reader cannot change the model or the key; `own_keys` is an
+ * account's run, whose reader is the only one who can.
+ */
+const FAILURE_STRINGS = {
+  "Simplified Chinese": {
+    cancelled: "已按请求取消。",
+    timeout: "分析超出了时间限制。请缩小主题范围后重试。",
+    timeout_resumable: "分析超出了时间限制。可以从最近一个已校验的检查点续跑，或重新开始一次运行。",
+    provider_auth: "上游服务商拒绝了身份验证。请检查已配置的凭据。",
+    "provider_auth:deployment": "本站的模型服务商拒绝了本站的凭据。这不是你的请求造成的；运营者可以凭运行 ID 查到原因。",
+    "provider_auth:own_keys": "有一个服务商拒绝了你的密钥。请在“API Key”里检查模型密钥和检索密钥，然后重新开始。",
+    provider_free_quota: "所配置模型的免费额度已用完。请换一个模型或开通付费后重试。",
+    "provider_free_quota:deployment": "本站所用模型的免费额度已用完。这不是你的请求造成的；运营者可以凭运行 ID 查到原因。",
+    "provider_free_quota:own_keys": "你填写的模型的免费额度已用完。请在“API Key”里换一个模型，或在服务商处开通付费，然后重新开始。",
+    provider_billing: "模型服务商账户无法扣费。请检查余额后重试。",
+    "provider_billing:deployment": "本站的模型服务商账户无法扣费。这不是你的请求造成的；运营者可以凭运行 ID 查到原因。",
+    "provider_billing:own_keys": "你的模型服务商账户无法扣费。请在服务商处检查余额，然后重新开始。",
+    provider_model_unavailable: "所配置的模型对本站的密钥不可用。请检查模型设置。",
+    "provider_model_unavailable:deployment": "本站设置的模型对它的密钥不可用。这不是你的请求造成的；运营者可以凭运行 ID 查到原因。",
+    "provider_model_unavailable:own_keys": "你的密钥不能使用你填写的模型。请在“API Key”里检查模型名称，然后重新开始。",
+    provider_request_rejected: "所配置的模型拒绝了请求。请确认模型设置填写的是本流程支持的模型。",
+    "provider_request_rejected:deployment": "本站设置的模型拒绝了请求。这不是你的请求造成的；运营者可以凭运行 ID 查到原因。",
+    "provider_request_rejected:own_keys": "你填写的模型拒绝了请求。请在“API Key”里换成支持 JSON 输出的模型，然后重新开始。",
+    provider_rate_limited: "上游服务商的速率或额度限制已触发。请稍后重试。",
+    "provider_rate_limited:own_keys": "你的某个服务商触发了速率或额度限制。请稍后重试，或在服务商处检查额度。",
+    insufficient_evidence: "系统未能为这个主题收集到足够的已校验证据。请稍后重试或调整主题。",
+    provider_response_format: "上游模型返回了不支持的响应格式。请重试。",
+    quality_checks: "生成的分析未通过证据质量检查。请重试。",
+    provider_unreachable: "无法连接上游服务。请稍后重试。",
+    unknown: "分析失败。请重试，或把运行 ID 发给运营者。",
+  },
+};
+
+/** The sentence to show for why a run stopped; "" when there is nothing to say. */
+export function failureText({ error, error_code, funded_by } = {}) {
+  const table = FAILURE_STRINGS[uiLanguage()];
+  if (table && typeof error_code === "string" && error_code) {
+    const worded = table[`${error_code}:${funded_by}`] ?? table[error_code];
+    if (worded) return worded;
+  }
+  return typeof error === "string" ? error : "";
+}
+
 /**
  * Why a run ended, and whether it spent one of today's runs; "" otherwise.
  *
@@ -483,10 +536,11 @@ export function runtimeMetadataSummary(fields = []) {
  * only from the API's launch-time record: an old run without one, or a
  * damaged one, gets the reason alone rather than a guess.
  */
-export function outcomeSummary({ state, error, daily_charge, checkpointing } = {}) {
+export function outcomeSummary({ state, error, error_code, funded_by, daily_charge, checkpointing } = {}) {
   if (!["failed", "timeout", "cancelled"].includes(state)) return "";
   const parts = [];
-  if (typeof error === "string" && error) parts.push(error);
+  const reason = failureText({ error, error_code, funded_by });
+  if (reason) parts.push(reason);
   if (daily_charge === "charged") {
     parts.push(headerLabel("outcome_charged"));
     const committed = checkpointing?.committed_nodes;

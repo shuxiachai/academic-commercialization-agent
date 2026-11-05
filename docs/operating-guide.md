@@ -890,6 +890,20 @@ quoting it. `KEY_CHECK=off` turns the check off: the page stops asking and
 keys are saved as they were before it existed. Visitors who use their own
 keys without an account are not offered the check.
 
+A failed run says what its reader can act on. The API reports the recognised
+cause as `error_code` and whose keys the run used as `funded_by`, beside the
+sentence in `error`. An account's run is on the account's own keys
+(`own_keys`): a refused key, a model its key cannot use, an exhausted free
+quota or an unpaid balance is the account's to fix, and the sentence says
+where. A run under an access code is on the deployment's keys
+(`deployment`): the same causes are the operator's, and the sentence says
+that nothing in the request caused them. A run nobody owns keeps the wording
+written for whoever configured the deployment. The sentence is always one of
+a fixed list; provider text, keys and prompts never reach it, and the raw
+reason stays in the run's `error.log`. The page shows the API's English
+sentence as sent and words the same code in Simplified Chinese;
+`tests/test_failure_reasons.py` keeps the two lists complete.
+
 ### Run links, BYOK and retention
 
 A run ID contains 128 bits of randomness and acts as a read capability.

@@ -47,6 +47,7 @@ from academic_agent.run_terminal import (
     commit_terminal_record,
     load_terminal_record,
 )
+from api import accounts
 from api.audit_projection import project_audit_metadata
 from api.cleanup import CleanupAudit
 from api.models import StepEvent
@@ -1415,18 +1416,44 @@ def _failure_reason(run_dir: Path) -> str:
 
 
 _TIMEOUT_FAILURE_MARKERS = ("timed out", "timeout", "deadline exceeded")
-# A code-funded run's reader did not configure the model or the key; the
-# operator did. Telling them to "check the model setting" sends them to a
-# setting they cannot see. The third element is the message for that reader;
-# None keeps the one message for both.
+# Three readers, three wordings. A code-funded run's reader did not configure
+# the model or the key; the operator did, and telling them to "check the
+# model setting" sends them to a setting they cannot see (`deployment`). An
+# account's run uses keys the account typed in, so the same failure is theirs
+# to fix and the message says where (`own_keys`). A run with no owner keeps
+# the wording written for whoever configured the deployment (`message`).
+# None means the one message serves that reader too.
 _OPERATOR_SIDE = " Nothing in your request caused this; the operator can find it by the run ID."
-_PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str, str | None], ...] = (
-    (
+_OWN_KEYS, _DEPLOYMENT = "own_keys", "deployment"
+_UNKNOWN_FAILURE = ("unknown", "The analysis failed. Retry or contact the operator with the run ID.")
+
+
+@dataclass(frozen=True)
+class _FailureCategory:
+    """One recognised cause: a stable code for clients, and what each reader is told."""
+
+    code: str
+    markers: tuple[str, ...]
+    message: str
+    deployment: str | None = None
+    own_keys: str | None = None
+
+    def wording(self, funded_by: str | None) -> str:
+        if funded_by == _DEPLOYMENT and self.deployment:
+            return self.deployment
+        if funded_by == _OWN_KEYS and self.own_keys:
+            return self.own_keys
+        return self.message
+
+
+_PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
+    _FailureCategory(
+        "timeout",
         _TIMEOUT_FAILURE_MARKERS,
         "The analysis exceeded its time limit. Retry with a narrower topic.",
-        None,
     ),
-    (
+    _FailureCategory(
+        "provider_auth",
         (
             "invalid api key",
             "incorrect api key",
@@ -1437,36 +1464,53 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str, str | None], ...] 
         ),
         "An upstream provider rejected authentication. "
         "Check the configured credentials.",
-        "The deployment's model provider rejected its credentials." + _OPERATOR_SIDE,
+        deployment="The deployment's model provider rejected its credentials." + _OPERATOR_SIDE,
+        # The raw text does not reliably say which service refused, so this
+        # names both keys rather than guess.
+        own_keys="A provider rejected one of your keys. Check the model key and the search key "
+                 "under API keys, then start again.",
     ),
     # A model switch can leave the deployment pointing at a model its key
     # cannot use. Each case says what the operator has to change; the provider
     # body itself stays in the run's error artifact.
-    (
+    _FailureCategory(
+        "provider_free_quota",
         ("freetieronly", "free tier", "free quota"),
         "The configured model's free quota is used up. "
         "Switch to another model or enable paid use, then retry.",
-        "The free quota of the model this deployment uses is used up." + _OPERATOR_SIDE,
+        deployment="The free quota of the model this deployment uses is used up." + _OPERATOR_SIDE,
+        own_keys="The free quota of the model you named is used up. Name another model under "
+                 "API keys, or enable paid use with your provider, then start again.",
     ),
-    (
+    _FailureCategory(
+        "provider_billing",
         ("arrearage", "good standing", "overdue payment"),
         "The model provider account cannot be billed. "
         "Check its balance, then retry.",
-        "The deployment's model provider account cannot be billed." + _OPERATOR_SIDE,
+        deployment="The deployment's model provider account cannot be billed." + _OPERATOR_SIDE,
+        own_keys="Your model provider account cannot be billed. Check its balance with the "
+                 "provider, then start again.",
     ),
-    (
+    _FailureCategory(
+        "provider_model_unavailable",
         ("model_not_found", "does not exist or you do not have access", "model not exist"),
         "The configured model is not available to this deployment's key. "
         "Check the model setting.",
-        "The model this deployment is set to is not available to its key." + _OPERATOR_SIDE,
+        deployment="The model this deployment is set to is not available to its key." + _OPERATOR_SIDE,
+        own_keys="Your key cannot use the model you named. Check the model name under API keys, "
+                 "then start again.",
     ),
-    (
+    _FailureCategory(
+        "provider_request_rejected",
         ("invalid_parameter_error", "invalidparameter"),
         "The configured model rejected the request. "
         "Check that the model setting names a model this pipeline supports.",
-        "The model this deployment is set to rejected the request." + _OPERATOR_SIDE,
+        deployment="The model this deployment is set to rejected the request." + _OPERATOR_SIDE,
+        own_keys="The model you named rejected the request. Name a model that supports JSON "
+                 "output under API keys, then start again.",
     ),
-    (
+    _FailureCategory(
+        "provider_rate_limited",
         (
             "rate limit",
             "rate_limit",
@@ -1475,9 +1519,11 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str, str | None], ...] 
             "error code: 429",
         ),
         "An upstream provider rate or quota limit was reached. Retry later.",
-        None,
+        own_keys="One of your providers reached its rate or quota limit. Retry later, or check "
+                 "your quota with the provider.",
     ),
-    (
+    _FailureCategory(
+        "insufficient_evidence",
         (
             "validated sources",
             "sourcecollectionerror",
@@ -1486,9 +1532,9 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str, str | None], ...] 
         ),
         "The system could not collect enough validated evidence for this topic. "
         "Retry later or refine the topic.",
-        None,
     ),
-    (
+    _FailureCategory(
+        "provider_response_format",
         (
             "response_format",
             "failed to convert text into a pydantic model",
@@ -1498,9 +1544,9 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str, str | None], ...] 
         ),
         "An upstream model returned an unsupported response format. "
         "Retry the analysis.",
-        None,
     ),
-    (
+    _FailureCategory(
+        "quality_checks",
         (
             "guardrail",
             "blocking validation errors",
@@ -1509,9 +1555,9 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str, str | None], ...] 
         ),
         "The generated analysis did not pass the evidence-quality checks. "
         "Retry the analysis.",
-        None,
     ),
-    (
+    _FailureCategory(
+        "provider_unreachable",
         (
             "connection error",
             "connection refused",
@@ -1522,7 +1568,6 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[tuple[tuple[str, ...], str, str | None], ...] 
             "service unavailable",
         ),
         "An upstream service could not be reached. Retry later.",
-        None,
     ),
 )
 
@@ -1532,21 +1577,50 @@ def _is_timeout_failure(raw_reason: object) -> bool:
     return any(marker in lowered for marker in _TIMEOUT_FAILURE_MARKERS)
 
 
-def _public_failure_reason(raw_reason: object, *, code_funded: bool = False) -> str:
-    """Map untrusted diagnostics to a stable client-safe category.
+def _public_failure(raw_reason: object, *, funded_by: str | None = None) -> tuple[str, str]:
+    """Map untrusted diagnostics to a stable client-safe (code, message).
 
     Error artifacts remain untouched for operator debugging. Returning only
     allowlisted prose here prevents provider bodies, credentials, prompts,
     and host paths from being reflected by status and list endpoints.
 
-    `code_funded` selects the wording for a run made under an access code,
-    whose reader cannot act on the deployment's model or key settings.
+    `funded_by` selects the wording: a run under an access code cannot act on
+    the deployment's settings, and a run on an account's own keys can act on
+    nothing else. The code is the same for every reader, so a client can say
+    the same thing in its own language.
     """
     lowered = str(raw_reason).lower()
-    for markers, message, operator_side in _PUBLIC_FAILURE_CATEGORIES:
-        if any(marker in lowered for marker in markers):
-            return operator_side if code_funded and operator_side else message
-    return "The analysis failed. Retry or contact the operator with the run ID."
+    for category in _PUBLIC_FAILURE_CATEGORIES:
+        if any(marker in lowered for marker in category.markers):
+            return category.code, category.wording(funded_by)
+    return _UNKNOWN_FAILURE
+
+
+def _public_failure_reason(raw_reason: object, *, code_funded: bool = False) -> str:
+    """The message alone, in the wording for a code-funded reader or for none."""
+    return _public_failure(raw_reason, funded_by=_DEPLOYMENT if code_funded else None)[1]
+
+
+def _funded_by(run_dir: Path) -> str | None:
+    """Whose keys a run used, as far as its owner marker says.
+
+    An account's run is always on the account's own keys: accounts are never
+    billed to the deployment. Any other owner is an access code, funded by
+    the deployment. No marker is a run nobody owns, a local run or a visitor
+    without an account, and says nothing either way.
+
+    An unreadable marker still exists, so it keeps the wording an owned run
+    had before accounts: this chooses a sentence, not an authorization, and
+    the authorization paths handle that case themselves.
+    """
+    marker = run_dir / _OWNER_FILE
+    if not marker.exists():
+        return None
+    try:
+        owner = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+        return _DEPLOYMENT
+    return _OWN_KEYS if accounts.is_user_owner(owner) else _DEPLOYMENT
 
 
 def artifact_names() -> list[str]:
@@ -1600,9 +1674,11 @@ def get_state(run_id: str) -> dict:
         status, status_record_state = {}, "unreadable"
     status, audit_metadata_unreadable = project_audit_metadata(status)
     terminal_record, terminal_projection = _read_terminal(run_dir)
-    # Presence alone chooses the wording; an unreadable marker is handled by
-    # the authorization paths, which must not be collapsed into "ownerless".
-    code_funded = (run_dir / _OWNER_FILE).exists()
+    # The owner marker chooses the wording only; an unreadable marker is
+    # handled by the authorization paths, which must not be collapsed into
+    # "ownerless".
+    funded_by = _funded_by(run_dir)
+    error_code: str | None = None
 
     if occupied:
         state = "running"
@@ -1613,15 +1689,16 @@ def get_state(run_id: str) -> dict:
             elapsed = terminal_record.elapsed_seconds
             state = terminal_record.state
             if state == "cancelled":
-                error = "Cancelled by request."
+                error_code, error = "cancelled", "Cancelled by request."
             elif state == "timeout":
+                error_code = "timeout_resumable"
                 error = (
                     "The analysis exceeded its time limit. Resume from the "
                     "last validated checkpoint or start a new run."
                 )
             elif state == "failed":
-                error = _public_failure_reason(status.get("error") or _failure_reason(run_dir),
-                                               code_funded=code_funded)
+                error_code, error = _public_failure(status.get("error") or _failure_reason(run_dir),
+                                                    funded_by=funded_by)
             else:
                 error = None
         elif terminal_projection is not None:
@@ -1635,9 +1712,10 @@ def get_state(run_id: str) -> dict:
             # derivation without mistaking status mtime for new-run truth.
             elapsed = _elapsed_seconds(run_dir)
             if (run_dir / _CANCEL_MARKER).exists():
-                state, error = "cancelled", "Cancelled by request."
+                state, error_code, error = "cancelled", "cancelled", "Cancelled by request."
             elif status.get("error"):
-                state, error = "failed", _public_failure_reason(status["error"], code_funded=code_funded)
+                state = "failed"
+                error_code, error = _public_failure(status["error"], funded_by=funded_by)
             elif status.get("done"):
                 state, error = "completed", None
             elif status_record_state == "unreadable":
@@ -1648,7 +1726,7 @@ def get_state(run_id: str) -> dict:
             else:
                 reason = _failure_reason(run_dir)
                 state = "timeout" if _is_timeout_failure(reason) else "failed"
-                error = _public_failure_reason(reason, code_funded=code_funded)
+                error_code, error = _public_failure(reason, funded_by=funded_by)
 
     usage = status.get("usage")
     usage_accounting = status.get("usage_accounting")
@@ -1717,6 +1795,12 @@ def get_state(run_id: str) -> dict:
         "pipeline_revision": status.get("pipeline_revision"),
         "decision_gate": status.get("decision_gate"),
         "error": error,
+        # The recognised cause behind `error`, the same for every reader, so
+        # a client can word it in its own language; None when the run did not
+        # fail or the state carries its own fixed sentence. `funded_by` is
+        # whose keys the run used, which decides who can act on that cause.
+        "error_code": error_code,
+        "funded_by": funded_by,
         # Whether this run spent one of its owner's daily paid operations, so
         # a failed run's page can say so beside the reason. Read from the
         # launch-time marker, never inferred from the state or the ledger.

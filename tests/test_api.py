@@ -1004,6 +1004,60 @@ class FailedRunOutcomeTests(_ApiTestCase):
         for body in self._both(rid):
             self.assertIn("Check that the model setting names a model this pipeline supports", body["error"])
 
+    _KEY_REFUSED = ("AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key "
+                    "provided: sk-SECRET-KEY-123. For details, see: https://help.example.com/apikey'}}")
+
+    def test_an_accounts_own_key_failure_is_not_blamed_on_the_operator(self):
+        """Since accounts, a run carries an owner marker whether it was funded
+        by an access code or by the account's own keys, and the marker's
+        presence alone chose the wording. An account whose own key was
+        refused read "The deployment's model provider rejected its
+        credentials. Nothing in your request caused this", and waited for an
+        operator to fix a key only the account could fix."""
+        rid = self._make_run(status={"done": False, "error": self._KEY_REFUSED})
+        (self.tmp / rid / ".owner").write_text("user:7", encoding="utf-8")
+        for body in self._both(rid):
+            self.assertEqual(body["state"], "failed")
+            self.assertEqual(body["error_code"], "provider_auth")
+            self.assertEqual(body["funded_by"], "own_keys")
+            self.assertEqual(body["error"], "A provider rejected one of your keys. Check the model key and "
+                                            "the search key under API keys, then start again.")
+            self.assertNotIn("operator", body["error"])
+            self.assertNotIn("deployment", body["error"])
+            self.assertNotIn("SECRET", body["error"])
+
+    def test_the_cause_has_one_code_whoever_reads_it(self):
+        expected = {
+            None: (None, "An upstream provider rejected authentication. Check the configured credentials."),
+            "code-hash": ("deployment", "The deployment's model provider rejected its credentials. Nothing in "
+                                        "your request caused this; the operator can find it by the run ID."),
+        }
+        for owner, (funded_by, sentence) in expected.items():
+            with self.subTest(owner=owner):
+                rid = self._make_run(f"20261105_00001{len(owner or '')}_dddddddd",
+                                     status={"done": False, "error": self._KEY_REFUSED})
+                if owner:
+                    (self.tmp / rid / ".owner").write_text(owner, encoding="utf-8")
+                for body in self._both(rid):
+                    self.assertEqual((body["error_code"], body["funded_by"], body["error"]),
+                                     ("provider_auth", funded_by, sentence))
+
+    def test_a_run_that_did_not_fail_has_no_cause_and_fixed_outcomes_have_their_own(self):
+        done = self._make_run("20261105_000001_aaaaaaaa", status={"done": True})
+        (self.tmp / done / ".owner").write_text("user:7", encoding="utf-8")
+        for body in self._both(done):
+            self.assertEqual((body["state"], body["error"], body["error_code"]), ("completed", None, None))
+            self.assertEqual(body["funded_by"], "own_keys")
+        cancelled = self._make_run("20261105_000002_bbbbbbbb", status={"done": False}, cancelled=True)
+        for body in self._both(cancelled):
+            self.assertEqual((body["state"], body["error_code"], body["error"]),
+                             ("cancelled", "cancelled", "Cancelled by request."))
+        unrecognised = self._make_run("20261105_000003_cccccccc",
+                                      status={"done": False, "error": "ValueError: something nobody has seen"})
+        for body in self._both(unrecognised):
+            self.assertEqual(body["error_code"], "unknown")
+            self.assertNotIn("nobody has seen", body["error"])
+
     def test_daily_charge_reaches_both_endpoints_without_guessing(self):
         cases = {
             "not_recorded": None,

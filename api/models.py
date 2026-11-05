@@ -327,6 +327,20 @@ class RunProgress(BaseModel):
     )
     done: bool = False
     error: str | None = None
+    error_code: str | None = Field(
+        default=None,
+        description="The recognised cause behind `error`, the same for every reader: timeout, "
+                    "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
+                    "provider_request_rejected, provider_rate_limited, insufficient_evidence, "
+                    "provider_response_format, quality_checks, provider_unreachable or unknown; "
+                    "cancelled and timeout_resumable for those two outcomes. None when there is "
+                    "nothing to explain. `error` stays the sentence to show.",
+    )
+    funded_by: Literal["own_keys", "deployment"] | None = Field(
+        default=None,
+        description="Whose keys the run used: an account's own, or the deployment's under an "
+                    "access code. None for a run nobody owns. It decides who can act on a failure.",
+    )
     daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
         default="not_recorded",
         description="Whether this run spent one of its owner's daily paid operations: charged; "
@@ -497,6 +511,20 @@ class RunStatus(BaseModel):
     )
     output_language: str = "English"
     error: str | None = None
+    error_code: str | None = Field(
+        default=None,
+        description="The recognised cause behind `error`, the same for every reader: timeout, "
+                    "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
+                    "provider_request_rejected, provider_rate_limited, insufficient_evidence, "
+                    "provider_response_format, quality_checks, provider_unreachable or unknown; "
+                    "cancelled and timeout_resumable for those two outcomes. None when there is "
+                    "nothing to explain. `error` stays the sentence to show.",
+    )
+    funded_by: Literal["own_keys", "deployment"] | None = Field(
+        default=None,
+        description="Whose keys the run used: an account's own, or the deployment's under an "
+                    "access code. None for a run nobody owns. It decides who can act on a failure.",
+    )
     daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
         default="not_recorded",
         description="Whether this run spent one of its owner's daily paid operations: charged; "
