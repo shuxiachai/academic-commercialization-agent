@@ -15,10 +15,12 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import json
 import logging
 import os
 import threading
 import time
+from collections import deque
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -32,6 +34,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 # Load .env before anything reads os.environ. Some dependency imports also
 # happen to load it, but that is a side effect to observe, not a configuration
@@ -54,7 +57,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import auxiliary_usage, plan_preview, retrieval_health, samples
+from api import auxiliary_usage, key_check, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -71,6 +74,8 @@ from api.models import (  # noqa: E402
     CleanupSummary,
     DailyQuota,
     HealthStatus,
+    KeyCheckRequest,
+    KeyCheckResult,
     MaintenanceStatus,
     MaintenanceTiming,
     PaperExtraction,
@@ -531,7 +536,8 @@ async def _access_gate(request: Request, call_next):
             # boot stays one request whether the deployment uses codes or
             # accounts; the shipped-client smoke accounts for every request.
             body["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
-                                "signup": accounts.signup_mode(), "access_codes": access.gate_enabled()}
+                                "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
+                                "key_check": key_check.enabled()}
         return JSONResponse(body, status_code=401)
     # Who answered, if anyone — GET /api/runs uses this to show each code
     # holder or account only the runs made under their own identity. None
@@ -648,7 +654,8 @@ def access_check(http_request: Request) -> dict:
     payload = {"ok": True, "plan_preview": plan_preview.enabled(), "daily_quota": bool(runs.DAILY_CAP)}
     if accounts.enabled():
         payload["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
-                               "signup": accounts.signup_mode(), "access_codes": access.gate_enabled()}
+                               "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
+                                "key_check": key_check.enabled()}
         who = identity.resolve(http_request)
         payload["account"] = {"email": who.user.email, "admin": who.is_admin} if who.kind == "user" else None
     return payload
@@ -689,7 +696,8 @@ def auth_config() -> AuthConfig:
     learns whether this deployment has accounts, codes, or neither."""
     return AuthConfig(enabled=accounts.enabled(), signup_open=accounts.enabled() and accounts.signup_open(),
                       signup=accounts.signup_mode() if accounts.enabled() else "closed",
-                      access_codes=access.gate_enabled())
+                      access_codes=access.gate_enabled(),
+                      key_check=accounts.enabled() and key_check.enabled())
 
 
 @app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],
@@ -815,6 +823,97 @@ def auth_delete_account(request: AccountDeletion, http_request: Request) -> Acco
     except accounts.AccountError as exc:
         raise _account_refusal(exc) from None
     return AccountDeleted(runs=deleted_runs, uploads=uploads)
+
+
+# A key check has this server put a question to a provider on an account's
+# behalf. That is worth doing a few times while someone corrects a typo and
+# not worth offering as a way to try keys in bulk, so it is bounded per
+# account, far below the general request limit.
+_KEY_CHECK_LIMIT = 10
+_KEY_CHECK_WINDOW = 600.0
+_key_check_times: dict[str, deque[float]] = {}
+_key_check_lock = threading.Lock()
+
+
+def _key_check_exceeded(owner: str) -> bool:
+    """Record one check for `owner`; True when the window is already full."""
+    now = time.monotonic()
+    with _key_check_lock:
+        times = _key_check_times.setdefault(owner, deque())
+        while times and now - times[0] >= _KEY_CHECK_WINDOW:
+            times.popleft()
+        if len(times) >= _KEY_CHECK_LIMIT:
+            return True
+        times.append(now)
+        if len(_key_check_times) > 2048:
+            for key in [k for k, seen in _key_check_times.items()
+                        if k != owner and (not seen or now - seen[-1] >= _KEY_CHECK_WINDOW)]:
+                del _key_check_times[key]
+    return False
+
+
+_KEY_CHECK_BODY_BYTES = 8_000
+
+
+async def _key_check_body(http_request: Request) -> KeyCheckRequest:
+    """Read and validate the body here rather than in the handler's signature.
+
+    The framework's own refusal of a malformed body quotes the body back,
+    and this body is nothing but keys. A refusal from here names the field
+    and the rule, never the value. The size is bounded for the same reason
+    the keys are: nothing that fits the model is larger than this.
+    """
+    raw = bytearray()
+    async for chunk in http_request.stream():
+        raw.extend(chunk)
+        if len(raw) > _KEY_CHECK_BODY_BYTES:
+            raise HTTPException(status_code=413, detail="Key check body is too large.")
+    try:
+        return KeyCheckRequest.model_validate(json.loads(raw))
+    except ValidationError as exc:
+        problems = exc.errors(include_input=False, include_context=False, include_url=False)
+        raise HTTPException(status_code=422, detail=[
+            {"loc": ["body", *problem["loc"]], "msg": problem["msg"], "type": problem["type"]}
+            for problem in problems]) from None
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Body must be a JSON object of keys.") from None
+
+
+@app.post("/api/keys/check", response_model=KeyCheckResult, tags=["accounts"],
+          responses={404: {"description": "Not signed in with an account"},
+                     413: {"description": "Body larger than any key set"},
+                     422: {"description": "Incomplete or malformed key set; the reply quotes no value"},
+                     429: {"description": "Too many key checks for this account"}},
+          openapi_extra={"requestBody": {"required": True, "content": {
+              "application/json": {"schema": KeyCheckRequest.model_json_schema()}}}})
+async def check_keys(http_request: Request) -> KeyCheckResult:
+    """Ask the providers whether they accept the keys an account is saving.
+
+    For signed-in accounts only: they are the visitors who must bring keys,
+    and an account is an identity this can be bounded by. An access-code
+    holder or an anonymous visitor using their own keys is not offered it.
+
+    One unbilled read per service, to the provider's own endpoint; see
+    api/key_check.py. The keys are used for those two requests and are not
+    stored, logged or echoed. A refusal here is advice to the person typing:
+    nothing on the server depends on it, and a run with the same keys is
+    admitted or refused exactly as before.
+    """
+    user = _signed_in_account(http_request)
+    request = await _key_check_body(http_request)
+    if not key_check.enabled():
+        return KeyCheckResult(checked=False, llm="unverified", model="unknown", search="unverified")
+    if _key_check_exceeded(user.owner):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many key checks. The keys can still be saved; wait a few minutes to check again.",
+            headers={"Retry-After": "60", "X-Error-Code": "rate_limited"},
+        )
+    result = await key_check.check(
+        provider=request.llm_provider, llm_api_key=request.llm_api_key, model=request.llm_model,
+        search=request.search, search_api_key=request.search_api_key,
+    )
+    return KeyCheckResult(checked=True, llm=result.llm, model=result.model, search=result.search)
 
 
 @app.get("/api/quota", response_model=DailyQuota | None, tags=["runs"])

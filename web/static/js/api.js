@@ -334,6 +334,13 @@ export const register = (email, password, invite = null) =>
 export const login = (email, password) => request("/api/auth/login", json({ email, password }));
 export const logout = () => request("/api/auth/logout", { method: "POST" });
 export const me = () => request("/api/auth/me");
+// What the providers say about a key set an account is about to save. One
+// unbilled read per service; the answer carries no key. Bounded here as well
+// as on the server, so a silent network cannot hold the form open.
+export const checkKeys = (creds) => request("/api/keys/check", {
+  ...json(byokBody(validateByok(creds))),
+  signal: AbortSignal.timeout(20000),
+});
 // Both need the password again: a session alone cannot change or erase an account.
 export const changePassword = (current_password, new_password) =>
   request("/api/auth/password", json({ current_password, new_password }));

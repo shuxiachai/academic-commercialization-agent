@@ -844,6 +844,44 @@ class AccountDeleted(BaseModel):
     uploads: int = Field(description="Uploaded papers deleted with the account.")
 
 
+class KeyCheckRequest(BaseModel):
+    """Body for POST /api/keys/check: one complete key set, as a run sends it."""
+
+    llm_provider: str = Field(description=f"One of {BYOK_PROVIDERS}.")
+    llm_api_key: str = Field(min_length=1, max_length=400)
+    llm_model: str = Field(description="The model the key will be used with.")
+    tavily_api_key: str | None = Field(default=None, max_length=400)
+    serper_api_key: str | None = Field(default=None, max_length=400)
+
+    @model_validator(mode="after")
+    def _one_complete_set(self) -> "KeyCheckRequest":
+        _check_byok(self.llm_provider, self.llm_api_key, self.serper_api_key,
+                    self.tavily_api_key, self.llm_model)
+        return self
+
+    @property
+    def search(self) -> str:
+        return "tavily" if self.tavily_api_key else "serper"
+
+    @property
+    def search_api_key(self) -> str:
+        return self.tavily_api_key or self.serper_api_key or ""
+
+
+class KeyCheckResult(BaseModel):
+    """What the providers said about a key set. Carries no key and no provider text."""
+
+    checked: bool = Field(description="False when this deployment does not check keys.")
+    llm: Literal["accepted", "rejected", "unverified"] = Field(
+        description="The model provider's answer about the key. `unverified` is no answer: "
+                    "a timeout, a server error, or a key not allowed to list models.")
+    model: Literal["listed", "not_listed", "unknown"] = Field(
+        description="Whether the provider's model list names the model. `not_listed` only "
+                    "when the whole list was read.")
+    search: Literal["accepted", "rejected", "unverified"] = Field(
+        description="The search service's answer about its key.")
+
+
 class AuthConfig(BaseModel):
     """What the sign-in screen offers on this deployment."""
 
@@ -851,6 +889,7 @@ class AuthConfig(BaseModel):
     signup_open: bool = Field(description="New accounts can be created (open or invite mode).")
     signup: str = Field(default="closed", description="open, invite or closed.")
     access_codes: bool = Field(description="An operator access code is also accepted.")
+    key_check: bool = Field(default=False, description="Saving keys can be checked with POST /api/keys/check.")
 
 
 class RetrievalHealth(BaseModel):

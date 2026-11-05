@@ -71,3 +71,14 @@ def test_refresh_preserves_unconfirmed_paid_intent(operation, outcome):
         scenario, operation, outcome], capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
     assert f"PASS {scenario}" in result.stdout
+
+
+@pytest.mark.parametrize("outcome", ["accepted", "rejected", "model", "unreachable", "unverified", "left", "off"])
+def test_an_account_saving_keys_is_told_what_the_providers_said(outcome):
+    """A wrong key was only discovered when the run it started failed."""
+    node = shutil.which("node")
+    assert node, "Node is required for the key-check seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        "account_keys", outcome], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS account_keys" in result.stdout
