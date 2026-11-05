@@ -14,7 +14,9 @@ vulnerability. You should hear back within a week.
   browser keeps them in session storage for the tab. The operator's own keys
   live only in the deployment's environment.
 - **Accounts** (when `ACCOUNTS_DB` is set): email, a scrypt password hash
-  and session tokens stored as SHA-256. No key material.
+  and session tokens stored as SHA-256. No key material. An account can
+  delete itself from the page, which removes its assessments, uploads and
+  receipts with it.
 - **Runs.** Reports, scorecards, source lists and extracted paper metadata
   are kept under `outputs/` for the retention window and are readable by the
   identity that created them (an access code, an account, or the run id for

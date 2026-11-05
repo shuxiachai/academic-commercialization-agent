@@ -61,8 +61,11 @@ from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa
 from api.models import (  # noqa: E402
     AuthConfig,
     AuthCredentials,
+    AccountDeleted,
+    AccountDeletion,
     AuthMe,
     AuthSession,
+    PasswordChange,
     BYOK_PROVIDERS,
     CleanupSummary,
     DailyQuota,
@@ -722,6 +725,83 @@ def auth_me(http_request: Request) -> AuthMe:
     if who.kind != "user":
         raise HTTPException(status_code=404, detail="Not signed in with an account.")
     return AuthMe(email=who.user.email, admin=who.is_admin)
+
+
+def _signed_in_account(http_request: Request) -> accounts.User:
+    who = identity.resolve(http_request)
+    if who.kind != "user":
+        raise HTTPException(status_code=404, detail="Not signed in with an account.")
+    return who.user
+
+
+@app.post("/api/auth/password", status_code=204, tags=["accounts"],
+          responses={401: {"description": "The current password was not accepted"},
+                     422: {"description": "The new password does not meet the policy"},
+                     429: {"description": "Too many failed attempts"}})
+def auth_change_password(request: PasswordChange, http_request: Request) -> Response:
+    """Change the password of the signed-in account.
+
+    Needs the current password as well as the session, and ends every other
+    session of the account; this one stays signed in.
+    """
+    user = _signed_in_account(http_request)
+    try:
+        accounts.change_password(user, request.current_password, request.new_password,
+                                 keep_token=identity._bearer(http_request),
+                                 client=_client_address(http_request))
+    except accounts.AccountError as exc:
+        raise _account_refusal(exc) from None
+    return Response(status_code=204)
+
+
+@app.post("/api/auth/delete-account", response_model=AccountDeleted, tags=["accounts"],
+          responses={401: {"description": "The password was not accepted"},
+                     409: {"description": "An assessment of this account is still running"},
+                     429: {"description": "Too many failed attempts"}})
+def auth_delete_account(request: AccountDeletion, http_request: Request) -> AccountDeleted:
+    """Delete the signed-in account and everything recorded under it.
+
+    Assessments, uploaded papers and paid-request receipts go first, the
+    account last, so a failure part-way leaves an account that can sign in
+    and try again. Nothing is recoverable afterwards. A run that is still
+    going must be cancelled first: its worker is writing into the directory
+    this would remove.
+    """
+    user = _signed_in_account(http_request)
+    try:
+        accounts.confirm_password(user, request.password, client=_client_address(http_request))
+    except accounts.AccountError as exc:
+        raise _account_refusal(exc) from None
+    try:
+        if runs.active_run_ids(user.owner):
+            raise HTTPException(
+                status_code=409,
+                detail="An assessment is still running. Cancel it, then delete the account.",
+                headers={"X-Error-Code": "active_runs"},
+            )
+        deleted_runs = 0
+        for directory in runs.run_directories(owner=user.owner):
+            runs.delete_run(directory.name)
+            deleted_runs += 1
+    except runs.RunStillActive as exc:
+        raise HTTPException(status_code=409, detail=f"{exc}.",
+                            headers={"X-Error-Code": "active_runs"}) from exc
+    except (runs.OwnerMarkerUnreadable, OSError) as exc:
+        _LOGGER.exception("Account deletion could not remove a run for %s", user.owner)
+        raise HTTPException(status_code=503,
+                            detail="Some assessments could not be deleted. Retry later.") from exc
+    uploads = papers.discard_owned(user.owner)
+    try:
+        receipts.forget_owner(runs.DEFAULT_OUTPUT_ROOT, user.owner)
+    except receipts.ReceiptError:
+        # Receipts expire on their own within a day; they must not keep an
+        # account alive that has already lost everything else.
+        _LOGGER.exception("Receipts of %s could not be removed with the account", user.owner)
+    try:
+        accounts.delete_account(user, request.password, client=_client_address(http_request))
+    except accounts.AccountError as exc:
+        raise _account_refusal(exc) from None
+    return AccountDeleted(runs=deleted_runs, uploads=uploads)
 
 
 @app.get("/api/quota", response_model=DailyQuota | None, tags=["runs"])

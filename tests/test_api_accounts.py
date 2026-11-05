@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from api import access, accounts, runs
+from api import access, accounts, papers, receipts, runs
 from api.main import app
 
 PASSWORD = "a sufficiently long password"
@@ -273,6 +273,109 @@ class PaidOperationTests(_AccountsHttp):
             self.assertIn(self.client.delete("/api/runs/20260101T000000Z-0123456789",
                                              headers=self._bearer(self.session["token"])).status_code, (200, 204))
             deleted.assert_called_once()
+
+
+class SelfServiceTests(_AccountsHttp):
+    """Change the password; delete the account with everything under it."""
+
+    def setUp(self):
+        super().setUp()
+        self.outputs = Path(self._tmp.name) / "outputs"
+        (self.outputs / "_papers").mkdir(parents=True)
+        for target, name, value in ((runs, "DEFAULT_OUTPUT_ROOT", self.outputs),
+                                    (papers, "PAPERS_ROOT", self.outputs / "_papers")):
+            patcher = patch.object(target, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.session = self._signup()
+        self.headers = self._bearer(self.session["token"])
+        self.owner = accounts.session_user(self.session["token"]).owner
+
+    def _run_dir(self, run_id, owner):
+        directory = self.outputs / run_id
+        directory.mkdir()
+        (directory / "commercialization_report.md").write_text("report", encoding="utf-8")
+        if owner:
+            (directory / ".owner").write_text(owner, encoding="utf-8")
+        return directory
+
+    def _upload_dir(self, suffix, owner):
+        directory = self.outputs / "_papers" / f"paper-{suffix * 32}"
+        directory.mkdir()
+        (directory / "extraction.json").write_text("{}", encoding="utf-8")
+        if owner:
+            (directory / ".owner").write_text(owner, encoding="utf-8")
+        return directory
+
+    def test_password_change_over_http(self):
+        other = self.client.post("/api/auth/login", json={"email": "alice@example.com", "password": PASSWORD}).json()
+        wrong = self.client.post("/api/auth/password", headers=self.headers,
+                                 json={"current_password": "nope nope nope", "new_password": "another long password"})
+        self.assertEqual((wrong.status_code, wrong.headers["X-Error-Code"]), (401, "invalid_credentials"))
+        weak = self.client.post("/api/auth/password", headers=self.headers,
+                                json={"current_password": PASSWORD, "new_password": "short"})
+        self.assertEqual((weak.status_code, weak.headers["X-Error-Code"]), (422, "weak_password"))
+        changed = self.client.post("/api/auth/password", headers=self.headers,
+                                   json={"current_password": PASSWORD, "new_password": "another long password"})
+        self.assertEqual(changed.status_code, 204)
+        self.assertEqual(self.client.get("/api/auth/me", headers=self.headers).status_code, 200)
+        self.assertEqual(self.client.get("/api/auth/me", headers=self._bearer(other["token"])).status_code, 401)
+        self.assertEqual(self.client.post("/api/auth/login",
+                                          json={"email": "alice@example.com", "password": PASSWORD}).status_code, 401)
+
+    def test_self_service_is_for_accounts_only(self):
+        with patch.object(access, "ACCESS_CODE", "code-1"):
+            by_code = {"X-Access-Code": "code-1"}
+            self.assertEqual(self.client.post("/api/auth/password", headers=by_code,
+                                              json={"current_password": "x", "new_password": "y" * 12}).status_code, 404)
+            self.assertEqual(self.client.post("/api/auth/delete-account", headers=by_code,
+                                              json={"password": "x"}).status_code, 404)
+        self.assertEqual(self.client.post("/api/auth/delete-account", json={"password": PASSWORD}).status_code, 401)
+
+    def test_deleting_the_account_removes_only_what_it_owns(self):
+        bob = self._signup("bob@example.com")
+        bob_owner = accounts.session_user(bob["token"]).owner
+        mine = [self._run_dir("20260101T000000Z-aaaaaaaaaa", self.owner), self._run_dir("20260102T000000Z-bbbbbbbbbb", self.owner)]
+        theirs = self._run_dir("20260103T000000Z-cccccccccc", bob_owner)
+        ownerless = self._run_dir("20260104T000000Z-dddddddddd", None)
+        my_upload, their_upload = self._upload_dir("a", self.owner), self._upload_dir("b", bob_owner)
+
+        refused = self.client.post("/api/auth/delete-account", headers=self.headers, json={"password": "wrong password!"})
+        self.assertEqual((refused.status_code, refused.headers["X-Error-Code"]), (401, "invalid_credentials"))
+        self.assertTrue(all(d.is_dir() for d in mine))            # a wrong password deletes nothing
+
+        with patch.object(receipts, "forget_owner", wraps=receipts.forget_owner) as forgotten:
+            response = self.client.post("/api/auth/delete-account", headers=self.headers, json={"password": PASSWORD})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json(), {"runs": 2, "uploads": 1})
+        forgotten.assert_called_once_with(self.outputs, self.owner)
+        self.assertFalse(any(d.exists() for d in mine))
+        self.assertFalse(my_upload.exists())
+        for kept in (theirs, ownerless, their_upload):
+            self.assertTrue(kept.is_dir(), kept)
+        # The session is gone with the account, and the address is free again.
+        self.assertEqual(self.client.get("/api/auth/me", headers=self.headers).status_code, 401)
+        self.assertEqual(self.client.get("/api/auth/me", headers=self._bearer(bob["token"])).status_code, 200)
+        self._signup("alice@example.com")
+
+    def test_a_running_assessment_blocks_deletion_and_nothing_is_removed(self):
+        kept = self._run_dir("20260101T000000Z-aaaaaaaaaa", self.owner)
+        with patch.object(runs, "active_run_ids", return_value=["20260105T000000Z-eeeeeeeeee"]) as active:
+            response = self.client.post("/api/auth/delete-account", headers=self.headers, json={"password": PASSWORD})
+        active.assert_called_once_with(self.owner)
+        self.assertEqual((response.status_code, response.headers["X-Error-Code"]), (409, "active_runs"))
+        self.assertTrue(kept.is_dir())
+        self.assertEqual(self.client.get("/api/auth/me", headers=self.headers).status_code, 200)
+
+    def test_receipts_of_an_owner_are_forgotten(self):
+        import time
+        key = f"v1.{int(time.time()):010d}.{'a' * 64}"
+        other = f"v1.{int(time.time()):010d}.{'b' * 64}"
+        receipts.claim(self.outputs, key, self.owner, "run", {"topic": "t"})
+        receipts.claim(self.outputs, other, "user:999", "run", {"topic": "t"})
+        self.assertEqual(receipts.forget_owner(self.outputs, self.owner), 1)
+        self.assertEqual(receipts.forget_owner(self.outputs, self.owner), 0)
+        self.assertEqual(receipts.forget_owner(self.outputs, "user:999"), 1)
 
 
 if __name__ == "__main__":

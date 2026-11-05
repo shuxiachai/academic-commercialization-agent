@@ -820,6 +820,22 @@ class AuthMe(BaseModel):
     admin: bool = False
 
 
+class PasswordChange(BaseModel):
+    current_password: str = Field(max_length=200)
+    new_password: str = Field(max_length=200)
+
+
+class AccountDeletion(BaseModel):
+    """The password again: a session alone must not be able to erase an account."""
+
+    password: str = Field(max_length=200)
+
+
+class AccountDeleted(BaseModel):
+    runs: int = Field(description="Assessments deleted with the account.")
+    uploads: int = Field(description="Uploaded papers deleted with the account.")
+
+
 class AuthConfig(BaseModel):
     """What the sign-in screen offers on this deployment."""
 

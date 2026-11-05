@@ -836,7 +836,13 @@ user out by guessing at their address while a guesser who rotates addresses
 is still stopped. The source address is what the ASGI server reports after
 its proxy-trust decision: behind Railway's proxy set `FORWARDED_ALLOW_IPS=*`
 in the service environment, or every visitor shares one address, one lockout
-and one rate-limit bucket. There is no password reset or email verification
+and one rate-limit bucket. A signed-in account can change its password
+(`POST /api/auth/password`; every other session ends) and delete itself
+(`POST /api/auth/delete-account`), which removes its assessments, uploaded
+papers and receipts before the account row and cannot be undone; both ask for
+the password again, and a wrong one counts toward the same lockout as a
+sign-in. A run that is still going must be cancelled before the account can
+be deleted. There is no password reset or email verification
 yet: an operator can disable an account with `api.accounts.set_disabled`
 from a shell, and both flows need an email service, which is a separate
 decision. Until then, `invite` mode is the safer default for a public URL.
