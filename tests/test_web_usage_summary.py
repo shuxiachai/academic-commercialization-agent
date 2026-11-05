@@ -396,6 +396,46 @@ class UsageSummaryTests(unittest.TestCase):
                              daily_charge="charged", checkpointing=self._RESUMABLE)
         self.assertEqual(text, self._OPERATOR_SIDE + " 本次运行已计入今日额度。 从检查点续跑会再用 1 次。")
 
+    _OWN_KEY = ("A provider rejected one of your keys. Check the model key and the search key "
+                "under API keys, then start again.")
+
+    def test_the_cause_is_worded_in_chinese_for_whoever_can_act_on_it(self):
+        """A Chinese reader got the API's English sentence followed by a
+        Chinese quota sentence. The API now names the cause and whose keys
+        the run used, and the page words that pair."""
+        own = self._outcome_line(language="Simplified Chinese", state="failed", error=self._OWN_KEY,
+                                 error_code="provider_auth", funded_by="own_keys", daily_charge="not_charged")
+        self.assertEqual(own, "有一个服务商拒绝了你的密钥。请在“API Key”里检查模型密钥和检索密钥，然后重新开始。"
+                              " 本次运行不占用每日额度。")
+        coded = self._outcome_line(language="Simplified Chinese", state="failed", error=self._OPERATOR_SIDE,
+                                   error_code="provider_request_rejected", funded_by="deployment",
+                                   daily_charge="charged")
+        self.assertEqual(coded, "本站设置的模型拒绝了请求。这不是你的请求造成的；运营者可以凭运行 ID 查到原因。"
+                                " 本次运行已计入今日额度。")
+        # A cause with one wording for every reader, and a run nobody owns.
+        for funded_by in ("own_keys", "deployment", None):
+            with self.subTest(funded_by=funded_by):
+                self.assertEqual(
+                    self._outcome_line(language="Simplified Chinese", state="failed", error="English.",
+                                       error_code="insufficient_evidence", funded_by=funded_by),
+                    "系统未能为这个主题收集到足够的已校验证据。请稍后重试或调整主题。")
+        self.assertEqual(
+            self._outcome_line(language="Simplified Chinese", state="cancelled", error="Cancelled by request.",
+                               error_code="cancelled"), "已按请求取消。")
+
+    def test_english_and_unknown_causes_keep_the_apis_own_sentence(self):
+        # English is the sentence the server allowlists; the page holds no second copy.
+        self.assertEqual(
+            self._outcome_line(state="failed", error=self._OWN_KEY, error_code="provider_auth", funded_by="own_keys"),
+            self._OWN_KEY)
+        # A cause this page has not learned yet is shown as sent, not guessed at.
+        for code in ("a_future_cause", "", None):
+            with self.subTest(code=code):
+                self.assertEqual(
+                    self._outcome_line(language="Simplified Chinese", state="failed", error="A new sentence.",
+                                       error_code=code, funded_by="own_keys"),
+                    "A new sentence.")
+
     def test_refunded_and_uncharged_runs_say_which(self):
         self.assertEqual(
             self._outcome_line(state="failed", error="The analysis failed.", daily_charge="refunded"),
@@ -420,7 +460,7 @@ class UsageSummaryTests(unittest.TestCase):
     def test_app_delivers_the_outcome_line_to_its_own_dom_seam(self):
         source = _APP_JS.read_text(encoding="utf-8")
         markup = _INDEX_HTML.read_text(encoding="utf-8")
-        self.assertIn("outcomeSummary({ state, error, daily_charge, checkpointing })", source)
+        self.assertIn("outcomeSummary({ state, error, error_code, funded_by, daily_charge, checkpointing })", source)
         self.assertIn('id="run-outcome"', markup)
 
 
