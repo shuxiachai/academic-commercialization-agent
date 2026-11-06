@@ -368,7 +368,9 @@ export const changePassword = (current_password, new_password) =>
   request("/api/auth/password", json({ current_password, new_password }));
 export const deleteAccount = (password) => request("/api/auth/delete-account", json({ password }));
 
-export const listRuns = (limit = 50) => request(`/api/runs?limit=${limit}`);
+// The first page keeps the address it always had; later pages add an offset.
+export const listRuns = (limit = 50, offset = 0) =>
+  request(`/api/runs?limit=${limit}${offset ? `&offset=${offset}` : ""}`);
 
 // Paid operations left today for the stored code; null when uncapped.
 export const getQuota = () => request("/api/quota");

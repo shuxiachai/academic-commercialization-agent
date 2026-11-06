@@ -23,6 +23,12 @@ let sidebarRevision = 0;
 function invalidateSidebar() {
   sidebarRevision++;
   $("#runlist").innerHTML = "";
+  // What one identity searched for, and how far it had paged, is not the
+  // next identity's starting point.
+  sidebar.resetView?.();
+  const search = $("#run-search");
+  search.value = "";
+  search.hidden = true;
 }
 // Button elements are disposable (polling, language changes, navigation).
 // Paid resume intent belongs to the parent run, not the element clicked.
@@ -303,6 +309,28 @@ function paintHeader({
   recoveryEl.title = details.join("\n");
 }
 
+/* A run's address is what opens it: anyone holding the link can read the
+ * run without a code or an account. Copying it is therefore sharing it, and
+ * the confirmation says so. Where the browser will not let a page write to
+ * the clipboard, the address bar already holds the same link. */
+function copyLinkButton() {
+  const runId = activeRunId;
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "btn btn--secondary";
+  copy.id = "run-copy-link";
+  copy.textContent = t("copy_link");
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(`${location.origin}/run/${runId}`);
+      toast(t("msg_link_copied"), "success");
+    } catch {
+      toast(t("msg_link_copy_failed"), "error");
+    }
+  });
+  return copy;
+}
+
 function paintActions(state, checkpointing = null) {
   const actions = $("#run-actions");
   actions.innerHTML = "";
@@ -322,7 +350,7 @@ function paintActions(state, checkpointing = null) {
         toast(err.message, "error");
       }
     });
-    actions.append(cancel);
+    actions.append(cancel, copyLinkButton());
     return;
   }
 
@@ -395,6 +423,24 @@ function paintActions(state, checkpointing = null) {
     });
     actions.append(resume);
   }
+
+  // The same topic, as a new run. It fills the composer and stops there:
+  // starting is a paid step and stays the user's own click. Language, profile
+  // and decision context are not carried over; the page never had them.
+  const again = document.createElement("button");
+  again.type = "button";
+  again.className = "btn btn--secondary";
+  again.id = "run-again";
+  again.textContent = t("run_again");
+  again.title = t("run_again_title");
+  again.addEventListener("click", () => {
+    const previous = $("#run-title").textContent.trim();
+    showCompose();
+    if (previous && previous !== "…") topic.value = previous;
+    syncComposer();
+    topic.focus();
+  });
+  actions.append(again, copyLinkButton());
 
   // Only the known terminal states reaching here offer permanent removal.
   const del = document.createElement("button");
@@ -555,6 +601,7 @@ async function refreshSidebar() {
   // gone once the tab closes, complete for as long as it's open.
   if (byokMode && !accountMode) {
     const list = $("#runlist");
+    $("#run-search").hidden = true;
     const entries = api.getByokRuns();
     if (!entries.length) {
       list.innerHTML = "";
@@ -593,8 +640,21 @@ async function refreshSidebar() {
     activeId: activeRunId,
     onSelect: (runId) => openRun(runId),
     onDelete: handleDeleteRun,
+    onChange: refreshSidebar,
   });
 }
+
+/* Filtering waits for a pause in typing: a search may load the rest of the
+ * history, and doing that on every keystroke would ask for it several times. */
+let searchTimer = null;
+$("#run-search").addEventListener("input", (event) => {
+  clearTimeout(searchTimer);
+  const text = event.target.value;
+  searchTimer = setTimeout(() => {
+    sidebar.setQuery?.(text);
+    refreshSidebar();
+  }, 200);
+});
 
 /* ── Composer ──────────────────────────────────────────────────────── */
 

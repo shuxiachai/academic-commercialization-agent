@@ -752,6 +752,31 @@ class ListRunsTests(_ApiTestCase):
         body = self.client.get("/api/runs").json()
         self.assertEqual(body["total"], 1)
 
+    def test_a_history_longer_than_one_page_can_be_read_to_its_end(self):
+        """The list stopped at its newest entries with no way past them."""
+        for i in range(7):
+            self._make_run(f"2026010{i + 1}T000000Z-dddddddddd", status={"done": True, "topic": f"run {i + 1}"})
+        seen = []
+        for offset in (0, 3, 6):
+            body = self.client.get(f"/api/runs?limit=3&offset={offset}").json()
+            self.assertEqual(body["total"], 7, "total is the whole history, whatever the page")
+            seen += [run["topic"] for run in body["runs"]]
+        self.assertEqual(seen, [f"run {i}" for i in range(7, 0, -1)])
+        # Past the end is an empty page, not an error; a negative offset is refused.
+        beyond = self.client.get("/api/runs?limit=3&offset=50")
+        self.assertEqual((beyond.status_code, beyond.json()["runs"], beyond.json()["total"]), (200, [], 7))
+        self.assertEqual(self.client.get("/api/runs?offset=-1").status_code, 422)
+        # Without an offset the reply is what it always was.
+        self.assertEqual(self.client.get("/api/runs?limit=3").json(), self.client.get("/api/runs?limit=3&offset=0").json())
+
+    def test_the_list_takes_no_search_words(self):
+        # A topic in a query string would be written to the access log.
+        self._make_run("20260101T000000Z-eeeeeeeeee", status={"done": True, "topic": "hyperloop"})
+        self._make_run("20260102T000000Z-ffffffffff", status={"done": True, "topic": "solid-state batteries"})
+        body = self.client.get("/api/runs?q=hyperloop&query=hyperloop&search=hyperloop").json()
+        self.assertEqual(body["total"], 2)
+        self.assertEqual(len(body["runs"]), 2)
+
     def test_limit_respected(self):
         for i in range(5):
             self._make_run(f"2026010{i}T000000Z-cccccccccc", status={"done": True})

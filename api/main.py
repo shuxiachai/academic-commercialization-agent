@@ -1629,8 +1629,14 @@ def retrieval_health_summary(
 
 
 @app.get("/api/runs", response_model=RunList, tags=["runs"])
-def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200)) -> RunList:
+def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200),
+              offset: int = Query(default=0, ge=0, le=100_000)) -> RunList:
     """List runs, newest first — scoped to the calling code's own history.
+
+    `offset` skips that many of the newest runs; `total` in the reply is the
+    size of the whole history. There is no search parameter on purpose: a
+    topic typed into a query string would be written to the access log, and
+    the page filters what it has loaded instead.
 
     `request.state.owner`/`.is_admin` were set by the access-gate
     middleware, which ran ahead of this handler for every path that isn't
@@ -1640,7 +1646,7 @@ def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200
     """
     try:
         summaries, total = runs.list_runs(
-            limit=limit, owner=http_request.state.owner
+            limit=limit, owner=http_request.state.owner, offset=offset
         )
     except runs.OwnerMarkerUnreadable as exc:
         # Omitting the affected entry would make a protected run look absent;

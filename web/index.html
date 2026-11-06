@@ -56,6 +56,12 @@
       <kbd class="kbd">N</kbd>
     </button>
 
+    <!-- Shown once there is enough history to search (sidebar.js). It filters
+         in the page: what is typed here is never sent to the server. -->
+    <input class="runsearch" id="run-search" type="search" autocomplete="off" spellcheck="false"
+           maxlength="120" data-i18n-placeholder="runs_search" placeholder="Search runs"
+           aria-label="Search runs" hidden>
+
     <nav class="runlist" id="runlist" aria-label="Previous runs">
       <div class="runlist__empty" id="runlist-empty">
         <span data-i18n="no_runs">No runs yet</span>

@@ -125,6 +125,40 @@
 }
 
 /* ── Run list ── */
+.runsearch {
+  margin: 0 var(--space-4) var(--space-3);
+  padding: 7px var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+.runsearch::placeholder { color: var(--text-disabled); }
+.runsearch:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.runlist__more {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.runlist__more:hover { color: var(--accent); border-color: var(--accent); }
+.runlist__note {
+  margin-top: var(--space-3);
+  padding: 0 var(--space-2);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
 .runlist {
   flex: 1;
   overflow-y: auto;
@@ -376,6 +410,10 @@
   color: var(--text-tertiary);
 }
 .pane__actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+/* A finished run has five controls. In one unshrinking row they took the
+   whole header on a narrow pane and left the heading no width at all. They
+   keep to their own half and wrap inside it; the heading keeps the other. */
+#pane-run .pane__actions { flex-wrap: wrap; justify-content: flex-end; max-width: 50%; }
 
 /* Run metadata is saved output and can include long translated diagnostics.
    Let it wrap before it narrows its siblings to unusable columns. */
@@ -1306,7 +1344,18 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   }
   #pane-run .pane__heading,
   #pane-run .pane__actions { width: 100%; }
-  #pane-run .pane__actions { flex-wrap: wrap; }
+  /* Three equal columns, so five controls are always two rows whatever the
+     font: wrapping by width gave three rows on a small phone and left the
+     report under six lines. The download glyphs go; the labels say it. A
+     resume button names what it does at length and takes a row to itself. */
+  #pane-run .pane__actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: none;
+  }
+  #pane-run .pane__actions .btn { justify-content: center; min-width: 0; padding-inline: var(--space-2); }
+  #pane-run .pane__actions .btn svg { display: none; }
+  #pane-run .pane__actions [data-resume-run] { grid-column: 1 / -1; }
   .pane__body--centered { padding-top: var(--space-8); }
   /* Compact and low on a phone, where the visible report is short. */
   .toasts {
