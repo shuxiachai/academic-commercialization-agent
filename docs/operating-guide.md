@@ -1075,7 +1075,7 @@ It reports three things and nothing else:
 | What | When |
 |---|---|
 | A maintenance stage failed (`maintenance.checks.<name>: failed`) | When it first fails, again every `ALERT_REPEAT_HOURS` (default 6) while it stays failed, and once when it is back |
-| The maintenance loop ended | Once. The timeout watchdog is gone with it and `/ready` reports not ready; the service needs a restart |
+| The maintenance loop ended | Once. The timeout watchdog is gone with it and `/health/ready` reports not ready; the service needs a restart |
 | A run on the deployment's keys failed for an operator's reason | Per failure code, at most once every `ALERT_REPEAT_HOURS`, with the number of runs since the last message |
 
 The operator's reasons are the codes `provider_auth`, `provider_free_quota`,
@@ -1098,7 +1098,7 @@ What has been said is kept in memory only, so a problem that outlives a
 restart is reported once more after it.
 
 This cannot report the service being down: a process that is not running
-sends nothing. That needs a monitor outside it, pointed at `/ready`.
+sends nothing. That needs a monitor outside it, pointed at `/health/ready`.
 
 ### Docker and Railway
 
