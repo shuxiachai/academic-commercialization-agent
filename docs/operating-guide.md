@@ -407,7 +407,7 @@ semantic correctness of all report prose; see the
 | GET | `/api/health/retrieval?window=20` | Per-lane counts of empty and refused retrieval across recent runs' audits; owner-filtered like `/api/runs`, no topics or run ids |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
 | GET | `/api/quota` | Paid operations left today for the calling code; `null` when uncapped |
-| POST | `/api/plan` | Preview how the planner reads a topic; code holders only, own daily cap, not a paid operation |
+| POST | `/api/plan` | Preview how the planner reads a topic; on the deployment's key for a code holder, on its own key set for an account; own daily cap, not a paid operation |
 | GET | `/api/runs/{run_id}/feedback` | The caller's own answer about a delivered report, if any. Authorized like a mutation: a code-owned run answers to its code or the admin, an ownerless run to whoever holds its URL |
 | POST | `/api/runs/{run_id}/feedback` | One click on a delivered report: did it change the reader's view (`yes`/`no`/`unsure`) and which part mattered. Fixed words, no text; one record per responder, replaced on a later answer; kept in the run's `feedback.json` for `scripts/ops_report.py`. Not a paid operation |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
@@ -782,11 +782,15 @@ These are example policy values, not a cost/SLO guarantee.
   records which applied (`daily_charge` on its status), and a failed run's
   page says whether it counted and that resuming uses another unit.
 - `PLAN_PREVIEW_DAILY_LIMIT` (default 20, 0 disables) caps `POST /api/plan`
-  per code and UTC day. A preview is one planner call and does not use a
-  paid operation. The browser shows the reading before a code-funded run;
-  the confirmed or edited plan goes into the RunSpec as `search_plan`, and
-  the worker searches it instead of planning again. The count lives in
-  memory, so a restart resets it.
+  per code or account and UTC day. A preview is one planner call and does not
+  use a paid operation. The browser shows the reading before a code-funded
+  run, and before an account's run; the confirmed or edited plan goes into
+  the RunSpec as `search_plan`, and the worker searches it instead of
+  planning again. The count lives in memory, so a restart resets it. A
+  request that carries a complete key set is planned on that set's model key
+  and can be billed to nobody else; an account must send one. When the model
+  gives no answer the reply says `planned: false`, and the page says the
+  search could not be previewed instead of showing the topic as typed.
 - Counts are atomically persisted in
   `outputs/.paid-operation-ledger.json`; restart does not reset that day's
   budget. Unreadable accounting fails closed before paid work.
@@ -827,9 +831,10 @@ and it pays for every paid operation with its own LLM and search keys, sent
 with each request exactly as the bring-your-own-key path always sent them.
 The server never stores an account's keys; the browser keeps them in session
 storage and the page says so. A signed-in request without keys is refused
-with `byok_required`, never billed to the deployment. Plan previews and the
-daily operator quota do not apply to accounts, because both spend the
-deployment's key.
+with `byok_required`, never billed to the deployment. The daily operator
+quota does not apply to accounts, because it meters the deployment's key. A
+plan preview does apply: the page sends the account's key set with it, the
+call is made on the account's model key, and the page says so.
 
 Accounts and access codes coexist. A valid `X-Access-Code` header takes
 precedence over a session token, keeps its operator billing and its own

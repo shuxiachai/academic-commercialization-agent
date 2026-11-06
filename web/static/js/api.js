@@ -376,9 +376,14 @@ export const getQuota = () => request("/api/quota");
 export const getFeedback = (runId) => request(`/api/runs/${runId}/feedback`);
 export const sendFeedback = (runId, answer) => request(`/api/runs/${runId}/feedback`, json(answer));
 
-// How the planner reads a topic. One small model call on the deployment's
-// key, outside the daily run quota; not a paid POST, so never receipted.
-export const planTopic = (topic) => request("/api/plan", json({ topic }));
+// How the planner reads a topic. One small model call, outside the daily run
+// quota; not a paid POST, so never receipted. With an access code it runs on
+// the deployment's key. An account sends its own key set, as it does with a
+// run, and the call is made on that set's model key.
+export const planTopic = (topic, { ownKeys = false } = {}) => {
+  const byok = ownKeys ? getByok() : null;
+  return request("/api/plan", json({ topic, ...(byok ? byokBody(byok) : {}) }));
+};
 
 export const startRun = ({
   topic,

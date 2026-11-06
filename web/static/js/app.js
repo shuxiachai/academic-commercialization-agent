@@ -718,7 +718,10 @@ $("#compose-form").addEventListener("submit", async (e) => {
     needsScopeWarning(submittedTopic, { hasPaper: Boolean(attachedPaper) })
     && !confirm(t("confirm_broad_topic"))
   ) return;
-  if (planPreviewEnabled && !byokMode && !accountMode) {
+  // A code holder previews on the deployment's key. An account previews on
+  // its own, which it has by now: the gate above asked for keys. A visitor
+  // whose keys are their only identity starts as before.
+  if (planPreviewEnabled && (accountMode ? Boolean(api.getByok()) : !byokMode)) {
     await previewPlan(submittedTopic);
     return;
   }
@@ -762,18 +765,26 @@ async function submitAssessment(submittedTopic, searchPlan) {
  * ("hyperloop" renamed, vertical farming drifting) used to show only after
  * the run had spent its stages and one of the code's daily runs. With a
  * code, the run button first shows that reading; the user confirms or edits
- * it, and the run searches exactly that. Unresolved topics stop here. */
+ * it, and the run searches exactly that. Unresolved topics stop here.
+ *
+ * An account gets the same step on its own model key, and is told so: a
+ * wrong reading costs an account the whole run, on its own bill. When the
+ * model gives no answer the reply says so, and the page says so too rather
+ * than showing the topic as typed as if it were a reading. */
 
 async function previewPlan(submittedTopic) {
   previewing = true;
   syncComposer();
   let next;
   try {
-    const plan = await api.planTopic(submittedTopic);
-    next = plan?.resolved
-      ? { topic: submittedTopic, failure: null, plan: {
-        search_topic: plan.search_topic, aliases: [...plan.aliases], components: [...plan.components] } }
-      : { topic: submittedTopic, failure: "unresolved", plan: null };
+    const own = accountMode;
+    const plan = await api.planTopic(submittedTopic, { ownKeys: own });
+    next = plan?.planned === false
+      ? { topic: submittedTopic, failure: own ? "no_answer_own" : "no_answer", plan: null }
+      : plan?.resolved
+        ? { topic: submittedTopic, failure: null, own, plan: {
+          search_topic: plan.search_topic, aliases: [...plan.aliases], components: [...plan.components] } }
+        : { topic: submittedTopic, failure: "unresolved", plan: null };
   } catch (err) {
     if (err.status === 401) {
       toast(operationErrorMessage(err), "error");
@@ -853,7 +864,7 @@ function renderPlan() {
   planPanel.innerHTML = "";
   planPanel.hidden = false;
   planPanel.append(planNode("h2", "plan-panel__title", label("title")));
-  const message = planState.failure === null ? label("lede")
+  const message = planState.failure === null ? label(planState.own ? "lede_own" : "lede")
     : label(planState.failure).replace("{reason}", planState.reason || "—");
   planPanel.append(planNode("p", "plan-panel__lede", message));
 
@@ -1594,6 +1605,11 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
         const session = creating ? await api.register(email, password, invite) : await api.login(email, password);
         api.setSessionToken(session.token);
         applyAccountMode(session);
+        // The boot's access check was refused, so it told the page nothing
+        // about previews; the sign-in configuration that came with that
+        // refusal does. Without this an account that had just signed in
+        // started its first run with no preview, and one that reloaded got one.
+        planPreviewEnabled = authConfig?.plan_preview === true;
         if (api.getByok()) { finish(); return; }
         // Keys next, on the same card: the account is in, the runs still
         // need something to pay with.
