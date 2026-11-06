@@ -342,7 +342,8 @@ async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
     alerts.reset()
     if alerts.configured() == "misconfigured":
         # Said once, and without the value: it may be most of a real address.
-        _LOGGER.warning("ALERT_WECOM_WEBHOOK is set but is not a WeCom robot address; no alerts will be sent.")
+        _LOGGER.warning("The alert robot setting is not usable, so no alerts will be sent. Set exactly one of "
+                        "ALERT_FEISHU_WEBHOOK and ALERT_WECOM_WEBHOOK, to the webhook address its robot shows.")
     task = asyncio.create_task(_reaper())
     task.add_done_callback(_maintenance_ended)
     _maintenance_task = task

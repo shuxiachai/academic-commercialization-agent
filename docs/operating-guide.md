@@ -1060,15 +1060,39 @@ own number, from `GET /api/site` (`account_backup_days`).
 
 ### Alerts
 
-Everything above is visible in `/health` to someone who looks. Set
-`ALERT_WECOM_WEBHOOK` and the service tells a WeCom (企业微信) group instead
-of waiting to be asked. In the group, add a group robot (群机器人), copy the
-webhook address it shows, and set the variable to that address. Then check
-it from the host:
+Everything above is visible in `/health` to someone who looks. Give the
+service a group robot and it tells a group instead of waiting to be asked.
+Use the one you read:
+
+| Where | Setting | The robot |
+|---|---|---|
+| Feishu (飞书) or Lark | `ALERT_FEISHU_WEBHOOK` | In the group: Settings, Bots (群机器人), Add Bot, Custom Bot (自定义机器人). Copy the webhook address it shows |
+| WeCom (企业微信) | `ALERT_WECOM_WEBHOOK` | In the group: add a group robot (群机器人). Copy the webhook address it shows |
+
+Set one of the two to the address the robot shows, then check it from the
+host:
 
 ```
 python -m api.alerts test
 ```
+
+`/health` shows which one is in use (`alerts.channel`). Setting both is
+refused, as `misconfigured`: which group hears about a failure is not left
+to an order of precedence.
+
+A Feishu robot offers three security settings, and the service works with
+each:
+
+- Custom keywords (自定义关键词): use `告警` or `ACA`. Every message
+  contains both, and a robot with a keyword set drops a message without it.
+- Signature verification (签名校验): set `ALERT_FEISHU_SECRET` to the
+  signing secret the robot shows. Feishu refuses a signature more than an
+  hour from its own clock.
+- IP allowlist (IP 白名单): only where the host's outbound address is
+  fixed. A platform that does not promise one will be refused sooner or
+  later.
+
+If the test message is refused, the command says which of these it was.
 
 It reports three things and nothing else:
 
@@ -1090,9 +1114,9 @@ opens the run and the group is not a party to any assessment. The run IDs
 are in the service log (`run <id> on the deployment's keys failed: <code>`).
 
 The webhook address is a secret: whoever holds it can post to the group. It
-is never logged or echoed. The request always goes to WeCom's own host, so
-a mistyped value cannot send alerts elsewhere; `/health` then shows
-`alerts.state: misconfigured`. `failing` means the last message was not
+is never logged or echoed, and neither is the signing secret. The request
+always goes to the vendor's own host, so a mistyped value cannot send
+alerts elsewhere; `/health` then shows `alerts.state: misconfigured`. `failing` means the last message was not
 delivered; it is tried again on the next cycle, from what is true then.
 What has been said is kept in memory only, so a problem that outlives a
 restart is reported once more after it.

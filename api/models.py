@@ -773,8 +773,11 @@ class AlertStatus(BaseModel):
     """Whether the operator can be told, not whether anything is wrong."""
 
     state: Literal["off", "ready", "misconfigured", "failing"] = Field(
-        description="off: no robot is set. misconfigured: the setting is not a WeCom robot address. "
-                    "failing: the last message was not delivered. ready says nothing was needed or it was sent.")
+        description="off: no robot is set. misconfigured: the setting is not its vendor's robot address, "
+                    "or two robots are set. failing: the last message was not delivered. ready says "
+                    "nothing was needed or it was sent.")
+    channel: Literal["feishu", "wecom"] | None = Field(
+        default=None, description="Which vendor's robot is set; null when none is usable.")
     last_sent_at: AwareDatetime | None = None
     last_failed_at: AwareDatetime | None = None
 
@@ -821,7 +824,7 @@ class HealthStatus(BaseModel):
     )
     alerts: AlertStatus = Field(
         default_factory=lambda: AlertStatus(state="off"),
-        description="Operator alerts to a WeCom group robot: whether they can be delivered.",
+        description="Operator alerts to a Feishu or WeCom group robot: whether they can be delivered.",
     )
     maintenance: MaintenanceStatus = Field(
         default_factory=lambda: MaintenanceStatus(state="not_started"),

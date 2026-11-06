@@ -14,17 +14,20 @@ What is reported, and nothing else:
     operator can remove: its key refused, its free quota used up, its account
     unbillable, its model unavailable or refusing the request.
 
-The message goes to a WeCom (企业微信) group robot. It names stages and
-failure codes, counts and the revision. It never carries a run ID, a topic,
-an email address, a path or a provider's own words: a run ID opens the run,
-and the group and its vendor are not parties to any assessment. The run IDs
-are in the service log, which only the operator reads.
+The message goes to one group robot: Feishu (飞书, or Lark) or WeCom
+(企业微信), whichever the operator reads. It names stages and failure
+codes, counts and the revision. It never carries a run ID, a topic, an email
+address, a path or a provider's own words: a run ID opens the run, and the
+group and its vendor are not parties to any assessment. The run IDs are in
+the service log, which only the operator reads.
 
 The robot's address is a secret: whoever holds it can post to the group. It
-is read from ALERT_WECOM_WEBHOOK and is never logged, echoed or put in an
-error. The request is built here against WeCom's own host, so a mistyped
-setting cannot send alerts anywhere else; it can only be refused, and
-/health then says `misconfigured`.
+is read from ALERT_FEISHU_WEBHOOK or ALERT_WECOM_WEBHOOK and is never
+logged, echoed or put in an error. The request is built here against the
+vendor's own host, chosen from a list in this file, so a mistyped setting
+cannot send alerts anywhere else; it can only be refused, and /health then
+says `misconfigured`. Setting both is refused the same way: which group
+hears about a failure is not something to leave to an order of precedence.
 
 What this cannot report is the service being down. A process that is not
 running sends nothing; that needs a monitor outside it.
@@ -35,6 +38,9 @@ running sends nothing; that needs a monitor outside it.
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import hmac
 import http.client
 import json
 import logging
@@ -51,15 +57,57 @@ from urllib.parse import parse_qs, quote, urlsplit
 
 _LOGGER = logging.getLogger(__name__)
 
-# WeCom's own address. It is a constant, not a setting: the setting supplies
-# the robot's key and nothing else.
-_HOST = "qyapi.weixin.qq.com"
-_PATH = "/cgi-bin/webhook/send"
 _KEY = re.compile(r"[A-Za-z0-9_-]{16,128}")
 _TIMEOUT_SECONDS = 10
-# WeCom refuses a text message longer than this many UTF-8 bytes.
-_MAX_BYTES = 2048
 _REPLY_LIMIT = 65536
+
+
+@dataclass(frozen=True)
+class _Channel:
+    """One vendor's robot: where it lives and how it answers.
+
+    The hosts are constants. A setting supplies the robot's key, and for
+    Feishu which of the vendor's two hosts it is on, and nothing else.
+    """
+
+    name: str                  # what /health calls it
+    label: str                 # what an error sentence calls it
+    setting: str
+    hosts: tuple[str, ...]
+    path: str
+    max_bytes: int             # UTF-8 bytes of text one message may carry
+    code_field: str            # the field of its answer that is 0 when the message was taken
+    hints: Mapping[int, str]
+
+
+_FEISHU = _Channel(
+    name="feishu", label="Feishu", setting="ALERT_FEISHU_WEBHOOK",
+    # The same product under two names, on two hosts: 飞书 and Lark.
+    hosts=("open.feishu.cn", "open.larksuite.com"), path="/open-apis/bot/v2/hook/",
+    # Feishu's limit is 20 KB for the whole request. This leaves room for the
+    # rest of it, and nothing this module says comes near either number.
+    max_bytes=8000, code_field="code",
+    hints={
+        19001: " The robot's address is not valid; the robot may have been removed.",
+        19021: " The signature was refused. If the robot has signature verification on, set "
+               "ALERT_FEISHU_SECRET to its signing secret; if it is set, check it and this host's clock.",
+        19022: " This host's address is not in the robot's IP allowlist.",
+        19024: " The robot requires a keyword the message lacks. Every message contains 告警 and ACA; "
+               "use one of those as the robot's keyword.",
+        9499: " The robot did not accept the message's format.",
+        11232: " The robot is being asked to send too often.",
+    },
+)
+_WECOM = _Channel(
+    name="wecom", label="WeCom", setting="ALERT_WECOM_WEBHOOK",
+    hosts=("qyapi.weixin.qq.com",), path="/cgi-bin/webhook/send",
+    max_bytes=2048, code_field="errcode",
+    hints={
+        93000: " The robot's address is not valid; it may have been removed or reset.",
+        45009: " The robot is sending too often.",
+    },
+)
+_CHANNELS = (_FEISHU, _WECOM)
 
 # Shown beside the names /health uses, so the message can be matched to it.
 _STAGES = {
@@ -86,35 +134,65 @@ class AlertError(RuntimeError):
 
 # ── Settings ────────────────────────────────────────────────────────────────
 
-def _webhook_key() -> str | None:
-    """The robot's key, from the address WeCom shows or from the key alone.
+@dataclass(frozen=True)
+class _Target:
+    """A robot to post to: its vendor, one of that vendor's hosts, and its key."""
 
-    None when nothing usable is set. An address is accepted only if it is
-    WeCom's own: anything else is a mistake, and guessing at a mistake would
-    send operational messages to wherever it pointed.
+    channel: _Channel
+    host: str
+    key: str
+
+    @property
+    def request_path(self) -> str:
+        key = quote(self.key, safe="")
+        return f"{self.channel.path}{key}" if self.channel is _FEISHU else f"{self.channel.path}?key={key}"
+
+
+def _parse(channel: _Channel, value: str) -> _Target | None:
+    """The robot a setting names, or None when it names nothing usable.
+
+    An address is accepted only if it is the vendor's own: anything else is
+    a mistake, and guessing at a mistake would send operational messages to
+    wherever it pointed. Only the key is kept. Whatever else a pasted
+    address carries is not sent on.
     """
-    value = os.getenv("ALERT_WECOM_WEBHOOK", "").strip()
-    if not value:
-        return None
-    if "/" not in value and "?" not in value:
-        return value if _KEY.fullmatch(value) else None
+    if channel is _WECOM and "/" not in value and "?" not in value:
+        # WeCom shows the key by itself too, and it has one host.
+        return _Target(channel, channel.hosts[0], value) if _KEY.fullmatch(value) else None
     try:
         parts = urlsplit(value)
-        keys = parse_qs(parts.query).get("key", [])
+        if (parts.scheme, parts.port, parts.username) != ("https", None, None) or parts.hostname not in channel.hosts:
+            return None
+        if channel is _FEISHU:
+            keys = [parts.path.removeprefix(channel.path)] if parts.path.startswith(channel.path) else []
+        else:
+            keys = parse_qs(parts.query).get("key", []) if parts.path == channel.path else []
     except ValueError:
         return None
-    if (parts.scheme, parts.hostname, parts.port, parts.path) != ("https", _HOST, None, _PATH):
+    if len(keys) != 1 or not _KEY.fullmatch(keys[0]):
         return None
-    if parts.username is not None or len(keys) != 1 or not _KEY.fullmatch(keys[0]):
-        return None
-    return keys[0]
+    return _Target(channel, parts.hostname, keys[0])
+
+
+def _target() -> _Target | None:
+    """The one robot that is set. None when none is, more than one is, or it is unusable."""
+    given = [(channel, value) for channel in _CHANNELS if (value := os.getenv(channel.setting, "").strip())]
+    return _parse(*given[0]) if len(given) == 1 else None
 
 
 def configured() -> str:
-    """`off`, `ready`, or `misconfigured` when the setting is there but unusable."""
-    if not os.getenv("ALERT_WECOM_WEBHOOK", "").strip():
+    """`off`, `ready`, or `misconfigured` when a setting is there but unusable.
+
+    Two robots set is unusable too. Sending to both would double every
+    message for a group that has both; choosing one would silently ignore a
+    setting someone made.
+    """
+    if not any(os.getenv(channel.setting, "").strip() for channel in _CHANNELS):
         return "off"
-    return "ready" if _webhook_key() else "misconfigured"
+    return "ready" if _target() else "misconfigured"
+
+
+_SETTINGS = " and ".join(channel.setting for channel in _CHANNELS)
 
 
 def repeat_seconds() -> float:
@@ -143,50 +221,81 @@ def _service() -> str:
 _connect: Callable[..., http.client.HTTPConnection] = http.client.HTTPSConnection
 
 
-def _fit(text: str) -> str:
-    """Cut to WeCom's limit on a character boundary, saying that it was cut."""
+def _fit(text: str, max_bytes: int) -> str:
+    """Cut to the robot's limit on a character boundary, saying that it was cut."""
     raw = text.encode("utf-8")
-    if len(raw) <= _MAX_BYTES:
+    if len(raw) <= max_bytes:
         return text
     tail = "\n……（内容过长，已截断）"
-    return raw[: _MAX_BYTES - len(tail.encode("utf-8"))].decode("utf-8", errors="ignore") + tail
+    return raw[: max_bytes - len(tail.encode("utf-8"))].decode("utf-8", errors="ignore") + tail
+
+
+def _feishu_signature(timestamp: int, secret: str) -> str:
+    """Feishu's signature, for a robot with signature verification turned on.
+
+    Not the usual way round: the timestamp and the secret together are the
+    HMAC key, and what is signed is nothing at all. A signature made the
+    usual way, with the secret as the key, is refused.
+    """
+    key = f"{timestamp}\n{secret}".encode()
+    return base64.b64encode(hmac.new(key, b"", hashlib.sha256).digest()).decode("ascii")
+
+
+def _payload(target: _Target, text: str, now: float | None = None) -> dict[str, object]:
+    text = _fit(text, target.channel.max_bytes)
+    if target.channel is _WECOM:
+        return {"msgtype": "text", "text": {"content": text}}
+    payload: dict[str, object] = {"msg_type": "text", "content": {"text": text}}
+    secret = os.getenv("ALERT_FEISHU_SECRET", "").strip()
+    if secret:
+        # Seconds, and Feishu refuses one more than an hour from its own clock.
+        timestamp = int(time.time() if now is None else now)
+        payload |= {"timestamp": str(timestamp), "sign": _feishu_signature(timestamp, secret)}
+    return payload
 
 
 def send(text: str) -> None:
     """Post one text message to the robot. Raises AlertError; never names the key.
 
     No redirect is followed and no proxy setting is read: the connection is
-    to WeCom's host or it is nothing. The key travels in the query string
-    because that is the only form WeCom accepts, so this uses the standard
-    library's connection directly. A client that logs the address of each
-    request would write the key into the service log.
+    to the vendor's host or it is nothing. Both vendors put the robot's key
+    in the address itself, so this uses the standard library's connection
+    directly. A client that logs the address of each request would write
+    the key into the service log.
     """
-    key = _webhook_key()
-    if key is None:
-        raise AlertError("ALERT_WECOM_WEBHOOK is not set to a WeCom robot address."
-                         if configured() == "misconfigured" else "ALERT_WECOM_WEBHOOK is not set.")
-    body = json.dumps({"msgtype": "text", "text": {"content": _fit(text)}}, ensure_ascii=False).encode("utf-8")
-    connection = _connect(_HOST, timeout=_TIMEOUT_SECONDS)
+    target = _target()
+    if target is None:
+        raise AlertError(f"No alert robot is set: neither {_SETTINGS.replace(' and ', ' nor ')}." if configured() == "off"
+                         else f"The alert robot setting is not usable. Set exactly one of {_SETTINGS}, "
+                              "to the webhook address its robot shows.")
+    label, field_name = target.channel.label, target.channel.code_field
+    body = json.dumps(_payload(target, text), ensure_ascii=False).encode("utf-8")
+    connection = _connect(target.host, timeout=_TIMEOUT_SECONDS)
     try:
-        connection.request("POST", f"{_PATH}?key={quote(key, safe='')}", body=body,
+        connection.request("POST", target.request_path, body=body,
                            headers={"Content-Type": "application/json; charset=utf-8"})
         reply = connection.getresponse()
         status, raw = reply.status, reply.read(_REPLY_LIMIT)
     except (OSError, http.client.HTTPException) as exc:
         # The type and nothing more: an exception's text is not ours to vouch for.
-        raise AlertError(f"WeCom could not be reached ({type(exc).__name__}).") from None
+        raise AlertError(f"{label} could not be reached ({type(exc).__name__}).") from None
     finally:
         connection.close()
-    if status != 200:
-        raise AlertError(f"WeCom answered HTTP {status}.")
     try:
-        code = json.loads(raw.decode("utf-8"))["errcode"]
+        code = json.loads(raw.decode("utf-8"))[field_name]
     except (ValueError, KeyError, TypeError):
-        raise AlertError("WeCom's answer could not be read.") from None
+        code = None
+    # A refusal says why in its code, whatever the HTTP status beside it. The
+    # code is a number or it is not repeated: the rest of the answer is the
+    # vendor's text, and that is not ours to vouch for either.
+    if type(code) is int and code != 0:
+        raise AlertError(f"{label} refused the message ({field_name} {code}).{target.channel.hints.get(code, '')}")
+    if status != 200:
+        raise AlertError(f"{label} answered HTTP {status}.")
+    if code is None:
+        raise AlertError(f"{label}'s answer could not be read.")
     if code != 0:
-        hint = {93000: " The robot's address is not valid; it may have been removed or reset.",
-                45009: " The robot is sending too often."}.get(code, "")
-        raise AlertError(f"WeCom refused the message (errcode {code if isinstance(code, int) else 'unreadable'}).{hint}")
+        raise AlertError(f"{label} refused the message ({field_name} unreadable).")
 
 
 # ── What has been said ──────────────────────────────────────────────────────
@@ -221,11 +330,12 @@ def reset() -> None:
 
 def status() -> dict[str, object]:
     """What /health shows: whether alerts can be sent, and when one last was."""
-    state = configured()
+    state, target = configured(), _target()
     with _lock:
         if state == "ready" and not _memory.delivering:
             state = "failing"
-        return {"state": state, "last_sent_at": _memory.last_sent_at, "last_failed_at": _memory.last_failed_at}
+        return {"state": state, "channel": target.channel.name if target else None,
+                "last_sent_at": _memory.last_sent_at, "last_failed_at": _memory.last_failed_at}
 
 
 def _named(problem: str) -> str:
@@ -256,7 +366,7 @@ def _compose(new: list[str], still: list[str], back: list[str], failures: dict[s
         lines.extend(f"· {code} ×{count}：{_FAILURES.get(code, '见运行状态里的 error_code')}"
                      for code, count in failures.items())
         lines.append("对应的运行 ID 在服务日志里。")
-    lines.append(f"版本 {_short(revision) or '未知'} ·{datetime.now(UTC):%Y-%m-%d %H:%M} UTC · 详情见 /health")
+    lines.append(f"版本 {_short(revision) or '未知'} · {datetime.now(UTC):%Y-%m-%d %H:%M} UTC · 详情见 /health")
     return "\n".join(lines)
 
 
@@ -268,8 +378,8 @@ def review(problems: Iterable[str], failures: Mapping[str, int] | None = None, *
     runs that failed since the last call, by code. Returns whether a message
     was delivered.
 
-    Nothing is marked as said until it has been delivered. A message WeCom
-    did not take is put together again on the next call, from what is true
+    Nothing is marked as said until it has been delivered. A message the
+    robot did not take is put together again on the next call, from what is true
     then, so a problem that came and went while the robot was unreachable is
     never announced late as if it were news.
     """
@@ -330,7 +440,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.parse_args(argv)
     state = configured()
     if state == "off":
-        print("Alerts are off: ALERT_WECOM_WEBHOOK is not set.", file=sys.stderr)
+        print(f"Alerts are off: neither {_SETTINGS.replace(' and ', ' nor ')} is set.", file=sys.stderr)
         return 1
     try:
         service = _service()
