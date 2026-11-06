@@ -32,6 +32,7 @@ from dotenv import load_dotenv
 from fastapi import (
     FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile,
 )
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
@@ -1202,6 +1203,29 @@ def health_ready(response: Response) -> ReadinessStatus:
     if not status.ready:
         response.status_code = 503
     return status
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error(_request: Request, exc: RequestValidationError):
+    """Refuse a malformed request by naming the field and the rule, never the value.
+
+    The framework's own reply quotes what was sent. For a rule that looks at
+    the whole body, such as "a key set is complete or absent", that is the
+    whole body: a run request with a misspelt model name came back with the
+    model key and the search key in it. They went only to whoever sent them,
+    but an error reply is read by code that shows, logs and reports errors,
+    and the privacy page says keys are not carried anywhere else.
+
+    Every route gets the same three fields the API description already
+    documents for a 422. The sentence in `msg` is the validator's own and is
+    written without the value; tests/test_validation_errors.py sends secrets
+    through every body-taking route and looks for them in the reply.
+    """
+    return JSONResponse(
+        {"detail": [{"type": problem.get("type"), "loc": list(problem.get("loc", ())), "msg": problem.get("msg")}
+                    for problem in exc.errors()]},
+        status_code=422,
+    )
 
 
 @app.exception_handler(receipts.ReceiptError)

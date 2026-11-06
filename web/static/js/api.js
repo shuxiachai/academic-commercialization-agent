@@ -202,6 +202,28 @@ export function removeByokRun(runId) {
   sessionStorage.setItem(BYOK_RUNS_KEY, JSON.stringify(runs));
 }
 
+/* What a refused request said, when the refusal is a list of field problems.
+ *
+ * A malformed request is refused with one entry per problem: where, which
+ * rule, and a sentence. Handed to Error as it is, that list became the text
+ * "[object Object]". The sentences are the server's own and name no value,
+ * so they can be shown; the validator's "Value error, " prefix is dropped
+ * because it is about the validator, not about what to change. Anything
+ * that is not such a list is left for the caller to read as before.
+ */
+function validationText(detail) {
+  if (!Array.isArray(detail)) return null;
+  const sentences = detail
+    .map((problem) => {
+      if (typeof problem?.msg !== "string" || !problem.msg) return "";
+      // A rule about one field says which; a rule about the whole body speaks for itself.
+      const field = Array.isArray(problem.loc) && problem.loc.length > 1 ? `${problem.loc.at(-1)}: ` : "";
+      return field + problem.msg.replace(/^Value error, /, "");
+    })
+    .filter(Boolean);
+  return sentences.length ? [...new Set(sentences)].join(" ") : null;
+}
+
 async function request(path, options = {}) {
   const paidPost = options.method === "POST"
     && (/^\/api\/(runs|papers)$/.test(path) || /^\/api\/runs\/[^/]+\/resume$/.test(path));
@@ -244,7 +266,7 @@ async function request(path, options = {}) {
     try {
       const body = await response.json();
       parsed = body && typeof body === "object" ? body : null;
-      detail = body.detail ?? "";
+      detail = validationText(body.detail) ?? body.detail ?? "";
       auxiliary = body.auxiliary_usage ?? null;
     } catch {
       detail = await response.text().catch(() => "");
