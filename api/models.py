@@ -918,6 +918,8 @@ class AuthConfig(BaseModel):
     signup: str = Field(default="closed", description="open, invite or closed.")
     access_codes: bool = Field(description="An operator access code is also accepted.")
     key_check: bool = Field(default=False, description="Saving keys can be checked with POST /api/keys/check.")
+    contact: str | None = Field(default=None, description="Who to ask for an invite code: the operator's "
+                                                          "contact as the privacy page states it, or None.")
 
 
 class RetrievalHealth(BaseModel):

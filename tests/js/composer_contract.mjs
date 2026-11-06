@@ -611,6 +611,37 @@ const scenarios = {
       assert.equal(api.getByok()?.llmKey, 'fixture-B');
     }
   },
+  async invite_hint() {
+    // Creating an account in invite mode: the form says who gives out codes.
+    const kind = process.argv[3];
+    const contact = { address: 'ops@example.org', sentence: 'Ask in the <b>help</b> channel', none: null }[kind];
+    const f = fixture();
+    f.run(`authConfig = { enabled: true, signup_open: true, signup: 'invite', access_codes: false,
+      contact: ${JSON.stringify(contact)} }`);
+    f.run('showGate()');
+    const hint = f.get('#account-invite-hint');
+    assert.equal(f.get('#account-invite').hidden, true, 'Signing in asks for no invite code');
+    assert.equal(hint.hidden, true);
+    f.get('#account-toggle').onclick();
+    assert.equal(f.get('#account-invite').hidden, false);
+    assert.equal(hint.hidden, false);
+    if (kind === 'none') {
+      assert.deepEqual(hint.children, ['account_invite_hint_ask']);
+    } else {
+      const [before, who, after] = hint.children;
+      assert.equal(hint.children.length, 3);
+      assert.equal(before + after, 'account_invite_hint');
+      // The operator's words are placed as text, whatever they contain.
+      assert.equal(who.textContent, contact);
+      assert.equal(who.children.length, 0);
+      assert.equal(who.href, kind === 'address' ? 'mailto:ops@example.org' : undefined);
+    }
+    // Back to signing in: the hint goes with the field.
+    f.get('#account-toggle').onclick();
+    assert.equal(hint.hidden, true);
+    assert.equal(hint.children.length, 0);
+    assert.equal(f.requests.length, 0, 'The contact arrives with the gate; it is not fetched');
+  },
 };
 assert.ok(scenarios[process.argv[2]], "Unknown contract scenario");
 await scenarios[process.argv[2]]();
