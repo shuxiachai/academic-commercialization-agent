@@ -11,6 +11,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import threading
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
@@ -300,6 +301,16 @@ class WhatIsSaidAndHowOftenTests(_Case):
                       if not name.startswith("source_locator")}
         self.assertEqual(stages, set(alerts._STAGES))
 
+    def test_every_path_a_message_names_is_one_the_service_serves(self):
+        # A message sends its reader to a path. One that is not there costs
+        # them the minute they have least of.
+        served = {route.path for route in main.app.routes}
+        said = " ".join([*alerts._STAGES.values(), alerts._named(alerts.LOOP_STOPPED),
+                         alerts._compose(["maintenance:papers"], [], [], {"provider_auth": 1}, "git:abc")])
+        named = set(re.findall(r"(?<![\w/])/[a-z][a-z/_-]*", said))
+        self.assertEqual(named, {"/health", "/health/ready"})
+        self.assertLessEqual(named, served)
+
 
 def _exited(run_id: str, *, byok: bool) -> runs._Handle:
     return runs._Handle(run_id=run_id, topic="a private topic", proc=Mock(poll=Mock(return_value=1)), byok=byok)
@@ -469,7 +480,12 @@ class InTheServiceTests(_Case):
             self.assertEqual(body.json()["alerts"]["state"], "misconfigured")
             self.assertNotIn(KEY, body.text)
             self.assertNotIn(KEY, " ".join(record.getMessage() for record in logged.records))
-            self.assertNotIn("alerts", client.get("/ready").json(), "advisory: never a reason to be unready")
+            # Advisory: never a reason to be unready. The route is checked to
+            # exist, because a path that is not there also has no `alerts` in it.
+            ready = client.get("/health/ready")
+            self.assertIn("checks", ready.json())
+            self.assertNotIn("alerts", ready.json())
+            self.assertNotIn(KEY, ready.text)
 
 
 def _command(*arguments: str) -> tuple[int, str, str]:

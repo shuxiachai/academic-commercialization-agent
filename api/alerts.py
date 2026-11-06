@@ -63,7 +63,7 @@ _REPLY_LIMIT = 65536
 
 # Shown beside the names /health uses, so the message can be matched to it.
 _STAGES = {
-    "timeouts": "超时看门狗：超时的评估不会被终止，/ready 会报未就绪",
+    "timeouts": "超时看门狗：超时的评估不会被终止，/health/ready 会报未就绪",
     "papers": "清理过期的上传论文",
     "retention": "清理过期的评估",
     "receipts": "清理过期的收据",
@@ -230,7 +230,7 @@ def status() -> dict[str, object]:
 
 def _named(problem: str) -> str:
     if problem == LOOP_STOPPED:
-        return "维护循环已停止：超时看门狗、清理和自动备份都不再运行，/ready 会报未就绪，需要重启服务"
+        return "维护循环已停止：超时看门狗、清理和自动备份都不再运行，/health/ready 会报未就绪，需要重启服务"
     stage = problem.removeprefix("maintenance:")
     return f"维护任务 {stage} 失败" + (f"（{_STAGES[stage]}）" if stage in _STAGES else "")
 
