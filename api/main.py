@@ -1138,14 +1138,29 @@ def list_sample_reports() -> list[dict[str, str]]:
 
 
 @app.get("/api/samples/{slug}", tags=["samples"], response_class=PlainTextResponse)
-def read_sample_report(slug: str) -> PlainTextResponse:
+def read_sample_report(
+    slug: str,
+    view: Literal["saved", "display"] = Query(
+        default="display",
+        description="'display' (the default, what the sample reader fetches) is the report as the "
+                    "page shows it: the code-owned applicability paragraph as sentences and a "
+                    "cleaned reference list; 'saved' is the committed file, every byte as committed",
+    ),
+) -> PlainTextResponse:
     """One example report as Markdown. Unknown or missing samples are 404."""
     try:
         text = samples.read_sample(slug)
     except (KeyError, FileNotFoundError):
         raise HTTPException(status_code=404, detail="No sample with that name.") from None
-    # Samples are read, never downloaded here: render them as the run page does.
-    return PlainTextResponse(report_for_display(text), media_type="text/markdown; charset=utf-8")
+    # The reader renders the display view, as the run page does. The download
+    # link asks for view=saved, because a saved file should be the committed
+    # file, not the text cleaned up for reading. Same two views as
+    # GET /api/runs/{run_id}/report, but display stays the default here so the
+    # reader's own fetch is unchanged.
+    return PlainTextResponse(
+        report_for_display(text) if view == "display" else text,
+        media_type="text/markdown; charset=utf-8",
+    )
 
 
 @app.get("/health", response_model=HealthStatus, tags=["meta"])

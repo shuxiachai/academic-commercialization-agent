@@ -105,6 +105,18 @@ function contentsFor(article) {
   return { nav, headings };
 }
 
+/** A plain same-origin link to the committed Markdown, so a visitor can keep
+ * the file. No extra fetch and no credentials: the browser saves what
+ * /api/samples/<slug>?view=saved serves. That is the file as committed, not the
+ * display text the reader renders. Built per open sample, so it follows the one
+ * on screen and, with the reader reopened on a language switch, the language. */
+function downloadLink(sample) {
+  const link = el("a", "samples__download", t("samples_download"));
+  link.href = `/api/samples/${encodeURIComponent(sample.slug)}?view=saved`;
+  link.download = `${sample.slug}.md`;
+  return link;
+}
+
 function historicalNotice(sample) {
   const text = t("samples_historical")
     .replace("{date}", sample.committed)
@@ -141,7 +153,9 @@ async function open(slug) {
   const index = citationIndex(markdown);
   attachCitations(article, () => Promise.resolve(index));
   const toc = contentsFor(article);
-  reader.replaceChildren(historicalNotice(sample), ...(toc ? [toc.nav] : []), article);
+  reader.replaceChildren(
+    historicalNotice(sample), downloadLink(sample), ...(toc ? [toc.nav] : []), article,
+  );
   rendered = slug;
   // The browser looked for a #section-N target before the report existed:
   // a shared link to a section, Back to one from another sample, or a

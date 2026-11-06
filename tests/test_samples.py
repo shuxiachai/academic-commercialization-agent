@@ -80,6 +80,32 @@ class SampleHttpTests(unittest.TestCase):
         self.assertIn("\n\n**Scope of this assessment:** An orientation brief: no decision context", served)
         self.assertNotIn("`orientation`", served.split("## Executive Summary", 1)[0])
 
+    def test_saved_view_is_the_committed_file_for_every_sample(self):
+        """The download link asks for view=saved. Served display text differs
+        from the committed file for all five samples (rewritten applicability
+        paragraph, cleaned references, localized labels), so a download that
+        used the default would not be the file the issue asks for."""
+        with patch.object(access, "ACCESS_CODE", "secret123"):
+            for sample in samples.SAMPLES:
+                with self.subTest(slug=sample.slug):
+                    served = self.client.get(f"/api/samples/{sample.slug}", params={"view": "saved"})
+                    self.assertEqual(served.status_code, 200)
+                    self.assertTrue(served.headers["content-type"].startswith("text/markdown"))
+                    self.assertEqual(served.text, samples.read_sample(sample.slug))
+
+    def test_display_stays_the_default_view_the_reader_fetches(self):
+        for sample in samples.SAMPLES:
+            with self.subTest(slug=sample.slug):
+                expected = report_for_display(samples.read_sample(sample.slug))
+                default = self.client.get(f"/api/samples/{sample.slug}")
+                explicit = self.client.get(f"/api/samples/{sample.slug}", params={"view": "display"})
+                self.assertEqual(default.text, expected)
+                self.assertEqual(explicit.text, expected)
+
+    def test_unknown_view_is_rejected_not_silently_displayed(self):
+        served = self.client.get("/api/samples/hyperloop", params={"view": "raw"})
+        self.assertEqual(served.status_code, 422)
+
     def test_only_get_is_exempt(self):
         with patch.object(access, "ACCESS_CODE", "secret123"):
             r = self.client.post("/api/samples", json={})
@@ -119,6 +145,33 @@ class SampleClientTests(unittest.TestCase):
         meta = re.search(r'el\("span", "sample-card__meta", (.+)\),', source)[1]
         self.assertIn('t("samples_added")', meta)
         self.assertNotRegex(meta, r"sample\.commit\b")
+
+    def test_each_sample_offers_its_markdown_as_a_plain_download_link(self):
+        source = (_REPO / "web/static/js/samples.js").read_text(encoding="utf-8")
+        body = re.search(r"function downloadLink\(sample\) \{(.+?)\n\}", source, re.S)[1]
+        # The committed file, not the display text the reader renders, saved
+        # under the sample's name.
+        self.assertIn("`/api/samples/${encodeURIComponent(sample.slug)}?view=saved`", body)
+        self.assertIn("link.download = `${sample.slug}.md`", body)
+        self.assertIn('t("samples_download")', body)
+        # A plain same-origin anchor: no extra request, nothing credentialed.
+        self.assertNotIn("fetch(", body)
+        self.assertNotIn("X-Access-Code", body)
+        # Built with the report, so it follows the sample on screen.
+        self.assertRegex(
+            source,
+            r"reader\.replaceChildren\(\s*historicalNotice\(sample\), downloadLink\(sample\)",
+        )
+
+    def test_download_filenames_are_clean_and_the_target_needs_no_code(self):
+        client = TestClient(app)
+        with patch.object(access, "ACCESS_CODE", "secret123"):
+            for sample in samples.SAMPLES:
+                with self.subTest(slug=sample.slug):
+                    self.assertRegex(f"{sample.slug}.md", r"^[a-z0-9-]+\.md$")
+                    served = client.get(f"/api/samples/{sample.slug}?view=saved")
+                    self.assertEqual(served.status_code, 200)
+                    self.assertTrue(served.headers["content-type"].startswith("text/markdown"))
 
     def test_main_page_links_to_samples_from_gate_and_composer(self):
         page = (_REPO / "web/index.html").read_text(encoding="utf-8")

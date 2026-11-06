@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
 from academic_agent.run_output import save_scores, save_source_collection
+from api import samples
 from e2e.isolated_app import (
     ACCESS_CODE,
     FIXTURE_TOPIC,
@@ -335,6 +336,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
 
     table_rows = 0
     card_checked = False
+    download_checked = False
     for slug in slugs:
         response = page.goto(f"{base_url}/samples/{slug}", wait_until="domcontentloaded")
         assert response is not None and response.ok, f"Sample {slug} did not load."
@@ -343,6 +345,23 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         expect(notice).to_be_visible()
         expect(report).to_be_visible()
         page.evaluate("() => document.fonts.ready")
+
+        # One real download in Chromium, on the first sample only: the whole
+        # smoke shares one rate-limit bucket. The saved file must be the
+        # committed Markdown under the sample's name, not the display text.
+        if not download_checked:
+            download_checked = True
+            link = page.locator("#sample-reader > .samples__download")
+            expect(link).to_be_visible()
+            with page.expect_download() as pending:
+                link.click()
+            download = pending.value
+            assert download.suggested_filename == f"{slug}.md", (slug, download.suggested_filename)
+            saved_path = download.path()
+            assert saved_path is not None, (slug, "The download produced no file.")
+            assert Path(saved_path).read_bytes().decode("utf-8") == samples.read_sample(slug), (
+                slug, "The downloaded file is not the committed sample."
+            )
 
         def screen_state():
             return page.evaluate("""() => {
@@ -372,7 +391,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
 
         page.emulate_media(media="print", color_scheme="dark")
         for selector in (".samples__head", ".samples__intro", ".samples__list",
-                         ".samples__reader > .empty-note", ".samples__toc"):
+                         ".samples__reader > .empty-note", ".samples__toc", ".samples__download"):
             expect(page.locator(selector)).to_be_hidden()
         expect(notice).to_be_visible()
         expect(report).to_be_visible()
@@ -417,8 +436,10 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         assert printed["bodyBackground"] == "rgb(255, 255, 255)", (slug, printed)
         assert printed["sampleMaxWidth"] == "none", (slug, printed)
         assert printed["reportMaxWidth"] == "none" and printed["reportFillsReader"], (slug, printed)
-        # The contents are screen navigation; print hides them like the list.
-        assert printed["readerChildren"] == ["samples__notice", "samples__toc", "prose"], (slug, printed)
+        # The download link and contents are screen navigation; print hides them like the list.
+        assert printed["readerChildren"] == [
+            "samples__notice", "samples__download", "samples__toc", "prose",
+        ], (slug, printed)
         assert not printed["badColors"], (slug, printed["badColors"][:5])
         assert not printed["badBackgrounds"], (slug, printed["badBackgrounds"][:5])
         assert printed["headingBreakInside"] and all(
