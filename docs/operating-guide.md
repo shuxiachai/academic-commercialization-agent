@@ -1058,6 +1058,48 @@ email and password hash remain in the backups until they age out: with the
 defaults, fourteen days. The privacy page states this with the deployment's
 own number, from `GET /api/site` (`account_backup_days`).
 
+### Alerts
+
+Everything above is visible in `/health` to someone who looks. Set
+`ALERT_WECOM_WEBHOOK` and the service tells a WeCom (企业微信) group instead
+of waiting to be asked. In the group, add a group robot (群机器人), copy the
+webhook address it shows, and set the variable to that address. Then check
+it from the host:
+
+```
+python -m api.alerts test
+```
+
+It reports three things and nothing else:
+
+| What | When |
+|---|---|
+| A maintenance stage failed (`maintenance.checks.<name>: failed`) | When it first fails, again every `ALERT_REPEAT_HOURS` (default 6) while it stays failed, and once when it is back |
+| The maintenance loop ended | Once. The timeout watchdog is gone with it and `/ready` reports not ready; the service needs a restart |
+| A run on the deployment's keys failed for an operator's reason | Per failure code, at most once every `ALERT_REPEAT_HOURS`, with the number of runs since the last message |
+
+The operator's reasons are the codes `provider_auth`, `provider_free_quota`,
+`provider_billing`, `provider_model_unavailable` and
+`provider_request_rejected`: the ones an access-code visitor is told were
+not caused by their request. A run on an account's own keys is never
+reported; the page tells its owner what to change.
+
+A message names stages, failure codes, counts and the revision. It carries
+no run ID, topic, email address, path or provider text, because a run ID
+opens the run and the group is not a party to any assessment. The run IDs
+are in the service log (`run <id> on the deployment's keys failed: <code>`).
+
+The webhook address is a secret: whoever holds it can post to the group. It
+is never logged or echoed. The request always goes to WeCom's own host, so
+a mistyped value cannot send alerts elsewhere; `/health` then shows
+`alerts.state: misconfigured`. `failing` means the last message was not
+delivered; it is tried again on the next cycle, from what is true then.
+What has been said is kept in memory only, so a problem that outlives a
+restart is reported once more after it.
+
+This cannot report the service being down: a process that is not running
+sends nothing. That needs a monitor outside it, pointed at `/ready`.
+
 ### Docker and Railway
 
 ```bash
