@@ -58,11 +58,12 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import account_backup, auxiliary_usage, key_check, plan_preview, retrieval_health, samples
+from api import account_backup, alerts, auxiliary_usage, key_check, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
 from api.models import (  # noqa: E402
+    AlertStatus,
     AuthConfig,
     AuthCredentials,
     AccountDeleted,
@@ -262,6 +263,46 @@ def _source_locator_status() -> SourceLocatorStatus | None:
     return SourceLocatorStatus(**_source_locator.feature_status(), deferred_maintenance=deferred)
 
 
+def _failed_stages() -> list[str]:
+    with _maintenance_lock:
+        return [f"maintenance:{name}" for name, result in _maintenance_checks.items() if result == "failed"]
+
+
+def _send_alerts() -> None:
+    alerts.review(_failed_stages(), runs.drain_operator_failures(), revision=_PIPELINE_REVISION)
+
+
+async def _review_alerts() -> None:
+    """Tell the operator what this cycle found, if they asked to be told.
+
+    Deliberately not a stage. A stage that fails is itself reported, and an
+    alert about the alert not being delivered has nowhere to go. Its own
+    state is in /health under `alerts`. Whatever happens here, the loop that
+    holds the timeout watchdog carries on.
+    """
+    if alerts.configured() != "ready":
+        return
+    try:
+        await asyncio.to_thread(_send_alerts)
+    except Exception:  # noqa: BLE001 - an alert must never cost the watchdog its loop
+        _LOGGER.exception("Operator alert review failed")
+
+
+def _maintenance_ended(task: asyncio.Task) -> None:
+    """The loop cannot report its own end, so its end is reported for it.
+
+    Cancellation is shutdown and is nobody's news. Anything else leaves the
+    process serving requests with no timeout watchdog. Sent from a thread of
+    its own: the loop that would have sent it is the thing that ended.
+    """
+    if task.cancelled() or alerts.configured() != "ready":
+        return
+    threading.Thread(
+        target=alerts.review, args=([*_failed_stages(), alerts.LOOP_STOPPED],),
+        kwargs={"revision": _PIPELINE_REVISION}, name="alert-maintenance-ended", daemon=True,
+    ).start()
+
+
 async def _reaper() -> None:
     """Kill runs that exceed the deadline.
 
@@ -287,6 +328,7 @@ async def _reaper() -> None:
             ("account_backup", account_backup.run_schedule),
         ) + _source_locator_stages():
             await _maintenance_stage(name, operation, collect_cleanup=name in {"papers", "retention"})
+        await _review_alerts()
 
 
 @contextlib.asynccontextmanager
@@ -297,7 +339,12 @@ async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
             ("timeouts", "papers", "retention", "receipts", "auxiliary_usage", "account_backup"), "not_checked")
         _maintenance_checks.update(dict.fromkeys((name for name, _ in _source_locator_stages()), "not_checked"))
         _maintenance_timings = {}
+    alerts.reset()
+    if alerts.configured() == "misconfigured":
+        # Said once, and without the value: it may be most of a real address.
+        _LOGGER.warning("ALERT_WECOM_WEBHOOK is set but is not a WeCom robot address; no alerts will be sent.")
     task = asyncio.create_task(_reaper())
+    task.add_done_callback(_maintenance_ended)
     _maintenance_task = task
     try:
         yield
@@ -1142,6 +1189,7 @@ def health() -> HealthStatus:
         pipeline_revision=_PIPELINE_REVISION,
         maintenance=_maintenance_status(),
         source_locator=_source_locator_status(),
+        alerts=AlertStatus(**alerts.status()),
     )
 
 

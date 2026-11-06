@@ -769,6 +769,16 @@ class SourceLocatorStatus(BaseModel):
     ] = Field(default_factory=dict)
 
 
+class AlertStatus(BaseModel):
+    """Whether the operator can be told, not whether anything is wrong."""
+
+    state: Literal["off", "ready", "misconfigured", "failing"] = Field(
+        description="off: no robot is set. misconfigured: the setting is not a WeCom robot address. "
+                    "failing: the last message was not delivered. ready says nothing was needed or it was sent.")
+    last_sent_at: AwareDatetime | None = None
+    last_failed_at: AwareDatetime | None = None
+
+
 class HealthStatus(BaseModel):
     status: Literal["ok"]
     active_runs: int = Field(
@@ -808,6 +818,10 @@ class HealthStatus(BaseModel):
     source_locator: SourceLocatorStatus | None = Field(
         default=None, description="Optional locator configuration; null when its entry is not exposed. "
                                   "A configured budget is not proof of a credential or available allowance.",
+    )
+    alerts: AlertStatus = Field(
+        default_factory=lambda: AlertStatus(state="off"),
+        description="Operator alerts to a WeCom group robot: whether they can be delivered.",
     )
     maintenance: MaintenanceStatus = Field(
         default_factory=lambda: MaintenanceStatus(state="not_started"),

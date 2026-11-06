@@ -15,6 +15,7 @@ worker can no longer write it itself.
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Iterator
 from contextlib import contextmanager
 import json
@@ -406,6 +407,12 @@ class RunNotResumable(Exception):
 
 _registry: dict[str, _Handle] = {}
 
+# Workers that exited by themselves, with whether the requester's own keys
+# paid: what `drain_operator_failures` reads. Bounded, because it is filled
+# whether or not anything ever reads it. A stopped run never enters it: a
+# cancellation or a timeout is not the deployment's key failing.
+_settled: deque[tuple[str, bool]] = deque(maxlen=256)
+
 # A stop claim is not a released admission slot. Keep the handle registered
 # through wait/kill AND terminal publication, so health cannot reap it between
 # those steps and a second mutation cannot remove its files. Identity checks
@@ -456,6 +463,8 @@ def active_count() -> int:
     with _registry_lock:
         for run_id in [rid for rid, h in _registry.items() if not _occupies_slot(rid, h)]:
             h = _registry.pop(run_id, None)
+            if h is not None:
+                _settled.append((run_id, h.byok))
             if h and h.log_file is not None:
                 try:
                     h.log_file.close()
@@ -1570,6 +1579,39 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
         "An upstream service could not be reached. Retry later.",
     ),
 )
+
+
+# The causes whose wording tells an access-code reader that nothing in their
+# request was at fault. Those are the ones only the operator can remove.
+OPERATOR_FAILURE_CODES = frozenset(
+    category.code for category in _PUBLIC_FAILURE_CATEGORIES if category.deployment)
+
+
+def drain_operator_failures() -> dict[str, int]:
+    """Runs on the deployment's keys that failed for an operator's reason, since the last call.
+
+    Counted by failure code, for the operator alert. A run on the requester's
+    own keys is never counted: its failure is theirs to act on and the page
+    tells them. The count carries no run ID; each one is written to the
+    service log here, where only the operator reads it.
+    """
+    active_count()
+    with _registry_lock:
+        settled = list(_settled)
+        _settled.clear()
+    failures: dict[str, int] = {}
+    for run_id, byok in settled:
+        if byok:
+            continue
+        try:
+            state = get_state(run_id)
+        except RunNotFound:
+            continue
+        code = state.get("error_code")
+        if state.get("state") == "failed" and code in OPERATOR_FAILURE_CODES:
+            failures[code] = failures.get(code, 0) + 1
+            print(f"[api] run {run_id} on the deployment's keys failed: {code}", file=sys.stderr)
+    return failures
 
 
 def _is_timeout_failure(raw_reason: object) -> bool:
