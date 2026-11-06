@@ -375,6 +375,9 @@ const PLAN_STRINGS = {
     title: "Check the search before starting",
     lede: "Papers, patents and market sources will be searched with these terms. "
       + "Edit them if the topic was read wrongly; this check does not use a daily run.",
+    // An account: the check was made on the account's own key, and says so.
+    lede_own: "Papers, patents and market sources will be searched with these terms. "
+      + "Edit them if the topic was read wrongly. This check was one small request on your model key.",
     search_topic: "Search phrase",
     aliases: "Also searched as",
     components: "Parts searched separately",
@@ -387,11 +390,16 @@ const PLAN_STRINGS = {
       + "Name the technology, for example “sodium-ion batteries for grid storage”.",
     unavailable: "The search preview is unavailable ({reason}). You can start anyway; the run will choose its own search terms.",
     limit: "Today's search previews are used up. You can start anyway; the run will choose its own search terms.",
+    no_answer: "The model did not answer, so the search could not be previewed. "
+      + "You can start anyway; the run will choose its own search terms.",
+    no_answer_own: "Your model did not answer, so the search could not be previewed. "
+      + "If your key or model name is wrong the run will fail too: check them under API keys. You can also start anyway.",
     too_short: "The search phrase needs at least 3 characters.",
   },
   "Simplified Chinese": {
     title: "开始前确认检索方向",
     lede: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改；这一步不占用每日运行次数。",
+    lede_own: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改。这一步用你的模型密钥发了一次很小的请求。",
     search_topic: "检索词",
     aliases: "同时检索",
     components: "分别检索的组成部分",
@@ -403,6 +411,8 @@ const PLAN_STRINGS = {
     unresolved: "没能从描述中识别出可评估的技术或研究对象。请写明具体技术，例如“钠离子电池用于电网储能”。",
     unavailable: "检索方向预览暂不可用（{reason}）。可以直接开始，由系统自动确定检索词。",
     limit: "今天的检索预览次数已用完。可以直接开始，由系统自动确定检索词。",
+    no_answer: "模型没有应答，无法预览检索方向。可以直接开始，由系统自动确定检索词。",
+    no_answer_own: "你的模型没有应答，无法预览检索方向。如果密钥或模型名称有误，运行同样会失败：请在“API Key”里检查。也可以直接开始。",
     too_short: "检索词至少需要 3 个字符。",
   },
 };

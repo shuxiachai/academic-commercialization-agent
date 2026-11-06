@@ -147,7 +147,42 @@ class EndpointTests(unittest.TestCase):
     def test_a_preview_returns_the_planner_reading(self):
         r = self._preview()
         self.assertEqual(r.status_code, 200, r.text)
-        self.assertEqual(r.json(), {"resolved": True, **_PLAN})
+        self.assertEqual(r.json(), {"planned": True, "resolved": True, **_PLAN})
+
+    def test_a_model_that_gave_no_answer_is_not_shown_as_a_reading(self):
+        # The planner falls back to the topic as typed; a run may proceed on
+        # that, but a preview that showed it would confirm nothing.
+        with patch.object(plan_preview, "plan_topic_search",
+                          return_value=TopicSearchPlan(search_topic="hyperloop", planned=False)):
+            body = self._preview().json()
+        self.assertEqual((body["planned"], body["search_topic"]), (False, "hyperloop"))
+
+    def test_whoever_sends_a_key_set_previews_on_it_and_nobody_else_does(self):
+        used = []
+
+        def planner(topic, n=2, *, credentials=None):
+            used.append(credentials)
+            return TopicSearchPlan(search_topic="hyperloop transportation system")
+
+        keys = {"llm_provider": "qwen", "llm_api_key": "sk-OWN-SECRET", "llm_model": "qwen3.8-flash",
+                "tavily_api_key": "tvly-OWN-SECRET"}
+        with patch.object(plan_preview, "plan_topic_search", planner):
+            plain = self._preview()
+            own = self.client.post("/api/plan", json={"topic": "hyperloop", **keys},
+                                   headers={"X-Access-Code": "for-bob"})
+        self.assertEqual((plain.status_code, own.status_code), (200, 200))
+        self.assertEqual(used, [None, {"provider": "qwen", "api_key": "sk-OWN-SECRET", "model": "qwen3.8-flash"}])
+        self.assertNotIn("SECRET", own.text)
+
+    def test_a_partial_key_set_is_refused_without_being_quoted(self):
+        with patch.object(plan_preview, "plan_topic_search", side_effect=AssertionError("no call on a refused body")):
+            for body in ({"topic": "hyperloop", "llm_provider": "qwen", "llm_api_key": "sk-OWN-SECRET"},
+                         {"topic": "hyperloop", "llm_provider": "qwen", "llm_api_key": "sk-OWN-SECRET",
+                          "llm_model": "a model with spaces", "tavily_api_key": "tvly-OWN-SECRET"}):
+                with self.subTest(fields=sorted(body)):
+                    r = self.client.post("/api/plan", json=body, headers={"X-Access-Code": "for-alice"})
+                    self.assertEqual(r.status_code, 422, r.text)
+                    self.assertNotIn("SECRET", r.text)
 
     def test_an_unresolved_topic_says_so(self):
         with patch.object(plan_preview, "plan_topic_search",

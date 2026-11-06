@@ -7,6 +7,11 @@ and used one of the code's three daily runs doing so. A preview costs one
 small model call, so it does not take a daily run; it has a cap of its own
 per code and UTC day instead. The count is kept in memory, so a restart
 resets it: the cap bounds spend per process, not exactly per day.
+
+An account has the same preview on its own key. An account's run is where a
+wrong reading costs most: the whole run is billed to the person who typed the
+topic. The call is made with the account's credentials and can be billed to
+nobody else; the same cap applies, counted per account.
 """
 
 from __future__ import annotations
@@ -52,9 +57,16 @@ def admit(owner: str | None) -> None:
         _counts[(today, owner)] = used + 1
 
 
-def preview(topic: str) -> dict:
-    plan = plan_topic_search(topic, n=2)
+def preview(topic: str, credentials: dict | None = None) -> dict:
+    """The planner's reading of `topic`, on the deployment's key or the caller's.
+
+    `planned` is False when the model gave no answer: what comes back is then
+    the topic as typed, and the caller is told so instead of being shown its
+    own words as a reading.
+    """
+    plan = plan_topic_search(topic, n=2, credentials=credentials)
     return {
+        "planned": plan.planned,
         "resolved": plan.resolved,
         "search_topic": plan.search_topic,
         "aliases": list(plan.aliases),

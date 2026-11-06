@@ -136,16 +136,39 @@ class PlanRequest(BaseModel):
     """Body for POST /api/plan."""
 
     topic: str = Field(min_length=3, max_length=300, description="Research topic as the user typed it")
+    # The same complete set a run sends. With it the preview runs on the
+    # caller's own model key; an account must send it. The search key is part
+    # of the set and is not used by a preview.
+    llm_provider: str | None = Field(default=None, description=f"One of {BYOK_PROVIDERS}.")
+    llm_api_key: str | None = Field(default=None, max_length=400)
+    llm_model: str | None = Field(default=None)
+    tavily_api_key: str | None = Field(default=None, max_length=400)
+    serper_api_key: str | None = Field(default=None, max_length=400)
 
     @field_validator("topic", mode="before")
     @classmethod
     def _strip_topic(cls, value: object) -> object:
         return value.strip() if isinstance(value, str) else value
 
+    _model_blank = field_validator("llm_model", mode="before")(classmethod(
+        lambda cls, value: _blank_model_is_missing(value)))
+
+    @model_validator(mode="after")
+    def _byok_is_all_or_nothing(self) -> "PlanRequest":
+        _check_byok(self.llm_provider, self.llm_api_key, self.serper_api_key,
+                    self.tavily_api_key, self.llm_model)
+        return self
+
+    @property
+    def byok(self) -> bool:
+        return self.llm_provider is not None
+
 
 class PlanPreview(BaseModel):
     """How the planner reads a topic, for the user to confirm or edit."""
 
+    planned: bool = Field(default=True, description="False when the model gave no answer: search_topic is "
+                                                    "then the topic as typed, not a reading of it.")
     resolved: bool = Field(description="False when no technology or research subject could be identified.")
     search_topic: str = Field(description="English phrase sent to every retrieval backend.")
     aliases: list[str] = Field(description="Equivalent phrasings searched alongside it.")
@@ -920,6 +943,8 @@ class AuthConfig(BaseModel):
     key_check: bool = Field(default=False, description="Saving keys can be checked with POST /api/keys/check.")
     contact: str | None = Field(default=None, description="Who to ask for an invite code: the operator's "
                                                           "contact as the privacy page states it, or None.")
+    plan_preview: bool = Field(default=False, description="An account can preview the search with POST /api/plan, "
+                                                          "on its own key.")
 
 
 class RetrievalHealth(BaseModel):

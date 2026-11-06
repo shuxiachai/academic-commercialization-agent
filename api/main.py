@@ -538,7 +538,8 @@ async def _access_gate(request: Request, call_next):
             # accounts; the shipped-client smoke accounts for every request.
             body["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
                                 "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
-                                "key_check": key_check.enabled(), "contact": _operator_contact()}
+                                "key_check": key_check.enabled(), "contact": _operator_contact(),
+                                "plan_preview": plan_preview.enabled()}
         return JSONResponse(body, status_code=401)
     # Who answered, if anyone — GET /api/runs uses this to show each code
     # holder or account only the runs made under their own identity. None
@@ -656,7 +657,8 @@ def access_check(http_request: Request) -> dict:
     if accounts.enabled():
         payload["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
                                "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
-                                "key_check": key_check.enabled(), "contact": _operator_contact()}
+                                "key_check": key_check.enabled(), "contact": _operator_contact(),
+                                "plan_preview": plan_preview.enabled()}
         who = identity.resolve(http_request)
         payload["account"] = {"email": who.user.email, "admin": who.is_admin} if who.kind == "user" else None
     return payload
@@ -707,7 +709,8 @@ def auth_config() -> AuthConfig:
                       signup=accounts.signup_mode() if accounts.enabled() else "closed",
                       access_codes=access.gate_enabled(),
                       key_check=accounts.enabled() and key_check.enabled(),
-                      contact=_operator_contact() if accounts.enabled() else None)
+                      contact=_operator_contact() if accounts.enabled() else None,
+                      plan_preview=accounts.enabled() and plan_preview.enabled())
 
 
 @app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],
@@ -947,24 +950,33 @@ def daily_quota(http_request: Request) -> DailyQuota | None:
     response_model=PlanPreview,
     tags=["runs"],
     responses={
+        401: {"description": "An account must send its own keys"},
         404: {"description": "Plan previews are turned off on this deployment"},
-        429: {"description": "Daily preview limit reached for this access code"},
+        429: {"description": "Daily preview limit reached for this access code or account"},
     },
 )
 def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
     """How the planner reads a topic, before a run is started on it.
 
-    One small model call on the deployment's key, behind the access code. It
-    does not take one of the code's daily runs; it has its own daily cap.
-    Pass the confirmed or edited result to POST /api/runs as `search_plan`.
+    One small model call. Whoever sends a complete key set pays for it with
+    that set's model key; an account must, because an account is never billed
+    to the deployment. Otherwise it runs on the deployment's key, behind the
+    access code. It does not take a daily run; it has its own daily cap, per
+    code or per account. Pass the confirmed or edited result to
+    POST /api/runs as `search_plan`.
     """
     if not plan_preview.enabled():
         raise HTTPException(status_code=404, detail="Plan previews are turned off.")
-    if identity.resolve(http_request).kind == "user":
-        # The preview runs on the deployment's key. An account's own run plans
-        # with the account's key inside the worker, so nothing is lost.
-        raise HTTPException(status_code=404, detail="Plan previews are not available to accounts.",
-                            headers={"X-Error-Code": "byok_required"})
+    credentials = None
+    if request.byok:
+        credentials = {"provider": request.llm_provider, "api_key": request.llm_api_key,
+                       "model": request.llm_model}
+    elif identity.resolve(http_request).kind == "user":
+        raise HTTPException(
+            status_code=401,
+            detail="Add your API keys to preview the search: accounts run on their own keys.",
+            headers={"X-Error-Code": "byok_required"},
+        )
     try:
         plan_preview.admit(http_request.state.owner)
     except plan_preview.PreviewLimitReached as exc:
@@ -973,7 +985,7 @@ def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
             detail=f"{exc}. Start the run without a preview, or try again after 00:00 UTC.",
             headers={"X-Error-Code": "plan_preview_limit"},
         ) from exc
-    return PlanPreview(**plan_preview.preview(request.topic))
+    return PlanPreview(**plan_preview.preview(request.topic, credentials))
 
 
 _WEB_ROOT = Path(__file__).resolve().parents[1] / "web"

@@ -84,6 +84,17 @@ def test_an_account_saving_keys_is_told_what_the_providers_said(outcome):
     assert "PASS account_keys" in result.stdout
 
 
+@pytest.mark.parametrize("kind", ["account", "silent", "code", "off", "signin"])
+def test_an_account_previews_the_search_on_its_own_key(kind):
+    """An account had to pay for a whole run to learn how its topic was read."""
+    node = shutil.which("node")
+    assert node, "Node is required for the account-preview seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        "account_preview", kind], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS account_preview" in result.stdout
+
+
 @pytest.mark.parametrize("contact", ["address", "sentence", "none"])
 def test_the_sign_up_form_says_who_gives_out_invite_codes(contact):
     """The invite code field was a dead end for anyone who arrived by a link."""
