@@ -710,6 +710,49 @@ const scenarios = {
     assert.equal(hint.children.length, 0);
     assert.equal(f.requests.length, 0, 'The contact arrives with the gate; it is not fetched');
   },
+  async run_reuse() {
+    // A finished run offers its topic again and its address; neither sends anything.
+    const kind = process.argv[3];
+    const f = fixture();
+    f.run('activeRunId = "20261106T000000Z-reuse"');
+    f.get('#run-title').textContent = 'hyperloop for freight';
+    const copied = [];
+    if (kind !== 'blocked') {
+      f.run('globalThis.navigator = { clipboard: { writeText: async (text) => { recordCopy(text); } } }; globalThis.recordCopy = null');
+    }
+    const state = kind === 'running' ? 'running' : 'failed';
+    f.run(`paintActions(${JSON.stringify(state)})`);
+    const buttons = f.get('#run-actions').children;
+    const byId = (id) => buttons.find((button) => button.id === id);
+    const copy = byId('run-copy-link');
+    assert.ok(copy, 'A run can be shared while it runs and after it ends');
+    assert.equal(copy.textContent, 'copy_link');
+    if (kind === 'running') {
+      assert.equal(byId('run-again'), undefined, 'A run still going is not offered again');
+      return;
+    }
+    const again = byId('run-again');
+    assert.equal(again.textContent, 'run_again');
+    f.get('#topic').value = 'something half typed';
+    again.listeners.click();
+    assert.equal(f.get('#topic').value, 'hyperloop for freight');
+    assert.equal(f.get('#pane-compose').hidden, false);
+    assert.equal(f.get('#pane-run').hidden, true);
+    assert.equal(f.requests.length, 0, 'Filling the composer starts nothing');
+
+    if (kind === 'blocked') {
+      await copy.listeners.click();
+      assert.equal(f.get('#toasts').children.at(-1).textContent, 'msg_link_copy_failed');
+    } else {
+      f.run('recordCopy = (text) => { copiedLink = text; }; globalThis.copiedLink = null');
+      f.run('location.origin = "https://example.test"');
+      await copy.listeners.click();
+      assert.equal(f.run('copiedLink'), 'https://example.test/run/20261106T000000Z-reuse',
+        'The link is to the run the button was drawn for, even after the view moved on');
+      assert.equal(f.get('#toasts').children.at(-1).textContent, 'msg_link_copied');
+    }
+    assert.equal(f.requests.length, 0);
+  },
 };
 assert.ok(scenarios[process.argv[2]], "Unknown contract scenario");
 await scenarios[process.argv[2]]();

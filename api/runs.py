@@ -2109,17 +2109,21 @@ def run_directories(owner: str | None = None) -> list[Path]:
     return dirs
 
 
-def list_runs(limit: int = 50, owner: str | None = None) -> tuple[list[dict], int]:
+def list_runs(limit: int = 50, owner: str | None = None, offset: int = 0) -> tuple[list[dict], int]:
     """Return (summaries, total) for finished and running runs, newest first.
 
     `owner`, when given, scopes the result to runs created under that same
     access.owner_id() — a code holder sees only their own history, not
     every code's combined. None means no filter: every run, the behaviour
     for a deployment with no access code configured at all.
+
+    `offset` skips that many of the newest runs, so a history longer than
+    one page can be read to its end. `total` is always the whole history's
+    size, which is how a caller knows there is more.
     """
     dirs = run_directories(owner)
     summaries = []
-    for d in dirs[:limit]:
+    for d in dirs[offset:offset + limit]:
         try:
             projection = get_state(d.name)
         except RunNotFound:

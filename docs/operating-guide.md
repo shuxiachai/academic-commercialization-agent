@@ -412,7 +412,7 @@ semantic correctness of all report prose; see the
 | POST | `/api/runs/{run_id}/feedback` | One click on a delivered report: did it change the reader's view (`yes`/`no`/`unsure`) and which part mattered. Fixed words, no text; one record per responder, replaced on a later answer; kept in the run's `feedback.json` for `scripts/ops_report.py`. Not a paid operation |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
 | GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
-| GET | `/api/runs` | Owner-filtered run history when access control is enabled |
+| GET | `/api/runs` | Owner-filtered run history when access control is enabled; `limit` (1–200) and `offset` page through it, `total` is the whole history |
 | GET | `/api/runs/{id}` | State, stage, execution identity and available artifacts |
 | GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract |
 | GET | `/api/runs/{id}/report` | Final Markdown |
@@ -912,6 +912,20 @@ a fixed list; provider text, keys and prompts never reach it, and the raw
 reason stays in the run's `error.log`. The page shows the API's English
 sentence as sent and words the same code in Simplified Chinese;
 `tests/test_failure_reasons.py` keeps the two lists complete.
+
+### Run history in the page
+
+The rail shows the newest fifty runs and a "Show more" button adds fifty at
+a time. Once a history has eight runs a search box appears. It filters in
+the page, on topic, owner label and run ID: the words typed are never sent,
+because a topic in a query string would be written to the access log, and
+the list endpoint takes no search parameter for the same reason. A search
+therefore loads the history first, two hundred runs per request and at most
+a thousand, and says so when a history is longer than that. A finished run
+offers "Run again", which fills the composer with its topic and sends
+nothing, and "Copy link"; a running one offers "Copy link" too. Copying a
+link is sharing a read capability, and the confirmation says that anyone who
+has it can read the run.
 
 ### Run links, BYOK and retention
 

@@ -37,13 +37,13 @@ const TRASH_ICON = `
           stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`;
 
-export function render(container, runs, { activeId, onSelect, onDelete }) {
+export function render(container, runs, { activeId, onSelect, onDelete, emptyKey = "no_runs" }) {
   container.innerHTML = "";
 
   if (!runs.length) {
     const empty = document.createElement("div");
     empty.className = "runlist__empty";
-    empty.textContent = t("no_runs");
+    empty.textContent = t(emptyKey);
     container.append(empty);
     return;
   }
@@ -127,13 +127,74 @@ export function render(container, runs, { activeId, onSelect, onDelete }) {
   }
 }
 
-export async function refresh(container, { activeId, onSelect, onDelete, isCurrent = () => true }) {
+/* How much of the history the rail shows, and what it is filtered by.
+ *
+ * The list used to stop at the newest fifty with no way past them. It now
+ * grows a page at a time, and a search box filters it. The filter runs in
+ * the page: a topic can be an unpublished idea, and words sent as a query
+ * string would be written to the server's access log, so they are never
+ * sent. Searching therefore needs the history loaded, and loads it, up to
+ * a bound that is said on screen when a history is longer than it.
+ */
+const PAGE = 50;          // what the rail shows at first, and each "show more" adds
+const FETCH_MAX = 200;    // the most one request may ask for
+const SEARCH_CAP = 1000;  // the most a search loads
+const SEARCH_FROM = 8;    // below this a search box is clutter
+
+let wanted = PAGE;
+let query = "";
+
+export function setQuery(text) { query = String(text ?? "").trim(); }
+export function showMore() { wanted += PAGE; }
+export function resetView() { wanted = PAGE; query = ""; }
+export const matches = (run, needle) => [run.topic, run.owner_label, run.run_id]
+  .some((text) => String(text ?? "").toLocaleLowerCase().includes(needle));
+
+/* The newest `count` runs. One request, exactly as before, unless more than
+ * a request's worth is wanted. A run that starts between two requests moves
+ * every later one down a place, so a repeat is dropped rather than shown twice. */
+async function load(count) {
+  const first = await api.listRuns(Math.min(count, FETCH_MAX));
+  const runs = [...(first?.runs ?? [])];
+  const total = Number.isFinite(first?.total) ? first.total : runs.length;
+  const seen = new Set(runs.map((run) => run.run_id));
+  let offset = runs.length;
+  while (offset < Math.min(count, total)) {
+    const next = await api.listRuns(Math.min(FETCH_MAX, count - offset), offset);
+    if (!next?.runs?.length) break;
+    offset += next.runs.length;
+    for (const run of next.runs) {
+      if (!seen.has(run.run_id)) { seen.add(run.run_id); runs.push(run); }
+    }
+  }
+  return { runs, total };
+}
+
+export async function refresh(container, { activeId, onSelect, onDelete, onChange = () => {}, isCurrent = () => true }) {
   try {
-    const { runs } = await api.listRuns(50);
+    const searching = Boolean(query);
+    const { runs, total } = await load(searching ? SEARCH_CAP : wanted);
     // A cancelled fetch is only an optimization; a late successful response
     // must independently prove it still belongs to this view and identity.
     if (!isCurrent()) return null;
-    render(container, runs, { activeId, onSelect, onDelete });
+    const needle = query.toLocaleLowerCase();
+    const shown = searching ? runs.filter((run) => matches(run, needle)) : runs;
+    render(container, shown, { activeId, onSelect, onDelete, emptyKey: searching ? "runs_no_match" : "no_runs" });
+    const box = document.querySelector("#run-search");
+    if (box) box.hidden = !searching && total < SEARCH_FROM;
+    if (searching && total > runs.length) {
+      const note = document.createElement("div");
+      note.className = "runlist__note";
+      note.textContent = t("runs_search_capped").replace("{count}", String(runs.length));
+      container.append(note);
+    } else if (!searching && runs.length < total) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "runlist__more";
+      more.textContent = t("runs_show_more").replace("{left}", String(total - runs.length));
+      more.addEventListener("click", () => { showMore(); onChange(); });
+      container.append(more);
+    }
     return runs;
   } catch {
     // A failed refresh leaves the previous list in place: an empty rail would
