@@ -15,7 +15,7 @@ from api.models import ReadinessStatus
 from tests.scripted_waits import SCENARIO, STEP
 
 
-STAGES = ("timeouts", "papers", "retention", "receipts", "auxiliary_usage")
+STAGES = ("timeouts", "papers", "retention", "receipts", "auxiliary_usage", "account_backup")
 TIMING_FIELDS = {
     "current_started_at", "current_elapsed_seconds", "last_started_at",
     "last_finished_at", "last_duration_seconds", "last_finished_age_seconds",

@@ -877,6 +877,10 @@ class SiteInfo(BaseModel):
     retention_days: int | None = Field(description="Days an assessment is kept; null when kept until deleted.")
     contact: str | None = Field(description="The operator's contact line (OPERATOR_CONTACT), if set.")
     accounts: bool = Field(description="Email-and-password accounts are enabled.")
+    account_backup_days: int | None = Field(
+        default=None,
+        description="Days a deleted account can remain in the service's own backups of the account "
+                    "database; null when it takes none.")
 
 
 class PasswordChange(BaseModel):

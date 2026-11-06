@@ -34,6 +34,11 @@ function paint() {
   }
   // "Deleted automatically" is only true where the deployment sets a period.
   for (const node of $$("[data-retention-auto]")) node.hidden = !kept;
+  // Only where this deployment takes its own backups, and with its number.
+  const backupDays = Number.isSafeInteger(site.account_backup_days) && site.account_backup_days > 0
+    ? site.account_backup_days : null;
+  for (const node of $$("[data-account-backup]")) node.hidden = backupDays === null;
+  for (const node of $$("[data-account-backup-days]")) node.textContent = backupDays === null ? "" : String(backupDays);
   // textContent, never markup: the contact line is the operator's free text.
   if (typeof site.contact === "string" && site.contact.trim()) {
     for (const node of $$("[data-contact]")) node.textContent = site.contact.trim();
