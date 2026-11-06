@@ -58,7 +58,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import auxiliary_usage, key_check, plan_preview, retrieval_health, samples
+from api import account_backup, auxiliary_usage, key_check, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -280,6 +280,11 @@ async def _reaper() -> None:
             ("retention", runs.prune_expired_runs),
             ("receipts", _prune_receipts),
             ("auxiliary_usage", auxiliary_usage.prune),
+            # Last of the fixed stages, and advisory like the cleanups: a
+            # backup that fails shows as a failed check and a degraded state
+            # in /health, and does not make the service unready. Restarting
+            # the container cannot repair a full disk.
+            ("account_backup", account_backup.run_schedule),
         ) + _source_locator_stages():
             await _maintenance_stage(name, operation, collect_cleanup=name in {"papers", "retention"})
 
@@ -288,7 +293,8 @@ async def _reaper() -> None:
 async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
     global _maintenance_task, _maintenance_checks, _maintenance_timings
     with _maintenance_lock:
-        _maintenance_checks = dict.fromkeys(("timeouts", "papers", "retention", "receipts", "auxiliary_usage"), "not_checked")
+        _maintenance_checks = dict.fromkeys(
+            ("timeouts", "papers", "retention", "receipts", "auxiliary_usage", "account_backup"), "not_checked")
         _maintenance_checks.update(dict.fromkeys((name for name, _ in _source_locator_stages()), "not_checked"))
         _maintenance_timings = {}
     task = asyncio.create_task(_reaper())
@@ -712,7 +718,7 @@ def site_info() -> SiteInfo:
     """The facts about this deployment that its privacy page states: how long
     assessments are kept and who to ask. Ungated; nothing here is private."""
     return SiteInfo(retention_days=runs.RUN_RETENTION_DAYS or None, contact=_operator_contact(),
-                    accounts=accounts.enabled())
+                    accounts=accounts.enabled(), account_backup_days=account_backup.kept_days())
 
 
 # ── Accounts ─────────────────────────────────────────────────────────────────

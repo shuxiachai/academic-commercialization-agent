@@ -1034,8 +1034,29 @@ copy. Restoring on the live deployment signs everyone out, so rehearse the
 restore itself on a local copy: set `ACCOUNTS_DB` to an empty path, run
 `restore <copy> --replace-live`, and sign in.
 
-How often to back up is the operator's call and depends on how many accounts
-a day would hurt to lose. Nothing here runs on a schedule.
+The service also takes a backup by itself. Every `ACCOUNTS_BACKUP_HOURS`
+(default 24; 0 turns it off) the maintenance loop writes a checked snapshot
+named `accounts-<UTC time>.sqlite3` into `ACCOUNTS_BACKUP_DIR` (default
+`_account_backups` beside the database) and keeps the newest
+`ACCOUNTS_BACKUP_KEEP` (default 14). Whether one is due is read from the
+newest file's name, so a restart neither forgets the last backup nor takes
+an extra one. Old ones are removed only after a new one has been written
+and checked, and files with any other name in that directory are never
+touched. `python -m api.account_backup list` shows them; any of them can be
+given to `verify` or `restore`. A backup that fails appears in `/health` as
+`maintenance.checks.account_backup: failed` with the state `degraded`; it
+does not make the service unready, because restarting cannot repair a full
+disk.
+
+These scheduled backups sit on the same volume as the database. They are for
+a bad change or a deleted file. Losing the volume loses them too, so a copy
+kept elsewhere, or the platform's volume backups, is still the operator's to
+arrange.
+
+A scheduled backup keeps what was true on its day, so a deleted account's
+email and password hash remain in the backups until they age out: with the
+defaults, fourteen days. The privacy page states this with the deployment's
+own number, from `GET /api/site` (`account_backup_days`).
 
 ### Docker and Railway
 
