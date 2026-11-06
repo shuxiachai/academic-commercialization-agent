@@ -464,6 +464,40 @@ async def _rate_limit(request: Request, call_next):
     return await call_next(request)
 
 
+def _is_page_asset(path: str) -> bool:
+    """The files a page is made of, and the documents that load them."""
+    return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples")
+            or path.startswith(("/run/", "/samples/")))
+
+
+@app.middleware("http")
+async def _revalidate_page_assets(request: Request, call_next):
+    """Tell browsers to confirm a script or stylesheet before reusing it.
+
+    The page is some seventeen modules that import one another, each cached
+    under its own unversioned URL. They were sent with a validator and no
+    caching instruction, which leaves the browser to guess how long a copy
+    stays good: commonly a tenth of the time since the file last changed, so
+    the longer since the last deploy, the longer the guess. After a deploy a
+    returning visitor could therefore run a new module beside an old one it
+    imports, and a call to something the old one does not have yet fails in
+    the page.
+
+    `no-cache` keeps the copy and asks first. An unchanged file costs one
+    conditional request answered 304 with no body; a changed one is fetched.
+    The documents get the same instruction as their scripts: a page kept
+    longer than the modules it names is the same mismatch from the other
+    side. The main page was `no-store` only where the saved-source locator
+    rewrites it; served as a plain file, which is the default, it had no
+    instruction at all. Set only where nothing chose a policy already, so
+    that `no-store` stands.
+    """
+    response = await call_next(request)
+    if request.method in ("GET", "HEAD") and _is_page_asset(request.url.path):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 @app.middleware("http")
 async def _security_headers(request: Request, call_next):
     """Attach the response headers above to every response.

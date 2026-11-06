@@ -961,6 +961,15 @@ refreshes are generation-bound and logout clears visible capability lists;
 previously shared capability URLs are not thereby revoked. See the
 [verified boundaries](results-2026-09-08-upload-history-cancellation-boundaries.md).
 
+Scripts, stylesheets and the pages that load them are sent with
+`Cache-Control: no-cache`: a browser keeps its copy and confirms it before
+each use, which costs a 304 for an unchanged file. Without it the browser
+guesses how long a copy stays good, and after a deploy a returning visitor
+could run a new module beside an old one it imports. The main page is
+`no-store` instead where the saved-source locator rewrites it. Nothing is
+versioned by URL, so a CDN placed in front must honour the header rather
+than apply its own lifetime.
+
 Strict CSP and security headers constrain the static client and report rendering.
 They do not replace source validation, access control or retention.
 
