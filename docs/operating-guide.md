@@ -838,6 +838,10 @@ anonymous visitor must sign in or present a code; the key-only path that an
 ungated or code-gated deployment offers is closed, since keys alone are no
 longer an identity. `ACCOUNTS_SIGNUP` is `open`, `invite` (registration
 needs `ACCOUNTS_INVITE_CODE`) or `closed` (existing accounts keep working).
+Whenever the sign-up form asks for an invite code it says who gives codes
+out: `OPERATOR_CONTACT` if it is set, as a mail link when it is an address,
+and otherwise "ask whoever shared this link". The contact travels with the
+configuration the gate already receives, so the form makes no extra request.
 `ACCOUNTS_ADMIN_EMAILS` names accounts that see every owner's history,
 labelled by email or code; it is read per request, so it can change without a
 migration. Registration verifies no email, so an address on the admin list

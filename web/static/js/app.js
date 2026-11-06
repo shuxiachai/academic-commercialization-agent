@@ -1407,6 +1407,32 @@ async function showByokRetention() {
   }
 }
 
+/* Beside the invite code field: who gives out codes.
+ *
+ * The operator's contact is whatever they chose to publish on the privacy
+ * page, an address or a sentence, so it is placed as text and never as
+ * markup. It becomes a mail link only when it is plainly an address. With
+ * no contact published, the line says what the access code form has always
+ * said: ask whoever shared the link.
+ */
+function paintInviteHint(shown) {
+  const hint = $("#account-invite-hint");
+  hint.hidden = !shown;
+  hint.innerHTML = "";
+  if (!shown) return;
+  const contact = typeof authConfig?.contact === "string" ? authConfig.contact.trim() : "";
+  if (!contact) {
+    hint.append(t("account_invite_hint_ask"));
+    return;
+  }
+  const [before, after = ""] = t("account_invite_hint").split("{contact}");
+  const address = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(contact);
+  const who = document.createElement(address ? "a" : "span");
+  who.textContent = contact;
+  if (address) who.href = `mailto:${contact}`;
+  hint.append(before, who, after);
+}
+
 /* What to tell an account about keys a provider did not accept, or null.
  *
  * Names the service, never quotes it: provider error text can repeat part of
@@ -1502,7 +1528,9 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
     $("#account-password").autocomplete = creating ? "new-password" : "current-password";
     // Invite mode asks up front; a reserved address asks after the server
     // says so (invite_required), so the field stays hidden until needed.
-    $("#account-invite").hidden = !(creating && (authConfig?.signup === "invite" || inviteNeeded));
+    const inviteShown = creating && (authConfig?.signup === "invite" || inviteNeeded);
+    $("#account-invite").hidden = !inviteShown;
+    paintInviteHint(inviteShown);
     $("#account-email-input").focus();
   };
   const showCode = () => {
@@ -1582,6 +1610,7 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
         if (err.code === "invite_required") {
           inviteNeeded = true;
           $("#account-invite").hidden = false;
+          paintInviteHint(true);
           $("#account-invite").focus();
         } else {
           $("#account-password").select();

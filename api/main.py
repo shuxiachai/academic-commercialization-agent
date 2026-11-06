@@ -538,7 +538,7 @@ async def _access_gate(request: Request, call_next):
             # accounts; the shipped-client smoke accounts for every request.
             body["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
                                 "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
-                                "key_check": key_check.enabled()}
+                                "key_check": key_check.enabled(), "contact": _operator_contact()}
         return JSONResponse(body, status_code=401)
     # Who answered, if anyone — GET /api/runs uses this to show each code
     # holder or account only the runs made under their own identity. None
@@ -656,18 +656,26 @@ def access_check(http_request: Request) -> dict:
     if accounts.enabled():
         payload["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
                                "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
-                                "key_check": key_check.enabled()}
+                                "key_check": key_check.enabled(), "contact": _operator_contact()}
         who = identity.resolve(http_request)
         payload["account"] = {"email": who.user.email, "admin": who.is_admin} if who.kind == "user" else None
     return payload
+
+
+def _operator_contact() -> str | None:
+    """Who runs this deployment, as the operator chose to say it; None when unset.
+
+    Already public on the privacy page. The sign-up form shows it too, beside
+    the invite code field, so it is one value read in one place.
+    """
+    return (os.getenv("OPERATOR_CONTACT") or "").strip()[:300] or None
 
 
 @app.get("/api/site", response_model=SiteInfo, tags=["site"])
 def site_info() -> SiteInfo:
     """The facts about this deployment that its privacy page states: how long
     assessments are kept and who to ask. Ungated; nothing here is private."""
-    contact = (os.getenv("OPERATOR_CONTACT") or "").strip()
-    return SiteInfo(retention_days=runs.RUN_RETENTION_DAYS or None, contact=contact[:300] or None,
+    return SiteInfo(retention_days=runs.RUN_RETENTION_DAYS or None, contact=_operator_contact(),
                     accounts=accounts.enabled())
 
 
@@ -698,7 +706,8 @@ def auth_config() -> AuthConfig:
     return AuthConfig(enabled=accounts.enabled(), signup_open=accounts.enabled() and accounts.signup_open(),
                       signup=accounts.signup_mode() if accounts.enabled() else "closed",
                       access_codes=access.gate_enabled(),
-                      key_check=accounts.enabled() and key_check.enabled())
+                      key_check=accounts.enabled() and key_check.enabled(),
+                      contact=_operator_contact() if accounts.enabled() else None)
 
 
 @app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],

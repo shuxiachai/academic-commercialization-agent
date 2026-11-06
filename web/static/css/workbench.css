@@ -1130,6 +1130,11 @@
   text-underline-offset: 3px;
 }
 .gate__switch:hover { color: var(--accent); text-decoration-color: currentColor; }
+/* These are one line of text, 19px tall: fine for a pointer, too small for a
+   thumb. A button centres its label, so the height alone is enough. */
+@media (pointer: coarse) {
+  .gate__switch { min-height: 44px; margin-top: 0; }
+}
 .gate__sep { margin: 0 var(--space-2); color: var(--text-disabled); }
 /* A link that wraps has a box spanning two lines whose middle is nobody's
    text: a keyboard user's focus ring would enclose empty space, and the
