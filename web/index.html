@@ -56,6 +56,12 @@
       <kbd class="kbd">N</kbd>
     </button>
 
+    <!-- Shown once there is enough history to search (sidebar.js). It filters
+         in the page: what is typed here is never sent to the server. -->
+    <input class="runsearch" id="run-search" type="search" autocomplete="off" spellcheck="false"
+           maxlength="120" data-i18n-placeholder="runs_search" placeholder="Search runs"
+           aria-label="Search runs" hidden>
+
     <nav class="runlist" id="runlist" aria-label="Previous runs">
       <div class="runlist__empty" id="runlist-empty">
         <span data-i18n="no_runs">No runs yet</span>
@@ -387,6 +393,9 @@
            for an address the operator reserved for an administrator. -->
       <input class="gate__input" id="account-invite" type="text" autocomplete="off" spellcheck="false" maxlength="200"
              data-i18n-placeholder="account_invite_placeholder" placeholder="Invite code" hidden>
+      <!-- Where a code comes from. Without it the field is a dead end for
+           anyone who arrived by a link rather than by an invitation. -->
+      <p class="gate__hint" id="account-invite-hint" hidden></p>
       <p class="gate__error" id="account-error" hidden></p>
       <button type="submit" class="btn btn--primary" id="account-submit" data-i18n="account_sign_in">Sign in</button>
       <p class="gate__hint"><a href="/privacy" target="_blank" rel="noopener" data-i18n="account_legal">Creating an account means accepting the privacy and terms notes: what is stored, and what never is.</a></p>

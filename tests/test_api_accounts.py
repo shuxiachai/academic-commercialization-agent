@@ -15,7 +15,8 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from api import access, accounts, papers, receipts, runs
+from academic_agent.language import TopicSearchPlan
+from api import access, accounts, papers, plan_preview, receipts, runs
 from api.main import app
 
 PASSWORD = "a sufficiently long password"
@@ -27,7 +28,7 @@ class _AccountsHttp(unittest.TestCase):
         self._tmp = TemporaryDirectory()
         self._env = patch.dict("os.environ", {"ACCOUNTS_DB": str(Path(self._tmp.name) / "accounts.sqlite3")})
         self._env.start()
-        for name in ("ACCOUNTS_SIGNUP", "ACCOUNTS_ADMIN_EMAILS"):
+        for name in ("ACCOUNTS_SIGNUP", "ACCOUNTS_ADMIN_EMAILS", "OPERATOR_CONTACT"):
             os.environ.pop(name, None)
         self.client = TestClient(app)
 
@@ -54,6 +55,7 @@ class DisabledTests(unittest.TestCase):
         self._env = patch.dict("os.environ", {})
         self._env.start()
         os.environ.pop("ACCOUNTS_DB", None)
+        os.environ.pop("OPERATOR_CONTACT", None)
         self.client = TestClient(app)
 
     def tearDown(self):
@@ -63,7 +65,8 @@ class DisabledTests(unittest.TestCase):
     def test_config_says_disabled_and_the_rest_is_absent(self):
         config = self.client.get("/api/auth/config").json()
         self.assertEqual(config, {"enabled": False, "signup_open": False, "signup": "closed", "access_codes": False,
-                                  "key_check": False})
+                                  "key_check": False, "contact": None,
+                                  "plan_preview": False})
         self.assertEqual(self.client.post("/api/auth/register", json={"email": "a@b.co", "password": PASSWORD}).status_code, 404)
         self.assertEqual(self.client.post("/api/auth/login", json={"email": "a@b.co", "password": PASSWORD}).status_code, 404)
         self.assertEqual(self.client.get("/api/auth/me").status_code, 404)
@@ -86,7 +89,8 @@ class DisabledTests(unittest.TestCase):
 class SignUpAndSignInTests(_AccountsHttp):
     def test_config_is_readable_without_credentials(self):
         self.assertEqual(self.client.get("/api/auth/config").json(),
-                         {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True})
+                         {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True, "contact": None,
+                          "plan_preview": True})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             self.assertTrue(self.client.get("/api/auth/config").json()["access_codes"])
 
@@ -97,7 +101,8 @@ class SignUpAndSignInTests(_AccountsHttp):
         check = self.client.get("/api/access/check", headers=self._bearer(session["token"])).json()
         self.assertEqual(check["account"], {"email": "alice@example.com", "admin": False})
         self.assertEqual(check["accounts"], {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False,
-                                             "key_check": True})
+                                             "key_check": True, "contact": None,
+                          "plan_preview": True})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             by_code = self.client.get("/api/access/check", headers={"X-Access-Code": "code-1"}).json()
         self.assertIsNone(by_code["account"])
@@ -180,7 +185,8 @@ class GateTests(_AccountsHttp):
         # The refusal carries what the gate should offer, so the page's boot
         # stays one request; without accounts the body is the bare detail.
         self.assertEqual(response.json()["accounts"],
-                         {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True})
+                         {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True, "contact": None,
+                          "plan_preview": True})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             self.assertEqual(self.client.get("/api/runs").json()["detail"], "Sign in, or provide a valid access code.")
 
@@ -258,12 +264,34 @@ class PaidOperationTests(_AccountsHttp):
         self.assertEqual(started.call_args.kwargs["owner"], access.owner_id("code-1"))
         self.assertIsNone(started.call_args.kwargs["byok"])
 
-    def test_accounts_have_no_operator_quota_or_plan_preview(self):
+    def test_accounts_have_no_operator_quota_and_preview_only_on_their_own_key(self):
         headers = self._bearer(self.session["token"])
         self.assertIsNone(self.client.get("/api/quota", headers=headers).json())
-        with patch("api.plan_preview.enabled", return_value=True):
-            preview = self.client.post("/api/plan", json={"topic": "a valid research topic"}, headers=headers)
-        self.assertEqual((preview.status_code, preview.headers["X-Error-Code"]), (404, "byok_required"))
+        used = []
+
+        def planner(topic, n=2, *, credentials=None):
+            used.append(credentials)
+            return TopicSearchPlan(search_topic="a valid research topic")
+
+        with patch.object(plan_preview, "DAILY_LIMIT", 2), patch.object(plan_preview, "_counts", {}), \
+                patch.object(plan_preview, "plan_topic_search", planner):
+            # Without keys an account is refused: the deployment's key is never the fallback.
+            bare = self.client.post("/api/plan", json={"topic": "a valid research topic"}, headers=headers)
+            self.assertEqual((bare.status_code, bare.headers["X-Error-Code"]), (401, "byok_required"))
+            self.assertEqual(used, [])
+            # With its key set the preview runs on that set's model key.
+            own = self.client.post("/api/plan", json={"topic": "a valid research topic", **BYOK}, headers=headers)
+            self.assertEqual(own.status_code, 200, own.text)
+            self.assertEqual(used, [{"provider": "deepseek", "api_key": "k", "model": "deepseek-chat"}])
+            self.assertNotIn('"k"', own.text)
+            # The cap is the account's own: a second account still has its previews.
+            self.assertEqual(self.client.post("/api/plan", json={"topic": "a valid research topic", **BYOK},
+                                              headers=headers).status_code, 200)
+            capped = self.client.post("/api/plan", json={"topic": "a valid research topic", **BYOK}, headers=headers)
+            self.assertEqual((capped.status_code, capped.headers["X-Error-Code"]), (429, "plan_preview_limit"))
+            other = self._bearer(self._signup("bob@example.com")["token"])
+            self.assertEqual(self.client.post("/api/plan", json={"topic": "a valid research topic", **BYOK},
+                                              headers=other).status_code, 200)
 
     def test_only_the_owning_account_or_an_admin_may_mutate_a_run(self):
         mine = accounts.session_user(self.session["token"]).owner

@@ -48,11 +48,13 @@ class PageIsPublicTests(unittest.TestCase):
         with patch.object(runs, "RUN_RETENTION_DAYS", 30), \
                 patch.dict("os.environ", {"OPERATOR_CONTACT": "  ops@example.org  "}):
             self.assertEqual(self.client.get("/api/site").json(),
-                             {"retention_days": 30, "contact": "ops@example.org", "accounts": False})
+                             {"retention_days": 30, "contact": "ops@example.org", "accounts": False,
+                              "account_backup_days": None})
         with patch.object(runs, "RUN_RETENTION_DAYS", 0), patch.dict("os.environ", {}):
             os.environ.pop("OPERATOR_CONTACT", None)
             self.assertEqual(self.client.get("/api/site").json(),
-                             {"retention_days": None, "contact": None, "accounts": False})
+                             {"retention_days": None, "contact": None, "accounts": False,
+                              "account_backup_days": None})
 
     def test_an_overlong_contact_line_is_cut_not_served_whole(self):
         with patch.dict("os.environ", {"OPERATOR_CONTACT": "x" * 5000}):

@@ -83,6 +83,9 @@
   --text-base: 14px;
   --text-md:   15px;
   --text-lg:   17px;
+  /* The smallest text a field may have on a touch device. iOS Safari zooms
+     the page when a focused field's text is under 16px, and stays zoomed. */
+  --text-touch: 16px;
   --text-xl:   21px;
   --text-2xl:  28px;
   --text-3xl:  36px;

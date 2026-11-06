@@ -32,13 +32,27 @@ The backup file holds password hashes and session token hashes. Treat it as
 a secret: it is written readable by its owner only, and it belongs somewhere
 other than the volume it protects. A copy on the same volume survives a bad
 change or a deleted file, not the loss of the volume.
+
+The service also takes a backup by itself, once a day unless told otherwise,
+and keeps the newest fourteen (`run_schedule`, called from the maintenance
+loop). A backup that depends on someone remembering to take it is taken
+least when it is needed most. These are the same checked snapshots, written
+beside the database, so everything above about the same volume applies to
+them: they are for a bad change or a deleted file. `list` shows them.
+
+A scheduled backup keeps what was true on its day. An account deleted today
+is still in yesterday's backup until that backup ages out, which the privacy
+page states with the number of days from this module.
 """
 from __future__ import annotations
 
 import argparse
+import calendar
 import contextlib
 import hashlib
+import math
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -211,6 +225,105 @@ def restore(source: Path, *, now: float | None = None) -> Restored:
     return Restored(after, set_aside, ended)
 
 
+# ── Scheduled backups ───────────────────────────────────────────────────────
+
+# The name carries the time, in UTC. A file's own timestamp changes when it is
+# copied or restored; its name does not.
+_SCHEDULED = re.compile(r"accounts-(\d{8}T\d{6}Z)\.sqlite3")
+_SCHEDULE_DIRECTORY = "_account_backups"   # not a run: run directories are matched by their own shape
+
+
+def _setting(name: str, default: float, *, low: float) -> float:
+    try:
+        value = float(os.getenv(name, "").strip() or default)
+    except ValueError:
+        return default
+    return value if math.isfinite(value) and value >= low else default
+
+
+def schedule_hours() -> float:
+    """Hours between scheduled backups. 0 turns the schedule off; default 24."""
+    return _setting("ACCOUNTS_BACKUP_HOURS", 24, low=0)
+
+
+def schedule_keep() -> int:
+    """How many scheduled backups are kept. At least one; default 14."""
+    return int(_setting("ACCOUNTS_BACKUP_KEEP", 14, low=1))
+
+
+def schedule_directory() -> Path | None:
+    """Where scheduled backups go: ACCOUNTS_BACKUP_DIR, or beside the database."""
+    live = accounts.database_path()
+    if live is None:
+        return None
+    chosen = os.getenv("ACCOUNTS_BACKUP_DIR", "").strip()
+    return Path(chosen) if chosen else live.parent / _SCHEDULE_DIRECTORY
+
+
+def kept_days() -> int | None:
+    """How long a deleted account stays in a scheduled backup, in whole days.
+
+    None when nothing is scheduled. The privacy page states this number, so
+    it is computed here, from the two settings that decide it.
+    """
+    if accounts.database_path() is None or schedule_hours() <= 0:
+        return None
+    return math.ceil(schedule_hours() * schedule_keep() / 24)
+
+
+def _taken_at(path: Path) -> float | None:
+    match = _SCHEDULED.fullmatch(path.name)
+    if match is None:
+        return None
+    try:
+        return float(calendar.timegm(time.strptime(match[1], "%Y%m%dT%H%M%SZ")))
+    except (ValueError, OverflowError):
+        return None
+
+
+def scheduled_backups() -> list[Path]:
+    """The scheduled backups on disk, oldest first. Only files this module named."""
+    directory = schedule_directory()
+    if directory is None or not directory.is_dir():
+        return []
+    return sorted((path for path in directory.iterdir() if path.is_file() and _taken_at(path) is not None),
+                  key=lambda path: path.name)
+
+
+def run_schedule(now: float | None = None) -> int:
+    """Take a scheduled backup if one is due, then let the oldest go.
+
+    Called every half minute by the maintenance loop; nearly always it looks
+    at one directory and returns 0. Whether a backup is due is read from the
+    newest file's name, so a restart neither forgets the last backup nor takes
+    an extra one.
+
+    Old backups are removed only after a new one has been written and
+    checked. A day on which the backup fails therefore costs nothing that was
+    already safe, and the failure is the maintenance stage's failure, which
+    /health shows. Files with any other name in the directory are never
+    touched: an operator's own backup is not this schedule's to delete.
+
+    Returns how many backups were written: 0 or 1.
+    """
+    hours = schedule_hours()
+    live = accounts.database_path()
+    directory = schedule_directory()
+    if hours <= 0 or live is None or directory is None or not live.is_file():
+        return 0
+    moment = time.time() if now is None else now
+    existing = scheduled_backups()
+    if existing:
+        newest = _taken_at(existing[-1])
+        if newest is not None and moment - newest < hours * 3600:
+            return 0
+    backup(directory / time.strftime("accounts-%Y%m%dT%H%M%SZ.sqlite3", time.gmtime(moment)))
+    for old in scheduled_backups()[:-schedule_keep()]:
+        with contextlib.suppress(OSError):
+            old.unlink()
+    return 1
+
+
 def _describe(found: Inspection) -> str:
     return (f"{found.accounts} account(s), {found.sessions} session(s), {found.size:,} bytes, "
             f"sha256 {found.sha256}")
@@ -229,6 +342,7 @@ def main(argv: list[str] | None = None) -> int:
     put.add_argument("file", type=Path)
     put.add_argument("--replace-live", action="store_true",
                      help="Required. Says you mean to replace every account with the backup's.")
+    commands.add_parser("list", help="Show the backups the service has taken by itself.")
     args = parser.parse_args(argv)
     try:
         if args.command == "backup":
@@ -236,6 +350,15 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Backup written: {args.destination}")
             print(_describe(written))
             print("It holds password hashes. Keep it off the volume it protects, readable by you only.")
+        elif args.command == "list":
+            _live()
+            hours, found = schedule_hours(), scheduled_backups()
+            print(f"Scheduled backups in {schedule_directory()}: "
+                  + (f"every {hours:g} hours, newest {schedule_keep()} kept." if hours > 0 else "the schedule is off."))
+            for path in found:
+                print(f"  {path.name}  {_describe(examine(path))}")
+            if not found:
+                print("  none yet")
         elif args.command == "verify":
             print(f"{args.file} is a whole account database: {_describe(examine(args.file))}")
         else:

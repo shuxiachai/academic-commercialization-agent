@@ -202,6 +202,28 @@ export function removeByokRun(runId) {
   sessionStorage.setItem(BYOK_RUNS_KEY, JSON.stringify(runs));
 }
 
+/* What a refused request said, when the refusal is a list of field problems.
+ *
+ * A malformed request is refused with one entry per problem: where, which
+ * rule, and a sentence. Handed to Error as it is, that list became the text
+ * "[object Object]". The sentences are the server's own and name no value,
+ * so they can be shown; the validator's "Value error, " prefix is dropped
+ * because it is about the validator, not about what to change. Anything
+ * that is not such a list is left for the caller to read as before.
+ */
+function validationText(detail) {
+  if (!Array.isArray(detail)) return null;
+  const sentences = detail
+    .map((problem) => {
+      if (typeof problem?.msg !== "string" || !problem.msg) return "";
+      // A rule about one field says which; a rule about the whole body speaks for itself.
+      const field = Array.isArray(problem.loc) && problem.loc.length > 1 ? `${problem.loc.at(-1)}: ` : "";
+      return field + problem.msg.replace(/^Value error, /, "");
+    })
+    .filter(Boolean);
+  return sentences.length ? [...new Set(sentences)].join(" ") : null;
+}
+
 async function request(path, options = {}) {
   const paidPost = options.method === "POST"
     && (/^\/api\/(runs|papers)$/.test(path) || /^\/api\/runs\/[^/]+\/resume$/.test(path));
@@ -244,7 +266,7 @@ async function request(path, options = {}) {
     try {
       const body = await response.json();
       parsed = body && typeof body === "object" ? body : null;
-      detail = body.detail ?? "";
+      detail = validationText(body.detail) ?? body.detail ?? "";
       auxiliary = body.auxiliary_usage ?? null;
     } catch {
       detail = await response.text().catch(() => "");
@@ -346,7 +368,9 @@ export const changePassword = (current_password, new_password) =>
   request("/api/auth/password", json({ current_password, new_password }));
 export const deleteAccount = (password) => request("/api/auth/delete-account", json({ password }));
 
-export const listRuns = (limit = 50) => request(`/api/runs?limit=${limit}`);
+// The first page keeps the address it always had; later pages add an offset.
+export const listRuns = (limit = 50, offset = 0) =>
+  request(`/api/runs?limit=${limit}${offset ? `&offset=${offset}` : ""}`);
 
 // Paid operations left today for the stored code; null when uncapped.
 export const getQuota = () => request("/api/quota");
@@ -354,9 +378,14 @@ export const getQuota = () => request("/api/quota");
 export const getFeedback = (runId) => request(`/api/runs/${runId}/feedback`);
 export const sendFeedback = (runId, answer) => request(`/api/runs/${runId}/feedback`, json(answer));
 
-// How the planner reads a topic. One small model call on the deployment's
-// key, outside the daily run quota; not a paid POST, so never receipted.
-export const planTopic = (topic) => request("/api/plan", json({ topic }));
+// How the planner reads a topic. One small model call, outside the daily run
+// quota; not a paid POST, so never receipted. With an access code it runs on
+// the deployment's key. An account sends its own key set, as it does with a
+// run, and the call is made on that set's model key.
+export const planTopic = (topic, { ownKeys = false } = {}) => {
+  const byok = ownKeys ? getByok() : null;
+  return request("/api/plan", json({ topic, ...(byok ? byokBody(byok) : {}) }));
+};
 
 export const startRun = ({
   topic,

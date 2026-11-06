@@ -23,6 +23,12 @@ let sidebarRevision = 0;
 function invalidateSidebar() {
   sidebarRevision++;
   $("#runlist").innerHTML = "";
+  // What one identity searched for, and how far it had paged, is not the
+  // next identity's starting point.
+  sidebar.resetView?.();
+  const search = $("#run-search");
+  search.value = "";
+  search.hidden = true;
 }
 // Button elements are disposable (polling, language changes, navigation).
 // Paid resume intent belongs to the parent run, not the element clicked.
@@ -303,6 +309,28 @@ function paintHeader({
   recoveryEl.title = details.join("\n");
 }
 
+/* A run's address is what opens it: anyone holding the link can read the
+ * run without a code or an account. Copying it is therefore sharing it, and
+ * the confirmation says so. Where the browser will not let a page write to
+ * the clipboard, the address bar already holds the same link. */
+function copyLinkButton() {
+  const runId = activeRunId;
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "btn btn--secondary";
+  copy.id = "run-copy-link";
+  copy.textContent = t("copy_link");
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(`${location.origin}/run/${runId}`);
+      toast(t("msg_link_copied"), "success");
+    } catch {
+      toast(t("msg_link_copy_failed"), "error");
+    }
+  });
+  return copy;
+}
+
 function paintActions(state, checkpointing = null) {
   const actions = $("#run-actions");
   actions.innerHTML = "";
@@ -322,7 +350,7 @@ function paintActions(state, checkpointing = null) {
         toast(err.message, "error");
       }
     });
-    actions.append(cancel);
+    actions.append(cancel, copyLinkButton());
     return;
   }
 
@@ -395,6 +423,24 @@ function paintActions(state, checkpointing = null) {
     });
     actions.append(resume);
   }
+
+  // The same topic, as a new run. It fills the composer and stops there:
+  // starting is a paid step and stays the user's own click. Language, profile
+  // and decision context are not carried over; the page never had them.
+  const again = document.createElement("button");
+  again.type = "button";
+  again.className = "btn btn--secondary";
+  again.id = "run-again";
+  again.textContent = t("run_again");
+  again.title = t("run_again_title");
+  again.addEventListener("click", () => {
+    const previous = $("#run-title").textContent.trim();
+    showCompose();
+    if (previous && previous !== "…") topic.value = previous;
+    syncComposer();
+    topic.focus();
+  });
+  actions.append(again, copyLinkButton());
 
   // Only the known terminal states reaching here offer permanent removal.
   const del = document.createElement("button");
@@ -555,6 +601,7 @@ async function refreshSidebar() {
   // gone once the tab closes, complete for as long as it's open.
   if (byokMode && !accountMode) {
     const list = $("#runlist");
+    $("#run-search").hidden = true;
     const entries = api.getByokRuns();
     if (!entries.length) {
       list.innerHTML = "";
@@ -593,8 +640,21 @@ async function refreshSidebar() {
     activeId: activeRunId,
     onSelect: (runId) => openRun(runId),
     onDelete: handleDeleteRun,
+    onChange: refreshSidebar,
   });
 }
+
+/* Filtering waits for a pause in typing: a search may load the rest of the
+ * history, and doing that on every keystroke would ask for it several times. */
+let searchTimer = null;
+$("#run-search").addEventListener("input", (event) => {
+  clearTimeout(searchTimer);
+  const text = event.target.value;
+  searchTimer = setTimeout(() => {
+    sidebar.setQuery?.(text);
+    refreshSidebar();
+  }, 200);
+});
 
 /* ── Composer ──────────────────────────────────────────────────────── */
 
@@ -718,7 +778,10 @@ $("#compose-form").addEventListener("submit", async (e) => {
     needsScopeWarning(submittedTopic, { hasPaper: Boolean(attachedPaper) })
     && !confirm(t("confirm_broad_topic"))
   ) return;
-  if (planPreviewEnabled && !byokMode && !accountMode) {
+  // A code holder previews on the deployment's key. An account previews on
+  // its own, which it has by now: the gate above asked for keys. A visitor
+  // whose keys are their only identity starts as before.
+  if (planPreviewEnabled && (accountMode ? Boolean(api.getByok()) : !byokMode)) {
     await previewPlan(submittedTopic);
     return;
   }
@@ -762,18 +825,26 @@ async function submitAssessment(submittedTopic, searchPlan) {
  * ("hyperloop" renamed, vertical farming drifting) used to show only after
  * the run had spent its stages and one of the code's daily runs. With a
  * code, the run button first shows that reading; the user confirms or edits
- * it, and the run searches exactly that. Unresolved topics stop here. */
+ * it, and the run searches exactly that. Unresolved topics stop here.
+ *
+ * An account gets the same step on its own model key, and is told so: a
+ * wrong reading costs an account the whole run, on its own bill. When the
+ * model gives no answer the reply says so, and the page says so too rather
+ * than showing the topic as typed as if it were a reading. */
 
 async function previewPlan(submittedTopic) {
   previewing = true;
   syncComposer();
   let next;
   try {
-    const plan = await api.planTopic(submittedTopic);
-    next = plan?.resolved
-      ? { topic: submittedTopic, failure: null, plan: {
-        search_topic: plan.search_topic, aliases: [...plan.aliases], components: [...plan.components] } }
-      : { topic: submittedTopic, failure: "unresolved", plan: null };
+    const own = accountMode;
+    const plan = await api.planTopic(submittedTopic, { ownKeys: own });
+    next = plan?.planned === false
+      ? { topic: submittedTopic, failure: own ? "no_answer_own" : "no_answer", plan: null }
+      : plan?.resolved
+        ? { topic: submittedTopic, failure: null, own, plan: {
+          search_topic: plan.search_topic, aliases: [...plan.aliases], components: [...plan.components] } }
+        : { topic: submittedTopic, failure: "unresolved", plan: null };
   } catch (err) {
     if (err.status === 401) {
       toast(operationErrorMessage(err), "error");
@@ -853,7 +924,7 @@ function renderPlan() {
   planPanel.innerHTML = "";
   planPanel.hidden = false;
   planPanel.append(planNode("h2", "plan-panel__title", label("title")));
-  const message = planState.failure === null ? label("lede")
+  const message = planState.failure === null ? label(planState.own ? "lede_own" : "lede")
     : label(planState.failure).replace("{reason}", planState.reason || "—");
   planPanel.append(planNode("p", "plan-panel__lede", message));
 
@@ -1407,6 +1478,32 @@ async function showByokRetention() {
   }
 }
 
+/* Beside the invite code field: who gives out codes.
+ *
+ * The operator's contact is whatever they chose to publish on the privacy
+ * page, an address or a sentence, so it is placed as text and never as
+ * markup. It becomes a mail link only when it is plainly an address. With
+ * no contact published, the line says what the access code form has always
+ * said: ask whoever shared the link.
+ */
+function paintInviteHint(shown) {
+  const hint = $("#account-invite-hint");
+  hint.hidden = !shown;
+  hint.innerHTML = "";
+  if (!shown) return;
+  const contact = typeof authConfig?.contact === "string" ? authConfig.contact.trim() : "";
+  if (!contact) {
+    hint.append(t("account_invite_hint_ask"));
+    return;
+  }
+  const [before, after = ""] = t("account_invite_hint").split("{contact}");
+  const address = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(contact);
+  const who = document.createElement(address ? "a" : "span");
+  who.textContent = contact;
+  if (address) who.href = `mailto:${contact}`;
+  hint.append(before, who, after);
+}
+
 /* What to tell an account about keys a provider did not accept, or null.
  *
  * Names the service, never quotes it: provider error text can repeat part of
@@ -1502,7 +1599,9 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
     $("#account-password").autocomplete = creating ? "new-password" : "current-password";
     // Invite mode asks up front; a reserved address asks after the server
     // says so (invite_required), so the field stays hidden until needed.
-    $("#account-invite").hidden = !(creating && (authConfig?.signup === "invite" || inviteNeeded));
+    const inviteShown = creating && (authConfig?.signup === "invite" || inviteNeeded);
+    $("#account-invite").hidden = !inviteShown;
+    paintInviteHint(inviteShown);
     $("#account-email-input").focus();
   };
   const showCode = () => {
@@ -1566,6 +1665,11 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
         const session = creating ? await api.register(email, password, invite) : await api.login(email, password);
         api.setSessionToken(session.token);
         applyAccountMode(session);
+        // The boot's access check was refused, so it told the page nothing
+        // about previews; the sign-in configuration that came with that
+        // refusal does. Without this an account that had just signed in
+        // started its first run with no preview, and one that reloaded got one.
+        planPreviewEnabled = authConfig?.plan_preview === true;
         if (api.getByok()) { finish(); return; }
         // Keys next, on the same card: the account is in, the runs still
         // need something to pay with.
@@ -1582,6 +1686,7 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
         if (err.code === "invite_required") {
           inviteNeeded = true;
           $("#account-invite").hidden = false;
+          paintInviteHint(true);
           $("#account-invite").focus();
         } else {
           $("#account-password").select();

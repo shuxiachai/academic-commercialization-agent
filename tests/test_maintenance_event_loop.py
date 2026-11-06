@@ -20,7 +20,7 @@ from api.models import ReadinessStatus
 from tests.scripted_waits import SCENARIO, STEP
 
 
-STAGES = ("timeouts", "papers", "retention", "receipts", "auxiliary_usage")
+STAGES = ("timeouts", "papers", "retention", "receipts", "auxiliary_usage", "account_backup")
 RID = "20200101T000000Z-abcdef0123"
 _REAP_TIMEOUTS = runs.reap_timeouts
 _SHUTDOWN_ALL = runs.shutdown_all
@@ -48,6 +48,7 @@ def maintenance_fixture(tmp_path, monkeypatch):
         ("retention", runs, "prune_expired_runs"),
         ("receipts", main, "_prune_receipts"),
         ("auxiliary_usage", main.auxiliary_usage, "prune"),
+        ("account_backup", main.account_backup, "run_schedule"),
     ):
         operations[name] = Mock(return_value=[])
         monkeypatch.setattr(module, attribute, operations[name])

@@ -40,7 +40,7 @@ function fixture(receiptStore = new Map()) {
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
-    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check"].includes(url), `Unexpected HTTP: ${url}`);
+    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login"].includes(url), `Unexpected HTTP: ${url}`);
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
@@ -610,6 +610,148 @@ const scenarios = {
       assert.equal(f.requests.length, 2);
       assert.equal(api.getByok()?.llmKey, 'fixture-B');
     }
+  },
+  async account_preview() {
+    // An account's run button first shows how the planner read the topic,
+    // on the account's own key; a code holder's preview sends no key.
+    const kind = process.argv[3];
+    const f = fixture();
+    const label = actualRunView.planLabel;
+    if (kind === 'signin') {
+      // Signing in through the gate: the boot's access check was refused and
+      // said nothing about previews; the configuration with the refusal did.
+      api.setByok({ provider: 'qwen', llmKey: 'fixture-key', model: 'qwen3.8-27b', search: 'tavily', searchKey: 'fixture-search' });
+      f.run('authConfig = { enabled: true, signup_open: true, signup: "open", access_codes: false, plan_preview: true }');
+      const gate = f.run('showGate()');
+      assert.equal(f.run('planPreviewEnabled'), false);
+      f.get('#account-email-input').value = 'a@example.com';
+      f.get('#account-password').value = 'a long enough password';
+      const signedIn = f.get('#account-form').onsubmit({preventDefault(){}});
+      assert.equal(f.requests[0].url, '/api/auth/login');
+      f.respond(0, { token: 'fixture-session', email: 'a@example.com', admin: false });
+      await signedIn; await gate;
+      assert.equal(f.run('accountMode'), true);
+      assert.equal(f.run('planPreviewEnabled'), true, 'An account that has just signed in gets the preview too');
+      f.topic('hyperloop');
+      f.submit();
+      assert.equal(f.requests[1].url, '/api/plan');
+      assert.equal(JSON.parse(f.requests[1].options.body).llm_api_key, 'fixture-key');
+      return;
+    }
+    const plan = { planned: true, resolved: true, search_topic: 'hyperloop transportation system',
+      aliases: ['vacuum tube maglev train'], components: [] };
+    if (kind === 'code') {
+      api.setAccessCode('fixture-code');
+      f.run('planPreviewEnabled = true');
+    } else {
+      api.setByok({ provider: 'qwen', llmKey: 'fixture-key', model: 'qwen3.8-27b', search: 'tavily', searchKey: 'fixture-search' });
+      f.run(`accountMode = true; byokMode = true; planPreviewEnabled = ${kind !== 'off'}`);
+    }
+    f.topic('hyperloop');
+    const submitted = f.submit();
+    if (kind === 'off') {
+      await Promise.resolve();
+      assert.equal(f.requests[0].url, '/api/runs', 'With previews off an account starts as before');
+      return;
+    }
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.requests[0].url, '/api/plan');
+    const sent = JSON.parse(f.requests[0].options.body);
+    if (kind === 'code') {
+      assert.deepEqual(sent, { topic: 'hyperloop' }, 'A code holder sends no key');
+    } else {
+      assert.deepEqual(sent, { topic: 'hyperloop', llm_provider: 'qwen', llm_api_key: 'fixture-key',
+        llm_model: 'qwen3.8-27b', tavily_api_key: 'fixture-search' });
+    }
+    f.respond(0, kind === 'silent' ? { ...plan, planned: false, search_topic: 'hyperloop', aliases: [] } : plan);
+    await submitted;
+    const panel = f.get('#plan-panel');
+    assert.equal(panel.hidden, false);
+    const [title, lede] = panel.children;
+    assert.equal(title.textContent, label('title'));
+    const texts = JSON.stringify(panel.children, (key, value) => (key === 'listeners' ? undefined : value));
+    if (kind === 'silent') {
+      assert.equal(lede.textContent, label('no_answer_own'));
+      assert.ok(!texts.includes('"value":"hyperloop"'), 'The topic as typed is not shown as a reading');
+    } else {
+      assert.equal(lede.textContent, label(kind === 'code' ? 'lede' : 'lede_own'));
+      assert.ok(texts.includes('hyperloop transportation system'));
+    }
+    assert.equal(f.requests.length, 1, 'Nothing is started until the reading is confirmed');
+  },
+  async invite_hint() {
+    // Creating an account in invite mode: the form says who gives out codes.
+    const kind = process.argv[3];
+    const contact = { address: 'ops@example.org', sentence: 'Ask in the <b>help</b> channel', none: null }[kind];
+    const f = fixture();
+    f.run(`authConfig = { enabled: true, signup_open: true, signup: 'invite', access_codes: false,
+      contact: ${JSON.stringify(contact)} }`);
+    f.run('showGate()');
+    const hint = f.get('#account-invite-hint');
+    assert.equal(f.get('#account-invite').hidden, true, 'Signing in asks for no invite code');
+    assert.equal(hint.hidden, true);
+    f.get('#account-toggle').onclick();
+    assert.equal(f.get('#account-invite').hidden, false);
+    assert.equal(hint.hidden, false);
+    if (kind === 'none') {
+      assert.deepEqual(hint.children, ['account_invite_hint_ask']);
+    } else {
+      const [before, who, after] = hint.children;
+      assert.equal(hint.children.length, 3);
+      assert.equal(before + after, 'account_invite_hint');
+      // The operator's words are placed as text, whatever they contain.
+      assert.equal(who.textContent, contact);
+      assert.equal(who.children.length, 0);
+      assert.equal(who.href, kind === 'address' ? 'mailto:ops@example.org' : undefined);
+    }
+    // Back to signing in: the hint goes with the field.
+    f.get('#account-toggle').onclick();
+    assert.equal(hint.hidden, true);
+    assert.equal(hint.children.length, 0);
+    assert.equal(f.requests.length, 0, 'The contact arrives with the gate; it is not fetched');
+  },
+  async run_reuse() {
+    // A finished run offers its topic again and its address; neither sends anything.
+    const kind = process.argv[3];
+    const f = fixture();
+    f.run('activeRunId = "20261106T000000Z-reuse"');
+    f.get('#run-title').textContent = 'hyperloop for freight';
+    const copied = [];
+    if (kind !== 'blocked') {
+      f.run('globalThis.navigator = { clipboard: { writeText: async (text) => { recordCopy(text); } } }; globalThis.recordCopy = null');
+    }
+    const state = kind === 'running' ? 'running' : 'failed';
+    f.run(`paintActions(${JSON.stringify(state)})`);
+    const buttons = f.get('#run-actions').children;
+    const byId = (id) => buttons.find((button) => button.id === id);
+    const copy = byId('run-copy-link');
+    assert.ok(copy, 'A run can be shared while it runs and after it ends');
+    assert.equal(copy.textContent, 'copy_link');
+    if (kind === 'running') {
+      assert.equal(byId('run-again'), undefined, 'A run still going is not offered again');
+      return;
+    }
+    const again = byId('run-again');
+    assert.equal(again.textContent, 'run_again');
+    f.get('#topic').value = 'something half typed';
+    again.listeners.click();
+    assert.equal(f.get('#topic').value, 'hyperloop for freight');
+    assert.equal(f.get('#pane-compose').hidden, false);
+    assert.equal(f.get('#pane-run').hidden, true);
+    assert.equal(f.requests.length, 0, 'Filling the composer starts nothing');
+
+    if (kind === 'blocked') {
+      await copy.listeners.click();
+      assert.equal(f.get('#toasts').children.at(-1).textContent, 'msg_link_copy_failed');
+    } else {
+      f.run('recordCopy = (text) => { copiedLink = text; }; globalThis.copiedLink = null');
+      f.run('location.origin = "https://example.test"');
+      await copy.listeners.click();
+      assert.equal(f.run('copiedLink'), 'https://example.test/run/20261106T000000Z-reuse',
+        'The link is to the run the button was drawn for, even after the view moved on');
+      assert.equal(f.get('#toasts').children.at(-1).textContent, 'msg_link_copied');
+    }
+    assert.equal(f.requests.length, 0);
   },
 };
 assert.ok(scenarios[process.argv[2]], "Unknown contract scenario");

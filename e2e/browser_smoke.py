@@ -176,9 +176,11 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
     expect(page.locator("#run-terminal")).to_have_text(
         "· 工作进程已完成" if chinese else "· worker completed",
     )
-    expect(controls).to_have_text(["Markdown", "PDF", "删除" if chinese else "Delete"])
+    expect(controls).to_have_text(
+        ["Markdown", "PDF", "再跑一次", "复制链接", "删除"] if chinese
+        else ["Markdown", "PDF", "Run again", "Copy link", "Delete"])
     expect(actions.get_by_role("link")).to_have_count(2)
-    expect(actions.get_by_role("button")).to_have_count(1)
+    expect(actions.get_by_role("button")).to_have_count(3)
     # Usage and its accounting caveats are folded by default, one click away.
     usage_details = page.locator("#run-usage-details")
     usage_details.evaluate("details => { details.open = false; }")

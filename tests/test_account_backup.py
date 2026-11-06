@@ -19,7 +19,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from api import account_backup, accounts
+from fastapi.testclient import TestClient
+
+from api import account_backup, accounts, runs
+from api.main import app
 
 ALICE, BOB, CAROL = "alice@example.com", "bob@example.com", "carol@example.com"
 PASSWORD = {ALICE: "alice's long password", BOB: "bob's long password", CAROL: "carol's long password"}
@@ -40,7 +43,8 @@ class _Volume(unittest.TestCase):
         self.copy = self.root / "offsite" / "accounts-backup.sqlite3"
         self._env = patch.dict("os.environ", {"ACCOUNTS_DB": str(self.live)})
         self._env.start()
-        for name in ("ACCOUNTS_SIGNUP", "ACCOUNTS_ADMIN_EMAILS"):
+        for name in ("ACCOUNTS_SIGNUP", "ACCOUNTS_ADMIN_EMAILS", "ACCOUNTS_BACKUP_HOURS",
+                     "ACCOUNTS_BACKUP_KEEP", "ACCOUNTS_BACKUP_DIR"):
             os.environ.pop(name, None)
         for email in (ALICE, BOB):
             accounts.register(email, PASSWORD[email])
@@ -272,6 +276,146 @@ class RefusalTests(_Volume):
         self.assertEqual((code, out), (2, ""))
         self.assertIn("nothing was changed", err)
         self.assertEqual(self.live.read_bytes(), before)
+
+
+DAY = 86400
+T0 = 1_793_000_000   # a fixed moment; the schedule is told the time, it never reads a clock here
+
+
+class ScheduleTests(_Volume):
+    """The service takes its own backups, so having one does not depend on anyone."""
+
+    def setUp(self):
+        super().setUp()
+        self.directory = self.live.parent / "_account_backups"
+
+    def _names(self) -> list[str]:
+        return [path.name for path in account_backup.scheduled_backups()]
+
+    def test_a_backup_is_taken_when_one_is_due_and_not_before(self):
+        self.assertEqual(account_backup.run_schedule(T0), 1)
+        self.assertEqual(self._names(), ["accounts-20261026T073320Z.sqlite3"])
+        first = self.directory / self._names()[0]
+        self.assertEqual(account_backup.examine(first).accounts, 2)
+        # The loop asks every half minute. Until a day has passed the answer is no.
+        for later in (30, 3600, DAY - 1):
+            self.assertEqual(account_backup.run_schedule(T0 + later), 0, later)
+        self.assertEqual(len(self._names()), 1)
+        self.assertEqual(account_backup.run_schedule(T0 + DAY), 1)
+        self.assertEqual(len(self._names()), 2)
+
+    def test_what_is_due_is_read_from_the_files_so_a_restart_changes_nothing(self):
+        account_backup.run_schedule(T0)
+        # Nothing is remembered in the process: a copy touched just now is
+        # still yesterday's backup, because its name says when it was taken.
+        os.utime(self.directory / self._names()[0], (T0 + DAY, T0 + DAY))
+        self.assertEqual(account_backup.run_schedule(T0 + 3600), 0)
+        self.assertEqual(account_backup.run_schedule(T0 + DAY + 5), 1)
+
+    def test_only_the_newest_are_kept_and_only_its_own_files_are_ever_removed(self):
+        self.directory.mkdir(parents=True)
+        mine = self.directory / "before-the-migration.sqlite3"
+        other = self.directory / "accounts-notes.txt"
+        account_backup.backup(mine)
+        other.write_text("not a backup", encoding="utf-8")
+        with patch.dict("os.environ", {"ACCOUNTS_BACKUP_KEEP": "3"}):
+            for day in range(6):
+                self.assertEqual(account_backup.run_schedule(T0 + day * DAY), 1)
+        names = self._names()
+        self.assertEqual(len(names), 3)
+        self.assertEqual(names, sorted(names))
+        self.assertEqual(names[-1], "accounts-20261031T073320Z.sqlite3", "the newest three, not the oldest")
+        self.assertTrue(mine.is_file() and other.is_file(), "an operator's own files are not this schedule's")
+        self.assertEqual(list(self.directory.glob("*.partial")), [])
+
+    def test_a_backup_that_fails_costs_nothing_that_was_already_safe(self):
+        with patch.dict("os.environ", {"ACCOUNTS_BACKUP_KEEP": "2"}):
+            account_backup.run_schedule(T0)
+            account_backup.run_schedule(T0 + DAY)
+            before = self._names()
+            with patch.object(account_backup, "backup", side_effect=account_backup.BackupError("disk full")):
+                # The failure is the stage's failure, which /health shows.
+                with self.assertRaises(account_backup.BackupError):
+                    account_backup.run_schedule(T0 + 2 * DAY)
+            self.assertEqual(self._names(), before, "nothing old is removed unless something new was written")
+            # It is tried again on the next tick, not a day later.
+            self.assertEqual(account_backup.run_schedule(T0 + 2 * DAY + 30), 1)
+
+    def test_a_scheduled_backup_restores_like_any_other(self):
+        account_backup.run_schedule(T0)
+        accounts.register(CAROL, PASSWORD[CAROL])
+        self.live.unlink()
+        code, out, err = _run("restore", self.directory / self._names()[0], "--replace-live")
+        self.assertEqual((code, err), (0, ""), out)
+        self.assertTrue(self._can_sign_in(ALICE) and self._can_sign_in(BOB))
+        self.assertFalse(self._can_sign_in(CAROL))
+
+    def test_it_does_nothing_where_there_is_nothing_to_back_up_or_it_is_off(self):
+        with patch.dict("os.environ", {"ACCOUNTS_BACKUP_HOURS": "0"}):
+            self.assertEqual(account_backup.run_schedule(T0), 0)
+            self.assertIsNone(account_backup.kept_days())
+        self.assertFalse(self.directory.exists())
+        missing = self.root / "nowhere" / "accounts.sqlite3"
+        with patch.dict("os.environ", {"ACCOUNTS_DB": str(missing)}):
+            self.assertEqual(account_backup.run_schedule(T0), 0)
+        self.assertFalse(missing.parent.exists(), "no database is created in order to back it up")
+        os.environ.pop("ACCOUNTS_DB")
+        self.assertEqual(account_backup.run_schedule(T0), 0)
+        self.assertIsNone(account_backup.kept_days())
+        self.assertEqual(account_backup.scheduled_backups(), [])
+
+    def test_settings_are_read_safely_and_the_stated_days_follow_from_them(self):
+        self.assertEqual((account_backup.schedule_hours(), account_backup.schedule_keep()), (24, 14))
+        self.assertEqual(account_backup.kept_days(), 14)
+        for hours, keep, days in (("6", "4", 1), ("12", "5", 3), ("48", "2", 4), ("24", "1", 1)):
+            with self.subTest(hours=hours, keep=keep), patch.dict(
+                    "os.environ", {"ACCOUNTS_BACKUP_HOURS": hours, "ACCOUNTS_BACKUP_KEEP": keep}):
+                self.assertEqual(account_backup.kept_days(), days)
+        # Nonsense is the default, never "keep nothing" or "back up constantly".
+        for bad in ("soon", "-3", "nan", "inf", ""):
+            with self.subTest(bad=bad), patch.dict(
+                    "os.environ", {"ACCOUNTS_BACKUP_HOURS": bad, "ACCOUNTS_BACKUP_KEEP": bad}):
+                self.assertEqual((account_backup.schedule_hours(), account_backup.schedule_keep()), (24, 14))
+        with patch.dict("os.environ", {"ACCOUNTS_BACKUP_KEEP": "0"}):
+            self.assertEqual(account_backup.schedule_keep(), 14, "there is always at least one to keep")
+
+    def test_the_directory_can_be_chosen_and_is_never_mistaken_for_a_run(self):
+        elsewhere = self.root / "chosen"
+        with patch.dict("os.environ", {"ACCOUNTS_BACKUP_DIR": str(elsewhere)}):
+            self.assertEqual(account_backup.run_schedule(T0), 1)
+            self.assertEqual([path.parent for path in account_backup.scheduled_backups()], [elsewhere])
+        self.assertFalse(self.directory.exists())
+        # By default it sits in the outputs directory, beside the runs.
+        self.assertEqual(account_backup.run_schedule(T0), 1)
+        with patch.object(runs, "DEFAULT_OUTPUT_ROOT", self.live.parent):
+            self.assertEqual(runs.run_directories(), [])
+
+    def test_list_shows_what_the_service_has_taken(self):
+        code, out, _ = _run("list")
+        self.assertEqual(code, 0)
+        self.assertIn("every 24 hours, newest 14 kept", out)
+        self.assertIn("none yet", out)
+        account_backup.run_schedule(T0)
+        code, out, _ = _run("list")
+        self.assertIn("accounts-20261026T073320Z.sqlite3  2 account(s)", out)
+        with patch.dict("os.environ", {"ACCOUNTS_BACKUP_HOURS": "0"}):
+            self.assertIn("the schedule is off", _run("list")[1])
+
+    def test_the_service_runs_it_and_says_what_it_keeps(self):
+        # In the maintenance loop, with its own check in /health.
+        with TestClient(app) as client:
+            self.assertIn("account_backup", client.get("/health").json()["maintenance"]["checks"])
+            self.assertEqual(client.get("/api/site").json()["account_backup_days"], 14)
+            with patch.dict("os.environ", {"ACCOUNTS_BACKUP_HOURS": "0"}):
+                self.assertIsNone(client.get("/api/site").json()["account_backup_days"])
+        # A deleted account stays in a backup until it ages out; the privacy page says so, with that number.
+        root = Path(account_backup.__file__).resolve().parents[1] / "web"
+        page = (root / "privacy.html").read_text(encoding="utf-8")
+        self.assertEqual(page.count("<span data-account-backup hidden>"), 2, "English and Chinese")
+        self.assertEqual(page.count("<span data-account-backup-days></span>"), 2)
+        script = (root / "static" / "js" / "privacy.js").read_text(encoding="utf-8")
+        self.assertIn("site.account_backup_days", script)
+        self.assertIn('$$("[data-account-backup]")) node.hidden = backupDays === null', script)
 
 
 if __name__ == "__main__":

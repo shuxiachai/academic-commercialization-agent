@@ -32,6 +32,7 @@ from dotenv import load_dotenv
 from fastapi import (
     FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile,
 )
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
@@ -57,11 +58,12 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import auxiliary_usage, key_check, plan_preview, retrieval_health, samples
+from api import account_backup, alerts, auxiliary_usage, key_check, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
 from api.models import (  # noqa: E402
+    AlertStatus,
     AuthConfig,
     AuthCredentials,
     AccountDeleted,
@@ -261,6 +263,46 @@ def _source_locator_status() -> SourceLocatorStatus | None:
     return SourceLocatorStatus(**_source_locator.feature_status(), deferred_maintenance=deferred)
 
 
+def _failed_stages() -> list[str]:
+    with _maintenance_lock:
+        return [f"maintenance:{name}" for name, result in _maintenance_checks.items() if result == "failed"]
+
+
+def _send_alerts() -> None:
+    alerts.review(_failed_stages(), runs.drain_operator_failures(), revision=_PIPELINE_REVISION)
+
+
+async def _review_alerts() -> None:
+    """Tell the operator what this cycle found, if they asked to be told.
+
+    Deliberately not a stage. A stage that fails is itself reported, and an
+    alert about the alert not being delivered has nowhere to go. Its own
+    state is in /health under `alerts`. Whatever happens here, the loop that
+    holds the timeout watchdog carries on.
+    """
+    if alerts.configured() != "ready":
+        return
+    try:
+        await asyncio.to_thread(_send_alerts)
+    except Exception:  # noqa: BLE001 - an alert must never cost the watchdog its loop
+        _LOGGER.exception("Operator alert review failed")
+
+
+def _maintenance_ended(task: asyncio.Task) -> None:
+    """The loop cannot report its own end, so its end is reported for it.
+
+    Cancellation is shutdown and is nobody's news. Anything else leaves the
+    process serving requests with no timeout watchdog. Sent from a thread of
+    its own: the loop that would have sent it is the thing that ended.
+    """
+    if task.cancelled() or alerts.configured() != "ready":
+        return
+    threading.Thread(
+        target=alerts.review, args=([*_failed_stages(), alerts.LOOP_STOPPED],),
+        kwargs={"revision": _PIPELINE_REVISION}, name="alert-maintenance-ended", daemon=True,
+    ).start()
+
+
 async def _reaper() -> None:
     """Kill runs that exceed the deadline.
 
@@ -279,18 +321,31 @@ async def _reaper() -> None:
             ("retention", runs.prune_expired_runs),
             ("receipts", _prune_receipts),
             ("auxiliary_usage", auxiliary_usage.prune),
+            # Last of the fixed stages, and advisory like the cleanups: a
+            # backup that fails shows as a failed check and a degraded state
+            # in /health, and does not make the service unready. Restarting
+            # the container cannot repair a full disk.
+            ("account_backup", account_backup.run_schedule),
         ) + _source_locator_stages():
             await _maintenance_stage(name, operation, collect_cleanup=name in {"papers", "retention"})
+        await _review_alerts()
 
 
 @contextlib.asynccontextmanager
 async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
     global _maintenance_task, _maintenance_checks, _maintenance_timings
     with _maintenance_lock:
-        _maintenance_checks = dict.fromkeys(("timeouts", "papers", "retention", "receipts", "auxiliary_usage"), "not_checked")
+        _maintenance_checks = dict.fromkeys(
+            ("timeouts", "papers", "retention", "receipts", "auxiliary_usage", "account_backup"), "not_checked")
         _maintenance_checks.update(dict.fromkeys((name for name, _ in _source_locator_stages()), "not_checked"))
         _maintenance_timings = {}
+    alerts.reset()
+    if alerts.configured() == "misconfigured":
+        # Said once, and without the value: it may be most of a real address.
+        _LOGGER.warning("The alert robot setting is not usable, so no alerts will be sent. Set exactly one of "
+                        "ALERT_FEISHU_WEBHOOK and ALERT_WECOM_WEBHOOK, to the webhook address its robot shows.")
     task = asyncio.create_task(_reaper())
+    task.add_done_callback(_maintenance_ended)
     _maintenance_task = task
     try:
         yield
@@ -463,6 +518,40 @@ async def _rate_limit(request: Request, call_next):
     return await call_next(request)
 
 
+def _is_page_asset(path: str) -> bool:
+    """The files a page is made of, and the documents that load them."""
+    return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples")
+            or path.startswith(("/run/", "/samples/")))
+
+
+@app.middleware("http")
+async def _revalidate_page_assets(request: Request, call_next):
+    """Tell browsers to confirm a script or stylesheet before reusing it.
+
+    The page is some seventeen modules that import one another, each cached
+    under its own unversioned URL. They were sent with a validator and no
+    caching instruction, which leaves the browser to guess how long a copy
+    stays good: commonly a tenth of the time since the file last changed, so
+    the longer since the last deploy, the longer the guess. After a deploy a
+    returning visitor could therefore run a new module beside an old one it
+    imports, and a call to something the old one does not have yet fails in
+    the page.
+
+    `no-cache` keeps the copy and asks first. An unchanged file costs one
+    conditional request answered 304 with no body; a changed one is fetched.
+    The documents get the same instruction as their scripts: a page kept
+    longer than the modules it names is the same mismatch from the other
+    side. The main page was `no-store` only where the saved-source locator
+    rewrites it; served as a plain file, which is the default, it had no
+    instruction at all. Set only where nothing chose a policy already, so
+    that `no-store` stands.
+    """
+    response = await call_next(request)
+    if request.method in ("GET", "HEAD") and _is_page_asset(request.url.path):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 @app.middleware("http")
 async def _security_headers(request: Request, call_next):
     """Attach the response headers above to every response.
@@ -537,7 +626,8 @@ async def _access_gate(request: Request, call_next):
             # accounts; the shipped-client smoke accounts for every request.
             body["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
                                 "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
-                                "key_check": key_check.enabled()}
+                                "key_check": key_check.enabled(), "contact": _operator_contact(),
+                                "plan_preview": plan_preview.enabled()}
         return JSONResponse(body, status_code=401)
     # Who answered, if anyone — GET /api/runs uses this to show each code
     # holder or account only the runs made under their own identity. None
@@ -655,19 +745,28 @@ def access_check(http_request: Request) -> dict:
     if accounts.enabled():
         payload["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
                                "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
-                                "key_check": key_check.enabled()}
+                                "key_check": key_check.enabled(), "contact": _operator_contact(),
+                                "plan_preview": plan_preview.enabled()}
         who = identity.resolve(http_request)
         payload["account"] = {"email": who.user.email, "admin": who.is_admin} if who.kind == "user" else None
     return payload
+
+
+def _operator_contact() -> str | None:
+    """Who runs this deployment, as the operator chose to say it; None when unset.
+
+    Already public on the privacy page. The sign-up form shows it too, beside
+    the invite code field, so it is one value read in one place.
+    """
+    return (os.getenv("OPERATOR_CONTACT") or "").strip()[:300] or None
 
 
 @app.get("/api/site", response_model=SiteInfo, tags=["site"])
 def site_info() -> SiteInfo:
     """The facts about this deployment that its privacy page states: how long
     assessments are kept and who to ask. Ungated; nothing here is private."""
-    contact = (os.getenv("OPERATOR_CONTACT") or "").strip()
-    return SiteInfo(retention_days=runs.RUN_RETENTION_DAYS or None, contact=contact[:300] or None,
-                    accounts=accounts.enabled())
+    return SiteInfo(retention_days=runs.RUN_RETENTION_DAYS or None, contact=_operator_contact(),
+                    accounts=accounts.enabled(), account_backup_days=account_backup.kept_days())
 
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
@@ -697,7 +796,9 @@ def auth_config() -> AuthConfig:
     return AuthConfig(enabled=accounts.enabled(), signup_open=accounts.enabled() and accounts.signup_open(),
                       signup=accounts.signup_mode() if accounts.enabled() else "closed",
                       access_codes=access.gate_enabled(),
-                      key_check=accounts.enabled() and key_check.enabled())
+                      key_check=accounts.enabled() and key_check.enabled(),
+                      contact=_operator_contact() if accounts.enabled() else None,
+                      plan_preview=accounts.enabled() and plan_preview.enabled())
 
 
 @app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],
@@ -937,24 +1038,33 @@ def daily_quota(http_request: Request) -> DailyQuota | None:
     response_model=PlanPreview,
     tags=["runs"],
     responses={
+        401: {"description": "An account must send its own keys"},
         404: {"description": "Plan previews are turned off on this deployment"},
-        429: {"description": "Daily preview limit reached for this access code"},
+        429: {"description": "Daily preview limit reached for this access code or account"},
     },
 )
 def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
     """How the planner reads a topic, before a run is started on it.
 
-    One small model call on the deployment's key, behind the access code. It
-    does not take one of the code's daily runs; it has its own daily cap.
-    Pass the confirmed or edited result to POST /api/runs as `search_plan`.
+    One small model call. Whoever sends a complete key set pays for it with
+    that set's model key; an account must, because an account is never billed
+    to the deployment. Otherwise it runs on the deployment's key, behind the
+    access code. It does not take a daily run; it has its own daily cap, per
+    code or per account. Pass the confirmed or edited result to
+    POST /api/runs as `search_plan`.
     """
     if not plan_preview.enabled():
         raise HTTPException(status_code=404, detail="Plan previews are turned off.")
-    if identity.resolve(http_request).kind == "user":
-        # The preview runs on the deployment's key. An account's own run plans
-        # with the account's key inside the worker, so nothing is lost.
-        raise HTTPException(status_code=404, detail="Plan previews are not available to accounts.",
-                            headers={"X-Error-Code": "byok_required"})
+    credentials = None
+    if request.byok:
+        credentials = {"provider": request.llm_provider, "api_key": request.llm_api_key,
+                       "model": request.llm_model}
+    elif identity.resolve(http_request).kind == "user":
+        raise HTTPException(
+            status_code=401,
+            detail="Add your API keys to preview the search: accounts run on their own keys.",
+            headers={"X-Error-Code": "byok_required"},
+        )
     try:
         plan_preview.admit(http_request.state.owner)
     except plan_preview.PreviewLimitReached as exc:
@@ -963,7 +1073,7 @@ def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
             detail=f"{exc}. Start the run without a preview, or try again after 00:00 UTC.",
             headers={"X-Error-Code": "plan_preview_limit"},
         ) from exc
-    return PlanPreview(**plan_preview.preview(request.topic))
+    return PlanPreview(**plan_preview.preview(request.topic, credentials))
 
 
 _WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
@@ -1095,6 +1205,7 @@ def health() -> HealthStatus:
         pipeline_revision=_PIPELINE_REVISION,
         maintenance=_maintenance_status(),
         source_locator=_source_locator_status(),
+        alerts=AlertStatus(**alerts.status()),
     )
 
 
@@ -1217,6 +1328,29 @@ def health_ready(response: Response) -> ReadinessStatus:
     if not status.ready:
         response.status_code = 503
     return status
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error(_request: Request, exc: RequestValidationError):
+    """Refuse a malformed request by naming the field and the rule, never the value.
+
+    The framework's own reply quotes what was sent. For a rule that looks at
+    the whole body, such as "a key set is complete or absent", that is the
+    whole body: a run request with a misspelt model name came back with the
+    model key and the search key in it. They went only to whoever sent them,
+    but an error reply is read by code that shows, logs and reports errors,
+    and the privacy page says keys are not carried anywhere else.
+
+    Every route gets the same three fields the API description already
+    documents for a 422. The sentence in `msg` is the validator's own and is
+    written without the value; tests/test_validation_errors.py sends secrets
+    through every body-taking route and looks for them in the reply.
+    """
+    return JSONResponse(
+        {"detail": [{"type": problem.get("type"), "loc": list(problem.get("loc", ())), "msg": problem.get("msg")}
+                    for problem in exc.errors()]},
+        status_code=422,
+    )
 
 
 @app.exception_handler(receipts.ReceiptError)
@@ -1565,8 +1699,14 @@ def retrieval_health_summary(
 
 
 @app.get("/api/runs", response_model=RunList, tags=["runs"])
-def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200)) -> RunList:
+def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200),
+              offset: int = Query(default=0, ge=0, le=100_000)) -> RunList:
     """List runs, newest first — scoped to the calling code's own history.
+
+    `offset` skips that many of the newest runs; `total` in the reply is the
+    size of the whole history. There is no search parameter on purpose: a
+    topic typed into a query string would be written to the access log, and
+    the page filters what it has loaded instead.
 
     `request.state.owner`/`.is_admin` were set by the access-gate
     middleware, which ran ahead of this handler for every path that isn't
@@ -1576,7 +1716,7 @@ def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200
     """
     try:
         summaries, total = runs.list_runs(
-            limit=limit, owner=http_request.state.owner
+            limit=limit, owner=http_request.state.owner, offset=offset
         )
     except runs.OwnerMarkerUnreadable as exc:
         # Omitting the affected entry would make a protected run look absent;

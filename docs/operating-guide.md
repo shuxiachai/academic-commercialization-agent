@@ -407,12 +407,12 @@ semantic correctness of all report prose; see the
 | GET | `/api/health/retrieval?window=20` | Per-lane counts of empty and refused retrieval across recent runs' audits; owner-filtered like `/api/runs`, no topics or run ids |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
 | GET | `/api/quota` | Paid operations left today for the calling code; `null` when uncapped |
-| POST | `/api/plan` | Preview how the planner reads a topic; code holders only, own daily cap, not a paid operation |
+| POST | `/api/plan` | Preview how the planner reads a topic; on the deployment's key for a code holder, on its own key set for an account; own daily cap, not a paid operation |
 | GET | `/api/runs/{run_id}/feedback` | The caller's own answer about a delivered report, if any. Authorized like a mutation: a code-owned run answers to its code or the admin, an ownerless run to whoever holds its URL |
 | POST | `/api/runs/{run_id}/feedback` | One click on a delivered report: did it change the reader's view (`yes`/`no`/`unsure`) and which part mattered. Fixed words, no text; one record per responder, replaced on a later answer; kept in the run's `feedback.json` for `scripts/ops_report.py`. Not a paid operation |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
 | GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
-| GET | `/api/runs` | Owner-filtered run history when access control is enabled |
+| GET | `/api/runs` | Owner-filtered run history when access control is enabled; `limit` (1–200) and `offset` page through it, `total` is the whole history |
 | GET | `/api/runs/{id}` | State, stage, execution identity and available artifacts |
 | GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract |
 | GET | `/api/runs/{id}/report` | Final Markdown |
@@ -782,11 +782,15 @@ These are example policy values, not a cost/SLO guarantee.
   records which applied (`daily_charge` on its status), and a failed run's
   page says whether it counted and that resuming uses another unit.
 - `PLAN_PREVIEW_DAILY_LIMIT` (default 20, 0 disables) caps `POST /api/plan`
-  per code and UTC day. A preview is one planner call and does not use a
-  paid operation. The browser shows the reading before a code-funded run;
-  the confirmed or edited plan goes into the RunSpec as `search_plan`, and
-  the worker searches it instead of planning again. The count lives in
-  memory, so a restart resets it.
+  per code or account and UTC day. A preview is one planner call and does not
+  use a paid operation. The browser shows the reading before a code-funded
+  run, and before an account's run; the confirmed or edited plan goes into
+  the RunSpec as `search_plan`, and the worker searches it instead of
+  planning again. The count lives in memory, so a restart resets it. A
+  request that carries a complete key set is planned on that set's model key
+  and can be billed to nobody else; an account must send one. When the model
+  gives no answer the reply says `planned: false`, and the page says the
+  search could not be previewed instead of showing the topic as typed.
 - Counts are atomically persisted in
   `outputs/.paid-operation-ledger.json`; restart does not reset that day's
   budget. Unreadable accounting fails closed before paid work.
@@ -827,9 +831,10 @@ and it pays for every paid operation with its own LLM and search keys, sent
 with each request exactly as the bring-your-own-key path always sent them.
 The server never stores an account's keys; the browser keeps them in session
 storage and the page says so. A signed-in request without keys is refused
-with `byok_required`, never billed to the deployment. Plan previews and the
-daily operator quota do not apply to accounts, because both spend the
-deployment's key.
+with `byok_required`, never billed to the deployment. The daily operator
+quota does not apply to accounts, because it meters the deployment's key. A
+plan preview does apply: the page sends the account's key set with it, the
+call is made on the account's model key, and the page says so.
 
 Accounts and access codes coexist. A valid `X-Access-Code` header takes
 precedence over a session token, keeps its operator billing and its own
@@ -838,6 +843,10 @@ anonymous visitor must sign in or present a code; the key-only path that an
 ungated or code-gated deployment offers is closed, since keys alone are no
 longer an identity. `ACCOUNTS_SIGNUP` is `open`, `invite` (registration
 needs `ACCOUNTS_INVITE_CODE`) or `closed` (existing accounts keep working).
+Whenever the sign-up form asks for an invite code it says who gives codes
+out: `OPERATOR_CONTACT` if it is set, as a mail link when it is an address,
+and otherwise "ask whoever shared this link". The contact travels with the
+configuration the gate already receives, so the form makes no extra request.
 `ACCOUNTS_ADMIN_EMAILS` names accounts that see every owner's history,
 labelled by email or code; it is read per request, so it can change without a
 migration. Registration verifies no email, so an address on the admin list
@@ -904,6 +913,20 @@ reason stays in the run's `error.log`. The page shows the API's English
 sentence as sent and words the same code in Simplified Chinese;
 `tests/test_failure_reasons.py` keeps the two lists complete.
 
+### Run history in the page
+
+The rail shows the newest fifty runs and a "Show more" button adds fifty at
+a time. Once a history has eight runs a search box appears. It filters in
+the page, on topic, owner label and run ID: the words typed are never sent,
+because a topic in a query string would be written to the access log, and
+the list endpoint takes no search parameter for the same reason. A search
+therefore loads the history first, two hundred runs per request and at most
+a thousand, and says so when a history is longer than that. A finished run
+offers "Run again", which fills the composer with its topic and sends
+nothing, and "Copy link"; a running one offers "Copy link" too. Copying a
+link is sharing a read capability, and the confirmation says that anyone who
+has it can read the run.
+
 ### Run links, BYOK and retention
 
 A run ID contains 128 bits of randomness and acts as a read capability.
@@ -951,6 +974,15 @@ cleanup failure is logged, not represented as successful erasure. History
 refreshes are generation-bound and logout clears visible capability lists;
 previously shared capability URLs are not thereby revoked. See the
 [verified boundaries](results-2026-09-08-upload-history-cancellation-boundaries.md).
+
+Scripts, stylesheets and the pages that load them are sent with
+`Cache-Control: no-cache`: a browser keeps its copy and confirms it before
+each use, which costs a 304 for an unchanged file. Without it the browser
+guesses how long a copy stays good, and after a deploy a returning visitor
+could run a new module beside an old one it imports. The main page is
+`no-store` instead where the saved-source locator rewrites it. Nothing is
+versioned by URL, so a CDN placed in front must honour the header rather
+than apply its own lifetime.
 
 Strict CSP and security headers constrain the static client and report rendering.
 They do not replace source validation, access control or retention.
@@ -1002,8 +1034,95 @@ copy. Restoring on the live deployment signs everyone out, so rehearse the
 restore itself on a local copy: set `ACCOUNTS_DB` to an empty path, run
 `restore <copy> --replace-live`, and sign in.
 
-How often to back up is the operator's call and depends on how many accounts
-a day would hurt to lose. Nothing here runs on a schedule.
+The service also takes a backup by itself. Every `ACCOUNTS_BACKUP_HOURS`
+(default 24; 0 turns it off) the maintenance loop writes a checked snapshot
+named `accounts-<UTC time>.sqlite3` into `ACCOUNTS_BACKUP_DIR` (default
+`_account_backups` beside the database) and keeps the newest
+`ACCOUNTS_BACKUP_KEEP` (default 14). Whether one is due is read from the
+newest file's name, so a restart neither forgets the last backup nor takes
+an extra one. Old ones are removed only after a new one has been written
+and checked, and files with any other name in that directory are never
+touched. `python -m api.account_backup list` shows them; any of them can be
+given to `verify` or `restore`. A backup that fails appears in `/health` as
+`maintenance.checks.account_backup: failed` with the state `degraded`; it
+does not make the service unready, because restarting cannot repair a full
+disk.
+
+These scheduled backups sit on the same volume as the database. They are for
+a bad change or a deleted file. Losing the volume loses them too, so a copy
+kept elsewhere, or the platform's volume backups, is still the operator's to
+arrange.
+
+A scheduled backup keeps what was true on its day, so a deleted account's
+email and password hash remain in the backups until they age out: with the
+defaults, fourteen days. The privacy page states this with the deployment's
+own number, from `GET /api/site` (`account_backup_days`).
+
+### Alerts
+
+Everything above is visible in `/health` to someone who looks. Give the
+service a group robot and it tells a group instead of waiting to be asked.
+Use the one you read:
+
+| Where | Setting | The robot |
+|---|---|---|
+| Feishu (飞书) or Lark | `ALERT_FEISHU_WEBHOOK` | In the group: Settings, Bots (群机器人), Add Bot, Custom Bot (自定义机器人). Copy the webhook address it shows |
+| WeCom (企业微信) | `ALERT_WECOM_WEBHOOK` | In the group: add a group robot (群机器人). Copy the webhook address it shows |
+
+Set one of the two to the address the robot shows, then check it from the
+host:
+
+```
+python -m api.alerts test
+```
+
+`/health` shows which one is in use (`alerts.channel`). Setting both is
+refused, as `misconfigured`: which group hears about a failure is not left
+to an order of precedence.
+
+A Feishu robot offers three security settings, and the service works with
+each:
+
+- Custom keywords (自定义关键词): use `告警` or `ACA`. Every message
+  contains both, and a robot with a keyword set drops a message without it.
+- Signature verification (签名校验): set `ALERT_FEISHU_SECRET` to the
+  signing secret the robot shows. Feishu refuses a signature more than an
+  hour from its own clock.
+- IP allowlist (IP 白名单): only where the host's outbound address is
+  fixed. A platform that does not promise one will be refused sooner or
+  later.
+
+If the test message is refused, the command says which of these it was.
+
+It reports three things and nothing else:
+
+| What | When |
+|---|---|
+| A maintenance stage failed (`maintenance.checks.<name>: failed`) | When it first fails, again every `ALERT_REPEAT_HOURS` (default 6) while it stays failed, and once when it is back |
+| The maintenance loop ended | Once. The timeout watchdog is gone with it and `/health/ready` reports not ready; the service needs a restart |
+| A run on the deployment's keys failed for an operator's reason | Per failure code, at most once every `ALERT_REPEAT_HOURS`, with the number of runs since the last message |
+
+The operator's reasons are the codes `provider_auth`, `provider_free_quota`,
+`provider_billing`, `provider_model_unavailable` and
+`provider_request_rejected`: the ones an access-code visitor is told were
+not caused by their request. A run on an account's own keys is never
+reported; the page tells its owner what to change.
+
+A message names stages, failure codes, counts and the revision. It carries
+no run ID, topic, email address, path or provider text, because a run ID
+opens the run and the group is not a party to any assessment. The run IDs
+are in the service log (`run <id> on the deployment's keys failed: <code>`).
+
+The webhook address is a secret: whoever holds it can post to the group. It
+is never logged or echoed, and neither is the signing secret. The request
+always goes to the vendor's own host, so a mistyped value cannot send
+alerts elsewhere; `/health` then shows `alerts.state: misconfigured`. `failing` means the last message was not
+delivered; it is tried again on the next cycle, from what is true then.
+What has been said is kept in memory only, so a problem that outlives a
+restart is reported once more after it.
+
+This cannot report the service being down: a process that is not running
+sends nothing. That needs a monitor outside it, pointed at `/health/ready`.
 
 ### Docker and Railway
 

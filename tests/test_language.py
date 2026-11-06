@@ -205,7 +205,63 @@ def test_topic_plan_falls_back_to_the_original_english_input_when_call_fails():
     with patch("academic_agent.language._llm_call", return_value=""):
         plan = plan_topic_search(raw)
 
-    assert plan == TopicSearchPlan(search_topic=raw, aliases=())
+    # The run goes on with the topic as typed, and the plan says that is what it is.
+    assert plan == TopicSearchPlan(search_topic=raw, aliases=(), planned=False)
+    assert TopicSearchPlan(search_topic=raw).planned is True
+
+
+def test_a_plan_the_model_wrote_says_so():
+    with patch("academic_agent.language._llm_call",
+               return_value="SEARCH_TOPIC: solid-state batteries for electric vehicles"):
+        assert plan_topic_search("solid-state batteries for electric vehicles").planned is True
+    # An answer that names no subject is still an answer.
+    with patch("academic_agent.language._llm_call", return_value="SEARCH_TOPIC: UNRESOLVED"):
+        unresolved = plan_topic_search("help me with my homework")
+    assert (unresolved.resolved, unresolved.planned) == (False, True)
+
+
+_OWN = {"provider": "deepseek", "api_key": "sk-ACCOUNT-KEY", "model": "deepseek-chat"}
+
+
+def test_a_callers_credentials_reach_every_call_the_planner_makes():
+    """A Chinese topic whose planning fails is translated by a second call.
+    Both must be on the caller's key: the second used to have no way to be."""
+    seen = []
+
+    def call(prompt, *, system, max_tokens=400, stage="language_helper", credentials=None):
+        seen.append((stage, credentials))
+        return ""
+
+    with patch("academic_agent.language._llm_call", call):
+        plan_topic_search("钠离子电池用于电网储能", credentials=_OWN)
+        plan_topic_search("钠离子电池用于电网储能")
+    assert seen == [("search_planning", _OWN), ("translation", _OWN),
+                    ("search_planning", None), ("translation", None)]
+
+
+def test_a_callers_credentials_ignore_the_deployments_model_endpoint_and_key(monkeypatch):
+    from academic_agent import language
+
+    monkeypatch.setenv("LLM_PROVIDER", "qwen")
+    monkeypatch.setenv("QWEN_MODEL", "qwen3.7-max-2026-06-08")
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-OPERATOR-KEY")
+    monkeypatch.setenv("QWEN_API_KEY", "sk-OPERATOR-KEY")
+    monkeypatch.setenv("QWEN_API_BASE", "https://gateway.example.com/v1")
+    monkeypatch.setenv("OPENAI_API_BASE", "https://gateway.example.com/v1")
+
+    request, provider, identity, _ = language._provider_request("prompt", "system", 10, _OWN)
+    assert provider == "deepseek"
+    assert request.full_url == "https://api.deepseek.com/chat/completions"
+    assert request.get_header("Authorization") == "Bearer sk-ACCOUNT-KEY"
+    assert json.loads(request.data)["model"] == "deepseek-chat"
+    assert identity == ("https://api.deepseek.com", "deepseek-chat")
+    assert "OPERATOR" not in str(request.header_items()) + request.data.decode()
+
+    # Without credentials the deployment's own configuration is used, as before.
+    request, provider, _, _ = language._provider_request("prompt", "system", 10)
+    assert provider == "qwen"
+    assert request.full_url == "https://gateway.example.com/v1/chat/completions"
+    assert request.get_header("Authorization") == "Bearer sk-OPERATOR-KEY"
 
 
 def test_a_plan_that_only_dropped_the_inputs_function_words_keeps_the_inputs_wording():

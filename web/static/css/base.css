@@ -129,3 +129,16 @@ textarea {
 }
 
 [hidden] { display: none !important; }
+
+/* ── Touch devices ──
+   Every text field, wherever it is styled: a field added later is covered
+   without anyone remembering this rule. Doubling :root lifts it over the
+   component rules that set a field's size, in whichever sheet they live.
+   Checkboxes, radios and file pickers have no text to zoom on. */
+@media (pointer: coarse) {
+  :root:root input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"]),
+  :root:root textarea,
+  :root:root select {
+    font-size: var(--text-touch);
+  }
+}
