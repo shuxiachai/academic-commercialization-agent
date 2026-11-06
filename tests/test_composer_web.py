@@ -106,9 +106,15 @@ def test_the_sign_up_form_says_who_gives_out_invite_codes(contact):
     assert "PASS invite_hint" in result.stdout
 
 
-@pytest.mark.parametrize("kind", ["finished", "blocked", "running"])
+@pytest.mark.parametrize("kind", ["finished", "blocked", "running", "fallback", "refused"])
 def test_a_run_offers_its_topic_again_and_its_link(kind):
-    """An earlier topic had to be retyped, and a run's address copied by hand."""
+    """An earlier topic had to be retyped, and a run's address copied by hand.
+
+    `fallback` and `refused` are a browser that will not let the page write
+    to the clipboard itself: the one inside a chat app, where a link to a
+    run is most often opened. The older way of copying is tried, and the
+    reader is told what the browser said.
+    """
     node = shutil.which("node")
     assert node, "Node is required for the run-reuse seam"
     result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),

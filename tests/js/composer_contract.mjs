@@ -716,8 +716,24 @@ const scenarios = {
     const f = fixture();
     f.run('activeRunId = "20261106T000000Z-reuse"');
     f.get('#run-title').textContent = 'hyperloop for freight';
-    const copied = [];
-    if (kind !== 'blocked') {
+    if (kind === 'fallback' || kind === 'refused') {
+      // A browser that refuses the page's own write to the clipboard, as the
+      // one inside a chat app does. The older way is there; whether it works
+      // is the browser's to say.
+      f.run('globalThis.navigator = { clipboard: { writeText: async () => { throw new Error("NotAllowedError"); } } }');
+      f.run(`globalThis.fields = []; globalThis.commands = []; globalThis.refocused = 0;
+        document.activeElement = { focus: () => { refocused += 1; } };
+        document.body = { append: (field) => {
+          field.select = () => { field.selected = true; };
+          field.setSelectionRange = (from, to) => { field.range = [from, to]; };
+          field.remove = () => { field.removed = true; };
+          fields.push(field);
+        } };
+        document.execCommand = (command) => {
+          commands.push([command, fields.at(-1).value, fields.at(-1).selected === true, fields.at(-1).removed === true]);
+          return ${kind === 'fallback'};
+        };`);
+    } else if (kind !== 'blocked') {
       f.run('globalThis.navigator = { clipboard: { writeText: async (text) => { recordCopy(text); } } }; globalThis.recordCopy = null');
     }
     const state = kind === 'running' ? 'running' : 'failed';
@@ -741,8 +757,24 @@ const scenarios = {
     assert.equal(f.requests.length, 0, 'Filling the composer starts nothing');
 
     if (kind === 'blocked') {
+      // Neither way exists here. Nothing is claimed, and nothing is thrown.
       await copy.listeners.click();
       assert.equal(f.get('#toasts').children.at(-1).textContent, 'msg_link_copy_failed');
+    } else if (kind === 'fallback' || kind === 'refused') {
+      f.run('location.origin = "https://example.test"');
+      await copy.listeners.click();
+      const link = 'https://example.test/run/20261106T000000Z-reuse';
+      // Copied while the field held the link and was selected, and before it was taken away.
+      // Compared as text: the arrays were made in the page's own realm.
+      assert.equal(JSON.stringify(f.run('commands')), JSON.stringify([['copy', link, true, false]]));
+      const field = f.run('fields')[0];
+      assert.equal(JSON.stringify(field.range), JSON.stringify([0, link.length]));
+      assert.equal(field.removed, true, 'The field does not stay in the page, copied or not');
+      assert.equal(f.run('fields').length, 1);
+      assert.equal(f.run('refocused'), 1, 'Focus goes back to where it was');
+      // What the browser said is what the reader is told.
+      assert.equal(f.get('#toasts').children.at(-1).textContent,
+        kind === 'fallback' ? 'msg_link_copied' : 'msg_link_copy_failed');
     } else {
       f.run('recordCopy = (text) => { copiedLink = text; }; globalThis.copiedLink = null');
       f.run('location.origin = "https://example.test"');
