@@ -23,13 +23,17 @@ from api import alerts, main, runs
 KEY = "693a91f6-7c3e-4bc4-97a0-0ec2a1b5c9d7"
 ADDRESS = f"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={KEY}"
 HOUR = 3600.0
-_SETTINGS = ("ALERT_WECOM_WEBHOOK", "ALERT_REPEAT_HOURS", "ALERT_SERVICE_NAME", "RAILWAY_PUBLIC_DOMAIN")
+FEISHU = f"https://open.feishu.cn/open-apis/bot/v2/hook/{KEY}"
+LARK = f"https://open.larksuite.com/open-apis/bot/v2/hook/{KEY}"
+SECRET = "demo-signing-secret"
+_SETTINGS = ("ALERT_FEISHU_WEBHOOK", "ALERT_FEISHU_SECRET", "ALERT_WECOM_WEBHOOK", "ALERT_REPEAT_HOURS",
+             "ALERT_SERVICE_NAME", "RAILWAY_PUBLIC_DOMAIN")
 
 
 class _Robot:
-    """Stands where WeCom's host would, and remembers what it was sent."""
+    """Stands where the vendor's host would, and remembers what it was sent."""
 
-    def __init__(self, status: int = 200, body: bytes = b'{"errcode":0,"errmsg":"ok"}',
+    def __init__(self, status: int = 200, body: bytes = b'{"errcode":0,"errmsg":"ok","code":0,"msg":"success"}',
                  fault: BaseException | None = None):
         self.status, self.body, self.fault = status, body, fault
         self.connections: list[tuple[str, object]] = []
@@ -70,6 +74,11 @@ class _Case(unittest.TestCase):
 
     def _on(self, value: str = ADDRESS) -> None:
         os.environ["ALERT_WECOM_WEBHOOK"] = value
+
+    def _on_feishu(self, value: str = FEISHU, secret: str | None = None) -> None:
+        os.environ["ALERT_FEISHU_WEBHOOK"] = value
+        if secret is not None:
+            os.environ["ALERT_FEISHU_SECRET"] = secret
 
     def _review(self, problems=(), failures=None, *, at: float) -> bool:
         return alerts.review(problems, failures, revision="git:abc1234", now=at, deliver=self.said.append)
@@ -178,6 +187,162 @@ class WhereItGoesTests(_Case):
         self.assertNotIn("�", content)
 
 
+class FeishuTests(_Case):
+    """The same promises for the other vendor, and the two things only it has."""
+
+    def test_feishu_and_lark_addresses_work_and_the_message_goes_to_the_host_named(self):
+        for address, host in ((FEISHU, "open.feishu.cn"), (LARK, "open.larksuite.com"),
+                              (f"  {FEISHU}?from=copy#x\n", "open.feishu.cn")):
+            with self.subTest(address=address):
+                robot = _Robot()
+                self._on_feishu(address)
+                self.assertEqual(alerts.configured(), "ready")
+                self.assertEqual(alerts.status()["channel"], "feishu")
+                with patch.object(alerts, "_connect", robot):
+                    alerts.send("备份失败")
+                self.assertEqual(robot.connections, [(host, 10)])
+                (method, url, body, headers), = robot.requests
+                # Only the key is taken from what was pasted.
+                self.assertEqual((method, url), ("POST", f"/open-apis/bot/v2/hook/{KEY}"))
+                # No signature is sent for a robot that was not given a secret.
+                self.assertEqual(body, {"msg_type": "text", "content": {"text": "备份失败"}})
+                self.assertIn("application/json", headers["Content-Type"])
+                self.assertEqual(robot.closed, 1)
+
+    def test_anything_that_is_not_the_vendors_own_address_is_refused_and_never_contacted(self):
+        elsewhere = (
+            FEISHU.replace("https://", "http://"),
+            FEISHU.replace("open.feishu.cn", "open.feishu.cn.example.org"),
+            FEISHU.replace("open.feishu.cn", "open.feishu.cn@example.org"),
+            FEISHU.replace("open.feishu.cn", "user@open.feishu.cn"),
+            FEISHU.replace("open.feishu.cn", "open.feishu.cn:8443"),
+            FEISHU.replace("open.feishu.cn", "feishu.cn"),
+            FEISHU.replace("/bot/v2/hook/", "/bot/v2/hooks/"),
+            FEISHU.replace("/open-apis/bot/v2/hook/", "/open-apis/im/v1/messages/"),
+            FEISHU + "/more",
+            FEISHU.replace(KEY, "short"),
+            FEISHU.replace(KEY, ""),
+            f"https://hooks.example.org/open-apis/bot/v2/hook/{KEY}",
+            KEY,              # by itself a key does not say which of the two hosts it is on
+            ADDRESS,          # the other vendor's robot, in this vendor's setting
+        )
+        robot = _Robot()
+        for value in elsewhere:
+            with self.subTest(value=value), patch.object(alerts, "_connect", robot):
+                self._on_feishu(value)
+                self.assertEqual(alerts.configured(), "misconfigured")
+                self.assertEqual(alerts.status()["channel"], None)
+                with self.assertRaises(alerts.AlertError) as refused:
+                    alerts.send("anything")
+                self.assertNotIn(KEY, str(refused.exception))
+                self.assertFalse(self._review(["maintenance:papers"], at=0))
+        os.environ.pop("ALERT_FEISHU_WEBHOOK")
+        with patch.object(alerts, "_connect", robot):
+            self._on(FEISHU)   # and the other way round
+            self.assertEqual(alerts.configured(), "misconfigured")
+        self.assertEqual((robot.connections, self.said), ([], []))
+
+    def test_two_robots_set_is_refused_and_neither_is_contacted(self):
+        # Which group hears about a failure is not left to an order of precedence.
+        robot = _Robot()
+        self._on()
+        self._on_feishu()
+        with patch.object(alerts, "_connect", robot):
+            self.assertEqual(alerts.configured(), "misconfigured")
+            self.assertEqual(alerts.status()["channel"], None)
+            with self.assertRaises(alerts.AlertError) as refused:
+                alerts.send("anything")
+            self.assertIn("exactly one of ALERT_FEISHU_WEBHOOK and ALERT_WECOM_WEBHOOK", str(refused.exception))
+            self.assertFalse(self._review(["maintenance:papers"], at=0))
+        self.assertEqual(robot.connections, [])
+        # Taking one away is enough.
+        os.environ.pop("ALERT_WECOM_WEBHOOK")
+        self.assertEqual((alerts.configured(), alerts.status()["channel"]), ("ready", "feishu"))
+
+    def test_a_robot_with_signature_verification_gets_feishus_signature(self):
+        # The value was computed with openssl, not with the code under test:
+        # an HMAC-SHA256 of nothing, keyed with "<seconds>\n<secret>".
+        self.assertEqual(alerts._feishu_signature(1599360473, SECRET),
+                         "bnV2U4NV6EaiJh72Hk2WwxeDzah+5+dmIJUJ+18wVCQ=")
+        robot = _Robot()
+        self._on_feishu(secret=f"  {SECRET}\n")
+        with patch.object(alerts, "_connect", robot), patch.object(alerts.time, "time", return_value=1599360473.9):
+            alerts.send("备份失败")
+        (_method, url, body, headers), = robot.requests
+        self.assertEqual(body, {"msg_type": "text", "content": {"text": "备份失败"},
+                                "timestamp": "1599360473", "sign": "bnV2U4NV6EaiJh72Hk2WwxeDzah+5+dmIJUJ+18wVCQ="})
+        # The secret signs. It is never sent.
+        self.assertNotIn(SECRET, url + json.dumps(body) + json.dumps(headers))
+        # And it means nothing to the other vendor.
+        os.environ.pop("ALERT_FEISHU_WEBHOOK")
+        self._on()
+        wecom = _Robot()
+        with patch.object(alerts, "_connect", wecom):
+            alerts.send("备份失败")
+        self.assertEqual(wecom.requests[0][2], {"msgtype": "text", "text": {"content": "备份失败"}})
+
+    def test_each_refusal_says_what_to_change_and_repeats_nothing_feishu_said(self):
+        said = (KEY + " " + SECRET).encode()
+        refusals = (
+            (200, 19001, "code 19001", "address is not valid"),
+            (400, 19001, "code 19001", "address is not valid"),   # the code explains; the status beside it does not
+            (200, 19021, "code 19021", "ALERT_FEISHU_SECRET"),
+            (200, 19022, "code 19022", "IP allowlist"),
+            (200, 19024, "code 19024", "keyword"),
+            (200, 9499, "code 9499", "format"),
+            (200, 11232, "code 11232", "too often"),
+            (200, 12345, "code 12345", "Feishu refused the message (code 12345)."),   # one with no hint is still named
+        )
+        self._on_feishu(secret=SECRET)
+        for status, code, named, hint in refusals:
+            robot = _Robot(status=status, body=b'{"code":%d,"msg":"%s","data":{}}' % (code, said))
+            with self.subTest(code=code, status=status), patch.object(alerts, "_connect", robot):
+                with self.assertRaises(alerts.AlertError) as refused:
+                    alerts.send("anything")
+                text = str(refused.exception)
+                self.assertIn(named, text)
+                self.assertIn(hint, text)
+                self.assertNotIn(KEY, text)
+                self.assertNotIn(SECRET, text)
+        for robot, expected in ((_Robot(status=502, body=b"bad gateway"), "Feishu answered HTTP 502."),
+                                (_Robot(body=b'{"errcode":0}'), "Feishu's answer could not be read."),
+                                (_Robot(body=b'{"code":"' + said + b'"}'), "code unreadable"),
+                                (_Robot(body=b'{"code":true}'), "code unreadable"),
+                                (_Robot(fault=ConnectionResetError(SECRET)), "Feishu could not be reached (ConnectionResetError).")):
+            with self.subTest(expected=expected), patch.object(alerts, "_connect", robot):
+                with self.assertRaises(alerts.AlertError) as refused:
+                    alerts.send("anything")
+                self.assertIn(expected, str(refused.exception))
+                self.assertNotIn(KEY, str(refused.exception))
+                self.assertNotIn(SECRET, str(refused.exception))
+
+    def test_every_message_contains_the_keywords_the_guide_tells_the_operator_to_use(self):
+        # A robot with a keyword check drops a message that lacks the keyword.
+        self._on_feishu()
+        robot = _Robot()
+        with patch.object(alerts, "_connect", robot):
+            alerts.review(["maintenance:papers"], now=0)
+            alerts.review([], now=30)
+            alerts.review([], {"provider_auth": 1}, now=60)
+            alerts.review([alerts.LOOP_STOPPED], now=90)
+            alerts.main(["test"])
+        texts = [request[2]["content"]["text"] for request in robot.requests]
+        self.assertEqual(len(texts), 5)
+        for text in texts:
+            self.assertIn("告警", text)
+            self.assertIn("ACA", text)
+
+    def test_a_long_message_is_cut_to_what_feishu_takes(self):
+        robot = _Robot()
+        self._on_feishu()
+        with patch.object(alerts, "_connect", robot):
+            alerts.send("告警" * 9000)
+        content = robot.requests[0][2]["content"]["text"]
+        self.assertLessEqual(len(content.encode("utf-8")), 8000)
+        self.assertGreater(len(content.encode("utf-8")), 7900)
+        self.assertTrue(content.endswith("已截断）"))
+
+
 class WhatIsSaidAndHowOftenTests(_Case):
     def test_a_problem_is_said_when_it_starts_again_while_it_lasts_and_once_when_it_ends(self):
         self._on()
@@ -267,7 +432,8 @@ class WhatIsSaidAndHowOftenTests(_Case):
     def test_off_says_nothing_and_remembers_nothing(self):
         self.assertFalse(self._review(["maintenance:timeouts"], {"provider_auth": 4}, at=0))
         self.assertEqual(self.said, [])
-        self.assertEqual(alerts.status(), {"state": "off", "last_sent_at": None, "last_failed_at": None})
+        self.assertEqual(alerts.status(),
+                         {"state": "off", "channel": None, "last_sent_at": None, "last_failed_at": None})
         # Turned on later in the same process, it starts from nothing held back.
         self._on()
         self.assertFalse(self._review([], None, at=30))
@@ -289,6 +455,9 @@ class WhatIsSaidAndHowOftenTests(_Case):
                 alerts.reset()
                 alerts.review(["maintenance:papers"], revision=revision, now=0, deliver=self.said.append)
                 self.assertIn(shown, self.said[-1])
+                # The whole line, spaces included: it is the one every message ends with.
+                self.assertRegex(self.said[-1].splitlines()[-1],
+                                 r"^版本 \S+ · \d{4}-\d\d-\d\d \d\d:\d\d UTC · 详情见 /health$")
 
     def test_every_cause_and_every_fixed_stage_has_its_wording(self):
         # A cause added to the API with no line here would reach the group as a bare code.
@@ -467,9 +636,10 @@ class InTheServiceTests(_Case):
     def test_health_says_whether_alerts_can_be_sent_and_never_the_address(self):
         with TestClient(main.app) as client:
             self.assertEqual(client.get("/health").json()["alerts"],
-                             {"state": "off", "last_sent_at": None, "last_failed_at": None})
+                             {"state": "off", "channel": None, "last_sent_at": None, "last_failed_at": None})
             self._on()
             self.assertEqual(client.get("/health").json()["alerts"]["state"], "ready")
+            self.assertEqual(client.get("/health").json()["alerts"]["channel"], "wecom")
             self._review(["maintenance:papers"], at=0)
             body = client.get("/health")
             self.assertIsNotNone(body.json()["alerts"]["last_sent_at"])
@@ -478,6 +648,7 @@ class InTheServiceTests(_Case):
             with self.assertLogs("api.main", level="WARNING") as logged, TestClient(main.app) as again:
                 body = again.get("/health")
             self.assertEqual(body.json()["alerts"]["state"], "misconfigured")
+            self.assertIsNone(body.json()["alerts"]["channel"])
             self.assertNotIn(KEY, body.text)
             self.assertNotIn(KEY, " ".join(record.getMessage() for record in logged.records))
             # Advisory: never a reason to be unready. The route is checked to
@@ -499,7 +670,7 @@ class TestCommandTests(_Case):
     def test_it_sends_one_message_and_says_what_happened(self):
         code, out, err = _command("test")
         self.assertEqual((code, out), (1, ""))
-        self.assertIn("ALERT_WECOM_WEBHOOK is not set", err)
+        self.assertIn("neither ALERT_FEISHU_WEBHOOK nor ALERT_WECOM_WEBHOOK is set", err)
 
         self._on()
         robot = _Robot()
@@ -520,7 +691,7 @@ class TestCommandTests(_Case):
         self._on("https://example.org/hook?key=" + KEY)
         code, out, err = _command("test")
         self.assertEqual(code, 1)
-        self.assertIn("is not set to a WeCom robot address", err)
+        self.assertIn("Set exactly one of ALERT_FEISHU_WEBHOOK and ALERT_WECOM_WEBHOOK", err)
         self.assertNotIn(KEY, out + err)
 
 
