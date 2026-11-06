@@ -1134,6 +1134,9 @@
    thumb. A button centres its label, so the height alone is enough. */
 @media (pointer: coarse) {
   .gate__switch { min-height: 44px; margin-top: 0; }
+  /* The composer bar's selects are fields and take the touch size (base.css).
+     The button beside them keeps pace, or one row reads in two sizes. */
+  .composer__bar .chip-btn { font-size: var(--text-touch); }
 }
 .gate__sep { margin: 0 var(--space-2); color: var(--text-disabled); }
 /* A link that wraps has a box spanning two lines whose middle is nobody's
