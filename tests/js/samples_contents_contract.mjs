@@ -116,7 +116,7 @@ function expectContents(sample, label = "Contents") {
   const [toc, ...extra] = tocs();
   assert(toc, `No contents for ${sample.slug}`);
   assert.equal(extra.length, 0, "One contents block");
-  assert.deepEqual(reader().children.map((c) => c.className || c.tag), ["samples__notice", "samples__toc", "prose"]);
+  assert.deepEqual(reader().children.map((c) => c.className || c.tag), ["samples__notice", "samples__download", "samples__toc", "prose"]);
   assert.equal(toc.tag, "nav");
   assert.equal(toc.attributes["aria-label"], label);
   const [details] = toc.children;
@@ -208,7 +208,7 @@ if (scenario === "each_sample") {
   markdown.plain = "# Plain\n\nNo sections.";
   await start("/samples/plain");
   assert.equal(tocs().length, 0, "No contents without sections");
-  assert.deepEqual(reader().children.map((c) => c.className), ["samples__notice", "prose"]);
+  assert.deepEqual(reader().children.map((c) => c.className), ["samples__notice", "samples__download", "prose"]);
   checks++;
 } else throw Error(`Unknown scenario ${scenario}`);
 console.log(`PASS ${scenario} (${checks} contents checks)`);

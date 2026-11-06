@@ -205,6 +205,7 @@
   .samples__reader > .empty-note,
   .samples__reader > .skeleton,
   .samples__toc,
+  .samples__download,
   .cite-card {
     display: none;
   }

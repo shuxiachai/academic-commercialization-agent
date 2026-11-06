@@ -105,13 +105,14 @@ function contentsFor(article) {
   return { nav, headings };
 }
 
-/** A plain same-origin link to the Markdown the reader renders, so a visitor
- * can keep the file. No extra fetch and no credentials: the browser saves what
- * /api/samples/<slug> serves. Built per open sample, so it follows the one on
- * screen and, with the reader reopened on a language switch, the language. */
+/** A plain same-origin link to the committed Markdown, so a visitor can keep
+ * the file. No extra fetch and no credentials: the browser saves what
+ * /api/samples/<slug>?view=saved serves. That is the file as committed, not the
+ * display text the reader renders. Built per open sample, so it follows the one
+ * on screen and, with the reader reopened on a language switch, the language. */
 function downloadLink(sample) {
   const link = el("a", "samples__download", t("samples_download"));
-  link.href = `/api/samples/${encodeURIComponent(sample.slug)}`;
+  link.href = `/api/samples/${encodeURIComponent(sample.slug)}?view=saved`;
   link.download = `${sample.slug}.md`;
   return link;
 }
