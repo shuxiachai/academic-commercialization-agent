@@ -10,6 +10,7 @@ globalThis.localStorage = { getItem: () => null, removeItem: () => {} };
 globalThis.sessionStorage = { getItem: () => null };
 const api = await import("../../web/static/js/api.js");
 const actualRunView = await import("../../web/static/js/run.js");
+const compareView = await import("../../web/static/js/compare.js");
 const source = fs.readFileSync(new URL("../../web/static/js/app.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "");
 const translations = {
@@ -31,6 +32,7 @@ function fixture(receiptStore = new Map()) {
     append(...children) { this.children.push(...children); }
     querySelectorAll() { return []; }
     focus() {} remove() {} reset() {} setAttribute() {} removeAttribute() {}
+    showModal() { this.open = true; } close() { this.open = false; }
   }
   const get = (selector) => {
     if (!elements.has(selector)) elements.set(selector, new Element());
@@ -40,7 +42,7 @@ function fixture(receiptStore = new Map()) {
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
-    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login"].includes(url), `Unexpected HTTP: ${url}`);
+    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login", "/api/runs?limit=200"].includes(url), `Unexpected HTTP: ${url}`);
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
@@ -49,7 +51,7 @@ function fixture(receiptStore = new Map()) {
       setItem: (key, value) => receiptStore.set(key, value),
       removeItem: key => receiptStore.delete(key),
     })),
-    api, runView: { ...actualRunView },
+    api, runView: { ...actualRunView }, compareView,
     sidebar: { refresh: () => Promise.resolve([]) }, result: {}, needsScopeWarning: () => false,
     i18n: { t: (key) => translations[key] || key, language: () => "English", apply: () => {} },
     document: { querySelector: get, querySelectorAll: (selector) => selector === '[data-resume-run]'
@@ -710,6 +712,36 @@ const scenarios = {
     assert.equal(hint.children.length, 0);
     assert.equal(f.requests.length, 0, 'The contact arrives with the gate; it is not fetched');
   },
+  async compare_pick() {
+    // "Compare" asks which finished run; the list is the rail's own request,
+    // the choice only navigates, and nothing else is sent.
+    const f = fixture();
+    f.run('activeRunId = "20261106T000000Z-reuse"');
+    f.run('paintActions("completed")');
+    f.run('globalThis.compared = null; openCompare = (a, b) => { compared = [a, b]; }');
+    const compare = f.get('#run-actions').children.find((button) => button.id === 'run-compare');
+    const picking = compare.listeners.click();
+    assert.equal(f.get('#compare-dialog').open, true);
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.requests[0].url, '/api/runs?limit=200');
+    f.respond(0, { total: 3, runs: [
+      { run_id: '20261106T000000Z-reuse', state: 'completed', topic: 'this one' },
+      { run_id: '20261105T000000Z-other', state: 'completed', topic: 'the other', owner_label: 'ceshi' },
+      { run_id: '20261104T000000Z-broken', state: 'failed', topic: 'did not finish' },
+    ] });
+    await picking;
+    const choices = f.get('#compare-choices').children;
+    assert.equal(choices.length, 1, 'Only another finished run can be compared with');
+    const choice = choices[0].children[0];
+    assert.equal(choice.dataset.runId, '20261105T000000Z-other');
+    assert.equal(choice.children[0].textContent, 'the other');
+    assert.ok(choice.children[1].textContent.endsWith('ceshi'));
+    assert.equal(f.get('#compare-empty').hidden, true);
+    choice.listeners.click();
+    assert.equal(f.get('#compare-dialog').open, false);
+    assert.equal(JSON.stringify(f.run('compared')), JSON.stringify(['20261106T000000Z-reuse', '20261105T000000Z-other']));
+    assert.equal(f.requests.length, 1, 'Choosing sends nothing');
+  },
   async run_reuse() {
     // A finished run offers its topic again and its address; neither sends anything.
     const kind = process.argv[3];
@@ -749,6 +781,9 @@ const scenarios = {
     }
     const again = byId('run-again');
     assert.equal(again.textContent, 'run_again');
+    const compare = byId('run-compare');
+    assert.equal(compare.textContent, 'compare', 'A finished run can be put beside another');
+    assert.equal([...buttons].indexOf(compare), [...buttons].indexOf(again) + 1);
     f.get('#topic').value = 'something half typed';
     again.listeners.click();
     assert.equal(f.get('#topic').value, 'hyperloop for freight');

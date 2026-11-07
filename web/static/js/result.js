@@ -7,7 +7,7 @@ import { t } from "./i18n.js";
  * Maxima differ per dimension (TRL is out of 9, MRL out of 10, the rest out
  * of 5), so a bar cannot assume a shared scale. Declared here rather than
  * inferred, because a wrong denominator silently misdraws the bar. */
-const DIMENSIONS = [
+export const DIMENSIONS = [
   { key: "trl_score",            max: 9,  label: "dim_trl" },
   { key: "mrl_score",            max: 10, label: "dim_mrl" },
   { key: "patent_strength",      max: 5,  label: "dim_patent" },

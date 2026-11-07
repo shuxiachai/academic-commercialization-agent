@@ -413,7 +413,8 @@
 /* A finished run has five controls. In one unshrinking row they took the
    whole header on a narrow pane and left the heading no width at all. They
    keep to their own half and wrap inside it; the heading keeps the other. */
-#pane-run .pane__actions { flex-wrap: wrap; justify-content: flex-end; max-width: 50%; }
+#pane-run .pane__actions,
+#pane-compare .pane__actions { flex-wrap: wrap; justify-content: flex-end; max-width: 50%; }
 
 /* Run metadata is saved output and can include long translated diagnostics.
    Let it wrap before it narrows its siblings to unusable columns. */
@@ -1344,7 +1345,9 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
     align-items: stretch;
   }
   #pane-run .pane__heading,
-  #pane-run .pane__actions { width: 100%; }
+  #pane-run .pane__actions,
+  #pane-compare .pane__heading,
+  #pane-compare .pane__actions { width: 100%; }
   /* Three equal columns, so five controls are always two rows whatever the
      font: wrapping by width gave three rows on a small phone and left the
      report under six lines. The download glyphs go; the labels say it. A
@@ -1357,6 +1360,8 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   #pane-run .pane__actions .btn { justify-content: center; min-width: 0; padding-inline: var(--space-2); }
   #pane-run .pane__actions .btn svg { display: none; }
   #pane-run .pane__actions [data-resume-run] { grid-column: 1 / -1; }
+  #pane-compare .pane__head { flex-direction: column; align-items: stretch; }
+  #pane-compare .pane__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: none; }
   .pane__body--centered { padding-top: var(--space-8); }
   /* Compact and low on a phone, where the visible report is short. */
   .toasts {

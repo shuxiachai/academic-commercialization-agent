@@ -195,7 +195,7 @@ def _main_spa_navigation(browser, base, faults, *, proxy=False, old_link=False):
               *(f"/static/js/{name}.js" for name in
                 ("app", "api", "run", "sidebar", "result", "i18n", "topic", "paid_receipts",
                  "samples_links", "samples_i18n", "byok_fields", "chrome", "gate_focus", "starters",
-                 "decision_context")),
+                 "decision_context", "compare")),
               *(f"/static/css/{name}.css" for name in ("tokens", "base", "workbench", "result")),
               *(f"/source-locator-static/{name}" for name in
                 ("entry.js", "outcome.js", "receipt.js", "result.js", "accounting.js", "app.css", "receipt.css"))}
@@ -219,7 +219,9 @@ def _main_spa_navigation(browser, base, faults, *, proxy=False, old_link=False):
                 if old_link and url.path == "/static/js/app.js":
                     source = upstream.text()
                     hook = "  syncSourceLocatorLink();"
-                    assert source.count(hook) == 3
+                    # One per view function that owns the link: compose, run, compare,
+                    # and the route that lands on none of them.
+                    assert source.count(hook) == 4
                     injections.append(url.path)
                     route.fulfill(response=upstream, body=source.replace(hook, ""))
                 else:

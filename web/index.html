@@ -367,8 +367,38 @@
       <div class="pane__body" id="run-body"></div>
     </section>
 
+    <!-- Two runs side by side (/compare/<a>/<b>). Reached from a run's
+         "Compare" control; compare.js draws it from the same reads the run
+         page makes. -->
+    <section class="pane" id="pane-compare" hidden>
+      <header class="pane__head">
+        <div class="pane__heading">
+          <h1 class="pane__title" id="compare-title" data-i18n="compare_title">Compare two runs</h1>
+          <div class="pane__meta"><span id="compare-note" data-i18n="compare_note">A is the run you started from; the difference is B minus A.</span></div>
+        </div>
+        <div class="pane__actions" id="compare-actions">
+          <button type="button" class="btn btn--secondary" id="compare-swap" data-i18n="compare_swap">Swap</button>
+          <button type="button" class="btn btn--secondary" id="compare-back" data-i18n="compare_back">Back to run A</button>
+        </div>
+      </header>
+      <div class="pane__body" id="compare-body"></div>
+    </section>
+
   </main>
 </div>
+
+<!-- Which run to compare with: the finished ones this identity can see,
+     from the same list the rail shows. Nothing is sent until one is chosen,
+     and choosing only navigates. -->
+<dialog class="picker" id="compare-dialog">
+  <h2 class="picker__title" data-i18n="compare_pick_title">Compare with which run?</h2>
+  <p class="picker__intro" data-i18n="compare_pick_intro">Finished runs you can see, newest first.</p>
+  <ul class="picker__list" id="compare-choices"></ul>
+  <p class="empty-note" id="compare-empty" hidden data-i18n="compare_no_other">No other finished run yet.</p>
+  <div class="picker__actions">
+    <button type="button" class="btn btn--secondary" id="compare-cancel" data-i18n="cancel">Cancel</button>
+  </div>
+</dialog>
 
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
