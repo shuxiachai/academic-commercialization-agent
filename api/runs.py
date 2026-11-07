@@ -100,6 +100,14 @@ _DAILY_CAP_ENV = os.getenv("API_DAILY_PAID_OPERATION_CAP")
 if _DAILY_CAP_ENV is None:
     _DAILY_CAP_ENV = os.getenv("API_DAILY_RUN_CAP", "0")
 DAILY_CAP = int(_DAILY_CAP_ENV)
+# An account pays for its own tokens, so the deployment's wallet cap does not
+# apply to it. The host's capacity does: one account could otherwise hold every
+# concurrent slot, and a script behind one could run all day. These two caps
+# apply to each account separately, counted the same way as the code caps (a
+# run, a resume and a PDF extraction are each one paid operation). 0 turns a
+# cap off. Admin accounts are not exempt: the operator raises the number.
+ACCOUNT_MAX_CONCURRENT = int(os.getenv("API_ACCOUNT_MAX_CONCURRENT", "1"))
+ACCOUNT_DAILY_CAP = int(os.getenv("API_ACCOUNT_DAILY_CAP", "10"))
 _DAILY_LEDGER_SCHEMA_VERSION = 1
 _DAILY_LEDGER_FILENAME = ".paid-operation-ledger.json"
 _DAILY_LEDGER_OWNERLESS_KEY = "__ownerless__"
@@ -345,6 +353,9 @@ class _Handle:
     #: Billed to the visitor rather than the operator, and therefore capped
     #: separately -- see BYOK_MAX_CONCURRENT.
     byok: bool = False
+    #: The owner tag the run is recorded under; an account's runs are counted
+    #: against that account's own concurrency cap.
+    owner: str | None = None
 
     @property
     def elapsed(self) -> int:
@@ -379,6 +390,14 @@ class ConcurrencyLimitReached(Exception):
 
 class DailyCapReached(Exception):
     """Raised when the day's operator-funded paid-operation budget is exhausted."""
+
+
+class AccountBusy(ConcurrencyLimitReached):
+    """Raised when the account already has as many paid operations going as it may."""
+
+
+class AccountDailyCapReached(DailyCapReached):
+    """Raised when the account has used its own day's allowance."""
 
 
 class PaidLedgerUnavailable(OSError):
@@ -425,6 +444,9 @@ _stop_claims: dict[str, _Handle] = {}
 # and run history lie. The opaque token exists only for the duration of the
 # context manager; the bool records whether it consumes the BYOK share.
 _inline_paid_operations: dict[object, bool] = {}
+# The owner behind each inline token, for the per-account count. Read only
+# for tokens still in _inline_paid_operations, so a stale entry counts nothing.
+_inline_owners: dict[object, str | None] = {}
 
 
 @dataclass(frozen=True)
@@ -441,6 +463,7 @@ def _prune_thread_paid_operations_locked() -> None:
     for token in tuple(_inline_paid_operations):
         if isinstance(token, _ThreadPaidToken) and not token.thread.is_alive():
             del _inline_paid_operations[token]
+            _inline_owners.pop(token, None)
 
 # In-process cache of the durable UTC-day ledger. The atomic file survives an
 # application restart, closing the easiest way to reset a leaked code's wallet
@@ -495,6 +518,16 @@ def _active_byok_paid_operation_count_locked() -> int:
     """The BYOK share across both execution paths; caller holds the lock."""
     _prune_thread_paid_operations_locked()
     return active_byok_count() + sum(_inline_paid_operations.values())
+
+
+def _account_active_locked(owner: str) -> int:
+    """Paid operations this account has going: worker runs plus inline calls.
+
+    Caller holds the lock and has counted the host's capacity first, which
+    reaps exited workers; what is left in the registry is occupied.
+    """
+    inline = sum(1 for token in _inline_paid_operations if _inline_owners.get(token) == owner)
+    return sum(1 for handle in _registry.values() if handle.owner == owner) + inline
 
 
 def capacity_counts() -> tuple[int, int]:
@@ -638,22 +671,29 @@ def _daily_window_locked() -> date:
     return today
 
 
-def daily_quota(owner: str | None) -> dict | None:
-    """Today's operator-funded paid operations for `owner`; None when uncapped.
+def daily_cap_for(owner: str | None) -> int:
+    """The day's cap that applies to `owner`: an account's own, or the deployment's. 0 is none."""
+    return ACCOUNT_DAILY_CAP if accounts.is_user_owner(owner) else DAILY_CAP
 
-    Raises PaidLedgerUnavailable when the ledger cannot be read, the same
-    state that blocks admission.
+
+def daily_quota(owner: str | None) -> dict | None:
+    """Today's paid operations for `owner` against its cap; None when uncapped.
+
+    For an access code that is the operator-funded budget; for an account it
+    is the account's own allowance. Raises PaidLedgerUnavailable when the
+    ledger cannot be read, the same state that blocks admission.
     """
-    if not DAILY_CAP:
+    cap = daily_cap_for(owner)
+    if not cap:
         return None
     with _registry_lock:
         today = _daily_window_locked()
         used = _daily_counts.get(owner, 0)
     resets_at = datetime(today.year, today.month, today.day, tzinfo=UTC) + timedelta(days=1)
     return {
-        "limit": DAILY_CAP,
+        "limit": cap,
         "used": used,
-        "remaining": max(0, DAILY_CAP - used),
+        "remaining": max(0, cap - used),
         "resets_at": resets_at.isoformat(),
     }
 
@@ -676,8 +716,28 @@ def _admit_paid_operation_locked(*, owner: str | None, byok: bool) -> date | Non
                 f"Daily limit reached: {DAILY_CAP} operator-funded paid "
                 "operations already admitted today"
             )
+    account = accounts.is_user_owner(owner)
+    if account and ACCOUNT_DAILY_CAP:
+        # The same ledger, under the account's own key: it pays for its
+        # tokens, and this counts what it asks the host to do for it.
+        charged_on = _daily_window_locked()
+        if _daily_counts.get(owner, 0) >= ACCOUNT_DAILY_CAP:
+            raise AccountDailyCapReached(
+                f"Daily limit reached: {ACCOUNT_DAILY_CAP} paid operations already "
+                "admitted for this account today"
+            )
 
     active = _active_paid_operation_count_locked()
+    # The account's own cap before the host's: when one account's run is
+    # what fills the shared capacity, the refusal should say so, not send
+    # the account to wait for someone else.
+    if account and ACCOUNT_MAX_CONCURRENT:
+        going = _account_active_locked(owner)
+        if going >= ACCOUNT_MAX_CONCURRENT:
+            raise AccountBusy(
+                f"This account already has {going} paid operation(s) in progress; "
+                f"{ACCOUNT_MAX_CONCURRENT} at a time is the limit"
+            )
     if active >= MAX_CONCURRENT:
         raise ConcurrencyLimitReached(
             f"{active} of {MAX_CONCURRENT} concurrent paid operations in use"
@@ -735,11 +795,13 @@ def reserve_inline_paid_operation(
     with _registry_lock:
         _admit_paid_operation_locked(owner=owner, byok=byok)
         _inline_paid_operations[token] = byok
+        _inline_owners[token] = owner
     try:
         yield
     finally:
         with _registry_lock:
             _inline_paid_operations.pop(token, None)
+            _inline_owners.pop(token, None)
 
 
 def reserve_thread_paid_operation(*, owner: str | None, byok: bool) -> None:
@@ -760,6 +822,7 @@ def reserve_thread_paid_operation(*, owner: str | None, byok: bool) -> None:
             raise RuntimeError("This thread already owns paid admission")
         _admit_paid_operation_locked(owner=owner, byok=byok)
         _inline_paid_operations[token] = byok
+        _inline_owners[token] = owner
 
 
 def run_dir_for(run_id: str) -> Path:
@@ -823,7 +886,7 @@ def _start_run_from_spec(
         try:
             _registry[run_id] = _Handle(
                 run_id=run_id, topic=spec.topic, proc=_PendingProcess(), log_file=None,
-                byok=byok is not None,
+                byok=byok is not None, owner=owner,
             )
         except BaseException:
             if not _refund_daily_charge_locked(owner, charged_on):
@@ -942,7 +1005,7 @@ def _start_run_from_spec(
             run_id=run_id, topic=spec.topic, proc=proc, log_file=log_file,
             started=worker_started,
             started_at=worker_started_at,
-            byok=byok is not None,
+            byok=byok is not None, owner=owner,
         )
     return run_id, run_dir
 

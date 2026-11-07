@@ -66,7 +66,7 @@ class DisabledTests(unittest.TestCase):
         config = self.client.get("/api/auth/config").json()
         self.assertEqual(config, {"enabled": False, "signup_open": False, "signup": "closed", "access_codes": False,
                                   "key_check": False, "contact": None,
-                                  "plan_preview": False})
+                                  "plan_preview": False, "daily_quota": False})
         self.assertEqual(self.client.post("/api/auth/register", json={"email": "a@b.co", "password": PASSWORD}).status_code, 404)
         self.assertEqual(self.client.post("/api/auth/login", json={"email": "a@b.co", "password": PASSWORD}).status_code, 404)
         self.assertEqual(self.client.get("/api/auth/me").status_code, 404)
@@ -90,7 +90,7 @@ class SignUpAndSignInTests(_AccountsHttp):
     def test_config_is_readable_without_credentials(self):
         self.assertEqual(self.client.get("/api/auth/config").json(),
                          {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True, "contact": None,
-                          "plan_preview": True})
+                          "plan_preview": True, "daily_quota": True})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             self.assertTrue(self.client.get("/api/auth/config").json()["access_codes"])
 
@@ -102,7 +102,7 @@ class SignUpAndSignInTests(_AccountsHttp):
         self.assertEqual(check["account"], {"email": "alice@example.com", "admin": False})
         self.assertEqual(check["accounts"], {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False,
                                              "key_check": True, "contact": None,
-                          "plan_preview": True})
+                          "plan_preview": True, "daily_quota": True})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             by_code = self.client.get("/api/access/check", headers={"X-Access-Code": "code-1"}).json()
         self.assertIsNone(by_code["account"])
@@ -186,7 +186,7 @@ class GateTests(_AccountsHttp):
         # stays one request; without accounts the body is the bare detail.
         self.assertEqual(response.json()["accounts"],
                          {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True, "contact": None,
-                          "plan_preview": True})
+                          "plan_preview": True, "daily_quota": True})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             self.assertEqual(self.client.get("/api/runs").json()["detail"], "Sign in, or provide a valid access code.")
 
@@ -264,9 +264,13 @@ class PaidOperationTests(_AccountsHttp):
         self.assertEqual(started.call_args.kwargs["owner"], access.owner_id("code-1"))
         self.assertIsNone(started.call_args.kwargs["byok"])
 
-    def test_accounts_have_no_operator_quota_and_preview_only_on_their_own_key(self):
+    def test_accounts_have_their_own_quota_and_preview_only_on_their_own_key(self):
         headers = self._bearer(self.session["token"])
-        self.assertIsNone(self.client.get("/api/quota", headers=headers).json())
+        # Not the operator's budget: the account's own allowance, and none when that is off.
+        quota = self.client.get("/api/quota", headers=headers).json()
+        self.assertEqual((quota["limit"], quota["used"], quota["remaining"]), (runs.ACCOUNT_DAILY_CAP, 0, runs.ACCOUNT_DAILY_CAP))
+        with patch.object(runs, "ACCOUNT_DAILY_CAP", 0):
+            self.assertIsNone(self.client.get("/api/quota", headers=headers).json())
         used = []
 
         def planner(topic, n=2, *, credentials=None):

@@ -629,10 +629,7 @@ async def _access_gate(request: Request, call_next):
             # The refusal tells the page what the gate should offer, so the
             # boot stays one request whether the deployment uses codes or
             # accounts; the shipped-client smoke accounts for every request.
-            body["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
-                                "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
-                                "key_check": key_check.enabled(), "contact": _operator_contact(),
-                                "plan_preview": plan_preview.enabled()}
+            body["accounts"] = _accounts_config()
         return JSONResponse(body, status_code=401)
     # Who answered, if anyone — GET /api/runs uses this to show each code
     # holder or account only the runs made under their own identity. None
@@ -657,6 +654,28 @@ def _ANONYMOUS_DETAIL() -> str:  # noqa: N802 - reads as the constant it replace
     if accounts.enabled():
         return "Sign in to use this deployment."
     return "Missing or invalid access code."
+
+
+def _admission_code(exc: Exception) -> str:
+    """The stable code for a refused admission; an account's own caps have their own."""
+    if isinstance(exc, runs.AccountBusy):
+        return "account_busy"
+    if isinstance(exc, runs.ConcurrencyLimitReached):
+        return "concurrency_limit"
+    if isinstance(exc, runs.AccountDailyCapReached):
+        return "account_daily_quota_exceeded"
+    return "daily_quota_exceeded"
+
+
+def _admission_refusal(exc: Exception) -> HTTPException:
+    code = _admission_code(exc)
+    tail = {
+        "account_busy": " Wait for it to finish, or cancel it, then start this one.",
+        "concurrency_limit": " Retry once another paid operation finishes.",
+        "account_daily_quota_exceeded": " The account's allowance resets at 00:00 UTC.",
+        "daily_quota_exceeded": " The daily paid-operation budget resets at 00:00 UTC.",
+    }[code]
+    return HTTPException(status_code=429, detail=f"{exc}.{tail}", headers={"X-Error-Code": code})
 
 
 def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None:
@@ -746,15 +765,25 @@ def access_check(http_request: Request) -> dict:
     answer also says which account, if any, the request was, so the page
     learns everything about its identity from this one boot request.
     """
-    payload = {"ok": True, "plan_preview": plan_preview.enabled(), "daily_quota": bool(runs.DAILY_CAP)}
+    who = identity.resolve(http_request)
+    # Whose cap: an account's own, a code's operator-funded one. Either way the
+    # page shows what is left only where there is a number to show.
+    payload = {"ok": True, "plan_preview": plan_preview.enabled(),
+               "daily_quota": bool(runs.daily_cap_for(who.tag if who.kind == "user" else None if who.kind == "none" else "code"))}
     if accounts.enabled():
-        payload["accounts"] = {"enabled": True, "signup_open": accounts.signup_open(),
-                               "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
-                                "key_check": key_check.enabled(), "contact": _operator_contact(),
-                                "plan_preview": plan_preview.enabled()}
-        who = identity.resolve(http_request)
+        payload["accounts"] = _accounts_config()
         payload["account"] = {"email": who.user.email, "admin": who.is_admin} if who.kind == "user" else None
     return payload
+
+
+def _accounts_config() -> dict:
+    """What the sign-in screen and a fresh account need to know, in one dict."""
+    return {"enabled": True, "signup_open": accounts.signup_open(),
+            "signup": accounts.signup_mode(), "access_codes": access.gate_enabled(),
+            "key_check": key_check.enabled(), "contact": _operator_contact(),
+            "plan_preview": plan_preview.enabled(),
+            # An account has a daily allowance of its own; the page shows it once signed in.
+            "daily_quota": bool(runs.ACCOUNT_DAILY_CAP)}
 
 
 def _operator_contact() -> str | None:
@@ -803,7 +832,8 @@ def auth_config() -> AuthConfig:
                       access_codes=access.gate_enabled(),
                       key_check=accounts.enabled() and key_check.enabled(),
                       contact=_operator_contact() if accounts.enabled() else None,
-                      plan_preview=accounts.enabled() and plan_preview.enabled())
+                      plan_preview=accounts.enabled() and plan_preview.enabled(),
+                      daily_quota=accounts.enabled() and bool(runs.ACCOUNT_DAILY_CAP))
 
 
 @app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],
@@ -1105,14 +1135,15 @@ async def check_keys(http_request: Request) -> KeyCheckResult:
 
 @app.get("/api/quota", response_model=DailyQuota | None, tags=["runs"])
 def daily_quota(http_request: Request) -> DailyQuota | None:
-    """Paid operations left today for this access code; null when uncapped.
+    """Paid operations left today for this code or account; null when uncapped.
 
-    Counted per validated code (the admin code too), as admission counts
-    them. A BYOK visitor has no code and no operator-funded quota.
+    Counted per validated code (the admin code too) against the operator's
+    budget, and per account against the account's own allowance, exactly as
+    admission counts them. A BYOK visitor without an account has neither.
     """
     who = identity.resolve(http_request)
     try:
-        quota = runs.daily_quota(who.tag if who.kind == "code" else None)
+        quota = runs.daily_quota(who.tag if who.kind in ("code", "user") else None)
     except runs.PaidLedgerUnavailable as exc:
         _LOGGER.exception("Paid-operation ledger unreadable for the quota view")
         raise HTTPException(status_code=503, detail="Daily quota is temporarily unavailable.") from exc
@@ -1493,7 +1524,8 @@ def _receipt_body(record: dict) -> dict:
         if record["state"] == "failed":
             if not 400 <= record["status"] <= 599 or not isinstance(body.get("detail"), str):
                 raise ValueError("Invalid failed receipt")
-            if body.get("error_code") not in {None, "concurrency_limit", "daily_quota_exceeded", "upload_capacity", "rate_limited"}:
+            if body.get("error_code") not in {None, "concurrency_limit", "daily_quota_exceeded", "account_busy",
+                                              "account_daily_quota_exceeded", "upload_capacity", "rate_limited"}:
                 raise ValueError("Invalid failure category")
             body = {"detail": body["detail"], "error_code": body.get("error_code")}
             if record["kind"] == "paper" and record.get("resource_id"):
@@ -1650,18 +1682,8 @@ def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> R
             owner=owner,
             search_plan=request.search_plan,
         )
-    except runs.ConcurrencyLimitReached as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=f"{exc}. Retry once another paid operation finishes.",
-            headers={"X-Error-Code": "concurrency_limit"},
-        ) from exc
-    except runs.DailyCapReached as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
-            headers={"X-Error-Code": "daily_quota_exceeded"},
-        ) from exc
+    except (runs.ConcurrencyLimitReached, runs.DailyCapReached) as exc:
+        raise _admission_refusal(exc) from exc
     except runs.PaidLedgerUnavailable as exc:
         _LOGGER.exception("Paid-operation accounting blocked run admission")
         raise HTTPException(
@@ -1729,18 +1751,8 @@ def _resume_run_without_receipt(run_id: str, request: ResumeRunRequest, http_req
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except runs.RunNotResumable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except runs.ConcurrencyLimitReached as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=f"{exc}. Retry once another paid operation finishes.",
-            headers={"X-Error-Code": "concurrency_limit"},
-        ) from exc
-    except runs.DailyCapReached as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
-            headers={"X-Error-Code": "daily_quota_exceeded"},
-        ) from exc
+    except (runs.ConcurrencyLimitReached, runs.DailyCapReached) as exc:
+        raise _admission_refusal(exc) from exc
     except runs.PaidLedgerUnavailable as exc:
         _LOGGER.exception(
             "Paid-operation accounting blocked resume for run %s", run_id
@@ -2138,8 +2150,7 @@ async def _process_uploaded_paper(paper_id: str, pdf_path: str, **credentials) -
             if ticket is not None:
                 if isinstance(exc, (runs.ConcurrencyLimitReached, runs.DailyCapReached)):
                     status = 429
-                    code = ("concurrency_limit" if isinstance(exc, runs.ConcurrencyLimitReached)
-                            else "daily_quota_exceeded")
+                    code = _admission_code(exc)
                 else:
                     status = (503 if isinstance(exc, runs.PaidLedgerUnavailable) else
                               500 if isinstance(exc, _PaperStorageError) else 422)
@@ -2317,18 +2328,8 @@ async def _uploaded_paper_result(paper_id, pdf_path, *, owner, byok, llm_provide
             llm_api_key=llm_api_key,
             llm_model=llm_model,
         )
-    except runs.ConcurrencyLimitReached as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=f"{exc}. Retry once another paid operation finishes.",
-            headers={"X-Error-Code": "concurrency_limit"},
-        ) from exc
-    except runs.DailyCapReached as exc:
-        raise HTTPException(
-            status_code=429,
-            detail=f"{exc}. The daily paid-operation budget resets at 00:00 UTC.",
-            headers={"X-Error-Code": "daily_quota_exceeded"},
-        ) from exc
+    except (runs.ConcurrencyLimitReached, runs.DailyCapReached) as exc:
+        raise _admission_refusal(exc) from exc
     except runs.PaidLedgerUnavailable as exc:
         _LOGGER.error("Paid-operation accounting blocked paper (%s)", type(exc).__name__)
         raise HTTPException(

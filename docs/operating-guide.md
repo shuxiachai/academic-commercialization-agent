@@ -878,6 +878,20 @@ the new password to the account's own address. Self-service reset and
 verification both need an email service, which is a separate decision.
 Until then, `invite` mode is the safer default for a public URL.
 
+#### What one account may do at once, and in a day
+
+An account pays for its own tokens, so the deployment's daily budget does
+not apply to it. The host's capacity does: without a cap of its own, one
+account could hold every concurrent slot, and a script behind one could
+run all day. `API_ACCOUNT_MAX_CONCURRENT` (default 1) is how many paid
+operations an account may have going at once, and `API_ACCOUNT_DAILY_CAP`
+(default 10) how many it may start per UTC day; 0 turns either off. They
+count what the code caps count: a run, a resume and a PDF extraction are
+each one. The page shows an account what it has left today, the same way
+it shows a code holder, and a refusal says which cap it was
+(`X-Error-Code: account_busy` or `account_daily_quota_exceeded`, both 429).
+Admin accounts are not exempt; the operator raises the number instead.
+
 #### The console
 
 `/admin` is the operator's page. It shows the service's state (revision,
