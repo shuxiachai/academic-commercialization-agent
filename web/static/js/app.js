@@ -1386,7 +1386,15 @@ async function exitCredentials() {
     try { await api.logout(); } catch { /* already out, or unreachable */ }
   }
   const sessionCleared = api.setSessionToken(null);
-  if (byokCleared && codeCleared && sessionCleared && receiptsCleared) { location.reload(); return; }
+  if (byokCleared && codeCleared && sessionCleared && receiptsCleared) {
+    // A clean sign-out starts over at the front door. On a deployment with
+    // accounts that is the landing at "/"; reloading in place would reopen
+    // the run or comparison just left, under the sign-in card. A code
+    // deployment has no landing and reloads where it is, as it always did.
+    if (authConfig?.enabled) location.replace("/");
+    else location.reload();
+    return;
+  }
   // Failed removal or a different shared selection must not be undone by
   // reloading: that would read stale/other credentials again. End this page's
   // session and ask for explicit login, without claiming global sign-out.
@@ -1509,7 +1517,121 @@ function showAccountSettings() {
   };
 }
 
+/* ── Landing ───────────────────────────────────────────────────────────
+ * What an anonymous visitor to "/" sees on a deployment with accounts: a
+ * page about the product, with the sign-in card opening from its buttons,
+ * instead of the empty workbench with that card already over it. Only
+ * there: a stored session goes straight to the workbench; a deep link to a
+ * run, a comparison or a verification page meets the card directly, since
+ * whoever followed it came for that and not for an introduction; and a
+ * deployment without accounts is invite-only by access code, so its
+ * visitors already know what they were sent to. Resolves once the card has
+ * let someone in, when the workbench takes over. */
+function landingWanted() {
+  return Boolean(authConfig?.enabled) && location.pathname === "/";
+}
+
+async function showLanding() {
+  const landing = $("#landing");
+  const workbench = $("#workbench");
+  landing.hidden = false;
+  workbench.hidden = true;
+  // Without sign-up the button would only ever fail; sign-in stands alone.
+  $("#landing-create").hidden = !authConfig?.signup_open;
+  // The sidebar's language select is hidden with the workbench; this one
+  // drives it, so every listener on the original still runs.
+  const lang = $("#landing-lang");
+  lang.value = i18n.language();
+  lang.onchange = () => {
+    langSelect.value = lang.value;
+    langSelect.dispatchEvent(new Event("change"));
+  };
+  paintLandingSamples();
+  paintLandingRetention();
+  // The scorecard picture is fetched only now: the markup carries it as
+  // data-src, since a hidden image is requested all the same.
+  const preview = $("#landing-preview");
+  if (preview.dataset.src) {
+    preview.src = preview.dataset.src;
+    delete preview.dataset.src;
+  }
+  let opening = false;
+  await new Promise((resolve) => {
+    const open = (creating) => async () => {
+      if (opening) return;
+      opening = true;
+      try {
+        // "back" is the card put down again: the landing stays, buttons live.
+        if (await showGate(null, { creating, back: true }) !== "back") resolve();
+      } finally {
+        opening = false;
+      }
+    };
+    $("#landing-create").onclick = open(true);
+    $("#landing-sign-in").onclick = open(false);
+    $("#landing-sign-in-top").onclick = open(false);
+  });
+  landing.hidden = true;
+  workbench.hidden = false;
+}
+
+/* The finished reports a visitor can read before signing in, by their real
+ * titles. /api/samples needs no credentials and reads no deployment state.
+ * Titles are placed as text; a slug becomes a path only when it has the
+ * shape the server's allowlist uses. Failure leaves the "all samples"
+ * link, which stands on its own. */
+async function paintLandingSamples() {
+  const list = $("#landing-sample-list");
+  list.innerHTML = "";
+  let samples;
+  try { samples = await api.listSamples(); } catch { return; }
+  if (!Array.isArray(samples)) return;
+  for (const sample of samples.slice(0, 5)) {
+    if (typeof sample?.slug !== "string" || !/^[a-z0-9-]+$/.test(sample.slug)) continue;
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = `/samples/${sample.slug}`;
+    link.textContent = String(sample.title ?? sample.slug);
+    item.append(link);
+    list.append(item);
+  }
+}
+
+/* How long this deployment keeps what a visitor hands it, said next to who
+ * pays. The key form says the same (showByokRetention), but by then the
+ * visitor has signed up; this is the moment they decide to. Silent on
+ * failure for the same reason as there: no line beats a wrong one. */
+async function paintLandingRetention() {
+  const node = $("#landing-retention");
+  try {
+    const { retention_days } = await api.health();
+    node.textContent = retention_days
+      ? t("byok_retention").replace("{days}", retention_days)
+      : t("byok_retention_forever");
+  } catch {
+    node.textContent = "";
+  }
+}
+
+/* Whether this visit could end on the landing: at its address, with nothing
+ * stored that would sign the visit in. Decided before the access check, so
+ * the workbench is not painted for the length of one request and then
+ * replaced by a page about it; a visitor the check does let in sees the
+ * workbench one request later, exactly as before. */
+function mayLand() {
+  return location.pathname === "/" && !api.getSessionToken() && !api.getAccessCode();
+}
+
 async function ensureAccess() {
+  if (mayLand()) $("#workbench").hidden = true;
+  try {
+    await decideAccess();
+  } finally {
+    $("#workbench").hidden = false;
+  }
+}
+
+async function decideAccess() {
   if (location.pathname === "/verify") {
     // Said before the boot below, which waits at the gate when nobody is
     // signed in here: a link opened in another browser must still get its
@@ -1557,7 +1679,8 @@ async function ensureAccess() {
     // The refusal says what the gate may offer; no second request needed.
     authConfig = err.body?.accounts ?? null;
   }
-  await showGate();
+  if (landingWanted()) await showLanding();
+  else await showGate();
 }
 
 /* How long the deployment keeps what a visitor is about to hand it.
@@ -1632,8 +1755,14 @@ function keyProblem(verdict, creds) {
   return problems.length ? [...problems, t("byok_problem_next")].join("\n") : null;
 }
 
-function showGate(errorKey = null, { keysOnly = false } = {}) {
+/* `creating` opens the account form ready to register, as the landing's
+ * "Create account" promises; `back` shows a way to put the card down again,
+ * resolving "back" instead of letting anyone in. Both are the landing's. */
+function showGate(errorKey = null, { keysOnly = false, creating: startCreating = false, back = false } = {}) {
   const gate = $("#gate");
+  // The card always sits on one of the two pages. The boot may have kept the
+  // workbench back in case this visit ended on the landing; it did not.
+  if ($("#landing").hidden) $("#workbench").hidden = false;
   const codeForm = $("#gate-form");
   const codeInput = $("#gate-input");
   const codeError = $("#gate-error");
@@ -1646,8 +1775,12 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
   // Whether the key form belongs to a signed-in account (keys saved, no
   // payer change) or to an anonymous visitor (keys are the identity).
   const forAccount = () => accountMode;
-  let creating = false;
+  let creating = startCreating && Boolean(authConfig?.signup_open);
   let inviteNeeded = false;
+  // Shown only while there is a landing under the card to go back to: not
+  // once an account is in, when the card has become its own key form.
+  const backButton = $("#gate-back");
+  const syncBack = () => { backButton.hidden = !back || forAccount(); };
 
   // Storage-denied logout reuses this document. Clear previous inputs and
   // replace the gate-owned handlers below instead of accumulating closures
@@ -1691,6 +1824,7 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
     clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
+    syncBack();
     $("#byok-llm-key").focus();
     showByokRetention();
   };
@@ -1709,6 +1843,7 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
     const inviteShown = creating && (authConfig?.signup === "invite" || inviteNeeded);
     $("#account-invite").hidden = !inviteShown;
     paintInviteHint(inviteShown);
+    syncBack();
     $("#account-email-input").focus();
   };
   const showCode = () => {
@@ -1717,6 +1852,7 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
     codeForm.hidden = false;
     $("#gate-to-byok").hidden = accountsOn;
     $("#gate-to-account").hidden = !accountsOn;
+    syncBack();
     codeInput.focus();
   };
   if (keysOnly) showKeys();
@@ -1758,6 +1894,12 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
     $("#byok-skip").onclick = () => {
       if (finished) return;
       finish();
+    };
+    backButton.onclick = () => {
+      if (finished || backButton.hidden || accountSubmit.disabled || codeSubmit.disabled || checking) return;
+      finished = true;
+      gate.hidden = true;
+      resolve("back");
     };
 
     accountForm.onsubmit = async (e) => {
