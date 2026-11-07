@@ -122,6 +122,26 @@ class SignUpTests(_Case):
         self.assertNotIn(PASSWORD, message["text"])
         self.assertNotIn("alice", message["text"] + message["html"] + message["subject"])
 
+    def test_the_message_wears_the_sites_colours_and_mark(self):
+        subject, text, body = mail.verification_message("https://aca.example.com/verify?token=t-1")
+        # The mark is a PNG on the public URL: mail clients do not all show SVG.
+        self.assertIn('src="https://aca.example.com/static/brand/aca-mark.png"', body)
+        self.assertTrue((_ROOT / "web" / "static" / "brand" / "aca-mark.png").is_file())
+        # The page's light palette, and a request to stay light in a dark inbox.
+        for colour in ("#f5f3ee", "#fdfcf9", "#0f6b66", "#1d1b18"):
+            self.assertIn(colour, body)
+        self.assertIn('<meta name="color-scheme" content="light">', body)
+        # Both languages, the wordmark, and the link exactly twice (button and fallback).
+        for word in ("Academic Commercialization Assessment", "验证你的邮箱", "Verify your email", "请勿回复", "do not reply"):
+            self.assertIn(word, body)
+            self.assertIn(word, text)
+        self.assertEqual(body.count('href="https://aca.example.com/verify?token=t-1"'), 2)
+        # The fallback shows the address itself, for the reader who has to copy it.
+        self.assertIn(">https://aca.example.com/verify?token=t-1</a>", body)
+        # No mark and no broken image when the deployment has no public URL.
+        with patch.dict("os.environ", {"PUBLIC_URL": ""}):
+            self.assertNotIn("<img", mail.verification_message("https://x.example/verify?token=t")[2])
+
     def test_paid_work_is_refused_until_the_link_is_opened_and_previews_are_not(self):
         session = self._signup()
         headers = self._bearer(session["token"])

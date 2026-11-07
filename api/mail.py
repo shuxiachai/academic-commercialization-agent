@@ -126,6 +126,12 @@ def _service_host() -> str:
     return url.split("://", 1)[-1]
 
 
+def mark_url() -> str | None:
+    """The brand mark as a PNG on the public URL; mail clients do not all show SVG."""
+    base = public_url()
+    return f"{base}/static/brand/aca-mark.png" if base else None
+
+
 def verification_message(link: str, *, hours: int = 24) -> tuple[str, str, str]:
     """(subject, text, html) of the email that proves an address, in both languages.
 
@@ -133,34 +139,98 @@ def verification_message(link: str, *, hours: int = 24) -> tuple[str, str, str]:
     make a forwarded copy say anything about the person. The two languages
     are both there because the service does not know which one the reader
     uses before they have signed in.
+
+    The HTML is the page's light theme written out by hand (web/static/css/
+    tokens.css): mail clients honour inline styles on tables and little
+    else, so the colours are literal here and the layout is tables. It asks
+    to stay light, since a client's dark-mode inversion of a hand-coloured
+    message is worse than a light message in a dark inbox.
     """
     host = _service_host()
     subject = f"验证邮箱 / Verify your email · {host}" if host else "验证邮箱 / Verify your email"
     text = (
-        f"你在 {host} 创建了账号。点击下面的链接验证这个邮箱；链接 {hours} 小时内有效，只能使用一次。\n"
+        f"{_WORDMARK} · {host}\n\n"
+        f"验证你的邮箱 / Verify your email\n\n"
+        f"你在 {host} 创建了账号。点击下面的链接验证这个邮箱，之后就可以开始评估。"
+        f"链接 {hours} 小时内有效，只能使用一次。\n"
         f"{link}\n\n"
-        f"如果不是你创建的，忽略这封邮件即可，不会有任何事情发生。\n\n"
-        f"You created an account at {host}. Open the link to verify this address; "
-        f"it works once, for {hours} hours.\n"
+        f"You created an account at {host}. Open the link to verify this address and start "
+        f"assessments; it works once, for {hours} hours.\n"
         f"{link}\n\n"
-        f"If this was not you, ignore this message and nothing will happen.\n"
+        f"如果不是你创建的，忽略这封邮件即可，不会有任何事情发生。\n"
+        f"If this was not you, ignore this message and nothing will happen.\n\n"
+        f"— {host} · 自动发送，请勿回复 / Automated message, do not reply\n"
     )
+    return subject, text, _verification_html(link, host=host, hours=hours)
+
+
+_WORDMARK = "Academic Commercialization Assessment"
+_SANS = ("-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, "
+         "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif")
+_SERIF = ("'Iowan Old Style', Charter, 'Bitstream Charter', 'Palatino Linotype', Palatino, Georgia, "
+          "'Songti SC', SimSun, serif")
+# The page's light palette, by hand: tokens.css names these --bg-base, --bg-raised,
+# --border-default (flattened), --text-primary/secondary/tertiary/disabled and --accent.
+_BG, _CARD, _LINE = "#f5f3ee", "#fdfcf9", "#e3dfd6"
+_INK, _INK2, _INK3, _INK4, _ACCENT = "#1d1b18", "#4a463f", "#77726a", "#a39e94", "#0f6b66"
+
+
+def _verification_html(link: str, *, host: str, hours: int) -> str:
     safe_link, safe_host = html.escape(link, quote=True), html.escape(host)
-    body = (
-        "<!doctype html><html><body style=\"font-family:system-ui,sans-serif;line-height:1.5;"
-        "color:#1f2328;max-width:36em;margin:2em auto;padding:0 1em\">"
-        f"<p>你在 {safe_host} 创建了账号。点击下面的按钮验证这个邮箱；链接 {hours} 小时内有效，只能使用一次。</p>"
-        f"<p>You created an account at {safe_host}. Open the link to verify this address; "
-        f"it works once, for {hours} hours.</p>"
-        f"<p><a href=\"{safe_link}\" style=\"display:inline-block;padding:.6em 1.2em;background:#1f6feb;"
-        "color:#fff;text-decoration:none;border-radius:6px\">验证邮箱 / Verify email</a></p>"
-        f"<p style=\"font-size:.85em;color:#57606a\">或复制这个地址到浏览器 / Or paste this address into your browser:<br>"
-        f"<a href=\"{safe_link}\">{safe_link}</a></p>"
-        "<p style=\"font-size:.85em;color:#57606a\">如果不是你创建的，忽略这封邮件即可。"
-        "If this was not you, ignore this message.</p>"
-        "</body></html>"
+    mark = mark_url()
+    mark_cell = (f'<td style="padding-right:10px;vertical-align:middle;"><img src="{html.escape(mark, quote=True)}" '
+                 f'width="28" height="28" alt="" style="display:block;width:28px;height:28px;border-radius:7px;"></td>'
+                 if mark else "")
+    cell = f"padding:0 32px;font-family:{_SANS};"
+    return (
+        '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">'
+        f"<title>{html.escape(_WORDMARK)}</title></head>"
+        f'<body style="margin:0;padding:0;background:{_BG};">'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:{_BG};">'
+        '<tr><td align="center" style="padding:32px 16px;">'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
+        f'style="max-width:520px;background:{_CARD};border:1px solid {_LINE};border-radius:16px;">'
+        # Wordmark
+        f'<tr><td style="{cell}padding-top:28px;">'
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
+        f'{mark_cell}<td style="font-family:{_SANS};font-size:14px;font-weight:600;color:{_INK};'
+        f'letter-spacing:-0.01em;vertical-align:middle;">{html.escape(_WORDMARK)}</td>'
+        "</tr></table></td></tr>"
+        # Title
+        f'<tr><td style="padding:28px 32px 0;font-family:{_SERIF};font-size:26px;font-weight:600;color:{_INK};'
+        'letter-spacing:-0.018em;line-height:1.25;">验证你的邮箱'
+        f'<br><span style="font-size:19px;font-weight:500;color:{_INK2};">Verify your email</span></td></tr>'
+        # Body
+        f'<tr><td style="{cell}padding-top:18px;font-size:15px;line-height:1.65;color:{_INK2};">'
+        f"你在 <strong style=\"color:{_INK};font-weight:600;\">{safe_host}</strong> 创建了账号。"
+        f"点击下面的按钮验证这个邮箱，之后就可以开始评估。链接 {hours} 小时内有效，只能使用一次。</td></tr>"
+        f'<tr><td style="{cell}padding-top:10px;font-size:15px;line-height:1.65;color:{_INK2};">'
+        f"You created an account at <strong style=\"color:{_INK};font-weight:600;\">{safe_host}</strong>. "
+        f"Open the link to verify this address and start assessments; it works once, for {hours} hours.</td></tr>"
+        # Button
+        f'<tr><td style="{cell}padding-top:26px;">'
+        f'<a href="{safe_link}" style="display:inline-block;background:{_ACCENT};color:#ffffff;text-decoration:none;'
+        f'font-family:{_SANS};font-size:15px;font-weight:600;line-height:1;padding:14px 24px;border-radius:8px;">'
+        "验证邮箱 · Verify email</a></td></tr>"
+        # Fallback link
+        f'<tr><td style="{cell}padding-top:22px;font-size:12px;line-height:1.6;color:{_INK3};">'
+        "按钮打不开？把这个地址复制到浏览器 / If the button does not open, paste this address into your browser:<br>"
+        f'<a href="{safe_link}" style="color:{_ACCENT};word-break:break-all;">{safe_link}</a></td></tr>'
+        # Footer inside the card
+        f'<tr><td style="padding:26px 32px 28px;">'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+        f'<td style="border-top:1px solid {_LINE};padding-top:16px;font-family:{_SANS};font-size:12px;'
+        f'line-height:1.6;color:{_INK3};">如果不是你创建的，忽略这封邮件即可，不会有任何事情发生。<br>'
+        "If this was not you, ignore this message and nothing will happen.</td></tr></table></td></tr>"
+        "</table>"
+        # Below the card
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">'
+        f'<tr><td align="center" style="padding:16px 8px 0;font-family:{_SANS};font-size:12px;line-height:1.6;'
+        f'color:{_INK4};">{safe_host} · 自动发送，请勿回复 / Automated message, do not reply</td></tr></table>'
+        "</td></tr></table></body></html>"
     )
-    return subject, text, body
 
 
 # ── Delivery ────────────────────────────────────────────────────────────────
