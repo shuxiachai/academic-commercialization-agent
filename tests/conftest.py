@@ -224,3 +224,18 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if item.path.name in listed:
             item.add_marker(pytest.mark.experiment)
+
+
+@pytest.fixture(autouse=True)
+def fresh_signup_counts(monkeypatch):
+    """Each test starts with no accounts created from anywhere.
+
+    The sign-up caps count accounts created per source address and per day,
+    in memory. The test client is always one address, and a whole run of the
+    suite creates far more than five accounts an hour from it; without this
+    the sixth test to register anyone would be told to come back later.
+    """
+    from api import accounts
+
+    monkeypatch.setattr(accounts, "_signups_by_client", {})
+    monkeypatch.setattr(accounts, "_signups_today", [])

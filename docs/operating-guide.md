@@ -843,6 +843,13 @@ anonymous visitor must sign in or present a code; the key-only path that an
 ungated or code-gated deployment offers is closed, since keys alone are no
 longer an identity. `ACCOUNTS_SIGNUP` is `open`, `invite` (registration
 needs `ACCOUNTS_INVITE_CODE`) or `closed` (existing accounts keep working).
+In any mode, one source address may create `ACCOUNTS_SIGNUPS_PER_HOUR`
+accounts an hour (default 5) and the deployment `ACCOUNTS_SIGNUPS_PER_DAY` a
+day (default 100); a refusal is 429 `signup_throttled`. Accounts actually
+created are counted, not attempts; 0 turns a cap off. These are what stands
+between an open sign-up and a table full of addresses, since no email is
+verified. Keep `ACCOUNTS_INVITE_CODE` set even in `open` mode: it is still
+what an address on the admin list needs to register.
 Whenever the sign-up form asks for an invite code it says who gives codes
 out: `OPERATOR_CONTACT` if it is set, as a mail link when it is an address,
 and otherwise "ask whoever shared this link". The contact travels with the
