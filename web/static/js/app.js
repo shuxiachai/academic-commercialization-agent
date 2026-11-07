@@ -67,6 +67,8 @@ function operationErrorMessage(err) {
   const key = {
     concurrency_limit: "msg_busy",
     daily_quota_exceeded: "msg_daily_quota",
+    account_busy: "msg_account_busy",
+    account_daily_quota_exceeded: "msg_account_daily_quota",
     rate_limited: "msg_rate_limited",
     upload_capacity: "msg_upload_busy",
   }[err.code];
@@ -920,7 +922,8 @@ function paintQuota() {
 
 async function refreshQuota() {
   const generation = ++quotaGeneration;
-  if (!quotaEnabled || byokMode || accountMode) {
+  // An account has an allowance of its own; a visitor on their own keys has none.
+  if (!quotaEnabled || (byokMode && !accountMode)) {
     lastQuota = null;
     paintQuota();
     return;
@@ -1709,6 +1712,9 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
         // refusal does. Without this an account that had just signed in
         // started its first run with no preview, and one that reloaded got one.
         planPreviewEnabled = authConfig?.plan_preview === true;
+        // Likewise the account's own daily allowance, so it shows from the first run.
+        quotaEnabled = authConfig?.daily_quota === true;
+        refreshQuota();
         if (api.getByok()) { finish(); return; }
         // Keys next, on the same card: the account is in, the runs still
         // need something to pay with.

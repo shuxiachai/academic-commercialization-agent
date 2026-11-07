@@ -308,7 +308,8 @@ class RunEta(BaseModel):
 
 
 class DailyQuota(BaseModel):
-    """Operator-funded paid operations today for the calling access code."""
+    """Paid operations today against the caller's cap: the operator's budget
+    for an access code, the account's own allowance for an account."""
 
     limit: int
     used: int
@@ -1016,6 +1017,8 @@ class AuthConfig(BaseModel):
                                                           "contact as the privacy page states it, or None.")
     plan_preview: bool = Field(default=False, description="An account can preview the search with POST /api/plan, "
                                                           "on its own key.")
+    daily_quota: bool = Field(default=False, description="An account has a daily allowance of its own, shown by "
+                                                         "GET /api/quota once signed in.")
 
 
 class RetrievalHealth(BaseModel):
