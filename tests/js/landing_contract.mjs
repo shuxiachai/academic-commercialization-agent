@@ -43,6 +43,8 @@ const source = fs.readFileSync(new URL("../../web/static/js/app.js", import.meta
 const markup = fs.readFileSync(new URL("../../web/index.html", import.meta.url), "utf8");
 const hiddenAtStart = [...markup.matchAll(/<[^>]*\bid="([\w-]+)"[^>]*\shidden[\s>]/g)].map((match) => match[1]);
 assert.ok(hiddenAtStart.includes("gate") && hiddenAtStart.includes("landing"), "the document starts with both hidden");
+// The scorecard picture's address travels in data-src, not src (see index.html).
+const previewSource = markup.match(/<img id="landing-preview" data-src="([^"]+)"/)[1];
 
 function fixture({ pathname = "/", access }) {
   const elements = new Map();
@@ -67,6 +69,7 @@ function fixture({ pathname = "/", access }) {
     return elements.get(selector);
   };
   for (const id of hiddenAtStart) get(`#${id}`).hidden = true;
+  get("#landing-preview").dataset.src = previewSource;
   const requests = [], navigations = [], reloads = [];
   const reply = (body, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {
     status, headers: { "Content-Type": "application/json" } }));
@@ -117,6 +120,7 @@ const scenarios = {
     assert.deepEqual(links.map((a) => a.textContent), ["Hyperloop", "电动汽车用固态电池"]);
     assert.equal(f.get("#landing-retention").textContent, "byok_retention",
       "The retention period is the deployment's own, read from /health, as the key form reads it");
+    assert.equal(f.get("#landing-preview").src, "/static/brand/report-preview.png", "The scorecard picture is fetched once the landing shows");
 
     f.get("#landing-create").onclick();
     await settle();
@@ -160,6 +164,7 @@ const scenarios = {
     assert.deepEqual(shown(f), { landing: false, workbench: true, gate: true },
       "A deep link asks for the sign-in directly; whoever follows it came for the run, not the pitch");
     assert.ok(!f.requests.some((r) => r.url === "/api/samples"), "No landing, no sample request");
+    assert.equal(f.get("#landing-preview").src, undefined, "...and no picture either: the hidden image is never given a src");
   },
   async anonymous_codes_only() {
     const f = fixture({ access: refused(null) });

@@ -65,7 +65,12 @@ def test_the_landing_is_in_the_page_before_the_workbench():
     assert re.search(r'<button type="button"[^>]*id="landing-sign-in"', landing)
     # What a finished report looks like, as a picture of a real one; the file
     # is a crop of assets/screenshot-results.png and is served with the page.
-    assert re.search(r'<img src="/static/brand/report-preview.png" width="\d+" height="\d+"\s+alt="[^"]{20,}"', landing)
+    # The address sits in data-src and app.js sets src when the landing shows,
+    # so a visit that never shows it (signed in, a deep link, a code
+    # deployment) never requests it. A hidden image is fetched all the same,
+    # lazy or not, and e2e/source_locator_production_smoke.py counts requests.
+    assert re.search(r'<img id="landing-preview" data-src="/static/brand/report-preview.png" width="\d+" height="\d+"\s+alt="[^"]{20,}"', landing)
+    assert 'src="/static/brand/report-preview.png"' not in landing.replace("data-src=", "")
     assert (_WEB / "static/brand/report-preview.png").stat().st_size > 10_000
     assert 'id="landing-retention"' in landing
 

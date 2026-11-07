@@ -1548,6 +1548,13 @@ async function showLanding() {
   };
   paintLandingSamples();
   paintLandingRetention();
+  // The scorecard picture is fetched only now: the markup carries it as
+  // data-src, since a hidden image is requested all the same.
+  const preview = $("#landing-preview");
+  if (preview.dataset.src) {
+    preview.src = preview.dataset.src;
+    delete preview.dataset.src;
+  }
   let opening = false;
   await new Promise((resolve) => {
     const open = (creating) => async () => {
