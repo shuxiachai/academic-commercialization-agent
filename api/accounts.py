@@ -436,6 +436,36 @@ def confirm_password(user: User, password: object, *, client: str | None = None,
         _confirm_password(db, user, password, client, stamp)
 
 
+def owner_tag(user_id: int) -> str:
+    """The owner tag of an account id, the same one `User.owner` gives."""
+    return f"{_OWNER_PREFIX}{user_id}"
+
+
+def user_by_id(user_id: object) -> User | None:
+    if not enabled() or not isinstance(user_id, int) or isinstance(user_id, bool):
+        return None
+    with _database() as db:
+        row = db.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
+    return User(id=row["id"], email=row["email"]) if row is not None else None
+
+
+def list_users(*, now: float | None = None) -> list[dict]:
+    """Every account, newest first, with its live sessions counted.
+
+    For the admin console. A session past its expiry is not counted and the
+    newest `last_seen_at` is of a live one: an expired token is not a
+    sign-in, even before the next use of it removes the row.
+    """
+    stamp = int(now if now is not None else time.time())
+    with _database() as db:
+        rows = db.execute(
+            "SELECT u.id, u.email, u.created_at, u.disabled, "
+            "COUNT(s.token_hash) AS sessions, MAX(s.last_seen_at) AS last_seen_at "
+            "FROM users u LEFT JOIN sessions s ON s.user_id = u.id AND s.expires_at > ? "
+            "GROUP BY u.id ORDER BY u.created_at DESC, u.id DESC", (stamp,)).fetchall()
+    return [dict(row) for row in rows]
+
+
 def is_user_owner(owner: object) -> bool:
     return isinstance(owner, str) and owner.startswith(_OWNER_PREFIX)
 

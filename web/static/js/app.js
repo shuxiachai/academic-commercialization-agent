@@ -1277,6 +1277,7 @@ function applyAccountMode(me) {
   $("#code-badge").hidden = true;
   $("#account-email").textContent = t("account_badge").replace("{email}", me.email);
   $("#account-email").title = me.email;   // the badge ellipsizes a long address
+  $("#account-console").hidden = me.admin !== true;
   $("#account-badge").hidden = false;
   hidePlan();
   refreshQuota();

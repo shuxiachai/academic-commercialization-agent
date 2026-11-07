@@ -1,0 +1,175 @@
+/* The operator's console (/admin).
+ *
+ * Laid out as the sample reader is, one column, and like it without the
+ * workbench stylesheet. The few controls it shares with the workbench
+ * (buttons, pills, toasts) are restated here at the same token values. */
+
+.console__section { margin-bottom: var(--space-10); }
+.console__section h2 {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-3);
+}
+.console__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.console__note {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  margin-bottom: var(--space-4);
+  max-width: 70ch;
+}
+
+.console__facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-5);
+  font-size: var(--text-sm);
+}
+.console__facts dt { color: var(--text-tertiary); }
+.console__facts dd { color: var(--text-primary); overflow-wrap: anywhere; }
+
+.console__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.console__table th, .console__table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+.console__table th {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.console__table td.is-email { overflow-wrap: anywhere; min-width: 16ch; }
+.console__table td.is-number { text-align: right; font-variant-numeric: tabular-nums; }
+.console__table th.is-number { text-align: right; }
+.console__table td.is-actions { white-space: nowrap; }
+.console__table td.is-actions .btn + .btn { margin-left: var(--space-2); }
+.console__table tr.is-you td { background: var(--bg-hover); }
+.console__problem { color: var(--danger); }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pill--completed { background: var(--success-subtle); color: var(--success); }
+.pill--failed    { background: var(--danger-subtle);  color: var(--danger); }
+.pill--running   { background: var(--accent-subtle);  color: var(--accent); }
+.pill--unknown   { background: var(--bg-overlay);     color: var(--text-tertiary); }
+.pill + .pill { margin-left: var(--space-2); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.console__table .btn { padding: 4px var(--space-3); font-size: var(--text-sm); }
+.btn--secondary {
+  border: 1px solid var(--border-default);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
+}
+.btn--secondary:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.btn--danger { border: 1px solid var(--danger-border); background: transparent; color: var(--danger); }
+.btn--danger:hover { background: var(--danger-subtle); }
+.btn--primary {
+  justify-content: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.console__dialog {
+  width: min(32rem, calc(100vw - 2 * var(--space-5)));
+  padding: var(--space-6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+}
+.console__dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+.console__dialog h2 {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-3);
+}
+.console__dialog p { margin-bottom: var(--space-4); line-height: var(--leading-normal); overflow-wrap: anywhere; }
+.console__label { display: block; font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
+.console__input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  margin-bottom: var(--space-3);
+}
+.console__error { color: var(--danger); font-size: var(--text-sm); }
+.console__dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); }
+.console__secret code {
+  display: block;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--text-md);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.toasts {
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+.toast {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+.toast--error   { border-color: var(--danger-border); }
+.toast--success { border-color: var(--success-border); }
+
+@media (pointer: coarse) {
+  :root:root .console__input { font-size: var(--text-touch); }
+  .console__table .btn { min-height: 36px; }
+}

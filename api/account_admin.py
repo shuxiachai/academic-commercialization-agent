@@ -6,10 +6,12 @@ There is no password reset by email yet: that needs an email service, which
 is a separate decision. Until then a person who forgets their password has
 exactly one way back, and it is this command, run by the operator.
 
-It is deliberately not an HTTP route. Whoever can run it already has a shell
-on the machine that holds the account database, so it grants nothing that
-shell did not already give; a route would have to be protected by a secret
-that is one more thing to leak.
+Whoever can run it already has a shell on the machine that holds the
+account database, so it grants nothing that shell did not already give. It
+was once the only way, on the reasoning that an HTTP route would need a
+secret of its own. An admin account is now that secret: the same reset is on
+the admin console (api/admin.py), behind the admin's own password, and this
+command stays for the operator who has the shell and not a browser.
 
 The new password is generated here rather than typed, so it never appears in
 a shell history or a process list, and it is printed once. Nothing else
@@ -22,14 +24,9 @@ address, not to whichever address the request came from.
 from __future__ import annotations
 
 import argparse
-import secrets
 import sys
 
-from api import accounts
-
-# 18 random bytes, 24 URL-safe characters: far above the password policy and
-# short enough to read out or paste without wrapping.
-_GENERATED_BYTES = 18
+from api import accounts, admin
 
 
 def _reset_password(email: str) -> int:
@@ -43,7 +40,7 @@ def _reset_password(email: str) -> int:
         print(f"No account database at {path}. Run this in the service's own shell, "
               "where ACCOUNTS_DB points at the real file.", file=sys.stderr)
         return 2
-    password = secrets.token_urlsafe(_GENERATED_BYTES)
+    password = admin.generated_password()
     try:
         ended = accounts.reset_password(email, password)
     except accounts.AccountError as exc:
