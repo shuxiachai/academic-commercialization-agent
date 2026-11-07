@@ -63,6 +63,11 @@ def test_the_landing_is_in_the_page_before_the_workbench():
     # The buttons are buttons: the card they open is in this document, not another page.
     assert re.search(r'<button type="button"[^>]*id="landing-create"', landing)
     assert re.search(r'<button type="button"[^>]*id="landing-sign-in"', landing)
+    # What a finished report looks like, as a picture of a real one; the file
+    # is a crop of assets/screenshot-results.png and is served with the page.
+    assert re.search(r'<img src="/static/brand/report-preview.png" width="\d+" height="\d+"\s+alt="[^"]{20,}"', landing)
+    assert (_WEB / "static/brand/report-preview.png").stat().st_size > 10_000
+    assert 'id="landing-retention"' in landing
 
 
 def test_the_card_can_be_put_down_again_from_the_landing():

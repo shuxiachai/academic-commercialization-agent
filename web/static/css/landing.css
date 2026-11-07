@@ -130,6 +130,27 @@
   color: var(--text-secondary);
 }
 
+/* The scorecard crop across the top of the card, bleeding to its edges. It is
+   a dark interface capture; on paper it reads as the screenshot it is. */
+.landing__figure {
+  margin: calc(-1 * var(--space-6)) calc(-1 * var(--space-6)) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  overflow: hidden;
+  background: var(--bg-overlay);
+}
+.landing__figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.landing__figure figcaption {
+  padding: var(--space-2) var(--space-6);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: var(--leading-normal);
+}
+
 /* Finished reports, listed from /api/samples so the titles are the real ones. */
 .landing__sample-list {
   display: grid;
@@ -192,6 +213,12 @@
 
 .landing__pay { margin-top: var(--space-4); }
 .landing__pay > p { max-width: 60em; }
+.landing__retention:empty { display: none; }
+.landing__retention {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
 
 /* ── Footer ── */
 

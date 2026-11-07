@@ -72,6 +72,14 @@
            are the real ones, so the card cannot promise reports that are
            not there. If the list cannot be read, the link below still can. -->
       <aside class="landing__card landing__sample" aria-labelledby="landing-sample-title">
+        <!-- The scorecard of a real run (CRISPR gene editing, 2026-08-09),
+             cropped from assets/screenshot-results.png: the thing the tool
+             produces, shown as the historical result it is. -->
+        <figure class="landing__figure">
+          <img src="/static/brand/report-preview.png" width="900" height="250"
+               alt="Scorecard of a finished assessment: an overall readiness score out of 100 and five scored dimensions">
+          <figcaption data-i18n="landing_figure_caption">A real run from August 2026, opened in the current interface. A historical result, not a current one.</figcaption>
+        </figure>
         <h2 id="landing-sample-title" data-i18n="landing_sample_title">See what you get</h2>
         <p data-i18n="landing_sample_body">Finished assessments you can read without an account. Opening one makes no model or search request; they are historical runs, not current market advice.</p>
         <ul class="landing__sample-list" id="landing-sample-list"></ul>
@@ -99,7 +107,10 @@
          form's own (byok_sub, byok_guide, account_sub). -->
     <section class="landing__card landing__pay" aria-labelledby="landing-pay-title">
       <h2 id="landing-pay-title" data-i18n="landing_pay_title">Your keys, your bill</h2>
-      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Your providers bill you directly and this service adds nothing. Keys stay in your browser; this server never stores them.</p>
+      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). One measured run used about 70,000 model tokens; your providers bill you directly for that, and this service adds nothing. Keys stay in your browser; this server never stores them.</p>
+      <!-- The deployment's retention period, from /health (app.js); the key
+           form states the same figure, but by then the visitor has signed up. -->
+      <p class="landing__retention" id="landing-retention"></p>
     </section>
   </div>
 

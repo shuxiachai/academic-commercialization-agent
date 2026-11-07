@@ -1547,6 +1547,7 @@ async function showLanding() {
     langSelect.dispatchEvent(new Event("change"));
   };
   paintLandingSamples();
+  paintLandingRetention();
   let opening = false;
   await new Promise((resolve) => {
     const open = (creating) => async () => {
@@ -1586,6 +1587,22 @@ async function paintLandingSamples() {
     link.textContent = String(sample.title ?? sample.slug);
     item.append(link);
     list.append(item);
+  }
+}
+
+/* How long this deployment keeps what a visitor hands it, said next to who
+ * pays. The key form says the same (showByokRetention), but by then the
+ * visitor has signed up; this is the moment they decide to. Silent on
+ * failure for the same reason as there: no line beats a wrong one. */
+async function paintLandingRetention() {
+  const node = $("#landing-retention");
+  try {
+    const { retention_days } = await api.health();
+    node.textContent = retention_days
+      ? t("byok_retention").replace("{days}", retention_days)
+      : t("byok_retention_forever");
+  } catch {
+    node.textContent = "";
   }
 }
 

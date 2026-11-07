@@ -76,6 +76,7 @@ function fixture({ pathname = "/", access }) {
     if (url === "/api/samples") return reply(SAMPLES);
     if (url === "/api/auth/login" || url === "/api/auth/register") return reply({ token: "fixture-token", ...ACCOUNT });
     if (url === "/api/auth/logout") return reply({});
+    if (url === "/health") return reply({ retention_days: 30, active_runs: 0, max_concurrent: 5 });
     // History, capacity and quota are other seams; here they never answer.
     return new Promise(() => {});
   };
@@ -114,6 +115,8 @@ const scenarios = {
     assert.deepEqual(links.map((a) => a.href), ["/samples/hyperloop", "/samples/solid-state-batteries-ev-zh"],
       "Sample links come from /api/samples; a slug that is not one never becomes a path");
     assert.deepEqual(links.map((a) => a.textContent), ["Hyperloop", "电动汽车用固态电池"]);
+    assert.equal(f.get("#landing-retention").textContent, "byok_retention",
+      "The retention period is the deployment's own, read from /health, as the key form reads it");
 
     f.get("#landing-create").onclick();
     await settle();
