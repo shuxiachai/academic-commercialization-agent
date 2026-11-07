@@ -967,6 +967,15 @@ clipboard, as the one inside a chat app often does, the older selection copy
 is tried; if that is refused too, the reader is told the link is the address
 in the address bar.
 
+A finished run also offers "Compare", which asks for a second finished run
+from the same history and opens `/compare/<a>/<b>`: the two scorecards in
+one table with the difference beside them, then the sentences a decision
+turns on from each (the summary lead, strongest and weakest dimension,
+biggest risk, first recommended step) and the source counts. It is drawn
+from the reads the run page already makes; there is no comparison endpoint,
+and a run that did not finish, or whose scorecard is unreadable, shows a
+dash rather than a number.
+
 ### Run links, BYOK and retention
 
 A run ID contains 128 bits of randomness and acts as a read capability.

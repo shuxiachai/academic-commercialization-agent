@@ -106,6 +106,16 @@ def test_the_sign_up_form_says_who_gives_out_invite_codes(contact):
     assert "PASS invite_hint" in result.stdout
 
 
+def test_compare_asks_which_run_and_only_navigates():
+    """The second run is chosen from the rail's own list; the choice sends nothing."""
+    node = shutil.which("node")
+    assert node, "Node is required for the compare-picker seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        "compare_pick"], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS compare_pick" in result.stdout
+
+
 @pytest.mark.parametrize("kind", ["finished", "blocked", "running", "fallback", "refused"])
 def test_a_run_offers_its_topic_again_and_its_link(kind):
     """An earlier topic had to be retyped, and a run's address copied by hand.

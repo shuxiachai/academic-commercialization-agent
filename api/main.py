@@ -526,7 +526,7 @@ async def _rate_limit(request: Request, call_next):
 def _is_page_asset(path: str) -> bool:
     """The files a page is made of, and the documents that load them."""
     return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples", "/admin")
-            or path.startswith(("/run/", "/samples/")))
+            or path.startswith(("/run/", "/compare/", "/samples/")))
 
 
 @app.middleware("http")
@@ -1204,7 +1204,8 @@ if _WEB_ROOT.is_dir():
     @app.get("/", include_in_schema=False)
     @app.get("/history", include_in_schema=False)
     @app.get("/run/{run_id}", include_in_schema=False)
-    def _spa(run_id: str = "") -> Response:
+    @app.get("/compare/{run_id}/{other_run_id}", include_in_schema=False)
+    def _spa(run_id: str = "", other_run_id: str = "") -> Response:
         """Serve the single page for every client-side route.
 
         Routing happens in the browser, so a deep link must return the same
