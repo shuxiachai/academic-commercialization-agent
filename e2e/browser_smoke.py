@@ -169,7 +169,7 @@ def _exercise_phone_menu(page: Page, run_id: str) -> None:
 
 def _exercise_theme_toggle(page: Page) -> None:
     """#234: the page follows the system until the sidebar toggle is pressed; then the
-    reader's choice beats the system, is stored, and reaches a page opened afterwards."""
+    reader's choice beats the system, is stored, and is applied when the page loads."""
     toggle = page.locator("#theme-toggle")
     paper, charcoal = "rgb(245, 243, 238)", "rgb(20, 19, 17)"
     body_is = "(want) => getComputedStyle(document.body).backgroundColor === want"
@@ -193,16 +193,6 @@ def _exercise_theme_toggle(page: Page) -> None:
         assert page.evaluate(chosen) == "light" and page.evaluate(stored) == "light"
         expect(toggle).to_have_attribute("aria-label", "Switch to dark theme")
 
-        # The choice is read by a page opened afterwards, before any press there.
-        other = page.context.new_page()
-        try:
-            other.goto(page.url, wait_until="domcontentloaded")
-            other.emulate_media(color_scheme="dark")
-            other.wait_for_function(body_is, arg=paper)
-            assert other.evaluate(chosen) == "light"
-        finally:
-            other.close()
-
         # And the other way round, on a light system.
         page.emulate_media(color_scheme="light")
         toggle.click()
@@ -214,6 +204,18 @@ def _exercise_theme_toggle(page: Page) -> None:
         expect(toggle).to_have_attribute("aria-label", "切换到浅色主题")
         page.locator("#ui-lang").select_option("English")
         expect(toggle).to_have_attribute("aria-label", "Switch to light theme")
+
+        # A page that loads later reads the stored choice before any press. Run the
+        # module again here rather than open a second page: the whole smoke shares
+        # one loopback rate-limit bucket (see _exercise_sample_contents), and a
+        # page load spends about 27 requests of it where this spends three. The
+        # module binds its handlers again, so this stays the last step; the light
+        # system would show paper if the stored dark choice were not applied.
+        page.evaluate("() => { delete document.documentElement.dataset.theme; }")
+        page.wait_for_function(body_is, arg=paper)
+        page.evaluate("() => import('/static/js/theme.js?again')")
+        page.wait_for_function(body_is, arg=charcoal)
+        assert page.evaluate(chosen) == "dark"
     finally:
         page.evaluate("() => { localStorage.removeItem('aca-theme'); delete document.documentElement.dataset.theme; }")
         page.emulate_media(color_scheme="light")
