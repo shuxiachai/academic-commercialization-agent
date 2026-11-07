@@ -1240,6 +1240,31 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
 }
 .workbench[data-collapsed="true"] .byok-badge { display: none; }
 
+/* Under the account badge until the address is verified. */
+.verify-notice {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: calc(-1 * var(--space-2)) var(--space-4) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-md);
+  background: var(--warning-subtle);
+  color: var(--warning);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+.verify-notice[hidden] { display: none; }
+.verify-notice #verify-resend {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.workbench[data-collapsed="true"] .verify-notice { display: none; }
+
 /* Account panel inside the gate card: laid out like the forms around it. */
 #account-settings {
   display: flex;
@@ -1274,7 +1299,10 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   bottom: var(--space-6);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 100;
+  /* Above the gate: a verification link opened where nobody is signed in
+     lands on the gate, and its answer must not be drawn underneath. Toasts
+     take no clicks, so nothing behind them is harder to reach. */
+  z-index: 300;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);

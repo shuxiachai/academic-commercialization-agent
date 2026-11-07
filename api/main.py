@@ -58,7 +58,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import account_backup, admin, alerts, auxiliary_usage, key_check, plan_preview, retrieval_health, samples
+from api import account_backup, admin, alerts, mail, auxiliary_usage, key_check, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -74,6 +74,9 @@ from api.models import (  # noqa: E402
     AdminDisable,
     AdminPasswordReset,
     AuthMe,
+    EmailVerified,
+    MailStatus,
+    VerifyEmail,
     AuthSession,
     PasswordChange,
     SiteInfo,
@@ -525,7 +528,7 @@ async def _rate_limit(request: Request, call_next):
 
 def _is_page_asset(path: str) -> bool:
     """The files a page is made of, and the documents that load them."""
-    return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples", "/admin")
+    return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples", "/admin", "/verify")
             or path.startswith(("/run/", "/compare/", "/samples/")))
 
 
@@ -644,7 +647,10 @@ async def _access_gate(request: Request, call_next):
 
 _AUTH_OPEN_PATHS = {
     "GET": ("/api/auth/config",),
-    "POST": ("/api/auth/register", "/api/auth/login"),
+    # Opening a verification link is also how a visitor becomes someone: the
+    # token in it is the credential, and the browser it is opened in may not
+    # be the one that signed up.
+    "POST": ("/api/auth/register", "/api/auth/login", "/api/auth/verify"),
 }
 
 
@@ -687,7 +693,10 @@ def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None
 
     - An account always pays with its own keys: without them the request is
       refused with `byok_required`, never billed to the deployment. Its runs
-      are tagged to the account, so they appear in its history.
+      are tagged to the account, so they appear in its history. An account
+      that has not yet opened its verification link is refused first, with
+      `email_unverified`: it may sign in, save keys and preview, but a paid
+      operation waits for the address to be proven.
     - A code holder is billed to the deployment and tagged to the code; a
       code holder who brings keys anyway is untagged, as before.
     - Anonymous requests: refused when accounts are enabled (sign in first),
@@ -695,6 +704,13 @@ def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None
     """
     who = identity.resolve(http_request)
     if who.kind == "user":
+        if not who.user.verified:
+            raise HTTPException(
+                status_code=403,
+                detail="Verify your email address first: open the link in the message sent to it, "
+                       "or ask for a new one from the page.",
+                headers={"X-Error-Code": "email_unverified"},
+            )
         if not byok:
             raise HTTPException(
                 status_code=401,
@@ -772,7 +788,8 @@ def access_check(http_request: Request) -> dict:
                "daily_quota": bool(runs.daily_cap_for(who.tag if who.kind == "user" else None if who.kind == "none" else "code"))}
     if accounts.enabled():
         payload["accounts"] = _accounts_config()
-        payload["account"] = {"email": who.user.email, "admin": who.is_admin} if who.kind == "user" else None
+        payload["account"] = ({"email": who.user.email, "admin": who.is_admin, "verified": who.user.verified}
+                              if who.kind == "user" else None)
     return payload
 
 
@@ -816,13 +833,30 @@ def _client_address(http_request: Request) -> str | None:
 
 def _account_refusal(exc: accounts.AccountError) -> HTTPException:
     status = {"invalid_credentials": 401, "locked": 429, "signup_throttled": 429, "disabled": 403,
-              "invite_required": 403, "signup_closed": 403, "email_taken": 409, "accounts_disabled": 404}.get(exc.code, 422)
+              "invite_required": 403, "signup_closed": 403, "email_taken": 409, "accounts_disabled": 404,
+              "verification_invalid": 400, "verification_expired": 410, "verification_cooldown": 429,
+              "already_verified": 409}.get(exc.code, 422)
     headers = {"X-Error-Code": exc.code}
     if exc.code == "locked":
         headers["Retry-After"] = str(accounts.LOCKOUT_SECONDS)
     if exc.code == "signup_throttled":
         headers["Retry-After"] = "3600"
+    if exc.code == "verification_cooldown":
+        headers["Retry-After"] = str(accounts.VERIFY_RESEND_SECONDS)
     return HTTPException(status_code=status, detail=exc.message, headers=headers)
+
+
+def _send_verification(user: accounts.User, *, cooldown: bool) -> None:
+    """Issue a fresh link for the account and send it. Raises AccountError or MailError.
+
+    The link is built on PUBLIC_URL, never on the request's Host header: what
+    a request says about itself must not be able to choose where the link in
+    someone's inbox points.
+    """
+    token = accounts.issue_verification(user, cooldown=cooldown)
+    link = f"{mail.public_url()}/verify?token={token}"
+    subject, text, html_body = mail.verification_message(link, hours=accounts.VERIFY_SECONDS // 3600)
+    mail.send(user.email, subject, text, html_body)
 
 
 @app.get("/api/auth/config", response_model=AuthConfig, tags=["accounts"])
@@ -846,13 +880,21 @@ def auth_register(request: AuthCredentials, http_request: Request, response: Res
     if not accounts.enabled():
         raise HTTPException(status_code=404, detail="Accounts are not enabled on this deployment.")
     try:
-        accounts.register(request.email, request.password, invite=request.invite,
-                          client=_client_address(http_request))
+        created = accounts.register(request.email, request.password, invite=request.invite,
+                                    client=_client_address(http_request))
         token, user = accounts.login(request.email, request.password, client=_client_address(http_request))
     except accounts.AccountError as exc:
         raise _account_refusal(exc) from None
+    if not created.verified:
+        # The account exists whether or not the message leaves: a mail outage
+        # is not a reason to refuse a sign-up. The page offers to send again,
+        # and a run is refused until the link has been opened.
+        try:
+            _send_verification(created, cooldown=False)
+        except (accounts.AccountError, mail.MailError) as exc:
+            _LOGGER.warning("Verification email for account %d not sent: %s", created.id, exc)
     response.headers["Cache-Control"] = "no-store"
-    return AuthSession(token=token, email=user.email, admin=user.admin)
+    return AuthSession(token=token, email=user.email, admin=user.admin, verified=user.verified)
 
 
 @app.post("/api/auth/login", response_model=AuthSession, tags=["accounts"],
@@ -866,7 +908,53 @@ def auth_login(request: AuthCredentials, http_request: Request, response: Respon
     except accounts.AccountError as exc:
         raise _account_refusal(exc) from None
     response.headers["Cache-Control"] = "no-store"
-    return AuthSession(token=token, email=user.email, admin=user.admin)
+    return AuthSession(token=token, email=user.email, admin=user.admin, verified=user.verified)
+
+
+@app.post("/api/auth/verify", response_model=EmailVerified, tags=["accounts"],
+          responses={400: {"description": "The link is not one this deployment issued"},
+                     410: {"description": "The link has expired; sign in and ask for another"}})
+def auth_verify(request: VerifyEmail, response: Response) -> EmailVerified:
+    """Prove an address by presenting the token from the link sent to it.
+
+    A POST from the page, not the GET of the link itself: mail clients and
+    link scanners open links on the reader's behalf, and a scanner's visit
+    must not be what verifies an address. Ungated, since the browser the link
+    is opened in need not hold the session that signed up.
+    """
+    if not accounts.enabled():
+        raise HTTPException(status_code=404, detail="Accounts are not enabled on this deployment.")
+    try:
+        user = accounts.verify_email(request.token)
+    except accounts.AccountError as exc:
+        raise _account_refusal(exc) from None
+    response.headers["Cache-Control"] = "no-store"
+    return EmailVerified(email=user.email)
+
+
+@app.post("/api/auth/verify/resend", status_code=202, tags=["accounts"],
+          responses={409: {"description": "The address is already verified"},
+                     429: {"description": "A message was sent moments ago"},
+                     503: {"description": "The message could not be sent"}})
+def auth_verify_resend(http_request: Request) -> Response:
+    """Send the signed-in account a fresh verification link.
+
+    The earlier link stops working. At most one message a minute per account,
+    and the deployment's own daily allowance of email above that.
+    """
+    user = _signed_in_account(http_request)
+    if not mail.configured():
+        raise HTTPException(status_code=503, detail="This deployment cannot send email at the moment.",
+                            headers={"X-Error-Code": "mail_unavailable"})
+    try:
+        _send_verification(user, cooldown=True)
+    except accounts.AccountError as exc:
+        raise _account_refusal(exc) from None
+    except mail.MailError as exc:
+        _LOGGER.warning("Verification email for account %d not sent: %s", user.id, exc)
+        raise HTTPException(status_code=503, detail="The verification email could not be sent. Try again in a while.",
+                            headers={"X-Error-Code": "mail_unavailable"}) from None
+    return Response(status_code=202, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/auth/logout", status_code=204, tags=["accounts"])
@@ -884,7 +972,7 @@ def auth_me(http_request: Request) -> AuthMe:
     who = identity.resolve(http_request)
     if who.kind != "user":
         raise HTTPException(status_code=404, detail="Not signed in with an account.")
-    return AuthMe(email=who.user.email, admin=who.is_admin)
+    return AuthMe(email=who.user.email, admin=who.is_admin, verified=who.user.verified)
 
 
 def _signed_in_account(http_request: Request) -> accounts.User:
@@ -1208,6 +1296,7 @@ if _WEB_ROOT.is_dir():
     @app.get("/history", include_in_schema=False)
     @app.get("/run/{run_id}", include_in_schema=False)
     @app.get("/compare/{run_id}/{other_run_id}", include_in_schema=False)
+    @app.get("/verify", include_in_schema=False)
     def _spa(run_id: str = "", other_run_id: str = "") -> Response:
         """Serve the single page for every client-side route.
 
@@ -1337,6 +1426,7 @@ def health() -> HealthStatus:
         maintenance=_maintenance_status(),
         source_locator=_source_locator_status(),
         alerts=AlertStatus(**alerts.status()),
+        mail=MailStatus(**mail.status()),
     )
 
 

@@ -356,6 +356,10 @@ export const register = (email, password, invite = null) =>
 export const login = (email, password) => request("/api/auth/login", json({ email, password }));
 export const logout = () => request("/api/auth/logout", { method: "POST" });
 export const me = () => request("/api/auth/me");
+// The token from a verification link; ungated, since the browser that opens
+// the link need not be the one that signed up.
+export const verifyEmail = (token) => request("/api/auth/verify", json({ token }));
+export const resendVerification = () => request("/api/auth/verify/resend", { method: "POST" });
 // What the providers say about a key set an account is about to save. One
 // unbilled read per service; the answer carries no key. Bounded here as well
 // as on the server, so a silent network cannot hold the form open.

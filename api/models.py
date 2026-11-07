@@ -783,6 +783,20 @@ class AlertStatus(BaseModel):
     last_failed_at: AwareDatetime | None = None
 
 
+class MailStatus(BaseModel):
+    """Whether the service can send email, not whether any was needed."""
+
+    state: Literal["off", "ready", "misconfigured", "failing"] = Field(
+        description="off: no mail setting. misconfigured: a setting is unusable or both are set, or MAIL_FROM "
+                    "or PUBLIC_URL is missing. failing: the last message was not delivered. ready says "
+                    "nothing was needed or it was sent.")
+    channel: Literal["resend", "outbox"] | None = Field(
+        default=None, description="resend: Resend's API. outbox: messages are written to a directory "
+                                  "(development). null when nothing is usable.")
+    last_sent_at: AwareDatetime | None = None
+    last_failed_at: AwareDatetime | None = None
+
+
 class HealthStatus(BaseModel):
     status: Literal["ok"]
     active_runs: int = Field(
@@ -826,6 +840,11 @@ class HealthStatus(BaseModel):
     alerts: AlertStatus = Field(
         default_factory=lambda: AlertStatus(state="off"),
         description="Operator alerts to a Feishu or WeCom group robot: whether they can be delivered.",
+    )
+    mail: MailStatus = Field(
+        default_factory=lambda: MailStatus(state="off"),
+        description="Outgoing email (verification links): whether it can be sent. With state off, "
+                    "accounts are created verified.",
     )
     maintenance: MaintenanceStatus = Field(
         default_factory=lambda: MaintenanceStatus(state="not_started"),
@@ -882,11 +901,25 @@ class AuthSession(BaseModel):
     token: str
     email: str
     admin: bool = False
+    verified: bool = Field(default=True, description="The address has been proven. Until it is, paid "
+                                                     "operations are refused with email_unverified.")
 
 
 class AuthMe(BaseModel):
     email: str
     admin: bool = False
+    verified: bool = True
+
+
+class VerifyEmail(BaseModel):
+    """The token from a verification link, presented by the page that opened it."""
+
+    token: str = Field(min_length=1, max_length=128)
+
+
+class EmailVerified(BaseModel):
+    email: str
+    verified: Literal[True] = True
 
 
 class SiteInfo(BaseModel):
@@ -919,6 +952,7 @@ class AdminAccount(BaseModel):
     email: str
     created_at: int = Field(description="Unix time the account was created.")
     disabled: bool
+    verified: bool = Field(default=True, description="The address has been proven, or the account predates email.")
     admin: bool = Field(description="Named in ACCOUNTS_ADMIN_EMAILS.")
     sessions: int = Field(description="Live sign-ins; expired ones are not counted.")
     last_seen_at: int | None = Field(description="Unix time of the newest live session's last request.")

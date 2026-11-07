@@ -90,6 +90,12 @@
       <a id="account-console" href="/admin" data-i18n="account_console" hidden>Console</a>
       <button type="button" id="account-exit" data-i18n="account_exit">Sign out</button>
     </div>
+    <!-- Until the account has opened the link sent to its address, runs are
+         refused; this says so and offers the message again. -->
+    <div class="verify-notice" id="verify-notice" role="status" hidden>
+      <span id="verify-text"></span>
+      <button type="button" id="verify-resend" data-i18n="verify_resend">Send again</button>
+    </div>
 
     <div class="sidebar__foot">
       <!-- SOURCE_LOCATOR_LINK -->

@@ -200,8 +200,9 @@ uv run academic_agent --topic "solid-state batteries for electric vehicles"
 运营者有一个只对管理员账号开放的[管理后台](docs/operating-guide.md#the-console)（`/admin`）：
 查看服务状态和全部账号，重置密码、停用账号，查看账号备份。服务每天[自动备份账号数据库](docs/operating-guide.md#backing-up-accounts)并保留最新十四份；
 备份失败、维护循环停止、或部署方自己的密钥、额度、账单导致评估失败时，可以通知
-[飞书或企业微信群机器人](docs/operating-guide.md#alerts)。目前没有邮件服务，
-所以没有自助找回密码和邮箱验证，密码由运营者重置。
+[飞书或企业微信群机器人](docs/operating-guide.md#alerts)。接入邮件服务
+（[Resend](docs/operating-guide.md#email-verification)）后，新账号要先打开一次性
+链接验证邮箱，才能开始付费操作。目前还没有自助找回密码，密码由运营者重置。
 
 运行链接具有 **128 位随机性**，是读取能力凭证：知道完整链接的人可以
 读取该运行，直到留存策略删除它。修改口令归属的运行还需 owner/admin
@@ -272,8 +273,8 @@ uv run python benchmark.py --dry-run
 
 仍需补强：定性结论的引用支持、独立测量的决策效用、中文/极短/非技术输入的基准、
 旧运行元数据读取状态，以及单副本之外的扩展边界。增加 Agent、向量库或
-Kubernetes 本身不能解决这些缺口。账号不验证邮箱，在部署接入邮件服务之前也不能自助重置密码，
-所以公开部署默认采用邀请制注册。
+Kubernetes 本身不能解决这些缺口。账号还不能自助重置密码；没有接入邮件服务的部署也不验证邮箱，
+应当保持邀请制注册。
 
 **市场评分**。市场评分卡会明确提示[估值可比性尚未核实](docs/results-2026-09-11-market-score-delivery-disclosure.md)：
 历史上限规则的局限已经可见，但市场评分规则本身既未修正也未验证。新结果还会展示

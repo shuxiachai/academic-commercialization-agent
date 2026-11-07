@@ -1,10 +1,10 @@
 """Operator commands for accounts, run from the deployment's own shell.
 
     python -m api.account_admin reset-password someone@example.com
+    python -m api.account_admin verify someone@example.com
 
-There is no password reset by email yet: that needs an email service, which
-is a separate decision. Until then a person who forgets their password has
-exactly one way back, and it is this command, run by the operator.
+There is no password reset by email yet. A person who forgets their password
+has exactly one way back, and it is this command, run by the operator.
 
 Whoever can run it already has a shell on the machine that holds the
 account database, so it grants nothing that shell did not already give. It
@@ -17,9 +17,12 @@ The new password is generated here rather than typed, so it never appears in
 a shell history or a process list, and it is printed once. Nothing else
 keeps it: the database stores only its hash.
 
-Registration verifies no email address, so the operator is the check that the
-person asking owns the account. Send the new password to the account's own
-address, not to whichever address the request came from.
+The operator is the check that the person asking owns the account. Send the
+new password to the account's own address, not to whichever address the
+request came from.
+
+`verify` marks an address as proven without a link, for the operator who has
+checked by other means or whose mail is not working.
 """
 from __future__ import annotations
 
@@ -54,6 +57,20 @@ def _reset_password(email: str) -> int:
     return 0
 
 
+def _verify(email: str) -> int:
+    path = accounts.database_path()
+    if path is None or not path.is_file():
+        print("Accounts are not enabled here, or ACCOUNTS_DB does not point at the real file.", file=sys.stderr)
+        return 2
+    try:
+        changed = accounts.mark_verified(email)
+    except accounts.AccountError as exc:
+        print(f"Not verified: {exc.message}", file=sys.stderr)
+        return 2
+    print(f"{accounts.normalize_email(email)} is {'now' if changed else 'already'} verified.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m api.account_admin",
@@ -63,8 +80,10 @@ def main(argv: list[str] | None = None) -> int:
         "reset-password",
         help="Set a new random password for an account and end its sessions.")
     reset.add_argument("email", help="The account's email address.")
+    verify = commands.add_parser("verify", help="Mark an account's email address as verified without a link.")
+    verify.add_argument("email", help="The account's email address.")
     args = parser.parse_args(argv)
-    return _reset_password(args.email)
+    return _verify(args.email) if args.command == "verify" else _reset_password(args.email)
 
 
 if __name__ == "__main__":
