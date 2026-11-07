@@ -167,6 +167,61 @@ def _exercise_phone_menu(page: Page, run_id: str) -> None:
     expect(menu).to_be_hidden()
 
 
+def _exercise_theme_toggle(page: Page) -> None:
+    """#234: the page follows the system until the sidebar toggle is pressed; then the
+    reader's choice beats the system, is stored, and is applied when the page loads."""
+    toggle = page.locator("#theme-toggle")
+    paper, charcoal = "rgb(245, 243, 238)", "rgb(20, 19, 17)"
+    body_is = "(want) => getComputedStyle(document.body).backgroundColor === want"
+    chosen = "() => document.documentElement.dataset.theme ?? null"
+    stored = "() => localStorage.getItem('aca-theme')"
+    page.evaluate("() => localStorage.removeItem('aca-theme')")
+    try:
+        # Nothing stored: nothing set, and the page tracks the system either way.
+        page.emulate_media(color_scheme="light")
+        page.wait_for_function(body_is, arg=paper)
+        assert page.evaluate(chosen) is None and page.evaluate(stored) is None
+        expect(toggle).to_have_attribute("aria-label", "Switch to dark theme")
+        page.emulate_media(color_scheme="dark")
+        page.wait_for_function(body_is, arg=charcoal)
+        assert page.evaluate(chosen) is None
+        expect(toggle).to_have_attribute("aria-label", "Switch to light theme")
+
+        # On a dark system, choosing light must win over the media query.
+        toggle.click()
+        page.wait_for_function(body_is, arg=paper)
+        assert page.evaluate(chosen) == "light" and page.evaluate(stored) == "light"
+        expect(toggle).to_have_attribute("aria-label", "Switch to dark theme")
+
+        # And the other way round, on a light system.
+        page.emulate_media(color_scheme="light")
+        toggle.click()
+        page.wait_for_function(body_is, arg=charcoal)
+        assert page.evaluate(chosen) == "dark" and page.evaluate(stored) == "dark"
+
+        # The accessible name follows the interface language.
+        page.locator("#ui-lang").select_option("Simplified Chinese")
+        expect(toggle).to_have_attribute("aria-label", "切换到浅色主题")
+        page.locator("#ui-lang").select_option("English")
+        expect(toggle).to_have_attribute("aria-label", "Switch to light theme")
+
+        # A page that loads later reads the stored choice before any press. Run the
+        # module again here rather than open a second page: the whole smoke shares
+        # one loopback rate-limit bucket (see _exercise_sample_contents), and a
+        # page load spends about 27 requests of it where this spends three. The
+        # module binds its handlers again, so this stays the last step; the light
+        # system would show paper if the stored dark choice were not applied.
+        page.evaluate("() => { delete document.documentElement.dataset.theme; }")
+        page.wait_for_function(body_is, arg=paper)
+        page.evaluate("() => import('/static/js/theme.js?again')")
+        page.wait_for_function(body_is, arg=charcoal)
+        assert page.evaluate(chosen) == "dark"
+    finally:
+        page.evaluate("() => { localStorage.removeItem('aca-theme'); delete document.documentElement.dataset.theme; }")
+        page.emulate_media(color_scheme="light")
+        page.wait_for_function(body_is, arg=paper)
+
+
 def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
     """Catch actions squeezing mobile metadata into columns and hiding the report."""
     title = page.locator("#run-title")
@@ -741,6 +796,7 @@ def _exercise_browser(
             page.locator("#gate-submit").click()
             expect(gate).to_be_hidden()
             _exercise_phone_menu(page, run_id)
+            _exercise_theme_toggle(page)
 
             run_item = page.locator(f'button.runitem[data-run-id="{run_id}"]')
             expect(run_item).to_be_visible()

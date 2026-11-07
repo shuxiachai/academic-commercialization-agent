@@ -64,15 +64,73 @@ def test_starter_topics_have_a_chinese_entry_for_every_button():
     assert "starters.js" not in app
 
 
+def _block(selector: str) -> str:
+    """The declarations of the one rule whose selector is exactly `selector`."""
+    return re.search(re.escape(selector) + r" \{\n(.*?)\n\s*\}", TOKENS, re.S).group(1)
+
+
+# The dark palette applies on a dark system unless the reader chose light, and
+# whenever the reader chose dark (theme.js sets data-theme on the root).
+SYSTEM_DARK = ':root:not([data-theme="light"])'
+CHOSEN_DARK = ':root[data-theme="dark"]'
+
+
 def test_dark_theme_redefines_every_colour_token():
     """A colour left out of the dark block would show a paper value on charcoal."""
     light_block = TOKENS.split("@media (prefers-color-scheme: dark)", 1)[0]
-    dark_block = TOKENS.split("@media (prefers-color-scheme: dark)", 1)[1].split("@media", 1)[0]
-    light, dark = _declared(light_block), _declared(dark_block)
+    light = _declared(light_block)
     colours = {name for name, value in light.items()
                if re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", value)}
     assert colours, "no colour tokens found"
-    assert colours <= set(dark), sorted(colours - set(dark))
+    for selector in (SYSTEM_DARK, CHOSEN_DARK):
+        dark = _declared(_block(selector))
+        assert colours <= set(dark), (selector, sorted(colours - set(dark)))
+
+
+def test_chosen_dark_matches_the_system_dark_palette():
+    """CSS cannot share one block between a media query and an attribute selector,
+    so the reader's dark choice and a dark system must not drift apart."""
+    assert _declared(_block(SYSTEM_DARK)) == _declared(_block(CHOSEN_DARK))
+    assert "@media (prefers-color-scheme: dark) {\n  " + SYSTEM_DARK in TOKENS
+
+
+def test_choosing_light_beats_a_dark_system():
+    """Without this, a reader on a dark system could never pick light."""
+    assert ":root[data-theme=\"light\"]" in TOKENS
+    assert "color-scheme: light" in _block(':root[data-theme="light"]')
+    assert "color-scheme: dark" in _block(SYSTEM_DARK) and "color-scheme: dark" in _block(CHOSEN_DARK)
+
+
+def test_theme_toggle_sits_in_the_sidebar_and_loads_after_app_js():
+    """#234: the toggle is a sidebar-footer button handled by its own module."""
+    foot = INDEX.split('class="sidebar__foot"', 1)[1].split("</aside>", 1)[0]
+    assert re.search(r'<button type="button" class="icon-btn" id="theme-toggle"[^>]*aria-label="[^"]+"', foot)
+    scripts = re.findall(r'<script type="module" src="/static/js/(\w+)\.js"></script>', INDEX)
+    assert scripts.index("theme") > scripts.index("app")
+    assert "theme.js" not in (ROOT / "web/static/js/app.js").read_text(encoding="utf-8")
+
+
+def test_theme_toggle_labels_exist_in_both_interface_languages():
+    source = (ROOT / "web/static/js/theme.js").read_text(encoding="utf-8")
+    english, chinese = source.split('"Simplified Chinese":', 1)
+    keys = set(re.findall(r"(\w+):", english.split("English:", 1)[1].split("}", 1)[0]))
+    assert keys == {"toDark", "toLight"}
+    assert keys == set(re.findall(r"(\w+):", chinese.split("}", 1)[0]))
+    assert re.search(r"[一-鿿]", chinese.split("}", 1)[0])
+
+
+def test_theme_choice_is_stored_defensively_and_only_on_a_press():
+    """Blocked site data must not break the page, and nothing is stored (so the page
+    keeps following the system) until the reader presses the toggle."""
+    source = (ROOT / "web/static/js/theme.js").read_text(encoding="utf-8")
+    code = re.sub(r"/\*.*?\*/", "", source, flags=re.S)
+    assert re.search(r"try \{\s*const value = localStorage\.getItem\(KEY\)", code)
+    assert re.search(r"try \{\s*localStorage\.setItem\(KEY, theme\)", code)
+    assert code.count("localStorage.setItem") == 1
+    # The only caller of remember() is the click handler.
+    assert code.count("remember(") == 2  # its definition and that one call
+    handler = code.split('button?.addEventListener("click"', 1)[1].split("});", 1)[0]
+    assert "remember(next)" in handler
 
 
 def test_both_pages_declare_both_colour_schemes():
