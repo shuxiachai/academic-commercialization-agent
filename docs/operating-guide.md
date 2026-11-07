@@ -925,7 +925,10 @@ a thousand, and says so when a history is longer than that. A finished run
 offers "Run again", which fills the composer with its topic and sends
 nothing, and "Copy link"; a running one offers "Copy link" too. Copying a
 link is sharing a read capability, and the confirmation says that anyone who
-has it can read the run.
+has it can read the run. Where a browser refuses the page's own write to the
+clipboard, as the one inside a chat app often does, the older selection copy
+is tried; if that is refused too, the reader is told the link is the address
+in the address bar.
 
 ### Run links, BYOK and retention
 

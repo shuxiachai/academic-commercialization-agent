@@ -309,10 +309,49 @@ function paintHeader({
   recoveryEl.title = details.join("\n");
 }
 
+/* The older way to copy, for where a page may not write to the clipboard
+ * itself: the browser inside a chat app, an embedded view, a page not served
+ * over HTTPS. The text goes into a field, is selected and copied, and the
+ * field is gone before anything is drawn. Focus goes back where it was, so
+ * a keyboard user is not left on nothing. True only if the browser said it
+ * copied: a guess here would tell someone a link is on their clipboard when
+ * what is there is whatever they copied last. */
+function copyBySelection(text) {
+  let field = null;
+  try {
+    const focused = document.activeElement;
+    field = document.createElement("textarea");
+    field.value = text;
+    // Read-only keeps a phone's keyboard down; fixed keeps the page from scrolling to it.
+    field.setAttribute("readonly", "");
+    field.setAttribute("aria-hidden", "true");
+    Object.assign(field.style, { position: "fixed", top: "0", left: "0", opacity: "0" });
+    document.body.append(field);
+    field.select();
+    field.setSelectionRange(0, text.length);
+    const copied = document.execCommand("copy") === true;
+    focused?.focus?.();
+    return copied;
+  } catch {
+    return false;
+  } finally {
+    field?.remove();
+  }
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return copyBySelection(text);
+  }
+}
+
 /* A run's address is what opens it: anyone holding the link can read the
  * run without a code or an account. Copying it is therefore sharing it, and
- * the confirmation says so. Where the browser will not let a page write to
- * the clipboard, the address bar already holds the same link. */
+ * the confirmation says so. Where the browser allows neither way of
+ * copying, the address bar already holds the same link. */
 function copyLinkButton() {
   const runId = activeRunId;
   const copy = document.createElement("button");
@@ -321,12 +360,8 @@ function copyLinkButton() {
   copy.id = "run-copy-link";
   copy.textContent = t("copy_link");
   copy.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(`${location.origin}/run/${runId}`);
-      toast(t("msg_link_copied"), "success");
-    } catch {
-      toast(t("msg_link_copy_failed"), "error");
-    }
+    const copied = await copyText(`${location.origin}/run/${runId}`);
+    toast(t(copied ? "msg_link_copied" : "msg_link_copy_failed"), copied ? "success" : "error");
   });
   return copy;
 }
