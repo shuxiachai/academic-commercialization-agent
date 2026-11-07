@@ -19,7 +19,7 @@
 | 方式 | 需要什么 | |
 |---|---|---|
 | **阅读示例报告** | 什么都不需要。五份完整评估（其中一份为中文），打开时不发起任何模型或检索请求 | [打开示例](https://academic-commercialization-agent.up.railway.app/samples) |
-| **在线发起新分析** | 作者提供的访问码，**或** BYOK：自己的模型 API key 与模型 + Tavily 或 Serper 检索 key；会产生供应商用量 | [打开应用](https://academic-commercialization-agent.up.railway.app) |
+| **在线发起新分析** | 注册账号（需要运营者给的邀请码），用自己的模型 API key 与模型 + Tavily 或 Serper 检索 key 付费运行；或使用运营者发放的访问码。会产生供应商用量 | [打开应用](https://academic-commercialization-agent.up.railway.app) |
 | **在本机运行** | Python 3.11 或 3.12、[uv](https://docs.astral.sh/uv/) 和自己的 key | [快速启动](#快速启动) |
 
 示例报告也在 [examples/](examples/README.md) 中：两份来自 2026-10-21 的运行，例如中文报告
@@ -65,6 +65,12 @@
   原运行不会被覆盖。
 - 付费请求支持[持久化回执](docs/operating-guide.md#paid-request-receipts)：回包丢失或刷新后，
   可在最长 24 小时内找回已接收的分析、PDF 或恢复运行，无需重复付费。
+- 使用账号时，保存的密钥会先向服务商核对一次再用于运行；运行开始前会先显示检索计划供修改；
+  输入框下方显示当天剩余次数。历史记录可在页面内搜索；已完成的评估提供
+  **再跑一次**、**复制链接**和**对比**，对比会把两次评估的评分卡并排放在一起并给出差值
+  （[说明](docs/operating-guide.md#run-history-in-the-page)）。
+- 评估失败时，页面会用能处理这个问题的人看得懂的话说明原因：服务商拒绝部署方的密钥，
+  和拒绝你自己的密钥，是两句不同的话。
 
 报告用于研究初筛，不代替技术、法律、监管、投资或 FTO 尽职调查。
 “引用 ID 有效”不等于“来源在语义上支持该结论”。
@@ -187,7 +193,15 @@ uv run academic_agent --topic "solid-state batteries for electric vehicles"
 
 进入方式按部署选择：不设门禁（本地使用）、由运营者发放并计费的访问口令，或邮箱加密码的账号。
 账号登录后自行添加 API Key 来支付运行费用（[说明](docs/operating-guide.md#accounts)），密钥只留在用户的浏览器里，服务器不会保存。
+每个账号默认同时只能有一个付费操作、每天最多十次，单个账号占不满主机的容量
+（[设置](docs/operating-guide.md#what-one-account-may-do-at-once-and-in-a-day)）。
 每个部署都在 `/privacy` 提供[隐私与条款页](web/privacy.html)，说明保存了什么、还有谁会看到主题。
+
+运营者有一个只对管理员账号开放的[管理后台](docs/operating-guide.md#the-console)（`/admin`）：
+查看服务状态和全部账号，重置密码、停用账号，查看账号备份。服务每天[自动备份账号数据库](docs/operating-guide.md#backing-up-accounts)并保留最新十四份；
+备份失败、维护循环停止、或部署方自己的密钥、额度、账单导致评估失败时，可以通知
+[飞书或企业微信群机器人](docs/operating-guide.md#alerts)。目前没有邮件服务，
+所以没有自助找回密码和邮箱验证，密码由运营者重置。
 
 运行链接具有 **128 位随机性**，是读取能力凭证：知道完整链接的人可以
 读取该运行，直到留存策略删除它。修改口令归属的运行还需 owner/admin
@@ -258,7 +272,8 @@ uv run python benchmark.py --dry-run
 
 仍需补强：定性结论的引用支持、独立测量的决策效用、中文/极短/非技术输入的基准、
 旧运行元数据读取状态，以及单副本之外的扩展边界。增加 Agent、向量库或
-Kubernetes 本身不能解决这些缺口。
+Kubernetes 本身不能解决这些缺口。账号不验证邮箱，在部署接入邮件服务之前也不能自助重置密码，
+所以公开部署默认采用邀请制注册。
 
 **市场评分**。市场评分卡会明确提示[估值可比性尚未核实](docs/results-2026-09-11-market-score-delivery-disclosure.md)：
 历史上限规则的局限已经可见，但市场评分规则本身既未修正也未验证。新结果还会展示
