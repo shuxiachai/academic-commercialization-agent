@@ -19,7 +19,7 @@
 | 方式 | 需要什么 | |
 |---|---|---|
 | **阅读示例报告** | 什么都不需要。五份完整评估（其中一份为中文），打开时不发起任何模型或检索请求 | [打开示例](https://academic-commercialization-agent.up.railway.app/samples) |
-| **在线发起新分析** | 注册账号（需要运营者给的邀请码），用自己的模型 API key 与模型 + Tavily 或 Serper 检索 key 付费运行；或使用运营者发放的访问码。会产生供应商用量 | [打开应用](https://academic-commercialization-agent.up.railway.app) |
+| **在线发起新分析** | 免费注册账号（邮箱加密码，开放注册），用自己的模型 API key 与模型 + Tavily 或 Serper 检索 key 付费运行。会产生供应商用量 | [打开应用](https://academic-commercialization-agent.up.railway.app) |
 | **在本机运行** | Python 3.11 或 3.12、[uv](https://docs.astral.sh/uv/) 和自己的 key | [快速启动](#快速启动) |
 
 示例报告也在 [examples/](examples/README.md) 中：两份来自 2026-10-21 的运行，例如中文报告
