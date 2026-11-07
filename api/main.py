@@ -1321,8 +1321,10 @@ if _WEB_ROOT.is_dir():
         """Serve the sample-report reader for the list and every deep link.
 
         A separate document rather than a route inside the main page: the main
-        page puts its access gate up before any view renders, and the point of
-        this one is to be readable by someone who has no code.
+        page asks for a sign-in before any view renders (or, at "/" on a
+        deployment with accounts, shows its landing page, which links here),
+        and the point of this one is to be readable by someone who has no
+        account and no code.
         """
         return FileResponse(_WEB_ROOT / "samples.html", media_type="text/html")
 

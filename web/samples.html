@@ -27,9 +27,10 @@
 </head>
 <body>
 
-<!-- Deliberately not the main page's shell: that page raises its access gate
-     before any view renders. Nothing here sends a credential or reaches a
-     paid endpoint; it reads /api/samples, which serves committed files. -->
+<!-- Deliberately not the main page's shell: that page asks for a sign-in
+     before any view renders, or shows its landing page, which links here.
+     Nothing here sends a credential or reaches a paid endpoint; it reads
+     /api/samples, which serves committed files. -->
 <div class="samples">
   <header class="samples__head">
     <a class="brand" href="/" aria-label="Academic Commercialization Assessment">

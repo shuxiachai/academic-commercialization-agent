@@ -1178,6 +1178,9 @@
   .composer__bar .chip-btn { font-size: var(--text-touch); }
 }
 .gate__sep { margin: 0 var(--space-2); color: var(--text-disabled); }
+/* Outside the forms, so it stays whichever one is up; shown only when the
+   card was opened from the landing (app.js showGate). */
+.gate__back { display: block; margin: var(--space-4) auto 0; }
 /* A link that wraps has a box spanning two lines whose middle is nobody's
    text: a keyboard user's focus ring would enclose empty space, and the
    keyboard smoke reads that as a covered control. Keep each link one box. */

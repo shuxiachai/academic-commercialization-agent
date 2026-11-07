@@ -83,7 +83,7 @@ def test_both_pages_declare_both_colour_schemes():
 
 def test_component_styles_take_colours_from_tokens():
     """Hard-coded colours outside tokens.css would ignore the theme."""
-    for name in ("base", "workbench", "result", "samples"):
+    for name in ("base", "workbench", "result", "samples", "landing"):
         css = (ROOT / f"web/static/css/{name}.css").read_text(encoding="utf-8")
         css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
         css = re.sub(r'url\("data:image/svg\+xml[^"]*"\)', "", css)

@@ -1,0 +1,242 @@
+/* Landing page.
+ *
+ * What an anonymous visitor to "/" sees on a deployment with accounts, before
+ * the workbench: what the tool is, how a run goes, what a finished report
+ * looks like, who pays, and the two buttons that lead in. It is a page, not
+ * an overlay — the sign-in card (workbench.css, .gate) opens over it when a
+ * button is pressed, exactly as it used to open over the empty workbench.
+ *
+ * The same tokens as the workbench, so both themes come for free; the brand
+ * mark and the language select reuse the workbench rules, which are loaded
+ * with this sheet. One column below 860px, where the composer also folds.
+ */
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg-base);
+}
+
+/* ── Header ── */
+
+.landing__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--wide-width);
+  height: var(--header-height);
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+.landing .brand { flex: 0 1 auto; }
+.landing .brand__name { font-size: var(--text-md); }
+
+.landing__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.landing__nav > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.landing__nav > a:hover { color: var(--accent); }
+.landing__nav .btn { min-height: 44px; }
+
+/* ── Body ── */
+
+.landing__main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--wide-width);
+  margin: 0 auto;
+  padding: 0 var(--space-6) var(--space-16);
+}
+
+.landing__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-8);
+  align-items: start;
+  padding: var(--space-16) 0 var(--space-12);
+}
+
+.landing__eyebrow {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.landing__pitch h1 {
+  max-width: 14em;
+  font-size: clamp(32px, 4.4vw, 54px);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.landing__lede {
+  max-width: 36em;
+  margin-top: var(--space-5);
+  font-size: var(--text-lg);
+  color: var(--text-secondary);
+}
+
+.landing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+}
+.landing__actions .btn {
+  min-height: 44px;
+  padding-inline: var(--space-5);
+  font-size: var(--text-md);
+}
+.landing__sample-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-left: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+.landing__sample-link:hover { color: var(--accent); text-decoration-color: currentColor; }
+
+/* A sheet laid on the page, like a report card in the workbench. */
+.landing__card {
+  padding: var(--space-6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
+}
+.landing__card h2 { font-size: var(--text-xl); }
+.landing__card > p {
+  margin-top: var(--space-2);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+/* Finished reports, listed from /api/samples so the titles are the real ones. */
+.landing__sample-list {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+  list-style: none;
+}
+.landing__sample-list a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--accent-border);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: var(--leading-normal);
+}
+.landing__sample-list a:hover { background: var(--bg-hover); color: var(--accent); }
+.landing__sample .btn { margin-top: var(--space-4); min-height: 44px; }
+
+/* ── How a run goes: three numbered cards ── */
+
+.landing__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  list-style: none;
+  counter-reset: step;
+}
+.landing__steps li {
+  counter-increment: step;
+  padding: var(--space-6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-sm);
+}
+.landing__steps li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.landing__steps h2 { font-size: var(--text-lg); }
+.landing__steps p {
+  margin-top: var(--space-2);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.landing__pay { margin-top: var(--space-4); }
+.landing__pay > p { max-width: 60em; }
+
+/* ── Footer ── */
+
+.landing__foot { border-top: 1px solid var(--border-subtle); }
+/* The same box as .landing__main, so the links line up with the text above. */
+.landing__foot-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-5);
+  max-width: var(--wide-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) calc(var(--space-6) + env(safe-area-inset-bottom));
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+.landing__foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text-secondary);
+}
+.landing__foot a:hover { color: var(--accent); }
+.landing__disclaimer {
+  width: 100%;
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+/* ── Phones ── One column, 16px gutters, nothing wider than the screen. */
+@media (max-width: 860px) {
+  .landing__head,
+  .landing__main,
+  .landing__foot-inner { padding-inline: var(--space-4); }
+  /* The hero has its own link to the samples; the header keeps to sign-in and language. */
+  .landing__nav > a { display: none; }
+  /* The full name on two lines rather than cut off after "Academic Com…". */
+  .landing .brand__name { white-space: normal; font-size: var(--text-sm); line-height: var(--leading-tight); }
+  .landing__hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+    padding: var(--space-10) 0 var(--space-8);
+  }
+  .landing__pitch h1 { max-width: none; }
+  .landing__steps { grid-template-columns: minmax(0, 1fr); }
+  .landing__sample-link { margin-left: 0; }
+}

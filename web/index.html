@@ -25,8 +25,93 @@
 <link rel="stylesheet" href="/static/css/base.css">
 <link rel="stylesheet" href="/static/css/workbench.css">
 <link rel="stylesheet" href="/static/css/result.css">
+<link rel="stylesheet" href="/static/css/landing.css">
 </head>
 <body>
+
+<!-- ═══ Landing ═══════════════════════════════════════════════════
+     What an anonymous visitor to "/" sees on a deployment with accounts,
+     before anything else: what the tool is, how a run goes, what a finished
+     report looks like, who pays. Hidden until the boot's access check says
+     this visit is anonymous (app.js showLanding); a stored session, a deep
+     link and a code-only deployment never show it. Its buttons open the
+     same sign-in card below, which then leads into the workbench. -->
+<section class="landing" id="landing" hidden>
+  <header class="landing__head">
+    <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
+      <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
+      <span class="brand__name" data-i18n="landing_brand">Academic Commercialization Assessment</span>
+    </a>
+    <nav class="landing__nav" aria-label="Site">
+      <a href="/samples" data-i18n="landing_nav_samples">Sample reports</a>
+      <!-- Mirrors #ui-lang in the sidebar, which is hidden with the workbench
+           while this page is up; changing one changes the other (app.js). -->
+      <select class="bare-select" id="landing-lang" aria-label="Interface language">
+        <option value="English">EN</option>
+        <option value="Simplified Chinese">中文</option>
+      </select>
+      <button type="button" class="btn btn--secondary" id="landing-sign-in-top" data-i18n="landing_sign_in">Sign in</button>
+    </nav>
+  </header>
+
+  <div class="landing__main">
+    <div class="landing__hero">
+      <div class="landing__pitch">
+        <p class="landing__eyebrow" data-i18n="landing_eyebrow">For technology transfer offices, founders and investors</p>
+        <h1 data-i18n="landing_title">Paper in, cited commercialization triage out.</h1>
+        <p class="landing__lede" data-i18n="landing_lede">Give it a research topic or a paper. Six AI agents assess how close the technology is to market and write a report scored for readiness, manufacturing, patents and market, with every claim cited and the risks spelled out.</p>
+        <div class="landing__actions">
+          <!-- Hidden when the deployment is not taking new accounts (app.js). -->
+          <button type="button" class="btn btn--primary" id="landing-create" data-i18n="landing_create">Create account</button>
+          <button type="button" class="btn btn--secondary" id="landing-sign-in" data-i18n="landing_sign_in">Sign in</button>
+          <a class="landing__sample-link" href="/samples" data-i18n="landing_read_sample">Read a finished report first, no account needed</a>
+        </div>
+      </div>
+
+      <!-- Filled from /api/samples, which needs no credentials: the titles
+           are the real ones, so the card cannot promise reports that are
+           not there. If the list cannot be read, the link below still can. -->
+      <aside class="landing__card landing__sample" aria-labelledby="landing-sample-title">
+        <h2 id="landing-sample-title" data-i18n="landing_sample_title">See what you get</h2>
+        <p data-i18n="landing_sample_body">Finished assessments you can read without an account. Opening one makes no model or search request; they are historical runs, not current market advice.</p>
+        <ul class="landing__sample-list" id="landing-sample-list"></ul>
+        <a class="btn btn--secondary" href="/samples" data-i18n="landing_sample_all">All sample reports</a>
+      </aside>
+    </div>
+
+    <ol class="landing__steps">
+      <li>
+        <h2 data-i18n="landing_step1_title">A topic or a paper goes in</h2>
+        <p data-i18n="landing_step1_body">Type a research topic or attach a paper PDF, choose the report language, and optionally say whose decision the report is for.</p>
+      </li>
+      <li>
+        <h2 data-i18n="landing_step2_title">Evidence is gathered first</h2>
+        <p data-i18n="landing_step2_body">Code retrieves and validates papers, patents and market sources, then freezes them. The agents reason only over that evidence, and the weighted score is computed by code, not by the model.</p>
+      </li>
+      <li>
+        <h2 data-i18n="landing_step3_title">A decision brief comes out</h2>
+        <p data-i18n="landing_step3_body">A scorecard for TRL, MRL, patent strength, market accessibility and evidence confidence; a cited report; the main risks and a recommended first step. Export Markdown or PDF, or share the link. A run takes about 15 minutes.</p>
+      </li>
+    </ol>
+
+    <!-- Said before sign-up, not after: this is the fact a visitor most
+         needs to decide whether to come in. The sentences match the key
+         form's own (byok_sub, byok_guide, account_sub). -->
+    <section class="landing__card landing__pay" aria-labelledby="landing-pay-title">
+      <h2 id="landing-pay-title" data-i18n="landing_pay_title">Your keys, your bill</h2>
+      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Your providers bill you directly and this service adds nothing. Keys stay in your browser; this server never stores them.</p>
+    </section>
+  </div>
+
+  <footer class="landing__foot">
+    <div class="landing__foot-inner">
+      <a href="/privacy" data-i18n="legal_link">Privacy and terms</a>
+      <a href="/samples" data-i18n="landing_nav_samples">Sample reports</a>
+      <a href="https://github.com/shuxiachai/academic-commercialization-agent" target="_blank" rel="noopener" data-i18n="landing_source">Source code and measured results on GitHub</a>
+      <p class="landing__disclaimer" data-i18n="landing_disclaimer">Reports are for research screening. They do not replace technical, legal, regulatory, investment or freedom-to-operate due diligence.</p>
+    </div>
+  </footer>
+</section>
 
 <div class="workbench" id="workbench">
 
@@ -534,6 +619,11 @@
       </form>
       <button type="button" class="gate__switch" id="settings-close" data-i18n="account_settings_close">Close</button>
     </div>
+
+    <!-- Only when the card was opened from the landing (app.js showGate):
+         the way back to the page it covers. Hidden again once signed in,
+         when there is no landing to go back to. -->
+    <button type="button" class="gate__switch gate__back" id="gate-back" data-i18n="gate_back" hidden>Back to the overview</button>
 
     <!-- Outside both forms so it shows whichever one is up. A visitor with
          neither a code nor keys otherwise has nothing to look at here. -->
