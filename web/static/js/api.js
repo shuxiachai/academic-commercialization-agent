@@ -364,6 +364,13 @@ export const checkKeys = (creds) => request("/api/keys/check", {
   signal: AbortSignal.timeout(20000),
 });
 // Both need the password again: a session alone cannot change or erase an account.
+// The operator's console: answered only to an admin account (404 to anyone else).
+export const adminAccounts = () => request("/api/admin/accounts");
+export const adminBackups = () => request("/api/admin/backups");
+export const adminResetPassword = (userId, password) =>
+  request(`/api/admin/accounts/${encodeURIComponent(userId)}/password-reset`, json({ password }));
+export const adminSetDisabled = (userId, password, disabled) =>
+  request(`/api/admin/accounts/${encodeURIComponent(userId)}/disabled`, json({ password, disabled }));
 export const changePassword = (current_password, new_password) =>
   request("/api/auth/password", json({ current_password, new_password }));
 export const deleteAccount = (password) => request("/api/auth/delete-account", json({ password }));

@@ -281,6 +281,12 @@ def _taken_at(path: Path) -> float | None:
         return None
 
 
+def taken_at(path: Path) -> int | None:
+    """When a scheduled backup was taken, from its name; None for any other file."""
+    moment = _taken_at(path)
+    return None if moment is None else int(moment)
+
+
 def scheduled_backups() -> list[Path]:
     """The scheduled backups on disk, oldest first. Only files this module named."""
     directory = schedule_directory()

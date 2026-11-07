@@ -1,10 +1,12 @@
 """The operator's password reset.
 
-Until there is an email service, a person who forgets their password has one
-way back: the operator runs a command in the deployment's shell. These tests
-pin what that command must and must not do: the old password stops working
-everywhere, the new one works at once, nothing reaches it over HTTP, and it
-never creates or half-touches a database by mistake.
+Until there is an email service, a person who forgets their password has
+two ways back, both through the operator: this command in the deployment's
+shell, or the admin console (tests/test_admin_console.py). These tests pin
+what the command must and must not do: the old password stops working
+everywhere, the new one works at once, the only HTTP path to a reset is the
+console's and answers to an admin's own password, and the command never
+creates or half-touches a database by mistake.
 """
 from __future__ import annotations
 
@@ -131,13 +133,17 @@ class ResetPasswordTests(unittest.TestCase):
             self.assertEqual(refused.exception.code, "weak_password")
         accounts.login(EMAIL, OLD)
 
-    def test_nothing_reaches_it_over_http(self):
-        # A reset a visitor could trigger would need a secret of its own.
+    def test_the_only_http_path_to_a_reset_is_the_consoles(self):
+        # A reset a visitor could trigger would need a secret of its own. The
+        # console's is an admin account, and it re-asks that admin's password
+        # (api/admin.py); nothing else in the API may reach the library call.
         paths = sorted({route.path for route in app.routes if hasattr(route, "path")})
-        self.assertFalse([path for path in paths if "reset" in path.lower()], paths)
+        self.assertEqual([path for path in paths if "reset" in path.lower()],
+                         ["/api/admin/accounts/{user_id}/password-reset"])
         source = Path(accounts.__file__).with_name("main.py").read_text(encoding="utf-8")
-        self.assertNotIn("reset_password", source)
+        self.assertNotIn("accounts.reset_password", source)
         self.assertNotIn("account_admin", source)
+        self.assertEqual(source.count("admin.reset_password("), 1)
 
     def test_usage_errors_do_not_touch_the_database(self):
         before = self.database.read_bytes()

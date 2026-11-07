@@ -1221,6 +1221,7 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
 .byok-badge #code-exit,
 .byok-badge #account-manage,
 .byok-badge #account-keys,
+.byok-badge #account-console,
 .byok-badge #account-exit {
   color: inherit;
   text-decoration: underline;

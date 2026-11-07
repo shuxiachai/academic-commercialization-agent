@@ -58,7 +58,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import account_backup, alerts, auxiliary_usage, key_check, plan_preview, retrieval_health, samples
+from api import account_backup, admin, alerts, auxiliary_usage, key_check, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -68,6 +68,11 @@ from api.models import (  # noqa: E402
     AuthCredentials,
     AccountDeleted,
     AccountDeletion,
+    AdminAccounts,
+    AdminBackups,
+    AdminConfirm,
+    AdminDisable,
+    AdminPasswordReset,
     AuthMe,
     AuthSession,
     PasswordChange,
@@ -520,7 +525,7 @@ async def _rate_limit(request: Request, call_next):
 
 def _is_page_asset(path: str) -> bool:
     """The files a page is made of, and the documents that load them."""
-    return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples")
+    return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples", "/admin")
             or path.startswith(("/run/", "/samples/")))
 
 
@@ -926,6 +931,87 @@ def auth_delete_account(request: AccountDeletion, http_request: Request) -> Acco
     return AccountDeleted(runs=deleted_runs, uploads=uploads)
 
 
+# ── Admin console ───────────────────────────────────────────────────────────
+
+def _admin_account(http_request: Request) -> accounts.User:
+    """The signed-in admin account, or 404.
+
+    404 and not 403: a non-admin probing for the console learns nothing from
+    the answer, the same as a wrong run id. An admin access code is not an
+    admin account (see api/admin.py): it cannot be asked for a password.
+    """
+    who = identity.resolve(http_request)
+    if who.kind != "user" or not who.is_admin:
+        raise HTTPException(status_code=404, detail="Not found.")
+    return who.user
+
+
+def _admin_refusal(exc: Exception) -> HTTPException:
+    if isinstance(exc, accounts.AccountError):
+        return _account_refusal(exc)
+    assert isinstance(exc, admin.AdminRefusal)
+    status = {"unknown_account": 404, "own_account": 409}.get(exc.code, 422)
+    return HTTPException(status_code=status, detail=exc.message, headers={"X-Error-Code": exc.code})
+
+
+@app.get("/api/admin/accounts", response_model=AdminAccounts, tags=["admin"],
+         responses={404: {"description": "Not an admin account"}})
+def admin_accounts(http_request: Request) -> AdminAccounts:
+    """Every account, newest first: for the operator's console only."""
+    _admin_account(http_request)
+    return AdminAccounts(accounts=[account.__dict__ for account in admin.list_accounts()])
+
+
+@app.post("/api/admin/accounts/{user_id}/password-reset", response_model=AdminPasswordReset, tags=["admin"],
+          responses={401: {"description": "The admin's password was not accepted"},
+                     404: {"description": "Not an admin account, or no such account"},
+                     409: {"description": "The admin's own account"},
+                     429: {"description": "Too many failed attempts"}})
+def admin_password_reset(user_id: int, request: AdminConfirm, http_request: Request) -> AdminPasswordReset:
+    """Give an account a new random password and end its sessions.
+
+    The admin's own password is confirmed first. The new password is in the
+    answer once; the server keeps its hash. Send it to the account's own
+    address: registration verifies none, so the admin is the check that the
+    person asking owns the account.
+    """
+    acting = _admin_account(http_request)
+    try:
+        email, password, ended = admin.reset_password(user_id, acting, request.password,
+                                                      client=_client_address(http_request))
+    except (accounts.AccountError, admin.AdminRefusal) as exc:
+        raise _admin_refusal(exc) from None
+    return AdminPasswordReset(email=email, temporary_password=password, sessions_ended=ended)
+
+
+@app.post("/api/admin/accounts/{user_id}/disabled", status_code=204, tags=["admin"],
+          responses={401: {"description": "The admin's password was not accepted"},
+                     404: {"description": "Not an admin account, or no such account"},
+                     409: {"description": "The admin's own account"},
+                     429: {"description": "Too many failed attempts"}})
+def admin_set_disabled(user_id: int, request: AdminDisable, http_request: Request) -> Response:
+    """Stop an account signing in, or let it again. Disabling ends its sessions."""
+    acting = _admin_account(http_request)
+    try:
+        admin.set_disabled(user_id, acting, request.password, request.disabled,
+                           client=_client_address(http_request))
+    except (accounts.AccountError, admin.AdminRefusal) as exc:
+        raise _admin_refusal(exc) from None
+    return Response(status_code=204)
+
+
+@app.get("/api/admin/backups", response_model=AdminBackups, tags=["admin"],
+         responses={404: {"description": "Not an admin account"}})
+def admin_backups(http_request: Request) -> AdminBackups:
+    """The scheduled backups of the account database, each verified."""
+    _admin_account(http_request)
+    hours = account_backup.schedule_hours()
+    scheduled = account_backup.kept_days() is not None
+    return AdminBackups(scheduled=scheduled, every_hours=hours if scheduled else None,
+                        keep=account_backup.schedule_keep() if scheduled else None,
+                        backups=[row.__dict__ for row in admin.list_backups()])
+
+
 # A key check has this server put a question to a provider on an account's
 # behalf. That is worth doing a few times while someone corrects a typo and
 # not worth offering as a way to try keys in bulk, so it is bounded per
@@ -1125,6 +1211,16 @@ if _WEB_ROOT.is_dir():
         to hand this deployment a paper and an email address.
         """
         return FileResponse(_WEB_ROOT / "privacy.html", media_type="text/html")
+
+    @app.get("/admin", include_in_schema=False)
+    def _admin_page() -> FileResponse:
+        """Serve the operator's console.
+
+        The document is public and says nothing; everything on it comes from
+        /api/admin/..., which answers only an admin account. Serving it to
+        everyone keeps the page a plain file, like the others.
+        """
+        return FileResponse(_WEB_ROOT / "admin.html", media_type="text/html")
 
 
 @app.get("/api/samples", tags=["samples"])

@@ -911,6 +911,56 @@ class AccountDeletion(BaseModel):
     password: str = Field(max_length=200)
 
 
+class AdminAccount(BaseModel):
+    """One account as the admin console lists it. Never a hash, never a token."""
+
+    id: int
+    email: str
+    created_at: int = Field(description="Unix time the account was created.")
+    disabled: bool
+    admin: bool = Field(description="Named in ACCOUNTS_ADMIN_EMAILS.")
+    sessions: int = Field(description="Live sign-ins; expired ones are not counted.")
+    last_seen_at: int | None = Field(description="Unix time of the newest live session's last request.")
+    runs: int = Field(description="Assessments recorded under the account.")
+
+
+class AdminAccounts(BaseModel):
+    accounts: list[AdminAccount]
+
+
+class AdminConfirm(BaseModel):
+    """The admin's own password: a session left open in a browser is not enough."""
+
+    password: str = Field(max_length=200)
+
+
+class AdminDisable(AdminConfirm):
+    disabled: bool
+
+
+class AdminPasswordReset(BaseModel):
+    """Shown once. The server keeps only the hash, like the command."""
+
+    email: str
+    temporary_password: str
+    sessions_ended: int
+
+
+class AdminBackup(BaseModel):
+    name: str
+    taken_at: int | None = Field(description="Unix time from the file's name.")
+    size: int
+    accounts: int | None = Field(description="Accounts in the file once verified; null when it failed.")
+    problem: str | None = Field(default=None, description="Why the file did not verify.")
+
+
+class AdminBackups(BaseModel):
+    scheduled: bool = Field(description="Whether the service takes backups by itself here.")
+    every_hours: float | None
+    keep: int | None
+    backups: list[AdminBackup]
+
+
 class AccountDeleted(BaseModel):
     runs: int = Field(description="Assessments deleted with the account.")
     uploads: int = Field(description="Uploaded papers deleted with the account.")

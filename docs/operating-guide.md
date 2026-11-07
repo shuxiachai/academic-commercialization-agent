@@ -867,17 +867,40 @@ papers and receipts before the account row and cannot be undone; both ask for
 the password again, and a wrong one counts toward the same lockout as a
 sign-in. A run that is still going must be cancelled before the account can
 be deleted. There is no self-service password reset or email verification
-yet. A person who forgets their password asks the operator, who runs
+yet. A person who forgets their password asks the operator, who resets it
+from the console (below) or runs
 `python -m api.account_admin reset-password <email>` in the service's own
-shell (on Railway, a shell in the running service such as `railway ssh`). It
-sets a random password, prints it once,
-ends every session of the account and clears its sign-in lockout; it is not
-an HTTP route. Registration verifies no email, so the operator is the check
-that the person asking owns the account: send the new password to the
-account's own address. An operator can also disable an account with
-`api.accounts.set_disabled`
-from a shell, and both flows need an email service, which is a separate
-decision. Until then, `invite` mode is the safer default for a public URL.
+shell (on Railway, a shell in the running service such as `railway ssh`).
+Either way it sets a random password, shows it once, ends every session of
+the account and clears its sign-in lockout. Registration verifies no email,
+so the operator is the check that the person asking owns the account: send
+the new password to the account's own address. Self-service reset and
+verification both need an email service, which is a separate decision.
+Until then, `invite` mode is the safer default for a public URL.
+
+#### The console
+
+`/admin` is the operator's page. It shows the service's state (revision,
+maintenance loop, alerts, runs in progress), every account with when it was
+created and last seen, its live sign-ins and its runs, and the scheduled
+account backups, each opened and verified as `verify` would. It offers two
+actions: reset an account's password, and disable or enable an account. A
+link to it appears in the account badge of the app for admin accounts.
+
+It answers only to an account named in `ACCOUNTS_ADMIN_EMAILS`; anyone else,
+the admin access code included, gets 404 from `/api/admin/...`. The admin
+code reads every run, which is what it is for; it cannot be asked for a
+password and answers to nobody by name. Each action re-asks the admin's own
+password, under the same lockout as a sign-in, so a session left open in a
+browser is not enough. An admin cannot reset or disable their own account
+from it. Each action is one line in the service log, by account id; an
+email address is never put in a URL, where the access log would keep it.
+
+The earlier rule that the reset is not an HTTP route (it would need a secret
+of its own) is what the admin account now is. The command stays for an
+operator who has the shell and not a browser. Restoring a backup remains a
+shell operation on purpose: it replaces the live database and ends every
+session, including the admin's.
 
 When an account saves its keys, the page first asks the server what the
 providers say about them (`POST /api/keys/check`). The server makes one
@@ -1045,8 +1068,9 @@ named `accounts-<UTC time>.sqlite3` into `ACCOUNTS_BACKUP_DIR` (default
 newest file's name, so a restart neither forgets the last backup nor takes
 an extra one. Old ones are removed only after a new one has been written
 and checked, and files with any other name in that directory are never
-touched. `python -m api.account_backup list` shows them; any of them can be
-given to `verify` or `restore`. A backup that fails appears in `/health` as
+touched. `python -m api.account_backup list` shows them, and so does the
+console at `/admin`, each verified; any of them can be given to `verify` or
+`restore`. A backup that fails appears in `/health` as
 `maintenance.checks.account_backup: failed` with the state `degraded`; it
 does not make the service unready, because restarting cannot repair a full
 disk.

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="English">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>Console · Commercialization Assessment</title>
+<link rel="icon" type="image/svg+xml" href="/static/brand/aca-mark.svg">
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/result.css">
+<link rel="stylesheet" href="/static/css/samples.css">
+<link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+
+<!-- The operator's console. A separate document, like /privacy: the main
+     page is a workbench for one person's own runs, and this is a view over
+     everyone's accounts that only an admin account may have. The markup is
+     empty of facts on purpose; every number and name on it comes from
+     /api/admin/... after the server has recognised an admin, and admin.js
+     places each one as text, never as markup. -->
+<div class="samples console">
+  <header class="samples__head">
+    <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
+      <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
+      <span class="brand__name">Assessment</span>
+    </a>
+    <div class="samples__nav">
+      <a class="samples__back" href="/" data-text="back">Back to the app</a>
+      <select class="bare-select" id="ui-lang" aria-label="Interface language">
+        <option value="English">EN</option>
+        <option value="Simplified Chinese">中文</option>
+      </select>
+    </div>
+  </header>
+
+  <section class="samples__intro">
+    <h1 data-text="title">Console</h1>
+    <p id="console-who" data-text="loading">Checking who you are…</p>
+  </section>
+
+  <p id="console-denied" class="empty-note" hidden></p>
+
+  <div id="console-body" hidden>
+    <section class="console__section" aria-labelledby="service-heading">
+      <h2 id="service-heading" data-text="service">Service</h2>
+      <dl class="console__facts" id="service-facts"></dl>
+    </section>
+
+    <section class="console__section" aria-labelledby="accounts-heading">
+      <div class="console__bar">
+        <h2 id="accounts-heading" data-text="accounts">Accounts</h2>
+        <button type="button" class="btn btn--secondary" id="accounts-reload" data-text="reload">Reload</button>
+      </div>
+      <p class="console__note" data-text="accounts_note">Reset sends nothing anywhere: the new password is shown to you once, and you pass it on to the account's own address.</p>
+      <div class="table-wrap">
+        <table class="console__table">
+          <thead>
+            <tr>
+              <th data-text="col_email">Email</th>
+              <th data-text="col_created">Created</th>
+              <th data-text="col_seen">Last seen</th>
+              <th data-text="col_sessions">Sign-ins</th>
+              <th data-text="col_runs">Runs</th>
+              <th data-text="col_status">Status</th>
+              <th data-text="col_actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="accounts-rows"></tbody>
+        </table>
+      </div>
+      <p id="accounts-empty" class="empty-note" hidden data-text="accounts_empty">No accounts yet.</p>
+    </section>
+
+    <section class="console__section" aria-labelledby="backups-heading">
+      <h2 id="backups-heading" data-text="backups">Account backups</h2>
+      <p class="console__note" id="backups-note"></p>
+      <div class="table-wrap">
+        <table class="console__table">
+          <thead>
+            <tr>
+              <th data-text="col_file">File</th>
+              <th data-text="col_taken">Taken</th>
+              <th data-text="col_size">Size</th>
+              <th data-text="col_accounts">Accounts</th>
+            </tr>
+          </thead>
+          <tbody id="backups-rows"></tbody>
+        </table>
+      </div>
+      <p id="backups-empty" class="empty-note" hidden data-text="backups_empty">No backups yet.</p>
+    </section>
+  </div>
+</div>
+
+<!-- One dialog for both actions. The admin's own password is asked every
+     time: a session left open in a browser is not authority to reset
+     someone else's. -->
+<dialog class="console__dialog" id="confirm-dialog">
+  <form method="dialog" id="confirm-form">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-text"></p>
+    <label class="console__label" for="confirm-password" data-text="your_password">Your password</label>
+    <input class="console__input" id="confirm-password" type="password" autocomplete="current-password" required>
+    <p class="console__error" id="confirm-error" role="alert" hidden></p>
+    <div class="console__dialog-actions">
+      <button type="button" class="btn btn--secondary" id="confirm-cancel" data-text="cancel">Cancel</button>
+      <button type="submit" class="btn btn--primary" id="confirm-go"></button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="console__dialog" id="result-dialog">
+  <h2 data-text="reset_done">Password reset</h2>
+  <p id="result-text"></p>
+  <p class="console__secret"><code id="result-password"></code></p>
+  <p class="console__note" data-text="reset_next">Send it to the account's own address, not to whoever asked, and ask them to change it after signing in. It is not shown again.</p>
+  <div class="console__dialog-actions">
+    <button type="button" class="btn btn--secondary" id="result-copy" data-text="copy">Copy</button>
+    <button type="button" class="btn btn--primary" id="result-close" data-text="close">Done</button>
+  </div>
+</dialog>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<script type="module" src="/static/js/admin.js"></script>
+</body>
+</html>
