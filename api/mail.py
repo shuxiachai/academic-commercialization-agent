@@ -40,9 +40,9 @@ import os
 import re
 import sys
 import time
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from threading import Lock
-from typing import Callable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -246,7 +246,7 @@ def _post_to_resend(message: dict) -> None:
 # ── Reporting ──────────────────────────────────────────────────────────────
 
 def _when(stamp: float | None) -> datetime | None:
-    return datetime.fromtimestamp(stamp, tz=timezone.utc) if stamp is not None else None
+    return datetime.fromtimestamp(stamp, tz=UTC) if stamp is not None else None
 
 
 def status() -> dict:
