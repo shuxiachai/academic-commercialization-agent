@@ -847,9 +847,10 @@ In any mode, one source address may create `ACCOUNTS_SIGNUPS_PER_HOUR`
 accounts an hour (default 5) and the deployment `ACCOUNTS_SIGNUPS_PER_DAY` a
 day (default 100); a refusal is 429 `signup_throttled`. Accounts actually
 created are counted, not attempts; 0 turns a cap off. These are what stands
-between an open sign-up and a table full of addresses, since no email is
-verified. Keep `ACCOUNTS_INVITE_CODE` set even in `open` mode: it is still
-what an address on the admin list needs to register.
+between an open sign-up and a table full of addresses: an address is proven
+only after the account exists (see [Email verification](#email-verification)).
+Keep `ACCOUNTS_INVITE_CODE` set even in `open` mode: it is still what an
+address on the admin list needs to register.
 Whenever the sign-up form asks for an invite code it says who gives codes
 out: `OPERATOR_CONTACT` if it is set, as a mail link when it is an address,
 and otherwise "ask whoever shared this link". The contact travels with the
@@ -956,6 +957,50 @@ a fixed list; provider text, keys and prompts never reach it, and the raw
 reason stays in the run's `error.log`. The page shows the API's English
 sentence as sent and words the same code in Simplified Chinese;
 `tests/test_failure_reasons.py` keeps the two lists complete.
+
+### Email verification
+
+Give the service a way to send email and a new account must prove its
+address before it may start paid work. It is sent one link at sign-up; until
+the link is opened it can sign in, save keys, read its history and preview a
+search plan, but a run, an upload or a resume is refused with 403
+`email_unverified`, and the page says so under the account badge with a
+"send again" button. The link is `PUBLIC_URL/verify?token=…`; it works once,
+for 24 hours, and a newer link retires the older one. Opening it is a page
+whose script posts the token to `POST /api/auth/verify`, so a mail client
+or link scanner fetching the link on the reader's behalf verifies nothing.
+`POST /api/auth/verify/resend` sends a fresh link to the signed-in account,
+at most once a minute (429 `verification_cooldown`).
+
+| Setting | Meaning |
+|---|---|
+| `MAIL_RESEND_API_KEY` | A [Resend](https://resend.com) sending key for the domain the sender is on. Production. |
+| `MAIL_OUTBOX` | A directory: each message is written there as a JSON file instead of being sent. Development. |
+| `MAIL_FROM` | The sender, `Name <address>` or a bare address, on a domain verified at Resend. |
+| `PUBLIC_URL` | Where this deployment is reached (`https://example.com`), for the link in the message. Read from configuration and never from a request's `Host` header, so a request cannot choose where the link in someone's inbox points. |
+| `MAIL_PER_DAY` | Messages the deployment sends per UTC day (default 100, Resend's free allowance); 0 is no cap. Counted in memory, like the sign-up caps. |
+
+Set exactly one of the first two, with both of the next two. With neither,
+mail is off and accounts are created verified, as they were before there
+was mail; with an unusable setting it is `misconfigured`, which behaves the
+same way, and `/health` says so under `mail`. Accounts that exist when the
+column arrives are marked verified: they were created when there was no way
+to send them a link. A sign-up succeeds whether or not its message leaves;
+a failure is logged by account id, never by address, and the page's "send
+again" is the retry. Delivery uses Resend's HTTPS API with the standard
+library's connection, so the key is in one request header and in no log.
+The message is the link in both languages and nothing about the person.
+Check the setup from the host with `python -m api.mail test you@example.com`,
+and mark an address verified without a link, for a person whose mail never
+arrives, with `python -m api.account_admin verify them@example.com`; the
+console lists unverified accounts as such.
+
+To use Resend: create an account there, add the deployment's domain under
+Domains, add the DNS records it shows (DKIM, SPF and the return-path MX) at
+the DNS host with proxying off, click Verify, create an API key with
+sending access, and set the four variables above. Leave click and open
+tracking off: click tracking rewrites the verification link through a
+tracking host, which mail clients treat as suspicious.
 
 ### Run history in the page
 

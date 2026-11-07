@@ -321,6 +321,7 @@ def test_blank_values_are_not_keys(monkeypatch):
 _NOT_PROVIDER_KEYS = {
     "PROVIDER_API_KEY",  # placeholder in a comment in api/runs.py
     "PHOENIX_API_KEY",   # trace collector; the isolated app turns telemetry off before any import
+    "MAIL_RESEND_API_KEY",  # the service's own sending key (api/mail.py); never a visitor's
 }
 
 

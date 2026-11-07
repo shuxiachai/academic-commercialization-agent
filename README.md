@@ -244,8 +244,10 @@ resets, disabling an account, and the account backups. The service
 daily and keeps the newest fourteen copies, and can tell a
 [Feishu or WeCom group robot](docs/operating-guide.md#alerts) when a backup
 fails, the maintenance loop stops, or the deployment's own key, quota or
-billing makes runs fail. There is no email service yet, so no self-service
-password reset or address verification; the operator resets passwords.
+billing makes runs fail. With an email service set up
+([Resend](docs/operating-guide.md#email-verification)), a new account proves
+its address through a one-time link before it can start paid work. There is
+no self-service password reset yet; the operator resets passwords.
 
 Run URLs carry **128 bits of randomness** and act as read capabilities:
 anyone with the full URL can read that run until retention removes it.
@@ -323,9 +325,9 @@ New tools go under `scripts/`.
 Open gaps: qualitative source entailment, independently measured decision
 utility, multilingual/short/non-technical benchmark coverage, legacy metadata
 read-state clarity, and single-replica scale. More agents, a vector database
-or Kubernetes would not by themselves resolve these. Accounts verify no email
-address and cannot reset their own password until the deployment has an email
-service, which is why public deployments default to invite-only sign-up.
+or Kubernetes would not by themselves resolve these. Accounts cannot yet reset
+their own password; a deployment without an email service also verifies no
+address, and should keep sign-up invite-only.
 
 **Market scoring.** Market scorecards disclose
 [unverified estimate comparability](docs/results-2026-09-11-market-score-delivery-disclosure.md):

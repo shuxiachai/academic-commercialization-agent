@@ -22,7 +22,7 @@ const TEXT = {
     col_email: "Email", col_created: "Created", col_seen: "Last seen", col_sessions: "Sign-ins", col_runs: "Runs",
     col_status: "Status", col_actions: "Actions", col_file: "File", col_taken: "Taken", col_size: "Size", col_accounts: "Accounts",
     accounts_empty: "No accounts yet.", backups_empty: "No backups yet.",
-    never: "never", you: "you", admin: "admin", active: "active", disabled: "disabled",
+    never: "never", you: "you", admin: "admin", active: "active", disabled: "disabled", unverified: "unverified",
     reset: "Reset password", disable: "Disable", enable: "Enable",
     own_row: "Your own account: use Account in the app.",
     reset_title: "Reset the password", reset_text: (email) => `A new random password will replace the one ${email} has, and every sign-in of the account will end.`,
@@ -54,7 +54,7 @@ const TEXT = {
     col_email: "邮箱", col_created: "注册时间", col_seen: "最近活动", col_sessions: "登录数", col_runs: "评估数",
     col_status: "状态", col_actions: "操作", col_file: "文件", col_taken: "备份时间", col_size: "大小", col_accounts: "账号数",
     accounts_empty: "还没有账号。", backups_empty: "还没有备份。",
-    never: "从未", you: "本人", admin: "管理员", active: "正常", disabled: "已停用",
+    never: "从未", you: "本人", admin: "管理员", active: "正常", disabled: "已停用", unverified: "邮箱未验证",
     reset: "重置密码", disable: "停用", enable: "启用",
     own_row: "这是你自己的账号：请在应用的“账号”面板操作。",
     reset_title: "重置密码", reset_text: (email) => `将为 ${email} 生成一个新的随机密码，替换现有密码，并结束该账号的全部登录。`,
@@ -166,6 +166,7 @@ function paintAccounts() {
       cell(String(account.sessions), "is-number"), cell(String(account.runs), "is-number"));
     const status = document.createElement("td");
     status.append(pill(account.disabled ? t("disabled") : t("active"), account.disabled ? "failed" : "completed"));
+    if (account.verified === false) status.append(pill(t("unverified"), "unknown"));
     if (account.admin) status.append(pill(t("admin"), "running"));
     if (own) status.append(pill(t("you"), "unknown"));
     tr.append(status);

@@ -116,7 +116,7 @@ class WhatItShowsTests(_Console):
     def test_accounts_are_listed_newest_first_with_what_an_operator_asks(self):
         rows = self.client.get("/api/admin/accounts", headers=self._as(ADMIN)).json()["accounts"]
         self.assertEqual([row["email"] for row in rows], [BOB, ALICE, ADMIN])
-        self.assertEqual(set(rows[0]), {"id", "email", "created_at", "disabled", "admin", "sessions", "last_seen_at", "runs"})
+        self.assertEqual(set(rows[0]), {"id", "email", "created_at", "disabled", "verified", "admin", "sessions", "last_seen_at", "runs"})
         by_email = {row["email"]: row for row in rows}
         self.assertEqual((by_email[ADMIN]["admin"], by_email[ALICE]["admin"]), (True, False))
         self.assertEqual(by_email[ALICE]["sessions"], 1)

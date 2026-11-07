@@ -43,6 +43,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 
+from api import mail
+
 SESSION_SECONDS = 30 * 86400
 PASSWORD_MIN = 10
 PASSWORD_MAX = 200
@@ -58,6 +60,11 @@ LOCKOUT_SECONDS = 15 * 60
 # one replica, and a restart forgets the count, which errs toward admitting.
 SIGNUPS_PER_HOUR_PER_CLIENT = int(os.getenv("ACCOUNTS_SIGNUPS_PER_HOUR", "5"))
 SIGNUPS_PER_DAY = int(os.getenv("ACCOUNTS_SIGNUPS_PER_DAY", "100"))
+# A verification link works this long and once. Asking for another one is
+# allowed this often, so a page cannot be used to fill someone's inbox.
+VERIFY_SECONDS = 24 * 3600
+VERIFY_RESEND_SECONDS = 60
+_VERIFY = "verify"
 SIGNUP_MODES = ("open", "invite", "closed")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _OWNER_PREFIX = "user:"
@@ -88,6 +95,13 @@ CREATE TABLE IF NOT EXISTS login_throttle (
     failures INTEGER NOT NULL,
     locked_until INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS email_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    purpose TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+);
 """
 
 
@@ -104,6 +118,9 @@ class AccountError(Exception):
 class User:
     id: int
     email: str
+    # The address has been proven: the account opened a link sent to it, or
+    # it was created before the deployment could send mail, or by an operator.
+    verified: bool = True
 
     @property
     def owner(self) -> str:
@@ -167,9 +184,25 @@ def _database():
         connection.execute("PRAGMA secure_delete=ON")
         with connection:
             connection.executescript(_SCHEMA)
+            _migrate(connection)
         yield connection
     finally:
         connection.close()
+
+
+def _migrate(connection) -> None:
+    """Bring a database from before email verification up to date.
+
+    `verified_at` arrives with the accounts that exist already marked: they
+    were created when there was no way to send them a link, and refusing
+    them their runs now would punish them for having been first. The mark is
+    made in the same step as the column, so an account created unverified
+    afterwards is never swept up by it.
+    """
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
+    if "verified_at" not in columns:
+        connection.execute("ALTER TABLE users ADD COLUMN verified_at INTEGER")
+        connection.execute("UPDATE users SET verified_at = created_at")
 
 
 # ── Normalisation and hashing ──────────────────────────────────────────────
@@ -215,6 +248,16 @@ def verify_password(password: str, stored: str) -> bool:
 
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def verification_required() -> bool:
+    """A new account must prove its address before it can start paid work.
+
+    True exactly when the deployment can send the link (api/mail.py). With
+    no mail set up there is nothing to verify with, and accounts are created
+    verified, as they were before there was mail.
+    """
+    return mail.configured()
 
 
 # ── Accounts ───────────────────────────────────────────────────────────────
@@ -271,18 +314,101 @@ def register(email: object, password: object, *, invite: object = None, client: 
     stamp = int(now if now is not None else time.time())
     # One lock across check, insert and count: two requests from one address
     # arriving together must not both pass a cap with one place left.
+    verified_at = None if verification_required() else stamp
     with _SIGNUP_LOCK:
         _signup_window(client, stamp)
         with _database() as db:
             try:
                 with db:
                     cursor = db.execute(
-                        "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
-                        (email, hash_password(password), stamp))
+                        "INSERT INTO users (email, password_hash, created_at, verified_at) VALUES (?, ?, ?, ?)",
+                        (email, hash_password(password), stamp, verified_at))
             except sqlite3.IntegrityError:
                 raise AccountError("email_taken", "An account with this email already exists.") from None
         _signup_created(client, stamp)
-        return User(id=cursor.lastrowid, email=email)
+        return User(id=cursor.lastrowid, email=email, verified=verified_at is not None)
+
+
+# ── Email verification ─────────────────────────────────────────────────────
+
+def issue_verification(user: User, *, now: float | None = None, cooldown: bool = True) -> str:
+    """Make the one-time token for a verification link and return it, once.
+
+    Any earlier token of the account stops working: the newest link is the
+    one in the newest message, and an old message found later proves
+    nothing. With `cooldown`, a token younger than VERIFY_RESEND_SECONDS is
+    not replaced (`verification_cooldown`), so "send it again" cannot be
+    clicked into a flood. An account that is already verified gets
+    `already_verified`: there is nothing to prove.
+    """
+    stamp = int(now if now is not None else time.time())
+    with _database() as db:
+        row = db.execute("SELECT verified_at FROM users WHERE id = ?", (user.id,)).fetchone()
+        if row is None:
+            raise AccountError("unknown_account", "No account has this id.")
+        if row["verified_at"] is not None:
+            raise AccountError("already_verified", "This address is already verified.")
+        if cooldown:
+            newest = db.execute("SELECT MAX(created_at) AS at FROM email_tokens WHERE user_id = ? AND purpose = ?",
+                                (user.id, _VERIFY)).fetchone()["at"]
+            if newest is not None and stamp - newest < VERIFY_RESEND_SECONDS:
+                raise AccountError("verification_cooldown",
+                                   f"A verification email was sent moments ago. Wait {VERIFY_RESEND_SECONDS} seconds "
+                                   "before asking for another.")
+        token = secrets.token_urlsafe(32)
+        with db:
+            db.execute("DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?", (user.id, _VERIFY))
+            db.execute("INSERT INTO email_tokens (token_hash, user_id, purpose, created_at, expires_at) "
+                       "VALUES (?, ?, ?, ?, ?)", (_token_hash(token), user.id, _VERIFY, stamp, stamp + VERIFY_SECONDS))
+            db.execute("DELETE FROM email_tokens WHERE expires_at <= ?", (stamp,))
+        return token
+
+
+def verify_email(token: object, *, now: float | None = None) -> User:
+    """Mark the account a verification token belongs to as verified, and spend the token.
+
+    Unknown and expired links get different answers (`verification_invalid`,
+    `verification_expired`) because the person holding one needs to know
+    whether to ask for another; neither answer names an account. Every
+    verification token of the account goes with the one spent.
+    """
+    if not isinstance(token, str) or not token or len(token) > 128:
+        raise AccountError("verification_invalid", "This verification link is not valid.")
+    stamp = int(now if now is not None else time.time())
+    with _database() as db:
+        row = db.execute(
+            "SELECT t.token_hash, t.expires_at, u.id, u.email, u.verified_at FROM email_tokens t "
+            "JOIN users u ON u.id = t.user_id WHERE t.token_hash = ? AND t.purpose = ?",
+            (_token_hash(token), _VERIFY)).fetchone()
+        if row is None:
+            raise AccountError("verification_invalid", "This verification link is not valid.")
+        if row["expires_at"] <= stamp:
+            with db:
+                db.execute("DELETE FROM email_tokens WHERE token_hash = ?", (row["token_hash"],))
+            raise AccountError("verification_expired", "This verification link has expired. Sign in and ask for a new one.")
+        with db:
+            if row["verified_at"] is None:
+                db.execute("UPDATE users SET verified_at = ? WHERE id = ?", (stamp, row["id"]))
+            db.execute("DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?", (row["id"], _VERIFY))
+        return User(id=row["id"], email=row["email"], verified=True)
+
+
+def mark_verified(email: object) -> bool:
+    """Operator switch: treat the address as proven without a link.
+
+    For the operator who has checked by other means, or whose mail is down.
+    True when an account was changed; False when it was already verified.
+    """
+    email = normalize_email(email)
+    with _database() as db, db:
+        row = db.execute("SELECT id, verified_at FROM users WHERE email = ?", (email,)).fetchone()
+        if row is None:
+            raise AccountError("unknown_account", "No account has this email address.")
+        if row["verified_at"] is not None:
+            return False
+        db.execute("UPDATE users SET verified_at = ? WHERE id = ?", (int(time.time()), row["id"]))
+        db.execute("DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?", (row["id"], _VERIFY))
+        return True
 
 
 def _refuse_if_locked(db, keys, stamp: int) -> None:
@@ -331,7 +457,8 @@ def login(email: object, password: object, *, client: str | None = None,
     keys = _throttle_keys(email, client)
     with _database() as db:
         _refuse_if_locked(db, keys, stamp)
-        user = db.execute("SELECT id, email, password_hash, disabled FROM users WHERE email = ?", (email,)).fetchone()
+        user = db.execute("SELECT id, email, password_hash, disabled, verified_at FROM users WHERE email = ?",
+                          (email,)).fetchone()
         stored = user["password_hash"] if user is not None else hash_password("placeholder-timing-only")
         if user is None or not verify_password(password, stored):
             _record_failure(db, keys, stamp)
@@ -345,7 +472,7 @@ def login(email: object, password: object, *, client: str | None = None,
                 "INSERT INTO sessions (token_hash, user_id, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?)",
                 (_token_hash(token), user["id"], stamp, stamp + SESSION_SECONDS, stamp))
             db.execute("DELETE FROM sessions WHERE expires_at <= ?", (stamp,))
-        return token, User(id=user["id"], email=user["email"])
+        return token, User(id=user["id"], email=user["email"], verified=user["verified_at"] is not None)
 
 
 def _record_failure(db, keys, stamp: int) -> None:
@@ -378,7 +505,7 @@ def session_user(token: object, *, now: float | None = None) -> User | None:
     stamp = int(now if now is not None else time.time())
     with _database() as db:
         row = db.execute(
-            "SELECT s.token_hash, s.expires_at, u.id, u.email, u.disabled FROM sessions s "
+            "SELECT s.token_hash, s.expires_at, u.id, u.email, u.disabled, u.verified_at FROM sessions s "
             "JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?", (_token_hash(token),)).fetchone()
         if row is None or row["disabled"]:
             return None
@@ -388,7 +515,7 @@ def session_user(token: object, *, now: float | None = None) -> User | None:
             return None
         with db:
             db.execute("UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?", (stamp, row["token_hash"]))
-        return User(id=row["id"], email=row["email"])
+        return User(id=row["id"], email=row["email"], verified=row["verified_at"] is not None)
 
 
 def logout(token: object) -> bool:
@@ -493,8 +620,8 @@ def user_by_id(user_id: object) -> User | None:
     if not enabled() or not isinstance(user_id, int) or isinstance(user_id, bool):
         return None
     with _database() as db:
-        row = db.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
-    return User(id=row["id"], email=row["email"]) if row is not None else None
+        row = db.execute("SELECT id, email, verified_at FROM users WHERE id = ?", (user_id,)).fetchone()
+    return User(id=row["id"], email=row["email"], verified=row["verified_at"] is not None) if row is not None else None
 
 
 def list_users(*, now: float | None = None) -> list[dict]:
@@ -507,7 +634,7 @@ def list_users(*, now: float | None = None) -> list[dict]:
     stamp = int(now if now is not None else time.time())
     with _database() as db:
         rows = db.execute(
-            "SELECT u.id, u.email, u.created_at, u.disabled, "
+            "SELECT u.id, u.email, u.created_at, u.disabled, u.verified_at, "
             "COUNT(s.token_hash) AS sessions, MAX(s.last_seen_at) AS last_seen_at "
             "FROM users u LEFT JOIN sessions s ON s.user_id = u.id AND s.expires_at > ? "
             "GROUP BY u.id ORDER BY u.created_at DESC, u.id DESC", (stamp,)).fetchall()

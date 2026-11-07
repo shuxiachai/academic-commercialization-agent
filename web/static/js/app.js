@@ -62,6 +62,7 @@ function operationErrorMessage(err) {
   if (err.code === "invalid_byok") return t("invalid_byok");
   if (err.code === "byok_required") return t("msg_byok_required");
   if (err.code === "sign_in_required") return t("msg_sign_in_required");
+  if (err.code === "email_unverified") return t("msg_email_unverified");
   if (err.code === "paid_ack_unknown") return t("msg_paid_ack_unknown");
   if (err.code === "paid_receipt_pending") return t("paid_receipt_unknown");
   const key = {
@@ -91,6 +92,7 @@ function rememberAcceptedRun(accepted) {
 }
 
 async function performPaidRequest(request, deliver, operation = "run") {
+  if (accountMode && !accountVerified) { toast(t("msg_email_unverified"), "error"); return; }
   // An account pays with its own keys. Ask for them here, once, rather than
   // letting the server refuse with byok_required after the intent is recorded.
   if (accountMode && !api.getByok()) {
@@ -716,6 +718,10 @@ let byokMode = false;
 // draws on the deployment's key (no plan preview, no operator quota).
 let accountMode = false;
 let accountEmail = null;
+// False only for an account that has not yet opened its verification link.
+// Such an account can sign in, save keys and preview; a run is refused, here
+// before any intent is recorded and on the server with email_unverified.
+let accountVerified = true;
 let authConfig = null;
 // A disabled button is only a projection, not an operation lock: input events
 // used to re-enable it while a paid POST was still awaiting acknowledgement.
@@ -808,6 +814,9 @@ $$(".starter").forEach((btn) =>
 $("#compose-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (submitting || extracting || previewing || topic.value.trim().length < 3) return;
+  // Before the preview, not only before the start: an account that cannot
+  // run yet should not spend a model call learning that.
+  if (accountMode && !accountVerified) { toast(t("msg_email_unverified"), "error"); return; }
   const submittedTopic = topic.value.trim();
   if (planState?.topic === submittedTopic) {
     // The panel already shows this topic's reading; Enter must not re-read it.
@@ -1285,8 +1294,53 @@ function applyAccountMode(me) {
   $("#account-email").title = me.email;   // the badge ellipsizes a long address
   $("#account-console").hidden = me.admin !== true;
   $("#account-badge").hidden = false;
+  accountVerified = me.verified !== false;
+  paintVerifyNotice();
   hidePlan();
   refreshQuota();
+}
+
+function paintVerifyNotice() {
+  const notice = $("#verify-notice");
+  notice.hidden = !accountMode || accountVerified;
+  if (!notice.hidden) $("#verify-text").textContent = t("verify_notice").replace("{email}", accountEmail);
+}
+
+$("#verify-resend").addEventListener("click", async () => {
+  const button = $("#verify-resend");
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    await api.resendVerification();
+    toast(t("verify_sent"), "success");
+  } catch (err) {
+    if (err.code === "already_verified") {
+      accountVerified = true;
+      paintVerifyNotice();
+      toast(t("verify_done"), "success");
+    } else {
+      toast(t(err.code === "verification_cooldown" ? "verify_cooldown" : "verify_failed"), "error");
+    }
+  } finally {
+    button.disabled = false;
+  }
+});
+
+/* The page a verification link opens. The token is sent from here, by POST,
+ * so a mail client or scanner fetching the link on the reader's behalf does
+ * not verify anything. Returns the message to show once the page is up, or
+ * called only for such a visit. The address is removed from the location
+ * either way: a token in the URL bar is not something to bookmark. */
+async function consumeVerificationLink() {
+  const token = new URLSearchParams(location.search).get("token");
+  try { history.replaceState({}, "", "/"); } catch { /* keep the URL; the token has been read */ }
+  if (!token) return { key: "verify_invalid", variant: "error" };
+  try {
+    await api.verifyEmail(token);
+  } catch (err) {
+    return { key: err.code === "verification_expired" ? "verify_expired" : "verify_invalid", variant: "error" };
+  }
+  return { key: "verify_done", variant: "success" };
 }
 
 function applyByokMode() {
@@ -1345,6 +1399,7 @@ async function exitCredentials() {
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = true;
   $("#account-badge").hidden = true;
+  $("#verify-notice").hidden = true;
   $("#pane-run").hidden = true;
   $("#pane-compose").hidden = true;
   showStorageNotice((api.accessCodeClearConflict() || api.sessionClearConflict()) && byokCleared
@@ -1455,6 +1510,16 @@ function showAccountSettings() {
 }
 
 async function ensureAccess() {
+  if (location.pathname === "/verify") {
+    // Said before the boot below, which waits at the gate when nobody is
+    // signed in here: a link opened in another browser must still get its
+    // answer. With a session stored, the boot reads the account's state
+    // after the token was spent, so the notice is already gone when the
+    // page appears.
+    const verified = await consumeVerificationLink();
+    const key = verified.key === "verify_done" && !api.getSessionToken() ? "verify_done_sign_in" : verified.key;
+    toast(t(key), verified.variant);
+  }
   try {
     // Keys alone boot without a request, as they always have. With a session
     // stored, the access check below decides instead; on a deployment with

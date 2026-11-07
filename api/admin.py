@@ -68,6 +68,7 @@ class AccountRow:
     email: str
     created_at: int
     disabled: bool
+    verified: bool
     admin: bool
     sessions: int
     last_seen_at: int | None
@@ -104,7 +105,7 @@ def list_accounts(*, now: float | None = None) -> list[AccountRow]:
     for user in accounts.list_users(now=stamp):
         rows.append(AccountRow(
             id=user["id"], email=user["email"], created_at=user["created_at"], disabled=bool(user["disabled"]),
-            admin=user["email"] in admins, sessions=user["sessions"], last_seen_at=user["last_seen_at"],
+            verified=user["verified_at"] is not None, admin=user["email"] in admins, sessions=user["sessions"], last_seen_at=user["last_seen_at"],
             runs=by_owner.get(accounts.owner_tag(user["id"]), 0),
         ))
     return rows
