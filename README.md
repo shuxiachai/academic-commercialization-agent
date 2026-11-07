@@ -21,7 +21,7 @@ included.
 | Way in | What you need | |
 |---|---|---|
 | **Read sample reports** | Nothing. Five finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-commercialization-agent.up.railway.app/samples) |
-| **Run a new analysis online** | An operator-issued access code **or** BYOK: your own LLM API key and model, plus a Tavily or Serper search key. Incurs provider usage | [Open the app](https://academic-commercialization-agent.up.railway.app) |
+| **Run a new analysis online** | An account (sign-up is by invite code from the operator) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to; or an operator-issued access code. Incurs provider usage | [Open the app](https://academic-commercialization-agent.up.railway.app) |
 | **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [Quick start](#quick-start) |
 
 The samples are also in [examples/](examples/README.md): two runs from
@@ -82,6 +82,15 @@ their paths, so they stay put; none is needed to run the app. See the
 - Paid requests get [durable receipts](docs/operating-guide.md#paid-request-receipts):
   after a lost reply or a refresh, the accepted run, PDF or resumed run can be
   recovered for up to 24 hours without paying again.
+- With an account, the keys you save are checked with their providers before
+  the first run, the search plan is shown for editing before a run starts, and
+  the composer shows what is left of the day's allowance. Your history is
+  searchable in the page; a finished run offers **Run again**, **Copy link**
+  and **Compare**, which puts two runs' scorecards side by side with the
+  difference between them ([how](docs/operating-guide.md#run-history-in-the-page)).
+- When a run fails, the page says why in words for whoever can act on it: a
+  provider refusing the deployment's key reads differently from one refusing
+  yours.
 
 A report supports research triage; it is **not** technical, legal, regulatory,
 investment or freedom-to-operate due diligence. A valid citation ID does not
@@ -222,8 +231,21 @@ Three ways in, chosen per deployment: no gate (local use), operator access
 codes billed to the deployment, or email-and-password accounts that pay with
 the keys they add after signing in ([how](docs/operating-guide.md#accounts)).
 An account's keys stay in its browser and are never stored by the server.
+Each account may have one paid operation going at a time and ten a day by
+default, so one account cannot hold the host's capacity
+([settings](docs/operating-guide.md#what-one-account-may-do-at-once-and-in-a-day)).
 Every deployment serves a [privacy and terms page](web/privacy.html) at
 `/privacy` that says what is stored and who else sees a topic.
+
+The operator has a [console](docs/operating-guide.md#the-console) at `/admin`,
+open only to admin accounts, for the service's state, every account, password
+resets, disabling an account, and the account backups. The service
+[backs up its account database](docs/operating-guide.md#backing-up-accounts)
+daily and keeps the newest fourteen copies, and can tell a
+[Feishu or WeCom group robot](docs/operating-guide.md#alerts) when a backup
+fails, the maintenance loop stops, or the deployment's own key, quota or
+billing makes runs fail. There is no email service yet, so no self-service
+password reset or address verification; the operator resets passwords.
 
 Run URLs carry **128 bits of randomness** and act as read capabilities:
 anyone with the full URL can read that run until retention removes it.
@@ -301,7 +323,9 @@ New tools go under `scripts/`.
 Open gaps: qualitative source entailment, independently measured decision
 utility, multilingual/short/non-technical benchmark coverage, legacy metadata
 read-state clarity, and single-replica scale. More agents, a vector database
-or Kubernetes would not by themselves resolve these.
+or Kubernetes would not by themselves resolve these. Accounts verify no email
+address and cannot reset their own password until the deployment has an email
+service, which is why public deployments default to invite-only sign-up.
 
 **Market scoring.** Market scorecards disclose
 [unverified estimate comparability](docs/results-2026-09-11-market-score-delivery-disclosure.md):
