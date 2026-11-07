@@ -815,11 +815,13 @@ def _client_address(http_request: Request) -> str | None:
 
 
 def _account_refusal(exc: accounts.AccountError) -> HTTPException:
-    status = {"invalid_credentials": 401, "locked": 429, "disabled": 403, "invite_required": 403,
-              "signup_closed": 403, "email_taken": 409, "accounts_disabled": 404}.get(exc.code, 422)
+    status = {"invalid_credentials": 401, "locked": 429, "signup_throttled": 429, "disabled": 403,
+              "invite_required": 403, "signup_closed": 403, "email_taken": 409, "accounts_disabled": 404}.get(exc.code, 422)
     headers = {"X-Error-Code": exc.code}
     if exc.code == "locked":
         headers["Retry-After"] = str(accounts.LOCKOUT_SECONDS)
+    if exc.code == "signup_throttled":
+        headers["Retry-After"] = "3600"
     return HTTPException(status_code=status, detail=exc.message, headers=headers)
 
 
@@ -844,7 +846,8 @@ def auth_register(request: AuthCredentials, http_request: Request, response: Res
     if not accounts.enabled():
         raise HTTPException(status_code=404, detail="Accounts are not enabled on this deployment.")
     try:
-        accounts.register(request.email, request.password, invite=request.invite)
+        accounts.register(request.email, request.password, invite=request.invite,
+                          client=_client_address(http_request))
         token, user = accounts.login(request.email, request.password, client=_client_address(http_request))
     except accounts.AccountError as exc:
         raise _account_refusal(exc) from None

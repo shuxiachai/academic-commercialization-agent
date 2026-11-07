@@ -1724,7 +1724,7 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
           invalid_credentials: "account_error_credentials", email_taken: "account_error_taken",
           weak_password: "account_error_weak", invalid_email: "account_error_email",
           signup_closed: "account_error_closed", locked: "account_error_locked",
-          invite_required: "account_error_invite",
+          invite_required: "account_error_invite", signup_throttled: "account_error_throttled",
         }[err.code];
         accountError.textContent = key ? t(key) : err.message;
         accountError.hidden = false;

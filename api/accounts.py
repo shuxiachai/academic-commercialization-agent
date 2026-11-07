@@ -50,6 +50,14 @@ EMAIL_MAX = 254
 LOCKOUT_FAILURES = 8            # per email and source address
 LOCKOUT_EMAIL_FAILURES = 50     # per email across every source
 LOCKOUT_SECONDS = 15 * 60
+# How many accounts may be created: per source address per hour, and on the
+# whole deployment per UTC day. With sign-up open and no email verification,
+# these are what stands between a script and a table full of addresses. Both
+# count accounts actually created, not attempts, so a person correcting a typo
+# is not charged for it; 0 turns a cap off. In memory, like the host caps:
+# one replica, and a restart forgets the count, which errs toward admitting.
+SIGNUPS_PER_HOUR_PER_CLIENT = int(os.getenv("ACCOUNTS_SIGNUPS_PER_HOUR", "5"))
+SIGNUPS_PER_DAY = int(os.getenv("ACCOUNTS_SIGNUPS_PER_DAY", "100"))
 SIGNUP_MODES = ("open", "invite", "closed")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _OWNER_PREFIX = "user:"
@@ -57,6 +65,9 @@ _SCRYPT_N, _SCRYPT_R, _SCRYPT_P = 2 ** 14, 8, 1
 # scrypt needs 128*r*N bytes; hashlib caps at 32 MiB unless told otherwise.
 _SCRYPT_MAXMEM = 2 ** 26
 _SCHEMA_LOCK = Lock()
+_SIGNUP_LOCK = Lock()
+_signups_by_client: dict[str, list[float]] = {}
+_signups_today: list[float] = []
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -208,12 +219,44 @@ def _token_hash(token: str) -> str:
 
 # ── Accounts ───────────────────────────────────────────────────────────────
 
-def register(email: object, password: object, *, invite: object = None, now: float | None = None) -> User:
+def _signup_window(client: str | None, stamp: float) -> None:
+    """Refuse a sign-up that would exceed the per-address or per-day cap.
+
+    Caller holds _SIGNUP_LOCK. Only accounts actually created are counted
+    (see `_signup_created`), so the check reads the lists and writes nothing.
+    """
+    hour, day = stamp - 3600, stamp - 86400
+    if client is not None and SIGNUPS_PER_HOUR_PER_CLIENT:
+        recent = [t for t in _signups_by_client.get(client, ()) if t > hour]
+        _signups_by_client[client] = recent
+        if len(recent) >= SIGNUPS_PER_HOUR_PER_CLIENT:
+            raise AccountError("signup_throttled", "Too many accounts were created from this address recently. "
+                               "Try again in an hour.")
+    if SIGNUPS_PER_DAY:
+        _signups_today[:] = [t for t in _signups_today if t > day]
+        if len(_signups_today) >= SIGNUPS_PER_DAY:
+            raise AccountError("signup_throttled", "This deployment has reached today's limit on new accounts. "
+                               "Try again tomorrow.")
+
+
+def _signup_created(client: str | None, stamp: float) -> None:
+    """Count one created account; caller holds _SIGNUP_LOCK."""
+    if client is not None:
+        _signups_by_client.setdefault(client, []).append(stamp)
+    _signups_today.append(stamp)
+
+
+def register(email: object, password: object, *, invite: object = None, client: str | None = None,
+             now: float | None = None) -> User:
     """Create an account, or refuse with a stable code the client can show.
 
     An email on the admin list needs the invite code whatever the sign-up
     mode; with no invite code configured it cannot be registered at all,
     which is the safe reading of an operator who has not set one up yet.
+
+    `client` is the caller's address, for the sign-up caps. The caps are
+    checked after the rules above, so a closed deployment or a missing
+    invite code is reported as itself and not as a limit.
     """
     email = normalize_email(email)
     _check_email(email)
@@ -226,14 +269,19 @@ def register(email: object, password: object, *, invite: object = None, now: flo
     if mode == "invite" and not _invited(invite):
         raise AccountError("invite_required", "Registration needs the invite code for this deployment.")
     stamp = int(now if now is not None else time.time())
-    with _database() as db:
-        try:
-            with db:
-                cursor = db.execute(
-                    "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
-                    (email, hash_password(password), stamp))
-        except sqlite3.IntegrityError:
-            raise AccountError("email_taken", "An account with this email already exists.") from None
+    # One lock across check, insert and count: two requests from one address
+    # arriving together must not both pass a cap with one place left.
+    with _SIGNUP_LOCK:
+        _signup_window(client, stamp)
+        with _database() as db:
+            try:
+                with db:
+                    cursor = db.execute(
+                        "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+                        (email, hash_password(password), stamp))
+            except sqlite3.IntegrityError:
+                raise AccountError("email_taken", "An account with this email already exists.") from None
+        _signup_created(client, stamp)
         return User(id=cursor.lastrowid, email=email)
 
 
