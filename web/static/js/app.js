@@ -2,6 +2,7 @@
 
 import * as api from "./api.js";
 import * as runView from "./run.js";
+import * as compareView from "./compare.js";
 import * as sidebar from "./sidebar.js";
 import * as result from "./result.js";
 import * as i18n from "./i18n.js";
@@ -163,6 +164,7 @@ function showCompose() {
   syncSourceLocatorLink();
   $("#pane-compose").hidden = false;
   $("#pane-run").hidden = true;
+  $("#pane-compare").hidden = true;
   try { history.pushState({}, "", "/"); }
   catch { toast(t("msg_history_unavailable"), "error"); }
   refreshSidebar();
@@ -179,6 +181,7 @@ function showRun(runId) {
   syncSourceLocatorLink();
   $("#pane-compose").hidden = true;
   $("#pane-run").hidden = false;
+  $("#pane-compare").hidden = true;
   refreshSidebar();
   scheduleCapacity();
 }
@@ -475,7 +478,7 @@ function paintActions(state, checkpointing = null) {
     syncComposer();
     topic.focus();
   });
-  actions.append(again, copyLinkButton());
+  actions.append(again, compareButton(), copyLinkButton());
 
   // Only the known terminal states reaching here offer permanent removal.
   const del = document.createElement("button");
@@ -1825,18 +1828,126 @@ function showGate(errorKey = null, { keysOnly = false } = {}) {
   });
 }
 
+/* ── Comparing two runs ────────────────────────────────────────────── */
+
+/* The run page's "Compare": pick a second finished run, then the view at
+ * /compare/<this>/<that>. The list is the identity's own history, from the
+ * same request the rail makes; the dialog sends nothing else. */
+function compareButton() {
+  const runId = activeRunId;
+  const compare = document.createElement("button");
+  compare.type = "button";
+  compare.className = "btn btn--secondary";
+  compare.id = "run-compare";
+  compare.textContent = t("compare");
+  compare.title = t("compare_title_hint");
+  compare.addEventListener("click", () => pickComparison(runId));
+  return compare;
+}
+
+async function pickComparison(runId) {
+  const dialog = $("#compare-dialog");
+  const list = $("#compare-choices");
+  list.innerHTML = "";
+  $("#compare-empty").hidden = true;
+  dialog.showModal();
+  let runs = [];
+  try {
+    runs = (await api.listRuns(200)).runs ?? [];
+  } catch (err) {
+    dialog.close();
+    toast(operationErrorMessage(err), "error");
+    return;
+  }
+  const others = runs.filter((run) => run.state === "completed" && run.run_id !== runId);
+  $("#compare-empty").hidden = others.length > 0;
+  for (const run of others) {
+    const item = document.createElement("li");
+    const choose = document.createElement("button");
+    choose.type = "button";
+    choose.className = "picker__choice";
+    choose.dataset.runId = run.run_id;
+    const when = compareView.startedAt(run.run_id);
+    const label = document.createElement("span");
+    label.className = "picker__topic";
+    label.textContent = run.topic || run.run_id;
+    const meta = document.createElement("span");
+    meta.className = "picker__meta tabular";
+    meta.textContent = [when ? when.toLocaleDateString() : null, run.owner_label || null].filter(Boolean).join(" · ");
+    choose.append(label, meta);
+    choose.addEventListener("click", () => {
+      dialog.close();
+      openCompare(runId, run.run_id, { push: true });
+    });
+    item.append(choose);
+    list.append(item);
+  }
+}
+
+$("#compare-cancel").addEventListener("click", () => $("#compare-dialog").close());
+
+let comparePair = null;      // [a, b] on screen
+let compareModel = null;
+
+function showCompare() {
+  stopFollowing();
+  activeRunId = null;
+  syncSourceLocatorLink();
+  $("#pane-compose").hidden = true;
+  $("#pane-run").hidden = true;
+  $("#pane-compare").hidden = false;
+  refreshSidebar();
+  scheduleCapacity();
+}
+
+function renderCompare() {
+  if (!compareModel) return;
+  compareView.render($("#compare-body"), compareModel, { onOpen: (id) => openRun(id) });
+}
+
+async function openCompare(a, b, { push = false } = {}) {
+  showCompare();
+  comparePair = [a, b];
+  compareModel = null;
+  const body = $("#compare-body");
+  body.innerHTML = "";
+  body.append(Object.assign(document.createElement("p"), { className: "empty-note", textContent: t("compare_loading") }));
+  if (push) {
+    try { history.pushState({}, "", `/compare/${a}/${b}`); }
+    catch { toast(t("msg_history_unavailable"), "error"); }
+  }
+  const [left, right] = await Promise.all([compareView.load(a), compareView.load(b)]);
+  // The reader may have moved on while the reads were out.
+  if (!comparePair || comparePair[0] !== a || comparePair[1] !== b) return;
+  compareModel = compareView.comparison(left, right);
+  renderCompare();
+}
+
+$("#compare-swap").addEventListener("click", () => {
+  if (!comparePair) return;
+  const [a, b] = comparePair;
+  openCompare(b, a, { push: true });
+});
+$("#compare-back").addEventListener("click", () => {
+  if (comparePair) openRun(comparePair[0]);
+});
+
 /* ── Routing ───────────────────────────────────────────────────────── */
 
 function routeFromLocation() {
   const match = location.pathname.match(/^\/run\/([^/]+)$/);
+  const pair = location.pathname.match(/^\/compare\/([^/]+)\/([^/]+)$/);
   if (match) {
     openRun(match[1]);
+  } else if (pair) {
+    openCompare(pair[1], pair[2]);
   } else {
     stopFollowing();
     activeRunId = null;
     syncSourceLocatorLink();
     $("#pane-compose").hidden = false;
     $("#pane-run").hidden = true;
+    $("#pane-compare").hidden = true;
     topic.focus();
   }
 }
@@ -1856,6 +1967,7 @@ langSelect.addEventListener("change", () => {
   paintQuota();
   paintPaidReceipt();
   paintCapacityLabel();
+  renderCompare();
   topic.placeholder = t("topic_placeholder");
   // Re-render whatever is on screen so switching mid-run does not leave a
   // half-translated pane behind.
