@@ -643,6 +643,16 @@
     <div id="account-settings" hidden>
       <h2 class="gate__title" data-i18n="account_settings_title">Account</h2>
       <p class="gate__sub" id="account-settings-email"></p>
+      <!-- Only when the deployment can send mail (auth config `notices`):
+           a message to the account's own address when one of its runs
+           ends (api/notices.py). Off until the account turns it on. -->
+      <div id="settings-notify-row" hidden>
+        <label class="gate__choice" for="settings-notify">
+          <input type="checkbox" id="settings-notify">
+          <span data-i18n="account_notify">Email me when an assessment finishes</span>
+        </label>
+        <p class="gate__hint" id="settings-notify-hint"></p>
+      </div>
       <form id="settings-password-form">
         <h3 class="gate__section" data-i18n="account_password_title">Change password</h3>
         <input class="gate__input" id="settings-current-password" type="password" autocomplete="current-password" required

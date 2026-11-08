@@ -368,6 +368,8 @@ export const resendVerification = () => request("/api/auth/verify/resend", { met
 export const forgotPassword = (email) => request("/api/auth/password/forgot", json({ email }));
 export const resetPassword = (token, new_password) =>
   request("/api/auth/password/reset", json({ token, new_password }));
+/* Whether the account wants an email when one of its runs ends. */
+export const setNotify = (enabled) => request("/api/auth/notify", json({ enabled }));
 // What the providers say about a key set an account is about to save. One
 // unbilled read per service; the answer carries no key. Bounded here as well
 // as on the server, so a silent network cannot hold the form open.

@@ -58,7 +58,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import account_backup, admin, alerts, mail, auxiliary_usage, key_check, plan_preview, retrieval_health, samples
+from api import account_backup, admin, alerts, mail, auxiliary_usage, key_check, notices, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -79,6 +79,7 @@ from api.models import (  # noqa: E402
     VerifyEmail,
     AuthSession,
     PasswordChange,
+    NotifyPreference,
     PasswordForgot,
     PasswordReset,
     PasswordResetDone,
@@ -299,6 +300,21 @@ async def _review_alerts() -> None:
         _LOGGER.exception("Operator alert review failed")
 
 
+async def _send_notices() -> None:
+    """Tell accounts about runs of theirs that have ended, if they asked.
+
+    Not a stage, for the alert review's reason: a message that fails to send
+    is logged, mail's own state says so in /health, and the run page is
+    unchanged, none of which makes the service degraded.
+    """
+    if not notices.enabled():
+        return
+    try:
+        await asyncio.to_thread(notices.sweep)
+    except Exception:  # noqa: BLE001 - a notice must never cost the watchdog its loop
+        _LOGGER.exception("Run notice sweep failed")
+
+
 def _maintenance_ended(task: asyncio.Task) -> None:
     """The loop cannot report its own end, so its end is reported for it.
 
@@ -340,6 +356,7 @@ async def _reaper() -> None:
         ) + _source_locator_stages():
             await _maintenance_stage(name, operation, collect_cleanup=name in {"papers", "retention"})
         await _review_alerts()
+        await _send_notices()
 
 
 @contextlib.asynccontextmanager
@@ -794,7 +811,8 @@ def access_check(http_request: Request) -> dict:
                "daily_quota": bool(runs.daily_cap_for(who.tag if who.kind == "user" else None if who.kind == "none" else "code"))}
     if accounts.enabled():
         payload["accounts"] = _accounts_config()
-        payload["account"] = ({"email": who.user.email, "admin": who.is_admin, "verified": who.user.verified}
+        payload["account"] = ({"email": who.user.email, "admin": who.is_admin, "verified": who.user.verified,
+                               "notify_done": who.user.notify_done}
                               if who.kind == "user" else None)
     return payload
 
@@ -807,8 +825,9 @@ def _accounts_config() -> dict:
             "plan_preview": plan_preview.enabled(),
             # An account has a daily allowance of its own; the page shows it once signed in.
             "daily_quota": bool(runs.ACCOUNT_DAILY_CAP),
-            # A forgotten password is reset by a link, when there is mail to send it with.
-            "password_reset": mail.configured()}
+            # A forgotten password is reset by a link, when there is mail to send it with,
+            # and an account may ask for a message when a run of its ends.
+            "password_reset": mail.configured(), "notices": mail.configured()}
 
 
 def _operator_contact() -> str | None:
@@ -887,7 +906,8 @@ def auth_config() -> AuthConfig:
                       contact=_operator_contact() if accounts.enabled() else None,
                       plan_preview=accounts.enabled() and plan_preview.enabled(),
                       daily_quota=accounts.enabled() and bool(runs.ACCOUNT_DAILY_CAP),
-                      password_reset=accounts.enabled() and mail.configured())
+                      password_reset=accounts.enabled() and mail.configured(),
+                      notices=accounts.enabled() and mail.configured())
 
 
 @app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],
@@ -1042,7 +1062,8 @@ def auth_me(http_request: Request) -> AuthMe:
     who = identity.resolve(http_request)
     if who.kind != "user":
         raise HTTPException(status_code=404, detail="Not signed in with an account.")
-    return AuthMe(email=who.user.email, admin=who.is_admin, verified=who.user.verified)
+    return AuthMe(email=who.user.email, admin=who.is_admin, verified=who.user.verified,
+                  notify_done=who.user.notify_done)
 
 
 def _signed_in_account(http_request: Request) -> accounts.User:
@@ -1050,6 +1071,22 @@ def _signed_in_account(http_request: Request) -> accounts.User:
     if who.kind != "user":
         raise HTTPException(status_code=404, detail="Not signed in with an account.")
     return who.user
+
+
+@app.post("/api/auth/notify", status_code=204, tags=["accounts"],
+          responses={503: {"description": "This deployment cannot send email"}})
+def auth_notify(request: NotifyPreference, http_request: Request) -> Response:
+    """Ask for, or stop, an email when one of the account's runs ends (api/notices.py).
+
+    Off until asked. Refused where there is no mail to send it with, so the
+    switch is never on without meaning anything.
+    """
+    user = _signed_in_account(http_request)
+    if not mail.configured():
+        raise HTTPException(status_code=503, detail="This deployment cannot send email at the moment.",
+                            headers={"X-Error-Code": "mail_unavailable"})
+    accounts.set_notify_done(user, request.enabled)
+    return Response(status_code=204)
 
 
 @app.post("/api/auth/password", status_code=204, tags=["accounts"],

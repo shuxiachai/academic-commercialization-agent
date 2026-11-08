@@ -128,6 +128,8 @@ class User:
     # The address has been proven: the account opened a link sent to it, or
     # it was created before the deployment could send mail, or by an operator.
     verified: bool = True
+    # The account asked to be emailed when one of its runs ends (api/notices.py).
+    notify_done: bool = False
 
     @property
     def owner(self) -> str:
@@ -210,6 +212,9 @@ def _migrate(connection) -> None:
     if "verified_at" not in columns:
         connection.execute("ALTER TABLE users ADD COLUMN verified_at INTEGER")
         connection.execute("UPDATE users SET verified_at = created_at")
+    # Opt-in, so accounts from before the column have it off.
+    if "notify_done" not in columns:
+        connection.execute("ALTER TABLE users ADD COLUMN notify_done INTEGER NOT NULL DEFAULT 0")
 
 
 # ── Normalisation and hashing ──────────────────────────────────────────────
@@ -541,7 +546,7 @@ def login(email: object, password: object, *, client: str | None = None,
     keys = _throttle_keys(email, client)
     with _database() as db:
         _refuse_if_locked(db, keys, stamp)
-        user = db.execute("SELECT id, email, password_hash, disabled, verified_at FROM users WHERE email = ?",
+        user = db.execute("SELECT id, email, password_hash, disabled, verified_at, notify_done FROM users WHERE email = ?",
                           (email,)).fetchone()
         stored = user["password_hash"] if user is not None else hash_password("placeholder-timing-only")
         if user is None or not verify_password(password, stored):
@@ -556,7 +561,8 @@ def login(email: object, password: object, *, client: str | None = None,
                 "INSERT INTO sessions (token_hash, user_id, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?)",
                 (_token_hash(token), user["id"], stamp, stamp + SESSION_SECONDS, stamp))
             db.execute("DELETE FROM sessions WHERE expires_at <= ?", (stamp,))
-        return token, User(id=user["id"], email=user["email"], verified=user["verified_at"] is not None)
+        return token, User(id=user["id"], email=user["email"], verified=user["verified_at"] is not None,
+                           notify_done=bool(user["notify_done"]))
 
 
 def _record_failure(db, keys, stamp: int) -> None:
@@ -589,7 +595,7 @@ def session_user(token: object, *, now: float | None = None) -> User | None:
     stamp = int(now if now is not None else time.time())
     with _database() as db:
         row = db.execute(
-            "SELECT s.token_hash, s.expires_at, u.id, u.email, u.disabled, u.verified_at FROM sessions s "
+            "SELECT s.token_hash, s.expires_at, u.id, u.email, u.disabled, u.verified_at, u.notify_done FROM sessions s "
             "JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?", (_token_hash(token),)).fetchone()
         if row is None or row["disabled"]:
             return None
@@ -599,7 +605,8 @@ def session_user(token: object, *, now: float | None = None) -> User | None:
             return None
         with db:
             db.execute("UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?", (stamp, row["token_hash"]))
-        return User(id=row["id"], email=row["email"], verified=row["verified_at"] is not None)
+        return User(id=row["id"], email=row["email"], verified=row["verified_at"] is not None,
+                    notify_done=bool(row["notify_done"]))
 
 
 def logout(token: object) -> bool:
@@ -704,8 +711,17 @@ def user_by_id(user_id: object) -> User | None:
     if not enabled() or not isinstance(user_id, int) or isinstance(user_id, bool):
         return None
     with _database() as db:
-        row = db.execute("SELECT id, email, verified_at FROM users WHERE id = ?", (user_id,)).fetchone()
-    return User(id=row["id"], email=row["email"], verified=row["verified_at"] is not None) if row is not None else None
+        row = db.execute("SELECT id, email, verified_at, notify_done FROM users WHERE id = ?", (user_id,)).fetchone()
+    if row is None:
+        return None
+    return User(id=row["id"], email=row["email"], verified=row["verified_at"] is not None,
+                notify_done=bool(row["notify_done"]))
+
+
+def set_notify_done(user: User, enabled: bool) -> None:
+    """Whether the account wants an email when one of its runs ends. Off until asked."""
+    with _database() as db, db:
+        db.execute("UPDATE users SET notify_done = ? WHERE id = ?", (1 if enabled else 0, user.id))
 
 
 def list_users(*, now: float | None = None) -> list[dict]:

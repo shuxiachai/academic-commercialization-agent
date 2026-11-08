@@ -66,7 +66,7 @@ class DisabledTests(unittest.TestCase):
         config = self.client.get("/api/auth/config").json()
         self.assertEqual(config, {"enabled": False, "signup_open": False, "signup": "closed", "access_codes": False,
                                   "key_check": False, "contact": None,
-                                  "plan_preview": False, "daily_quota": False, "password_reset": False})
+                                  "plan_preview": False, "daily_quota": False, "password_reset": False, "notices": False})
         self.assertEqual(self.client.post("/api/auth/register", json={"email": "a@b.co", "password": PASSWORD}).status_code, 404)
         self.assertEqual(self.client.post("/api/auth/login", json={"email": "a@b.co", "password": PASSWORD}).status_code, 404)
         self.assertEqual(self.client.get("/api/auth/me").status_code, 404)
@@ -90,7 +90,7 @@ class SignUpAndSignInTests(_AccountsHttp):
     def test_config_is_readable_without_credentials(self):
         self.assertEqual(self.client.get("/api/auth/config").json(),
                          {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True, "contact": None,
-                          "plan_preview": True, "daily_quota": True, "password_reset": False})
+                          "plan_preview": True, "daily_quota": True, "password_reset": False, "notices": False})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             self.assertTrue(self.client.get("/api/auth/config").json()["access_codes"])
 
@@ -99,10 +99,10 @@ class SignUpAndSignInTests(_AccountsHttp):
         anonymous = self.client.get("/api/access/check")
         self.assertEqual(anonymous.status_code, 401)
         check = self.client.get("/api/access/check", headers=self._bearer(session["token"])).json()
-        self.assertEqual(check["account"], {"email": "alice@example.com", "admin": False, "verified": True})
+        self.assertEqual(check["account"], {"email": "alice@example.com", "admin": False, "verified": True, "notify_done": False})
         self.assertEqual(check["accounts"], {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False,
                                              "key_check": True, "contact": None,
-                          "plan_preview": True, "daily_quota": True, "password_reset": False})
+                          "plan_preview": True, "daily_quota": True, "password_reset": False, "notices": False})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             by_code = self.client.get("/api/access/check", headers={"X-Access-Code": "code-1"}).json()
         self.assertIsNone(by_code["account"])
@@ -114,7 +114,7 @@ class SignUpAndSignInTests(_AccountsHttp):
         self.assertFalse(session["admin"])
         me = self.client.get("/api/auth/me", headers=self._bearer(session["token"]))
         self.assertEqual(me.status_code, 200)
-        self.assertEqual(me.json(), {"email": "alice@example.com", "admin": False, "verified": True})
+        self.assertEqual(me.json(), {"email": "alice@example.com", "admin": False, "verified": True, "notify_done": False})
 
     def test_login_refusals_carry_stable_codes(self):
         self._signup()
@@ -186,7 +186,7 @@ class GateTests(_AccountsHttp):
         # stays one request; without accounts the body is the bare detail.
         self.assertEqual(response.json()["accounts"],
                          {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False, "key_check": True, "contact": None,
-                          "plan_preview": True, "daily_quota": True, "password_reset": False})
+                          "plan_preview": True, "daily_quota": True, "password_reset": False, "notices": False})
         with patch.object(access, "ACCESS_CODE", "code-1"):
             self.assertEqual(self.client.get("/api/runs").json()["detail"], "Sign in, or provide a valid access code.")
 

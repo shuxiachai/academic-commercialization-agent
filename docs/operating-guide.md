@@ -1023,6 +1023,23 @@ that ignoring it changes nothing. Without mail the button is absent, the
 route answers 503 `mail_unavailable`, and the operator's reset (above) is
 the way back.
 
+### Email when a run ends
+
+With mail set up, the Account panel offers "Email me when an assessment
+finishes". It is off until the account turns it on (`POST /api/auth/notify`,
+503 `mail_unavailable` without mail). The maintenance loop then sweeps the
+newest run directories each cycle and, for a run that has ended since the
+last sweep and belongs to an account that asked, sends one message to that
+account's address: the run's topic, whether it completed or failed, how
+long it took, and its link. A run the person cancelled, or that timed out,
+is not announced. Each run directory is decided once and marked
+(`.notice`), so a restart repeats nothing and an account that turns the
+notice on later is not told about older runs; a run that ended more than a
+day before a sweep saw it is marked without a message, so a deployment that
+was down does not return with a backlog of mail. A message that cannot be
+sent is logged by account id and not retried; the run page is the same
+either way. The messages count toward `MAIL_PER_DAY`.
+
 ### Run history in the page
 
 The rail shows the newest fifty runs and a "Show more" button adds fifty at

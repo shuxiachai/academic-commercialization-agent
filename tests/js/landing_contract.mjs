@@ -24,7 +24,7 @@ const SAMPLES = [
     committed: "2026-10-21", commit: "a8cc424" },
   { slug: "../etc/passwd", title: "Not a sample", topic: "", committed: "", commit: "" },
 ];
-const ACCOUNTS = { enabled: true, signup_open: true, signup: "open", access_codes: false, password_reset: true,
+const ACCOUNTS = { enabled: true, signup_open: true, signup: "open", access_codes: false, password_reset: true, notices: true,
   key_check: false, contact: null, plan_preview: false, daily_quota: false };
 const ACCOUNT = { email: "visitor@example.test", admin: false, verified: true };
 
@@ -274,6 +274,52 @@ const scenarios = {
     await settle();
     assert.equal(f.get("#account-form").hidden, false);
     assert.equal(f.get("#account-forgot").hidden, true, "Without mail there is no link to send; the privacy page names the operator");
+  },
+  async notice_switch() {
+    // The Account panel's switch: saved on change, shown as the account has it.
+    const f = fixture({ access: { status: 200, body: { ok: true, account: { ...ACCOUNT, notify_done: false }, accounts: ACCOUNTS } },
+      replies: { "/api/auth/notify": {} } });
+    await settle();
+    f.get("#byok-skip").onclick();
+    await settle();
+    await f.get("#account-manage").listeners.click();
+    assert.equal(f.get("#account-settings").hidden, false, "The badge opens the panel");
+    assert.equal(f.get("#settings-notify-row").hidden, false, "With mail, the switch is offered");
+    assert.equal(f.get("#settings-notify").checked, false, "...off, as the account has it");
+    assert.equal(f.get("#settings-notify-hint").textContent, "account_notify_hint".replace("{email}", ACCOUNT.email));
+    f.get("#settings-notify").checked = true;
+    await f.get("#settings-notify").onchange();
+    const posted = f.requests.find((r) => r.url === "/api/auth/notify");
+    assert.deepEqual(JSON.parse(posted.options.body), { enabled: true }, "Saved as soon as it is changed");
+    assert.equal(f.get("#settings-notify").checked, true);
+    assert.equal(f.get("#settings-notify").disabled, false);
+    f.get("#settings-close").onclick();
+    await f.get("#account-manage").listeners.click();
+    assert.equal(f.get("#settings-notify").checked, true, "Reopened, the panel shows what was saved");
+  },
+  async notice_switch_refused() {
+    const f = fixture({ access: { status: 200, body: { ok: true, account: { ...ACCOUNT, notify_done: true }, accounts: ACCOUNTS } } });
+    globalThis.fetch = ((inner) => (url, options) => url === "/api/auth/notify"
+      ? Promise.resolve(new Response(JSON.stringify({ detail: "no mail" }), { status: 503,
+          headers: { "Content-Type": "application/json", "X-Error-Code": "mail_unavailable" } }))
+      : inner(url, options))(globalThis.fetch);
+    await settle();
+    f.get("#byok-skip").onclick();
+    await settle();
+    await f.get("#account-manage").listeners.click();
+    assert.equal(f.get("#settings-notify").checked, true, "On, as the account has it");
+    f.get("#settings-notify").checked = false;
+    await f.get("#settings-notify").onchange();
+    assert.equal(f.get("#settings-notify").checked, true, "Not taken by the server: put back, so the box never lies");
+  },
+  async notice_switch_absent_without_mail() {
+    const f = fixture({ access: { status: 200, body: { ok: true, account: ACCOUNT, accounts: { ...ACCOUNTS, notices: false } } } });
+    await settle();
+    f.get("#byok-skip").onclick();
+    await settle();
+    await f.get("#account-manage").listeners.click();
+    assert.equal(f.get("#account-settings").hidden, false);
+    assert.equal(f.get("#settings-notify-row").hidden, true, "Without mail there is nothing to switch on");
   },
   async logout_without_accounts_reloads() {
     const f = fixture({ access: { status: 200, body: { ok: true } } });
