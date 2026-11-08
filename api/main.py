@@ -536,8 +536,20 @@ async def _rate_limit(request: Request, call_next):
     as down. Matched by prefix so /health/ready is covered — it is the one the
     container healthcheck actually polls, and a 429 there would restart a
     perfectly healthy container.
+
+    So are the files a page is made of and the documents that load them
+    (_is_page_asset). A page is some seventeen modules that import one
+    another, each confirmed with the server before reuse, so one load is
+    seventeen requests and a reload is seventeen more; a person reloading
+    with a few tabs open, or several people behind one address, reached the
+    budget through the page alone. A 429 on one module stops the whole
+    module graph, and the visitor is left with a document that never ran
+    its script: no gate, no badge, nothing to say why. The files are cheap,
+    static and cacheable; a scripted abuser gains nothing from them, and
+    the API they would abuse stays behind the limit.
     """
-    if not request.url.path.startswith("/health") and _rate_limit_exceeded(_client_key(request)):
+    path = request.url.path
+    if not (path.startswith("/health") or _is_page_asset(path)) and _rate_limit_exceeded(_client_key(request)):
         return JSONResponse(
             {"detail": "Too many requests. Slow down and retry shortly."},
             status_code=429,

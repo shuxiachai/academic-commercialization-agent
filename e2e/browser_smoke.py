@@ -15,7 +15,6 @@ credential that happened to be present in the CI or developer environment.
 from __future__ import annotations
 
 import json
-import sys
 from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -25,6 +24,7 @@ from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
 from academic_agent.run_output import save_scores, save_source_collection
 from api import samples
+from e2e.smoke_report import capture_failure
 from e2e.isolated_app import (
     ACCESS_CODE,
     FIXTURE_TOPIC,
@@ -37,22 +37,7 @@ from e2e.isolated_app import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ARTIFACT_ROOT = PROJECT_ROOT / "output" / "playwright"
 HEADER_UNBROKEN_METADATA = "METADATA_UNBROKEN_TOKEN_" + "x" * 160
-
-
-def _capture_failure(page: Page | None) -> None:
-    """Keep one inspectable browser artifact without dirtying successful runs."""
-    if page is None or page.is_closed():
-        return
-    ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
-    try:
-        page.screenshot(path=ARTIFACT_ROOT / "browser-smoke-failure.png", full_page=True)
-    except Exception as exc:  # noqa: BLE001 - diagnostics must not replace the original failure
-        print(
-            f"[browser-smoke] failure screenshot unavailable: {type(exc).__name__}",
-            file=sys.stderr,
-        )
 
 
 def _exercise_sources_panel(page: Page, collection: dict, *, chinese: bool) -> None:
@@ -1046,9 +1031,19 @@ def _exercise_browser(
             expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(0)
             expect(byok_row.locator(".runitem")).to_have_attribute("aria-label", f"{FIXTURE_TOPIC} — Run state unavailable; this does not mean it failed.")
             page.reload(wait_until="domcontentloaded")
+            # The page must have booted before its history can be judged. Twice
+            # in CI the row never came back and the picture showed a document
+            # whose scripts had not run at all; that is a different failure
+            # from a row that fails to repaint, and is now said as such.
+            expect(page.locator("html")).to_have_attribute("data-boot", "ready", timeout=10_000)
             expect(byok_row.locator('.runitem__state[data-state="completed"]')).to_have_count(1)
             expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(1)
 
+            # A page file the server refused is a page that may never boot:
+            # the first failure JSON showed two modules answered 429 by the
+            # rate limit, and the document that imported them never ran.
+            refused_assets = [f for f in http_failures if f[1].startswith("/static/")]
+            assert not refused_assets, f"The server refused page files: {refused_assets}"
             assert not external_requests, (
                 "The browser attempted non-loopback requests: "
                 + ", ".join(external_requests)
@@ -1093,7 +1088,10 @@ def _exercise_browser(
             )
             assert not page_errors, "Uncaught page errors: " + "; ".join(page_errors)
         except Exception:  # noqa: BLE001 - preserve visual evidence for any browser/assertion failure
-            _capture_failure(page)
+            capture_failure(page, {
+                "console_errors": console_errors, "page_errors": page_errors, "http_failures": http_failures,
+                "external_requests": external_requests, "mutation_attempts": mutation_attempts,
+            })
             raise
         finally:
             context.close()

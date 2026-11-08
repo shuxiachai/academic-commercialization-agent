@@ -10,6 +10,13 @@ import { needsScopeWarning } from "./topic.js";
 import { createPaidReceipts } from "./paid_receipts.js";
 const t = i18n.t;
 
+// For whoever is looking at a page that does not respond: "scripts" once
+// this module runs, "ready" once the boot at the bottom has decided who the
+// visitor is. A document without the attribute never ran this file. (The
+// test harnesses' document has no element; they are not looking.)
+const markBoot = (stage) => { if (document.documentElement) document.documentElement.dataset.boot = stage; };
+markBoot("scripts");
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -2488,4 +2495,5 @@ ensureAccess().then(() => {
   refreshSidebar();
   refreshCapacity();
   scheduleCapacity();
+  markBoot("ready");
 });
