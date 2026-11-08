@@ -848,9 +848,11 @@ $("#compose-form").addEventListener("submit", async (e) => {
     && !confirm(t("confirm_broad_topic"))
   ) return;
   // A code holder previews on the deployment's key. An account previews on
-  // its own, which it has by now: the gate above asked for keys. A visitor
-  // whose keys are their only identity starts as before.
-  if (planPreviewEnabled && (accountMode ? Boolean(api.getByok()) : !byokMode)) {
+  // its own, which it has by now: the gate above asked for keys; an
+  // administrator the deployment funds previews on the deployment's key, as
+  // a code holder does. A visitor whose keys are their only identity starts
+  // as before.
+  if (planPreviewEnabled && (accountMode ? (Boolean(api.getByok()) || operatorPays()) : !byokMode)) {
     await previewPlan(submittedTopic);
     return;
   }

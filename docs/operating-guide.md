@@ -851,7 +851,8 @@ is tagged to the account as any account run is. The run records that the
 deployment paid (`.funded` beside `.owner`), so a failure is worded for the
 operator rather than for a key the visitor brought. `ACCOUNTS_ADMIN_FUNDED=0`
 turns this off; the sign-in configuration reports it as `admin_funded`, and
-the page stops asking an administrator for keys when it is on. Keys an
+the page stops asking an administrator for keys when it is on and shows them
+the plan preview on the deployment's key, as it does a code holder. Keys an
 administrator saves anyway are used instead, as for any account.
 
 Accounts and access codes coexist. A valid `X-Access-Code` header takes
