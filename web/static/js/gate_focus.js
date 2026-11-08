@@ -8,16 +8,19 @@
  *
  * `inert` takes the whole workbench out of the Tab order and away from
  * clicks while the gate is shown, and gives it back when the gate hides.
+ * The landing page gets the same treatment: when the card opens from one
+ * of its buttons it is the page under the scrim.
  * app.js shows and hides the gate on several paths (boot, logout, the key
  * form for an account), so this follows the gate's hidden attribute instead
  * of hooking each one. Loaded after app.js as its own module, as chrome.js is.
  */
 
 const gate = document.querySelector("#gate");
-const workbench = document.querySelector("#workbench");
+const covered = [document.querySelector("#workbench"), document.querySelector("#landing")];
 
 function sync() {
-  if (workbench) workbench.inert = Boolean(gate && !gate.hidden);
+  const open = Boolean(gate && !gate.hidden);
+  for (const region of covered) if (region) region.inert = open;
 }
 
 if (gate) {

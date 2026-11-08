@@ -340,6 +340,8 @@ export async function getPaidReceipt(key) {
 /* ── Runs ──────────────────────────────────────────────────────────── */
 
 export const health = () => request("/health");
+// Committed example reports; readable by anyone, so the landing can list them.
+export const listSamples = () => request("/api/samples");
 
 // Verifies a code without storing it — the gate calls this with a candidate
 // before persisting it, and once at boot with whatever is already stored (or
