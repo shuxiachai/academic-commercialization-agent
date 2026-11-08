@@ -40,7 +40,7 @@ class SampleCatalogTests(unittest.TestCase):
         self.assertEqual([item["slug"] for item in listed], [s.slug for s in samples.SAMPLES])
         for item in listed:
             self.assertNotIn("file", item)
-            self.assertEqual(set(item), {"slug", "title", "topic", "committed", "commit"})
+            self.assertEqual(set(item), {"slug", "title", "topic", "committed", "commit", "model"})
 
     def test_unknown_slug_is_a_key_error_not_a_path_lookup(self):
         for slug in ("nope", "../pyproject.toml", "..\\README.md", "README"):
@@ -118,7 +118,7 @@ class SampleHttpTests(unittest.TestCase):
                 self.assertEqual(self.client.get(path).status_code, 404)
 
     def test_missing_file_on_this_deployment_is_404_not_500(self):
-        missing = samples.Sample("gone", "does-not-exist.md", "t", "t", "2026-01-01", "0000000")
+        missing = samples.Sample("gone", "does-not-exist.md", "t", "t", "2026-01-01", "0000000", "model-x")
         with patch.object(samples, "_BY_SLUG", {"gone": missing}):
             self.assertEqual(self.client.get("/api/samples/gone").status_code, 404)
 
@@ -239,3 +239,27 @@ class SampleRenderingTests(unittest.TestCase):
                 self.assertFalse(tags - _ALLOWED_TAGS)
                 self.assertIn("<h2>", html)
                 self.assertIn('class="cite"', html)
+
+
+class SampleProvenanceTests(unittest.TestCase):
+    """The page and the folder tell the same story about where each sample came from."""
+
+    def test_the_examples_readme_documents_every_listed_sample(self):
+        readme = (_REPO / "examples" / "README.md").read_text(encoding="utf-8")
+        for sample in samples.SAMPLES:
+            with self.subTest(slug=sample.slug):
+                self.assertIn(f"]({sample.file})", readme, "a listed sample is described in examples/README.md")
+                self.assertIn(f"`{sample.model}`", readme, "...with the model it was run on")
+        self.assertIn("Six complete", readme)
+
+    def test_every_sample_names_a_model_and_a_revision(self):
+        for sample in samples.SAMPLES:
+            with self.subTest(slug=sample.slug):
+                self.assertRegex(sample.commit, r"^[0-9a-f]{7}$")
+                self.assertRegex(sample.model, r"^[a-z0-9][a-z0-9.-]+$")
+                self.assertRegex(sample.committed, r"^\d{4}-\d{2}-\d{2}$")
+        # The notice on the page says all three.
+        strings = (_REPO / "web/static/js/samples_i18n.js").read_text(encoding="utf-8")
+        self.assertEqual(strings.count("{model}"), 2)
+        source = (_REPO / "web/static/js/samples.js").read_text(encoding="utf-8")
+        self.assertIn('.replace("{model}", sample.model)', source)

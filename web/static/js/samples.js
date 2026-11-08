@@ -120,7 +120,8 @@ function downloadLink(sample) {
 function historicalNotice(sample) {
   const text = t("samples_historical")
     .replace("{date}", sample.committed)
-    .replace("{commit}", sample.commit);
+    .replace("{commit}", sample.commit)
+    .replace("{model}", sample.model);
   return el("p", "samples__notice", text);
 }
 
