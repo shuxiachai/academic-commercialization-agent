@@ -98,11 +98,19 @@ function rememberAcceptedRun(accepted) {
   }
 }
 
+/* Whether the deployment pays for this account's operations: an administrator
+ * on a deployment that says so (sign-in configuration `admin_funded`). Keys
+ * saved here are still sent and used first; without them the server runs the
+ * operation on its own keys instead of refusing it. */
+function operatorPays() {
+  return accountMode && accountAdmin && authConfig?.admin_funded === true;
+}
+
 async function performPaidRequest(request, deliver, operation = "run") {
   if (accountMode && !accountVerified) { toast(t("msg_email_unverified"), "error"); return; }
   // An account pays with its own keys. Ask for them here, once, rather than
   // letting the server refuse with byok_required after the intent is recorded.
-  if (accountMode && !api.getByok()) {
+  if (accountMode && !api.getByok() && !operatorPays()) {
     await showGate(null, { keysOnly: true });
     if (!api.getByok()) { toast(t("msg_byok_required"), "error"); return; }
   }
@@ -729,6 +737,9 @@ let accountEmail = null;
 // Such an account can sign in, save keys and preview; a run is refused, here
 // before any intent is recorded and on the server with email_unverified.
 let accountVerified = true;
+// The signed-in account is an administrator (the console link, and on a
+// deployment that funds administrators, runs without keys of their own).
+let accountAdmin = false;
 // Whether the account asked for an email when a run of its ends (Account panel).
 let accountNotify = false;
 let authConfig = null;
@@ -1305,6 +1316,7 @@ function applyAccountMode(me) {
   $("#account-badge").hidden = false;
   accountVerified = me.verified !== false;
   accountNotify = me.notify_done === true;
+  accountAdmin = me.admin === true;
   paintVerifyNotice();
   hidePlan();
   refreshQuota();
@@ -1724,7 +1736,7 @@ async function decideAccess() {
     authConfig = access?.accounts ?? null;
     if (access?.account) {
       applyAccountMode(access.account);
-      if (!api.getByok()) await showGate(null, { keysOnly: true });
+      if (!api.getByok() && !operatorPays()) await showGate(null, { keysOnly: true });
       return;
     }
     if (api.getAccessCode()) applyCodeMode();
@@ -1886,7 +1898,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     const account = forAccount();
     $("#byok-account-note").hidden = !account;
     $("#byok-sub").hidden = account;
-    if (account) $("#byok-account-note").textContent = t("byok_account_note").replace("{email}", accountEmail);
+    if (account) $("#byok-account-note").textContent = t(operatorPays() ? "byok_admin_note" : "byok_account_note").replace("{email}", accountEmail);
     clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
@@ -2087,9 +2099,9 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         // Likewise the account's own daily allowance, so it shows from the first run.
         quotaEnabled = authConfig?.daily_quota === true;
         refreshQuota();
-        if (api.getByok()) { finish(); return; }
-        // Keys next, on the same card: the account is in, the runs still
-        // need something to pay with.
+        // Keys next, on the same card, unless the account has them already
+        // or the deployment pays for this administrator's runs.
+        if (api.getByok() || operatorPays()) { finish(); return; }
         showKeys();
       } catch (err) {
         const key = {

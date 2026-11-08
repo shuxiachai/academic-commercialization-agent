@@ -842,6 +842,18 @@ quota does not apply to accounts, because it meters the deployment's key. A
 plan preview does apply: the page sends the account's key set with it, the
 call is made on the account's model key, and the page says so.
 
+The one exception is the operator's own account. An address named in
+`ACCOUNTS_ADMIN_EMAILS` may start runs, uploads and previews without keys
+when the deployment has a model key and a search key of its own: the
+operation runs on those keys, is counted against the deployment's daily cap
+(`API_DAILY_PAID_OPERATION_CAP`, per owner) and the account's own caps, and
+is tagged to the account as any account run is. The run records that the
+deployment paid (`.funded` beside `.owner`), so a failure is worded for the
+operator rather than for a key the visitor brought. `ACCOUNTS_ADMIN_FUNDED=0`
+turns this off; the sign-in configuration reports it as `admin_funded`, and
+the page stops asking an administrator for keys when it is on. Keys an
+administrator saves anyway are used instead, as for any account.
+
 Accounts and access codes coexist. A valid `X-Access-Code` header takes
 precedence over a session token, keeps its operator billing and its own
 history scope, and nothing changes for code holders. With accounts enabled an

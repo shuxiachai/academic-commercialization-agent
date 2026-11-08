@@ -1082,6 +1082,8 @@ class AuthConfig(BaseModel):
                                                                "sent to the account's address: mail is set up.")
     notices: bool = Field(default=False, description="An account can ask for an email when one of its runs "
                                                         "ends: mail is set up.")
+    admin_funded: bool = Field(default=False, description="An administrator's paid operations run on the "
+                                                             "deployment's own keys; everyone else brings keys.")
 
 
 class RetrievalHealth(BaseModel):

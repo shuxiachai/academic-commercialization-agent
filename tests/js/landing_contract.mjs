@@ -186,6 +186,19 @@ const scenarios = {
     assert.equal(f.get("#byok-form").hidden, false);
     assert.ok(!f.requests.some((r) => r.url === "/api/samples"));
   },
+  async signed_in_admin_funded() {
+    const admin = { ...ACCOUNT, admin: true };
+    const f = fixture({ access: { status: 200, body: { ok: true, account: admin, accounts: { ...ACCOUNTS, admin_funded: true } } } });
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false },
+      "An administrator the deployment funds goes straight to the workbench: no keys to ask for");
+    const plain = fixture({ access: { status: 200, body: { ok: true, account: admin, accounts: ACCOUNTS } } });
+    await settle();
+    assert.equal(shown(plain).gate, true, "...only where the deployment says it funds them");
+    const member = fixture({ access: { status: 200, body: { ok: true, account: ACCOUNT, accounts: { ...ACCOUNTS, admin_funded: true } } } });
+    await settle();
+    assert.equal(shown(member).gate, true, "...and only an administrator");
+  },
   async ungated() {
     const f = fixture({ access: { status: 200, body: { ok: true } } });
     await settle();

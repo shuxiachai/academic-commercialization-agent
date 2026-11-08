@@ -719,6 +719,24 @@ def _admission_refusal(exc: Exception) -> HTTPException:
     return HTTPException(status_code=429, detail=f"{exc}.{tail}", headers={"X-Error-Code": code})
 
 
+def _operator_funds_admins() -> bool:
+    """Whether a signed-in administrator's paid operation may run on the deployment's keys.
+
+    Three things must hold: the operator left it on (accounts.admin_funded),
+    the deployment has a model key, and it has a search key. Without the
+    last two the request would be admitted and the worker would fail on the
+    operator's behalf, which is worse than asking for keys. Everyone who is
+    not an administrator keeps paying with their own keys.
+    """
+    if not accounts.admin_funded():
+        return False
+    try:
+        validate_llm_configuration()
+    except RuntimeError:
+        return False
+    return bool(os.getenv("SERPER_API_KEY") or os.getenv("TAVILY_API_KEY"))
+
+
 def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None:
     """Authorize a paid operation and name the owner tag it is recorded under.
 
@@ -726,12 +744,15 @@ def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None
     this decision separately from the access header alone. The rules, in one
     place:
 
-    - An account always pays with its own keys: without them the request is
-      refused with `byok_required`, never billed to the deployment. Its runs
-      are tagged to the account, so they appear in its history. An account
-      that has not yet opened its verification link is refused first, with
-      `email_unverified`: it may sign in, save keys and preview, but a paid
-      operation waits for the address to be proven.
+    - An account pays with its own keys: without them the request is refused
+      with `byok_required`, never billed to the deployment. The one exception
+      is an administrator on a deployment that can fund them
+      (_operator_funds_admins): their request without keys runs on the
+      operator's keys, counted against the operator's daily cap, tagged to
+      the account as any account run is. An account that has not yet opened
+      its verification link is refused first, with `email_unverified`: it
+      may sign in, save keys and preview, but a paid operation waits for the
+      address to be proven.
     - A code holder is billed to the deployment and tagged to the code; a
       code holder who brings keys anyway is untagged, as before.
     - Anonymous requests: refused when accounts are enabled (sign in first),
@@ -746,7 +767,7 @@ def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None
                        "or ask for a new one from the page.",
                 headers={"X-Error-Code": "email_unverified"},
             )
-        if not byok:
+        if not byok and not (who.is_admin and _operator_funds_admins()):
             raise HTTPException(
                 status_code=401,
                 detail="Accounts run on their own API keys. Add your LLM key, model and a "
@@ -839,7 +860,10 @@ def _accounts_config() -> dict:
             "daily_quota": bool(runs.ACCOUNT_DAILY_CAP),
             # A forgotten password is reset by a link, when there is mail to send it with,
             # and an account may ask for a message when a run of its ends.
-            "password_reset": mail.configured(), "notices": mail.configured()}
+            "password_reset": mail.configured(), "notices": mail.configured(),
+            # An administrator's runs on the deployment's keys: the page then
+            # does not stop them for keys they do not need.
+            "admin_funded": _operator_funds_admins()}
 
 
 def _operator_contact() -> str | None:
@@ -919,7 +943,8 @@ def auth_config() -> AuthConfig:
                       plan_preview=accounts.enabled() and plan_preview.enabled(),
                       daily_quota=accounts.enabled() and bool(runs.ACCOUNT_DAILY_CAP),
                       password_reset=accounts.enabled() and mail.configured(),
-                      notices=accounts.enabled() and mail.configured())
+                      notices=accounts.enabled() and mail.configured(),
+                      admin_funded=accounts.enabled() and _operator_funds_admins())
 
 
 @app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],
@@ -1386,12 +1411,14 @@ def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
     if request.byok:
         credentials = {"provider": request.llm_provider, "api_key": request.llm_api_key,
                        "model": request.llm_model}
-    elif identity.resolve(http_request).kind == "user":
-        raise HTTPException(
-            status_code=401,
-            detail="Add your API keys to preview the search: accounts run on their own keys.",
-            headers={"X-Error-Code": "byok_required"},
-        )
+    else:
+        who = identity.resolve(http_request)
+        if who.kind == "user" and not (who.is_admin and _operator_funds_admins()):
+            raise HTTPException(
+                status_code=401,
+                detail="Add your API keys to preview the search: accounts run on their own keys.",
+                headers={"X-Error-Code": "byok_required"},
+            )
     try:
         plan_preview.admit(http_request.state.owner)
     except plan_preview.PreviewLimitReached as exc:

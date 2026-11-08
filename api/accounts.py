@@ -172,6 +172,19 @@ def _invited(invite: object) -> bool:
     return code is not None and isinstance(invite, str) and hmac.compare_digest(invite.strip(), code)
 
 
+def admin_funded() -> bool:
+    """Whether an administrator's paid operations may run on the deployment's own keys.
+
+    On by default once administrator addresses are named (ACCOUNTS_ADMIN_EMAILS),
+    off with ACCOUNTS_ADMIN_FUNDED=0. The server still needs a model key and a
+    search key for it to mean anything; api.main checks those at the request.
+    Every other account keeps paying with its own keys.
+    """
+    if not admin_emails():
+        return False
+    return os.getenv("ACCOUNTS_ADMIN_FUNDED", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
 def admin_emails() -> frozenset[str]:
     raw = os.getenv("ACCOUNTS_ADMIN_EMAILS") or ""
     return frozenset(e for e in (normalize_email(part) for part in raw.split(",")) if e)
