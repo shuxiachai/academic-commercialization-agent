@@ -18,7 +18,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import Page, Route, expect, sync_playwright
 
-from e2e.browser_smoke import PROJECT_ROOT, _capture_failure, _serve
+from e2e.browser_smoke import PROJECT_ROOT, _serve
+from e2e.smoke_report import capture_failure
 from e2e.receipt_journey import AUXILIARY_FIXTURE, receipt_journey
 
 
@@ -944,7 +945,7 @@ def main() -> None:
             assert not reached_server, reached_server
             assert not page_errors, page_errors
         except Exception:  # noqa: BLE001 - preserve diagnostic artifact, then propagate the real assertion
-            _capture_failure(page)
+            capture_failure(page)
             raise
         finally:
             context.close()

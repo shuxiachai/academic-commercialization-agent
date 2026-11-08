@@ -768,6 +768,12 @@ RUN_RETENTION_DAYS=30
 These are example policy values, not a cost/SLO guarantee.
 
 - `ACCESS_CODES` supports multiple comma-separated codes;
+- `API_RATE_LIMIT_PER_MINUTE` (default 300, 0 disables) bounds requests per
+  client: per validated code or account, else per address. `/health` and the
+  page's own files (`/static/` and the documents that load them) are not
+  counted: a page is seventeen modules confirmed with the server on every
+  load, and one refused module leaves a visitor with a page that never ran
+  its script.
 - `ACCOUNTS_DB` turns on email-and-password accounts (next section);
 - `FORWARDED_ALLOW_IPS=*` behind the platform proxy, so rate limits and
   sign-in lockout see the visitor's address rather than the proxy's;

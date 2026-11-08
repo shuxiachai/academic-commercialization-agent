@@ -15,7 +15,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from e2e import browser_smoke
+from e2e import smoke_report
 
 _ROOT = Path(__file__).resolve().parents[1]
 
@@ -44,7 +44,7 @@ class CaptureTests(unittest.TestCase):
     def setUp(self):
         self._tmp = TemporaryDirectory()
         self.root = Path(self._tmp.name) / "playwright"
-        self._patch = patch.object(browser_smoke, "ARTIFACT_ROOT", self.root)
+        self._patch = patch.object(smoke_report, "ARTIFACT_ROOT", self.root)
         self._patch.start()
 
     def tearDown(self):
@@ -56,8 +56,8 @@ class CaptureTests(unittest.TestCase):
 
     def test_the_picture_gets_a_json_of_page_and_journey_facts(self):
         page = _Page(evaluate={"boot": None, "readyState": "complete", "scripts": [], "storage": {"local": [], "session": []}})
-        browser_smoke._capture_failure(page, {"console_errors": ["Failed to load resource: net::ERR_X"],
-                                              "page_errors": [], "http_failures": [("GET", "/api/x", 503)]})
+        smoke_report.capture_failure(page, {"console_errors": ["Failed to load resource: net::ERR_X"],
+                                            "page_errors": [], "http_failures": [("GET", "/api/x", 503)]})
         self.assertEqual(page.shots, [("browser-smoke-failure.png", True)])
         facts = self._facts()
         self.assertIsNone(facts["page"]["boot"], "a page that never ran app.js is told apart from one that did")
@@ -66,13 +66,13 @@ class CaptureTests(unittest.TestCase):
 
     def test_a_page_that_cannot_answer_still_leaves_the_picture_and_a_note(self):
         page = _Page(evaluate=RuntimeError("Target closed"))
-        browser_smoke._capture_failure(page)
+        smoke_report.capture_failure(page)
         self.assertEqual(len(page.shots), 1)
         self.assertEqual(self._facts()["page"], {"unavailable": "RuntimeError"})
 
     def test_a_closed_page_leaves_nothing_and_raises_nothing(self):
-        browser_smoke._capture_failure(_Page(closed=True), {"console_errors": []})
-        browser_smoke._capture_failure(None)
+        smoke_report.capture_failure(_Page(closed=True), {"console_errors": []})
+        smoke_report.capture_failure(None)
         self.assertFalse(self.root.exists())
 
 
@@ -90,9 +90,16 @@ class ContractTests(unittest.TestCase):
         reload_block = re.search(r'page\.reload\(wait_until="domcontentloaded"\)\n(.*?)to_have_count\(1\)', journey, re.S)
         self.assertIsNotNone(reload_block)
         self.assertIn('to_have_attribute("data-boot", "ready"', reload_block.group(1))
-        self.assertIn("_capture_failure(page, {", smoke)
+        self.assertIn("capture_failure(page, {", smoke)
+        self.assertIn('f[1].startswith("/static/")', smoke, "a refused page file fails the journey by name")
         for name in ("console_errors", "page_errors", "http_failures", "external_requests", "mutation_attempts"):
             self.assertIn(f'"{name}": {name}', smoke)
+
+    def test_the_suite_can_import_the_capture_without_playwright(self):
+        source = (_ROOT / "e2e" / "smoke_report.py").read_text(encoding="utf-8")
+        self.assertIsNone(re.search(r"^\s*(import|from) playwright", source, re.M), "the suite's pytest jobs do not install it")
+        for name in ("composer_smoke.py", "keyboard_smoke.py", "browser_smoke.py"):
+            self.assertIn("from e2e.smoke_report import capture_failure", (_ROOT / "e2e" / name).read_text(encoding="utf-8"), name)
 
     def test_the_harnesses_document_without_an_element_is_left_alone(self):
         app_js = (_ROOT / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")

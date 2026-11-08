@@ -38,7 +38,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import Page, Route, expect, sync_playwright
 
-from e2e.browser_smoke import PROJECT_ROOT, _capture_failure, _serve
+from e2e.browser_smoke import PROJECT_ROOT, _serve
+from e2e.smoke_report import capture_failure
 
 KEYS = frozenset({"Tab", "Shift+Tab", "Enter", "Space", "Escape"})
 RING_MINIMUM = 0.75
@@ -307,7 +308,7 @@ def _byok_journey(browser, scratch: Page, base: str, scheme: str, log: dict) -> 
         return {"gate_stops": len(gate_stops), "byok_stops": len(byok_stops), "page_stops": len(page_stops),
                 "rings": audit.rings, "presses": dict(keys.presses)}
     except Exception:  # noqa: BLE001 - keep one inspectable artifact, then propagate the real assertion
-        _capture_failure(page)
+        capture_failure(page)
         raise
     finally:
         context.close()
@@ -365,7 +366,7 @@ def _phone_menu_journey(browser, scratch: Page, base: str, scheme: str, log: dic
         return {"closed_stops": len(closed_stops), "open_stops": len(open_stops),
                 "rings": audit.rings, "presses": dict(keys.presses)}
     except Exception:  # noqa: BLE001 - keep one inspectable artifact, then propagate the real assertion
-        _capture_failure(page)
+        capture_failure(page)
         raise
     finally:
         context.close()

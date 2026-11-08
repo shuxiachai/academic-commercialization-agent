@@ -944,6 +944,17 @@ class RateLimitTests(_ApiTestCase):
         for _ in range(5):
             self.assertEqual(self.client.get("/health").status_code, 200)
 
+    def test_the_files_a_page_is_made_of_are_never_throttled(self):
+        """A page is seventeen modules that import one another; a 429 on one
+        leaves the visitor a document that never ran its script. The budget
+        is for the API, which stays behind it."""
+        self.main._RATE_LIMIT_REQUESTS = 1
+        self.client.get("/api/runs")
+        self.assertEqual(self.client.get("/api/runs").status_code, 429, "the budget is spent")
+        for path in ("/static/js/app.js", "/static/js/topic.js", "/static/css/tokens.css", "/", "/history", "/samples", "/privacy"):
+            self.assertEqual(self.client.get(path).status_code, 200, path)
+        self.assertEqual(self.client.get("/api/runs").status_code, 429, "...and the page files did not refill it")
+
     def test_separate_codes_get_separate_budgets(self):
         """Charging by address alone would throttle everyone behind one
         campus or corporate NAT as a single client."""
