@@ -202,7 +202,8 @@ uv run academic_agent --topic "solid-state batteries for electric vehicles"
 备份失败、维护循环停止、或部署方自己的密钥、额度、账单导致评估失败时，可以通知
 [飞书或企业微信群机器人](docs/operating-guide.md#alerts)。接入邮件服务
 （[Resend](docs/operating-guide.md#email-verification)）后，新账号要先打开一次性
-链接验证邮箱，才能开始付费操作。目前还没有自助找回密码，密码由运营者重置。
+链接验证邮箱，才能开始付费操作；忘记密码时也通过发到该邮箱的链接自助重置。
+未接入邮件服务的部署由运营者重置密码。
 
 运行链接具有 **128 位随机性**，是读取能力凭证：知道完整链接的人可以
 读取该运行，直到留存策略删除它。修改口令归属的运行还需 owner/admin
@@ -273,7 +274,7 @@ uv run python benchmark.py --dry-run
 
 仍需补强：定性结论的引用支持、独立测量的决策效用、中文/极短/非技术输入的基准、
 旧运行元数据读取状态，以及单副本之外的扩展边界。增加 Agent、向量库或
-Kubernetes 本身不能解决这些缺口。账号还不能自助重置密码；没有接入邮件服务的部署也不验证邮箱，
+Kubernetes 本身不能解决这些缺口。没有接入邮件服务的部署既不验证邮箱，也没有自助重置密码，
 应当保持邀请制注册。
 
 **市场评分**。市场评分卡会明确提示[估值可比性尚未核实](docs/results-2026-09-11-market-score-delivery-disclosure.md)：

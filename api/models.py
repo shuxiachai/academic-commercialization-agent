@@ -922,6 +922,24 @@ class EmailVerified(BaseModel):
     verified: Literal[True] = True
 
 
+class PasswordForgot(BaseModel):
+    """An address to send a password-reset link to. The answer is the same
+    whether or not an account has it."""
+
+    email: str = Field(max_length=254)
+
+
+class PasswordReset(BaseModel):
+    """The token from a reset link, with the password to set."""
+
+    token: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(max_length=200)
+
+
+class PasswordResetDone(BaseModel):
+    email: str
+
+
 class SiteInfo(BaseModel):
     """What the privacy page says about this deployment."""
 
@@ -1053,6 +1071,8 @@ class AuthConfig(BaseModel):
                                                           "on its own key.")
     daily_quota: bool = Field(default=False, description="An account has a daily allowance of its own, shown by "
                                                          "GET /api/quota once signed in.")
+    password_reset: bool = Field(default=False, description="A forgotten password can be reset by a link "
+                                                               "sent to the account's address: mail is set up.")
 
 
 class RetrievalHealth(BaseModel):

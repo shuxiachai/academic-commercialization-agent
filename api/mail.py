@@ -164,6 +164,42 @@ def verification_message(link: str, *, hours: int = 24) -> tuple[str, str, str]:
     return subject, text, _verification_html(link, host=host, hours=hours)
 
 
+def reset_message(link: str, *, minutes: int = 60) -> tuple[str, str, str]:
+    """(subject, text, html) of the email that lets an account choose a new password.
+
+    The same card as the verification message, and as silent about the
+    person: the link in both languages and the fact that someone asked.
+    Anyone can type an address into the form, so the message says plainly
+    that ignoring it changes nothing. The password it would replace is not
+    in it, and nothing else an inbox thief could use without the link.
+    """
+    host = _service_host()
+    subject = f"重置密码 / Reset your password · {host}" if host else "重置密码 / Reset your password"
+    text = (
+        f"{_WORDMARK} · {host}\n\n"
+        f"重置密码 / Reset your password\n\n"
+        f"有人为 {host} 上使用这个邮箱的账号申请了重置密码。点击下面的链接设置新密码。"
+        f"链接 {minutes} 分钟内有效，只能使用一次。\n"
+        f"{link}\n\n"
+        f"Someone asked to reset the password of the account at {host} that uses this address. "
+        f"Open the link to choose a new one; it works once, for {minutes} minutes.\n"
+        f"{link}\n\n"
+        f"如果不是你申请的，忽略这封邮件即可，密码不会改变。\n"
+        f"If this was not you, ignore this message and the password stays as it is.\n\n"
+        f"— {host} · 自动发送，请勿回复 / Automated message, do not reply\n"
+    )
+    html_body = _card_html(
+        link, host=host, title=("重置密码", "Reset your password"),
+        body=(f"有人为 {{host}} 上使用这个邮箱的账号申请了重置密码。点击下面的按钮设置新密码。"
+              f"链接 {minutes} 分钟内有效，只能使用一次。",
+              f"Someone asked to reset the password of the account at {{host}} that uses this address. "
+              f"Open the link to choose a new one; it works once, for {minutes} minutes."),
+        button="设置新密码 · Set a new password",
+        note=("如果不是你申请的，忽略这封邮件即可，密码不会改变。",
+              "If this was not you, ignore this message and the password stays as it is."))
+    return subject, text, html_body
+
+
 _WORDMARK = "Academic Commercialization Assessment"
 _SANS = ("-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, "
          "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif")
@@ -176,7 +212,25 @@ _INK, _INK2, _INK3, _INK4, _ACCENT = "#1d1b18", "#4a463f", "#77726a", "#a39e94",
 
 
 def _verification_html(link: str, *, host: str, hours: int) -> str:
+    return _card_html(
+        link, host=host, title=("验证你的邮箱", "Verify your email"),
+        body=(f"你在 {{host}} 创建了账号。点击下面的按钮验证这个邮箱，之后就可以开始评估。链接 {hours} 小时内有效，只能使用一次。",
+              f"You created an account at {{host}}. Open the link to verify this address and start assessments; "
+              f"it works once, for {hours} hours."),
+        button="验证邮箱 · Verify email",
+        note=("如果不是你创建的，忽略这封邮件即可，不会有任何事情发生。",
+              "If this was not you, ignore this message and nothing will happen."))
+
+
+def _card_html(link: str, *, host: str, title: tuple[str, str], body: tuple[str, str], button: str,
+               note: tuple[str, str]) -> str:
+    """One card, two languages: wordmark, title, a paragraph each, the button, the
+    address as text for a client that drops links, and the note for the reader
+    who did not ask. `{host}` in a paragraph becomes the deployment's host in
+    bold; the paragraphs are this module's own words, the host is escaped."""
     safe_link, safe_host = html.escape(link, quote=True), html.escape(host)
+    strong_host = f'<strong style="color:{_INK};font-weight:600;">{safe_host}</strong>'
+    body_zh, body_en = (paragraph.replace("{host}", strong_host) for paragraph in body)
     mark = mark_url()
     mark_cell = (f'<td style="padding-right:10px;vertical-align:middle;"><img src="{html.escape(mark, quote=True)}" '
                  f'width="28" height="28" alt="" style="display:block;width:28px;height:28px;border-radius:7px;"></td>'
@@ -200,20 +254,16 @@ def _verification_html(link: str, *, host: str, hours: int) -> str:
         "</tr></table></td></tr>"
         # Title
         f'<tr><td style="padding:28px 32px 0;font-family:{_SERIF};font-size:26px;font-weight:600;color:{_INK};'
-        'letter-spacing:-0.018em;line-height:1.25;">验证你的邮箱'
-        f'<br><span style="font-size:19px;font-weight:500;color:{_INK2};">Verify your email</span></td></tr>'
+        f'letter-spacing:-0.018em;line-height:1.25;">{title[0]}'
+        f'<br><span style="font-size:19px;font-weight:500;color:{_INK2};">{title[1]}</span></td></tr>'
         # Body
-        f'<tr><td style="{cell}padding-top:18px;font-size:15px;line-height:1.65;color:{_INK2};">'
-        f"你在 <strong style=\"color:{_INK};font-weight:600;\">{safe_host}</strong> 创建了账号。"
-        f"点击下面的按钮验证这个邮箱，之后就可以开始评估。链接 {hours} 小时内有效，只能使用一次。</td></tr>"
-        f'<tr><td style="{cell}padding-top:10px;font-size:15px;line-height:1.65;color:{_INK2};">'
-        f"You created an account at <strong style=\"color:{_INK};font-weight:600;\">{safe_host}</strong>. "
-        f"Open the link to verify this address and start assessments; it works once, for {hours} hours.</td></tr>"
+        f'<tr><td style="{cell}padding-top:18px;font-size:15px;line-height:1.65;color:{_INK2};">{body_zh}</td></tr>'
+        f'<tr><td style="{cell}padding-top:10px;font-size:15px;line-height:1.65;color:{_INK2};">{body_en}</td></tr>'
         # Button
         f'<tr><td style="{cell}padding-top:26px;">'
         f'<a href="{safe_link}" style="display:inline-block;background:{_ACCENT};color:#ffffff;text-decoration:none;'
         f'font-family:{_SANS};font-size:15px;font-weight:600;line-height:1;padding:14px 24px;border-radius:8px;">'
-        "验证邮箱 · Verify email</a></td></tr>"
+        f"{button}</a></td></tr>"
         # Fallback link
         f'<tr><td style="{cell}padding-top:22px;font-size:12px;line-height:1.6;color:{_INK3};">'
         "按钮打不开？把这个地址复制到浏览器 / If the button does not open, paste this address into your browser:<br>"
@@ -222,8 +272,8 @@ def _verification_html(link: str, *, host: str, hours: int) -> str:
         f'<tr><td style="padding:26px 32px 28px;">'
         f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
         f'<td style="border-top:1px solid {_LINE};padding-top:16px;font-family:{_SANS};font-size:12px;'
-        f'line-height:1.6;color:{_INK3};">如果不是你创建的，忽略这封邮件即可，不会有任何事情发生。<br>'
-        "If this was not you, ignore this message and nothing will happen.</td></tr></table></td></tr>"
+        f'line-height:1.6;color:{_INK3};">{note[0]}<br>'
+        f"{note[1]}</td></tr></table></td></tr>"
         "</table>"
         # Below the card
         f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">'

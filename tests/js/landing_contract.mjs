@@ -24,7 +24,7 @@ const SAMPLES = [
     committed: "2026-10-21", commit: "a8cc424" },
   { slug: "../etc/passwd", title: "Not a sample", topic: "", committed: "", commit: "" },
 ];
-const ACCOUNTS = { enabled: true, signup_open: true, signup: "open", access_codes: false,
+const ACCOUNTS = { enabled: true, signup_open: true, signup: "open", access_codes: false, password_reset: true,
   key_check: false, contact: null, plan_preview: false, daily_quota: false };
 const ACCOUNT = { email: "visitor@example.test", admin: false, verified: true };
 
@@ -46,7 +46,8 @@ assert.ok(hiddenAtStart.includes("gate") && hiddenAtStart.includes("landing"), "
 // The scorecard picture's address travels in data-src, not src (see index.html).
 const previewSource = markup.match(/<img id="landing-preview" data-src="([^"]+)"/)[1];
 
-function fixture({ pathname = "/", access }) {
+// `replies` answers the seams a scenario is about beyond the boot's access check.
+function fixture({ pathname = "/", search = "", access, replies = {} }) {
   const elements = new Map();
   class Element {
     constructor() {
@@ -75,6 +76,7 @@ function fixture({ pathname = "/", access }) {
     status, headers: { "Content-Type": "application/json" } }));
   globalThis.fetch = (url, options = {}) => {
     requests.push({ url, options });
+    if (url in replies) return reply(replies[url]);
     if (url === "/api/access/check") return reply(access.body, access.status);
     if (url === "/api/samples") return reply(SAMPLES);
     if (url === "/api/auth/login" || url === "/api/auth/register") return reply({ token: "fixture-token", ...ACCOUNT });
@@ -91,9 +93,9 @@ function fixture({ pathname = "/", access }) {
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false },
     window: { matchMedia: () => ({ matches: false }), addEventListener: () => {} },
-    localStorage: globalThis.localStorage, Event,
+    localStorage: globalThis.localStorage, Event, URLSearchParams,
     history: { pushState: () => {}, replaceState: () => {} },
-    location: { pathname, search: "", reload: () => reloads.push(true), replace: (url) => navigations.push(url) },
+    location: { pathname, search, reload: () => reloads.push(true), replace: (url) => navigations.push(url) },
     setTimeout: () => 1, clearTimeout: () => {}, setInterval: () => 1, clearInterval: () => {},
     confirm: () => true,
   });
@@ -199,6 +201,79 @@ const scenarios = {
     assert.equal(disk.get("session-token"), undefined);
     assert.deepEqual(f.navigations, ["/"], "Signing out of an account leaves for the front door, not a reload of the run just left");
     assert.deepEqual(f.reloads, []);
+  },
+  async reset_link() {
+    // The page a reset link opens. No session decides anything: the card
+    // opens on the new-password form and then signs in with the new password.
+    disk.set("session-token", "stale-token");   // a browser that was signed in when the password was lost
+    const f = fixture({ pathname: "/reset", search: "?token=link-token", access: refused(ACCOUNTS),
+      replies: { "/api/auth/config": ACCOUNTS, "/api/auth/password/reset": { email: ACCOUNT.email } } });
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: true }, "A reset link opens the card, not the landing");
+    assert.equal(f.get("#reset-form").hidden, false, "...on the new-password form");
+    assert.equal(f.get("#account-form").hidden, true);
+    assert.ok(f.requests.some((r) => r.url === "/api/auth/config"), "The sign-in configuration comes from its own request");
+    assert.ok(!f.requests.some((r) => r.url === "/api/access/check"), "...not from an access check nobody could pass");
+    f.get("#reset-password").value = "a new password long enough";
+    f.get("#reset-form").onsubmit({ preventDefault() {} });
+    await settle();
+    const posted = f.requests.find((r) => r.url === "/api/auth/password/reset");
+    assert.deepEqual(JSON.parse(posted.options.body), { token: "link-token", new_password: "a new password long enough" },
+      "The token from the link goes with the password");
+    assert.equal(f.get("#reset-form").hidden, true, "Then the sign-in form, with the address filled in");
+    assert.equal(f.get("#account-form").hidden, false);
+    assert.equal(f.get("#account-email-input").value, ACCOUNT.email);
+    assert.equal(disk.get("session-token"), undefined, "The stale session is dropped: every session of the account ended");
+    f.get("#account-password").value = "a new password long enough";
+    f.get("#account-form").onsubmit({ preventDefault() {} });
+    await settle();
+    assert.equal(disk.get("session-token"), "fixture-token", "Signing in with the new password works from the same card");
+    assert.equal(f.get("#byok-form").hidden, false);
+  },
+  async reset_link_refused() {
+    const f = fixture({ pathname: "/reset", search: "?token=stale", access: refused(ACCOUNTS),
+      replies: { "/api/auth/config": ACCOUNTS } });
+    globalThis.fetch = ((inner) => (url, options) => url === "/api/auth/password/reset"
+      ? Promise.resolve(new Response(JSON.stringify({ detail: "expired" }), { status: 410,
+          headers: { "Content-Type": "application/json", "X-Error-Code": "reset_expired" } }))
+      : inner(url, options))(globalThis.fetch);
+    await settle();
+    f.get("#reset-password").value = "a new password long enough";
+    f.get("#reset-form").onsubmit({ preventDefault() {} });
+    await settle();
+    assert.equal(f.get("#reset-error").hidden, false, "A spent or stale link is said so on the form");
+    assert.equal(f.get("#reset-error").textContent, "reset_expired");
+    assert.equal(f.get("#reset-form").hidden, false, "...which stays, so the person can read it");
+    f.get("#reset-back").onclick();
+    assert.equal(f.get("#account-form").hidden, false, "Back to sign in, where the forgot button asks for a new link");
+    assert.equal(f.get("#account-forgot").hidden, false);
+  },
+  async forgot_from_sign_in() {
+    const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS), replies: { "/api/auth/password/forgot": {} } });
+    await settle();
+    assert.equal(f.get("#account-forgot").hidden, false, "With mail, the sign-in form offers the reset");
+    f.get("#account-email-input").value = ACCOUNT.email;
+    f.get("#account-forgot").onclick();
+    assert.equal(f.get("#forgot-form").hidden, false);
+    assert.equal(f.get("#account-form").hidden, true);
+    assert.equal(f.get("#forgot-email").value, ACCOUNT.email, "The address typed on the sign-in form is carried over");
+    f.get("#forgot-form").onsubmit({ preventDefault() {} });
+    await settle();
+    const posted = f.requests.find((r) => r.url === "/api/auth/password/forgot");
+    assert.deepEqual(JSON.parse(posted.options.body), { email: ACCOUNT.email });
+    assert.equal(f.get("#forgot-sent").hidden, false, "The same words whether or not an account has the address");
+    assert.equal(f.get("#forgot-error").hidden, true);
+    f.get("#forgot-back").onclick();
+    assert.equal(f.get("#account-form").hidden, false);
+    assert.equal(f.get("#forgot-form").hidden, true);
+    f.get("#account-toggle").onclick();
+    assert.equal(f.get("#account-forgot").hidden, true, "Creating an account, there is no password to have forgotten");
+  },
+  async forgot_absent_without_mail() {
+    const f = fixture({ pathname: DEEP_LINK, access: refused({ ...ACCOUNTS, password_reset: false }) });
+    await settle();
+    assert.equal(f.get("#account-form").hidden, false);
+    assert.equal(f.get("#account-forgot").hidden, true, "Without mail there is no link to send; the privacy page names the operator");
   },
   async logout_without_accounts_reloads() {
     const f = fixture({ access: { status: 200, body: { ok: true } } });

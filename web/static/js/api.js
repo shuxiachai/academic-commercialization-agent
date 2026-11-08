@@ -362,6 +362,12 @@ export const me = () => request("/api/auth/me");
 // the link need not be the one that signed up.
 export const verifyEmail = (token) => request("/api/auth/verify", json({ token }));
 export const resendVerification = () => request("/api/auth/verify/resend", { method: "POST" });
+/* The two halves of a password reset by email: the address, answered the
+ * same way whether or not an account has it; then the token from the link
+ * with the new password. Neither needs a session. */
+export const forgotPassword = (email) => request("/api/auth/password/forgot", json({ email }));
+export const resetPassword = (token, new_password) =>
+  request("/api/auth/password/reset", json({ token, new_password }));
 // What the providers say about a key set an account is about to save. One
 // unbilled read per service; the answer carries no key. Bounded here as well
 // as on the server, so a silent network cannot hold the form open.

@@ -3,8 +3,10 @@
     python -m api.account_admin reset-password someone@example.com
     python -m api.account_admin verify someone@example.com
 
-There is no password reset by email yet. A person who forgets their password
-has exactly one way back, and it is this command, run by the operator.
+With mail set up, a person who forgets their password resets it from the
+sign-in screen with a link sent to their address (api/accounts.py,
+issue_password_reset). Without mail, or for an address whose mail never
+arrives, the way back is this command, run by the operator.
 
 Whoever can run it already has a shell on the machine that holds the
 account database, so it grants nothing that shell did not already give. It

@@ -537,7 +537,36 @@
       <button type="submit" class="btn btn--primary" id="account-submit" data-i18n="account_sign_in">Sign in</button>
       <p class="gate__hint"><a href="/privacy" target="_blank" rel="noopener" data-i18n="account_legal">Creating an account means accepting the privacy and terms notes: what is stored, and what never is.</a></p>
       <button type="button" class="gate__switch" id="account-toggle" data-i18n="account_toggle_to_create">No account? Create one</button>
+      <!-- Only when the deployment can send mail (auth config password_reset);
+           otherwise the operator is the way back and the privacy page says so. -->
+      <button type="button" class="gate__switch" id="account-forgot" data-i18n="account_forgot" hidden>Forgot your password?</button>
       <button type="button" class="gate__switch" id="account-to-code" data-i18n="account_to_code" hidden>Use an access code instead</button>
+    </form>
+
+    <!-- Password reset by email, first half (api/accounts.py issue_password_reset):
+         the address. The answer reads the same whether or not an account has
+         it, so the form cannot be used to learn which addresses do. -->
+    <form id="forgot-form" hidden>
+      <h2 class="gate__title" data-i18n="forgot_title">Reset your password</h2>
+      <p class="gate__sub" data-i18n="forgot_sub">Enter the email of your account. If an account has it, a link to choose a new password is sent there; it works once, for an hour.</p>
+      <input class="gate__input" id="forgot-email" type="email" autocomplete="username" required
+             maxlength="254" data-i18n-placeholder="account_email_placeholder" placeholder="Email">
+      <p class="gate__hint" id="forgot-sent" role="status" hidden></p>
+      <p class="gate__error" id="forgot-error" hidden></p>
+      <button type="submit" class="btn btn--primary" id="forgot-submit" data-i18n="forgot_submit">Send the link</button>
+      <button type="button" class="gate__switch" id="forgot-back" data-i18n="forgot_back">Back to sign in</button>
+    </form>
+
+    <!-- Second half: the page a reset link opens (/reset?token=…). The new
+         password is posted with the token; then the person signs in with it. -->
+    <form id="reset-form" hidden>
+      <h2 class="gate__title" data-i18n="reset_title">Choose a new password</h2>
+      <p class="gate__sub" data-i18n="reset_sub">Once it is set, every device signed in to the account is signed out, and you sign in again with the new password.</p>
+      <input class="gate__input" id="reset-password" type="password" autocomplete="new-password" required
+             minlength="10" maxlength="200" data-i18n-placeholder="account_new_password" placeholder="New password (at least 10 characters)">
+      <p class="gate__error" id="reset-error" hidden></p>
+      <button type="submit" class="btn btn--primary" id="reset-submit" data-i18n="reset_submit">Set the password</button>
+      <button type="button" class="gate__switch" id="reset-back" data-i18n="forgot_back">Back to sign in</button>
     </form>
 
     <form id="gate-form">
