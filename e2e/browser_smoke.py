@@ -41,8 +41,17 @@ ARTIFACT_ROOT = PROJECT_ROOT / "output" / "playwright"
 HEADER_UNBROKEN_METADATA = "METADATA_UNBROKEN_TOKEN_" + "x" * 160
 
 
-def _capture_failure(page: Page | None) -> None:
-    """Keep one inspectable browser artifact without dirtying successful runs."""
+def _capture_failure(page: Page | None, notes: dict | None = None) -> None:
+    """Keep one inspectable browser artifact without dirtying successful runs.
+
+    A picture of the page says what it looked like; the JSON beside it says
+    why it may have looked that way: whether the page's own scripts ran
+    (`data-boot` on the document, set by app.js), which script files the
+    browser fetched and when, which storage keys existed (names only), what
+    the console and the page reported, and the HTTP failures the journey saw.
+    The two CI failures before this had identical pictures of a page that
+    had not booted, and nothing else to go on.
+    """
     if page is None or page.is_closed():
         return
     ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
@@ -53,6 +62,29 @@ def _capture_failure(page: Page | None) -> None:
             f"[browser-smoke] failure screenshot unavailable: {type(exc).__name__}",
             file=sys.stderr,
         )
+    try:
+        facts = page.evaluate("""() => {
+          const hidden = (sel) => { const el = document.querySelector(sel); return el ? el.hidden : null; };
+          const keys = (store) => { try { return Object.keys(store); } catch (e) { return "threw: " + e.message; } };
+          return {
+            url: location.href, readyState: document.readyState, boot: document.documentElement.dataset.boot ?? null,
+            hidden: { workbench: hidden("#workbench"), landing: hidden("#landing"), gate: hidden("#gate"),
+                      byok_badge: hidden("#byok-badge"), code_badge: hidden("#code-badge") },
+            storage: { local: keys(localStorage), session: keys(sessionStorage) },
+            scripts: performance.getEntriesByType("resource")
+              .filter((e) => e.name.includes("/static/js/"))
+              .map((e) => ({ name: e.name.split("/static/js/")[1], start: Math.round(e.startTime),
+                             end: Math.round(e.responseEnd), size: e.transferSize })),
+            runlist_children: document.querySelector("#runlist")?.children.length ?? null,
+          };
+        }""")
+    except Exception as exc:  # noqa: BLE001 - the page may be gone; the picture still stands
+        facts = {"unavailable": type(exc).__name__}
+    try:
+        (ARTIFACT_ROOT / "browser-smoke-failure.json").write_text(
+            json.dumps({"page": facts, **(notes or {})}, indent=2, default=str), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[browser-smoke] failure facts unavailable: {type(exc).__name__}", file=sys.stderr)
 
 
 def _exercise_sources_panel(page: Page, collection: dict, *, chinese: bool) -> None:
@@ -1046,6 +1078,11 @@ def _exercise_browser(
             expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(0)
             expect(byok_row.locator(".runitem")).to_have_attribute("aria-label", f"{FIXTURE_TOPIC} — Run state unavailable; this does not mean it failed.")
             page.reload(wait_until="domcontentloaded")
+            # The page must have booted before its history can be judged. Twice
+            # in CI the row never came back and the picture showed a document
+            # whose scripts had not run at all; that is a different failure
+            # from a row that fails to repaint, and is now said as such.
+            expect(page.locator("html")).to_have_attribute("data-boot", "ready", timeout=10_000)
             expect(byok_row.locator('.runitem__state[data-state="completed"]')).to_have_count(1)
             expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(1)
 
@@ -1093,7 +1130,10 @@ def _exercise_browser(
             )
             assert not page_errors, "Uncaught page errors: " + "; ".join(page_errors)
         except Exception:  # noqa: BLE001 - preserve visual evidence for any browser/assertion failure
-            _capture_failure(page)
+            _capture_failure(page, {
+                "console_errors": console_errors, "page_errors": page_errors, "http_failures": http_failures,
+                "external_requests": external_requests, "mutation_attempts": mutation_attempts,
+            })
             raise
         finally:
             context.close()
