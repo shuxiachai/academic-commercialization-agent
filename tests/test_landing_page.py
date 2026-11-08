@@ -37,6 +37,8 @@ SCENARIOS = (
     "reset_link", "reset_link_refused", "forgot_from_sign_in", "forgot_absent_without_mail",
     # The Account panel's run-finished notice switch (tests/test_run_notices.py).
     "notice_switch", "notice_switch_refused", "notice_switch_absent_without_mail",
+    # An administrator the deployment funds is not asked for keys (tests/test_admin_funded.py).
+    "signed_in_admin_funded",
 )
 
 

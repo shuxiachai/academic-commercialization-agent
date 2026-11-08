@@ -134,6 +134,11 @@ _CANCEL_MARKER = "cancelled.marker"
 # for any deployment with no code configured — both cases mean "no owner",
 # not "everyone's owner", so those runs never appear in a filtered list.
 _OWNER_FILE = ".owner"
+# Whose keys an account's run used. Absent for every run before this marker
+# and for an account's run on its own keys; "deployment" for an administrator's
+# run on the operator's keys. Read by _funded_by, which chooses the wording of
+# a failure, never an authorization.
+_FUNDED_FILE = ".funded"
 
 # Whether this run spent one of its owner's daily paid operations. Written by
 # the API at launch and rewritten on a launch-failure refund, so the run page
@@ -910,6 +915,7 @@ def _start_run_from_spec(
         spec_path = spec.save(run_dir)
         if owner is not None:
             (run_dir / _OWNER_FILE).write_text(owner, encoding="utf-8")
+        _record_funding(run_dir, owner=owner, byok=byok)
         _write_daily_charge(run_dir, charged_on)
         if resume_from is not None:
             # Snapshot before Popen. The source can be deleted manually or by
@@ -1706,13 +1712,25 @@ def _public_failure_reason(raw_reason: object, *, code_funded: bool = False) -> 
     return _public_failure(raw_reason, funded_by=_DEPLOYMENT if code_funded else None)[1]
 
 
-def _funded_by(run_dir: Path) -> str | None:
-    """Whose keys a run used, as far as its owner marker says.
+def _record_funding(run_dir: Path, *, owner: str | None, byok: object) -> None:
+    """Note an account's run that the deployment paid for.
 
-    An account's run is always on the account's own keys: accounts are never
-    billed to the deployment. Any other owner is an access code, funded by
-    the deployment. No marker is a run nobody owns, a local run or a visitor
-    without an account, and says nothing either way.
+    Only an administrator reaches this (api.main._paid_owner); for every
+    other account the absence of the marker means, as it always has, the
+    account's own keys. Written before the worker starts, beside the owner.
+    """
+    if owner is not None and byok is None and accounts.is_user_owner(owner):
+        (run_dir / _FUNDED_FILE).write_text(_DEPLOYMENT, encoding="utf-8")
+
+
+def _funded_by(run_dir: Path) -> str | None:
+    """Whose keys a run used, as far as its markers say.
+
+    An account's run is on the account's own keys unless the funding marker
+    says the deployment paid, which only an administrator's run can say.
+    Any other owner is an access code, funded by the deployment. No owner
+    marker is a run nobody owns, a local run or a visitor without an
+    account, and says nothing either way.
 
     An unreadable marker still exists, so it keeps the wording an owned run
     had before accounts: this chooses a sentence, not an authorization, and
@@ -1725,7 +1743,15 @@ def _funded_by(run_dir: Path) -> str | None:
         owner = marker.read_text(encoding="utf-8").strip()
     except OSError:
         return _DEPLOYMENT
-    return _OWN_KEYS if accounts.is_user_owner(owner) else _DEPLOYMENT
+    if not accounts.is_user_owner(owner):
+        return _DEPLOYMENT
+    funded = run_dir / _FUNDED_FILE
+    if not funded.exists():
+        return _OWN_KEYS
+    try:
+        return _DEPLOYMENT if funded.read_text(encoding="utf-8").strip() == _DEPLOYMENT else _OWN_KEYS
+    except OSError:
+        return _DEPLOYMENT
 
 
 def artifact_names() -> list[str]:
