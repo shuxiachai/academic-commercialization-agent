@@ -21,7 +21,7 @@ included.
 | Way in | What you need | |
 |---|---|---|
 | **Read sample reports** | Nothing. Five finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-commercialization-agent.up.railway.app/samples) |
-| **Run a new analysis online** | An account (sign-up is by invite code from the operator) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to; or an operator-issued access code. Incurs provider usage | [Open the app](https://academic-commercialization-agent.up.railway.app) |
+| **Run a new analysis online** | A free account (email and password; sign-up is open) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to. Incurs provider usage | [Open the app](https://academic-commercialization-agent.up.railway.app) |
 | **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [Quick start](#quick-start) |
 
 The samples are also in [examples/](examples/README.md): two runs from
