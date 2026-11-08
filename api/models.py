@@ -909,6 +909,13 @@ class AuthMe(BaseModel):
     email: str
     admin: bool = False
     verified: bool = True
+    notify_done: bool = Field(default=False, description="The account asked for an email when one of its runs ends.")
+
+
+class NotifyPreference(BaseModel):
+    """Whether the signed-in account wants an email when one of its runs ends."""
+
+    enabled: bool
 
 
 class VerifyEmail(BaseModel):
@@ -1073,6 +1080,8 @@ class AuthConfig(BaseModel):
                                                          "GET /api/quota once signed in.")
     password_reset: bool = Field(default=False, description="A forgotten password can be reset by a link "
                                                                "sent to the account's address: mail is set up.")
+    notices: bool = Field(default=False, description="An account can ask for an email when one of its runs "
+                                                        "ends: mail is set up.")
 
 
 class RetrievalHealth(BaseModel):

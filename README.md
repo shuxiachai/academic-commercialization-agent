@@ -247,7 +247,8 @@ fails, the maintenance loop stops, or the deployment's own key, quota or
 billing makes runs fail. With an email service set up
 ([Resend](docs/operating-guide.md#email-verification)), a new account proves
 its address through a one-time link before it can start paid work, and a
-forgotten password is reset by a link sent to the same address. Without an
+forgotten password is reset by a link sent to the same address, and an
+account can ask to be emailed when an assessment of its ends. Without an
 email service the operator resets passwords.
 
 Run URLs carry **128 bits of randomness** and act as read capabilities:

@@ -202,8 +202,8 @@ uv run academic_agent --topic "solid-state batteries for electric vehicles"
 备份失败、维护循环停止、或部署方自己的密钥、额度、账单导致评估失败时，可以通知
 [飞书或企业微信群机器人](docs/operating-guide.md#alerts)。接入邮件服务
 （[Resend](docs/operating-guide.md#email-verification)）后，新账号要先打开一次性
-链接验证邮箱，才能开始付费操作；忘记密码时也通过发到该邮箱的链接自助重置。
-未接入邮件服务的部署由运营者重置密码。
+链接验证邮箱，才能开始付费操作；忘记密码时也通过发到该邮箱的链接自助重置；
+账号还可以选择在评估结束时收到邮件通知。未接入邮件服务的部署由运营者重置密码。
 
 运行链接具有 **128 位随机性**，是读取能力凭证：知道完整链接的人可以
 读取该运行，直到留存策略删除它。修改口令归属的运行还需 owner/admin

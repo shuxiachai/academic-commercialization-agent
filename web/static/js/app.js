@@ -722,6 +722,8 @@ let accountEmail = null;
 // Such an account can sign in, save keys and preview; a run is refused, here
 // before any intent is recorded and on the server with email_unverified.
 let accountVerified = true;
+// Whether the account asked for an email when a run of its ends (Account panel).
+let accountNotify = false;
 let authConfig = null;
 // A disabled button is only a projection, not an operation lock: input events
 // used to re-enable it while a paid POST was still awaiting acknowledgement.
@@ -1295,6 +1297,7 @@ function applyAccountMode(me) {
   $("#account-console").hidden = me.admin !== true;
   $("#account-badge").hidden = false;
   accountVerified = me.verified !== false;
+  accountNotify = me.notify_done === true;
   paintVerifyNotice();
   hidePlan();
   refreshQuota();
@@ -1483,6 +1486,30 @@ function showAccountSettings() {
     return key ? t(key) : err.message;
   };
   $("#settings-close").onclick = close;
+
+  // The notice switch: only where the deployment can send mail. Saved on
+  // change, and put back if the server did not take it, so the box never
+  // shows a state the account does not have.
+  const notifyRow = $("#settings-notify-row");
+  const notifyBox = $("#settings-notify");
+  notifyRow.hidden = !authConfig?.notices;
+  notifyBox.checked = accountNotify;
+  notifyBox.disabled = false;
+  $("#settings-notify-hint").textContent = t("account_notify_hint").replace("{email}", accountEmail ?? "");
+  notifyBox.onchange = async () => {
+    const wanted = notifyBox.checked;
+    notifyBox.disabled = true;
+    try {
+      await api.setNotify(wanted);
+      accountNotify = wanted;
+      toast(t(wanted ? "account_notify_on" : "account_notify_off"), "success");
+    } catch {
+      notifyBox.checked = accountNotify;
+      toast(t("account_notify_failed"), "error");
+    } finally {
+      notifyBox.disabled = false;
+    }
+  };
 
   passwordForm.onsubmit = async (e) => {
     e.preventDefault();

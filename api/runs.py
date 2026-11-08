@@ -2180,6 +2180,29 @@ def owner_of(run_id: str) -> str | None:
     return _read_owner(run_dir_for(run_id))
 
 
+def terminal_record(run_id: str) -> TerminalRecord | None:
+    """The run's terminal record once the worker, or an external stop, has written one.
+
+    None while the run is still going, for a run from before terminal
+    records, and for a record that cannot be read; a caller that must tell
+    those apart (get_state) reads the projection too.
+    """
+    if not _is_valid_run_id(run_id):
+        return None
+    return _read_terminal(run_dir_for(run_id))[0]
+
+
+def topic_of(run_id: str) -> str:
+    """What the run is about, as the worker recorded it; "" until it has."""
+    if not _is_valid_run_id(run_id):
+        return ""
+    try:
+        topic = _read_status(run_dir_for(run_id)).get("topic")
+    except StatusUnreadable:
+        return ""
+    return topic if isinstance(topic, str) else ""
+
+
 def active_run_ids(owner: str) -> list[str]:
     """Runs of `owner` that are live, launching or stopping right now.
 

@@ -35,6 +35,8 @@ SCENARIOS = (
     # Password reset by email (tests/test_password_reset.py): the page a link
     # opens, a refused link, the forgot form, and its absence without mail.
     "reset_link", "reset_link_refused", "forgot_from_sign_in", "forgot_absent_without_mail",
+    # The Account panel's run-finished notice switch (tests/test_run_notices.py).
+    "notice_switch", "notice_switch_refused", "notice_switch_absent_without_mail",
 )
 
 

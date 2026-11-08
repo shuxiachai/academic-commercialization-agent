@@ -200,6 +200,55 @@ def reset_message(link: str, *, minutes: int = 60) -> tuple[str, str, str]:
     return subject, text, html_body
 
 
+def run_notice_message(link: str, *, topic: str, state: str, minutes: int | None = None) -> tuple[str, str, str]:
+    """(subject, text, html) telling an account that one of its runs has ended.
+
+    The topic is the account's own words, cut to a line and escaped for the
+    card; the link is the run's capability, sent to the account's address
+    and nowhere else. A finished run gets the report; a failed one gets the
+    run page, which says why and offers the checkpoint. The last line says
+    how to stop these, since an opt-in that cannot be undone from the
+    message is a complaint waiting to happen.
+    """
+    host = _service_host()
+    shown = " ".join(topic.split()) or "—"
+    if len(shown) > 120:
+        shown = shown[:119] + "…"
+    took_zh = f"，用时约 {minutes} 分钟" if minutes else ""
+    took_en = f" after about {minutes} minutes" if minutes else ""
+    if state == "completed":
+        title = ("评估完成", "Assessment finished")
+        subject = f"评估完成 / Assessment finished · {host}" if host else "评估完成 / Assessment finished"
+        body_zh = f"你在 {{host}} 发起的评估「{{topic}}」已完成{took_zh}。点击下面的按钮查看报告。"
+        body_en = f"Your assessment at {{host}}, “{{topic}}”, has finished{took_en}. Open the report below."
+        button = "查看报告 · Open the report"
+    else:
+        title = ("评估未完成", "Assessment did not finish")
+        subject = f"评估未完成 / Assessment did not finish · {host}" if host else "评估未完成 / Assessment did not finish"
+        body_zh = f"你在 {{host}} 发起的评估「{{topic}}」未能完成{took_zh}。打开运行页可以看到原因；如果有检查点，可以从那里续跑。"
+        body_en = (f"Your assessment at {{host}}, “{{topic}}”, did not finish{took_en}. The run page says why; "
+                   "where there is a checkpoint, it can resume from there.")
+        button = "查看运行 · Open the run"
+    note = ("不想再收到这类邮件？在账号面板里关掉“评估结束后发邮件给我”即可。",
+            "To stop these messages, turn off the notice in the Account panel.")
+    plain = lambda paragraph: paragraph.replace("{host}", host).replace("{topic}", shown)  # noqa: E731
+    text = (
+        f"{_WORDMARK} · {host}\n\n"
+        f"{title[0]} / {title[1]}\n\n"
+        f"{plain(body_zh)}\n"
+        f"{link}\n\n"
+        f"{plain(body_en)}\n"
+        f"{link}\n\n"
+        f"{note[0]}\n{note[1]}\n\n"
+        f"— {host} · 自动发送，请勿回复 / Automated message, do not reply\n"
+    )
+    safe_topic = html.escape(shown)
+    html_body = _card_html(link, host=host, title=title,
+                           body=(body_zh.replace("{topic}", safe_topic), body_en.replace("{topic}", safe_topic)),
+                           button=button, note=note)
+    return subject, text, html_body
+
+
 _WORDMARK = "Academic Commercialization Assessment"
 _SANS = ("-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, "
          "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif")
