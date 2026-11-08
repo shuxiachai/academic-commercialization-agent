@@ -9,9 +9,10 @@ The list is a fixed allowlist rather than a directory scan. A slug never
 becomes a path, so a request cannot reach any other file, and a new example
 appears here only when someone decides it should.
 
-Each entry records the commit that added it. The reports are historical runs
-from an earlier pipeline; the page says so next to every one of them rather
-than letting an old output pass for current behaviour.
+Each entry records the pipeline revision and the model the run was made
+with. The page says both next to every report, with the date, rather than
+letting any output pass for current behaviour or for a measure of accuracy;
+the citations in a sample have not been re-verified.
 """
 
 from __future__ import annotations
@@ -30,10 +31,66 @@ class Sample:
     topic: str
     committed: str
     commit: str
+    # The model the run was made with; the page says it beside the date and
+    # the pipeline revision, so a reader can weigh the report accordingly.
+    model: str
 
 
 SAMPLES: tuple[Sample, ...] = (
-    # Production runs of 2026-10-21 (pipeline a8cc424, qwen3.8-27b), kept verbatim.
+    # Live runs of 2026-11-08 from the CLI on the current pipeline, with
+    # deepseek-v4-pro: five of the ten held-out topics of the spot check
+    # (docs/results-2026-11-08-heldout-spot-check-deepseek-v4-pro*.md), kept
+    # verbatim as the writer and reviewer left them. A CLI run carries no
+    # decision context, so these have no applicability block; the hyperloop
+    # production run below keeps that paragraph on the page.
+    Sample(
+        slug="continuous-glucose-monitoring",
+        file="continuous-glucose-monitoring.md",
+        title="Continuous glucose monitoring for diabetes",
+        topic="continuous glucose monitoring for diabetes",
+        committed="2026-11-08",
+        commit="9bd948c",
+        model="deepseek-v4-pro",
+    ),
+    Sample(
+        slug="robotic-assisted-surgery",
+        file="robotic-assisted-surgery.md",
+        title="Robotic-assisted surgery",
+        topic="robotic-assisted surgery",
+        committed="2026-11-08",
+        commit="14a2097",
+        model="deepseek-v4-pro",
+    ),
+    Sample(
+        slug="pig-kidney-xenotransplantation",
+        file="pig-kidney-xenotransplantation.md",
+        title="Pig kidney xenotransplantation",
+        topic="pig kidney xenotransplantation",
+        committed="2026-11-08",
+        commit="9bd948c",
+        model="deepseek-v4-pro",
+    ),
+    Sample(
+        slug="space-based-solar-power",
+        file="space-based-solar-power.md",
+        title="Space-based solar power",
+        topic="space-based solar power",
+        committed="2026-11-08",
+        commit="14a2097",
+        model="deepseek-v4-pro",
+    ),
+    Sample(
+        slug="uhvdc-transmission-zh",
+        file="uhvdc-transmission-zh.md",
+        title="特高压直流输电",
+        topic="特高压直流输电",
+        committed="2026-11-08",
+        commit="14a2097",
+        model="deepseek-v4-pro",
+    ),
+    # Production run of 2026-10-21 (pipeline a8cc424, qwen3.8-27b), kept
+    # verbatim: the one-word input, and the one sample with the applicability
+    # paragraph a web run gets.
     Sample(
         slug="hyperloop",
         file="hyperloop.md",
@@ -41,40 +98,10 @@ SAMPLES: tuple[Sample, ...] = (
         topic="hyperloop",
         committed="2026-10-21",
         commit="a8cc424",
-    ),
-    Sample(
-        slug="solid-state-batteries-ev-zh",
-        file="solid-state-batteries-ev-zh.md",
-        title="电动汽车用固态电池",
-        topic="电动汽车用固态电池",
-        committed="2026-10-21",
-        commit="a8cc424",
-    ),
-    Sample(
-        slug="solid-state-batteries-ev",
-        file="solid-state-batteries-ev.md",
-        title="Solid-state batteries for electric vehicles",
-        topic="solid-state batteries for electric vehicles",
-        committed="2026-07-19",
-        commit="9673a83",
-    ),
-    Sample(
-        slug="perovskite-solar-cells-bipv",
-        file="perovskite-solar-cells-bipv.md",
-        title="Perovskite solar cells for building-integrated photovoltaics",
-        topic="perovskite solar cells for building-integrated photovoltaics",
-        committed="2026-07-19",
-        commit="9673a83",
-    ),
-    Sample(
-        slug="car-t-therapy-solid-tumors",
-        file="car-t-therapy-solid-tumors.md",
-        title="CAR-T cell therapy for solid tumors",
-        topic="CAR-T cell therapy for solid tumors",
-        committed="2026-07-19",
-        commit="9673a83",
+        model="qwen3.8-27b",
     ),
 )
+
 
 _BY_SLUG = {sample.slug: sample for sample in SAMPLES}
 
