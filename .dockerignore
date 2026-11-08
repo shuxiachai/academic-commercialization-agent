@@ -27,6 +27,7 @@ outputs/
 .github/
 .gitignore
 .claude/
+.devcontainer/
 *.md
 !README.md
 简历项目说明.md

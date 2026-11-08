@@ -34,7 +34,10 @@ uv sync
 
 Python 3.11/3.12 are the CI-tested versions. Dependencies need network to
 install; the default tests need neither provider keys nor paid requests.
-Configure `.env` only when intentionally running real analysis.
+Configure `.env` only when intentionally running real analysis. You can also
+open the repository in GitHub Codespaces or VS Code Dev Containers
+(`.devcontainer/devcontainer.json`), which provisions Python 3.12, Node, `uv`,
+and `fonts-wqy-zenhei` and runs `uv sync` automatically.
 
 ## Checks before and after a change
 
