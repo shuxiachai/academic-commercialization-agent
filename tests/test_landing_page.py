@@ -32,6 +32,9 @@ _SCRIPT = Path(__file__).with_name("js") / "landing_contract.mjs"
 SCENARIOS = (
     "anonymous_root", "anonymous_root_signup_closed", "anonymous_deep_link", "anonymous_codes_only",
     "signed_in", "ungated", "logout_goes_home", "logout_without_accounts_reloads",
+    # Password reset by email (tests/test_password_reset.py): the page a link
+    # opens, a refused link, the forgot form, and its absence without mail.
+    "reset_link", "reset_link_refused", "forgot_from_sign_in", "forgot_absent_without_mail",
 )
 
 

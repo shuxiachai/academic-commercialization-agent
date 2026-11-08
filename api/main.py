@@ -79,6 +79,9 @@ from api.models import (  # noqa: E402
     VerifyEmail,
     AuthSession,
     PasswordChange,
+    PasswordForgot,
+    PasswordReset,
+    PasswordResetDone,
     SiteInfo,
     BYOK_PROVIDERS,
     CleanupSummary,
@@ -528,7 +531,7 @@ async def _rate_limit(request: Request, call_next):
 
 def _is_page_asset(path: str) -> bool:
     """The files a page is made of, and the documents that load them."""
-    return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples", "/admin", "/verify")
+    return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples", "/admin", "/verify", "/reset")
             or path.startswith(("/run/", "/compare/", "/samples/")))
 
 
@@ -650,7 +653,10 @@ _AUTH_OPEN_PATHS = {
     # Opening a verification link is also how a visitor becomes someone: the
     # token in it is the credential, and the browser it is opened in may not
     # be the one that signed up.
-    "POST": ("/api/auth/register", "/api/auth/login", "/api/auth/verify"),
+    # A reset link is opened by someone who has no password, and the form
+    # that asks for one is for the same person.
+    "POST": ("/api/auth/register", "/api/auth/login", "/api/auth/verify",
+             "/api/auth/password/forgot", "/api/auth/password/reset"),
 }
 
 
@@ -800,7 +806,9 @@ def _accounts_config() -> dict:
             "key_check": key_check.enabled(), "contact": _operator_contact(),
             "plan_preview": plan_preview.enabled(),
             # An account has a daily allowance of its own; the page shows it once signed in.
-            "daily_quota": bool(runs.ACCOUNT_DAILY_CAP)}
+            "daily_quota": bool(runs.ACCOUNT_DAILY_CAP),
+            # A forgotten password is reset by a link, when there is mail to send it with.
+            "password_reset": mail.configured()}
 
 
 def _operator_contact() -> str | None:
@@ -835,7 +843,7 @@ def _account_refusal(exc: accounts.AccountError) -> HTTPException:
     status = {"invalid_credentials": 401, "locked": 429, "signup_throttled": 429, "disabled": 403,
               "invite_required": 403, "signup_closed": 403, "email_taken": 409, "accounts_disabled": 404,
               "verification_invalid": 400, "verification_expired": 410, "verification_cooldown": 429,
-              "already_verified": 409}.get(exc.code, 422)
+              "already_verified": 409, "reset_invalid": 400, "reset_expired": 410}.get(exc.code, 422)
     headers = {"X-Error-Code": exc.code}
     if exc.code == "locked":
         headers["Retry-After"] = str(accounts.LOCKOUT_SECONDS)
@@ -859,6 +867,15 @@ def _send_verification(user: accounts.User, *, cooldown: bool) -> None:
     mail.send(user.email, subject, text, html_body)
 
 
+def _send_reset(user: accounts.User, token: str) -> None:
+    """Send the account the link that lets it choose a new password. Raises MailError.
+
+    On PUBLIC_URL, like the verification link, and for the same reason."""
+    link = f"{mail.public_url()}/reset?token={token}"
+    subject, text, html_body = mail.reset_message(link, minutes=accounts.RESET_SECONDS // 60)
+    mail.send(user.email, subject, text, html_body)
+
+
 @app.get("/api/auth/config", response_model=AuthConfig, tags=["accounts"])
 def auth_config() -> AuthConfig:
     """What the sign-in screen should offer. Ungated: it is how a visitor
@@ -869,7 +886,8 @@ def auth_config() -> AuthConfig:
                       key_check=accounts.enabled() and key_check.enabled(),
                       contact=_operator_contact() if accounts.enabled() else None,
                       plan_preview=accounts.enabled() and plan_preview.enabled(),
-                      daily_quota=accounts.enabled() and bool(runs.ACCOUNT_DAILY_CAP))
+                      daily_quota=accounts.enabled() and bool(runs.ACCOUNT_DAILY_CAP),
+                      password_reset=accounts.enabled() and mail.configured())
 
 
 @app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],
@@ -955,6 +973,58 @@ def auth_verify_resend(http_request: Request) -> Response:
         raise HTTPException(status_code=503, detail="The verification email could not be sent. Try again in a while.",
                             headers={"X-Error-Code": "mail_unavailable"}) from None
     return Response(status_code=202, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/auth/password/forgot", status_code=202, tags=["accounts"],
+          responses={503: {"description": "This deployment cannot send email"}})
+def auth_password_forgot(request: PasswordForgot) -> Response:
+    """Send a password-reset link to an address, if an account has it.
+
+    202 whether or not one does, and whether or not a message left: the form
+    is open to anyone, so its answer must not say which addresses have
+    accounts. What the form can do is put one message a minute into the
+    inbox of the address itself, within the deployment's daily allowance of
+    mail; nothing arrives anywhere else. 503 only when the deployment cannot
+    send mail at all, which is true of every address alike. A delivery
+    failure is logged by account id, never by address.
+    """
+    if not accounts.enabled():
+        raise HTTPException(status_code=404, detail="Accounts are not enabled on this deployment.")
+    if not mail.configured():
+        raise HTTPException(status_code=503, detail="This deployment cannot send email at the moment.",
+                            headers={"X-Error-Code": "mail_unavailable"})
+    issued = accounts.issue_password_reset(request.email)
+    if issued is not None:
+        user, token = issued
+        try:
+            _send_reset(user, token)
+        except mail.MailError as exc:
+            _LOGGER.warning("Password reset email for account %d not sent: %s", user.id, exc)
+    return Response(status_code=202, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/auth/password/reset", response_model=PasswordResetDone, tags=["accounts"],
+          responses={400: {"description": "The link is not one this deployment issued"},
+                     403: {"description": "The account is disabled"},
+                     410: {"description": "The link has expired; ask for another"},
+                     422: {"description": "The new password does not meet the policy"}})
+def auth_password_reset(request: PasswordReset, response: Response) -> PasswordResetDone:
+    """Set a new password with the token from a reset link.
+
+    Ungated: the person holding the link has no session, and once this
+    returns neither does anyone else, since every session of the account
+    ends. A POST from the page rather than the GET of the link, as with
+    verification, so a scanner opening the link spends nothing. The answer
+    names the address so the page can offer to sign it in.
+    """
+    if not accounts.enabled():
+        raise HTTPException(status_code=404, detail="Accounts are not enabled on this deployment.")
+    try:
+        user = accounts.redeem_reset_link(request.token, request.new_password)
+    except accounts.AccountError as exc:
+        raise _account_refusal(exc) from None
+    response.headers["Cache-Control"] = "no-store"
+    return PasswordResetDone(email=user.email)
 
 
 @app.post("/api/auth/logout", status_code=204, tags=["accounts"])
@@ -1297,6 +1367,7 @@ if _WEB_ROOT.is_dir():
     @app.get("/run/{run_id}", include_in_schema=False)
     @app.get("/compare/{run_id}/{other_run_id}", include_in_schema=False)
     @app.get("/verify", include_in_schema=False)
+    @app.get("/reset", include_in_schema=False)
     def _spa(run_id: str = "", other_run_id: str = "") -> Response:
         """Serve the single page for every client-side route.
 

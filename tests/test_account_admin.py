@@ -133,13 +133,15 @@ class ResetPasswordTests(unittest.TestCase):
             self.assertEqual(refused.exception.code, "weak_password")
         accounts.login(EMAIL, OLD)
 
-    def test_the_only_http_path_to_a_reset_is_the_consoles(self):
+    def test_the_only_http_paths_to_a_reset_hold_a_secret_of_their_own(self):
         # A reset a visitor could trigger would need a secret of its own. The
         # console's is an admin account, and it re-asks that admin's password
-        # (api/admin.py); nothing else in the API may reach the library call.
+        # (api/admin.py); the visitor's is the one-time token from a link sent
+        # to the address (tests/test_password_reset.py). Nothing else in the
+        # API may reach the library call that needs neither.
         paths = sorted({route.path for route in app.routes if hasattr(route, "path")})
         self.assertEqual([path for path in paths if "reset" in path.lower()],
-                         ["/api/admin/accounts/{user_id}/password-reset"])
+                         ["/api/admin/accounts/{user_id}/password-reset", "/api/auth/password/reset", "/reset"])
         source = Path(accounts.__file__).with_name("main.py").read_text(encoding="utf-8")
         self.assertNotIn("accounts.reset_password", source)
         self.assertNotIn("account_admin", source)

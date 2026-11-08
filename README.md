@@ -246,8 +246,9 @@ daily and keeps the newest fourteen copies, and can tell a
 fails, the maintenance loop stops, or the deployment's own key, quota or
 billing makes runs fail. With an email service set up
 ([Resend](docs/operating-guide.md#email-verification)), a new account proves
-its address through a one-time link before it can start paid work. There is
-no self-service password reset yet; the operator resets passwords.
+its address through a one-time link before it can start paid work, and a
+forgotten password is reset by a link sent to the same address. Without an
+email service the operator resets passwords.
 
 Run URLs carry **128 bits of randomness** and act as read capabilities:
 anyone with the full URL can read that run until retention removes it.

@@ -65,6 +65,13 @@ SIGNUPS_PER_DAY = int(os.getenv("ACCOUNTS_SIGNUPS_PER_DAY", "100"))
 VERIFY_SECONDS = 24 * 3600
 VERIFY_RESEND_SECONDS = 60
 _VERIFY = "verify"
+# A password-reset link works this long and once. A second request for the
+# same address within RESET_REQUEST_SECONDS sends nothing, so the form cannot
+# be used to fill someone's inbox; it is short because the one-hour link that
+# most people ask for twice is the one that landed in the spam folder.
+RESET_SECONDS = 3600
+RESET_REQUEST_SECONDS = 60
+_RESET = "reset"
 SIGNUP_MODES = ("open", "invite", "closed")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _OWNER_PREFIX = "user:"
@@ -409,6 +416,83 @@ def mark_verified(email: object) -> bool:
         db.execute("UPDATE users SET verified_at = ? WHERE id = ?", (int(time.time()), row["id"]))
         db.execute("DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?", (row["id"], _VERIFY))
         return True
+
+
+def issue_password_reset(email: object, *, now: float | None = None) -> tuple[User, str] | None:
+    """Make the one-time token for a password-reset link, or None when nothing is to be sent.
+
+    None for an address no account has, for a disabled account, for an
+    address that was asked about less than RESET_REQUEST_SECONDS ago, and for
+    something that is not an address at all; the caller answers the same way
+    in every case, because the form is open to anyone and must not be a way
+    to learn which addresses have accounts. Any earlier reset token of the
+    account stops working, as with verification: the newest link is the one
+    in the newest message.
+    """
+    email = normalize_email(email)
+    try:
+        _check_email(email)
+    except AccountError:
+        return None
+    stamp = int(now if now is not None else time.time())
+    with _database() as db:
+        row = db.execute("SELECT id, email, verified_at, disabled FROM users WHERE email = ?", (email,)).fetchone()
+        if row is None or row["disabled"]:
+            return None
+        newest = db.execute("SELECT MAX(created_at) AS at FROM email_tokens WHERE user_id = ? AND purpose = ?",
+                            (row["id"], _RESET)).fetchone()["at"]
+        if newest is not None and stamp - newest < RESET_REQUEST_SECONDS:
+            return None
+        token = secrets.token_urlsafe(32)
+        with db:
+            db.execute("DELETE FROM email_tokens WHERE user_id = ? AND purpose = ?", (row["id"], _RESET))
+            db.execute("INSERT INTO email_tokens (token_hash, user_id, purpose, created_at, expires_at) "
+                       "VALUES (?, ?, ?, ?, ?)", (_token_hash(token), row["id"], _RESET, stamp, stamp + RESET_SECONDS))
+            db.execute("DELETE FROM email_tokens WHERE expires_at <= ?", (stamp,))
+        return User(id=row["id"], email=row["email"], verified=row["verified_at"] is not None), token
+
+
+def redeem_reset_link(token: object, new: object, *, now: float | None = None) -> User:
+    """Set a new password for the account a reset token belongs to, and spend the token.
+
+    The password policy is checked before the token is spent, so a password
+    the policy refuses does not cost the person their link. Then, as with the
+    operator's reset: every session of the account ends and its lockout rows
+    go, because the reason for a reset may be that someone else has the old
+    password, or that the owner locked themself out guessing it. The link
+    reached the address, which is what verification asks, so an unverified
+    account comes out verified. A disabled account is refused (`disabled`)
+    and the token kept: re-enabling is the operator's decision, and the
+    person need not ask twice once it is made. Unknown and expired links get
+    different answers (`reset_invalid`, `reset_expired`), neither naming an
+    account.
+    """
+    if not isinstance(token, str) or not token or len(token) > 128:
+        raise AccountError("reset_invalid", "This password reset link is not valid.")
+    stamp = int(now if now is not None else time.time())
+    with _database() as db:
+        row = db.execute(
+            "SELECT t.token_hash, t.expires_at, u.id, u.email, u.disabled FROM email_tokens t "
+            "JOIN users u ON u.id = t.user_id WHERE t.token_hash = ? AND t.purpose = ?",
+            (_token_hash(token), _RESET)).fetchone()
+        if row is None:
+            raise AccountError("reset_invalid", "This password reset link is not valid.")
+        if row["expires_at"] <= stamp:
+            with db:
+                db.execute("DELETE FROM email_tokens WHERE token_hash = ?", (row["token_hash"],))
+            raise AccountError("reset_expired", "This password reset link has expired. Ask for a new one.")
+        if row["disabled"]:
+            raise AccountError("disabled", "This account is disabled.")
+        _check_password(new, row["email"])
+        with db:
+            db.execute("UPDATE users SET password_hash = ?, verified_at = COALESCE(verified_at, ?) WHERE id = ?",
+                       (hash_password(new), stamp, row["id"]))
+            db.execute("DELETE FROM sessions WHERE user_id = ?", (row["id"],))
+            db.execute("DELETE FROM email_tokens WHERE user_id = ? AND purpose IN (?, ?)",
+                       (row["id"], _RESET, _VERIFY))
+            db.execute("DELETE FROM login_throttle WHERE key = ? OR key LIKE ?",
+                       (f"email:{row['email']}", f"source:{row['email']}|%"))
+        return User(id=row["id"], email=row["email"], verified=True)
 
 
 def _refuse_if_locked(db, keys, stamp: int) -> None:

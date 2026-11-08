@@ -1343,6 +1343,15 @@ async function consumeVerificationLink() {
   return { key: "verify_done", variant: "success" };
 }
 
+/* The page a reset link opens (/reset?token=…). Only the token is read here;
+ * the gate asks for the new password and posts both. The address leaves the
+ * location at once, as the verification token does. */
+function takeResetToken() {
+  const token = new URLSearchParams(location.search).get("token") || "";
+  try { history.replaceState({}, "", "/"); } catch { /* keep the URL; the token has been read */ }
+  return token;
+}
+
 function applyByokMode() {
   receiptViewGeneration++;
   $("#paid-receipt-results").innerHTML = "";
@@ -1455,7 +1464,7 @@ function showAccountSettings() {
   const deleteForm = $("#settings-delete-form");
   const passwordError = $("#settings-password-error");
   const deleteError = $("#settings-delete-error");
-  for (const id of ["#gate-form", "#byok-form", "#account-form"]) $(id).hidden = true;
+  for (const id of ["#gate-form", "#byok-form", "#account-form", "#forgot-form", "#reset-form"]) $(id).hidden = true;
   passwordForm.reset();
   deleteForm.reset();
   passwordError.hidden = true;
@@ -1632,6 +1641,19 @@ async function ensureAccess() {
 }
 
 async function decideAccess() {
+  if (location.pathname === "/reset") {
+    // The person holding the link has no password, so no session decides
+    // anything here: the gate opens on the new-password form, and signs
+    // them in with it afterwards. The sign-in configuration comes from its
+    // own request, since the boot's access check is skipped. A deployment
+    // without accounts has no such page and falls through to its usual boot.
+    const token = takeResetToken();
+    authConfig = await api.authConfig().catch(() => null);
+    if (authConfig?.enabled) {
+      await showGate(null, { reset: token });
+      return;
+    }
+  }
   if (location.pathname === "/verify") {
     // Said before the boot below, which waits at the gate when nobody is
     // signed in here: a link opened in another browser must still get its
@@ -1758,7 +1780,8 @@ function keyProblem(verdict, creds) {
 /* `creating` opens the account form ready to register, as the landing's
  * "Create account" promises; `back` shows a way to put the card down again,
  * resolving "back" instead of letting anyone in. Both are the landing's. */
-function showGate(errorKey = null, { keysOnly = false, creating: startCreating = false, back = false } = {}) {
+// `reset` is the token from a reset link: the card opens on the new-password form.
+function showGate(errorKey = null, { keysOnly = false, creating: startCreating = false, back = false, reset = null } = {}) {
   const gate = $("#gate");
   // The card always sits on one of the two pages. The boot may have kept the
   // workbench back in case this visit ended on the landing; it did not.
@@ -1769,6 +1792,8 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
   const codeSubmit = $("#gate-submit");
   const byokForm = $("#byok-form");
   const accountForm = $("#account-form");
+  const forgotForm = $("#forgot-form");
+  const resetForm = $("#reset-form");
   const accountError = $("#account-error");
   const accountSubmit = $("#account-submit");
   const accountsOn = Boolean(authConfig?.enabled);
@@ -1788,6 +1813,11 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
   codeForm.reset();
   byokForm.reset();
   accountForm.reset();
+  forgotForm.reset();
+  resetForm.reset();
+  $("#forgot-sent").hidden = true;
+  $("#forgot-error").hidden = true;
+  $("#reset-error").hidden = true;
   $("#account-settings").hidden = true;
   codeError.hidden = !errorKey;
   codeError.textContent = errorKey ? t(errorKey) : "";
@@ -1816,6 +1846,8 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
   const showKeys = () => {
     codeForm.hidden = true;
     accountForm.hidden = true;
+    forgotForm.hidden = true;
+    resetForm.hidden = true;
     byokForm.hidden = false;
     const account = forAccount();
     $("#byok-account-note").hidden = !account;
@@ -1831,12 +1863,17 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
   const showAccount = () => {
     codeForm.hidden = true;
     byokForm.hidden = true;
+    forgotForm.hidden = true;
+    resetForm.hidden = true;
     accountForm.hidden = false;
     $("#account-title").textContent = t(creating ? "account_title_create" : "account_title");
     accountSubmit.textContent = t(creating ? "account_create" : "account_sign_in");
     $("#account-toggle").textContent = t(creating ? "account_toggle_to_sign_in" : "account_toggle_to_create");
     $("#account-toggle").hidden = !creating && !authConfig?.signup_open;
     $("#account-to-code").hidden = !authConfig?.access_codes;
+    // Only when the deployment can send the link; a visitor creating an
+    // account has no password to have forgotten.
+    $("#account-forgot").hidden = creating || !authConfig?.password_reset;
     $("#account-password").autocomplete = creating ? "new-password" : "current-password";
     // Invite mode asks up front; a reserved address asks after the server
     // says so (invite_required), so the field stays hidden until needed.
@@ -1849,13 +1886,39 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
   const showCode = () => {
     accountForm.hidden = true;
     byokForm.hidden = true;
+    forgotForm.hidden = true;
+    resetForm.hidden = true;
     codeForm.hidden = false;
     $("#gate-to-byok").hidden = accountsOn;
     $("#gate-to-account").hidden = !accountsOn;
     syncBack();
     codeInput.focus();
   };
-  if (keysOnly) showKeys();
+  const showForgot = () => {
+    codeForm.hidden = true;
+    byokForm.hidden = true;
+    accountForm.hidden = true;
+    resetForm.hidden = true;
+    forgotForm.hidden = false;
+    // The address they were about to sign in with is the one they mean.
+    if (!$("#forgot-email").value) $("#forgot-email").value = $("#account-email-input").value.trim();
+    $("#forgot-sent").hidden = true;
+    $("#forgot-error").hidden = true;
+    syncBack();
+    $("#forgot-email").focus();
+  };
+  const showReset = () => {
+    codeForm.hidden = true;
+    byokForm.hidden = true;
+    accountForm.hidden = true;
+    forgotForm.hidden = true;
+    resetForm.hidden = false;
+    $("#reset-error").hidden = true;
+    syncBack();
+    $("#reset-password").focus();
+  };
+  if (reset !== null) showReset();
+  else if (keysOnly) showKeys();
   else if (accountsOn) showAccount();
   else showCode();
 
@@ -1900,6 +1963,74 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
       finished = true;
       gate.hidden = true;
       resolve("back");
+    };
+
+    $("#account-forgot").onclick = () => {
+      if (accountSubmit.disabled || finished) return;
+      showForgot();
+    };
+    $("#forgot-back").onclick = $("#reset-back").onclick = () => {
+      if (finished || $("#forgot-submit").disabled || $("#reset-submit").disabled) return;
+      creating = false;
+      accountError.hidden = true;
+      showAccount();
+    };
+
+    forgotForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const email = $("#forgot-email").value.trim();
+      const submit = $("#forgot-submit");
+      const sent = $("#forgot-sent");
+      const error = $("#forgot-error");
+      if (!email || submit.disabled || finished) return;
+      submit.disabled = true;
+      sent.hidden = true;
+      error.hidden = true;
+      try {
+        await api.forgotPassword(email);
+        // The same words whether or not an account has the address: the
+        // server said nothing either way, and neither does the page.
+        sent.textContent = t("forgot_sent").replace("{email}", email);
+        sent.hidden = false;
+      } catch (err) {
+        error.textContent = err.code === "mail_unavailable" ? t("forgot_unavailable") : err.message;
+        error.hidden = false;
+      } finally {
+        submit.disabled = false;
+      }
+    };
+
+    resetForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const password = $("#reset-password").value;
+      const submit = $("#reset-submit");
+      const error = $("#reset-error");
+      if (!password || submit.disabled || finished) return;
+      submit.disabled = true;
+      error.hidden = true;
+      try {
+        if (!reset) throw Object.assign(new Error(t("reset_invalid")), { code: "reset_invalid" });
+        const done = await api.resetPassword(reset, password);
+        // Every session of the account ended on the server, one stored in
+        // this browser included; the new password is the way in now.
+        api.setSessionToken(null);
+        reset = null;
+        toast(t("reset_done"), "success");
+        creating = false;
+        showAccount();
+        $("#account-email-input").value = done.email;
+        $("#account-password").focus();
+      } catch (err) {
+        const key = {
+          reset_invalid: "reset_invalid", reset_expired: "reset_expired",
+          weak_password: "account_error_weak", disabled: "reset_disabled",
+        }[err.code];
+        error.textContent = key ? t(key) : err.message;
+        error.hidden = false;
+        $("#reset-password").select();
+      } finally {
+        submit.disabled = false;
+      }
     };
 
     accountForm.onsubmit = async (e) => {

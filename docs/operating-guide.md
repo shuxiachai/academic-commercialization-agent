@@ -874,17 +874,18 @@ and one rate-limit bucket. A signed-in account can change its password
 papers and receipts before the account row and cannot be undone; both ask for
 the password again, and a wrong one counts toward the same lockout as a
 sign-in. A run that is still going must be cancelled before the account can
-be deleted. There is no self-service password reset or email verification
-yet. A person who forgets their password asks the operator, who resets it
+be deleted. With mail set up (below), a forgotten password is reset from the
+sign-in screen by a link sent to the account's address. Without mail, a
+person who forgets their password asks the operator, who resets it
 from the console (below) or runs
 `python -m api.account_admin reset-password <email>` in the service's own
 shell (on Railway, a shell in the running service such as `railway ssh`).
 Either way it sets a random password, shows it once, ends every session of
-the account and clears its sign-in lockout. Registration verifies no email,
-so the operator is the check that the person asking owns the account: send
-the new password to the account's own address. Self-service reset and
-verification both need an email service, which is a separate decision.
-Until then, `invite` mode is the safer default for a public URL.
+the account and clears its sign-in lockout. Without mail, registration
+verifies no email, so the operator is the check that the person asking owns
+the account: send the new password to the account's own address. With mail,
+verification and the self-service reset (both below) cover this; without
+it, `invite` mode is the safer default for a public URL.
 
 #### What one account may do at once, and in a day
 
@@ -1001,6 +1002,26 @@ the DNS host with proxying off, click Verify, create an API key with
 sending access, and set the four variables above. Leave click and open
 tracking off: click tracking rewrites the verification link through a
 tracking host, which mail clients treat as suspicious.
+
+### Password reset by email
+
+With mail set up, the sign-in screen offers "Forgot your password?". The
+form takes an address and `POST /api/auth/password/forgot` answers 202
+whether or not an account has it, so the form cannot be used to learn which
+addresses do; when one does, a link goes to that address and nowhere else,
+at most once a minute per address and within `MAIL_PER_DAY`. The link is
+`PUBLIC_URL/reset?token=…`; it works once, for an hour, and a newer link
+retires the older one. Opening it is a page that asks for the new password
+and posts it with the token to `POST /api/auth/password/reset`, so a mail
+client or scanner fetching the link spends nothing. Setting the password
+ends every session of the account, clears its sign-in lockout and, since
+the link reached the address, marks the address verified. A password the
+policy refuses (422 `weak_password`) does not spend the link; a disabled
+account is refused (403 `disabled`) and keeps it, since re-enabling is the
+operator's decision. The message is the link in both languages and says
+that ignoring it changes nothing. Without mail the button is absent, the
+route answers 503 `mail_unavailable`, and the operator's reset (above) is
+the way back.
 
 ### Run history in the page
 
