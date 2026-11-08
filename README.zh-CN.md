@@ -18,15 +18,15 @@
 
 | 方式 | 需要什么 | |
 |---|---|---|
-| **阅读示例报告** | 什么都不需要。五份完整评估（其中一份为中文），打开时不发起任何模型或检索请求 | [打开示例](https://academic-commercialization-agent.up.railway.app/samples) |
+| **阅读示例报告** | 什么都不需要。六份完整评估（其中一份为中文），打开时不发起任何模型或检索请求 | [打开示例](https://academic-commercialization-agent.up.railway.app/samples) |
 | **在线发起新分析** | 免费注册账号（邮箱加密码，开放注册），用自己的模型 API key 与模型 + Tavily 或 Serper 检索 key 付费运行。会产生供应商用量 | [打开应用](https://academic-commercialization-agent.up.railway.app) |
 | **在本机运行** | Python 3.11 或 3.12、[uv](https://docs.astral.sh/uv/) 和自己的 key | [快速启动](#快速启动) |
 
-示例报告也在 [examples/](examples/README.md) 中：两份来自 2026-10-21 的运行，例如中文报告
-[电动汽车用固态电池](examples/solid-state-batteries-ev-zh.md)；三份来自 7 月的运行，例如英文版
-[电动汽车用固态电池](examples/solid-state-batteries-ev.md)
-（[2026-07-19 冻结版本，9673a83](https://github.com/shuxiachai/academic-commercialization-agent/blob/9673a8346c15f11b989ce8fd2d85be484d1c27b3/examples/solid-state-batteries-ev.md)）。
-截图与样例都来自过去的运行，不代表当前模型准确率或最新市场判断。
+示例报告也在 [examples/](examples/README.md) 中：五份是 2026-11-08 在当前流水线上用
+`deepseek-v4-pro` 跑出的运行，例如中文报告
+[特高压直流输电](examples/uhvdc-transmission-zh.md) 和英文的
+[连续血糖监测](examples/continuous-glucose-monitoring.md)；另有 2026-10-21 的生产运行
+[Hyperloop](examples/hyperloop.md)。7 月的三份报告仍留在目录里，供读取它们的冻结对比使用。
 
 ## 有什么不同
 
