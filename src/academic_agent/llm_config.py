@@ -234,6 +234,16 @@ def _qwen_additional_params() -> dict[str, object]:
 # belongs.
 _RETRYABLE = (ConnectionError, TimeoutError, OSError)
 _MAX_ATTEMPTS = 3
+# A streamed call gets more. A failed plain attempt cost its whole window
+# (150 or 300 seconds); a failed streamed attempt costs its per-chunk bound,
+# about a minute, so the same run time affords more of them. The first
+# production run on streamed calls (2026-11-09, 343 s) had the writer and
+# the reviewer each use all three attempts; one more failure on either
+# would have failed a run that was otherwise 15 seconds from done. Five
+# costs at most four minutes of cut streams plus half a minute of backoff
+# before the last attempt, and require_window still refuses any attempt
+# the stage's remaining time does not hold.
+_STREAM_MAX_ATTEMPTS = 5
 _BASE_DELAY_SECONDS = 2.0
 
 
@@ -262,6 +272,11 @@ class _CallBudget:
                 f"{self.stage} has {max(0.0, remaining):.1f}s remaining; "
                 f"a bounded provider attempt requires {required:.1f}s"
             )
+
+
+def _max_attempts_for(llm) -> int:
+    """How many provider attempts one call on this node may make."""
+    return _STREAM_MAX_ATTEMPTS if getattr(llm, "stream", False) is True else _MAX_ATTEMPTS
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -345,6 +360,42 @@ def _set_transport_timeout(llm, seconds: float) -> None:
         llm._client = client.with_options(timeout=seconds)
 
 
+def _reconnect(llm, stage: str) -> bool:
+    """Replace the provider's SDK client so the next attempt opens a new connection.
+
+    In the first production run on streamed calls (2026-11-09) three nodes
+    failed the same way: a stream silent for 60 seconds was cut, the retry
+    two seconds later failed with a connection error in 15-18 seconds, and
+    the attempt after that returned. The retry had been sent down the pool
+    that held the connection which had just died. The SDK's with_options
+    copies a client but shares its HTTP pool (tests/test_llm_reconnect.py
+    pins this against the vendored SDK), so the client is rebuilt from the
+    provider's own fields, which carry the stage's timeout and max_retries
+    0, and the old one is closed. Best effort: a provider that cannot
+    rebuild keeps its client and the retry goes ahead anyway.
+    """
+    build = getattr(llm, "_build_sync_client", None)
+    if not callable(build):
+        return False
+    previous = getattr(llm, "_client", None)
+    try:
+        llm._client = build()
+    except Exception as exc:  # noqa: BLE001 - the retry matters more than the fresh pool
+        print(
+            f"[llm] {stage}: could not rebuild the client ({type(exc).__name__}: {exc}); "
+            "the connection pool is kept",
+            file=sys.stderr, flush=True,
+        )
+        return False
+    close = getattr(previous, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:  # noqa: BLE001 - a pool that will not close is garbage either way
+            pass
+    return True
+
+
 def _give_thinking_time(llm, budget: "_CallBudget") -> None:
     """Double this LLM's per-call timeout, and the window a call needs, once."""
     if getattr(llm, "_academic_agent_thinking_time", False):
@@ -424,6 +475,7 @@ def _wrap_with_retry(llm):
     """
     inner = llm.call
     budget = _CallBudget()
+    max_attempts = _max_attempts_for(llm)
     base, model = getattr(llm, "base_url", None), getattr(llm, "model", None)
     identity = (base.rstrip("/"), model) if isinstance(base, str) and isinstance(model, str) else None
 
@@ -469,7 +521,7 @@ def _wrap_with_retry(llm):
                     report("adapted", started, retry=True, exc=exc)
                     continue
                 outcome = "timeout" if _is_timeout(exc) else "error"
-                if attempt == _MAX_ATTEMPTS or not _is_retryable(exc):
+                if attempt == max_attempts or not _is_retryable(exc):
                     report(outcome, started, retry=False, exc=exc)
                     raise
                 # Jitter so six agents recovering from one outage do not all
@@ -484,12 +536,14 @@ def _wrap_with_retry(llm):
                     report(outcome, started, retry=False, exc=exc)
                     raise deadline_error from exc
                 report(outcome, started, retry=True, exc=exc)
+                reconnected = _reconnect(llm, budget.stage)
                 # stderr, not stdout: the API worker's stdout is discarded and
                 # its stderr is kept as process.log (api/runs.py). On stdout
                 # this notice was unreadable for every production run.
                 print(
                     f"[llm] {budget.stage}: {type(exc).__name__} on attempt "
-                    f"{attempt}/{_MAX_ATTEMPTS}; retrying in {delay:.1f}s",
+                    f"{attempt}/{max_attempts}; retrying in {delay:.1f}s"
+                    + (" on a new connection" if reconnected else ""),
                     file=sys.stderr, flush=True,
                 )
                 time.sleep(delay)
