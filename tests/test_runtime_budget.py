@@ -99,3 +99,27 @@ def test_an_unbounded_budget_has_no_deadlines_at_all() -> None:
     assert budget.paid_work_deadline is None
     assert budget.deadline_for_agent(4) is None
     assert budget.public_snapshot()["hard_deadline_at"] is None
+
+
+def test_the_report_writer_gets_a_longer_provider_window_than_other_nodes() -> None:
+    """Production 2026-11-08: the writer stage took 282 s for a 6,487-token
+    answer while the reviewer wrote 2,880 tokens in 50 s on the same model.
+    That is one 150-second attempt killed by the transport and one that
+    finished, billed twice and invisible in usage, which counts successful
+    requests only. The writer's window must fit its longest ordinary answer."""
+    budget = RuntimeBudget.from_wall_deadline(1_900.0, 1_800, wall_now=100.0, monotonic_now=500.0)
+
+    assert budget.request_timeout_for_agent(3) == budget.writer_request_timeout_seconds == 300
+    for index in (0, 1, 2, 4, 5, -1, 99):
+        assert budget.request_timeout_for_agent(index) == budget.request_timeout_seconds == 150
+    # The deadlines themselves do not move: only the per-attempt bound does.
+    assert budget.deadline_for_agent(3) == budget.paid_work_deadline
+
+
+def test_the_writer_window_is_public_policy_like_the_other_reserves() -> None:
+    budget = RuntimeBudget.from_wall_deadline(1_900.0, 1_800, wall_now=100.0, monotonic_now=500.0)
+
+    snapshot = budget.public_snapshot()
+
+    assert snapshot["request_timeout_seconds"] == 150
+    assert snapshot["writer_request_timeout_seconds"] == 300

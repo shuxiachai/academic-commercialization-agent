@@ -527,7 +527,11 @@ def main() -> None:
         task_node,
     )
     from academic_agent.checkpoints import CheckpointStore, hash_text
-    from academic_agent.llm_config import configure_llm_deadline
+    from academic_agent.llm_config import (
+        configure_llm_deadline,
+        set_attempt_observer,
+        set_llm_stage,
+    )
     from academic_agent.evidence_gap import (
         persist_shadow_audit,
         run_shadow_assessment,
@@ -1016,13 +1020,20 @@ def main() -> None:
         tracker = ProgressTracker(
             _PARALLEL_COUNT, _SEQUENTIAL_STAGES, _PARALLEL_STAGE)
         _steps_fh = None        # open steps.jsonl handle during kickoff (set before kickoff)
+        # Provider attempts report from the evidence agents' threads as well as
+        # the main thread; one lock keeps each JSON line whole.
+        _steps_lock = threading.Lock()
 
         def _write_step(entry: StepEntry) -> None:
             try:
+                # Wall-clock time per row, so a stage's duration can be split
+                # between its provider attempts after the fact.
+                entry.setdefault("ts", time.time())
                 if _steps_fh is not None:
                     line = json.dumps(entry, ensure_ascii=False) + "\n"
-                    _steps_fh.write(line)
-                    _steps_fh.flush()
+                    with _steps_lock:
+                        _steps_fh.write(line)
+                        _steps_fh.flush()
             except Exception as _e:
                 print(f"[worker] _write_step failed: {_e}", file=sys.stderr)
 
@@ -1070,8 +1081,13 @@ def main() -> None:
                     agent.llm,
                     deadline_monotonic=runtime_budget.deadline_for_agent(index),
                     stage=str(agent.role or f"Agent {index + 1}"),
-                    request_timeout_seconds=runtime_budget.request_timeout_seconds,
+                    # The writer's one attempt may run 300 s; the others 150.
+                    request_timeout_seconds=runtime_budget.request_timeout_for_agent(index),
                 )
+        else:
+            # No watchdog, no deadline; attempt records still need their node.
+            for index, agent in enumerate(crew_obj.agents):
+                set_llm_stage(agent.llm, str(agent.role or f"Agent {index + 1}"))
         crew_inputs = source_collection.crew_inputs()
         # Decision context does not alter retrieval or scoring. It enters only
         # the Writer/Reviewer placeholders, while remaining part of the exact
@@ -1109,6 +1125,22 @@ def main() -> None:
             a.role: i for i, a in enumerate(crew_obj.agents)
         }
 
+        def _on_llm_attempt(record: dict) -> None:
+            # Every provider attempt, including the ones the transport killed
+            # and usage never counts, lands in the step log with its agent.
+            idx = agent_role_to_idx.get(str(record.get("stage") or ""), tracker.completed)
+            _write_step({
+                "agent_idx": idx,
+                "type": "llm_attempt",
+                "thought": "",
+                "tool": "",
+                "attempt": int(record.get("attempt") or 0),
+                "outcome": str(record.get("outcome") or ""),
+                "duration_seconds": float(record.get("duration_seconds") or 0.0),
+                "retry": bool(record.get("retry")),
+                "error_type": record.get("error_type"),
+            })
+        previous_observer = set_attempt_observer(_on_llm_attempt)
         _sf = open(steps_path, "a", encoding="utf-8")
         _steps_fh = _sf
         result = None
@@ -1186,6 +1218,7 @@ def main() -> None:
                 raise
             tasks_output, quality_review = recovered
         finally:
+            set_attempt_observer(previous_observer)
             _steps_fh = None
             _sf.close()
 

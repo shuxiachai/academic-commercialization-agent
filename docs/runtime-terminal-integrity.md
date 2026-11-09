@@ -23,6 +23,7 @@ Current code-owned policy:
 |---|---:|---|
 | API hard watchdog | 1,800 seconds | Last-resort process termination; unchanged |
 | One provider attempt | 150 seconds | Bounds the OpenAI-compatible transport |
+| One report-writer attempt | 300 seconds | The writer's ordinary 5,000–6,500-token answer does not fit 150; its deadline is unchanged |
 | Reviewer reserve | 240 seconds | Leaves room for validated-draft fallback and Scorer |
 | Other paid-node reserve | 60 seconds | Leaves room for usage, audits, status and terminal writes |
 
@@ -33,6 +34,16 @@ retries are set to zero inside API workers, and another visible retry is refused
 unless its backoff plus a complete request window still fit. A code-owned
 `RunDeadlineExceeded` is not classified as a transport failure and is never
 retried.
+
+Every provider attempt, returned or not, is written to `steps.jsonl` as an
+`llm_attempt` row: the agent, the attempt number, its outcome (`returned`,
+`timeout`, `error`, or `adapted` for a refused parameter resent at once), its
+duration and whether a retry followed. The retry notice goes to stderr, which
+the API keeps as `process.log`. Usage counts successful requests only, so these
+rows are the only record of an attempt the transport killed. They were added
+after the 2026-11-08 production run whose writer stage took 282 seconds for a
+6,487-token answer with usage showing one request: one killed 150-second
+attempt and one that finished, with nothing on the volume to say so.
 
 The 240-second reserve is operational policy, not an SLO. It was selected from
 an observed 102-second Writer/Reviewer/Scorer recovery suffix and must be

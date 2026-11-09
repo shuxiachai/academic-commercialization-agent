@@ -92,7 +92,8 @@ budget is a warning, because provider speed varies by the hour.
 
 A thinking-only model reasons before every answer, so it gets more time:
 - auxiliary calls get 120 seconds instead of 60;
-- each agent call gets 300 seconds instead of 150.
+- each agent call gets 300 seconds instead of 150 (the report writer, whose
+  ordinary answer already needs 300 on any model, gets 600).
 
 The longer bounds come from 2026-10-23. qwen3.7-max-preview took up to 29
 seconds just to refuse a request. The report writer's 8,400-token answer ran
@@ -693,6 +694,13 @@ retries. Defaults reserve closeout time before the 30-minute watchdog:
 60-second closeout reserve. Direct CLI runs are operator-controlled and do
 not inherit the API watchdog. UI and both run endpoints distinguish terminal
 reason, stop method and elapsed time.
+
+The worker writes every provider attempt to `steps.jsonl` as an `llm_attempt`
+row with the agent, attempt number, outcome, duration and whether a retry
+followed; `/api/runs/{run_id}/progress` returns them with the other steps.
+Usage counts successful requests only, so a stage that lasts twice as long as
+its answer is read from these rows, not from the request count. Retry notices
+go to stderr, which the API keeps as `process.log` in the run directory.
 
 The worker records when each stage began (`stage_timings` in `status.json`).
 Both run endpoints return each stage's duration: until the next stage began,
