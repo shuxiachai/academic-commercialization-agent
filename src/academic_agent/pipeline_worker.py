@@ -1134,6 +1134,7 @@ def main() -> None:
                 "type": "llm_attempt",
                 "thought": "",
                 "tool": "",
+                "call": int(record.get("call") or 0),
                 "attempt": int(record.get("attempt") or 0),
                 "outcome": str(record.get("outcome") or ""),
                 "duration_seconds": float(record.get("duration_seconds") or 0.0),

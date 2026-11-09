@@ -36,6 +36,14 @@ REQUEST_TIMEOUT_SECONDS = 150
 REVIEWER_RESERVE_SECONDS = 240
 FINALIZATION_RESERVE_SECONDS = 60
 WRITER_REQUEST_TIMEOUT_SECONDS = 300
+#: A crew node streams its answer, so the SDK timeout bounds the wait for one
+#: chunk rather than the whole answer. 2026-11-09, the first production run
+#: with attempt records: three of nine non-streaming attempts hung (writer
+#: 302 s and 312 s, scorer 160 s) and the identical retries returned in
+#: 27-95 s. Bytes flow while a model generates; sixty silent seconds is a
+#: dead connection, found in a minute instead of a whole window. The planning
+#: windows above still say how long a healthy attempt may take.
+STREAM_IDLE_TIMEOUT_SECONDS = 60
 #: Index of the report writer in the crew's agent order (tasks 1-3 evidence,
 #: 4 writer, 5 reviewer, 6 scorer), matching deadline_for_agent's reviewer 4.
 _WRITER_INDEX = 3
@@ -52,6 +60,7 @@ class RuntimeBudget:
     reviewer_reserve_seconds: int = REVIEWER_RESERVE_SECONDS
     finalization_reserve_seconds: int = FINALIZATION_RESERVE_SECONDS
     writer_request_timeout_seconds: int = WRITER_REQUEST_TIMEOUT_SECONDS
+    stream_idle_timeout_seconds: int = STREAM_IDLE_TIMEOUT_SECONDS
 
     @classmethod
     def from_wall_deadline(
@@ -123,6 +132,7 @@ class RuntimeBudget:
             "hard_deadline_at": deadline_at,
             "request_timeout_seconds": self.request_timeout_seconds,
             "writer_request_timeout_seconds": self.writer_request_timeout_seconds,
+            "stream_idle_timeout_seconds": self.stream_idle_timeout_seconds,
             "reviewer_reserve_seconds": self.reviewer_reserve_seconds,
             "finalization_reserve_seconds": self.finalization_reserve_seconds,
         }

@@ -205,3 +205,79 @@ class TransportWindowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StreamingWindowTests(unittest.TestCase):
+    """For a streamed call the SDK timeout bounds the wait for one chunk, not
+    the whole answer. The stage window still plans the attempt's length."""
+
+    def _streaming_provider(self):
+        provider = _Provider()
+        provider.stream = True
+        provider.timeout = 60.0
+        provider._client = _Client(60.0)
+        return provider
+
+    def test_the_stage_window_does_not_replace_the_per_chunk_timeout(self):
+        provider = self._streaming_provider()
+        llm = _wrap_with_retry(provider)
+
+        configure_llm_deadline(
+            llm, deadline_monotonic=None, stage="Writer", request_timeout_seconds=300.0,
+        )
+
+        self.assertEqual((provider.timeout, provider._client.timeout), (60.0, 60.0))
+        self.assertEqual(llm._academic_agent_call_budget.request_timeout_seconds, 300.0)
+
+    def test_thinking_time_doubles_the_per_chunk_bound_and_the_window(self):
+        provider = self._streaming_provider()
+        llm = _wrap_with_retry(provider)
+        configure_llm_deadline(
+            llm, deadline_monotonic=None, stage="Writer", request_timeout_seconds=300.0,
+        )
+
+        llm_config._give_thinking_time(llm, llm._academic_agent_call_budget)
+
+        self.assertEqual((provider.timeout, provider._client.timeout), (120.0, 120.0))
+        self.assertEqual(llm._academic_agent_call_budget.request_timeout_seconds, 600.0)
+
+
+class CallSequenceTests(unittest.TestCase):
+    """A guardrail retry is a second call on the same node, and its attempts
+    start again at 1. Production 2026-11-09 showed the reviewer as two rows
+    both numbered attempt 1; the call sequence tells them apart."""
+
+    def setUp(self):
+        patcher = patch("academic_agent.llm_config.time.sleep")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.records: list[dict] = []
+        self.observer = self.records.append
+        previous = set_attempt_observer(self.observer)
+        self.addCleanup(set_attempt_observer, previous)
+
+    def test_each_call_on_a_node_gets_the_next_sequence_number(self):
+        calls = []
+
+        def flaky_once(*args, **kwargs):
+            calls.append(1)
+            if len(calls) == 2:
+                raise ConnectionError("Connection error.")
+            return "answer"
+
+        llm = _wrap_with_retry(_Provider(side_effect=flaky_once))
+        llm.call("first")
+        llm.call("second")
+
+        self.assertEqual(
+            [(r["call"], r["attempt"], r["outcome"]) for r in self.records],
+            [(1, 1, "returned"), (2, 1, "error"), (2, 2, "returned")],
+        )
+
+    def test_sequence_numbers_are_per_node_not_per_process(self):
+        first, second = _wrap_with_retry(_Provider()), _wrap_with_retry(_Provider())
+        first.call("a")
+        first.call("b")
+        second.call("c")
+
+        self.assertEqual([r["call"] for r in self.records], [1, 2, 1])

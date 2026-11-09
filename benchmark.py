@@ -342,6 +342,9 @@ def run_topic(
 ) -> dict:
     """Run one topic end to end. Executed in its own process when concurrent."""
     label = num if rep <= 1 else f"{num}#{rep}"
+    attempts: list[dict] = []
+    observer_installed = False
+    previous_observer = None
     if dry_run:
         _log(f"  [{label}] dry-run start")
         meta = _simulate_topic(num, topic, trl_range, industry)
@@ -377,6 +380,7 @@ def run_topic(
         save_claim_grounding, save_evidence_reports, save_retrieval_diagnostics,
     )
     from academic_agent.token_usage import collect_usage
+    from academic_agent.llm_config import set_attempt_observer, set_llm_stage
     from academic_agent.source_pipeline import (
         SourceCollectionError,
         collect_source_collection,
@@ -449,6 +453,16 @@ def run_topic(
         # away, because the per-agent token usage lives on it and is only
         # readable after kickoff returns.
         crew_obj = AcademicAgent(source_collection).crew()
+        # Every provider attempt, returned or not, lands in meta.json with its
+        # agent, as the worker writes it to steps.jsonl. The benchmark runs
+        # the crew in-process and had no such record: a slow unit could not be
+        # told from a stalled request retried (2026-11-09, production: 72% of
+        # a run's wall time). Labels carry the unit number so concurrent units
+        # in one process could be told apart; the record keeps the role alone.
+        for agent in crew_obj.agents:
+            set_llm_stage(agent.llm, f"{num}|{agent.role}")
+        previous_observer = set_attempt_observer(attempts.append)
+        observer_installed = True
         result = crew_obj.kickoff(inputs=_crew_inputs(source_collection))
 
         tasks_output = getattr(result, "tasks_output", None) or []
@@ -546,6 +560,23 @@ def run_topic(
         (run_dir / "error.log").write_text(err_text, encoding="utf-8")
         _log(f"  [{label}] ✗ crew failed: {meta['error']}")
 
+    if observer_installed:
+        set_attempt_observer(previous_observer)
+        prefix = f"{num}|"
+        meta["llm_attempts"] = [
+            {
+                "agent": (
+                    str(record.get("stage") or "")[len(prefix):]
+                    if str(record.get("stage") or "").startswith(prefix)
+                    else record.get("stage")
+                ),
+                **{
+                    key: record.get(key)
+                    for key in ("call", "attempt", "outcome", "duration_seconds", "retry", "error_type")
+                },
+            }
+            for record in attempts
+        ]
     meta["elapsed_seconds"] = round(time.time() - start)
     meta["artifact_sha256"] = benchmark_identity.result_hashes(run_dir)
     (run_dir / "meta.json").write_text(

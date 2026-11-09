@@ -22,7 +22,10 @@ from crewai import LLM
 
 from academic_agent import llm_parameter_fallback as parameter_fallback
 from academic_agent.byok_model import BYOK_MODEL_PATTERN, MODEL_ENV_NAMES  # noqa: F401 - re-exported
-from academic_agent.runtime_budget import WORKER_LLM_TIMEOUT_ENV
+from academic_agent.runtime_budget import (
+    STREAM_IDLE_TIMEOUT_SECONDS,
+    WORKER_LLM_TIMEOUT_ENV,
+)
 
 _SUPPORTED_PROVIDERS = ("deepseek", "qwen", "openai", "anthropic")
 _PROVIDER_KEY_NAMES = {
@@ -245,6 +248,9 @@ class _CallBudget:
     deadline_monotonic: float | None = None
     stage: str = "unbounded call"
     request_timeout_seconds: float = 0.0
+    #: Calls made through this node so far. A guardrail retry is a new call
+    #: whose attempts start at 1 again; the sequence tells the two apart.
+    calls: int = 0
 
     def require_window(self, *, delay_seconds: float = 0.0) -> None:
         if self.deadline_monotonic is None:
@@ -430,10 +436,13 @@ def _wrap_with_retry(llm):
                 _give_thinking_time(llm, budget)
         adapted = 0
         attempt = 1
+        budget.calls += 1
+        call_index = budget.calls
 
         def report(outcome: str, started: float, *, retry: bool, exc: BaseException | None) -> None:
             _report_attempt({
                 "stage": budget.stage,
+                "call": call_index,
                 "attempt": attempt,
                 "outcome": outcome,
                 "duration_seconds": max(0.0, time.monotonic() - started),
@@ -513,7 +522,10 @@ def configure_llm_deadline(
     budget.deadline_monotonic = deadline_monotonic
     budget.stage = stage
     budget.request_timeout_seconds = request_timeout_seconds
-    _set_transport_timeout(llm, request_timeout_seconds)
+    # A streamed node keeps its per-chunk bound: the window says how long a
+    # healthy attempt may take, not how long to wait for the next byte.
+    if not getattr(llm, "stream", False):
+        _set_transport_timeout(llm, request_timeout_seconds)
     return llm
 
 
@@ -548,6 +560,7 @@ def create_llm(
     provider: str | None = None,
     api_key: str | None = None,
     model: str | None = None,
+    stream: bool = False,
 ) -> LLM:
     """Create an LLM instance for the active provider.
 
@@ -585,6 +598,17 @@ def create_llm(
         kwargs["temperature"] = temperature
 
     _apply_worker_transport_budget(kwargs)
+    if stream:
+        # The crew nodes stream. CrewAI 1.14.7 then asks for usage in the
+        # final chunk, so accounting is unchanged, and the SDK timeout bounds
+        # the wait for one chunk: a dead connection shows in a minute, where
+        # a plain request waited out its whole window (2026-11-09: 302, 312
+        # and 160 seconds, retried in 27-95). The wrapper stays the only
+        # retry owner on every path, CLI included: a hidden SDK resend of a
+        # stalled stream would be billed and absent from the attempt record.
+        kwargs["stream"] = True
+        kwargs["timeout"] = float(STREAM_IDLE_TIMEOUT_SECONDS)
+        kwargs["max_retries"] = 0
     return _wrap_with_retry(LLM(**kwargs))
 
 

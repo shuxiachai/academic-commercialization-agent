@@ -24,6 +24,7 @@ Current code-owned policy:
 | API hard watchdog | 1,800 seconds | Last-resort process termination; unchanged |
 | One provider attempt | 150 seconds | Bounds the OpenAI-compatible transport |
 | One report-writer attempt | 300 seconds | The writer's ordinary 5,000–6,500-token answer does not fit 150; its deadline is unchanged |
+| Silence inside a streamed answer | 60 seconds | Every crew node streams; the SDK timeout bounds the wait for one chunk, so a dead connection surfaces in a minute instead of after a whole window |
 | Reviewer reserve | 240 seconds | Leaves room for validated-draft fallback and Scorer |
 | Other paid-node reserve | 60 seconds | Leaves room for usage, audits, status and terminal writes |
 
@@ -44,6 +45,19 @@ rows are the only record of an attempt the transport killed. They were added
 after the 2026-11-08 production run whose writer stage took 282 seconds for a
 6,487-token answer with usage showing one request: one killed 150-second
 attempt and one that finished, with nothing on the volume to say so.
+
+The first run with those rows (2026-11-09) settled what the stalls were: the
+writer's first two attempts hung for 302 and 312 seconds and the third returned
+in 95; the scorer hung 160 seconds and then returned in 27. Not slow generation
+but a connection that stops delivering. Every crew node therefore streams its
+answer. The planning windows above are unchanged (they say how long a healthy
+attempt may take); the SDK timeout now bounds the wait for one chunk, sixty
+seconds, and the project wrapper is the only retry owner on every path, CLI
+included, since a hidden SDK resend of a stalled stream would be billed and
+absent from the record. CrewAI 1.14.7 asks for usage in the final chunk when
+it streams, so the accounting seam is unchanged. Each row also carries `call`,
+the sequence of calls on that node: a guardrail retry is a new call whose
+attempts start at 1 again, which is how it is told from a transport retry.
 
 The 240-second reserve is operational policy, not an SLO. It was selected from
 an observed 102-second Writer/Reviewer/Scorer recovery suffix and must be

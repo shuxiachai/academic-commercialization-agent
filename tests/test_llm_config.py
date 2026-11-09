@@ -411,3 +411,38 @@ def test_qwen_extension_reaches_the_real_crewai_chat_request_body():
     assert "enable_thinking" not in params
     assert params["response_format"] == {"type": "json_object"}
     assert params["temperature"] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# create_llm — streaming crew nodes
+# ---------------------------------------------------------------------------
+
+def test_a_streaming_llm_streams_with_usage_and_a_per_chunk_timeout():
+    """2026-11-09: three of nine production attempts hung on non-streaming
+    requests (302, 312 and 160 s) and their retries returned in 27-95 s. A
+    streamed completion keeps bytes flowing, so the SDK timeout becomes a
+    per-chunk bound and a dead connection surfaces in 60 s, not 300. CrewAI
+    1.14.7 asks for usage in the final chunk when stream is on, so accounting
+    is unchanged. The wrapper stays the only retry owner: no hidden SDK retry
+    may resend a stalled stream unrecorded."""
+    env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "deepseek-chat", WORKER_LLM_TIMEOUT_ENV: ""}
+    kw = _make_llm(env, stream=True)
+    assert kw["stream"] is True
+    assert kw["timeout"] == 60.0
+    assert kw["max_retries"] == 0
+
+
+def test_the_stream_idle_timeout_wins_over_the_worker_window():
+    """Inside an API worker the window env says 150; a streamed call must not
+    wait 150 seconds between chunks before noticing the connection is dead."""
+    env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "deepseek-chat", WORKER_LLM_TIMEOUT_ENV: "150"}
+    kw = _make_llm(env, stream=True)
+    assert kw["timeout"] == 60.0
+    assert kw["max_retries"] == 0
+
+
+def test_a_non_streaming_llm_is_built_as_before():
+    env = {"DEEPSEEK_API_KEY": "sk-ds", "DEEPSEEK_MODEL": "deepseek-chat", WORKER_LLM_TIMEOUT_ENV: ""}
+    kw = _make_llm(env)
+    assert "stream" not in kw
+    assert "timeout" not in kw

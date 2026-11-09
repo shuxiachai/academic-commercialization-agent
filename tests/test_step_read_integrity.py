@@ -131,9 +131,9 @@ def test_provider_attempt_rows_reach_the_client_with_their_timing(run_log):
     rather than strip them to the older action/finish shape."""
     run_log.write_bytes(
         GOOD
-        + b'{"type":"llm_attempt","agent_idx":3,"ts":1762600000.5,"attempt":1,'
+        + b'{"type":"llm_attempt","agent_idx":3,"ts":1762600000.5,"call":1,"attempt":1,'
         b'"outcome":"timeout","duration_seconds":150.2,"retry":true}\n'
-        + b'{"type":"llm_attempt","agent_idx":3,"ts":1762600155.0,"attempt":2,'
+        + b'{"type":"llm_attempt","agent_idx":3,"ts":1762600155.0,"call":1,"attempt":2,'
         b'"outcome":"returned","duration_seconds":112.4,"retry":false}\n'
     )
     client = TestClient(app)
@@ -147,3 +147,4 @@ def test_provider_attempt_rows_reach_the_client_with_their_timing(run_log):
         (2, "returned", 112.4, False),
     ]
     assert attempts[0]["ts"] == 1762600000.5
+    assert [s["call"] for s in attempts] == [1, 1]
