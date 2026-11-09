@@ -93,7 +93,8 @@ budget is a warning, because provider speed varies by the hour.
 A thinking-only model reasons before every answer, so it gets more time:
 - auxiliary calls get 120 seconds instead of 60;
 - each agent call gets 300 seconds instead of 150 (the report writer, whose
-  ordinary answer already needs 300 on any model, gets 600).
+  ordinary answer already needs 300 on any model, gets 600), and the wait
+  for one chunk of a streamed answer grows from 60 seconds to 120.
 
 The longer bounds come from 2026-10-23. qwen3.7-max-preview took up to 29
 seconds just to refuse a request. The report writer's 8,400-token answer ran
@@ -701,6 +702,17 @@ followed; `/api/runs/{run_id}/progress` returns them with the other steps.
 Usage counts successful requests only, so a stage that lasts twice as long as
 its answer is read from these rows, not from the request count. Retry notices
 go to stderr, which the API keeps as `process.log` in the run directory.
+Each row's `call` counts the calls on that node; a guardrail retry is a new
+call whose attempts start at 1 again.
+
+Every crew node streams its answer. The first run with attempt rows
+(2026-11-09) showed 72% of its wall time in requests that had stopped
+delivering (302, 312 and 160 seconds) while the identical retries returned in
+27 to 95 seconds. With streaming the SDK timeout bounds the wait for one chunk,
+sixty seconds, so a dead connection is found in a minute; the usage record is
+unchanged because CrewAI asks for it in the final chunk. The paper extractor,
+which runs inline in the API process, keeps the plain request. Benchmark units
+keep the same per-attempt record in `meta.json` under `llm_attempts`.
 
 The worker records when each stage began (`stage_timings` in `status.json`).
 Both run endpoints return each stage's duration: until the next stage began,

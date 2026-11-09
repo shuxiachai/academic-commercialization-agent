@@ -289,8 +289,12 @@ class StepEvent(BaseModel):
     agent: str = ""
     thought: str = ""
     tool: str = ""
+    call: int | None = Field(
+        default=None,
+        description="Which call on this node, from 1; a guardrail retry is a new call "
+                    "whose attempts start at 1 again.")
     attempt: int | None = Field(
-        default=None, description="Provider attempt number within the node, from 1.")
+        default=None, description="Provider attempt number within the call, from 1.")
     outcome: str | None = Field(
         default=None,
         description="returned, timeout, error, or adapted (a refused parameter resent).")

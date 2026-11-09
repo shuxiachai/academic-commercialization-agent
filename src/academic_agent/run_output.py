@@ -32,6 +32,7 @@ class StepEntry(_StepEntryRequired, total=False):
     tool: str
     tool_input: str
     result: str
+    call: int
     attempt: int
     outcome: str
     duration_seconds: float

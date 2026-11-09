@@ -123,3 +123,19 @@ def test_the_writer_window_is_public_policy_like_the_other_reserves() -> None:
 
     assert snapshot["request_timeout_seconds"] == 150
     assert snapshot["writer_request_timeout_seconds"] == 300
+
+
+def test_the_stream_idle_timeout_is_policy_the_snapshot_shows() -> None:
+    """Production 2026-11-09, first run with attempt rows: the writer's first
+    two non-streaming attempts hung for 302 and 312 seconds and the third
+    returned in 95; the scorer hung 160 and then returned in 27. A streamed
+    answer is bounded per chunk instead, so a dead connection shows within
+    this many seconds rather than after a whole window."""
+    budget = RuntimeBudget.from_wall_deadline(1_900.0, 1_800, wall_now=100.0, monotonic_now=500.0)
+
+    assert budget.stream_idle_timeout_seconds == 60
+    assert budget.public_snapshot()["stream_idle_timeout_seconds"] == 60
+    # The planning windows are unchanged: they say how long an attempt may
+    # take, which streaming does not shorten; the idle bound is a different thing.
+    assert budget.request_timeout_for_agent(3) == 300
+    assert budget.request_timeout_for_agent(0) == 150

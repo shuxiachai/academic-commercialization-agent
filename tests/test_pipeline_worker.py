@@ -601,11 +601,11 @@ class MainEndToEndTests(unittest.TestCase):
 
         def kickoff(**_kwargs):
             llm_config._report_attempt({
-                "stage": "Agent 4", "attempt": 1, "outcome": "timeout",
+                "stage": "Agent 4", "call": 1, "attempt": 1, "outcome": "timeout",
                 "duration_seconds": 150.2, "retry": True, "error_type": "TimeoutError",
             })
             llm_config._report_attempt({
-                "stage": "Agent 4", "attempt": 2, "outcome": "returned",
+                "stage": "Agent 4", "call": 1, "attempt": 2, "outcome": "returned",
                 "duration_seconds": 112.4, "retry": False, "error_type": None,
             })
             return self._crew_result()
@@ -626,6 +626,10 @@ class MainEndToEndTests(unittest.TestCase):
             [(3, 1, "timeout", 150.2, True), (3, 2, "returned", 112.4, False)],
         )
         self.assertEqual(attempts[0]["error_type"], "TimeoutError")
+        # The call sequence survives the trip through the step row, so a
+        # guardrail retry (a second call, attempts starting at 1 again) can be
+        # told from a transport retry inside one call.
+        self.assertEqual([row["call"] for row in attempts], [1, 1])
         for row in rows:
             self.assertIsInstance(row.get("ts"), float, row)
             self.assertEqual(row["ts"], row["ts"])  # finite, not NaN
