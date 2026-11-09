@@ -25,6 +25,7 @@ Current code-owned policy:
 | One provider attempt | 150 seconds | Bounds the OpenAI-compatible transport |
 | One report-writer attempt | 300 seconds | The writer's ordinary 5,000–6,500-token answer does not fit 150; its deadline is unchanged |
 | Silence inside a streamed answer | 60 seconds | Every crew node streams; the SDK timeout bounds the wait for one chunk, so a dead connection surfaces in a minute instead of after a whole window |
+| Attempts per call | 3; 5 on a streamed node | A failed streamed attempt costs its per-chunk bound, not a whole window, so the same run time affords more; each attempt still needs its full window to begin |
 | Reviewer reserve | 240 seconds | Leaves room for validated-draft fallback and Scorer |
 | Other paid-node reserve | 60 seconds | Leaves room for usage, audits, status and terminal writes |
 
@@ -58,6 +59,21 @@ absent from the record. CrewAI 1.14.7 asks for usage in the final chunk when
 it streams, so the accounting seam is unchanged. Each row also carries `call`,
 the sequence of calls on that node: a guardrail retry is a new call whose
 attempts start at 1 again, which is how it is told from a transport retry.
+
+The first production run on streamed calls (2026-11-09, 343 seconds against
+1,072 the run before) failed five of eleven attempts in one pattern: a stream
+silent for 60 seconds was cut, the retry two seconds later failed with a
+connection error in 15–18 seconds, and the attempt after that returned. The
+writer and the reviewer each used all three attempts. Two things changed.
+Before a transport retry the wrapper rebuilds the provider's SDK client, so
+the resend opens a new connection instead of reusing the pool that held the
+one which had just died; the SDK's `with_options` copies a client but shares
+its pool, which is why it is a rebuild and not a copy, and a provider that
+cannot rebuild keeps its client and retries anyway. And a streamed node may
+make five attempts where a plain one makes three: a failed streamed attempt
+costs about a minute, a failed plain one its whole window. More attempts add
+no time back: every attempt, the fourth and fifth included, is refused unless
+its backoff plus a full window still fit before the stage deadline.
 
 The 240-second reserve is operational policy, not an SLO. It was selected from
 an observed 102-second Writer/Reviewer/Scorer recovery suffix and must be

@@ -714,6 +714,19 @@ unchanged because CrewAI asks for it in the final chunk. The paper extractor,
 which runs inline in the API process, keeps the plain request. Benchmark units
 keep the same per-attempt record in `meta.json` under `llm_attempts`.
 
+Before a transport retry the wrapper rebuilds the provider's SDK client, so
+the resend opens a new connection rather than reusing the pool that held the
+connection which had just failed. The first production run on streamed calls
+(2026-11-09) had three nodes fail the same way: a cut stream, then a retry
+that failed in 15–18 seconds with a connection error, then success. The
+retry notice says `on a new connection` when the rebuild happened; a
+provider that cannot rebuild keeps its client and retries anyway, with a
+`the connection pool is kept` notice. A streamed node may make five
+attempts where a plain one makes three, since a failed streamed attempt
+costs about a minute instead of a whole window; each attempt still needs
+its backoff plus a full window before the stage deadline, so the extra
+attempts never extend a run.
+
 The worker records when each stage began (`stage_timings` in `status.json`).
 Both run endpoints return each stage's duration: until the next stage began,
 until the terminal record's end, or so far (`active`) while the run is going.
