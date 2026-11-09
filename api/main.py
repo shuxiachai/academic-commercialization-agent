@@ -1285,12 +1285,12 @@ def admin_backups(http_request: Request) -> AdminBackups:
 def admin_link_probe(http_request: Request) -> AdminLinkProbe:
     """Measure, from this host, the path to the provider's endpoint.
 
-    A 1 KB and a 100 KB chat request with no key, on new connections, to
-    the configured endpoint and (for Bailian) its sibling across the
+    Chat requests of 1, 10, 30 and 100 KB with no key, on new connections,
+    to the configured endpoint and (for Bailian) its sibling across the
     border; the servers read the body and answer 401, so nothing is
     billed and the time to the answer is the path's. The targets are
     fixed: nothing in the request chooses where this server posts. Takes
-    up to two minutes when a path is dead. See api/link_probe.py.
+    up to three minutes when a path is dead. See api/link_probe.py.
     """
     _admin_account(http_request)
     try:

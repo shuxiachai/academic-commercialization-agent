@@ -963,9 +963,10 @@ actions: reset an account's password, and disable or enable an account. A
 link to it appears in the account badge of the app for admin accounts.
 
 It also measures the path to the model provider from the host itself
-(`POST /api/admin/link-probe`, the console's "Probe now"): a 1 KB and a
-100 KB chat request, the second the size of the report writer's, posted
-with no key on new connections to the configured endpoint and, for Bailian,
+(`POST /api/admin/link-probe`, the console's "Probe now"): chat requests
+of 1, 10, 30 and 100 KB, the last the size of the report writer's and 30 KB
+about an evidence agent's, posted with no key on new connections to the
+configured endpoint and, for Bailian,
 to its sibling across the border (`dashscope-intl.aliyuncs.com` beside
 `dashscope.aliyuncs.com`). Both servers read the whole body before they
 answer 401, so nothing is billed and the time to that answer is the time
@@ -976,7 +977,12 @@ posts. It exists because of 2026-11-09, when the writer's request failed on
 eight new connections in a row from the host while the same request from
 mainland China was answered in seconds, and nothing could be measured from
 the host. A clean reading says the path carried the request at that
-moment, not that it will for the next run.
+moment, not that it will for the next run. The first readings from the
+host (2026-11-09, 20:08 Beijing time) were the case in point: 1 KB to the
+mainland host in 0.75 s, 100 KB uploaded in 25.7 s once and not within 30 s
+the next time, while the international host took 40–57 ms for either, two
+minutes after a reading on which the mainland host had taken 1.5 s. The
+10 and 30 KB steps were added to find where the border starts to choke.
 
 It answers only to an account named in `ACCOUNTS_ADMIN_EMAILS`; anyone else,
 the admin access code included, gets 404 from `/api/admin/...`. The admin
