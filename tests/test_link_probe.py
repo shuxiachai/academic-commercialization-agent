@@ -165,11 +165,12 @@ class RunTests(unittest.TestCase):
         self.assertEqual(sorted({name for name, _ in calls}), ["configured", "intl"])
         for name in ("configured", "intl"):
             sizes = [size for n, size in calls if n == name]
-            self.assertEqual(sizes, [link_probe.SMALL_BYTES, link_probe.LARGE_BYTES, link_probe.LARGE_BYTES],
-                             "one small reading, then the writer-sized one twice")
+            self.assertEqual(sizes, [1_000, 10_000, 30_000, 100_000, 100_000],
+                             "the small body, the two steps between, then the writer-sized one twice")
         self.assertEqual([t["name"] for t in answer["targets"]], ["configured", "intl"])
         self.assertEqual(answer["targets"][0]["host"], "dashscope.aliyuncs.com")
-        self.assertEqual(len(answer["targets"][0]["readings"]), 3)
+        self.assertEqual(len(answer["targets"][0]["readings"]), 5)
+        self.assertEqual(answer["sizes"], [1_000, 10_000, 30_000, 100_000])
         self.assertEqual(answer["timeout_seconds"], link_probe.TIMEOUT_SECONDS)
         self.assertEqual((answer["small_bytes"], answer["large_bytes"]), (link_probe.SMALL_BYTES, link_probe.LARGE_BYTES))
         self.assertRegex(answer["taken_at"], r"^\d{4}-\d{2}-\d{2}T")
@@ -180,10 +181,18 @@ class RunTests(unittest.TestCase):
         self.assertEqual(link_probe.LARGE_BYTES, 100_000)
         self.assertEqual(link_probe.SMALL_BYTES, 1_000)
 
+    def test_two_steps_between_find_where_the_path_starts_to_choke(self):
+        """From the production host on 2026-11-09 20:08: 1 KB in 0.75 s, 100 KB
+        uploaded in 25.7 s and then not at all. Whether a smaller writer request
+        would pass needs readings in between, the evidence agents' size (about
+        30 KB, which mostly passed that afternoon) among them."""
+        self.assertEqual(link_probe.SIZES, (1_000, 10_000, 30_000, 100_000))
+        self.assertEqual(link_probe._READINGS, ((1_000, 1), (10_000, 1), (30_000, 1), (100_000, 2)))
+
     def test_the_bound_is_half_the_per_chunk_bound_a_production_attempt_gets(self):
         """A 100 KB upload that needs more than 30 s has already failed the
         writer, whose first chunk must arrive within 60; the console answer
-        stays under two minutes with both sizes on both hosts."""
+        stays under three minutes with every size on both hosts."""
         self.assertEqual(link_probe.TIMEOUT_SECONDS, 30)
 
     def test_one_probe_at_a_time(self):

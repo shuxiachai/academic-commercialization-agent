@@ -1068,6 +1068,7 @@ class AdminLinkProbe(BaseModel):
     timeout_seconds: float
     small_bytes: int
     large_bytes: int = Field(description="The writer's request size: about 22,000 prompt tokens.")
+    sizes: list[int] = Field(description="Every body size read, smallest first.")
     targets: list[LinkProbeTarget]
 
 

@@ -15,7 +15,7 @@ operator's working machine, and the attempt rows say only that no chunk came
 in 60 seconds, which a stalled upload and a silent server look alike in. So
 this is the measurement, from the host, on demand from the console:
 
-  • a 1 KB and a 100 KB chat request, the second the size of the writer's,
+  • chat requests of 1, 10, 30 and 100 KB, the last the size of the writer's,
     posted with no key to the configured endpoint and, for Bailian, to its
     sibling on the other side of the border (dashscope-intl.aliyuncs.com,
     which sits in the host's own region). Both servers read the whole body
@@ -60,11 +60,17 @@ from academic_agent.llm_config import resolve_provider_config
 SMALL_BYTES = 1_000
 LARGE_BYTES = 100_000
 #: Half the per-chunk bound a production attempt gets, so the console answer
-#: stays under two minutes with both sizes on both hosts.
+#: stays under three minutes with every size on both hosts.
 TIMEOUT_SECONDS = 30
-#: One reading of the small body, two of the writer-sized one: the second
-#: large reading tells a one-off from a path that drops every large request.
-_READINGS = ((SMALL_BYTES, 1), (LARGE_BYTES, 2))
+#: The first production readings (2026-11-09 20:08, from the host): 1 KB in
+#: 0.75 s; 100 KB uploaded in 25.7 s once and not at all the next time; the
+#: international host 40-57 ms for either. Whether a smaller writer request
+#: would pass the border needs readings between those two, the evidence
+#: agents' size (about 30 KB, which mostly passed that afternoon) among them.
+SIZES = (SMALL_BYTES, 10_000, 30_000, LARGE_BYTES)
+#: One reading of each size, two of the writer-sized one: the second large
+#: reading tells a one-off from a path that drops every large request.
+_READINGS = ((SMALL_BYTES, 1), (10_000, 1), (30_000, 1), (LARGE_BYTES, 2))
 
 # Bailian's two front doors. The mainland host is the one a mainland account
 # must use; the international host is the one the host's own region reaches
@@ -200,5 +206,6 @@ def run(*, timeout: float = TIMEOUT_SECONDS) -> dict:
         "timeout_seconds": timeout,
         "small_bytes": SMALL_BYTES,
         "large_bytes": LARGE_BYTES,
+        "sizes": list(SIZES),
         "targets": results,
     }

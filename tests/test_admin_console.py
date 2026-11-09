@@ -77,6 +77,7 @@ class _Console(unittest.TestCase):
 
 _PROBE = {
     "taken_at": "2026-11-09T08:00:00+00:00", "timeout_seconds": 30.0, "small_bytes": 1000, "large_bytes": 100000,
+    "sizes": [1000, 10000, 30000, 100000],
     "targets": [{"name": "configured", "host": "dashscope.aliyuncs.com", "readings": [
         {"body_bytes": 1000, "connect_ms": 80, "tls_ms": 170, "upload_ms": 171, "first_byte_ms": 400,
          "total_ms": 401, "status": 401, "error": None},
