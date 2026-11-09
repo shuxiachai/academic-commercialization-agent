@@ -58,7 +58,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import account_backup, admin, alerts, mail, auxiliary_usage, key_check, notices, plan_preview, retrieval_health, samples
+from api import account_backup, admin, alerts, mail, auxiliary_usage, key_check, link_probe, notices, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -70,6 +70,7 @@ from api.models import (  # noqa: E402
     AccountDeletion,
     AdminAccounts,
     AdminBackups,
+    AdminLinkProbe,
     AdminConfirm,
     AdminDisable,
     AdminPasswordReset,
@@ -1275,6 +1276,29 @@ def admin_backups(http_request: Request) -> AdminBackups:
     return AdminBackups(scheduled=scheduled, every_hours=hours if scheduled else None,
                         keep=account_backup.schedule_keep() if scheduled else None,
                         backups=[row.__dict__ for row in admin.list_backups()])
+
+
+@app.post("/api/admin/link-probe", response_model=AdminLinkProbe, tags=["admin"],
+          responses={404: {"description": "Not an admin account"},
+                     409: {"description": "A probe is already running"},
+                     503: {"description": "No provider endpoint is configured"}})
+def admin_link_probe(http_request: Request) -> AdminLinkProbe:
+    """Measure, from this host, the path to the provider's endpoint.
+
+    A 1 KB and a 100 KB chat request with no key, on new connections, to
+    the configured endpoint and (for Bailian) its sibling across the
+    border; the servers read the body and answer 401, so nothing is
+    billed and the time to the answer is the path's. The targets are
+    fixed: nothing in the request chooses where this server posts. Takes
+    up to two minutes when a path is dead. See api/link_probe.py.
+    """
+    _admin_account(http_request)
+    try:
+        return AdminLinkProbe(**link_probe.run())
+    except link_probe.NoEndpoint as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
+    except link_probe.Busy as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
 
 
 # A key check has this server put a question to a provider on an account's

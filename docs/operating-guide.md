@@ -962,6 +962,22 @@ account backups, each opened and verified as `verify` would. It offers two
 actions: reset an account's password, and disable or enable an account. A
 link to it appears in the account badge of the app for admin accounts.
 
+It also measures the path to the model provider from the host itself
+(`POST /api/admin/link-probe`, the console's "Probe now"): a 1 KB and a
+100 KB chat request, the second the size of the report writer's, posted
+with no key on new connections to the configured endpoint and, for Bailian,
+to its sibling across the border (`dashscope-intl.aliyuncs.com` beside
+`dashscope.aliyuncs.com`). Both servers read the whole body before they
+answer 401, so nothing is billed and the time to that answer is the time
+the path takes; each reading shows when the socket connected, TLS came up,
+the body was sent and the first byte came back, with a 30-second bound.
+The targets are fixed: nothing in the request chooses where the server
+posts. It exists because of 2026-11-09, when the writer's request failed on
+eight new connections in a row from the host while the same request from
+mainland China was answered in seconds, and nothing could be measured from
+the host. A clean reading says the path carried the request at that
+moment, not that it will for the next run.
+
 It answers only to an account named in `ACCOUNTS_ADMIN_EMAILS`; anyone else,
 the admin access code included, gets 404 from `/api/admin/...`. The admin
 code reads every run, which is what it is for; it cannot be asked for a

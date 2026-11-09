@@ -92,6 +92,32 @@
       </div>
       <p id="backups-empty" class="empty-note" hidden data-text="backups_empty">No backups yet.</p>
     </section>
+
+    <section class="console__section" aria-labelledby="link-heading">
+      <div class="console__bar">
+        <h2 id="link-heading" data-text="link">Provider link</h2>
+        <button type="button" class="btn btn--secondary" id="link-probe" data-text="probe">Probe now</button>
+      </div>
+      <p class="console__note" data-text="link_note"></p>
+      <p class="console__note" id="link-state"></p>
+      <div class="table-wrap">
+        <table class="console__table">
+          <thead>
+            <tr>
+              <th data-text="col_host">Endpoint</th>
+              <th data-text="col_body">Body</th>
+              <th data-text="col_connect">Connected</th>
+              <th data-text="col_tls">TLS</th>
+              <th data-text="col_upload">Uploaded</th>
+              <th data-text="col_first">First byte</th>
+              <th data-text="col_total">Total</th>
+              <th data-text="col_result">Result</th>
+            </tr>
+          </thead>
+          <tbody id="link-rows"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 </div>
 

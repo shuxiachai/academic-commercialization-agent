@@ -43,6 +43,14 @@ const TEXT = {
     a_off: "off (no robot set)", a_ready: (channel) => `on, ${channel}`, a_failing: (channel) => `${channel}, the last message was not delivered`,
     a_misconfigured: "misconfigured: the robot setting is not usable",
     health_unavailable: "could not be read",
+    link: "Provider link", probe: "Probe now", probing: "Probing… up to two minutes when a path is dead.",
+    link_note: "From this server: a 1 KB and a 100 KB chat request (the report writer's size) with no key, each on a new connection, to the configured endpoint and, for Bailian, to its sibling across the border. The servers read the body and answer 401, so nothing is billed; the time to that answer is what the path takes. Marks are milliseconds from the start of the request.",
+    link_done: (when, timeout) => `Measured ${when}. Each request was given ${timeout} seconds.`,
+    link_busy: "A probe is already running; wait for it.", link_none: "No provider endpoint is configured here.",
+    col_host: "Endpoint", col_body: "Body", col_connect: "Connected", col_tls: "TLS", col_upload: "Uploaded",
+    col_first: "First byte", col_total: "Total", col_result: "Result",
+    r_answered: "answered", r_never: "—",
+    name_configured: "configured", name_intl: "international sibling", name_mainland: "mainland sibling",
   },
   zh: {
     back: "返回应用", title: "管理后台", loading: "正在确认你的身份……",
@@ -75,6 +83,14 @@ const TEXT = {
     a_off: "关闭（未设置机器人）", a_ready: (channel) => `开启，${channel}`, a_failing: (channel) => `${channel}，上一条消息未送达`,
     a_misconfigured: "配置有误：机器人设置不可用",
     health_unavailable: "无法读取",
+    link: "模型服务链路", probe: "现在探测", probing: "探测中……链路不通时最长需要两分钟。",
+    link_note: "由本服务器发出：各一个 1 KB 和 100 KB（报告写手请求的大小）的对话请求，不带密钥、每次新建连接，发往已配置的端点，百炼还会同时发往境外另一侧的同类端点。服务器读完请求体后回 401，不产生任何计费；到收到这个回答为止的时间就是链路所需的时间。各列是自请求开始起的毫秒数。",
+    link_done: (when, timeout) => `测于 ${when}。每个请求最多等 ${timeout} 秒。`,
+    link_busy: "已有一次探测在进行，请等它结束。", link_none: "这里没有配置模型服务端点。",
+    col_host: "端点", col_body: "请求体", col_connect: "已连接", col_tls: "TLS", col_upload: "已上传",
+    col_first: "首字节", col_total: "总计", col_result: "结果",
+    r_answered: "已应答", r_never: "—",
+    name_configured: "已配置", name_intl: "国际站同类端点", name_mainland: "大陆同类端点",
   },
 };
 const CHANNELS = { feishu: { en: "Feishu", zh: "飞书" }, wecom: { en: "WeCom", zh: "企业微信" } };
@@ -218,6 +234,49 @@ function paintBackups() {
   }
 }
 
+/* ── The provider link ───────────────────────────────────────────────── */
+
+let probeData = null;
+const ms = (value) => (value === null || value === undefined ? t("r_never") : `${value} ms`);
+// Decimal, as the note says "100 KB": the body is 100,000 bytes, not 97.7 KiB.
+const kb = (n) => (n >= 1000 ? `${Math.round(n / 1000)} KB` : `${n} B`);
+
+function paintProbe() {
+  const rows = $("#link-rows");
+  rows.innerHTML = "";
+  if (!probeData) return;
+  $("#link-state").textContent = t("link_done", when(Date.parse(probeData.taken_at) / 1000), probeData.timeout_seconds);
+  for (const target of probeData.targets) {
+    for (const r of target.readings) {
+      const tr = document.createElement("tr");
+      tr.append(cell(`${target.host} (${t(`name_${target.name}`)})`), cell(kb(r.body_bytes), "is-number"),
+        cell(ms(r.connect_ms), "is-number"), cell(ms(r.tls_ms), "is-number"), cell(ms(r.upload_ms), "is-number"),
+        cell(ms(r.first_byte_ms), "is-number"), cell(ms(r.total_ms), "is-number"));
+      // 401 is the answer a request without a key earns once the server has
+      // read it: the path carried the body. Anything else is named as is.
+      const result = r.error ? cell(r.error, "console__problem")
+        : cell(r.status === 401 ? t("r_answered") : String(r.status));
+      tr.append(result);
+      rows.append(tr);
+    }
+  }
+}
+
+async function probe() {
+  const button = $("#link-probe");
+  button.disabled = true;
+  $("#link-state").textContent = t("probing");
+  try {
+    probeData = await api.adminLinkProbe();
+    paintProbe();
+  } catch (err) {
+    const status = err?.status;
+    $("#link-state").textContent = status === 409 ? t("link_busy") : status === 503 ? t("link_none") : t("failed");
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function paint() {
   paintLabels();
   if (me) $("#console-who").textContent = t("who", me.email);
@@ -226,6 +285,7 @@ function paint() {
   paintService();
   paintAccounts();
   paintBackups();
+  paintProbe();
 }
 
 let denial = "denied_signin";
@@ -338,6 +398,7 @@ $("#result-close").addEventListener("click", () => {
   $("#result-dialog").close();
 });
 $("#accounts-reload").addEventListener("click", load);
+$("#link-probe").addEventListener("click", probe);
 
 const select = $("#ui-lang");
 select.value = i18n.language();

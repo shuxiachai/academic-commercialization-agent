@@ -1042,6 +1042,35 @@ class AdminBackups(BaseModel):
     backups: list[AdminBackup]
 
 
+class LinkProbeReading(BaseModel):
+    """One request from this host; marks are milliseconds since it started."""
+
+    body_bytes: int
+    connect_ms: int | None = Field(description="Socket connected; null when it never did.")
+    tls_ms: int | None = Field(description="TLS up.")
+    upload_ms: int | None = Field(description="Whole body sent.")
+    first_byte_ms: int | None = Field(description="First response byte in.")
+    total_ms: int
+    status: int | None = Field(description="HTTP status (401 is the expected answer); null on a transport failure.")
+    error: str | None = Field(description="The transport error's name when the request did not complete.")
+
+
+class LinkProbeTarget(BaseModel):
+    name: Literal["configured", "intl", "mainland"]
+    host: str
+    readings: list[LinkProbeReading]
+
+
+class AdminLinkProbe(BaseModel):
+    """What this host measured on the path to the provider, just now."""
+
+    taken_at: str
+    timeout_seconds: float
+    small_bytes: int
+    large_bytes: int = Field(description="The writer's request size: about 22,000 prompt tokens.")
+    targets: list[LinkProbeTarget]
+
+
 class AccountDeleted(BaseModel):
     runs: int = Field(description="Assessments deleted with the account.")
     uploads: int = Field(description="Uploaded papers deleted with the account.")

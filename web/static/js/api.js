@@ -381,6 +381,7 @@ export const checkKeys = (creds) => request("/api/keys/check", {
 // The operator's console: answered only to an admin account (404 to anyone else).
 export const adminAccounts = () => request("/api/admin/accounts");
 export const adminBackups = () => request("/api/admin/backups");
+export const adminLinkProbe = () => request("/api/admin/link-probe", { method: "POST" });
 export const adminResetPassword = (userId, password) =>
   request(`/api/admin/accounts/${encodeURIComponent(userId)}/password-reset`, json({ password }));
 export const adminSetDisabled = (userId, password, disabled) =>
