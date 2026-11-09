@@ -978,7 +978,7 @@ eight new connections in a row from the host while the same request from
 mainland China was answered in seconds, and nothing could be measured from
 the host. A clean reading says the path carried the request at that
 moment, not that it will for the next run. The first readings from the
-host (2026-11-09, 20:08 Beijing time) were the case in point: 1 KB to the
+host (2026-11-09, 09:08 UTC, 17:08 Beijing time) were the case in point: 1 KB to the
 mainland host in 0.75 s, 100 KB uploaded in 25.7 s once and not within 30 s
 the next time, while the international host took 40–57 ms for either, two
 minutes after a reading on which the mainland host had taken 1.5 s. The

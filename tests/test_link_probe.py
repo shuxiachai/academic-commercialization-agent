@@ -182,7 +182,7 @@ class RunTests(unittest.TestCase):
         self.assertEqual(link_probe.SMALL_BYTES, 1_000)
 
     def test_two_steps_between_find_where_the_path_starts_to_choke(self):
-        """From the production host on 2026-11-09 20:08: 1 KB in 0.75 s, 100 KB
+        """From the production host on 2026-11-09 09:08 UTC: 1 KB in 0.75 s, 100 KB
         uploaded in 25.7 s and then not at all. Whether a smaller writer request
         would pass needs readings in between, the evidence agents' size (about
         30 KB, which mostly passed that afternoon) among them."""
