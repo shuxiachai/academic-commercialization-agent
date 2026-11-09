@@ -275,7 +275,13 @@ class PaidReceipt(BaseModel):
 
 
 class StepEvent(BaseModel):
-    """One line of steps.jsonl, surfaced for live progress."""
+    """One line of steps.jsonl, surfaced for live progress.
+
+    `llm_attempt` rows carry the provider-attempt fields. They are the only
+    per-run record of an attempt the transport killed: usage counts successful
+    requests, so a billed 150-second timeout followed by a retry shows there
+    as one request and a stage twice as long as its answer.
+    """
 
     ts: float | None = None
     type: str = ""
@@ -283,6 +289,17 @@ class StepEvent(BaseModel):
     agent: str = ""
     thought: str = ""
     tool: str = ""
+    attempt: int | None = Field(
+        default=None, description="Provider attempt number within the node, from 1.")
+    outcome: str | None = Field(
+        default=None,
+        description="returned, timeout, error, or adapted (a refused parameter resent).")
+    duration_seconds: float | None = Field(
+        default=None, description="Wall time of this one attempt.")
+    retry: bool | None = Field(
+        default=None, description="Whether another attempt followed this one.")
+    error_type: str | None = Field(
+        default=None, description="Exception class name when the attempt did not return.")
 
 
 class StageTiming(BaseModel):

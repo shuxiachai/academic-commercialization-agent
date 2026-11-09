@@ -564,6 +564,98 @@ class MainEndToEndTests(unittest.TestCase):
         terminal = json.loads((run_dir / "terminal.json").read_text(encoding="utf-8"))
         self.assertEqual(terminal["timeout_seconds"], 1800)
 
+    def test_the_writer_gets_the_longer_window_and_every_other_node_the_ordinary_one(self):
+        """Production 2026-11-08: the writer's 282-second stage was one 150-second
+        attempt the transport killed plus one that finished. The longer window
+        is worth nothing unless the worker hands it to that node."""
+
+        crew = MagicMock()
+        crew.agents = [
+            SimpleNamespace(role=f"Agent {index + 1}", llm=SimpleNamespace())
+            for index in range(6)
+        ]
+        crew.kickoff.return_value = self._crew_result()
+        extra_args = ["--hard-deadline-epoch", "4102444800", "--hard-timeout-seconds", "1800"]
+
+        with patch(
+            "academic_agent.llm_config.configure_llm_deadline"
+        ) as configure, patch("academic_agent.crew.AcademicAgent") as agent_cls:
+            agent_cls.return_value.crew.return_value = crew
+            self._run(extra_args=extra_args)
+
+        windows = [call.kwargs["request_timeout_seconds"] for call in configure.call_args_list]
+        self.assertEqual(windows, [150, 150, 150, 300, 150, 150])
+
+    def test_every_provider_attempt_is_logged_as_a_step_against_its_agent(self):
+        """A timed-out attempt is billed but never counted in usage. The step log
+        is the only per-run record the API can show, so each attempt lands there
+        with the agent it belongs to, its number, outcome and duration, and every
+        step row now carries a timestamp so stage time can be split by request."""
+        from academic_agent import llm_config
+
+        crew = MagicMock()
+        crew.agents = [
+            SimpleNamespace(role=f"Agent {index + 1}", llm=SimpleNamespace())
+            for index in range(6)
+        ]
+
+        def kickoff(**_kwargs):
+            llm_config._report_attempt({
+                "stage": "Agent 4", "attempt": 1, "outcome": "timeout",
+                "duration_seconds": 150.2, "retry": True, "error_type": "TimeoutError",
+            })
+            llm_config._report_attempt({
+                "stage": "Agent 4", "attempt": 2, "outcome": "returned",
+                "duration_seconds": 112.4, "retry": False, "error_type": None,
+            })
+            return self._crew_result()
+
+        crew.kickoff.side_effect = kickoff
+        with patch("academic_agent.crew.AcademicAgent") as agent_cls:
+            agent_cls.return_value.crew.return_value = crew
+            run_dir = self._run()
+
+        rows = [
+            json.loads(line)
+            for line in (run_dir / "steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        attempts = [row for row in rows if row["type"] == "llm_attempt"]
+        self.assertEqual(
+            [(r["agent_idx"], r["attempt"], r["outcome"], r["duration_seconds"], r["retry"])
+             for r in attempts],
+            [(3, 1, "timeout", 150.2, True), (3, 2, "returned", 112.4, False)],
+        )
+        self.assertEqual(attempts[0]["error_type"], "TimeoutError")
+        for row in rows:
+            self.assertIsInstance(row.get("ts"), float, row)
+            self.assertEqual(row["ts"], row["ts"])  # finite, not NaN
+        self.assertTrue(all(rows[i]["ts"] <= rows[i + 1]["ts"] for i in range(len(rows) - 1)))
+        # The worker's observer must not outlive the run it was installed for.
+        self.assertIsNone(llm_config.set_attempt_observer(None))
+
+    def test_a_cli_run_without_a_deadline_still_labels_each_provider_by_agent(self):
+        """configure_llm_deadline is skipped when the API watchdog is absent, so
+        the attempt record's stage would read "unbounded call" and the worker
+        could not place it. Labelling is separate from bounding."""
+        from academic_agent import llm_config
+
+        crew = MagicMock()
+        crew.agents = [
+            SimpleNamespace(role=f"Agent {index + 1}", llm=SimpleNamespace())
+            for index in range(6)
+        ]
+        crew.kickoff.return_value = self._crew_result()
+        with patch("academic_agent.llm_config.set_llm_stage") as label, \
+             patch("academic_agent.crew.AcademicAgent") as agent_cls:
+            agent_cls.return_value.crew.return_value = crew
+            self._run()
+
+        self.assertEqual(
+            [call.args[1] for call in label.call_args_list],
+            [f"Agent {index + 1}" for index in range(6)],
+        )
+        self.assertIsNone(llm_config.set_attempt_observer(None))
+
     def test_decision_context_reaches_crew_kickoff_and_public_status(self):
         """The durable field must reach execution, not merely survive storage."""
         crew = MagicMock()

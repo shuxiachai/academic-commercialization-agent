@@ -16,15 +16,27 @@ from academic_agent.report_applicability import add_applicability_block
 class _StepEntryRequired(TypedDict):
     """Required fields that every steps.jsonl entry must carry."""
     agent_idx: int
-    type: Literal["action", "result", "finish"]
+    type: Literal["action", "result", "finish", "llm_attempt"]
 
 
 class StepEntry(_StepEntryRequired, total=False):
-    """Schema for a single line in steps.jsonl written by pipeline_worker."""
+    """Schema for a single line in steps.jsonl written by pipeline_worker.
+
+    `ts` is set on every row by the worker. The remaining optional fields
+    belong to `llm_attempt` rows: one per provider attempt, returned or not,
+    because usage counts successful requests only and a timed-out attempt is
+    otherwise billed and invisible.
+    """
+    ts: float
     thought: str
     tool: str
     tool_input: str
     result: str
+    attempt: int
+    outcome: str
+    duration_seconds: float
+    retry: bool
+    error_type: str | None
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
