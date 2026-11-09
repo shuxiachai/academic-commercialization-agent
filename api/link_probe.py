@@ -62,7 +62,7 @@ LARGE_BYTES = 100_000
 #: Half the per-chunk bound a production attempt gets, so the console answer
 #: stays under three minutes with every size on both hosts.
 TIMEOUT_SECONDS = 30
-#: The first production readings (2026-11-09 20:08, from the host): 1 KB in
+#: The first production readings (2026-11-09 09:08 UTC, from the host): 1 KB in
 #: 0.75 s; 100 KB uploaded in 25.7 s once and not at all the next time; the
 #: international host 40-57 ms for either. Whether a smaller writer request
 #: would pass the border needs readings between those two, the evidence
