@@ -29,6 +29,7 @@ class DevcontainerContractTests(unittest.TestCase):
             post_create = " ".join(post_create)
         self.assertIn("fonts-wqy-zenhei", post_create)
         self.assertNotIn("fonts-noto-cjk", post_create)
+        self.assertIn("/usr/local/bin", post_create)
         self.assertIn("uv sync", post_create)
 
     def test_devcontainer_includes_no_secrets_or_env_files(self):

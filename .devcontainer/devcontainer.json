@@ -6,7 +6,7 @@
       "version": "22"
     }
   },
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei && pip install --no-cache-dir uv && uv sync",
+  "postCreateCommand": "sudo rm -f /etc/apt/sources.list.d/yarn.list && sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei && python3 -m pip install --user --no-cache-dir uv && sudo ln -sf \"$HOME/.local/bin/uv\" \"$HOME/.local/bin/uvx\" /usr/local/bin/ && uv sync",
   "forwardPorts": [8000],
   "customizations": {
     "vscode": {
