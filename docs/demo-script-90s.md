@@ -87,7 +87,7 @@ GitHub repository and live-demo links.
 - Do not claim autonomous Tool Calling, classic vector RAG, six-stage
   superiority, production SLOs, exactly-once execution, adoption, or ROI.
 - End with both links on screen for at least two seconds:
-  [live application](https://academic-commercialization-agent.up.railway.app)
+  [live application](https://academic-agent.cc)
   and [GitHub repository](https://github.com/shuxiachai/academic-commercialization-agent).
 
 ## Before publishing

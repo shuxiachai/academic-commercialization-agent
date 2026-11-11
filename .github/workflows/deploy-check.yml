@@ -29,6 +29,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
+      # The address Railway issues, not the one visitors are given
+      # (academic-agent.cc): this job asks whether Railway deployed, and a DNS
+      # fault must not read as a missed deploy.
       PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://academic-commercialization-agent.up.railway.app' }}
       TARGET: ${{ github.event.workflow_run.head_sha }}
       GH_TOKEN: ${{ github.token }}

@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 
-**[▶ 免 Key、免注册，先读一份完整报告](https://academic-commercialization-agent.up.railway.app/samples)** · [打开在线应用](https://academic-commercialization-agent.up.railway.app) · [本地运行](#快速启动) · [English](README.md)
+**[▶ 免 Key、免注册，先读一份完整报告](https://academic-agent.cc/samples)** · [打开在线应用](https://academic-agent.cc) · [本地运行](#快速启动) · [English](README.md)
 
 ![演示：从历史列表打开一份已完成的 CAR-T 评估，依次查看评分卡、带引用的风险与机会、带引用的报告正文，以及一条已保存的来源摘录](assets/demo.gif)
 
@@ -18,8 +18,8 @@
 
 | 方式 | 需要什么 | |
 |---|---|---|
-| **阅读示例报告** | 什么都不需要。六份完整评估（其中一份为中文），打开时不发起任何模型或检索请求 | [打开示例](https://academic-commercialization-agent.up.railway.app/samples) |
-| **在线发起新分析** | 免费注册账号（邮箱加密码，开放注册），用自己的模型 API key 与模型 + Tavily 或 Serper 检索 key 付费运行。会产生供应商用量 | [打开应用](https://academic-commercialization-agent.up.railway.app) |
+| **阅读示例报告** | 什么都不需要。六份完整评估（其中一份为中文），打开时不发起任何模型或检索请求 | [打开示例](https://academic-agent.cc/samples) |
+| **在线发起新分析** | 免费注册账号（邮箱加密码，开放注册），用自己的模型 API key 与模型 + Tavily 或 Serper 检索 key 付费运行。会产生供应商用量 | [打开应用](https://academic-agent.cc) |
 | **在本机运行** | Python 3.11 或 3.12、[uv](https://docs.astral.sh/uv/) 和自己的 key | [快速启动](#快速启动) |
 
 示例报告也在 [examples/](examples/README.md) 中：五份是 2026-11-08 在当前流水线上用

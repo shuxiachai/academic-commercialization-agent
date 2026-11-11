@@ -10,7 +10,7 @@ included.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 
-**[▶ Read a finished report — no key, no sign-up](https://academic-commercialization-agent.up.railway.app/samples)** · [Open the application](https://academic-commercialization-agent.up.railway.app) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
+**[▶ Read a finished report — no key, no sign-up](https://academic-agent.cc/samples)** · [Open the application](https://academic-agent.cc) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
 
 ![Demo: a finished CAR-T assessment opened from the history list, its scorecard, risks and opportunities with citations, the cited report, and one saved source excerpt](assets/demo.gif)
 
@@ -20,8 +20,8 @@ included.
 
 | Way in | What you need | |
 |---|---|---|
-| **Read sample reports** | Nothing. Six finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-commercialization-agent.up.railway.app/samples) |
-| **Run a new analysis online** | A free account (email and password; sign-up is open) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to. Incurs provider usage | [Open the app](https://academic-commercialization-agent.up.railway.app) |
+| **Read sample reports** | Nothing. Six finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-agent.cc/samples) |
+| **Run a new analysis online** | A free account (email and password; sign-up is open) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to. Incurs provider usage | [Open the app](https://academic-agent.cc) |
 | **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [Quick start](#quick-start) |
 
 The samples are also in [examples/](examples/README.md): five runs of
