@@ -70,6 +70,7 @@ from api.models import (  # noqa: E402
     AccountDeletion,
     AdminAccounts,
     AdminBackups,
+    AdminFunnel,
     AdminLinkProbe,
     AdminConfirm,
     AdminDisable,
@@ -1319,6 +1320,29 @@ def admin_backups(http_request: Request) -> AdminBackups:
     return AdminBackups(scheduled=scheduled, every_hours=hours if scheduled else None,
                         keep=account_backup.schedule_keep() if scheduled else None,
                         backups=[row.__dict__ for row in admin.list_backups()])
+
+
+@app.get("/api/admin/funnel", response_model=AdminFunnel, tags=["admin"],
+         responses={404: {"description": "Not an admin account"}})
+def admin_funnel(http_request: Request, days: int = Query(default=30, ge=1, le=365)) -> AdminFunnel:
+    """Of the accounts created in the last `days` days, how many got how far.
+
+    Created, address proven, started a run, finished one; then how the
+    window's runs ended and why the failed ones failed, and what became
+    of the trial assessments. Counts only. Administrators are counted
+    apart, and a run that is no longer kept is in no number: see
+    api.admin.funnel.
+    """
+    _admin_account(http_request)
+    found = admin.funnel(days)
+    return AdminFunnel(
+        window_days=found.window_days, since=found.since,
+        accounts={"created": found.accounts_created, "verified": found.accounts_verified,
+                  "ran": found.accounts_ran, "completed": found.accounts_completed},
+        runs=found.runs, failures=[{"code": code, "runs": count} for code, count in found.failures],
+        trial={"started": found.trial_started, "completed": found.trial_completed,
+               "given_back": found.trial_given_back},
+        admin_runs=found.admin_runs, runs_kept_since=found.runs_kept_since, unreadable=found.unreadable)
 
 
 @app.post("/api/admin/link-probe", response_model=AdminLinkProbe, tags=["admin"],

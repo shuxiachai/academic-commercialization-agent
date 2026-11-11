@@ -1005,6 +1005,20 @@ account backups, each opened and verified as `verify` would. It offers two
 actions: reset an account's password, and disable or enable an account. A
 link to it appears in the account badge of the app for admin accounts.
 
+It shows a funnel (`GET /api/admin/funnel?days=30`, 1 to 365): of the
+accounts created in the window, how many proved their address, how many
+started an assessment and how many finished one, each step a subset of the
+one before; then the runs started in the window by how they ended, the
+failed ones by public failure code, and what became of the trial
+assessments (started, completed, given back). It is counts only and no
+address is in it. Accounts named as administrators are counted apart: they
+are not newcomers, and their runs are one number of their own. The counts
+come from what is kept, the account database and the run directories, so
+a run its owner deleted or retention removed is in no number; the answer
+says how far back the kept runs reach (`runs_kept_since`) and how many
+could not be read (`unreadable`). The account list also marks an account
+that has used its trial.
+
 It also measures the path to the model provider from the host itself
 (`POST /api/admin/link-probe`, the console's "Probe now"): chat requests
 of 1, 10, 30 and 100 KB, the last the size of the report writer's and 30 KB

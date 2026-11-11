@@ -1020,6 +1020,43 @@ class AdminAccount(BaseModel):
     sessions: int = Field(description="Live sign-ins; expired ones are not counted.")
     last_seen_at: int | None = Field(description="Unix time of the newest live session's last request.")
     runs: int = Field(description="Assessments recorded under the account.")
+    trial_used: int = Field(default=0, description="Assessments started on the account's trial and not given back.")
+
+
+class FunnelAccounts(BaseModel):
+    """Accounts created in the window, administrators apart; each step is a subset of the one before."""
+
+    created: int
+    verified: int = Field(description="Of those, the address has been proven.")
+    ran: int = Field(description="Of those, at least one run is kept.")
+    completed: int = Field(description="Of those, at least one kept run completed.")
+
+
+class FunnelFailure(BaseModel):
+    code: str = Field(description="The public failure code, as a run's status gives it.")
+    runs: int
+
+
+class FunnelTrial(BaseModel):
+    started: int
+    completed: int
+    given_back: int = Field(description="Trials returned because the provider could not be reached.")
+
+
+class AdminFunnel(BaseModel):
+    """Counts only, from what is kept: no address, and nothing about a run that was deleted."""
+
+    window_days: int
+    since: int = Field(description="Unix time the window begins.")
+    accounts: FunnelAccounts
+    runs: dict[str, int] = Field(description="Runs started in the window by anyone but an administrator: "
+                                             "started, then one count for each ending.")
+    failures: list[FunnelFailure] = Field(description="Failed runs by public code, most frequent first.")
+    trial: FunnelTrial
+    admin_runs: int = Field(description="Administrators' runs in the window, counted apart.")
+    runs_kept_since: int | None = Field(description="Start of the oldest run still on the volume; no run "
+                                                    "count reaches further back.")
+    unreadable: int = Field(description="Runs whose owner or state could not be read; in no other number.")
 
 
 class AdminAccounts(BaseModel):

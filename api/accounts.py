@@ -852,7 +852,7 @@ def list_users(*, now: float | None = None) -> list[dict]:
     stamp = int(now if now is not None else time.time())
     with _database() as db:
         rows = db.execute(
-            "SELECT u.id, u.email, u.created_at, u.disabled, u.verified_at, "
+            "SELECT u.id, u.email, u.created_at, u.disabled, u.verified_at, u.trial_used, "
             "COUNT(s.token_hash) AS sessions, MAX(s.last_seen_at) AS last_seen_at "
             "FROM users u LEFT JOIN sessions s ON s.user_id = u.id AND s.expires_at > ? "
             "GROUP BY u.id ORDER BY u.created_at DESC, u.id DESC", (stamp,)).fetchall()

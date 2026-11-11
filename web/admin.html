@@ -49,6 +49,32 @@
       <dl class="console__facts" id="service-facts"></dl>
     </section>
 
+    <section class="console__section" aria-labelledby="funnel-heading">
+      <div class="console__bar">
+        <h2 id="funnel-heading" data-text="funnel">Funnel</h2>
+        <select class="bare-select" id="funnel-days" aria-label="Window">
+          <option value="7">7</option>
+          <option value="30" selected>30</option>
+          <option value="90">90</option>
+        </select>
+      </div>
+      <p class="console__note" data-text="funnel_note"></p>
+      <div class="table-wrap">
+        <table class="console__table">
+          <thead>
+            <tr>
+              <th data-text="col_step">Step</th>
+              <th data-text="col_count">Accounts</th>
+              <th data-text="col_share">Of the step before</th>
+            </tr>
+          </thead>
+          <tbody id="funnel-rows"></tbody>
+        </table>
+      </div>
+      <dl class="console__facts" id="funnel-facts"></dl>
+      <p class="console__note" id="funnel-note"></p>
+    </section>
+
     <section class="console__section" aria-labelledby="accounts-heading">
       <div class="console__bar">
         <h2 id="accounts-heading" data-text="accounts">Accounts</h2>
