@@ -140,6 +140,46 @@ _OWNER_FILE = ".owner"
 # a failure, never an authorization.
 _FUNDED_FILE = ".funded"
 
+# A run that spent one of its account's trial assessments (api.accounts): whose,
+# and against which day's number, so the trial can be given back with the day's
+# unit when the provider could not be reached. Written by the API after launch.
+_TRIAL_FILE = ".trial"
+
+
+def mark_trial(run_id: str, *, user_id: int, day: str) -> None:
+    """Record that `run_id` was started on an account's trial. Never raises."""
+    try:
+        run_dir = run_dir_for(run_id)
+        if run_dir.is_dir():
+            (run_dir / _TRIAL_FILE).write_text(
+                json.dumps({"user_id": user_id, "day": day, "released": False}, sort_keys=True), encoding="utf-8")
+    except (OSError, ValueError) as exc:
+        print(f"[api] trial marker not written for {run_id}: {type(exc).__name__}", file=sys.stderr)
+
+
+def _release_trial_locked(run_dir: Path) -> bool:
+    """Give back the trial a run was started on, once; False when there is none to give."""
+    path = run_dir / _TRIAL_FILE
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(record, dict) or record.get("released") is not False:
+            return False
+        user_id, day = record.get("user_id"), record.get("day")
+        if not isinstance(user_id, int) or isinstance(user_id, bool) or not isinstance(day, str):
+            return False
+        # The marker first: if the account's count cannot then be changed the
+        # trial stays spent, which costs a visitor one assessment; the other
+        # order could give the same trial back on every reap.
+        path.write_text(json.dumps({**record, "released": True}, sort_keys=True), encoding="utf-8")
+        accounts.release_trial(accounts.TrialClaim(user_id=user_id, day=day))
+        return True
+    except (OSError, ValueError):
+        return False
+    except Exception as exc:  # noqa: BLE001 - the account store's failure is not the reap's
+        print(f"[api] trial not released for {run_dir.name}: {type(exc).__name__}", file=sys.stderr)
+        return False
+
+
 # Whether this run spent one of its owner's daily paid operations. Written by
 # the API at launch and rewritten on a refund, so the run page can say
 # whether a run that later failed already counted toward the day, and when
@@ -882,6 +922,10 @@ def _refund_unreachable_failure_locked(run_id: str, owner: str | None) -> None:
         _unreachable_refunds[owner] = given + 1
         print(f"[api] run {run_id}: provider unreachable, daily unit refunded "
               f"({given + 1} of {UNREACHABLE_REFUNDS_PER_DAY} today for its owner)", file=sys.stderr)
+        # A trial assessment lost the same way goes back with it, under the
+        # same bound: a newcomer's one run is not what a dead path should cost.
+        if _release_trial_locked(run_dir):
+            print(f"[api] run {run_id}: its account's trial assessment was given back", file=sys.stderr)
         try:
             _write_daily_charge(run_dir, charged_on, refunded=True, refund_reason=_REFUND_UNREACHABLE)
         except OSError:

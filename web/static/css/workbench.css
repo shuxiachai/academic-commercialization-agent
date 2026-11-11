@@ -675,6 +675,7 @@
   white-space: nowrap;
 }
 .composer__quota--empty { color: var(--danger); }
+.composer__privacy.composer__trial { color: var(--accent, var(--text-primary)); }
 
 .composer__privacy {
   margin: 0 var(--space-4) var(--space-4);

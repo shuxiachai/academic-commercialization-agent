@@ -900,6 +900,37 @@ the page stops asking an administrator for keys when it is on and shows them
 the plan preview on the deployment's key, as it does a code holder. Keys an
 administrator saves anyway are used instead, as for any account.
 
+A deployment may also pay for a newcomer's first assessment. Since sign-up
+opened, an account has had to bring a model key and a search key from two
+other services before its first run; `ACCOUNTS_TRIAL_RUNS` (0 by default,
+which is off) is how many assessments each verified account may start
+without keys, on the same path an administrator's runs take: the
+deployment's keys, the deployment's and the account's daily caps, the run
+tagged to the account and marked `.funded`. What bounds the bill is
+`ACCOUNTS_TRIAL_DAILY` (default 20; 0 turns it off): trial assessments the
+deployment starts in one UTC day across all accounts. An address is cheap
+to make, the sign-up caps bound how many are made, and this bounds what
+they can spend; when the day's number is used the refusal is 429
+`trial_daily_exhausted` and the account's own trial is untouched. The
+counts live in the account database (`users.trial_used`, `trial_days`), so
+they survive a restart and go with a deleted account.
+
+A trial covers a new assessment only. A resume or a PDF upload is refused
+without keys as before (`byok_required`), and so is every assessment after
+the account's number: the refusal a spent trial earns is the one every
+account got before trials existed. A run on the account's own keys spends
+no trial, and an administrator the deployment funds spends none. The
+address must be proven first. A trial is given back when no worker started
+(any refusal or launch failure), and, with the day's unit, when the run
+failed because the model provider could not be reached; the run directory's
+`.trial` marker records whose it was and that it was released, so it is
+given back once. That second case rides on the daily-unit refund and its
+three-a-day bound, so a deployment with both daily caps at 0 does not give
+a trial back for it. A trial that failed for any other reason is spent, and
+resuming it needs keys. Sign-in answers carry `trial_runs_left`, the
+sign-in configuration `trial_runs`; the page then does not put the keys
+card in front of a newcomer and says how many free assessments are left.
+
 Accounts and access codes coexist. A valid `X-Access-Code` header takes
 precedence over a session token, keeps its operator billing and its own
 history scope, and nothing changes for code holders. With accounts enabled an
