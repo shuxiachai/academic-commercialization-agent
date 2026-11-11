@@ -432,6 +432,24 @@ function reportDownloads() {
   });
 }
 
+/* Runs whose cancel has been sent and not yet seen to take effect.
+ *
+ * Every poll repaints a run's actions, and the server takes a few seconds to
+ * stop a worker. A Cancel that only disabled itself was replaced at the next
+ * poll by a fresh, enabled one reading "Cancel": the page looked as if the
+ * press had not registered, and invited a second. The state is kept here, by
+ * run, so whichever button is on the page shows it. liveCancel is that
+ * button; a refused cancel hands it back, not the one that was pressed. */
+const cancelling = new Set();
+let liveCancel = null;
+
+function paintCancel() {
+  if (!liveCancel) return;
+  const pressed = cancelling.has(liveCancel.runId);
+  liveCancel.button.disabled = pressed;
+  liveCancel.button.textContent = t(pressed ? "cancelling" : "cancel");
+}
+
 function paintActions(state, checkpointing = null) {
   const actions = $("#run-actions");
   actions.innerHTML = "";
@@ -445,18 +463,30 @@ function paintActions(state, checkpointing = null) {
     return;
   }
 
+  liveCancel = null;
+  // What was pressed belongs to that stretch of running, and ends with it.
+  if (runView.isTerminalState(state)) cancelling.delete(activeRunId);
+
   if (state === "running") {
+    const runId = activeRunId;
     const cancel = document.createElement("button");
     cancel.type = "button";
     cancel.className = "btn btn--danger";
-    cancel.textContent = t("cancel");
+    liveCancel = { runId, button: cancel };
+    paintCancel();
     cancel.addEventListener("click", async () => {
-      cancel.disabled = true;
+      if (cancelling.has(runId)) return;
+      cancelling.add(runId);
+      paintCancel();
       try {
-        await api.cancelRun(activeRunId);
+        await api.cancelRun(runId);
         toast(t("msg_cancelled"));
+        // The header reads "running" until the next poll, up to four seconds
+        // away; ask now, so the stop is seen as soon as the server has made it.
+        if (activeRunId === runId) follower?.poll?.();
       } catch (err) {
-        cancel.disabled = false;
+        cancelling.delete(runId);
+        paintCancel();
         toast(err.message, "error");
       }
     });
@@ -947,9 +977,26 @@ async function submitAssessment(submittedTopic, searchPlan) {
  * model gives no answer the reply says so, and the page says so too rather
  * than showing the topic as typed as if it were a reading. */
 
+/* The planner takes seconds, and until 2026-11-11 the only sign that it had
+ * been asked was the run button's tooltip: the press looked as if it had done
+ * nothing. The panel says so at once, where the reading will appear, with
+ * nothing to press yet. On a phone that place is below the fold, so the panel
+ * is brought into view, here and again when the reading (which is taller, and
+ * ends in the button that starts the run) replaces the line. "nearest" moves
+ * the page no further than it has to, and not at all when the panel shows. */
+function showPlanWaiting() {
+  hidePlan();
+  const label = runView.planLabel;
+  planPanel.hidden = false;
+  planPanel.append(planNode("h2", "plan-panel__title", label("title")),
+    planNode("p", "plan-panel__lede", label("previewing")));
+  planPanel.scrollIntoView?.({ block: "nearest" });
+}
+
 async function previewPlan(submittedTopic) {
   previewing = true;
   syncComposer();
+  showPlanWaiting();
   let next;
   try {
     const own = accountMode;
@@ -962,6 +1009,7 @@ async function previewPlan(submittedTopic) {
         : { topic: submittedTopic, failure: "unresolved", plan: null };
   } catch (err) {
     if (err.status === 401) {
+      hidePlan();
       toast(operationErrorMessage(err), "error");
       return;
     }
@@ -972,10 +1020,14 @@ async function previewPlan(submittedTopic) {
     syncComposer();
   }
   // A reading of a topic the user has since changed would confirm the wrong one.
-  if (topic.value.trim() !== submittedTopic) return;
+  if (topic.value.trim() !== submittedTopic) {
+    hidePlan();
+    return;
+  }
   planState = next;
   renderPlan();
   (planState.plan ? $("#plan-topic") : $("#plan-start") ?? $("#plan-edit"))?.focus();
+  planPanel.scrollIntoView?.({ block: "nearest" });
 }
 
 function hidePlan() {

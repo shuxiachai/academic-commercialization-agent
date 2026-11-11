@@ -42,7 +42,7 @@ function fixture(receiptStore = new Map()) {
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
-    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login", "/api/runs?limit=200"].includes(url), `Unexpected HTTP: ${url}`);
+    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login", "/api/runs?limit=200", "/api/runs/running-one?intent=cancel"].includes(url), `Unexpected HTTP: ${url}`);
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
@@ -650,6 +650,8 @@ const scenarios = {
       f.run(`accountMode = true; byokMode = true; planPreviewEnabled = ${kind !== 'off'}`);
     }
     f.topic('hyperloop');
+    const scrolled = [];
+    f.get('#plan-panel').scrollIntoView = (options) => scrolled.push(options.block);
     const submitted = f.submit();
     if (kind === 'off') {
       await Promise.resolve();
@@ -665,8 +667,21 @@ const scenarios = {
       assert.deepEqual(sent, { topic: 'hyperloop', llm_provider: 'qwen', llm_api_key: 'fixture-key',
         llm_model: 'qwen3.8-27b', tavily_api_key: 'fixture-search' });
     }
+    // The planner takes seconds. Until 2026-11-11 the only sign that anything
+    // had been asked was the run button's tooltip: the page looked as if the
+    // press had done nothing. The panel now says so at once, where the
+    // reading will appear, with nothing to press yet.
+    const waiting = f.get('#plan-panel');
+    assert.equal(waiting.hidden, false, 'The panel is there as soon as the planner is asked');
+    assert.deepEqual(waiting.children.map((node) => node.textContent), [label('title'), label('previewing')]);
+    // On a phone the panel opens below the fold: the composer fills the
+    // screen and the reading, with the button that starts the run, appeared
+    // where nobody was looking. It is brought into view, and no further than
+    // it needs to be.
+    assert.deepEqual(scrolled, ['nearest'], 'The waiting line is brought into view');
     f.respond(0, kind === 'silent' ? { ...plan, planned: false, search_topic: 'hyperloop', aliases: [] } : plan);
     await submitted;
+    assert.deepEqual(scrolled, ['nearest', 'nearest'], '...and so is the reading, which is taller');
     const panel = f.get('#plan-panel');
     assert.equal(panel.hidden, false);
     const [title, lede] = panel.children;
@@ -680,6 +695,94 @@ const scenarios = {
       assert.ok(texts.includes('hyperloop transportation system'));
     }
     assert.equal(f.requests.length, 1, 'Nothing is started until the reading is confirmed');
+  },
+  async preview_waiting() {
+    // The waiting panel must not outlive the question it was waiting on.
+    const kind = process.argv[3];
+    const f = fixture();
+    api.setAccessCode('fixture-code');
+    f.run('planPreviewEnabled = true');
+    f.topic('hyperloop');
+    const submitted = f.submit();
+    const panel = f.get('#plan-panel');
+    assert.equal(panel.hidden, false);
+    assert.equal(panel.children.length, 2, 'A title and the waiting line, nothing to press');
+    if (kind === 'changed') {
+      // A reading of a topic the user has since changed would confirm the wrong one.
+      f.topic('something else entirely');
+      f.respond(0, { planned: true, resolved: true, search_topic: 'hyperloop transportation system', aliases: [], components: [] });
+      await submitted;
+      assert.equal(panel.hidden, true, 'No reading is shown, and the waiting line is gone with it');
+      assert.equal(panel.children.length, 0);
+      assert.equal(f.run('planState'), null);
+    } else if (kind === 'refused') {
+      f.respond(0, { detail: 'Sign in.' }, 401);
+      await submitted;
+      assert.equal(panel.hidden, true, 'A refusal is said in a toast; the panel does not stay waiting');
+      assert.equal(panel.children.length, 0);
+    } else {
+      // A planner that cannot be reached still ends in the panel, with the reason and a way on.
+      f.respond(0, { detail: 'The planner is unavailable.' }, 503);
+      await submitted;
+      assert.equal(panel.hidden, false);
+      assert.ok(panel.children.length > 2, 'The reason and the buttons replace the waiting line');
+      assert.notEqual(panel.children[1].textContent, actualRunView.planLabel('previewing'));
+    }
+  },
+  async cancel_feedback() {
+    // Every poll repaints the run's actions. Until 2026-11-11 that replaced a
+    // Cancel that had just been pressed with a fresh, enabled one: for the
+    // seconds the server takes to stop a worker the page looked as if the
+    // press had not registered, and invited a second.
+    const kind = process.argv[3];
+    const f = fixture();
+    f.run(`activeRunId = "running-one";
+      follower = { stop() {}, poll() { globalThis.polled = (globalThis.polled || 0) + 1; } };
+      paintActions("running")`);
+    const button = () => f.get('#run-actions').children.find((el) => ['cancel', 'cancelling'].includes(el.textContent));
+    const first = button();
+    assert.equal(first.textContent, 'cancel');
+    assert.equal(first.disabled, false);
+    const pressed = first.listeners.click();
+    assert.equal(first.disabled, true, 'Pressed once, it cannot be pressed again');
+    assert.equal(first.textContent, 'cancelling', '...and it says what is happening');
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.requests[0].url, '/api/runs/running-one?intent=cancel');
+    assert.equal(f.requests[0].options.method, 'DELETE');
+
+    f.run('paintActions("running")');
+    const repainted = button();
+    assert.notEqual(repainted, first, 'A poll replaced the button');
+    assert.equal(repainted.disabled, true, '...and the replacement still knows it was pressed');
+    assert.equal(repainted.textContent, 'cancelling');
+    // A disabled button takes no clicks in a browser; the handler does not rely on it.
+    first.listeners.click();
+    repainted.listeners.click();
+    assert.equal(f.requests.length, 1, 'One cancel is sent, however often it is pressed');
+    f.run('activeRunId = "another-run"; paintActions("running")');
+    assert.equal(button().disabled, false, 'Another run\'s Cancel is its own');
+    assert.equal(button().textContent, 'cancel');
+    f.run('activeRunId = "running-one"; paintActions("running")');
+    if (kind === 'pending') return;
+
+    if (kind === 'done') {
+      f.respond(0, {});
+      await pressed;
+      assert.equal(f.run('globalThis.polled'), 1, 'The header is asked for now, not at the next poll');
+      assert.equal(f.requests.length, 1);
+      f.run('paintActions("running")');
+      assert.equal(button().disabled, true, 'Until the run is seen to have stopped, it stays pressed');
+      f.run('paintActions("cancelled")');
+      assert.equal(button(), undefined, 'A stopped run has no Cancel');
+      assert.equal(f.run('cancelling.size'), 0, 'What was pressed is forgotten once the run is seen to have stopped');
+    } else {
+      f.respond(0, { detail: 'The run already finished.' }, 409);
+      await pressed;
+      const again = button();
+      assert.equal(again.disabled, false, 'A cancel the server refused can be tried again');
+      assert.equal(again.textContent, 'cancel');
+      assert.equal(f.run('globalThis.polled'), undefined);
+    }
   },
   async invite_hint() {
     // Creating an account in invite mode: the form says who gives out codes.

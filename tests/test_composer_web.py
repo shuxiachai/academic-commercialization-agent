@@ -95,6 +95,49 @@ def test_an_account_previews_the_search_on_its_own_key(kind):
     assert "PASS account_preview" in result.stdout
 
 
+@pytest.mark.parametrize("kind", ["changed", "refused", "unavailable"])
+def test_the_waiting_preview_does_not_outlive_its_question(kind):
+    """The panel says the topic is being read; it must not stay saying so.
+
+    A topic changed meanwhile and a refused request both end with no panel;
+    a planner that could not be reached ends with its reason and a way on.
+    """
+    node = shutil.which("node")
+    assert node, "Node is required for the preview-waiting seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        "preview_waiting", kind], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS preview_waiting" in result.stdout
+
+
+@pytest.mark.parametrize("kind", ["pending", "done", "failed"])
+def test_a_pressed_cancel_stays_pressed_until_the_run_stops(kind):
+    """Each poll repainted Cancel as if it had never been pressed."""
+    node = shutil.which("node")
+    assert node, "Node is required for the cancel-feedback seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        "cancel_feedback", kind], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS cancel_feedback" in result.stdout
+
+
+@pytest.mark.parametrize("scenario", ["asks_now", "not_twice_at_once", "not_after_stop"])
+def test_the_run_follower_can_be_asked_to_poll_now(scenario):
+    """After a cancel the header waited up to four seconds for the next poll."""
+    node = shutil.which("node")
+    assert node, "Node is required for the run-follower seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "run_follow_contract.mjs"),
+        scenario], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert f"PASS {scenario}" in result.stdout
+
+
+def test_cancelling_is_said_in_both_languages():
+    strings = (Path(__file__).parents[1] / "web" / "static" / "js" / "i18n.js").read_text(encoding="utf-8")
+    assert 'cancelling: "Cancelling…"' in strings
+    assert 'cancelling: "正在取消…"' in strings
+
+
 @pytest.mark.parametrize("contact", ["address", "sentence", "none"])
 def test_the_sign_up_form_says_who_gives_out_invite_codes(contact):
     """The invite code field was a dead end for anyone who arrived by a link."""
