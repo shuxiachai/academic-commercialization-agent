@@ -326,7 +326,7 @@ Kubernetes 本身不能解决这些缺口。没有接入邮件服务的部署既
 ## 作者与更多作品
 
 作者：[shuxiachai](https://github.com/shuxiachai)。
-参与者：[Song Guoyu（@7776403yu）](https://github.com/7776403yu)、[@xiaobaozhou165-sudo](https://github.com/xiaobaozhou165-sudo)。
+参与者：[Song Guoyu（@7776403yu）](https://github.com/7776403yu)、[@xiaobaozhou165-sudo](https://github.com/xiaobaozhou165-sudo)、[Abhishek Vyas（@Baddevil512）](https://github.com/Baddevil512)。
 更多项目与实践见 [GitHub 个人主页](https://github.com/shuxiachai)。
 
 ## 许可证
