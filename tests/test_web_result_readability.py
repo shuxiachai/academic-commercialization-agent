@@ -552,6 +552,64 @@ class DecisionBriefTests(unittest.TestCase):
         fallback = self._brief(markdown="## Executive Summary\n\nShort.\n")["brief"]
         self.assertEqual(fallback["next"], "Patent white space in manufacturing scalability [P4].")
 
+    def _next(self, section):
+        report = ("## Executive Summary\n\nShort.\n\n## 5. Commercialization Opportunities & Recommendations\n\n"
+                  + section + "\n\n## Evidence Limitations\n\nSparse.\n")
+        return self._brief(markdown=report)["brief"]["next"]
+
+    def test_the_first_step_is_not_the_statement_of_what_the_section_is(self):
+        """The writer's contract opens the recommendations with the assessment
+        mode and the decision owner. Read as the first item, "Assessment Mode:
+        Orientation." was the first recommended step of 80 of 193 saved runs
+        (2026-11-11). The forms below are the ones those reports use."""
+        route = "A partnership-based integration strategy is preferred over competing on sensor hardware."
+        opening = ("**Assessment Mode**: Orientation. A GO/NO-GO decision is not assessed.\n\n"
+                   "**Decision Owner**: Not established. No actor has been identified.\n\n")
+        self.assertEqual(self._next(opening + f"**Primary Commercialization Route**: {route} More follows."),
+                         f"Primary Commercialization Route: {route}")
+        # Each spelling of the opening that the saved reports carry.
+        for mode in ("**Assessment Mode: ORIENTATION**\nThis is an orientation brief for a transfer office.",
+                     "**Assessment Mode:** Orientation. The responsible decision owner is **not established**.",
+                     "- **Assessment Mode Statement:** This section is written in orientation mode.",
+                     "**Assessment mode: orientation.**\n\n**Responsible decision owner: not established.**"):
+            with self.subTest(mode=mode):
+                self.assertEqual(self._next(f"{mode}\n\n1. **Build a pilot line.** Semi-solid cells first."),
+                                 "Build a pilot line.")
+        chinese = self._brief(markdown=(
+            "## 执行摘要\n\n很短。\n\n## 5. 商业化机遇与建议\n"
+            "**评估模式**：本报告为**定向评估**。未进行决策评估。\n\n"
+            "**决策主体**：未确定。\n\n"
+            "**首选商业化路线：通过技术许可向现有市场领导者提供关键技术**\n此路线是首选。\n"))["brief"]
+        self.assertEqual(chinese["next"], "首选商业化路线：通过技术许可向现有市场领导者提供关键技术")
+        # A section that says only what it is recommends nothing: the brief
+        # falls back to the scorecard's first opportunity, as with no section.
+        self.assertEqual(self._next(opening.strip()), "Patent white space in manufacturing scalability [P4].")
+        # The words are skipped only where they open a line, not wherever they occur.
+        self.assertEqual(self._next("1. **Confirm the decision owner's budget before the assessment mode changes.**"),
+                         "Confirm the decision owner's budget before the assessment mode changes.")
+
+    def test_a_label_on_its_own_line_hands_the_step_to_the_line_under_it(self):
+        """"**Primary Commercialization Route:**" alone was the first step of 13
+        more of the 193: a heading for the sentence below it."""
+        route = "The preferred primary route is B2G infrastructure development for regional governments."
+        self.assertEqual(self._next(f"**Primary Commercialization Route:**\n{route} It suits freight.\n1. A reason."), route)
+        self.assertEqual(self._next(f"**Primary Commercialization Route**\n\n{route}"), route, "the same heading without its colon")
+        self.assertEqual(self._next("**首选商业化路线**\n\n建议与电网公司合作开发。其余从略。"), "建议与电网公司合作开发。")
+        self.assertEqual(self._next("**Opportunities:**\n\n1. **Build a pilot line.** Then scale."), "Build a pilot line.")
+        # A whole paragraph that ends in a colon is the recommendation, not a
+        # label for the list under it (the Hyperloop sample is written so).
+        paragraph = (f"**Primary Commercialization Route:**\n{route} This route is preferred over "
+                     "private-only development for three reasons that the sources support and that follow:\n"
+                     "1. Regulatory frameworks are being developed.")
+        self.assertEqual(self._next(paragraph), route)
+        lone = ("The preferred route is licensing to incumbent equipment makers rather than entering as a vendor, "
+                "which the evidence supports in three ways:")
+        self.assertEqual(self._next(f"**Primary Commercialization Route:**\n{lone}\n1. Order books are full."), lone)
+        # A label with nothing under it before the section ends.
+        self.assertEqual(self._next("**Primary Commercialization Route:**"), "Patent white space in manufacturing scalability [P4].")
+        # A sub-heading is not the text a label was waiting for.
+        self.assertEqual(self._next("**Opportunities:**\n\n### 5.1 Near term\n\n- Build a pilot line."), "Build a pilot line.")
+
     def test_a_report_saved_with_windows_line_endings_reads_the_same(self):
         """The benchmark corpus is CRLF; a bold-led recommendation there was
         missed because "." never matches a carriage return."""

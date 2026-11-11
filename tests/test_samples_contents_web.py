@@ -27,12 +27,27 @@ _SCRIPT = Path(__file__).with_name("js") / "samples_contents_contract.mjs"
 _RESULT_STUB = """\
 export const renderMarkdown = (md) => [...md.matchAll(/^## (.*)$/gm)].map(([, text]) => `<h2>${text}</h2>`).join("");
 export const citationIndex = () => new Map();
-export function attachCitations() {}
+export const decisionBrief = ({ scores, markdown }) =>
+  (scores && typeof scores.overall_score === "number" ? { overall: scores.overall_score, markdown } : null);
+export function renderDecisionBrief(data, { note = "" } = {}) {
+  const node = document.createElement("section");
+  node.className = "brief";
+  Object.assign(node.dataset, { overall: String(data.overall), note, markdown: data.markdown });
+  return node;
+}
+export function renderScorecard(scores, sources = null) {
+  const node = document.createElement("section");
+  node.className = "scorecard";
+  Object.assign(node.dataset, { overall: String(scores.overall_score), sources: String(sources) });
+  return node;
+}
+export function attachCitations(node) { globalThis.cited?.push(node.className); }
 """
 
 
 @pytest.mark.parametrize("scenario", [
     "each_sample", "rebuilt", "fragment", "failed_read", "deep_link", "wide", "narrow", "no_headings",
+    "scorecard", "scorecard_missing",
 ])
 def test_contents_follow_the_open_sample(scenario):
     """Counter ids, one list per render, and fragment links that do not reload the sample."""

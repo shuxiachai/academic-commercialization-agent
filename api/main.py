@@ -628,7 +628,8 @@ async def _access_gate(request: Request, call_next):
       Keeping that decision in the handler also lets resume parse fresh BYOK
       credentials without consuming and rebuilding the request body here.
       GET /api/runs itself stays gated because it lists deployment history.
-    - GET /api/samples and /api/samples/{slug} — committed example reports
+    - GET /api/samples, /api/samples/{slug} and /api/samples/{slug}/scores —
+      committed example reports and the scorecards of their runs,
       from an allowlist (api/samples.py). They exist so a visitor without a
       code can see a finished report; nothing behind them spends money or
       reads deployment state.
@@ -1623,6 +1624,20 @@ def read_sample_report(
         report_for_display(text) if view == "display" else text,
         media_type="text/markdown; charset=utf-8",
     )
+
+
+@app.get("/api/samples/{slug}/scores", tags=["samples"])
+def read_sample_scores(slug: str) -> JSONResponse:
+    """The scorecard of one example report's run, as that run wrote it.
+
+    404 for an unknown sample and for one whose scorecard is missing or
+    unreadable on this deployment; the reader then shows the report alone.
+    """
+    try:
+        scores = samples.read_sample_scores(slug)
+    except (KeyError, FileNotFoundError, ValueError):
+        raise HTTPException(status_code=404, detail="No scorecard for that sample.") from None
+    return JSONResponse(scores)
 
 
 @app.get("/health", response_model=HealthStatus, tags=["meta"])
