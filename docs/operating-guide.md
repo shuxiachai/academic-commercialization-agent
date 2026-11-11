@@ -987,8 +987,8 @@ the body was sent and the first byte came back, with a 30-second bound.
 The targets are fixed: nothing in the request chooses where the server
 posts. It exists because of 2026-11-09, when the writer's request failed on
 eight new connections in a row from the host while the same request from
-mainland China was answered in seconds, and nothing could be measured from
-the host. A clean reading says the path carried the request at that
+the maintainer's machine, outside the host's network, was answered in
+seconds, and nothing could be measured from the host. A clean reading says the path carried the request at that
 moment, not that it will for the next run. The first readings from the
 host (2026-11-09, 09:08 UTC, 17:08 Beijing time) were the case in point: 1 KB to the
 mainland host in 0.75 s, 100 KB uploaded in 25.7 s once and not within 30 s

@@ -2,8 +2,8 @@
 
 2026-11-09: a production run on streamed calls had the writer's request fail
 on eight fresh connections in a row, each silent for 60 seconds, while the
-same 22,000-token request from a machine in mainland China got its first
-chunk in 6.9 seconds. The three evidence agents' smaller requests mostly got
+same 22,000-token request from the maintainer's machine, outside the host's
+network, got its first chunk in 6.9 seconds. The three evidence agents' smaller requests mostly got
 through. Everything pointed at the path from the host (Railway, Singapore) to
 dashscope.aliyuncs.com, and nothing could be measured from there: the shell
 is not reachable from here and the worker's attempt rows say only "no chunk

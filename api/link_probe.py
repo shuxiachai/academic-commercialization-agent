@@ -5,8 +5,8 @@ with a 60-second per-chunk bound and a rebuilt connection before each retry:
 the writer's request failed on eight fresh connections in a row, each silent
 for 60 seconds, two of them with a connection error; the three evidence
 agents' smaller requests mostly got through. The same 22,000-token request
-sent from a machine in mainland China to the same endpoint got its first
-chunk in 6.9 seconds and finished in 22.7. The model was not slow. The path
+sent from the maintainer's machine, outside the host's network, to the same
+endpoint got its first chunk in 6.9 seconds and finished in 22.7. The model was not slow. The path
 from the host (Railway, Singapore) to dashscope.aliyuncs.com (Beijing) was
 not carrying a 100 KB request, at least not that afternoon.
 
