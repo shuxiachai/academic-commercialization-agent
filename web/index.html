@@ -66,6 +66,8 @@
           <button type="button" class="btn btn--secondary" id="landing-sign-in" data-i18n="landing_sign_in">Sign in</button>
           <a class="landing__sample-link" href="/samples" data-i18n="landing_read_sample">Read a finished report first, no account needed</a>
         </div>
+        <!-- Only where the deployment pays for a newcomer's first assessment (app.js). -->
+        <p class="landing__trial" id="landing-trial" data-i18n="landing_trial" hidden>Your first assessment is free: no API keys needed.</p>
       </div>
 
       <!-- Filled from /api/samples, which needs no credentials: the titles
@@ -101,7 +103,7 @@
       </li>
       <li>
         <h2 data-i18n="landing_step3_title">A decision brief comes out</h2>
-        <p data-i18n="landing_step3_body">A scorecard for TRL, MRL, patent strength, market accessibility and evidence confidence; a cited report; the main risks and a recommended first step. Export Markdown or PDF, or share the link. A run takes about 15 minutes.</p>
+        <p data-i18n="landing_step3_body">A scorecard for TRL, MRL, patent strength, market accessibility and evidence confidence; a cited report; the main risks and a recommended first step. Export Markdown or PDF, or share the link. A run takes 6 to 15 minutes.</p>
       </li>
     </ol>
 
@@ -110,7 +112,7 @@
          form's own (byok_sub, byok_guide, account_sub). -->
     <section class="landing__card landing__pay" aria-labelledby="landing-pay-title">
       <h2 id="landing-pay-title" data-i18n="landing_pay_title">Your keys, your bill</h2>
-      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). One measured run used about 70,000 model tokens; your providers bill you directly for that, and this service adds nothing. Keys stay in your browser; this server never stores them.</p>
+      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Measured runs used about 100,000 model tokens; your providers bill you directly for that, and this service adds nothing. Keys stay in your browser; this server never stores them.</p>
       <!-- The deployment's retention period, from /health (app.js); the key
            form states the same figure, but by then the visitor has signed up. -->
       <p class="landing__retention" id="landing-retention"></p>
@@ -211,6 +213,16 @@
 
   <!-- ═══ Main ═════════════════════════════════════════════════════ -->
   <main class="main" id="main">
+    <!-- Shown to a visitor with no identity who followed a link to a run or
+         a comparison (app.js, enterViewer): they read it, and this is the
+         way in if they want to run their own. -->
+    <div class="viewer-bar" id="viewer-bar" hidden>
+      <span class="viewer-bar__note" data-i18n="viewer_note">You are reading a shared assessment. Sign in to run your own.</span>
+      <span class="viewer-bar__actions">
+        <button type="button" class="btn btn--primary" id="viewer-create" data-i18n="viewer_create">Create account</button>
+        <button type="button" class="btn btn--secondary" id="viewer-sign-in" data-i18n="viewer_sign_in">Sign in</button>
+      </span>
+    </div>
     <!-- Phone bar. Below 860px the sidebar is an overlay whose own toggle is
          off-screen with it, so this is the only way to reach run history,
          "new analysis" and the interface language there (chrome.js). -->
@@ -523,8 +535,9 @@
          except with the operations the account starts. -->
     <form id="account-form" hidden>
       <h2 class="gate__title" id="account-title" data-i18n="account_title">Sign in</h2>
-      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes about 15 minutes.</p>
-      <p class="gate__sub" data-i18n="account_sub">Runs are paid for with API keys you add after signing in. Your keys stay in this browser and are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
+      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes 6 to 15 minutes.</p>
+      <p class="gate__sub" id="account-sub-trial" data-i18n="account_sub_trial" hidden>A new account's first assessment is free and needs no API keys. After that, runs are paid for with API keys you add: they stay in this browser, are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
+      <p class="gate__sub" id="account-sub" data-i18n="account_sub">Runs are paid for with API keys you add after signing in. Your keys stay in this browser and are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
       <input class="gate__input" id="account-email-input" type="email" autocomplete="username" required
              maxlength="254" data-i18n-placeholder="account_email_placeholder" placeholder="Email">
       <input class="gate__input" id="account-password" type="password" autocomplete="current-password" required
@@ -576,7 +589,7 @@
       <h2 class="gate__title" data-i18n="gate_title">Access code required</h2>
       <!-- A visitor arriving from a shared link meets this before anything
            else, so it says what the app does before asking for a code. -->
-      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes about 15 minutes.</p>
+      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes 6 to 15 minutes.</p>
       <p class="gate__sub" data-i18n="gate_sub">This deployment is invite-only. Enter the access code you were given; if you have none, ask whoever shared this link.</p>
       <input class="gate__input" id="gate-input" type="password" autocomplete="off"
              data-i18n-placeholder="gate_placeholder" placeholder="Access code">
@@ -631,7 +644,7 @@
       <!-- For someone who has never done this: what is enough, what it
            costs and who bills it. The figure is one measured run, said as
            such; it is not a quote. -->
-      <p class="gate__hint" data-i18n="byok_guide">New to this? One model key and one search key are enough. A full assessment takes about 15 minutes; one measured run used about 70,000 model tokens. Your providers bill you directly, and this service adds nothing.</p>
+      <p class="gate__hint" data-i18n="byok_guide">New to this? One model key and one search key are enough. A full assessment takes 6 to 15 minutes; measured runs used about 100,000 model tokens. Your providers bill you directly, and this service adds nothing.</p>
       <!-- What a provider said about the keys, for a signed-in account
            saving them. Never a dead end: the same keys can be saved anyway. -->
       <p class="gate__error" id="byok-error" role="alert" hidden></p>

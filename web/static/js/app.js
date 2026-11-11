@@ -413,9 +413,37 @@ function copyLinkButton() {
   return copy;
 }
 
+/* The two ways a finished report leaves the browser. Markdown first: it is
+ * instant, while the PDF renders on first request. */
+function reportDownloads() {
+  const icon = `
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M8 2.5v8m0 0L4.5 7M8 10.5L11.5 7M3 12.5v.5a1 1 0 001 1h8a1 1 0 001-1v-.5"
+              stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+  return [["md", "report", "Markdown"], ["pdf", "report.pdf", "PDF"]].map(([suffix, path, label]) => {
+    const link = document.createElement("a");
+    link.className = "btn btn--secondary";
+    link.href = `/api/runs/${activeRunId}/${path}`;
+    link.download = `${activeRunId}.${suffix}`;
+    link.innerHTML = icon;
+    link.append(label);
+    return link;
+  });
+}
+
 function paintActions(state, checkpointing = null) {
   const actions = $("#run-actions");
   actions.innerHTML = "";
+
+  if (viewerMode) {
+    // Someone else's run: read it, keep it, pass it on. Nothing that changes
+    // it or starts a paid step is offered; the server would refuse a reader
+    // those anyway, and a button that only fails is worse than none.
+    if (state === "completed") actions.append(...reportDownloads());
+    if (state === "running" || runView.isTerminalState(state)) actions.append(copyLinkButton());
+    return;
+  }
 
   if (state === "running") {
     const cancel = document.createElement("button");
@@ -444,27 +472,7 @@ function paintActions(state, checkpointing = null) {
   // Not another "New analysis" — that button already lives in the rail, one
   // click away and always visible. A finished run needs a way out of the
   // browser instead.
-  if (state === "completed") {
-    const icon = `
-      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M8 2.5v8m0 0L4.5 7M8 10.5L11.5 7M3 12.5v.5a1 1 0 001 1h8a1 1 0 001-1v-.5"
-              stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>`;
-
-    // Markdown first: it is instant, while the PDF renders on first request.
-    for (const [suffix, path, label] of [
-      ["md", "report", "Markdown"],
-      ["pdf", "report.pdf", "PDF"],
-    ]) {
-      const link = document.createElement("a");
-      link.className = "btn btn--secondary";
-      link.href = `/api/runs/${activeRunId}/${path}`;
-      link.download = `${activeRunId}.${suffix}`;
-      link.innerHTML = icon;
-      link.append(label);
-      actions.append(link);
-    }
-  }
+  if (state === "completed") actions.append(...reportDownloads());
 
   const canResume = (
     new Set(["failed", "cancelled", "timeout"]).has(state)
@@ -674,6 +682,9 @@ async function handleDeleteRun(runId, topic) {
 }
 
 async function refreshSidebar() {
+  // A reader has no identity whose history this would be; the list stays
+  // behind the gate and asking would only earn a refusal.
+  if (viewerMode) return;
   const revision = ++sidebarRevision;
   const isCurrent = () => revision === sidebarRevision;
   // GET /api/runs (the list) always stays behind the access code, scoped
@@ -767,6 +778,10 @@ let accountVerified = true;
 let accountAdmin = false;
 // Whether the account asked for an email when a run of its ends (Account panel).
 let accountNotify = false;
+// A visitor with no identity reading a run or a comparison someone shared
+// (enterViewer). They see the report and a bar that offers the way in; no
+// history is asked for and nothing that changes the run is offered.
+let viewerMode = false;
 // Assessments the account may still start without keys, on the deployment's
 // own (a verified account's trial); the server's number, counted down here
 // when one is accepted.
@@ -1622,6 +1637,50 @@ function showAccountSettings() {
  * deployment without accounts is invite-only by access code, so its
  * visitors already know what they were sent to. Resolves once the card has
  * let someone in, when the workbench takes over. */
+/* An address a link can share: one run, or two side by side. */
+function sharedPath() {
+  return /^\/run\/[^/]+$/.test(location.pathname) || /^\/compare\/[^/]+\/[^/]+$/.test(location.pathname);
+}
+
+/* A visitor with no identity who followed a link to a run.
+ *
+ * "Copy link" hands the address to someone else, and the server has always
+ * answered a run's reads to whoever holds its id (api/main.py, the gate's
+ * exemption for /api/runs/{id}/...). The page did not: it put the sign-in
+ * card in front of the report, so the person a link was for had to create
+ * an account to read one. They read it now. What they are not given is
+ * anything that belongs to an identity: no history, no composer, nothing
+ * that changes the run. The bar is the way in, through the same card. */
+function enterViewer() {
+  viewerMode = true;
+  $("#workbench").dataset.viewer = "true";
+  $("#viewer-bar").hidden = false;
+  $("#viewer-create").hidden = !authConfig?.signup_open;
+  $("#viewer-sign-in").hidden = false;
+  let opening = false;
+  const open = (creating) => async () => {
+    if (opening) return;
+    opening = true;
+    try {
+      // "back" is the card put down again: the report stays, the bar too.
+      if (await showGate(null, { creating, back: true }) !== "back") leaveViewer();
+    } finally {
+      opening = false;
+    }
+  };
+  $("#viewer-create").onclick = open(true);
+  $("#viewer-sign-in").onclick = open(false);
+}
+
+/* Signed in from the bar: the reader is a user of this deployment now. */
+function leaveViewer() {
+  viewerMode = false;
+  $("#workbench").dataset.viewer = "false";
+  $("#viewer-bar").hidden = true;
+  routeFromLocation();
+  refreshSidebar();
+}
+
 function landingWanted() {
   return Boolean(authConfig?.enabled) && location.pathname === "/";
 }
@@ -1633,6 +1692,8 @@ async function showLanding() {
   workbench.hidden = true;
   // Without sign-up the button would only ever fail; sign-in stands alone.
   $("#landing-create").hidden = !authConfig?.signup_open;
+  // Said only where the deployment pays for a newcomer's first assessment.
+  $("#landing-trial").hidden = !(authConfig?.trial_runs > 0);
   // The sidebar's language select is hidden with the workbench; this one
   // drives it, so every listener on the original still runs.
   const lang = $("#landing-lang");
@@ -1789,6 +1850,12 @@ async function decideAccess() {
     // The refusal says what the gate may offer; no second request needed.
     authConfig = err.body?.accounts ?? null;
   }
+  // A shared run or comparison is read without an identity; everything
+  // else on a gated deployment is the workbench, which needs one.
+  if (sharedPath()) {
+    enterViewer();
+    return;
+  }
   if (landingWanted()) await showLanding();
   else await showGate();
 }
@@ -1909,6 +1976,10 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
   $("#account-settings").hidden = true;
   codeError.hidden = !errorKey;
   codeError.textContent = errorKey ? t(errorKey) : "";
+  // With a first assessment on the deployment's keys the card must not
+  // tell a newcomer that every run is paid for with keys they bring.
+  $("#account-sub").hidden = authConfig?.trial_runs > 0;
+  $("#account-sub-trial").hidden = !(authConfig?.trial_runs > 0);
   accountError.hidden = true;
   gate.hidden = false;
 
