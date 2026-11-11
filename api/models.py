@@ -386,12 +386,19 @@ class RunProgress(BaseModel):
         description="Whose keys the run used: an account's own, or the deployment's under an "
                     "access code. None for a run nobody owns. It decides who can act on a failure.",
     )
+    daily_charge_reason: Literal["launch_failed", "provider_unreachable"] | None = Field(
+        default=None,
+        description="Why a refunded charge was given back: launch_failed (no worker existed) or "
+                    "provider_unreachable (the run failed because the model provider could not be "
+                    "reached; at most three a day for each owner). None for every other state, and "
+                    "for a refund recorded before reasons were.",
+    )
     daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
         default="not_recorded",
         description="Whether this run spent one of its owner's daily paid operations: charged; "
-                    "refunded (the worker never launched); not_charged (own key, or no cap); "
+                    "refunded (see daily_charge_reason); not_charged (own key, or no cap); "
                     "not_recorded (the run predates the marker); unreadable. A run that launched "
-                    "and then failed stays charged.",
+                    "and then failed stays charged, unless the provider could not be reached.",
     )
     elapsed_seconds: int | None = None
     stage_timings: list[StageTiming] = Field(
@@ -570,12 +577,19 @@ class RunStatus(BaseModel):
         description="Whose keys the run used: an account's own, or the deployment's under an "
                     "access code. None for a run nobody owns. It decides who can act on a failure.",
     )
+    daily_charge_reason: Literal["launch_failed", "provider_unreachable"] | None = Field(
+        default=None,
+        description="Why a refunded charge was given back: launch_failed (no worker existed) or "
+                    "provider_unreachable (the run failed because the model provider could not be "
+                    "reached; at most three a day for each owner). None for every other state, and "
+                    "for a refund recorded before reasons were.",
+    )
     daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
         default="not_recorded",
         description="Whether this run spent one of its owner's daily paid operations: charged; "
-                    "refunded (the worker never launched); not_charged (own key, or no cap); "
+                    "refunded (see daily_charge_reason); not_charged (own key, or no cap); "
                     "not_recorded (the run predates the marker); unreadable. A run that launched "
-                    "and then failed stays charged.",
+                    "and then failed stays charged, unless the provider could not be reached.",
     )
     elapsed_seconds: int | None = None
     stage_timings: list[StageTiming] = Field(

@@ -234,7 +234,7 @@ function startClock(fromSeconds) {
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
   terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
-  stage_timings, eta, pipeline_revision, error, error_code, funded_by, daily_charge,
+  stage_timings, eta, pipeline_revision, error, error_code, funded_by, daily_charge, daily_charge_reason,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -298,7 +298,7 @@ function paintHeader({
   // Why it ended and whether it spent one of today's runs, kept with the run
   // rather than in a toast that is gone before the page is read again.
   const outcomeEl = $("#run-outcome");
-  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge, checkpointing });
+  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing });
   outcomeEl.textContent = outcome;
   outcomeEl.hidden = !outcome;
 

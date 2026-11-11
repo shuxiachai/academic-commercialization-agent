@@ -817,9 +817,21 @@ These are example policy values, not a cost/SLO guarantee.
   from operator-funded daily quota but not host capacity. Zero disables the
   cap; legacy `API_DAILY_RUN_CAP` is a fallback when the new name is unset.
   A run is charged when it is admitted and stays charged if its worker fails
-  later; only a launch that never started a worker is refunded. Each run
-  records which applied (`daily_charge` on its status), and a failed run's
-  page says whether it counted and that resuming uses another unit.
+  later, with two exceptions. A launch that never started a worker is
+  refunded. So is a run that failed because the model provider could not be
+  reached (a connection error, or a request the transport cut), since nothing
+  in the request caused it and nothing the requester does would fix it: the
+  unit is given back when the exited worker is reaped, at most three times a
+  UTC day for each owner, because the run still spent what its earlier stages
+  cost. The same refund applies to an account's own daily allowance. Every
+  other failure stays charged. Each run records which applied (`daily_charge`
+  on its status, with `daily_charge_reason` of `launch_failed` or
+  `provider_unreachable` for a refund), and a failed run's page says whether
+  it counted, why not when it did not, and that resuming uses another unit.
+  The three-a-day count lives in memory, so a restart resets it. A provider
+  request the transport cut ("Request timed out.") is reported as
+  `provider_unreachable`, not as the run's time limit, and a run that ran out
+  of attempts records the transport error that used them up.
 - `PLAN_PREVIEW_DAILY_LIMIT` (default 20, 0 disables) caps `POST /api/plan`
   per code or account and UTC day. A preview is one planner call and does not
   use a paid operation. The browser shows the reading before a code-funded

@@ -141,21 +141,44 @@ _OWNER_FILE = ".owner"
 _FUNDED_FILE = ".funded"
 
 # Whether this run spent one of its owner's daily paid operations. Written by
-# the API at launch and rewritten on a launch-failure refund, so the run page
-# can say whether a run that later failed already counted toward the day. The
-# marker informs the page only: admission and refunds read the daily ledger.
+# the API at launch and rewritten on a refund, so the run page can say
+# whether a run that later failed already counted toward the day, and when
+# it did not, why. The marker informs the page only: admission and refunds
+# read the daily ledger.
 _CHARGE_FILE = ".daily_charge"
 _CHARGE_SCHEMA_VERSION = 1
+# Why a charge was given back. The first is as old as the marker: no worker
+# existed, so no provider could have been reached. The second is the one
+# failure refunded after a worker ran; see _refund_unreachable_failure_locked.
+_REFUND_LAUNCH_FAILED, _REFUND_UNREACHABLE = "launch_failed", "provider_unreachable"
+_REFUND_REASONS = frozenset({_REFUND_LAUNCH_FAILED, _REFUND_UNREACHABLE})
 
 
-def _write_daily_charge(run_dir: Path, charged_on: date | None, *, refunded: bool = False) -> None:
+def _write_daily_charge(run_dir: Path, charged_on: date | None, *, refunded: bool = False,
+                        refund_reason: str | None = None) -> None:
     payload = {
         "schema_version": _CHARGE_SCHEMA_VERSION,
         "charged": charged_on is not None,
         "charged_on": charged_on.isoformat() if charged_on is not None else None,
         "refunded": refunded,
     }
+    if refunded and refund_reason is not None:
+        # An optional key: a marker written before reasons existed has none,
+        # and its reader says "refunded" without guessing why.
+        payload["refund_reason"] = refund_reason
     (run_dir / _CHARGE_FILE).write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+
+
+def _read_refund_reason(run_dir: Path) -> str | None:
+    """Why a refunded charge was given back, when the marker says; None otherwise."""
+    try:
+        record = json.loads((run_dir / _CHARGE_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(record, dict) or record.get("charged") is not True or record.get("refunded") is not True:
+        return None
+    reason = record.get("refund_reason")
+    return reason if isinstance(reason, str) and reason in _REFUND_REASONS else None
 
 
 def _read_daily_charge(run_dir: Path) -> str:
@@ -493,6 +516,7 @@ def active_count() -> int:
             h = _registry.pop(run_id, None)
             if h is not None:
                 _settled.append((run_id, h.byok))
+                _refund_unreachable_failure_locked(run_id, h.owner)
             if h and h.log_file is not None:
                 try:
                     h.log_file.close()
@@ -786,6 +810,89 @@ def _refund_daily_charge_locked(
     return True
 
 
+# The one failure refunded after a worker has run: the model provider could
+# not be reached. Everything else keeps the rule above, that a launched
+# attempt stays charged because nothing proves the provider was not reached
+# and billed. That rule was the wrong answer on 2026-11-09 and 2026-11-10,
+# when the path from the host to the provider stalled on the report writer's
+# request: eight new connections in a row in one run, and from the host's own
+# probe a 100 KB upload that did not finish in 30 seconds twice in six tries
+# while the sibling endpoint in the host's region answered in 40 ms. A
+# requester who met that lost one of the day's runs to a failure nothing in
+# their request caused and nothing they could do would fix.
+#
+# Bounded, because a refunded run still spent what its earlier stages cost
+# (the cancelled run of 2026-11-09 had 19,066 tokens recorded before the
+# writer began): unbounded, the refund would turn the cap off exactly when
+# the path is worst, for anyone who keeps pressing Start. The count lives in
+# memory; a restart resets it, which can add at most this many again.
+UNREACHABLE_REFUNDS_PER_DAY = 3
+_unreachable_refunds: dict[str | None, int] = {}
+_unreachable_refund_date: date | None = None
+
+
+def _refund_unreachable_failure_locked(run_id: str, owner: str | None) -> None:
+    """Give back the day's unit of a run that failed because the provider was unreachable.
+
+    Called once, when the exited worker's handle is reaped. Every condition
+    that is not plainly met leaves the charge in place: no marker, a marker
+    that is damaged or already refunded, a charge from a day that is over, no
+    terminal record, any ending but a failure, any cause but this one, a
+    status that cannot be read, a ledger that cannot be written. Nothing here
+    may raise: the caller is the admission path and the health check.
+    """
+    global _unreachable_refund_date
+    try:
+        run_dir = run_dir_for(run_id)
+        try:
+            record = json.loads((run_dir / _CHARGE_FILE).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        if (not isinstance(record, dict) or record.get("charged") is not True
+                or record.get("refunded") is not False):
+            return
+        try:
+            charged_on = date.fromisoformat(record.get("charged_on"))
+        except (TypeError, ValueError):
+            return
+        if _daily_window_locked() != charged_on:
+            return
+        terminal, _projection = _read_terminal(run_dir)
+        if terminal is None or terminal.state != "failed":
+            return
+        try:
+            status = _read_status(run_dir)
+        except StatusUnreadable:
+            return
+        code, _message = _public_failure(status.get("error") or _failure_reason(run_dir))
+        if code != _REFUND_UNREACHABLE:
+            return
+        if _unreachable_refund_date != charged_on:
+            _unreachable_refunds.clear()
+            _unreachable_refund_date = charged_on
+        given = _unreachable_refunds.get(owner, 0)
+        if given >= UNREACHABLE_REFUNDS_PER_DAY:
+            return
+        if _daily_counts.get(owner, 0) <= 0:
+            return
+        if not _refund_daily_charge_locked(owner, charged_on):
+            print("[api] unreachable-provider refund could not be persisted; charge retained",
+                  file=sys.stderr)
+            return
+        _unreachable_refunds[owner] = given + 1
+        print(f"[api] run {run_id}: provider unreachable, daily unit refunded "
+              f"({given + 1} of {UNREACHABLE_REFUNDS_PER_DAY} today for its owner)", file=sys.stderr)
+        try:
+            _write_daily_charge(run_dir, charged_on, refunded=True, refund_reason=_REFUND_UNREACHABLE)
+        except OSError:
+            # The ledger refund above is what reopens the day; the marker only
+            # tells the page.
+            print("[api] daily-charge marker could not record the refund", file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001 - a refund never fails an admission or a health check
+        print(f"[api] unreachable-provider refund skipped for {run_id}: {type(exc).__name__}",
+              file=sys.stderr)
+
+
 @contextmanager
 def reserve_inline_paid_operation(
     *, owner: str | None, byok: bool
@@ -997,7 +1104,7 @@ def _start_run_from_spec(
             # The ledger refund above is what reopens the day. The marker only
             # tells the page, so its failure must not replace the launch error.
             try:
-                _write_daily_charge(run_dir, charged_on, refunded=True)
+                _write_daily_charge(run_dir, charged_on, refunded=True, refund_reason=_REFUND_LAUNCH_FAILED)
             except OSError:
                 print("[api] daily-charge marker could not record the refund", file=sys.stderr)
         raise
@@ -1524,6 +1631,18 @@ class _FailureCategory:
         return self.message
 
 
+_UNREACHABLE_MESSAGE = "An upstream service could not be reached. Retry later."
+
+# Read ahead of every category, "timeout" above all: a provider request the
+# transport cut says "Request timed out.", and that category would answer it
+# with "retry with a narrower topic", advice about a limit this failure never
+# reached. These three are what the OpenAI-compatible SDK raises and says; the
+# worker records a budget refusal's cause beside it
+# (pipeline_worker._error_text), so a run that ran out of attempts on a dead
+# path is read the same way. Not a category of its own: the code is the one
+# "provider_unreachable" below, and a code appears in the table once.
+_TRANSPORT_CUT_MARKERS = ("request timed out", "apitimeouterror", "apiconnectionerror")
+
 _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
     _FailureCategory(
         "timeout",
@@ -1645,7 +1764,7 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
             "temporarily unavailable",
             "service unavailable",
         ),
-        "An upstream service could not be reached. Retry later.",
+        _UNREACHABLE_MESSAGE,
     ),
 )
 
@@ -1701,6 +1820,9 @@ def _public_failure(raw_reason: object, *, funded_by: str | None = None) -> tupl
     the same thing in its own language.
     """
     lowered = str(raw_reason).lower()
+    if any(marker in lowered for marker in _TRANSPORT_CUT_MARKERS):
+        unreachable = next(c for c in _PUBLIC_FAILURE_CATEGORIES if c.code == _REFUND_UNREACHABLE)
+        return unreachable.code, unreachable.wording(funded_by)
     for category in _PUBLIC_FAILURE_CATEGORIES:
         if any(marker in lowered for marker in category.markers):
             return category.code, category.wording(funded_by)
@@ -1936,6 +2058,7 @@ def get_state(run_id: str) -> dict:
         # a failed run's page can say so beside the reason. Read from the
         # launch-time marker, never inferred from the state or the ledger.
         "daily_charge": _read_daily_charge(run_dir),
+        "daily_charge_reason": _read_refund_reason(run_dir),
         "elapsed_seconds": elapsed,
         "stage_timings": timings,
         # A typical figure from recent completed runs, for a running run only.

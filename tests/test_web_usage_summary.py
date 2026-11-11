@@ -444,6 +444,28 @@ class UsageSummaryTests(unittest.TestCase):
             self._outcome_line(state="timeout", error="Took too long.", daily_charge="not_charged"),
             "Took too long. This run did not use the daily quota.")
 
+    def test_a_run_refunded_because_the_provider_was_unreachable_says_so(self):
+        """2026-11-09: the writer's request failed on eight connections in a
+        row. The refund existed only for a run that never started, and its
+        sentence would have been false for this one."""
+        unreachable = "An upstream service could not be reached. Retry later."
+        self.assertEqual(
+            self._outcome_line(state="failed", error=unreachable, daily_charge="refunded",
+                               daily_charge_reason="provider_unreachable"),
+            unreachable + " This run did not count toward today's quota: the model provider could not "
+                          "be reached, which nothing in your request caused.")
+        self.assertEqual(
+            self._outcome_line(language="Simplified Chinese", state="failed", error=unreachable,
+                               daily_charge="refunded", daily_charge_reason="provider_unreachable"),
+            unreachable + " 本次运行未计入今日额度：模型服务暂时无法连接，与你的请求无关。")
+        for reason in ("launch_failed", None):
+            with self.subTest(reason=reason):
+                self.assertTrue(self._outcome_line(state="failed", error="The analysis failed.", daily_charge="refunded",
+                                                   daily_charge_reason=reason).endswith("it failed before any work began."))
+        # The reason alone never invents a refund.
+        self.assertTrue(self._outcome_line(state="failed", error="x", daily_charge="charged",
+                                           daily_charge_reason="provider_unreachable").endswith("counted toward today's quota."))
+
     def test_no_quota_sentence_is_invented_for_an_unrecorded_or_unreadable_charge(self):
         for charge in ("not_recorded", "unreadable", None):
             with self.subTest(charge=charge):
@@ -460,7 +482,7 @@ class UsageSummaryTests(unittest.TestCase):
     def test_app_delivers_the_outcome_line_to_its_own_dom_seam(self):
         source = _APP_JS.read_text(encoding="utf-8")
         markup = _INDEX_HTML.read_text(encoding="utf-8")
-        self.assertIn("outcomeSummary({ state, error, error_code, funded_by, daily_charge, checkpointing })", source)
+        self.assertIn("outcomeSummary({ state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing })", source)
         self.assertIn('id="run-outcome"', markup)
 
 
