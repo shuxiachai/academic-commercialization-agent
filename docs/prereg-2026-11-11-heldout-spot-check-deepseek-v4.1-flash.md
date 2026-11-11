@@ -38,14 +38,14 @@ a reason, visible in five runs, not to keep serving this model.
 | Retrieval | live, current `main`; OpenAlex anonymous (`--allow-anonymous-openalex`), Tavily and Serper on the maintainer's keys |
 | Repeats | 1 |
 | Concurrency | 1 |
-| Batch | `--experiment-id heldout-spot-2026-11-11-deepseek-v4.1-flash-1017` |
+| Batch | `--experiment-id heldout-spot-2026-11-11-deepseek-v4-1-flash-1017` |
 | Code | `main` at `47a3840` |
 | Where it runs | the maintainer's machine, not the deployment's host |
 
 ```bash
 QWEN_MODEL=deepseek-v4.1-flash-1017 uv run python benchmark.py \
     --cohort evals/heldout_trl_v2/cohort.json --only V01,V03,V06,V07,V09 \
-    -c 1 --allow-anonymous-openalex --experiment-id heldout-spot-2026-11-11-deepseek-v4.1-flash-1017
+    -c 1 --allow-anonymous-openalex --experiment-id heldout-spot-2026-11-11-deepseek-v4-1-flash-1017
 ```
 
 ## Budget and stop rule
@@ -108,10 +108,20 @@ adoption.
 - Nothing attributable to the model alone, for the reasons given under the
   second reading.
 
+## Amendment before the first run
+
+As first registered the batch was named with the model's own spelling,
+`…deepseek-v4.1-flash-1017`. `benchmark.py` refused that name at argument
+parsing (an experiment id is an alphanumeric slug, so no dot) before it
+read a topic or made a request. The batch name above is the same with the
+dot written as a hyphen. Nothing else in this protocol changed, and no
+paid call had been made beyond the one-request check, which returned 13
+tokens.
+
 ## Recording
 
 Raw outputs stay in
-`outputs/benchmark-runs/heldout-spot-2026-11-11-deepseek-v4.1-flash-1017/`
+`outputs/benchmark-runs/heldout-spot-2026-11-11-deepseek-v4-1-flash-1017/`
 (private, not committed). The result goes in
 `docs/results-2026-11-11-heldout-spot-check-deepseek-v4.1-flash.md` with the
 readings above and nothing re-scored.
