@@ -117,8 +117,33 @@
 }
 .samples__download:hover { color: var(--accent); }
 
+/* What the run delivered beside the report: the decision brief (result.css,
+ * as on a run's page) and the run's scorecard in a block that can be
+ * folded; samples.js opens it from the width where the contents sit beside
+ * the report. The scorecard's own heading is its big figure, so the summary
+ * is only the handle. */
+.samples__reader > .brief { margin-bottom: var(--space-6); }
+.samples__scorecard {
+  margin-bottom: var(--space-8);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+}
+.samples__scorecard > summary {
+  padding: var(--space-3) var(--space-5);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.samples__scorecard > .scorecard { padding: var(--space-2) var(--space-5) var(--space-5); }
+
 /* Wide report tables scroll inside their own box, never the page. */
 .samples .table-wrap { overflow-x: auto; }
+/* Nor does a reference's address: an unbroken URL in the reference list ran
+ * up to 74px past a 335px column and took the whole page sideways with it on
+ * a phone. Broken only where it would otherwise overflow. */
+.samples__reader .prose { overflow-wrap: break-word; }
 
 /* Contents of the open report: a collapsible block above it, or, from the
  * width where the margin can hold it, a sticky column in the margin beside
@@ -206,6 +231,8 @@
   .samples__reader > .skeleton,
   .samples__toc,
   .samples__download,
+  .samples__reader > .brief,
+  .samples__scorecard,
   .cite-card {
     display: none;
   }

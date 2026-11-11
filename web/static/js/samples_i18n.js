@@ -22,6 +22,8 @@ const STRINGS = {
     samples_missing: "No sample with that name.",
     samples_contents: "Contents",
     samples_download: "Download Markdown",
+    samples_scorecard: "Scorecard",
+    samples_brief_note: "Built from this run's own scorecard and report, by the same code as a run's page; no new model call. A sample keeps neither the run's checks nor its source list, so the lines those would add are not shown here.",
   },
   "Simplified Chinese": {
     samples_link: "无需 Key，先看示例报告",
@@ -36,6 +38,8 @@ const STRINGS = {
     samples_missing: "没有这个示例。",
     samples_contents: "目录",
     samples_download: "下载 Markdown",
+    samples_scorecard: "评分卡",
+    samples_brief_note: "由这次运行自己的评分卡和报告生成，与运行页面用的是同一段代码，没有新的模型调用。示例不保留这次运行的各项检查和来源清单，所以由它们得出的几行这里不显示。",
   },
 };
 

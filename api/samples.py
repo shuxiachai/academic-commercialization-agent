@@ -13,10 +13,18 @@ Each entry records the pipeline revision and the model the run was made
 with. The page says both next to every report, with the date, rather than
 letting any output pass for current behaviour or for a measure of accuracy;
 the citations in a sample have not been re-verified.
+
+Beside each report is the scorecard its run wrote (`<name>.scores.json`, the
+run's commercialization_scores.json as written). A run delivers a report and
+a score; the page showed only the first, so a visitor deciding whether to
+sign up never saw the verdict, the five dimensions or the reasons. The name
+is derived from the report's, not listed: there is one allowlist, and a
+scorecard cannot be served for anything that is not on it.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -123,3 +131,19 @@ def read_sample(slug: str) -> str:
     """
     sample = _BY_SLUG[slug]
     return (_EXAMPLES_ROOT / sample.file).read_text(encoding="utf-8")
+
+
+def read_sample_scores(slug: str) -> dict:
+    """Return the scorecard of one sample's run.
+
+    Raises KeyError for a slug outside the allowlist, FileNotFoundError when
+    the file is not in this deployment, and ValueError when it is not a JSON
+    object. The caller maps all three to 404: the page then shows the report
+    without a score, as it did before scorecards were kept.
+    """
+    sample = _BY_SLUG[slug]
+    name = Path(sample.file).with_suffix(".scores.json").name
+    scores = json.loads((_EXAMPLES_ROOT / name).read_text(encoding="utf-8"))
+    if not isinstance(scores, dict):
+        raise ValueError(f"{name} is not a scorecard")
+    return scores

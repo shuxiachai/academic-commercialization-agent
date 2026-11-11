@@ -515,7 +515,9 @@ function marketCapSummary(scores, cap) {
     .replace("{to}", () => String(cap.post_cap_score));
 }
 
-function renderScorecard(scores, sources = null) {
+// Exported for the sample reader, which shows a committed run's scorecard with
+// no source registry behind it (sources stays null there).
+export function renderScorecard(scores, sources = null) {
   const wrap = el("section", "scorecard");
   if (!detailRecord(scores)) { wrap.append(detailUnavailable()); return wrap; }
   const overall = scores.overall_score;
@@ -737,15 +739,35 @@ function executiveSummaryLead(markdown) {
   return null;
 }
 
-/** The first list item of the recommendations section, or null. */
+// The writer's contract opens the recommendations by saying what the section
+// is before it recommends anything: "**Assessment Mode**: Orientation." and
+// "**Decision Owner**: Not established." Read as the first item, the first of
+// them was the brief's "first recommended step" for 80 of the 193 saved runs
+// with a scorecard on the maintainer's machine (2026-11-11).
+const RECOMMENDATION_PREAMBLE = /^(?:assessment mode|(?:responsible )?decision (?:owner|context)|评估模式|决策(?:主体|所有者|负责人|背景))/iu;
+// "**Primary Commercialization Route:**" on a line of its own heads the
+// sentence under it; alone it recommends nothing (13 more of the 193). The
+// same heading is also written without its colon. A label is short: a whole
+// paragraph that ends "...is preferred because:" is the recommendation itself.
+const BARE_LABEL = /[:：]$|^(?:primary|preferred)(?: commercialization)? route$|^(?:首选|主要)商业化(?:路线|路径)$/iu;
+const LABEL_LIMIT = 80;
+
+/** The first recommendation of the recommendations section, or null. */
 function firstRecommendation(markdown) {
   let inside = false;
+  let labelled = false;  // the last candidate was only a label: its text is the next line
   for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
-    if (/^##\s/.test(line)) { inside = RECOMMENDATION_HEADINGS.test(line); continue; }
-    if (!inside || /^>/.test(line.trim())) continue;
+    if (/^##\s/.test(line)) { inside = RECOMMENDATION_HEADINGS.test(line); labelled = false; continue; }
+    const text = line.trim();
+    if (!inside || !text || /^>/.test(text)) continue;
     // A list item, or a paragraph that opens with a bold heading ("**Opportunity 1: …**").
     const item = line.match(/^\s*(?:[-*]|\d+[.)])\s+(.+)$/) ?? line.match(/^\s*(\*\*.+)$/);
-    if (item) return firstSentence(item[1]) || null;
+    const candidate = item ? item[1] : labelled && !/^#/.test(text) ? text : null;
+    if (!candidate) continue;
+    const plain = candidate.replace(/\*+/g, "").trim();
+    if (RECOMMENDATION_PREAMBLE.test(plain)) { labelled = false; continue; }
+    if (plain.length <= LABEL_LIMIT && BARE_LABEL.test(plain)) { labelled = true; continue; }
+    return firstSentence(candidate) || null;
   }
   return null;
 }
@@ -835,7 +857,10 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
 const fillText = (key, values = {}) => Object.entries(values).reduce(
   (out, [name, value]) => out.replace(`{${name}}`, () => String(value)), t(key));
 
-function renderDecisionBrief(data) {
+/** The brief's node. `note` is the line under it saying what it was built
+ * from: the run page's default names the run's checks and what can be opened
+ * below, and the sample reader, which has neither, says its own. */
+export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
   const wrap = el("section", "brief");
   wrap.dataset.tone = data.band.tone;
   const head = el("div", "brief__head");
@@ -893,7 +918,7 @@ function renderDecisionBrief(data) {
   }
   changers.append(list);
   wrap.append(changers);
-  wrap.append(el("p", "brief__note", t("brief_note")));
+  wrap.append(el("p", "brief__note", note));
   return wrap;
 }
 
