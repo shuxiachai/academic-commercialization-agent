@@ -482,6 +482,8 @@ class DailyCapTests(_RunLifecycleTestBase):
             # that a run which never started spent one of her day's slots.
             [never_launched] = [p for p in Path(self._tmp.name).iterdir() if p.is_dir()]
             self.assertEqual(runs.get_state(never_launched.name)["daily_charge"], "refunded")
+            # And why, now that a second kind of refund exists beside this one.
+            self.assertEqual(runs.get_state(never_launched.name)["daily_charge_reason"], "launch_failed")
 
             # A persisted refund, not the old in-memory value, must reopen it.
             runs._daily_counts = {}

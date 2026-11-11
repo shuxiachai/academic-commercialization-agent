@@ -277,6 +277,7 @@ const HEADER_STRINGS = {
     outcome_charged: "This run counted toward today's quota.",
     outcome_charged_resume: "Resuming from the checkpoint uses another.",
     outcome_refunded: "This run did not count toward today's quota: it failed before any work began.",
+    outcome_refunded_unreachable: "This run did not count toward today's quota: the model provider could not be reached, which nothing in your request caused.",
     outcome_not_charged: "This run did not use the daily quota.",
   },
   "Simplified Chinese": {
@@ -299,6 +300,7 @@ const HEADER_STRINGS = {
     outcome_charged: "本次运行已计入今日额度。",
     outcome_charged_resume: "从检查点续跑会再用 1 次。",
     outcome_refunded: "本次运行未计入今日额度：它在开始工作前就失败了。",
+    outcome_refunded_unreachable: "本次运行未计入今日额度：模型服务暂时无法连接，与你的请求无关。",
     outcome_not_charged: "本次运行不占用每日额度。",
   },
 };
@@ -546,7 +548,9 @@ export function failureText({ error, error_code, funded_by } = {}) {
  * only from the API's launch-time record: an old run without one, or a
  * damaged one, gets the reason alone rather than a guess.
  */
-export function outcomeSummary({ state, error, error_code, funded_by, daily_charge, checkpointing } = {}) {
+export function outcomeSummary({
+  state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing,
+} = {}) {
   if (!["failed", "timeout", "cancelled"].includes(state)) return "";
   const parts = [];
   const reason = failureText({ error, error_code, funded_by });
@@ -558,7 +562,9 @@ export function outcomeSummary({ state, error, error_code, funded_by, daily_char
       parts.push(headerLabel("outcome_charged_resume"));
     }
   } else if (daily_charge === "refunded") {
-    parts.push(headerLabel("outcome_refunded"));
+    // A refund recorded before reasons were keeps the sentence it always had.
+    parts.push(headerLabel(daily_charge_reason === "provider_unreachable"
+      ? "outcome_refunded_unreachable" : "outcome_refunded"));
   } else if (daily_charge === "not_charged") {
     parts.push(headerLabel("outcome_not_charged"));
   }

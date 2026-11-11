@@ -1402,7 +1402,7 @@ def main() -> None:
             if checkpoint_runtime is not None else checkpoint_snapshot
         )
         write_status(
-            "Error", done=True, error=str(exc)[:400],
+            "Error", done=True, error=_error_text(exc),
             usage=error_usage,
             usage_accounting=error_accounting,
             observability=telemetry.snapshot(),
@@ -1420,6 +1420,22 @@ def main() -> None:
     finally:
         auxiliary.finish()
         auxiliary_scope.close()
+
+
+def _error_text(exc: BaseException) -> str:
+    """What the status records for a failed run: the error and, when there is one, its cause.
+
+    The budget's refusal of another attempt is raised from the transport
+    error that used the window up (llm_config.call_with_retry). Its own text
+    says only how many seconds were left, so a run that ran out of attempts
+    on a dead path was recorded as a failure nobody could name. The cause
+    beside it is what the API reads to say the provider was unreachable.
+    """
+    text = str(exc)
+    cause = exc.__cause__
+    if cause is not None:
+        text = f"{text} (caused by {type(cause).__name__}: {cause})"
+    return text[:400]
 
 
 if __name__ == "__main__":

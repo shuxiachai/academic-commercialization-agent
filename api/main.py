@@ -2283,6 +2283,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         error_code=state.get("error_code"),
         funded_by=state.get("funded_by"),
         daily_charge=state.get("daily_charge", "not_recorded"),
+        daily_charge_reason=state.get("daily_charge_reason"),
         elapsed_seconds=state.get("elapsed_seconds"),
         stage_timings=state.get("stage_timings", []),
         eta=state.get("eta"),
