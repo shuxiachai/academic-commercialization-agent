@@ -206,6 +206,7 @@ const STRINGS = {
 
     // Run pane
     cancel: "Cancel",
+    cancelling: "Cancelling…",
     resume: "Resume from checkpoint",
     delete_run: "Delete",
     confirm_delete_run: "Delete this run permanently? The report and every other artifact will be gone for good.",
@@ -838,6 +839,7 @@ const STRINGS = {
     stage_scoring: "评估商业化就绪度",
 
     cancel: "取消",
+    cancelling: "正在取消…",
     resume: "从检查点续跑",
     delete_run: "删除",
     confirm_delete_run: "确定要永久删除这条记录吗？报告和其他所有产出文件都会一并清除，无法恢复。",

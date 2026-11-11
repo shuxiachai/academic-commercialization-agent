@@ -96,19 +96,28 @@ function intervalFor(elapsedMs) {
  *
  * Returns a handle with stop(); the caller must call it when leaving the
  * view, or a poll loop outlives the run it was watching.
+ *
+ * The handle's poll() asks now rather than at the next interval, for the
+ * moment the page has just changed the run itself: after a cancel, a run
+ * past its first ninety seconds went on reading "running" for up to four.
+ * One question is out at a time. If one is already out, its answer may have
+ * been formed before the change, so one more follows it at once.
  */
 export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
   let stopped = false;
+  let ended = false;
+  let asking = false;
+  let askAgain = false;
   let seenSteps = 0;
   let timer = null;
   let lastSuccessAt = null;
   const startedAt = Date.now();
 
-  async function tick() {
-    if (stopped) return;
+  /* One question. Resolves to whether the run is still worth asking about. */
+  async function ask() {
     try {
       const progress = await api.getProgress(runId, seenSteps);
-      if (stopped) return;
+      if (stopped) return false;
 
       lastSuccessAt = Date.now();
       onConnection?.({ state: "connected", lastSuccessAt });
@@ -122,10 +131,10 @@ export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
 
       if (TERMINAL.has(progress.state)) {
         onDone?.(progress);
-        return;
+        return false;
       }
     } catch (err) {
-      if (stopped) return;
+      if (stopped) return false;
       // Retry reads, but never present silence as evidence that the worker
       // still runs. A later successful poll clears this independent warning.
       onConnection?.({ state: err.status === 404 ? "missing" : "stale", lastSuccessAt });
@@ -134,8 +143,27 @@ export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
       // the run genuinely is not there.
       if (err.status === 404) {
         onError?.(err);
-        return;
+        return false;
       }
+    }
+    return true;
+  }
+
+  async function tick() {
+    if (stopped || ended) return;
+    timer = null;
+    asking = true;
+    const goOn = await ask();
+    asking = false;
+    if (stopped) return;
+    if (!goOn) {
+      ended = true;
+      return;
+    }
+    if (askAgain) {
+      askAgain = false;
+      tick();
+      return;
     }
     timer = setTimeout(tick, intervalFor(Date.now() - startedAt));
   }
@@ -146,6 +174,14 @@ export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
     stop() {
       stopped = true;
       if (timer) clearTimeout(timer);
+    },
+    poll() {
+      if (asking) {
+        askAgain = true;
+        return;
+      }
+      if (timer) clearTimeout(timer);
+      tick();
     },
   };
 }
