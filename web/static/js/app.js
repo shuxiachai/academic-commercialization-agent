@@ -999,12 +999,19 @@ async function previewPlan(submittedTopic) {
   showPlanWaiting();
   let next;
   try {
-    const own = accountMode;
-    const plan = await api.planTopic(submittedTopic, { ownKeys: own });
+    // Whose key the check is made on, decided as the request is: an account's
+    // keys are sent when the tab holds them, and then the check is on its
+    // model key. An account with none gets here only where the deployment
+    // pays (an administrator it funds, a newcomer's trial), and must not be
+    // told the request was on "your model key", or to go and check a key it
+    // does not have.
+    const own = accountMode && Boolean(api.getByok());
+    const funded = accountMode && !own;
+    const plan = await api.planTopic(submittedTopic, { ownKeys: accountMode });
     next = plan?.planned === false
       ? { topic: submittedTopic, failure: own ? "no_answer_own" : "no_answer", plan: null }
       : plan?.resolved
-        ? { topic: submittedTopic, failure: null, own, plan: {
+        ? { topic: submittedTopic, failure: null, own, funded, plan: {
           search_topic: plan.search_topic, aliases: [...plan.aliases], components: [...plan.components] } }
         : { topic: submittedTopic, failure: "unresolved", plan: null };
   } catch (err) {
@@ -1092,7 +1099,8 @@ function renderPlan() {
   planPanel.innerHTML = "";
   planPanel.hidden = false;
   planPanel.append(planNode("h2", "plan-panel__title", label("title")));
-  const message = planState.failure === null ? label(planState.own ? "lede_own" : "lede")
+  const message = planState.failure === null
+    ? label(planState.own ? "lede_own" : planState.funded ? "lede_funded" : "lede")
     : label(planState.failure).replace("{reason}", planState.reason || "—");
   planPanel.append(planNode("p", "plan-panel__lede", message));
 

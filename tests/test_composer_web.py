@@ -84,9 +84,14 @@ def test_an_account_saving_keys_is_told_what_the_providers_said(outcome):
     assert "PASS account_keys" in result.stdout
 
 
-@pytest.mark.parametrize("kind", ["account", "silent", "code", "off", "signin"])
+@pytest.mark.parametrize("kind", ["account", "silent", "code", "off", "signin", "admin", "trial", "trial_silent"])
 def test_an_account_previews_the_search_on_its_own_key(kind):
-    """An account had to pay for a whole run to learn how its topic was read."""
+    """An account had to pay for a whole run to learn how its topic was read.
+
+    `admin`, `trial` and `trial_silent` are an account with no keys whose
+    preview the deployment pays for; the panel must not tell it the check
+    was made on its model key, or to go and check a key it does not have.
+    """
     node = shutil.which("node")
     assert node, "Node is required for the account-preview seam"
     result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
@@ -130,6 +135,14 @@ def test_the_run_follower_can_be_asked_to_poll_now(scenario):
         scenario], capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
     assert f"PASS {scenario}" in result.stdout
+
+
+def test_a_funded_preview_says_who_paid_in_both_languages():
+    """The third sentence of the three: a code, the account's key, the site."""
+    strings = (Path(__file__).parents[1] / "web" / "static" / "js" / "run.js").read_text(encoding="utf-8")
+    assert strings.count("lede_funded:") == 2
+    assert "This check was paid for by this site, not with a key of yours, and does not use a daily run." in strings
+    assert "这一步的费用由本站承担，没有使用你的密钥，也不占用每日运行次数。" in strings
 
 
 def test_cancelling_is_said_in_both_languages():

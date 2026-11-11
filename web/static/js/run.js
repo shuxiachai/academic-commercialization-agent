@@ -416,6 +416,11 @@ const PLAN_STRINGS = {
     // An account: the check was made on the account's own key, and says so.
     lede_own: "Papers, patents and market sources will be searched with these terms. "
       + "Edit them if the topic was read wrongly. This check was one small request on your model key.",
+    // An account with no keys whose check the deployment made: an
+    // administrator it funds, or a newcomer on a trial assessment.
+    lede_funded: "Papers, patents and market sources will be searched with these terms. "
+      + "Edit them if the topic was read wrongly. "
+      + "This check was paid for by this site, not with a key of yours, and does not use a daily run.",
     search_topic: "Search phrase",
     aliases: "Also searched as",
     components: "Parts searched separately",
@@ -438,6 +443,7 @@ const PLAN_STRINGS = {
     title: "开始前确认检索方向",
     lede: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改；这一步不占用每日运行次数。",
     lede_own: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改。这一步用你的模型密钥发了一次很小的请求。",
+    lede_funded: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改。这一步的费用由本站承担，没有使用你的密钥，也不占用每日运行次数。",
     search_topic: "检索词",
     aliases: "同时检索",
     components: "分别检索的组成部分",
