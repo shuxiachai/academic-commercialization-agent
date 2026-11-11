@@ -12,7 +12,7 @@ const STRINGS = {
   English: {
     samples_link: "Browse sample reports — no key needed",
     samples_title: "Sample reports",
-    samples_sub: "Finished assessments you can read without an access code or API keys. Opening one makes no model or search request.",
+    samples_sub: "Finished assessments you can read without an account or API keys. Opening one makes no model or search request.",
     samples_back: "Back to the app",
     samples_added: "Added {date}",
     samples_historical: "A run of {date} on pipeline {commit} with {model}, kept as the pipeline wrote it. One report shows the format, not a measure of accuracy or an up-to-date market assessment, and its citations have not been re-verified.",
@@ -28,7 +28,7 @@ const STRINGS = {
   "Simplified Chinese": {
     samples_link: "无需 Key，先看示例报告",
     samples_title: "示例报告",
-    samples_sub: "无需访问口令或 API Key 即可阅读的完整评估。打开示例不会发起任何模型或检索请求。",
+    samples_sub: "无需账号或 API Key 即可阅读的完整评估。打开示例不会发起任何模型或检索请求。",
     samples_back: "返回应用",
     samples_added: "收录于 {date}",
     samples_historical: "{date} 在流水线 {commit} 上用 {model} 跑出的一次运行，保持原样。单份报告展示的是格式，不代表准确率或最新市场判断，其中引用也未重新核验。",

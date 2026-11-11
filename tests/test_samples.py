@@ -267,6 +267,36 @@ class SampleClientTests(unittest.TestCase):
         self.assertTrue(used)
         self.assertLessEqual(used, keys)
 
+    def test_the_intro_names_no_way_in_that_a_deployment_may_not_have(self):
+        # The page said "without an access code". A deployment signs visitors in
+        # by account, by access code or by their own keys, and production has
+        # used accounts alone since 2026-11-07: a visitor there has never been
+        # offered a code, and was told they need none. "Without an account" is
+        # what the landing page's link to this page says, and it holds in every
+        # mode. Five places carry the sentence: both languages, the text served
+        # before the script runs, and the two descriptions a search result or a
+        # link preview shows.
+        page = (_REPO / "web/samples.html").read_text(encoding="utf-8")
+        strings = (_REPO / "web/static/js/samples_i18n.js").read_text(encoding="utf-8")
+        english, chinese = strings.split('"Simplified Chinese": {', 1)
+        english_sub = re.search(r'samples_sub: "([^"]+)"', english)[1]
+        chinese_sub = re.search(r'samples_sub: "([^"]+)"', chinese)[1]
+        served = re.search(r'data-samples-i18n="samples_sub">([^<]+)<', page)[1]
+        description = re.search(r'<meta name="description" content="([^"]+)">', page)[1]
+        preview = re.search(r'<meta property="og:description" content="([^"]+)">', page)[1]
+
+        for name, text in (("english", english_sub), ("served", served),
+                           ("description", description), ("preview", preview)):
+            with self.subTest(place=name):
+                self.assertNotRegex(text, r"(?i)access code|invit")
+                self.assertIn("without an account or API keys", text)
+        self.assertNotRegex(chinese_sub, r"访问口令|访问码|邀请")
+        self.assertIn("无需账号或 API Key", chinese_sub)
+        # The served text is the opening of the string that replaces it, so the
+        # sentence does not change under a reader when the script runs.
+        self.assertTrue(english_sub.startswith(served))
+        self.assertEqual(description, preview)
+
 
 _ALLOWED_TAGS = {
     "p", "strong", "em", "code", "ul", "li", "h1", "h2", "h3", "h4",
