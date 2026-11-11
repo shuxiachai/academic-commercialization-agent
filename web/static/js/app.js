@@ -77,6 +77,7 @@ function operationErrorMessage(err) {
     daily_quota_exceeded: "msg_daily_quota",
     account_busy: "msg_account_busy",
     account_daily_quota_exceeded: "msg_account_daily_quota",
+    trial_daily_exhausted: "msg_trial_daily_exhausted",
     rate_limited: "msg_rate_limited",
     upload_capacity: "msg_upload_busy",
   }[err.code];
@@ -106,14 +107,34 @@ function operatorPays() {
   return accountMode && accountAdmin && authConfig?.admin_funded === true;
 }
 
+/* Whether this account's next assessment runs on its trial: a verified
+ * account the server says still has one (`trial_runs_left`, which is 0 for
+ * an administrator the deployment funds anyway). A new
+ * assessment only; a resume or an upload asks for keys as before. The
+ * server decides at the launch, so a count that is stale here costs a
+ * refusal with byok_required, never a run nobody agreed to pay for. */
+function trialPays() {
+  return accountMode && accountVerified && accountTrialLeft > 0;
+}
+
+function paintTrialNote() {
+  const note = $("#trial-note");
+  if (!note) return;
+  const show = trialPays() && !api.getByok();
+  note.hidden = !show;
+  note.textContent = show ? t("trial_note").replace("{n}", String(accountTrialLeft)) : "";
+}
+
 async function performPaidRequest(request, deliver, operation = "run") {
   if (accountMode && !accountVerified) { toast(t("msg_email_unverified"), "error"); return; }
   // An account pays with its own keys. Ask for them here, once, rather than
   // letting the server refuse with byok_required after the intent is recorded.
-  if (accountMode && !api.getByok() && !operatorPays()) {
+  if (accountMode && !api.getByok() && !operatorPays() && !(operation === "run" && trialPays())) {
     await showGate(null, { keysOnly: true });
     if (!api.getByok()) { toast(t("msg_byok_required"), "error"); return; }
   }
+  // Decided before the request: whether this one, if accepted, spent a trial.
+  const onTrial = operation === "run" && !api.getByok() && trialPays();
   // Validate locally before recording intent; invalid BYOK cannot cause a
   // request, select operator billing, or manufacture an uncertain receipt.
   api.getByok();
@@ -132,6 +153,10 @@ async function performPaidRequest(request, deliver, operation = "run") {
     // extracted attachment actually receives the acknowledgement.
     api.forgetReceipt(receiptKey);
     settle(true);
+    if (onTrial) {
+      accountTrialLeft = Math.max(0, accountTrialLeft - 1);
+      paintTrialNote();
+    }
   } catch (err) {
     // A definite client rejection is a known outcome, not proof of no cost
     // (PDF validation may follow extraction). Transport/5xx/timeouts and UI
@@ -742,6 +767,10 @@ let accountVerified = true;
 let accountAdmin = false;
 // Whether the account asked for an email when a run of its ends (Account panel).
 let accountNotify = false;
+// Assessments the account may still start without keys, on the deployment's
+// own (a verified account's trial); the server's number, counted down here
+// when one is accepted.
+let accountTrialLeft = 0;
 let authConfig = null;
 // A disabled button is only a projection, not an operation lock: input events
 // used to re-enable it while a paid POST was still awaiting acknowledgement.
@@ -852,7 +881,7 @@ $("#compose-form").addEventListener("submit", async (e) => {
   // administrator the deployment funds previews on the deployment's key, as
   // a code holder does. A visitor whose keys are their only identity starts
   // as before.
-  if (planPreviewEnabled && (accountMode ? (Boolean(api.getByok()) || operatorPays()) : !byokMode)) {
+  if (planPreviewEnabled && (accountMode ? (Boolean(api.getByok()) || operatorPays() || trialPays()) : !byokMode)) {
     await previewPlan(submittedTopic);
     return;
   }
@@ -1319,7 +1348,9 @@ function applyAccountMode(me) {
   accountVerified = me.verified !== false;
   accountNotify = me.notify_done === true;
   accountAdmin = me.admin === true;
+  accountTrialLeft = Number.isInteger(me.trial_runs_left) ? me.trial_runs_left : 0;
   paintVerifyNotice();
+  paintTrialNote();
   hidePlan();
   refreshQuota();
 }
@@ -1342,6 +1373,11 @@ $("#verify-resend").addEventListener("click", async () => {
       accountVerified = true;
       paintVerifyNotice();
       toast(t("verify_done"), "success");
+      // A trial waits for the address to be proven; ask what the account has now.
+      api.me().then((me) => {
+        accountTrialLeft = Number.isInteger(me.trial_runs_left) ? me.trial_runs_left : 0;
+        paintTrialNote();
+      }).catch(() => {});
     } else {
       toast(t(err.code === "verification_cooldown" ? "verify_cooldown" : "verify_failed"), "error");
     }
@@ -1437,6 +1473,8 @@ async function exitCredentials() {
   byokMode = false;
   accountMode = false;
   accountEmail = null;
+  accountTrialLeft = 0;
+  paintTrialNote();
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = true;
   $("#account-badge").hidden = true;
@@ -1738,7 +1776,9 @@ async function decideAccess() {
     authConfig = access?.accounts ?? null;
     if (access?.account) {
       applyAccountMode(access.account);
-      if (!api.getByok() && !operatorPays()) await showGate(null, { keysOnly: true });
+      // Not for an account about to use its trial: the keys card would be the
+      // first thing a newcomer sees, in front of the one run that needs none.
+      if (!api.getByok() && !operatorPays() && !trialPays()) await showGate(null, { keysOnly: true });
       return;
     }
     if (api.getAccessCode()) applyCodeMode();
@@ -1900,7 +1940,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     const account = forAccount();
     $("#byok-account-note").hidden = !account;
     $("#byok-sub").hidden = account;
-    if (account) $("#byok-account-note").textContent = t(operatorPays() ? "byok_admin_note" : "byok_account_note").replace("{email}", accountEmail);
+    if (account) $("#byok-account-note").textContent = t(operatorPays() ? "byok_admin_note" : trialPays() ? "byok_trial_note" : "byok_account_note").replace("{email}", accountEmail);
     clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
@@ -2103,7 +2143,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         refreshQuota();
         // Keys next, on the same card, unless the account has them already
         // or the deployment pays for this administrator's runs.
-        if (api.getByok() || operatorPays()) { finish(); return; }
+        if (api.getByok() || operatorPays() || trialPays()) { finish(); return; }
         showKeys();
       } catch (err) {
         const key = {
@@ -2354,6 +2394,7 @@ const langSelect = $("#ui-lang");
 langSelect.value = i18n.language();
 langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
+  paintTrialNote();
   localizeSourceLocatorLink();
   renderPlan();
   paintQuota();

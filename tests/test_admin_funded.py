@@ -212,11 +212,11 @@ class PageTests(unittest.TestCase):
         self.assertIn("function operatorPays()", app_js)
         self.assertIn("accountMode && accountAdmin && authConfig?.admin_funded === true", app_js)
         self.assertEqual(app_js.count("!operatorPays()"), 2, "the paid-request guard and the boot's key card")
-        self.assertIn("if (api.getByok() || operatorPays()) { finish(); return; }", app_js)
-        self.assertIn('t(operatorPays() ? "byok_admin_note" : "byok_account_note")', app_js)
+        self.assertIn("if (api.getByok() || operatorPays() || trialPays()) { finish(); return; }", app_js)
+        self.assertIn('t(operatorPays() ? "byok_admin_note" : trialPays() ? "byok_trial_note" : "byok_account_note")', app_js)
         # The first production run on the operator's key skipped the free preview and went
         # straight to a paid start: the preview condition only knew accounts with keys.
-        self.assertIn("(accountMode ? (Boolean(api.getByok()) || operatorPays()) : !byokMode)", app_js)
+        self.assertIn("(accountMode ? (Boolean(api.getByok()) || operatorPays() || trialPays()) : !byokMode)", app_js)
         strings = (_ROOT / "web" / "static" / "js" / "i18n.js").read_text(encoding="utf-8")
         self.assertEqual(strings.count("    byok_admin_note: "), 2)
 

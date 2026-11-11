@@ -938,6 +938,8 @@ class AuthSession(BaseModel):
     admin: bool = False
     verified: bool = Field(default=True, description="The address has been proven. Until it is, paid "
                                                      "operations are refused with email_unverified.")
+    trial_runs_left: int = Field(default=0, description="Assessments this account may still start without "
+                                                        "keys, on the deployment's own.")
 
 
 class AuthMe(BaseModel):
@@ -945,6 +947,7 @@ class AuthMe(BaseModel):
     admin: bool = False
     verified: bool = True
     notify_done: bool = Field(default=False, description="The account asked for an email when one of its runs ends.")
+    trial_runs_left: int = Field(default=0, description="Assessments this account may still start without keys.")
 
 
 class NotifyPreference(BaseModel):
@@ -1149,6 +1152,9 @@ class AuthConfig(BaseModel):
                                                         "ends: mail is set up.")
     admin_funded: bool = Field(default=False, description="An administrator's paid operations run on the "
                                                              "deployment's own keys; everyone else brings keys.")
+    trial_runs: int = Field(default=0, description="Assessments a verified account may start without keys, on "
+                                                   "the deployment's own; 0 when the operator has not turned "
+                                                   "this on or the deployment has no keys to pay with.")
 
 
 class RetrievalHealth(BaseModel):
