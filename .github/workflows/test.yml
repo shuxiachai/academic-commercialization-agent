@@ -11,13 +11,21 @@ on:
 permissions:
   contents: read
 
+# A pull request's newer push replaces its older run instead of queueing
+# behind it: the older result describes a commit nobody is waiting on. A
+# push to main is grouped by its own commit, so no run of a merged commit
+# is ever cancelled (the deploy check waits on exactly that run).
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # Every JavaScript action below deliberately uses a major whose official
 # action.yml declares Node 24.  Older majors still appear to pass because
 # GitHub temporarily forces them onto Node 24, but that compatibility shim emits
 # a deprecation warning and is not a stable runtime contract.
 jobs:
   test:
-    name: pytest (${{ matrix.os }}, py${{ matrix.python-version }})
+    name: pytest (${{ matrix.os }}, py${{ matrix.python-version }}, part ${{ matrix.shard }} of 3)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -27,6 +35,19 @@ jobs:
         # Linux-only matrix would never exercise either path.
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12"]
+        # Each cell's tests are split by file over three runners, and each
+        # part still runs serially on a runner of its own. Measured
+        # 2026-11-11: a pull request waited 11 to 13 minutes on the one
+        # cell that runs all 8,654 tests under coverage (630 s of pytest),
+        # with the Windows cells behind it at 436 s. The slowest single
+        # test took 5.8 s and installing 13 to 32 s, so the time is the
+        # number of tests, and running them in parallel inside one runner
+        # is what #228 tried and withdrew. tests/conftest.py does the
+        # split (ACA_TEST_SHARD); tests/test_ci_sharding.py holds that the
+        # parts are a partition of the cell's tests.
+        shard: [1, 2, 3]
+    env:
+      ACA_TEST_SHARD: ${{ matrix.shard }}/3
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -62,23 +83,55 @@ jobs:
         # weekly.
         run: uv run --python ${{ matrix.python-version }} pytest tests/ -m "not experiment" -v --tb=short --durations=40
 
-      - name: Run tests with the measured coverage floor
+      - name: Run tests and record this part's coverage
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-        # The canonical cell measures coverage during its only full-suite run.
-        # A fresh full run measured 87% on 2026-08-24; the unchanged 85% floor
-        # leaves room for platform-specific defensive branches. This cell runs
-        # every test, experiments included, so the metric is unchanged.
-        # sys.monitoring (Python 3.12+) measures the same line coverage as the
-        # trace-function core at a fraction of its overhead.
+        # The canonical cell measures coverage during its only full-suite run,
+        # every test, experiments included, so the metric is unchanged. One
+        # part covers a third of that, so the floor is not applied here: each
+        # part keeps its data and the coverage job below combines the three
+        # and applies the unchanged 85% (a fresh full run measured 87% on
+        # 2026-08-24). sys.monitoring (Python 3.12+) measures the same line
+        # coverage as the trace-function core at a fraction of its overhead.
         env:
           COVERAGE_CORE: sysmon
+          COVERAGE_FILE: .coverage.${{ matrix.shard }}
         run: >
           uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short --durations=40
           --cov=src/academic_agent
           --cov=api
           --cov=ui
-          --cov-report=term-missing
-          --cov-fail-under=85
+          --cov-report=
+
+      - name: Keep this part's coverage data for the floor
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        # A dotfile: the action leaves hidden files out unless told, and a
+        # part with no data must fail here rather than lower the total there.
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: coverage-data-${{ matrix.shard }}
+          path: .coverage.${{ matrix.shard }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  cells:
+    name: pytest (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: test
+    if: ${{ always() }}
+    # The four names the branch ruleset requires, kept as they were before
+    # the cells were split. Each is green only when every part of every cell
+    # passed; which part failed is read from the test jobs themselves.
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Require every part of every cell to pass
+        shell: bash
+        env:
+          MATRIX_RESULT: ${{ needs.test.result }}
+        run: test "$MATRIX_RESULT" = success
 
   lint:
     name: lint
@@ -111,15 +164,45 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: ${{ always() }}
-    # Preserve the existing check name without a fifth full-suite run. This
-    # gate requires the whole matrix, including canonical coverage, to succeed;
-    # failed, cancelled or skipped dependencies must not become a green check.
+    # Requires the whole matrix to have succeeded (failed, cancelled or skipped
+    # dependencies must not become a green check), then combines the three
+    # parts' coverage data from the canonical cell and applies the floor to
+    # the total. No test runs here.
     steps:
-      - name: Require the tested matrix and canonical coverage to pass
+      - name: Require the tested matrix to pass
         shell: bash
         env:
           MATRIX_RESULT: ${{ needs.test.result }}
         run: test "$MATRIX_RESULT" = success
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "latest"
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --python 3.12
+
+      - name: Fetch every part's coverage data
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          pattern: coverage-data-*
+          merge-multiple: true
+
+      - name: Require all three parts
+        # A missing part would lower nothing visibly: its files would only
+        # count as never executed. Three or the floor is not measured.
+        shell: bash
+        run: test "$(ls .coverage.* | wc -l)" = 3
+
+      - name: Combine the parts
+        run: uv run --python 3.12 coverage combine
+
+      - name: Apply the measured coverage floor to the total
+        run: uv run --python 3.12 coverage report --show-missing --fail-under=85
 
   browser-smoke:
     name: browser smoke (Chromium, zero-provider)

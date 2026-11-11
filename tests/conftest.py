@@ -32,6 +32,7 @@ by accident, not any test's own setup.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -209,6 +210,102 @@ def pytest_configure(config):
         "experiment: test of a closed experiment, audit or probe that neither the app nor "
         "the pipeline imports (listed in tests/experiment_tests.txt; applied automatically)",
     )
+    # A pull request's cells are split over several runners; see below. The
+    # setting is taken out of the environment as it is read: several tests
+    # start a pytest of their own, and a child that inherited it would
+    # quietly collect a third of what its test expects.
+    config.pluginmanager.register(_Sharding(parse_shard(os.environ.pop(_SHARD_ENV, None))), "aca-test-sharding")
+
+
+# ── A cell's tests, split over several runners ─────────────────────────────
+#
+# Measured 2026-11-11: a pull request waited 11 to 13 minutes, set by the cell
+# that runs every test under coverage (630 s of pytest for 8,654 tests) with
+# the Windows cells behind it (436 s for 4,738). The slowest single test took
+# 5.8 s and installing 13 to 32 s: the time is the number of tests. Running
+# them in parallel inside one runner (#228) made about half the runs fail a
+# timing-sensitive concurrency test. So a cell is split by test file, and
+# each part still runs serially on a runner of its own.
+#
+# ACA_TEST_SHARD="2/3" keeps the second of three parts and deselects the
+# rest. Unset, as it is locally and in the weekly workflow, nothing changes.
+_SHARD_ENV = "ACA_TEST_SHARD"
+_MAX_SHARDS = 16
+
+
+def parse_shard(raw: str | None) -> tuple[int, int] | None:
+    """(part, parts) from "part/parts"; None when unset. Anything else is refused.
+
+    A typo must not become "run nothing" or "run everything" under a green
+    tick, so there is no lenient reading.
+    """
+    if raw is None or not raw.strip():
+        return None
+    pieces = raw.strip().split("/")
+    if len(pieces) == 2 and all(piece.isdigit() for piece in pieces):
+        part, parts = int(pieces[0]), int(pieces[1])
+        if 1 <= part <= parts <= _MAX_SHARDS:
+            return part, parts
+    raise pytest.UsageError(
+        f"{_SHARD_ENV}={raw!r} is not a part of a number: write it as 2/3, "
+        f"with the part between 1 and the number and the number at most {_MAX_SHARDS}."
+    )
+
+
+def shard_assignment(counts: dict[str, int], parts: int) -> dict[str, int]:
+    """Which part (1-based) each test file belongs to.
+
+    Whole files, because a file's fixtures and test order are its own.
+    Balanced by the number of tests: the files run from 1 test to several
+    hundred, and time follows tests far more closely than it follows files.
+    The largest file first, each to whichever part is lightest so far; ties,
+    in size or in load, go by name and by the lower part, so every runner
+    that collects the same tests computes the same answer.
+    """
+    loads = [0] * parts
+    assigned: dict[str, int] = {}
+    for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
+        lightest = min(range(parts), key=lambda index: (loads[index], index))
+        loads[lightest] += count
+        assigned[name] = lightest + 1
+    return assigned
+
+
+class _Sharding:
+    """Deselects every test outside this runner's part. Inactive unless the variable is set."""
+
+    def __init__(self, shard: tuple[int, int] | None) -> None:
+        self.shard = shard
+        self.summary: str | None = None
+
+    # After every other hook, the `-m` deselection included: the parts are a
+    # partition of what this cell actually runs, not of everything collected.
+    @pytest.hookimpl(trylast=True)
+    def pytest_collection_modifyitems(self, config, items):
+        if self.shard is None:
+            return
+        part, parts = self.shard
+        counts: dict[str, int] = {}
+        for item in items:
+            counts[item.nodeid.split("::", 1)[0]] = counts.get(item.nodeid.split("::", 1)[0], 0) + 1
+        assigned = shard_assignment(counts, parts)
+        kept = [item for item in items if assigned[item.nodeid.split("::", 1)[0]] == part]
+        dropped = [item for item in items if assigned[item.nodeid.split("::", 1)[0]] != part]
+        if not kept:
+            # An empty part that exits green would hide a suite that stopped running.
+            raise pytest.UsageError(
+                f"{_SHARD_ENV}={part}/{parts} leaves no tests to run: "
+                f"{len(items)} test(s) in {len(counts)} file(s) cannot fill {parts} parts."
+            )
+        files = sum(1 for name in assigned.values() if name == part)
+        self.summary = (f"part {part} of {parts}: {len(kept)} of {len(items)} tests, "
+                        f"{files} of {len(counts)} files ({_SHARD_ENV})")
+        if dropped:
+            config.hook.pytest_deselected(items=dropped)
+            items[:] = kept
+
+    def pytest_report_collectionfinish(self, config):
+        return self.summary
 
 
 def experiment_test_files() -> set[str]:
