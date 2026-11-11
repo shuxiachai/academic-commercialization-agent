@@ -642,9 +642,18 @@ const scenarios = {
     }
     const plan = { planned: true, resolved: true, search_topic: 'hyperloop transportation system',
       aliases: ['vacuum tube maglev train'], components: [] };
+    // An account with no keys in the tab whose preview the deployment pays
+    // for: an administrator it funds, or a newcomer on a trial assessment.
+    // Seen on production on 2026-11-11: such a preview ended "one small
+    // request on your model key", said to someone with no key.
+    const funded = ['admin', 'trial', 'trial_silent'].includes(kind);
     if (kind === 'code') {
       api.setAccessCode('fixture-code');
       f.run('planPreviewEnabled = true');
+    } else if (funded) {
+      f.run(kind === 'admin'
+        ? 'accountMode = true; accountAdmin = true; authConfig = { admin_funded: true }; planPreviewEnabled = true'
+        : 'accountMode = true; accountVerified = true; accountTrialLeft = 1; planPreviewEnabled = true');
     } else {
       api.setByok({ provider: 'qwen', llmKey: 'fixture-key', model: 'qwen3.8-27b', search: 'tavily', searchKey: 'fixture-search' });
       f.run(`accountMode = true; byokMode = true; planPreviewEnabled = ${kind !== 'off'}`);
@@ -661,8 +670,8 @@ const scenarios = {
     assert.equal(f.requests.length, 1);
     assert.equal(f.requests[0].url, '/api/plan');
     const sent = JSON.parse(f.requests[0].options.body);
-    if (kind === 'code') {
-      assert.deepEqual(sent, { topic: 'hyperloop' }, 'A code holder sends no key');
+    if (kind === 'code' || funded) {
+      assert.deepEqual(sent, { topic: 'hyperloop' }, 'Whoever has no key sends none');
     } else {
       assert.deepEqual(sent, { topic: 'hyperloop', llm_provider: 'qwen', llm_api_key: 'fixture-key',
         llm_model: 'qwen3.8-27b', tavily_api_key: 'fixture-search' });
@@ -679,7 +688,8 @@ const scenarios = {
     // where nobody was looking. It is brought into view, and no further than
     // it needs to be.
     assert.deepEqual(scrolled, ['nearest'], 'The waiting line is brought into view');
-    f.respond(0, kind === 'silent' ? { ...plan, planned: false, search_topic: 'hyperloop', aliases: [] } : plan);
+    const silent = kind === 'silent' || kind === 'trial_silent';
+    f.respond(0, silent ? { ...plan, planned: false, search_topic: 'hyperloop', aliases: [] } : plan);
     await submitted;
     assert.deepEqual(scrolled, ['nearest', 'nearest'], '...and so is the reading, which is taller');
     const panel = f.get('#plan-panel');
@@ -687,11 +697,16 @@ const scenarios = {
     const [title, lede] = panel.children;
     assert.equal(title.textContent, label('title'));
     const texts = JSON.stringify(panel.children, (key, value) => (key === 'listeners' ? undefined : value));
-    if (kind === 'silent') {
-      assert.equal(lede.textContent, label('no_answer_own'));
+    if (silent) {
+      // "Your model did not answer: check your key under API keys" sends
+      // someone with no key to look for one. They are told what a code
+      // holder is told: no answer, and the run can be started anyway.
+      assert.equal(lede.textContent, label(funded ? 'no_answer' : 'no_answer_own'));
       assert.ok(!texts.includes('"value":"hyperloop"'), 'The topic as typed is not shown as a reading');
     } else {
-      assert.equal(lede.textContent, label(kind === 'code' ? 'lede' : 'lede_own'));
+      const said = { code: 'lede', admin: 'lede_funded', trial: 'lede_funded' }[kind] ?? 'lede_own';
+      assert.equal(typeof label(said), 'string');
+      assert.equal(lede.textContent, label(said), 'The preview says whose key it was made on');
       assert.ok(texts.includes('hyperloop transportation system'));
     }
     assert.equal(f.requests.length, 1, 'Nothing is started until the reading is confirmed');
