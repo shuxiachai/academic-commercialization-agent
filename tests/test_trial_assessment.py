@@ -30,7 +30,7 @@ from fastapi.testclient import TestClient
 
 from academic_agent.language import TopicSearchPlan
 from academic_agent.run_terminal import TerminalRecord, UsageAccounting, commit_terminal_record
-from api import access, accounts, main, plan_preview, runs
+from api import access, accounts, plan_preview, runs
 from api.main import app
 
 PASSWORD = "a sufficiently long password"
