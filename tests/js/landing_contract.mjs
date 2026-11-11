@@ -71,7 +71,7 @@ function fixture({ pathname = "/", search = "", access, replies = {} }) {
   };
   for (const id of hiddenAtStart) get(`#${id}`).hidden = true;
   get("#landing-preview").dataset.src = previewSource;
-  const requests = [], navigations = [], reloads = [];
+  const requests = [], navigations = [], reloads = [], sidebarRefreshes = [];
   const reply = (body, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {
     status, headers: { "Content-Type": "application/json" } }));
   globalThis.fetch = (url, options = {}) => {
@@ -88,7 +88,9 @@ function fixture({ pathname = "/", search = "", access, replies = {} }) {
   const context = vm.createContext({
     createPaidReceipts: () => createPaidReceipts(() => ({ getItem: () => null, setItem: () => {}, removeItem: () => {} })),
     api, runView: { ...runView }, compareView,
-    sidebar: { refresh: () => Promise.resolve([]), resetView: () => {} }, result: {}, needsScopeWarning: () => false,
+    // The real one asks the server for the identity's history; here each call is counted.
+    sidebar: { refresh: () => { sidebarRefreshes.push(true); return Promise.resolve([]); }, resetView: () => {} },
+    result: {}, needsScopeWarning: () => false,
     i18n: { t: (key) => key, language: () => "English", apply: () => {}, setLanguage: () => {} },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false },
@@ -100,7 +102,7 @@ function fixture({ pathname = "/", search = "", access, replies = {} }) {
     confirm: () => true,
   });
   vm.runInContext(source, context);
-  return { get, requests, navigations, reloads, run: (text) => vm.runInContext(text, context) };
+  return { get, requests, navigations, reloads, sidebarRefreshes, run: (text) => vm.runInContext(text, context) };
 }
 
 // Let the boot's promise chain and the replies above run to completion.
@@ -108,6 +110,7 @@ const settle = async () => { for (let i = 0; i < 25; i++) await new Promise((res
 const shown = (f) => ({ landing: !f.get("#landing").hidden, workbench: !f.get("#workbench").hidden, gate: !f.get("#gate").hidden });
 const refused = (accounts) => ({ status: 401, body: { detail: "Sign in.", ...(accounts ? { accounts } : {}) } });
 const DEEP_LINK = "/run/20260926T121212Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const RUN_API = DEEP_LINK.replace("/run/", "/api/runs/");
 
 const scenarios = {
   async anonymous_root() {
@@ -161,12 +164,108 @@ const scenarios = {
     assert.equal(f.get("#account-title").textContent, "account_title");
   },
   async anonymous_deep_link() {
+    // Until 2026-11-11 this asked for the sign-in directly. "Copy link" hands
+    // the address to someone else, the server has always answered a run's
+    // reads to whoever holds its id, and the card stood between the two: the
+    // person the link was for had to create an account to read one report.
     const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS) });
     await settle();
-    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: true },
-      "A deep link asks for the sign-in directly; whoever follows it came for the run, not the pitch");
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false },
+      "A shared run opens for whoever holds its link; nobody is asked to sign in to read it");
+    assert.equal(f.get("#viewer-bar").hidden, false, "A bar says this is a shared report and offers the way in");
+    assert.equal(f.get("#workbench").dataset.viewer, "true", "...and the workbench is marked, so the rail is not shown");
+    assert.equal(f.get("#viewer-create").hidden, false, "Open sign-up offers an account");
+    assert.ok(f.requests.some((r) => r.url.startsWith(RUN_API)), "The run itself is read, by its id");
+    assert.equal(f.sidebarRefreshes.length, 0, "No history is asked for: there is no identity whose history it would be");
     assert.ok(!f.requests.some((r) => r.url === "/api/samples"), "No landing, no sample request");
     assert.equal(f.get("#landing-preview").src, undefined, "...and no picture either: the hidden image is never given a src");
+
+    // What a reader may do with someone else's run: read it, keep it, pass it on.
+    const actions = (state) => {
+      f.run(`paintActions(${JSON.stringify(state)}, { committed_nodes: ["retrieval"] })`);
+      return f.get("#run-actions").children.map((node) => node.id || node.textContent || node.download || "");
+    };
+    const finished = actions("completed");
+    assert.ok(finished.some((label) => label.endsWith(".md")) && finished.some((label) => label.endsWith(".pdf")),
+      "A finished report can be downloaded");
+    for (const state of ["completed", "failed", "running", "cancelled", "timeout"]) {
+      const offered = actions(state);
+      for (const forbidden of ["cancel", "resume", "delete_run", "run-again", "run-compare"]) {
+        assert.ok(!offered.includes(forbidden), `${forbidden} is not offered to a reader of a ${state} run`);
+      }
+    }
+  },
+  async anonymous_deep_link_signup_closed() {
+    const f = fixture({ pathname: DEEP_LINK, access: refused({ ...ACCOUNTS, signup_open: false, signup: "closed" }) });
+    await settle();
+    assert.equal(f.get("#viewer-bar").hidden, false);
+    assert.equal(f.get("#viewer-create").hidden, true, "No sign-up means no button that would only fail");
+    assert.equal(f.get("#viewer-sign-in").hidden, false);
+  },
+  async anonymous_compare_link() {
+    const f = fixture({ pathname: "/compare/20260926T121212Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/20260927T121212Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      access: refused(ACCOUNTS) });
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false }, "A shared comparison is read the same way");
+    assert.equal(f.get("#viewer-bar").hidden, false);
+  },
+  async anonymous_other_path_still_meets_the_card() {
+    // Only a run or a comparison is something a link can share. Any other
+    // address on a gated deployment is the workbench, which needs an identity.
+    const f = fixture({ pathname: "/verify", access: refused(ACCOUNTS) });
+    await settle();
+    assert.equal(shown(f).gate, true);
+    assert.equal(f.get("#viewer-bar").hidden, true);
+  },
+  async viewer_signs_in() {
+    const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS) });
+    await settle();
+    f.get("#viewer-sign-in").onclick();
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: true }, "Sign in opens the card over the report");
+    assert.equal(f.get("#account-title").textContent, "account_title");
+    assert.equal(f.get("#gate-back").hidden, false, "The card can be put down again");
+    f.get("#gate-back").onclick();
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false }, "Put down, the report is still there");
+    assert.equal(f.get("#viewer-bar").hidden, false);
+
+    f.get("#viewer-create").onclick();
+    await settle();
+    assert.equal(f.get("#account-title").textContent, "account_title_create", "Create account opens the card in its create mode");
+    f.get("#account-toggle").onclick();
+    f.get("#account-email-input").value = ACCOUNT.email;
+    f.get("#account-password").value = "a sufficiently long password";
+    f.get("#account-form").onsubmit({ preventDefault() {} });
+    await settle();
+    assert.equal(disk.get("session-token"), "fixture-token");
+    f.get("#byok-skip").onclick();
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false });
+    assert.equal(f.get("#viewer-bar").hidden, true, "Signed in, the reader is a user: the bar goes");
+    assert.notEqual(f.get("#workbench").dataset.viewer, "true", "...and the rail comes back");
+    assert.ok(f.sidebarRefreshes.length > 0, "...with the account's own history");
+    f.run('paintActions("completed")');
+    assert.ok(f.get("#run-actions").children.some((node) => node.id === "run-again"), "...and the full actions");
+  },
+  async trial_said_on_the_way_in() {
+    // With a first assessment on the deployment's keys (#370), the landing and
+    // the card must not still tell a newcomer that every run needs keys.
+    const trial = fixture({ access: refused({ ...ACCOUNTS, trial_runs: 1 }) });
+    await settle();
+    assert.equal(trial.get("#landing-trial").hidden, false, "The landing says the first assessment is free");
+    trial.get("#landing-create").onclick();
+    await settle();
+    assert.equal(trial.get("#account-sub").hidden, true, "The card's sentence about paying with keys gives way");
+    assert.equal(trial.get("#account-sub-trial").hidden, false, "...to one that says the first assessment needs none");
+
+    const none = fixture({ access: refused(ACCOUNTS) });
+    await settle();
+    assert.equal(none.get("#landing-trial").hidden, true, "Nothing is promised where the operator offers no trial");
+    none.get("#landing-create").onclick();
+    await settle();
+    assert.equal(none.get("#account-sub").hidden, false);
+    assert.equal(none.get("#account-sub-trial").hidden, true);
   },
   async anonymous_codes_only() {
     const f = fixture({ access: refused(null) });
@@ -264,6 +363,8 @@ const scenarios = {
   async forgot_from_sign_in() {
     const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS), replies: { "/api/auth/password/forgot": {} } });
     await settle();
+    f.get("#viewer-sign-in").onclick();
+    await settle();
     assert.equal(f.get("#account-forgot").hidden, false, "With mail, the sign-in form offers the reset");
     f.get("#account-email-input").value = ACCOUNT.email;
     f.get("#account-forgot").onclick();
@@ -284,6 +385,8 @@ const scenarios = {
   },
   async forgot_absent_without_mail() {
     const f = fixture({ pathname: DEEP_LINK, access: refused({ ...ACCOUNTS, password_reset: false }) });
+    await settle();
+    f.get("#viewer-sign-in").onclick();
     await settle();
     assert.equal(f.get("#account-form").hidden, false);
     assert.equal(f.get("#account-forgot").hidden, true, "Without mail there is no link to send; the privacy page names the operator");
@@ -348,3 +451,6 @@ const run = scenarios[scenario];
 if (!run) throw new Error(`Unknown scenario ${scenario}`);
 await run();
 console.log(`PASS ${scenario}`);
+// A reader's run view polls with a real fifteen-second timer in run.js; the
+// assertions are done, so do not wait for a request this file never answers.
+process.exit(0);

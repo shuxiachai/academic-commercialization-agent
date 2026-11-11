@@ -1188,6 +1188,19 @@ clipboard, as the one inside a chat app often does, the older selection copy
 is tried; if that is refused too, the reader is told the link is the address
 in the address bar.
 
+Whoever follows such a link reads the run without signing in. On a gated
+deployment a visitor with no identity who opens `/run/<id>` or
+`/compare/<a>/<b>` is shown the report, with a bar across the top that says
+it is a shared assessment and offers "Create account" (where sign-up is
+open) and "Sign in"; both open the usual card over the report, and it can be
+put down again. A reader is given nothing that belongs to an identity: no
+history, no composer, and of a run's actions only the downloads and "Copy
+link". The page asks the server for nothing but the boot's access check and
+the run's own reads. Until 2026-11-11 the page put the sign-in card in front
+of the report although the server answered those reads to anyone, so a link
+could not be read by the person it was sent to. Any other address still
+meets the card, or the landing at `/`.
+
 A finished run also offers "Compare", which asks for a second finished run
 from the same history and opens `/compare/<a>/<b>`: the two scorecards in
 one table with the difference beside them, then the sentences a decision

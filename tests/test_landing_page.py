@@ -39,6 +39,11 @@ SCENARIOS = (
     "notice_switch", "notice_switch_refused", "notice_switch_absent_without_mail",
     # An administrator the deployment funds is not asked for keys (tests/test_admin_funded.py).
     "signed_in_admin_funded",
+    # A shared run or comparison is read by whoever holds its link, with a bar
+    # that offers the way in; and what the way in says when a first
+    # assessment is free.
+    "anonymous_deep_link_signup_closed", "anonymous_compare_link", "anonymous_other_path_still_meets_the_card",
+    "viewer_signs_in", "trial_said_on_the_way_in",
 )
 
 
@@ -108,3 +113,30 @@ def test_the_boot_keeps_the_shape_the_other_harnesses_strip():
     """Several contracts cut the boot block with a regex on this exact call."""
     assert _APP.count("\nensureAccess().then(") == 1
     assert "function showLanding(" in _APP
+
+
+def test_the_page_has_what_a_reader_of_a_shared_run_is_shown():
+    """The bar a visitor without an identity sees above someone else's report."""
+    for control in ('id="viewer-bar"', 'id="viewer-sign-in"', 'id="viewer-create"'):
+        assert control in _INDEX, control
+    assert re.search(r'<div class="viewer-bar" id="viewer-bar" hidden>', _INDEX), "hidden until the boot decides"
+    css = (_WEB / "static/css/workbench.css").read_text(encoding="utf-8")
+    assert '[data-viewer="true"] .sidebar' in css, "the rail belongs to an identity; a reader has none"
+    for key in ("viewer_note", "viewer_sign_in", "viewer_create"):
+        assert _STRINGS.count(f"    {key}: ") == 2, key
+
+
+def test_the_way_in_says_what_a_run_takes_and_what_a_trial_spares():
+    """Measured 2026-11-09 to 2026-11-11: 343 to 833 seconds a run, about
+    105,000 tokens. The card said "about 15 minutes" and "about 70,000"; and
+    with a first assessment on the deployment's keys it must not still say
+    that every run is paid for with keys the newcomer brings."""
+    assert "about 15 minutes" not in _STRINGS and "about 15 minutes" not in _INDEX
+    assert "约 15 分钟" not in _STRINGS
+    assert _STRINGS.count("6 to 15 minutes") >= 3 and _STRINGS.count("6 到 15 分钟") >= 3
+    assert "about 70,000" not in _STRINGS and "about 100,000 model tokens" in _STRINGS
+    for element in ('id="landing-trial"', 'id="account-sub"', 'id="account-sub-trial"'):
+        assert element in _INDEX, element
+    for key in ("landing_trial", "account_sub_trial"):
+        assert _STRINGS.count(f"    {key}: ") == 2, key
+    assert "authConfig?.trial_runs > 0" in _APP

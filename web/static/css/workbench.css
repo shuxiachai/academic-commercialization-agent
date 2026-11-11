@@ -19,6 +19,25 @@
    toggle lives inside it: a zero-width sidebar took its own reopen control
    with it, and the state is persisted, so a reload did not recover either. */
 .workbench[data-collapsed="true"] { grid-template-columns: 52px 1fr; }
+/* A reader of a shared run has no identity: no history, no "new analysis",
+   so no rail, and the phone bar's menu button would open nothing. */
+.workbench[data-viewer="true"] { grid-template-columns: 1fr; }
+[data-viewer="true"] .sidebar { display: none; }
+[data-viewer="true"] #mobile-menu { visibility: hidden; }
+.viewer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--accent-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.viewer-bar[hidden] { display: none; }
+.viewer-bar__actions { display: flex; gap: var(--space-2); }
 .workbench[data-collapsed="true"] .brand__name,
 .workbench[data-collapsed="true"] .new-run span,
 .workbench[data-collapsed="true"] .new-run .kbd,
