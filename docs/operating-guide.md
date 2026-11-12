@@ -711,9 +711,16 @@ key into three requests and a connection that timed out every time into
 fifteen attempts instead of five. Once a call has used up its attempts, has
 no time left for another, was refused outright, or had its answer cut, the
 node raises the same error without sending anything, and `process.log` says
-`[llm] <node>: not asked again after <error>`. One case still gets CrewAI's
-second run: an answer with no text, which the wrapper does not treat as an
-error.
+`[llm] <node>: not asked again after <error>`.
+
+An answer with no text is asked for again by the wrapper, at once and on the
+same connection: a streamed node asks up to three times in all, inside its
+five attempts. Each such attempt's `outcome` is `empty`, and a node that
+never gets text fails the run as `provider_empty_answer` (before, CrewAI ran
+the node again on its own, the attempts were recorded as `returned`, and the
+run failed as `unknown`). An empty answer that was cut at the output limit is
+a `cut`, which is the more exact name. A plain call returns an empty answer
+as it always did.
 
 A rate limit (429) is waited out. A streamed node, which every crew node
 is, waits the seconds the provider's `retry-after` header gives (Anthropic

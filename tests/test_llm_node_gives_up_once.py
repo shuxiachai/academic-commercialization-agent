@@ -16,11 +16,11 @@ seconds and the backoff between them), so a run could take sixteen minutes to
 say what it knew after five. The production run of 2026-11-09 that was
 cancelled at 728 seconds had made seven attempts on its writer.
 
-One thing stays as it was. An answer with no text is not an error to the
-wrapper; CrewAI raises on it and runs the node again, and that is the only
-retry such an answer has. A rate limit was the other exception at first,
-because the wrapper did not retry one at all; it now waits one out itself
-(tests/test_llm_rate_limit_wait.py) and is given up on like anything else.
+Two things were left to CrewAI's second run at first, because the wrapper had
+no retry of its own for them. A rate limit is now waited out by the wrapper
+(tests/test_llm_rate_limit_wait.py), and an answer with no text is asked for
+again by it (tests/test_llm_empty_answer.py); both are then given up on like
+anything else, and nothing depends on CrewAI starting a node over.
 
 The provider objects are the real ones, built with made-up keys. Each HTTP
 request is counted and answered here; nothing is sent, and no backoff is slept.
@@ -138,14 +138,13 @@ class TestThroughCrewAI:
         assert provider.requests == 3
         assert by_call(attempts) == {1: ["timeout", "timeout", "returned"]}
 
-    def test_an_answer_with_no_text_is_still_asked_for_again_by_crewai(self, provider, attempts):
-        """The only retry an empty answer has. The call returned; the wrapper gave up on nothing."""
+    def test_an_answer_with_no_text_is_asked_for_again_inside_the_call(self, provider, attempts):
         provider.answers = ["empty", "ok"]
 
         assert ANSWER in str(run_one_node())
 
         assert provider.requests == 2
-        assert by_call(attempts) == {1: ["returned"], 2: ["returned"]}
+        assert by_call(attempts) == {1: ["empty", "returned"]}
 
     def test_a_rate_limit_is_waited_out_inside_the_call_not_by_starting_the_node_over(self, provider, attempts):
         provider.answers = ["rate", "ok"]

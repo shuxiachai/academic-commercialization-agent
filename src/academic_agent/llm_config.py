@@ -345,6 +345,38 @@ class AnswerCutError(RuntimeError):
             "what arrived is part of an answer and was not used.")
 
 
+# How many times in all a streamed node asks for an answer that keeps coming
+# back with no text. A model sometimes ends an answer without writing one.
+# The wrapper used to return it and record "returned"; CrewAI raised
+# "Invalid response from LLM call - None or empty." and ran the node again,
+# up to twice, so three billed calls could go by under a record of three
+# answers, and a run that got nothing all three times failed as "unknown".
+# Three is what that amounted to. The asking is kept, because it is the only
+# retry such an answer has, and done here, where the attempt record and the
+# run's time can see it. A plain call returns the empty answer as before:
+# the paper extractor has its own handling for one.
+_EMPTY_ANSWER_ASKS = 3
+
+
+class EmptyAnswerError(RuntimeError):
+    """A streamed node's model kept returning an answer with no text.
+
+    The message is what the status records and what api/runs.py reads to name
+    the failure.
+    """
+
+    def __init__(self, stage: str, times: int) -> None:
+        self.stage, self.times = " ".join(str(stage).split()), times
+        count = "once" if times == 1 else f"{times} times in a row"
+        super().__init__(
+            f"{self.stage}: the model returned an answer with no text, {count}; there was nothing to use.")
+
+
+def _has_no_text(result: object) -> bool:
+    """None, or a string of nothing but blank space. A tool call or a parsed object is an answer."""
+    return result is None or (isinstance(result, str) and not result.strip())
+
+
 @dataclass
 class _CallBudget:
     """Mutable because the worker assigns a stage deadline after Crew creation."""
@@ -662,8 +694,9 @@ def _wrap_with_retry(llm):
         llm._emit_call_completed_event = emit_and_note
     max_attempts = _max_attempts_for(llm)
     # A plain call does not wait for a rate limit: the paper extractor runs
-    # inside a web request, and a minute's wait there is the visitor's.
-    waits_out_rate_limits = getattr(llm, "stream", False) is True
+    # inside a web request, and a minute's wait there is the visitor's. Nor
+    # does it ask again for an empty answer; it returns one as it always did.
+    streamed = getattr(llm, "stream", False) is True
     base, model = getattr(llm, "base_url", None), getattr(llm, "model", None)
     identity = (base.rstrip("/"), model) if isinstance(base, str) and isinstance(model, str) else None
 
@@ -684,6 +717,7 @@ def _wrap_with_retry(llm):
                 _give_thinking_time(llm, budget)
         adapted = 0
         attempt = 1
+        empties = 0
         budget.calls += 1
         call_index = budget.calls
 
@@ -719,7 +753,7 @@ def _wrap_with_retry(llm):
                     continue
                 wait = _rate_limit_wait(exc, attempt)
                 if wait is not None:
-                    outcome, again = "rate_limited", waits_out_rate_limits
+                    outcome, again = "rate_limited", streamed
                 else:
                     outcome, again = "timeout" if _is_timeout(exc) else "error", _is_retryable(exc)
                 if attempt == max_attempts or not again:
@@ -769,6 +803,22 @@ def _wrap_with_retry(llm):
                     budget.gave_up = AnswerCutError(budget.stage, cut)
                     report("cut", started, retry=False, exc=None)
                     raise budget.gave_up
+                if streamed and _has_no_text(result):
+                    empties += 1
+                    if empties == _EMPTY_ANSWER_ASKS or attempt == max_attempts:
+                        budget.gave_up = EmptyAnswerError(budget.stage, empties)
+                        report("empty", started, retry=False, exc=None)
+                        raise budget.gave_up
+                    report("empty", started, retry=True, exc=None)
+                    # At once and on the same connection: nothing failed, and
+                    # there is nothing to wait for.
+                    print(
+                        f"[llm] {budget.stage}: empty answer on attempt "
+                        f"{attempt}/{max_attempts}; asking again",
+                        file=sys.stderr, flush=True,
+                    )
+                    attempt += 1
+                    continue
                 report("returned", started, retry=False, exc=None)
                 return result
 

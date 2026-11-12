@@ -298,7 +298,8 @@ class StepEvent(BaseModel):
     outcome: str | None = Field(
         default=None,
         description="returned, timeout, error, adapted (a refused parameter resent), rate_limited "
-                    "(a 429 that passes by waiting; a streamed node waits and asks again), or cut "
+                    "(a 429 that passes by waiting; a streamed node waits and asks again), empty (an "
+                    "answer with no text; a streamed node asks up to three times in all), or cut "
                     "(the provider ended the answer at its output limit; the node fails).")
     duration_seconds: float | None = Field(
         default=None, description="Wall time of this one attempt.")
@@ -380,7 +381,7 @@ class RunProgress(BaseModel):
                     "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
                     "provider_request_rejected, provider_rate_limited, insufficient_evidence, "
                     "provider_response_format, quality_checks, provider_unreachable, "
-                    "provider_output_limit or unknown; "
+                    "provider_output_limit, provider_empty_answer or unknown; "
                     "cancelled and timeout_resumable for those two outcomes. None when there is "
                     "nothing to explain. `error` stays the sentence to show.",
     )
@@ -572,7 +573,7 @@ class RunStatus(BaseModel):
                     "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
                     "provider_request_rejected, provider_rate_limited, insufficient_evidence, "
                     "provider_response_format, quality_checks, provider_unreachable, "
-                    "provider_output_limit or unknown; "
+                    "provider_output_limit, provider_empty_answer or unknown; "
                     "cancelled and timeout_resumable for those two outcomes. None when there is "
                     "nothing to explain. `error` stays the sentence to show.",
     )
