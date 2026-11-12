@@ -89,10 +89,40 @@ _PRICING: dict[str, tuple[float, float, float]] = {
     "gpt-4o-mini":        (0.15, 0.075, 0.60),
     "gpt-4.1":            (2.00, 0.50, 8.00),
     "gpt-4.1-mini":       (0.40, 0.10, 1.60),
+    # Anthropic, read from platform.claude.com/docs/en/about-claude/pricing on
+    # 2026-11-12: base input, cache hit, output. Until then this table had
+    # three Claude rows from 2026-05: none of the models the key form suggests
+    # was priced, a current Opus resolved to the "claude-opus-4" row at three
+    # times its rate, and Haiku 4.5 to a "claude-haiku-4" row below its rate.
+    # A dated snapshot ("claude-opus-4-1-20250805") takes its model's row by
+    # prefix, and the longest prefix wins, so 4.5 to 4.8 need rows of their own
+    # ahead of "claude-opus-4" (which is Opus 4 and 4.1); Sonnet 4, 4.5 and 4.6
+    # share one price and one row.
+    "claude-fable-5-2":   (8.00, 0.20, 40.00),
+    "claude-mythos-5-2":  (8.00, 0.20, 40.00),
+    "claude-fable-5-1":   (10.00, 0.25, 50.00),
+    "claude-mythos-5-1":  (10.00, 0.25, 50.00),
+    "claude-fable-5":     (10.00, 1.00, 50.00),
+    "claude-mythos-5":    (10.00, 1.00, 50.00),
+    "claude-opus-5-5":    (4.00, 0.20, 20.00),
+    "claude-opus-5":      (5.00, 0.50, 25.00),
+    "claude-opus-4-8":    (5.00, 0.50, 25.00),
+    "claude-opus-4-7":    (5.00, 0.50, 25.00),
+    "claude-opus-4-6":    (5.00, 0.50, 25.00),
+    "claude-opus-4-5":    (5.00, 0.50, 25.00),
     "claude-opus-4":      (15.00, 1.50, 75.00),
+    "claude-sonnet-5-5":  (2.00, 0.10, 10.00),
+    "claude-sonnet-5":    (2.00, 0.20, 10.00),
     "claude-sonnet-4":    (3.00, 0.30, 15.00),
-    "claude-haiku-4":     (0.80, 0.08, 4.00),
+    # Haiku 5.5 is $0.10/$0.50 for prompts up to 100,000 tokens and
+    # $0.50/$2.50 over. A node's usage is a sum over its requests and does not
+    # say how long each prompt was, so this is the higher tier, like the
+    # tiered Qwen rows: the figure can overstate and cannot understate.
+    "claude-haiku-5-5":   (0.50, 0.05, 2.50),
+    "claude-haiku-4-5":   (1.00, 0.10, 5.00),
 }
+
+_ANTHROPIC_PRICES_AS_OF = "2026-11-12"
 
 _PRICING_BASIS_OVERRIDES = {
     "deepseek-v4-flash": "built-in DeepSeek peak table (as of 2026-08-30)",
@@ -103,6 +133,11 @@ _PRICING_BASIS_OVERRIDES = {
     "qwen3.7-max": "built-in Qwen3.7 Max upper bound, Alibaba Singapore list price (as of 2026-10-23)",
     "qwen3.7-flash": "built-in Qwen3.7 Flash upper bound, Alibaba Beijing top tier (as of 2026-10-23)",
     "qwen3.8-flash": "built-in Qwen3.8 Flash upper bound, Alibaba Beijing list price (as of 2026-10-23)",
+    **{
+        name: f"built-in Anthropic list price (as of {_ANTHROPIC_PRICES_AS_OF})"
+        for name in _PRICING if name.startswith("claude-")
+    },
+    "claude-haiku-5-5": f"built-in Claude Haiku 5.5 upper tier, Anthropic list price (as of {_ANTHROPIC_PRICES_AS_OF})",
 }
 
 # Anthropic bills a cache *write* above the normal input rate. Cache reads are
@@ -208,6 +243,25 @@ def _billable_prompt_tokens(
     if anthropic_shaped:
         return max(prompt_tokens, 0)
     return max(prompt_tokens - cached_tokens, 0)
+
+
+def _total_tokens(metrics: Any, *, anthropic_shaped: bool) -> int:
+    """Every token the provider processed for one agent.
+
+    CrewAI's total_tokens is input plus output. On the OpenAI-shaped providers
+    that is everything, cached input being a part of the input. On Anthropic
+    the input counter leaves out what was written to or read from the prompt
+    cache, and CrewAI turns that cache on: in the first run through Anthropic
+    (2026-11-12) each node's whole prompt was a cache write and its "input"
+    four tokens, so the run was recorded as 30,701 tokens of the 155,654 it
+    was billed for. The cost formula above already added the two counters;
+    the total, which is the number the page shows, did not.
+    """
+    reported = int(getattr(metrics, "total_tokens", 0) or 0)
+    if not anthropic_shaped:
+        return reported
+    return sum(int(getattr(metrics, name, 0) or 0) for name in (
+        "prompt_tokens", "cached_prompt_tokens", "cache_creation_tokens", "completion_tokens"))
 
 
 @dataclass(frozen=True)
@@ -385,7 +439,7 @@ def _collect_usage(crew: Any) -> RunUsage:
             cache_creation_tokens=int(getattr(metrics, "cache_creation_tokens", 0) or 0),
             completion_tokens=int(getattr(metrics, "completion_tokens", 0) or 0),
             reasoning_tokens=int(getattr(metrics, "reasoning_tokens", 0) or 0),
-            total_tokens=int(getattr(metrics, "total_tokens", 0) or 0),
+            total_tokens=_total_tokens(metrics, anthropic_shaped=_is_anthropic_shaped(model, llm)),
             requests=int(getattr(metrics, "successful_requests", 0) or 0),
             cost_usd=cost,
         ))

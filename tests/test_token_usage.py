@@ -413,3 +413,148 @@ class Qwen35PlusPricingTests(TestCase):
                 ),
             )
         self.assertAlmostEqual(cost, 0.8025, places=6)
+
+
+class _AnthropicLLM(_LLM):
+    """An LLM whose class lives where CrewAI's Anthropic provider does."""
+
+
+_AnthropicLLM.__module__ = "crewai.llms.providers.anthropic.completion"
+
+# The six nodes of the first run through Anthropic (2026-11-12, claude-sonnet-5-5,
+# held-out topic V01), as CrewAI reported them: (role, input, output, cache writes).
+# CrewAI turns prompt caching on for Anthropic, so the prompt arrives as a cache
+# write and "input" is the four tokens after the cache breakpoint.
+_FIRST_ANTHROPIC_RUN = (
+    ("Academic Literature Analyst", 4, 3_143, 6_069),
+    ("Patent Landscape Analyst", 4, 2_814, 6_037),
+    ("Market and Competitive Intelligence Analyst", 4, 5_598, 5_787),
+    ("Technology Commercialization Report Writer", 4, 12_503, 28_692),
+    ("Scientific Report Quality Reviewer", 4, 2_512, 41_301),
+    ("Commercialization Readiness Scorer", 4, 4_107, 37_067),
+)
+
+
+class AnthropicTotalsTests(TestCase):
+    """A run's token total counts every token the provider processed.
+
+    The first run through Anthropic was recorded as 30,701 tokens. The
+    provider processed 155,654: CrewAI's total_tokens is input plus output,
+    and on Anthropic "input" leaves out what was written to or read from the
+    prompt cache, which there was the whole prompt. The page showed a visitor
+    paying with their own key a fifth of what they were billed for. The cost
+    formula already knew the convention; the total did not."""
+
+    def _run(self):
+        return _Crew([
+            _Agent(role, _LLM("claude-sonnet-5-5", _Metrics(prompt=prompt, completion=out, created=written)))
+            for role, prompt, out, written in _FIRST_ANTHROPIC_RUN
+        ])
+
+    def test_the_first_anthropic_run_adds_up_to_what_was_processed(self):
+        with _clean_env():
+            usage = collect_usage(self._run())
+        self.assertEqual(usage.total_tokens, 155_654)
+        writer = usage.agents[3]
+        self.assertEqual(writer.total_tokens, 4 + 12_503 + 28_692)
+        # What the provider reported stays as reported, beside the total.
+        self.assertEqual((writer.prompt_tokens, writer.completion_tokens, writer.cache_creation_tokens),
+                         (4, 12_503, 28_692))
+        self.assertEqual(usage.total_requests, 6)
+
+    def test_cache_reads_count_too(self):
+        """A second call of a node reads the prompt back from the cache."""
+        with _clean_env():
+            usage = collect_usage(_Crew([_Agent("Writer", _LLM(
+                "claude-sonnet-5-5", _Metrics(prompt=40, cached=28_692, completion=9_000, created=600, requests=2)))]))
+        self.assertEqual(usage.total_tokens, 40 + 28_692 + 9_000 + 600)
+
+    def test_an_anthropic_model_behind_another_name_is_counted_the_same_way(self):
+        with _clean_env():
+            usage = collect_usage(_Crew([_Agent("Writer", _AnthropicLLM(
+                "default", _Metrics(prompt=4, completion=100, created=5_000)))]))
+        self.assertEqual(usage.total_tokens, 5_104)
+
+    def test_the_other_providers_total_is_the_one_they_report(self):
+        """There cached tokens are already inside prompt_tokens: adding them would count them twice."""
+        with _clean_env():
+            usage = collect_usage(_Crew([
+                _Agent("Writer", _LLM("deepseek-chat", _Metrics(prompt=1_000, cached=400, completion=100))),
+                _Agent("Scorer", _LLM("qwen3.8-max", _Metrics(prompt=2_000, cached=2_000, completion=50, total=2_060))),
+            ]))
+        self.assertEqual([a.total_tokens for a in usage.agents], [1_100, 2_060])
+        self.assertEqual(usage.total_tokens, 3_160)
+
+    def test_the_first_anthropic_run_is_priced_and_the_price_is_complete(self):
+        """$2 input, 1.25x that for a cache write, $10 output per million (2026-11-12)."""
+        with _clean_env():
+            usage = collect_usage(self._run())
+        expected = (24 * 2.00 + 124_953 * 2.00 * 1.25 + 30_677 * 10.00) / 1_000_000
+        self.assertAlmostEqual(usage.cost_usd, expected, places=5)
+        self.assertAlmostEqual(usage.cost_usd, 0.6192, places=3)
+        self.assertTrue(usage.cost_complete)
+        self.assertEqual(usage.unpriced_models, ())
+        self.assertIn("2026-11-12", usage.price_basis)
+
+
+class AnthropicPriceTableTests(TestCase):
+    """Anthropic's published prices on 2026-11-12, USD per million tokens.
+
+    Before that date the table knew three Claude rows from 2026-05. None of the
+    models the key form suggests was priced, a current Opus was priced at three
+    times its rate through the "claude-opus-4" prefix, and Haiku 4.5 below its
+    rate through "claude-haiku-4"."""
+
+    # model id -> (input, cache read, output), from platform.claude.com/docs/en/about-claude/pricing
+    PUBLISHED = {
+        "claude-fable-5-2": (8.00, 0.20, 40.00), "claude-mythos-5-2": (8.00, 0.20, 40.00),
+        "claude-fable-5-1": (10.00, 0.25, 50.00), "claude-mythos-5-1": (10.00, 0.25, 50.00),
+        "claude-fable-5": (10.00, 1.00, 50.00), "claude-mythos-5": (10.00, 1.00, 50.00),
+        "claude-opus-5-5": (4.00, 0.20, 20.00), "claude-opus-5": (5.00, 0.50, 25.00),
+        "claude-opus-4-8": (5.00, 0.50, 25.00), "claude-opus-4-7": (5.00, 0.50, 25.00),
+        "claude-opus-4-6": (5.00, 0.50, 25.00), "claude-opus-4-5": (5.00, 0.50, 25.00),
+        "claude-opus-4-1": (15.00, 1.50, 75.00), "claude-opus-4": (15.00, 1.50, 75.00),
+        "claude-sonnet-5-5": (2.00, 0.10, 10.00), "claude-sonnet-5": (2.00, 0.20, 10.00),
+        "claude-sonnet-4-6": (3.00, 0.30, 15.00), "claude-sonnet-4-5": (3.00, 0.30, 15.00),
+        "claude-sonnet-4": (3.00, 0.30, 15.00), "claude-haiku-4-5": (1.00, 0.10, 5.00),
+    }
+
+    def test_each_current_model_is_priced_as_published(self):
+        with _clean_env():
+            for model, rates in self.PUBLISHED.items():
+                with self.subTest(model=model):
+                    price = price_for(model)
+                    self.assertEqual((price.input, price.cached, price.output), rates)
+                    self.assertIn("2026-11-12", price.basis)
+                    self.assertNotIn(PRICES_AS_OF, price.basis)
+
+    def test_a_dated_snapshot_takes_its_own_models_row_not_a_shorter_names(self):
+        with _clean_env():
+            for model, rates in (
+                ("claude-haiku-4-5-20251001", (1.00, 0.10, 5.00)),
+                ("claude-opus-4-1-20250805", (15.00, 1.50, 75.00)),
+                ("claude-opus-4-5-20251101", (5.00, 0.50, 25.00)),
+                ("claude-sonnet-4-5-20250929", (3.00, 0.30, 15.00)),
+                ("anthropic/claude-sonnet-5-5", (2.00, 0.10, 10.00)),
+            ):
+                with self.subTest(model=model):
+                    price = price_for(model)
+                    self.assertEqual((price.input, price.cached, price.output), rates)
+
+    def test_haiku_5_5_is_priced_at_its_long_prompt_tier_and_says_so(self):
+        """$0.10 / $0.50 up to 100,000 prompt tokens and $0.50 / $2.50 over. A
+        node's usage is a sum over its requests and does not say how long each
+        prompt was, so the row is the higher tier, as for the tiered Qwen rows:
+        the figure can overstate and cannot understate."""
+        with _clean_env():
+            price = price_for("claude-haiku-5-5")
+        self.assertEqual((price.input, price.cached, price.output), (0.50, 0.05, 2.50))
+        self.assertIn("upper", price.basis)
+        self.assertIn("2026-11-12", price.basis)
+
+    def test_no_claude_model_falls_to_a_row_that_was_never_its_price(self):
+        """A name the table does not know is unpriced, not priced as a namesake."""
+        with _clean_env():
+            for model in ("claude-haiku-4", "claude-haiku-3-5", "claude-sonnet-6", "claude-opus-6-1"):
+                with self.subTest(model=model):
+                    self.assertIsNone(price_for(model))
