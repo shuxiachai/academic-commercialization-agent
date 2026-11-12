@@ -1179,6 +1179,23 @@
   line-height: var(--leading-normal);
   word-break: break-word;
 }
+/* Under the model field: what was measured for the provider, and a button per
+   model that fills the field (byok_fields.js). The names are identifiers, so
+   they are set in the code face and never broken mid-name; the row wraps. */
+.gate__models { display: flex; flex-direction: column; gap: var(--space-2); }
+.gate__chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.model-chip { max-width: 100%; font-family: var(--font-mono); font-size: var(--text-xs); }
+.model-chip__name { overflow: hidden; text-overflow: ellipsis; }
+.model-chip__figure { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.model-chip[aria-pressed="true"] {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+.model-chip[aria-pressed="true"] .model-chip__figure { color: inherit; }
+@media (pointer: coarse) {
+  .model-chip { height: auto; min-height: 44px; }
+}
 .gate__switch {
   align-self: center;
   margin-top: var(--space-1);

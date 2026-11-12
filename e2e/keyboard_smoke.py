@@ -277,7 +277,24 @@ def _byok_journey(browser, scratch: Page, base: str, scheme: str, log: dict) -> 
         keys.type("fixture-llm-key")
         keys.press("Tab")
         expect(page.locator("#byok-model")).to_be_focused()
-        keys.type("fixture-model")
+        # The model buttons come next, one stop each; the default provider
+        # offers one. Space presses it, as it does any button, and the choice
+        # lands in the field with the focus.
+        keys.press("Tab")
+        chips = page.locator("#byok-model-chips button")
+        expect(chips).to_have_count(1)
+        expect(chips.first).to_be_focused()
+        keys.press("Space")
+        expect(page.locator("#byok-model")).to_be_focused()
+        expect(page.locator("#byok-model")).to_have_value("deepseek-chat")
+        expect(chips.first).to_have_attribute("aria-pressed", "true")
+        # Typing goes on from the end of the chosen name, and a name that is
+        # no longer the chip's is no longer marked as it.
+        keys.type("-kb")
+        expect(page.locator("#byok-model")).to_have_value("deepseek-chat-kb")
+        expect(chips.first).to_have_attribute("aria-pressed", "false")
+        keys.press("Tab")
+        expect(chips.first).to_be_focused()
         keys.press("Tab")
         expect(page.locator("#byok-search")).to_be_focused()
         keys.press("Tab")
@@ -300,7 +317,7 @@ def _byok_journey(browser, scratch: Page, base: str, scheme: str, log: dict) -> 
         assert len(log["posts"]) == 1, log["posts"]
         body = log["posts"].pop()
         assert body["topic"] == TOPIC, body
-        assert body["llm_api_key"] == "fixture-llm-key" and body["llm_model"] == "fixture-model", body
+        assert body["llm_api_key"] == "fixture-llm-key" and body["llm_model"] == "deepseek-chat-kb", body
         assert body["tavily_api_key"] == "fixture-search-key", body
         expect(page.locator("#pane-run")).to_be_visible()
         expect(page.locator("#run-title")).to_have_text(TOPIC)
