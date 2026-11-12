@@ -375,8 +375,11 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
             expect(page.locator("body > .cite-card")).to_be_visible()
 
         page.emulate_media(media="print", color_scheme="dark")
+        # The brief and the scorecard are the page's reading of the run; paper
+        # carries the report as the pipeline wrote it, as it did before them.
         for selector in (".samples__head", ".samples__intro", ".samples__list",
-                         ".samples__reader > .empty-note", ".samples__toc", ".samples__download"):
+                         ".samples__reader > .empty-note", ".samples__toc", ".samples__download",
+                         ".samples__reader > .brief", ".samples__scorecard"):
             expect(page.locator(selector)).to_be_hidden()
         expect(notice).to_be_visible()
         expect(report).to_be_visible()
@@ -422,8 +425,9 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         assert printed["sampleMaxWidth"] == "none", (slug, printed)
         assert printed["reportMaxWidth"] == "none" and printed["reportFillsReader"], (slug, printed)
         # The download link and contents are screen navigation; print hides them like the list.
+        # Every committed sample has its run's scorecard, so every one has both blocks.
         assert printed["readerChildren"] == [
-            "samples__notice", "samples__download", "samples__toc", "prose",
+            "samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose",
         ], (slug, printed)
         assert not printed["badColors"], (slug, printed["badColors"][:5])
         assert not printed["badBackgrounds"], (slug, printed["badBackgrounds"][:5])

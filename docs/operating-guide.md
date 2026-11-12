@@ -92,7 +92,9 @@ budget is a warning, because provider speed varies by the hour.
 
 A thinking-only model reasons before every answer, so it gets more time:
 - auxiliary calls get 120 seconds instead of 60;
-- each agent call gets 300 seconds instead of 150.
+- each agent call gets 300 seconds instead of 150 (the report writer, whose
+  ordinary answer already needs 300 on any model, gets 600), and the wait
+  for one chunk of a streamed answer grows from 60 seconds to 120.
 
 The longer bounds come from 2026-10-23. qwen3.7-max-preview took up to 29
 seconds just to refuse a request. The report writer's 8,400-token answer ran
@@ -694,6 +696,37 @@ retries. Defaults reserve closeout time before the 30-minute watchdog:
 not inherit the API watchdog. UI and both run endpoints distinguish terminal
 reason, stop method and elapsed time.
 
+The worker writes every provider attempt to `steps.jsonl` as an `llm_attempt`
+row with the agent, attempt number, outcome, duration and whether a retry
+followed; `/api/runs/{run_id}/progress` returns them with the other steps.
+Usage counts successful requests only, so a stage that lasts twice as long as
+its answer is read from these rows, not from the request count. Retry notices
+go to stderr, which the API keeps as `process.log` in the run directory.
+Each row's `call` counts the calls on that node; a guardrail retry is a new
+call whose attempts start at 1 again.
+
+Every crew node streams its answer. The first run with attempt rows
+(2026-11-09) showed 72% of its wall time in requests that had stopped
+delivering (302, 312 and 160 seconds) while the identical retries returned in
+27 to 95 seconds. With streaming the SDK timeout bounds the wait for one chunk,
+sixty seconds, so a dead connection is found in a minute; the usage record is
+unchanged because CrewAI asks for it in the final chunk. The paper extractor,
+which runs inline in the API process, keeps the plain request. Benchmark units
+keep the same per-attempt record in `meta.json` under `llm_attempts`.
+
+Before a transport retry the wrapper rebuilds the provider's SDK client, so
+the resend opens a new connection rather than reusing the pool that held the
+connection which had just failed. The first production run on streamed calls
+(2026-11-09) had three nodes fail the same way: a cut stream, then a retry
+that failed in 15–18 seconds with a connection error, then success. The
+retry notice says `on a new connection` when the rebuild happened; a
+provider that cannot rebuild keeps its client and retries anyway, with a
+`the connection pool is kept` notice. A streamed node may make five
+attempts where a plain one makes three, since a failed streamed attempt
+costs about a minute instead of a whole window; each attempt still needs
+its backoff plus a full window before the stage deadline, so the extra
+attempts never extend a run.
+
 The worker records when each stage began (`stage_timings` in `status.json`).
 Both run endpoints return each stage's duration: until the next stage began,
 until the terminal record's end, or so far (`active`) while the run is going.
@@ -784,9 +817,21 @@ These are example policy values, not a cost/SLO guarantee.
   from operator-funded daily quota but not host capacity. Zero disables the
   cap; legacy `API_DAILY_RUN_CAP` is a fallback when the new name is unset.
   A run is charged when it is admitted and stays charged if its worker fails
-  later; only a launch that never started a worker is refunded. Each run
-  records which applied (`daily_charge` on its status), and a failed run's
-  page says whether it counted and that resuming uses another unit.
+  later, with two exceptions. A launch that never started a worker is
+  refunded. So is a run that failed because the model provider could not be
+  reached (a connection error, or a request the transport cut), since nothing
+  in the request caused it and nothing the requester does would fix it: the
+  unit is given back when the exited worker is reaped, at most three times a
+  UTC day for each owner, because the run still spent what its earlier stages
+  cost. The same refund applies to an account's own daily allowance. Every
+  other failure stays charged. Each run records which applied (`daily_charge`
+  on its status, with `daily_charge_reason` of `launch_failed` or
+  `provider_unreachable` for a refund), and a failed run's page says whether
+  it counted, why not when it did not, and that resuming uses another unit.
+  The three-a-day count lives in memory, so a restart resets it. A provider
+  request the transport cut ("Request timed out.") is reported as
+  `provider_unreachable`, not as the run's time limit, and a run that ran out
+  of attempts records the transport error that used them up.
 - `PLAN_PREVIEW_DAILY_LIMIT` (default 20, 0 disables) caps `POST /api/plan`
   per code or account and UTC day. A preview is one planner call and does not
   use a paid operation. The browser shows the reading before a code-funded
@@ -854,6 +899,37 @@ turns this off; the sign-in configuration reports it as `admin_funded`, and
 the page stops asking an administrator for keys when it is on and shows them
 the plan preview on the deployment's key, as it does a code holder. Keys an
 administrator saves anyway are used instead, as for any account.
+
+A deployment may also pay for a newcomer's first assessment. Since sign-up
+opened, an account has had to bring a model key and a search key from two
+other services before its first run; `ACCOUNTS_TRIAL_RUNS` (0 by default,
+which is off) is how many assessments each verified account may start
+without keys, on the same path an administrator's runs take: the
+deployment's keys, the deployment's and the account's daily caps, the run
+tagged to the account and marked `.funded`. What bounds the bill is
+`ACCOUNTS_TRIAL_DAILY` (default 20; 0 turns it off): trial assessments the
+deployment starts in one UTC day across all accounts. An address is cheap
+to make, the sign-up caps bound how many are made, and this bounds what
+they can spend; when the day's number is used the refusal is 429
+`trial_daily_exhausted` and the account's own trial is untouched. The
+counts live in the account database (`users.trial_used`, `trial_days`), so
+they survive a restart and go with a deleted account.
+
+A trial covers a new assessment only. A resume or a PDF upload is refused
+without keys as before (`byok_required`), and so is every assessment after
+the account's number: the refusal a spent trial earns is the one every
+account got before trials existed. A run on the account's own keys spends
+no trial, and an administrator the deployment funds spends none. The
+address must be proven first. A trial is given back when no worker started
+(any refusal or launch failure), and, with the day's unit, when the run
+failed because the model provider could not be reached; the run directory's
+`.trial` marker records whose it was and that it was released, so it is
+given back once. That second case rides on the daily-unit refund and its
+three-a-day bound, so a deployment with both daily caps at 0 does not give
+a trial back for it. A trial that failed for any other reason is spent, and
+resuming it needs keys. Sign-in answers carry `trial_runs_left`, the
+sign-in configuration `trial_runs`; the page then does not put the keys
+card in front of a newcomer and says how many free assessments are left.
 
 Accounts and access codes coexist. A valid `X-Access-Code` header takes
 precedence over a session token, keeps its operator billing and its own
@@ -928,6 +1004,42 @@ created and last seen, its live sign-ins and its runs, and the scheduled
 account backups, each opened and verified as `verify` would. It offers two
 actions: reset an account's password, and disable or enable an account. A
 link to it appears in the account badge of the app for admin accounts.
+
+It shows a funnel (`GET /api/admin/funnel?days=30`, 1 to 365): of the
+accounts created in the window, how many proved their address, how many
+started an assessment and how many finished one, each step a subset of the
+one before; then the runs started in the window by how they ended, the
+failed ones by public failure code, and what became of the trial
+assessments (started, completed, given back). It is counts only and no
+address is in it. Accounts named as administrators are counted apart: they
+are not newcomers, and their runs are one number of their own. The counts
+come from what is kept, the account database and the run directories, so
+a run its owner deleted or retention removed is in no number; the answer
+says how far back the kept runs reach (`runs_kept_since`) and how many
+could not be read (`unreadable`). The account list also marks an account
+that has used its trial.
+
+It also measures the path to the model provider from the host itself
+(`POST /api/admin/link-probe`, the console's "Probe now"): chat requests
+of 1, 10, 30 and 100 KB, the last the size of the report writer's and 30 KB
+about an evidence agent's, posted with no key on new connections to the
+configured endpoint and, for Bailian,
+to its sibling across the border (`dashscope-intl.aliyuncs.com` beside
+`dashscope.aliyuncs.com`). Both servers read the whole body before they
+answer 401, so nothing is billed and the time to that answer is the time
+the path takes; each reading shows when the socket connected, TLS came up,
+the body was sent and the first byte came back, with a 30-second bound.
+The targets are fixed: nothing in the request chooses where the server
+posts. It exists because of 2026-11-09, when the writer's request failed on
+eight new connections in a row from the host while the same request from
+the maintainer's machine, outside the host's network, was answered in
+seconds, and nothing could be measured from the host. A clean reading says the path carried the request at that
+moment, not that it will for the next run. The first readings from the
+host (2026-11-09, 09:08 UTC, 17:08 Beijing time) were the case in point: 1 KB to the
+mainland host in 0.75 s, 100 KB uploaded in 25.7 s once and not within 30 s
+the next time, while the international host took 40–57 ms for either, two
+minutes after a reading on which the mainland host had taken 1.5 s. The
+10 and 30 KB steps were added to find where the border starts to choke.
 
 It answers only to an account named in `ACCOUNTS_ADMIN_EMAILS`; anyone else,
 the admin access code included, gets 404 from `/api/admin/...`. The admin
@@ -1075,6 +1187,19 @@ has it can read the run. Where a browser refuses the page's own write to the
 clipboard, as the one inside a chat app often does, the older selection copy
 is tried; if that is refused too, the reader is told the link is the address
 in the address bar.
+
+Whoever follows such a link reads the run without signing in. On a gated
+deployment a visitor with no identity who opens `/run/<id>` or
+`/compare/<a>/<b>` is shown the report, with a bar across the top that says
+it is a shared assessment and offers "Create account" (where sign-up is
+open) and "Sign in"; both open the usual card over the report, and it can be
+put down again. A reader is given nothing that belongs to an identity: no
+history, no composer, and of a run's actions only the downloads and "Copy
+link". The page asks the server for nothing but the boot's access check and
+the run's own reads. Until 2026-11-11 the page put the sign-in card in front
+of the report although the server answered those reads to anyone, so a link
+could not be read by the person it was sent to. Any other address still
+meets the card, or the landing at `/`.
 
 A finished run also offers "Compare", which asks for a second finished run
 from the same history and opens `/compare/<a>/<b>`: the two scorecards in

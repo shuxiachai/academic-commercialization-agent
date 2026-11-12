@@ -12,7 +12,9 @@ Provider resolution order:
 import functools
 import os
 import random
+import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
@@ -20,7 +22,10 @@ from crewai import LLM
 
 from academic_agent import llm_parameter_fallback as parameter_fallback
 from academic_agent.byok_model import BYOK_MODEL_PATTERN, MODEL_ENV_NAMES  # noqa: F401 - re-exported
-from academic_agent.runtime_budget import WORKER_LLM_TIMEOUT_ENV
+from academic_agent.runtime_budget import (
+    STREAM_IDLE_TIMEOUT_SECONDS,
+    WORKER_LLM_TIMEOUT_ENV,
+)
 
 _SUPPORTED_PROVIDERS = ("deepseek", "qwen", "openai", "anthropic")
 _PROVIDER_KEY_NAMES = {
@@ -229,6 +234,16 @@ def _qwen_additional_params() -> dict[str, object]:
 # belongs.
 _RETRYABLE = (ConnectionError, TimeoutError, OSError)
 _MAX_ATTEMPTS = 3
+# A streamed call gets more. A failed plain attempt cost its whole window
+# (150 or 300 seconds); a failed streamed attempt costs its per-chunk bound,
+# about a minute, so the same run time affords more of them. The first
+# production run on streamed calls (2026-11-09, 343 s) had the writer and
+# the reviewer each use all three attempts; one more failure on either
+# would have failed a run that was otherwise 15 seconds from done. Five
+# costs at most four minutes of cut streams plus half a minute of backoff
+# before the last attempt, and require_window still refuses any attempt
+# the stage's remaining time does not hold.
+_STREAM_MAX_ATTEMPTS = 5
 _BASE_DELAY_SECONDS = 2.0
 
 
@@ -243,6 +258,9 @@ class _CallBudget:
     deadline_monotonic: float | None = None
     stage: str = "unbounded call"
     request_timeout_seconds: float = 0.0
+    #: Calls made through this node so far. A guardrail retry is a new call
+    #: whose attempts start at 1 again; the sequence tells the two apart.
+    calls: int = 0
 
     def require_window(self, *, delay_seconds: float = 0.0) -> None:
         if self.deadline_monotonic is None:
@@ -254,6 +272,11 @@ class _CallBudget:
                 f"{self.stage} has {max(0.0, remaining):.1f}s remaining; "
                 f"a bounded provider attempt requires {required:.1f}s"
             )
+
+
+def _max_attempts_for(llm) -> int:
+    """How many provider attempts one call on this node may make."""
+    return _STREAM_MAX_ATTEMPTS if getattr(llm, "stream", False) is True else _MAX_ATTEMPTS
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -317,6 +340,62 @@ def _apply_parameter(llm, parameter: str, value: object) -> None:
 _THINKING_TIMEOUT_FACTOR = 2
 
 
+def _set_transport_timeout(llm, seconds: float) -> None:
+    """Make the SDK client's per-request timeout match the stage's window.
+
+    A window that lives only in the budget is a fiction: the client built at
+    construction still cuts the request at its own timeout, the attempt is
+    billed, and the wrapper retries. The 2026-11-08 writer stage (282 s for
+    one 6,487-token answer, usage showing one request) is what that looks
+    like from outside.
+    """
+    current = getattr(llm, "timeout", None)
+    if isinstance(current, (int, float)) and float(current) == float(seconds):
+        return
+    llm.timeout = seconds
+    # CrewAI builds its OpenAI client once, at construction; with_options
+    # is the SDK's own way to copy a client with a different timeout.
+    client = getattr(llm, "_client", None)
+    if client is not None and hasattr(client, "with_options"):
+        llm._client = client.with_options(timeout=seconds)
+
+
+def _reconnect(llm, stage: str) -> bool:
+    """Replace the provider's SDK client so the next attempt opens a new connection.
+
+    In the first production run on streamed calls (2026-11-09) three nodes
+    failed the same way: a stream silent for 60 seconds was cut, the retry
+    two seconds later failed with a connection error in 15-18 seconds, and
+    the attempt after that returned. The retry had been sent down the pool
+    that held the connection which had just died. The SDK's with_options
+    copies a client but shares its HTTP pool (tests/test_llm_reconnect.py
+    pins this against the vendored SDK), so the client is rebuilt from the
+    provider's own fields, which carry the stage's timeout and max_retries
+    0, and the old one is closed. Best effort: a provider that cannot
+    rebuild keeps its client and the retry goes ahead anyway.
+    """
+    build = getattr(llm, "_build_sync_client", None)
+    if not callable(build):
+        return False
+    previous = getattr(llm, "_client", None)
+    try:
+        llm._client = build()
+    except Exception as exc:  # noqa: BLE001 - the retry matters more than the fresh pool
+        print(
+            f"[llm] {stage}: could not rebuild the client ({type(exc).__name__}: {exc}); "
+            "the connection pool is kept",
+            file=sys.stderr, flush=True,
+        )
+        return False
+    close = getattr(previous, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:  # noqa: BLE001 - a pool that will not close is garbage either way
+            pass
+    return True
+
+
 def _give_thinking_time(llm, budget: "_CallBudget") -> None:
     """Double this LLM's per-call timeout, and the window a call needs, once."""
     if getattr(llm, "_academic_agent_thinking_time", False):
@@ -324,15 +403,60 @@ def _give_thinking_time(llm, budget: "_CallBudget") -> None:
     llm._academic_agent_thinking_time = True
     timeout = getattr(llm, "timeout", None)
     if isinstance(timeout, (int, float)) and timeout > 0:
-        longer = timeout * _THINKING_TIMEOUT_FACTOR
-        llm.timeout = longer
-        # CrewAI builds its OpenAI client once, at construction; with_options
-        # is the SDK's own way to copy a client with a different timeout.
-        client = getattr(llm, "_client", None)
-        if client is not None and hasattr(client, "with_options"):
-            llm._client = client.with_options(timeout=longer)
+        _set_transport_timeout(llm, timeout * _THINKING_TIMEOUT_FACTOR)
     if budget.request_timeout_seconds > 0:
         budget.request_timeout_seconds *= _THINKING_TIMEOUT_FACTOR
+
+
+# One observer for the whole worker process: every provider attempt, returned
+# or not, is reported with its stage, number, outcome and duration. It exists
+# because usage counts successful requests only, so an attempt the transport
+# killed after 150 seconds is billed and then vanishes. The worker installs an
+# observer that writes each record to steps.jsonl, where the API can show it.
+_attempt_observer: Callable[[dict], None] | None = None
+
+
+def set_attempt_observer(
+    observer: Callable[[dict], None] | None,
+) -> Callable[[dict], None] | None:
+    """Install the process-wide attempt observer; returns the previous one."""
+    global _attempt_observer
+    previous = _attempt_observer
+    _attempt_observer = observer
+    return previous
+
+
+def _report_attempt(record: dict) -> None:
+    """Hand one attempt record to the observer; its failure is not the run's."""
+    observer = _attempt_observer
+    if observer is None:
+        return
+    try:
+        observer(dict(record))
+    except Exception as exc:  # noqa: BLE001 - diagnostics never fail a paid call
+        print(
+            f"[llm] attempt observer failed: {type(exc).__name__}: {exc}",
+            file=sys.stderr, flush=True,
+        )
+
+
+def _is_timeout(exc: BaseException) -> bool:
+    if isinstance(exc, TimeoutError):
+        return True
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return "timed out" in text or "timeout" in text
+
+
+def set_llm_stage(llm, stage: str) -> None:
+    """Label a wrapped LLM with its node so attempt records can be placed.
+
+    Separate from configure_llm_deadline: a direct CLI run has no watchdog
+    and configures no deadline, but its attempts still belong to an agent.
+    Tolerates objects that are not the adapter, so tests with stand-ins pass.
+    """
+    budget = getattr(llm, "_academic_agent_call_budget", None)
+    if isinstance(budget, _CallBudget):
+        budget.stage = stage
 
 
 def _wrap_with_retry(llm):
@@ -351,6 +475,7 @@ def _wrap_with_retry(llm):
     """
     inner = llm.call
     budget = _CallBudget()
+    max_attempts = _max_attempts_for(llm)
     base, model = getattr(llm, "base_url", None), getattr(llm, "model", None)
     identity = (base.rstrip("/"), model) if isinstance(base, str) and isinstance(model, str) else None
 
@@ -363,10 +488,25 @@ def _wrap_with_retry(llm):
                 _give_thinking_time(llm, budget)
         adapted = 0
         attempt = 1
+        budget.calls += 1
+        call_index = budget.calls
+
+        def report(outcome: str, started: float, *, retry: bool, exc: BaseException | None) -> None:
+            _report_attempt({
+                "stage": budget.stage,
+                "call": call_index,
+                "attempt": attempt,
+                "outcome": outcome,
+                "duration_seconds": max(0.0, time.monotonic() - started),
+                "retry": retry,
+                "error_type": None if exc is None else type(exc).__name__,
+            })
+
         while True:
             budget.require_window()
+            started = time.monotonic()
             try:
-                return inner(*args, **kwargs)
+                result = inner(*args, **kwargs)
             except BaseException as exc:      # noqa: BLE001 - re-raised below
                 change = (parameter_fallback.adjustment(f"{type(exc).__name__}: {exc}", _sent_parameters(llm))
                           if identity is not None else None)
@@ -376,8 +516,13 @@ def _wrap_with_retry(llm):
                     _apply_parameter(llm, *change)
                     if change == ("enable_thinking", True):
                         _give_thinking_time(llm, budget)
+                    # The provider refused a parameter and billed nothing; the
+                    # resend is not a transport retry and keeps the number.
+                    report("adapted", started, retry=True, exc=exc)
                     continue
-                if attempt == _MAX_ATTEMPTS or not _is_retryable(exc):
+                outcome = "timeout" if _is_timeout(exc) else "error"
+                if attempt == max_attempts or not _is_retryable(exc):
+                    report(outcome, started, retry=False, exc=exc)
                     raise
                 # Jitter so six agents recovering from one outage do not all
                 # return at the same instant.
@@ -388,14 +533,24 @@ def _wrap_with_retry(llm):
                 except RunDeadlineExceeded as deadline_error:
                     # Keep the transport error as causal context while making
                     # the actionable failure type visible to Reviewer fallback.
+                    report(outcome, started, retry=False, exc=exc)
                     raise deadline_error from exc
+                report(outcome, started, retry=True, exc=exc)
+                reconnected = _reconnect(llm, budget.stage)
+                # stderr, not stdout: the API worker's stdout is discarded and
+                # its stderr is kept as process.log (api/runs.py). On stdout
+                # this notice was unreadable for every production run.
                 print(
-                    f"[llm] {type(exc).__name__} on attempt {attempt}/{_MAX_ATTEMPTS}; "
-                    f"retrying in {delay:.1f}s",
-                    flush=True,
+                    f"[llm] {budget.stage}: {type(exc).__name__} on attempt "
+                    f"{attempt}/{max_attempts}; retrying in {delay:.1f}s"
+                    + (" on a new connection" if reconnected else ""),
+                    file=sys.stderr, flush=True,
                 )
                 time.sleep(delay)
                 attempt += 1
+            else:
+                report("returned", started, retry=False, exc=None)
+                return result
 
     llm.call = call_with_retry
     # A private attribute is the seam between factory-time wrapping and the
@@ -421,6 +576,10 @@ def configure_llm_deadline(
     budget.deadline_monotonic = deadline_monotonic
     budget.stage = stage
     budget.request_timeout_seconds = request_timeout_seconds
+    # A streamed node keeps its per-chunk bound: the window says how long a
+    # healthy attempt may take, not how long to wait for the next byte.
+    if not getattr(llm, "stream", False):
+        _set_transport_timeout(llm, request_timeout_seconds)
     return llm
 
 
@@ -455,6 +614,7 @@ def create_llm(
     provider: str | None = None,
     api_key: str | None = None,
     model: str | None = None,
+    stream: bool = False,
 ) -> LLM:
     """Create an LLM instance for the active provider.
 
@@ -492,6 +652,17 @@ def create_llm(
         kwargs["temperature"] = temperature
 
     _apply_worker_transport_budget(kwargs)
+    if stream:
+        # The crew nodes stream. CrewAI 1.14.7 then asks for usage in the
+        # final chunk, so accounting is unchanged, and the SDK timeout bounds
+        # the wait for one chunk: a dead connection shows in a minute, where
+        # a plain request waited out its whole window (2026-11-09: 302, 312
+        # and 160 seconds, retried in 27-95). The wrapper stays the only
+        # retry owner on every path, CLI included: a hidden SDK resend of a
+        # stalled stream would be billed and absent from the attempt record.
+        kwargs["stream"] = True
+        kwargs["timeout"] = float(STREAM_IDLE_TIMEOUT_SECONDS)
+        kwargs["max_retries"] = 0
     return _wrap_with_retry(LLM(**kwargs))
 
 

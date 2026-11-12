@@ -77,6 +77,7 @@ function operationErrorMessage(err) {
     daily_quota_exceeded: "msg_daily_quota",
     account_busy: "msg_account_busy",
     account_daily_quota_exceeded: "msg_account_daily_quota",
+    trial_daily_exhausted: "msg_trial_daily_exhausted",
     rate_limited: "msg_rate_limited",
     upload_capacity: "msg_upload_busy",
   }[err.code];
@@ -106,14 +107,34 @@ function operatorPays() {
   return accountMode && accountAdmin && authConfig?.admin_funded === true;
 }
 
+/* Whether this account's next assessment runs on its trial: a verified
+ * account the server says still has one (`trial_runs_left`, which is 0 for
+ * an administrator the deployment funds anyway). A new
+ * assessment only; a resume or an upload asks for keys as before. The
+ * server decides at the launch, so a count that is stale here costs a
+ * refusal with byok_required, never a run nobody agreed to pay for. */
+function trialPays() {
+  return accountMode && accountVerified && accountTrialLeft > 0;
+}
+
+function paintTrialNote() {
+  const note = $("#trial-note");
+  if (!note) return;
+  const show = trialPays() && !api.getByok();
+  note.hidden = !show;
+  note.textContent = show ? t("trial_note").replace("{n}", String(accountTrialLeft)) : "";
+}
+
 async function performPaidRequest(request, deliver, operation = "run") {
   if (accountMode && !accountVerified) { toast(t("msg_email_unverified"), "error"); return; }
   // An account pays with its own keys. Ask for them here, once, rather than
   // letting the server refuse with byok_required after the intent is recorded.
-  if (accountMode && !api.getByok() && !operatorPays()) {
+  if (accountMode && !api.getByok() && !operatorPays() && !(operation === "run" && trialPays())) {
     await showGate(null, { keysOnly: true });
     if (!api.getByok()) { toast(t("msg_byok_required"), "error"); return; }
   }
+  // Decided before the request: whether this one, if accepted, spent a trial.
+  const onTrial = operation === "run" && !api.getByok() && trialPays();
   // Validate locally before recording intent; invalid BYOK cannot cause a
   // request, select operator billing, or manufacture an uncertain receipt.
   api.getByok();
@@ -132,6 +153,10 @@ async function performPaidRequest(request, deliver, operation = "run") {
     // extracted attachment actually receives the acknowledgement.
     api.forgetReceipt(receiptKey);
     settle(true);
+    if (onTrial) {
+      accountTrialLeft = Math.max(0, accountTrialLeft - 1);
+      paintTrialNote();
+    }
   } catch (err) {
     // A definite client rejection is a known outcome, not proof of no cost
     // (PDF validation may follow extraction). Transport/5xx/timeouts and UI
@@ -234,7 +259,7 @@ function startClock(fromSeconds) {
 function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
   terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
-  stage_timings, eta, pipeline_revision, error, error_code, funded_by, daily_charge,
+  stage_timings, eta, pipeline_revision, error, error_code, funded_by, daily_charge, daily_charge_reason,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -298,7 +323,7 @@ function paintHeader({
   // Why it ended and whether it spent one of today's runs, kept with the run
   // rather than in a toast that is gone before the page is read again.
   const outcomeEl = $("#run-outcome");
-  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge, checkpointing });
+  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing });
   outcomeEl.textContent = outcome;
   outcomeEl.hidden = !outcome;
 
@@ -388,22 +413,80 @@ function copyLinkButton() {
   return copy;
 }
 
+/* The two ways a finished report leaves the browser. Markdown first: it is
+ * instant, while the PDF renders on first request. */
+function reportDownloads() {
+  const icon = `
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M8 2.5v8m0 0L4.5 7M8 10.5L11.5 7M3 12.5v.5a1 1 0 001 1h8a1 1 0 001-1v-.5"
+              stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+  return [["md", "report", "Markdown"], ["pdf", "report.pdf", "PDF"]].map(([suffix, path, label]) => {
+    const link = document.createElement("a");
+    link.className = "btn btn--secondary";
+    link.href = `/api/runs/${activeRunId}/${path}`;
+    link.download = `${activeRunId}.${suffix}`;
+    link.innerHTML = icon;
+    link.append(label);
+    return link;
+  });
+}
+
+/* Runs whose cancel has been sent and not yet seen to take effect.
+ *
+ * Every poll repaints a run's actions, and the server takes a few seconds to
+ * stop a worker. A Cancel that only disabled itself was replaced at the next
+ * poll by a fresh, enabled one reading "Cancel": the page looked as if the
+ * press had not registered, and invited a second. The state is kept here, by
+ * run, so whichever button is on the page shows it. liveCancel is that
+ * button; a refused cancel hands it back, not the one that was pressed. */
+const cancelling = new Set();
+let liveCancel = null;
+
+function paintCancel() {
+  if (!liveCancel) return;
+  const pressed = cancelling.has(liveCancel.runId);
+  liveCancel.button.disabled = pressed;
+  liveCancel.button.textContent = t(pressed ? "cancelling" : "cancel");
+}
+
 function paintActions(state, checkpointing = null) {
   const actions = $("#run-actions");
   actions.innerHTML = "";
 
+  if (viewerMode) {
+    // Someone else's run: read it, keep it, pass it on. Nothing that changes
+    // it or starts a paid step is offered; the server would refuse a reader
+    // those anyway, and a button that only fails is worse than none.
+    if (state === "completed") actions.append(...reportDownloads());
+    if (state === "running" || runView.isTerminalState(state)) actions.append(copyLinkButton());
+    return;
+  }
+
+  liveCancel = null;
+  // What was pressed belongs to that stretch of running, and ends with it.
+  if (runView.isTerminalState(state)) cancelling.delete(activeRunId);
+
   if (state === "running") {
+    const runId = activeRunId;
     const cancel = document.createElement("button");
     cancel.type = "button";
     cancel.className = "btn btn--danger";
-    cancel.textContent = t("cancel");
+    liveCancel = { runId, button: cancel };
+    paintCancel();
     cancel.addEventListener("click", async () => {
-      cancel.disabled = true;
+      if (cancelling.has(runId)) return;
+      cancelling.add(runId);
+      paintCancel();
       try {
-        await api.cancelRun(activeRunId);
+        await api.cancelRun(runId);
         toast(t("msg_cancelled"));
+        // The header reads "running" until the next poll, up to four seconds
+        // away; ask now, so the stop is seen as soon as the server has made it.
+        if (activeRunId === runId) follower?.poll?.();
       } catch (err) {
-        cancel.disabled = false;
+        cancelling.delete(runId);
+        paintCancel();
         toast(err.message, "error");
       }
     });
@@ -419,27 +502,7 @@ function paintActions(state, checkpointing = null) {
   // Not another "New analysis" — that button already lives in the rail, one
   // click away and always visible. A finished run needs a way out of the
   // browser instead.
-  if (state === "completed") {
-    const icon = `
-      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M8 2.5v8m0 0L4.5 7M8 10.5L11.5 7M3 12.5v.5a1 1 0 001 1h8a1 1 0 001-1v-.5"
-              stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>`;
-
-    // Markdown first: it is instant, while the PDF renders on first request.
-    for (const [suffix, path, label] of [
-      ["md", "report", "Markdown"],
-      ["pdf", "report.pdf", "PDF"],
-    ]) {
-      const link = document.createElement("a");
-      link.className = "btn btn--secondary";
-      link.href = `/api/runs/${activeRunId}/${path}`;
-      link.download = `${activeRunId}.${suffix}`;
-      link.innerHTML = icon;
-      link.append(label);
-      actions.append(link);
-    }
-  }
+  if (state === "completed") actions.append(...reportDownloads());
 
   const canResume = (
     new Set(["failed", "cancelled", "timeout"]).has(state)
@@ -649,6 +712,9 @@ async function handleDeleteRun(runId, topic) {
 }
 
 async function refreshSidebar() {
+  // A reader has no identity whose history this would be; the list stays
+  // behind the gate and asking would only earn a refusal.
+  if (viewerMode) return;
   const revision = ++sidebarRevision;
   const isCurrent = () => revision === sidebarRevision;
   // GET /api/runs (the list) always stays behind the access code, scoped
@@ -742,6 +808,14 @@ let accountVerified = true;
 let accountAdmin = false;
 // Whether the account asked for an email when a run of its ends (Account panel).
 let accountNotify = false;
+// A visitor with no identity reading a run or a comparison someone shared
+// (enterViewer). They see the report and a bar that offers the way in; no
+// history is asked for and nothing that changes the run is offered.
+let viewerMode = false;
+// Assessments the account may still start without keys, on the deployment's
+// own (a verified account's trial); the server's number, counted down here
+// when one is accepted.
+let accountTrialLeft = 0;
 let authConfig = null;
 // A disabled button is only a projection, not an operation lock: input events
 // used to re-enable it while a paid POST was still awaiting acknowledgement.
@@ -852,7 +926,7 @@ $("#compose-form").addEventListener("submit", async (e) => {
   // administrator the deployment funds previews on the deployment's key, as
   // a code holder does. A visitor whose keys are their only identity starts
   // as before.
-  if (planPreviewEnabled && (accountMode ? (Boolean(api.getByok()) || operatorPays()) : !byokMode)) {
+  if (planPreviewEnabled && (accountMode ? (Boolean(api.getByok()) || operatorPays() || trialPays()) : !byokMode)) {
     await previewPlan(submittedTopic);
     return;
   }
@@ -903,21 +977,46 @@ async function submitAssessment(submittedTopic, searchPlan) {
  * model gives no answer the reply says so, and the page says so too rather
  * than showing the topic as typed as if it were a reading. */
 
+/* The planner takes seconds, and until 2026-11-11 the only sign that it had
+ * been asked was the run button's tooltip: the press looked as if it had done
+ * nothing. The panel says so at once, where the reading will appear, with
+ * nothing to press yet. On a phone that place is below the fold, so the panel
+ * is brought into view, here and again when the reading (which is taller, and
+ * ends in the button that starts the run) replaces the line. "nearest" moves
+ * the page no further than it has to, and not at all when the panel shows. */
+function showPlanWaiting() {
+  hidePlan();
+  const label = runView.planLabel;
+  planPanel.hidden = false;
+  planPanel.append(planNode("h2", "plan-panel__title", label("title")),
+    planNode("p", "plan-panel__lede", label("previewing")));
+  planPanel.scrollIntoView?.({ block: "nearest" });
+}
+
 async function previewPlan(submittedTopic) {
   previewing = true;
   syncComposer();
+  showPlanWaiting();
   let next;
   try {
-    const own = accountMode;
-    const plan = await api.planTopic(submittedTopic, { ownKeys: own });
+    // Whose key the check is made on, decided as the request is: an account's
+    // keys are sent when the tab holds them, and then the check is on its
+    // model key. An account with none gets here only where the deployment
+    // pays (an administrator it funds, a newcomer's trial), and must not be
+    // told the request was on "your model key", or to go and check a key it
+    // does not have.
+    const own = accountMode && Boolean(api.getByok());
+    const funded = accountMode && !own;
+    const plan = await api.planTopic(submittedTopic, { ownKeys: accountMode });
     next = plan?.planned === false
       ? { topic: submittedTopic, failure: own ? "no_answer_own" : "no_answer", plan: null }
       : plan?.resolved
-        ? { topic: submittedTopic, failure: null, own, plan: {
+        ? { topic: submittedTopic, failure: null, own, funded, plan: {
           search_topic: plan.search_topic, aliases: [...plan.aliases], components: [...plan.components] } }
         : { topic: submittedTopic, failure: "unresolved", plan: null };
   } catch (err) {
     if (err.status === 401) {
+      hidePlan();
       toast(operationErrorMessage(err), "error");
       return;
     }
@@ -928,10 +1027,14 @@ async function previewPlan(submittedTopic) {
     syncComposer();
   }
   // A reading of a topic the user has since changed would confirm the wrong one.
-  if (topic.value.trim() !== submittedTopic) return;
+  if (topic.value.trim() !== submittedTopic) {
+    hidePlan();
+    return;
+  }
   planState = next;
   renderPlan();
   (planState.plan ? $("#plan-topic") : $("#plan-start") ?? $("#plan-edit"))?.focus();
+  planPanel.scrollIntoView?.({ block: "nearest" });
 }
 
 function hidePlan() {
@@ -996,7 +1099,8 @@ function renderPlan() {
   planPanel.innerHTML = "";
   planPanel.hidden = false;
   planPanel.append(planNode("h2", "plan-panel__title", label("title")));
-  const message = planState.failure === null ? label(planState.own ? "lede_own" : "lede")
+  const message = planState.failure === null
+    ? label(planState.own ? "lede_own" : planState.funded ? "lede_funded" : "lede")
     : label(planState.failure).replace("{reason}", planState.reason || "—");
   planPanel.append(planNode("p", "plan-panel__lede", message));
 
@@ -1319,7 +1423,9 @@ function applyAccountMode(me) {
   accountVerified = me.verified !== false;
   accountNotify = me.notify_done === true;
   accountAdmin = me.admin === true;
+  accountTrialLeft = Number.isInteger(me.trial_runs_left) ? me.trial_runs_left : 0;
   paintVerifyNotice();
+  paintTrialNote();
   hidePlan();
   refreshQuota();
 }
@@ -1342,6 +1448,11 @@ $("#verify-resend").addEventListener("click", async () => {
       accountVerified = true;
       paintVerifyNotice();
       toast(t("verify_done"), "success");
+      // A trial waits for the address to be proven; ask what the account has now.
+      api.me().then((me) => {
+        accountTrialLeft = Number.isInteger(me.trial_runs_left) ? me.trial_runs_left : 0;
+        paintTrialNote();
+      }).catch(() => {});
     } else {
       toast(t(err.code === "verification_cooldown" ? "verify_cooldown" : "verify_failed"), "error");
     }
@@ -1437,6 +1548,8 @@ async function exitCredentials() {
   byokMode = false;
   accountMode = false;
   accountEmail = null;
+  accountTrialLeft = 0;
+  paintTrialNote();
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = true;
   $("#account-badge").hidden = true;
@@ -1584,6 +1697,50 @@ function showAccountSettings() {
  * deployment without accounts is invite-only by access code, so its
  * visitors already know what they were sent to. Resolves once the card has
  * let someone in, when the workbench takes over. */
+/* An address a link can share: one run, or two side by side. */
+function sharedPath() {
+  return /^\/run\/[^/]+$/.test(location.pathname) || /^\/compare\/[^/]+\/[^/]+$/.test(location.pathname);
+}
+
+/* A visitor with no identity who followed a link to a run.
+ *
+ * "Copy link" hands the address to someone else, and the server has always
+ * answered a run's reads to whoever holds its id (api/main.py, the gate's
+ * exemption for /api/runs/{id}/...). The page did not: it put the sign-in
+ * card in front of the report, so the person a link was for had to create
+ * an account to read one. They read it now. What they are not given is
+ * anything that belongs to an identity: no history, no composer, nothing
+ * that changes the run. The bar is the way in, through the same card. */
+function enterViewer() {
+  viewerMode = true;
+  $("#workbench").dataset.viewer = "true";
+  $("#viewer-bar").hidden = false;
+  $("#viewer-create").hidden = !authConfig?.signup_open;
+  $("#viewer-sign-in").hidden = false;
+  let opening = false;
+  const open = (creating) => async () => {
+    if (opening) return;
+    opening = true;
+    try {
+      // "back" is the card put down again: the report stays, the bar too.
+      if (await showGate(null, { creating, back: true }) !== "back") leaveViewer();
+    } finally {
+      opening = false;
+    }
+  };
+  $("#viewer-create").onclick = open(true);
+  $("#viewer-sign-in").onclick = open(false);
+}
+
+/* Signed in from the bar: the reader is a user of this deployment now. */
+function leaveViewer() {
+  viewerMode = false;
+  $("#workbench").dataset.viewer = "false";
+  $("#viewer-bar").hidden = true;
+  routeFromLocation();
+  refreshSidebar();
+}
+
 function landingWanted() {
   return Boolean(authConfig?.enabled) && location.pathname === "/";
 }
@@ -1595,6 +1752,8 @@ async function showLanding() {
   workbench.hidden = true;
   // Without sign-up the button would only ever fail; sign-in stands alone.
   $("#landing-create").hidden = !authConfig?.signup_open;
+  // Said only where the deployment pays for a newcomer's first assessment.
+  $("#landing-trial").hidden = !(authConfig?.trial_runs > 0);
   // The sidebar's language select is hidden with the workbench; this one
   // drives it, so every listener on the original still runs.
   const lang = $("#landing-lang");
@@ -1738,7 +1897,9 @@ async function decideAccess() {
     authConfig = access?.accounts ?? null;
     if (access?.account) {
       applyAccountMode(access.account);
-      if (!api.getByok() && !operatorPays()) await showGate(null, { keysOnly: true });
+      // Not for an account about to use its trial: the keys card would be the
+      // first thing a newcomer sees, in front of the one run that needs none.
+      if (!api.getByok() && !operatorPays() && !trialPays()) await showGate(null, { keysOnly: true });
       return;
     }
     if (api.getAccessCode()) applyCodeMode();
@@ -1748,6 +1909,12 @@ async function decideAccess() {
     if (err.status !== 401) throw err;
     // The refusal says what the gate may offer; no second request needed.
     authConfig = err.body?.accounts ?? null;
+  }
+  // A shared run or comparison is read without an identity; everything
+  // else on a gated deployment is the workbench, which needs one.
+  if (sharedPath()) {
+    enterViewer();
+    return;
   }
   if (landingWanted()) await showLanding();
   else await showGate();
@@ -1869,6 +2036,10 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
   $("#account-settings").hidden = true;
   codeError.hidden = !errorKey;
   codeError.textContent = errorKey ? t(errorKey) : "";
+  // With a first assessment on the deployment's keys the card must not
+  // tell a newcomer that every run is paid for with keys they bring.
+  $("#account-sub").hidden = authConfig?.trial_runs > 0;
+  $("#account-sub-trial").hidden = !(authConfig?.trial_runs > 0);
   accountError.hidden = true;
   gate.hidden = false;
 
@@ -1900,7 +2071,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     const account = forAccount();
     $("#byok-account-note").hidden = !account;
     $("#byok-sub").hidden = account;
-    if (account) $("#byok-account-note").textContent = t(operatorPays() ? "byok_admin_note" : "byok_account_note").replace("{email}", accountEmail);
+    if (account) $("#byok-account-note").textContent = t(operatorPays() ? "byok_admin_note" : trialPays() ? "byok_trial_note" : "byok_account_note").replace("{email}", accountEmail);
     clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
@@ -2103,7 +2274,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         refreshQuota();
         // Keys next, on the same card, unless the account has them already
         // or the deployment pays for this administrator's runs.
-        if (api.getByok() || operatorPays()) { finish(); return; }
+        if (api.getByok() || operatorPays() || trialPays()) { finish(); return; }
         showKeys();
       } catch (err) {
         const key = {
@@ -2354,6 +2525,7 @@ const langSelect = $("#ui-lang");
 langSelect.value = i18n.language();
 langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
+  paintTrialNote();
   localizeSourceLocatorLink();
   renderPlan();
   paintQuota();

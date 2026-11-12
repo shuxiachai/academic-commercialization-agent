@@ -122,3 +122,29 @@ setImmediate(async()=>{
     result = subprocess.run([node, "-e", script], input=json.dumps({"root": str(ROOT), "first": first, "second": second}),
                             text=True, encoding="utf-8", capture_output=True, timeout=30, check=True)
     assert "completion reached client" in result.stdout
+
+
+def test_provider_attempt_rows_reach_the_client_with_their_timing(run_log):
+    """A timed-out provider attempt is billed but absent from usage, which counts
+    successful requests only. The worker now logs every attempt as a step; the
+    progress endpoint must deliver the attempt number, outcome and duration
+    rather than strip them to the older action/finish shape."""
+    run_log.write_bytes(
+        GOOD
+        + b'{"type":"llm_attempt","agent_idx":3,"ts":1762600000.5,"call":1,"attempt":1,'
+        b'"outcome":"timeout","duration_seconds":150.2,"retry":true}\n'
+        + b'{"type":"llm_attempt","agent_idx":3,"ts":1762600155.0,"call":1,"attempt":2,'
+        b'"outcome":"returned","duration_seconds":112.4,"retry":false}\n'
+    )
+    client = TestClient(app)
+
+    body = progress(client)
+
+    assert body["steps_rejected"] == 0
+    attempts = [s for s in body["steps"] if s["type"] == "llm_attempt"]
+    assert [(s["attempt"], s["outcome"], s["duration_seconds"], s["retry"]) for s in attempts] == [
+        (1, "timeout", 150.2, True),
+        (2, "returned", 112.4, False),
+    ]
+    assert attempts[0]["ts"] == 1762600000.5
+    assert [s["call"] for s in attempts] == [1, 1]

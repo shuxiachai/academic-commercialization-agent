@@ -58,7 +58,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import account_backup, admin, alerts, mail, auxiliary_usage, key_check, notices, plan_preview, retrieval_health, samples
+from api import account_backup, admin, alerts, mail, auxiliary_usage, key_check, link_probe, notices, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -70,6 +70,8 @@ from api.models import (  # noqa: E402
     AccountDeletion,
     AdminAccounts,
     AdminBackups,
+    AdminFunnel,
+    AdminLinkProbe,
     AdminConfirm,
     AdminDisable,
     AdminPasswordReset,
@@ -626,7 +628,8 @@ async def _access_gate(request: Request, call_next):
       Keeping that decision in the handler also lets resume parse fresh BYOK
       credentials without consuming and rebuilding the request body here.
       GET /api/runs itself stays gated because it lists deployment history.
-    - GET /api/samples and /api/samples/{slug} — committed example reports
+    - GET /api/samples, /api/samples/{slug} and /api/samples/{slug}/scores —
+      committed example reports and the scorecards of their runs,
       from an allowlist (api/samples.py). They exist so a visitor without a
       code can see a finished report; nothing behind them spends money or
       reads deployment state.
@@ -728,8 +731,11 @@ def _operator_funds_admins() -> bool:
     operator's behalf, which is worse than asking for keys. Everyone who is
     not an administrator keeps paying with their own keys.
     """
-    if not accounts.admin_funded():
-        return False
+    return accounts.admin_funded() and _deployment_can_fund()
+
+
+def _deployment_can_fund() -> bool:
+    """Whether the deployment has a model key and a search key of its own to pay with."""
     try:
         validate_llm_configuration()
     except RuntimeError:
@@ -737,7 +743,39 @@ def _operator_funds_admins() -> bool:
     return bool(os.getenv("SERPER_API_KEY") or os.getenv("TAVILY_API_KEY"))
 
 
-def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None:
+def _trial_left(user: accounts.User) -> int:
+    """Assessments `user` may still start on its trial, as the page is told.
+
+    None unless the deployment can pay, and none for an administrator it
+    funds anyway: their runs need no trial and spend none, and the page
+    should not count one down for them.
+    """
+    if not _deployment_can_fund() or (user.admin and accounts.admin_funded()):
+        return 0
+    return accounts.trial_left(user)
+
+
+def _trial_offered(who: identity.Identity) -> bool:
+    """Whether a keyless assessment from this account is the trial's to decide.
+
+    A verified account that is not an administrator the deployment funds
+    anyway, on a deployment that turned trials on and has keys to pay with.
+    Deliberately not "with one left": the same request sent twice must reach
+    its saved receipt and be answered as it was, and by then the one it
+    spent is gone. Whether one is left is settled once, by the claim at the
+    launch (_claim_trial), which refuses with byok_required when none is.
+    """
+    return (who.kind == "user" and who.user.verified
+            and not (who.is_admin and _operator_funds_admins())
+            and accounts.trial_runs() > 0 and _deployment_can_fund())
+
+
+def _trial_funds(who: identity.Identity) -> bool:
+    """Whether this account's next assessment would run on its trial: offered, and one is left."""
+    return _trial_offered(who) and accounts.trial_left(who.user) > 0
+
+
+def _paid_owner(http_request: Request, *, byok: bool, detail: str, trial: bool = False) -> str | None:
     """Authorize a paid operation and name the owner tag it is recorded under.
 
     Three callers (runs, resumes, uploads) and the receipt claim used to make
@@ -752,7 +790,10 @@ def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None
       the account as any account run is. An account that has not yet opened
       its verification link is refused first, with `email_unverified`: it
       may sign in, save keys and preview, but a paid operation waits for the
-      address to be proven.
+      address to be proven. With `trial` (a new assessment only, never a
+      resume or an upload) a verified account that still has a trial
+      assessment is admitted without keys too; the trial is claimed at
+      the launch, which is where a spent one is refused (_claim_trial).
     - A code holder is billed to the deployment and tagged to the code; a
       code holder who brings keys anyway is untagged, as before.
     - Anonymous requests: refused when accounts are enabled (sign in first),
@@ -767,7 +808,7 @@ def _paid_owner(http_request: Request, *, byok: bool, detail: str) -> str | None
                        "or ask for a new one from the page.",
                 headers={"X-Error-Code": "email_unverified"},
             )
-        if not byok and not (who.is_admin and _operator_funds_admins()):
+        if not byok and not (who.is_admin and _operator_funds_admins()) and not (trial and _trial_offered(who)):
             raise HTTPException(
                 status_code=401,
                 detail="Accounts run on their own API keys. Add your LLM key, model and a "
@@ -845,7 +886,7 @@ def access_check(http_request: Request) -> dict:
     if accounts.enabled():
         payload["accounts"] = _accounts_config()
         payload["account"] = ({"email": who.user.email, "admin": who.is_admin, "verified": who.user.verified,
-                               "notify_done": who.user.notify_done}
+                               "notify_done": who.user.notify_done, "trial_runs_left": _trial_left(who.user)}
                               if who.kind == "user" else None)
     return payload
 
@@ -863,7 +904,9 @@ def _accounts_config() -> dict:
             "password_reset": mail.configured(), "notices": mail.configured(),
             # An administrator's runs on the deployment's keys: the page then
             # does not stop them for keys they do not need.
-            "admin_funded": _operator_funds_admins()}
+            "admin_funded": _operator_funds_admins(),
+            # A verified account's first assessment(s) on the deployment's keys.
+            "trial_runs": accounts.trial_runs() if _deployment_can_fund() else 0}
 
 
 def _operator_contact() -> str | None:
@@ -944,7 +987,8 @@ def auth_config() -> AuthConfig:
                       daily_quota=accounts.enabled() and bool(runs.ACCOUNT_DAILY_CAP),
                       password_reset=accounts.enabled() and mail.configured(),
                       notices=accounts.enabled() and mail.configured(),
-                      admin_funded=accounts.enabled() and _operator_funds_admins())
+                      admin_funded=accounts.enabled() and _operator_funds_admins(),
+                      trial_runs=accounts.trial_runs() if accounts.enabled() and _deployment_can_fund() else 0)
 
 
 @app.post("/api/auth/register", response_model=AuthSession, status_code=201, tags=["accounts"],
@@ -969,7 +1013,8 @@ def auth_register(request: AuthCredentials, http_request: Request, response: Res
         except (accounts.AccountError, mail.MailError) as exc:
             _LOGGER.warning("Verification email for account %d not sent: %s", created.id, exc)
     response.headers["Cache-Control"] = "no-store"
-    return AuthSession(token=token, email=user.email, admin=user.admin, verified=user.verified)
+    return AuthSession(token=token, email=user.email, admin=user.admin, verified=user.verified,
+                       trial_runs_left=_trial_left(user))
 
 
 @app.post("/api/auth/login", response_model=AuthSession, tags=["accounts"],
@@ -983,7 +1028,8 @@ def auth_login(request: AuthCredentials, http_request: Request, response: Respon
     except accounts.AccountError as exc:
         raise _account_refusal(exc) from None
     response.headers["Cache-Control"] = "no-store"
-    return AuthSession(token=token, email=user.email, admin=user.admin, verified=user.verified)
+    return AuthSession(token=token, email=user.email, admin=user.admin, verified=user.verified,
+                       trial_runs_left=_trial_left(user))
 
 
 @app.post("/api/auth/verify", response_model=EmailVerified, tags=["accounts"],
@@ -1100,7 +1146,7 @@ def auth_me(http_request: Request) -> AuthMe:
     if who.kind != "user":
         raise HTTPException(status_code=404, detail="Not signed in with an account.")
     return AuthMe(email=who.user.email, admin=who.is_admin, verified=who.user.verified,
-                  notify_done=who.user.notify_done)
+                  notify_done=who.user.notify_done, trial_runs_left=_trial_left(who.user))
 
 
 def _signed_in_account(http_request: Request) -> accounts.User:
@@ -1277,6 +1323,52 @@ def admin_backups(http_request: Request) -> AdminBackups:
                         backups=[row.__dict__ for row in admin.list_backups()])
 
 
+@app.get("/api/admin/funnel", response_model=AdminFunnel, tags=["admin"],
+         responses={404: {"description": "Not an admin account"}})
+def admin_funnel(http_request: Request, days: int = Query(default=30, ge=1, le=365)) -> AdminFunnel:
+    """Of the accounts created in the last `days` days, how many got how far.
+
+    Created, address proven, started a run, finished one; then how the
+    window's runs ended and why the failed ones failed, and what became
+    of the trial assessments. Counts only. Administrators are counted
+    apart, and a run that is no longer kept is in no number: see
+    api.admin.funnel.
+    """
+    _admin_account(http_request)
+    found = admin.funnel(days)
+    return AdminFunnel(
+        window_days=found.window_days, since=found.since,
+        accounts={"created": found.accounts_created, "verified": found.accounts_verified,
+                  "ran": found.accounts_ran, "completed": found.accounts_completed},
+        runs=found.runs, failures=[{"code": code, "runs": count} for code, count in found.failures],
+        trial={"started": found.trial_started, "completed": found.trial_completed,
+               "given_back": found.trial_given_back},
+        admin_runs=found.admin_runs, runs_kept_since=found.runs_kept_since, unreadable=found.unreadable)
+
+
+@app.post("/api/admin/link-probe", response_model=AdminLinkProbe, tags=["admin"],
+          responses={404: {"description": "Not an admin account"},
+                     409: {"description": "A probe is already running"},
+                     503: {"description": "No provider endpoint is configured"}})
+def admin_link_probe(http_request: Request) -> AdminLinkProbe:
+    """Measure, from this host, the path to the provider's endpoint.
+
+    Chat requests of 1, 10, 30 and 100 KB with no key, on new connections,
+    to the configured endpoint and (for Bailian) its sibling across the
+    border; the servers read the body and answer 401, so nothing is
+    billed and the time to the answer is the path's. The targets are
+    fixed: nothing in the request chooses where this server posts. Takes
+    up to three minutes when a path is dead. See api/link_probe.py.
+    """
+    _admin_account(http_request)
+    try:
+        return AdminLinkProbe(**link_probe.run())
+    except link_probe.NoEndpoint as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
+    except link_probe.Busy as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+
 # A key check has this server put a question to a provider on an account's
 # behalf. That is worth doing a few times while someone corrects a typo and
 # not worth offering as a way to try keys in bulk, so it is bounded per
@@ -1413,7 +1505,9 @@ def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
                        "model": request.llm_model}
     else:
         who = identity.resolve(http_request)
-        if who.kind == "user" and not (who.is_admin and _operator_funds_admins()):
+        # An account about to spend its trial previews as the run will be paid
+        # for: on the deployment's key, behind the preview's own daily cap.
+        if who.kind == "user" and not (who.is_admin and _operator_funds_admins()) and not _trial_funds(who):
             raise HTTPException(
                 status_code=401,
                 detail="Add your API keys to preview the search: accounts run on their own keys.",
@@ -1530,6 +1624,20 @@ def read_sample_report(
         report_for_display(text) if view == "display" else text,
         media_type="text/markdown; charset=utf-8",
     )
+
+
+@app.get("/api/samples/{slug}/scores", tags=["samples"])
+def read_sample_scores(slug: str) -> JSONResponse:
+    """The scorecard of one example report's run, as that run wrote it.
+
+    404 for an unknown sample and for one whose scorecard is missing or
+    unreadable on this deployment; the reader then shows the report alone.
+    """
+    try:
+        scores = samples.read_sample_scores(slug)
+    except (KeyError, FileNotFoundError, ValueError):
+        raise HTTPException(status_code=404, detail="No scorecard for that sample.") from None
+    return JSONResponse(scores)
 
 
 @app.get("/health", response_model=HealthStatus, tags=["meta"])
@@ -1756,7 +1864,8 @@ def _claim_receipt(http_request: Request, *, byok: bool, kind: str, payload: dic
         # First-party clients always opt in; do not claim unkeyed idempotency.
         return None, None
     owner = _paid_owner(http_request, byok=byok,
-                        detail="Provide the access code or complete BYOK credentials.")
+                        detail="Provide the access code or complete BYOK credentials.",
+                        trial=kind == "run")
     return receipts.claim(runs.DEFAULT_OUTPUT_ROOT, key, owner, kind, payload)
 
 
@@ -1768,7 +1877,8 @@ def _receipt_body(record: dict) -> dict:
             if not 400 <= record["status"] <= 599 or not isinstance(body.get("detail"), str):
                 raise ValueError("Invalid failed receipt")
             if body.get("error_code") not in {None, "concurrency_limit", "daily_quota_exceeded", "account_busy",
-                                              "account_daily_quota_exceeded", "upload_capacity", "rate_limited"}:
+                                              "account_daily_quota_exceeded", "upload_capacity", "rate_limited",
+                                              "trial_daily_exhausted", "byok_required"}:
                 raise ValueError("Invalid failure category")
             body = {"detail": body["detail"], "error_code": body.get("error_code")}
             if record["kind"] == "paper" and record.get("resource_id"):
@@ -1880,6 +1990,33 @@ def _byok_credentials(request: RunRequest | ResumeRunRequest) -> runs.BYOKCreden
     )
 
 
+def _claim_trial(http_request: Request) -> accounts.TrialClaim | None:
+    """Take the trial a keyless assessment is about to run on; None when it is not one.
+
+    _paid_owner has already admitted the request. A code holder, an
+    administrator the deployment funds and an ungated visitor run without
+    keys for other reasons and claim nothing. For any other account the
+    claim is what makes the run the deployment's to pay for, so a claim
+    that fails here (two requests arrived together, or the day's number
+    ran out between the check and the launch) refuses the run.
+    """
+    who = identity.resolve(http_request)
+    if who.kind != "user" or (who.is_admin and _operator_funds_admins()):
+        return None
+    try:
+        return accounts.claim_trial(who.user)
+    except accounts.AccountError as exc:
+        if exc.code == "trial_daily_exhausted":
+            raise HTTPException(status_code=429, detail=exc.message,
+                                headers={"X-Error-Code": "trial_daily_exhausted"}) from None
+        raise HTTPException(
+            status_code=401,
+            detail="Accounts run on their own API keys. Add your LLM key, model and a "
+                   "search key, then retry; this account has no free assessment left.",
+            headers={"X-Error-Code": "byok_required"},
+        ) from None
+
+
 def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> RunAccepted:
     """Queue an assessment. Returns immediately with a run_id to poll.
 
@@ -1898,6 +2035,7 @@ def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> R
         http_request, byok=request.byok,
         detail="Provide the access code, or your own llm_provider/llm_api_key "
                "and a tavily_api_key or serper_api_key.",
+        trial=True,
     )
 
     paper_json_path: str | None = None
@@ -1912,19 +2050,26 @@ def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> R
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     byok = _byok_credentials(request)
+    trial_claim = _claim_trial(http_request) if byok is None else None
 
     try:
-        run_id, _ = runs.start_run(
-            topic=request.topic,
-            language=request.language,
-            weight_profile=request.weight_profile,
-            paper_json_path=paper_json_path,
-            **({"auxiliary_pdf_reference": auxiliary_pdf_reference} if auxiliary_pdf_reference is not None else {}),
-            decision_context=request.decision_context,
-            byok=byok,
-            owner=owner,
-            search_plan=request.search_plan,
-        )
+        try:
+            run_id, _ = runs.start_run(
+                topic=request.topic,
+                language=request.language,
+                weight_profile=request.weight_profile,
+                paper_json_path=paper_json_path,
+                **({"auxiliary_pdf_reference": auxiliary_pdf_reference} if auxiliary_pdf_reference is not None else {}),
+                decision_context=request.decision_context,
+                byok=byok,
+                owner=owner,
+                search_plan=request.search_plan,
+            )
+        except BaseException:
+            # No worker started, whatever the reason: the trial was not spent.
+            if trial_claim is not None:
+                accounts.release_trial(trial_claim)
+            raise
     except (runs.ConcurrencyLimitReached, runs.DailyCapReached) as exc:
         raise _admission_refusal(exc) from exc
     except runs.PaidLedgerUnavailable as exc:
@@ -1943,6 +2088,8 @@ def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> R
             detail="The analysis worker could not be started. Retry later.",
         ) from exc
 
+    if trial_claim is not None:
+        runs.mark_trial(run_id, user_id=trial_claim.user_id, day=trial_claim.day)
     return RunAccepted(
         run_id=run_id,
         state="running",
@@ -2259,6 +2406,7 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
         error_code=state.get("error_code"),
         funded_by=state.get("funded_by"),
         daily_charge=state.get("daily_charge", "not_recorded"),
+        daily_charge_reason=state.get("daily_charge_reason"),
         elapsed_seconds=state.get("elapsed_seconds"),
         stage_timings=state.get("stage_timings", []),
         eta=state.get("eta"),

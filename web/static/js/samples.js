@@ -8,7 +8,9 @@
  * real report takes (and the one tests/test_web_markdown.py exercises), so a
  * sample cannot reach innerHTML by a less-checked route. */
 
-import { attachCitations, citationIndex, renderMarkdown } from "./result.js";
+import {
+  attachCitations, citationIndex, decisionBrief, renderDecisionBrief, renderMarkdown, renderScorecard,
+} from "./result.js";
 import * as i18n from "./i18n.js";
 import { applySamples, st as t } from "./samples_i18n.js";
 
@@ -28,7 +30,15 @@ let generation = 0;
 // the same width.
 const wide = window.matchMedia?.("(min-width: 1280px)");
 let contents = null;
-wide?.addEventListener?.("change", () => { if (contents) contents.open = wide.matches; });
+// The run's scorecard, in a block above the report. It follows the same
+// width: open where the contents beside the report make the report one press
+// away, closed on a narrow screen, where it is two screens of its own between
+// the reader and the report they came for.
+let scorecard = null;
+wide?.addEventListener?.("change", () => {
+  if (contents) contents.open = wide.matches;
+  if (scorecard) scorecard.open = wide.matches;
+});
 // Served for /samples and every /samples/<slug>; shown again whenever no
 // sample matches, so an unknown slug does not keep the last sample's name.
 const defaultTitle = document.title;
@@ -125,6 +135,38 @@ function historicalNotice(sample) {
   return el("p", "samples__notice", text);
 }
 
+/** The scorecard of the sample's run, or null. The report is the sample: a
+ * scorecard that is missing, refused or unreadable costs the brief and the
+ * card, never the report, so every failure here is the same null. */
+async function readScores(slug) {
+  try {
+    const response = await fetch(`/api/samples/${encodeURIComponent(slug)}/scores`);
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** What a run delivers beside its report: the decision brief and the
+ * scorecard, built by the functions the run page uses, from the scorecard the
+ * sample's run wrote. Until 2026-11-11 a sample was the report alone, so a
+ * visitor deciding whether to sign up never saw the verdict, the five
+ * dimensions or the reasons for them. A sample keeps no checks and no source
+ * registry, so the brief's lines that come from those are absent and its
+ * closing note says so; without a readable verdict neither block is shown. */
+function scoreBlocks(scores, markdown, index) {
+  const data = scores ? decisionBrief({ scores, markdown }) : null;
+  if (!data) return [];
+  const brief = renderDecisionBrief(data, { note: t("samples_brief_note") });
+  const card = renderScorecard(scores);
+  for (const node of [brief, card]) attachCitations(node, () => Promise.resolve(index));
+  const block = el("details", "samples__scorecard");
+  block.open = wide?.matches ?? false;
+  block.append(el("summary", null, t("samples_scorecard")), card);
+  scorecard = block;
+  return [brief, block];
+}
+
 async function open(slug) {
   const sample = samples.find((item) => item.slug === slug);
   current = sample ? slug : null;
@@ -137,6 +179,9 @@ async function open(slug) {
   const mine = ++generation;
   reader.replaceChildren(el("div", "skeleton", ""));
   let markdown;
+  // Asked for at the same time as the report and awaited after it; readScores
+  // never rejects.
+  const scoresRead = readScores(slug);
   try {
     const response = await fetch(`/api/samples/${encodeURIComponent(slug)}`);
     if (!response.ok) throw new Error(String(response.status));
@@ -145,6 +190,7 @@ async function open(slug) {
     if (mine === generation) note("samples_read_failed");
     return;
   }
+  const scores = await scoresRead;
   if (mine !== generation) return;
 
   const article = el("article", "prose");
@@ -155,7 +201,8 @@ async function open(slug) {
   attachCitations(article, () => Promise.resolve(index));
   const toc = contentsFor(article);
   reader.replaceChildren(
-    historicalNotice(sample), downloadLink(sample), ...(toc ? [toc.nav] : []), article,
+    historicalNotice(sample), downloadLink(sample), ...scoreBlocks(scores, markdown, index),
+    ...(toc ? [toc.nav] : []), article,
   );
   rendered = slug;
   // The browser looked for a #section-N target before the report existed:

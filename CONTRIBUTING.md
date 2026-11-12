@@ -59,6 +59,17 @@ installed packages. CI still runs serially: on a saturated four-core runner
 a few timing-sensitive concurrency tests fail intermittently in parallel, so
 confirm a parallel-only failure with a serial rerun before chasing it.
 
+What CI does instead is split each cell's tests by file over three runners,
+each part serial on a runner of its own (`ACA_TEST_SHARD=2/3`, read by
+`tests/conftest.py`; unset, as it is locally, the whole suite runs). The
+parts are balanced by number of tests, a file's tests stay together, and
+`tests/test_ci_sharding.py` holds that they are a partition. To reproduce
+one part of a failing cell locally, set the variable to the part named in
+the job's title. The coverage floor is applied to the three parts' data
+combined, in the `coverage floor` job, not inside any one part. The four
+check names the branch ruleset requires are kept by a job that is green
+only when every part of every cell passed.
+
 The guides link to sites this repository does not control (provider docs, the
 live app, commit permalinks). `tests/test_public_docs.py` resolves only
 repository-relative paths and deliberately makes no network request, so check

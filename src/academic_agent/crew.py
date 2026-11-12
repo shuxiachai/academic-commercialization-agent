@@ -78,7 +78,7 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["academic_researcher"],  # type: ignore[index]
-            llm=create_llm(json_mode=True, temperature=0.0),
+            llm=create_llm(json_mode=True, temperature=0.0, stream=True),
             verbose=True,
             inject_date=True,
         )
@@ -91,7 +91,7 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["patent_analyst"],  # type: ignore[index]
-            llm=create_llm(json_mode=True, temperature=0.0),
+            llm=create_llm(json_mode=True, temperature=0.0, stream=True),
             verbose=True,
             inject_date=True,
         )
@@ -106,7 +106,7 @@ class AcademicAgent:
             config=self.agents_config[
                 "market_intelligence_analyst"
             ],  # type: ignore[index]
-            llm=create_llm(json_mode=True, temperature=0.0),
+            llm=create_llm(json_mode=True, temperature=0.0, stream=True),
             verbose=True,
             inject_date=True,
         )
@@ -121,7 +121,7 @@ class AcademicAgent:
             config=self.agents_config[
                 "commercialization_report_writer"
             ],  # type: ignore[index]
-            llm=create_llm(),  # 自由文本模式 / Free-text mode
+            llm=create_llm(stream=True),  # 自由文本模式 / Free-text mode
             verbose=True,
         )
 
@@ -139,7 +139,7 @@ class AcademicAgent:
             config=self.agents_config["report_reviewer"],  # type: ignore[index]
             # The reviewer returns a bounded correction plan rather than
             # repeating a report large enough to hit provider output limits.
-            llm=create_llm(json_mode=True, temperature=0.0),
+            llm=create_llm(json_mode=True, temperature=0.0, stream=True),
             verbose=True,
         )
 
@@ -153,7 +153,7 @@ class AcademicAgent:
         """
         return Agent(
             config=self.agents_config["commercialization_scorer"],  # type: ignore[index]
-            llm=create_llm(json_mode=True, temperature=0.0),
+            llm=create_llm(json_mode=True, temperature=0.0, stream=True),
             verbose=True,
         )
 

@@ -214,7 +214,8 @@ class SwitchTests(_Case):
     def test_the_switch_is_off_until_asked_and_shows_everywhere_the_account_does(self):
         token, _ = self._signup(notify=False)
         me = self.client.get("/api/auth/me", headers=self._bearer(token)).json()
-        self.assertEqual(me, {"email": EMAIL, "admin": False, "verified": False, "notify_done": False})
+        self.assertEqual(me, {"email": EMAIL, "admin": False, "verified": False, "notify_done": False,
+                          "trial_runs_left": 0})
         self.assertTrue(self.client.get("/api/auth/config").json()["notices"])
         self.assertEqual(self.client.post("/api/auth/notify", json={"enabled": True},
                                           headers=self._bearer(token)).status_code, 204)

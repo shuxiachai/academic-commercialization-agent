@@ -275,7 +275,13 @@ class PaidReceipt(BaseModel):
 
 
 class StepEvent(BaseModel):
-    """One line of steps.jsonl, surfaced for live progress."""
+    """One line of steps.jsonl, surfaced for live progress.
+
+    `llm_attempt` rows carry the provider-attempt fields. They are the only
+    per-run record of an attempt the transport killed: usage counts successful
+    requests, so a billed 150-second timeout followed by a retry shows there
+    as one request and a stage twice as long as its answer.
+    """
 
     ts: float | None = None
     type: str = ""
@@ -283,6 +289,21 @@ class StepEvent(BaseModel):
     agent: str = ""
     thought: str = ""
     tool: str = ""
+    call: int | None = Field(
+        default=None,
+        description="Which call on this node, from 1; a guardrail retry is a new call "
+                    "whose attempts start at 1 again.")
+    attempt: int | None = Field(
+        default=None, description="Provider attempt number within the call, from 1.")
+    outcome: str | None = Field(
+        default=None,
+        description="returned, timeout, error, or adapted (a refused parameter resent).")
+    duration_seconds: float | None = Field(
+        default=None, description="Wall time of this one attempt.")
+    retry: bool | None = Field(
+        default=None, description="Whether another attempt followed this one.")
+    error_type: str | None = Field(
+        default=None, description="Exception class name when the attempt did not return.")
 
 
 class StageTiming(BaseModel):
@@ -365,12 +386,19 @@ class RunProgress(BaseModel):
         description="Whose keys the run used: an account's own, or the deployment's under an "
                     "access code. None for a run nobody owns. It decides who can act on a failure.",
     )
+    daily_charge_reason: Literal["launch_failed", "provider_unreachable"] | None = Field(
+        default=None,
+        description="Why a refunded charge was given back: launch_failed (no worker existed) or "
+                    "provider_unreachable (the run failed because the model provider could not be "
+                    "reached; at most three a day for each owner). None for every other state, and "
+                    "for a refund recorded before reasons were.",
+    )
     daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
         default="not_recorded",
         description="Whether this run spent one of its owner's daily paid operations: charged; "
-                    "refunded (the worker never launched); not_charged (own key, or no cap); "
+                    "refunded (see daily_charge_reason); not_charged (own key, or no cap); "
                     "not_recorded (the run predates the marker); unreadable. A run that launched "
-                    "and then failed stays charged.",
+                    "and then failed stays charged, unless the provider could not be reached.",
     )
     elapsed_seconds: int | None = None
     stage_timings: list[StageTiming] = Field(
@@ -549,12 +577,19 @@ class RunStatus(BaseModel):
         description="Whose keys the run used: an account's own, or the deployment's under an "
                     "access code. None for a run nobody owns. It decides who can act on a failure.",
     )
+    daily_charge_reason: Literal["launch_failed", "provider_unreachable"] | None = Field(
+        default=None,
+        description="Why a refunded charge was given back: launch_failed (no worker existed) or "
+                    "provider_unreachable (the run failed because the model provider could not be "
+                    "reached; at most three a day for each owner). None for every other state, and "
+                    "for a refund recorded before reasons were.",
+    )
     daily_charge: Literal["charged", "refunded", "not_charged", "not_recorded", "unreadable"] = Field(
         default="not_recorded",
         description="Whether this run spent one of its owner's daily paid operations: charged; "
-                    "refunded (the worker never launched); not_charged (own key, or no cap); "
+                    "refunded (see daily_charge_reason); not_charged (own key, or no cap); "
                     "not_recorded (the run predates the marker); unreadable. A run that launched "
-                    "and then failed stays charged.",
+                    "and then failed stays charged, unless the provider could not be reached.",
     )
     elapsed_seconds: int | None = None
     stage_timings: list[StageTiming] = Field(
@@ -903,6 +938,8 @@ class AuthSession(BaseModel):
     admin: bool = False
     verified: bool = Field(default=True, description="The address has been proven. Until it is, paid "
                                                      "operations are refused with email_unverified.")
+    trial_runs_left: int = Field(default=0, description="Assessments this account may still start without "
+                                                        "keys, on the deployment's own.")
 
 
 class AuthMe(BaseModel):
@@ -910,6 +947,7 @@ class AuthMe(BaseModel):
     admin: bool = False
     verified: bool = True
     notify_done: bool = Field(default=False, description="The account asked for an email when one of its runs ends.")
+    trial_runs_left: int = Field(default=0, description="Assessments this account may still start without keys.")
 
 
 class NotifyPreference(BaseModel):
@@ -982,6 +1020,43 @@ class AdminAccount(BaseModel):
     sessions: int = Field(description="Live sign-ins; expired ones are not counted.")
     last_seen_at: int | None = Field(description="Unix time of the newest live session's last request.")
     runs: int = Field(description="Assessments recorded under the account.")
+    trial_used: int = Field(default=0, description="Assessments started on the account's trial and not given back.")
+
+
+class FunnelAccounts(BaseModel):
+    """Accounts created in the window, administrators apart; each step is a subset of the one before."""
+
+    created: int
+    verified: int = Field(description="Of those, the address has been proven.")
+    ran: int = Field(description="Of those, at least one run is kept.")
+    completed: int = Field(description="Of those, at least one kept run completed.")
+
+
+class FunnelFailure(BaseModel):
+    code: str = Field(description="The public failure code, as a run's status gives it.")
+    runs: int
+
+
+class FunnelTrial(BaseModel):
+    started: int
+    completed: int
+    given_back: int = Field(description="Trials returned because the provider could not be reached.")
+
+
+class AdminFunnel(BaseModel):
+    """Counts only, from what is kept: no address, and nothing about a run that was deleted."""
+
+    window_days: int
+    since: int = Field(description="Unix time the window begins.")
+    accounts: FunnelAccounts
+    runs: dict[str, int] = Field(description="Runs started in the window by anyone but an administrator: "
+                                             "started, then one count for each ending.")
+    failures: list[FunnelFailure] = Field(description="Failed runs by public code, most frequent first.")
+    trial: FunnelTrial
+    admin_runs: int = Field(description="Administrators' runs in the window, counted apart.")
+    runs_kept_since: int | None = Field(description="Start of the oldest run still on the volume; no run "
+                                                    "count reaches further back.")
+    unreadable: int = Field(description="Runs whose owner or state could not be read; in no other number.")
 
 
 class AdminAccounts(BaseModel):
@@ -1019,6 +1094,36 @@ class AdminBackups(BaseModel):
     every_hours: float | None
     keep: int | None
     backups: list[AdminBackup]
+
+
+class LinkProbeReading(BaseModel):
+    """One request from this host; marks are milliseconds since it started."""
+
+    body_bytes: int
+    connect_ms: int | None = Field(description="Socket connected; null when it never did.")
+    tls_ms: int | None = Field(description="TLS up.")
+    upload_ms: int | None = Field(description="Whole body sent.")
+    first_byte_ms: int | None = Field(description="First response byte in.")
+    total_ms: int
+    status: int | None = Field(description="HTTP status (401 is the expected answer); null on a transport failure.")
+    error: str | None = Field(description="The transport error's name when the request did not complete.")
+
+
+class LinkProbeTarget(BaseModel):
+    name: Literal["configured", "intl", "mainland"]
+    host: str
+    readings: list[LinkProbeReading]
+
+
+class AdminLinkProbe(BaseModel):
+    """What this host measured on the path to the provider, just now."""
+
+    taken_at: str
+    timeout_seconds: float
+    small_bytes: int
+    large_bytes: int = Field(description="The writer's request size: about 22,000 prompt tokens.")
+    sizes: list[int] = Field(description="Every body size read, smallest first.")
+    targets: list[LinkProbeTarget]
 
 
 class AccountDeleted(BaseModel):
@@ -1084,6 +1189,9 @@ class AuthConfig(BaseModel):
                                                         "ends: mail is set up.")
     admin_funded: bool = Field(default=False, description="An administrator's paid operations run on the "
                                                              "deployment's own keys; everyone else brings keys.")
+    trial_runs: int = Field(default=0, description="Assessments a verified account may start without keys, on "
+                                                   "the deployment's own; 0 when the operator has not turned "
+                                                   "this on or the deployment has no keys to pay with.")
 
 
 class RetrievalHealth(BaseModel):

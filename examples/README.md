@@ -29,6 +29,14 @@ under two addresses, and, in the space-based solar power report, market
 evidence that leans on one small company's press releases, which the report
 itself says.
 
+Beside each of the six is the scorecard its run wrote, `<name>.scores.json`:
+the run's `commercialization_scores.json` as written (for *Hyperloop*, as the
+production deployment still serves it for that run). The scores quoted below
+are read from those files. The web reader builds its decision brief and its
+scorecard from them, with the functions a run's own page uses; a sample keeps
+neither the run's checks nor its source registry, so the lines those would add
+to the brief are absent there, and the page says so.
+
 All six can also be read in the web app at `/samples`, with no access code or
 API key. That list is the allowlist in `api/samples.py`; a file added here does
 not appear there until it is added to the list. Three July 2026 reports from

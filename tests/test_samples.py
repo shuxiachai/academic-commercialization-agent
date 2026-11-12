@@ -46,6 +46,41 @@ class SampleCatalogTests(unittest.TestCase):
         for slug in ("nope", "../pyproject.toml", "..\\README.md", "README"):
             with self.subTest(slug=slug), self.assertRaises(KeyError):
                 samples.read_sample(slug)
+            with self.subTest(slug=slug, what="scores"), self.assertRaises(KeyError):
+                samples.read_sample_scores(slug)
+
+    def test_every_sample_has_the_scorecard_of_its_own_run(self):
+        """A report without its score is half of what a run delivers.
+
+        The scorecard is the file the run wrote beside the report. That it is
+        this report's and not another run's is checked against the one place
+        that recorded both at the time: examples/README.md, written when each
+        sample was added, states every sample's readiness level and overall.
+        """
+        readme = (_REPO / "examples" / "README.md").read_text(encoding="utf-8")
+        for sample in samples.SAMPLES:
+            with self.subTest(slug=sample.slug):
+                scores = samples.read_sample_scores(sample.slug)
+                self.assertIsInstance(scores, dict)
+                section = readme.split(f"]({sample.file})", 1)[1].split("\n---", 1)[0]
+                recorded = re.search(r"TRL (\d+).*?overall ([\d.]+) / 100", section, re.S)
+                self.assertEqual(f"{scores['overall_score']:.1f}", recorded[2])
+                self.assertEqual(int(scores["trl_score"]), int(recorded[1]))
+                # What the brief and the scorecard read.
+                for key in ("mrl_score", "patent_strength", "market_accessibility", "evidence_confidence"):
+                    self.assertIsInstance(scores[key], float, key)
+                self.assertTrue(scores["key_risks"] and scores["key_opportunities"])
+
+    def test_the_scorecard_sits_beside_its_report_and_nowhere_else(self):
+        """Its name is the report's with another ending: no second list to keep in step."""
+        for sample in samples.SAMPLES:
+            with self.subTest(slug=sample.slug):
+                self.assertTrue(sample.file.endswith(".md"))
+                path = _REPO / "examples" / (sample.file[:-3] + ".scores.json")
+                self.assertEqual(json.loads(path.read_text(encoding="utf-8")), samples.read_sample_scores(sample.slug))
+        listed = {p.name for p in (_REPO / "examples").glob("*.scores.json")}
+        self.assertEqual(listed, {s.file[:-3] + ".scores.json" for s in samples.SAMPLES},
+                         "a scorecard here belongs to a listed sample")
 
 
 class SampleHttpTests(unittest.TestCase):
@@ -121,6 +156,38 @@ class SampleHttpTests(unittest.TestCase):
         missing = samples.Sample("gone", "does-not-exist.md", "t", "t", "2026-01-01", "0000000", "model-x")
         with patch.object(samples, "_BY_SLUG", {"gone": missing}):
             self.assertEqual(self.client.get("/api/samples/gone").status_code, 404)
+
+    def test_a_samples_scorecard_needs_no_code_and_is_the_committed_file(self):
+        with patch.object(access, "ACCESS_CODE", "secret123"):
+            for sample in samples.SAMPLES:
+                with self.subTest(slug=sample.slug):
+                    served = self.client.get(f"/api/samples/{sample.slug}/scores")
+                    self.assertEqual(served.status_code, 200)
+                    self.assertTrue(served.headers["content-type"].startswith("application/json"))
+                    self.assertEqual(served.json(), samples.read_sample_scores(sample.slug))
+            # Control: a run's scorecard is still behind the gate's own rules,
+            # and nothing but GET is let through.
+            self.assertEqual(self.client.post("/api/samples/hyperloop/scores", json={}).status_code, 401)
+            self.assertEqual(self.client.get("/api/runs").status_code, 401)
+
+    def test_no_scorecard_is_a_404_whatever_the_reason(self):
+        """Unknown sample, a path instead of a name, a file missing from the
+        image, a file that is not a scorecard: the page shows the report
+        without a brief for each, so each must be a plain 404, never a 500."""
+        for path in ("/api/samples/nope/scores", "/api/samples/..%2Fpyproject.toml/scores",
+                     "/api/samples/hyperloop/other", "/api/samples/hyperloop/scores/extra"):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 404)
+        missing = samples.Sample("gone", "does-not-exist.md", "t", "t", "2026-01-01", "0000000", "model-x")
+        with patch.object(samples, "_BY_SLUG", {"gone": missing}):
+            self.assertEqual(self.client.get("/api/samples/gone/scores").status_code, 404)
+        with TemporaryDirectory() as tmp:
+            for body in ("[1, 2]", "not json", '"a string"'):
+                (Path(tmp) / "broken.scores.json").write_text(body, encoding="utf-8")
+                broken = samples.Sample("broken", "broken.md", "t", "t", "2026-01-01", "0000000", "model-x")
+                with self.subTest(body=body), patch.object(samples, "_EXAMPLES_ROOT", Path(tmp)), \
+                        patch.object(samples, "_BY_SLUG", {"broken": broken}):
+                    self.assertEqual(self.client.get("/api/samples/broken/scores").status_code, 404)
 
     def test_reader_page_is_served_for_list_and_deep_links(self):
         with patch.object(access, "ACCESS_CODE", "secret123"):
@@ -200,6 +267,36 @@ class SampleClientTests(unittest.TestCase):
         self.assertTrue(used)
         self.assertLessEqual(used, keys)
 
+    def test_the_intro_names_no_way_in_that_a_deployment_may_not_have(self):
+        # The page said "without an access code". A deployment signs visitors in
+        # by account, by access code or by their own keys, and production has
+        # used accounts alone since 2026-11-07: a visitor there has never been
+        # offered a code, and was told they need none. "Without an account" is
+        # what the landing page's link to this page says, and it holds in every
+        # mode. Five places carry the sentence: both languages, the text served
+        # before the script runs, and the two descriptions a search result or a
+        # link preview shows.
+        page = (_REPO / "web/samples.html").read_text(encoding="utf-8")
+        strings = (_REPO / "web/static/js/samples_i18n.js").read_text(encoding="utf-8")
+        english, chinese = strings.split('"Simplified Chinese": {', 1)
+        english_sub = re.search(r'samples_sub: "([^"]+)"', english)[1]
+        chinese_sub = re.search(r'samples_sub: "([^"]+)"', chinese)[1]
+        served = re.search(r'data-samples-i18n="samples_sub">([^<]+)<', page)[1]
+        description = re.search(r'<meta name="description" content="([^"]+)">', page)[1]
+        preview = re.search(r'<meta property="og:description" content="([^"]+)">', page)[1]
+
+        for name, text in (("english", english_sub), ("served", served),
+                           ("description", description), ("preview", preview)):
+            with self.subTest(place=name):
+                self.assertNotRegex(text, r"(?i)access code|invit")
+                self.assertIn("without an account or API keys", text)
+        self.assertNotRegex(chinese_sub, r"访问口令|访问码|邀请")
+        self.assertIn("无需账号或 API Key", chinese_sub)
+        # The served text is the opening of the string that replaces it, so the
+        # sentence does not change under a reader when the script runs.
+        self.assertTrue(english_sub.startswith(served))
+        self.assertEqual(description, preview)
+
 
 _ALLOWED_TAGS = {
     "p", "strong", "em", "code", "ul", "li", "h1", "h2", "h3", "h4",
@@ -239,6 +336,82 @@ class SampleRenderingTests(unittest.TestCase):
                 self.assertFalse(tags - _ALLOWED_TAGS)
                 self.assertIn("<h2>", html)
                 self.assertIn('class="cite"', html)
+
+
+    def test_every_sample_yields_a_brief_and_a_scorecard_through_the_shipped_renderer(self):
+        """The run page's own functions on the committed files: the verdict,
+        the report's first sentence, a risk and a first step for all six, and
+        five readable dimensions each with its reason."""
+        harness = textwrap.dedent("""
+            import { readFileSync } from "node:fs";
+            globalThis.localStorage = { getItem: () => null, setItem: () => {} };
+            class Node {
+              constructor(tag) { Object.assign(this, { tagName: tag.toUpperCase(), children: [], dataset: {},
+                attributes: {}, style: {}, className: "", textContent: "", open: false, title: "", type: "" }); }
+              append(...items) { for (const item of items) this.children.push(typeof item === "string" ? { text: item } : item); }
+              setAttribute(name, value) { this.attributes[name] = value; }
+              addEventListener() {}
+            }
+            globalThis.document = { createElement: (tag) => new Node(tag), createTextNode: (text) => ({ text }),
+              querySelectorAll: () => [], documentElement: {} };
+            const flat = (node) => [node, ...(node.children ?? []).flatMap(flat)];
+            const cls = (node) => node.className ?? "";
+            const mod = await import("./result.mjs");
+            const inputs = JSON.parse(readFileSync(process.argv[2], "utf-8"));
+            console.log(JSON.stringify(inputs.map(({ scores, markdown }) => {
+              const data = mod.decisionBrief({ scores, markdown });
+              const brief = flat(mod.renderDecisionBrief(data, { note: "said by the sample page" }));
+              const card = flat(mod.renderScorecard(scores));
+              return {
+                verdict: brief.find((n) => cls(n) === "brief__verdict").textContent,
+                summary: data.summary, risk: data.risk, next: data.next,
+                changers: data.changers.map((c) => c.key),
+                empty: brief.filter((n) => cls(n).includes("brief__empty")).length,
+                note: brief.find((n) => cls(n) === "brief__note").textContent,
+                value: card.find((n) => cls(n).startsWith("scorecard__value")).textContent,
+                dims: card.filter((n) => cls(n).startsWith("dim__value")).map((n) => n.textContent),
+                why: card.filter((n) => cls(n) === "dim__why").length,
+                lists: card.filter((n) => cls(n) === "notes__list").map((n) => n.children.length),
+              };
+            })));
+        """)
+        with TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            source = (_REPO / "web/static/js/result.js").read_text(encoding="utf-8")
+            source = source.replace('import * as api from "./api.js";', "const api = {};")
+            (work / "result.mjs").write_text(source, encoding="utf-8")
+            shutil.copy2(_REPO / "web/static/js/i18n.js", work / "i18n.js")
+            (work / "run.mjs").write_text(harness, encoding="utf-8")
+            inputs = [{"scores": samples.read_sample_scores(s.slug),
+                       "markdown": report_for_display(samples.read_sample(s.slug))} for s in samples.SAMPLES]
+            (work / "inputs.json").write_text(json.dumps(inputs), encoding="utf-8")
+            result = subprocess.run(
+                [shutil.which("node"), str(work / "run.mjs"), str(work / "inputs.json")],
+                capture_output=True, text=True, encoding="utf-8", timeout=300, cwd=work,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr[:600])
+        for sample, shown, given in zip(samples.SAMPLES, json.loads(result.stdout), inputs, strict=True):
+            with self.subTest(slug=sample.slug):
+                overall = f"{given['scores']['overall_score']:.1f}"
+                self.assertIn(f"{overall} / 100", shown["verdict"])
+                self.assertEqual(shown["value"], overall)
+                for line in ("summary", "risk", "next"):
+                    self.assertTrue(shown[line], line)
+                # All six open their recommendations by naming the assessment
+                # mode; that sentence was each one's "first recommended step".
+                self.assertNotRegex(shown["next"], r"(?i)^(assessment mode|decision owner|评估模式)")
+                self.assertNotRegex(shown["next"], r"[:：]$")
+                self.assertEqual(shown["empty"], 0, "no card of the brief is left saying there is nothing")
+                # No decision context was given to any of these runs, and a
+                # sample keeps no checks: the context line is the one that
+                # is always true of them.
+                self.assertIn("brief_change_context", shown["changers"])
+                self.assertEqual(shown["note"], "said by the sample page")
+                self.assertEqual(len(shown["dims"]), 5)
+                self.assertNotIn("—", shown["dims"])
+                self.assertEqual(shown["why"], 5, "each dimension says why")
+                self.assertEqual(len(shown["lists"]), 2, "risks and opportunities")
+                self.assertTrue(all(shown["lists"]))
 
 
 class SampleProvenanceTests(unittest.TestCase):

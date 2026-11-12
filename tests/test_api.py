@@ -1094,6 +1094,28 @@ class FailedRunOutcomeTests(_ApiTestCase):
             self.assertEqual(body["error_code"], "unknown")
             self.assertNotIn("nobody has seen", body["error"])
 
+    def test_a_refunds_reason_reaches_both_endpoints_and_only_a_known_one(self):
+        base = {"schema_version": 1, "charged": True, "charged_on": "2026-11-10", "refunded": True}
+        cases = {
+            "provider_unreachable": {**base, "refund_reason": "provider_unreachable"},
+            "launch_failed": {**base, "refund_reason": "launch_failed"},
+            # A refund recorded before reasons were, and a reason nobody defined.
+            None: base,
+            "": {**base, "refund_reason": "because"},
+        }
+        for reason, marker in cases.items():
+            with self.subTest(reason=reason):
+                rid = self._make_run(status={"done": False, "error": "Connection error."})
+                (self.tmp / rid / ".daily_charge").write_text(json.dumps(marker), encoding="utf-8")
+                for body in self._both(rid):
+                    self.assertEqual(body["daily_charge"], "refunded")
+                    self.assertEqual(body["daily_charge_reason"], reason or None)
+        charged = self._make_run(status={"done": False, "error": "boom"})
+        (self.tmp / charged / ".daily_charge").write_text(json.dumps(
+            {**base, "refunded": False, "refund_reason": "provider_unreachable"}), encoding="utf-8")
+        for body in self._both(charged):
+            self.assertEqual((body["daily_charge"], body["daily_charge_reason"]), ("charged", None))
+
     def test_daily_charge_reaches_both_endpoints_without_guessing(self):
         cases = {
             "not_recorded": None,

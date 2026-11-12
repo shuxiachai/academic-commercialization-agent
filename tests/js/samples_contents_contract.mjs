@@ -73,9 +73,27 @@ globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, 
 
 let list = samples, failReads = false;
 const reads = [];
+// A sample's scorecard, read beside its report. By slug: an object is served
+// as JSON, a string as that body, "refused" fails the request itself, and a
+// slug with no entry has no scorecard (404), which is what every scenario
+// written before scorecards existed sees.
+const scorecards = {};
+const scoreReads = [];
+globalThis.cited = [];
 globalThis.fetch = async (url) => {
   if (url === "/api/samples") {
     return new Response(JSON.stringify(list), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+  const scores = url.match(/^\/api\/samples\/([^/]+)\/scores$/);
+  if (scores) {
+    const slug = decodeURIComponent(scores[1]);
+    scoreReads.push(slug);
+    const card = scorecards[slug];
+    if (card === "refused") throw new TypeError("network");
+    // An answer that is not OK is not a scorecard, whatever its body says.
+    if (card === undefined) return new Response('{"detail":"none","overall_score":99}', { status: 404, headers: { "Content-Type": "application/json" } });
+    return new Response(typeof card === "string" ? card : JSON.stringify(card),
+      { status: 200, headers: { "Content-Type": "application/json" } });
   }
   const slug = decodeURIComponent(url.replace(/^\/api\/samples\//, ""));
   reads.push(slug);
@@ -111,12 +129,35 @@ async function switchLanguage(value) {
   await settle();
 }
 let checks = 0;
+const shape = () => reader().children.map((c) => c.className || c.tag);
+const WITHOUT_SCORES = ["samples__notice", "samples__download", "samples__toc", "prose"];
+const WITH_SCORES = ["samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose"];
+/** The brief and the scorecard of the open sample, between the download link and the contents. */
+function expectScores(sample, { title = "Scorecard", note = /^Built from this run's own scorecard and report/, open = true } = {}) {
+  assert.deepEqual(shape(), WITH_SCORES);
+  const overall = String(scorecards[sample.slug].overall_score);
+  const [, , brief, block] = reader().children;
+  assert.equal(brief.dataset.overall, overall, "The brief is this sample's");
+  // The run page's brief says it was built from the run's checks too, and that
+  // every line can be opened below. A sample keeps no checks; it says so.
+  assert.match(brief.dataset.note, note);
+  assert.equal(brief.dataset.markdown, markdown[sample.slug], "...and reads this sample's report");
+  assert.equal(block.tag, "details");
+  assert.equal(block.open, open, "Open where the contents sit beside the report, folded above it on a narrow screen");
+  const [summary, card] = block.children;
+  assert.equal(summary.tag, "summary");
+  assert.equal(summary.textContent, title);
+  assert.equal(card.className, "scorecard");
+  assert.equal(card.dataset.overall, overall);
+  assert.equal(card.dataset.sources, "null", "A sample has no source registry to draw market figures from");
+  checks++;
+}
 /** One contents block, between the notice and the article, linking exactly the open sample's headings. */
-function expectContents(sample, label = "Contents") {
+function expectContents(sample, label = "Contents", order = WITHOUT_SCORES) {
   const [toc, ...extra] = tocs();
   assert(toc, `No contents for ${sample.slug}`);
   assert.equal(extra.length, 0, "One contents block");
-  assert.deepEqual(reader().children.map((c) => c.className || c.tag), ["samples__notice", "samples__download", "samples__toc", "prose"]);
+  assert.deepEqual(shape(), order);
   assert.equal(toc.tag, "nav");
   assert.equal(toc.attributes["aria-label"], label);
   const [details] = toc.children;
@@ -203,6 +244,65 @@ if (scenario === "each_sample") {
   assert.equal(expectContents(first).open, !wide);
   await click(second);
   assert.equal(expectContents(second).open, !wide, "A new sample's contents start in the current layout");
+} else if (scenario === "scorecard") {
+  // A report without its score is half of what a run delivers: the verdict,
+  // the five dimensions and the reasons were what the sample page left out.
+  samples.forEach((sample, i) => { scorecards[sample.slug] = { overall_score: 40 + i }; });
+  await start(pathOf(first));
+  expectScores(first);
+  expectContents(first, "Contents", WITH_SCORES);
+  assert.deepEqual(scoreReads, [first.slug], "One read of the scorecard, beside the report's");
+  assert.deepEqual(cited.splice(0).sort(), ["brief", "prose", "scorecard"],
+    "Citations in the brief and the scorecard open the same cards as the report's");
+  await click(second);
+  expectScores(second);
+  expectContents(second, "Contents", WITH_SCORES);
+  await switchLanguage("Simplified Chinese");
+  expectScores(second, { title: "评分卡", note: /^由这次运行自己的评分卡和报告生成/ });
+  expectContents(second, "目录", WITH_SCORES);
+  await switchLanguage("English");
+  const before = scoreReads.length;
+  await go(pathOf(second), "#section-2");
+  assert.equal(scoreReads.length, before, "Following a contents link reads no scorecard again");
+  await go(pathOf(first));
+  expectScores(first);
+  // On a phone the scorecard is two screens of its own before the report:
+  // it folds when the window narrows, and a sample opened there starts folded.
+  media.matches = false;
+  for (const [name, callback] of media.listeners) if (name === "change") callback({ matches: false });
+  expectScores(first, { open: false });
+  await click(second);
+  expectScores(second, { open: false });
+  media.matches = true;
+  for (const [name, callback] of media.listeners) if (name === "change") callback({ matches: true });
+  expectScores(second);
+  // A sample with no scorecard, opened after one that had it: resizing then moves only what is on the page.
+  delete scorecards[first.slug];
+  await click(first);
+  media.matches = false;
+  for (const [name, callback] of media.listeners) if (name === "change") callback({ matches: false });
+  expectContents(first);
+} else if (scenario === "scorecard_missing") {
+  // The report is the sample. Whatever happens to the scorecard's read, the
+  // report is shown as it was before scorecards existed.
+  const [third, fourth, fifth] = samples.slice(2);
+  assert(fifth, "This scenario needs five committed samples");
+  scorecards[second.slug] = { overall_score: 61 };
+  scorecards[third.slug] = "refused";
+  scorecards[fourth.slug] = "<html>not a scorecard</html>";
+  scorecards[fifth.slug] = { overall_score: "high" };
+  await start(pathOf(first));
+  expectContents(first);                         // 404
+  await click(third);
+  expectContents(third);                         // the request itself failed
+  await click(fourth);
+  expectContents(fourth);                        // answered, but not JSON
+  await click(fifth);
+  expectContents(fifth);                         // JSON with no readable overall: no brief, so no card either
+  await click(second);
+  expectScores(second);
+  await click(first);
+  expectContents(first);                         // ...and the one before it leaves nothing behind
 } else if (scenario === "no_headings") {
   list = [...samples, { ...first, slug: "plain", title: "Plain" }];
   markdown.plain = "# Plain\n\nNo sections.";

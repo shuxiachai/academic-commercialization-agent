@@ -40,6 +40,7 @@ import sqlite3
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 
@@ -80,6 +81,7 @@ _SCRYPT_N, _SCRYPT_R, _SCRYPT_P = 2 ** 14, 8, 1
 _SCRYPT_MAXMEM = 2 ** 26
 _SCHEMA_LOCK = Lock()
 _SIGNUP_LOCK = Lock()
+_TRIAL_LOCK = Lock()
 _signups_by_client: dict[str, list[float]] = {}
 _signups_today: list[float] = []
 _SCHEMA = """
@@ -108,6 +110,10 @@ CREATE TABLE IF NOT EXISTS email_tokens (
     purpose TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS trial_days (
+    day TEXT PRIMARY KEY,
+    used INTEGER NOT NULL
 );
 """
 
@@ -185,6 +191,36 @@ def admin_funded() -> bool:
     return os.getenv("ACCOUNTS_ADMIN_FUNDED", "1").strip().lower() not in ("0", "false", "no", "off")
 
 
+def _count_setting(name: str, default: int) -> int:
+    """A whole number of zero or more from the environment; anything else is the default."""
+    raw = (os.getenv(name) or "").strip()
+    return int(raw) if raw.isdigit() else default
+
+
+def trial_runs() -> int:
+    """How many assessments a verified account may start on the deployment's keys.
+
+    Off (0) unless the operator sets ACCOUNTS_TRIAL_RUNS: the deployment
+    pays for these, and a deployment that never chose to should never find
+    that it did. Since sign-up opened, an account has had to bring a model
+    key and a search key from two other services before its first run; a
+    number here lets it see one result on its own question first. The
+    server still needs keys of its own to pay with; api.main checks those
+    at the request, as it does for an administrator's runs.
+    """
+    return _count_setting("ACCOUNTS_TRIAL_RUNS", 0)
+
+
+def trial_daily_cap() -> int:
+    """Trial assessments the deployment starts in one UTC day, across every account.
+
+    ACCOUNTS_TRIAL_DAILY, 20 unless set; 0 turns the bound off, as for the
+    other caps. This, not the number per account, is what bounds the bill:
+    an address is cheap to make, and the sign-up caps bound how many.
+    """
+    return _count_setting("ACCOUNTS_TRIAL_DAILY", 20)
+
+
 def admin_emails() -> frozenset[str]:
     raw = os.getenv("ACCOUNTS_ADMIN_EMAILS") or ""
     return frozenset(e for e in (normalize_email(part) for part in raw.split(",")) if e)
@@ -228,6 +264,9 @@ def _migrate(connection) -> None:
     # Opt-in, so accounts from before the column have it off.
     if "notify_done" not in columns:
         connection.execute("ALTER TABLE users ADD COLUMN notify_done INTEGER NOT NULL DEFAULT 0")
+    # Nothing spent: an account that was here before trials gets its number too.
+    if "trial_used" not in columns:
+        connection.execute("ALTER TABLE users ADD COLUMN trial_used INTEGER NOT NULL DEFAULT 0")
 
 
 # ── Normalisation and hashing ──────────────────────────────────────────────
@@ -715,6 +754,72 @@ def confirm_password(user: User, password: object, *, client: str | None = None,
         _confirm_password(db, user, password, client, stamp)
 
 
+# ── A first assessment on the deployment's keys ────────────────────────────
+
+@dataclass(frozen=True)
+class TrialClaim:
+    """One trial taken: whose, and against which UTC day's number. Release it once."""
+
+    user_id: int
+    day: str
+
+
+def trial_left(user: "User") -> int:
+    """Trials this account may still start: none when off, or until its address is proven."""
+    allowed = trial_runs()
+    if not allowed or not enabled() or not user.verified:
+        return 0
+    with _database() as db:
+        row = db.execute("SELECT trial_used, disabled FROM users WHERE id = ?", (user.id,)).fetchone()
+    if row is None or row["disabled"]:
+        return 0
+    return max(0, allowed - row["trial_used"])
+
+
+def claim_trial(user: "User", *, now: float | None = None) -> TrialClaim:
+    """Take one trial for `user`, or say why not.
+
+    The account's own number and the deployment's number for the day are
+    checked and counted in one step, so two requests arriving together
+    cannot both take the last one. Refusals: `email_unverified`,
+    `trial_used` (the account has had its number, or trials are off) and
+    `trial_daily_exhausted` (the deployment has started its number today;
+    the account's own is untouched and waits for tomorrow).
+    """
+    stamp = now if now is not None else time.time()
+    day = datetime.fromtimestamp(stamp, UTC).date().isoformat()
+    allowed, cap = trial_runs(), trial_daily_cap()
+    with _TRIAL_LOCK, _database() as db:
+        with db:
+            row = db.execute("SELECT verified_at, disabled, trial_used FROM users WHERE id = ?",
+                             (user.id,)).fetchone()
+            if row is None or row["disabled"] or row["trial_used"] >= allowed:
+                raise AccountError("trial_used", "This account has no free assessment left.")
+            if row["verified_at"] is None:
+                raise AccountError("email_unverified", "Verify your email address first.")
+            today = db.execute("SELECT used FROM trial_days WHERE day = ?", (day,)).fetchone()
+            if cap and today is not None and today["used"] >= cap:
+                raise AccountError("trial_daily_exhausted",
+                                   "Today's free assessments have all been started. Add your own API "
+                                   "keys to run now, or come back after midnight UTC.")
+            db.execute("UPDATE users SET trial_used = trial_used + 1 WHERE id = ?", (user.id,))
+            db.execute("INSERT INTO trial_days (day, used) VALUES (?, 1) "
+                       "ON CONFLICT(day) DO UPDATE SET used = used + 1", (day,))
+    return TrialClaim(user_id=user.id, day=day)
+
+
+def release_trial(claim: TrialClaim) -> None:
+    """Give a claimed trial back: the run never started, or the provider could not be reached.
+
+    Neither count goes below zero. Call it once for a claim: nothing here
+    remembers that a claim was already released.
+    """
+    with _TRIAL_LOCK, _database() as db:
+        with db:
+            db.execute("UPDATE users SET trial_used = MAX(trial_used - 1, 0) WHERE id = ?", (claim.user_id,))
+            db.execute("UPDATE trial_days SET used = MAX(used - 1, 0) WHERE day = ?", (claim.day,))
+
+
 def owner_tag(user_id: int) -> str:
     """The owner tag of an account id, the same one `User.owner` gives."""
     return f"{_OWNER_PREFIX}{user_id}"
@@ -747,7 +852,7 @@ def list_users(*, now: float | None = None) -> list[dict]:
     stamp = int(now if now is not None else time.time())
     with _database() as db:
         rows = db.execute(
-            "SELECT u.id, u.email, u.created_at, u.disabled, u.verified_at, "
+            "SELECT u.id, u.email, u.created_at, u.disabled, u.verified_at, u.trial_used, "
             "COUNT(s.token_hash) AS sessions, MAX(s.last_seen_at) AS last_seen_at "
             "FROM users u LEFT JOIN sessions s ON s.user_id = u.id AND s.expires_at > ? "
             "GROUP BY u.id ORDER BY u.created_at DESC, u.id DESC", (stamp,)).fetchall()

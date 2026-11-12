@@ -12,6 +12,16 @@ A measured successful Writer/Reviewer/Scorer recovery suffix took 102 seconds;
 240 seconds is reserved before the hard stop so the Reviewer can fail closed,
 the independent Scorer can run, and final artifacts still have 60 seconds to
 commit.  Provider traces should be used before changing these numbers.
+
+The report writer is the one node whose ordinary answer does not fit the
+150-second attempt. Production 2026-11-08: its stage took 282 seconds for a
+6,487-token answer while the reviewer, same model and run, wrote 2,880 tokens
+in 50 seconds; 2026-10-23: an 8,400-token answer ran past 150 seconds once,
+was billed, and was retried. A killed attempt never appears in usage (CrewAI
+counts successful requests only), so the stage silently costs two attempts.
+The writer gets 300 seconds; its deadline does not move, only the bound on
+one attempt. Every other node keeps 150 until its own attempt records, which
+the worker now writes to steps.jsonl, say otherwise.
 """
 
 from __future__ import annotations
@@ -25,6 +35,18 @@ WORKER_LLM_TIMEOUT_ENV = "ACADEMIC_AGENT_WORKER_LLM_TIMEOUT_SECONDS"
 REQUEST_TIMEOUT_SECONDS = 150
 REVIEWER_RESERVE_SECONDS = 240
 FINALIZATION_RESERVE_SECONDS = 60
+WRITER_REQUEST_TIMEOUT_SECONDS = 300
+#: A crew node streams its answer, so the SDK timeout bounds the wait for one
+#: chunk rather than the whole answer. 2026-11-09, the first production run
+#: with attempt records: three of nine non-streaming attempts hung (writer
+#: 302 s and 312 s, scorer 160 s) and the identical retries returned in
+#: 27-95 s. Bytes flow while a model generates; sixty silent seconds is a
+#: dead connection, found in a minute instead of a whole window. The planning
+#: windows above still say how long a healthy attempt may take.
+STREAM_IDLE_TIMEOUT_SECONDS = 60
+#: Index of the report writer in the crew's agent order (tasks 1-3 evidence,
+#: 4 writer, 5 reviewer, 6 scorer), matching deadline_for_agent's reviewer 4.
+_WRITER_INDEX = 3
 
 
 @dataclass(frozen=True)
@@ -37,6 +59,8 @@ class RuntimeBudget:
     request_timeout_seconds: int = REQUEST_TIMEOUT_SECONDS
     reviewer_reserve_seconds: int = REVIEWER_RESERVE_SECONDS
     finalization_reserve_seconds: int = FINALIZATION_RESERVE_SECONDS
+    writer_request_timeout_seconds: int = WRITER_REQUEST_TIMEOUT_SECONDS
+    stream_idle_timeout_seconds: int = STREAM_IDLE_TIMEOUT_SECONDS
 
     @classmethod
     def from_wall_deadline(
@@ -87,6 +111,13 @@ class RuntimeBudget:
 
         return self.reviewer_deadline if index == 4 else self.paid_work_deadline
 
+    def request_timeout_for_agent(self, index: int) -> int:
+        """The writer's one attempt may run twice as long; nothing else changes."""
+
+        if index == _WRITER_INDEX:
+            return self.writer_request_timeout_seconds
+        return self.request_timeout_seconds
+
     def public_snapshot(self) -> dict[str, object]:
         """Serializable policy metadata; monotonic process-local values stay private."""
 
@@ -100,6 +131,8 @@ class RuntimeBudget:
             "hard_timeout_seconds": self.hard_timeout_seconds,
             "hard_deadline_at": deadline_at,
             "request_timeout_seconds": self.request_timeout_seconds,
+            "writer_request_timeout_seconds": self.writer_request_timeout_seconds,
+            "stream_idle_timeout_seconds": self.stream_idle_timeout_seconds,
             "reviewer_reserve_seconds": self.reviewer_reserve_seconds,
             "finalization_reserve_seconds": self.finalization_reserve_seconds,
         }

@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from api import access, account_backup, accounts, admin, runs
+from api import access, account_backup, accounts, admin, link_probe, runs
 from api.main import app
 
 ADMIN, ALICE, BOB = "ops@example.com", "alice@example.com", "bob@example.com"
@@ -75,6 +75,17 @@ class _Console(unittest.TestCase):
         (directory / ".owner").write_text(accounts.owner_tag(self._accounts()[email]["id"]), encoding="utf-8")
 
 
+_PROBE = {
+    "taken_at": "2026-11-09T08:00:00+00:00", "timeout_seconds": 30.0, "small_bytes": 1000, "large_bytes": 100000,
+    "sizes": [1000, 10000, 30000, 100000],
+    "targets": [{"name": "configured", "host": "dashscope.aliyuncs.com", "readings": [
+        {"body_bytes": 1000, "connect_ms": 80, "tls_ms": 170, "upload_ms": 171, "first_byte_ms": 400,
+         "total_ms": 401, "status": 401, "error": None},
+        {"body_bytes": 100000, "connect_ms": 82, "tls_ms": 175, "upload_ms": None, "first_byte_ms": None,
+         "total_ms": 30180, "status": None, "error": "WriteTimeout"}]}],
+}
+
+
 class WhoMaySeeItTests(_Console):
     def test_only_an_admin_account_gets_anything_but_404(self):
         for path in ("/api/admin/accounts", "/api/admin/backups"):
@@ -93,6 +104,44 @@ class WhoMaySeeItTests(_Console):
                 self.assertEqual(self.client.post(path, json=body, headers=self._as(BOB)).status_code, 404)
         # Nothing happened to Alice.
         self.assertEqual(self._login(ALICE, PASSWORD[ALICE]).status_code, 200)
+
+    def test_the_link_probe_answers_only_an_admin_account_and_posts_to_fixed_targets(self):
+        """It makes this server post to the provider; who may ask is the
+        same question as for the rest of the console, and where it posts is
+        not the caller's to choose."""
+        calls = []
+
+        def fake_run():
+            calls.append(1)
+            return _PROBE
+
+        with patch.object(link_probe, "run", fake_run):
+            self.assertEqual(self.client.post("/api/admin/link-probe").status_code, 401)
+            self.assertEqual(self.client.post("/api/admin/link-probe", headers=self._as(ALICE)).status_code, 404)
+            with patch.object(access, "ACCESS_CODE", "a-code"), patch.object(access, "ADMIN_CODE", "the-admin-code"):
+                self.assertEqual(self.client.post("/api/admin/link-probe",
+                                                  headers={"X-Access-Code": "the-admin-code"}).status_code, 404)
+            self.assertEqual(calls, [], "nobody but an admin account makes this server post anywhere")
+            answer = self.client.post("/api/admin/link-probe", headers=self._as(ADMIN),
+                                      json={"url": "https://attacker.example/collect"})
+        self.assertEqual(answer.status_code, 200, answer.text)
+        self.assertEqual(answer.json(), _PROBE)
+        self.assertEqual(calls, [1])
+
+    def test_the_link_probe_says_when_it_cannot_run(self):
+        with patch.object(link_probe, "run", side_effect=link_probe.Busy("A link probe is already running.")):
+            self.assertEqual(self.client.post("/api/admin/link-probe", headers=self._as(ADMIN)).status_code, 409)
+        with patch.object(link_probe, "run", side_effect=link_probe.NoEndpoint("No provider endpoint is configured.")):
+            self.assertEqual(self.client.post("/api/admin/link-probe", headers=self._as(ADMIN)).status_code, 503)
+
+    def test_the_console_offers_the_probe(self):
+        page = (_ROOT / "web" / "admin.html").read_text(encoding="utf-8")
+        self.assertIn('id="link-probe"', page)
+        self.assertIn('id="link-rows"', page)
+        script = (_ROOT / "web" / "static" / "js" / "admin.js").read_text(encoding="utf-8")
+        self.assertIn("api.adminLinkProbe()", script)
+        client = (_ROOT / "web" / "static" / "js" / "api.js").read_text(encoding="utf-8")
+        self.assertIn('request("/api/admin/link-probe", { method: "POST" })', client)
 
     def test_the_page_is_a_plain_document_that_says_nothing_by_itself(self):
         page = self.client.get("/admin")
@@ -116,7 +165,8 @@ class WhatItShowsTests(_Console):
     def test_accounts_are_listed_newest_first_with_what_an_operator_asks(self):
         rows = self.client.get("/api/admin/accounts", headers=self._as(ADMIN)).json()["accounts"]
         self.assertEqual([row["email"] for row in rows], [BOB, ALICE, ADMIN])
-        self.assertEqual(set(rows[0]), {"id", "email", "created_at", "disabled", "verified", "admin", "sessions", "last_seen_at", "runs"})
+        self.assertEqual(set(rows[0]), {"id", "email", "created_at", "disabled", "verified", "admin", "sessions", "last_seen_at", "runs",
+                                        "trial_used"})
         by_email = {row["email"]: row for row in rows}
         self.assertEqual((by_email[ADMIN]["admin"], by_email[ALICE]["admin"]), (True, False))
         self.assertEqual(by_email[ALICE]["sessions"], 1)

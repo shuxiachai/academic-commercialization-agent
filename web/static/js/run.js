@@ -96,19 +96,28 @@ function intervalFor(elapsedMs) {
  *
  * Returns a handle with stop(); the caller must call it when leaving the
  * view, or a poll loop outlives the run it was watching.
+ *
+ * The handle's poll() asks now rather than at the next interval, for the
+ * moment the page has just changed the run itself: after a cancel, a run
+ * past its first ninety seconds went on reading "running" for up to four.
+ * One question is out at a time. If one is already out, its answer may have
+ * been formed before the change, so one more follows it at once.
  */
 export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
   let stopped = false;
+  let ended = false;
+  let asking = false;
+  let askAgain = false;
   let seenSteps = 0;
   let timer = null;
   let lastSuccessAt = null;
   const startedAt = Date.now();
 
-  async function tick() {
-    if (stopped) return;
+  /* One question. Resolves to whether the run is still worth asking about. */
+  async function ask() {
     try {
       const progress = await api.getProgress(runId, seenSteps);
-      if (stopped) return;
+      if (stopped) return false;
 
       lastSuccessAt = Date.now();
       onConnection?.({ state: "connected", lastSuccessAt });
@@ -122,10 +131,10 @@ export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
 
       if (TERMINAL.has(progress.state)) {
         onDone?.(progress);
-        return;
+        return false;
       }
     } catch (err) {
-      if (stopped) return;
+      if (stopped) return false;
       // Retry reads, but never present silence as evidence that the worker
       // still runs. A later successful poll clears this independent warning.
       onConnection?.({ state: err.status === 404 ? "missing" : "stale", lastSuccessAt });
@@ -134,8 +143,27 @@ export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
       // the run genuinely is not there.
       if (err.status === 404) {
         onError?.(err);
-        return;
+        return false;
       }
+    }
+    return true;
+  }
+
+  async function tick() {
+    if (stopped || ended) return;
+    timer = null;
+    asking = true;
+    const goOn = await ask();
+    asking = false;
+    if (stopped) return;
+    if (!goOn) {
+      ended = true;
+      return;
+    }
+    if (askAgain) {
+      askAgain = false;
+      tick();
+      return;
     }
     timer = setTimeout(tick, intervalFor(Date.now() - startedAt));
   }
@@ -146,6 +174,14 @@ export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
     stop() {
       stopped = true;
       if (timer) clearTimeout(timer);
+    },
+    poll() {
+      if (asking) {
+        askAgain = true;
+        return;
+      }
+      if (timer) clearTimeout(timer);
+      tick();
     },
   };
 }
@@ -277,6 +313,7 @@ const HEADER_STRINGS = {
     outcome_charged: "This run counted toward today's quota.",
     outcome_charged_resume: "Resuming from the checkpoint uses another.",
     outcome_refunded: "This run did not count toward today's quota: it failed before any work began.",
+    outcome_refunded_unreachable: "This run did not count toward today's quota: the model provider could not be reached, which nothing in your request caused.",
     outcome_not_charged: "This run did not use the daily quota.",
   },
   "Simplified Chinese": {
@@ -299,6 +336,7 @@ const HEADER_STRINGS = {
     outcome_charged: "本次运行已计入今日额度。",
     outcome_charged_resume: "从检查点续跑会再用 1 次。",
     outcome_refunded: "本次运行未计入今日额度：它在开始工作前就失败了。",
+    outcome_refunded_unreachable: "本次运行未计入今日额度：模型服务暂时无法连接，与你的请求无关。",
     outcome_not_charged: "本次运行不占用每日额度。",
   },
 };
@@ -378,6 +416,11 @@ const PLAN_STRINGS = {
     // An account: the check was made on the account's own key, and says so.
     lede_own: "Papers, patents and market sources will be searched with these terms. "
       + "Edit them if the topic was read wrongly. This check was one small request on your model key.",
+    // An account with no keys whose check the deployment made: an
+    // administrator it funds, or a newcomer on a trial assessment.
+    lede_funded: "Papers, patents and market sources will be searched with these terms. "
+      + "Edit them if the topic was read wrongly. "
+      + "This check was paid for by this site, not with a key of yours, and does not use a daily run.",
     search_topic: "Search phrase",
     aliases: "Also searched as",
     components: "Parts searched separately",
@@ -400,6 +443,7 @@ const PLAN_STRINGS = {
     title: "开始前确认检索方向",
     lede: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改；这一步不占用每日运行次数。",
     lede_own: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改。这一步用你的模型密钥发了一次很小的请求。",
+    lede_funded: "系统将用以下检索词查找论文、专利和市场资料。如果理解有误，可以直接修改。这一步的费用由本站承担，没有使用你的密钥，也不占用每日运行次数。",
     search_topic: "检索词",
     aliases: "同时检索",
     components: "分别检索的组成部分",
@@ -546,7 +590,9 @@ export function failureText({ error, error_code, funded_by } = {}) {
  * only from the API's launch-time record: an old run without one, or a
  * damaged one, gets the reason alone rather than a guess.
  */
-export function outcomeSummary({ state, error, error_code, funded_by, daily_charge, checkpointing } = {}) {
+export function outcomeSummary({
+  state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing,
+} = {}) {
   if (!["failed", "timeout", "cancelled"].includes(state)) return "";
   const parts = [];
   const reason = failureText({ error, error_code, funded_by });
@@ -558,7 +604,9 @@ export function outcomeSummary({ state, error, error_code, funded_by, daily_char
       parts.push(headerLabel("outcome_charged_resume"));
     }
   } else if (daily_charge === "refunded") {
-    parts.push(headerLabel("outcome_refunded"));
+    // A refund recorded before reasons were keeps the sentence it always had.
+    parts.push(headerLabel(daily_charge_reason === "provider_unreachable"
+      ? "outcome_refunded_unreachable" : "outcome_refunded"));
   } else if (daily_charge === "not_charged") {
     parts.push(headerLabel("outcome_not_charged"));
   }

@@ -23,6 +23,9 @@ Current code-owned policy:
 |---|---:|---|
 | API hard watchdog | 1,800 seconds | Last-resort process termination; unchanged |
 | One provider attempt | 150 seconds | Bounds the OpenAI-compatible transport |
+| One report-writer attempt | 300 seconds | The writer's ordinary 5,000–6,500-token answer does not fit 150; its deadline is unchanged |
+| Silence inside a streamed answer | 60 seconds | Every crew node streams; the SDK timeout bounds the wait for one chunk, so a dead connection surfaces in a minute instead of after a whole window |
+| Attempts per call | 3; 5 on a streamed node | A failed streamed attempt costs its per-chunk bound, not a whole window, so the same run time affords more; each attempt still needs its full window to begin |
 | Reviewer reserve | 240 seconds | Leaves room for validated-draft fallback and Scorer |
 | Other paid-node reserve | 60 seconds | Leaves room for usage, audits, status and terminal writes |
 
@@ -33,6 +36,44 @@ retries are set to zero inside API workers, and another visible retry is refused
 unless its backoff plus a complete request window still fit. A code-owned
 `RunDeadlineExceeded` is not classified as a transport failure and is never
 retried.
+
+Every provider attempt, returned or not, is written to `steps.jsonl` as an
+`llm_attempt` row: the agent, the attempt number, its outcome (`returned`,
+`timeout`, `error`, or `adapted` for a refused parameter resent at once), its
+duration and whether a retry followed. The retry notice goes to stderr, which
+the API keeps as `process.log`. Usage counts successful requests only, so these
+rows are the only record of an attempt the transport killed. They were added
+after the 2026-11-08 production run whose writer stage took 282 seconds for a
+6,487-token answer with usage showing one request: one killed 150-second
+attempt and one that finished, with nothing on the volume to say so.
+
+The first run with those rows (2026-11-09) settled what the stalls were: the
+writer's first two attempts hung for 302 and 312 seconds and the third returned
+in 95; the scorer hung 160 seconds and then returned in 27. Not slow generation
+but a connection that stops delivering. Every crew node therefore streams its
+answer. The planning windows above are unchanged (they say how long a healthy
+attempt may take); the SDK timeout now bounds the wait for one chunk, sixty
+seconds, and the project wrapper is the only retry owner on every path, CLI
+included, since a hidden SDK resend of a stalled stream would be billed and
+absent from the record. CrewAI 1.14.7 asks for usage in the final chunk when
+it streams, so the accounting seam is unchanged. Each row also carries `call`,
+the sequence of calls on that node: a guardrail retry is a new call whose
+attempts start at 1 again, which is how it is told from a transport retry.
+
+The first production run on streamed calls (2026-11-09, 343 seconds against
+1,072 the run before) failed five of eleven attempts in one pattern: a stream
+silent for 60 seconds was cut, the retry two seconds later failed with a
+connection error in 15–18 seconds, and the attempt after that returned. The
+writer and the reviewer each used all three attempts. Two things changed.
+Before a transport retry the wrapper rebuilds the provider's SDK client, so
+the resend opens a new connection instead of reusing the pool that held the
+one which had just died; the SDK's `with_options` copies a client but shares
+its pool, which is why it is a rebuild and not a copy, and a provider that
+cannot rebuild keeps its client and retries anyway. And a streamed node may
+make five attempts where a plain one makes three: a failed streamed attempt
+costs about a minute, a failed plain one its whole window. More attempts add
+no time back: every attempt, the fourth and fifth included, is refused unless
+its backoff plus a full window still fit before the stage deadline.
 
 The 240-second reserve is operational policy, not an SLO. It was selected from
 an observed 102-second Writer/Reviewer/Scorer recovery suffix and must be

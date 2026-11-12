@@ -23,7 +23,14 @@ from api import access
 from api.main import app
 
 _REPO = Path(__file__).resolve().parent.parent
-_ORIGIN = "https://academic-commercialization-agent.up.railway.app"
+# The address a visitor is given. The deployment has answered at it since
+# 2026-11-07; until 2026-11-12 the cards, both READMEs and AGENTS.md still named
+# the address Railway issued, so a shared link showed one host and opened on
+# another. The Railway address still answers, and the workflows that ask Railway
+# whether a deploy arrived keep reading it: that question should not depend on a
+# DNS record.
+_ORIGIN = "https://academic-agent.cc"
+_RAILWAY_HOST = "up.railway.app"
 # Route a crawler fetches → the URL its og:url must name.
 _PAGES = {"/": f"{_ORIGIN}/", "/samples": f"{_ORIGIN}/samples"}
 _REQUIRED = (
@@ -106,6 +113,51 @@ class SharePreviewTests(unittest.TestCase):
                 width, height = _png_size(response.content)
                 self.assertEqual(tags["og:image:width"], [str(width)])
                 self.assertEqual(tags["og:image:height"], [str(height)])
+
+    def test_no_tag_of_a_page_names_another_host(self):
+        """One host for the whole card: a crawler that reads the page at one
+        address and the picture at another shows whichever it trusts."""
+        for route in _PAGES:
+            tags = self._served_tags(route)
+            for key, values in tags.items():
+                for value in values:
+                    if "://" not in value:
+                        continue
+                    with self.subTest(route=route, tag=key):
+                        self.assertTrue(value.startswith(f"{_ORIGIN}/"), value)
+
+    def test_the_documents_a_visitor_follows_name_the_address_of_the_cards(self):
+        """The README's links are where most visitors start. They, the demo
+        script's closing link and the line an assistant reads in AGENTS.md give
+        the address the cards do."""
+        for name in ("README.md", "README.zh-CN.md"):
+            text = (_REPO / name).read_text(encoding="utf-8")
+            with self.subTest(document=name):
+                self.assertNotIn(_RAILWAY_HOST, text)
+                # The sample reader twice (the first link and the table), the
+                # application twice.
+                self.assertEqual(text.count(f"]({_ORIGIN}/samples)"), 2)
+                self.assertEqual(text.count(f"]({_ORIGIN})"), 2)
+        script = (_REPO / "docs" / "demo-script-90s.md").read_text(encoding="utf-8")
+        self.assertNotIn(_RAILWAY_HOST, script)
+        self.assertIn(f"[live application]({_ORIGIN})", script)
+        agents = (_REPO / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn(f"Live at {_ORIGIN}", agents)
+        # The second address is named there once, as what it is.
+        self.assertEqual(agents.count(_RAILWAY_HOST), 1)
+
+    def test_the_deploy_checks_still_ask_railway_directly(self):
+        """Whether a merge reached production is asked at the address Railway
+        issues, unless the repository variable says otherwise. Moving these to
+        the visitor's address would make a DNS fault read as a missed deploy."""
+        for name in ("deploy-check.yml", "retrieval-health.yml"):
+            text = (_REPO / ".github" / "workflows" / name).read_text(encoding="utf-8")
+            with self.subTest(workflow=name):
+                self.assertIn(
+                    "PRODUCTION_URL: ${{ vars.PRODUCTION_URL || "
+                    f"'https://academic-commercialization-agent.{_RAILWAY_HOST}' }}}}",
+                    text,
+                )
 
 
 if __name__ == "__main__":

@@ -515,7 +515,9 @@ function marketCapSummary(scores, cap) {
     .replace("{to}", () => String(cap.post_cap_score));
 }
 
-function renderScorecard(scores, sources = null) {
+// Exported for the sample reader, which shows a committed run's scorecard with
+// no source registry behind it (sources stays null there).
+export function renderScorecard(scores, sources = null) {
   const wrap = el("section", "scorecard");
   if (!detailRecord(scores)) { wrap.append(detailUnavailable()); return wrap; }
   const overall = scores.overall_score;
@@ -708,10 +710,53 @@ function citedText(text) {
 // the saved reports; it describes the report, not the technology.
 const METHOD_OPENER = /^(?:this|the)\s+(?:assessment|report|analysis|document|evaluation)\b|^本(?:报告|评估|分析|文)/iu;
 
+// Where a full stop is not the end of a sentence. Until 2026-11-12 every one
+// was, and the brief's two quoted lines stopped wherever a report wrote a
+// decimal or an abbreviation: "…a global market estimated at USD 5,206." Over
+// the 193 saved runs with a scorecard on the maintainer's machine that cut 33
+// of 374 lines short: 16 inside a number, 9 inside "e.g.", "i.e.", "U.S." or a
+// formula, 7 at a heading's own "A." or "1.", 1 before a closing quotation
+// mark. With the rule below, none of the 33.
+//
+// The rule errs one way only. Where it cannot tell ("…in the U.S. The market…")
+// it keeps two sentences together and the length limit trims them; a line cut
+// inside a sentence reads as a finished claim that the report never made.
+//
+// Abbreviations a sentence does not end on. Case matters: "No. 5" and
+// "Fig. 2" are abbreviations, "no." and "fig." are words.
+const NEVER_ENDS = /(?:^|[\s(\[“"'‘/—-])(?:e\.g|i\.e|vs|cf|et al|approx|ca|Dr|Inc|Ltd|Corp|Co|Nos?|Figs?|U\.S|U\.K)$/;
+// A heading's own number or letter, with nothing before it.
+const LEADING_ENUMERATOR = /^\(?(?:\d{1,2}|[A-Za-z])$/;
+// What may close a sentence after its full stop: the quotation mark or bracket it sits inside.
+const SENTENCE_CLOSERS = /^[)\]"'”’」』）]+/;
+// A word wholly in lower case goes on with the sentence ("etc. and", "vs. the");
+// "mRNA" or "iPSC" starts one.
+const LOWERCASE_WORD = /^\p{Ll}[\p{Ll}'’-]*[,;:]?(?:\s|$)/u;
+
+/** Whether the full stop between `before` and `after` ends a sentence. The
+ * last one of a text needs no answer: what follows it is kept either way. */
+function fullStopEnds(before, after) {
+  if (LEADING_ENUMERATOR.test(before.trim())) return false;
+  // No space after it: a decimal ("52.83%"), "e.g.,", "U.S.-based", "example.com".
+  if (!/^\s/.test(after)) return false;
+  return !LOWERCASE_WORD.test(after.trimStart()) && !NEVER_ENDS.test(before);
+}
+
 function sentencesOf(text) {
   const clean = text.replace(CITATION_RUN, "").replace(/\*\*/g, "").replace(/\s+/g, " ")
     .replace(/\s+([,.;:!?])/g, "$1").replace(/\(\s*\)/g, "").trim();
-  return clean.match(/[^.!?。！？]+[.!?。！？]+|[^.!?。！？]+$/gu)?.map(s => s.trim()).filter(Boolean) ?? [];
+  const sentences = [];
+  let start = 0;
+  for (const match of clean.matchAll(/[.!?。！？]+/gu)) {
+    let end = match.index + match[0].length;
+    end += clean.slice(end).match(SENTENCE_CLOSERS)?.[0].length ?? 0;
+    // Only a lone full stop is in doubt; "?", "…" and the CJK marks always end one.
+    if (match[0] === "." && !fullStopEnds(clean.slice(start, match.index), clean.slice(end))) continue;
+    sentences.push(clean.slice(start, end).trim());
+    start = end;
+  }
+  sentences.push(clean.slice(start).trim());
+  return sentences.filter(Boolean);
 }
 
 function firstSentence(text, { skipMethod = false } = {}) {
@@ -737,15 +782,76 @@ function executiveSummaryLead(markdown) {
   return null;
 }
 
-/** The first list item of the recommendations section, or null. */
+// The writer's contract opens the recommendations by saying what the section
+// is before it recommends anything: "**Assessment Mode**: Orientation." and
+// "**Decision Owner**: Not established." Read as the first item, the first of
+// them was the brief's "first recommended step" for 80 of the 193 saved runs
+// with a scorecard on the maintainer's machine (2026-11-11).
+const RECOMMENDATION_PREAMBLE = /^(?:assessment mode|(?:responsible )?decision (?:owner|context)|评估模式|决策(?:主体|所有者|负责人|背景))/iu;
+// "**Primary Commercialization Route:**" on a line of its own heads the
+// sentence under it; alone it recommends nothing (13 more of the 193). The
+// same heading is also written without its colon. A label is short: a whole
+// paragraph that ends "...is preferred because:" is the recommendation itself.
+const BARE_LABEL = /[:：]$|^(?:primary|preferred)(?: commercialization)? route$|^(?:首选|主要)商业化(?:路线|路径)$/iu;
+const LABEL_LIMIT = 80;
+// What was still shown as the first step after those two rules, over the same
+// 193 runs (2026-11-12), with the public deployment's own run reading "Primary
+// commercialization route (one route, alternatives secondary)." Three more
+// kinds of line that are not a step:
+//
+// A statement about the section or about its evidence, labelled as one
+// ("**GO/NO_GO Status:** Not assessed.", "**Evidence basis:** All nine…").
+// The label must be the whole lead, closed by its own punctuation: "Note the
+// regulatory path…" is a recommendation.
+const SECTION_NOTE = /^(?:mode|go\/no[_-]go status|note|evidence bas(?:is|es|e)|rationale|责任决策者|证据基础|推荐理由)\s*[:：.。]/iu;
+// A label in front of the step, on the step's own line: the route's
+// ("**Primary Commercialization Route**: A partnership…", or written as a
+// sentence with a remark in brackets) and the recommendation's own
+// ("**Recommendation:** Companies could…"). The step is what follows it.
+const LEADING_LABEL = new RegExp("^(?:"
+  + "(?:primary|preferred)(?: commerciali[sz]ation)? route"
+  + "|(?:首选|首要|主要|主导)商业化(?:路线|路径)"
+  + "|recommendations?|analyst inference|建议"
+  + ")(?:\\s*[（(][^（()）]*[）)])?\\s*[:：.。]\\s*", "iu");
+// A line that is one bold span and nothing else, over a list or a run of
+// italic-led entries, is the heading of what is under it ("**5.1 战略机遇**").
+// Over a paragraph it is the recommendation's own title and stays the step.
+// So does a numbered opportunity's title over a list ("**Opportunity 1: Lead-
+// Free Perovskite BIPV**"): what is under it is that opportunity's evidence
+// and reasons, which are no better a step than its name.
+const BOLD_ONLY = /^\*\*[^*]+\*\*$/;
+const LIST_ENTRY = /^(?:[-*]\s|\d+[.)]\s|\*[^*\s])/;
+const NUMBERED_OPPORTUNITY = /^(?:opportunity|机遇|机会|路径)\s*[\d一二三四五六七八九十]+\s*[:：.]/iu;
+
+/** Whether the bold-only line at `index` heads the entries under it. */
+function headsAList(lines, index) {
+  for (let i = index + 1; i < lines.length; i++) {
+    const text = lines[i].trim();
+    if (text) return LIST_ENTRY.test(text);
+  }
+  return false;
+}
+
+/** The first recommendation of the recommendations section, or null. */
 function firstRecommendation(markdown) {
+  const lines = markdown.split(/\r?\n/);  // saved reports carry either line ending
   let inside = false;
-  for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
-    if (/^##\s/.test(line)) { inside = RECOMMENDATION_HEADINGS.test(line); continue; }
-    if (!inside || /^>/.test(line.trim())) continue;
+  let labelled = false;  // the last candidate was only a label: its text is the next line
+  for (const [index, line] of lines.entries()) {
+    if (/^##\s/.test(line)) { inside = RECOMMENDATION_HEADINGS.test(line); labelled = false; continue; }
+    const text = line.trim();
+    // A quotation and a table row are neither a step nor the text a label waits for.
+    if (!inside || !text || /^[>|]/.test(text)) continue;
     // A list item, or a paragraph that opens with a bold heading ("**Opportunity 1: …**").
     const item = line.match(/^\s*(?:[-*]|\d+[.)])\s+(.+)$/) ?? line.match(/^\s*(\*\*.+)$/);
-    if (item) return firstSentence(item[1]) || null;
+    const candidate = item ? item[1] : labelled && !/^#/.test(text) ? text : null;
+    if (!candidate) continue;
+    const whole = candidate.replace(/\*+/g, "").trim();
+    if (RECOMMENDATION_PREAMBLE.test(whole) || SECTION_NOTE.test(whole)) { labelled = false; continue; }
+    const plain = whole.replace(LEADING_LABEL, "");
+    if (!plain || (plain.length <= LABEL_LIMIT && BARE_LABEL.test(plain))) { labelled = true; continue; }
+    if (BOLD_ONLY.test(text) && !NUMBERED_OPPORTUNITY.test(plain) && headsAList(lines, index)) { labelled = true; continue; }
+    return firstSentence(plain) || null;
   }
   return null;
 }
@@ -835,7 +941,10 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
 const fillText = (key, values = {}) => Object.entries(values).reduce(
   (out, [name, value]) => out.replace(`{${name}}`, () => String(value)), t(key));
 
-function renderDecisionBrief(data) {
+/** The brief's node. `note` is the line under it saying what it was built
+ * from: the run page's default names the run's checks and what can be opened
+ * below, and the sample reader, which has neither, says its own. */
+export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
   const wrap = el("section", "brief");
   wrap.dataset.tone = data.band.tone;
   const head = el("div", "brief__head");
@@ -893,7 +1002,7 @@ function renderDecisionBrief(data) {
   }
   changers.append(list);
   wrap.append(changers);
-  wrap.append(el("p", "brief__note", t("brief_note")));
+  wrap.append(el("p", "brief__note", note));
   return wrap;
 }
 

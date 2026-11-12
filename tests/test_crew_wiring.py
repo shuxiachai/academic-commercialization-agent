@@ -91,3 +91,19 @@ def test_final_context_reuses_the_research_tasks(monkeypatch) -> None:
     assert len(reviewer_context) == 4
     assert crew.tasks[3] is reviewer_context[0]   # report draft is first
     assert all(crew.tasks[i] is reviewer_context[i + 1] for i in range(3))  # Tasks 0-2 follow
+
+
+def test_every_crew_node_streams_its_answer(monkeypatch) -> None:
+    """Production 2026-11-09: three of nine provider attempts hung on
+    non-streaming requests (writer 302 s and 312 s, scorer 160 s) while their
+    retries returned in 27-95 s. Every node streams, so a dead connection is
+    caught per chunk; the paper extractor, which runs inline in the API
+    process, is not a crew node and keeps the plain request."""
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-chat")
+    crew = AcademicAgent(_make_collection()).crew()
+
+    assert len(crew.agents) == 6
+    for agent in crew.agents:
+        assert agent.llm.stream is True, agent.role
+        assert agent.llm.timeout == 60.0, agent.role

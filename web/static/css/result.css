@@ -142,6 +142,10 @@
   line-height: var(--leading-relaxed);
 }
 .dim__sources { color: var(--text-tertiary); font-size: var(--text-xs); }
+/* One chip names every source a dimension rests on: two dozen ids for
+   evidence confidence. On one line it is 458px wide, which on a phone pushed
+   the whole page 54px sideways, even with the reason still folded. */
+.dim__sources .cite { white-space: normal; text-align: left; }
 
 /* ── Risks and opportunities ── */
 .notes {
