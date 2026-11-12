@@ -1704,6 +1704,19 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
         own_keys="The model you named stopped at its output limit before finishing an answer. "
                  "Name a model with a larger output limit under API keys, then start again.",
     ),
+    # The second marker is CrewAI's own sentence for it: what a run made
+    # before the wrapper named this recorded, and what any path without the
+    # wrapper still raises. No operator-side wording: an empty answer can be
+    # the model's response to what it was asked, so nobody is told that
+    # nothing in their request caused it.
+    _FailureCategory(
+        "provider_empty_answer",
+        ("returned an answer with no text", "invalid response from llm call - none or empty"),
+        "The model returned no text for a step, three times in a row, so the analysis could not be "
+        "completed. Retry, or use another model.",
+        own_keys="The model you named returned no text for a step, three times in a row. Start again, "
+                 "or name another model under API keys.",
+    ),
     _FailureCategory(
         "timeout",
         _TIMEOUT_FAILURE_MARKERS,

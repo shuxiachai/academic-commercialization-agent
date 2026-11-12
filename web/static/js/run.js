@@ -545,6 +545,8 @@ export function runtimeMetadataSummary(fields = []) {
 const FAILURE_STRINGS = {
   "Simplified Chinese": {
     cancelled: "已按请求取消。",
+    provider_empty_answer: "模型在某一步连续三次没有返回任何文字，分析无法完成。请重试，或换一个模型。",
+    "provider_empty_answer:own_keys": "你填写的模型在某一步连续三次没有返回任何文字。请重新开始，或在“API Key”里换一个模型。",
     provider_output_limit: "模型没写完回答就到了输出上限，分析无法完成。请换用输出上限更大的模型后重试。",
     "provider_output_limit:deployment": "本站所用的模型没写完回答就到了输出上限。这不是你的请求造成的；运营者可以凭运行 ID 查到原因。",
     "provider_output_limit:own_keys": "你填写的模型没写完回答就到了输出上限。请在“API Key”里换一个输出上限更大的模型，然后重新开始。",
