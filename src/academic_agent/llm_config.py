@@ -10,6 +10,7 @@ Provider resolution order:
 """
 
 import functools
+import math
 import os
 import random
 import sys
@@ -382,16 +383,59 @@ def _max_attempts_for(llm) -> int:
     return _STREAM_MAX_ATTEMPTS if getattr(llm, "stream", False) is True else _MAX_ATTEMPTS
 
 
-def _is_rate_limit(exc: BaseException) -> bool:
-    """A refusal that can pass by itself, and the one the wrapper has no wait for.
+# A rate limit is the one refusal that passes by itself. Until 2026-11-12 the
+# wrapper did nothing about one: _is_retryable sends a 429 straight back, and
+# its only second chance was CrewAI running the node again at once, twice,
+# with no wait. A streamed node now waits and asks again, inside the attempts
+# and the run's time it already had.
+#
+# No model call in the saved runs was ever refused this way, so the rules are
+# the providers' own, read that day. Anthropic sends `retry-after`, the
+# seconds to wait. Model Studio names no header and says to retry later, "a
+# few minutes" at most for its per-minute limits; without a figure the waits
+# before the second to fifth attempts are 15, 30, 60 and 60 seconds, which
+# together outlast two of those minutes.
+_RATE_LIMIT_BASE_WAIT_SECONDS = 15.0
+_RATE_LIMIT_MAX_WAIT_SECONDS = 60.0
 
-    _is_retryable sends a 429 straight back to the caller. CrewAI's
-    re-execution of the node is then the only second chance it gets, so a
-    rate limit is not remembered as giving up. Until the wrapper waits for
-    one itself, that is left as it was.
-    """
+# Model Studio answers 429 to these too, and waiting cures none of them: a
+# model's free quota used up, a budget exhausted, a bill overdue, a product
+# not bought. They fail at once, as every 429 did. Its tokens-per-minute
+# limit is worded "insufficient_quota ... check your plan and billing
+# details", as OpenAI words an empty account; the two cannot be told apart
+# here, and it is waited for, since a wait that proves useless costs time
+# and no money.
+_NOT_CURED_BY_WAITING = (
+    "free allocated quota", "freetieronly", "budgetlimitexceeded", "billoverdue", "arrearage",
+    "commoditynotpurchased",
+)
+
+
+def _is_rate_limit(exc: BaseException) -> bool:
     text = f"{type(exc).__name__}: {exc}".lower()
     return "429" in text or "rate limit" in text or "ratelimit" in text
+
+
+def _stated_wait(exc: BaseException) -> float | None:
+    """The seconds a refusal's `retry-after` header asks for, when it is a usable number."""
+    headers = getattr(getattr(exc, "response", None), "headers", None)
+    try:
+        seconds = float(headers.get("retry-after"))
+    except (AttributeError, TypeError, ValueError):
+        return None
+    return seconds if math.isfinite(seconds) and seconds > 0 else None
+
+
+def _rate_limit_wait(exc: BaseException, attempt: int) -> float | None:
+    """Seconds to wait before asking again after a rate limit; None for anything waiting does not cure."""
+    if not _is_rate_limit(exc):
+        return None
+    text = f"{type(exc).__name__}: {exc}".lower()
+    if any(marker in text for marker in _NOT_CURED_BY_WAITING):
+        return None
+    stated = _stated_wait(exc)
+    wait = stated if stated is not None else _RATE_LIMIT_BASE_WAIT_SECONDS * (2 ** (attempt - 1))
+    return min(wait, _RATE_LIMIT_MAX_WAIT_SECONDS)
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -617,6 +661,9 @@ def _wrap_with_retry(llm):
 
         llm._emit_call_completed_event = emit_and_note
     max_attempts = _max_attempts_for(llm)
+    # A plain call does not wait for a rate limit: the paper extractor runs
+    # inside a web request, and a minute's wait there is the visitor's.
+    waits_out_rate_limits = getattr(llm, "stream", False) is True
     base, model = getattr(llm, "base_url", None), getattr(llm, "model", None)
     identity = (base.rstrip("/"), model) if isinstance(base, str) and isinstance(model, str) else None
 
@@ -670,15 +717,19 @@ def _wrap_with_retry(llm):
                     # resend is not a transport retry and keeps the number.
                     report("adapted", started, retry=True, exc=exc)
                     continue
-                outcome = "timeout" if _is_timeout(exc) else "error"
-                if attempt == max_attempts or not _is_retryable(exc):
-                    if not _is_rate_limit(exc):
-                        budget.gave_up = exc
+                wait = _rate_limit_wait(exc, attempt)
+                if wait is not None:
+                    outcome, again = "rate_limited", waits_out_rate_limits
+                else:
+                    outcome, again = "timeout" if _is_timeout(exc) else "error", _is_retryable(exc)
+                if attempt == max_attempts or not again:
+                    budget.gave_up = exc
                     report(outcome, started, retry=False, exc=exc)
                     raise
-                # Jitter so six agents recovering from one outage do not all
-                # return at the same instant.
-                delay = _BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+                # Jitter so six agents recovering from one outage, or held
+                # back by one limit, do not all return at the same instant.
+                # It only adds: never less than a provider asked for.
+                delay = wait if wait is not None else _BASE_DELAY_SECONDS * (2 ** (attempt - 1))
                 delay += random.uniform(0, delay * 0.25)
                 try:
                     budget.require_window(delay_seconds=delay)
@@ -689,6 +740,17 @@ def _wrap_with_retry(llm):
                     report(outcome, started, retry=False, exc=exc)
                     raise deadline_error from exc
                 report(outcome, started, retry=True, exc=exc)
+                if wait is not None:
+                    # A rate limit says nothing against the connection it
+                    # arrived on, so the client is kept.
+                    print(
+                        f"[llm] {budget.stage}: rate limited on attempt "
+                        f"{attempt}/{max_attempts}; asking again in {delay:.1f}s",
+                        file=sys.stderr, flush=True,
+                    )
+                    time.sleep(delay)
+                    attempt += 1
+                    continue
                 reconnected = _reconnect(llm, budget.stage)
                 # stderr, not stdout: the API worker's stdout is discarded and
                 # its stderr is kept as process.log (api/runs.py). On stdout

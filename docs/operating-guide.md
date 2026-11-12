@@ -711,10 +711,25 @@ key into three requests and a connection that timed out every time into
 fifteen attempts instead of five. Once a call has used up its attempts, has
 no time left for another, was refused outright, or had its answer cut, the
 node raises the same error without sending anything, and `process.log` says
-`[llm] <node>: not asked again after <error>`. Two cases still get CrewAI's
+`[llm] <node>: not asked again after <error>`. One case still gets CrewAI's
 second run: an answer with no text, which the wrapper does not treat as an
-error, and a rate limit (429), which the wrapper does not retry and has no
-wait for.
+error.
+
+A rate limit (429) is waited out. A streamed node, which every crew node
+is, waits the seconds the provider's `retry-after` header gives (Anthropic
+sends one; at most 60 are honoured) or, without a figure, 15, 30, 60 and 60
+seconds before its second to fifth attempts, then asks again on the same
+connection. The attempt row's `outcome` is `rate_limited` and `process.log`
+says `[llm] <node>: rate limited on attempt N/5; asking again in Ns`. The
+waits come out of the run's time: a run without room for one stops with the
+rate limit as its cause. A 429 that waiting does not cure is not waited
+for: a model's free quota used up, a budget exhausted, a bill overdue, a
+product not bought (Model Studio's `Free allocated quota exceeded`,
+`BudgetLimitExceeded`, `...BillOverdue`, `Arrearage`,
+`CommodityNotPurchased`). A plain call, which the paper extractor makes
+inside a web request, does not wait either. No model call in the saved runs
+was ever rate-limited, so these rules are the providers' documented ones
+and have not met a real refusal.
 
 An attempt whose `outcome` is `cut` is an answer the provider ended at its
 output limit (stop reason `length`, or `max_tokens` on Anthropic; DeepSeek's
