@@ -464,7 +464,7 @@ class WhatIsSaidAndHowOftenTests(_Case):
         self.assertEqual(set(alerts._FAILURES), set(runs.OPERATOR_FAILURE_CODES))
         self.assertEqual(runs.OPERATOR_FAILURE_CODES, {
             "provider_auth", "provider_free_quota", "provider_billing",
-            "provider_model_unavailable", "provider_request_rejected"})
+            "provider_model_unavailable", "provider_request_rejected", "provider_output_limit"})
         with TestClient(main.app) as client:
             stages = {name for name in client.get("/health").json()["maintenance"]["checks"]
                       if not name.startswith("source_locator")}

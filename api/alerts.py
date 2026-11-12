@@ -124,6 +124,7 @@ _FAILURES = {
     "provider_billing": "部署方的模型服务商账户无法扣费",
     "provider_model_unavailable": "部署方的密钥不能使用所设置的模型",
     "provider_request_rejected": "所设置的模型拒绝了请求",
+    "provider_output_limit": "所设置的模型没写完回答就到了输出上限",
 }
 LOOP_STOPPED = "maintenance:loop"
 

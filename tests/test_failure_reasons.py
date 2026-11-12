@@ -91,5 +91,75 @@ class FailureWordingTests(unittest.TestCase):
                 self.assertEqual(runs._funded_by(run_dir), expected, owner)
 
 
+class CutAnswerFailureTests(unittest.TestCase):
+    """A run that failed because a provider cut an answer says so, to each reader.
+
+    Before, such a run failed as "quality_checks" or "provider_response_format"
+    after paying for the cut answer two or three times, or did not fail."""
+
+    def _raw(self, stage="Technology Commercialization Report Writer", reason="length") -> str:
+        from academic_agent.llm_config import AnswerCutError
+        from academic_agent.pipeline_worker import _error_text
+        return _error_text(AnswerCutError(stage, reason))
+
+    def test_each_reader_is_told_the_model_ran_out_of_room(self):
+        for reason in ("length", "max_tokens"):
+            for funded_by, phrase in ((None, "larger output limit"), ("deployment", "the operator"),
+                                      ("own_keys", "under API keys")):
+                with self.subTest(reason=reason, funded_by=funded_by):
+                    code, sentence = runs._public_failure(self._raw(reason=reason), funded_by=funded_by)
+                    self.assertEqual(code, "provider_output_limit")
+                    self.assertIn("output limit", sentence)
+                    self.assertIn(phrase, sentence)
+
+    def test_it_is_the_operators_to_fix_on_the_deployments_keys(self):
+        self.assertIn("provider_output_limit", runs.OPERATOR_FAILURE_CODES)
+
+    def test_no_other_category_claims_it_first(self):
+        # Whatever a node is called, and whatever the framework writes around the error.
+        for raw in (
+            self._raw(stage="Guardrail timeout checker"),
+            self._raw(stage="invalid json rate limit validated sources"),
+            "Task failed guardrail validation: " + self._raw(),
+            self._raw() + " (caused by JSONDecodeError: invalid json)",
+        ):
+            with self.subTest(raw=raw[:60]):
+                self.assertEqual(runs._public_failure(raw)[0], "provider_output_limit")
+
+    def test_the_failures_it_sits_beside_are_read_as_before(self):
+        for raw, code in (
+            ("Request timed out.", "provider_unreachable"),
+            ("RunDeadlineExceeded: deadline exceeded with 12 s left", "timeout"),
+            ("Task failed guardrail validation after 1 retries", "quality_checks"),
+            ("JSONDecodeError: invalid json", "provider_response_format"),
+            ("Error code: 429 - rate limit reached", "provider_rate_limited"),
+            ("the output limit was mentioned by a model", "unknown"),
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(runs._public_failure(raw)[0], code)
+
+    def test_the_api_documents_the_code_wherever_it_lists_the_others(self):
+        from api import models
+        listed = 0
+        for model in (getattr(models, name) for name in dir(models)):
+            fields = getattr(model, "model_fields", None) or {}
+            description = getattr(fields.get("error_code"), "description", "") or ""
+            if "provider_auth" in description:
+                listed += 1
+                for category in runs._PUBLIC_FAILURE_CATEGORIES:
+                    self.assertIn(category.code, description, model.__name__)
+        self.assertGreaterEqual(listed, 2)
+
+    def test_the_operating_guide_lists_every_cause_that_is_the_operators(self):
+        guide = (_RUN_JS.parents[3] / "docs" / "operating-guide.md").read_text(encoding="utf-8")
+        start = guide.index("The operator's reasons are the codes")
+        listed = set(re.findall(r"`([a-z_]+)`", guide[start:guide.index(":", start)]))
+        self.assertEqual(listed, set(runs.OPERATOR_FAILURE_CODES))
+
+    def test_an_attempt_that_was_cut_is_a_documented_outcome(self):
+        from api import models
+        self.assertIn("cut", models.StepEvent.model_fields["outcome"].description)
+
+
 if __name__ == "__main__":
     unittest.main()

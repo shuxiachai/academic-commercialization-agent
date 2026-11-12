@@ -1688,6 +1688,22 @@ _UNREACHABLE_MESSAGE = "An upstream service could not be reached. Retry later."
 _TRANSPORT_CUT_MARKERS = ("request timed out", "apitimeouterror", "apiconnectionerror")
 
 _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
+    # First, so that nothing written around it is read instead: the marker is
+    # the worker's own sentence (llm_config.AnswerCutError), which begins with
+    # the node's name and can sit inside a framework message. Before
+    # 2026-11-12 a cut answer was not a failure at all; where it did fail a
+    # run, it was as "quality_checks" or "provider_response_format", after
+    # the cut answer had been paid for two or three times.
+    _FailureCategory(
+        "provider_output_limit",
+        ("answer was cut at the model's output limit",),
+        "The model stopped at its output limit before finishing an answer, so the analysis "
+        "could not be completed. Use a model with a larger output limit, then retry.",
+        deployment="The model this deployment uses stopped at its output limit before finishing "
+                   "an answer." + _OPERATOR_SIDE,
+        own_keys="The model you named stopped at its output limit before finishing an answer. "
+                 "Name a model with a larger output limit under API keys, then start again.",
+    ),
     _FailureCategory(
         "timeout",
         _TIMEOUT_FAILURE_MARKERS,
