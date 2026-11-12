@@ -194,7 +194,7 @@ def _main_spa_navigation(browser, base, faults, *, proxy=False, old_link=False):
               "/static/brand/aca-mark.svg",
               *(f"/static/js/{name}.js" for name in
                 ("app", "api", "run", "sidebar", "result", "i18n", "topic", "paid_receipts",
-                 "samples_links", "samples_i18n", "byok_fields", "chrome", "gate_focus", "starters",
+                 "samples_links", "samples_i18n", "byok_fields", "chrome", "theme", "gate_focus", "starters",
                  "decision_context", "compare")),
               *(f"/static/css/{name}.css" for name in ("tokens", "base", "workbench", "result", "landing")),
               *(f"/source-locator-static/{name}" for name in
