@@ -3,7 +3,10 @@
 The pipeline adds optional parameters that not every model accepts:
 - Qwen's ``enable_thinking: false``, the non-thinking mode, which is faster, cheaper and the JSON default;
 - ``response_format: json_object``;
-- ``temperature``.
+- ``temperature``;
+- ``max_tokens``, which Anthropic requires and which is sent large enough for a
+  report (llm_config.ANTHROPIC_STREAM_MAX_TOKENS). A model whose own output
+  limit is lower refuses the request and names that limit.
 
 On 2026-10-23 production moved to qwen3.7-max-preview, a model that only runs
 in thinking mode. It answered every call with HTTP 400 "The value of the
@@ -24,8 +27,12 @@ one naming a value we already send. Each parameter is changed at most once.
 
 from __future__ import annotations
 
+import re
 import threading
 
+# The parameters the language helper's small requests carry and may have to
+# change. max_tokens is adapted too, but only on the agents' own calls: the
+# helper asks for a few hundred tokens, far under any model's limit.
 PARAMETERS = ("enable_thinking", "response_format", "temperature")
 
 
@@ -66,7 +73,31 @@ def adjustment(message: str, sent: dict[str, object]) -> tuple[str, object] | No
         return "response_format", OMIT
     if "temperature" in text and "temperature" in sent:
         return "temperature", OMIT
+    if "max_tokens" in text and "max_tokens" in sent:
+        allowed = _allowed_output_tokens(text, sent["max_tokens"])
+        return None if allowed is None else ("max_tokens", allowed)
     return None
+
+
+# A number standing on its own, not a part of a model name or a version.
+_WHOLE_NUMBER = re.compile(r"(?<![\w.-])\d+(?![\w.-])")
+# Nothing smaller is an output limit; the status code and small counts are below it.
+_SMALLEST_OUTPUT_LIMIT = 1024
+
+
+def _allowed_output_tokens(text: str, asked: object) -> int | None:
+    """The output limit a refusal names, when it is below the one asked for.
+
+    Anthropic answers "max_tokens: 64000 > 32000, which is the maximum allowed
+    number of output tokens for <model>". The limit is read as the largest
+    whole number under what was asked, so another wording of the same
+    refusal is understood, and a refusal naming no such number changes nothing.
+    """
+    if not isinstance(asked, int) or isinstance(asked, bool):
+        return None
+    named = [int(number) for number in _WHOLE_NUMBER.findall(text)]
+    lower = [number for number in named if _SMALLEST_OUTPUT_LIMIT <= number < asked]
+    return max(lower) if lower else None
 
 
 def learned(base_url: str, model: str) -> dict[str, object]:
@@ -89,6 +120,11 @@ def apply_to_payload(payload: dict, changes: dict[str, object]) -> None:
     for parameter, value in changes.items():
         if value is OMIT:
             payload.pop(parameter, None)
+        elif parameter == "max_tokens":
+            # A learned limit is a ceiling: it lowers a larger request and
+            # leaves the helper's few hundred tokens as they are.
+            if isinstance(payload.get(parameter), int):
+                payload[parameter] = min(payload[parameter], value)
         else:
             payload[parameter] = value
 

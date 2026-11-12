@@ -46,6 +46,24 @@ _QWEN_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 # moved on, and a BYOK visitor's key was billed for a model they never named.
 # The operator sets the provider's model variable; a BYOK caller names one.
 
+# Anthropic's Messages API requires max_tokens, so CrewAI's Anthropic provider
+# always sends one, and its default is 4096. Until 2026-11-12 nothing here set
+# it. The report writer's answer is the report: of 436 saved on the
+# maintainer's machine, 391 are longer than 4096 tokens by an OpenAI tokenizer
+# (median 5,868, longest 13,506; Anthropic's counts run higher), and the
+# current Claude models spend part of the same allowance on thinking, which
+# cannot be turned off on several of them. No run had gone through Anthropic,
+# so nothing had shown it. The other providers send no limit and get the
+# model's own.
+#
+# A streamed call is bounded per chunk, so it can ask for the room; a plain
+# call waits for the whole answer inside one HTTP timeout and asks for less.
+# Both are Anthropic's own suggested defaults. A model whose limit is lower
+# refuses the request and names its limit: llm_parameter_fallback lowers ours
+# to it and the call is sent again.
+ANTHROPIC_STREAM_MAX_TOKENS = 64_000
+ANTHROPIC_MAX_TOKENS = 16_000
+
 # Providers that support response_format={"type": "json_object"}.
 # Anthropic does not — it relies on prompt instructions + guardrail validation.
 _JSON_MODE_PROVIDERS = {"deepseek", "qwen", "openai"}
@@ -308,6 +326,9 @@ def _sent_parameters(llm) -> dict[str, object]:
         sent["response_format"] = llm.response_format
     if getattr(llm, "temperature", None) is not None:
         sent["temperature"] = llm.temperature
+    limit = getattr(llm, "max_tokens", None)
+    if isinstance(limit, int) and not isinstance(limit, bool):
+        sent["max_tokens"] = limit
     return sent
 
 
@@ -329,6 +350,13 @@ def _apply_parameter(llm, parameter: str, value: object) -> None:
         llm.response_format = None
     elif parameter == "temperature":
         llm.temperature = None
+    elif parameter == "max_tokens":
+        # A ceiling, learned from one call of this model: it lowers a larger
+        # limit and never raises a smaller one. A provider that sends none
+        # (every one but Anthropic) keeps sending none.
+        current = getattr(llm, "max_tokens", None)
+        if isinstance(current, int) and not isinstance(current, bool) and isinstance(value, int):
+            llm.max_tokens = min(current, value)
 
 
 # A model that cannot turn thinking off reasons before every answer. On
@@ -647,6 +675,8 @@ def create_llm(
 
     if json_mode and logical_provider in _JSON_MODE_PROVIDERS:
         kwargs["response_format"] = {"type": "json_object"}
+    if logical_provider == "anthropic":
+        kwargs["max_tokens"] = ANTHROPIC_STREAM_MAX_TOKENS if stream else ANTHROPIC_MAX_TOKENS
 
     if temperature is not None:
         kwargs["temperature"] = temperature
