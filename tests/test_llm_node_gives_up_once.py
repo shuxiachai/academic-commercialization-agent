@@ -16,11 +16,11 @@ seconds and the backoff between them), so a run could take sixteen minutes to
 say what it knew after five. The production run of 2026-11-09 that was
 cancelled at 728 seconds had made seven attempts on its writer.
 
-Two things stay as they were. An answer with no text is not an error to the
+One thing stays as it was. An answer with no text is not an error to the
 wrapper; CrewAI raises on it and runs the node again, and that is the only
-retry such an answer has. A rate limit (429) is not retried by the wrapper at
-all, so CrewAI's re-execution is the only second chance it gets; it is left
-alone until the wrapper has a wait of its own for it.
+retry such an answer has. A rate limit was the other exception at first,
+because the wrapper did not retry one at all; it now waits one out itself
+(tests/test_llm_rate_limit_wait.py) and is given up on like anything else.
 
 The provider objects are the real ones, built with made-up keys. Each HTTP
 request is counted and answered here; nothing is sent, and no backoff is slept.
@@ -147,14 +147,13 @@ class TestThroughCrewAI:
         assert provider.requests == 2
         assert by_call(attempts) == {1: ["returned"], 2: ["returned"]}
 
-    def test_a_rate_limit_keeps_the_second_chances_crewai_gives_it(self, provider, attempts):
-        """The wrapper does not retry a 429 and has no wait for one, so this is left as it was."""
+    def test_a_rate_limit_is_waited_out_inside_the_call_not_by_starting_the_node_over(self, provider, attempts):
         provider.answers = ["rate", "ok"]
 
         assert ANSWER in str(run_one_node())
 
         assert provider.requests == 2
-        assert by_call(attempts) == {1: ["error"], 2: ["returned"]}
+        assert by_call(attempts) == {1: ["rate_limited", "returned"]}
 
 
 class _StandIn:
@@ -226,20 +225,6 @@ class TestTheWrapperItself:
         # The cause is what the API reads to say the provider was unreachable.
         assert second.value is first.value and isinstance(second.value.__cause__, TimeoutError)
         assert provider.asked == 1
-
-    @pytest.mark.parametrize("refusal", [
-        RuntimeError("Error code: 429 - {'error': {'message': 'Too many requests.'}}"),
-        RuntimeError("The rate limit for requests per minute was reached."),
-        type("RateLimitError", (Exception,), {})("Too many requests."),
-    ], ids=["status", "words", "class"])
-    def test_a_rate_limit_is_not_remembered(self, attempts, refusal):
-        provider = _StandIn([refusal, "the answer"])
-        llm = _wrap_with_retry(provider)
-        with pytest.raises(type(refusal)):
-            llm.call(MESSAGES)
-
-        assert llm.call(MESSAGES) == "the answer"
-        assert by_call(attempts) == {1: ["error"], 2: ["returned"]}
 
     def test_a_failure_recovered_inside_the_attempts_leaves_the_node_usable(self, attempts):
         provider = _StandIn([timed_out(), "a draft", "a second draft"])
