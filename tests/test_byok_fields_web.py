@@ -133,3 +133,39 @@ def test_the_guide_sits_under_the_model_field_and_both_languages_can_say_it():
     keys = set(re.findall(r"^\s+(\w+):", english, re.M)) - {"English"}
     assert {"model_measured", "model_unmeasured", "model_chip_measured", "model_chip_plain"} <= keys
     assert keys == set(re.findall(r"^\s{4}(\w+):", chinese, re.M))
+
+
+# Each README's measured-results section, and how it writes a figure there.
+_README_FIGURE = {
+    "README.md": ("### Measured results", r"\*\*{in_range}/{runs} (?:runs fell )?in range\*\*"),
+    "README.zh-CN.md": ("### 实测结果", r"\*\*{runs} 次(?:运行)?中 {in_range} 次落在区间内\*\*"),
+}
+
+
+def test_the_readmes_and_the_evidence_status_state_every_figure_the_form_shows():
+    """The form shows a visitor four models and what each did on held-out
+    topics. On 2026-11-12 the READMEs reported two of them and closed with
+    "No held-out cohort has measured those models", about the very models the
+    form had figures for. One set of figures, said in every place that says
+    any: a row added to the form without its sentence here fails."""
+    rows = [row for provider_rows in measured_rows(_SOURCE.read_text(encoding="utf-8")).values()
+            for row in provider_rows]
+    for name, (heading, figure) in _README_FIGURE.items():
+        text = (_REPO / name).read_text(encoding="utf-8")
+        measured = text[text.index(heading):]
+        # A result's file name carries its date; the sentence has to say it too.
+        prose = re.sub(r"\]\([^)]*\)", "]", measured)
+        for row in rows:
+            document, _ = _STATED_IN[row["model"]]
+            assert f"`{row['model']}`" in measured, (name, row)
+            assert row["date"] in prose, (name, row)
+            assert re.search(figure.format(in_range=row["inRange"], runs=row["runs"]), measured), (name, row)
+            assert f"](docs/{document})" in measured, (name, row)
+        assert "No held-out cohort has measured" not in text
+        assert "都没有经过留出集测量" not in text
+    status = (_REPO / "docs" / "evidence-status.md").read_text(encoding="utf-8")
+    for row in rows:
+        document, _ = _STATED_IN[row["model"]]
+        assert f"`{row['model']}`" in status, row
+        assert f"**{row['inRange']}/{row['runs']} " in status, row
+        assert f"]({document})" in status, row
