@@ -354,11 +354,16 @@ class _CallBudget:
     #: Calls made through this node so far. A guardrail retry is a new call
     #: whose attempts start at 1 again; the sequence tells the two apart.
     calls: int = 0
-    #: The stop reason of the answer the provider cut on this node, once one
-    #: was. The node is not asked again: CrewAI re-executes a task whose
-    #: agent raised, up to twice, and the same prompt at the same limit is
-    #: the same cut answer, billed again. An instance is one node of one run.
-    cut: str | None = None
+    #: The error a call on this node ended with, once the wrapper gave up on
+    #: one: its attempts were used up, the run had no time for another, the
+    #: provider refused the request outright, or the answer was cut. The node
+    #: is then not asked again. CrewAI re-executes a task whose agent raised
+    #: (Agent.max_retry_limit is 2 and is never reset), and the wrapper did
+    #: not know: a rejected key was sent three times, and a connection that
+    #: timed out every time got fifteen attempts where _STREAM_MAX_ATTEMPTS
+    #: says five, which on a silent link is sixteen minutes to report what
+    #: was known after five and a half. An instance is one node of one run.
+    gave_up: BaseException | None = None
 
     def require_window(self, *, delay_seconds: float = 0.0) -> None:
         if self.deadline_monotonic is None:
@@ -375,6 +380,18 @@ class _CallBudget:
 def _max_attempts_for(llm) -> int:
     """How many provider attempts one call on this node may make."""
     return _STREAM_MAX_ATTEMPTS if getattr(llm, "stream", False) is True else _MAX_ATTEMPTS
+
+
+def _is_rate_limit(exc: BaseException) -> bool:
+    """A refusal that can pass by itself, and the one the wrapper has no wait for.
+
+    _is_retryable sends a 429 straight back to the caller. CrewAI's
+    re-execution of the node is then the only second chance it gets, so a
+    rate limit is not remembered as giving up. Until the wrapper waits for
+    one itself, that is left as it was.
+    """
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return "429" in text or "rate limit" in text or "ratelimit" in text
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -605,8 +622,14 @@ def _wrap_with_retry(llm):
 
     @functools.wraps(inner)
     def call_with_retry(*args, **kwargs):
-        if budget.cut is not None:
-            raise AnswerCutError(budget.stage, budget.cut)
+        if budget.gave_up is not None:
+            # stderr for the same reason as the retry notice below.
+            print(
+                f"[llm] {' '.join(budget.stage.split())}: not asked again after "
+                f"{type(budget.gave_up).__name__}",
+                file=sys.stderr, flush=True,
+            )
+            raise budget.gave_up
         if identity is not None:
             for parameter, value in parameter_fallback.learned(*identity).items():
                 _apply_parameter(llm, parameter, value)
@@ -649,6 +672,8 @@ def _wrap_with_retry(llm):
                     continue
                 outcome = "timeout" if _is_timeout(exc) else "error"
                 if attempt == max_attempts or not _is_retryable(exc):
+                    if not _is_rate_limit(exc):
+                        budget.gave_up = exc
                     report(outcome, started, retry=False, exc=exc)
                     raise
                 # Jitter so six agents recovering from one outage do not all
@@ -660,6 +685,7 @@ def _wrap_with_retry(llm):
                 except RunDeadlineExceeded as deadline_error:
                     # Keep the transport error as causal context while making
                     # the actionable failure type visible to Reviewer fallback.
+                    budget.gave_up = deadline_error
                     report(outcome, started, retry=False, exc=exc)
                     raise deadline_error from exc
                 report(outcome, started, retry=True, exc=exc)
@@ -678,9 +704,9 @@ def _wrap_with_retry(llm):
             else:
                 cut = _cut_reason(stopped["reason"], stopped["usage"], getattr(llm, "max_tokens", None))
                 if cut is not None:
-                    budget.cut = cut
+                    budget.gave_up = AnswerCutError(budget.stage, cut)
                     report("cut", started, retry=False, exc=None)
-                    raise AnswerCutError(budget.stage, cut)
+                    raise budget.gave_up
                 report("returned", started, retry=False, exc=None)
                 return result
 
@@ -794,8 +820,11 @@ def create_llm(
         # the wait for one chunk: a dead connection shows in a minute, where
         # a plain request waited out its whole window (2026-11-09: 302, 312
         # and 160 seconds, retried in 27-95). The wrapper stays the only
-        # retry owner on every path, CLI included: a hidden SDK resend of a
-        # stalled stream would be billed and absent from the attempt record.
+        # owner of a request's retries on every path, CLI included: a hidden
+        # SDK resend of a stalled stream would be billed and absent from the
+        # attempt record. CrewAI running the whole node again after the
+        # wrapper has given up is another layer; _CallBudget.gave_up is
+        # where that one is stopped.
         kwargs["stream"] = True
         kwargs["timeout"] = float(STREAM_IDLE_TIMEOUT_SECONDS)
         kwargs["max_retries"] = 0

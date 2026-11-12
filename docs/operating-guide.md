@@ -705,6 +705,17 @@ go to stderr, which the API keeps as `process.log` in the run directory.
 Each row's `call` counts the calls on that node; a guardrail retry is a new
 call whose attempts start at 1 again.
 
+A call the wrapper gave up on is the node's last. CrewAI runs a task again
+when its agent raised, up to twice in a run, which used to turn a rejected
+key into three requests and a connection that timed out every time into
+fifteen attempts instead of five. Once a call has used up its attempts, has
+no time left for another, was refused outright, or had its answer cut, the
+node raises the same error without sending anything, and `process.log` says
+`[llm] <node>: not asked again after <error>`. Two cases still get CrewAI's
+second run: an answer with no text, which the wrapper does not treat as an
+error, and a rate limit (429), which the wrapper does not retry and has no
+wait for.
+
 An attempt whose `outcome` is `cut` is an answer the provider ended at its
 output limit (stop reason `length`, or `max_tokens` on Anthropic; DeepSeek's
 own API does not deliver the reason for a streamed answer, and there a cut
