@@ -565,8 +565,8 @@ class DecisionBriefTests(unittest.TestCase):
         route = "A partnership-based integration strategy is preferred over competing on sensor hardware."
         opening = ("**Assessment Mode**: Orientation. A GO/NO-GO decision is not assessed.\n\n"
                    "**Decision Owner**: Not established. No actor has been identified.\n\n")
-        self.assertEqual(self._next(opening + f"**Primary Commercialization Route**: {route} More follows."),
-                         f"Primary Commercialization Route: {route}")
+        # The label over the route is not part of the step either (2026-11-12).
+        self.assertEqual(self._next(opening + f"**Primary Commercialization Route**: {route} More follows."), route)
         # Each spelling of the opening that the saved reports carry.
         for mode in ("**Assessment Mode: ORIENTATION**\nThis is an orientation brief for a transfer office.",
                      "**Assessment Mode:** Orientation. The responsible decision owner is **not established**.",
@@ -580,7 +580,7 @@ class DecisionBriefTests(unittest.TestCase):
             "**评估模式**：本报告为**定向评估**。未进行决策评估。\n\n"
             "**决策主体**：未确定。\n\n"
             "**首选商业化路线：通过技术许可向现有市场领导者提供关键技术**\n此路线是首选。\n"))["brief"]
-        self.assertEqual(chinese["next"], "首选商业化路线：通过技术许可向现有市场领导者提供关键技术")
+        self.assertEqual(chinese["next"], "通过技术许可向现有市场领导者提供关键技术")
         # A section that says only what it is recommends nothing: the brief
         # falls back to the scorecard's first opportunity, as with no section.
         self.assertEqual(self._next(opening.strip()), "Patent white space in manufacturing scalability [P4].")
@@ -609,6 +609,95 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual(self._next("**Primary Commercialization Route:**"), "Patent white space in manufacturing scalability [P4].")
         # A sub-heading is not the text a label was waiting for.
         self.assertEqual(self._next("**Opportunities:**\n\n### 5.1 Near term\n\n- Build a pilot line."), "Build a pilot line.")
+
+    def test_the_first_step_is_what_to_do_not_a_label_over_it(self):
+        """What was still shown as the first step after the two changes above,
+        over the 193 saved runs with a scorecard (2026-11-12). The run on the
+        public deployment read "Primary commercialization route (one route,
+        alternatives secondary)." The forms below are the ones those reports use."""
+        # A route label written as a sentence, or too long to be taken for a label.
+        single = "The single route advanced is integrated project development sold through long-term offtake."
+        self.assertEqual(self._next(
+            f"**Primary commercialization route (one route, alternatives secondary).** {single} Reasons follow."), single)
+        self.assertEqual(self._next(
+            "**Primary commercialization route (analyst inference — one route, with alternatives secondary):**\n"
+            "*Subsystem and enabling-layer commercialization* — supplying levitation components to operators.\n"
+            "**Secondary alternatives (subordinated):**\n- A full line."),
+            "Subsystem and enabling-layer commercialization — supplying levitation components to operators.")
+        self.assertEqual(self._next("**首要商业化路径（唯一主要路径）。** 本报告提出以数字化运维软件作为首要商业化路径。理由如下。"),
+                         "本报告提出以数字化运维软件作为首要商业化路径。")
+        self.assertEqual(self._next("**主导商业化路径：针对电信运营商的混合QKD城域安全服务。**"), "针对电信运营商的混合QKD城域安全服务。")
+        self.assertEqual(self._next("**Preferred route:** License the coating process to cell makers. Then scale."),
+                         "License the coating process to cell makers.")
+        self.assertEqual(self._next("**主要商业化路线：高价值多用途集成平台（风电+X）**"), "高价值多用途集成平台（风电+X）")
+        # A sentence that only mentions a route is no label.
+        whole = "A potential primary commercialization route is out-licensing the sensor hardware."
+        self.assertEqual(self._next(f"1. {whole} More."), whole)
+        named = "Primary route selection should wait for the pilot data."
+        self.assertEqual(self._next(f"1. {named} More."), named)
+
+        # What the section is, or what it rests on: neither is a step.
+        notes = ("**Mode:** Orientation\n\n**GO/NO_GO Status:** Not assessed.\n\n"
+                 "**责任决策者**：未确立（not established）。\n\n"
+                 "**Note:** The following opportunities are analyst inferences drawn from the evidence.\n\n")
+        self.assertEqual(self._next(notes + "1. Build a pilot line with a partner. Then scale."),
+                         "Build a pilot line with a partner.")
+        self.assertEqual(self._next(notes.strip()), "Patent white space in manufacturing scalability [P4].")
+        # A paragraph after such a statement is not a step the statement was labelling.
+        self.assertEqual(self._next("**Note:** Analyst inferences follow.\n\nThis section is short.\n\n1. Build a pilot line."),
+                         "Build a pilot line.")
+        for basis, advice, step in (
+            ("**Evidence basis:** All nine marketed products use an autologous approach [M2].",
+             "**Recommendation:** Companies could prioritise allogeneic platforms. More follows.",
+             "Companies could prioritise allogeneic platforms."),
+            ("**Evidence basis.** All nine marketed products use an autologous approach [M2].",
+             "**Recommendation.** There may be an opening for allogeneic therapies. More follows.",
+             "There may be an opening for allogeneic therapies."),
+            ("**Evidence Base:** The ambient-air process achieved 16.13% efficiency.",
+             "**Recommendations**: Scale the ambient-air process first.", "Scale the ambient-air process first."),
+            ("**证据基础**：六件专利均未涉及界面层或涂层技术。", "**建议**：围绕界面涂层提交专利申请。其余从略。", "围绕界面涂层提交专利申请。"),
+            ("**Rationale:** Adoption is expected to hinge on price.", "1. Cut the cost of the membrane first.",
+             "Cut the cost of the membrane first."),
+            ("**推荐理由：** 该路径在技术和经济上更具近期可行性。", "- 先做示范项目。", "先做示范项目。"),
+        ):
+            with self.subTest(basis=basis):
+                self.assertEqual(self._next(f"{basis}\n\n{advice}"), step)
+        self.assertEqual(self._next("**Analyst inference:** Stakeholders may wish to prioritise stable chemistries. More."),
+                         "Stakeholders may wish to prioritise stable chemistries.")
+        # The same words inside a recommendation are left alone.
+        for step in ("Note the regulatory path before filing.", "Recommend two partners early.",
+                     "Rationale-driven licensing suits this field.", "Mode switching hardware is the entry point."):
+            with self.subTest(step=step):
+                self.assertEqual(self._next(f"1. {step} More follows."), step)
+
+        # A heading over a list is the list's heading; the step is its first item.
+        self.assertEqual(self._next("**5.1 战略机遇**\n1. **BIPV与建筑市场**：柔性组件可直接满足轻质需求。其余从略。"),
+                         "BIPV与建筑市场：柔性组件可直接满足轻质需求。")
+        self.assertEqual(self._next("**A. 短期（0-2年）：聚焦已产生收入的先行者**\n- 关注头部企业的产能释放。\n- 其余从略。"),
+                         "关注头部企业的产能释放。")
+        self.assertEqual(self._next(
+            "**Near-Term Opportunities (0–3 Years)**\n\n"
+            "*Independent Validation Services*: Given the need for reproducibility, there may be an opening. More."),
+            "Independent Validation Services: Given the need for reproducibility, there may be an opening.")
+        # A numbered opportunity's title over its own evidence and reasons is the step.
+        self.assertEqual(self._next("**Opportunity 1: Lead-Free Perovskite BIPV**\n- **Evidence:** Lead toxicity restricts deployment.\n"
+                                    "- **Target:** Building facades."), "Opportunity 1: Lead-Free Perovskite BIPV")
+        for title in ("机遇一：干法制造与低温致密化工艺开发", "机遇1：医疗辅助通信设备", "机会一：差异化性能定位", "路径一：技术许可（短期可行）"):
+            with self.subTest(title=title):
+                self.assertEqual(self._next(f"**{title}**\n- 证据支持：学术文献将干法加工列为关键策略。"), title)
+        # Without a number it names no one opportunity: it is the list's heading again.
+        self.assertEqual(self._next("**机遇与建议**\n1. 先做示范项目。\n2. 其余从略。"), "先做示范项目。")
+        # Over a paragraph, or over nothing, the bold line is the recommendation's own title.
+        self.assertEqual(self._next("**Strategic Partnership Model**\nThe HELENA project shows the value of consortia [M1]."),
+                         "Strategic Partnership Model")
+        self.assertEqual(self._next("**高性能仿真驱动的工程优化与服务。**\n理由：仿真工具有显著优势。"), "高性能仿真驱动的工程优化与服务。")
+        self.assertEqual(self._next("**Strategic Partnership Model**"), "Strategic Partnership Model")
+        self.assertEqual(self._next("**Strategic Partnership Model**\n\n### 5.2 Later\n\n- Build a pilot line."),
+                         "Strategic Partnership Model")
+
+        # A table under a label is not the text the label was waiting for.
+        self.assertEqual(self._next("**Opportunities:**\n\n| 机遇 | 短期可行性 |\n|---|---|\n| 健康监测贴片 | 中 |\n\n1. 先开发健康监测贴片。"),
+                         "先开发健康监测贴片。")
 
     def _summary(self, paragraph):
         return self._brief(markdown=f"## Executive Summary\n\n{paragraph}\n")["brief"]["summary"]
