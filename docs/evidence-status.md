@@ -260,6 +260,23 @@ on dev, the removals were off-topic only where the first word has several
 senses ("fusion", "wave"), and R5 stays as deployed. See the
 [development comparison](results-2026-10-22-two-word-gate-v1-dev.md).
 
+**Held-out spot checks on two later models (2026-11-08, 2026-11-11).** The v2
+topics and their frozen ranges, one live run a topic, each batch under its own
+protocol registered before its runs. `deepseek-v4-pro` on all ten topics in
+two parts: 10/10 completed and **8/10 in range**, both misses below floor
+(量子密钥分发网络 6.7 against 7–9, vertical farming 7.0 against 8–9). The rule
+written before the batch did not recommend the model for a thirty-run batch
+on that reading. `deepseek-v4.1-flash-1017` on five topics: 5/5 completed and
+**4/5 in range**, the miss below floor (hyperloop 3.0 against 4–6); its rule
+did not fire. Neither is a calibration measure: one run a topic does not
+separate the model from the day's evidence, and the second batch's completion
+depended on the five-attempt cap on streamed calls. See the
+[ten-topic result](results-2026-11-08-heldout-spot-check-deepseek-v4-pro-b.md)
+and the [five-topic result](results-2026-11-11-heldout-spot-check-deepseek-v4.1-flash.md).
+With `qwen3.7-plus` and `qwen3.8-max` below, these are the four models the
+key form shows a figure for; `tests/test_byok_fields_web.py` holds each
+figure there, here and in both READMEs to its result document.
+
 **Held-out TRL calibration v2 (2026-10-19).** Ten further topics, registered
 before any run, measured with `qwen3.8-max` and the revised market retrieval
 (#213, #215). **25/30 runs fell in range**; 28 completed. Eleven runs scored

@@ -160,10 +160,21 @@ proven technologies. Low-maturity topics were not inflated, though the two
 lowest ones were scored below their floor. The topics and the model also
 changed, so the improvement is not attributed to any single change. Treat TRL
 as a coarse signal. See the [v2 result](docs/results-2026-10-19-heldout-trl-v2.md).
+
+Two later models were read against the same v2 ranges, one run a topic.
+`deepseek-v4-pro` on all ten topics (2026-11-08): **8/10 in range**, both
+misses below their floor.
+`deepseek-v4.1-flash-1017` on five of them (2026-11-11): **4/5 in range**,
+the miss below its floor. These are spot checks, not calibration measures:
+one run a topic cannot tell the model from the day's evidence. See the
+[ten-topic result](docs/results-2026-11-08-heldout-spot-check-deepseek-v4-pro-b.md)
+and the [five-topic result](docs/results-2026-11-11-heldout-spot-check-deepseek-v4.1-flash.md).
+
 The public deployment rotates through Model Studio's free-quota models and
-is not pinned to either cohort's model; the one it currently requests is in
+is not pinned to any of these four; the one it currently requests is in
 `/health` as `llm_model`, and each run page names the model that produced it.
-No held-out cohort has measured those models.
+A model outside the four has no held-out reading. The form that asks for a
+model name shows the same four figures.
 
 Other completed evidence:
 
