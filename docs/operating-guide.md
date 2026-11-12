@@ -705,6 +705,18 @@ go to stderr, which the API keeps as `process.log` in the run directory.
 Each row's `call` counts the calls on that node; a guardrail retry is a new
 call whose attempts start at 1 again.
 
+An attempt whose `outcome` is `cut` is an answer the provider ended at its
+output limit (stop reason `length`, or `max_tokens` on Anthropic; DeepSeek's
+own API does not deliver the reason for a streamed answer, and there a cut
+is an answer that used every output token its request allowed). What
+arrived is not used: the node fails at once and is not asked again, because
+the same prompt at the same limit is cut at the same place, and the run
+fails as `provider_output_limit`. The exception is the reviewer, whose
+failure delivers the writer's validated draft unreviewed, as any other
+reviewer failure does. Anthropic and DeepSeek requests name a limit several
+times a report's length (`llm_config`); Model Studio and OpenAI get the
+model's own.
+
 Every crew node streams its answer. The first run with attempt rows
 (2026-11-09) showed 72% of its wall time in requests that had stopped
 delivering (302, 312 and 160 seconds) while the identical retries returned in
@@ -1387,8 +1399,8 @@ It reports three things and nothing else:
 | A run on the deployment's keys failed for an operator's reason | Per failure code, at most once every `ALERT_REPEAT_HOURS`, with the number of runs since the last message |
 
 The operator's reasons are the codes `provider_auth`, `provider_free_quota`,
-`provider_billing`, `provider_model_unavailable` and
-`provider_request_rejected`: the ones an access-code visitor is told were
+`provider_billing`, `provider_model_unavailable`, `provider_request_rejected`
+and `provider_output_limit`: the ones an access-code visitor is told were
 not caused by their request. A run on an account's own keys is never
 reported; the page tells its owner what to change.
 

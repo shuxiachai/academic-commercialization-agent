@@ -297,7 +297,8 @@ class StepEvent(BaseModel):
         default=None, description="Provider attempt number within the call, from 1.")
     outcome: str | None = Field(
         default=None,
-        description="returned, timeout, error, or adapted (a refused parameter resent).")
+        description="returned, timeout, error, adapted (a refused parameter resent), or cut "
+                    "(the provider ended the answer at its output limit; the node fails).")
     duration_seconds: float | None = Field(
         default=None, description="Wall time of this one attempt.")
     retry: bool | None = Field(
@@ -377,7 +378,8 @@ class RunProgress(BaseModel):
         description="The recognised cause behind `error`, the same for every reader: timeout, "
                     "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
                     "provider_request_rejected, provider_rate_limited, insufficient_evidence, "
-                    "provider_response_format, quality_checks, provider_unreachable or unknown; "
+                    "provider_response_format, quality_checks, provider_unreachable, "
+                    "provider_output_limit or unknown; "
                     "cancelled and timeout_resumable for those two outcomes. None when there is "
                     "nothing to explain. `error` stays the sentence to show.",
     )
@@ -568,7 +570,8 @@ class RunStatus(BaseModel):
         description="The recognised cause behind `error`, the same for every reader: timeout, "
                     "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
                     "provider_request_rejected, provider_rate_limited, insufficient_evidence, "
-                    "provider_response_format, quality_checks, provider_unreachable or unknown; "
+                    "provider_response_format, quality_checks, provider_unreachable, "
+                    "provider_output_limit or unknown; "
                     "cancelled and timeout_resumable for those two outcomes. None when there is "
                     "nothing to explain. `error` stays the sentence to show.",
     )

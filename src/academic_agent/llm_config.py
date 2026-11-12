@@ -286,6 +286,64 @@ class RunDeadlineExceeded(TimeoutError):
     """The run lacks a full bounded window for another provider attempt."""
 
 
+# What a provider calls an answer it ended at an output limit: "length" on the
+# OpenAI-shaped APIs (Model Studio, DeepSeek, OpenAI), "max_tokens" on
+# Anthropic. Every other reason is an answer the model ended itself.
+_CUT_STOP_REASONS = frozenset({"length", "max_tokens"})
+
+
+def _is_count(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _cut_reason(reason: object, usage: object, limit: object) -> str | None:
+    """How a completed attempt says its answer was cut at an output limit; None if it does not.
+
+    The provider's stop reason decides whenever there is one. There is not
+    always one: DeepSeek's own API sends a streamed answer's stop reason in
+    the same chunk as its usage, and CrewAI 1.14.7's stream reader takes the
+    usage from a chunk and skips the rest of it. Seen on 2026-11-12 with a
+    real 40-token limit: the answer was cut, 40 output tokens were billed,
+    and no reason reached the completed-call event. (Model Studio sends the
+    two in separate chunks, and Anthropic's reason travels another way.)
+
+    So when no reason arrived, an answer that used every output token its
+    request allowed was cut. That needs the limit to be one this code sent,
+    which it is on DeepSeek and Anthropic.
+    """
+    if isinstance(reason, str):
+        return reason if reason in _CUT_STOP_REASONS else None
+    spent = usage.get("completion_tokens") if isinstance(usage, dict) else None
+    if _is_count(limit) and _is_count(spent) and spent >= limit:
+        return f"not reported; all {limit} output tokens allowed were used"
+    return None
+
+
+class AnswerCutError(RuntimeError):
+    """The provider ended an answer at an output limit; what arrived is part of one.
+
+    Until 2026-11-12 the stop reason was read by nothing and a cut answer was
+    returned like any other. DeepSeek direct that day: the writer stopped at
+    exactly 8,192 output tokens, in the middle of a reference entry, and the
+    run completed. What happens next depends on where the cut falls. In the
+    references it is harmless, because the list is rebuilt. Inside "Evidence
+    Limitations" the report guardrail passes it and the section ships ending
+    mid-word. Anywhere earlier the guardrail blocks it as a missing heading
+    and the whole report is written, and cut, again. A JSON node's cut answer
+    is invalid JSON, asked for again up to twice, and fails as a parse error.
+
+    The message is what the status records and what api/runs.py reads to name
+    the failure. It never holds the part that arrived.
+    """
+
+    def __init__(self, stage: str, stop_reason: str) -> None:
+        # A stage is an agent's role as configured, which can end in a newline.
+        self.stage, self.stop_reason = " ".join(str(stage).split()), stop_reason
+        super().__init__(
+            f"{self.stage}: the answer was cut at the model's output limit (stop reason: {stop_reason}); "
+            "what arrived is part of an answer and was not used.")
+
+
 @dataclass
 class _CallBudget:
     """Mutable because the worker assigns a stage deadline after Crew creation."""
@@ -296,6 +354,11 @@ class _CallBudget:
     #: Calls made through this node so far. A guardrail retry is a new call
     #: whose attempts start at 1 again; the sequence tells the two apart.
     calls: int = 0
+    #: The stop reason of the answer the provider cut on this node, once one
+    #: was. The node is not asked again: CrewAI re-executes a task whose
+    #: agent raised, up to twice, and the same prompt at the same limit is
+    #: the same cut answer, billed again. An instance is one node of one run.
+    cut: str | None = None
 
     def require_window(self, *, delay_seconds: float = 0.0) -> None:
         if self.deadline_monotonic is None:
@@ -520,12 +583,30 @@ def _wrap_with_retry(llm):
     """
     inner = llm.call
     budget = _CallBudget()
+    # Why the attempt in flight ended. CrewAI hands the provider's stop reason
+    # to the event it emits when a call completes and to nothing a caller can
+    # read, and its event bus delivers on another thread, usually after the
+    # call has returned. The provider's own emit method runs on this thread
+    # before `call` returns, so the reason is noted there. An object without
+    # that method reports no reason and is treated as before.
+    stopped: dict[str, object] = {"reason": None, "usage": None}
+    emit = getattr(llm, "_emit_call_completed_event", None)
+    if callable(emit):
+        @functools.wraps(emit)
+        def emit_and_note(*args, **kwargs):
+            stopped["reason"] = kwargs.get("finish_reason")
+            stopped["usage"] = kwargs.get("usage")
+            return emit(*args, **kwargs)
+
+        llm._emit_call_completed_event = emit_and_note
     max_attempts = _max_attempts_for(llm)
     base, model = getattr(llm, "base_url", None), getattr(llm, "model", None)
     identity = (base.rstrip("/"), model) if isinstance(base, str) and isinstance(model, str) else None
 
     @functools.wraps(inner)
     def call_with_retry(*args, **kwargs):
+        if budget.cut is not None:
+            raise AnswerCutError(budget.stage, budget.cut)
         if identity is not None:
             for parameter, value in parameter_fallback.learned(*identity).items():
                 _apply_parameter(llm, parameter, value)
@@ -550,6 +631,7 @@ def _wrap_with_retry(llm):
         while True:
             budget.require_window()
             started = time.monotonic()
+            stopped["reason"] = stopped["usage"] = None
             try:
                 result = inner(*args, **kwargs)
             except BaseException as exc:      # noqa: BLE001 - re-raised below
@@ -594,6 +676,11 @@ def _wrap_with_retry(llm):
                 time.sleep(delay)
                 attempt += 1
             else:
+                cut = _cut_reason(stopped["reason"], stopped["usage"], getattr(llm, "max_tokens", None))
+                if cut is not None:
+                    budget.cut = cut
+                    report("cut", started, retry=False, exc=None)
+                    raise AnswerCutError(budget.stage, cut)
                 report("returned", started, retry=False, exc=None)
                 return result
 
