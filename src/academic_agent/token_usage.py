@@ -49,7 +49,20 @@ from typing import Any
 PRICES_AS_OF = "2026-05"
 
 _PRICING: dict[str, tuple[float, float, float]] = {
-    "deepseek-chat":      (0.27, 0.07, 1.10),
+    # DeepSeek's own API, read from api-docs.deepseek.com/quick_start/pricing
+    # on 2026-11-12. The page lists deepseek-flash and deepseek-v4-pro, each at
+    # a peak price (01:00-04:00 and 06:00-10:00 UTC on working days) and half
+    # of it otherwise. A node's usage does not say when it ran, so the row is
+    # the peak price: the figure can overstate and cannot understate.
+    # deepseek-chat is not on the page. The API still accepts it and its
+    # responses name deepseek-flash as the model that answered, so it is
+    # priced as that; its row from 2026-05 (0.27 / 0.07 / 1.10) was under the
+    # peak price on input and output.
+    # deepseek-v4-pro ($1.32 / $0.044 / $3.96 there) has no row on purpose:
+    # the same name is a Model Studio model at Alibaba's own price, which this
+    # table does not have, and a row keyed by name alone would price both.
+    "deepseek-flash":     (0.30, 0.006, 1.20),
+    "deepseek-chat":      (0.30, 0.006, 1.20),
     "deepseek-reasoner":  (0.55, 0.14, 2.19),
     # DeepSeek V4 pricing varies by time. Use published peak rates so a fixed
     # soft stop never understates a request made during the expensive window.
@@ -124,7 +137,14 @@ _PRICING: dict[str, tuple[float, float, float]] = {
 
 _ANTHROPIC_PRICES_AS_OF = "2026-11-12"
 
+_DEEPSEEK_PRICES_AS_OF = "2026-11-12"
+
 _PRICING_BASIS_OVERRIDES = {
+    "deepseek-flash": f"built-in DeepSeek Flash peak price, DeepSeek list price (as of {_DEEPSEEK_PRICES_AS_OF})",
+    "deepseek-chat": (
+        "built-in DeepSeek Flash peak price: deepseek-chat is answered by deepseek-flash "
+        f"(as of {_DEEPSEEK_PRICES_AS_OF})"
+    ),
     "deepseek-v4-flash": "built-in DeepSeek peak table (as of 2026-08-30)",
     "qwen3.5-plus": "built-in Qwen3.5 Plus peak tier (as of 2026-08-30)",
     "qwen3.7-plus": "built-in Qwen3.7 Plus upper bound, third-party listings (as of 2026-10-18)",

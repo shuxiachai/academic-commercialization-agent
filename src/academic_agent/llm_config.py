@@ -53,8 +53,8 @@ _QWEN_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 # (median 5,868, longest 13,506; Anthropic's counts run higher), and the
 # current Claude models spend part of the same allowance on thinking, which
 # cannot be turned off on several of them. No run had gone through Anthropic,
-# so nothing had shown it. The other providers send no limit and get the
-# model's own.
+# so nothing had shown it. Model Studio and OpenAI send no limit and get the
+# model's own; DeepSeek is below.
 #
 # A streamed call is bounded per chunk, so it can ask for the room; a plain
 # call waits for the whole answer inside one HTTP timeout and asks for less.
@@ -63,6 +63,23 @@ _QWEN_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 # to it and the call is sent again.
 ANTHROPIC_STREAM_MAX_TOKENS = 64_000
 ANTHROPIC_MAX_TOKENS = 16_000
+
+# DeepSeek's own API does not give "the model's own" limit to a request that
+# names none. The first run through it since August (2026-11-12, deepseek-chat)
+# had its writer stopped at exactly 8,192 output tokens, in the middle of a
+# reference entry. The reference list is rebuilt from the validated sources,
+# so that report came out whole; a longer body would have been cut in the
+# body, and nothing names a cut answer. Of 60 saved single-request writer
+# nodes on deepseek-chat, three stopped at exactly 8,192; no node on any
+# Model Studio model stopped at a round number.
+#
+# The API accepted these values for deepseek-chat, deepseek-flash and
+# deepseek-v4-pro on that day and names [1, 393216] as the valid range. The
+# two thinking models report their reasoning inside the same output count. Another
+# host behind DEEPSEEK_API_BASE with a smaller range refuses the request and
+# names its range; llm_parameter_fallback lowers ours to the top of it.
+DEEPSEEK_STREAM_MAX_TOKENS = 64_000
+DEEPSEEK_MAX_TOKENS = 16_000
 
 # Providers that support response_format={"type": "json_object"}.
 # Anthropic does not — it relies on prompt instructions + guardrail validation.
@@ -353,7 +370,7 @@ def _apply_parameter(llm, parameter: str, value: object) -> None:
     elif parameter == "max_tokens":
         # A ceiling, learned from one call of this model: it lowers a larger
         # limit and never raises a smaller one. A provider that sends none
-        # (every one but Anthropic) keeps sending none.
+        # (Model Studio, OpenAI) keeps sending none.
         current = getattr(llm, "max_tokens", None)
         if isinstance(current, int) and not isinstance(current, bool) and isinstance(value, int):
             llm.max_tokens = min(current, value)
@@ -677,6 +694,8 @@ def create_llm(
         kwargs["response_format"] = {"type": "json_object"}
     if logical_provider == "anthropic":
         kwargs["max_tokens"] = ANTHROPIC_STREAM_MAX_TOKENS if stream else ANTHROPIC_MAX_TOKENS
+    elif logical_provider == "deepseek":
+        kwargs["max_tokens"] = DEEPSEEK_STREAM_MAX_TOKENS if stream else DEEPSEEK_MAX_TOKENS
 
     if temperature is not None:
         kwargs["temperature"] = temperature

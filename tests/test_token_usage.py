@@ -90,7 +90,7 @@ class PricingLookupTests(TestCase):
         """A cost with no stated basis cannot be judged for staleness, which
         is the failure mode a hardcoded price table actually has."""
         with _clean_env():
-            self.assertIn(PRICES_AS_OF, price_for("deepseek-chat").basis)
+            self.assertIn(PRICES_AS_OF, price_for("gpt-4o").basis)
 
     def test_deepseek_v4_flash_uses_conservative_peak_rates_and_own_date(self):
         """A later row must not falsely refresh every older provider price."""
@@ -301,7 +301,7 @@ class SerialisationTests(TestCase):
             data = collect_usage(_Crew([
                 _Agent("Academic", _LLM("deepseek-chat", _Metrics(prompt=1000, completion=10)))
             ])).as_dict()
-        self.assertIn(PRICES_AS_OF, data["price_basis"])
+        self.assertIn("as of 2026-11-12", data["price_basis"])
         self.assertTrue(data["cost_complete"])
         self.assertEqual(len(data["agents"]), 1)
 
@@ -556,5 +556,57 @@ class AnthropicPriceTableTests(TestCase):
         """A name the table does not know is unpriced, not priced as a namesake."""
         with _clean_env():
             for model in ("claude-haiku-4", "claude-haiku-3-5", "claude-sonnet-6", "claude-opus-6-1"):
+                with self.subTest(model=model):
+                    self.assertIsNone(price_for(model))
+
+
+class DeepSeekDirectPriceTests(TestCase):
+    """DeepSeek's own API, as its pricing page read on 2026-11-12.
+
+    The page lists two models. deepseek-flash is $0.30 input, $0.006 cached
+    input and $1.20 output per million tokens in peak hours (01:00-04:00 and
+    06:00-10:00 UTC on working days) and half of each otherwise. A node's usage
+    does not say when it ran, so the row is the peak price: the figure can
+    overstate and cannot understate.
+
+    deepseek-chat, the name the key form suggests, is not on the page. The API
+    still accepts it and its responses name deepseek-flash as the model that
+    answered, so it is priced as that. Its old row (0.27 / 1.10, from 2026-05)
+    was under the peak price."""
+
+    FLASH_PEAK = (0.30, 0.006, 1.20)
+
+    def test_deepseek_flash_is_priced_at_the_published_peak_rate_and_says_so(self):
+        with _clean_env():
+            price = price_for("deepseek-flash")
+        self.assertEqual((price.input, price.cached, price.output), self.FLASH_PEAK)
+        self.assertIn("peak", price.basis)
+        self.assertIn("2026-11-12", price.basis)
+        self.assertNotIn(PRICES_AS_OF, price.basis)
+
+    def test_deepseek_chat_is_priced_as_the_model_that_answers_for_it(self):
+        with _clean_env():
+            for model in ("deepseek-chat", "deepseek/deepseek-chat"):
+                with self.subTest(model=model):
+                    price = price_for(model)
+                    self.assertEqual((price.input, price.cached, price.output), self.FLASH_PEAK)
+                    self.assertIn("deepseek-flash", price.basis)
+                    self.assertIn("2026-11-12", price.basis)
+                    self.assertNotIn(PRICES_AS_OF, price.basis)
+
+    def test_the_first_run_since_august_costs_what_the_page_says_at_most(self):
+        """2026-11-12, deepseek-chat, six nodes: 82,750 prompt tokens, none
+        cached, and 16,821 output tokens."""
+        with _clean_env():
+            cost = cost_for("deepseek-chat", _Metrics(prompt=82_750, completion=16_821))
+        self.assertAlmostEqual(cost, 82_750 * 0.30 / 1e6 + 16_821 * 1.20 / 1e6, places=6)
+        self.assertAlmostEqual(cost, 0.04501, places=6)
+
+    def test_a_name_two_providers_sell_is_not_given_one_providers_price(self):
+        """deepseek-v4-pro is $1.32 / $3.96 at DeepSeek and is also a Model
+        Studio model at Alibaba's own price, which this table does not have.
+        The table is keyed by name alone, so the row would price both."""
+        with _clean_env():
+            for model in ("deepseek-v4-pro", "deepseek-v4-pro-0813", "deepseek-v4.1-flash-1017"):
                 with self.subTest(model=model):
                     self.assertIsNone(price_for(model))

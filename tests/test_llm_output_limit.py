@@ -14,12 +14,17 @@ request it would send. Nothing is sent: no call is made.
 
 from __future__ import annotations
 
+import json
+
+import httpx
 import pytest
 
 from academic_agent import llm_parameter_fallback as fallback
 from academic_agent.llm_config import (
     ANTHROPIC_MAX_TOKENS,
     ANTHROPIC_STREAM_MAX_TOKENS,
+    DEEPSEEK_MAX_TOKENS,
+    DEEPSEEK_STREAM_MAX_TOKENS,
     _wrap_with_retry,
     create_llm,
 )
@@ -66,12 +71,100 @@ class TestTheRequestTheRealProviderBuilds:
         # A plain request waits for the whole answer inside one HTTP timeout.
         assert 4096 < ANTHROPIC_MAX_TOKENS < ANTHROPIC_STREAM_MAX_TOKENS
 
-    @pytest.mark.parametrize("provider,model", [
-        ("qwen", "qwen3.8-max"), ("deepseek", "deepseek-chat"), ("openai", "gpt-4o"),
-    ])
+    @pytest.mark.parametrize("provider,model", [("qwen", "qwen3.8-max"), ("openai", "gpt-4o")])
     def test_the_other_providers_are_sent_no_limit_as_before(self, provider, model):
         llm = create_llm(provider=provider, api_key="made-up-key-never-sent", model=model, stream=True)
         assert llm.max_tokens is None
+
+
+# What api.deepseek.com answered on 2026-11-12 to max_tokens=1000000, for
+# deepseek-chat, deepseek-flash and deepseek-v4-pro alike.
+DEEPSEEK_RANGE_TOP = 393_216
+# What deepseek-chat gives an answer when the request names no limit.
+DEEPSEEK_UNASKED_LIMIT = 8192
+
+
+def out_of_range(top: int, request_id: str = "cd6221ae-e2a9-4fc8-9d3b-b992d34a4187") -> str:
+    """DeepSeek's refusal of an output limit outside the model's range, as the SDK raises it."""
+    return ("Error code: 400 - {'error': {'message': 'Invalid max_tokens value, the valid range of max_tokens is "
+            f"[1, {top}] (request_id: {request_id})', 'type': 'invalid_request_error', 'param': None, "
+            "'code': 'invalid_request_error'}}")
+
+
+class TestTheRequestDeepSeekIsSent:
+    """DeepSeek direct, 2026-11-12, deepseek-chat: the writer's answer stopped at
+    exactly 8,192 output tokens, in the middle of a reference entry ("[M6] ...
+    URL:"). No limit was sent, and that is the one the API applies then. The
+    reference list is rebuilt from the validated sources, so that report came
+    out whole; a longer body would have been cut in the body, and nothing
+    names a cut answer. Of 60 saved single-request writer nodes on
+    deepseek-chat, three stopped at exactly 8,192.
+
+    The provider object is the real one, built with a made-up key. Its HTTP
+    request is recorded and answered here; nothing is sent."""
+
+    @pytest.fixture
+    def body_of(self, monkeypatch):
+        def one(**options) -> dict:
+            bodies: list[dict] = []
+
+            def answer(client, request, **_):
+                bodies.append(json.loads(request.content))
+                refusal = {"error": {"message": "made-up key", "type": "authentication_error"}}
+                return httpx.Response(401, json=refusal, request=request)
+
+            monkeypatch.setattr(httpx.Client, "send", answer)
+            llm = create_llm(provider="deepseek", api_key="made-up-key-never-sent", **options)
+            with pytest.raises(Exception, match="made-up key"):
+                llm.call(MESSAGES)
+            assert len(bodies) == 1
+            return bodies[0]
+        return one
+
+    @pytest.mark.parametrize("model", ["deepseek-chat", "deepseek-flash", "deepseek-v4-pro"])
+    def test_a_streamed_node_asks_for_room_for_a_report(self, body_of, model):
+        sent = body_of(model=model, stream=True)
+        assert sent["model"] == model and sent["stream"] is True
+        assert sent["max_tokens"] == DEEPSEEK_STREAM_MAX_TOKENS
+
+    def test_a_plain_call_asks_for_less_and_still_more_than_it_was_given_unasked(self, body_of):
+        sent = body_of(model="deepseek-chat", json_mode=True, temperature=0.0)
+        assert sent["max_tokens"] == DEEPSEEK_MAX_TOKENS and not sent.get("stream")
+
+    def test_the_limits_are_ones_deepseek_accepts_and_a_report_fits(self):
+        assert DEEPSEEK_UNASKED_LIMIT < DEEPSEEK_MAX_TOKENS < DEEPSEEK_STREAM_MAX_TOKENS <= DEEPSEEK_RANGE_TOP
+        # Several times the longest report: the thinking models' reasoning is in the same output count.
+        assert DEEPSEEK_STREAM_MAX_TOKENS >= 4 * LONGEST_SAVED_REPORT
+
+
+@pytest.mark.parametrize("message,sent,expected", [
+    # Another host behind the DeepSeek provider (DEEPSEEK_API_BASE) with a smaller range.
+    (out_of_range(8192), {"max_tokens": 64000}, ("max_tokens", 8192)),
+    (out_of_range(32768), {"max_tokens": 64000}, ("max_tokens", 32768)),
+    # A request id whose groups are all digits names no limit.
+    (out_of_range(8192, "12345678-2907-4003-8013-917300950044"), {"max_tokens": 64000}, ("max_tokens", 8192)),
+    (out_of_range(DEEPSEEK_RANGE_TOP, "12345678-2907-4003-8013-917300950044"), {"max_tokens": 64000}, None),
+    # The range DeepSeek itself names is above what is asked: nothing to lower to.
+    (out_of_range(DEEPSEEK_RANGE_TOP), {"max_tokens": 64000}, None),
+    (out_of_range(8192), {}, None),
+])
+def test_a_range_refusal_in_deepseeks_words_lowers_the_limit_to_the_top_of_the_range(message, sent, expected):
+    assert fallback.adjustment(message, sent) == expected
+
+
+def test_a_smaller_host_behind_the_deepseek_provider_is_resent_at_its_own_limit():
+    class SmallerHost(_Provider):
+        def call(self, messages):
+            self.sent.append(self.max_tokens)
+            if self.max_tokens > self._allowed:
+                raise RuntimeError(out_of_range(self._allowed))
+            return "ok"
+
+    provider = SmallerHost(model="deepseek-chat", max_tokens=DEEPSEEK_STREAM_MAX_TOKENS, allowed=8192)
+    provider.base_url = "https://another-host.example/v1"
+    assert _wrap_with_retry(provider).call(MESSAGES) == "ok"
+    assert provider.sent == [DEEPSEEK_STREAM_MAX_TOKENS, 8192]
+    assert fallback.learned("https://another-host.example/v1", "deepseek-chat") == {"max_tokens": 8192}
 
 
 @pytest.mark.parametrize("message,sent,expected", [
