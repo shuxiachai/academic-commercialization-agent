@@ -610,6 +610,83 @@ class DecisionBriefTests(unittest.TestCase):
         # A sub-heading is not the text a label was waiting for.
         self.assertEqual(self._next("**Opportunities:**\n\n### 5.1 Near term\n\n- Build a pilot line."), "Build a pilot line.")
 
+    def _summary(self, paragraph):
+        return self._brief(markdown=f"## Executive Summary\n\n{paragraph}\n")["brief"]["summary"]
+
+    def test_a_full_stop_inside_a_number_or_an_abbreviation_does_not_end_the_sentence(self):
+        """Every full stop used to end a sentence. Over the 193 saved runs with
+        a scorecard (2026-11-12) that cut 33 of the 374 brief lines short: the
+        summary 14 times, 12 of them inside a number ("...a global market
+        estimated at USD 5,206."), and the first step 19 times. The forms below
+        are the ones those reports use."""
+        # Inside a number: a decimal point has no space after it.
+        self.assertEqual(
+            self._summary("The market is estimated at USD 5,206.15 million in 2025 [M1]. However, none is approved."),
+            "The market is estimated at USD 5,206.15 million in 2025.")
+        self.assertEqual(self._summary("司美格鲁肽在2025年占据最大的收入份额，达52.83%，市场集中。其余从略。"),
+                         "司美格鲁肽在2025年占据最大的收入份额，达52.83%，市场集中。")
+        self.assertEqual(self._summary("超薄陶瓷电解质膜（25微米厚Li₀.₃₄La₀.₅₆TiO₃）已有报道。其余从略。"),
+                         "超薄陶瓷电解质膜（25微米厚Li₀.₃₄La₀.₅₆TiO₃）已有报道。")
+        # Inside an abbreviation, whatever follows it.
+        shipped = "Oxford PV began commercial sale, shipping to a U.S.-based customer in September 2024."
+        self.assertEqual(self._summary(f"{shipped} This milestone matters."), shipped)
+        agency = "The device was cleared by the U.S. Food and Drug Administration in 2023."
+        self.assertEqual(self._summary(f"{agency} Sales followed."), agency)
+        interface = "The preferred route is the non-penetrating cortical interface (e.g., thin-film arrays or stentrodes)."
+        self.assertEqual(self._next(f"1. {interface} It avoids surgery."), interface)
+        named = "License the subsystem tools (e.g. Toyota's degradation models) to equipment makers."
+        self.assertEqual(self._next(f"1. {named} Then scale."), named)
+        enabling = "Sell cost-of-ownership enablement for established platforms, i.e., products that improve their economics."
+        self.assertEqual(self._next(f"1. {enabling} More follows."), enabling)
+        against = "Position the cell on cycle life vs. the incumbent lithium iron phosphate chemistry."
+        self.assertEqual(self._next(f"1. {against} More follows."), against)
+        numbered = "File a continuation of U.S. Patent No. 5 before the grace period ends."
+        self.assertEqual(self._next(f"1. {numbered} More follows."), numbered)
+        # Each abbreviation the rule names, before a capitalised word, where
+        # nothing but the name keeps the sentence whole.
+        for abbreviation in ("e.g.", "i.e.", "vs.", "cf.", "et al.", "approx.", "ca.", "Dr.", "Inc.", "Ltd.",
+                             "Corp.", "Co.", "No.", "Nos.", "Fig.", "Figs.", "U.S.", "U.K."):
+            with self.subTest(abbreviation=abbreviation):
+                whole = f"Compare the cell design {abbreviation} Zeta Works before scaling."
+                self.assertEqual(self._next(f"1. {whole} More follows."), whole)
+        # A closing quotation mark or bracket belongs to the sentence it closes.
+        corridors = 'Target the fixed regional "green corridors."'
+        self.assertEqual(self._next(f"1. {corridors} This route is preferred."), corridors)
+        self.assertEqual(self._next("1. 首选路线是与电网公司合作（见下文。）其余从略。"), "首选路线是与电网公司合作（见下文。）")
+        # A heading's own number or letter is not a sentence: "A." alone was
+        # the first step of seven runs.
+        self.assertEqual(self._next("**A. 短期（0-2年）：聚焦已产生收入的先行者**\n\n其余从略。"),
+                         "A. 短期（0-2年）：聚焦已产生收入的先行者")
+        self.assertEqual(self._next("**1. Build a pilot line with a partner.** Semi-solid first."),
+                         "1. Build a pilot line with a partner.")
+
+    def test_a_full_stop_that_does_end_a_sentence_still_does(self):
+        """What the rule above must not swallow. Where it cannot tell, it keeps
+        the two sentences together and the length limit trims them; it never
+        cuts inside one."""
+        for text, first in (
+            ("Build a pilot line. Then scale.", "Build a pilot line."),
+            # A sentence that ends on a number, before one that starts with one.
+            ("Costs fell by half in 2024. 15 firms now ship cells.", "Costs fell by half in 2024."),
+            # Before a word that only looks lowercase.
+            ("Start with the cancer vaccine. mRNA platforms follow.", "Start with the cancer vaccine."),
+            ("Sell films, coatings, etc. The margins differ.", "Sell films, coatings, etc."),
+            ("Is the market ready? Not yet.", "Is the market ready?"),
+            ("Raise a Series A. Investors expect it.", "Raise a Series A."),
+            # One word is a sentence; only a heading's single letter or number is not.
+            ("Partner. Do not build alone.", "Partner."),
+            # A word that merely ends like an abbreviation ("ca.", "co.").
+            ("Enter North America. The margins differ.", "Enter North America."),
+            ("建议与电网公司合作开发。其余从略。", "建议与电网公司合作开发。"),
+            # "No" is a word as well as an abbreviation.
+            ("The answer is no. 15 firms tried.", "The answer is no."),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(self._next(f"1. {text}"), first)
+        # An abbreviation that goes on in lower case does not end the sentence.
+        self.assertEqual(self._next("1. Sell films, coatings, etc. and license the process. More follows."),
+                         "Sell films, coatings, etc. and license the process.")
+
     def test_a_report_saved_with_windows_line_endings_reads_the_same(self):
         """The benchmark corpus is CRLF; a bold-led recommendation there was
         missed because "." never matches a carriage return."""

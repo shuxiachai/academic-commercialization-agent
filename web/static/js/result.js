@@ -710,10 +710,53 @@ function citedText(text) {
 // the saved reports; it describes the report, not the technology.
 const METHOD_OPENER = /^(?:this|the)\s+(?:assessment|report|analysis|document|evaluation)\b|^本(?:报告|评估|分析|文)/iu;
 
+// Where a full stop is not the end of a sentence. Until 2026-11-12 every one
+// was, and the brief's two quoted lines stopped wherever a report wrote a
+// decimal or an abbreviation: "…a global market estimated at USD 5,206." Over
+// the 193 saved runs with a scorecard on the maintainer's machine that cut 33
+// of 374 lines short: 16 inside a number, 9 inside "e.g.", "i.e.", "U.S." or a
+// formula, 7 at a heading's own "A." or "1.", 1 before a closing quotation
+// mark. With the rule below, none of the 33.
+//
+// The rule errs one way only. Where it cannot tell ("…in the U.S. The market…")
+// it keeps two sentences together and the length limit trims them; a line cut
+// inside a sentence reads as a finished claim that the report never made.
+//
+// Abbreviations a sentence does not end on. Case matters: "No. 5" and
+// "Fig. 2" are abbreviations, "no." and "fig." are words.
+const NEVER_ENDS = /(?:^|[\s(\[“"'‘/—-])(?:e\.g|i\.e|vs|cf|et al|approx|ca|Dr|Inc|Ltd|Corp|Co|Nos?|Figs?|U\.S|U\.K)$/;
+// A heading's own number or letter, with nothing before it.
+const LEADING_ENUMERATOR = /^\(?(?:\d{1,2}|[A-Za-z])$/;
+// What may close a sentence after its full stop: the quotation mark or bracket it sits inside.
+const SENTENCE_CLOSERS = /^[)\]"'”’」』）]+/;
+// A word wholly in lower case goes on with the sentence ("etc. and", "vs. the");
+// "mRNA" or "iPSC" starts one.
+const LOWERCASE_WORD = /^\p{Ll}[\p{Ll}'’-]*[,;:]?(?:\s|$)/u;
+
+/** Whether the full stop between `before` and `after` ends a sentence. The
+ * last one of a text needs no answer: what follows it is kept either way. */
+function fullStopEnds(before, after) {
+  if (LEADING_ENUMERATOR.test(before.trim())) return false;
+  // No space after it: a decimal ("52.83%"), "e.g.,", "U.S.-based", "example.com".
+  if (!/^\s/.test(after)) return false;
+  return !LOWERCASE_WORD.test(after.trimStart()) && !NEVER_ENDS.test(before);
+}
+
 function sentencesOf(text) {
   const clean = text.replace(CITATION_RUN, "").replace(/\*\*/g, "").replace(/\s+/g, " ")
     .replace(/\s+([,.;:!?])/g, "$1").replace(/\(\s*\)/g, "").trim();
-  return clean.match(/[^.!?。！？]+[.!?。！？]+|[^.!?。！？]+$/gu)?.map(s => s.trim()).filter(Boolean) ?? [];
+  const sentences = [];
+  let start = 0;
+  for (const match of clean.matchAll(/[.!?。！？]+/gu)) {
+    let end = match.index + match[0].length;
+    end += clean.slice(end).match(SENTENCE_CLOSERS)?.[0].length ?? 0;
+    // Only a lone full stop is in doubt; "?", "…" and the CJK marks always end one.
+    if (match[0] === "." && !fullStopEnds(clean.slice(start, match.index), clean.slice(end))) continue;
+    sentences.push(clean.slice(start, end).trim());
+    start = end;
+  }
+  sentences.push(clean.slice(start).trim());
+  return sentences.filter(Boolean);
 }
 
 function firstSentence(text, { skipMethod = false } = {}) {
