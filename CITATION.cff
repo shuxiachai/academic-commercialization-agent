@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Academic Commercialization Agent"
+authors:
+  - name: "shuxiachai"
+repository-code: "https://github.com/shuxiachai/academic-commercialization-agent"
+license: MIT
+# Bump `version` and `date-released` at each release.
+version: 2.1.0
+date-released: 2026-10-17
