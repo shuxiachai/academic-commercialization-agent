@@ -699,6 +699,229 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual(self._next("**Opportunities:**\n\n| 机遇 | 短期可行性 |\n|---|---|\n| 健康监测贴片 | 中 |\n\n1. 先开发健康监测贴片。"),
                          "先开发健康监测贴片。")
 
+    def test_the_first_step_is_the_route_wherever_the_section_names_it(self):
+        """Since October 2026 the writer's contract has the section name exactly
+        one primary commercialization route, among statements of mode, owner,
+        cost and provenance in whatever order the model writes them. Of the 88
+        saved reports made since then, 83 showed that route as the first step
+        and 5 showed something else (2026-11-13), all five with the route under
+        a sub-heading: three showed the first reason listed under a heading that
+        named the route, two a statement with a label nobody had listed. The
+        forms below are the ones those five reports use."""
+        mode = "### 评估模式声明\n本章节处于**导向模式**。本报告**不评估**针对特定主体的 GO/NO_GO 决策。\n\n"
+        # The route's name is in the sub-heading and its reasons are listed under it.
+        self.assertEqual(self._next(
+            mode + "### 首选商业化路径：面向新兴市场的离岸绿色氢能独立供电系统\n"
+            "**推荐理由：** 相比于传统的深远海并网发电，该路径可能更具近期可行性。\n"
+            "1.  **规避电网瓶颈：** 可直接在离岸生产氢气 [A2][A3]。\n2.  **环境适配性：** 水动力条件温和 [A3]。"),
+            "面向新兴市场的离岸绿色氢能独立供电系统")
+        self.assertEqual(self._next(
+            mode + "### 首选商业化路径：高价值化学品生物制造\n**理由**：\n"
+            "1.  **技术可行性与差异化**：已实现2-3倍增产 [A3]。\n2.  **经济优势**：单位质量价值更高。"),
+            "高价值化学品生物制造")
+        for heading in ("### Primary Commercialization Route: Component licensing to incumbents",
+                        "### 5.1 Primary Commercialization Route: Component licensing to incumbents",
+                        "#### Preferred route (analyst inference): Component licensing to incumbents",
+                        "### **Primary Commercialization Route:** Component licensing to incumbents"):
+            with self.subTest(heading=heading):
+                self.assertEqual(self._next(
+                    f"{heading}\n\n**Rationale:**\n1. **Lower capital need.** Licensing avoids a plant.\n2. More."),
+                    "Component licensing to incumbents")
+
+        # The sub-heading is the label alone and the route is the line under it,
+        # after a statement about cost that is not a step.
+        opening = ("**Assessment mode: orientation.** No decision context was supplied. **Actor-specific GO/NO_GO is not "
+                   "assessed.**\n\n**Decision owner:** not established.\n\n")
+        self.assertEqual(self._next(
+            opening + "**Cost, capital and time:** not established. The registry contains no cost figures [A5][A6].\n\n"
+            "### Primary route (analyst inference)\n\n"
+            "**Route: a platform-agnostic training and assessment layer** (simulation content sold to hospitals). "
+            "It rests on the strongest evidence.\n\n*Why this route is preferred (analyst inference).*\n"
+            "- It rests on the strongest-rated evidence in the registry."),
+            "a platform-agnostic training and assessment layer (simulation content sold to hospitals).")
+        self.assertEqual(self._next(
+            opening + "**Provenance legend.** *Observed facts* are statements in cited source summaries. "
+            "*Estimates* are market-report figures.\n\n### Primary commercialization route\n\n"
+            "**Primary route (analyst orientation recommendation): an enabling-technology layer sold to every "
+            "platform maker.**\n\nRationale from evidence:\n- The fastest-growing value pool is digital [M5]."),
+            "an enabling-technology layer sold to every platform maker.")
+        self.assertEqual(self._next(
+            "### Primary commercialization route\n\nThe preferred route is licensing to cell makers. It needs no plant.\n\n"
+            "- Order books are full."), "The preferred route is licensing to cell makers.")
+        self.assertEqual(self._next("### 首选商业化路线\n\n建议与电网公司合作开发。其余从略。\n\n- 订单充足。"), "建议与电网公司合作开发。")
+
+        # The route is the step even when something else stands before it in the
+        # section: a statement nobody listed, or a list of gates.
+        self.assertEqual(self._next(
+            "**Scope of this section.** Orientation only; no owner has approved a gate.\n\n"
+            "1. Gate one is a pilot line with a partner.\n\n"
+            "**Primary Commercialization Route:** License the coating process to cell makers. Then scale."),
+            "License the coating process to cell makers.")
+        self.assertEqual(self._next(
+            "1. Gate one is a pilot line with a partner.\n\n### Primary commercialization route\n\n"
+            "The preferred route is licensing to cell makers. It needs no plant."),
+            "The preferred route is licensing to cell makers.", "a list before the route's sub-heading")
+        # A name in a sub-heading is read as any step is: without its citations.
+        self.assertEqual(self._next("### Primary Commercialization Route: Licensing to incumbents [M1][M2]\n\n- A reason."),
+                         "Licensing to incumbents")
+        # A route's name over its own reasons is the step, as an opportunity's title is.
+        self.assertEqual(self._next(
+            "**Primary Commercialization Route: Component licensing to incumbents**\n"
+            "1. **Lower capital need.** Licensing avoids a plant.\n2. More."), "Component licensing to incumbents")
+
+        # Without a route, the two statements are still not steps.
+        notes = ("**Cost, capital and time:** not established. No source gives a figure.\n\n"
+                 "**Provenance legend.** Observed facts are cited; estimates are marked.\n\n")
+        self.assertEqual(self._next(notes + "1. Build a pilot line with a partner. Then scale."),
+                         "Build a pilot line with a partner.")
+        self.assertEqual(self._next(notes.strip()), "Patent white space in manufacturing scalability [P4].")
+        for step in ("Cost, capital and time are the three limits to plan around.",
+                     "Provenance legends on each figure would help a reviewer."):
+            with self.subTest(step=step):
+                self.assertEqual(self._next(f"1. {step} More follows."), step)
+
+        # What is not a route's label.
+        self.assertEqual(self._next("### Primary route options compared\n\n1. Build a pilot line. Then scale."),
+                         "Build a pilot line.", "a sub-heading that only mentions a route")
+        self.assertEqual(self._next("### Primary commercialization route\n\n### Alternatives\n\n- A full line of vehicles."),
+                         "A full line of vehicles.", "a route sub-heading with nothing under it hands on to what follows")
+        self.assertEqual(self._next("1. Build a pilot line. Then scale.\n2. **Route:** direct sales to utilities."),
+                         "Build a pilot line.", "a bare 'Route:' further down is one entry's detail")
+        self.assertEqual(self._next("1. Route selection should wait for the pilot data. More."),
+                         "Route selection should wait for the pilot data.")
+        self.assertEqual(self._next("1. Build a pilot line. Then scale.\n2. Primary route selection should wait for the pilot data."),
+                         "Build a pilot line.", "a sentence that opens with the words is not labelled as the route")
+        # A statement of what the section is does not become the route by standing under its sub-heading.
+        self.assertEqual(self._next("### Primary commercialization route\n\n**Assessment mode: orientation.** No context.\n\n"
+                                    "1. License the process to cell makers. Then scale."),
+                         "License the process to cell makers.")
+        elsewhere = self._brief(markdown=(
+            "## Executive Summary\n\nShort.\n\n## 4. Target Industries\n\n### Primary Commercialization Route: Wrong place\n\n"
+            "## 5. Commercialization Opportunities & Recommendations\n\n1. Build a pilot line. Then scale.\n"))["brief"]
+        self.assertEqual(elsewhere["next"], "Build a pilot line.", "only the recommendations section is read")
+        # A table row or a quotation under a route sub-heading is not the route.
+        self.assertEqual(self._next("### Primary commercialization route\n\n| Route | Fit |\n|---|---|\n| Licensing | High |\n\n"
+                                    "> Quoted remark.\n\nLicense the process to cell makers. Then scale."),
+                         "License the process to cell makers.")
+
+    def test_the_summary_line_is_about_the_technology_not_about_the_report(self):
+        """The brief quotes the executive summary's first sentence that is not
+        about the report. Of the 88 saved reports made since October 2026, 21
+        showed a sentence about the report instead and one showed nothing
+        (2026-11-13): an opener the rule did not know ("This orientation brief
+        synthesizes…"), a statement of the assessment mode standing second, a
+        first paragraph with nothing else in it, and a summary written as a
+        list. The forms below are the ones those reports use."""
+        finding = "The technology is moving from early clinical adoption to procedure-specific optimization."
+        # An opener that names the report by another word, or with a word in between.
+        for opener in (
+            "This orientation brief synthesizes findings from academic research, patent analysis, and market intelligence.",
+            "This orientation assessment evaluates the commercialization potential based on a validated registry.",
+            "This orientation report synthesizes validated academic, patent, and market intelligence regarding SBSP.",
+            "This is an orientation brief built from three small, validated evidence registries: academic, patent and market.",
+            "This commercialization assessment covers three evidence registries.",
+        ):
+            with self.subTest(opener=opener):
+                self.assertEqual(self._summary(f"{opener} {finding} More follows."), finding)
+        # The mode, stated as the sentence after the opener.
+        for mode in (
+            "It is an orientation-mode assessment: no actor-specific decision context was supplied, so GO/NO_GO is not assessed.",
+            "It is an orientation-mode brief: no actor-specific GO/NO_GO decision is assessed.",
+            "It is written in orientation mode: no actor-specific decision context was supplied.",
+            "No actor-specific decision context was supplied, so **actor-specific GO/NO_GO is not assessed**.",
+            "Conclusions are provisional because the evidence is abstract-, snippet- and market-report-level.",
+            "The report is an evidence-linked orientation brief, not a recommendation for any particular investor.",
+        ):
+            with self.subTest(mode=mode):
+                self.assertEqual(self._summary(
+                    f"This report synthesizes three validated evidence registries. {mode} {finding} More follows."), finding)
+
+        # A first paragraph with nothing but the report in it: the next one is read.
+        self.assertEqual(self._summary(
+            "This report synthesizes three validated evidence registries — academic [A1, A2], patent [P1] and market [M1] — "
+            "into an orientation brief. It is an orientation-mode assessment: no decision context was supplied.\n\n"
+            f"{finding} In gynecologic applications, outcomes are comparable [A1]."), finding)
+        self.assertEqual(self._summary(
+            "本报告基于三个已校验的证据报告（学术文献 A1–A7、专利记录 P1–P8）编制，对特高压直流输电技术的商业化前景进行定向评估。"
+            "**本报告处于定向（orientation）模式，未评估任何特定主体的 GO/NO_GO 决策。**\n\n主要判断如下：\n\n"
+            "- **技术成熟度**：特高压直流输电已是运行中的大规模技术 [A1]。但成熟度判断属分析者推断。\n- **市场**：其余从略。"),
+            "技术成熟度：特高压直流输电已是运行中的大规模技术。")
+        for mode in ("需要明确的是，本报告处于**方向性指导模式（orientation mode）**，未针对任何特定决策主体进行GO/NO_GO评估。",
+                     "评估模式为**方向性指导（orientation）**，未对任何特定参与者进行GO/NO_GO决策评估。"):
+            with self.subTest(mode=mode):
+                self.assertEqual(self._summary(
+                    f"本报告基于经过验证的学术研究、专利分析与市场情报数据，对量子密钥分发网络的商业化前景进行综合评估。{mode}"
+                    "当前证据表明，QKD网络正处于从点对点实验链路向多层级网络过渡的阶段。其余从略。"),
+                    "当前证据表明，QKD网络正处于从点对点实验链路向多层级网络过渡的阶段。")
+        # A paragraph that states the mode under its own label is about the mode to its end.
+        self.assertEqual(self._summary(
+            "**Assessment Mode:** Orientation. General next steps are identified, but they are not a recommendation.\n\n"
+            f"{finding} More follows."), finding)
+
+        # A summary written as a list. The first point states the mode; the next
+        # one's bold title is the heading of its first sentence, so both are quoted.
+        points = ("- **Assessment mode: orientation.** No actor-specific decision context was supplied, so GO/NO_GO is not "
+                  "assessed. The report is an evidence-linked orientation brief, not a recommendation.\n"
+                  "- **Maturity is uneven across sub-fields.** Reviews describe RAS as having transformed surgical practice "
+                  "[A2][A6]. Reconstructive microsurgery is described as maturing.\n"
+                  "- **Patent evidence is thin.** Eight records, with snippet-level evidence only.")
+        self.assertEqual(self._summary(points),
+                         "Maturity is uneven across sub-fields. Reviews describe RAS as having transformed surgical practice.")
+        self.assertEqual(self._summary(
+            "This is an orientation brief built from three small registries. No actor-specific decision context was supplied.\n\n"
+            "- **Maturity is uneven.** Robotic-assisted surgery (RAS) appears established in gynecologic applications. More.\n"
+            "- **Persistent barriers** include high installation and maintenance costs [A1]."),
+            "Maturity is uneven. Robotic-assisted surgery (RAS) appears established in gynecologic applications.")
+        self.assertEqual(self._summary(
+            "核心发现如下：\n\n- **市场机遇明确但尚处早期。** 美国BCI市场正处于关键转折点 [A6]。其余从略。\n- **其余从略。**"),
+            "市场机遇明确但尚处早期。美国BCI市场正处于关键转折点。")
+        # A point that is one sentence, or opens with a long one, is quoted as it stands.
+        self.assertEqual(self._summary("1. Solid-state cells are early [A1]. Pilot lines exist.\n2. More."), "Solid-state cells are early.")
+        self.assertEqual(self._summary("- **Persistent barriers** include high installation and maintenance costs [A1]. More."),
+                         "Persistent barriers include high installation and maintenance costs.")
+        self.assertEqual(self._summary("- **Maturity is uneven.**\n- **Patents are thin.** Eight records only."), "Maturity is uneven.")
+        long_title = "The incumbent position is strong across every high-volume specialty that the registry covers today."
+        self.assertEqual(self._summary(f"- **{long_title}** One report relays 3.1 million procedures."), long_title)
+        # A plain paragraph before the list is still read first.
+        self.assertEqual(self._summary(f"{finding}\n\n- **Maturity is uneven.** RAS appears established."), finding)
+
+        # What is not read: a sub-heading, a quotation, a table row, a line that only leads in.
+        self.assertEqual(self._summary(
+            "### Overview\n\n> Quoted remark about the field.\n\n| Field | State |\n|---|---|\n| Urology | Mature |\n\n"
+            f"Key findings:\n\n{finding} More."), finding)
+        # A summary with nothing but the report in it still shows its first sentence.
+        only = "This orientation brief synthesizes validated academic, patent, and market intelligence regarding hyperloop."
+        self.assertEqual(self._summary(f"{only} It is an orientation-mode assessment: no decision context was supplied."), only)
+        self.assertIsNone(self._summary("- **Assessment mode: orientation.** No decision context was supplied."))
+        # That fallback is the first paragraph's, not a later one's and not a list item's.
+        self.assertEqual(self._summary(f"{only}\n\nIt is an orientation-mode assessment: no decision context was supplied."), only)
+        self.assertIsNone(self._summary(f"- {only}\n- It is an orientation-mode assessment: no decision context was supplied."))
+        # Only the executive summary is read, wherever it stands in the report.
+        placed = self._brief(markdown=(
+            "## 1. Technology Overview & Maturity\n\nThe incumbent is commercially available today.\n\n"
+            f"## Executive Summary\n\n{only} {finding}\n\n## Evidence Limitations\n\nSources are sparse.\n"))["brief"]
+        self.assertEqual(placed["summary"], finding)
+        # A long sentence is cut at a word, and so is a title with the sentence it heads.
+        long_finding = ("The technology is moving from early clinical adoption to procedure-specific optimization, "
+                        + "with platform diversification beyond the incumbent in urology, gynecology and general surgery, " * 3
+                        + "and more.")
+        cut = self._summary(f"{only} {long_finding}")
+        self.assertTrue(cut.endswith("…") and 200 < len(cut) <= 240 and long_finding.startswith(cut[:-1]), cut)
+        self.assertRegex(long_finding[len(cut) - 1:], r"^[\s,;:]", "the cut falls between words")
+        joined = self._summary(f"- **Maturity is uneven.** {long_finding}")
+        self.assertTrue(joined.startswith("Maturity is uneven. The technology is moving") and joined.endswith("…")
+                        and len(joined) <= 240, joined)
+        # Sentences that only share a word with the rules are findings.
+        for kept in ("The brief window before the core patents expire favours licensing.",
+                     "It is an established modality in urology.",
+                     "This is a mature technology in gynecologic surgery.",
+                     "No actor has yet shipped a commercial system.",
+                     "Conclusions from two randomized trials favour the robotic approach.",
+                     "Assessment of 30 trials shows comparable outcomes.",
+                     "评估结果显示该技术已进入示范阶段。"):
+            with self.subTest(kept=kept):
+                self.assertEqual(self._summary(f"{kept} More follows."), kept)
+
     def _summary(self, paragraph):
         return self._brief(markdown=f"## Executive Summary\n\n{paragraph}\n")["brief"]["summary"]
 

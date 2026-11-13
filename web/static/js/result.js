@@ -708,7 +708,32 @@ function citedText(text) {
 
 // "This assessment synthesizes evidence from four papers…" opens a fifth of
 // the saved reports; it describes the report, not the technology.
-const METHOD_OPENER = /^(?:this|the)\s+(?:assessment|report|analysis|document|evaluation)\b|^本(?:报告|评估|分析|文)/iu;
+//
+// Since October 2026 the writer's contract also has the report state its
+// assessment mode, and models put that in the summary. Of the 88 saved reports
+// made since then, 21 showed a sentence about the report as their summary and
+// one showed nothing (2026-11-13). What they wrote, and what is now passed over:
+// the report named by another word or with a word in between ("This orientation
+// brief synthesizes…", "This is an orientation brief built from…"); the mode,
+// stated as the next sentence ("It is an orientation-mode assessment: no
+// actor-specific decision context was supplied…", "需要明确的是，本报告处于…模式");
+// and what follows from the mode ("Conclusions are provisional because…").
+// "The brief window before the patents expire…" is about the technology: a
+// brief is the report only after "this" or one of the words below.
+const REPORT_QUALIFIER = "(?:(?:orientation(?:-mode)?|evidence-linked|commerciali[sz]ation|present|current)\\s+)";
+const ABOUT_THE_REPORT = new RegExp("^(?:"
+  + "(?:this|the)\\s+" + REPORT_QUALIFIER + "{0,2}(?:assessment|report|analysis|document|evaluation)\\b"
+  + "|this\\s+" + REPORT_QUALIFIER + "{0,2}brief\\b"
+  + "|(?:this|it) is an?\\s+(?:[\\w-]+\\s+){0,3}(?:assessment|report|analysis|evaluation|brief)\\b"
+  + "|it is written in (?:orientation|decision[- ]support)\\b"
+  + "|assessment mode\\b|no actor-specific\\b|actor-specific go\\/no[_-]go\\b"
+  + "|(?:all )?(?:conclusions|findings) (?:are|remain) (?:provisional|preliminary|tentative)\\b"
+  + "|本(?:报告|评估|分析|文)|需要(?:明确|说明|指出)的是|评估模式"
+  + ")", "iu");
+// A point's bold title is the heading of its first sentence ("**Maturity is
+// uneven.** Robotic-assisted surgery appears established in…"): alone it says
+// little, so a short one is quoted with the sentence it heads.
+const TITLE_LIMIT = 60;
 
 // Where a full stop is not the end of a sentence. Until 2026-11-12 every one
 // was, and the brief's two quoted lines stopped wherever a report wrote a
@@ -744,7 +769,7 @@ function fullStopEnds(before, after) {
 
 function sentencesOf(text) {
   const clean = text.replace(CITATION_RUN, "").replace(/\*\*/g, "").replace(/\s+/g, " ")
-    .replace(/\s+([,.;:!?])/g, "$1").replace(/\(\s*\)/g, "").trim();
+    .replace(/\s+([,.;:!?，。；：！？、])/gu, "$1").replace(/\(\s*\)/g, "").trim();
   const sentences = [];
   let start = 0;
   for (const match of clean.matchAll(/[.!?。！？]+/gu)) {
@@ -759,9 +784,8 @@ function sentencesOf(text) {
   return sentences.filter(Boolean);
 }
 
-function firstSentence(text, { skipMethod = false } = {}) {
-  const sentences = sentencesOf(text);
-  let sentence = sentences.find(s => !(skipMethod && METHOD_OPENER.test(s))) ?? sentences[0] ?? "";
+/** The text as the brief quotes it: whole, or cut at a word with an ellipsis; null when empty. */
+function quoted(sentence) {
   if (sentence.length > BRIEF_SENTENCE_LIMIT) {
     const cut = sentence.slice(0, BRIEF_SENTENCE_LIMIT - 1);
     const space = cut.lastIndexOf(" ");
@@ -770,16 +794,40 @@ function firstSentence(text, { skipMethod = false } = {}) {
   return sentence || null;
 }
 
-/** The first sentence of the report's own executive summary, or null. */
+function firstSentence(text) {
+  return quoted(sentencesOf(text)[0] ?? "");
+}
+
+/** The first sentence of the report's own executive summary that is about
+ * the technology, or null. Paragraphs and list items are read in the order
+ * written; a summary that says nothing but what the report is shows the
+ * first sentence of its first paragraph, as it always did. */
 function executiveSummaryLead(markdown) {
   let inside = false;
+  let first = null;
   for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
     if (/^##\s/.test(line)) { inside = SUMMARY_HEADINGS.test(line); continue; }
     if (/^#\s/.test(line) || !inside) continue;
     const text = line.trim();
-    if (text && !/^[-*]\s|^\d+[.)]\s|^###|^>/.test(text)) return firstSentence(text, { skipMethod: true });
+    // A sub-heading, a quotation and a table row are not the summary's prose.
+    if (!text || /^###|^[>|]/.test(text)) continue;
+    const item = text.match(/^(?:[-*]|\d+[.)])\s+(.+)$/);
+    const block = item ? item[1] : text;
+    // A paragraph or point labelled as the assessment mode is about the mode to its end.
+    if (RECOMMENDATION_PREAMBLE.test(block.replace(/\*+/g, "").trim())) continue;
+    const sentences = sentencesOf(block);
+    if (!item) first ??= sentences[0] ?? null;
+    // "Key findings:" on a line of its own only leads in.
+    const at = sentences.findIndex(s => !ABOUT_THE_REPORT.test(s) && !(s.length <= LABEL_LIMIT && /[:：]$/.test(s)));
+    if (at < 0) continue;
+    const title = at === 0 ? block.match(/^\*\*[^*]+\*\*/) : null;
+    const heads = title && sentences.length > 1 && sentences[0].length <= TITLE_LIMIT
+      && sentencesOf(title[0])[0] === sentences[0];
+    // Chinese sentences follow one another without a space.
+    const gap = /[。！？]$/u.test(sentences[0]) ? "" : " ";
+    return quoted(heads ? sentences[0] + gap + sentences[1] : sentences[at]);
   }
-  return null;
+  return first === null ? null : quoted(first);
 }
 
 // The writer's contract opens the recommendations by saying what the section
@@ -803,16 +851,37 @@ const LABEL_LIMIT = 80;
 // ("**GO/NO_GO Status:** Not assessed.", "**Evidence basis:** All nine…").
 // The label must be the whole lead, closed by its own punctuation: "Note the
 // regulatory path…" is a recommendation.
-const SECTION_NOTE = /^(?:mode|go\/no[_-]go status|note|evidence bas(?:is|es|e)|rationale|责任决策者|证据基础|推荐理由)\s*[:：.。]/iu;
+// Two more of the same kind, from the first runs on Anthropic's and DeepSeek's
+// own APIs (2026-11-12): "**Cost, capital and time:** not established." and
+// "**Provenance legend.** *Observed facts* are…". The contract asks for both
+// statements and leaves their labels to the model.
+const SECTION_NOTE = /^(?:mode|go\/no[_-]go status|note|evidence bas(?:is|es|e)|rationale|cost, capital and time|provenance legend|责任决策者|证据基础|推荐理由)\s*[:：.。]/iu;
 // A label in front of the step, on the step's own line: the route's
 // ("**Primary Commercialization Route**: A partnership…", or written as a
 // sentence with a remark in brackets) and the recommendation's own
 // ("**Recommendation:** Companies could…"). The step is what follows it.
-const LEADING_LABEL = new RegExp("^(?:"
-  + "(?:primary|preferred)(?: commerciali[sz]ation)? route"
-  + "|(?:首选|首要|主要|主导)商业化(?:路线|路径)"
-  + "|recommendations?|analyst inference|建议"
-  + ")(?:\\s*[（(][^（()）]*[）)])?\\s*[:：.。]\\s*", "iu");
+// Under a sub-heading that already says "Primary route", the line is labelled
+// "**Route: …**" and no more.
+const ROUTE_LABEL = "(?:primary|preferred)(?: commerciali[sz]ation)? route|(?:首选|首要|主要|主导)商业化(?:路线|路径)";
+const LABEL_REMARK = "(?:\\s*[（(][^（()）]*[）)])?";
+const LEADING_LABEL = new RegExp("^(?:" + ROUTE_LABEL + "|route|recommendations?|analyst inference|建议)"
+  + LABEL_REMARK + "\\s*[:：.。]\\s*", "iu");
+// The route itself. Since October 2026 the writer's contract has the section
+// name exactly one primary commercialization route, among statements of mode,
+// owner, cost and provenance in whatever order and under whatever labels the
+// model chooses. So where the section labels a route, that is the first step,
+// whatever stands before it. Of the 88 saved reports made since then, 83
+// already showed the route and 5 showed something else (2026-11-13): three the
+// first reason listed under "### 首选商业化路径：<the route>", because a
+// sub-heading was never read, and two a statement whose label was not listed.
+// A line is labelled as the route by the full label, closed by punctuation; a
+// bare "Route:" further down is one entry's detail.
+const ROUTE_LEAD = new RegExp("^(?:" + ROUTE_LABEL + ")" + LABEL_REMARK + "\\s*[:：.。]", "iu");
+// A sub-heading that is the route's label, with the route's name after a
+// colon or with nothing: then the route is the text under it. "### Primary
+// route options compared" is neither.
+const ROUTE_HEADING = new RegExp("^#{3,}\\s+(?:\\d+(?:\\.\\d+)*[.)]?\\s+)?(?:" + ROUTE_LABEL + ")" + LABEL_REMARK
+  + "\\s*(?:[:：]\\s*(.*))?$", "iu");
 // A line that is one bold span and nothing else, over a list or a run of
 // italic-led entries, is the heading of what is under it ("**5.1 战略机遇**").
 // Over a paragraph it is the recommendation's own title and stays the step.
@@ -832,9 +901,9 @@ function headsAList(lines, index) {
   return false;
 }
 
-/** The first recommendation of the recommendations section, or null. */
-function firstRecommendation(markdown) {
-  const lines = markdown.split(/\r?\n/);  // saved reports carry either line ending
+/** The first step in the recommendations section, or null. With `routeOnly`
+ * only what the section labels as its route is a step. */
+function recommendationIn(lines, routeOnly) {
   let inside = false;
   let labelled = false;  // the last candidate was only a label: its text is the next line
   for (const [index, line] of lines.entries()) {
@@ -842,18 +911,40 @@ function firstRecommendation(markdown) {
     const text = line.trim();
     // A quotation and a table row are neither a step nor the text a label waits for.
     if (!inside || !text || /^[>|]/.test(text)) continue;
+    if (/^#/.test(text)) {
+      const route = text.replace(/\*+/g, "").match(ROUTE_HEADING);
+      if (route) {
+        const name = (route[1] ?? "").trim();
+        if (name) return firstSentence(name) || null;
+        labelled = true;
+      }
+      continue;
+    }
     // A list item, or a paragraph that opens with a bold heading ("**Opportunity 1: …**").
     const item = line.match(/^\s*(?:[-*]|\d+[.)])\s+(.+)$/) ?? line.match(/^\s*(\*\*.+)$/);
-    const candidate = item ? item[1] : labelled && !/^#/.test(text) ? text : null;
+    const candidate = item ? item[1] : labelled ? text : null;
     if (!candidate) continue;
     const whole = candidate.replace(/\*+/g, "").trim();
+    const namesRoute = ROUTE_LEAD.test(whole);
+    if (routeOnly && !labelled && !namesRoute) continue;
     if (RECOMMENDATION_PREAMBLE.test(whole) || SECTION_NOTE.test(whole)) { labelled = false; continue; }
     const plain = whole.replace(LEADING_LABEL, "");
     if (!plain || (plain.length <= LABEL_LIMIT && BARE_LABEL.test(plain))) { labelled = true; continue; }
-    if (BOLD_ONLY.test(text) && !NUMBERED_OPPORTUNITY.test(plain) && headsAList(lines, index)) { labelled = true; continue; }
+    // A route's name over its own reasons is the step, as an opportunity's title is.
+    if (BOLD_ONLY.test(text) && !namesRoute && !NUMBERED_OPPORTUNITY.test(plain) && headsAList(lines, index)) {
+      labelled = true;
+      continue;
+    }
     return firstSentence(plain) || null;
   }
   return null;
+}
+
+/** The first recommendation of the recommendations section, or null: the
+ * route the section labels as primary, else its first item. */
+function firstRecommendation(markdown) {
+  const lines = markdown.split(/\r?\n/);  // saved reports carry either line ending
+  return recommendationIn(lines, true) ?? recommendationIn(lines, false);
 }
 
 const SOURCE_LISTS = ["academic_sources", "patent_sources", "market_sources"];

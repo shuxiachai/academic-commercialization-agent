@@ -406,7 +406,8 @@ at [a343a95](https://github.com/shuxiachai/academic-commercialization-agent/comm
 
 Created by [shuxiachai](https://github.com/shuxiachai).
 Contributors: [Song Guoyu (@7776403yu)](https://github.com/7776403yu),
-[@xiaobaozhou165-sudo](https://github.com/xiaobaozhou165-sudo).
+[@xiaobaozhou165-sudo](https://github.com/xiaobaozhou165-sudo),
+[Abhishek Vyas (@Baddevil512)](https://github.com/Baddevil512).
 Explore [more projects on the author's GitHub profile](https://github.com/shuxiachai).
 
 ## License

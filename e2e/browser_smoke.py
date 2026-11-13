@@ -24,6 +24,7 @@ from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
 from academic_agent.run_output import save_scores, save_source_collection
 from api import samples
+from e2e.scroll_wait import COMES_TO_REST
 from e2e.smoke_report import capture_failure
 from e2e.isolated_app import (
     ACCESS_CODE,
@@ -590,17 +591,15 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
     def focus_in_contents(presses: int = 1) -> str | None:
         """Press Tab until focus is inside the contents (at most `presses` times); name what has it.
 
-        Focus scrolls the page smoothly (base.css), and Chromium drops a
-        fragment jump that starts while that scroll is still moving, so wait
-        for it to stop, as a person's next key press would.
+        Focus scrolls the page smoothly (base.css). Wait for the page to come
+        to rest before the next key, as a person's next key press would: Enter
+        sent within a few milliseconds of the Tab that focused a link races
+        the scroll bringing that link into view, and can leave the page at the
+        link instead of at the heading (e2e/scroll_wait.py has the numbers).
         """
         for _ in range(presses):
             page.keyboard.press("Tab")
-            page.wait_for_function("""() => {
-                const still = window.__smokeScrollY === window.scrollY;
-                window.__smokeScrollY = window.scrollY;
-                return still;
-            }""", polling=100)
+            page.evaluate(COMES_TO_REST, None)
             focused = page.evaluate("""() => {
                 const active = document.activeElement;
                 return active.closest(".samples__toc") ? (active.getAttribute("href") ?? active.tagName) : null;
@@ -610,16 +609,10 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
         return None
 
     def settle_at(section: str) -> None:
-        # base.css scrolls smoothly: wait until the heading has stopped near the top.
-        page.wait_for_function("""(id) => {
-            // Missing while a re-rendered report loads; arrive() then names the re-read.
-            const heading = document.getElementById(id);
-            if (!heading) return false;
-            const top = heading.getBoundingClientRect().top;
-            const still = window.__smokeTop === top;
-            window.__smokeTop = top;
-            return still && top >= 0 && top <= 64;
-        }""", arg=section, polling=100)
+        # base.css scrolls smoothly: wait until the heading has come to rest near the
+        # top. A heading missing while a re-rendered report loads is waited for too;
+        # arrive() then names the re-read. A failure says where the heading stopped.
+        page.evaluate(COMES_TO_REST, section)
 
     def arrive(slug: str, section: str, before: int) -> None:
         settle_at(section)
