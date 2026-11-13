@@ -455,7 +455,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         # carries the report as the pipeline wrote it, as it did before them.
         for selector in (".samples__head", ".samples__intro", ".samples__list",
                          ".samples__reader > .empty-note", ".samples__toc", ".samples__download",
-                         ".samples__reader > .brief", ".samples__scorecard"):
+                         ".samples__reader > .brief", ".samples__scorecard", ".samples__next"):
             expect(page.locator(selector)).to_be_hidden()
         expect(notice).to_be_visible()
         expect(report).to_be_visible()
@@ -502,8 +502,10 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         assert printed["reportMaxWidth"] == "none" and printed["reportFillsReader"], (slug, printed)
         # The download link and contents are screen navigation; print hides them like the list.
         # Every committed sample has its run's scorecard, so every one has both blocks.
+        # After the report, the way to one's own: screen navigation too, and not on paper.
         assert printed["readerChildren"] == [
             "samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose",
+            "samples__next",
         ], (slug, printed)
         assert not printed["badColors"], (slug, printed["badColors"][:5])
         assert not printed["badBackgrounds"], (slug, printed["badBackgrounds"][:5])
@@ -693,6 +695,28 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
         show(0)
         narrow = state(slugs[0])
         assert not narrow["open"], "The contents start closed above a narrow report."
+        # On a phone the cards are one row that scrolls sideways inside itself,
+        # so the report opens on the first screen: stacked, they pushed it 849px
+        # down a 375 by 812 window. Each card says its verdict under its title.
+        row = page.evaluate("""() => {
+            const list = document.querySelector(".samples__list");
+            const cards = [...list.querySelectorAll(".sample-card")];
+            return {
+                tops: [...new Set(cards.map((card) => Math.round(card.getBoundingClientRect().top)))].length,
+                scrolls: list.scrollWidth > list.clientWidth,
+                inside: list.getBoundingClientRect().right <= document.documentElement.clientWidth,
+                readerTop: Math.round(document.querySelector("#sample-reader").getBoundingClientRect().top + window.scrollY),
+                screen: window.innerHeight,
+                verdicts: cards.filter((card) => card.querySelector(".sample-card__verdict")?.textContent.includes(" / 100 · ")).length,
+                cards: cards.length,
+                next: document.querySelector("#sample-reader > .samples__next a")?.getAttribute("href") ?? null,
+            };
+        }""")
+        assert row["tops"] == 1 and row["scrolls"] and row["inside"], row
+        assert row["readerTop"] < row["screen"], row
+        assert row["verdicts"] == row["cards"] == len(slugs), row
+        # The isolated app has no accounts, so the way on is the app itself.
+        assert row["next"] == "/", row
         assert narrow["toc"]["bottom"] <= narrow["article"]["y"], (narrow["toc"], narrow["article"])
         assert abs(narrow["toc"]["x"] - narrow["article"]["x"]) < 1, (narrow["toc"], narrow["article"])
         expect(page.locator(".samples__toc a").first).to_be_hidden()
@@ -707,6 +731,12 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
         # Widening moves the contents beside the report, open; narrowing again closes them.
         page.set_viewport_size({"width": 1280, "height": 720})
         expect(page.locator(".samples__toc details")).to_have_attribute("open", "")
+        # ...and the cards wrap again, as they always did at this width.
+        assert page.evaluate("""() => {
+            const list = document.querySelector(".samples__list");
+            const tops = new Set([...list.querySelectorAll(".sample-card")].map((card) => Math.round(card.getBoundingClientRect().top)));
+            return tops.size > 1 && list.scrollWidth <= list.clientWidth;
+        }"""), "The cards are a wrapping grid from 768px."
         page.set_viewport_size({"width": 390, "height": 844})
         expect(page.locator(".samples__toc details")).not_to_have_attribute("open", "")
 

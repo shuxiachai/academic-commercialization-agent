@@ -85,6 +85,7 @@ from api.models import (  # noqa: E402
     PasswordForgot,
     PasswordReset,
     PasswordResetDone,
+    SampleSummary,
     SiteInfo,
     BYOK_PROVIDERS,
     CleanupSummary,
@@ -920,10 +921,14 @@ def _operator_contact() -> str | None:
 
 @app.get("/api/site", response_model=SiteInfo, tags=["site"])
 def site_info() -> SiteInfo:
-    """The facts about this deployment that its privacy page states: how long
-    assessments are kept and who to ask. Ungated; nothing here is private."""
+    """The facts about this deployment that its public pages state: how long
+    assessments are kept and who to ask (the privacy page), and whether it has
+    accounts and takes new ones (the sample reader's link to the way in, which
+    would otherwise have to ask the access check and be refused, since the
+    reader sends no credential). Ungated; nothing here is private."""
     return SiteInfo(retention_days=runs.RUN_RETENTION_DAYS or None, contact=_operator_contact(),
-                    accounts=accounts.enabled(), account_backup_days=account_backup.kept_days(),
+                    accounts=accounts.enabled(), signup_open=accounts.enabled() and accounts.signup_open(),
+                    account_backup_days=account_backup.kept_days(),
                     # An outbox directory, the development setting, sends nothing to anyone.
                     mail=mail.mode() == "resend")
 
@@ -1592,14 +1597,15 @@ if _WEB_ROOT.is_dir():
         return FileResponse(_WEB_ROOT / "admin.html", media_type="text/html")
 
 
-@app.get("/api/samples", tags=["samples"])
-def list_sample_reports() -> list[dict[str, str]]:
+@app.get("/api/samples", response_model=list[SampleSummary], tags=["samples"])
+def list_sample_reports() -> list[SampleSummary]:
     """Committed example reports readable without credentials.
 
-    Historical outputs from an earlier pipeline version, listed with the
-    commit that added them; not current model accuracy or market data.
+    Historical outputs, each listed with the pipeline revision and model of
+    its run, and with the overall score and readiness level that run's
+    scorecard holds; not current model accuracy or market data.
     """
-    return samples.list_samples()
+    return [SampleSummary(**entry) for entry in samples.list_samples()]
 
 
 @app.get("/api/samples/{slug}", tags=["samples"], response_class=PlainTextResponse)

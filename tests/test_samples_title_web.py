@@ -38,6 +38,16 @@ export function renderScorecard(scores, sources = null) {
   return node;
 }
 export function attachCitations(node) { globalThis.cited?.push(node.className); }
+// The card's facts as the real sampleFacts shapes them, in words a test can tell apart.
+export function sampleFacts(sample) {
+  const scored = typeof sample?.overall_score === "number";
+  return {
+    verdict: scored ? `verdict ${sample.overall_score}` : null,
+    tone: scored ? (sample.overall_score >= 70 ? "success" : "warning") : null,
+    trl: typeof sample?.trl_score === "number" ? `TRL ${sample.trl_score}` : null,
+    language: sample?.language ? `in ${sample.language}` : null,
+  };
+}
 """
 
 

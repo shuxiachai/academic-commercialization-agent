@@ -14,6 +14,8 @@ class Element {
       dataset: {}, attributes: {}, listeners: {}, children: [], scrolledTo: 0 });
     this._text = "";
   }
+  // No layout unless a scenario gives one: where a node sits in its row.
+  get offsetLeft() { return layout ? layout(this) : undefined; }
   set textContent(value) { this._text = String(value); this.children = []; }
   get textContent() { return this._text + this.children.map((c) => c.textContent).join(""); }
   // The stub renderer emits only <h2> elements; parse them back, as a browser would.
@@ -72,6 +74,12 @@ globalThis.window = {
 globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, String(v)) };
 
 let list = samples, failReads = false;
+let layout = null;
+// The deployment's public facts (/api/site), of which the reader wants
+// whether it has accounts and takes new ones. "refused" fails the request
+// itself, a string is served as that body.
+let access = { status: 200, body: { retention_days: 90, accounts: true, signup_open: true } };
+const accessReads = [];
 const reads = [];
 // A sample's scorecard, read beside its report. By slug: an object is served
 // as JSON, a string as that body, "refused" fails the request itself, and a
@@ -80,7 +88,15 @@ const reads = [];
 const scorecards = {};
 const scoreReads = [];
 globalThis.cited = [];
-globalThis.fetch = async (url) => {
+globalThis.fetch = async (url, options) => {
+  assert.equal(options, undefined, "The reader sends no header, credential or body with any request");
+  assert.notEqual(url, "/api/access/check", "The access check refuses a page that sends no credential; it is not asked");
+  if (url === "/api/site") {
+    accessReads.push(url);
+    if (access === "refused") throw new TypeError("network");
+    return new Response(typeof access.body === "string" ? access.body : JSON.stringify(access.body),
+      { status: access.status, headers: { "Content-Type": "application/json" } });
+  }
   if (url === "/api/samples") {
     return new Response(JSON.stringify(list), { status: 200, headers: { "Content-Type": "application/json" } });
   }
@@ -130,8 +146,21 @@ async function switchLanguage(value) {
 }
 let checks = 0;
 const shape = () => reader().children.map((c) => c.className || c.tag);
-const WITHOUT_SCORES = ["samples__notice", "samples__download", "samples__toc", "prose"];
-const WITH_SCORES = ["samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose"];
+const WITHOUT_SCORES = ["samples__notice", "samples__download", "samples__toc", "prose", "samples__next"];
+const WITH_SCORES = ["samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose", "samples__next"];
+const cards = () => el("sample-list").children;
+const cardOf = (sample) => cards().find((c) => c.href === pathOf(sample));
+const partsOf = (card) => Object.fromEntries(card.children.map((c) => [c.className, c]));
+/** The block after the report: one sentence and one link. */
+function expectNext(text, label, href) {
+  const block = reader().children.at(-1);
+  assert.equal(block.className, "samples__next");
+  assert.equal(block.tag, "aside");
+  assert.deepEqual(block.children.map((c) => [c.tag, c.className, c.textContent]),
+    [["p", "samples__next-text", text], ["a", "samples__next-link", label]]);
+  assert.equal(block.children[1].href, href);
+  checks++;
+}
 /** The brief and the scorecard of the open sample, between the download link and the contents. */
 function expectScores(sample, { title = "Scorecard", note = /^A sample keeps only the report and its scorecard, not the run's automatic checks or its source list,/, open = true } = {}) {
   assert.deepEqual(shape(), WITH_SCORES);
@@ -308,7 +337,112 @@ if (scenario === "each_sample") {
   markdown.plain = "# Plain\n\nNo sections.";
   await start("/samples/plain");
   assert.equal(tocs().length, 0, "No contents without sections");
-  assert.deepEqual(reader().children.map((c) => c.className), ["samples__notice", "samples__download", "prose"]);
+  assert.deepEqual(reader().children.map((c) => c.className), ["samples__notice", "samples__download", "prose", "samples__next"]);
   checks++;
+} else if (scenario === "cards") {
+  // The list as served carries each sample's score, readiness level and
+  // language; a card says them under the title, and still says when it was added.
+  assert(samples.every((sample) => typeof sample.overall_score === "number" && typeof sample.trl_score === "number"),
+    "Every committed sample is listed with its scorecard's numbers");
+  await start("/samples");
+  assert.equal(cards().length, samples.length);
+  for (const sample of samples) {
+    const parts = partsOf(cardOf(sample));
+    assert.deepEqual(cardOf(sample).children.map((c) => c.className),
+      ["sample-card__title", "sample-card__verdict", "sample-card__meta"]);
+    assert.equal(parts["sample-card__title"].textContent, sample.title);
+    assert.equal(parts["sample-card__verdict"].textContent, `verdict ${sample.overall_score}`);
+    assert.equal(parts["sample-card__verdict"].dataset.tone, sample.overall_score >= 70 ? "success" : "warning");
+    assert.equal(parts["sample-card__meta"].textContent,
+      `TRL ${sample.trl_score} · in ${sample.language} · Added ${sample.committed}`);
+    checks++;
+  }
+  assert(chinese && chinese.language === "Simplified Chinese", "The Chinese sample is listed as Chinese");
+  assert.equal(samples.filter((sample) => sample.language === "English").length, samples.length - 1);
+  assert.deepEqual(scoreReads, [first.slug], "The cards cost no request of their own: only the open sample's scorecard is read");
+  await switchLanguage("Simplified Chinese");
+  assert.match(partsOf(cardOf(first))["sample-card__meta"].textContent, / · 收录于 /, "The cards follow the language");
+} else if (scenario === "cards_without_scores") {
+  // A deployment without a sample's scorecard lists it with nulls; a list
+  // from before these fields has no such keys at all. Either way the card
+  // is the title and the date, and the report opens.
+  list = [
+    { ...first, overall_score: null, trl_score: null },
+    Object.fromEntries(Object.entries(second).filter(([key]) => !["overall_score", "trl_score", "language"].includes(key))),
+    { ...samples[2], trl_score: null },
+  ];
+  await start(pathOf(first));
+  const [none, older, half] = cards();
+  assert.deepEqual(none.children.map((c) => c.className), ["sample-card__title", "sample-card__meta"]);
+  assert.equal(partsOf(none)["sample-card__meta"].textContent, `in ${first.language} · Added ${first.committed}`);
+  assert.deepEqual(older.children.map((c) => [c.className, c.textContent]),
+    [["sample-card__title", second.title], ["sample-card__meta", `Added ${second.committed}`]]);
+  assert.deepEqual(half.children.map((c) => c.className), ["sample-card__title", "sample-card__verdict", "sample-card__meta"]);
+  assert.equal(partsOf(half)["sample-card__meta"].textContent, `in ${samples[2].language} · Added ${samples[2].committed}`);
+  expectContents(first);
+  await click(second);
+  expectContents(second);
+} else if (scenario === "phone_row") {
+  // On a phone the cards are one row that scrolls sideways (samples.css).
+  // The open sample's card is brought into it; nothing else is scrolled.
+  layout = (node) => (node === el("sample-list") ? 20 : cards().includes(node) ? 20 + 212 * cards().indexOf(node) : undefined);
+  await start(pathOf(samples[3]));
+  assert.equal(el("sample-list").scrollLeft, 3 * 212, "A deep link to the fourth sample shows the fourth card");
+  await click(first);
+  assert.equal(el("sample-list").scrollLeft, 0);
+  await click(samples.at(-1));
+  assert.equal(el("sample-list").scrollLeft, (samples.length - 1) * 212);
+  await go("/samples/not-a-sample");
+  assert.equal(el("sample-list").scrollLeft, (samples.length - 1) * 212, "No open sample leaves the row where it was");
+  // Where the page has no layout to measure, nothing is set at all.
+  layout = null;
+  el("sample-list").scrollLeft = 7;
+  await go(pathOf(second));
+  assert.equal(el("sample-list").scrollLeft, 7);
+  checks++;
+} else if (scenario === "evidence") {
+  // The brief is handed the reference list the page parsed for its citation
+  // cards, so it can name the best-rated source; and nothing but that.
+  samples.forEach((sample, i) => { scorecards[sample.slug] = { overall_score: 40 + i }; });
+  await start(pathOf(first));
+  const brief = () => reader().children.find((c) => c.className === "brief");
+  assert.equal(brief().dataset.references, "the report's own");
+  assert.equal(brief().dataset.extra, "", "No registry, no checks: a sample has neither and is not given them");
+  await click(second);
+  assert.equal(brief().dataset.references, "the report's own", "Each sample's brief gets its own report's list");
+  assert.equal(brief().dataset.markdown, markdown[second.slug]);
+  expectScores(second);
+  checks++;
+} else if (scenario === "next_create" || scenario === "next_sign_in" || scenario === "next_without_accounts"
+    || scenario === "next_when_sign_up_is_not_said" || scenario === "next_when_the_question_fails") {
+  // After the report, where a reader goes for one of their own. The link
+  // names what this deployment offers; the page asks once, as a stranger.
+  const cases = {
+    next_create: [{ status: 200, body: { accounts: true, signup_open: true } }, "Create account", "创建账号", "/#create-account"],
+    next_sign_in: [{ status: 200, body: { accounts: true, signup_open: false } }, "Sign in", "登录", "/#sign-in"],
+    next_without_accounts: [{ status: 200, body: { accounts: false, signup_open: false } }, "Open the app", "打开应用", "/"],
+    // A server from before this fact existed says it has accounts and nothing
+    // of sign-up: an account is then not offered, only the sign-in.
+    next_when_sign_up_is_not_said: [{ status: 200, body: { accounts: true } }, "Sign in", "登录", "/#sign-in"],
+  };
+  // Every way the question can go unanswered ends the same: the plain link.
+  // One per process, chosen by the fifth argument, since the page asks once.
+  const failures = ["refused", { status: 503, body: "<html>down</html>" }, { status: 401, body: { accounts: true, signup_open: true } },
+    { status: 200, body: { accounts: "yes", signup_open: true } }, { status: 200, body: "null" },
+    { status: 200, body: { signup_open: true } }];
+  const failure = failures[Number(process.argv[4] ?? 0)];
+  assert(scenario !== "next_when_the_question_fails" || failure !== undefined, "No such failure");
+  const [answer, label, labelZh, href] = cases[scenario] ?? [failure, "Open the app", "打开应用", "/"];
+  access = answer;
+  await start(pathOf(first));
+  expectContents(first);
+  expectNext("Run one on your own topic.", label, href);
+  await click(second);
+  expectNext("Run one on your own topic.", label, href);
+  await switchLanguage("Simplified Chinese");
+  expectNext("用你自己的主题跑一份。", labelZh, href);
+  await go("/samples/not-a-sample");
+  assert.deepEqual(shape(), ["empty-note"], "No report, no next step after it");
+  assert.equal(accessReads.length, 1, "Asked once for the page, not once for each report");
 } else throw Error(`Unknown scenario ${scenario}`);
 console.log(`PASS ${scenario} (${checks} contents checks)`);

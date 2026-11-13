@@ -40,7 +40,8 @@ class SampleCatalogTests(unittest.TestCase):
         self.assertEqual([item["slug"] for item in listed], [s.slug for s in samples.SAMPLES])
         for item in listed:
             self.assertNotIn("file", item)
-            self.assertEqual(set(item), {"slug", "title", "topic", "committed", "commit", "model"})
+            self.assertEqual(set(item), {"slug", "title", "topic", "committed", "commit", "model",
+                                         "language", "overall_score", "trl_score"})
 
     def test_unknown_slug_is_a_key_error_not_a_path_lookup(self):
         for slug in ("nope", "../pyproject.toml", "..\\README.md", "README"):
@@ -100,6 +101,67 @@ class SampleHttpTests(unittest.TestCase):
         self.assertTrue(report.headers["content-type"].startswith("text/markdown"))
         self.assertTrue(report.text.startswith("# "))
         self.assertEqual(history.status_code, 401)
+
+    def test_the_list_carries_each_samples_score_readiness_and_language_to_the_page(self):
+        """What a card shows beside the title comes with the list, in one
+        request, from the scorecard the sample's run wrote. Asserted on the
+        HTTP answer: a field the response model did not declare would be
+        dropped here and nowhere else."""
+        with patch.object(access, "ACCESS_CODE", "secret123"):
+            listed = self.client.get("/api/samples")
+        self.assertEqual(listed.status_code, 200)
+        by_slug = {item["slug"]: item for item in listed.json()}
+        self.assertEqual(list(by_slug), [sample.slug for sample in samples.SAMPLES])
+        for sample in samples.SAMPLES:
+            with self.subTest(slug=sample.slug):
+                scores = samples.read_sample_scores(sample.slug)
+                item = by_slug[sample.slug]
+                self.assertEqual(item["overall_score"], scores["overall_score"])
+                self.assertEqual(item["trl_score"], scores["trl_score"])
+                # The language is the report's own: Chinese exactly where its headings are.
+                headings = re.findall(r"^## (.+)$", samples.read_sample(sample.slug), re.M)
+                chinese = any(re.search(r"[\u4e00-\u9fff]", heading) for heading in headings)
+                self.assertEqual(item["language"], "Simplified Chinese" if chinese else "English")
+                self.assertNotIn("band", item, "the grade is the scorecard's function in the page, not a second copy here")
+        overalls = [item["overall_score"] for item in by_slug.values()]
+        self.assertLess(min(overalls), 50)
+        self.assertGreater(max(overalls), 70, "the samples span an early technology and a mature one")
+        self.assertEqual(sum(item["language"] == "Simplified Chinese" for item in by_slug.values()), 1)
+
+    def test_the_list_declares_what_it_returns(self):
+        schema = app.openapi()
+        answer = schema["paths"]["/api/samples"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+        self.assertEqual(answer["type"], "array")
+        model = schema["components"]["schemas"][answer["items"]["$ref"].rsplit("/", 1)[-1]]
+        self.assertEqual(set(model["properties"]),
+                         {"slug", "title", "topic", "committed", "commit", "model", "language", "overall_score", "trl_score"})
+        self.assertNotIn("file", model["properties"])
+
+    def test_a_sample_whose_scorecard_cannot_be_read_is_listed_without_a_score(self):
+        """Missing from the image, not JSON, not an object, or holding something
+        that is not a score: the card shows the title alone, and the list is
+        still a 200."""
+        bodies = {
+            "missing": None, "not-json": "<html>no</html>", "a-list": "[74.0]", "words": '{"overall_score": "high", "trl_score": "9"}',
+            "out-of-range": '{"overall_score": 150, "trl_score": 12}', "booleans": '{"overall_score": true, "trl_score": false}',
+            "not-finite": '{"overall_score": NaN, "trl_score": Infinity}', "negative": '{"overall_score": -1, "trl_score": 0}',
+            "whole": '{"overall_score": 61, "trl_score": 6.5}', "half": '{"overall_score": 48.6}',
+        }
+        listed = [samples.Sample(name, f"{name}.md", name, name, "2026-01-01", "0000000", "model-x") for name in bodies]
+        with TemporaryDirectory() as tmp:
+            for name, body in bodies.items():
+                if body is not None:
+                    (Path(tmp) / f"{name}.scores.json").write_text(body, encoding="utf-8")
+            with patch.object(samples, "_EXAMPLES_ROOT", Path(tmp)), patch.object(samples, "SAMPLES", tuple(listed)), \
+                    patch.object(samples, "_BY_SLUG", {sample.slug: sample for sample in listed}):
+                answer = self.client.get("/api/samples")
+        self.assertEqual(answer.status_code, 200)
+        shown = {item["slug"]: (item["overall_score"], item["trl_score"]) for item in answer.json()}
+        for name in ("missing", "not-json", "a-list", "words", "out-of-range", "booleans", "not-finite", "negative"):
+            self.assertEqual(shown[name], (None, None), name)
+        self.assertEqual(shown["whole"], (61, 6.5))
+        self.assertEqual(shown["half"], (48.6, None))
+        self.assertEqual({item["language"] for item in answer.json()}, {"English"}, "an entry that names no language is English")
 
     def test_samples_show_the_applicability_paragraph_without_its_markup(self):
         """The newer production samples carry the code-owned paragraph, which

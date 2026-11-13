@@ -990,12 +990,35 @@ class PasswordResetDone(BaseModel):
     email: str
 
 
+class SampleSummary(BaseModel):
+    """One committed example report, as the list of them states it."""
+
+    slug: str = Field(description="The name in /samples/{slug} and /api/samples/{slug}.")
+    title: str
+    topic: str = Field(description="The topic exactly as it was given to the run.")
+    committed: str = Field(description="The date the sample was added, YYYY-MM-DD.")
+    commit: str = Field(description="The pipeline revision the run was made on.")
+    model: str = Field(description="The model the run was made with.")
+    language: str = Field(description="The language the report is written in: 'English' or 'Simplified Chinese'.")
+    overall_score: float | None = Field(
+        default=None,
+        description="The overall score (0-100) from the scorecard the sample's run wrote; null when this "
+                    "deployment has no readable scorecard for it.")
+    trl_score: float | None = Field(
+        default=None,
+        description="The technology readiness level (1-9) from the same scorecard; null likewise.")
+
+
 class SiteInfo(BaseModel):
-    """What the privacy page says about this deployment."""
+    """What the pages read before signing in say about this deployment: the
+    privacy page, and the sample reader's link to the way in."""
 
     retention_days: int | None = Field(description="Days an assessment is kept; null when kept until deleted.")
     contact: str | None = Field(description="The operator's contact line (OPERATOR_CONTACT), if set.")
     accounts: bool = Field(description="Email-and-password accounts are enabled.")
+    signup_open: bool = Field(
+        default=False,
+        description="New accounts can be created (open or invite mode); false where accounts are off.")
     account_backup_days: int | None = Field(
         default=None,
         description="Days a deleted account can remain in the service's own backups of the account "

@@ -24,6 +24,10 @@ const STRINGS = {
     samples_download: "Download Markdown",
     samples_scorecard: "Scorecard",
     samples_brief_note: "A sample keeps only the report and its scorecard, not the run's automatic checks or its source list, so this brief leaves out the lines that depend on them.",
+    samples_next: "Run one on your own topic.",
+    samples_next_create: "Create account",
+    samples_next_signin: "Sign in",
+    samples_next_open: "Open the app",
   },
   "Simplified Chinese": {
     samples_link: "无需 Key，先看示例报告",
@@ -40,6 +44,10 @@ const STRINGS = {
     samples_download: "下载 Markdown",
     samples_scorecard: "评分卡",
     samples_brief_note: "示例只保留了报告和评分卡，没有运行时的自动检查和来源清单，所以简报少了依赖它们的几行。",
+    samples_next: "用你自己的主题跑一份。",
+    samples_next_create: "创建账号",
+    samples_next_signin: "登录",
+    samples_next_open: "打开应用",
   },
 };
 
