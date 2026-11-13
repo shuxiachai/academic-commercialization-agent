@@ -117,8 +117,11 @@ numbers are the point; if you want to revisit one, beat the number.
   advance one topic left its TRL range. Separately, 1.15.29 can replace the
   evidence registry with a model-written summary when the model is missing
   from its context-window catalogue
-  ([result](docs/results-2026-11-05-crewai-1.15.29-comparison.md)). The four
-  open Dependabot alerts (mcp, opentelemetry-api) are held by this pin.
+  ([result](docs/results-2026-11-05-crewai-1.15.29-comparison.md)). This pin
+  holds four Dependabot alerts unfixed (mcp #71-#73, opentelemetry-api #67).
+  They were dismissed as not used on 2026-11-05: the deployment opens no MCP
+  session, runs no MCP server and never reads trace context from a request.
+  Look at them again when CrewAI is upgraded.
 
 Two TRL rubric hypotheses were pre-registered and **both falsified** (see
 `docs/`). If you want to improve calibration, the next step is a different

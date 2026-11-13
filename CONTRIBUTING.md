@@ -32,7 +32,9 @@ cd academic-commercialization-agent
 uv sync
 ```
 
-Python 3.11/3.12 are the CI-tested versions. Dependencies need network to
+Python 3.11.5 or later is required, because the fixed release of a locked
+dependency (soupsieve 4) needs it; `uv sync` fetches a suitable interpreter if
+yours is older. Python 3.11/3.12 are the CI-tested versions. Dependencies need network to
 install; the default tests need neither provider keys nor paid requests.
 Configure `.env` only when intentionally running real analysis. You can also
 open the repository in GitHub Codespaces or VS Code Dev Containers

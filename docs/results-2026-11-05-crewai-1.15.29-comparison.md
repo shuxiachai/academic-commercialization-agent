@@ -242,6 +242,9 @@ Not done in this change, and each is a decision for the maintainer:
   path, so an over-long request fails instead of being rewritten. It needs its
   own test and a rerun of the suite.
 - The cold-start test must stop reaching OpenAI's host under 1.15.29.
-- Until then the four alerts stay open. The vulnerable code is not reached by
+- Until then the four alerts are not fixed. They were dismissed as not used
+  on 2026-11-05, the day of this result, and are to be looked at again when
+  CrewAI is upgraded. The vulnerable code is not reached by
   this deployment: it opens no MCP session, runs no MCP server, never reads
   trace context from a request, and installs no web-framework instrumentation.
+  (Corrected 2026-11-13: this line said "the four alerts stay open".)
