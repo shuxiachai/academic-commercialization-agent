@@ -699,6 +699,111 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual(self._next("**Opportunities:**\n\n| 机遇 | 短期可行性 |\n|---|---|\n| 健康监测贴片 | 中 |\n\n1. 先开发健康监测贴片。"),
                          "先开发健康监测贴片。")
 
+    def test_the_first_step_is_the_route_wherever_the_section_names_it(self):
+        """Since October 2026 the writer's contract has the section name exactly
+        one primary commercialization route, among statements of mode, owner,
+        cost and provenance in whatever order the model writes them. Of the 88
+        saved reports made since then, 83 showed that route as the first step
+        and 5 showed something else (2026-11-13), all five with the route under
+        a sub-heading: three showed the first reason listed under a heading that
+        named the route, two a statement with a label nobody had listed. The
+        forms below are the ones those five reports use."""
+        mode = "### 评估模式声明\n本章节处于**导向模式**。本报告**不评估**针对特定主体的 GO/NO_GO 决策。\n\n"
+        # The route's name is in the sub-heading and its reasons are listed under it.
+        self.assertEqual(self._next(
+            mode + "### 首选商业化路径：面向新兴市场的离岸绿色氢能独立供电系统\n"
+            "**推荐理由：** 相比于传统的深远海并网发电，该路径可能更具近期可行性。\n"
+            "1.  **规避电网瓶颈：** 可直接在离岸生产氢气 [A2][A3]。\n2.  **环境适配性：** 水动力条件温和 [A3]。"),
+            "面向新兴市场的离岸绿色氢能独立供电系统")
+        self.assertEqual(self._next(
+            mode + "### 首选商业化路径：高价值化学品生物制造\n**理由**：\n"
+            "1.  **技术可行性与差异化**：已实现2-3倍增产 [A3]。\n2.  **经济优势**：单位质量价值更高。"),
+            "高价值化学品生物制造")
+        for heading in ("### Primary Commercialization Route: Component licensing to incumbents",
+                        "### 5.1 Primary Commercialization Route: Component licensing to incumbents",
+                        "#### Preferred route (analyst inference): Component licensing to incumbents",
+                        "### **Primary Commercialization Route:** Component licensing to incumbents"):
+            with self.subTest(heading=heading):
+                self.assertEqual(self._next(
+                    f"{heading}\n\n**Rationale:**\n1. **Lower capital need.** Licensing avoids a plant.\n2. More."),
+                    "Component licensing to incumbents")
+
+        # The sub-heading is the label alone and the route is the line under it,
+        # after a statement about cost that is not a step.
+        opening = ("**Assessment mode: orientation.** No decision context was supplied. **Actor-specific GO/NO_GO is not "
+                   "assessed.**\n\n**Decision owner:** not established.\n\n")
+        self.assertEqual(self._next(
+            opening + "**Cost, capital and time:** not established. The registry contains no cost figures [A5][A6].\n\n"
+            "### Primary route (analyst inference)\n\n"
+            "**Route: a platform-agnostic training and assessment layer** (simulation content sold to hospitals). "
+            "It rests on the strongest evidence.\n\n*Why this route is preferred (analyst inference).*\n"
+            "- It rests on the strongest-rated evidence in the registry."),
+            "a platform-agnostic training and assessment layer (simulation content sold to hospitals).")
+        self.assertEqual(self._next(
+            opening + "**Provenance legend.** *Observed facts* are statements in cited source summaries. "
+            "*Estimates* are market-report figures.\n\n### Primary commercialization route\n\n"
+            "**Primary route (analyst orientation recommendation): an enabling-technology layer sold to every "
+            "platform maker.**\n\nRationale from evidence:\n- The fastest-growing value pool is digital [M5]."),
+            "an enabling-technology layer sold to every platform maker.")
+        self.assertEqual(self._next(
+            "### Primary commercialization route\n\nThe preferred route is licensing to cell makers. It needs no plant.\n\n"
+            "- Order books are full."), "The preferred route is licensing to cell makers.")
+        self.assertEqual(self._next("### 首选商业化路线\n\n建议与电网公司合作开发。其余从略。\n\n- 订单充足。"), "建议与电网公司合作开发。")
+
+        # The route is the step even when something else stands before it in the
+        # section: a statement nobody listed, or a list of gates.
+        self.assertEqual(self._next(
+            "**Scope of this section.** Orientation only; no owner has approved a gate.\n\n"
+            "1. Gate one is a pilot line with a partner.\n\n"
+            "**Primary Commercialization Route:** License the coating process to cell makers. Then scale."),
+            "License the coating process to cell makers.")
+        self.assertEqual(self._next(
+            "1. Gate one is a pilot line with a partner.\n\n### Primary commercialization route\n\n"
+            "The preferred route is licensing to cell makers. It needs no plant."),
+            "The preferred route is licensing to cell makers.", "a list before the route's sub-heading")
+        # A name in a sub-heading is read as any step is: without its citations.
+        self.assertEqual(self._next("### Primary Commercialization Route: Licensing to incumbents [M1][M2]\n\n- A reason."),
+                         "Licensing to incumbents")
+        # A route's name over its own reasons is the step, as an opportunity's title is.
+        self.assertEqual(self._next(
+            "**Primary Commercialization Route: Component licensing to incumbents**\n"
+            "1. **Lower capital need.** Licensing avoids a plant.\n2. More."), "Component licensing to incumbents")
+
+        # Without a route, the two statements are still not steps.
+        notes = ("**Cost, capital and time:** not established. No source gives a figure.\n\n"
+                 "**Provenance legend.** Observed facts are cited; estimates are marked.\n\n")
+        self.assertEqual(self._next(notes + "1. Build a pilot line with a partner. Then scale."),
+                         "Build a pilot line with a partner.")
+        self.assertEqual(self._next(notes.strip()), "Patent white space in manufacturing scalability [P4].")
+        for step in ("Cost, capital and time are the three limits to plan around.",
+                     "Provenance legends on each figure would help a reviewer."):
+            with self.subTest(step=step):
+                self.assertEqual(self._next(f"1. {step} More follows."), step)
+
+        # What is not a route's label.
+        self.assertEqual(self._next("### Primary route options compared\n\n1. Build a pilot line. Then scale."),
+                         "Build a pilot line.", "a sub-heading that only mentions a route")
+        self.assertEqual(self._next("### Primary commercialization route\n\n### Alternatives\n\n- A full line of vehicles."),
+                         "A full line of vehicles.", "a route sub-heading with nothing under it hands on to what follows")
+        self.assertEqual(self._next("1. Build a pilot line. Then scale.\n2. **Route:** direct sales to utilities."),
+                         "Build a pilot line.", "a bare 'Route:' further down is one entry's detail")
+        self.assertEqual(self._next("1. Route selection should wait for the pilot data. More."),
+                         "Route selection should wait for the pilot data.")
+        self.assertEqual(self._next("1. Build a pilot line. Then scale.\n2. Primary route selection should wait for the pilot data."),
+                         "Build a pilot line.", "a sentence that opens with the words is not labelled as the route")
+        # A statement of what the section is does not become the route by standing under its sub-heading.
+        self.assertEqual(self._next("### Primary commercialization route\n\n**Assessment mode: orientation.** No context.\n\n"
+                                    "1. License the process to cell makers. Then scale."),
+                         "License the process to cell makers.")
+        elsewhere = self._brief(markdown=(
+            "## Executive Summary\n\nShort.\n\n## 4. Target Industries\n\n### Primary Commercialization Route: Wrong place\n\n"
+            "## 5. Commercialization Opportunities & Recommendations\n\n1. Build a pilot line. Then scale.\n"))["brief"]
+        self.assertEqual(elsewhere["next"], "Build a pilot line.", "only the recommendations section is read")
+        # A table row or a quotation under a route sub-heading is not the route.
+        self.assertEqual(self._next("### Primary commercialization route\n\n| Route | Fit |\n|---|---|\n| Licensing | High |\n\n"
+                                    "> Quoted remark.\n\nLicense the process to cell makers. Then scale."),
+                         "License the process to cell makers.")
+
     def _summary(self, paragraph):
         return self._brief(markdown=f"## Executive Summary\n\n{paragraph}\n")["brief"]["summary"]
 
