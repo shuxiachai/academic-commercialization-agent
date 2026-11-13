@@ -24,6 +24,7 @@ from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
 from academic_agent.run_output import save_scores, save_source_collection
 from api import samples
+from e2e.request_wait import wait_for_count
 from e2e.scroll_wait import COMES_TO_REST
 from e2e.smoke_report import capture_failure
 from e2e.isolated_app import (
@@ -799,10 +800,14 @@ def _exercise_browser(
             # Cancel action which could delete an already completed report.
             faults["hold_progress"] = True
             run_item.click()
+            # Have the request in hand before judging the page: the handler that
+            # holds it runs only while playwright pumps events, and the request
+            # used to arrive 0 to 31 ms before an assertion that did not wait.
+            wait_for_count(page, held_progress, 1, "progress requests held")
             expect(page).to_have_url(f"{base_url}/run/{run_id}")
             expect(page.locator("#run-pill")).to_have_text("unknown")
             expect(page.locator("#run-actions button")).to_have_count(0)
-            assert len(held_progress) == 1, "The first progress request was not held."
+            assert len(held_progress) == 1, "A second progress request went out while the first was unanswered."
             faults["hold_progress"] = False
             held_progress.pop().continue_()
             expect(page.locator("#run-title")).to_have_text(FIXTURE_TOPIC)
