@@ -15,6 +15,7 @@ harness relies on in place.
 """
 from __future__ import annotations
 
+import html
 import re
 import shutil
 import subprocess
@@ -89,6 +90,53 @@ def test_the_landing_is_in_the_page_before_the_workbench():
     assert 'src="/static/brand/report-preview.png"' not in landing.replace("data-src=", "")
     assert (_WEB / "static/brand/report-preview.png").stat().st_size > 10_000
     assert 'id="landing-retention"' in landing
+
+
+def _landing_strings(language: str) -> dict[str, str]:
+    """key -> text, for one interface language, as i18n.js states them."""
+    english, chinese = _STRINGS.split('"Simplified Chinese": {', 1)
+    table = english if language == "English" else chinese
+    return {key: text.replace('\\"', '"')
+            for key, text in re.findall(r'^\s+(landing_\w+): "((?:[^"\\]|\\.)*)",?\s*$', table, re.M)}
+
+
+# What a report is not, in the words the three places used.
+_CAUTION = re.compile(r"not a measure|historical|not current|not replace|makes no model"
+                      r"|不代表|历史运行|不是当前|不代替|不会发起")
+
+
+def test_the_landing_says_what_a_report_is_not_once():
+    """Until 2026-11-13 three places on the landing each said it: under the
+    picture ("One result, not a measure of accuracy."), over the sample list
+    ("…makes no model or search request; they are historical runs, not
+    current market advice.") and in the footer. Said three times it reads as
+    hedging and none of the three is read. The footer's is the one that is
+    about every report, so it stays; the picture's caption keeps its date and
+    the sample list keeps what a visitor needs to know, that no account is
+    needed. Each sample still carries its own dated notice on the sample page."""
+    for language in ("English", "Simplified Chinese"):
+        strings = _landing_strings(language)
+        assert len(strings) >= 18, language
+        assert [key for key, text in strings.items() if _CAUTION.search(text)] == ["landing_disclaimer"], language
+    assert _landing_strings("English")["landing_figure_caption"] == (
+        "A real run from November 2026, opened in the current interface.")
+    assert _landing_strings("English")["landing_sample_body"] == "Finished assessments you can read without an account."
+    assert _landing_strings("Simplified Chinese")["landing_figure_caption"] == "2026 年 11 月的一次真实运行，在当前界面中打开。"
+    assert _landing_strings("Simplified Chinese")["landing_sample_body"] == "无需账号即可阅读的完整评估。"
+
+
+def test_the_landing_text_served_before_the_script_is_the_text_that_replaces_it():
+    """The markup carries the English text for the moment before i18n.apply()
+    runs, and for a reader without scripts. On 2026-11-13 the caption under
+    the picture was served as "A real run from August 2026… A historical
+    result, not a current one." and replaced a moment later by a sentence
+    about November: the picture and its string had been changed and the
+    markup had not."""
+    english = _landing_strings("English")
+    served = re.findall(r'data-i18n="(landing_\w+)"[^>]*>([^<]+)<', _landing_markup())
+    assert len(served) >= 15, served
+    for key, text in served:
+        assert " ".join(html.unescape(text).split()) == english[key], key
 
 
 def test_the_card_can_be_put_down_again_from_the_landing():

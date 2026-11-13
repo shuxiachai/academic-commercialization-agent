@@ -15,6 +15,7 @@ credential that happened to be present in the CI or developer environment.
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -374,6 +375,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
     assert slugs == expected, f"Cards do not match the catalog: {slugs!r} != {expected!r}"
 
     table_rows = 0
+    folded_notes = 0
     card_checked = False
     download_checked = False
     for slug in slugs:
@@ -416,6 +418,26 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
                         x: rect.x, y: rect.y + window.scrollY, width: rect.width, height: rect.height,
                     }];
                 }));
+            }""")
+
+        # The reviewer's notes end the report folded under one line that counts
+        # them (result.js). Read here, before anything is printed.
+        notes = page.locator("#sample-reader details.reviewer-notes")
+        has_notes = notes.count() == 1
+        if has_notes:
+            folded_notes += 1
+            assert notes.get_attribute("open") is None, f"The reviewer's notes of {slug} are not folded."
+            expect(notes.locator("summary")).to_have_text(
+                re.compile(r"^(Automatic proofreading|自动校对)[:：]? ?.+[.。]$"))
+            expect(notes.locator(":scope > :not(summary)").first).to_be_hidden()
+            assert page.evaluate(
+                "() => document.querySelector('details.reviewer-notes').previousElementSibling.textContent"
+            ) == "Reviewer Notes", (slug, "The heading is not directly above its fold.")
+            # Registered after the page's own listener, so it sees what that one did.
+            page.evaluate("""() => {
+                window.__notesAtPrint = [];
+                addEventListener("beforeprint", () => window.__notesAtPrint.push(
+                    document.querySelector("details.reviewer-notes").open));
             }""")
 
         before = screen_state()
@@ -504,6 +526,16 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
 
         pdf = page.pdf(print_background=True)
         assert pdf.startswith(b"%PDF-"), f"Chromium did not produce a PDF for {slug}."
+        if has_notes:
+            # A folded section prints as its summary alone. Chromium announces
+            # the print it makes this PDF from, and the page unfolds the notes
+            # for it and folds them again afterwards.
+            assert page.evaluate("() => window.__notesAtPrint") == [True], (
+                slug, "The reviewer's notes were not unfolded for the print.")
+            assert notes.get_attribute("open") is None, (slug, "The notes stayed open after the print.")
+            assert page.evaluate(
+                "() => Object.keys(document.querySelector('details.reviewer-notes').dataset)"
+            ) == [], (slug, "The print left a mark on the notes.")
         page.emulate_media(media="screen", color_scheme="dark")
         if citation_open:
             citation.click()
@@ -512,6 +544,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         assert after == before, f"Print styles changed the screen layout for {slug}: {before!r} -> {after!r}"
 
     assert table_rows > 0, "No committed sample exercised table-row pagination."
+    assert folded_notes > 0, "No committed sample has reviewer's notes to fold."
     assert card_checked, "No committed sample exposed a citation chip to print."
     page.emulate_media(media="screen", color_scheme="light")
     return len(slugs)

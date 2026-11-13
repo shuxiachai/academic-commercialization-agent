@@ -74,19 +74,21 @@
            are the real ones, so the card cannot promise reports that are
            not there. If the list cannot be read, the link below still can. -->
       <aside class="landing__card landing__sample" aria-labelledby="landing-sample-title">
-        <!-- The scorecard of a real run (CRISPR gene editing, 2026-08-09),
-             cropped from assets/screenshot-results.png: the thing the tool
-             produces, shown as the historical result it is. The address is
+        <!-- The scorecard of a real run (continuous glucose monitoring,
+             2026-11-08, the first sample report), rendered from its run
+             page: the thing the tool produces, with the caption saying
+             when. The caption is one sentence on purpose: the page's one
+             caution is the footer's, and it is not repeated here. The address is
              in data-src and becomes src only when the landing is shown
              (app.js showLanding): a hidden image is still fetched, lazy or
              not, and a signed-in visit has no use for it. -->
         <figure class="landing__figure">
           <img id="landing-preview" data-src="/static/brand/report-preview.png" width="900" height="442"
                alt="Scorecard of a finished assessment: an overall readiness score out of 100 and five scored dimensions">
-          <figcaption data-i18n="landing_figure_caption">A real run from August 2026, opened in the current interface. A historical result, not a current one.</figcaption>
+          <figcaption data-i18n="landing_figure_caption">A real run from November 2026, opened in the current interface.</figcaption>
         </figure>
         <h2 id="landing-sample-title" data-i18n="landing_sample_title">See what you get</h2>
-        <p data-i18n="landing_sample_body">Finished assessments you can read without an account. Opening one makes no model or search request; they are historical runs, not current market advice.</p>
+        <p data-i18n="landing_sample_body">Finished assessments you can read without an account.</p>
         <ul class="landing__sample-list" id="landing-sample-list"></ul>
         <a class="btn btn--secondary" href="/samples" data-i18n="landing_sample_all">All sample reports</a>
       </aside>

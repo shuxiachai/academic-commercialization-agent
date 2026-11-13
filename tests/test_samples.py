@@ -359,11 +359,36 @@ class SampleClientTests(unittest.TestCase):
         self.assertTrue(english_sub.startswith(served))
         self.assertEqual(description, preview)
 
+    def test_the_page_says_what_a_sample_is_not_once(self):
+        """The introduction also said "Opening one makes no model or search
+        request", and the note under the brief said "no new model call" and
+        "by the same code as a run's page": the builder's assurances, to a
+        reader who has no reason to wonder. What a sample is not (a measure
+        of accuracy, a current market view, re-verified) is said once, in the
+        dated notice over each report, which names the date, the model and
+        the pipeline. The note under the brief says only why it is shorter
+        than a run's."""
+        strings = (_REPO / "web/static/js/samples_i18n.js").read_text(encoding="utf-8")
+        english, chinese = strings.split('"Simplified Chinese": {', 1)
+        caution = re.compile(r"not a measure|historical|not current|up-to-date|re-verified|model call|model or search"
+                             r"|same code|不代表|历史|最新|核验|模型调用|模型或检索|同一段代码")
+        for name, table in (("english", english), ("chinese", chinese)):
+            with self.subTest(language=name):
+                found = dict(re.findall(r'^\s+(samples_\w+): "((?:[^"\\]|\\.)*)",?\s*$', table, re.M))
+                self.assertGreaterEqual(len(found), 14)
+                self.assertEqual([key for key, text in found.items() if caution.search(text)], ["samples_historical"])
+                for part in ("{date}", "{commit}", "{model}"):
+                    self.assertIn(part, found["samples_historical"])
+        self.assertEqual(re.search(r'samples_sub: "([^"]+)"', english)[1],
+                         "Finished assessments you can read without an account or API keys.")
+        self.assertEqual(re.search(r'samples_sub: "([^"]+)"', chinese)[1], "无需账号或 API Key 即可阅读的完整评估。")
+
 
 _ALLOWED_TAGS = {
     "p", "strong", "em", "code", "ul", "li", "h1", "h2", "h3", "h4",
     "div", "table", "thead", "tbody", "tr", "th", "td", "span", "a",
     "button",  # citation chips, which open the source cards
+    "details", "summary",  # the fold around the reviewer's notes
 }
 
 

@@ -249,6 +249,24 @@
   font-size: 0.82em;
 }
 
+/* The reviewer's notes are a record for whoever audits the run, so the page
+   folds them under one line that counts them (result.js, renderMarkdown).
+   The line is set as a remark in the interface's face, not as report prose;
+   the notes under it are the report's own text, a size down.
+   The selectors are kept below ".samples__reader .prose *" on purpose: that
+   rule prints the whole report black on white, and a colour set here with
+   more weight would print in the theme's grey (the browser smoke checks). */
+.reviewer-notes { margin: 0 0 var(--space-5); }
+.reviewer-notes > summary {
+  padding: var(--space-2) 0;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+.reviewer-notes[open] > summary { margin-bottom: var(--space-2); }
+.reviewer-notes > :not(summary) { font-size: 0.92em; }
+
 /* Citations are the reason the report can be audited, so they are given a
    distinct treatment rather than blending into the sentence. */
 .cite {

@@ -103,4 +103,8 @@ def test_the_smoke_has_no_wait_that_remembers_a_previous_look():
     journey = _SMOKE[_SMOKE.index("def _exercise_sample_contents"):_SMOKE.index("def _exercise_browser")]
     assert "const still = window." not in journey
     # The one thing the journey does keep on the page is the article node it compares against.
-    assert set(re.findall(r"window\.(__\w+)", _SMOKE)) == {"__smokeArticle"}
+    # The print check, a different function, keeps one more: whether the reviewer's notes were
+    # open at the moment the browser announced a print, which only a listener on the page can see.
+    # Neither is a position looked at earlier and waited on.
+    assert set(re.findall(r"window\.(__\w+)", _SMOKE)) == {"__smokeArticle", "__notesAtPrint"}
+    assert "__notesAtPrint" not in journey
