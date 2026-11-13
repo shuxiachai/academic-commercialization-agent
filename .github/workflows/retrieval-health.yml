@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      # The address Railway issues, as in deploy-check.yml and for its reason.
       PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://academic-commercialization-agent.up.railway.app' }}
       HEALTH_CODE: ${{ secrets.PRODUCTION_ADMIN_CODE }}
       GH_TOKEN: ${{ github.token }}

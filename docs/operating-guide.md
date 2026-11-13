@@ -705,6 +705,51 @@ go to stderr, which the API keeps as `process.log` in the run directory.
 Each row's `call` counts the calls on that node; a guardrail retry is a new
 call whose attempts start at 1 again.
 
+A call the wrapper gave up on is the node's last. CrewAI runs a task again
+when its agent raised, up to twice in a run, which used to turn a rejected
+key into three requests and a connection that timed out every time into
+fifteen attempts instead of five. Once a call has used up its attempts, has
+no time left for another, was refused outright, or had its answer cut, the
+node raises the same error without sending anything, and `process.log` says
+`[llm] <node>: not asked again after <error>`.
+
+An answer with no text is asked for again by the wrapper, at once and on the
+same connection: a streamed node asks up to three times in all, inside its
+five attempts. Each such attempt's `outcome` is `empty`, and a node that
+never gets text fails the run as `provider_empty_answer` (before, CrewAI ran
+the node again on its own, the attempts were recorded as `returned`, and the
+run failed as `unknown`). An empty answer that was cut at the output limit is
+a `cut`, which is the more exact name. A plain call returns an empty answer
+as it always did.
+
+A rate limit (429) is waited out. A streamed node, which every crew node
+is, waits the seconds the provider's `retry-after` header gives (Anthropic
+sends one; at most 60 are honoured) or, without a figure, 15, 30, 60 and 60
+seconds before its second to fifth attempts, then asks again on the same
+connection. The attempt row's `outcome` is `rate_limited` and `process.log`
+says `[llm] <node>: rate limited on attempt N/5; asking again in Ns`. The
+waits come out of the run's time: a run without room for one stops with the
+rate limit as its cause. A 429 that waiting does not cure is not waited
+for: a model's free quota used up, a budget exhausted, a bill overdue, a
+product not bought (Model Studio's `Free allocated quota exceeded`,
+`BudgetLimitExceeded`, `...BillOverdue`, `Arrearage`,
+`CommodityNotPurchased`). A plain call, which the paper extractor makes
+inside a web request, does not wait either. No model call in the saved runs
+was ever rate-limited, so these rules are the providers' documented ones
+and have not met a real refusal.
+
+An attempt whose `outcome` is `cut` is an answer the provider ended at its
+output limit (stop reason `length`, or `max_tokens` on Anthropic; DeepSeek's
+own API does not deliver the reason for a streamed answer, and there a cut
+is an answer that used every output token its request allowed). What
+arrived is not used: the node fails at once and is not asked again, because
+the same prompt at the same limit is cut at the same place, and the run
+fails as `provider_output_limit`. The exception is the reviewer, whose
+failure delivers the writer's validated draft unreviewed, as any other
+reviewer failure does. Anthropic and DeepSeek requests name a limit several
+times a report's length (`llm_config`); Model Studio and OpenAI get the
+model's own.
+
 Every crew node streams its answer. The first run with attempt rows
 (2026-11-09) showed 72% of its wall time in requests that had stopped
 delivering (302, 312 and 160 seconds) while the identical retries returned in
@@ -1387,8 +1432,8 @@ It reports three things and nothing else:
 | A run on the deployment's keys failed for an operator's reason | Per failure code, at most once every `ALERT_REPEAT_HOURS`, with the number of runs since the last message |
 
 The operator's reasons are the codes `provider_auth`, `provider_free_quota`,
-`provider_billing`, `provider_model_unavailable` and
-`provider_request_rejected`: the ones an access-code visitor is told were
+`provider_billing`, `provider_model_unavailable`, `provider_request_rejected`
+and `provider_output_limit`: the ones an access-code visitor is told were
 not caused by their request. A run on an account's own keys is never
 reported; the page tells its owner what to change.
 

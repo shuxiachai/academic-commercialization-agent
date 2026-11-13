@@ -10,6 +10,7 @@ Provider resolution order:
 """
 
 import functools
+import math
 import os
 import random
 import sys
@@ -45,6 +46,41 @@ _QWEN_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 # qwen3.5-plus whenever QWEN_MODEL went missing, long after production had
 # moved on, and a BYOK visitor's key was billed for a model they never named.
 # The operator sets the provider's model variable; a BYOK caller names one.
+
+# Anthropic's Messages API requires max_tokens, so CrewAI's Anthropic provider
+# always sends one, and its default is 4096. Until 2026-11-12 nothing here set
+# it. The report writer's answer is the report: of 436 saved on the
+# maintainer's machine, 391 are longer than 4096 tokens by an OpenAI tokenizer
+# (median 5,868, longest 13,506; Anthropic's counts run higher), and the
+# current Claude models spend part of the same allowance on thinking, which
+# cannot be turned off on several of them. No run had gone through Anthropic,
+# so nothing had shown it. Model Studio and OpenAI send no limit and get the
+# model's own; DeepSeek is below.
+#
+# A streamed call is bounded per chunk, so it can ask for the room; a plain
+# call waits for the whole answer inside one HTTP timeout and asks for less.
+# Both are Anthropic's own suggested defaults. A model whose limit is lower
+# refuses the request and names its limit: llm_parameter_fallback lowers ours
+# to it and the call is sent again.
+ANTHROPIC_STREAM_MAX_TOKENS = 64_000
+ANTHROPIC_MAX_TOKENS = 16_000
+
+# DeepSeek's own API does not give "the model's own" limit to a request that
+# names none. The first run through it since August (2026-11-12, deepseek-chat)
+# had its writer stopped at exactly 8,192 output tokens, in the middle of a
+# reference entry. The reference list is rebuilt from the validated sources,
+# so that report came out whole; a longer body would have been cut in the
+# body, and nothing names a cut answer. Of 60 saved single-request writer
+# nodes on deepseek-chat, three stopped at exactly 8,192; no node on any
+# Model Studio model stopped at a round number.
+#
+# The API accepted these values for deepseek-chat, deepseek-flash and
+# deepseek-v4-pro on that day and names [1, 393216] as the valid range. The
+# two thinking models report their reasoning inside the same output count. Another
+# host behind DEEPSEEK_API_BASE with a smaller range refuses the request and
+# names its range; llm_parameter_fallback lowers ours to the top of it.
+DEEPSEEK_STREAM_MAX_TOKENS = 64_000
+DEEPSEEK_MAX_TOKENS = 16_000
 
 # Providers that support response_format={"type": "json_object"}.
 # Anthropic does not — it relies on prompt instructions + guardrail validation.
@@ -251,6 +287,96 @@ class RunDeadlineExceeded(TimeoutError):
     """The run lacks a full bounded window for another provider attempt."""
 
 
+# What a provider calls an answer it ended at an output limit: "length" on the
+# OpenAI-shaped APIs (Model Studio, DeepSeek, OpenAI), "max_tokens" on
+# Anthropic. Every other reason is an answer the model ended itself.
+_CUT_STOP_REASONS = frozenset({"length", "max_tokens"})
+
+
+def _is_count(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _cut_reason(reason: object, usage: object, limit: object) -> str | None:
+    """How a completed attempt says its answer was cut at an output limit; None if it does not.
+
+    The provider's stop reason decides whenever there is one. There is not
+    always one: DeepSeek's own API sends a streamed answer's stop reason in
+    the same chunk as its usage, and CrewAI 1.14.7's stream reader takes the
+    usage from a chunk and skips the rest of it. Seen on 2026-11-12 with a
+    real 40-token limit: the answer was cut, 40 output tokens were billed,
+    and no reason reached the completed-call event. (Model Studio sends the
+    two in separate chunks, and Anthropic's reason travels another way.)
+
+    So when no reason arrived, an answer that used every output token its
+    request allowed was cut. That needs the limit to be one this code sent,
+    which it is on DeepSeek and Anthropic.
+    """
+    if isinstance(reason, str):
+        return reason if reason in _CUT_STOP_REASONS else None
+    spent = usage.get("completion_tokens") if isinstance(usage, dict) else None
+    if _is_count(limit) and _is_count(spent) and spent >= limit:
+        return f"not reported; all {limit} output tokens allowed were used"
+    return None
+
+
+class AnswerCutError(RuntimeError):
+    """The provider ended an answer at an output limit; what arrived is part of one.
+
+    Until 2026-11-12 the stop reason was read by nothing and a cut answer was
+    returned like any other. DeepSeek direct that day: the writer stopped at
+    exactly 8,192 output tokens, in the middle of a reference entry, and the
+    run completed. What happens next depends on where the cut falls. In the
+    references it is harmless, because the list is rebuilt. Inside "Evidence
+    Limitations" the report guardrail passes it and the section ships ending
+    mid-word. Anywhere earlier the guardrail blocks it as a missing heading
+    and the whole report is written, and cut, again. A JSON node's cut answer
+    is invalid JSON, asked for again up to twice, and fails as a parse error.
+
+    The message is what the status records and what api/runs.py reads to name
+    the failure. It never holds the part that arrived.
+    """
+
+    def __init__(self, stage: str, stop_reason: str) -> None:
+        # A stage is an agent's role as configured, which can end in a newline.
+        self.stage, self.stop_reason = " ".join(str(stage).split()), stop_reason
+        super().__init__(
+            f"{self.stage}: the answer was cut at the model's output limit (stop reason: {stop_reason}); "
+            "what arrived is part of an answer and was not used.")
+
+
+# How many times in all a streamed node asks for an answer that keeps coming
+# back with no text. A model sometimes ends an answer without writing one.
+# The wrapper used to return it and record "returned"; CrewAI raised
+# "Invalid response from LLM call - None or empty." and ran the node again,
+# up to twice, so three billed calls could go by under a record of three
+# answers, and a run that got nothing all three times failed as "unknown".
+# Three is what that amounted to. The asking is kept, because it is the only
+# retry such an answer has, and done here, where the attempt record and the
+# run's time can see it. A plain call returns the empty answer as before:
+# the paper extractor has its own handling for one.
+_EMPTY_ANSWER_ASKS = 3
+
+
+class EmptyAnswerError(RuntimeError):
+    """A streamed node's model kept returning an answer with no text.
+
+    The message is what the status records and what api/runs.py reads to name
+    the failure.
+    """
+
+    def __init__(self, stage: str, times: int) -> None:
+        self.stage, self.times = " ".join(str(stage).split()), times
+        count = "once" if times == 1 else f"{times} times in a row"
+        super().__init__(
+            f"{self.stage}: the model returned an answer with no text, {count}; there was nothing to use.")
+
+
+def _has_no_text(result: object) -> bool:
+    """None, or a string of nothing but blank space. A tool call or a parsed object is an answer."""
+    return result is None or (isinstance(result, str) and not result.strip())
+
+
 @dataclass
 class _CallBudget:
     """Mutable because the worker assigns a stage deadline after Crew creation."""
@@ -261,6 +387,16 @@ class _CallBudget:
     #: Calls made through this node so far. A guardrail retry is a new call
     #: whose attempts start at 1 again; the sequence tells the two apart.
     calls: int = 0
+    #: The error a call on this node ended with, once the wrapper gave up on
+    #: one: its attempts were used up, the run had no time for another, the
+    #: provider refused the request outright, or the answer was cut. The node
+    #: is then not asked again. CrewAI re-executes a task whose agent raised
+    #: (Agent.max_retry_limit is 2 and is never reset), and the wrapper did
+    #: not know: a rejected key was sent three times, and a connection that
+    #: timed out every time got fifteen attempts where _STREAM_MAX_ATTEMPTS
+    #: says five, which on a silent link is sixteen minutes to report what
+    #: was known after five and a half. An instance is one node of one run.
+    gave_up: BaseException | None = None
 
     def require_window(self, *, delay_seconds: float = 0.0) -> None:
         if self.deadline_monotonic is None:
@@ -277,6 +413,61 @@ class _CallBudget:
 def _max_attempts_for(llm) -> int:
     """How many provider attempts one call on this node may make."""
     return _STREAM_MAX_ATTEMPTS if getattr(llm, "stream", False) is True else _MAX_ATTEMPTS
+
+
+# A rate limit is the one refusal that passes by itself. Until 2026-11-12 the
+# wrapper did nothing about one: _is_retryable sends a 429 straight back, and
+# its only second chance was CrewAI running the node again at once, twice,
+# with no wait. A streamed node now waits and asks again, inside the attempts
+# and the run's time it already had.
+#
+# No model call in the saved runs was ever refused this way, so the rules are
+# the providers' own, read that day. Anthropic sends `retry-after`, the
+# seconds to wait. Model Studio names no header and says to retry later, "a
+# few minutes" at most for its per-minute limits; without a figure the waits
+# before the second to fifth attempts are 15, 30, 60 and 60 seconds, which
+# together outlast two of those minutes.
+_RATE_LIMIT_BASE_WAIT_SECONDS = 15.0
+_RATE_LIMIT_MAX_WAIT_SECONDS = 60.0
+
+# Model Studio answers 429 to these too, and waiting cures none of them: a
+# model's free quota used up, a budget exhausted, a bill overdue, a product
+# not bought. They fail at once, as every 429 did. Its tokens-per-minute
+# limit is worded "insufficient_quota ... check your plan and billing
+# details", as OpenAI words an empty account; the two cannot be told apart
+# here, and it is waited for, since a wait that proves useless costs time
+# and no money.
+_NOT_CURED_BY_WAITING = (
+    "free allocated quota", "freetieronly", "budgetlimitexceeded", "billoverdue", "arrearage",
+    "commoditynotpurchased",
+)
+
+
+def _is_rate_limit(exc: BaseException) -> bool:
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return "429" in text or "rate limit" in text or "ratelimit" in text
+
+
+def _stated_wait(exc: BaseException) -> float | None:
+    """The seconds a refusal's `retry-after` header asks for, when it is a usable number."""
+    headers = getattr(getattr(exc, "response", None), "headers", None)
+    try:
+        seconds = float(headers.get("retry-after"))
+    except (AttributeError, TypeError, ValueError):
+        return None
+    return seconds if math.isfinite(seconds) and seconds > 0 else None
+
+
+def _rate_limit_wait(exc: BaseException, attempt: int) -> float | None:
+    """Seconds to wait before asking again after a rate limit; None for anything waiting does not cure."""
+    if not _is_rate_limit(exc):
+        return None
+    text = f"{type(exc).__name__}: {exc}".lower()
+    if any(marker in text for marker in _NOT_CURED_BY_WAITING):
+        return None
+    stated = _stated_wait(exc)
+    wait = stated if stated is not None else _RATE_LIMIT_BASE_WAIT_SECONDS * (2 ** (attempt - 1))
+    return min(wait, _RATE_LIMIT_MAX_WAIT_SECONDS)
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -308,6 +499,9 @@ def _sent_parameters(llm) -> dict[str, object]:
         sent["response_format"] = llm.response_format
     if getattr(llm, "temperature", None) is not None:
         sent["temperature"] = llm.temperature
+    limit = getattr(llm, "max_tokens", None)
+    if isinstance(limit, int) and not isinstance(limit, bool):
+        sent["max_tokens"] = limit
     return sent
 
 
@@ -329,6 +523,13 @@ def _apply_parameter(llm, parameter: str, value: object) -> None:
         llm.response_format = None
     elif parameter == "temperature":
         llm.temperature = None
+    elif parameter == "max_tokens":
+        # A ceiling, learned from one call of this model: it lowers a larger
+        # limit and never raises a smaller one. A provider that sends none
+        # (Model Studio, OpenAI) keeps sending none.
+        current = getattr(llm, "max_tokens", None)
+        if isinstance(current, int) and not isinstance(current, bool) and isinstance(value, int):
+            llm.max_tokens = min(current, value)
 
 
 # A model that cannot turn thinking off reasons before every answer. On
@@ -475,12 +676,40 @@ def _wrap_with_retry(llm):
     """
     inner = llm.call
     budget = _CallBudget()
+    # Why the attempt in flight ended. CrewAI hands the provider's stop reason
+    # to the event it emits when a call completes and to nothing a caller can
+    # read, and its event bus delivers on another thread, usually after the
+    # call has returned. The provider's own emit method runs on this thread
+    # before `call` returns, so the reason is noted there. An object without
+    # that method reports no reason and is treated as before.
+    stopped: dict[str, object] = {"reason": None, "usage": None}
+    emit = getattr(llm, "_emit_call_completed_event", None)
+    if callable(emit):
+        @functools.wraps(emit)
+        def emit_and_note(*args, **kwargs):
+            stopped["reason"] = kwargs.get("finish_reason")
+            stopped["usage"] = kwargs.get("usage")
+            return emit(*args, **kwargs)
+
+        llm._emit_call_completed_event = emit_and_note
     max_attempts = _max_attempts_for(llm)
+    # A plain call does not wait for a rate limit: the paper extractor runs
+    # inside a web request, and a minute's wait there is the visitor's. Nor
+    # does it ask again for an empty answer; it returns one as it always did.
+    streamed = getattr(llm, "stream", False) is True
     base, model = getattr(llm, "base_url", None), getattr(llm, "model", None)
     identity = (base.rstrip("/"), model) if isinstance(base, str) and isinstance(model, str) else None
 
     @functools.wraps(inner)
     def call_with_retry(*args, **kwargs):
+        if budget.gave_up is not None:
+            # stderr for the same reason as the retry notice below.
+            print(
+                f"[llm] {' '.join(budget.stage.split())}: not asked again after "
+                f"{type(budget.gave_up).__name__}",
+                file=sys.stderr, flush=True,
+            )
+            raise budget.gave_up
         if identity is not None:
             for parameter, value in parameter_fallback.learned(*identity).items():
                 _apply_parameter(llm, parameter, value)
@@ -488,6 +717,7 @@ def _wrap_with_retry(llm):
                 _give_thinking_time(llm, budget)
         adapted = 0
         attempt = 1
+        empties = 0
         budget.calls += 1
         call_index = budget.calls
 
@@ -505,6 +735,7 @@ def _wrap_with_retry(llm):
         while True:
             budget.require_window()
             started = time.monotonic()
+            stopped["reason"] = stopped["usage"] = None
             try:
                 result = inner(*args, **kwargs)
             except BaseException as exc:      # noqa: BLE001 - re-raised below
@@ -520,22 +751,40 @@ def _wrap_with_retry(llm):
                     # resend is not a transport retry and keeps the number.
                     report("adapted", started, retry=True, exc=exc)
                     continue
-                outcome = "timeout" if _is_timeout(exc) else "error"
-                if attempt == max_attempts or not _is_retryable(exc):
+                wait = _rate_limit_wait(exc, attempt)
+                if wait is not None:
+                    outcome, again = "rate_limited", streamed
+                else:
+                    outcome, again = "timeout" if _is_timeout(exc) else "error", _is_retryable(exc)
+                if attempt == max_attempts or not again:
+                    budget.gave_up = exc
                     report(outcome, started, retry=False, exc=exc)
                     raise
-                # Jitter so six agents recovering from one outage do not all
-                # return at the same instant.
-                delay = _BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+                # Jitter so six agents recovering from one outage, or held
+                # back by one limit, do not all return at the same instant.
+                # It only adds: never less than a provider asked for.
+                delay = wait if wait is not None else _BASE_DELAY_SECONDS * (2 ** (attempt - 1))
                 delay += random.uniform(0, delay * 0.25)
                 try:
                     budget.require_window(delay_seconds=delay)
                 except RunDeadlineExceeded as deadline_error:
                     # Keep the transport error as causal context while making
                     # the actionable failure type visible to Reviewer fallback.
+                    budget.gave_up = deadline_error
                     report(outcome, started, retry=False, exc=exc)
                     raise deadline_error from exc
                 report(outcome, started, retry=True, exc=exc)
+                if wait is not None:
+                    # A rate limit says nothing against the connection it
+                    # arrived on, so the client is kept.
+                    print(
+                        f"[llm] {budget.stage}: rate limited on attempt "
+                        f"{attempt}/{max_attempts}; asking again in {delay:.1f}s",
+                        file=sys.stderr, flush=True,
+                    )
+                    time.sleep(delay)
+                    attempt += 1
+                    continue
                 reconnected = _reconnect(llm, budget.stage)
                 # stderr, not stdout: the API worker's stdout is discarded and
                 # its stderr is kept as process.log (api/runs.py). On stdout
@@ -549,6 +798,27 @@ def _wrap_with_retry(llm):
                 time.sleep(delay)
                 attempt += 1
             else:
+                cut = _cut_reason(stopped["reason"], stopped["usage"], getattr(llm, "max_tokens", None))
+                if cut is not None:
+                    budget.gave_up = AnswerCutError(budget.stage, cut)
+                    report("cut", started, retry=False, exc=None)
+                    raise budget.gave_up
+                if streamed and _has_no_text(result):
+                    empties += 1
+                    if empties == _EMPTY_ANSWER_ASKS or attempt == max_attempts:
+                        budget.gave_up = EmptyAnswerError(budget.stage, empties)
+                        report("empty", started, retry=False, exc=None)
+                        raise budget.gave_up
+                    report("empty", started, retry=True, exc=None)
+                    # At once and on the same connection: nothing failed, and
+                    # there is nothing to wait for.
+                    print(
+                        f"[llm] {budget.stage}: empty answer on attempt "
+                        f"{attempt}/{max_attempts}; asking again",
+                        file=sys.stderr, flush=True,
+                    )
+                    attempt += 1
+                    continue
                 report("returned", started, retry=False, exc=None)
                 return result
 
@@ -647,6 +917,10 @@ def create_llm(
 
     if json_mode and logical_provider in _JSON_MODE_PROVIDERS:
         kwargs["response_format"] = {"type": "json_object"}
+    if logical_provider == "anthropic":
+        kwargs["max_tokens"] = ANTHROPIC_STREAM_MAX_TOKENS if stream else ANTHROPIC_MAX_TOKENS
+    elif logical_provider == "deepseek":
+        kwargs["max_tokens"] = DEEPSEEK_STREAM_MAX_TOKENS if stream else DEEPSEEK_MAX_TOKENS
 
     if temperature is not None:
         kwargs["temperature"] = temperature
@@ -658,8 +932,11 @@ def create_llm(
         # the wait for one chunk: a dead connection shows in a minute, where
         # a plain request waited out its whole window (2026-11-09: 302, 312
         # and 160 seconds, retried in 27-95). The wrapper stays the only
-        # retry owner on every path, CLI included: a hidden SDK resend of a
-        # stalled stream would be billed and absent from the attempt record.
+        # owner of a request's retries on every path, CLI included: a hidden
+        # SDK resend of a stalled stream would be billed and absent from the
+        # attempt record. CrewAI running the whole node again after the
+        # wrapper has given up is another layer; _CallBudget.gave_up is
+        # where that one is stopped.
         kwargs["stream"] = True
         kwargs["timeout"] = float(STREAM_IDLE_TIMEOUT_SECONDS)
         kwargs["max_retries"] = 0

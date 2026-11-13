@@ -11,7 +11,10 @@ is commercially viable. Three evidence agents (academic / patent / market) run
 in parallel, then a report writer, a reviewer, and a scorer. Served two ways
 from one codebase: a FastAPI + vanilla-JS web client and a CLI.
 
-Live at https://academic-commercialization-agent.up.railway.app
+Live at https://academic-agent.cc, the address to give a visitor. The one
+Railway issued (`academic-commercialization-agent.up.railway.app`) still answers
+and is what the deploy check and the retrieval-health job read, so that neither
+depends on a DNS record.
 
 Baseline at `0fdaa76` (2026-09-05 documentation audit): 2071 tests and 678
 subtests. CI covers Linux + Windows × Python 3.11/3.12; Railway hosts the demo.

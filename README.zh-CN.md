@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 
-**[▶ 免 Key、免注册，先读一份完整报告](https://academic-commercialization-agent.up.railway.app/samples)** · [打开在线应用](https://academic-commercialization-agent.up.railway.app) · [本地运行](#快速启动) · [English](README.md)
+**[▶ 免 Key、免注册，先读一份完整报告](https://academic-agent.cc/samples)** · [打开在线应用](https://academic-agent.cc) · [本地运行](#快速启动) · [English](README.md)
 
 ![演示：从历史列表打开一份已完成的 CAR-T 评估，依次查看评分卡、带引用的风险与机会、带引用的报告正文，以及一条已保存的来源摘录](assets/demo.gif)
 
@@ -18,8 +18,8 @@
 
 | 方式 | 需要什么 | |
 |---|---|---|
-| **阅读示例报告** | 什么都不需要。六份完整评估（其中一份为中文），打开时不发起任何模型或检索请求 | [打开示例](https://academic-commercialization-agent.up.railway.app/samples) |
-| **在线发起新分析** | 免费注册账号（邮箱加密码，开放注册），用自己的模型 API key 与模型 + Tavily 或 Serper 检索 key 付费运行。会产生供应商用量 | [打开应用](https://academic-commercialization-agent.up.railway.app) |
+| **阅读示例报告** | 什么都不需要。六份完整评估（其中一份为中文），打开时不发起任何模型或检索请求 | [打开示例](https://academic-agent.cc/samples) |
+| **在线发起新分析** | 免费注册账号（邮箱加密码，开放注册），用自己的模型 API key 与模型 + Tavily 或 Serper 检索 key 付费运行。会产生供应商用量 | [打开应用](https://academic-agent.cc) |
 | **在本机运行** | Python 3.11 或 3.12、[uv](https://docs.astral.sh/uv/) 和自己的 key | [快速启动](#快速启动) |
 
 示例报告也在 [examples/](examples/README.md) 中：五份是 2026-11-08 在当前流水线上用
@@ -133,9 +133,20 @@
 2026-10-19 用 `qwen3.8-max` 和改进后的市场检索跑了第二组留出集：**30 次中 25 次落在区间内**，
 成熟技术有 11 次打到 8–9 分；低成熟度主题没有虚高，但最低的两个主题被打在区间下限之下。
 这一组的主题和模型也变了，因此提升不能归因于某一项改动。TRL 仍应视为粗粒度信号。
-详见[第二组结果](docs/results-2026-10-19-heldout-trl-v2.md)。线上部署在阿里云百炼的
-免费额度模型之间轮换，不固定为任一组留出集所用的模型；当前请求的模型见 `/health` 的
-`llm_model` 字段，每个运行页也会标出产出它的模型。这些模型都没有经过留出集测量。
+详见[第二组结果](docs/results-2026-10-19-heldout-trl-v2.md)。
+
+之后又有两个模型按第二组的同一套区间各测了一轮，每个主题只跑一次。
+`deepseek-v4-pro` 跑了全部 10 个主题（2026-11-08）：**10 次中 8 次落在区间内**，
+两次未命中都低于下限。
+`deepseek-v4.1-flash-1017` 跑了其中 5 个（2026-11-11）：**5 次中 4 次落在区间内**，
+未命中的一次同样低于下限。这两轮是抽查，不是校准测量：每个主题只跑一次，
+分不清是模型的原因还是当天证据的原因。详见
+[十个主题的结果](docs/results-2026-11-08-heldout-spot-check-deepseek-v4-pro-b.md)和
+[五个主题的结果](docs/results-2026-11-11-heldout-spot-check-deepseek-v4.1-flash.md)。
+
+线上部署在阿里云百炼的免费额度模型之间轮换，不固定为这四个模型中的任何一个；
+当前请求的模型见 `/health` 的 `llm_model` 字段，每个运行页也会标出产出它的模型。
+这四个之外的模型没有留出集读数。填写模型名的表单上显示的也是这四个数字。
 
 其他已完成的证据：
 

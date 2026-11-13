@@ -36,6 +36,7 @@ from academic_agent.evidence import (
 from academic_agent.reviewer_plan_bounds import bound_reviewer_guardrail
 from academic_agent.scoring_contract import make_scoring_guardrail
 from academic_agent.llm_config import create_llm
+from academic_agent.prompt_cache_marks import install as drop_unread_cache_marks
 from academic_agent.source_pipeline import SourceCollection
 
 
@@ -51,6 +52,11 @@ class AcademicAgent:
         task_callback: Callable[[Any], None] | None = None,
         step_callback: Callable[[Any], None] | None = None,
     ) -> None:
+        # No node's prompt is sent twice, so a provider that bills for writing
+        # a prompt cache is asked to write none (see prompt_cache_marks). An
+        # executor takes the hooks registered when it is built, so this is
+        # done before the crew can run.
+        drop_unread_cache_marks()
         # 接收由 source_pipeline 预收集并验证的来源数据集
         # Receives pre-validated source collection from source_pipeline
         self.source_collection = source_collection

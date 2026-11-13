@@ -10,7 +10,7 @@ included.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 
-**[▶ Read a finished report — no key, no sign-up](https://academic-commercialization-agent.up.railway.app/samples)** · [Open the application](https://academic-commercialization-agent.up.railway.app) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
+**[▶ Read a finished report — no key, no sign-up](https://academic-agent.cc/samples)** · [Open the application](https://academic-agent.cc) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
 
 ![Demo: a finished CAR-T assessment opened from the history list, its scorecard, risks and opportunities with citations, the cited report, and one saved source excerpt](assets/demo.gif)
 
@@ -20,8 +20,8 @@ included.
 
 | Way in | What you need | |
 |---|---|---|
-| **Read sample reports** | Nothing. Six finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-commercialization-agent.up.railway.app/samples) |
-| **Run a new analysis online** | A free account (email and password; sign-up is open) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to. Incurs provider usage | [Open the app](https://academic-commercialization-agent.up.railway.app) |
+| **Read sample reports** | Nothing. Six finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-agent.cc/samples) |
+| **Run a new analysis online** | A free account (email and password; sign-up is open) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to. Incurs provider usage | [Open the app](https://academic-agent.cc) |
 | **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [Quick start](#quick-start) |
 
 The samples are also in [examples/](examples/README.md): five runs of
@@ -160,10 +160,21 @@ proven technologies. Low-maturity topics were not inflated, though the two
 lowest ones were scored below their floor. The topics and the model also
 changed, so the improvement is not attributed to any single change. Treat TRL
 as a coarse signal. See the [v2 result](docs/results-2026-10-19-heldout-trl-v2.md).
+
+Two later models were read against the same v2 ranges, one run a topic.
+`deepseek-v4-pro` on all ten topics (2026-11-08): **8/10 in range**, both
+misses below their floor.
+`deepseek-v4.1-flash-1017` on five of them (2026-11-11): **4/5 in range**,
+the miss below its floor. These are spot checks, not calibration measures:
+one run a topic cannot tell the model from the day's evidence. See the
+[ten-topic result](docs/results-2026-11-08-heldout-spot-check-deepseek-v4-pro-b.md)
+and the [five-topic result](docs/results-2026-11-11-heldout-spot-check-deepseek-v4.1-flash.md).
+
 The public deployment rotates through Model Studio's free-quota models and
-is not pinned to either cohort's model; the one it currently requests is in
+is not pinned to any of these four; the one it currently requests is in
 `/health` as `llm_model`, and each run page names the model that produced it.
-No held-out cohort has measured those models.
+A model outside the four has no held-out reading. The form that asks for a
+model name shows the same four figures.
 
 Other completed evidence:
 

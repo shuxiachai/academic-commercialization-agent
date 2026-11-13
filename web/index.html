@@ -14,8 +14,8 @@
 <meta property="og:site_name" content="Academic Commercialization Assessment">
 <meta property="og:title" content="Academic Commercialization Assessment Agent">
 <meta property="og:description" content="Turn a research paper or topic into a cited commercialization triage report: technology readiness, manufacturing, patents and market, with the risks spelled out.">
-<meta property="og:url" content="https://academic-commercialization-agent.up.railway.app/">
-<meta property="og:image" content="https://academic-commercialization-agent.up.railway.app/static/brand/social-preview.png">
+<meta property="og:url" content="https://academic-agent.cc/">
+<meta property="og:image" content="https://academic-agent.cc/static/brand/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="From a paper or research topic to a cited assessment draft, beside a real historical scorecard">
@@ -624,10 +624,19 @@
       <!-- The model the visitor's own key should use. Required: there is no
            default model. byok_fields.js shows an example as the placeholder. -->
       <input class="gate__input" id="byok-model" type="text" autocomplete="off" spellcheck="false"
-             maxlength="100" required placeholder="Model (required)" list="byok-model-options">
+             maxlength="100" required placeholder="Model (required)" list="byok-model-options"
+             aria-describedby="byok-model-note">
       <!-- Suggestions only, filled per provider by byok_fields.js; the field
            stays empty and required until the visitor picks or types one. -->
       <datalist id="byok-model-options"></datalist>
+      <!-- Which models this project measured for the selected provider, each
+           with its result, as buttons that put the name in the field above.
+           Painted by byok_fields.js; a press is the visitor's choice, so the
+           field still starts empty. -->
+      <div class="gate__models">
+        <p class="gate__hint" id="byok-model-note"></p>
+        <div class="gate__chips" id="byok-model-chips"></div>
+      </div>
       <!-- Tavily first: Serper refuses requests from some hosting providers,
            including this deployment's, so a Serper-only run may find nothing. -->
       <select class="gate__input" id="byok-search" aria-label="Web search service">
