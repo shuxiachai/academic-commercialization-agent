@@ -708,7 +708,32 @@ function citedText(text) {
 
 // "This assessment synthesizes evidence from four papers…" opens a fifth of
 // the saved reports; it describes the report, not the technology.
-const METHOD_OPENER = /^(?:this|the)\s+(?:assessment|report|analysis|document|evaluation)\b|^本(?:报告|评估|分析|文)/iu;
+//
+// Since October 2026 the writer's contract also has the report state its
+// assessment mode, and models put that in the summary. Of the 88 saved reports
+// made since then, 21 showed a sentence about the report as their summary and
+// one showed nothing (2026-11-13). What they wrote, and what is now passed over:
+// the report named by another word or with a word in between ("This orientation
+// brief synthesizes…", "This is an orientation brief built from…"); the mode,
+// stated as the next sentence ("It is an orientation-mode assessment: no
+// actor-specific decision context was supplied…", "需要明确的是，本报告处于…模式");
+// and what follows from the mode ("Conclusions are provisional because…").
+// "The brief window before the patents expire…" is about the technology: a
+// brief is the report only after "this" or one of the words below.
+const REPORT_QUALIFIER = "(?:(?:orientation(?:-mode)?|evidence-linked|commerciali[sz]ation|present|current)\\s+)";
+const ABOUT_THE_REPORT = new RegExp("^(?:"
+  + "(?:this|the)\\s+" + REPORT_QUALIFIER + "{0,2}(?:assessment|report|analysis|document|evaluation)\\b"
+  + "|this\\s+" + REPORT_QUALIFIER + "{0,2}brief\\b"
+  + "|(?:this|it) is an?\\s+(?:[\\w-]+\\s+){0,3}(?:assessment|report|analysis|evaluation|brief)\\b"
+  + "|it is written in (?:orientation|decision[- ]support)\\b"
+  + "|assessment mode\\b|no actor-specific\\b|actor-specific go\\/no[_-]go\\b"
+  + "|(?:all )?(?:conclusions|findings) (?:are|remain) (?:provisional|preliminary|tentative)\\b"
+  + "|本(?:报告|评估|分析|文)|需要(?:明确|说明|指出)的是|评估模式"
+  + ")", "iu");
+// A point's bold title is the heading of its first sentence ("**Maturity is
+// uneven.** Robotic-assisted surgery appears established in…"): alone it says
+// little, so a short one is quoted with the sentence it heads.
+const TITLE_LIMIT = 60;
 
 // Where a full stop is not the end of a sentence. Until 2026-11-12 every one
 // was, and the brief's two quoted lines stopped wherever a report wrote a
@@ -744,7 +769,7 @@ function fullStopEnds(before, after) {
 
 function sentencesOf(text) {
   const clean = text.replace(CITATION_RUN, "").replace(/\*\*/g, "").replace(/\s+/g, " ")
-    .replace(/\s+([,.;:!?])/g, "$1").replace(/\(\s*\)/g, "").trim();
+    .replace(/\s+([,.;:!?，。；：！？、])/gu, "$1").replace(/\(\s*\)/g, "").trim();
   const sentences = [];
   let start = 0;
   for (const match of clean.matchAll(/[.!?。！？]+/gu)) {
@@ -759,9 +784,8 @@ function sentencesOf(text) {
   return sentences.filter(Boolean);
 }
 
-function firstSentence(text, { skipMethod = false } = {}) {
-  const sentences = sentencesOf(text);
-  let sentence = sentences.find(s => !(skipMethod && METHOD_OPENER.test(s))) ?? sentences[0] ?? "";
+/** The text as the brief quotes it: whole, or cut at a word with an ellipsis; null when empty. */
+function quoted(sentence) {
   if (sentence.length > BRIEF_SENTENCE_LIMIT) {
     const cut = sentence.slice(0, BRIEF_SENTENCE_LIMIT - 1);
     const space = cut.lastIndexOf(" ");
@@ -770,16 +794,40 @@ function firstSentence(text, { skipMethod = false } = {}) {
   return sentence || null;
 }
 
-/** The first sentence of the report's own executive summary, or null. */
+function firstSentence(text) {
+  return quoted(sentencesOf(text)[0] ?? "");
+}
+
+/** The first sentence of the report's own executive summary that is about
+ * the technology, or null. Paragraphs and list items are read in the order
+ * written; a summary that says nothing but what the report is shows the
+ * first sentence of its first paragraph, as it always did. */
 function executiveSummaryLead(markdown) {
   let inside = false;
+  let first = null;
   for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
     if (/^##\s/.test(line)) { inside = SUMMARY_HEADINGS.test(line); continue; }
     if (/^#\s/.test(line) || !inside) continue;
     const text = line.trim();
-    if (text && !/^[-*]\s|^\d+[.)]\s|^###|^>/.test(text)) return firstSentence(text, { skipMethod: true });
+    // A sub-heading, a quotation and a table row are not the summary's prose.
+    if (!text || /^###|^[>|]/.test(text)) continue;
+    const item = text.match(/^(?:[-*]|\d+[.)])\s+(.+)$/);
+    const block = item ? item[1] : text;
+    // A paragraph or point labelled as the assessment mode is about the mode to its end.
+    if (RECOMMENDATION_PREAMBLE.test(block.replace(/\*+/g, "").trim())) continue;
+    const sentences = sentencesOf(block);
+    if (!item) first ??= sentences[0] ?? null;
+    // "Key findings:" on a line of its own only leads in.
+    const at = sentences.findIndex(s => !ABOUT_THE_REPORT.test(s) && !(s.length <= LABEL_LIMIT && /[:：]$/.test(s)));
+    if (at < 0) continue;
+    const title = at === 0 ? block.match(/^\*\*[^*]+\*\*/) : null;
+    const heads = title && sentences.length > 1 && sentences[0].length <= TITLE_LIMIT
+      && sentencesOf(title[0])[0] === sentences[0];
+    // Chinese sentences follow one another without a space.
+    const gap = /[。！？]$/u.test(sentences[0]) ? "" : " ";
+    return quoted(heads ? sentences[0] + gap + sentences[1] : sentences[at]);
   }
-  return null;
+  return first === null ? null : quoted(first);
 }
 
 // The writer's contract opens the recommendations by saying what the section
