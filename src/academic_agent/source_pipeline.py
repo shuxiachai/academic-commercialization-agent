@@ -17,6 +17,13 @@ from urllib.request import Request, urlopen
 from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
+from academic_agent.market_selection import (
+    MARKET_SOURCES_PER_SITE,
+    item_of,
+    prefer,
+    same_story,
+    site_of,
+)
 from academic_agent.page_dates import page_publication_date, should_date
 from academic_agent.patent_applicants import google_patents_url, patent_page_facts
 from academic_agent.patent_family import publication_number, same_invention
@@ -229,12 +236,16 @@ _THINK_TANK_DOMAINS = {
     "ieefa.org",         # Institute for Energy Economics and Financial Analysis
     "worldnuclearreport.org",  # World Nuclear Industry Status Report (independent)
 }
-# A tertiary source: it names operators and deployment dates that market pages
-# omit, but cites rather than originates them. It was blocked with the social
-# networks from the first pipeline, without a recorded failure. On the
-# 2026-10-18 held-out runs it was the only result naming the floating offshore
-# wind farms (Hywind, Kincardine, WindFloat) that topic's anchor rests on.
-# Admitted at low credibility and at most _MARKET_ENCYCLOPEDIA_SOFT_CAP per run.
+# A tertiary source: it cites the operators and deployment dates it names
+# rather than originating them. It was blocked with the social networks from
+# the first pipeline, admitted on 2026-10-19 at low credibility and one entry
+# per run because it was the only result naming the floating offshore wind
+# farms that topic's anchor rests on
+# (docs/results-2026-10-19-market-allowlist-sector-sources.md), and taken out
+# of the market slots again on 2026-11-13, by the maintainer's decision: it
+# then held a market slot in 13 of the 95 runs since 2026-10-01 that listed
+# market sources. _collect_domain rejects it there by name;
+# _market_source_profile still describes the host, for the reason it records.
 _ENCYCLOPEDIA_DOMAINS = {"wikipedia.org"}
 _PATENT_HOSTS = {
     "patents.google.com",
@@ -626,9 +637,6 @@ _MARKET_INSTITUTIONAL_SOFT_CAP = 3
 # Market domain: accept at most this many market_report sources before deferring
 # extras, so company_disclosure / reputable_news sources have a chance to fill slots.
 _MARKET_REPORT_SOFT_CAP = 4
-# Market domain: one encyclopedia entry adds the named deployments; more would
-# trade primary evidence for a tertiary summary.
-_MARKET_ENCYCLOPEDIA_SOFT_CAP = 1
 # Maximum Serper results processed per query; limits first-query slot exhaustion
 # so subsequent queries in the same domain have a chance to contribute sources.
 _SERPER_MAX_RESULTS_PER_QUERY = 8
@@ -2790,6 +2798,68 @@ def _market_summary_relevant(summary: str, topic: str) -> bool:
     return bool(filter_words & summary_words)
 
 
+_MARKET_INSTITUTIONAL_TYPES = frozenset(("research_institute", "government"))
+
+
+def _source_host(source: EvidenceSource) -> str:
+    return (urlsplit(str(source.url)).hostname or "").lower() if source.url else ""
+
+
+def _listed_copy(
+    source: EvidenceSource,
+    listed: Sequence[EvidenceSource],
+) -> tuple[EvidenceSource | None, str]:
+    """The listed market source that is the same story as ``source``, and why."""
+    candidate = item_of(source)
+    for other in listed:
+        why = same_story(candidate, item_of(other))
+        if why:
+            return other, why
+    return None, ""
+
+
+def _site_is_full(source: EvidenceSource, listed: Sequence[EvidenceSource]) -> bool:
+    """Whether the source's site already holds its share of the market slots."""
+    site = site_of(str(source.url)) if source.url else ""
+    if not site:
+        return False
+    held = sum(1 for other in listed if other.url and site_of(str(other.url)) == site)
+    return held >= MARKET_SOURCES_PER_SITE
+
+
+def _market_deferral(
+    source: EvidenceSource,
+    accepted: Sequence[EvidenceSource],
+    earlier: Sequence[EvidenceSource] = (),
+) -> str | None:
+    """Why a market source waits for a slot nothing else fills, or None to admit it.
+
+    The kind caps count what this pass accepted, as they always have. The
+    site share also counts ``earlier``, the sources a previous pass of the
+    run kept: eight slots are one run's, whichever pass filled them.
+    """
+    if source.source_type in _MARKET_INSTITUTIONAL_TYPES:
+        institutional = [
+            other for other in accepted if other.source_type in _MARKET_INSTITUTIONAL_TYPES
+        ]
+        category = _authority_category_for_url(str(source.url)) if source.url is not None else None
+        if category and any(
+            other.url is not None and _authority_category_for_url(str(other.url)) == category
+            for other in institutional
+        ):
+            return "authority category already covered"
+        if len(institutional) >= _MARKET_INSTITUTIONAL_SOFT_CAP:
+            return "institutional cap"
+    elif source.source_type == "market_report":
+        reports = sum(1 for other in accepted if other.source_type == "market_report")
+        if reports >= _MARKET_REPORT_SOFT_CAP:
+            return "market-report cap"
+    if _site_is_full(source, (*earlier, *accepted)):
+        site = site_of(str(source.url))
+        return f"site share: {site} already holds {MARKET_SOURCES_PER_SITE}"
+    return None
+
+
 def _collect_domain(
     domain: Domain,
     queries: list[str],
@@ -2806,7 +2876,15 @@ def _collect_domain(
     research_aliases: Sequence[str] = (),
     query_limits: Mapping[str, int] | None = None,
     user_topic: str = "",
+    market_kept: Sequence[EvidenceSource] = (),
 ) -> tuple[list[EvidenceSource], list[SearchAudit]]:
+    """Collect one domain's sources from web search.
+
+    ``market_kept`` is what an earlier market pass of the same run already
+    holds. The company-news and native-language passes collect for the same
+    slots, so a copy of a kept story is a duplicate here too and a kept
+    source counts toward its site's share.
+    """
     prefix = {"academic": "A", "patent": "P", "market": "M"}[domain]
     accepted: list[EvidenceSource] = []
     audits: list[SearchAudit] = []
@@ -2818,14 +2896,11 @@ def _collect_domain(
     )
     seen_academic_title_keys: set[str] = set()
     seen_locators: set[str] = set()
-    # Market domain: defer low-priority sources (institutional OR excess market_report)
-    # so that company_disclosure / reputable_news sources have a chance to fill slots.
+    # Market domain: sources _market_deferral holds back wait here, so that
+    # other kinds and other sites have a chance to fill the slots first. Each
+    # remembers the query that found it, which is charged if it is promoted.
     _deferred: list[EvidenceSource] = []
-    _institutional_accepted = 0
-    _authority_categories_accepted: set[str] = set()
-    _market_report_accepted = 0
-    _encyclopedia_accepted = 0
-    _INSTITUTIONAL_TYPES = frozenset(("research_institute", "government"))
+    _deferred_by: dict[int, SearchAudit] = {}
     excluded_dois = {
         doi.lower()
         for doi in (blocked_dois or set())
@@ -2988,48 +3063,49 @@ def _collect_domain(
                     continue
                 seen_patent_titles.add(patent_title_key)
             if domain == "market":
-                if source.source_type in _INSTITUTIONAL_TYPES:
-                    authority_category = (
-                        _authority_category_for_url(str(source.url))
-                        if source.url is not None else None
+                if _host_matches(_source_host(source), _ENCYCLOPEDIA_DOMAINS):
+                    audit.rejected_reasons.append(
+                        f"encyclopedia entry is not market evidence: {source.title!r}"
+                    )
+                    continue
+                kept, why = _listed_copy(source, (*market_kept, *accepted))
+                if kept is not None:
+                    # One story, one slot. The copy nearer the issuer keeps
+                    # it: it takes over the listed copy's place and id when
+                    # it is the better of the two and the slot's own caps
+                    # would have admitted it. A copy kept by an earlier pass
+                    # is that pass's to hold and is never displaced.
+                    position = next(
+                        (index for index, listed in enumerate(accepted) if listed is kept),
+                        None,
                     )
                     if (
-                        authority_category
-                        and authority_category in _authority_categories_accepted
+                        position is not None
+                        and prefer(item_of(source), item_of(kept))
+                        and _market_deferral(
+                            source,
+                            [listed for listed in accepted if listed is not kept],
+                            market_kept,
+                        ) is None
                     ):
-                        _deferred.append(source)
+                        source.source_id = kept.source_id
+                        accepted[position] = source
                         audit.rejected_reasons.append(
-                            f"deferred (authority category already covered): {source.title!r}"
+                            f"duplicate story ({why}); the copy at {_source_host(source)} "
+                            f"replaces the one at {_source_host(kept)}: {source.title!r}"
                         )
-                        continue
-                    if _institutional_accepted >= _MARKET_INSTITUTIONAL_SOFT_CAP:
-                        _deferred.append(source)
+                    else:
                         audit.rejected_reasons.append(
-                            f"deferred (institutional cap): {source.title!r}"
+                            f"duplicate story ({why} as the copy at {_source_host(kept)}): "
+                            f"{source.title!r}"
                         )
-                        continue
-                    _institutional_accepted += 1
-                    if authority_category:
-                        _authority_categories_accepted.add(authority_category)
-                elif source.source_type == "market_report":
-                    if _market_report_accepted >= _MARKET_REPORT_SOFT_CAP:
-                        _deferred.append(source)
-                        audit.rejected_reasons.append(
-                            f"deferred (market-report cap): {source.title!r}"
-                        )
-                        continue
-                    _market_report_accepted += 1
-                elif _host_matches(
-                    (urlsplit(str(source.url)).hostname or "") if source.url else "",
-                    _ENCYCLOPEDIA_DOMAINS,
-                ):
-                    if _encyclopedia_accepted >= _MARKET_ENCYCLOPEDIA_SOFT_CAP:
-                        _deferred.append(source)
-                        audit.rejected_reasons.append(
-                            f"deferred (encyclopedia cap): {source.title!r}"
-                        )
-                        continue
-                    _encyclopedia_accepted += 1
+                    continue
+                deferral = _market_deferral(source, accepted, market_kept)
+                if deferral is not None:
+                    _deferred.append(source)
+                    _deferred_by[id(source)] = audit
+                    audit.rejected_reasons.append(f"deferred ({deferral}): {source.title!r}")
+                    continue
             source.source_id = f"{prefix}{len(accepted) + 1}"
             accepted.append(source)
             audit.accepted_source_ids.append(source.source_id)
@@ -3037,22 +3113,55 @@ def _collect_domain(
         if len(accepted) >= maximum_sources:
             break
 
-    # Fill remaining market slots from deferred sources (institutional or excess
-    # market_report) when higher-priority types didn't fill those slots.
+    # Fill remaining market slots from the sources held back above, when
+    # nothing else filled them. Those from a site still within its share go
+    # first, in the order they arrived; a site already at its share adds a
+    # further source only to a slot that would otherwise stay empty. Three
+    # releases one aggregator carries are three sources, and a thin market
+    # registry reads to the scorer as evidence about the technology. A held
+    # source that is a copy of a story accepted since is dropped, not promoted.
+    #
+    # A source held for its site's share is charged to the query that found
+    # it, and a query at its source limit promotes no more. Holding such a
+    # source does not stop the query being read, so without the charge the
+    # first query to meet a full site would supply every remaining slot,
+    # which is what _MARKET_SOURCES_PER_QUERY exists to prevent.
     _promoted_deferred: list[EvidenceSource] = []
+    _promotion_notes: list[str] = []
+    _promoted_from: dict[int, int] = {}
     if domain == "market" and _deferred:
-        for _deferred_src in _deferred:
-            if len(accepted) >= maximum_sources:
-                break
-            _deferred_src.source_id = f"M{len(accepted) + 1}"
-            accepted.append(_deferred_src)
-            _promoted_deferred.append(_deferred_src)
-    if _promoted_deferred:
+        for _within_share in (True, False):
+            for _deferred_src in list(_deferred):
+                if len(accepted) >= maximum_sources:
+                    break
+                _listed, _why = _listed_copy(_deferred_src, (*market_kept, *accepted))
+                if _listed is not None:
+                    _deferred.remove(_deferred_src)
+                    _promotion_notes.append(
+                        f"duplicate story ({_why} as the copy at {_source_host(_listed)}): "
+                        f"{_deferred_src.title!r}"
+                    )
+                    continue
+                _found_by = _deferred_by[id(_deferred_src)]
+                if _site_is_full(_deferred_src, (*market_kept, *accepted)):
+                    if _within_share:
+                        continue
+                    _limit = (query_limits or {}).get(_found_by.query)
+                    _charged = len(_found_by.accepted_source_ids) + _promoted_from.get(id(_found_by), 0)
+                    if _limit is not None and _charged >= _limit:
+                        continue
+                _deferred.remove(_deferred_src)
+                _deferred_src.source_id = f"M{len(accepted) + 1}"
+                accepted.append(_deferred_src)
+                _promoted_deferred.append(_deferred_src)
+                _promoted_from[id(_found_by)] = _promoted_from.get(id(_found_by), 0) + 1
+    if _promoted_deferred or _promotion_notes:
         audits.append(SearchAudit(
             domain="market",
             query="[Deferred-Promotion]",
-            result_count=len(_promoted_deferred),
+            result_count=len(_promoted_deferred) + len(_promotion_notes),
             accepted_source_ids=[s.source_id for s in _promoted_deferred],
+            rejected_reasons=_promotion_notes,
         ))
 
     if len(accepted) < minimum_sources:
@@ -3425,7 +3534,8 @@ def _renumber(sources: list[EvidenceSource], prefix: str) -> None:
 # "n.d." and a 2021 hiring announcement read like this week's news. Each
 # accepted source that should_date() admits takes the publication date its
 # own page states in metadata; the rule was registered and tested once
-# before adoption (docs/results-2026-10-22-market-page-dates-v1.md). The
+# before adoption (docs/results-2026-10-22-market-page-dates-v1.md), and
+# should_date() says what was added to it since. The
 # step has a deadline so one slow site cannot hold up the run: a page not
 # read in time stays undated. A "[Page-Dates]" audit row names the sources
 # dated this way; every other dated market source took its date from search.
@@ -4016,6 +4126,7 @@ def collect_source_collection(
                 blocked_dois={src.doi for src in academic if src.doi is not None},
                 blocked_titles={src.title for src in academic}
                               | {src.title for src in market},
+                market_kept=market,
             )
             all_audits.extend(_cn_audits)
             for _cn in _cn_sources:
@@ -4049,6 +4160,7 @@ def collect_source_collection(
                 blocked_dois={src.doi for src in academic if src.doi is not None},
                 blocked_titles={src.title for src in academic}
                               | {src.title for src in market},
+                market_kept=market,
             )
             all_audits.extend(native_market_audits)
             market.extend(native_market)

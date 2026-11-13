@@ -1188,10 +1188,13 @@ class MarketSlotSharingTests(TestCase):
                 return fake_search(query)
             market_queries.append(query)
             slot = len(market_queries)
+            # One site per result: this test is about the per-query limit, and
+            # results all from one site would meet that site's share first
+            # (tests/test_market_selection.py covers the two together).
             return {"organic": [
                 {
                     "title": f"Test commercialization operator update {slot}-{index}",
-                    "link": f"https://www.reuters.com/technology/operator-{slot}-{index}",
+                    "link": f"https://www.operator-{slot}-{index}.com/news/update",
                     "snippet": _LONG_MARKET_SNIPPET,
                 }
                 for index in range(1, 9)
@@ -1276,7 +1279,7 @@ class MarketEstimateReleaseTests(TestCase):
 
 
 class SectorAndEncyclopediaSourceTests(TestCase):
-    """Sector bodies are admitted; an encyclopedia entry is low credibility and capped."""
+    """Sector bodies are admitted; an encyclopedia entry is described but holds no market slot."""
 
     def _source(self, title: str, link: str):
         source, reason = _web_source(
@@ -1312,7 +1315,8 @@ class SectorAndEncyclopediaSourceTests(TestCase):
         self.assertIsNone(source)
         self.assertIn("blocked or not approved", reason)
 
-    def test_one_encyclopedia_entry_per_market_collection(self):
+    def test_no_encyclopedia_entry_in_a_market_collection(self):
+        """One entry per run was admitted from 2026-10-19 to 2026-11-13; see _ENCYCLOPEDIA_DOMAINS."""
         from academic_agent.source_pipeline import _collect_domain
 
         def search(query: str) -> dict:
@@ -1334,9 +1338,10 @@ class SectorAndEncyclopediaSourceTests(TestCase):
             minimum_sources=0, maximum_sources=4,
         )
         hosts = [str(s.url) for s in sources]
-        self.assertEqual(sum("wikipedia.org" in h for h in hosts), 1)
-        self.assertEqual(len(sources), 4)
-        self.assertTrue(any("encyclopedia cap" in r for a in audits for r in a.rejected_reasons))
+        self.assertEqual(sum("wikipedia.org" in h for h in hosts), 0)
+        self.assertEqual(len(sources), 3)
+        reasons = [r for a in audits for r in a.rejected_reasons]
+        self.assertEqual(sum("encyclopedia entry is not market evidence" in r for r in reasons), 3)
 
 
 class AuthorityQueryPlanningTests(TestCase):

@@ -40,18 +40,24 @@ def test_only_undated_sources_the_rule_admits_are_read():
         source("M4", "https://www.company.example.com/", "company_disclosure"),
         source("M5", "https://news.example.com/dated", published=date(2024, 3, 1)),
         source("M6", "https://news.example.com/no-metadata"),
+        source("M7", "https://finance.yahoo.com/news/bci-market-size-to-reach-130000614.html", "market_report"),
     ]
     asked = []
 
     def dater(url, accessed):
         asked.append((url, accessed))
+        if url.endswith("614.html"):
+            return date(2026, 2, 4), "json_ld"
         return (date(2025, 9, 18), "json_ld") if url.endswith("/startups") else (None, "none")
 
     audit = _date_market_pages(sources, ACCESSED, dater)
-    assert asked == [("https://news.example.com/bci/startups", ACCESSED),
-                     ("https://news.example.com/no-metadata", ACCESSED)]
-    assert [s.published_date for s in sources] == [date(2025, 9, 18), None, None, None, date(2024, 3, 1), None]
-    assert (audit.domain, audit.result_count, audit.accepted_source_ids) == ("market", 2, ["M1"])
+    assert sorted(asked) == [
+        ("https://finance.yahoo.com/news/bci-market-size-to-reach-130000614.html", ACCESSED),
+        ("https://news.example.com/bci/startups", ACCESSED),
+        ("https://news.example.com/no-metadata", ACCESSED)]
+    assert [s.published_date for s in sources] == [
+        date(2025, 9, 18), None, None, None, date(2024, 3, 1), None, date(2026, 2, 4)]
+    assert (audit.domain, audit.result_count, audit.accepted_source_ids) == ("market", 3, ["M1", "M7"])
     assert audit.query.startswith("[Page-Dates]")
     assert audit.rejected_reasons == ["M6: no publication date found"]
 

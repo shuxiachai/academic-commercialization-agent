@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "registered": "2026-11-13",
+  "protocol": "docs/prereg-2026-11-13-market-selection-v1.md",
+  "note": "V cases are evals/heldout_trl_v2/cohort.json cases, unchanged; their saved runs were read while the rules were written, so for the rules they are development topics. N cases had no saved run on 2026-11-13 and were named before any search for them.",
+  "cases": [
+    {"id": "V01", "topic": "robotic-assisted surgery", "scored": true},
+    {"id": "V03", "topic": "enhanced geothermal systems for electricity generation", "scored": true},
+    {"id": "V06", "topic": "space-based solar power", "scored": true},
+    {"id": "V07", "topic": "hyperloop", "scored": true},
+    {"id": "V09", "topic": "特高压直流输电", "scored": true},
+    {"id": "N01", "topic": "green ammonia as a marine fuel", "scored": false},
+    {"id": "N02", "topic": "direct lithium extraction from geothermal brines", "scored": false},
+    {"id": "N03", "topic": "autonomous trucks for long-haul freight", "scored": false},
+    {"id": "N04", "topic": "satellite direct-to-cell mobile service", "scored": false},
+    {"id": "N05", "topic": "3D-printed concrete houses", "scored": false},
+    {"id": "N06", "topic": "氢燃料电池重型卡车", "scored": false},
+    {"id": "N07", "topic": "wave energy converters for grid electricity", "scored": false}
+  ]
+}

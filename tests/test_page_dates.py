@@ -22,6 +22,12 @@ def html(head: str = "", body: str = "") -> str:
     ("company_disclosure", "https://www.egenesisbio.com/news/first-transplant", True),
     ("government", "https://www.energy.gov/eere/geothermal/egs", True),
     ("market_report", "https://www.grandviewresearch.com/industry-analysis/x-market", False),
+    # A report announced as a release is dated like any release; its landing page is not.
+    ("market_report", "https://finance.yahoo.com/news/floating-power-plant-market-size-130000614.html", True),
+    ("market_report", "https://uk.finance.yahoo.com/news/high-voltage-direct-current-hvdc-113300728.html", True),
+    ("market_report", "https://www.globenewswire.com/news-release/2026/09/09/x-market.html", True),
+    ("market_report", "https://www.mckinsey.com/industries/x/our-insights/the-x-market", False),
+    ("market_report", "https://finance.yahoo.com/", False),
     ("other", "https://en.wikipedia.org/wiki/Hyperloop", False),
     ("company_disclosure", "https://www.virtualincision.com/", False),
     ("company_disclosure", "https://www.virtualincision.com", False),
