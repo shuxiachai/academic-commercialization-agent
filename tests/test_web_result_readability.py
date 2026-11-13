@@ -8,6 +8,7 @@ the shipped result.js, like the other web tests.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import textwrap
@@ -30,14 +31,30 @@ class Node {
   addEventListener() {}
   get childNodes() { return this.children; }
 }
+const printing = { listeners: {}, notes: [] };
+globalThis.window = { addEventListener: (type, heard) => { (printing.listeners[type] ??= []).push(heard); } };
 globalThis.document = { createElement: (tag) => new Node(tag), createTextNode: (text) => ({ text }),
-  querySelectorAll: () => [], documentElement: {} };
+  querySelectorAll: (selector) => (selector === "details.reviewer-notes" ? printing.notes : []), documentElement: {} };
 const flat = (node) => [node, ...(node.children ?? []).flatMap(flat)];
 const mod = await import("./result.mjs");
 const i18n = await import("./i18n.js");
 const input = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 if (input.language) i18n.setLanguage?.(input.language);
 const out = {};
+if (input.render !== undefined) out.html = mod.renderMarkdown(input.render);
+if (input.print) {
+  // Two folds on the page: one the reader has opened, one they have not.
+  const [opened, folded] = [{ open: true, dataset: {} }, { open: false, dataset: {} }];
+  printing.notes = [opened, folded];
+  const state = () => [opened.open, folded.open];
+  const fire = (type) => (printing.listeners[type] ?? []).forEach((heard) => heard());
+  out.print = { heard: Object.fromEntries(Object.entries(printing.listeners).map(([k, v]) => [k, v.length])) };
+  fire("beforeprint"); out.print.printing = state();
+  fire("beforeprint"); out.print.printing_twice = state();
+  fire("afterprint"); out.print.after = state();
+  out.print.marks = [opened, folded].map((node) => Object.keys(node.dataset).length);
+  fire("afterprint"); out.print.after_twice = state();
+}
 if (input.markdown !== undefined) out.index = Object.fromEntries(mod.citationIndex(input.markdown));
 if (input.estimates !== undefined) {
   const found = mod.marketEstimates(input.estimates);
@@ -90,7 +107,8 @@ if (input.scores) {
   out.caveat = { tag: caveat.tagName, open: caveat.open,
                  title: flat(caveat).find(n => n.className === "notes__title")?.textContent,
                  status: nodes.find(n => n.className === "scorecard__market-status")?.textContent,
-                 receipt: nodes.some(n => n.className === "scorecard__cap-receipt") };
+                 receipt: nodes.some(n => n.className === "scorecard__cap-receipt"),
+                 receipt_text: nodes.find(n => n.className === "scorecard__cap-receipt")?.textContent ?? null };
 }
 if (input.card) {
   const index = mod.citationIndex(input.card.markdown);
@@ -286,6 +304,18 @@ class ResultReadabilityTests(unittest.TestCase):
         zh = self._run(scores=self._CAPPED, language="Simplified Chinese")["caveat"]
         self.assertEqual(zh["title"], "市场估值可比性：未核实")
         self.assertEqual(zh["status"], "市场分数封顶为 3.5 / 5（原为 4）：来源中的市场相关数字相差超过 5 倍")
+        # Unfolded, the receipt says why in a reader's words. What it must
+        # still say (docs/results-2026-09-11-market-score-delivery-disclosure.md):
+        # the figures may not measure the same thing, so the spread is not a
+        # verified disagreement; and it never sizes them in a currency.
+        why = ("Why: the market figures collected differ by more than 5×. They may not measure the same thing "
+               "(metric, currency, year or scope), so this is not a verified disagreement between sources.")
+        self.assertTrue(caveat["receipt_text"].endswith("The cap reduced the score. " + why), caveat["receipt_text"])
+        self.assertTrue(zh["receipt_text"].endswith(
+            "本次封顶降低了分数。 原因：收集到的市场相关数字相差 5 倍以上。它们的口径可能不同（指标、币种、年份或范围），所以这不是已核实的分歧。"),
+            zh["receipt_text"])
+        for text in (caveat["receipt_text"], zh["receipt_text"]):
+            self.assertNotRegex(text, r"USD|legacy|untyped|旧版|未分类")
 
     def test_the_scope_line_is_a_sentence_with_the_codes_kept_aside(self):
         gate = {"mode": "orientation", "go_no_go_allowed": False,
@@ -1054,7 +1084,163 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual(shown["verdict"], "早期 · 50.0 / 100")
         self.assertTrue(shown["lines"][0].startswith("最强维度：专利地位 3 / 5；最弱维度：制造就绪度 3.5 / 10。"))
         self.assertEqual(shown["changers"][0][1], "更多高可信度来源：证据可信度目前 2 / 5。")
-        self.assertIn("没有新的模型调用", shown["note"])
+        self.assertEqual(shown["note"], "取自本次评估自己的评分卡、报告和检查结果，不产生额外费用；每一行都能在下方打开。")
+        english = self._run(brief={"scores": _SCORES, "markdown": _REPORT, "sources": _SOURCES,
+                                   "progress": _PROGRESS})["brief_view"]
+        self.assertEqual(english["note"], "Drawn from this assessment's own scorecard, report and checks, "
+                                          "at no extra cost. Every line can be opened below.")
+        # Under "what would change this verdict": the figures may not measure
+        # the same thing, which is as much as the run established.
+        market = next(text for reason, text in shown["changers"] if reason == "market")
+        self.assertEqual(market, "同一口径的市场规模数据：现有数字口径可能不一，无法直接比较。")
+        self.assertEqual(next(text for reason, text in english["changers"] if reason == "market"),
+                         "Market figures that measure the same thing: the ones collected may not, "
+                         "so they cannot be compared directly.")
+
+
+class ReviewerNotesTests(unittest.TestCase):
+    """A delivered report ends with the reviewer's notes: what the automatic
+    proofreading changed and what it could not. They are a record, written
+    for whoever audits the run: "Rule 6", "Not applied (exact target absent):
+    Correction 9: Removed trailing space before the period". The page showed
+    them as the report's last section, at full size. Of 1,783 saved reports
+    (2026-11-13), 602 of the saved reports and drafts carry the section. 310
+    say "No corrections required."; in 138 every entry opens "Applied:" or
+    "Not applied", as the code that writes them has done since August (973
+    and 78 entries); 154 are older, written by the model, and their entries
+    include "No citation mismatches found", which is not a change. None mixes
+    the two. On the web the section is folded under one line: a count of
+    what was and was not applied where every entry says which, and a count
+    of notes where they do not. Unfolded, every word is as saved. The saved
+    file is not touched."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _run(self, **payload):
+        return ResultReadabilityTests._run(self, **payload)
+
+    _BODY = "## Executive Summary\n\nShort [A1].\n\n## References\n\n[A1] A paper. Published: 2024-01-01.\n"
+
+    def _html(self, notes, language=None, heading="## Reviewer Notes", after=""):
+        extra = {"language": language} if language else {}
+        return self._run(render=f"{self._BODY}\n{heading}\n\n{notes}\n{after}", **extra)["html"]
+
+    def _summary(self, notes, language=None):
+        html = self._html(notes, language)
+        found = re.search(r'<h2>Reviewer Notes</h2>\n<details class="reviewer-notes"><summary>([^<]*)</summary>', html)
+        self.assertIsNotNone(found, html[-400:])
+        return found[1]
+
+    def test_the_notes_are_folded_under_a_count_of_what_was_and_was_not_applied(self):
+        notes = ("- Applied: Changed \"will enable\" to \"could enable\" in Section 1 [A1].\n"
+                 "- Applied: Removed an empty citation bracket.\n"
+                 "- Not applied (exact target absent): Correction 9: Removed trailing space before the period.")
+        html = self._html(notes)
+        self.assertEqual(self._summary(notes), "Automatic proofreading: 2 corrections applied, 1 not applied.")
+        fold = html[html.index('<details class="reviewer-notes">'):]
+        self.assertTrue(fold.rstrip().endswith("</details>"), "the fold runs to the end of the report")
+        self.assertNotIn(" open", fold[:40], "folded until the reader opens it")
+        # Unfolded, every entry is there as saved, its citation still a chip.
+        for words in ("Applied: Changed &quot;will enable&quot; to &quot;could enable&quot; in Section 1",
+                      "Applied: Removed an empty citation bracket.",
+                      "Not applied (exact target absent): Correction 9: Removed trailing space before the period."):
+            self.assertIn(words, fold)
+        self.assertEqual(fold.count("<li>"), 3)
+        self.assertIn('class="cite"', fold)
+        # The heading stays outside, so the contents list still links the section.
+        self.assertEqual(html.count("<h2>"), 3)
+        self.assertLess(html.index("<h2>Reviewer Notes</h2>"), html.index("<details"))
+        # Everything before the notes is rendered as it would be without them.
+        self.assertTrue(html.startswith(self._run(render=self._BODY)["html"].rstrip()))
+
+    def test_the_count_is_said_in_the_readers_words_in_both_languages(self):
+        applied, skipped = "- Applied: One.", "- Not applied (exact target absent): Two."
+        cases = (
+            (applied, "Automatic proofreading: 1 correction applied.", "自动校对：采纳了 1 处修改。"),
+            ("\n".join([applied] * 12), "Automatic proofreading: 12 corrections applied.", "自动校对：采纳了 12 处修改。"),
+            (skipped, "Automatic proofreading: 1 not applied.", "自动校对：1 处未采纳。"),
+            ("\n".join([applied, skipped, skipped]), "Automatic proofreading: 1 correction applied, 2 not applied.",
+             "自动校对：采纳了 1 处修改，2 处未采纳。"),
+            ("No corrections required.", "Automatic proofreading: no corrections were needed.", "自动校对：没有需要修改的地方。"),
+            ("All corrections were applied silently in the report text above.", "Automatic proofreading notes.", "自动校对说明。"),
+        )
+        for notes, english, chinese in cases:
+            with self.subTest(notes=notes[:30]):
+                self.assertEqual(self._summary(notes), english)
+                self.assertEqual(self._summary(notes, "Simplified Chinese"), chinese)
+
+    def test_older_notes_that_do_not_say_what_was_applied_are_counted_as_notes(self):
+        """Reports from July 2026 number their notes and name the rule, and
+        some entries report that nothing was wrong. Calling each one a
+        correction that was applied would say more than the notes do."""
+        notes = ("All corrections were applied silently in the report text above. The following changes were made:\n\n"
+                 "1. **Rule 2 – Unsupported numerical claim:** Added the citation on the same line.\n"
+                 "2. **Rule 3 – Overconfident language:** Changed \"projected to reach\" to \"could reach\".\n"
+                 "   - A nested remark that is part of entry two.\n"
+                 "* No citation mismatches (Rule 1) were found.")
+        self.assertEqual(self._summary(notes), "Automatic proofreading: 3 notes.")
+        self.assertEqual(self._summary(notes, "Simplified Chinese"), "自动校对：3 条记录。")
+        self.assertEqual(self._summary("1) Section 2: removed a duplicate citation."), "Automatic proofreading: 1 note.")
+        html = self._html(notes)
+        for words in ("Rule 2 – Unsupported numerical claim:", "Rule 3 – Overconfident language:", "(Rule 1) were found."):
+            self.assertIn(words, html[html.index("<details"):])
+        # One entry that does not say which, among entries that do: still notes.
+        mixed = "- Applied: One.\n- Not applied (exact target absent): Two.\n- Checked the tables."
+        self.assertEqual(self._summary(mixed), "Automatic proofreading: 3 notes.")
+        # The words are read as written: bold, or a different case, is the same statement.
+        self.assertEqual(self._summary("- **Applied:** One.\n* **Not applied** (absent): Two."),
+                         "Automatic proofreading: 1 correction applied, 1 not applied.")
+        self.assertEqual(self._summary("- applied: One.\n- NOT APPLIED (absent): Two.\n- APPLIED : Three."),
+                         "Automatic proofreading: 2 corrections applied, 1 not applied.")
+        # "Applied" has to be the entry's own opening word, followed by its colon.
+        self.assertEqual(self._summary("- Applied research was renamed.\n- Applied: One."), "Automatic proofreading: 2 notes.")
+        # Something other than the one sentence the pipeline writes is not "nothing needed".
+        self.assertEqual(self._summary("No corrections required.\n\nSee the plan."), "Automatic proofreading notes.")
+
+    def test_printing_unfolds_the_notes_and_folds_them_again(self):
+        """A folded section prints as its summary alone, and paper has nothing
+        to click. The notes are unfolded for the print and folded again after
+        it; one the reader had opened stays open."""
+        seen = self._run(print=True)["print"]
+        self.assertEqual(seen["heard"], {"beforeprint": 1, "afterprint": 1})
+        self.assertEqual(seen["printing"], [True, True])
+        self.assertEqual(seen["printing_twice"], [True, True])
+        self.assertEqual(seen["after"], [True, False])
+        self.assertEqual(seen["marks"], [0, 0], "nothing is left on the page afterwards")
+        self.assertEqual(seen["after_twice"], [True, False])
+
+    def test_only_the_section_itself_is_folded(self):
+        plain = self._run(render=self._BODY)["html"]
+        self.assertNotIn("<details", plain, "a report without the section has no fold")
+        for heading in ("### Reviewer Notes", "## Reviewer Notes on scope", "## Notes", "Reviewer Notes"):
+            with self.subTest(heading=heading):
+                self.assertNotIn("<details", self._html("- Applied: One.", heading=heading))
+        # A section after the notes, which no saved report has, would stay outside the fold.
+        html = self._html("- Applied: One.", after="\n## Appendix\n\nMore.\n")
+        self.assertLess(html.index("</details>"), html.index("<h2>Appendix</h2>"))
+        self.assertIn("<p>More.</p>", html[html.index("</details>"):])
+        # A sub-heading inside the notes is part of them, not the end of the fold.
+        inside = self._html("- Applied: One.\n\n### Not applied\n\n- Not applied (exact target absent): Two.")
+        self.assertTrue(inside.rstrip().endswith("</details>"))
+        self.assertLess(inside.index("<details"), inside.index("<h3>Not applied</h3>"))
+        self.assertIn("1 correction applied, 1 not applied", inside)
+        # Two such sections: the last one is the reviewer's, as the pipeline reads it.
+        twice = self._html("- Applied: One.", after="\n## Reviewer Notes\n\n- Applied: Two.\n- Applied: Three.\n")
+        self.assertEqual(twice.count("<details"), 1)
+        self.assertIn("2 corrections applied", twice)
+
+    def test_what_a_note_says_is_escaped_like_the_rest_of_the_report(self):
+        html = self._html("- Applied: Removed <script>alert(1)</script> and <img src=x onerror=alert(1)>.")
+        self.assertNotIn("<script", html)
+        self.assertNotIn("<img", html)
+        self.assertIn("&lt;script&gt;", html)
+        self.assertEqual(self._summary("- Applied: <b>x</b>"), "Automatic proofreading: 1 correction applied.")
 
 
 class CheckWordingTests(unittest.TestCase):

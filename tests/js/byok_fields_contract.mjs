@@ -9,6 +9,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const [dir, scenario] = process.argv.slice(2);
+// Words of the project's own method, which the note under the field once used
+// ("No held-out run here has gone through…", "any model that returns JSON").
+const JARGON = /held-out|留出|JSON/;
 const { html, measured, suggestions } = JSON.parse(fs.readFileSync(path.join(dir, "input.json"), "utf8"));
 
 class Element {
@@ -89,8 +92,9 @@ if (scenario === "measured") {
   assert.equal(field.value, "", "Nothing is filled in for the visitor");
   expectChips(qwen);
   assert.deepEqual(pressed(), []);
-  assert.match(note(), /held-out/);
+  assert.match(note(), /topics set aside for testing/);
   assert.match(note(), /untested here, not unsupported/);
+  assert.doesNotMatch(note(), JARGON);
   // The typed list offers the measured names first, then the others, once each.
   const extra = suggestions.qwen.filter((name) => !qwen.some((row) => row.model === name));
   assert.deepEqual(options(), [...qwen.map((row) => row.model), ...extra]);
@@ -99,6 +103,8 @@ if (scenario === "measured") {
   for (const part of [qwen[0].model, `${qwen[0].inRange} of ${qwen[0].runs}`, qwen[0].date]) {
     assert(label.includes(part), `${label} names ${part}`);
   }
+  assert.equal(label, `Use ${qwen[0].model}: ${qwen[0].inRange} of ${qwen[0].runs} test runs in range, ${qwen[0].date}`);
+  for (const chip of chips()) assert.doesNotMatch(chip.getAttribute("aria-label"), JARGON);
 } else if (scenario === "fill") {
   await start("qwen");
   const chip = chips()[1];
@@ -122,8 +128,11 @@ if (scenario === "measured") {
 } else if (scenario === "unmeasured") {
   await start("deepseek");
   expectChips(plain("deepseek"));
-  assert.match(note(), /No held-out run here has gone through DeepSeek\./);
-  assert.doesNotMatch(note(), /untested here, not unsupported/);
+  // Said of the provider, not of its models: deepseek-v4-pro has figures,
+  // measured through Model Studio.
+  assert.equal(note(), "No quality check by this project has gone through DeepSeek yet. " +
+    "The models below are places to start; any other model name can be entered too.");
+  assert.doesNotMatch(note(), JARGON);
   assert.deepEqual(options(), suggestions.deepseek);
   chips()[0].fire("click");
   await settle();
@@ -136,7 +145,7 @@ if (scenario === "measured") {
   await settle();
   await choose("anthropic");
   expectChips(plain("anthropic"));
-  assert.match(note(), /gone through Anthropic\./);
+  assert.match(note(), /gone through Anthropic yet\./);
   // A name this page offers for another provider is wrong for this one, and
   // would otherwise ride along into a key check or a paid run.
   assert.equal(field.value, "", "Another provider's model does not follow the visitor");
@@ -158,16 +167,19 @@ if (scenario === "measured") {
 } else if (scenario === "language") {
   await start("qwen");
   await language("Simplified Chinese");
-  assert.match(note(), /留出主题/);
+  assert.match(note(), /专门留作测试的主题/);
   assert.match(note(), /并非不支持/);
+  assert.doesNotMatch(note(), JARGON);
   expectChips(qwen);
-  assert(chips()[0].getAttribute("aria-label").includes(`${qwen[0].runs} 次`));
+  assert.equal(chips()[0].getAttribute("aria-label"),
+    `填入 ${qwen[0].model}：${qwen[0].runs} 次测试运行中 ${qwen[0].inRange} 次落在区间内，${qwen[0].date}`);
+  for (const chip of chips()) assert.doesNotMatch(chip.getAttribute("aria-label"), JARGON);
   await choose("openai");
-  assert.match(note(), /OpenAI/);
-  assert.match(note(), /没有/);
+  assert.equal(note(), "本项目还没有经 OpenAI 做过质量抽检。下面是可以先试的型号，也可以填写其他型号。");
+  assert.doesNotMatch(note(), JARGON);
   assert.equal(chips()[0].getAttribute("aria-label"), `填入 ${suggestions.openai[0]}`);
   await language("English");
-  assert.match(note(), /gone through OpenAI\./);
+  assert.match(note(), /gone through OpenAI yet\./);
 } else if (scenario === "reset") {
   await start("qwen");
   chips()[0].fire("click");

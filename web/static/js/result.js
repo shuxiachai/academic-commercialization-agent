@@ -93,9 +93,86 @@ function citeButton(ids) {
   return button;
 }
 
+/* ── The reviewer's notes ──────────────────────────────────────────────
+ * A delivered report ends with "## Reviewer Notes": what the automatic
+ * proofreading changed and what it could not. It is a record for whoever
+ * audits the run ("Not applied (exact target absent): Correction 9: Removed
+ * trailing space before the period"), and it was shown as the report's last
+ * section, at full size. On the page it is folded under one line; unfolded,
+ * every word is as saved. Only the page does this: the saved report, the
+ * Markdown download and the PDF are the record and carry the notes in full.
+ *
+ * The heading stays outside the fold, so a contents list still names the
+ * section and its link still has somewhere to land. */
+const NOTES_HEADING = /^##\s+Reviewer Notes\s*$/;
+const NOTE_ENTRY = /^(?:[-*]|\d+[.)])\s+(.*)$/;      // unindented: a nested line is part of its entry
+const NOTE_KIND = /^(?:(applied)\s*:|(not applied)\b)/i;
+const NOTES_NONE = "No corrections required.";        // written by code (evidence.py) when the plan is empty
+
+/** The one line a folded section shows.
+ *
+ * Since August 2026 the notes are written by code, and every entry opens
+ * "Applied:" or "Not applied": those are counted as such. Older notes were
+ * written by the model, and an entry there may read "No citation mismatches
+ * found", so they are counted as notes and not as corrections. Measured on
+ * 2026-11-13 over the 602 saved reports and drafts with the section: 310
+ * say none were required, 138 are of the first kind, 154 of the second,
+ * and none mixes them. */
+function notesSummary(lines) {
+  const entries = lines.map(line => line.match(NOTE_ENTRY)?.[1].replace(/\*/g, "")).filter(entry => entry !== undefined);
+  if (!entries.length) {
+    const said = lines.map(line => line.trim()).filter(Boolean);
+    return t(said.length === 1 && said[0] === NOTES_NONE ? "reviewer_notes_none" : "reviewer_notes_plain");
+  }
+  const kinds = entries.map(entry => entry.trim().match(NOTE_KIND));
+  if (kinds.some(kind => !kind)) {
+    return entries.length === 1 ? t("reviewer_notes_one") : fillText("reviewer_notes_many", { n: entries.length });
+  }
+  const skipped = kinds.filter(kind => kind[2]).length;
+  const applied = kinds.length - skipped;
+  const parts = [];
+  if (applied) parts.push(applied === 1 ? t("reviewer_notes_applied_one") : fillText("reviewer_notes_applied", { n: applied }));
+  if (skipped) parts.push(fillText("reviewer_notes_skipped", { n: skipped }));
+  return fillText("reviewer_notes_counts", { parts: parts.join(t("reviewer_notes_join")) });
+}
+
 export function renderMarkdown(md) {
-  const out = [];
   const lines = md.split("\n");
+  // The last such heading is the reviewer's, as the pipeline reads it (evidence.py).
+  const start = lines.findLastIndex(line => NOTES_HEADING.test(line.trimEnd()));
+  if (start === -1) return renderBlocks(lines);
+  const next = lines.findIndex((line, at) => at > start && /^##\s/.test(line));
+  const end = next === -1 ? lines.length : next;
+  const notes = lines.slice(start + 1, end);
+  return [
+    renderBlocks(lines.slice(0, start + 1)),
+    `<details class="reviewer-notes"><summary>${escapeHtml(notesSummary(notes))}</summary>`,
+    renderBlocks(notes),
+    "</details>",
+    renderBlocks(lines.slice(end)),
+  ].filter(Boolean).join("\n");
+}
+
+/* A folded section prints as its summary alone, and paper has nothing to
+ * click. So the notes are unfolded for the print and folded again after it;
+ * one the reader opened themselves is left as they left it. An event and not
+ * a print style sheet, because the browsers do not agree on a way to style a
+ * closed <details> open. */
+const PRINT_MARK = "printOpened";
+function eachNotesFold(visit) {
+  for (const node of document.querySelectorAll("details.reviewer-notes")) visit(node);
+}
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("beforeprint", () => eachNotesFold((node) => {
+    if (!node.open) { node.open = true; node.dataset[PRINT_MARK] = "1"; }
+  }));
+  window.addEventListener("afterprint", () => eachNotesFold((node) => {
+    if (node.dataset[PRINT_MARK]) { node.open = false; delete node.dataset[PRINT_MARK]; }
+  }));
+}
+
+function renderBlocks(lines) {
+  const out = [];
   let paragraph = [];
   let list = null;
   let table = null;

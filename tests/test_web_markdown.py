@@ -31,6 +31,7 @@ _ALLOWED_TAGS = {
     "h1", "h2", "h3", "h4",
     "div", "table", "thead", "tbody", "tr", "th", "td",
     "span", "a",
+    "details", "summary",  # the fold around the reviewer's notes
 }
 
 _PAYLOADS = [

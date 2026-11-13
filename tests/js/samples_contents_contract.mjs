@@ -133,7 +133,7 @@ const shape = () => reader().children.map((c) => c.className || c.tag);
 const WITHOUT_SCORES = ["samples__notice", "samples__download", "samples__toc", "prose"];
 const WITH_SCORES = ["samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose"];
 /** The brief and the scorecard of the open sample, between the download link and the contents. */
-function expectScores(sample, { title = "Scorecard", note = /^Built from this run's own scorecard and report/, open = true } = {}) {
+function expectScores(sample, { title = "Scorecard", note = /^A sample keeps only the report and its scorecard, not the run's automatic checks or its source list,/, open = true } = {}) {
   assert.deepEqual(shape(), WITH_SCORES);
   const overall = String(scorecards[sample.slug].overall_score);
   const [, , brief, block] = reader().children;
@@ -258,7 +258,7 @@ if (scenario === "each_sample") {
   expectScores(second);
   expectContents(second, "Contents", WITH_SCORES);
   await switchLanguage("Simplified Chinese");
-  expectScores(second, { title: "评分卡", note: /^由这次运行自己的评分卡和报告生成/ });
+  expectScores(second, { title: "评分卡", note: /^示例只保留了报告和评分卡，没有运行时的自动检查和来源清单，/ });
   expectContents(second, "目录", WITH_SCORES);
   await switchLanguage("English");
   const before = scoreReads.length;
