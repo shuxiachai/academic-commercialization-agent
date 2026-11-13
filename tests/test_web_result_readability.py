@@ -804,6 +804,124 @@ class DecisionBriefTests(unittest.TestCase):
                                     "> Quoted remark.\n\nLicense the process to cell makers. Then scale."),
                          "License the process to cell makers.")
 
+    def test_the_summary_line_is_about_the_technology_not_about_the_report(self):
+        """The brief quotes the executive summary's first sentence that is not
+        about the report. Of the 88 saved reports made since October 2026, 21
+        showed a sentence about the report instead and one showed nothing
+        (2026-11-13): an opener the rule did not know ("This orientation brief
+        synthesizes…"), a statement of the assessment mode standing second, a
+        first paragraph with nothing else in it, and a summary written as a
+        list. The forms below are the ones those reports use."""
+        finding = "The technology is moving from early clinical adoption to procedure-specific optimization."
+        # An opener that names the report by another word, or with a word in between.
+        for opener in (
+            "This orientation brief synthesizes findings from academic research, patent analysis, and market intelligence.",
+            "This orientation assessment evaluates the commercialization potential based on a validated registry.",
+            "This orientation report synthesizes validated academic, patent, and market intelligence regarding SBSP.",
+            "This is an orientation brief built from three small, validated evidence registries: academic, patent and market.",
+            "This commercialization assessment covers three evidence registries.",
+        ):
+            with self.subTest(opener=opener):
+                self.assertEqual(self._summary(f"{opener} {finding} More follows."), finding)
+        # The mode, stated as the sentence after the opener.
+        for mode in (
+            "It is an orientation-mode assessment: no actor-specific decision context was supplied, so GO/NO_GO is not assessed.",
+            "It is an orientation-mode brief: no actor-specific GO/NO_GO decision is assessed.",
+            "It is written in orientation mode: no actor-specific decision context was supplied.",
+            "No actor-specific decision context was supplied, so **actor-specific GO/NO_GO is not assessed**.",
+            "Conclusions are provisional because the evidence is abstract-, snippet- and market-report-level.",
+            "The report is an evidence-linked orientation brief, not a recommendation for any particular investor.",
+        ):
+            with self.subTest(mode=mode):
+                self.assertEqual(self._summary(
+                    f"This report synthesizes three validated evidence registries. {mode} {finding} More follows."), finding)
+
+        # A first paragraph with nothing but the report in it: the next one is read.
+        self.assertEqual(self._summary(
+            "This report synthesizes three validated evidence registries — academic [A1, A2], patent [P1] and market [M1] — "
+            "into an orientation brief. It is an orientation-mode assessment: no decision context was supplied.\n\n"
+            f"{finding} In gynecologic applications, outcomes are comparable [A1]."), finding)
+        self.assertEqual(self._summary(
+            "本报告基于三个已校验的证据报告（学术文献 A1–A7、专利记录 P1–P8）编制，对特高压直流输电技术的商业化前景进行定向评估。"
+            "**本报告处于定向（orientation）模式，未评估任何特定主体的 GO/NO_GO 决策。**\n\n主要判断如下：\n\n"
+            "- **技术成熟度**：特高压直流输电已是运行中的大规模技术 [A1]。但成熟度判断属分析者推断。\n- **市场**：其余从略。"),
+            "技术成熟度：特高压直流输电已是运行中的大规模技术。")
+        for mode in ("需要明确的是，本报告处于**方向性指导模式（orientation mode）**，未针对任何特定决策主体进行GO/NO_GO评估。",
+                     "评估模式为**方向性指导（orientation）**，未对任何特定参与者进行GO/NO_GO决策评估。"):
+            with self.subTest(mode=mode):
+                self.assertEqual(self._summary(
+                    f"本报告基于经过验证的学术研究、专利分析与市场情报数据，对量子密钥分发网络的商业化前景进行综合评估。{mode}"
+                    "当前证据表明，QKD网络正处于从点对点实验链路向多层级网络过渡的阶段。其余从略。"),
+                    "当前证据表明，QKD网络正处于从点对点实验链路向多层级网络过渡的阶段。")
+        # A paragraph that states the mode under its own label is about the mode to its end.
+        self.assertEqual(self._summary(
+            "**Assessment Mode:** Orientation. General next steps are identified, but they are not a recommendation.\n\n"
+            f"{finding} More follows."), finding)
+
+        # A summary written as a list. The first point states the mode; the next
+        # one's bold title is the heading of its first sentence, so both are quoted.
+        points = ("- **Assessment mode: orientation.** No actor-specific decision context was supplied, so GO/NO_GO is not "
+                  "assessed. The report is an evidence-linked orientation brief, not a recommendation.\n"
+                  "- **Maturity is uneven across sub-fields.** Reviews describe RAS as having transformed surgical practice "
+                  "[A2][A6]. Reconstructive microsurgery is described as maturing.\n"
+                  "- **Patent evidence is thin.** Eight records, with snippet-level evidence only.")
+        self.assertEqual(self._summary(points),
+                         "Maturity is uneven across sub-fields. Reviews describe RAS as having transformed surgical practice.")
+        self.assertEqual(self._summary(
+            "This is an orientation brief built from three small registries. No actor-specific decision context was supplied.\n\n"
+            "- **Maturity is uneven.** Robotic-assisted surgery (RAS) appears established in gynecologic applications. More.\n"
+            "- **Persistent barriers** include high installation and maintenance costs [A1]."),
+            "Maturity is uneven. Robotic-assisted surgery (RAS) appears established in gynecologic applications.")
+        self.assertEqual(self._summary(
+            "核心发现如下：\n\n- **市场机遇明确但尚处早期。** 美国BCI市场正处于关键转折点 [A6]。其余从略。\n- **其余从略。**"),
+            "市场机遇明确但尚处早期。美国BCI市场正处于关键转折点。")
+        # A point that is one sentence, or opens with a long one, is quoted as it stands.
+        self.assertEqual(self._summary("1. Solid-state cells are early [A1]. Pilot lines exist.\n2. More."), "Solid-state cells are early.")
+        self.assertEqual(self._summary("- **Persistent barriers** include high installation and maintenance costs [A1]. More."),
+                         "Persistent barriers include high installation and maintenance costs.")
+        self.assertEqual(self._summary("- **Maturity is uneven.**\n- **Patents are thin.** Eight records only."), "Maturity is uneven.")
+        long_title = "The incumbent position is strong across every high-volume specialty that the registry covers today."
+        self.assertEqual(self._summary(f"- **{long_title}** One report relays 3.1 million procedures."), long_title)
+        # A plain paragraph before the list is still read first.
+        self.assertEqual(self._summary(f"{finding}\n\n- **Maturity is uneven.** RAS appears established."), finding)
+
+        # What is not read: a sub-heading, a quotation, a table row, a line that only leads in.
+        self.assertEqual(self._summary(
+            "### Overview\n\n> Quoted remark about the field.\n\n| Field | State |\n|---|---|\n| Urology | Mature |\n\n"
+            f"Key findings:\n\n{finding} More."), finding)
+        # A summary with nothing but the report in it still shows its first sentence.
+        only = "This orientation brief synthesizes validated academic, patent, and market intelligence regarding hyperloop."
+        self.assertEqual(self._summary(f"{only} It is an orientation-mode assessment: no decision context was supplied."), only)
+        self.assertIsNone(self._summary("- **Assessment mode: orientation.** No decision context was supplied."))
+        # That fallback is the first paragraph's, not a later one's and not a list item's.
+        self.assertEqual(self._summary(f"{only}\n\nIt is an orientation-mode assessment: no decision context was supplied."), only)
+        self.assertIsNone(self._summary(f"- {only}\n- It is an orientation-mode assessment: no decision context was supplied."))
+        # Only the executive summary is read, wherever it stands in the report.
+        placed = self._brief(markdown=(
+            "## 1. Technology Overview & Maturity\n\nThe incumbent is commercially available today.\n\n"
+            f"## Executive Summary\n\n{only} {finding}\n\n## Evidence Limitations\n\nSources are sparse.\n"))["brief"]
+        self.assertEqual(placed["summary"], finding)
+        # A long sentence is cut at a word, and so is a title with the sentence it heads.
+        long_finding = ("The technology is moving from early clinical adoption to procedure-specific optimization, "
+                        + "with platform diversification beyond the incumbent in urology, gynecology and general surgery, " * 3
+                        + "and more.")
+        cut = self._summary(f"{only} {long_finding}")
+        self.assertTrue(cut.endswith("…") and 200 < len(cut) <= 240 and long_finding.startswith(cut[:-1]), cut)
+        self.assertRegex(long_finding[len(cut) - 1:], r"^[\s,;:]", "the cut falls between words")
+        joined = self._summary(f"- **Maturity is uneven.** {long_finding}")
+        self.assertTrue(joined.startswith("Maturity is uneven. The technology is moving") and joined.endswith("…")
+                        and len(joined) <= 240, joined)
+        # Sentences that only share a word with the rules are findings.
+        for kept in ("The brief window before the core patents expire favours licensing.",
+                     "It is an established modality in urology.",
+                     "This is a mature technology in gynecologic surgery.",
+                     "No actor has yet shipped a commercial system.",
+                     "Conclusions from two randomized trials favour the robotic approach.",
+                     "Assessment of 30 trials shows comparable outcomes.",
+                     "评估结果显示该技术已进入示范阶段。"):
+            with self.subTest(kept=kept):
+                self.assertEqual(self._summary(f"{kept} More follows."), kept)
+
     def _summary(self, paragraph):
         return self._brief(markdown=f"## Executive Summary\n\n{paragraph}\n")["brief"]["summary"]
 
