@@ -2,8 +2,8 @@
  *
  * The page's text is in its markup, in both languages, so it reads without
  * this script. What the script adds: showing only the reader's language, and
- * the two values that belong to the deployment rather than to the page — how
- * long assessments are kept, and who to contact. Plain fetch, like the sample
+ * what belongs to the deployment rather than to the page — how long
+ * assessments are kept, who to contact, and whether it sends email. Plain fetch, like the sample
  * reader: nothing here may send a credential. */
 
 import * as i18n from "./i18n.js";
@@ -39,6 +39,11 @@ function paint() {
     ? site.account_backup_days : null;
   for (const node of $$("[data-account-backup]")) node.hidden = backupDays === null;
   for (const node of $$("[data-account-backup-days]")) node.textContent = backupDays === null ? "" : String(backupDays);
+  // Which of the two sentences about email is this deployment's. Neither is
+  // shown until the server has said: the paragraph already states both cases.
+  for (const node of $$("[data-mail]")) {
+    node.hidden = typeof site.mail !== "boolean" || (node.dataset.mail === "on") !== site.mail;
+  }
   // textContent, never markup: the contact line is the operator's free text.
   if (typeof site.contact === "string" && site.contact.trim()) {
     for (const node of $$("[data-contact]")) node.textContent = site.contact.trim();
