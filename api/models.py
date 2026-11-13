@@ -1000,6 +1000,10 @@ class SiteInfo(BaseModel):
         default=None,
         description="Days a deleted account can remain in the service's own backups of the account "
                     "database; null when it takes none.")
+    mail: bool = Field(
+        default=False,
+        description="This deployment hands email to its delivery service: address verification, password "
+                    "reset and, for accounts that turn it on, a note when an assessment ends.")
 
 
 class PasswordChange(BaseModel):

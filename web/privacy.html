@@ -17,8 +17,8 @@
 <!-- A separate document, like /samples: readable before signing in, which is
      when someone decides whether to. Both languages are in the markup so the
      page reads without scripts; privacy.js shows the reader's one and fills
-     in the two values that belong to the deployment rather than the page
-     (how long runs are kept, and who to contact). Every statement here is a
+     in what belongs to the deployment rather than the page (how long runs
+     are kept, who to contact, whether it sends email). Every statement here is a
      description of what the code does, not a promise added on top of it:
      change the behaviour and this page changes in the same commit. -->
 <div class="samples legal">
@@ -38,12 +38,13 @@
 
   <article class="prose legal__body" lang="en" data-lang-block="en">
     <h1>Privacy and terms</h1>
-    <p class="legal__updated">Last updated 5 November 2026.</p>
+    <p class="legal__updated">Last updated 13 November 2026.</p>
 
     <h2>In short</h2>
     <ul>
       <li>Your API keys are never stored on this server.</li>
-      <li>An account is an email address and a password hash. Nothing else about you is collected.</li>
+      <li>An account is an email address and a password hash, plus the few facts needed to run it: when it was created, whether its address was verified, and one notice setting. You are asked for nothing else.</li>
+      <li>Email is sent to you for three things only: to verify your address, to reset your password when you ask, and, if you turn it on, to say an assessment has ended.</li>
       <li>Your topic, and the text selected from a paper you upload, are sent to the model and search services needed to assess them.</li>
       <li>Reports are kept <span data-retention="en">for the period this deployment sets</span>, and you can delete them, or your whole account, yourself.</li>
       <li>No cookies, no analytics, no advertising, no third-party scripts.</li>
@@ -51,7 +52,10 @@
 
     <h2>What is stored</h2>
     <h3>Your account</h3>
-    <p>Your email address, a salted scrypt hash of your password, and a hash of each sign-in session. The password itself and the session token are never written down. The email is not verified and no email is ever sent to it.</p>
+    <p>Your email address, a salted scrypt hash of your password, and a hash of each sign-in session. The password itself and the session token are never written down. Also kept: when the account was created, when its address was verified, whether you turned on the finish notice, how many free trial assessments it has used where this deployment offers one, and whether the operator has disabled the account.</p>
+    <p>Wrong passwords are counted against the email address tried and the network address they came from, so that guessing is slowed and then locked out for a while. A correct sign-in from the same address clears the count for that address. It is the only record in the account store that holds a network address.</p>
+    <h3>Email sent to you</h3>
+    <p>Where this deployment sends email, it sends three kinds of message and no others, each to the account's own address: a one-time link to verify the address when you sign up, good for 24 hours; a one-time link to choose a new password when you ask for one, good for 60 minutes; and, only if you turn it on, a note when an assessment of yours completes or fails, with its topic and its link. The links are kept on this server only as hashes. There is no newsletter and no marketing. Until the address is verified you can sign in, save keys and preview a plan, but not start a paid operation. <span data-mail="on" hidden>This deployment sends email.</span><span data-mail="off" hidden>This deployment does not send email, so none of these messages is sent.</span></p>
     <h3>Your assessments</h3>
     <p>The topic you entered, the decision context if you gave one, the sources retrieved, the report, the scorecard and the automated checks. They are kept on this server <span data-retention="en">for the period this deployment sets</span>. <span data-retention-auto>After that they are deleted automatically.</span> You can delete any assessment from its page at any time.</p>
     <h3>Papers you upload</h3>
@@ -69,6 +73,7 @@
       <li><strong>The web search service you choose</strong> (Tavily or Serper) receives search queries derived from your topic.</li>
       <li><strong>Public literature and patent services</strong> (OpenAlex, Crossref, Semantic Scholar, arXiv, PubMed, Google Patents and, where configured, Lens) receive search queries derived from your topic. They do not receive your paper.</li>
       <li><strong>The websites of the sources found</strong> are fetched to read their publication details, as any reader's browser would.</li>
+      <li><strong>The email delivery service</strong> (Resend), where this deployment sends email, receives your email address and each message sent to it: the verification or reset link, or, for a finish notice, the assessment's topic and its link, which opens the report. It receives no report, paper or key.</li>
     </ul>
     <p>If your topic or paper is confidential, consider what a search query built from it would reveal before you run it.</p>
 
@@ -105,12 +110,13 @@
 
   <article class="prose legal__body" lang="zh-CN" data-lang-block="zh">
     <h1>隐私与条款</h1>
-    <p class="legal__updated">最近更新：2026 年 11 月 5 日。</p>
+    <p class="legal__updated">最近更新：2026 年 11 月 13 日。</p>
 
     <h2>概要</h2>
     <ul>
       <li>你的 API Key 不会保存在本服务器上。</li>
-      <li>账号只包含一个邮箱和密码哈希，不收集关于你的其他信息。</li>
+      <li>账号只包含一个邮箱和密码哈希，以及运行它所需的几项信息：创建时间、邮箱是否通过验证、一个通知开关。除此之外不向你索取任何信息。</li>
+      <li>只在三种情况下给你发邮件：验证邮箱、你要求重置密码时，以及你打开通知后评估结束时。</li>
       <li>你输入的主题，以及从上传论文中选取的文本，会发送给完成评估所需的模型与检索服务。</li>
       <li>报告保留<span data-retention="zh">本部署设定的期限</span>；你可以自行删除报告，也可以注销整个账号。</li>
       <li>没有 Cookie，没有统计分析，没有广告，没有第三方脚本。</li>
@@ -118,7 +124,10 @@
 
     <h2>保存了什么</h2>
     <h3>你的账号</h3>
-    <p>邮箱地址、加盐的 scrypt 密码哈希，以及每次登录会话的哈希。密码本身和会话令牌都不落盘。邮箱不做验证，也不会向它发送任何邮件。</p>
+    <p>邮箱地址、加盐的 scrypt 密码哈希，以及每次登录会话的哈希。密码本身和会话令牌都不落盘。另外保存：账号的创建时间、邮箱通过验证的时间、你是否打开了结束通知、已用过几次本站提供的免费试用评估（如有），以及运营者是否停用了该账号。</p>
+    <p>输错密码时，会按所尝试的邮箱和请求来源的网络地址计数，用来减慢并暂时锁定猜测密码的行为。同一地址登录成功后，该地址的计数即清除。这是账号库里唯一包含网络地址的记录。</p>
+    <h3>发给你的邮件</h3>
+    <p>本站能发送邮件时，只发三类邮件，且都只发到账号自己的邮箱：注册时用于验证邮箱的一次性链接，24 小时内有效；你提出要求时用于设置新密码的一次性链接，60 分钟内有效；以及只有在你打开通知后，评估完成或失败时的一封提醒，其中包含该评估的主题和链接。这些链接在服务器上只保存哈希。没有订阅邮件，也没有营销邮件。邮箱通过验证之前，你可以登录、保存密钥和预览计划，但不能发起付费操作。<span data-mail="on" hidden>本站会发送邮件。</span><span data-mail="off" hidden>本站不发送邮件，上述邮件都不会发出。</span></p>
     <h3>你的评估</h3>
     <p>你输入的主题、填写的决策背景（如有）、检索到的来源、报告、评分卡和自动检查结果。它们在本服务器上保留<span data-retention="zh">本部署设定的期限</span>。<span data-retention-auto>到期后自动删除。</span>你可以随时在评估页面删除任意一条。</p>
     <h3>你上传的论文</h3>
@@ -136,6 +145,7 @@
       <li><strong>你选择的网页检索服务</strong>（Tavily 或 Serper）会收到由主题生成的检索词。</li>
       <li><strong>公开的文献与专利服务</strong>（OpenAlex、Crossref、Semantic Scholar、arXiv、PubMed、Google Patents，以及在已配置时的 Lens）会收到由主题生成的检索词，不会收到你的论文。</li>
       <li><strong>检索到的来源所在的网站</strong>会被访问，以读取其发布信息，与普通读者的浏览器访问无异。</li>
+      <li><strong>邮件投递服务</strong>（Resend）在本站发送邮件时，会收到你的邮箱地址和发给它的每封邮件：验证或重置密码的链接；如果是结束通知，则是该评估的主题和链接，凭这个链接可以打开报告。它收不到报告、论文和密钥。</li>
     </ul>
     <p>如果你的主题或论文需要保密，运行前请考虑由它生成的检索词会暴露什么。</p>
 

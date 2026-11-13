@@ -997,7 +997,8 @@ and otherwise "ask whoever shared this link". The contact travels with the
 configuration the gate already receives, so the form makes no extra request.
 `ACCOUNTS_ADMIN_EMAILS` names accounts that see every owner's history,
 labelled by email or code; it is read per request, so it can change without a
-migration. Registration verifies no email, so an address on the admin list
+migration. Registration verifies an email only where the deployment sends
+mail, so an address on the admin list
 can be registered only with the invite code, in every mode: set the code and
 register the operator's own address before opening sign-up, or whoever types
 that address first becomes the administrator. Passwords are hashed with

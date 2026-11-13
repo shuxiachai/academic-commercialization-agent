@@ -923,7 +923,9 @@ def site_info() -> SiteInfo:
     """The facts about this deployment that its privacy page states: how long
     assessments are kept and who to ask. Ungated; nothing here is private."""
     return SiteInfo(retention_days=runs.RUN_RETENTION_DAYS or None, contact=_operator_contact(),
-                    accounts=accounts.enabled(), account_backup_days=account_backup.kept_days())
+                    accounts=accounts.enabled(), account_backup_days=account_backup.kept_days(),
+                    # An outbox directory, the development setting, sends nothing to anyone.
+                    mail=mail.mode() == "resend")
 
 
 # ── Accounts ─────────────────────────────────────────────────────────────────

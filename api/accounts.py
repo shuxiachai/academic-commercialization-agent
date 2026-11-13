@@ -14,8 +14,9 @@ ACCOUNTS_SIGNUP is open (anyone), invite (anyone who knows
 ACCOUNTS_INVITE_CODE) or closed (nobody; existing accounts keep working).
 ACCOUNTS_ADMIN_EMAILS names the accounts that see every owner's history,
 read at request time so it can change without touching the table. Because
-registration verifies no email, an address on that list can be registered
-only with the invite code: otherwise whoever typed the operator's address
+registration verifies an email only where the deployment sends mail
+(api/mail.py), an address on that list can be registered
+only with the invite code, in every mode: otherwise whoever typed the operator's address
 first would be the operator.
 
 Passwords are hashed with scrypt from the standard library (no new
