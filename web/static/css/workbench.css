@@ -106,6 +106,11 @@
 .icon-btn svg { width: 16px; height: 16px; }
 .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
+/* The theme toggle shows the theme it switches to: the moon while the page is
+   light, the sun while it is dark (theme.js sets data-theme-now). */
+#theme-toggle[data-theme-now="light"] .theme-icon--sun,
+#theme-toggle[data-theme-now="dark"] .theme-icon--moon { display: none; }
+
 /* ── New run ── */
 .new-run {
   display: flex;

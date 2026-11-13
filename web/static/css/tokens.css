@@ -10,8 +10,10 @@
  * accent carries the primary action, focus and live state; status colours
  * appear only where they mean something.
  *
- * Both themes follow the operating system. The token names are unchanged from
- * the dark-only design, so components switch theme without knowing it.
+ * Both themes follow the operating system until the reader chooses one with the
+ * sidebar toggle (theme.js, stored in localStorage). The token names are
+ * unchanged from the dark-only design, so components switch theme without
+ * knowing it.
  */
 
 :root {
@@ -133,9 +135,14 @@
   --sidebar-width: 264px;
 }
 
-/* ── Dark: warm charcoal, parchment text ── */
+/* ── Dark: warm charcoal, parchment text ──
+   The same values apply twice: when the system is dark and the reader has not
+   chosen light, and when the reader has chosen dark (theme.js sets data-theme
+   on the root). CSS cannot share one block between a media query and an
+   attribute selector, so the two are kept identical by
+   tests/test_web_chrome.py. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
 
     --bg-base:    #141311;
@@ -180,6 +187,58 @@
     --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
     --shadow-lg: 0 10px 34px rgba(0, 0, 0, 0.55);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-base:    #141311;
+  --bg-raised:  #1b1a17;
+  --bg-overlay: #23211e;
+  --bg-hover:   #2a2824;
+  --bg-active:  #34312c;
+  --bg-sidebar: #181715;
+  --bg-input:   #1f1d1a;
+
+  --border-subtle:  rgba(255, 244, 228, 0.07);
+  --border-default: rgba(255, 244, 228, 0.11);
+  --border-strong:  rgba(255, 244, 228, 0.18);
+
+  --text-primary:   #ede9e2;
+  --text-secondary: #b8b2a7;
+  --text-tertiary:  #888277;
+  --text-disabled:  #5f5a52;
+
+  --accent:        #62b9b1;
+  --accent-hover:  #7cc8c1;
+  --accent-subtle: rgba(98, 185, 177, 0.12);
+  --accent-ring:   rgba(98, 185, 177, 0.34);
+  --accent-border: rgba(98, 185, 177, 0.32);
+  --on-accent:     #0e1514;
+
+  --success:        #67bd8a;
+  --success-subtle: rgba(103, 189, 138, 0.12);
+  --warning:        #e2a947;
+  --warning-subtle: rgba(226, 169, 71, 0.12);
+  --danger:         #ef7272;
+  --danger-subtle:  rgba(239, 114, 114, 0.10);
+  --danger-border:  rgba(239, 114, 114, 0.30);
+  --success-border: rgba(103, 189, 138, 0.34);
+
+  --meter-low:  rgba(98, 185, 177, 0.30);
+  --meter-high: #62b9b1;
+
+  --scrim: rgba(0, 0, 0, 0.55);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 34px rgba(0, 0, 0, 0.55);
+}
+
+/* An explicit light choice needs no overrides: the base block above is light.
+   It is named so that a reader on a dark system can opt out of the media query. */
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 /* Respect a user who has asked for less movement. Transitions become
