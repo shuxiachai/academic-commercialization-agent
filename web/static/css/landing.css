@@ -160,7 +160,9 @@
 }
 .landing__sample-list a {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
   border-left: 2px solid var(--accent-border);
@@ -170,6 +172,13 @@
   line-height: var(--leading-normal);
 }
 .landing__sample-list a:hover { background: var(--bg-hover); color: var(--accent); }
+/* The verdict, readiness level and language of each, as on the reader's cards. */
+.landing__sample-facts {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
 .landing__sample .btn { margin-top: var(--space-4); min-height: 44px; }
 
 /* ── How a run goes: three numbered cards ── */

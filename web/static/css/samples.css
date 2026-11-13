@@ -96,6 +96,37 @@
   line-height: var(--leading-tight);
 }
 .sample-card__meta { font-size: var(--text-xs); color: var(--text-tertiary); }
+/* The verdict, in the scorecard's colour for the same score (result.css). */
+.sample-card__verdict {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sample-card__verdict[data-tone="success"] { color: var(--success); }
+.sample-card__verdict[data-tone="accent"]  { color: var(--accent); }
+.sample-card__verdict[data-tone="warning"] { color: var(--warning); }
+.sample-card__verdict[data-tone="muted"]   { color: var(--text-tertiary); }
+
+/* On a phone six stacked cards were a screen of titles: the report began
+ * 849px down a 375 by 812 window. One row that scrolls sideways puts its
+ * opening on the first screen. Each card is narrower than the row, so the
+ * edge of the next one shows that there are more; samples.js brings the open
+ * sample's card into the row. From 768px the grid above is unchanged. */
+@media (max-width: 767px) {
+  .samples__head { margin-bottom: var(--space-6); }
+  .samples__intro p { margin-bottom: var(--space-5); }
+  .samples__list {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-2);
+  }
+  .sample-card {
+    flex: 0 0 min(78%, 264px);
+    scroll-snap-align: start;
+  }
+}
 
 .samples__notice {
   margin-bottom: var(--space-6);
@@ -137,6 +168,39 @@
   cursor: pointer;
 }
 .samples__scorecard > .scorecard { padding: var(--space-2) var(--space-5) var(--space-5); }
+
+/* After the report: where a reader goes to get one of their own. */
+.samples__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-10);
+  padding: var(--space-5);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-lg);
+  background: var(--accent-subtle);
+}
+.samples__next-text {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.samples__next-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.samples__next-link:hover { background: var(--accent-hover); color: var(--on-accent); }
 
 /* Wide report tables scroll inside their own box, never the page. */
 .samples .table-wrap { overflow-x: auto; }
@@ -233,6 +297,7 @@
   .samples__download,
   .samples__reader > .brief,
   .samples__scorecard,
+  .samples__next,
   .cite-card {
     display: none;
   }

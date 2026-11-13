@@ -17,7 +17,9 @@ export const DIMENSIONS = [
 
 /** Band for the headline number. Thresholds match the scorecard the Python
  *  side renders, so the same run does not get two different verdicts. */
-function band(score) {
+/** The word and colour for an overall score. Exported so that a sample's
+ * card (sampleFacts below) grades with these thresholds and no copy of them. */
+export function band(score) {
   if (score >= 70) return { name: t("band_strong"), tone: "success" };
   if (score >= 55) return { name: t("band_moderate"), tone: "accent" };
   if (score >= 40) return { name: t("band_early"), tone: "warning" };
@@ -950,8 +952,22 @@ function firstRecommendation(markdown) {
 const SOURCE_LISTS = ["academic_sources", "patent_sources", "market_sources"];
 const TIER_RANK = { high: 0, medium: 1, low: 2 };
 
-/** The best-rated of the cited sources: {id, title, tier, year}; {id} without a registry; null without ids. */
-function pickEvidence(ids, sources) {
+/** The best-rated of the cited sources: {id, title, tier, year}; {id} when
+ * nothing rates them; null without ids.
+ *
+ * The run's source registry rates them where there is one. A sample page has
+ * no registry, only the report, and the report's own reference list states
+ * each source's rating too: `references` is that list as citationIndex reads
+ * it, which the page already has for its citation cards. Until 2026-11-13 a
+ * sample's brief named the first id cited, untitled. Over 196 saved runs that
+ * was a lower-rated source than the best one in 39, and the reference list
+ * named the same source as the registry in 195.
+ *
+ * Equally rated sources stay in the order the scorecard cites them. Putting
+ * the more recent first was measured on the same runs and not adopted: it
+ * changes 78 of the 196 picks (79 on run pages), mostly swapping a cited
+ * review for a paper published days before the run. */
+function pickEvidence(ids, sources, references = null) {
   if (!ids.length) return null;
   const rows = new Map();
   if (detailRecord(sources)) {
@@ -959,6 +975,11 @@ function pickEvidence(ids, sources) {
       for (const row of Array.isArray(sources[list]) ? sources[list] : []) {
         if (detailRecord(row) && typeof row.source_id === "string") rows.set(row.source_id, row);
       }
+    }
+  } else if (references instanceof Map) {
+    for (const id of ids) {
+      const entry = references.get(id);
+      if (entry) rows.set(id, { title: entry.label, credibility_tier: entry.credibility, published_date: entry.published });
     }
   }
   const known = ids.map(id => ({ id, row: rows.get(id) }));
@@ -999,7 +1020,7 @@ function whatWouldChange(scores, progress) {
   return out.slice(0, BRIEF_CHANGERS_LIMIT);
 }
 
-export function decisionBrief({ scores, markdown = "", sources = null, progress = null }) {
+export function decisionBrief({ scores, markdown = "", sources = null, progress = null, references = null }) {
   if (!detailRecord(scores) || !scoreNumber(scores.overall_score, 100)) return null;
   const overall = scores.overall_score;
   const dims = DIMENSIONS
@@ -1022,7 +1043,7 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
     mrl: scoreNumber(scores.mrl_score, 10) && scores.mrl_score >= 1 ? scores.mrl_score : null,
     strongest, weakest,
     summary: executiveSummaryLead(text),
-    evidence: pickEvidence(citedIds, sources),
+    evidence: pickEvidence(citedIds, sources, references),
     risk,
     next: firstRecommendation(text) ?? opportunity,
     changers: whatWouldChange(scores, progress),
@@ -1031,6 +1052,25 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
 
 const fillText = (key, values = {}) => Object.entries(values).reduce(
   (out, [name, value]) => out.replace(`{${name}}`, () => String(value)), t(key));
+
+const SAMPLE_LANGUAGES = { English: "sample_language_english", "Simplified Chinese": "sample_language_chinese" };
+
+/** What a sample's card says beside its title, from the list entry: the
+ * verdict in the scorecard's own words, the readiness level, and the language
+ * the report is in. A part the entry does not carry, or carries unreadably,
+ * is null, and the card then shows the title as it always did. */
+export function sampleFacts(sample) {
+  const entry = detailRecord(sample) ? sample : {};
+  const grade = scoreNumber(entry.overall_score, 100) ? band(entry.overall_score) : null;
+  const trl = scoreNumber(entry.trl_score, 9) && entry.trl_score >= 1 ? entry.trl_score : null;
+  const language = SAMPLE_LANGUAGES[entry.language];
+  return {
+    verdict: grade ? fillText("sample_verdict", { score: entry.overall_score.toFixed(1), band: grade.name }) : null,
+    tone: grade ? grade.tone : null,
+    trl: trl === null ? null : fillText("sample_trl", { trl }),
+    language: language ? t(language) : null,
+  };
+}
 
 /** The brief's node. `note` is the line under it saying what it was built
  * from: the run page's default names the run's checks and what can be opened

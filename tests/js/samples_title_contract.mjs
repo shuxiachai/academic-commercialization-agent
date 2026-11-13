@@ -49,6 +49,8 @@ globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, 
 let list = samples, listStatus = 200, deferReads = false;
 const pendingReads = [];
 globalThis.fetch = async (url) => {
+  // The reader asks the deployment's public facts for its link onward; a title follows the sample either way.
+  if (url === "/api/site") return new Response('{"accounts":true,"signup_open":true}', { status: 200 });
   if (url === "/api/samples") {
     return new Response(JSON.stringify(list), { status: listStatus, headers: { "Content-Type": "application/json" } });
   }

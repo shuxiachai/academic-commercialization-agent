@@ -18,10 +18,13 @@ globalThis.localStorage = {
 };
 globalThis.sessionStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
 
+// As /api/samples lists them: the second without a readiness level, as a
+// scorecard that holds none is listed.
 const SAMPLES = [
-  { slug: "hyperloop", title: "Hyperloop", topic: "hyperloop", committed: "2026-10-21", commit: "a8cc424" },
+  { slug: "hyperloop", title: "Hyperloop", topic: "hyperloop", committed: "2026-10-21", commit: "a8cc424",
+    language: "English", overall_score: 48.6, trl_score: 5 },
   { slug: "solid-state-batteries-ev-zh", title: "电动汽车用固态电池", topic: "电动汽车用固态电池",
-    committed: "2026-10-21", commit: "a8cc424" },
+    committed: "2026-10-21", commit: "a8cc424", language: "Simplified Chinese", overall_score: 74.9, trl_score: null },
   { slug: "../etc/passwd", title: "Not a sample", topic: "", committed: "", commit: "" },
 ];
 const ACCOUNTS = { enabled: true, signup_open: true, signup: "open", access_codes: false, password_reset: true, notices: true,
@@ -36,6 +39,8 @@ if (scenario === "logout_without_accounts_reloads") disk.set("access-code", "fix
 const api = await import("../../web/static/js/api.js");
 const runView = await import("../../web/static/js/run.js");
 const compareView = await import("../../web/static/js/compare.js");
+// The real grading of a sample's score, so the list's words are the scorecard's.
+const { sampleFacts } = await import("../../web/static/js/result.js");
 const source = fs.readFileSync(new URL("../../web/static/js/app.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "");
 // The elements the document itself starts hidden (#gate, #landing, the card's
@@ -47,7 +52,7 @@ assert.ok(hiddenAtStart.includes("gate") && hiddenAtStart.includes("landing"), "
 const previewSource = markup.match(/<img id="landing-preview" data-src="([^"]+)"/)[1];
 
 // `replies` answers the seams a scenario is about beyond the boot's access check.
-function fixture({ pathname = "/", search = "", access, replies = {} }) {
+function fixture({ pathname = "/", search = "", hash = "", access, replies = {} }) {
   const elements = new Map();
   class Element {
     constructor() {
@@ -71,7 +76,7 @@ function fixture({ pathname = "/", search = "", access, replies = {} }) {
   };
   for (const id of hiddenAtStart) get(`#${id}`).hidden = true;
   get("#landing-preview").dataset.src = previewSource;
-  const requests = [], navigations = [], reloads = [], sidebarRefreshes = [];
+  const requests = [], navigations = [], reloads = [], sidebarRefreshes = [], replaced = [];
   const reply = (body, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {
     status, headers: { "Content-Type": "application/json" } }));
   globalThis.fetch = (url, options = {}) => {
@@ -90,19 +95,19 @@ function fixture({ pathname = "/", search = "", access, replies = {} }) {
     api, runView: { ...runView }, compareView,
     // The real one asks the server for the identity's history; here each call is counted.
     sidebar: { refresh: () => { sidebarRefreshes.push(true); return Promise.resolve([]); }, resetView: () => {} },
-    result: {}, needsScopeWarning: () => false,
+    result: { sampleFacts }, needsScopeWarning: () => false,
     i18n: { t: (key) => key, language: () => "English", apply: () => {}, setLanguage: () => {} },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false },
     window: { matchMedia: () => ({ matches: false }), addEventListener: () => {} },
     localStorage: globalThis.localStorage, Event, URLSearchParams,
-    history: { pushState: () => {}, replaceState: () => {} },
-    location: { pathname, search, reload: () => reloads.push(true), replace: (url) => navigations.push(url) },
+    history: { pushState: () => {}, replaceState: (_state, _unused, url) => replaced.push(url) },
+    location: { pathname, search, hash, reload: () => reloads.push(true), replace: (url) => navigations.push(url) },
     setTimeout: () => 1, clearTimeout: () => {}, setInterval: () => 1, clearInterval: () => {},
     confirm: () => true,
   });
   vm.runInContext(source, context);
-  return { get, requests, navigations, reloads, sidebarRefreshes, run: (text) => vm.runInContext(text, context) };
+  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, run: (text) => vm.runInContext(text, context) };
 }
 
 // Let the boot's promise chain and the replies above run to completion.
@@ -123,6 +128,13 @@ const scenarios = {
     assert.deepEqual(links.map((a) => a.href), ["/samples/hyperloop", "/samples/solid-state-batteries-ev-zh"],
       "Sample links come from /api/samples; a slug that is not one never becomes a path");
     assert.deepEqual(links.map((a) => a.textContent), ["Hyperloop", "电动汽车用固态电池"]);
+    // Under each title, what the reader's cards say: the verdict in the
+    // scorecard's words, the readiness level where there is one, the language.
+    assert.deepEqual(links.map((a) => a.children.map((c) => [c.className, c.textContent, c.dataset.tone])), [
+      [["landing__sample-facts", "48.6 / 100 · Early · TRL 5 · Report in English", "warning"]],
+      [["landing__sample-facts", "74.9 / 100 · Strong · Report in Chinese", "success"]],
+    ]);
+    assert.deepEqual(f.replaced, [], "A plain visit to / changes no address");
     assert.equal(f.get("#landing-retention").textContent, "byok_retention",
       "The retention period is the deployment's own, read from /health, as the key form reads it");
     assert.equal(f.get("#landing-preview").src, "/static/brand/report-preview.png", "The scorecard picture is fetched once the landing shows");
@@ -154,14 +166,55 @@ const scenarios = {
     assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false }, "Signed in: the workbench, and the landing is gone");
   },
   async anonymous_root_signup_closed() {
-    const f = fixture({ access: refused({ ...ACCOUNTS, signup_open: false, signup: "closed" }) });
+    // The list here is as a deployment without scorecards, or an older server, gives it.
+    const f = fixture({ access: refused({ ...ACCOUNTS, signup_open: false, signup: "closed" }),
+      replies: { "/api/samples": [{ slug: "hyperloop", title: "Hyperloop" }, { slug: "plain", title: "Plain", overall_score: null, trl_score: null }] } });
     await settle();
     assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false });
+    const links = f.get("#landing-sample-list").children.map((item) => item.children[0]);
+    assert.deepEqual(links.map((a) => [a.textContent, a.children.length]), [["Hyperloop", 0], ["Plain", 0]],
+      "A sample listed without a score is its title, as before");
     assert.equal(f.get("#landing-create").hidden, true, "No sign-up means no button that would only fail");
     f.get("#landing-sign-in-top").onclick();
     await settle();
     assert.equal(shown(f).gate, true, "The header's sign-in opens the card too");
     assert.equal(f.get("#account-title").textContent, "account_title");
+  },
+  // The sample reader ends with "Create account" or "Sign in", which are
+  // links to / that name the form. The landing opens it, and takes the
+  // fragment off the address so Back or a reload does not open it again.
+  async create_account_link() {
+    const f = fixture({ hash: "#create-account", access: refused(ACCOUNTS) });
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: true }, "The card opens over the landing");
+    assert.equal(f.get("#account-title").textContent, "account_title_create", "...in its create mode");
+    assert.deepEqual(f.replaced, ["/"]);
+    f.get("#gate-back").onclick();
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false }, "Put down, it leaves the landing as any visit finds it");
+    f.get("#landing-sign-in").onclick();
+    await settle();
+    assert.equal(f.get("#account-title").textContent, "account_title", "The landing's own buttons still work afterwards");
+  },
+  async sign_in_link() {
+    const f = fixture({ hash: "#sign-in", access: refused(ACCOUNTS) });
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: true });
+    assert.equal(f.get("#account-title").textContent, "account_title", "The card opens in its sign-in mode");
+    assert.deepEqual(f.replaced, ["/"]);
+  },
+  async create_account_link_when_sign_up_is_closed() {
+    const f = fixture({ hash: "#create-account", access: refused({ ...ACCOUNTS, signup_open: false, signup: "closed" }) });
+    await settle();
+    assert.equal(shown(f).gate, true);
+    assert.equal(f.get("#account-title").textContent, "account_title", "A deployment that takes no new accounts shows the sign-in");
+    assert.deepEqual(f.replaced, ["/"]);
+  },
+  async another_fragment_opens_nothing() {
+    const f = fixture({ hash: "#section-2", access: refused(ACCOUNTS) });
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false });
+    assert.deepEqual(f.replaced, [], "...and is left on the address");
   },
   async anonymous_deep_link() {
     // Until 2026-11-11 this asked for the sign-in directly. "Copy link" hands

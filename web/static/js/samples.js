@@ -1,15 +1,17 @@
 /* Sample-report reader: list committed examples and render one.
  *
  * Plain fetch rather than api.js: that client attaches the stored access code
- * and BYOK credentials, and this page must not send either. The two endpoints
- * it reads serve committed files and need neither.
+ * and BYOK credentials, and this page must not send either. The sample
+ * endpoints serve committed files and need neither; the one other read,
+ * /api/site, is the deployment's public facts, of which this page wants one:
+ * whether it has accounts and takes new ones.
  *
  * Rendering goes through result.js's renderMarkdown, the same escaping path a
  * real report takes (and the one tests/test_web_markdown.py exercises), so a
  * sample cannot reach innerHTML by a less-checked route. */
 
 import {
-  attachCitations, citationIndex, decisionBrief, renderDecisionBrief, renderMarkdown, renderScorecard,
+  attachCitations, citationIndex, decisionBrief, renderDecisionBrief, renderMarkdown, renderScorecard, sampleFacts,
 } from "./result.js";
 import * as i18n from "./i18n.js";
 import { applySamples, st as t } from "./samples_i18n.js";
@@ -39,6 +41,10 @@ wide?.addEventListener?.("change", () => {
   if (contents) contents.open = wide.matches;
   if (scorecard) scorecard.open = wide.matches;
 });
+// What this deployment offers someone who has read a sample and wants a
+// report of their own: null until the server has said, and for good when it
+// could not be asked.
+let accounts = null;
 // Served for /samples and every /samples/<slug>; shown again whenever no
 // sample matches, so an unknown slug does not keep the last sample's name.
 const defaultTitle = document.title;
@@ -60,15 +66,25 @@ function note(key) {
 }
 
 function paintList() {
+  let active = null;
   listNode.replaceChildren(...samples.map((sample) => {
     const card = el("a", "sample-card");
     card.href = `/samples/${encodeURIComponent(sample.slug)}`;
-    if (sample.slug === current) card.setAttribute("aria-current", "page");
+    if (sample.slug === current) { card.setAttribute("aria-current", "page"); active = card; }
+    // The verdict, the readiness level and the report's language, where the
+    // list carried them. The six samples run from 48.6 to 74.9; before
+    // 2026-11-13 a visitor had to open each one to learn that.
+    const facts = sampleFacts(sample);
+    card.append(el("span", "sample-card__title", sample.title));
+    if (facts.verdict) {
+      const verdict = el("span", "sample-card__verdict", facts.verdict);
+      verdict.dataset.tone = facts.tone;
+      card.append(verdict);
+    }
     card.append(
-      el("span", "sample-card__title", sample.title),
       // The commit stays in the notice above the report; a visitor reading the
       // list needs only how old the sample is.
-      el("span", "sample-card__meta", t("samples_added").replace("{date}", sample.committed)),
+      el("span", "sample-card__meta", [facts.trl, facts.language, t("samples_added").replace("{date}", sample.committed)].filter(Boolean).join(" · ")),
     );
     card.addEventListener("click", (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
@@ -78,6 +94,12 @@ function paintList() {
     });
     return card;
   }));
+  // On a phone the cards are one row that scrolls sideways (samples.css), so
+  // the open sample's card has to be brought into it; where the cards wrap,
+  // the row has nowhere to scroll and this changes nothing.
+  if (active && Number.isFinite(active.offsetLeft) && Number.isFinite(listNode.offsetLeft)) {
+    listNode.scrollLeft = Math.max(0, active.offsetLeft - listNode.offsetLeft);
+  }
 }
 
 /** Name the tab after the open sample, so tabs, bookmarks and history entries
@@ -155,7 +177,11 @@ async function readScores(slug) {
  * registry, so the brief's lines that come from those are absent and its
  * closing note says so; without a readable verdict neither block is shown. */
 function scoreBlocks(scores, markdown, index) {
-  const data = scores ? decisionBrief({ scores, markdown }) : null;
+  // The report's own reference list rates its sources, so the brief can name
+  // the best-rated one the strongest dimension cites, with its title. It is
+  // used for that and nothing else: no line that needs the run's checks or
+  // its registry appears because of it.
+  const data = scores ? decisionBrief({ scores, markdown, references: index }) : null;
   if (!data) return [];
   const brief = renderDecisionBrief(data, { note: t("samples_brief_note") });
   const card = renderScorecard(scores);
@@ -165,6 +191,36 @@ function scoreBlocks(scores, markdown, index) {
   block.append(el("summary", null, t("samples_scorecard")), card);
   scorecard = block;
   return [brief, block];
+}
+
+/** Whether this deployment has accounts and takes new ones, from its public
+ * facts. Not the access check: this page sends no credential, so that would
+ * refuse it, and a refusal is an error in the console of everyone who reads a
+ * sample. Any answer that is not those facts, or none, is null. Never rejects. */
+async function readAccounts() {
+  try {
+    const response = await fetch("/api/site");
+    const site = response.ok ? await response.json() : null;
+    if (!site || typeof site !== "object" || typeof site.accounts !== "boolean") return null;
+    return { enabled: site.accounts, signup_open: site.signup_open === true };
+  } catch {
+    return null;
+  }
+}
+const accountsRead = readAccounts().then((answer) => { accounts = answer; });
+
+/** Where a reader goes next. Until 2026-11-13 the page ended with the
+ * report's last reference and no way on but the back link in its head. The
+ * link names what this deployment offers: an account where it takes new
+ * ones, the sign-in where it has accounts and takes none, and otherwise just
+ * the app, whose own first screen says what it needs. */
+function nextStep() {
+  const offer = !accounts?.enabled ? "open" : accounts.signup_open ? "create" : "signin";
+  const link = el("a", "samples__next-link", t(`samples_next_${offer}`));
+  link.href = { create: "/#create-account", signin: "/#sign-in", open: "/" }[offer];
+  const block = el("aside", "samples__next");
+  block.append(el("p", "samples__next-text", t("samples_next")), link);
+  return block;
 }
 
 async function open(slug) {
@@ -191,6 +247,7 @@ async function open(slug) {
     return;
   }
   const scores = await scoresRead;
+  await accountsRead;
   if (mine !== generation) return;
 
   const article = el("article", "prose");
@@ -202,7 +259,7 @@ async function open(slug) {
   const toc = contentsFor(article);
   reader.replaceChildren(
     historicalNotice(sample), downloadLink(sample), ...scoreBlocks(scores, markdown, index),
-    ...(toc ? [toc.nav] : []), article,
+    ...(toc ? [toc.nav] : []), article, nextStep(),
   );
   rendered = slug;
   // The browser looked for a #section-N target before the report existed:

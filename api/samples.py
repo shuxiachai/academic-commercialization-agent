@@ -20,6 +20,16 @@ a score; the page showed only the first, so a visitor deciding whether to
 sign up never saw the verdict, the five dimensions or the reasons. The name
 is derived from the report's, not listed: there is one allowlist, and a
 scorecard cannot be served for anything that is not on it.
+
+The list says three things from that scorecard and the entry beside each
+title: the overall score, the readiness level and the language the report is
+in. The six samples run from 48.6 to 74.9, which is the tool telling an early
+technology from a mature one, and until 2026-11-13 a visitor had to open each
+report to see it. They travel with the list, one request, for the reader's
+cards and the landing page's list alike; the alternative was a request per
+sample from each page. The grade ("Strong", "Early") is not here: the page
+computes it with the scorecard's own function, so there is one set of
+thresholds.
 """
 
 from __future__ import annotations
@@ -42,6 +52,10 @@ class Sample:
     # The model the run was made with; the page says it beside the date and
     # the pipeline revision, so a reader can weigh the report accordingly.
     model: str
+    # The language the report is written in, by the name the page's language
+    # selector uses. The report's, not the visitor's: a card says it so that
+    # nobody opens the one Chinese report expecting English, or the reverse.
+    language: str = "English"
 
 
 SAMPLES: tuple[Sample, ...] = (
@@ -95,6 +109,7 @@ SAMPLES: tuple[Sample, ...] = (
         committed="2026-11-08",
         commit="14a2097",
         model="deepseek-v4-pro",
+        language="Simplified Chinese",
     ),
     # Production run of 2026-10-21 (pipeline a8cc424, qwen3.8-27b), kept
     # verbatim: the one-word input, and the one sample with the applicability
@@ -114,10 +129,34 @@ SAMPLES: tuple[Sample, ...] = (
 _BY_SLUG = {sample.slug: sample for sample in SAMPLES}
 
 
-def list_samples() -> list[dict[str, str]]:
-    """Metadata for every sample, in display order. No file is read."""
+def _score(value: object, lowest: float, highest: float) -> float | None:
+    """`value` when it is a number a card can show, otherwise None."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    # NaN and the infinities are in no range, so this refuses them too.
+    return value if lowest <= value <= highest else None
+
+
+def _card_scores(sample: Sample) -> dict[str, float | None]:
+    """The two numbers a card shows, from the scorecard of the sample's run.
+
+    A scorecard that is missing, unreadable or holds something else costs the
+    card its numbers and nothing more: the list is still served, and the
+    report still opens.
+    """
+    try:
+        scores = read_sample_scores(sample.slug)
+    except (KeyError, OSError, ValueError):   # a JSON error is a ValueError
+        scores = {}
+    return {"overall_score": _score(scores.get("overall_score"), 0, 100),
+            "trl_score": _score(scores.get("trl_score"), 1, 9)}
+
+
+def list_samples() -> list[dict[str, str | float | None]]:
+    """Every sample in display order: its entry without the file name, and
+    the overall score and readiness level its run's scorecard holds."""
     return [
-        {key: value for key, value in asdict(sample).items() if key != "file"}
+        {**{key: value for key, value in asdict(sample).items() if key != "file"}, **_card_scores(sample)}
         for sample in SAMPLES
     ]
 

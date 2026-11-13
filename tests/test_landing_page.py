@@ -44,6 +44,10 @@ SCENARIOS = (
     # assessment is free.
     "anonymous_deep_link_signup_closed", "anonymous_compare_link", "anonymous_other_path_still_meets_the_card",
     "viewer_signs_in", "trial_said_on_the_way_in",
+    # The sample reader's "Create account" and "Sign in" are links to / that
+    # name the form; and what the landing's own sample list says of each.
+    "create_account_link", "sign_in_link", "create_account_link_when_sign_up_is_closed",
+    "another_fragment_opens_nothing",
 )
 
 

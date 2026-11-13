@@ -24,6 +24,10 @@ const STRINGS = {
     samples_download: "Download Markdown",
     samples_scorecard: "Scorecard",
     samples_brief_note: "Built from this run's own scorecard and report, by the same code as a run's page; no new model call. A sample keeps neither the run's checks nor its source list, so the lines those would add are not shown here.",
+    samples_next: "Run one on your own topic.",
+    samples_next_create: "Create account",
+    samples_next_signin: "Sign in",
+    samples_next_open: "Open the app",
   },
   "Simplified Chinese": {
     samples_link: "无需 Key，先看示例报告",
@@ -40,6 +44,10 @@ const STRINGS = {
     samples_download: "下载 Markdown",
     samples_scorecard: "评分卡",
     samples_brief_note: "由这次运行自己的评分卡和报告生成，与运行页面用的是同一段代码，没有新的模型调用。示例不保留这次运行的各项检查和来源清单，所以由它们得出的几行这里不显示。",
+    samples_next: "用你自己的主题跑一份。",
+    samples_next_create: "创建账号",
+    samples_next_signin: "登录",
+    samples_next_open: "打开应用",
   },
 };
 

@@ -51,12 +51,28 @@ class PageIsPublicTests(unittest.TestCase):
                 patch.dict("os.environ", {"OPERATOR_CONTACT": "  ops@example.org  "}):
             self.assertEqual(self.client.get("/api/site").json(),
                              {"retention_days": 30, "contact": "ops@example.org", "accounts": False,
-                              "account_backup_days": None, "mail": False})
+                              "signup_open": False, "account_backup_days": None, "mail": False})
         with patch.object(runs, "RUN_RETENTION_DAYS", 0), patch.dict("os.environ", {}):
             os.environ.pop("OPERATOR_CONTACT", None)
             self.assertEqual(self.client.get("/api/site").json(),
                              {"retention_days": None, "contact": None, "accounts": False,
-                              "account_backup_days": None, "mail": False})
+                              "signup_open": False, "account_backup_days": None, "mail": False})
+
+    def test_the_site_facts_say_whether_new_accounts_are_taken(self):
+        """The sample reader's link onward reads it here. It sends no credential,
+        so the access check, which says the same, would refuse it."""
+        with TemporaryDirectory() as folder:
+            for mode, takes in (("open", True), ("invite", True), ("closed", False)):
+                settings = {"ACCOUNTS_DB": str(Path(folder) / "accounts.sqlite3"), "ACCOUNTS_SIGNUP": mode,
+                            "ACCOUNTS_INVITE_CODE": "an-invite-code"}
+                with self.subTest(mode=mode), patch.dict("os.environ", settings):
+                    facts = self.client.get("/api/site").json()
+                    self.assertIs(facts["accounts"], True)
+                    self.assertIs(facts["signup_open"], takes)
+                    self.assertIs(facts["signup_open"], accounts.signup_open())
+        # Without accounts there is nothing to sign up for, whatever the mode says.
+        with patch.dict("os.environ", {"ACCOUNTS_SIGNUP": "open"}):
+            self.assertIs(self.client.get("/api/site").json()["signup_open"], False)
 
     def test_the_site_facts_say_whether_this_deployment_sends_email(self):
         # Only a deployment that hands messages to the delivery service: an outbox
