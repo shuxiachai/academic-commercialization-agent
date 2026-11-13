@@ -803,16 +803,37 @@ const LABEL_LIMIT = 80;
 // ("**GO/NO_GO Status:** Not assessed.", "**Evidence basis:** All nine…").
 // The label must be the whole lead, closed by its own punctuation: "Note the
 // regulatory path…" is a recommendation.
-const SECTION_NOTE = /^(?:mode|go\/no[_-]go status|note|evidence bas(?:is|es|e)|rationale|责任决策者|证据基础|推荐理由)\s*[:：.。]/iu;
+// Two more of the same kind, from the first runs on Anthropic's and DeepSeek's
+// own APIs (2026-11-12): "**Cost, capital and time:** not established." and
+// "**Provenance legend.** *Observed facts* are…". The contract asks for both
+// statements and leaves their labels to the model.
+const SECTION_NOTE = /^(?:mode|go\/no[_-]go status|note|evidence bas(?:is|es|e)|rationale|cost, capital and time|provenance legend|责任决策者|证据基础|推荐理由)\s*[:：.。]/iu;
 // A label in front of the step, on the step's own line: the route's
 // ("**Primary Commercialization Route**: A partnership…", or written as a
 // sentence with a remark in brackets) and the recommendation's own
 // ("**Recommendation:** Companies could…"). The step is what follows it.
-const LEADING_LABEL = new RegExp("^(?:"
-  + "(?:primary|preferred)(?: commerciali[sz]ation)? route"
-  + "|(?:首选|首要|主要|主导)商业化(?:路线|路径)"
-  + "|recommendations?|analyst inference|建议"
-  + ")(?:\\s*[（(][^（()）]*[）)])?\\s*[:：.。]\\s*", "iu");
+// Under a sub-heading that already says "Primary route", the line is labelled
+// "**Route: …**" and no more.
+const ROUTE_LABEL = "(?:primary|preferred)(?: commerciali[sz]ation)? route|(?:首选|首要|主要|主导)商业化(?:路线|路径)";
+const LABEL_REMARK = "(?:\\s*[（(][^（()）]*[）)])?";
+const LEADING_LABEL = new RegExp("^(?:" + ROUTE_LABEL + "|route|recommendations?|analyst inference|建议)"
+  + LABEL_REMARK + "\\s*[:：.。]\\s*", "iu");
+// The route itself. Since October 2026 the writer's contract has the section
+// name exactly one primary commercialization route, among statements of mode,
+// owner, cost and provenance in whatever order and under whatever labels the
+// model chooses. So where the section labels a route, that is the first step,
+// whatever stands before it. Of the 88 saved reports made since then, 83
+// already showed the route and 5 showed something else (2026-11-13): three the
+// first reason listed under "### 首选商业化路径：<the route>", because a
+// sub-heading was never read, and two a statement whose label was not listed.
+// A line is labelled as the route by the full label, closed by punctuation; a
+// bare "Route:" further down is one entry's detail.
+const ROUTE_LEAD = new RegExp("^(?:" + ROUTE_LABEL + ")" + LABEL_REMARK + "\\s*[:：.。]", "iu");
+// A sub-heading that is the route's label, with the route's name after a
+// colon or with nothing: then the route is the text under it. "### Primary
+// route options compared" is neither.
+const ROUTE_HEADING = new RegExp("^#{3,}\\s+(?:\\d+(?:\\.\\d+)*[.)]?\\s+)?(?:" + ROUTE_LABEL + ")" + LABEL_REMARK
+  + "\\s*(?:[:：]\\s*(.*))?$", "iu");
 // A line that is one bold span and nothing else, over a list or a run of
 // italic-led entries, is the heading of what is under it ("**5.1 战略机遇**").
 // Over a paragraph it is the recommendation's own title and stays the step.
@@ -832,9 +853,9 @@ function headsAList(lines, index) {
   return false;
 }
 
-/** The first recommendation of the recommendations section, or null. */
-function firstRecommendation(markdown) {
-  const lines = markdown.split(/\r?\n/);  // saved reports carry either line ending
+/** The first step in the recommendations section, or null. With `routeOnly`
+ * only what the section labels as its route is a step. */
+function recommendationIn(lines, routeOnly) {
   let inside = false;
   let labelled = false;  // the last candidate was only a label: its text is the next line
   for (const [index, line] of lines.entries()) {
@@ -842,18 +863,40 @@ function firstRecommendation(markdown) {
     const text = line.trim();
     // A quotation and a table row are neither a step nor the text a label waits for.
     if (!inside || !text || /^[>|]/.test(text)) continue;
+    if (/^#/.test(text)) {
+      const route = text.replace(/\*+/g, "").match(ROUTE_HEADING);
+      if (route) {
+        const name = (route[1] ?? "").trim();
+        if (name) return firstSentence(name) || null;
+        labelled = true;
+      }
+      continue;
+    }
     // A list item, or a paragraph that opens with a bold heading ("**Opportunity 1: …**").
     const item = line.match(/^\s*(?:[-*]|\d+[.)])\s+(.+)$/) ?? line.match(/^\s*(\*\*.+)$/);
-    const candidate = item ? item[1] : labelled && !/^#/.test(text) ? text : null;
+    const candidate = item ? item[1] : labelled ? text : null;
     if (!candidate) continue;
     const whole = candidate.replace(/\*+/g, "").trim();
+    const namesRoute = ROUTE_LEAD.test(whole);
+    if (routeOnly && !labelled && !namesRoute) continue;
     if (RECOMMENDATION_PREAMBLE.test(whole) || SECTION_NOTE.test(whole)) { labelled = false; continue; }
     const plain = whole.replace(LEADING_LABEL, "");
     if (!plain || (plain.length <= LABEL_LIMIT && BARE_LABEL.test(plain))) { labelled = true; continue; }
-    if (BOLD_ONLY.test(text) && !NUMBERED_OPPORTUNITY.test(plain) && headsAList(lines, index)) { labelled = true; continue; }
+    // A route's name over its own reasons is the step, as an opportunity's title is.
+    if (BOLD_ONLY.test(text) && !namesRoute && !NUMBERED_OPPORTUNITY.test(plain) && headsAList(lines, index)) {
+      labelled = true;
+      continue;
+    }
     return firstSentence(plain) || null;
   }
   return null;
+}
+
+/** The first recommendation of the recommendations section, or null: the
+ * route the section labels as primary, else its first item. */
+function firstRecommendation(markdown) {
+  const lines = markdown.split(/\r?\n/);  // saved reports carry either line ending
+  return recommendationIn(lines, true) ?? recommendationIn(lines, false);
 }
 
 const SOURCE_LISTS = ["academic_sources", "patent_sources", "market_sources"];
