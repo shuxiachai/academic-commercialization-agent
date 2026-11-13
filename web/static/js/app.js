@@ -1786,6 +1786,16 @@ async function showLanding() {
     $("#landing-create").onclick = open(true);
     $("#landing-sign-in").onclick = open(false);
     $("#landing-sign-in-top").onclick = open(false);
+    // A link from elsewhere on the site that names the form it wants: the
+    // sample reader's "Create account" and "Sign in". The fragment is taken
+    // off the address so that Back, or a reload, does not open the form
+    // again. A deployment that takes no new accounts shows the sign-in for
+    // either: showGate opens its create mode only where sign-up is open.
+    const wanted = { "#create-account": true, "#sign-in": false }[location.hash];
+    if (wanted !== undefined) {
+      try { history.replaceState({}, "", location.pathname); } catch { /* the form still opens */ }
+      open(wanted)();
+    }
   });
   landing.hidden = true;
   workbench.hidden = false;
@@ -1808,6 +1818,17 @@ async function paintLandingSamples() {
     const link = document.createElement("a");
     link.href = `/samples/${sample.slug}`;
     link.textContent = String(sample.title ?? sample.slug);
+    // What the sample reader's cards say too: the verdict, the readiness
+    // level and the report's language, where the list carried them.
+    const facts = result.sampleFacts(sample);
+    const said = [facts.verdict, facts.trl, facts.language].filter(Boolean).join(" · ");
+    if (said) {
+      const note = document.createElement("span");
+      note.className = "landing__sample-facts";
+      note.textContent = said;
+      if (facts.tone) note.dataset.tone = facts.tone;
+      link.append(note);
+    }
     item.append(link);
     list.append(item);
   }

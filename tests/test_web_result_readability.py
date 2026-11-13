@@ -48,7 +48,10 @@ if (input.estimates !== undefined) {
     unscoped: found.unscoped.map(r => r.id), firms: found.firms, scopes: found.scopes, ratio: found.sameScopeYearRatio,
   };
 }
+if (input.sample_facts) out.sample_facts = input.sample_facts.map(sample => mod.sampleFacts(sample));
 if (input.brief) {
+  // A sample page hands the brief the reference list it already parsed for the citation cards.
+  if (input.brief.references === true) input.brief.references = mod.citationIndex(input.brief.markdown);
   const data = mod.decisionBrief(input.brief);
   out.brief = data && {
     band: data.band.name, overall: data.overall, trl: data.trl, mrl: data.mrl,
@@ -542,6 +545,87 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertIsNone(uncited["evidence"])
         card = self._brief()["brief_view"]["cards"]["evidence"]
         self.assertIn("All-solid-state battery system · high · 2023", card)
+
+    def test_a_page_with_no_registry_picks_the_evidence_from_the_reports_own_reference_list(self):
+        """A sample page has the report and its scorecard, not the run's source
+        registry, so its brief named the first source the strongest dimension
+        cited, with no title: for the glucose-monitoring sample a 2020
+        syndicated market story rated medium, beside a Lancet consensus rated
+        high. The report's own reference list states each source's rating, and
+        the page already parses it for the citation cards. Over 196 saved runs
+        (2026-11-13) the first id was a lower-rated source than the best one
+        in 39; the reference list named the same source as the registry in
+        195."""
+        refs = ("\n## References\n\n"
+                "[P1] Older cell patent. Google Patents. Published: 2019-01-01. Accessed: 2026-11-08. Type: patent. "
+                "Credibility: medium. Rationale: snippet only. https://example.org/p1\n"
+                "[P2] All-solid-state battery system. Google Patents. Published: 2023-05-04. Accessed: 2026-11-08. "
+                "Type: patent. Credibility: high. Rationale: granted. https://example.org/p2\n")
+        named = {"id": "P2", "title": "All-solid-state battery system. Google Patents", "tier": "high", "year": "2023"}
+        sample = self._brief(sources=None, markdown=_REPORT + refs, references=True)
+        self.assertEqual(sample["brief"]["evidence"], named)
+        self.assertIn("All-solid-state battery system. Google Patents · high · 2023", sample["brief_view"]["cards"]["evidence"])
+        # Nothing else in the brief follows from having the references.
+        plain = self._brief(sources=None, markdown=_REPORT + refs)
+        self.assertEqual(plain["brief"]["evidence"], {"id": "P1"}, "without them, the first id as before")
+        for line in ("summary", "risk", "next", "changers", "band", "strongest", "weakest"):
+            self.assertEqual(sample["brief"][line], plain["brief"][line], line)
+        self.assertEqual(sample["brief_view"]["changers"], plain["brief_view"]["changers"])
+        # A run page has the registry, and it is still what decides there.
+        registry = {**_SOURCES, "patent_sources": [
+            {"source_id": "P1", "title": "Older cell patent", "credibility_tier": "high", "published_date": "2019-01-01"},
+            {"source_id": "P2", "title": "All-solid-state battery system", "credibility_tier": "low", "published_date": "2023-05-04"}]}
+        self.assertEqual(self._brief(sources=registry, markdown=_REPORT + refs, references=True)["brief"]["evidence"]["id"], "P1")
+        # Equally rated sources stay in the order the scorecard cites them. The
+        # newer one first was measured and not adopted: it would change 78 of
+        # 196 picks, often a cited review for a paper published that week.
+        level = refs.replace("Credibility: medium", "Credibility: high")
+        self.assertEqual(self._brief(sources=None, markdown=_REPORT + level, references=True)["brief"]["evidence"]["id"], "P1")
+        # A cited source the report does not list is rated last, not first.
+        only_second = "\n## References\n\n" + refs.split("\n")[4] + "\n"
+        self.assertEqual(self._brief(sources=None, markdown=_REPORT + only_second, references=True)["brief"]["evidence"], named)
+        # With none of them listed, or no reference list at all, the first id stands.
+        self.assertEqual(self._brief(sources=None, markdown=_REPORT, references=True)["brief"]["evidence"], {"id": "P1"})
+        # The Chinese display of a reference list is read the same way.
+        chinese = ("\n## 参考文献\n\n[P1] 旧电池专利。Google Patents。发布：2019-01-01 · 访问：2026-11-08 · 类型：专利 · 可信度：中\n"
+                   "[P2] 全固态电池系统。Google Patents。发布：2023-05-04 · 访问：2026-11-08 · 类型：专利 · 可信度：高\n")
+        picked = self._brief(sources=None, markdown=_REPORT + chinese, references=True)["brief"]["evidence"]
+        self.assertEqual((picked["id"], picked["tier"], picked["year"]), ("P2", "high", "2023"))
+
+    def test_a_sample_card_says_the_verdict_the_readiness_level_and_the_language(self):
+        """The six samples run from 48.6 to 74.9, which is the tool telling an
+        early technology from a mature one, and a visitor had to open each to
+        see it. The band is the scorecard's own: one function, no second copy
+        of the thresholds."""
+        facts = self._run(sample_facts=[
+            {"overall_score": 74.9, "trl_score": 9, "language": "Simplified Chinese"},
+            {"overall_score": 48.6, "trl_score": 5.5, "language": "English"},
+            {"overall_score": 70, "trl_score": None, "language": "English"},
+            {"overall_score": 39.99, "trl_score": 2, "language": "Klingon"},
+            {"overall_score": None, "trl_score": 9, "language": "English"},
+            {"overall_score": "74", "trl_score": 0, "language": None},
+            {"title": "An entry from before scores were listed"},
+        ])["sample_facts"]
+        self.assertEqual(facts[0], {"verdict": "74.9 / 100 · Strong", "tone": "success", "trl": "TRL 9",
+                                    "language": "Report in Chinese"})
+        self.assertEqual(facts[1], {"verdict": "48.6 / 100 · Early", "tone": "warning", "trl": "TRL 5.5",
+                                    "language": "Report in English"})
+        self.assertEqual((facts[2]["verdict"], facts[2]["trl"]), ("70.0 / 100 · Strong", None))
+        self.assertEqual((facts[3]["verdict"], facts[3]["tone"], facts[3]["language"]), ("40.0 / 100 · Nascent", "muted", None))
+        self.assertEqual(facts[4], {"verdict": None, "tone": None, "trl": "TRL 9", "language": "Report in English"})
+        self.assertEqual(facts[5], {"verdict": None, "tone": None, "trl": None, "language": None})
+        self.assertEqual(facts[6], {"verdict": None, "tone": None, "trl": None, "language": None})
+        # The same words as the scorecard above a report uses for the same score.
+        for score, name in ((74.9, "Strong"), (55, "Moderate"), (48.6, "Early"), (12, "Nascent")):
+            brief = self._brief(scores={**_SCORES, "overall_score": score})["brief"]
+            card = self._run(sample_facts=[{"overall_score": score}])["sample_facts"][0]
+            self.assertEqual(brief["band"], name)
+            self.assertTrue(card["verdict"].endswith(f"· {name}"), card["verdict"])
+        chinese = self._run(language="Simplified Chinese", sample_facts=[
+            {"overall_score": 74.9, "trl_score": 9, "language": "Simplified Chinese"},
+            {"overall_score": 48.6, "trl_score": 5, "language": "English"}])["sample_facts"]
+        self.assertEqual(chinese[0], {"verdict": "74.9 / 100 · 较强", "tone": "success", "trl": "TRL 9", "language": "中文报告"})
+        self.assertEqual(chinese[1]["language"], "英文报告")
 
     def test_the_first_step_is_the_recommendations_sections_first_item_and_falls_back_to_the_first_opportunity(self):
         data = self._brief()["brief"]
