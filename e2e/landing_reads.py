@@ -18,8 +18,13 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
-from playwright.sync_api import Route
+if TYPE_CHECKING:
+    # For the annotation only. The rule below is plain Python and is tested
+    # where Playwright is not installed (tests/test_smoke_landing_reads.py):
+    # the test jobs do not install the browser group.
+    from playwright.sync_api import Route
 
 _SAMPLE_SCORES = re.compile(r"/api/samples/[a-z0-9-]+/scores")
 _CREDENTIAL_HEADERS = ("x-access-code", "authorization")

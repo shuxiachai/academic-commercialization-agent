@@ -48,3 +48,17 @@ def test_every_request_audit_in_the_two_smokes_answers_them():
         assert "from e2e.landing_reads import answer_landing_read" in text, name
         assert text.count("elif answer_landing_read(route):") == audits, name
         assert text.count('elif url.path == "/" or url.path.startswith("/static/"):') == audits, name
+
+
+def test_the_rule_can_be_imported_where_playwright_is_not_installed():
+    """The test jobs install no browser group, and this file runs in them.
+    The first push of this module imported Playwright at the top and failed
+    collection in every test job; only the smokes, which have it, passed."""
+    import subprocess
+    import sys
+
+    probe = ("import sys; sys.modules['playwright'] = None; sys.modules['playwright.sync_api'] = None; "
+             "import e2e.landing_reads as reads; print(reads.is_landing_read('GET', '/api/samples', {}))")
+    done = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True,
+                          cwd=Path(__file__).resolve().parents[1])
+    assert done.returncode == 0 and done.stdout.strip() == "True", done.stderr[-400:]
