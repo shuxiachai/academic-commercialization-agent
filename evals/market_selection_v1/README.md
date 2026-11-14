@@ -1,7 +1,7 @@
 # Market selection v1
 
-Protocol: [pre-registration](../../docs/prereg-2026-11-13-market-selection-v1.md).
-Registered 2026-11-13; not run. It needs the maintainer's approval of its budget.
+Protocol: [pre-registration](../../docs/prereg-2026-11-13-market-selection-v1.md), with two dated amendments.
+Outcome: [result](../../docs/results-2026-11-14-market-selection-v1.md). Run once on 2026-11-14; the batch is closed.
 Offline measurement behind the rules: [result](../../docs/results-2026-11-13-market-selection-offline.md).
 
 | File | Role |

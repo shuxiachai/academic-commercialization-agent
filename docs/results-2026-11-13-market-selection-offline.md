@@ -5,8 +5,10 @@
 request was made for the figures in the first three sections; the last
 section's dates were already on disk.
 **Production:** the rules are in the change that carries this file. The live
-before-and-after comparison is
-[registered separately](prereg-2026-11-13-market-selection-v1.md) and has not run.
+before-and-after comparison was
+[registered separately](prereg-2026-11-13-market-selection-v1.md) and had not
+run when this was written; its [result](results-2026-11-14-market-selection-v1.md)
+is dated a day later.
 
 ## Why
 

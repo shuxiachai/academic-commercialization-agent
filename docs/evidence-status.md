@@ -244,9 +244,21 @@ alone merges nothing: 62 of the 95 pairs with alike titles are different
 sources. Replayed on those runs the rules remove 51 sources and hold 65; which
 sources replace them is not on disk. No effect on any score is shown, and none
 is predicted for the market cap. See the
-[offline result](results-2026-11-13-market-selection-offline.md). The live
-before-and-after comparison is
-[registered](prereg-2026-11-13-market-selection-v1.md) and has not run.
+[offline result](results-2026-11-13-market-selection-offline.md).
+
+The registered before-and-after comparison ran on 2026-11-14, twelve cases
+with both arms answered from one record of every request:
+- market sources were 88 in each arm, the same count in every case;
+- cases listing a story twice fell from 7 to 0, and cases with a site over two slots from 7 to 0;
+- all nine merged pairs were read as one story, and the six new dates agree with their releases;
+- the new arm made 16% more searches.
+
+On five v2 topics the crew gave the same TRL in every pair, inside its frozen
+range, and the market cap triggered in every unit of both arms. The model's
+allowance ended the scoring after one repeat, so no difference between the
+arms is separated from run-to-run variation, and no score is shown to
+improve. Every registered bar holds. See the
+[result](results-2026-11-14-market-selection-v1.md), including its deviations.
 
 **Market page dates v1 (2026-10-22).** Web search returns market sources
 undated. `page_dates.py` reads a page's own publication metadata, excluding
