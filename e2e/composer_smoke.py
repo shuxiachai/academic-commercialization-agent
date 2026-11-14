@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import Page, Route, expect, sync_playwright
 
 from e2e.browser_smoke import PROJECT_ROOT, _serve
+from e2e.landing_reads import answer_landing_read
 from e2e.smoke_report import capture_failure
 from e2e.receipt_journey import AUXILIARY_FIXTURE, receipt_journey
 
@@ -62,6 +63,8 @@ def _history_generation_journey(browser, base: str) -> int:
                 _json(route, history(request.headers.get("x-access-code", "none")))
         elif url.path == "/health":
             _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif answer_landing_read(route):
+            pass  # the landing, shown before the access check answered (e2e/landing_reads.py)
         elif url.path == "/" or url.path.startswith("/static/"):
             route.continue_()
         else:
@@ -150,6 +153,8 @@ def _access_identity_journey(browser, base: str) -> int:
                           "state": "failed" if parent else "completed", "stage": "Done",
                           "steps": [], "artifacts": [], "elapsed_seconds": 0,
                           "checkpointing": {"committed_nodes": ["retrieval"]} if parent else None})
+        elif answer_landing_read(route):
+            pass  # the landing, shown before the access check answered (e2e/landing_reads.py)
         elif url.path == "/" or url.path.startswith("/static/"):
             route.continue_()
         else:
@@ -271,6 +276,8 @@ def _paid_refresh_case(browser, base: str, operation: str) -> int:
             _json(route, {"active_runs": 0, "active_paid_operations": 0, "max_concurrent": 5})
         elif url.path == f"/run/{run_id}":
             route.fulfill(path=str(PROJECT_ROOT / "web/index.html"), content_type="text/html")
+        elif answer_landing_read(route):
+            pass  # the landing, shown before the access check answered (e2e/landing_reads.py)
         elif url.path == "/" or url.path.startswith("/static/"):
             route.continue_()
         else:
@@ -363,6 +370,8 @@ def _plan_preview_journey(browser, base: str) -> int:
             _json(route, {"runs": []})
         elif url.path == "/health":
             _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif answer_landing_read(route):
+            pass  # the landing, shown before the access check answered (e2e/landing_reads.py)
         elif url.path == "/" or url.path.startswith("/static/"):
             route.continue_()
         else:
@@ -460,6 +469,8 @@ def _decision_context_journey(browser, base: str) -> int:
             _json(route, {"runs": []})
         elif url.path == "/health":
             _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif answer_landing_read(route):
+            pass  # the landing, shown before the access check answered (e2e/landing_reads.py)
         elif url.path == "/" or url.path.startswith("/static/"):
             route.continue_()
         else:
@@ -561,6 +572,8 @@ def _waiting_journey(browser, base: str) -> int:
             _json(route, progress)
         elif url.path == "/health":
             _json(route, {"active_runs": 0, "max_concurrent": 5})
+        elif answer_landing_read(route):
+            pass  # the landing, shown before the access check answered (e2e/landing_reads.py)
         elif url.path == "/" or url.path.startswith("/static/"):
             route.continue_()
         else:
@@ -598,7 +611,7 @@ def _waiting_journey(browser, base: str) -> int:
         assert page.evaluate("window.__notices") == [["Assessment complete", "Sodium-ion batteries"]]
         expect(page.locator("#run-eta")).to_have_text("")
         page.evaluate("window.__hidden = false; document.dispatchEvent(new Event('visibilitychange'))")
-        expect(page).to_have_title("Commercialization Assessment")
+        expect(page).to_have_title("Academic Commercialization Assessment")
 
         # Back in the composer the count is fresh; an exhausted day says when it resets.
         quota.update(used=3, remaining=0)
@@ -676,6 +689,8 @@ def main() -> None:
             elif url.path == "/health":
                 _json(route, {"active_runs": 0, "active_paid_operations": 0,
                               "max_concurrent": 5, "retention_days": 30})
+            elif answer_landing_read(route):
+                pass  # the landing, shown before the access check answered (e2e/landing_reads.py)
             elif url.path == "/" or url.path.startswith("/static/"):
                 route.continue_()
             else:

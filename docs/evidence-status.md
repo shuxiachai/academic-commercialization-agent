@@ -193,6 +193,26 @@ and malformed data. These are offline-verified delivery fixes, not measured
 production incident rates or improved report accuracy. See the
 [maintenance record](results-2026-09-06-maintenance-readiness-query-audit.md).
 
+## What an assessment costs
+
+The landing page and the keys form say what one assessment cost in model
+fees, per provider. They say it only for a provider with a figure in this
+table, and `tests/test_run_costs.py` holds every sum on the page to a row
+here. These are sums recorded for particular runs at the prices in the
+project's table on that day, not a quote; a provider bills by its own meter.
+
+| Provider | Model | Measured | Runs | Model fees per run | Said on the page as | Source |
+|---|---|---|---|---|---|---|
+| DeepSeek | `deepseek-chat` | 2026-11-12 | 2 | USD 0.0408 and USD 0.0485, each a complete record | $0.05 | `outputs/benchmark-runs/deepseek-direct-run-2026-11-12-deepseek-chat` and `outputs/benchmark-runs/deepseek-direct-second-run-2026-11-12-deepseek-chat-with-limit` (99,571 and 106,371 tokens) |
+| Model Studio (Qwen) | `qwen3.7-plus` | 2026-10-18 | 30 | USD 2.86 for the batch, at an upper-bound price | $0.10 | [held-out v1](results-2026-10-18-heldout-trl-v1.md) |
+| Model Studio (Qwen) | `qwen3.8-max` | 2026-10-19 | 30 | USD 7.17 for the batch (28 completed, 2 failed part-way), at an upper-bound price | $0.25 | [held-out v2](results-2026-10-19-heldout-trl-v2.md) |
+| Anthropic | `claude-sonnet-5-5` | 2026-11-12 | 1 | USD 0.5484, a complete record | $0.55 | `outputs/benchmark-runs/anthropic-second-run-2026-11-12-claude-sonnet-5-5-no-cache-marks` (153,410 tokens) |
+
+- **No figure for OpenAI.** No run here has gone through it, so the page gives it none.
+- **The saved runs are on the maintainer's machine**, not in the repository: `outputs/` is not tracked. The sums are what each run's `meta.json` holds under `usage.cost_usd` with `cost_complete: true`. Anthropic's first run the same day cost USD 0.62 because of cache writes that were then removed; `tests/test_token_usage.py` holds that run's token rows and its sum.
+- **One and two runs are not a range.** The DeepSeek and Anthropic rows are single runs of one topic (V01). The Model Studio rows are batches of thirty over ten topics; in the saved runs a single assessment cost USD 0.08 to 0.13 on `qwen3.7-plus` and USD 0.22 to 0.32 on `qwen3.8-max`.
+- **Search is not in these sums.** Each search service bills its own account. What the page says of their free allowances is each provider's own statement, read on 2026-11-14: Tavily, "You get 1,000 free API Credits every month. No credit card required." (<https://docs.tavily.com/documentation/api-credits>; a basic search, which is what this project sends, costs one credit); Serper, "Get 2,500 free queries" and "No credit card required" (<https://serper.dev>). The thirty runs of held-out v2 made about 220 searches between them.
+
 ## Main evaluation ledger
 
 **Patent relevance v1 (2026-10-22).** No word rule separates off-topic

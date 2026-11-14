@@ -342,6 +342,8 @@ export async function getPaidReceipt(key) {
 export const health = () => request("/health");
 // Committed example reports; readable by anyone, so the landing can list them.
 export const listSamples = () => request("/api/samples");
+/** One sample's scorecard, as its run wrote it. Needs no credentials. */
+export const sampleScores = (slug) => request(`/api/samples/${encodeURIComponent(slug)}/scores`);
 
 // Verifies a code without storing it — the gate calls this with a candidate
 // before persisting it, and once at boot with whatever is already stored (or

@@ -42,6 +42,21 @@ const input = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 if (input.language) i18n.setLanguage?.(input.language);
 const out = {};
 if (input.render !== undefined) out.html = mod.renderMarkdown(input.render);
+if (input.summary !== undefined) {
+  const view = (node) => {
+    const nodes = flat(node);
+    const one = (name) => nodes.find(n => n.className === name);
+    return { classes: node.className, tone: one("scorecard__figure")?.dataset.tone, value: one("scorecard__value tabular")?.textContent,
+      denom: one("scorecard__denom")?.textContent, band: one("scorecard__band")?.textContent,
+      rows: nodes.filter(n => n.className === "dim").map(n => [n.children[0].textContent, n.children[2].textContent,
+        n.children[1].children[0].style.width, n.children.length]),
+      folds: nodes.filter(n => n.tagName === "DETAILS").length, cites: nodes.filter(n => n.className === "cite").length,
+      notes: nodes.filter(n => (n.className ?? "").split(" ").includes("notes")).length };
+  };
+  const node = mod.renderScoreSummary(input.summary);
+  out.summary = node && view(node);
+  out.full = view(mod._testRenderScorecard(input.summary));
+}
 if (input.print) {
   // Two folds on the page: one the reader has opened, one they have not.
   const [opened, folded] = [{ open: true, dataset: {} }, { open: false, dataset: {} }];
@@ -1180,6 +1195,73 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual(next(text for reason, text in english["changers"] if reason == "market"),
                          "Market figures that measure the same thing: the ones collected may not, "
                          "so they cannot be compared directly.")
+
+
+class ScoreSummaryTests(unittest.TestCase):
+    """The landing shows what a finished assessment looks like. It was a
+    picture of a scorecard; it is now the scorecard of one sample, drawn by
+    the function that draws a run's: the verdict and the five bars, without
+    the reasons, the market note and the risks, which belong to someone
+    reading that report and are one click away on its sample page."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _run(self, **payload):
+        return ResultReadabilityTests._run(self, **payload)
+
+    # The glucose-monitoring sample's scores, with what the full card adds.
+    _SCORES = {"overall_score": 74.0, "trl_score": 9, "mrl_score": 9, "patent_strength": 3,
+               "market_accessibility": 3.5, "evidence_confidence": 4,
+               "trl_rationale": "Cleared devices are on the market [A1].", "trl_source_ids": ["A1"],
+               "mrl_rationale": "Produced at volume [M2].",
+               "market_uncertainty": "high (91× spread: 0.058–5.3 bn USD)",
+               "key_risks": ["Reimbursement differs by country."], "key_opportunities": ["Non-invasive sensing."]}
+
+    def test_the_summary_is_the_verdict_and_the_five_bars_of_the_full_card(self):
+        seen = self._run(summary=self._SCORES)
+        summary, full = seen["summary"], seen["full"]
+        self.assertEqual(summary["classes"], "scorecard scorecard--summary")
+        self.assertEqual(full["classes"], "scorecard")
+        # The same verdict in the same colour as the card a run shows, and as a sample's card says.
+        for part in ("tone", "value", "denom", "band"):
+            self.assertEqual(summary[part], full[part], part)
+        self.assertEqual((summary["value"], summary["denom"], summary["band"], summary["tone"]),
+                         ("74.0", "/ 100", "Strong", "success"))
+        self.assertEqual([row[:3] for row in summary["rows"]], [
+            ["Technology readiness", "9 / 9", "100%"], ["Manufacturing readiness", "9 / 10", "90%"],
+            ["Patent position", "3 / 5", "60%"], ["Market accessibility", "3.5 / 5", "70%"],
+            ["Evidence confidence", "4 / 5", "80%"]])
+        self.assertEqual([row[:3] for row in summary["rows"]], [row[:3] for row in full["rows"]])
+        # What it leaves out: the reasons, their citations, the market note, the risks.
+        self.assertEqual((summary["folds"], summary["cites"], summary["notes"]), (0, 0, 0))
+        self.assertTrue(all(row[3] == 3 for row in summary["rows"]), "a row is its label, bar and figure")
+        self.assertGreaterEqual(full["folds"], 3)
+        self.assertGreaterEqual(full["notes"], 1)
+
+    def test_the_summary_is_said_in_the_readers_language_and_grade(self):
+        zh = self._run(summary={**self._SCORES, "overall_score": 48.6}, language="Simplified Chinese")["summary"]
+        self.assertEqual((zh["value"], zh["band"], zh["tone"]), ("48.6", "早期", "warning"))
+        self.assertEqual(zh["rows"][0][0], "技术就绪度")
+
+    def test_a_dimension_that_cannot_be_read_is_a_dash_and_nothing_more(self):
+        summary = self._run(summary={**self._SCORES, "mrl_score": 0, "patent_strength": "3"})["summary"]
+        self.assertEqual([row[1:] for row in summary["rows"][1:3]], [["—", "0%", 3], ["—", "0%", 3]])
+        self.assertEqual(summary["rows"][0][1], "9 / 9")
+
+    def test_without_a_readable_verdict_there_is_no_summary(self):
+        """The landing then says one line of its own; a card reading
+        "detail unavailable" is for someone who has a run to ask about."""
+        for scores in (None, [], "74", {}, {"overall_score": None}, {"overall_score": "74"}, {"overall_score": 101},
+                       {"overall_score": -1}, {"overall_score": True}, {"trl_score": 9}):
+            with self.subTest(scores=scores):
+                self.assertIsNone(self._run(summary=scores)["summary"])
+        self.assertIsNotNone(self._run(summary={"overall_score": 0})["summary"], "a score of zero is a score")
 
 
 class ReviewerNotesTests(unittest.TestCase):

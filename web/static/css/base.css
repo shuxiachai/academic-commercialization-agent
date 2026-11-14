@@ -142,3 +142,14 @@ textarea {
     font-size: var(--text-touch);
   }
 }
+
+/* ── The product's name ────────────────────────────────────────────────
+   A page header carries it twice: in full, and as "ACA". One is shown, by
+   width: the full name fits a header from a tablet up, and on a phone it
+   wrapped to three lines or was cut after "Academic Com…". Here, in the
+   one style sheet every page loads, so the pages cannot differ. */
+.brand__short { display: none; }
+@media (max-width: 640px) {
+  .brand__full { display: none; }
+  .brand__short { display: inline; }
+}

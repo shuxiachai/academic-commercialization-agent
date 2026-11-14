@@ -16,7 +16,12 @@ globalThis.localStorage = {
   setItem: (key, value) => disk.set(key, String(value)),
   removeItem: (key) => disk.delete(key),
 };
-globalThis.sessionStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+const tab = new Map();
+globalThis.sessionStorage = {
+  getItem: (key) => tab.get(key) ?? null,
+  setItem: (key, value) => tab.set(key, String(value)),
+  removeItem: (key) => tab.delete(key),
+};
 
 // As /api/samples lists them: the second without a readiness level, as a
 // scorecard that holds none is listed.
@@ -31,8 +36,19 @@ const ACCOUNTS = { enabled: true, signup_open: true, signup: "open", access_code
   key_check: false, contact: null, plan_preview: false, daily_quota: false };
 const ACCOUNT = { email: "visitor@example.test", admin: false, verified: true };
 
+// The scorecard the landing shows where a picture used to be: one sample's, as
+// /api/samples/<slug>/scores serves it.
+const PREVIEW_SCORES = "/api/samples/continuous-glucose-monitoring/scores";
+const SCORES = { overall_score: 74.0, trl_score: 9, mrl_score: 9, patent_strength: 3, market_accessibility: 3.5,
+  evidence_confidence: 4, trl_rationale: "Cleared devices are on the market [A1]." };
+
 // One scenario per process: api.js reads its credential slots once.
 const scenario = process.argv[2];
+if (scenario === "keys_in_this_tab_never_see_the_landing") {
+  tab.set("byok-credentials", JSON.stringify({ provider: "deepseek", llmKey: "sk-fixture-000000000000",
+    model: "deepseek-chat", search: "tavily", searchKey: "tvly-fixture-000000000000" }));
+}
+if (scenario === "unreadable_keys_never_see_the_landing") tab.set("byok-credentials", "{not json");
 if (scenario === "signed_in" || scenario === "logout_goes_home") disk.set("session-token", "fixture-token");
 if (scenario === "logout_without_accounts_reloads") disk.set("access-code", "fixture-code");
 
@@ -48,11 +64,11 @@ const source = fs.readFileSync(new URL("../../web/static/js/app.js", import.meta
 const markup = fs.readFileSync(new URL("../../web/index.html", import.meta.url), "utf8");
 const hiddenAtStart = [...markup.matchAll(/<[^>]*\bid="([\w-]+)"[^>]*\shidden[\s>]/g)].map((match) => match[1]);
 assert.ok(hiddenAtStart.includes("gate") && hiddenAtStart.includes("landing"), "the document starts with both hidden");
-// The scorecard picture's address travels in data-src, not src (see index.html).
-const previewSource = markup.match(/<img id="landing-preview" data-src="([^"]+)"/)[1];
+assert.ok(hiddenAtStart.includes("landing-preview-note"), "the note for a preview that could not be read starts hidden");
 
 // `replies` answers the seams a scenario is about beyond the boot's access check.
-function fixture({ pathname = "/", search = "", hash = "", access, replies = {} }) {
+// `hold: true` keeps the access check unanswered until the scenario calls answer().
+function fixture({ pathname = "/", search = "", hash = "", access, replies = {}, hold = false }) {
   const elements = new Map();
   class Element {
     constructor() {
@@ -75,15 +91,27 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {} 
     return elements.get(selector);
   };
   for (const id of hiddenAtStart) get(`#${id}`).hidden = true;
-  get("#landing-preview").dataset.src = previewSource;
-  const requests = [], navigations = [], reloads = [], sidebarRefreshes = [], replaced = [];
+  const requests = [], navigations = [], reloads = [], sidebarRefreshes = [], replaced = [], summaries = [];
   const reply = (body, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {
     status, headers: { "Content-Type": "application/json" } }));
+  let answer = () => {};
+  let deliver = () => {};
   globalThis.fetch = (url, options = {}) => {
     requests.push({ url, options });
-    if (url in replies) return reply(replies[url]);
-    if (url === "/api/access/check") return reply(access.body, access.status);
+    if (url in replies) {
+      const given = replies[url];
+      if (given === "never") return new Promise(() => {});
+      // Answered when the scenario says so, with the usual scores.
+      if (given === "late") return new Promise((resolve) => { deliver = () => resolve(reply(SCORES)); });
+      if (given === "unreachable") return Promise.reject(new TypeError("Failed to fetch"));
+      return given?.status ? reply(given.body, given.status) : reply(given);
+    }
+    if (url === "/api/access/check") {
+      if (!hold) return reply(access.body, access.status);
+      return new Promise((resolve) => { answer = () => resolve(reply(access.body, access.status)); });
+    }
     if (url === "/api/samples") return reply(SAMPLES);
+    if (url === PREVIEW_SCORES) return reply(SCORES);
     if (url === "/api/auth/login" || url === "/api/auth/register") return reply({ token: "fixture-token", ...ACCOUNT });
     if (url === "/api/auth/logout") return reply({});
     if (url === "/health") return reply({ retention_days: 30, active_runs: 0, max_concurrent: 5 });
@@ -95,7 +123,15 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {} 
     api, runView: { ...runView }, compareView,
     // The real one asks the server for the identity's history; here each call is counted.
     sidebar: { refresh: () => { sidebarRefreshes.push(true); return Promise.resolve([]); }, resetView: () => {} },
-    result: { sampleFacts }, needsScopeWarning: () => false,
+    // The real summary is built in tests/test_web_result_readability.py; here
+    // it is a stand-in that keeps what it was given and, like the real one,
+    // makes nothing of a scorecard without a readable score.
+    result: { sampleFacts, renderScoreSummary: (scores) => {
+      summaries.push(scores);
+      if (scores?.cannot_be_drawn) throw new TypeError("fixture: the scorecard could not be drawn");
+      return typeof scores?.overall_score === "number" ? { className: "scorecard scorecard--summary", scores } : null;
+    } },
+    needsScopeWarning: () => false,
     i18n: { t: (key) => key, language: () => "English", apply: () => {}, setLanguage: () => {} },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false },
@@ -107,7 +143,9 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {} 
     confirm: () => true,
   });
   vm.runInContext(source, context);
-  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, run: (text) => vm.runInContext(text, context) };
+  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, answer: () => answer(),
+    deliver: () => deliver(),
+    run: (text) => vm.runInContext(text, context) };
 }
 
 // Let the boot's promise chain and the replies above run to completion.
@@ -137,7 +175,14 @@ const scenarios = {
     assert.deepEqual(f.replaced, [], "A plain visit to / changes no address");
     assert.equal(f.get("#landing-retention").textContent, "byok_retention",
       "The retention period is the deployment's own, read from /health, as the key form reads it");
-    assert.equal(f.get("#landing-preview").src, "/static/brand/report-preview.png", "The scorecard picture is fetched once the landing shows");
+    // Where a picture of a scorecard used to be: the scorecard of one sample,
+    // drawn by the page from that sample's own scores.
+    assert.deepEqual(f.summaries, [SCORES], "The preview is built from the sample's scores as served");
+    assert.deepEqual(f.get("#landing-preview").children.map((node) => node.className), ["scorecard scorecard--summary"]);
+    assert.equal(f.get("#landing-preview-note").hidden, true);
+    assert.equal(f.get("#landing-preview").dataset.state, "shown");
+    assert.equal(f.requests.filter((r) => r.url === PREVIEW_SCORES).length, 1);
+    assert.equal(f.requests.filter((r) => r.url === "/api/samples").length, 1, "Shown once, asked once");
 
     f.get("#landing-create").onclick();
     await settle();
@@ -164,6 +209,7 @@ const scenarios = {
     f.get("#byok-skip").onclick();
     await settle();
     assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false }, "Signed in: the workbench, and the landing is gone");
+    assert.equal(f.get("#landing-preview").children.length, 0, "...with the scorecard it showed");
   },
   async anonymous_root_signup_closed() {
     // The list here is as a deployment without scorecards, or an older server, gives it.
@@ -179,6 +225,161 @@ const scenarios = {
     await settle();
     assert.equal(shown(f).gate, true, "The header's sign-in opens the card too");
     assert.equal(f.get("#account-title").textContent, "account_title");
+  },
+  // ── Before the access check answers ──────────────────────────────────
+  // The landing used to wait for the check: until it answered, an anonymous
+  // visit to / was an empty page (1.4 s to the first paint from Sydney on
+  // 2026-11-13). With nothing stored that could sign the visit in, the page
+  // is shown at once and corrected when the answer comes.
+  async landing_before_the_check_answers() {
+    const f = fixture({ access: refused(ACCOUNTS), hold: true });
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false }, "Shown while the check is still out");
+    assert.equal(f.get("#landing-sample-list").children.length, 2, "...with its samples");
+    assert.deepEqual(f.get("#landing-preview").children.map((node) => node.className), ["scorecard scorecard--summary"]);
+    assert.equal(f.get("#landing-retention").textContent, "byok_retention");
+    assert.equal(f.get("#landing-trial").hidden, true, "Nothing is said about a free first run before the deployment says so");
+    assert.equal(f.get("#landing-key-guide-trial").hidden, true);
+    assert.equal(f.get("#landing-create").hidden, false, "The buttons are as the markup has them");
+    f.answer();
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false }, "The answer leaves it standing");
+    assert.equal(f.requests.filter((r) => r.url === "/api/samples").length, 1, "Painted once: no second request");
+    assert.equal(f.requests.filter((r) => r.url === PREVIEW_SCORES).length, 1);
+    assert.equal(f.requests.filter((r) => r.url === "/health").length, 1);
+    assert.equal(f.get("#landing-preview").children.length, 1, "...and no second scorecard");
+    f.get("#landing-sign-in").onclick();
+    await settle();
+    assert.equal(shown(f).gate, true, "The buttons work as on any visit");
+    assert.equal(f.get("#account-title").textContent, "account_title");
+  },
+  async a_button_pressed_before_the_answer_opens_its_form_after_it() {
+    const f = fixture({ access: refused(ACCOUNTS), hold: true });
+    await settle();
+    f.get("#landing-create").onclick();
+    await settle();
+    assert.equal(shown(f).gate, false, "The card cannot open before the deployment has said what it offers");
+    f.answer();
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: true }, "The press is kept, not lost");
+    assert.equal(f.get("#account-title").textContent, "account_title_create");
+    f.get("#gate-back").onclick();
+    await settle();
+    assert.equal(shown(f).gate, false);
+    f.get("#landing-sign-in").onclick();
+    await settle();
+    assert.equal(f.get("#account-title").textContent, "account_title", "...and it is kept once: the next press is its own");
+  },
+  async the_last_press_before_the_answer_is_the_one_kept() {
+    const f = fixture({ access: refused(ACCOUNTS), hold: true });
+    await settle();
+    f.get("#landing-create").onclick();
+    f.get("#landing-sign-in-top").onclick();
+    f.answer();
+    await settle();
+    assert.equal(f.get("#account-title").textContent, "account_title", "Sign in was pressed last");
+  },
+  async a_press_before_the_answer_where_sign_up_is_closed() {
+    const f = fixture({ access: refused({ ...ACCOUNTS, signup_open: false, signup: "closed" }), hold: true });
+    await settle();
+    f.get("#landing-create").onclick();
+    f.answer();
+    await settle();
+    assert.equal(f.get("#landing-create").hidden, true, "The button goes once the deployment says it takes no new accounts");
+    assert.equal(f.get("#account-title").textContent, "account_title", "...and the press opens the sign-in");
+  },
+  async the_link_from_a_sample_waits_for_the_answer_too() {
+    const f = fixture({ hash: "#create-account", access: refused(ACCOUNTS), hold: true });
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false });
+    f.answer();
+    await settle();
+    assert.equal(shown(f).gate, true);
+    assert.equal(f.get("#account-title").textContent, "account_title_create");
+    assert.deepEqual(f.replaced, ["/"]);
+  },
+  async early_landing_gives_way_to_an_open_deployment() {
+    const f = fixture({ access: { status: 200, body: { ok: true } }, hold: true });
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false },
+      "Nothing stored, at /: the landing is shown until the deployment says there is nothing to sign in to");
+    f.get("#landing-create").onclick();
+    f.answer();
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false }, "...then the workbench, as always");
+    assert.equal(f.get("#gate").hidden, true, "A press on a page that turned out not to apply opens nothing");
+    // The scorecard it had drawn goes with it. Left in the document, hidden,
+    // it was a second ".scorecard" beside the one a run's page draws; the
+    // browser smoke met exactly that.
+    assert.equal(f.get("#landing-preview").children.length, 0, "A landing put away takes its scorecard with it");
+  },
+  async a_scorecard_that_arrives_after_the_landing_left_is_not_drawn() {
+    const f = fixture({ access: { status: 200, body: { ok: true } }, hold: true, replies: { [PREVIEW_SCORES]: "late" } });
+    await settle();
+    assert.equal(shown(f).landing, true);
+    f.answer();
+    await settle();
+    assert.equal(shown(f).landing, false);
+    f.deliver();
+    await settle();
+    assert.equal(f.get("#landing-preview").children.length, 0, "Nothing is drawn into a landing nobody is looking at");
+    assert.equal(f.get("#landing-preview-note").hidden, true, "...and nothing is said to have failed");
+    assert.deepEqual(f.summaries, [], "The scores are not even rendered");
+  },
+  async early_landing_gives_way_to_the_code_card() {
+    const f = fixture({ access: refused(null), hold: true });
+    await settle();
+    assert.equal(shown(f).landing, true);
+    f.answer();
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: true });
+    assert.equal(f.get("#gate-form").hidden, false);
+  },
+  async early_landing_gives_way_when_the_check_cannot_be_reached() {
+    // The boot stops on this error, as it always has; what is asserted is
+    // what it leaves on screen.
+    const stopped = [];
+    process.on("unhandledRejection", (error) => stopped.push(error.message));
+    const f = fixture({ access: refused(ACCOUNTS), replies: { "/api/access/check": "unreachable" } });
+    await settle();
+    assert.equal(shown(f).landing, false, "The page that promised a sign-in does not stay when nothing answered");
+    assert.equal(shown(f).workbench, true, "...and the visitor is where they were before this change");
+    assert.deepEqual(stopped, ["Cannot reach the server. Is it still running?"]);
+  },
+  async keys_in_this_tab_never_see_the_landing() {
+    // Keys alone boot without a request. The landing must not be painted
+    // first and taken away: it would ask the visitor to sign in.
+    const f = fixture({ access: refused(ACCOUNTS), hold: true });
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false });
+    assert.ok(!f.requests.some((r) => r.url === "/api/samples" || r.url === PREVIEW_SCORES));
+  },
+  async unreadable_keys_never_see_the_landing() {
+    const f = fixture({ access: refused(ACCOUNTS), hold: true });
+    await settle();
+    assert.equal(shown(f).landing, false, "Corrupted keys go to the card that says so, with no landing under it");
+    assert.equal(shown(f).gate, true);
+    assert.ok(!f.requests.some((r) => r.url === "/api/samples"));
+  },
+  // ── The scorecard in place of the picture ────────────────────────────
+  async preview_that_cannot_be_read_is_a_quiet_line() {
+    for (const given of [{ status: 404, body: { detail: "No such sample." } }, { status: 500, body: {} }, "unreachable",
+      { overall_score: "74" }, [], null, { overall_score: 74, cannot_be_drawn: true }]) {
+      const f = fixture({ access: refused(ACCOUNTS), replies: { [PREVIEW_SCORES]: given } });
+      await settle();
+      assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false }, "The landing stands without it");
+      assert.equal(f.get("#landing-preview").children.length, 0, `${JSON.stringify(given)} draws nothing`);
+      assert.equal(f.get("#landing-preview-note").hidden, false, "...and one line says the preview is not there");
+      assert.equal(f.get("#landing-preview").dataset.state, "missing", "The frame gives up the height it was holding");
+      assert.equal(f.get("#landing-sample-list").children.length, 2, "The sample list does not depend on it");
+    }
+    const waiting = fixture({ access: refused(ACCOUNTS), replies: { [PREVIEW_SCORES]: "never" } });
+    await settle();
+    assert.equal(waiting.get("#landing-preview-note").hidden, true, "While it is still loading, nothing is said to have failed");
+    assert.equal(waiting.get("#landing-preview").dataset.state, undefined, "...and the frame is as the markup has it");
+    waiting.get("#landing-sign-in").onclick();
+    await settle();
+    assert.equal(shown(waiting).gate, true, "...and nothing waits for it");
   },
   // The sample reader ends with "Create account" or "Sign in", which are
   // links to / that name the form. The landing opens it, and takes the
@@ -231,7 +432,7 @@ const scenarios = {
     assert.ok(f.requests.some((r) => r.url.startsWith(RUN_API)), "The run itself is read, by its id");
     assert.equal(f.sidebarRefreshes.length, 0, "No history is asked for: there is no identity whose history it would be");
     assert.ok(!f.requests.some((r) => r.url === "/api/samples"), "No landing, no sample request");
-    assert.equal(f.get("#landing-preview").src, undefined, "...and no picture either: the hidden image is never given a src");
+    assert.ok(!f.requests.some((r) => r.url === PREVIEW_SCORES), "...and no scorecard for it either");
 
     // What a reader may do with someone else's run: read it, keep it, pass it on.
     const actions = (state) => {
@@ -301,12 +502,83 @@ const scenarios = {
     f.run('paintActions("completed")');
     assert.ok(f.get("#run-actions").children.some((node) => node.id === "run-again"), "...and the full actions");
   },
+  // One form signs in or creates an account. Until 2026-11-14 it showed a
+  // returning visitor what only a newcomer needs: how runs are paid for, that
+  // creating an account accepts the terms, and a password rule ("at least 10
+  // characters") for a password they already have.
+  async the_card_in_sign_in_mode_says_only_what_signing_in_needs() {
+    // What i18n.apply() repaints on a change of language is each element's
+    // key, so the key has to follow the mode too: the card used to turn back
+    // into "Sign in" over a create form when the language was switched.
+    const keyed = (f, id) => [f.get(id).textContent, f.get(id).dataset.i18n];
+    const state = (f) => ({ title: f.get("#account-title").textContent, keys: !f.get("#account-sub").hidden,
+      trial: !f.get("#account-sub-trial").hidden, terms: !f.get("#account-legal").hidden,
+      placeholder: f.get("#account-password").placeholder, key: f.get("#account-password").dataset.i18nPlaceholder,
+      autocomplete: f.get("#account-password").autocomplete });
+    const signIn = { title: "account_title", keys: false, trial: false, terms: false,
+      placeholder: "account_password_plain", key: "account_password_plain", autocomplete: "current-password" };
+    const create = { title: "account_title_create", keys: true, trial: false, terms: true,
+      placeholder: "account_password_placeholder", key: "account_password_placeholder", autocomplete: "new-password" };
+
+    const f = fixture({ access: refused(ACCOUNTS) });
+    await settle();
+    f.get("#landing-sign-in").onclick();
+    await settle();
+    assert.deepEqual(state(f), signIn);
+    assert.deepEqual(["#account-title", "#account-submit", "#account-toggle"].map((id) => keyed(f, id)),
+      [["account_title", "account_title"], ["account_sign_in", "account_sign_in"], ["account_toggle_to_create", "account_toggle_to_create"]]);
+    f.get("#account-toggle").onclick();
+    await settle();
+    assert.deepEqual(state(f), create, "Creating an account: how runs are paid for, the terms, the password rule");
+    assert.deepEqual(["#account-title", "#account-submit", "#account-toggle"].map((id) => keyed(f, id)),
+      [["account_title_create", "account_title_create"], ["account_create", "account_create"],
+       ["account_toggle_to_sign_in", "account_toggle_to_sign_in"]], "...and a change of language repaints this mode, not the other");
+    f.get("#account-toggle").onclick();
+    await settle();
+    assert.deepEqual(state(f), signIn, "...and back again");
+    f.get("#gate-back").onclick();
+    await settle();
+    f.get("#landing-create").onclick();
+    await settle();
+    assert.deepEqual(state(f), create, "Opened in its create mode, the card is the same as when switched to it");
+
+    // Where the first assessment is free, the newcomer's sentence is the trial's; a returning visitor sees neither.
+    const trial = fixture({ access: refused({ ...ACCOUNTS, trial_runs: 1 }) });
+    await settle();
+    trial.get("#landing-sign-in").onclick();
+    await settle();
+    assert.deepEqual(state(trial), signIn);
+    trial.get("#account-toggle").onclick();
+    await settle();
+    assert.deepEqual(state(trial), { ...create, keys: false, trial: true });
+  },
+  async the_key_guide_under_the_keys_form_knows_a_free_run_is_left() {
+    // An account with its free assessment still to use is not asked for keys
+    // at the door, but may open the form itself; the steps then say what
+    // they are for. An account that has used it reads the steps plainly.
+    const left = fixture({ access: { status: 200, body: { ok: true,
+      account: { ...ACCOUNT, trial_runs_left: 1 }, accounts: { ...ACCOUNTS, trial_runs: 1 } } } });
+    await settle();
+    assert.equal(shown(left).gate, false, "A free run left: no keys asked for on the way in");
+    left.run("showGate(null, { keysOnly: true })");
+    await settle();
+    assert.equal(left.get("#byok-form").hidden, false);
+    assert.equal(left.get("#byok-key-guide-trial").hidden, false);
+
+    const used = fixture({ access: { status: 200, body: { ok: true,
+      account: { ...ACCOUNT, trial_runs_left: 0 }, accounts: { ...ACCOUNTS, trial_runs: 1 } } } });
+    await settle();
+    assert.equal(used.get("#byok-form").hidden, false, "The free run used: keys are asked for");
+    assert.equal(used.get("#byok-key-guide-trial").hidden, true);
+  },
   async trial_said_on_the_way_in() {
     // With a first assessment on the deployment's keys (#370), the landing and
     // the card must not still tell a newcomer that every run needs keys.
     const trial = fixture({ access: refused({ ...ACCOUNTS, trial_runs: 1 }) });
     await settle();
     assert.equal(trial.get("#landing-trial").hidden, false, "The landing says the first assessment is free");
+    assert.equal(trial.get("#landing-key-guide-trial").hidden, false,
+      "...and the three steps to two keys say they are for the assessments after it");
     trial.get("#landing-create").onclick();
     await settle();
     assert.equal(trial.get("#account-sub").hidden, true, "The card's sentence about paying with keys gives way");
@@ -315,6 +587,7 @@ const scenarios = {
     const none = fixture({ access: refused(ACCOUNTS) });
     await settle();
     assert.equal(none.get("#landing-trial").hidden, true, "Nothing is promised where the operator offers no trial");
+    assert.equal(none.get("#landing-key-guide-trial").hidden, true, "...and the steps stand as they are: keys come first there");
     none.get("#landing-create").onclick();
     await settle();
     assert.equal(none.get("#account-sub").hidden, false);
@@ -326,7 +599,6 @@ const scenarios = {
     assert.deepEqual(shown(f), { landing: false, workbench: true, gate: true },
       "A deployment without accounts is invite-only; its visitors meet the code card as before");
     assert.equal(f.get("#gate-form").hidden, false);
-    assert.ok(!f.requests.some((r) => r.url === "/api/samples"));
   },
   async signed_in() {
     const f = fixture({ access: { status: 200, body: { ok: true, account: ACCOUNT, accounts: ACCOUNTS } } });
@@ -336,7 +608,8 @@ const scenarios = {
     assert.equal(state.workbench, true);
     assert.equal(state.gate, true, "...and an account without keys is asked for them, as before");
     assert.equal(f.get("#byok-form").hidden, false);
-    assert.ok(!f.requests.some((r) => r.url === "/api/samples"));
+    assert.ok(!f.requests.some((r) => r.url === "/api/samples" || r.url === PREVIEW_SCORES),
+      "A stored session never paints the landing, so nothing is asked for it");
   },
   async signed_in_admin_funded() {
     const admin = { ...ACCOUNT, admin: true };
@@ -355,7 +628,6 @@ const scenarios = {
     const f = fixture({ access: { status: 200, body: { ok: true } } });
     await settle();
     assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false }, "No gate at all: the workbench, as always");
-    assert.ok(!f.requests.some((r) => r.url === "/api/samples"));
   },
   async logout_goes_home() {
     const f = fixture({ pathname: DEEP_LINK, access: { status: 200, body: { ok: true, account: ACCOUNT, accounts: ACCOUNTS } } });

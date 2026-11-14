@@ -137,12 +137,44 @@
   border-bottom: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   overflow: hidden;
-  background: var(--bg-overlay);
 }
-.landing__figure img {
-  display: block;
-  width: 100%;
-  height: auto;
+/* One sample's scorecard, drawn by the page (app.js paintLandingPreview):
+   the verdict and five bars at this card's size. It was a 900 px picture,
+   unreadable at a phone's width and dark in the light theme.
+   The frame keeps its height while the scores are on their way, so the card
+   under it does not jump when they arrive; where they cannot be read the
+   frame goes and one line stands in for it. */
+.landing__preview {
+  min-height: 275px;   /* the drawn card, measured at 1440 px */
+  padding: var(--space-6) var(--space-6) var(--space-4);
+}
+/* Where the verdict's words wrap under its figure, the card is a line taller. */
+@media (max-width: 440px) {
+  .landing__preview { min-height: 329px; }   /* measured at 375 px */
+}
+.landing__preview[data-state="missing"] { display: none; }
+.landing__preview .scorecard__head {
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+}
+.landing__preview .scorecard__value { font-size: 48px; }
+.landing__preview .dims { gap: var(--space-3); }
+/* Three columns at every width: the card is narrow on a desk too, and the
+   label, bar and figure of a row fit it down to a 320 px screen. The bar's
+   placement is reset because the report's own phone rule moves it to a row
+   of its own (result.css). */
+.landing__preview .dim {
+  grid-template-columns: minmax(0, 10.5em) minmax(2.5rem, 1fr) auto;
+  gap: var(--space-3);
+}
+.landing__preview .dim__bar { grid-column: auto; grid-row: auto; }
+.landing__preview .dim__label { font-size: var(--text-sm); }
+.landing__preview-note {
+  padding: var(--space-6) var(--space-6) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 .landing__figure figcaption {
   padding: var(--space-2) var(--space-6);
@@ -222,6 +254,8 @@
 
 .landing__pay { margin-top: var(--space-4); }
 .landing__pay > p { max-width: 60em; }
+.landing__pay > p + p { margin-top: var(--space-3); }
+.landing__pay .key-guide { max-width: 60em; margin-top: var(--space-4); }
 .landing__retention:empty { display: none; }
 .landing__retention {
   margin-top: var(--space-2);
@@ -265,8 +299,6 @@
   .landing__foot-inner { padding-inline: var(--space-4); }
   /* The hero has its own link to the samples; the header keeps to sign-in and language. */
   .landing__nav > a { display: none; }
-  /* The full name on two lines rather than cut off after "Academic Com…". */
-  .landing .brand__name { white-space: normal; font-size: var(--text-sm); line-height: var(--leading-tight); }
   .landing__hero {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-6);

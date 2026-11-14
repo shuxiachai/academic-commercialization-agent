@@ -39,6 +39,7 @@ from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import Page, Route, expect, sync_playwright
 
 from e2e.browser_smoke import PROJECT_ROOT, _serve
+from e2e.landing_reads import answer_landing_read
 from e2e.smoke_report import capture_failure
 
 KEYS = frozenset({"Tab", "Shift+Tab", "Enter", "Space", "Escape"})
@@ -243,6 +244,8 @@ def _context(browser, base: str, scheme: str, viewport: dict, log: dict):
         elif url.path == "/health":
             _json(route, {"active_runs": 0, "active_paid_operations": 0, "max_concurrent": 5,
                           "retention_days": 30})
+        elif answer_landing_read(route):
+            pass  # the landing, shown before the access check answered (e2e/landing_reads.py)
         elif url.path == "/" or url.path.startswith("/static/"):
             route.continue_()
         else:

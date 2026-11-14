@@ -11,9 +11,9 @@ import * as i18n from "./i18n.js";
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 const LABELS = {
-  en: { back: "Back to the app", title: "Privacy and terms · Commercialization Assessment",
+  en: { back: "Back to the app", title: "Privacy and terms",
         days: (n) => `for ${n} days`, forever: "until you delete them" },
-  zh: { back: "返回应用", title: "隐私与条款 · 商业化评估",
+  zh: { back: "返回应用", title: "隐私与条款",
         days: (n) => ` ${n} 天`, forever: "到你删除为止" },
 };
 let site = null;
@@ -23,7 +23,9 @@ const lang = () => (i18n.language() === "Simplified Chinese" ? "zh" : "en");
 function paint() {
   const current = lang();
   document.documentElement.lang = current === "zh" ? "zh-CN" : "en";
-  document.title = LABELS[current].title;
+  document.title = `${LABELS[current].title} · ${i18n.t("brand_full")}`;
+  // The header's name, full and short, from the strings every page shares.
+  for (const node of $$("[data-i18n]")) node.textContent = i18n.t(node.dataset.i18n);
   for (const block of $$("[data-lang-block]")) block.hidden = block.dataset.langBlock !== current;
   for (const node of $$("[data-legal=back]")) node.textContent = LABELS[current].back;
   if (!site) return;

@@ -1745,15 +1745,24 @@ function landingWanted() {
   return Boolean(authConfig?.enabled) && location.pathname === "/";
 }
 
-async function showLanding() {
-  const landing = $("#landing");
-  const workbench = $("#workbench");
-  landing.hidden = false;
-  workbench.hidden = true;
-  // Without sign-up the button would only ever fail; sign-in stands alone.
-  $("#landing-create").hidden = !authConfig?.signup_open;
-  // Said only where the deployment pays for a newcomer's first assessment.
-  $("#landing-trial").hidden = !(authConfig?.trial_runs > 0);
+/* The landing on screen, with everything on it that no access check decides:
+ * the samples, the scorecard, the retention line. Called once per visit,
+ * either before the check answers (ensureAccess) or when it has (showLanding).
+ *
+ * Until the check answers, the page cannot open the sign-in card: it does not
+ * know yet whether this deployment takes new accounts, or has accounts at all.
+ * A button pressed in that moment is kept (the last one wins) and showLanding
+ * acts on it, once: it then gives the buttons their real handlers, and
+ * nothing reads the kept press again. Where the answer takes the landing
+ * away instead, showLanding never runs and the press is never read at all. */
+let landingPainted = false;
+let landingPress = null;   // true: create account, false: sign in
+
+function paintLanding() {
+  $("#landing").hidden = false;
+  $("#workbench").hidden = true;
+  if (landingPainted) return;
+  landingPainted = true;
   // The sidebar's language select is hidden with the workbench; this one
   // drives it, so every listener on the original still runs.
   const lang = $("#landing-lang");
@@ -1762,15 +1771,35 @@ async function showLanding() {
     langSelect.value = lang.value;
     langSelect.dispatchEvent(new Event("change"));
   };
+  $("#landing-create").onclick = () => { landingPress = true; };
+  $("#landing-sign-in").onclick = () => { landingPress = false; };
+  $("#landing-sign-in-top").onclick = () => { landingPress = false; };
   paintLandingSamples();
   paintLandingRetention();
-  // The scorecard picture is fetched only now: the markup carries it as
-  // data-src, since a hidden image is requested all the same.
-  const preview = $("#landing-preview");
-  if (preview.dataset.src) {
-    preview.src = preview.dataset.src;
-    delete preview.dataset.src;
-  }
+  paintLandingPreview();
+}
+
+/* The landing put away: for a visit the access check turned out to let in
+ * or to send to the code card, and for one that signed in from it. The
+ * scorecard it drew goes with it. Left in the document, hidden, it was a
+ * second ".scorecard" beside the one a run's page draws (the browser smoke
+ * met exactly that), and nobody can look at it again in this document. */
+function leaveLanding() {
+  $("#landing").hidden = true;
+  $("#landing-preview").innerHTML = "";
+}
+
+async function showLanding() {
+  const landing = $("#landing");
+  const workbench = $("#workbench");
+  paintLanding();
+  // Without sign-up the button would only ever fail; sign-in stands alone.
+  $("#landing-create").hidden = !authConfig?.signup_open;
+  // Said only where the deployment pays for a newcomer's first assessment.
+  $("#landing-trial").hidden = !(authConfig?.trial_runs > 0);
+  // ...and there the three steps to two keys are for the assessments after
+  // it: without this line they would read as needed before the free one.
+  $("#landing-key-guide-trial").hidden = !(authConfig?.trial_runs > 0);
   let opening = false;
   await new Promise((resolve) => {
     const open = (creating) => async () => {
@@ -1791,14 +1820,45 @@ async function showLanding() {
     // off the address so that Back, or a reload, does not open the form
     // again. A deployment that takes no new accounts shows the sign-in for
     // either: showGate opens its create mode only where sign-up is open.
-    const wanted = { "#create-account": true, "#sign-in": false }[location.hash];
-    if (wanted !== undefined) {
+    const named = { "#create-account": true, "#sign-in": false }[location.hash];
+    if (named !== undefined) {
       try { history.replaceState({}, "", location.pathname); } catch { /* the form still opens */ }
-      open(wanted)();
     }
+    // A button pressed while the check was out is the later wish of the two.
+    const wanted = landingPress ?? named;
+    if (wanted !== undefined) open(wanted)();
   });
   landing.hidden = true;
   workbench.hidden = false;
+}
+
+/* What a finished assessment looks like: the scorecard of one sample, drawn
+ * by the function that draws a run's, from that sample's own scores. It was a
+ * picture of a scorecard until 2026-11-13: 900 px wide and dark, so on a
+ * phone its figures were a few pixels tall and in the light theme it was a
+ * dark block. Drawn here it is text at the page's size in the page's theme.
+ *
+ * The sample is named, not "the first in the list": the caption under it
+ * dates the run, and tests/test_landing_page.py holds the two together.
+ * A scorecard that cannot be read leaves one quiet line and nothing else;
+ * the sample list under it does not depend on this request. */
+const LANDING_PREVIEW_SAMPLE = "continuous-glucose-monitoring";
+
+async function paintLandingPreview() {
+  const frame = $("#landing-preview");
+  const note = $("#landing-preview-note");
+  let card = null;
+  try {
+    const scores = await api.sampleScores(LANDING_PREVIEW_SAMPLE);
+    // The landing may have been put away while the scores were on their way.
+    if ($("#landing").hidden) return;
+    card = result.renderScoreSummary(scores);
+  } catch { /* unread or undrawable, the note below says so; never an error on the page */ }
+  frame.innerHTML = "";
+  if (card) frame.append(card);
+  // "loading" in the markup keeps the frame's height; "missing" gives it up.
+  frame.dataset.state = card ? "shown" : "missing";
+  note.hidden = Boolean(card);
 }
 
 /* The finished reports a visitor can read before signing in, by their real
@@ -1854,16 +1914,41 @@ async function paintLandingRetention() {
  * stored that would sign the visit in. Decided before the access check, so
  * the workbench is not painted for the length of one request and then
  * replaced by a page about it; a visitor the check does let in sees the
- * workbench one request later, exactly as before. */
+ * workbench one request later, exactly as before. Keys in this tab are a
+ * third way in and are asked about separately (keysStored), because they
+ * decide whether the landing may be shown early, not whether the workbench
+ * is held back. */
 function mayLand() {
   return location.pathname === "/" && !api.getSessionToken() && !api.getAccessCode();
 }
 
+/* Keys saved in this tab boot without a request and without a sign-in, so a
+ * landing painted first would ask such a visitor to sign in and then vanish.
+ * Keys that cannot be read go to the card that says so. Either way: stored. */
+function keysStored() {
+  try { return api.getByok() !== null; } catch { return true; }
+}
+
+/* Until 2026-11-13 the landing waited for the access check, and an anonymous
+ * visit to / was an empty page until it answered: 1.4 s to the first paint
+ * from Sydney, longer from further away. Nothing stored means the check can
+ * only say one of three things: this deployment has accounts (the landing
+ * stays), it has none and is open (the workbench), or it has none and takes
+ * codes (the card). The first is what the public deployment says, so the
+ * landing is shown at once and put away again for the other two.
+ *
+ * No stored identity is read or changed by this: the check, its 401 and what
+ * each may clear are api.js's, untouched (docs/results-2026-09-08-browser-
+ * access-identity.md). */
 async function ensureAccess() {
-  if (mayLand()) $("#workbench").hidden = true;
+  if (mayLand()) {
+    $("#workbench").hidden = true;
+    if (!keysStored()) paintLanding();
+  }
   try {
     await decideAccess();
   } finally {
+    leaveLanding();
     $("#workbench").hidden = false;
   }
 }
@@ -1938,7 +2023,10 @@ async function decideAccess() {
     return;
   }
   if (landingWanted()) await showLanding();
-  else await showGate();
+  else {
+    leaveLanding();
+    await showGate();
+  }
 }
 
 /* How long the deployment keeps what a visitor is about to hand it.
@@ -2057,10 +2145,6 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
   $("#account-settings").hidden = true;
   codeError.hidden = !errorKey;
   codeError.textContent = errorKey ? t(errorKey) : "";
-  // With a first assessment on the deployment's keys the card must not
-  // tell a newcomer that every run is paid for with keys they bring.
-  $("#account-sub").hidden = authConfig?.trial_runs > 0;
-  $("#account-sub-trial").hidden = !(authConfig?.trial_runs > 0);
   accountError.hidden = true;
   gate.hidden = false;
 
@@ -2093,6 +2177,9 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     $("#byok-account-note").hidden = !account;
     $("#byok-sub").hidden = account;
     if (account) $("#byok-account-note").textContent = t(operatorPays() ? "byok_admin_note" : trialPays() ? "byok_trial_note" : "byok_account_note").replace("{email}", accountEmail);
+    // "Get both keys in 3 steps": with a free assessment still to use, the
+    // steps are for the ones after it and one line says so.
+    $("#byok-key-guide-trial").hidden = !(account && trialPays());
     clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
@@ -2106,15 +2193,33 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     forgotForm.hidden = true;
     resetForm.hidden = true;
     accountForm.hidden = false;
-    $("#account-title").textContent = t(creating ? "account_title_create" : "account_title");
-    accountSubmit.textContent = t(creating ? "account_create" : "account_sign_in");
-    $("#account-toggle").textContent = t(creating ? "account_toggle_to_sign_in" : "account_toggle_to_create");
+    // The key travels on each element with its text: a change of language
+    // repaints every [data-i18n] from its key (i18n.apply), and a key left
+    // at the markup's would turn a create form back into "Sign in".
+    const say = (node, key) => { node.dataset.i18n = key; node.textContent = t(key); };
+    say($("#account-title"), creating ? "account_title_create" : "account_title");
+    say(accountSubmit, creating ? "account_create" : "account_sign_in");
+    say($("#account-toggle"), creating ? "account_toggle_to_sign_in" : "account_toggle_to_create");
     $("#account-toggle").hidden = !creating && !authConfig?.signup_open;
     $("#account-to-code").hidden = !authConfig?.access_codes;
     // Only when the deployment can send the link; a visitor creating an
     // account has no password to have forgotten.
     $("#account-forgot").hidden = creating || !authConfig?.password_reset;
-    $("#account-password").autocomplete = creating ? "new-password" : "current-password";
+    // What only a newcomer needs is shown only to one: how runs are paid
+    // for, that creating an account accepts the terms, and the rule for a
+    // password. Someone signing in has an account, has accepted them, and
+    // has a password. With a first assessment on the deployment's keys the
+    // sentence about paying must not say every run needs keys they bring.
+    const trial = authConfig?.trial_runs > 0;
+    $("#account-sub").hidden = !creating || trial;
+    $("#account-sub-trial").hidden = !creating || !trial;
+    $("#account-legal").hidden = !creating;
+    const password = $("#account-password");
+    password.autocomplete = creating ? "new-password" : "current-password";
+    // The key travels on the element, so a change of language repaints the
+    // placeholder of the mode the card is in (i18n.apply).
+    password.dataset.i18nPlaceholder = creating ? "account_password_placeholder" : "account_password_plain";
+    password.placeholder = t(password.dataset.i18nPlaceholder);
     // Invite mode asks up front; a reserved address asks after the server
     // says so (invite_required), so the field stays hidden until needed.
     const inviteShown = creating && (authConfig?.signup === "invite" || inviteNeeded);

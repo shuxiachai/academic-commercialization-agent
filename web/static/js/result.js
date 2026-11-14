@@ -596,8 +596,19 @@ function marketCapSummary(scores, cap) {
 
 // Exported for the sample reader, which shows a committed run's scorecard with
 // no source registry behind it (sources stays null there).
-export function renderScorecard(scores, sources = null) {
-  const wrap = el("section", "scorecard");
+/** The verdict and the five bars of a scorecard, and nothing else: for a
+ * place that shows what an assessment looks like (the landing page), not for
+ * someone reading that assessment. The reasons, the market note and the
+ * risks are the full card's. Drawn by renderScorecard itself, so the grade,
+ * its colour and each bar are the ones a run's page shows. Null where there
+ * is no readable verdict to show: the caller says its own line then. */
+export function renderScoreSummary(scores) {
+  if (!detailRecord(scores) || !scoreNumber(scores.overall_score, 100)) return null;
+  return renderScorecard(scores, null, { summary: true });
+}
+
+export function renderScorecard(scores, sources = null, { summary = false } = {}) {
+  const wrap = el("section", summary ? "scorecard scorecard--summary" : "scorecard");
   if (!detailRecord(scores)) { wrap.append(detailUnavailable()); return wrap; }
   const overall = scores.overall_score;
   const readable = scoreNumber(overall, 100);
@@ -637,6 +648,7 @@ export function renderScorecard(scores, sources = null) {
     if (!valid) row.title = t("detail_unreadable");
 
     row.append(label, bar, num);
+    if (summary) { grid.append(row); continue; }
     if (!valid) row.append(detailUnavailable());
 
     // Shown, not hidden in a hover title: "why 4 / 9" is the question a
@@ -660,6 +672,7 @@ export function renderScorecard(scores, sources = null) {
     grid.append(row);
   }
   wrap.append(grid);
+  if (summary) return wrap;
 
   // The saved legacy flag is an untyped numeric-spread signal, not verified
   // market disagreement. Old artifacts need the same disclosure as new ones;
