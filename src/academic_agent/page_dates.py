@@ -29,6 +29,7 @@ from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, build_opener
 
 from academic_agent.evidence import _NoRedirectHandler, _validate_public_url
+from academic_agent.market_selection import provenance_rank
 
 MAX_BYTES = 768 * 1024
 TIMEOUT_SECONDS = 8
@@ -49,13 +50,27 @@ _URL_DATE = re.compile(r"/((?:19|20)\d{2})/(0[1-9]|1[0-2])/(0[1-9]|[12]\d|3[01])
 # Pages whose stated publication date describes the page, not its content:
 # a market-report landing page keeps its first date while its forecast years
 # move on, an encyclopedia entry dates its creation, a home page dates the site.
+#
+# The landing-page reason holds on the report publisher's own site. A report
+# announced on a press wire, or carried by a host that syndicates releases,
+# is a release: published once, on the day it states. The source type cannot
+# tell the two apart, because a release with market-estimate wording in its
+# title is typed market_report wherever it is hosted, so the registered rule
+# left both undated: 15 of the 83 undated market sources in the runs since
+# 2026-11-01 were such releases. On the saved page probes all 13 of them
+# stated a date, and wherever a saved excerpt of a wire or syndicating page
+# also carried the release's own dateline, the two dates agreed within a day
+# (45 of 45, four of them market reports):
+# docs/results-2026-11-13-market-selection-offline.md.
 _UNDATABLE_TYPES = frozenset({"market_report"})
 _UNDATABLE_HOSTS = ("wikipedia.org",)
 
 
 def should_date(source_type: str | None, url: str | None) -> bool:
     """Whether a source's page metadata may supply its publication date."""
-    if not url or source_type in _UNDATABLE_TYPES:
+    if not url:
+        return False
+    if source_type in _UNDATABLE_TYPES and provenance_rank(url) == 0:
         return False
     parts = urlsplit(url)
     host = (parts.hostname or "").lower()

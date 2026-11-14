@@ -40,7 +40,23 @@ def _web_rows(titles, *, host="patents.google.com"):
     ]
 
 
-def _market_row(host, path="/news/product"):
+def _market_row(host, path="/news/product", *, item=None):
+    """The row under test, or with ``item`` a filler about something else.
+
+    A filler has its own headline and wording. With the row's own, the three
+    market rows were one headline and one excerpt on three hosts, which the
+    market stage now takes for copies of one story and lists once.
+    """
+    if item is not None:
+        return {
+            "title": f"RFID temperature sensing {item} enters cold-chain service",
+            "link": f"https://{host}{path}",
+            "snippet": (
+                f"A logistics operator reports on RFID temperature sensing {item} "
+                "in its cold-chain network, with the number of sites equipped and "
+                "the readings collected over the first season of operation."
+            ),
+        }
     return {
         "title": "RFID temperature sensing product announcement",
         "link": f"https://{host}{path}",
@@ -69,8 +85,8 @@ def _collect(*, topic=_TOPIC, patent_titles=(), market_rows=(), lens_titles=()):
     patents = _web_rows(patent_titles)
     markets = [
         *market_rows,
-        _market_row("reuters.com", "/technology/rfid-one"),
-        _market_row("reuters.com", "/technology/rfid-two"),
+        _market_row("reuters.com", "/technology/rfid-one", item="reader network"),
+        _market_row("reuters.com", "/technology/rfid-two", item="pallet tag fleet"),
     ]
 
     def search(query):

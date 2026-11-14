@@ -643,10 +643,22 @@ rejection reasons instead of silently inventing evidence. Pydantic and local
 guardrails validate structure and source identities; advisory checks cannot
 guarantee factual entailment.
 
+The market stage lists a story once and spreads its slots over sites:
+- **One copy of a story.** Two results are one story when they are the same article address on one site (a regional host, a tracking parameter), when one site republishes the other's document whole, or when they carry one headline and either their dates fall together or their excerpts share text. At least one of the two must then be a host that carries other parties' releases. A similar title alone merges nothing. Of two copies the one nearer the issuer is kept.
+- **Two slots a site.** A third result from one site, counting a publisher's regional hosts as one site, is held back. It is listed only if no other site's result fills the slot.
+- **No encyclopedia entry.**
+
+The retrieval audit records each of these as a rejection note (`duplicate
+story`, `deferred (site share: ...)`, `encyclopedia entry is not market
+evidence`). The rules and what they change on saved runs are in the
+[offline result](results-2026-11-13-market-selection-offline.md).
+
 Web search returns market sources undated. After the relevance filter, each
 accepted market source is read once for the publication date its own page
-states in metadata, unless it is a market report, a Wikipedia page or a home
-page. The date comes from JSON-LD, a publication `<meta>` tag, `itemprop`, or
+states in metadata. A home page is not read, and neither is a market report on
+its publisher's own page: a landing page keeps its first date while its
+forecast years move on. A report announced as a release on a press wire or a
+syndicating host is read like any release. The date comes from JSON-LD, a publication `<meta>` tag, `itemprop`, or
 a full date in the URL path. Up to eight pages are read at a time, and the step
 stops waiting after 20 seconds; a page not read by then stays "n.d.". A
 `[Page-Dates]` row in the retrieval audit lists the sources dated this way and

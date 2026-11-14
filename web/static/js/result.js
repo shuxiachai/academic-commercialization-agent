@@ -1620,6 +1620,8 @@ const RECORD_SYSTEMS = {
 };
 const SYSTEM_NAMES = { S2: "Semantic Scholar", "Lens patent": "Lens" };
 const IDENTIFIER_NAMES = { "DOI or PMID": "DOI 或 PMID", lens_id: "Lens ID" };
+// Why two market results were taken as one story (market_selection.same_story).
+const STORY_SIGNS = { "same address": "同一文章地址", "same headline": "同一标题", mirror: "整篇转载" };
 const RECORD_NOUNS = Object.keys(RECORD_SYSTEMS).join("|");
 const REJECTION_PATTERNS = [
   [/^score=(\d+(?:\.\d+)?) \(min=(\d+(?:\.\d+)?)\) — removed '(.*)'$/s, "reject_relevance_score", ["score", "min", "subject"]],
@@ -1634,6 +1636,12 @@ const REJECTION_PATTERNS = [
   [/^deferred \(institutional cap\): (.*)$/s, "reject_deferred_institutional", ["subject"]],
   [/^deferred \(market-report cap\): (.*)$/s, "reject_deferred_market_report", ["subject"]],
   [/^deferred \(encyclopedia cap\): (.*)$/s, "reject_deferred_encyclopedia", ["subject"]],
+  [/^deferred \(site share: (\S+) already holds (\d+)\): (.*)$/s, "reject_deferred_site_share", ["site", "n", "subject"]],
+  [/^duplicate story \((same address|same headline|mirror) as the copy at (\S+)\): (.*)$/s,
+    "reject_duplicate_story", ["sign", "kept", "subject"]],
+  [/^duplicate story \((same address|same headline|mirror)\); the copy at (\S+) replaces the one at (\S+): (.*)$/s,
+    "reject_duplicate_story_replaced", ["sign", "kept", "dropped", "subject"]],
+  [/^encyclopedia entry is not market evidence: (.*)$/s, "reject_encyclopedia", ["subject"]],
   [/^evidence summary too thin \((\d+) chars\): (.*)$/s, "reject_summary_thin", ["n", "subject"]],
   [/^market summary lacks core topic keywords: (.*)$/s, "reject_market_keywords", ["subject"]],
   [/^patent title not relevant to topic \(score (\d+(?:\.\d+)?)\): (.*)$/s, "reject_patent_relevance", ["score", "subject"]],
@@ -1680,6 +1688,7 @@ function rejectionReason(reason) {
       if (name === "record") text = text.replace("{system_name}", RECORD_SYSTEMS[value]);
       if (name === "system") text = text.replace("{system_name}", SYSTEM_NAMES[value] ?? value);
       if (name === "identifier") text = text.replace("{identifier_name}", IDENTIFIER_NAMES[value] ?? value);
+      if (name === "sign") text = text.replace("{sign_name}", STORY_SIGNS[value] ?? value);
     });
     return text;
   }
