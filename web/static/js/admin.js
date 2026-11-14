@@ -157,7 +157,9 @@ function pill(text, kind) {
 function paintLabels() {
   const current = lang();
   document.documentElement.lang = current === "zh" ? "zh-CN" : "en";
-  document.title = `${t("title")} · ${current === "zh" ? "商业化评估" : "Commercialization Assessment"}`;
+  document.title = `${t("title")} · ${i18n.t("brand_full")}`;
+  // The header's name, full and short, from the strings every page shares.
+  for (const node of $$("[data-i18n]")) node.textContent = i18n.t(node.dataset.i18n);
   for (const node of $$("[data-text]")) node.textContent = t(node.dataset.text);
 }
 

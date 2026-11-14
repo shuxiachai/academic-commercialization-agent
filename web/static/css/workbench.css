@@ -1464,3 +1464,18 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   }
   .toast { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
 }
+
+/* ── "Get both keys in 3 steps" ────────────────────────────────────────
+   On the landing's pay card and under the keys form: folded, three numbered
+   steps, each one sentence and a link. */
+.key-guide { font-size: var(--text-sm); color: var(--text-secondary); }
+.key-guide > summary {
+  padding: var(--space-2) 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+.key-guide ol { margin: var(--space-1) 0 0 var(--space-5); display: grid; gap: var(--space-2); }
+.key-guide li { padding-left: var(--space-1); line-height: var(--leading-normal); }
+.key-guide a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.key-guide__trial { margin: 0 0 var(--space-2); }

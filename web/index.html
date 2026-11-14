@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>Commercialization Assessment</title>
+<title>Academic Commercialization Assessment</title>
 <meta name="description" content="Six AI agents assess the commercialization readiness of academic research, producing a scored report with verifiable citations.">
 <!-- Link previews for chat apps and social sites. Their crawlers run no script
      and resolve no relative URL, so these name the public deployment's origin;
@@ -12,7 +12,7 @@
      assets/social-preview.png, kept equal by tests/test_share_preview.py. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Academic Commercialization Assessment">
-<meta property="og:title" content="Academic Commercialization Assessment Agent">
+<meta property="og:title" content="Academic Commercialization Assessment">
 <meta property="og:description" content="Turn a research paper or topic into a cited commercialization triage report: technology readiness, manufacturing, patents and market, with the risks spelled out.">
 <meta property="og:url" content="https://academic-agent.cc/">
 <meta property="og:image" content="https://academic-agent.cc/static/brand/social-preview.png">
@@ -32,15 +32,17 @@
 <!-- ═══ Landing ═══════════════════════════════════════════════════
      What an anonymous visitor to "/" sees on a deployment with accounts,
      before anything else: what the tool is, how a run goes, what a finished
-     report looks like, who pays. Hidden until the boot's access check says
-     this visit is anonymous (app.js showLanding); a stored session, a deep
-     link and a code-only deployment never show it. Its buttons open the
-     same sign-in card below, which then leads into the workbench. -->
+     report looks like, who pays. Hidden in the markup; app.js shows it at
+     once to a visit to "/" with nothing stored that could sign it in
+     (ensureAccess), before the access check answers, and puts it away
+     again if the check says this deployment has no accounts. A stored
+     session, keys in this tab and a deep link never show it. Its buttons
+     open the same sign-in card below, which then leads into the workbench. -->
 <section class="landing" id="landing" hidden>
   <header class="landing__head">
     <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
       <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
-      <span class="brand__name" data-i18n="landing_brand">Academic Commercialization Assessment</span>
+      <span class="brand__name"><span class="brand__full" data-i18n="brand_full">Academic Commercialization Assessment</span><span class="brand__short" data-i18n="brand">ACA</span></span>
     </a>
     <nav class="landing__nav" aria-label="Site">
       <a href="/samples" data-i18n="landing_nav_samples">Sample reports</a>
@@ -78,13 +80,14 @@
              2026-11-08, the first sample report), rendered from its run
              page: the thing the tool produces, with the caption saying
              when. The caption is one sentence on purpose: the page's one
-             caution is the footer's, and it is not repeated here. The address is
-             in data-src and becomes src only when the landing is shown
-             (app.js showLanding): a hidden image is still fetched, lazy or
-             not, and a signed-in visit has no use for it. -->
+             caution is the footer's, and it is not repeated here. The
+             scorecard is drawn by the page from that sample's own scores
+             (app.js paintLandingPreview), not shown as a picture: text at
+             the page's size, in the page's theme, on a phone as on a desk.
+             Nothing is requested for it unless the landing is shown. -->
         <figure class="landing__figure">
-          <img id="landing-preview" data-src="/static/brand/report-preview.png" width="900" height="442"
-               alt="Scorecard of a finished assessment: an overall readiness score out of 100 and five scored dimensions">
+          <div class="landing__preview" id="landing-preview" data-state="loading"></div>
+          <p class="landing__preview-note" id="landing-preview-note" data-i18n="landing_preview_unavailable" hidden>The scorecard preview could not be loaded. The sample reports below show the same thing.</p>
           <figcaption data-i18n="landing_figure_caption">A real run from November 2026, opened in the current interface.</figcaption>
         </figure>
         <h2 id="landing-sample-title" data-i18n="landing_sample_title">See what you get</h2>
@@ -111,10 +114,29 @@
 
     <!-- Said before sign-up, not after: this is the fact a visitor most
          needs to decide whether to come in. The sentences match the key
-         form's own (byok_sub, byok_guide, account_sub). -->
+         form's own (byok_sub, byok_guide, account_sub), and the sums are
+         the same ones. -->
     <section class="landing__card landing__pay" aria-labelledby="landing-pay-title">
       <h2 id="landing-pay-title" data-i18n="landing_pay_title">Your keys, your bill</h2>
-      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Measured runs used about 100,000 model tokens; your providers bill you directly for that, and this service adds nothing. Keys stay in your browser; this server never stores them.</p>
+      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Your providers bill you directly, and this service adds nothing. Keys stay in your browser; this server never stores them.</p>
+      <!-- In money, and only for the providers with a recorded figure: each
+           sum is a row of "What an assessment costs" in
+           docs/evidence-status.md (tests/test_run_costs.py). -->
+      <p data-i18n="landing_pay_cost">What one assessment cost in model fees when it was measured here: about $0.05 with DeepSeek (deepseek-chat, November 2026), $0.10 to $0.25 with Qwen on Model Studio (qwen3.7-plus and qwen3.8-max, October 2026), and about $0.55 with Anthropic (claude-sonnet-5-5, November 2026). Search is billed by the search service: Tavily's free plan includes 1,000 searches a month, and a new Serper account gets 2,500 free queries.</p>
+      <!-- A new account needs two keys from two other companies before its
+           first paid run. Three steps, one recommendation each, the links
+           the keys form gives; no screenshots, which go stale. Where the
+           first assessment is free, app.js shows the line that says these
+           keys are for the ones after it. -->
+      <details class="key-guide" id="landing-key-guide">
+        <summary data-i18n="key_guide_title">Get both keys in 3 steps</summary>
+        <p class="key-guide__trial" id="landing-key-guide-trial" data-i18n="key_guide_trial" hidden>Your free first assessment needs neither key. For the assessments after it:</p>
+        <ol>
+          <li><span data-i18n="key_guide_step1">Model key: create an API key at DeepSeek, the cheapest provider measured here.</span> <a href="https://platform.deepseek.com/api-keys" target="_blank" rel="noopener">platform.deepseek.com/api-keys</a></li>
+          <li><span data-i18n="key_guide_step2">Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.</span> <a href="https://app.tavily.com" target="_blank" rel="noopener">app.tavily.com</a></li>
+          <li><span data-i18n="key_guide_step3_landing">Create an account here, paste both keys, enter deepseek-chat as the model, and start.</span></li>
+        </ol>
+      </details>
       <!-- The deployment's retention period, from /health (app.js); the key
            form states the same figure, but by then the visitor has signed up. -->
       <p class="landing__retention" id="landing-retention"></p>
@@ -140,7 +162,7 @@
     <div class="sidebar__head">
       <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
         <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
-        <span class="brand__name" data-i18n="brand">Assessment</span>
+        <span class="brand__name" data-i18n="brand">ACA</span>
       </a>
       <button type="button" class="icon-btn sidebar__collapse" id="collapse-btn"
               aria-label="Collapse sidebar" title="Toggle sidebar">
@@ -249,7 +271,7 @@
       </button>
       <a class="brand" href="/" tabindex="-1" aria-hidden="true">
         <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
-        <span class="brand__name" data-i18n="brand">Assessment</span>
+        <span class="brand__name" data-i18n="brand">ACA</span>
       </a>
     </div>
     <div class="scrim" id="sidebar-scrim" hidden></div>
@@ -546,16 +568,19 @@
     <!-- Accounts (api/accounts.py): shown first when the deployment has them.
          One form signs in or creates an account; the button text follows the
          mode. Keys are asked for afterwards and never leave this browser
-         except with the operations the account starts. -->
+         except with the operations the account starts.
+         The form is served in its sign-in mode. What only a newcomer needs
+         (how runs are paid for, the terms, the password rule) starts hidden
+         and app.js shows it in the create mode. -->
     <form id="account-form" hidden>
       <h2 class="gate__title" id="account-title" data-i18n="account_title">Sign in</h2>
       <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes 6 to 15 minutes.</p>
       <p class="gate__sub" id="account-sub-trial" data-i18n="account_sub_trial" hidden>A new account's first assessment is free and needs no API keys. After that, runs are paid for with API keys you add: they stay in this browser, are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
-      <p class="gate__sub" id="account-sub" data-i18n="account_sub">Runs are paid for with API keys you add after signing in. Your keys stay in this browser and are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
+      <p class="gate__sub" id="account-sub" data-i18n="account_sub" hidden>Runs are paid for with API keys you add after signing in. Your keys stay in this browser and are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
       <input class="gate__input" id="account-email-input" type="email" autocomplete="username" required
              maxlength="254" data-i18n-placeholder="account_email_placeholder" placeholder="Email">
       <input class="gate__input" id="account-password" type="password" autocomplete="current-password" required
-             minlength="10" maxlength="200" data-i18n-placeholder="account_password_placeholder" placeholder="Password (at least 10 characters)">
+             minlength="10" maxlength="200" data-i18n-placeholder="account_password_plain" placeholder="Password">
       <!-- Shown when registration needs an invite code: in invite mode, or
            for an address the operator reserved for an administrator. -->
       <input class="gate__input" id="account-invite" type="text" autocomplete="off" spellcheck="false" maxlength="200"
@@ -565,7 +590,7 @@
       <p class="gate__hint" id="account-invite-hint" hidden></p>
       <p class="gate__error" id="account-error" hidden></p>
       <button type="submit" class="btn btn--primary" id="account-submit" data-i18n="account_sign_in">Sign in</button>
-      <p class="gate__hint"><a href="/privacy" target="_blank" rel="noopener" data-i18n="account_legal">Creating an account means accepting the privacy and terms notes: what is stored, and what never is.</a></p>
+      <p class="gate__hint" id="account-legal" hidden><a href="/privacy" target="_blank" rel="noopener" data-i18n="account_legal">Creating an account means accepting the privacy and terms notes: what is stored, and what never is.</a></p>
       <button type="button" class="gate__switch" id="account-toggle" data-i18n="account_toggle_to_create">No account? Create one</button>
       <!-- Only when the deployment can send mail (auth config password_reset);
            otherwise the operator is the way back and the privacy page says so. -->
@@ -665,9 +690,19 @@
         (recommended) or serper.dev for search.
       </p>
       <!-- For someone who has never done this: what is enough, what it
-           costs and who bills it. The figure is one measured run, said as
-           such; it is not a quote. -->
-      <p class="gate__hint" data-i18n="byok_guide">New to this? One model key and one search key are enough. A full assessment takes 6 to 15 minutes; measured runs used about 100,000 model tokens. Your providers bill you directly, and this service adds nothing.</p>
+           costs and who bills it. The sums are measured runs, said as such
+           (docs/evidence-status.md, "What an assessment costs"); they are
+           not a quote. Under it, the same three steps as on the landing. -->
+      <p class="gate__hint" data-i18n="byok_guide">New to this? One model key and one search key are enough. A full assessment takes 6 to 15 minutes. Measured here, one cost about $0.05 in model fees with DeepSeek, $0.10 to $0.25 with Qwen, and about $0.55 with Anthropic. Your providers bill you directly, and this service adds nothing.</p>
+      <details class="key-guide" id="byok-key-guide">
+        <summary data-i18n="key_guide_title">Get both keys in 3 steps</summary>
+        <p class="key-guide__trial" id="byok-key-guide-trial" data-i18n="key_guide_trial" hidden>Your free first assessment needs neither key. For the assessments after it:</p>
+        <ol>
+          <li><span data-i18n="key_guide_step1">Model key: create an API key at DeepSeek, the cheapest provider measured here.</span> <a href="https://platform.deepseek.com/api-keys" target="_blank" rel="noopener">platform.deepseek.com/api-keys</a></li>
+          <li><span data-i18n="key_guide_step2">Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.</span> <a href="https://app.tavily.com" target="_blank" rel="noopener">app.tavily.com</a></li>
+          <li><span data-i18n="key_guide_step3_form">Paste both keys into this form, choose DeepSeek and Tavily, enter deepseek-chat as the model, and start.</span></li>
+        </ol>
+      </details>
       <!-- What a provider said about the keys, for a signed-in account
            saving them. Never a dead end: the same keys can be saved anyway. -->
       <p class="gate__error" id="byok-error" role="alert" hidden></p>

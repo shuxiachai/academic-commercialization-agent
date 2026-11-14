@@ -49,6 +49,18 @@ SCENARIOS = (
     # name the form; and what the landing's own sample list says of each.
     "create_account_link", "sign_in_link", "create_account_link_when_sign_up_is_closed",
     "another_fragment_opens_nothing",
+    # The landing is shown before the access check answers, and corrected by it.
+    "landing_before_the_check_answers", "a_button_pressed_before_the_answer_opens_its_form_after_it",
+    "the_last_press_before_the_answer_is_the_one_kept", "a_press_before_the_answer_where_sign_up_is_closed",
+    "the_link_from_a_sample_waits_for_the_answer_too", "early_landing_gives_way_to_an_open_deployment",
+    "early_landing_gives_way_to_the_code_card", "early_landing_gives_way_when_the_check_cannot_be_reached",
+    "keys_in_this_tab_never_see_the_landing", "unreadable_keys_never_see_the_landing",
+    # A sample's scorecard, drawn by the page, where a picture of one used to be.
+    "preview_that_cannot_be_read_is_a_quiet_line", "a_scorecard_that_arrives_after_the_landing_left_is_not_drawn",
+    # The card's sign-in mode, without what only creating an account needs.
+    "the_card_in_sign_in_mode_says_only_what_signing_in_needs",
+    # "Get both keys in 3 steps" where the first assessment is free.
+    "the_key_guide_under_the_keys_form_knows_a_free_run_is_left",
 )
 
 
@@ -80,15 +92,16 @@ def test_the_landing_is_in_the_page_before_the_workbench():
     # The buttons are buttons: the card they open is in this document, not another page.
     assert re.search(r'<button type="button"[^>]*id="landing-create"', landing)
     assert re.search(r'<button type="button"[^>]*id="landing-sign-in"', landing)
-    # What a finished report looks like, as a picture of a real one; the file
-    # is a crop of assets/screenshot-results.png and is served with the page.
-    # The address sits in data-src and app.js sets src when the landing shows,
-    # so a visit that never shows it (signed in, a deep link, a code
-    # deployment) never requests it. A hidden image is fetched all the same,
-    # lazy or not, and e2e/source_locator_production_smoke.py counts requests.
-    assert re.search(r'<img id="landing-preview" data-src="/static/brand/report-preview.png" width="\d+" height="\d+"\s+alt="[^"]{20,}"', landing)
-    assert 'src="/static/brand/report-preview.png"' not in landing.replace("data-src=", "")
-    assert (_WEB / "static/brand/report-preview.png").stat().st_size > 10_000
+    # What a finished report looks like: a place for one sample's scorecard,
+    # which app.js draws when the landing shows, and a line for when it cannot.
+    # It was a 900 px picture of a dark scorecard until 2026-11-13; no picture
+    # of one is served any more, so there is nothing to go stale or to shrink.
+    figure = landing[landing.index('<figure class="landing__figure">'):landing.index("</figure>")]
+    assert re.search(r'<div class="landing__preview" id="landing-preview" data-state="loading"></div>', figure)
+    assert re.search(r'<p class="landing__preview-note" id="landing-preview-note" data-i18n="landing_preview_unavailable" hidden>', figure)
+    assert "<img" not in figure and "report-preview" not in _INDEX
+    assert not (_WEB / "static/brand/report-preview.png").exists()
+    assert figure.index('id="landing-preview"') < figure.index("<figcaption")
     assert 'id="landing-retention"' in landing
 
 
@@ -139,6 +152,40 @@ def test_the_landing_text_served_before_the_script_is_the_text_that_replaces_it(
         assert " ".join(html.unescape(text).split()) == english[key], key
 
 
+def test_the_scorecard_on_the_landing_is_the_run_its_caption_dates():
+    """The caption says "A real run from November 2026". The scorecard above
+    it is one named sample's, so the two are held together here: a different
+    sample, or that sample replaced by a later run, fails until the caption
+    is looked at again."""
+    from api import samples
+
+    slug = re.search(r'const LANDING_PREVIEW_SAMPLE = "([a-z0-9-]+)";', _APP)[1]
+    sample = next(entry for entry in samples.SAMPLES if entry.slug == slug)
+    assert sample.committed.startswith("2026-11-"), sample
+    assert "November 2026" in _landing_strings("English")["landing_figure_caption"]
+    assert "2026 年 11 月" in _landing_strings("Simplified Chinese")["landing_figure_caption"]
+    # The scores it draws are the ones the sample page serves, and they are readable.
+    scores = samples.read_sample_scores(slug)
+    assert isinstance(scores.get("overall_score"), int | float) and 0 <= scores["overall_score"] <= 100
+
+
+def test_the_card_is_served_in_its_sign_in_mode():
+    """The form is one for both modes and app.js paints the mode. What the
+    markup carries before that is the sign-in mode, so nothing that belongs
+    to creating an account can show for the moment the script has not run."""
+    form = _INDEX[_INDEX.index('<form id="account-form"'):]
+    form = form[:form.index("</form>")]
+    for element in ("account-sub", "account-sub-trial", "account-legal"):
+        assert re.search(rf'<p class="gate__(?:sub|hint)" id="{element}"[^>]*\shidden>', form), element
+    assert re.search(r'id="account-password"[^>]*autocomplete="current-password"[^>]*'
+                     r'data-i18n-placeholder="account_password_plain" placeholder="Password">', form, re.S)
+    english, chinese = _STRINGS.split('"Simplified Chinese": {', 1)
+    assert '    account_password_plain: "Password",' in english
+    assert '    account_password_plain: "密码",' in chinese
+    # The rule is still said where a password is chosen.
+    assert '    account_password_placeholder: "Password (at least 10 characters)",' in english
+
+
 def test_the_card_can_be_put_down_again_from_the_landing():
     gate = _INDEX[_INDEX.index('id="gate"'):]
     assert re.search(r'<button type="button"[^>]*id="gate-back"[^>]*hidden>', gate)
@@ -182,11 +229,13 @@ def test_the_way_in_says_what_a_run_takes_and_what_a_trial_spares():
     """Measured 2026-11-09 to 2026-11-11: 343 to 833 seconds a run, about
     105,000 tokens. The card said "about 15 minutes" and "about 70,000"; and
     with a first assessment on the deployment's keys it must not still say
-    that every run is paid for with keys the newcomer brings."""
+    that every run is paid for with keys the newcomer brings. Since
+    2026-11-14 the cost is said in money, not tokens (tests/test_run_costs.py)."""
     assert "about 15 minutes" not in _STRINGS and "about 15 minutes" not in _INDEX
     assert "约 15 分钟" not in _STRINGS
     assert _STRINGS.count("6 to 15 minutes") >= 3 and _STRINGS.count("6 到 15 分钟") >= 3
-    assert "about 70,000" not in _STRINGS and "about 100,000 model tokens" in _STRINGS
+    assert "about 70,000" not in _STRINGS and "model tokens" not in _STRINGS
+    assert _STRINGS.count("    landing_pay_cost: ") == 2
     for element in ('id="landing-trial"', 'id="account-sub"', 'id="account-sub-trial"'):
         assert element in _INDEX, element
     for key in ("landing_trial", "account_sub_trial"):
