@@ -193,3 +193,33 @@ request. Nothing above is changed.
 - **How the stop rules are applied.** `collect.py` has no stop rule of its own. A driver runs it one case at a time with `--only` and starts no case once the live web searches counted in the finished cases' `calls.json` reach 300. For Part S a watcher sums `usage.total_tokens` over the finished units' `meta.json` in both batches and ends the runner at 2.6 million.
 - **No trial request.** Nothing is sent ahead of the first unit to try the model: such a request is not in the approved budget. If the first unit fails on the model's name or allowance before any crew answer, the batch stops there and is reported. The remaining units are then not run, and are not recorded as failures.
 - **Where the files are.** Each arm's registries go under this branch's `outputs/benchmark-runs/market-selection-v1/`, and each benchmark batch under its own checkout's `outputs/benchmark-runs/market-selection-v1-<arm>/`. The request record is kept outside the repository while the arms run. All of it is copied to the main checkout's private `outputs/benchmark-runs/` when the runs finish.
+
+## Amendment during Part S
+
+Added 2026-11-14 (UTC), after Part R was read and after the old arm of Part S
+stopped. No new-arm unit had run, so no score of the new arm had been seen.
+The Part R protocol and its bars are unchanged.
+
+**What happened.** The old arm ran on `deepseek-v4.1-flash-1017` as
+registered. Three units finished (V01, V03 and V07, first repeat). The
+writer's answer for V06 was cut at the model's output limit. From the fifth
+unit on, the provider refused every request: the model's free allowance was
+exhausted and the account is set to use the free tier only. The new arm
+could not run on that model at all.
+
+**A defect in the watcher, twice.** Its first version read the benchmark's
+"running" status as a failure and ended the first unit within a minute of its
+start; the old arm was restarted as `market-selection-v1-old-b`, and the
+ended unit's unrecorded requests are counted against the stop rule as 60,000
+tokens, an upper estimate. Its second version stopped only when the *first*
+unit failed on the allowance, so five later units were started and refused at
+their first request. Both are faults of the runner, not readings.
+
+**What changes, by the maintainer's decision of 2026-11-14.**
+
+- **Model.** Part S runs on `glm-5` through the same `qwen` transport, both arms from the start. This project has no earlier reading of `glm-5` on these topics. The three finished old-arm units on the first model are reported beside the result and take no part in the comparison.
+- **Order.** The maintainer asked for two repeats per arm. The allowance named for `glm-5` is about one million tokens, and twenty units need about 1.9 million at the 97,000 a unit measured above. So the units run in an order that leaves whole pairs whenever the allowance ends: repeat 1 of each case, old arm then new arm (V01, V03, V06, V07, V09), then repeat 2 in the same order. Each unit is its own batch, `ms-v1-glm5-<arm>-<case>-r<n>`.
+- **Stop.** Everything stops at the first unit the provider refuses for its allowance, and at the registered 2.6 million tokens, counting about 450,000 for the first model's units, recorded and estimated. A unit refused for the allowance is not a reading and is not counted as a failed unit.
+- **S1.** Read on complete pairs only. With every case paired once: the new arm has at most one fewer unit inside its frozen range, of 5, which is the smaller reading registered above. With every case paired twice: at most two fewer, of 10, and the comparison against run-to-run variation is available. A second repeat that covers only some cases is reported and is not counted in S1.
+- **S2 and every other reading** are unchanged, as is the rule that no failed unit is retried. A unit that fails in the model's own output (a cut or empty answer, a contract not met) leaves its pair incomplete; the pair is then reported and not counted in S1. When the old-arm unit of a pair fails, the pair's new-arm unit is not run: the allowance is short, and the pair could not be counted.
+- **A unit's time.** A unit still running after 30 minutes is ended and recorded as stopped by the runner. The registered protocol set no limit; the deployment's own budget for a run is 25 minutes.

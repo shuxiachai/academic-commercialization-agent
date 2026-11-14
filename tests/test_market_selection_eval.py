@@ -205,3 +205,30 @@ def test_the_comparison_reads_both_arms_and_lists_what_must_be_read(tmp_path):
     assert "| V06 | 4 -> 3 | 1 -> 0 | 3 -> 2 | 1 -> 0 | 4 -> 2 | NO / yes |" in text
     assert "Cases compared: 1 of 2." in text and f"- only the new arm lists: {fresh}" in text
     assert f"- note: {note}" in text and "not comparable" in text
+
+
+def test_a_case_whose_only_change_is_a_date_is_still_on_the_reading_list(tmp_path):
+    """The first run of the protocol hid two dates this way: the case had no note and no source swapped."""
+    release = "https://finance.yahoo.com/news/global-wave-energy-converter-market-160000665.html"
+    fresh = "https://www.prnewswire.com/news-releases/wave-energy-converter-market-302909727.html"
+    arms = {
+        "old": _registry([(release, "Wave Energy Converter Market Size", None)]),
+        "new": _registry([(release, "Wave Energy Converter Market Size", "2024-02-12")]),
+    }
+    for arm, registry in arms.items():
+        run = tmp_path / arm / "N07"
+        run.mkdir(parents=True)
+        (run / "validated_sources.json").write_text(json.dumps(registry), encoding="utf-8")
+        (run / "calls.json").write_text("{}", encoding="utf-8")
+    row = compare.compare_case(tmp_path, "N07")
+    assert (row["only_old"], row["only_new"], row["new_arm_notes"]) == ([], [], [])
+    text = compare.render([row])
+    assert "### N07" in text
+    assert f"- a date the old arm does not give: 2024-02-12 {release}" in text
+
+    # A dated source only the new arm lists is a date to check as well.
+    arms["new"]["market_sources"].append(
+        {"url": fresh, "title": "Wave Energy Converter Market worth", "evidence_summary": "", "published_date": "2026-10-15"})
+    (tmp_path / "new" / "N07" / "validated_sources.json").write_text(json.dumps(arms["new"]), encoding="utf-8")
+    row = compare.compare_case(tmp_path, "N07")
+    assert [entry["published_date"] for entry in row["newly_dated"]] == ["2024-02-12", "2026-10-15"]

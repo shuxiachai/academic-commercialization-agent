@@ -77,8 +77,9 @@ def compare_case(out: Path, case: str) -> dict | None:
         "only_old": [{"url": url, "title": row["title"]} for url, row in old_urls.items() if url not in new_urls],
         "only_new": [{"url": url, "title": row["title"], "published_date": row.get("published_date")}
                      for url, row in new_urls.items() if url not in old_urls],
+        # A date the old arm does not give: for a source both arms list, or one only the new arm lists.
         "newly_dated": [{"url": url, "published_date": row["published_date"]} for url, row in new_urls.items()
-                        if row.get("published_date") and url in old_urls and not old_urls[url].get("published_date")],
+                        if row.get("published_date") and not (old_urls.get(url) or {}).get("published_date")],
         "new_arm_notes": notes,
         "academic_identical": _keys(old["academic_sources"]) == _keys(new["academic_sources"]),
         "patent_identical": _keys(old["patent_sources"]) == _keys(new["patent_sources"]),
@@ -112,13 +113,14 @@ def render(rows: list[dict]) -> str:
             f"{sum(1 for r in done if r[arm]['market_domain_failed'])} cases lost the market domain.")
     lines += ["", "## To read", ""]
     for row in done:
-        if not (row["new_arm_notes"] or row["only_new"] or row["only_old"]):
+        if not (row["new_arm_notes"] or row["only_new"] or row["only_old"] or row["newly_dated"]):
             continue
         lines.append(f"### {row['case']}")
         lines += [f"- note: {note}" for note in row["new_arm_notes"]]
         lines += [f"- only the old arm lists: {entry['url']}" for entry in row["only_old"]]
         lines += [f"- only the new arm lists: {entry['url']}" for entry in row["only_new"]]
-        lines += [f"- dated only by the new arm: {entry['published_date']} {entry['url']}" for entry in row["newly_dated"]]
+        lines += [f"- a date the old arm does not give: {entry['published_date']} {entry['url']}"
+                  for entry in row["newly_dated"]]
         lines.append("")
     return "\n".join(lines)
 
