@@ -182,3 +182,14 @@ Raw registries, the request record and the benchmark outputs stay private
 (`outputs/benchmark-runs/market-selection-v1*`, not committed). The result
 goes in `docs/results-<date the runs finish>-market-selection-v1.md`, with
 every bar read as registered and nothing re-scored.
+
+## Amendment before the first run
+
+Added 2026-11-14 (UTC), after the maintainer's approval and before any
+request. Nothing above is changed.
+
+- **Approval.** The maintainer approved the budget on 2026-11-14 with **two repeats per arm**: 20 units, stop at 2.6 million tokens. No other model was named, so Part S runs on `deepseek-v4.1-flash-1017`.
+- **Access date.** Both arms collect with `--accessed 2026-11-14`.
+- **How the stop rules are applied.** `collect.py` has no stop rule of its own. A driver runs it one case at a time with `--only` and starts no case once the live web searches counted in the finished cases' `calls.json` reach 300. For Part S a watcher sums `usage.total_tokens` over the finished units' `meta.json` in both batches and ends the runner at 2.6 million.
+- **No trial request.** Nothing is sent ahead of the first unit to try the model: such a request is not in the approved budget. If the first unit fails on the model's name or allowance before any crew answer, the batch stops there and is reported. The remaining units are then not run, and are not recorded as failures.
+- **Where the files are.** Each arm's registries go under this branch's `outputs/benchmark-runs/market-selection-v1/`, and each benchmark batch under its own checkout's `outputs/benchmark-runs/market-selection-v1-<arm>/`. The request record is kept outside the repository while the arms run. All of it is copied to the main checkout's private `outputs/benchmark-runs/` when the runs finish.
