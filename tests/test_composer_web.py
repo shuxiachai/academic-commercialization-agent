@@ -84,14 +84,15 @@ def test_an_account_saving_keys_is_told_what_the_providers_said(outcome):
     assert "PASS account_keys" in result.stdout
 
 
-@pytest.mark.parametrize("kind", ["ticked", "unticked", "untick_later", "refused", "visitor", "new_tab",
-                                  "other_account", "sign_out"])
+@pytest.mark.parametrize("kind", ["ticked", "unticked", "untick_later", "declined_here", "refused", "visitor",
+                                  "new_tab", "other_account", "sign_out"])
 def test_an_account_may_keep_its_keys_on_its_device(kind):
     """Keys lived in the open tab only, so an account pasted them on every visit.
 
-    With a tick that starts unticked, the page keeps a copy in this browser
-    for that account: a new tab has them again, another account does not get
-    them, and saving without the tick or signing out removes them.
+    With a tick that starts ticked and can be unticked, the page keeps a copy
+    in this browser for that account: a new tab has them again, another
+    account does not get them, and saving without the tick or signing out
+    removes them. A device where the box was unticked keeps it unticked.
     """
     node = shutil.which("node")
     assert node, "Node is required for the remembered-keys seam"

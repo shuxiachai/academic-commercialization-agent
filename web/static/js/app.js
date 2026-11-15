@@ -2291,11 +2291,14 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     // "Get both keys in 3 steps": with a free assessment still to use, the
     // steps are for the ones after it and one line says so.
     $("#byok-key-guide-trial").hidden = !(account && trialPays());
-    // Keeping keys on this device is an account's choice, off until ticked;
-    // the tick shows whether this account is keeping any now. A visitor with
-    // keys alone has no account to keep them for and is not offered it.
+    // Keeping keys on this device is an account's choice, and the box starts
+    // ticked: an account is otherwise asked for its keys on every visit.
+    // It opens unticked only where this device was told not to keep keys
+    // (the box was unticked at an earlier save), unless a copy is in fact
+    // being kept for this account. A visitor with keys alone has no account
+    // to keep them for and is not offered it.
     $("#byok-remember-row").hidden = !account;
-    $("#byok-remember").checked = account && api.byokRemembered(accountEmail);
+    $("#byok-remember").checked = account && (api.byokRemembered(accountEmail) || api.byokRememberWanted());
     clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
@@ -2625,6 +2628,8 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         invalidateSidebar();
         // Kept on this device only with the tick; saving without it stops
         // keeping what was kept before. The tab has its keys either way.
+        // The choice is what the form opens with next time on this device.
+        api.setByokRememberWanted($("#byok-remember").checked);
         if ($("#byok-remember").checked) {
           if (!api.rememberByok(creds, accountEmail)) toast(t("byok_remember_failed"), "error");
         } else {

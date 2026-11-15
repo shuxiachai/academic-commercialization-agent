@@ -542,6 +542,12 @@ const scenarios = {
     // A signed-in account saving keys: the providers are asked first, their
     // refusal is advice and never a dead end, and no answer never blocks.
     const outcome = process.argv[3];
+    // A browser whose storage works, as an account's does: the form's
+    // "Remember" box starts ticked, and the default stand-in above cannot be
+    // written to, which is the refused-write case (remembered_keys, refused).
+    const browser = (map = new Map()) => ({ getItem: (key) => map.get(key) ?? null,
+      setItem: (key, value) => { map.set(key, String(value)); }, removeItem: (key) => { map.delete(key); } });
+    globalThis.localStorage = browser(); globalThis.sessionStorage = browser();
     const f = fixture();
     f.run(`accountMode = true; accountEmail = 'a@example.com';
       authConfig = { enabled: true, key_check: ${outcome !== 'off'} }`);
@@ -640,13 +646,23 @@ const scenarios = {
       account();
       const gate = f.run('showGate(null, { keysOnly: true })');
       assert.equal(row.hidden, false, 'An account is offered the choice');
-      assert.equal(box.checked, false, '...and it starts unticked');
-      if (kind === 'ticked') box.checked = true;
+      // Since 2026-11-15 the box starts ticked for an account that has not
+      // said otherwise: asked for again on every visit was the complaint,
+      // and an option nobody finds does not answer it.
+      assert.equal(box.checked, true, '...and it starts ticked');
+      if (kind === 'unticked') box.checked = false;
       fill(); await send(); await gate;
       assert.deepEqual(api.getByok(), keys);
       assert.deepEqual(kept(), kind === 'ticked' ? { owner: 'a@example.com', creds: keys } : null);
       assert.equal(f.get('#toasts').children.length, 0);
       assert.equal(f.requests.length, 0, 'Keeping keys asks the server nothing');
+      // The form opened again shows what was chosen, not the default: someone
+      // who unticked the box is not ticked back in, or their next save (a
+      // changed model, say) would start keeping keys they declined to keep.
+      box.checked = kind !== 'ticked';
+      const again = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(box.checked, kind === 'ticked', 'The choice made is the one shown next time');
+      f.get('#byok-skip').onclick(); await again;
     } else if (kind === 'untick_later') {
       api.rememberByok(keys, 'a@example.com'); account();
       const gate = f.run('showGate(null, { keysOnly: true })');
@@ -654,6 +670,22 @@ const scenarios = {
       box.checked = false; fill(); await send(); await gate;
       assert.equal(kept(), null, 'Saving without the tick stops keeping them');
       assert.deepEqual(api.getByok(), keys, '...and the tab still has what was just saved');
+      const again = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(box.checked, false, '...and the box stays unticked from then on');
+      // Ticking it again is a choice too, and is kept the same way.
+      box.checked = true; fill(); await send(); await again;
+      assert.deepEqual(kept(), { owner: 'a@example.com', creds: keys });
+      const third = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(box.checked, true);
+      f.get('#byok-skip').onclick(); await third;
+    } else if (kind === 'declined_here') {
+      // This device was told not to keep keys; the account then signed out.
+      // Signing in again, here, does not tick the box back in.
+      api.setByokRememberWanted(false); account();
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(box.checked, false, 'A device that declined stays declined across sign-ins');
+      fill(); await send(); await gate;
+      assert.equal(kept(), null);
     } else if (kind === 'refused') {
       account();
       const gate = f.run('showGate(null, { keysOnly: true })');

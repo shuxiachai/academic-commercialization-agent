@@ -940,10 +940,13 @@ with each request exactly as the bring-your-own-key path always sent them.
 The server never stores an account's keys; the browser keeps them in session
 storage and the page says so. Session storage ends with the tab, so an
 account was asked for its keys again on every visit. The key form therefore
-offers a signed-in account "Remember these keys on this device", unticked
-until the account ticks it: a copy is then kept in the browser's local
-storage, unencrypted, under the account's address, and a new tab of the same
-account reads it back. The copy is removed on sign-out, when keys are saved
+offers a signed-in account "Remember these keys on this device". The box
+starts ticked (it shipped unticked in #407 and was changed the same day:
+an option that has to be found did not answer the complaint). Saving with
+it ticked keeps a copy in the browser's local storage, unencrypted, under
+the account's address, and a new tab of the same account reads it back. A
+device where the box was unticked at a save opens the form unticked from
+then on, recorded as a mark that holds no key and survives sign-out. The copy is removed on sign-out, when keys are saved
 without the tick, when the account is deleted, and when a different account
 signs in on that browser, which is not handed it. The server is not involved
 and still holds no key. A signed-in request without keys is refused

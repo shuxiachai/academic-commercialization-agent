@@ -81,7 +81,7 @@
     <p>Each assessment has a long random address. Anyone who has that address can read the assessment without signing in, which is what lets you share a report. Cancelling, deleting or resuming an assessment made under an account needs that account. Share the link only with people who should read the report.</p>
 
     <h2>Your browser</h2>
-    <p>The page keeps your language choice and your sign-in session in the browser's local storage, and your API keys in session storage for the open tab. If you are signed in and tick "Remember these keys on this device", a copy of the keys is also kept in local storage, unencrypted, so that a new tab has them. That copy is removed when you sign out, when you save keys without the tick, when you delete your account, and when another account signs in on the same browser. There are no cookies. Nothing on the page loads from another site.</p>
+    <p>The page keeps your language choice and your sign-in session in the browser's local storage, and your API keys in session storage for the open tab. If you are signed in, a copy of the keys is also kept in local storage, unencrypted, so that a new tab has them, unless you untick "Remember these keys on this device" when you save them. That copy is removed when you sign out, when you save keys without the tick, when you delete your account, and when another account signs in on the same browser. Unticking the box is itself remembered in local storage, as a mark that holds no key. There are no cookies. Nothing on the page loads from another site.</p>
 
     <h2>Operational records</h2>
     <p>The server logs each request's path and result, without its body, your keys or your password. Where the operator has enabled tracing, it records timings and outcomes of each stage; it excludes your topic, your text, prompts and keys.</p>
@@ -153,7 +153,7 @@
     <p>每条评估有一个很长的随机地址。拿到这个地址的人无需登录就能阅读该评估，这也是报告可以分享的原因。取消、删除或恢复账号名下的评估需要登录该账号。请只把链接发给应该读到报告的人。</p>
 
     <h2>你的浏览器</h2>
-    <p>页面把语言选择和登录会话保存在浏览器的本地存储里，把 API Key 保存在当前标签页的会话存储里。如果你已登录并勾选“在这台设备上记住这些密钥”，密钥还会以未加密的形式在本地存储里另存一份，新开的标签页可以直接使用。退出登录、不勾选再次保存、删除账号，或有另一个账号在同一浏览器登录时，这份副本会被删除。没有 Cookie，页面上没有任何内容从其他网站加载。</p>
+    <p>页面把语言选择和登录会话保存在浏览器的本地存储里，把 API Key 保存在当前标签页的会话存储里。如果你已登录，密钥还会以未加密的形式在本地存储里另存一份，新开的标签页可以直接使用；保存时取消勾选“在这台设备上记住这些密钥”则不会另存。退出登录、不勾选再次保存、删除账号，或有另一个账号在同一浏览器登录时，这份副本会被删除。取消勾选这一选择本身也记在本地存储里，只是一个不含密钥的标记。没有 Cookie，页面上没有任何内容从其他网站加载。</p>
 
     <h2>运行记录</h2>
     <p>服务器日志记录每个请求的路径和结果，不记录请求内容、密钥或密码。运营者启用追踪时，会记录各阶段的耗时与结果，其中不包含你的主题、文本、提示词和密钥。</p>
