@@ -44,7 +44,7 @@ def test_byok_recovery_keeps_the_new_child_in_session_history() -> None:
 
 def test_resume_button_depends_on_a_persisted_retrieval_checkpoint() -> None:
     assert 'checkpointing?.committed_nodes?.includes("retrieval")' in _APP_JS
-    assert "paintActions(progress.state, progress.checkpointing)" in _APP_JS
+    assert "paintActions(progress.state, progress.checkpointing, mayModify(progress))" in _APP_JS
 
 
 def test_reuse_and_degradation_reach_the_visible_run_header() -> None:

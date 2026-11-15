@@ -59,6 +59,12 @@ SCENARIOS = (
     "preview_that_cannot_be_read_is_a_quiet_line", "a_scorecard_that_arrives_after_the_landing_left_is_not_drawn",
     # The card's sign-in mode, without what only creating an account needs.
     "the_card_in_sign_in_mode_says_only_what_signing_in_needs",
+    # The run header's fold for the model, the revision and a plain completion.
+    "the_header_folds_what_only_a_maintainer_reads",
+    # Whose run it is: the owner's actions, and a signed-in reader's.
+    "the_owners_actions_keep_the_rare_ones_behind_more",
+    "a_signed_in_reader_of_someone_elses_run_is_told_so_and_offered_no_owner_action",
+    "what_the_server_says_decides_and_a_run_with_no_owner_is_this_tabs_or_not",
     # "Get both keys in 3 steps" where the first assessment is free.
     "the_key_guide_under_the_keys_form_knows_a_free_run_is_left",
 )
@@ -167,6 +173,26 @@ def test_the_scorecard_on_the_landing_is_the_run_its_caption_dates():
     # The scores it draws are the ones the sample page serves, and they are readable.
     scores = samples.read_sample_scores(slug)
     assert isinstance(scores.get("overall_score"), int | float) and 0 <= scores["overall_score"] <= 100
+
+
+def test_every_repaint_of_a_runs_actions_is_told_whose_run_it_is():
+    """The scenarios above call the painter with the answer in hand. What
+    gives it the answer on the page is the three places that repaint a run's
+    actions, each passing what the status just said (`mayModify`). One of
+    them painting without it would offer a reader the owner's buttons until
+    the next poll, or for good on a finished run, which is polled once."""
+    calls = re.findall(r"^\s+paintActions\(([^;]*)\);$", _APP, re.M)
+    assert calls == ['known?.state ?? "unknown", known?.checkpointing, mayModify(known)',
+                     "progress.state, progress.checkpointing, mayModify(progress)",
+                     "progress.state, progress.checkpointing, mayModify(progress)"], calls
+    # The notice is in the page, hidden until a reader's status says to show it.
+    assert re.search(r'<p class="run-shared" id="run-shared" hidden>', _INDEX)
+    assert re.search(r'<button type="button" class="run-shared__new" id="run-shared-new" data-i18n="shared_new">', _INDEX)
+    english, chinese = _STRINGS.split('"Simplified Chinese": {', 1)
+    for table, words in ((english, ("shared with you", "only its owner can change it")), (chinese, ("分享给你", "只有它的所有者可以改动"))):
+        note = re.search(r'^\s+shared_note: "([^"]+)"', table, re.M)[1]
+        for word in words:
+            assert word in note, note
 
 
 def test_the_card_is_served_in_its_sign_in_mode():

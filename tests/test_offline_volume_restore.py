@@ -532,7 +532,7 @@ def _read_auxiliary(volume, root, readers, *, expected_run=None, expected_pdf=No
     request = readers.Request({"type": "http", "headers": [
         (b"idempotency-key", _key(2).encode("ascii")), (b"x-access-code", CODE.encode("ascii"))]})
     for _ in range(2):
-        for response in (readers.get_run(RUN_ID), readers.get_progress(RUN_ID, since=0)):
+        for response in (readers.get_run(RUN_ID, request), readers.get_progress(RUN_ID, request, since=0)):
             body = response.model_dump(mode="json")
             assert body["auxiliary_usage"] == expected_run
             assert body["state"] == "completed" and body["terminal"]["record_state"] == "committed"

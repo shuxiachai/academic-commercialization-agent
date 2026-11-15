@@ -11,6 +11,15 @@
   scrollbar-width: none;
 }
 .tabs::-webkit-scrollbar { display: none; }
+/* The strip scrolls sideways where it does not fit, with no scrollbar to say
+   so: the last tab was simply cut ("Rep"). The edge with more behind it
+   fades (result.js tabsOverflow sets which). */
+.tabs[data-more="end"] { mask-image: linear-gradient(to right, black calc(100% - 40px), transparent); }
+.tabs[data-more="start"] { mask-image: linear-gradient(to left, black calc(100% - 40px), transparent); }
+.tabs[data-more="both"] {
+  mask-image: linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
+}
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .tab {
   padding: var(--space-3) var(--space-4);

@@ -499,7 +499,6 @@
             <span id="run-eta"></span>
             <button type="button" class="run-notify" id="run-notify" hidden>· Notify me when done</button>
             <span id="run-sources"></span>
-            <span id="run-identity" class="tabular"></span>
             <details class="run-usage" id="run-usage-details" hidden>
               <summary id="run-usage-label">Usage &amp; cost</summary>
               <span id="run-usage" class="tabular"></span>
@@ -507,6 +506,18 @@
             <details class="run-usage" id="run-timing-details" hidden>
               <summary id="run-timing-label">Stage timing</summary>
               <span id="run-timing" class="tabular"></span>
+            </details>
+            <!-- What produced the run, for whoever needs it: the model, the
+                 code revision and, for a run that simply finished, the
+                 worker's own word for that. They stood in the header's
+                 first line ("deepseek-v4.1-flash-1017 · git:08d26f5 ·
+                 worker completed") in front of every reader. A run that
+                 ended any other way keeps its reason in the line itself:
+                 app.js moves #run-terminal in here only for a plain
+                 completion. -->
+            <details class="run-usage" id="run-tech-details" hidden>
+              <summary id="run-tech-label">Technical details</summary>
+              <span id="run-identity" class="tabular"></span>
             </details>
             <span id="run-terminal"></span>
             <span id="run-status-record"></span>
@@ -519,6 +530,14 @@
         </div>
         <div class="pane__actions" id="run-actions"></div>
       </header>
+      <!-- For a signed-in reader of someone else's run (app.js paintActions):
+           the run's link opens for whoever holds it, and the reads say
+           whether this caller may change it. An anonymous reader has the
+           viewer bar above, which says the same and offers the way in. -->
+      <p class="run-shared" id="run-shared" hidden>
+        <span data-i18n="shared_note">This assessment was shared with you. You can read it and keep a copy; only its owner can change it.</span>
+        <button type="button" class="run-shared__new" id="run-shared-new" data-i18n="shared_new">Assess a topic of your own</button>
+      </p>
 
       <div class="pane__body" id="run-body"></div>
     </section>

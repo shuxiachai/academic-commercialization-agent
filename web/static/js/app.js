@@ -289,7 +289,7 @@ function paintHeader({
   // assume today's model. Both values ride on the status payload already.
   const identity = runView.identitySummary(usage, pipeline_revision);
   const identityEl = $("#run-identity");
-  identityEl.textContent = identity ? `· ${identity}` : "";
+  identityEl.textContent = identity;
   identityEl.title = identity ? runView.headerLabel("identity_title") : "";
 
   // Shown for failed runs too: a run that died halfway still spent whatever
@@ -323,6 +323,19 @@ function paintHeader({
   const terminalSummary = runView.terminalSummary(terminal, state);
   terminalEl.textContent = terminalSummary ? `· ${terminalSummary}` : "";
   terminalEl.title = runView.terminalTitle(terminal, state);
+
+  // The model, the revision and a plain "worker completed" are for whoever
+  // needs them, under one fold. The state pill already says COMPLETED; the
+  // worker's word for it adds nothing a reader can use. Any other ending
+  // (an exception, a timeout, a record that is missing or cannot be read)
+  // is not folded: its reason stays in the line, where it always was. The
+  // element and its text are the same either way; only its place differs.
+  const plainCompletion = runView.isPlainCompletion(terminal, state);
+  const tech = $("#run-tech-details");
+  if (plainCompletion) tech.append?.(terminalEl);
+  else $("#run-status-record").before?.(terminalEl);
+  tech.hidden = !(identity || plainCompletion);
+  $("#run-tech-label").textContent = `· ${runView.headerLabel("tech_details")}`;
 
   // Why it ended and whether it spent one of today's runs, kept with the run
   // rather than in a toast that is gone before the page is read again.
@@ -454,9 +467,61 @@ function paintCancel() {
   liveCancel.button.textContent = t(pressed ? "cancelling" : "cancel");
 }
 
-function paintActions(state, checkpointing = null) {
+/* Whether this visitor may change the run on screen: cancel it, delete it,
+ * resume it. The server says so with the run's status (`viewer_can_modify`),
+ * by the rule that guards those requests themselves, so this only decides
+ * what to offer; a hidden button is a courtesy, not the boundary.
+ *
+ * Null means the run has no owner on record: a keys-only run, whose id is
+ * its only credential. The server cannot say whose it is. This tab can, for
+ * the runs it submitted itself, and treats any other as someone else's.
+ * No answer at all (no status yet, or a server older than the field) leaves
+ * things as they were before the field existed. */
+function mayModify(progress) {
+  const said = progress?.viewer_can_modify;
+  if (typeof said === "boolean") return said;
+  if (said === null) return api.getByokRuns().some((run) => run.run_id === activeRunId);
+  return true;
+}
+
+/* "More": the actions a finished run needs rarely, behind one button.
+ *
+ * Six buttons in two rows filled a phone's header, with Delete beside Copy
+ * link. The PDF and the link stay out; the rest are shown when More is
+ * pressed, in the same row of siblings, Delete last. A repaint (a poll, a
+ * change of language) keeps an opened More open; another run starts closed. */
+let moreOpenFor = null;
+
+function behindMore(actions, items) {
+  if (items.length < 2) {            // one extra action needs no button of its own
+    actions.append(...items);
+    return;
+  }
+  const runId = activeRunId;
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "btn btn--secondary run-more";
+  more.id = "run-more";
+  more.textContent = t("more_actions");
+  const show = (open) => {
+    more.setAttribute("aria-expanded", String(open));
+    for (const item of items) item.hidden = !open;
+  };
+  show(moreOpenFor === runId);
+  more.addEventListener("click", () => {
+    moreOpenFor = moreOpenFor === runId ? null : runId;
+    show(moreOpenFor === runId);
+  });
+  actions.append(more, ...items);
+}
+
+function paintActions(state, checkpointing = null, canModify = true) {
   const actions = $("#run-actions");
   actions.innerHTML = "";
+  // Said under the header to a signed-in reader of someone else's run. An
+  // anonymous reader has the viewer bar, which says the same and offers the
+  // way in.
+  $("#run-shared").hidden = canModify || viewerMode;
 
   if (viewerMode) {
     // Someone else's run: read it, keep it, pass it on. Nothing that changes
@@ -471,6 +536,11 @@ function paintActions(state, checkpointing = null) {
   // What was pressed belongs to that stretch of running, and ends with it.
   if (runView.isTerminalState(state)) cancelling.delete(activeRunId);
 
+  if (state === "running" && !canModify) {
+    // Someone else's assessment, still going: the link, and nothing that stops it.
+    actions.append(copyLinkButton());
+    return;
+  }
   if (state === "running") {
     const runId = activeRunId;
     const cancel = document.createElement("button");
@@ -505,10 +575,16 @@ function paintActions(state, checkpointing = null) {
 
   // Not another "New analysis" — that button already lives in the rail, one
   // click away and always visible. A finished run needs a way out of the
-  // browser instead.
-  if (state === "completed") actions.append(...reportDownloads());
+  // browser instead: the PDF stays in sight, the Markdown goes behind More.
+  const rare = [];
+  if (state === "completed") {
+    const [markdown, pdf] = reportDownloads();
+    actions.append(pdf);
+    rare.push(markdown);
+  }
 
-  const canResume = (
+  // Resuming restarts paid work on the owner's account or keys: the owner's.
+  const canResume = canModify && (
     new Set(["failed", "cancelled", "timeout"]).has(state)
     && checkpointing?.committed_nodes?.includes("retrieval")
   );
@@ -555,7 +631,9 @@ function paintActions(state, checkpointing = null) {
   again.type = "button";
   again.className = "btn btn--secondary";
   again.id = "run-again";
-  again.textContent = t("run_again");
+  // On someone else's run it is named for what it does: a new assessment of
+  // the reader's own, on this topic.
+  again.textContent = t(canModify ? "run_again" : "run_again_own");
   again.title = t("run_again_title");
   again.addEventListener("click", () => {
     const previous = $("#run-title").textContent.trim();
@@ -564,16 +642,24 @@ function paintActions(state, checkpointing = null) {
     syncComposer();
     topic.focus();
   });
-  actions.append(again, compareButton(), copyLinkButton());
-
-  // Only the known terminal states reaching here offer permanent removal.
-  const del = document.createElement("button");
-  del.type = "button";
-  del.className = "btn btn--danger";
-  del.textContent = t("delete_run");
-  del.addEventListener("click", () => handleDeleteRun(activeRunId, $("#run-title").textContent));
-  actions.append(del);
+  actions.append(copyLinkButton());
+  rare.push(again);
+  if (canModify) {
+    // Only the known terminal states reaching here offer permanent removal,
+    // and only to whoever the server would accept it from. Last in the row,
+    // behind More, and still behind its own confirmation.
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "btn btn--danger";
+    del.textContent = t("delete_run");
+    del.addEventListener("click", () => handleDeleteRun(activeRunId, $("#run-title").textContent));
+    rare.push(compareButton(), del);
+  }
+  behindMore(actions, rare);
 }
+
+// The notice's way out: an assessment of the reader's own.
+$("#run-shared-new").onclick = () => showCompose();
 
 /* ── Finish notice ─────────────────────────────────────────────────────
  * A run takes ten to twenty minutes and people switch tabs. When a run this
@@ -626,7 +712,7 @@ async function openRun(runId, { known } = {}) {
   const body = $("#run-body");
   body.innerHTML = "";
   paintHeader({ topic: known?.topic ?? "…", state: known?.state ?? "unknown" });
-  paintActions(known?.state ?? "unknown", known?.checkpointing);
+  paintActions(known?.state ?? "unknown", known?.checkpointing, mayModify(known));
   try { history.pushState({}, "", `/run/${runId}`); }
   catch {
     // Optional URL persistence cannot strand an accepted run before follow.
@@ -648,12 +734,12 @@ async function openRun(runId, { known } = {}) {
     onUpdate(progress) {
       if (progress.state === "running") watchedActive = true;
       paintHeader(progress);
-      paintActions(progress.state, progress.checkpointing);
+      paintActions(progress.state, progress.checkpointing, mayModify(progress));
       runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
     },
     onDone(progress) {
       paintHeader(progress);
-      paintActions(progress.state, progress.checkpointing);
+      paintActions(progress.state, progress.checkpointing, mayModify(progress));
       runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
       refreshSidebar();
 

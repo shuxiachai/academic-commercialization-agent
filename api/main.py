@@ -827,6 +827,47 @@ def _paid_owner(http_request: Request, *, byok: bool, detail: str, trial: bool =
     return None
 
 
+def _run_mutation_verdict(run_id: str, http_request: Request) -> bool | None:
+    """Whether this caller may cancel, delete or resume the run: the one rule.
+
+    True: they may. False: the run is someone else's. None: the run has no
+    owner on record, which a keys-only (BYOK) run never has: its submitter
+    holds no code or account to prove ownership with, so the id is the only
+    credential that exists for it, and whoever holds the id is accepted.
+    The server cannot say whose such a run is, and None says exactly that.
+
+    `_authorize_run_mutation` raises on this verdict and the run's reads
+    report it (`viewer_can_modify`), so what a page is told and what the
+    server enforces cannot drift apart. Raises `runs.OwnerMarkerUnreadable`
+    when the owner record exists and cannot be read; each caller decides
+    what that means for it.
+    """
+    if not identity.required():
+        return True                 # nothing configured to authorize against
+
+    who = identity.resolve(http_request)
+    if who.is_admin:
+        return True
+    owner = runs.owner_of(run_id)
+    if owner is None:
+        return None
+    return who.tag == owner
+
+
+def _viewer_can_modify(run_id: str, http_request: Request) -> bool | None:
+    """The verdict above, for a read to report.
+
+    A read is not a mutation and must not fail because the owner record
+    cannot be read. That state means authorization could not be established,
+    so the page is told False, and offers nothing it could not be sure of;
+    the mutation itself still answers 503 there, as before.
+    """
+    try:
+        return _run_mutation_verdict(run_id, http_request)
+    except runs.OwnerMarkerUnreadable:
+        return False
+
+
 def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
     """Require proof of ownership before mutating or restarting a run.
 
@@ -839,15 +880,8 @@ def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
     confirm to a caller probing ids that a given run exists. Capability URLs
     are credentials, but their entropy is not a reason to leak their validity.
     """
-    if not identity.required():
-        return                      # nothing configured to authorize against
-
-    who = identity.resolve(http_request)
-    if who.is_admin:
-        return
-
     try:
-        owner = runs.owner_of(run_id)
+        verdict = _run_mutation_verdict(run_id, http_request)
     except runs.OwnerMarkerUnreadable as exc:
         # Missing means an intentionally ownerless capability; unreadable means
         # authorization could not be established. Returning 503 keeps those
@@ -857,14 +891,9 @@ def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
             status_code=503,
             detail="Run authorization is temporarily unavailable. Retry later.",
         ) from exc
-    if owner is None:
-        # A BYOK run carries no owner tag by design, and its submitter holds
-        # no code to prove ownership with — the id is the only credential
-        # that exists for it, so it stays the credential here too. Nothing
-        # else in the deployment references these runs.
-        return
-
-    if who.tag != owner:
+    # None is a run with no owner on record (BYOK): its id stays the
+    # credential here too. Nothing else in the deployment references these runs.
+    if verdict is False:
         raise HTTPException(status_code=404, detail=f"No run with id {run_id}")
 
 
@@ -2251,12 +2280,13 @@ def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200
     tags=["runs"],
     responses={404: {"description": "Unknown run_id"}},
 )
-def get_run(run_id: str) -> RunStatus:
+def get_run(run_id: str, http_request: Request) -> RunStatus:
     """Current stage and state. Poll this while `state` is `running`."""
     try:
-        return RunStatus(**runs.get_state(run_id))
+        state = runs.get_state(run_id)
     except runs.RunNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return RunStatus(**state, viewer_can_modify=_viewer_can_modify(run_id, http_request))
 
 
 @app.delete(
@@ -2384,7 +2414,7 @@ def get_report(
     tags=["runs"],
     responses={404: {"description": "Unknown run_id"}},
 )
-def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgress:
+def get_progress(run_id: str, http_request: Request, since: int = Query(default=0, ge=0)) -> RunProgress:
     """Status plus new step events, for a client polling during a run.
 
     `since` is the physical-line cursor returned as `steps_next_cursor`, not
@@ -2401,6 +2431,8 @@ def get_progress(run_id: str, since: int = Query(default=0, ge=0)) -> RunProgres
 
     return RunProgress(
         run_id=run_id,
+        # About the caller, not the run: computed here, never stored with it.
+        viewer_can_modify=_viewer_can_modify(run_id, http_request),
         state=state["state"],
         status_record_state=state.get("status_record_state"),
         audit_metadata_unreadable=state.get("audit_metadata_unreadable", []),
