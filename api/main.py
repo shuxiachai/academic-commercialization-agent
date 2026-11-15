@@ -1645,14 +1645,18 @@ if _WEB_ROOT.is_dir():
     @app.get("/compare/{run_id}/{other_run_id}", include_in_schema=False)
     @app.get("/verify", include_in_schema=False)
     @app.get("/reset", include_in_schema=False)
-    def _spa(run_id: str = "", other_run_id: str = "") -> Response:
+    def _spa(http_request: Request, run_id: str = "", other_run_id: str = "") -> Response:
         """Serve the single page for every client-side route.
 
         Routing happens in the browser, so a deep link must return the same
         document rather than a 404 — the client reads the path and renders the
         matching view.
+
+        The link to the saved-source locator is added only where the locator
+        would open: it accepts one configured public origin, and until
+        2026-11-15 a page read at any other address linked to a 403.
         """
-        if _source_locator is None:
+        if _source_locator is None or not _source_locator.page_reachable(http_request):
             return FileResponse(_WEB_ROOT / "index.html", media_type="text/html")
         from academic_agent.saved_source_loader import valid_run_id
         marker = "<!-- SOURCE_LOCATOR_LINK -->"

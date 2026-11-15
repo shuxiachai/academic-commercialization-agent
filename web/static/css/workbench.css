@@ -136,6 +136,12 @@
   box-shadow: var(--shadow-md);
 }
 
+/* The shortcut is for a keyboard. On a touch screen the hint named a key
+   nobody there has, so it shows only where there is a pointer that hovers. */
+.kbd { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .kbd { display: inline-block; }
+}
 .kbd {
   margin-left: auto;
   padding: 0 6px;
@@ -348,6 +354,7 @@
   flex: 1;
   min-width: 0;
 }
+.capacity[hidden], .capacity__dots[hidden] { display: none; }
 .capacity__dots { display: flex; gap: 3px; }
 .capacity__dot {
   width: 6px; height: 6px;
@@ -1308,28 +1315,110 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   font-weight: 500;
 }
 .byok-badge #byok-exit,
-.byok-badge #code-exit,
-.byok-badge #account-manage,
-.byok-badge #account-keys,
-.byok-badge #account-console,
-.byok-badge #account-exit {
+.byok-badge #code-exit {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
   flex-shrink: 0;
   white-space: nowrap;
 }
-/* An email can be long; the badge keeps one line and lets it ellipsize. */
-.byok-badge--account #account-email {
-  min-width: 0;
+.workbench[data-collapsed="true"] .byok-badge { display: none; }
+
+/* ═══ Account menu ═════════════════════════════════════════════════════
+   One button at the foot of the rail and a menu that opens above it. Every
+   target is at least 44px tall, on a desk as on a phone: the three links
+   this replaces were a line of small underlined text. */
+.account-menu {
+  position: relative;
+  margin: 0 var(--space-4) var(--space-3);
+}
+.account-menu[hidden] { display: none; }
+.account-menu__button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.account-menu__button:hover,
+.account-menu__button[aria-expanded="true"] { border-color: var(--accent-border); }
+.account-menu__avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+/* The button keeps one line and lets a long address ellipsize; the menu shows it whole. */
+.account-menu__email {
   flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.workbench[data-collapsed="true"] .byok-badge { display: none; }
+.account-menu__caret { flex: none; width: 14px; height: 14px; color: var(--text-tertiary); }
+.account-menu__button[aria-expanded="true"] .account-menu__caret { transform: rotate(180deg); }
+.account-menu__list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + var(--space-1));
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-md);
+}
+.account-menu__list[hidden] { display: none; }
+.account-menu__who {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+.account-menu__who strong {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.account-menu__item {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+  text-decoration: none;
+}
+.account-menu__item[hidden] { display: none; }
+.account-menu__item:hover,
+.account-menu__item:focus-visible { background: var(--bg-hover); }
+#account-exit { color: var(--danger); }
+.workbench[data-collapsed="true"] .account-menu { display: none; }
 
-/* Under the account badge until the address is verified. */
+/* Under the account menu until the address is verified. */
 .verify-notice {
   display: flex;
   align-items: baseline;
@@ -1361,11 +1450,33 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   gap: var(--space-3);
 }
 #account-settings[hidden] { display: none; }
-#account-settings form + form {
-  margin-top: var(--space-3);
-  padding-top: var(--space-5);
+/* The title and Close on one line; then one part per thing the panel does. */
+.gate__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.gate__head .gate__title { margin: 0; outline: none; }
+.gate__head .gate__switch { align-self: baseline; margin-top: 0; }
+.gate__part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--border-subtle);
 }
+.gate__part[hidden] { display: none; }
+.gate__part form { display: flex; flex-direction: column; gap: var(--space-3); }
+.gate__part .btn { justify-content: center; }
+/* Deleting the account: last, and set apart, so it is not mistaken for the panel's purpose. */
+.gate__part--danger {
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+}
+.gate__part--danger .gate__section { color: var(--danger); }
 /* The sample-report link belongs to a visitor deciding whether to come in. */
 #account-settings:not([hidden]) ~ .gate__samples { display: none; }
 .gate__section {

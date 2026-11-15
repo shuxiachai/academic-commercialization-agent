@@ -20,7 +20,7 @@ from academic_agent.saved_source_usage import OperationContext
 from api import saved_source_accounting as accounting
 from api.maintenance import MaintenanceDeferred
 from api.saved_source_controller import SavedSourceController, _validated_snapshot
-from api.saved_source_production_assets import asset_response, page_response
+from api.saved_source_production_assets import asset_response, page_response, refusal_page
 from api.saved_source_production_origin import OriginPolicy, request_headers
 from api.saved_source_production_policy import ControlStore, Settings, _plain
 from api.saved_source_receipt_app import (
@@ -215,6 +215,18 @@ class SourceLocatorRuntime:
                 ("source_locator_accounting", self.prune_accounting),
                 ("source_locator_native", self.prune_native))
 
+    def page_reachable(self, request):
+        """Whether the locator's page would open for this request: what the
+        main page asks before it links to it. The same check the page itself
+        makes, so the link is offered exactly where it works: the request's
+        Host against the configured public origin, never a forwarding header.
+        An invalid configuration, which opens no page, offers no link."""
+        try:
+            self.origin_policy.check_page(request)
+        except ReceiptError:
+            return False
+        return True
+
     def feature_status(self):
         # Configuration observations only: no key discovery or disk probes in
         # health. Separate maintenance checks carry observed storage failures.
@@ -244,6 +256,20 @@ def _production_headers(request, origin_policy):
     if request.method == "POST" and consent != [CONSENT_VALUE]:
         raise ReceiptError("consent_required")
     return request_headers(request, origin_policy)
+
+
+def _page_refusal(request, code):
+    """A person who opened the page is told so in a page; a program gets the JSON it always got.
+
+    How the request describes itself picks the form of the refusal and
+    nothing else: the status, the code and the fact of refusal are the same.
+    A browser navigating says so (Sec-Fetch-Mode: navigate); one too old to
+    say it lists text/html among what it accepts. A script's fetch, a frame's
+    sub-resource and every other client are answered as before.
+    """
+    mode = request.headers.get("sec-fetch-mode")
+    navigating = mode == "navigate" if mode is not None else "text/html" in request.headers.get("accept", "")
+    return refusal_page(code) if navigating else _error(code)
 
 
 def register_routes(app, runtime):
@@ -279,7 +305,7 @@ def register_routes(app, runtime):
         try:
             runtime.origin_policy.check_page(request)
         except ReceiptError as exc:
-            return _error(exc.code)
+            return _page_refusal(request, exc.code)
         return page_response(runtime.execution_allowed)
 
     @app.get(PAGE_PATH + "/", response_model=None, include_in_schema=False)
@@ -287,7 +313,7 @@ def register_routes(app, runtime):
         try:
             runtime.origin_policy.check_page(request)
         except ReceiptError as exc:
-            return _error(exc.code)
+            return _page_refusal(request, exc.code)
         # A relative target keeps the browser's public HTTPS origin when the
         # backend sees HTTP; do not change global slash redirects or proxy trust.
         return RedirectResponse(PAGE_PATH, status_code=307, headers=_HEADERS)

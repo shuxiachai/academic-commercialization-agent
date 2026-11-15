@@ -1007,9 +1007,9 @@ def _exercise_browser(
                         page.locator("#ui-lang").select_option("Simplified Chinese")
                     assert source_read.value.status == 200 and source_read.value.request.method == "GET"
                     expect(page.locator('button.tab[data-view="sources"]')).to_have_text("来源")
-                    # Relabelled from the last reading at once, well inside the
-                    # 10s idle poll that used to be the only thing changing it.
-                    expect(page.locator("#capacity-label")).to_contain_text("运行中", timeout=1000)
+                    # The deployment's slots are an administrator's to watch: a code
+                    # holder is shown the line only when every slot is taken.
+                    expect(page.locator("#capacity")).to_be_hidden()
                     starter = page.locator("#starters .starter").first
                     expect(starter).to_have_text("电动汽车用固态电池")
                     expect(starter).to_have_attribute("data-topic", "电动汽车用固态电池")
@@ -1030,7 +1030,7 @@ def _exercise_browser(
             assert source_requests == 2, "Two language renders must produce exactly two source GETs."
             page.locator("#ui-lang").select_option("English")
             expect(page.locator('button.tab[data-view="sources"]')).to_have_text("Sources")
-            expect(page.locator("#capacity-label")).to_contain_text("running", timeout=1000)
+            expect(page.locator("#capacity")).to_be_hidden()
             expect(page.locator("#starters .starter").first).to_have_attribute(
                 "data-topic", "solid-state batteries for electric vehicles")
             page.locator('button.tab[data-view="report"]').click()

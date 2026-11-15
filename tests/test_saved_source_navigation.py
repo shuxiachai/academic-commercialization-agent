@@ -19,7 +19,14 @@ def test_locator_link_is_stable_and_server_fragment_is_capability_only(monkeypat
     # isolate that server-rendered seam without reloading the global ASGI app.
     from api import main
 
-    monkeypatch.setattr(main, "_source_locator", object())
+    class Registered:
+        """The registration, as far as _spa asks: a page this request's host may open."""
+
+        @staticmethod
+        def page_reachable(_request):
+            return True
+
+    monkeypatch.setattr(main, "_source_locator", Registered())
     client = TestClient(main.app)
     home = client.get("/")
     assert home.status_code == 200

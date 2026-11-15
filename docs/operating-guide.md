@@ -330,6 +330,31 @@ locator page's trailing-slash route has an explicit relative
 `307 Location: /source-locator`, so a backend HTTP scheme cannot downgrade that
 page redirect; unrelated application's redirects remain unchanged.
 
+The main page links to the locator only where the locator would open. The
+link is added to the page for a request whose Host passes the same check the
+locator's own page makes; at any other address the page is served without
+it. Until 2026-11-15 the link was added whenever the feature was enabled, so
+a deployment whose visitors use one address while the pin names another
+(academic-agent.cc and the Railway address, on the public deployment) showed
+every signed-in visitor a link that answered `403 origin_denied`. An invalid
+pin, which opens no page, offers no link at any address; with no pin the link
+is offered as before. No forwarding header takes part.
+
+A person who opens `/source-locator` and is refused gets a page, not the
+API's JSON: the same status and the code in `X-Error-Code`, a sentence in
+Chinese and English, and a link back to the application. The page has no
+script, loads nothing, and names neither the address asked for nor the
+configured one. Which form a refusal takes follows how the request describes
+itself (`Sec-Fetch-Mode: navigate`, or `text/html` in `Accept` from a browser
+that does not send it) and decides nothing else. The API paths, the page's
+assets and every other client are answered in JSON as before.
+
+Serving the locator at a different address is a change of the pin, which
+takes one origin: setting it to the visitors' address moves the locator
+there and closes it at the old one. Accepting two origins at once would be a
+change to the origin policy itself, with its own record like the one below,
+not a configuration.
+
 The [2026-09-23 qualified origin repair](results-2026-09-23-source-locator-public-origin.md)
 records the original rejected pilot separately from offline engineering checks.
 For the new browser seam, run
@@ -1092,7 +1117,7 @@ maintenance loop, alerts, runs in progress), every account with when it was
 created and last seen, its live sign-ins and its runs, and the scheduled
 account backups, each opened and verified as `verify` would. It offers two
 actions: reset an account's password, and disable or enable an account. A
-link to it appears in the account badge of the app for admin accounts.
+link to it appears in the account menu of the app for admin accounts.
 
 It shows a funnel (`GET /api/admin/funnel?days=30`, 1 to 365): of the
 accounts created in the window, how many proved their address, how many
@@ -1185,7 +1210,7 @@ Give the service a way to send email and a new account must prove its
 address before it may start paid work. It is sent one link at sign-up; until
 the link is opened it can sign in, save keys, read its history and preview a
 search plan, but a run, an upload or a resume is refused with 403
-`email_unverified`, and the page says so under the account badge with a
+`email_unverified`, and the page says so under the account menu with a
 "send again" button. The link is `PUBLIC_URL/verify?token=…`; it works once,
 for 24 hours, and a newer link retires the older one. Opening it is a page
 whose script posts the token to `POST /api/auth/verify`, so a mail client
