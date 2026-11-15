@@ -87,7 +87,8 @@ export function setAccessCode(code) {
  * access code it is kept in localStorage so a reload stays signed in, and
  * forgotten when the server answers 401 to a request that carried it. An
  * account never carries API keys: those stay in the BYOK slot below and go
- * out with each request, as they always did. */
+ * out with each request, as they always did. An account may choose to keep
+ * a copy of them in this browser (rememberByok); the server still has none. */
 
 const SESSION_KEY = "session-token";
 const sessionSlot = credentialSlot("localStorage", SESSION_KEY, true);
@@ -104,7 +105,8 @@ export function setSessionToken(token) {
  * The open alternative to the access code: a visitor's own LLM + Serper
  * keys, billed to them. sessionStorage rather than localStorage — these are
  * live third-party credentials, not a code minted for this deployment, so
- * they should not outlive the tab. */
+ * they do not outlive the tab unless an account asks for that (see "Keys an
+ * account chose to keep on this device" below). */
 
 const BYOK_KEY = "byok-credentials";
 const byokSlot = credentialSlot("sessionStorage", BYOK_KEY);
@@ -165,6 +167,72 @@ export function getByok() {
 
 export function setByok(creds) {
   return byokSlot.write(creds === null ? null : JSON.stringify(validateByok(creds)));
+}
+
+/* ── Keys an account chose to keep on this device ─────────────────────
+ * The slot above belongs to the tab, so an account pasted its keys again on
+ * every visit. An account that ticks "Remember" in the key form gets a second
+ * copy here, in localStorage, which a new tab reads back (restoreByok). It is
+ * a live third-party credential on a disk, unencrypted, so:
+ *
+ * - nothing is written without that tick, and the page removes the copy when
+ *   keys are saved without it, on sign-out and when the account is deleted;
+ * - it is kept under the account's address and given back to that account
+ *   only. Someone else signing in on this browser is not handed it, and it
+ *   is removed when they do: a session can end without a sign-out, and the
+ *   next person here must not find the last one's keys;
+ * - a copy that cannot be read is removed, never repaired or half used.
+ *
+ * The server is not involved: it never stores a key and is asked nothing. */
+
+const REMEMBERED_KEY = "byok-remembered-v1";
+const rememberedSlot = credentialSlot("localStorage", REMEMBERED_KEY);
+const keyOwner = (email) => (typeof email === "string" ? email.trim().toLowerCase() : "");
+
+/** The remembered keys if they are `owner`'s and whole, otherwise null. */
+function rememberedFor(owner) {
+  const who = keyOwner(owner);
+  const raw = rememberedSlot.read();
+  if (!who || raw === null) return null;
+  try {
+    const entry = JSON.parse(raw);
+    return entry && entry.owner === who ? validateByok(entry.creds) : null;
+  } catch {
+    return null;    // not JSON, or not keys: never used
+  }
+}
+
+/** Keep `creds` on this device for the account `owner`. False when there is
+ * no account to keep them for or the browser refused the write. */
+export function rememberByok(creds, owner) {
+  const valid = validateByok(creds);
+  const who = keyOwner(owner);
+  if (!who) return false;
+  if (rememberedSlot.write(JSON.stringify({ owner: who, creds: valid }))) return true;
+  // Refused: the slot would otherwise hold the value for this page alone,
+  // and the form would show a tick for keys that were not kept.
+  rememberedSlot.write(null);
+  return false;
+}
+
+/** Stop keeping keys on this device. False when the browser refused the removal. */
+export const forgetByok = () => rememberedSlot.write(null);
+
+/** Whether keys are being kept here for this account: the form's tick. */
+export const byokRemembered = (owner) => rememberedFor(owner) !== null;
+
+/** Give a tab that has no keys the ones `owner` kept. A copy that is someone
+ * else's, or unreadable, is removed. Keys the tab already holds are the
+ * person's latest choice and are left alone. */
+export function restoreByok(owner) {
+  if (!keyOwner(owner) || byokSlot.read() !== null) return false;
+  const creds = rememberedFor(owner);
+  if (creds === null) {
+    if (rememberedSlot.read() !== null) rememberedSlot.write(null);
+    return false;
+  }
+  byokSlot.write(JSON.stringify(creds));
+  return true;
 }
 
 /* A BYOK run gets no owner tag server-side (see api/access.py) and so never

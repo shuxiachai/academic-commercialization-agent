@@ -84,6 +84,23 @@ def test_an_account_saving_keys_is_told_what_the_providers_said(outcome):
     assert "PASS account_keys" in result.stdout
 
 
+@pytest.mark.parametrize("kind", ["ticked", "unticked", "untick_later", "refused", "visitor", "new_tab",
+                                  "other_account", "sign_out"])
+def test_an_account_may_keep_its_keys_on_its_device(kind):
+    """Keys lived in the open tab only, so an account pasted them on every visit.
+
+    With a tick that starts unticked, the page keeps a copy in this browser
+    for that account: a new tab has them again, another account does not get
+    them, and saving without the tick or signing out removes them.
+    """
+    node = shutil.which("node")
+    assert node, "Node is required for the remembered-keys seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        "remembered_keys", kind], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS remembered_keys" in result.stdout
+
+
 @pytest.mark.parametrize("kind", ["account", "silent", "code", "off", "signin", "admin", "trial", "trial_silent"])
 def test_an_account_previews_the_search_on_its_own_key(kind):
     """An account had to pay for a whole run to learn how its topic was read.

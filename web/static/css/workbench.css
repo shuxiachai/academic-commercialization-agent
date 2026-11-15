@@ -1373,8 +1373,9 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   font-weight: 600;
   margin: 0;
 }
-/* The Account panel's one switch: a native checkbox, so it reads and
-   toggles with the keyboard like any other; the accent is the page's. */
+/* The Account panel's switch and the key form's "Remember": a native
+   checkbox, so it reads and toggles with the keyboard like any other; the
+   accent is the page's. */
 .gate__choice {
   display: flex;
   align-items: flex-start;
@@ -1390,7 +1391,8 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   margin: 2px 0 0;
   accent-color: var(--accent);
 }
-#settings-notify-row .gate__hint { margin-top: var(--space-1); }
+#settings-notify-row .gate__hint,
+#byok-remember-row .gate__hint { margin-top: var(--space-1); }
 .gate__danger {
   justify-content: center;
   border: 1px solid var(--danger-border);

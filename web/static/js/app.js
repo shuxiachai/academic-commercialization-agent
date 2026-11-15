@@ -1505,6 +1505,10 @@ function applyAccountMode(me) {
   accountMode = true;
   accountEmail = me.email;
   api.setAccessCode(null);
+  // Keys this account chose to keep on this device come back to a tab that
+  // has none, before the page decides whether it must ask for any. A copy
+  // kept by another account is removed here and not handed over (api.js).
+  api.restoreByok(me.email);
   byokMode = Boolean(api.getByok());
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = true;
@@ -1615,6 +1619,8 @@ async function exitCredentials() {
   topic.value = "";
   syncComposer();
   const byokCleared = api.setByok(null);
+  // Signing out is "forget me on this device": the remembered copy goes too.
+  const rememberedCleared = api.forgetByok();
   const codeCleared = api.setAccessCode(null);
   if (accountMode) {
     // Best effort: the token is forgotten locally either way, and the server
@@ -1622,7 +1628,7 @@ async function exitCredentials() {
     try { await api.logout(); } catch { /* already out, or unreachable */ }
   }
   const sessionCleared = api.setSessionToken(null);
-  if (byokCleared && codeCleared && sessionCleared && receiptsCleared) {
+  if (byokCleared && codeCleared && sessionCleared && receiptsCleared && rememberedCleared) {
     // A clean sign-out starts over at the front door. On a deployment with
     // accounts that is the landing at "/"; reloading in place would reopen
     // the run or comparison just left, under the sign-in card. A code
@@ -1774,6 +1780,7 @@ function showAccountSettings() {
     // the gate, because the stored token no longer opens anything.
     api.clearReceiptJournal();
     api.setByok(null);
+    api.forgetByok();
     api.setSessionToken(null);
     location.reload();
   };
@@ -2284,6 +2291,11 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     // "Get both keys in 3 steps": with a free assessment still to use, the
     // steps are for the ones after it and one line says so.
     $("#byok-key-guide-trial").hidden = !(account && trialPays());
+    // Keeping keys on this device is an account's choice, off until ticked;
+    // the tick shows whether this account is keeping any now. A visitor with
+    // keys alone has no account to keep them for and is not offered it.
+    $("#byok-remember-row").hidden = !account;
+    $("#byok-remember").checked = account && api.byokRemembered(accountEmail);
     clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
@@ -2611,6 +2623,13 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         // Keys saved for the account; the identity and its history are unchanged.
         byokMode = true;
         invalidateSidebar();
+        // Kept on this device only with the tick; saving without it stops
+        // keeping what was kept before. The tab has its keys either way.
+        if ($("#byok-remember").checked) {
+          if (!api.rememberByok(creds, accountEmail)) toast(t("byok_remember_failed"), "error");
+        } else {
+          api.forgetByok();
+        }
         if (unverified) toast(t("byok_unverified"));
         finish();
         return;

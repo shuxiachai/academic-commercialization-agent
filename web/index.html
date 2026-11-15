@@ -118,7 +118,7 @@
          the same ones. -->
     <section class="landing__card landing__pay" aria-labelledby="landing-pay-title">
       <h2 id="landing-pay-title" data-i18n="landing_pay_title">Your keys, your bill</h2>
-      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Your providers bill you directly, and this service adds nothing. Keys stay in your browser; this server never stores them.</p>
+      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Your providers bill you directly, and this service adds nothing. Keys stay in your browser, for the open tab unless you choose to remember them on your device; this server never stores them.</p>
       <!-- In money, and only for the providers with a recorded figure: each
            sum is a row of "What an assessment costs" in
            docs/evidence-status.md (tests/test_run_costs.py). -->
@@ -595,8 +595,8 @@
     <form id="account-form" hidden>
       <h2 class="gate__title" id="account-title" data-i18n="account_title">Sign in</h2>
       <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes 6 to 15 minutes.</p>
-      <p class="gate__sub" id="account-sub-trial" data-i18n="account_sub_trial" hidden>A new account's first assessment is free and needs no API keys. After that, runs are paid for with API keys you add: they stay in this browser, are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
-      <p class="gate__sub" id="account-sub" data-i18n="account_sub" hidden>Runs are paid for with API keys you add after signing in. Your keys stay in this browser and are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
+      <p class="gate__sub" id="account-sub-trial" data-i18n="account_sub_trial" hidden>A new account's first assessment is free and needs no API keys. After that, runs are paid for with API keys you add: they stay in this browser, for the open tab unless you choose to remember them on this device, are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
+      <p class="gate__sub" id="account-sub" data-i18n="account_sub" hidden>Runs are paid for with API keys you add after signing in. Your keys stay in this browser, for the open tab unless you choose to remember them on this device, and are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
       <input class="gate__input" id="account-email-input" type="email" autocomplete="username" required
              maxlength="254" data-i18n-placeholder="account_email_placeholder" placeholder="Email">
       <input class="gate__input" id="account-password" type="password" autocomplete="current-password" required
@@ -704,6 +704,19 @@
       </select>
       <input class="gate__input" id="byok-search-key" type="password" autocomplete="off"
              placeholder="Search API key">
+      <!-- For a signed-in account only (app.js showKeys). Keys live in the
+           open tab, so an account pasted them again on every visit; with
+           this ticked a copy is kept in this browser until sign-out. It
+           starts unticked: the copy is a live credential on a disk, and
+           keeping one is the account's decision, said in the line under it.
+           The server stores no key either way (api.js rememberByok). -->
+      <div id="byok-remember-row" hidden>
+        <label class="gate__choice" for="byok-remember">
+          <input type="checkbox" id="byok-remember">
+          <span data-i18n="byok_remember">Remember these keys on this device</span>
+        </label>
+        <p class="gate__hint" data-i18n="byok_remember_note">Kept in this browser, unencrypted, until you sign out, so you are not asked again on your next visit. Leave this off on a shared computer.</p>
+      </div>
       <p class="gate__hint" data-byok-i18n="byok_hint">
         Keys: platform.deepseek.com/api-keys · bailian.console.aliyun.com (China Qwen) ·
         platform.openai.com/api-keys · console.anthropic.com — plus app.tavily.com
