@@ -28,6 +28,7 @@ class Node {
     style: {}, className: "", textContent: "", open: false, title: "", type: "" }); }
   append(...items) { for (const item of items) this.children.push(typeof item === "string" ? { text: item } : item); }
   setAttribute(name, value) { this.attributes[name] = value; }
+  replaceChildren(...items) { this.children = []; this.append(...items); }
   addEventListener() {}
   get childNodes() { return this.children; }
 }
@@ -42,6 +43,39 @@ const input = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 if (input.language) i18n.setLanguage?.(input.language);
 const out = {};
 if (input.render !== undefined) out.html = mod.renderMarkdown(input.render);
+if (input.checks_tab) {
+  // The panel of the one "Automated checks" tab, with stand-ins for the three
+  // detail renderers and for the artifact reads behind them.
+  const TITLES = { grounding: "tab_grounding", consistency: "tab_consistency", "report-audit": "tab_report_audit" };
+  const asked = [];
+  const list = input.checks_tab.artifacts.map((id) => ({
+    id, title: TITLES[id],
+    render: (data) => { const node = new Node("div"); node.className = "rendered"; node.textContent = JSON.stringify(data); return node; },
+    load: async () => {
+      asked.push(id);
+      if (input.checks_tab.refuse === id) throw new Error("refused");
+      return { from: id };
+    },
+  }));
+  const root = mod.renderChecks(list, mod.reliabilityRows(input.checks_tab.progress));
+  const sections = flat(root).filter(n => n.className === "check");
+  const one = (node, name) => flat(node).find(n => n.className === name);
+  const view = () => sections.map((s) => {
+    const fold = flat(s).find(n => n.tagName === "DETAILS");
+    return { id: s.dataset.check, title: one(s, "check__title").textContent, verdict: one(s, "check__verdict").textContent,
+      tone: one(s, "check__verdict").dataset.tone, fold: fold.children[0].textContent, open: fold.open,
+      body: flat(one(s, "check__body")).filter(n => n !== one(s, "check__body")).map(n => [n.className, n.textContent]) };
+  });
+  out.checks_tab = { classes: root.className, lede: one(root, "checks__lede")?.textContent, before: view() };
+  for (const section of sections) {
+    const fold = flat(section).find(n => n.tagName === "DETAILS");
+    fold.open = true; await fold.ontoggle();
+    fold.open = false; await fold.ontoggle();
+    fold.open = true; await fold.ontoggle();
+  }
+  out.checks_tab.after = view();
+  out.checks_tab.asked = asked;
+}
 if (input.summary !== undefined) {
   const view = (node) => {
     const nodes = flat(node);
@@ -89,7 +123,8 @@ if (input.brief) {
     band: data.band.name, overall: data.overall, trl: data.trl, mrl: data.mrl,
     strongest: data.strongest && [data.strongest.key, data.strongest.value],
     weakest: data.weakest && [data.weakest.key, data.weakest.value],
-    summary: data.summary, evidence: data.evidence, risk: data.risk, next: data.next, changers: data.changers,
+    summary: data.summary, summary_whole: data.summaryWhole ?? null,
+    evidence: data.evidence, risk: data.risk, next: data.next, changers: data.changers,
   };
   if (data) {
     const nodes = flat(mod._testRenderDecisionBrief(data));
@@ -102,6 +137,16 @@ if (input.brief) {
       lines: nodes.filter(n => (n.className ?? "").startsWith("brief__line ")).map(text),
       cards: Object.fromEntries(nodes.filter(n => n.className === "brief__card").map(n => [n.dataset.card, text(n)])),
       cites: nodes.filter(n => n.className === "cite").map(n => n.dataset.cite),
+      labels: Object.fromEntries(nodes.filter(n => n.className === "brief__card")
+        .map(n => [n.dataset.card, n.children[0].textContent])),
+      quote: nodes.find(n => n.tagName === "Q")?.textContent ?? null,
+      expand: (() => {
+        const button = nodes.find(n => n.className === "brief__expand");
+        if (!button) return null;
+        const before = { text: button.textContent, type: button.type, expanded: button.attributes["aria-expanded"] };
+        button.onclick?.();
+        return { ...before, after: nodes.find(n => n.tagName === "Q")?.textContent, gone: button.hidden === true };
+      })(),
       changers: nodes.filter(n => n.className === "brief__changer").map(n => [n.dataset.reason, n.textContent]),
       note: nodes.find(n => n.className === "brief__note")?.textContent,
     };
@@ -109,6 +154,11 @@ if (input.brief) {
 }
 if (input.scores) {
   const nodes = flat(mod._testRenderScorecard(input.scores, input.sources_for_scorecard ?? null));
+  out.notes = nodes.filter(n => n.className === "notes").map(block => ({
+    title: flat(block).find(n => n.className === "notes__title")?.textContent,
+    items: flat(block).filter(n => n.tagName === "LI").map(li => ({
+      text: flat(li).map(n => n.textContent || n.text || "").join(""),
+      cites: flat(li).filter(n => n.className === "cite").map(n => n.dataset.cite) })) }));
   const block = nodes.find(n => n.className === "market-estimates");
   out.market_block = block ? {
     figures: block.dataset.figures, scopes: block.dataset.scopes,
@@ -382,7 +432,7 @@ class ResultReadabilityTests(unittest.TestCase):
                 "threshold_provenance": {"status": "owner_approved"}}
         text = self._run(gate=gate)["scope"]["text"][0]
         self.assertIn("is not assessed", text)
-        self.assertNotIn("allows a GO/NO_GO", text)
+        self.assertNotIn("allows a GO / NO-GO", text)
 
 
 def _market(*rows):
@@ -1035,7 +1085,9 @@ class DecisionBriefTests(unittest.TestCase):
                         + "with platform diversification beyond the incumbent in urology, gynecology and general surgery, " * 3
                         + "and more.")
         cut = self._summary(f"{only} {long_finding}")
-        self.assertTrue(cut.endswith("…") and 200 < len(cut) <= 240 and long_finding.startswith(cut[:-1]), cut)
+        # Cut where a clause ends (SaidAccuratelyTests), so it may stop well short of the limit.
+        self.assertTrue(cut.endswith("…") and 80 < len(cut) <= 240 and long_finding.startswith(cut[:-1]), cut)
+        self.assertEqual(long_finding[len(cut) - 1], ",", "the cut falls at the end of a clause")
         self.assertRegex(long_finding[len(cut) - 1:], r"^[\s,;:]", "the cut falls between words")
         joined = self._summary(f"- **Maturity is uneven.** {long_finding}")
         self.assertTrue(joined.startswith("Maturity is uneven. The technology is moving") and joined.endswith("…")
@@ -1195,6 +1247,212 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual(next(text for reason, text in english["changers"] if reason == "market"),
                          "Market figures that measure the same thing: the ones collected may not, "
                          "so they cannot be compared directly.")
+
+
+class SaidAccuratelyTests(unittest.TestCase):
+    """Places where the run page said more, or less, than it knew. Display
+    only: no score, check or saved file changes with any of them."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _run(self, **payload):
+        return ResultReadabilityTests._run(self, **payload)
+
+    def _brief(self, **overrides):
+        brief = {"scores": _SCORES, "markdown": _REPORT, "sources": _SOURCES, "progress": _PROGRESS, **overrides}
+        return self._run(brief=brief)
+
+    def test_the_evidence_card_says_which_dimension_its_source_is_for(self):
+        """The card was headed "Strongest evidence". What it shows is the
+        best-rated source that the strongest DIMENSION cites; on a run whose
+        strongest dimension was the market, that was a vendor's marketing
+        blog rated medium, under a label a reader takes to mean the most
+        reliable evidence in the report. The pick is unchanged (measured on
+        212 saved runs: a wider rule would change 117 of 211 picks, 59 of
+        them only swapping a patent for a paper, and would name a source
+        that has nothing to do with the dimension shown beside it). The
+        label now says what the source is."""
+        view = self._brief()["brief_view"]
+        self.assertEqual(view["labels"]["evidence"], "Main source for the strongest dimension (Patent position)")
+        self.assertIn("All-solid-state battery system · high · 2023", view["cards"]["evidence"])
+        self.assertEqual(view["labels"]["risk"], "Biggest risk")
+        zh = self._run(language="Simplified Chinese", brief={"scores": _SCORES, "markdown": _REPORT,
+                                                            "sources": _SOURCES, "progress": _PROGRESS})["brief_view"]
+        self.assertEqual(zh["labels"]["evidence"], "最强维度（专利地位）的主要依据")
+        # Where the strongest dimension cites nothing, the label still names it and the card says so.
+        uncited = self._brief(scores={**_SCORES, "patent_source_ids": []})["brief_view"]
+        self.assertEqual(uncited["labels"]["evidence"], "Main source for the strongest dimension (Patent position)")
+        self.assertIn("cites no source", uncited["cards"]["evidence"])
+        for view_ in (view, zh, uncited):
+            self.assertNotRegex(view_["labels"]["evidence"], r"(?i)strongest evidence|最强的一条证据")
+
+    def _lead(self, sentence):
+        report = f"# T\n\n## Executive Summary\n\n{sentence} A second sentence follows.\n\n## 1. Technology\n\nBody.\n"
+        return self._brief(markdown=report)
+
+    def test_a_long_summary_sentence_is_cut_at_a_clause_and_can_be_read_whole(self):
+        """The brief quotes one sentence of the report's summary and used to
+        cut it at 240 characters wherever that fell, with an ellipsis: a
+        sentence that never said what it was about to. It is now cut at the
+        last clause boundary that fits, and one press shows the sentence
+        whole. A sentence that fits is shown whole, as before."""
+        # The brief quotes the sentence without its citation markers, as it always has.
+        short = "Solid-state cells are early, with pilot lines at two makers."
+        seen = self._lead(short.replace(".", " [A1]."))
+        self.assertEqual((seen["brief"]["summary"], seen["brief"]["summary_whole"]), (short, None))
+        self.assertIsNone(seen["brief_view"]["expand"])
+        self.assertEqual(seen["brief_view"]["quote"], short)
+
+        clause = "Sulfide solid electrolytes reach the conductivity of liquid ones in the laboratory, "
+        long = (clause + "and two makers run pilot lines whose yields are not published, "
+                + "but the cost per kilowatt-hour that a grid buyer would pay (in 2030 dollars, say) cannot be estimated from any "
+                  "source collected for this assessment, because none of them reports a production cost at scale.")
+        self.assertGreater(len(long), 240)
+        seen = self._lead(long)
+        cut = seen["brief"]["summary"]
+        self.assertLessEqual(len(cut), 240)
+        # The comma inside the brackets is within the room and is not a clause's end.
+        self.assertEqual(cut, clause + "and two makers run pilot lines whose yields are not published…")
+        self.assertEqual(seen["brief"]["summary_whole"], long)
+        expand = seen["brief_view"]["expand"]
+        self.assertEqual((expand["text"], expand["type"], expand["expanded"]), ("Show the whole sentence", "button", "false"))
+        self.assertEqual(expand["after"], long, "one press shows the sentence as the report has it")
+        self.assertTrue(expand["gone"])
+        zh = self._run(language="Simplified Chinese", brief={"scores": _SCORES, "sources": _SOURCES, "progress": _PROGRESS,
+                       "markdown": f"# T\n\n## Executive Summary\n\n{long} More.\n"})["brief_view"]["expand"]
+        self.assertEqual(zh["text"], "显示完整的句子")
+
+    def test_a_long_sentence_with_no_clause_to_cut_at_is_cut_at_a_word(self):
+        words = "Production costs carry " + " ".join(["considerable"] * 40) + " uncertainty."
+        seen = self._lead(words)["brief"]
+        self.assertTrue(seen["summary"].endswith("considerable…"), seen["summary"])
+        self.assertLessEqual(len(seen["summary"]), 240)
+        self.assertEqual(seen["summary_whole"], words)
+        # A clause that ends too early is not a place to cut: the reader would be left with a stub.
+        early = "In short, " + " ".join(["production"] * 40) + " costs are unknown."
+        stub = self._lead(early)["brief"]["summary"]
+        self.assertGreater(len(stub), 200, stub)
+        self.assertTrue(stub.endswith("production…"))
+        # Chinese clauses end at their own marks, and the cut keeps none of them.
+        zh = "硫化物固态电解质在实验室中达到了液态电解质的电导率，" * 12 + "但成本无法估算。"
+        cut = self._lead(zh)["brief"]["summary"]
+        self.assertLessEqual(len(cut), 240)
+        self.assertTrue(cut.endswith("电导率…"), cut[-20:])
+
+    def test_citations_in_the_risks_and_opportunities_open_like_the_briefs(self):
+        """The scorecard listed its risks and opportunities as plain text, so
+        "(M1, M2, M5)" was a string of letters there and a button in the
+        brief above it. They are the same citations and now open the same
+        card."""
+        scores = {**_SCORES, "key_risks": ["Reimbursement differs by country (M1, M2, M5).", "No named makers [P2]; yields unknown.",
+                                             "A risk with nothing cited."],
+                  "key_opportunities": ["Non-invasive sensing [A1][A2]."]}
+        notes = self._run(scores=scores)["notes"]
+        self.assertEqual([block["title"] for block in notes], ["Risks", "Opportunities"])
+        risks = notes[0]["items"]
+        self.assertEqual([item["cites"] for item in risks], [["M1 M2 M5"], ["P2"], []])
+        self.assertEqual(risks[0]["text"], "Reimbursement differs by country [M1, M2, M5].")
+        self.assertEqual(risks[1]["text"], "No named makers [P2]; yields unknown.")
+        self.assertEqual(risks[2]["text"], "A risk with nothing cited.")
+        self.assertEqual(notes[1]["items"][0]["cites"], ["A1", "A2"])
+        # Not everything in brackets is a citation.
+        plain = self._run(scores={**_SCORES, "key_risks": ["Costs (2024 estimate) and scale (GW) are unknown (see M-series)."]})["notes"]
+        self.assertEqual(plain[0]["items"][0], {"text": "Costs (2024 estimate) and scale (GW) are unknown (see M-series).", "cites": []})
+
+
+class ChecksTabTests(unittest.TestCase):
+    """Three checks each had a tab of their own at the top of a run: "Citation
+    check", "Report vs score", "Report audit", beside the scorecard, the
+    report and the sources. Each opened on a paragraph written from inside
+    the pipeline. They are one tab now: every check says what it found in one
+    line, the line the panel above the tabs already computes, and the items
+    behind it are one fold away. A check that could not run says so in that
+    line; it is never left out and never reads as a pass."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _run(self, **payload):
+        return ResultReadabilityTests._run(self, **payload)
+
+    # A production run of 2026-11-09: no figure could be checked, the report agrees with its score, the audit found nothing in scope.
+    _PROGRESS = {"consistency": {"blockers": 0, "warnings": 0},
+                 "claim_grounding": {"status": "completed", "checked": 0, "ungrounded": 0, "unverifiable": 10},
+                 "report_audit": {"status": "not_applicable", "findings": 0},
+                 "source_counts": {"academic": 8, "patent": 8, "market": 8}}
+    _ALL = ["grounding", "consistency", "report-audit"]
+
+    def _checks(self, language=None, **overrides):
+        payload = {"checks_tab": {"artifacts": self._ALL, "progress": self._PROGRESS, **overrides}}
+        if language:
+            payload["language"] = language
+        return self._run(**payload)["checks_tab"]
+
+    def test_each_check_says_what_it_found_in_one_line_with_its_details_folded(self):
+        seen = self._checks()
+        self.assertEqual(seen["classes"], "checks")
+        self.assertIn("not a pass", seen["lede"])
+        before = seen["before"]
+        self.assertEqual([c["id"] for c in before], self._ALL)
+        self.assertEqual([c["title"] for c in before], ["Citation check", "Report vs score", "Report audit"])
+        self.assertEqual([c["tone"] for c in before], ["muted", "ok", "muted"])
+        self.assertEqual(before[0]["verdict"], "No numerical claim could be checked automatically against its cited source")
+        self.assertEqual(before[1]["verdict"], "The recommendation matches the score")
+        self.assertEqual(before[2]["verdict"], "Nothing in the report fell within this check's narrow scope")
+        for check in before:
+            self.assertEqual((check["fold"], check["open"], check["body"]), ("Details", False, []),
+                             "folded, and nothing is read until it is opened")
+        # Opened: the check's own detail, read once however often the fold is opened.
+        self.assertEqual(seen["asked"], self._ALL)
+        for check in seen["after"]:
+            self.assertEqual(check["body"], [["rendered", json.dumps({"from": check["id"]}, separators=(",", ":"))]])
+
+    def test_only_the_checks_a_run_has_are_listed_and_in_chinese_too(self):
+        zh = self._checks(language="Simplified Chinese", artifacts=["consistency", "report-audit"])
+        self.assertEqual([c["title"] for c in zh["before"]], ["报告与评分", "报告审计"])
+        self.assertEqual(zh["before"][0]["fold"], "详情")
+        self.assertIn("不算通过", zh["lede"])
+        self.assertNotRegex(zh["before"][1]["verdict"], "电解质")
+
+    def test_a_check_with_no_summary_on_record_is_not_a_pass(self):
+        """An old run has the detail file and no summary of it. The line says
+        that, in the muted tone, and the details are still there to open."""
+        seen = self._checks(progress={})
+        by_id = {check["id"]: check for check in seen["before"]}
+        for check in seen["before"]:
+            self.assertEqual(check["tone"], "muted")
+        for name in ("grounding", "report-audit"):
+            self.assertEqual(by_id[name]["verdict"], "No one-line result was recorded for this check. Open the details.")
+        # The report-against-score check always has a line: with no summary it says it did not run.
+        self.assertIn("Not run", by_id["consistency"]["verdict"])
+        self.assertEqual(seen["asked"], self._ALL)
+
+    def test_a_check_that_found_something_says_so_in_its_line(self):
+        progress = {**self._PROGRESS, "consistency": {"blockers": 1, "warnings": 0},
+                    "claim_grounding": {"status": "completed", "checked": 7, "ungrounded": 2, "unverifiable": 0}}
+        before = self._checks(progress=progress)["before"]
+        self.assertEqual([c["tone"] for c in before], ["warn", "risk", "muted"])
+        self.assertIn("2 of 7 checked numerical claims", before[0]["verdict"])
+
+    def test_details_that_cannot_be_read_say_so_and_can_be_asked_for_again(self):
+        seen = self._checks(refuse="consistency")
+        by_id = {c["id"]: c for c in seen["after"]}
+        self.assertEqual(by_id["consistency"]["body"], [["empty-note", "refused"]])
+        self.assertEqual(by_id["grounding"]["body"][0][0], "rendered")
+        # Opened twice after the refusal, so asked twice: a failed read is not remembered as an answer.
+        self.assertEqual(seen["asked"].count("consistency"), 2)
+        self.assertEqual(seen["asked"].count("grounding"), 1)
 
 
 class ScoreSummaryTests(unittest.TestCase):

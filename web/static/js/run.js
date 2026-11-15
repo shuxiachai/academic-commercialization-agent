@@ -237,6 +237,57 @@ export function usageSummary(usage, accounting = null) {
   return parts.join(" · ");
 }
 
+/**
+ * The line that heads the header's "Usage & cost" fold: what the run used
+ * and what that is estimated to have cost, in a reader's words.
+ *
+ * The fold was headed by its name alone, and opened on the full accounting:
+ * "105.5k tokens · Crew nodes only · Auxiliary LLM only · Invocations: 0 ·
+ * Observed tokens: 0 · Observed cost estimate: $0 · ...". The only sum in
+ * sight was the helper ledger's $0, on a run that had used a hundred
+ * thousand tokens. That text is the record and stays inside the fold; this
+ * line is what a reader gets without opening it.
+ *
+ * No sum is ever invented: a run whose model has no price, or whose recorded
+ * cost is zero, says the cost cannot be estimated and names the model; a
+ * partial sum is a floor and is said as one. "" where no tokens are on
+ * record or the collector says its record is unavailable: the fold then
+ * keeps its plain name, and the text inside says why.
+ */
+export function usageHeadline(usage, accounting = null) {
+  if (accounting?.state === "unavailable") return "";
+  const tokens = usage?.total_tokens;
+  if (!Number.isFinite(tokens) || tokens <= 0) return "";
+  const say = (key, values = {}) => Object.entries(values).reduce(
+    (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), headerLabel(key));
+  const floor = accounting?.state === "lower_bound";
+  const chinese = uiLanguage() === "Simplified Chinese";
+  // 105,500 is "105.5k" in English and "10.6 万" in Chinese; small counts are said as they are.
+  const amount = chinese
+    ? (tokens >= 10_000 ? `${(tokens / 10_000).toFixed(1)} 万` : String(tokens))
+    : (tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : String(tokens));
+  const head = say(floor ? "usage_head_tokens_floor" : "usage_head_tokens", { tokens: amount });
+
+  const names = (list) => [...new Set((Array.isArray(list) ? list : []).filter((name) => typeof name === "string" && name))];
+  const models = names((usage.agents ?? []).map((agent) => agent?.model));
+  const unpriced = names(usage.unpriced_models);
+  const priced = Number.isFinite(usage.cost_usd) && usage.cost_usd > 0;
+  let cost;
+  if (!priced) {
+    const missing = unpriced.length ? unpriced : models;
+    cost = missing.length ? say("usage_head_no_cost", { models: missing.join(", ") }) : say("usage_head_no_cost_plain");
+  } else {
+    const sum = usage.cost_usd < 0.01 ? say("usage_head_under_a_cent") : `$${usage.cost_usd.toFixed(2)}`;
+    if (usage.cost_complete === false && unpriced.length) {
+      cost = say("usage_head_cost_missing", { cost: sum, models: unpriced.join(", ") });
+    } else {
+      const key = floor || usage.cost_complete === false ? "usage_head_cost_floor" : "usage_head_cost";
+      cost = models.length ? say(key, { cost: sum, models: models.join(", ") }) : say(key + "_plain", { cost: sum });
+    }
+  }
+  return `${head} · ${cost}`;
+}
+
 /** Tooltip spelling out where the cost figure came from, if anywhere. */
 export function usageTitle(usage, accounting = null) {
   const lines = [];
@@ -293,6 +344,17 @@ const AUXILIARY_STRINGS = {
 const HEADER_STRINGS = {
   English: {
     usage_details: "Usage & cost",
+    // The fold's heading when the run has tokens on record (usageHeadline).
+    usage_head_tokens: "About {tokens} tokens",
+    usage_head_tokens_floor: "At least {tokens} tokens",
+    usage_head_cost: "estimated cost {cost} at the price on record for {models}",
+    usage_head_cost_plain: "estimated cost {cost}",
+    usage_head_cost_floor: "estimated cost at least {cost} at the price on record for {models}",
+    usage_head_cost_floor_plain: "estimated cost at least {cost}",
+    usage_head_cost_missing: "estimated cost at least {cost}; no price on record for {models}",
+    usage_head_under_a_cent: "under $0.01",
+    usage_head_no_cost: "cost cannot be estimated: no price on record for {models}",
+    usage_head_no_cost_plain: "cost cannot be estimated",
     stage_timing: "Stage timing",
     eta_left: "about {minutes} min left",
     eta_soon: "under a minute left",
@@ -318,6 +380,16 @@ const HEADER_STRINGS = {
   },
   "Simplified Chinese": {
     usage_details: "用量与费用",
+    usage_head_tokens: "约 {tokens} token",
+    usage_head_tokens_floor: "至少 {tokens} token",
+    usage_head_cost: "估算费用 {cost}（按 {models} 的记录价格）",
+    usage_head_cost_plain: "估算费用 {cost}",
+    usage_head_cost_floor: "估算费用至少 {cost}（按 {models} 的记录价格）",
+    usage_head_cost_floor_plain: "估算费用至少 {cost}",
+    usage_head_cost_missing: "估算费用至少 {cost}；{models} 没有记录价格",
+    usage_head_under_a_cent: "不到 $0.01",
+    usage_head_no_cost: "费用无法估算：{models} 没有记录价格",
+    usage_head_no_cost_plain: "费用无法估算",
     stage_timing: "阶段耗时",
     eta_left: "预计还需约 {minutes} 分钟",
     eta_soon: "预计不到 1 分钟",

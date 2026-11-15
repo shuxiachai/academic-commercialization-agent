@@ -68,6 +68,7 @@ const input=JSON.parse(fs.readFileSync(0,'utf8'));
 class Element {
  constructor(tag){Object.assign(this,{tag,children:[],dataset:{},style:{},textContent:'',className:''});}
  append(...items){this.children.push(...items);}
+ replaceChildren(...items){this.children=[...items];}
  addEventListener(){}
  setAttribute(){}
  set innerHTML(value){this.children=[];}
@@ -79,8 +80,16 @@ const context=vm.createContext({localStorage:{getItem:()=>input.language},
 for(const name of ['i18n.js','result.js']) vm.runInContext(
  fs.readFileSync(input.root+'/web/static/js/'+name,'utf8').replace(/^import .*;\r?\n/gm,'').replace(/export /g,''),context);
 vm.runInContext(`render(container,'fixture',{artifacts:['${input.artifact}']})`,context);
-setImmediate(()=>{
- function walk(n){return [{text:String(n.textContent||''),cls:n.className,tag:n.tag},...n.children.flatMap(walk)];}
+setImmediate(async()=>{
+ // A check's details sit behind a fold on the one "Automated checks" tab
+ // (renderChecks) and are read when it is opened. Open it, as a reader would.
+ // Text appended beside a citation button is a plain string, as the DOM takes it.
+ const all=n=>typeof n==='string'?[]:[n,...n.children.flatMap(all)];
+ for(const fold of all(context.container).filter(n=>n.className==='check__details')){fold.open=true; await fold.ontoggle();}
+ function walk(n){
+  if(typeof n==='string') return [{text:n,cls:'',tag:'#text'}];
+  return [{text:String(n.textContent||''),cls:n.className,tag:n.tag},...n.children.flatMap(walk)];
+ }
  const rows=walk(context.container); console.log(JSON.stringify(rows));
 });
 '''

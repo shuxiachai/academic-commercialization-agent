@@ -100,4 +100,5 @@ def test_browser_requests_exactly_the_artifact_name_the_server_serves() -> None:
     assert runs._ARTIFACTS["report-audit"] == "report_audit.json"
     assert 'artifacts.includes("report-audit")' in source
     assert 'getArtifact(runId, "report-audit")' in source
-    assert "renderReportAudit(audit)" in source
+    # The audit is one of the checks on the shared tab; its details are drawn by its own renderer.
+    assert "render: renderReportAudit," in source

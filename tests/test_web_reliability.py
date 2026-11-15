@@ -422,6 +422,35 @@ class ReliabilityPanelTests(unittest.TestCase):
         self.assertEqual(panel["verdict"]["label"], "5 项检查中 3 项未发现问题，2 项无法给出结论")
         self.assertEqual(panel["numbers"], "含数字的论断：6 条中有 1 条与所引来源一致；5 条无法自动核对")
 
+    def test_nothing_checked_is_not_said_as_none_matched(self):
+        """A production run of 2026-11-09 read "Numerical claims: 0 of 10
+        matched the source cited for them; 10 could not be checked
+        automatically". The first half reads as ten wrong figures; what
+        happened is that none could be compared with anything. The line now
+        says that, and that it is no finding either way. The check still
+        counts as one that could not give a result, never as one that found
+        no problem."""
+        none = {"status": "completed", "checked": 0, "ungrounded": 0, "unverifiable": 10}
+        panel = self._panel(claim_grounding=none, consistency={"blockers": 0, "warnings": 0})
+        self.assertEqual(panel["numbers"], "Numerical claims: none of the 10 could be checked automatically "
+                                           "against its source. That is no finding for or against them.")
+        self.assertNotIn("matched", panel["numbers"])
+        self.assertEqual(self._row(panel, "grounding")["tone"], "muted")
+        self.assertEqual(panel["verdict"]["label"], "1 of 2 checks found no problem; 1 could not give a result")
+        zh = self._panel(language="Simplified Chinese", claim_grounding=none, consistency={"blockers": 0, "warnings": 0})
+        self.assertEqual(zh["numbers"], "含数字的论断：10 条都无法对照来源自动核对。这不说明它们对，也不说明它们错。")
+        one = self._panel(claim_grounding={**none, "unverifiable": 1})
+        self.assertEqual(one["numbers"], "Numerical claims: the only one could not be checked automatically "
+                                         "against its source. That is no finding for or against it.")
+        # As soon as one was checked, the line counts matches as before.
+        some = self._panel(claim_grounding={"status": "completed", "checked": 1, "ungrounded": 0, "unverifiable": 9})
+        self.assertEqual(some["numbers"], "Numerical claims: 1 of 10 matched the source cited for them; "
+                                          "9 could not be checked automatically")
+        # ...and a check that found a figure missing still says so.
+        wrong = self._panel(claim_grounding={"status": "completed", "checked": 1, "ungrounded": 1, "unverifiable": 9})
+        self.assertEqual(wrong["numbers"], "Numerical claims: 0 of 10 matched the source cited for them; "
+                                           "1 did not; 9 could not be checked automatically")
+
     def test_flagged_and_conflicting_headlines_count_their_rows(self):
         warn = self._panel(claim_grounding={"status": "completed", "checked": 7, "ungrounded": 2,
                                             "unverifiable": 0},
