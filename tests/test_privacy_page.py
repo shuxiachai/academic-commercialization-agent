@@ -228,7 +228,7 @@ class EmailAndAccountClaimsTests(unittest.TestCase):
                           if not row[0].startswith("sqlite_")}
                 columns = {row[1] for row in db.execute("PRAGMA table_info(users)")}
             db.close()
-        self.assertEqual(tables, {"users", "sessions", "login_throttle", "email_tokens", "trial_days"},
+        self.assertEqual(tables, {"users", "sessions", "login_throttle", "email_tokens", "trial_days", "account_keys"},
                          "a new table in the account store must be described on the privacy page")
         self.assertEqual(columns, {"id", "email", "password_hash", "created_at", "disabled", "verified_at", "notify_done",
                                    "trial_used"},
@@ -240,6 +240,45 @@ class EmailAndAccountClaimsTests(unittest.TestCase):
         account_zh = _between(self.chinese, "<h3>你的账号</h3>", "<h3>")
         for words in ("账号的创建时间", "邮箱通过验证的时间", "结束通知", "免费试用评估", "停用"):
             self.assertIn(words, account_zh)
+
+    def test_saved_api_keys_are_described_as_what_they_are(self):
+        """The page said "Your API keys are never stored on this server" until
+        2026-11-15. They are now saved with the account, sealed; what the page
+        says about that is held to what the store keeps."""
+        with TemporaryDirectory() as folder, patch.dict("os.environ", {"ACCOUNTS_DB": str(Path(folder) / "a.sqlite3")}):
+            with accounts._database():
+                pass
+            db = sqlite3.connect(Path(folder) / "a.sqlite3")
+            try:
+                columns = [row[1] for row in db.execute("PRAGMA table_info(account_keys)")]
+            finally:
+                db.close()
+        self.assertEqual(columns, ["user_id", "sealed", "updated_at"],
+                         "anything kept about saved keys beyond one sealed record must be described on the page")
+        keys_en = _between(self.english, "<h3>Your API keys</h3>", "<h3>")
+        for words in ("saved with your account unless you untick", "one encrypted record",
+                      "nothing about them can be read in the account store",
+                      "kept apart from the account store and is not part of its recovery copies",
+                      "never sent back to your browser", "the last four characters of each key",
+                      "replace or remove them", "deleting your account removes them",
+                      "restored from a recovery copy, saved keys are cleared"):
+            self.assertIn(words, keys_en)
+        keys_zh = _between(self.chinese, "<h3>你的 API Key</h3>", "<h3>")
+        for words in ("除非你取消勾选", "一条加密记录", "账号库里读不出其中任何内容", "与账号库分开存放",
+                      "不会再发回你的浏览器", "最后四位", "更换或删除", "注销账号会一并删除", "保存的密钥会被清除"):
+            self.assertIn(words, keys_zh)
+        # Nothing on the page still says keys are never stored, or that the browser keeps a copy.
+        for stale in ("never stored on this server", "不会保存在本服务器上", "or any database", "或任何数据库",
+                      "Remember these keys on this device", "在这台设备上记住这些密钥", "kept in local storage, unencrypted"):
+            self.assertNotIn(stale, _PAGE, stale)
+        self.assertIn("Your API keys in readable form", _between(self.english, "<h2>What is never stored</h2>", "<h2>"))
+        self.assertIn("可读形式的 API Key", _between(self.chinese, "<h2>从不保存什么</h2>", "<h2>"))
+        # The page's name for the box is the box's.
+        strings = (Path(__file__).resolve().parents[1] / "web/static/js/i18n.js").read_text(encoding="utf-8")
+        self.assertIn('byok_to_account: "Save these keys to my account"', strings)
+        self.assertIn('byok_to_account: "把这些密钥保存到我的账号"', strings)
+        self.assertEqual(_PAGE.count("Save these keys to my account"), 2)
+        self.assertEqual(_PAGE.count("把这些密钥保存到我的账号"), 2)
 
     def test_wrong_passwords_are_counted_against_the_network_address_and_the_page_says_so(self):
         keys = [key for key, _ in accounts._throttle_keys("a@example.org", "203.0.113.9")]

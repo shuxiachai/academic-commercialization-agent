@@ -87,8 +87,8 @@ export function setAccessCode(code) {
  * access code it is kept in localStorage so a reload stays signed in, and
  * forgotten when the server answers 401 to a request that carried it. An
  * account never carries API keys: those stay in the BYOK slot below and go
- * out with each request, as they always did. An account may choose to keep
- * a copy of them in this browser (rememberByok); the server still has none. */
+ * out with each request, as they always did, or are saved with the account
+ * on the server, in which case the requests carry none. */
 
 const SESSION_KEY = "session-token";
 const sessionSlot = credentialSlot("localStorage", SESSION_KEY, true);
@@ -105,8 +105,8 @@ export function setSessionToken(token) {
  * The open alternative to the access code: a visitor's own LLM + Serper
  * keys, billed to them. sessionStorage rather than localStorage — these are
  * live third-party credentials, not a code minted for this deployment, so
- * they do not outlive the tab unless an account asks for that (see "Keys an
- * account chose to keep on this device" below). */
+ * they do not outlive the tab. An account's keys are normally not here at
+ * all: they are saved with the account (see "An account's keys" below). */
 
 const BYOK_KEY = "byok-credentials";
 const byokSlot = credentialSlot("sessionStorage", BYOK_KEY);
@@ -169,95 +169,48 @@ export function setByok(creds) {
   return byokSlot.write(creds === null ? null : JSON.stringify(validateByok(creds)));
 }
 
-/* ── Keys an account chose to keep on this device ─────────────────────
- * The slot above belongs to the tab, so an account pasted its keys again on
- * every visit. An account that saves keys with "Remember" ticked in the key
- * form (it starts ticked; see byokRememberWanted) gets a second copy here, in
- * localStorage, which a new tab reads back (restoreByok). It is a live
- * third-party credential on a disk, unencrypted, so:
+/* ── An account's keys ────────────────────────────────────────────────
+ * Saved with the account on the server (api/account_keys.py): the page sends
+ * them once, when they are saved (saveKeys below), and from then on the
+ * account's requests carry no keys and the server uses the saved ones. The
+ * browser keeps none. The server says that keys are saved, which provider
+ * and model, and the last four characters of each; never a key.
  *
- * - nothing is written without that tick, and the page removes the copy when
- *   keys are saved without it, on sign-out and when the account is deleted;
- * - it is kept under the account's address and given back to that account
- *   only. Someone else signing in on this browser is not handed it, and it
- *   is removed when they do: a session can end without a sign-out, and the
- *   next person here must not find the last one's keys;
- * - a copy that cannot be read is removed, never repaired or half used.
- *
- * The server is not involved: it never stores a key and is asked nothing. */
-
-const REMEMBERED_KEY = "byok-remembered-v1";
-const rememberedSlot = credentialSlot("localStorage", REMEMBERED_KEY);
-const keyOwner = (email) => (typeof email === "string" ? email.trim().toLowerCase() : "");
-
-/** The remembered keys if they are `owner`'s and whole, otherwise null. */
-function rememberedFor(owner) {
-  const who = keyOwner(owner);
-  const raw = rememberedSlot.read();
-  if (!who || raw === null) return null;
-  try {
-    const entry = JSON.parse(raw);
-    return entry && entry.owner === who ? validateByok(entry.creds) : null;
-  } catch {
-    return null;    // not JSON, or not keys: never used
-  }
-}
-
-/** Keep `creds` on this device for the account `owner`. False when there is
- * no account to keep them for or the browser refused the write. */
-export function rememberByok(creds, owner) {
-  const valid = validateByok(creds);
-  const who = keyOwner(owner);
-  if (!who) return false;
-  if (rememberedSlot.write(JSON.stringify({ owner: who, creds: valid }))) return true;
-  // Refused: the slot would otherwise hold the value for this page alone,
-  // and the form would show a tick for keys that were not kept.
-  rememberedSlot.write(null);
-  return false;
-}
-
-/** Stop keeping keys on this device. False when the browser refused the removal. */
-export const forgetByok = () => rememberedSlot.write(null);
-
-/** Whether keys are being kept here for this account. */
-export const byokRemembered = (owner) => rememberedFor(owner) !== null;
-
-/* The form's box starts ticked: being asked for keys on every visit was the
- * complaint, and an option that has to be found does not answer it. Someone
- * who unticks it has decided for this device, so the form must not tick them
- * back in next time, or their next save would keep keys they declined to
- * keep. The decision is recorded as a mark with no key in it. It is a
- * setting, not a credential: signing out leaves it, and ticking the box
- * again removes it. A browser whose storage cannot be read can keep nothing,
- * so it reads as declined. */
-const REMEMBER_OFF_KEY = "byok-remember-off";
+ * The key form's box, "Save these keys to my account", starts ticked. An
+ * account that unticks it keeps its keys in the tab's slot above and sends
+ * them with each request, as every account did before; nothing is saved.
+ * Someone who unticks the box has decided for this device, so the form opens
+ * unticked there from then on, or their next save would store keys they
+ * declined to store. The decision is a mark with no key in it: a setting,
+ * not a credential, so signing out leaves it and ticking the box again
+ * removes it. A browser whose storage cannot be read has recorded no such
+ * decision, and the box is ticked there: saving to the account needs no
+ * browser storage. */
+const SAVE_OFF_KEY = "byok-remember-off";    // named when the box kept keys in the browser (#407, #408)
 
 /** Whether the form's box should start ticked on this device. */
-export function byokRememberWanted() {
-  try { return globalThis.localStorage.getItem(REMEMBER_OFF_KEY) === null; }
-  catch { return false; }
+export function keySavingWanted() {
+  try { return globalThis.localStorage.getItem(SAVE_OFF_KEY) === null; }
+  catch { return true; }
 }
 
 /** Record the choice made at a save: ticked removes the mark, unticked sets it. */
-export function setByokRememberWanted(wanted) {
+export function setKeySavingWanted(wanted) {
   try {
-    if (wanted) globalThis.localStorage.removeItem(REMEMBER_OFF_KEY);
-    else globalThis.localStorage.setItem(REMEMBER_OFF_KEY, "1");
+    if (wanted) globalThis.localStorage.removeItem(SAVE_OFF_KEY);
+    else globalThis.localStorage.setItem(SAVE_OFF_KEY, "1");
   } catch { /* The choice is then not remembered; the keys were handled already. */ }
 }
 
-/** Give a tab that has no keys the ones `owner` kept. A copy that is someone
- * else's, or unreadable, is removed. Keys the tab already holds are the
- * person's latest choice and are left alone. */
-export function restoreByok(owner) {
-  if (!keyOwner(owner) || byokSlot.read() !== null) return false;
-  const creds = rememberedFor(owner);
-  if (creds === null) {
-    if (rememberedSlot.read() !== null) rememberedSlot.write(null);
-    return false;
-  }
-  byokSlot.write(JSON.stringify(creds));
-  return true;
+/* For a few hours on 2026-11-15 (#407, #408) the box kept a copy of the keys
+ * in this browser's local storage. Nothing writes or reads that copy any
+ * more: a browser is the wrong place for an account's settings and a poor
+ * place for a credential. This removes one left behind, at boot and at
+ * sign-out. False when the browser refused the removal. */
+const LEFTOVER_KEY = "byok-remembered-v1";
+export function discardBrowserKeys() {
+  try { globalThis.localStorage.removeItem(LEFTOVER_KEY); return true; }
+  catch { return false; }
 }
 
 /* A BYOK run gets no owner tag server-side (see api/access.py) and so never
@@ -472,6 +425,15 @@ export const checkKeys = (creds) => request("/api/keys/check", {
   ...json(byokBody(validateByok(creds))),
   signal: AbortSignal.timeout(20000),
 });
+// The keys saved with the signed-in account: what the server says about them
+// (never a key), saving a set in place of any saved before, and removing them.
+export const savedKeys = () => request("/api/auth/keys");
+export const saveKeys = (creds) => request("/api/auth/keys", {
+  ...json(byokBody(validateByok(creds))),
+  method: "PUT",
+  signal: AbortSignal.timeout(20000),
+});
+export const removeSavedKeys = () => request("/api/auth/keys", { method: "DELETE" });
 // Both need the password again: a session alone cannot change or erase an account.
 // The operator's console: answered only to an admin account (404 to anyone else).
 export const adminAccounts = () => request("/api/admin/accounts");

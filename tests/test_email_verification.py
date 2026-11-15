@@ -106,7 +106,7 @@ class SignUpTests(_Case):
         self.assertFalse(session["verified"])
         self.assertEqual(self.client.get("/api/auth/me", headers=self._bearer(session["token"])).json(),
                          {"email": "alice@example.com", "admin": False, "verified": False, "notify_done": False,
-                          "trial_runs_left": 0})
+                          "trial_runs_left": 0, "keys_saved": False})
         self.assertFalse(self.client.get("/api/access/check", headers=self._bearer(session["token"])).json()["account"]["verified"])
         messages = self._messages()
         self.assertEqual(len(messages), 1)

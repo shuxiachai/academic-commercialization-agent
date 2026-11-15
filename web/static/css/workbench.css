@@ -1373,7 +1373,7 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   font-weight: 600;
   margin: 0;
 }
-/* The Account panel's switch and the key form's "Remember": a native
+/* The Account panel's switch and the key form's "Save to my account": a native
    checkbox, so it reads and toggles with the keyboard like any other; the
    accent is the page's. */
 .gate__choice {
@@ -1392,7 +1392,18 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   accent-color: var(--accent);
 }
 #settings-notify-row .gate__hint,
-#byok-remember-row .gate__hint { margin-top: var(--space-1); }
+#byok-save-row .gate__hint { margin-top: var(--space-1); }
+/* What an account has saved, above the key fields: one line and a way to remove it. */
+.gate__saved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+.gate__saved .gate__hint { margin: 0; flex: 1 1 240px; }
 .gate__danger {
   justify-content: center;
   border: 1px solid var(--danger-border);

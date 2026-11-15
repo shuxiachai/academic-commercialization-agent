@@ -102,7 +102,7 @@ class SignUpAndSignInTests(_AccountsHttp):
         self.assertEqual(anonymous.status_code, 401)
         check = self.client.get("/api/access/check", headers=self._bearer(session["token"])).json()
         self.assertEqual(check["account"], {"email": "alice@example.com", "admin": False, "verified": True, "notify_done": False,
-                                            "trial_runs_left": 0})
+                                            "trial_runs_left": 0, "keys_saved": False})
         self.assertEqual(check["accounts"], {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False,
                                              "key_check": True, "contact": None,
                           "plan_preview": True, "daily_quota": True, "password_reset": False, "notices": False, "admin_funded": False,
@@ -119,7 +119,7 @@ class SignUpAndSignInTests(_AccountsHttp):
         me = self.client.get("/api/auth/me", headers=self._bearer(session["token"]))
         self.assertEqual(me.status_code, 200)
         self.assertEqual(me.json(), {"email": "alice@example.com", "admin": False, "verified": True, "notify_done": False,
-                                            "trial_runs_left": 0})
+                                            "trial_runs_left": 0, "keys_saved": False})
 
     def test_login_refusals_carry_stable_codes(self):
         self._signup()

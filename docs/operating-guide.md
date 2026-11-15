@@ -409,6 +409,7 @@ semantic correctness of all report prose; see the
 | GET | `/api/health/retrieval?window=20` | Per-lane counts of empty and refused retrieval across recent runs' audits; owner-filtered like `/api/runs`, no topics or run ids |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
 | GET | `/api/quota` | Paid operations left today for the calling code; `null` when uncapped |
+| GET, PUT, DELETE | `/api/auth/keys` | The signed-in account's saved API keys: whether any are saved and which (never a key), save a set in place of any saved before, remove them |
 | POST | `/api/plan` | Preview how the planner reads a topic; on the deployment's key for a code holder, on its own key set for an account; own daily cap, not a paid operation |
 | GET | `/api/runs/{run_id}/feedback` | The caller's own answer about a delivered report, if any. Authorized like a mutation: a code-owned run answers to its code or the admin, an ownerless run to whoever holds its URL |
 | POST | `/api/runs/{run_id}/feedback` | One click on a delivered report: did it change the reader's view (`yes`/`no`/`unsure`) and which part mattered. Fixed words, no text; one record per responder, replaced on a later answer; kept in the run's `feedback.json` for `scripts/ops_report.py`. Not a paid operation |
@@ -933,27 +934,46 @@ public deployment.
 
 Setting `ACCOUNTS_DB` to a file path (on persistent storage; on Railway, under
 the mounted volume) enables sign-up and sign-in at `/api/auth/*` and a sign-in
-form on the gate. An account is an identity and a history scope, nothing more:
-its runs, uploads and receipts are tagged `user:<id>` and listed only to it,
-and it pays for every paid operation with its own LLM and search keys, sent
-with each request exactly as the bring-your-own-key path always sent them.
-The server never stores an account's keys; the browser keeps them in session
-storage and the page says so. Session storage ends with the tab, so an
-account was asked for its keys again on every visit. The key form therefore
-offers a signed-in account "Remember these keys on this device". The box
-starts ticked (it shipped unticked in #407 and was changed the same day:
-an option that has to be found did not answer the complaint). Saving with
-it ticked keeps a copy in the browser's local storage, unencrypted, under
-the account's address, and a new tab of the same account reads it back. A
-device where the box was unticked at a save opens the form unticked from
-then on, recorded as a mark that holds no key and survives sign-out. The copy is removed on sign-out, when keys are saved
-without the tick, when the account is deleted, and when a different account
-signs in on that browser, which is not handed it. The server is not involved
-and still holds no key. A signed-in request without keys is refused
-with `byok_required`, never billed to the deployment. The daily operator
-quota does not apply to accounts, because it meters the deployment's key. A
-plan preview does apply: the page sends the account's key set with it, the
-call is made on the account's model key, and the page says so.
+form on the gate. An account is an identity and a history scope: its runs,
+uploads and receipts are tagged `user:<id>` and listed only to it, and it
+pays for every paid operation with its own LLM and search keys.
+
+Those keys are saved with the account. `PUT /api/auth/keys` takes the same
+body as the key check and keeps it as one sealed record per account
+(`api/account_keys.py`): the provider, the model and both keys are inside a
+Fernet token, and the account database holds nothing readable about them.
+A paid request from an account that brings no keys runs on the saved ones,
+exactly as if it had carried them; keys in a request win and save nothing.
+`GET /api/auth/keys` says whether keys are saved, which provider and model,
+and the last four characters of each key, never a key; `DELETE` removes
+them. Deleting the account removes them too, and restoring the account
+database from a backup clears them, as it clears sessions.
+
+The secret that opens the records is `ACCOUNT_KEYS_SECRET` where it is set
+(any text; on Railway, a service variable). Where it is not, a random
+secret is written once to `<ACCOUNTS_DB>.keys-secret`, beside the database.
+That file is not part of a backup, so a copy of the database alone opens
+nothing, but whoever holds the volume holds both; setting the variable
+keeps the secret off the volume. If the secret is lost or changed, saved
+keys cannot be opened: they read as not saved, each account is asked for
+its keys once, and saving replaces the record. Changing from the file to
+the variable has that effect, once.
+
+Until 2026-11-15 an account's keys lived in the browser only: in the tab's
+session storage, then for a few hours optionally in its local storage
+(#407, #408). Each made the keys a property of one browser, and an account
+was asked for them again elsewhere, after signing out, or when the browser
+cleared its data. The page still offers that as a choice: with "Save these
+keys to my account" unticked, the keys stay in the tab and travel with each
+request, nothing is saved, and keys saved earlier are removed. A device
+where the box was unticked opens the form unticked from then on (a mark in
+local storage that holds no key).
+
+A signed-in request with no keys, from an account that has saved none, is
+refused with `byok_required`, never billed to the deployment. The daily
+operator quota does not apply to accounts, because it meters the
+deployment's key. A plan preview does apply: it is made on the account's
+model key, saved or sent, and the page says so.
 
 The one exception is the operator's own account. An address named in
 `ACCOUNTS_ADMIN_EMAILS` may start runs, uploads and previews without keys

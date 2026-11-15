@@ -17,6 +17,7 @@ source = { editable = "." }
 dependencies = [
     { name = "arize-phoenix-otel" },
     { name = "crewai", extra = ["anthropic", "tools"] },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "markdown" },
@@ -43,6 +44,7 @@ e2e = [
 requires-dist = [
     { name = "arize-phoenix-otel", specifier = ">=0.16,<1" },
     { name = "crewai", extras = ["anthropic", "tools"], specifier = "==1.14.7" },
+    { name = "cryptography", specifier = ">=44" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "markdown", specifier = ">=3.6" },

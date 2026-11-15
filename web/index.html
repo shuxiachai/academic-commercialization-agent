@@ -118,7 +118,7 @@
          the same ones. -->
     <section class="landing__card landing__pay" aria-labelledby="landing-pay-title">
       <h2 id="landing-pay-title" data-i18n="landing_pay_title">Your keys, your bill</h2>
-      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Your providers bill you directly, and this service adds nothing. Keys stay in your browser, remembered on your device until you sign out unless you turn that off; this server never stores them.</p>
+      <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Your providers bill you directly, and this service adds nothing. Keys are saved with your account, encrypted, so you add them once; you can remove them at any time.</p>
       <!-- In money, and only for the providers with a recorded figure: each
            sum is a row of "What an assessment costs" in
            docs/evidence-status.md (tests/test_run_costs.py). -->
@@ -595,8 +595,8 @@
     <form id="account-form" hidden>
       <h2 class="gate__title" id="account-title" data-i18n="account_title">Sign in</h2>
       <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes 6 to 15 minutes.</p>
-      <p class="gate__sub" id="account-sub-trial" data-i18n="account_sub_trial" hidden>A new account's first assessment is free and needs no API keys. After that, runs are paid for with API keys you add: they stay in this browser, remembered on this device until you sign out unless you turn that off when you add them, are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
-      <p class="gate__sub" id="account-sub" data-i18n="account_sub" hidden>Runs are paid for with API keys you add after signing in. Your keys stay in this browser, remembered on this device until you sign out unless you turn that off when you add them, and are sent only with the operations you start, and once when you save them so your providers can be asked whether they accept them; this server never stores them.</p>
+      <p class="gate__sub" id="account-sub-trial" data-i18n="account_sub_trial" hidden>A new account's first assessment is free and needs no API keys. After that, runs are paid for with API keys you add: they are saved with your account, encrypted, so you add them once, and are used only for the operations you start.</p>
+      <p class="gate__sub" id="account-sub" data-i18n="account_sub" hidden>Runs are paid for with API keys you add after signing in. They are saved with your account, encrypted, so you add them once and they work wherever you sign in. They are used only for the operations you start, and your providers bill you directly.</p>
       <input class="gate__input" id="account-email-input" type="email" autocomplete="username" required
              maxlength="254" data-i18n-placeholder="account_email_placeholder" placeholder="Email">
       <input class="gate__input" id="account-password" type="password" autocomplete="current-password" required
@@ -672,6 +672,13 @@
            do stay on the server. Keeping them apart is the point: one line
            covering both was read as a promise it did not make. -->
       <p class="gate__sub gate__sub--retention" id="byok-retention"></p>
+      <!-- What is saved with the account, for an account that has saved
+           keys (app.js paintSavedKeys): never a key, only which provider and
+           model and the last four characters of each. -->
+      <div class="gate__saved" id="byok-saved" hidden>
+        <p class="gate__hint" id="byok-saved-text"></p>
+        <button type="button" class="gate__switch" id="byok-saved-remove" data-i18n="byok_saved_remove">Remove saved keys</button>
+      </div>
       <select class="gate__input" id="byok-provider" aria-label="LLM provider" data-i18n-aria-label="aria_llm_provider">
         <option value="deepseek">DeepSeek</option>
         <option value="qwen">Qwen (Alibaba Model Studio)</option>
@@ -704,20 +711,20 @@
       </select>
       <input class="gate__input" id="byok-search-key" type="password" autocomplete="off"
              placeholder="Search API key">
-      <!-- For a signed-in account only (app.js showKeys). Keys live in the
-           open tab, so an account pasted them again on every visit; with
-           this ticked a copy is kept in this browser until sign-out. The
-           script ticks it for an account that has not unticked it on this
-           device (app.js showKeys); the markup leaves it unticked so that a
-           visitor with keys alone never has a ticked box. The copy is a
-           live credential on a disk, which the line under it says.
-           The server stores no key either way (api.js rememberByok). -->
-      <div id="byok-remember-row" hidden>
-        <label class="gate__choice" for="byok-remember">
-          <input type="checkbox" id="byok-remember">
-          <span data-i18n="byok_remember">Remember these keys on this device</span>
+      <!-- For a signed-in account only (app.js showKeys). An account's keys
+           are saved with the account on the server, sealed, so they are
+           added once and work wherever the account signs in; the browser
+           keeps none. The script ticks the box for an account that has not
+           unticked it on this device; the markup leaves it unticked so that
+           a visitor with keys alone never has a ticked box. Unticked, the
+           keys stay in this tab and travel with each request, as they did
+           before accounts could save them. -->
+      <div id="byok-save-row" hidden>
+        <label class="gate__choice" for="byok-save">
+          <input type="checkbox" id="byok-save">
+          <span data-i18n="byok_to_account">Save these keys to my account</span>
         </label>
-        <p class="gate__hint" data-i18n="byok_remember_note">Kept in this browser, unencrypted, until you sign out, so you are not asked again on your next visit. Untick this on a shared computer.</p>
+        <p class="gate__hint" data-i18n="byok_to_account_note">Saved with your account, encrypted, so you add them once and they work wherever you sign in. Untick to use them in this tab only: nothing is saved, and they are asked for again next time.</p>
       </div>
       <p class="gate__hint" data-byok-i18n="byok_hint">
         Keys: platform.deepseek.com/api-keys · bailian.console.aliyun.com (China Qwen) ·

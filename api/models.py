@@ -959,6 +959,8 @@ class AuthSession(BaseModel):
                                                      "operations are refused with email_unverified.")
     trial_runs_left: int = Field(default=0, description="Assessments this account may still start without "
                                                         "keys, on the deployment's own.")
+    keys_saved: bool = Field(default=False, description="The account has API keys saved with it: its paid "
+                                                        "operations run on them when a request brings none.")
 
 
 class AuthMe(BaseModel):
@@ -967,6 +969,21 @@ class AuthMe(BaseModel):
     verified: bool = True
     notify_done: bool = Field(default=False, description="The account asked for an email when one of its runs ends.")
     trial_runs_left: int = Field(default=0, description="Assessments this account may still start without keys.")
+    keys_saved: bool = Field(default=False, description="The account has API keys saved with it.")
+
+
+class SavedKeys(BaseModel):
+    """What an account is told about the keys saved with it. Never a key:
+    the provider, the model, and the last four characters of each key, so a
+    person can tell which key it is."""
+
+    saved: bool = Field(description="This account has keys saved that the deployment can use.")
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    llm_key_hint: str | None = Field(default=None, description="An ellipsis and the key's last four characters.")
+    search: str | None = Field(default=None, description="tavily or serper.")
+    search_key_hint: str | None = None
+    saved_at: AwareDatetime | None = None
 
 
 class NotifyPreference(BaseModel):
