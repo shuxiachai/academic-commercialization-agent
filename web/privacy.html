@@ -64,7 +64,7 @@
     <p>When you start a paid operation, the server keeps a short record so that a lost reply can be recovered without starting the operation twice. It holds a fingerprint of the request and the reply that was accepted, never the keys, and is deleted after 24 hours.</p>
 
     <h2>What is never stored</h2>
-    <p>Your model and search API keys. They stay in your browser tab, are sent with each operation you start, are handed to the worker that runs it, and are gone when it ends. If you are signed in, they are also sent once when you save them, so that each provider can be asked whether it accepts its key. That check reads the provider's model list and the search service's account record; it requests no completion, runs no search and is not billed. They are not written to assessments, receipts, logs or any database. Closing the tab removes them from the browser.</p>
+    <p>Your model and search API keys. They stay in your browser, are sent with each operation you start, are handed to the worker that runs it, and are gone when it ends. If you are signed in, they are also sent once when you save them, so that each provider can be asked whether it accepts its key. That check reads the provider's model list and the search service's account record; it requests no completion, runs no search and is not billed. They are not written to assessments, receipts, logs or any database. Closing the tab removes them from the browser.</p>
 
     <h2>Who else sees your content</h2>
     <p>An assessment cannot be made without sending parts of it elsewhere:</p>
@@ -81,7 +81,7 @@
     <p>Each assessment has a long random address. Anyone who has that address can read the assessment without signing in, which is what lets you share a report. Cancelling, deleting or resuming an assessment made under an account needs that account. Share the link only with people who should read the report.</p>
 
     <h2>Your browser</h2>
-    <p>The page keeps your language choice and your sign-in session in the browser's local storage, and your API keys in session storage for the open tab. There are no cookies. Nothing on the page loads from another site.</p>
+    <p>The page keeps your language choice and your sign-in session in the browser's local storage, and your API keys in session storage for the open tab. If you are signed in and tick "Remember these keys on this device", a copy of the keys is also kept in local storage, unencrypted, so that a new tab has them. That copy is removed when you sign out, when you save keys without the tick, when you delete your account, and when another account signs in on the same browser. There are no cookies. Nothing on the page loads from another site.</p>
 
     <h2>Operational records</h2>
     <p>The server logs each request's path and result, without its body, your keys or your password. Where the operator has enabled tracing, it records timings and outcomes of each stage; it excludes your topic, your text, prompts and keys.</p>
@@ -136,7 +136,7 @@
     <p>发起付费操作时，服务器会保留一条简短记录，用于在回包丢失时找回结果而不重复发起。记录里只有请求的指纹和被接受的回包，不含密钥，24 小时后删除。</p>
 
     <h2>从不保存什么</h2>
-    <p>你的模型与检索 API Key。它们只留在你的浏览器标签页里，随你发起的每次操作发送，交给执行该操作的工作进程，操作结束即消失。如果你已登录，保存密钥时还会发送一次，用来向各服务商确认它是否接受对应的密钥。这次校验只读取模型服务商的模型列表和检索服务的账户记录，不请求生成，不执行检索，也不计费。它们不会写入评估、收据、日志或任何数据库。关闭标签页后，浏览器里也不再保留。</p>
+    <p>你的模型与检索 API Key。它们只留在你的浏览器里，随你发起的每次操作发送，交给执行该操作的工作进程，操作结束即消失。如果你已登录，保存密钥时还会发送一次，用来向各服务商确认它是否接受对应的密钥。这次校验只读取模型服务商的模型列表和检索服务的账户记录，不请求生成，不执行检索，也不计费。它们不会写入评估、收据、日志或任何数据库。关闭标签页后，浏览器里也不再保留。</p>
 
     <h2>还有谁会看到你的内容</h2>
     <p>完成一次评估必须把其中一部分发往别处：</p>
@@ -153,7 +153,7 @@
     <p>每条评估有一个很长的随机地址。拿到这个地址的人无需登录就能阅读该评估，这也是报告可以分享的原因。取消、删除或恢复账号名下的评估需要登录该账号。请只把链接发给应该读到报告的人。</p>
 
     <h2>你的浏览器</h2>
-    <p>页面把语言选择和登录会话保存在浏览器的本地存储里，把 API Key 保存在当前标签页的会话存储里。没有 Cookie，页面上没有任何内容从其他网站加载。</p>
+    <p>页面把语言选择和登录会话保存在浏览器的本地存储里，把 API Key 保存在当前标签页的会话存储里。如果你已登录并勾选“在这台设备上记住这些密钥”，密钥还会以未加密的形式在本地存储里另存一份，新开的标签页可以直接使用。退出登录、不勾选再次保存、删除账号，或有另一个账号在同一浏览器登录时，这份副本会被删除。没有 Cookie，页面上没有任何内容从其他网站加载。</p>
 
     <h2>运行记录</h2>
     <p>服务器日志记录每个请求的路径和结果，不记录请求内容、密钥或密码。运营者启用追踪时，会记录各阶段的耗时与结果，其中不包含你的主题、文本、提示词和密钥。</p>

@@ -42,7 +42,7 @@ function fixture(receiptStore = new Map()) {
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
-    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login", "/api/runs?limit=200", "/api/runs/running-one?intent=cancel"].includes(url), `Unexpected HTTP: ${url}`);
+    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login", "/api/auth/logout", "/api/runs?limit=200", "/api/runs/running-one?intent=cancel"].includes(url), `Unexpected HTTP: ${url}`);
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
@@ -612,6 +612,93 @@ const scenarios = {
       await send(); await gate;
       assert.equal(f.requests.length, 2);
       assert.equal(api.getByok()?.llmKey, 'fixture-B');
+    }
+  },
+  async remembered_keys() {
+    // An account may keep its keys on this device: only with the tick, only
+    // for itself, and not past signing out. tests/test_remembered_keys.py
+    // holds the storage to those rules; this is the page using it.
+    const kind = process.argv[3];
+    const local = new Map(), session = new Map();
+    const storage = (map) => ({ getItem: (key) => map.get(key) ?? null,
+      setItem: (key, value) => { map.set(key, String(value)); }, removeItem: (key) => { map.delete(key); } });
+    globalThis.localStorage = storage(local); globalThis.sessionStorage = storage(session);
+    const SLOT = 'byok-remembered-v1';
+    const keys = { provider: 'qwen', llmKey: 'fixture-A', search: 'tavily', searchKey: 'fixture-search', model: 'qwen3.8-27b' };
+    const kept = () => (local.has(SLOT) ? JSON.parse(local.get(SLOT)) : null);
+    const f = fixture();
+    const account = () => f.run(`accountMode = true; accountEmail = 'a@example.com';
+      authConfig = { enabled: true, key_check: false }`);
+    const fill = () => {
+      f.get('#byok-provider').value = keys.provider; f.get('#byok-model').value = keys.model;
+      f.get('#byok-llm-key').value = keys.llmKey;
+      f.get('#byok-search').value = keys.search; f.get('#byok-search-key').value = keys.searchKey;
+    };
+    const send = () => f.get('#byok-form').onsubmit({preventDefault(){}});
+    const box = f.get('#byok-remember'), row = f.get('#byok-remember-row');
+    if (kind === 'ticked' || kind === 'unticked') {
+      account();
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(row.hidden, false, 'An account is offered the choice');
+      assert.equal(box.checked, false, '...and it starts unticked');
+      if (kind === 'ticked') box.checked = true;
+      fill(); await send(); await gate;
+      assert.deepEqual(api.getByok(), keys);
+      assert.deepEqual(kept(), kind === 'ticked' ? { owner: 'a@example.com', creds: keys } : null);
+      assert.equal(f.get('#toasts').children.length, 0);
+      assert.equal(f.requests.length, 0, 'Keeping keys asks the server nothing');
+    } else if (kind === 'untick_later') {
+      api.rememberByok(keys, 'a@example.com'); account();
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(box.checked, true, 'The form shows that keys are being kept');
+      box.checked = false; fill(); await send(); await gate;
+      assert.equal(kept(), null, 'Saving without the tick stops keeping them');
+      assert.deepEqual(api.getByok(), keys, '...and the tab still has what was just saved');
+    } else if (kind === 'refused') {
+      account();
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      box.checked = true; fill();
+      globalThis.localStorage.setItem = () => { throw Error('fixture quota'); };
+      await send(); await gate;
+      assert.deepEqual(api.getByok(), keys, 'The keys are saved for the tab all the same');
+      assert.equal(kept(), null);
+      assert.equal(f.get('#toasts').children.at(-1).textContent, 'byok_remember_failed');
+    } else if (kind === 'visitor') {
+      // Keys alone and no account: there is nobody to keep them for.
+      f.run('authConfig = { enabled: false }');
+      box.checked = true; row.hidden = false;
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(row.hidden, true, 'The choice is not offered');
+      assert.equal(box.checked, false, '...and a tick left from an account does not carry over');
+      box.checked = true; fill(); await send(); await gate;
+      assert.deepEqual(api.getByok(), keys);
+      assert.equal(kept(), null, 'Even a tick that got through keeps nothing');
+    } else if (kind === 'new_tab' || kind === 'other_account') {
+      // The browser holds a copy from an earlier visit; this tab has no keys yet.
+      api.rememberByok(keys, 'a@example.com');
+      assert.equal(session.size, 0);
+      f.run(`authConfig = { enabled: true }; applyAccountMode({ email: '${kind === 'new_tab' ? 'A@Example.com' : 'b@example.com'}' })`);
+      if (kind === 'new_tab') {
+        assert.deepEqual(api.getByok(), keys, 'The account that kept them has them again');
+        assert.equal(f.run('byokMode'), true, '...and the page knows it has keys before it asks for any');
+        assert.ok(kept(), 'They stay kept for the next visit');
+      } else {
+        assert.equal(api.getByok(), null, 'Another account is not handed them');
+        assert.equal(f.run('byokMode'), false);
+        assert.equal(kept(), null, '...and they do not stay on this device');
+      }
+    } else {
+      assert.equal(kind, 'sign_out');
+      api.setByok(keys); api.rememberByok(keys, 'a@example.com'); account();
+      f.run('byokMode = true; location.replace = (url) => { globalThis.wentTo = url; }');
+      const exit = f.run('exitCredentials()');
+      assert.equal(kept(), null, 'Signing out removes the copy at once, before the server answers');
+      assert.equal(api.getByok(), null);
+      for (let turn = 0; turn < 20 && !f.requests.length; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(f.requests[0].url, '/api/auth/logout');
+      f.respond(0, { ok: true }); await exit;
+      assert.equal(f.run('globalThis.wentTo'), '/', 'A clean sign-out starts over at the front door');
+      assert.equal(local.size, 0, 'Nothing of the account is left in this browser');
     }
   },
   async account_preview() {
