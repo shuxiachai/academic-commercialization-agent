@@ -750,6 +750,31 @@
   white-space: nowrap;
 }
 .composer__quota--empty { color: var(--danger); }
+/* Not what stands in the way of an account with no keys: dimmed beside the line that says what does. */
+.composer__quota--muted { opacity: 0.55; }
+/* "Add your API keys to start": the line and its button, in the composer where the run would start. */
+.composer__need {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  color: var(--text-primary);
+}
+.composer__need[hidden] { display: none; }
+.composer__need-add {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-full);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+/* The run button belongs to the right-hand end of the bar. When the bar
+   wraps on a phone, the spacer stays on the row above and the button used
+   to drop to the left of a row of its own, apart from the field it sends. */
+.composer__bar .send-btn { margin-left: auto; }
 .composer__privacy.composer__trial { color: var(--accent, var(--text-primary)); }
 
 .composer__privacy {
@@ -1515,6 +1540,12 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   border-radius: var(--radius-md);
 }
 .gate__saved .gate__hint { margin: 0; flex: 1 1 240px; }
+.gate__saved[hidden], .gate__saved-check[hidden] { display: none; }
+/* What a check found: one line per finding. */
+.gate__saved .gate__saved-check { flex-basis: 100%; white-space: pre-line; color: var(--text-primary); }
+.gate__saved-actions { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); flex-basis: 100%; }
+.gate__saved-actions .gate__switch { align-self: baseline; margin-top: 0; }
+#byok-links a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .gate__danger {
   justify-content: center;
   border: 1px solid var(--danger-border);

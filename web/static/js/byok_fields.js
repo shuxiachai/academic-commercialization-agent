@@ -57,7 +57,12 @@ const PROVIDER_NAMES = { deepseek: "DeepSeek", qwen: "Model Studio", openai: "Op
 
 const STRINGS = {
   English: {
-    byok_hint: "Keys: platform.deepseek.com/api-keys · bailian.console.aliyun.com (China Qwen) · platform.openai.com/api-keys · console.anthropic.com — plus app.tavily.com (recommended) or serper.dev for search. The model you name must support JSON output.",
+    // The words between the links to where keys come from (index.html, #byok-links).
+    byok_keys_model: "Model keys:",
+    byok_keys_qwen: "(China Qwen)",
+    byok_keys_search: "Search keys:",
+    byok_keys_recommended: "(recommended)",
+    byok_keys_json: "The model you name must support JSON output.",
     model_placeholder: "Model (required), e.g. {example}",
     model_measured: "Checked by this project on topics set aside for testing: runs that landed in the expected readiness range, out of those made. Choose one to fill it in. Any other model is untested here, not unsupported.",
     model_unmeasured: "No quality check by this project has gone through {provider} yet. The models below are places to start; any other model name can be entered too.",
@@ -67,7 +72,11 @@ const STRINGS = {
     search_key_serper: "Serper API key",
   },
   "Simplified Chinese": {
-    byok_hint: "获取密钥：platform.deepseek.com/api-keys · bailian.console.aliyun.com（中国区 Qwen）· platform.openai.com/api-keys · console.anthropic.com；检索推荐使用 app.tavily.com，也可使用 serper.dev。所填模型需支持 JSON 输出。",
+    byok_keys_model: "模型密钥：",
+    byok_keys_qwen: "（中国区 Qwen）",
+    byok_keys_search: "检索密钥：",
+    byok_keys_recommended: "（推荐）",
+    byok_keys_json: "所填模型需支持 JSON 输出。",
     model_placeholder: "模型（必填），例如 {example}",
     model_measured: "本项目用专门留作测试的主题抽检过的模型：落在预期成熟度区间的次数／运行次数。点一个即可填入。其他模型只是没有在这里测过，并非不支持。",
     model_unmeasured: "本项目还没有经 {provider} 做过质量抽检。下面是可以先试的型号，也可以填写其他型号。",

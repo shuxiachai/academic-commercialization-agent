@@ -132,8 +132,8 @@
         <summary data-i18n="key_guide_title">Get both keys in 3 steps</summary>
         <p class="key-guide__trial" id="landing-key-guide-trial" data-i18n="key_guide_trial" hidden>Your free first assessment needs neither key. For the assessments after it:</p>
         <ol>
-          <li><span data-i18n="key_guide_step1">Model key: create an API key at DeepSeek, the cheapest provider measured here.</span> <a href="https://platform.deepseek.com/api-keys" target="_blank" rel="noopener">platform.deepseek.com/api-keys</a></li>
-          <li><span data-i18n="key_guide_step2">Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.</span> <a href="https://app.tavily.com" target="_blank" rel="noopener">app.tavily.com</a></li>
+          <li><span data-i18n="key_guide_step1">Model key: create an API key at DeepSeek, the cheapest provider measured here.</span> <a href="https://platform.deepseek.com/api-keys" target="_blank" rel="noopener noreferrer">platform.deepseek.com/api-keys</a></li>
+          <li><span data-i18n="key_guide_step2">Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.</span> <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer">app.tavily.com</a></li>
           <li><span data-i18n="key_guide_step3_landing">Create an account here, paste both keys, enter deepseek-chat as the model, and start.</span></li>
         </ol>
       </details>
@@ -147,7 +147,7 @@
     <div class="landing__foot-inner">
       <a href="/privacy" data-i18n="legal_link">Privacy and terms</a>
       <a href="/samples" data-i18n="landing_nav_samples">Sample reports</a>
-      <a href="https://github.com/shuxiachai/academic-commercialization-agent" target="_blank" rel="noopener" data-i18n="landing_source">Source code and measured results on GitHub</a>
+      <a href="https://github.com/shuxiachai/academic-commercialization-agent" target="_blank" rel="noopener noreferrer" data-i18n="landing_source">Source code and measured results on GitHub</a>
       <p class="landing__disclaimer" data-i18n="landing_disclaimer">Reports are for research screening. They do not replace technical, legal, regulatory, investment or freedom-to-operate due diligence.</p>
     </div>
   </footer>
@@ -323,6 +323,7 @@
               <textarea
                 class="composer__input"
                 id="topic"
+                aria-label="Research topic or paper" data-i18n-aria-label="aria_topic"
                 rows="1"
                 maxlength="300"
                 autocomplete="off"
@@ -383,6 +384,14 @@
               <div class="composer__attachment" id="attachment" hidden></div>
               <!-- A verified account's first assessment(s) run on the deployment's
                    keys; said here so a newcomer is not sent for keys first. -->
+              <!-- An account with no keys, no trial and no operator paying: the
+                   composer looked ready ("10 of 10 runs left today", an arrow
+                   to press) and said nothing until Run was pressed, which
+                   opened the key form. Said here, with the way to do it. -->
+              <p class="composer__privacy composer__need" id="keys-needed" hidden>
+                <span data-i18n="keys_needed">Add your API keys to start an assessment.</span>
+                <button type="button" class="composer__need-add" id="keys-needed-add" data-i18n="keys_needed_add">Add API keys</button>
+              </p>
               <p class="composer__privacy composer__trial" id="trial-note" hidden></p>
               <p class="composer__privacy" data-i18n="paper_privacy">
                 Selected PDF text is sent to the configured model provider. The raw PDF is deleted after successful extraction; extracted metadata expires within 24 hours if no run uses it.
@@ -630,7 +639,7 @@
       <p class="gate__hint" id="account-invite-hint" hidden></p>
       <p class="gate__error" id="account-error" hidden></p>
       <button type="submit" class="btn btn--primary" id="account-submit" data-i18n="account_sign_in">Sign in</button>
-      <p class="gate__hint" id="account-legal" hidden><a href="/privacy" target="_blank" rel="noopener" data-i18n="account_legal">Creating an account means accepting the privacy and terms notes: what is stored, and what never is.</a></p>
+      <p class="gate__hint" id="account-legal" hidden><a href="/privacy" target="_blank" rel="noopener noreferrer" data-i18n="account_legal">Creating an account means accepting the privacy and terms notes: what is stored, and what never is.</a></p>
       <button type="button" class="gate__switch" id="account-toggle" data-i18n="account_toggle_to_create">No account? Create one</button>
       <!-- Only when the deployment can send mail (auth config password_reset);
            otherwise the operator is the way back and the privacy page says so. -->
@@ -697,7 +706,23 @@
            model and the last four characters of each. -->
       <div class="gate__saved" id="byok-saved" hidden>
         <p class="gate__hint" id="byok-saved-text"></p>
-        <button type="button" class="gate__switch" id="byok-saved-remove" data-i18n="byok_saved_remove">Remove saved keys</button>
+        <!-- What the providers said when asked just now ("Check these
+             keys"): the page never has the saved keys again, so the server
+             asks on the account's behalf (POST /api/auth/keys/check). -->
+        <p class="gate__hint gate__saved-check" id="byok-saved-check" role="status" hidden></p>
+        <div class="gate__saved-actions">
+          <button type="button" class="gate__switch" id="byok-saved-check-now" data-i18n="byok_saved_check">Check these keys</button>
+          <button type="button" class="gate__switch" id="byok-saved-remove" data-i18n="byok_saved_remove">Remove saved keys</button>
+        </div>
+      </div>
+      <!-- Keys an account chose not to save: they are in this tab, and until
+           2026-11-15 the form opened empty over them, with no way to see
+           which they were or to drop them. -->
+      <div class="gate__saved" id="byok-tab" hidden>
+        <p class="gate__hint" id="byok-tab-text"></p>
+        <div class="gate__saved-actions">
+          <button type="button" class="gate__switch" id="byok-tab-clear" data-i18n="byok_tab_clear">Clear keys from this tab</button>
+        </div>
       </div>
       <select class="gate__input" id="byok-provider" aria-label="LLM provider" data-i18n-aria-label="aria_llm_provider">
         <option value="deepseek">DeepSeek</option>
@@ -705,12 +730,16 @@
         <option value="openai">OpenAI</option>
         <option value="anthropic">Anthropic</option>
       </select>
+      <!-- Named for a screen reader: a placeholder is an example that goes
+           when typing starts, and the model field's changes per provider. -->
       <input class="gate__input" id="byok-llm-key" type="password" autocomplete="off"
+             aria-label="Model API key" data-i18n-aria-label="aria_llm_key"
              data-i18n-placeholder="byok_llm_placeholder" placeholder="LLM API key">
       <!-- The model the visitor's own key should use. Required: there is no
            default model. byok_fields.js shows an example as the placeholder. -->
       <input class="gate__input" id="byok-model" type="text" autocomplete="off" spellcheck="false"
              maxlength="100" required placeholder="Model (required)" list="byok-model-options"
+             aria-label="Model name" data-i18n-aria-label="aria_model_name"
              aria-describedby="byok-model-note">
       <!-- Suggestions only, filled per provider by byok_fields.js; the field
            stays empty and required until the visitor picks or types one. -->
@@ -730,6 +759,7 @@
         <option value="serper">Serper</option>
       </select>
       <input class="gate__input" id="byok-search-key" type="password" autocomplete="off"
+             aria-label="Search API key" data-i18n-aria-label="aria_search_key"
              placeholder="Search API key">
       <!-- For a signed-in account only (app.js showKeys). An account's keys
            are saved with the account on the server, sealed, so they are
@@ -746,10 +776,20 @@
         </label>
         <p class="gate__hint" data-i18n="byok_to_account_note">Saved with your account, encrypted, so you add them once and they work wherever you sign in. Untick to use them in this tab only: nothing is saved, and they are asked for again next time.</p>
       </div>
-      <p class="gate__hint" data-byok-i18n="byok_hint">
-        Keys: platform.deepseek.com/api-keys · bailian.console.aliyun.com (China Qwen) ·
-        platform.openai.com/api-keys · console.anthropic.com — plus app.tavily.com
-        (recommended) or serper.dev for search.
+      <!-- Where each key comes from, as links. These were one sentence of
+           plain text: six addresses to copy by hand. -->
+      <p class="gate__hint" id="byok-links">
+        <span data-byok-i18n="byok_keys_model">Model keys:</span>
+        <a href="https://platform.deepseek.com/api-keys" target="_blank" rel="noopener noreferrer">platform.deepseek.com/api-keys</a> ·
+        <a href="https://bailian.console.aliyun.com" target="_blank" rel="noopener noreferrer">bailian.console.aliyun.com</a>
+        <span data-byok-i18n="byok_keys_qwen">(China Qwen)</span> ·
+        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">platform.openai.com/api-keys</a> ·
+        <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>.
+        <span data-byok-i18n="byok_keys_search">Search keys:</span>
+        <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer">app.tavily.com</a>
+        <span data-byok-i18n="byok_keys_recommended">(recommended)</span> ·
+        <a href="https://serper.dev" target="_blank" rel="noopener noreferrer">serper.dev</a>.
+        <span data-byok-i18n="byok_keys_json">The model you name must support JSON output.</span>
       </p>
       <!-- For someone who has never done this: what is enough, what it
            costs and who bills it. The sums are measured runs, said as such
@@ -760,8 +800,8 @@
         <summary data-i18n="key_guide_title">Get both keys in 3 steps</summary>
         <p class="key-guide__trial" id="byok-key-guide-trial" data-i18n="key_guide_trial" hidden>Your free first assessment needs neither key. For the assessments after it:</p>
         <ol>
-          <li><span data-i18n="key_guide_step1">Model key: create an API key at DeepSeek, the cheapest provider measured here.</span> <a href="https://platform.deepseek.com/api-keys" target="_blank" rel="noopener">platform.deepseek.com/api-keys</a></li>
-          <li><span data-i18n="key_guide_step2">Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.</span> <a href="https://app.tavily.com" target="_blank" rel="noopener">app.tavily.com</a></li>
+          <li><span data-i18n="key_guide_step1">Model key: create an API key at DeepSeek, the cheapest provider measured here.</span> <a href="https://platform.deepseek.com/api-keys" target="_blank" rel="noopener noreferrer">platform.deepseek.com/api-keys</a></li>
+          <li><span data-i18n="key_guide_step2">Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.</span> <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer">app.tavily.com</a></li>
           <li><span data-i18n="key_guide_step3_form">Paste both keys into this form, choose DeepSeek and Tavily, enter deepseek-chat as the model, and start.</span></li>
         </ol>
       </details>

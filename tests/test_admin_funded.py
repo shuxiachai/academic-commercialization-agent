@@ -211,7 +211,9 @@ class PageTests(unittest.TestCase):
         app_js = (_ROOT / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn("function operatorPays()", app_js)
         self.assertIn("accountMode && accountAdmin && authConfig?.admin_funded === true", app_js)
-        self.assertEqual(app_js.count("!operatorPays()"), 2, "the paid-request guard and the boot's key card")
+        self.assertEqual(app_js.count("!operatorPays()"), 3,
+                         "the paid-request guard, the boot's key card, and the composer's line that keys are needed")
+        self.assertIn("return accountMode && !accountHasKeys() && !operatorPays() && !trialPays();", app_js)
         self.assertIn("if (accountHasKeys() || operatorPays() || trialPays()) { finish(); return; }", app_js)
         self.assertIn('t(operatorPays() ? "byok_admin_note" : trialPays() ? "byok_trial_note" : "byok_account_note")', app_js)
         # The first production run on the operator's key skipped the free preview and went

@@ -42,7 +42,7 @@ function fixture(receiptStore = new Map()) {
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
-    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login", "/api/auth/logout", "/api/auth/keys", "/api/runs?limit=200", "/api/runs/running-one?intent=cancel"].includes(url), `Unexpected HTTP: ${url}`);
+    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login", "/api/auth/logout", "/api/auth/keys", "/api/auth/keys/check", "/api/runs?limit=200", "/api/runs/running-one?intent=cancel"].includes(url), `Unexpected HTTP: ${url}`);
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
@@ -779,11 +779,13 @@ const scenarios = {
       assert.equal(f.get('#byok-llm-key').value, '', 'No key comes back into the fields');
       if (kind === 'listed') {
         // The account's own words for it: provider, model, and the ends of the keys.
-        translations.byok_saved_summary = '{provider} / {model} / {llm} / {search} / {searchKey}';
+        translations.byok_saved_summary = '{date} / {provider} / {model} / {llm} / {search} / {searchKey}';
         const again = f.run('showGate(null, { keysOnly: true })');
         await turn(); f.respond(1, summary); await turn();
         // Each hint is kept in one piece: a word joiner follows its ellipsis.
-        assert.equal(f.get('#byok-saved-text').textContent, 'qwen / qwen3.8-27b / …\u2060re-A / tavily / …\u2060arch');
+        assert.equal(f.get('#byok-saved-text').textContent, '15 Nov 2026 / qwen / qwen3.8-27b / …\u2060re-A / tavily / …\u2060arch',
+          'When they were saved, which provider and model, and the ends of the keys');
+        assert.equal(f.get('#byok-tab').hidden, true, 'Nothing is in this tab: the account saved its keys');
         // A server that now says nothing is saved (removed on another device): the page believes it.
         const third = f.run('showGate(null, { keysOnly: true })');
         await turn(); f.respond(2, { saved: false }); await turn();
@@ -819,6 +821,134 @@ const scenarios = {
         answered(1); await turn();
         assert.equal(f.get('#toasts').children.length, 0);
       }
+    } else if (kind.startsWith('check_')) {
+      // "Check these keys": the page has only the ends of the saved keys, so
+      // the server asks the providers and the page says what they said, and when.
+      account(true);
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      await turn(); f.respond(0, summary); await turn();
+      const line = f.get('#byok-saved-check'), button = f.get('#byok-saved-check-now');
+      assert.equal(line.hidden, true, 'Nothing is claimed before anyone was asked');
+      translations.byok_saved_check_ok = '{time} | {provider} | {service}';
+      translations.byok_saved_check_problem = '{time}:';
+      const asking = button.onclick();
+      await turn();
+      assert.equal(f.requests[1].url, '/api/auth/keys/check');
+      assert.equal(f.requests[1].options.method, 'POST');
+      assert.equal(f.requests[1].options.body, undefined, 'No key is sent: the page has none to send');
+      assert.deepEqual([line.hidden, line.textContent, button.disabled], [false, 'byok_saved_checking', true]);
+      await button.onclick();
+      assert.equal(f.requests.length, 2, 'A second press while asking asks nobody again');
+      const answer = { ok: { checked: true, llm: 'accepted', model: 'listed', search: 'accepted' },
+        rejected: { checked: true, llm: 'rejected', model: 'unknown', search: 'accepted' },
+        model: { checked: true, llm: 'accepted', model: 'not_listed', search: 'rejected' },
+        unverified: { checked: true, llm: 'unverified', model: 'unknown', search: 'accepted' },
+        off: { checked: false, llm: 'unverified', model: 'unknown', search: 'unverified' } }[kind.slice(6)];
+      if (answer) {
+        f.respond(1, answer); await asking;
+        const said = line.textContent;
+        if (kind === 'check_ok') assert.match(said, /^\d\d:\d\d \| Qwen \| Tavily$/, 'When, and who accepted what');
+        else if (kind === 'check_rejected') assert.match(said, /^\d\d:\d\d:\nbyok_rejected_llm\nbyok_saved_check_next$/);
+        else if (kind === 'check_model') assert.match(said, /^\d\d:\d\d:\nbyok_model_not_listed\nbyok_rejected_search\nbyok_saved_check_next$/);
+        else if (kind === 'check_unverified') assert.equal(said, 'byok_saved_check_unverified', 'No answer is not "accepted"');
+        else assert.equal(said, 'byok_saved_check_off');
+        assert.ok(!said.includes('byok_problem_next'), 'The advice for keys being typed ("save anyway") is not given for saved ones');
+        assert.equal(f.run('accountKeysSaved'), true, 'What the providers say changes nothing by itself');
+        assert.equal(f.get('#byok-saved').hidden, false);
+      } else if (kind === 'check_failed') {
+        f.respond(1, { detail: 'fixture' }, 500); await asking;
+        assert.equal(line.textContent, 'byok_saved_check_failed');
+      } else if (kind === 'check_limited') {
+        f.respond(1, { detail: 'Too many key checks.' }, 429, 'rate_limited'); await asking;
+        assert.equal(line.textContent, 'byok_saved_check_failed');
+      } else if (kind === 'check_unreachable') {
+        f.requests[1].reject(new TypeError('Failed to fetch')); await asking;
+        assert.equal(line.textContent, 'msg_network', 'Said as what it is, in the interface language');
+      } else {
+        assert.equal(kind, 'check_gone');
+        // Removed on another device since the form opened.
+        f.respond(1, { detail: 'No keys are saved with this account.' }, 409, 'no_saved_keys'); await asking;
+        assert.equal(f.get('#byok-saved').hidden, true);
+        assert.equal(f.run('accountKeysSaved'), false);
+        assert.equal(f.get('#keys-needed').hidden, false, '...and the composer says keys are needed');
+      }
+      assert.equal(button.disabled, false);
+      f.get('#byok-skip').onclick(); await gate;
+    } else if (kind === 'tab_listed') {
+      // Keys the account chose not to save are in this tab. The form opened
+      // empty over them: no telling which they were, and no way to drop them.
+      const held = { ...keys, llmKey: 'sk-fixture-model-key-0123abcd', searchKey: 'tvly-fixture-search-9876wxyz' };
+      api.setByok(held);
+      account();
+      translations.byok_tab_summary = '{provider} / {model} / {llm} / {search} / {searchKey}';
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      await turn();
+      assert.equal(f.requests.length, 0, 'Nothing is asked of the server: these keys are not there');
+      assert.equal(f.get('#byok-saved').hidden, true);
+      assert.equal(f.get('#byok-tab').hidden, false);
+      const said = f.get('#byok-tab-text').textContent;
+      assert.equal(said, 'qwen / qwen3.8-27b / …\u2060abcd / tavily / …\u2060wxyz', 'Which keys, by their last four characters');
+      assert.ok(!said.includes('sk-fixture') && !said.includes('tvly-fixture'), 'Never more of a key than its end');
+      assert.equal(f.get('#byok-llm-key').value, '', 'The fields stay empty');
+      assert.equal(f.get('#keys-needed').hidden, true, 'The account has keys, in this tab');
+      // A key too short for four characters to be a small part of it shows none of it.
+      api.setByok(keys);
+      const again = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(f.get('#byok-tab-text').textContent, 'qwen / qwen3.8-27b / … / tavily / …\u2060arch');
+      // Cleared: gone from the tab, and the composer says keys are needed again.
+      f.get('#byok-tab-clear').onclick();
+      assert.equal(api.getByok(), null);
+      assert.equal(session.size, 0);
+      assert.equal(f.get('#byok-tab').hidden, true);
+      assert.equal(f.get('#toasts').children.at(-1).textContent, 'byok_tab_cleared');
+      assert.equal(f.get('#keys-needed').hidden, false);
+      assert.equal(f.run('byokMode'), false);
+      f.get('#byok-skip').onclick(); await again;
+      // A visitor with keys alone is shown no such block: their keys are their way in, and "Exit" is how they leave.
+      api.setByok(held);
+      f.run('accountMode = false; authConfig = { enabled: false }');
+      const third = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(f.get('#byok-tab').hidden, true);
+      f.get('#byok-llm-key').value = ''; void gate; void third;
+    } else if (kind === 'needed') {
+      // An account with no keys, no trial and nobody paying: the composer says so.
+      const need = () => !f.get('#keys-needed').hidden;
+      const marks = {};
+      f.get('#quota').classList = { toggle: (name, on) => { marks[name] = on; } };
+      const dimmed = () => marks['composer__quota--muted'];
+      f.run('paintTrialNote()');
+      assert.equal(dimmed(), false);
+      assert.equal(need(), false, 'Not said to someone who is not signed in to an account');
+      account();
+      assert.equal(need(), true);
+      assert.equal(f.run('keysNeeded()'), true);
+      assert.equal(dimmed(), true, "The day's allowance is not what stands in the way");
+      // The button opens the key form; saving there takes the line away.
+      const opened = f.get('#keys-needed-add').listeners.click();
+      assert.equal(f.get('#byok-form').hidden, false);
+      fill();
+      const saving = send(); await turn();
+      f.respond(0, summary); await saving; await opened;
+      assert.equal(need(), false, 'Keys saved: nothing is needed');
+      assert.equal(dimmed(), false);
+      // Removed again, it comes back; so it does when the server refuses for want of keys.
+      const reopened = f.get('#keys-needed-add').listeners.click();
+      await turn(); f.respond(1, summary); await turn();
+      const removing = f.get('#byok-saved-remove').onclick();
+      await turn(); answered(2); await removing;
+      assert.equal(need(), true);
+      f.get('#byok-skip').onclick(); await reopened;
+      // Not for an account that has another way to pay.
+      f.run(`applyAccountMode({ email: 'a@example.com', keys_saved: false, verified: true, trial_runs_left: 1 })`);
+      assert.equal(need(), false, 'A free first assessment needs no keys');
+      f.run(`authConfig = { enabled: true, admin_funded: true }; applyAccountMode({ email: 'a@example.com', keys_saved: false, admin: true })`);
+      assert.equal(need(), false, 'An administrator the deployment pays for');
+      f.run(`authConfig = { enabled: true }; applyAccountMode({ email: 'a@example.com', keys_saved: true })`);
+      assert.equal(need(), false);
+      // What the reader is told when the server cannot be reached.
+      assert.equal(f.run('errorText({ code: "network_unreachable", message: "English from the client" })'), 'msg_network');
+      assert.equal(f.run('errorText({ code: "rate_limited", message: "What the server said" })'), 'What the server said');
+      assert.equal(f.run('operationErrorMessage({ code: "network_unreachable", message: "x", status: 0 })'), 'msg_network');
     } else if (kind === 'save_failed') {
       account();
       let finished = false;
@@ -846,6 +976,7 @@ const scenarios = {
       await pending;
       assert.equal(f.run('accountKeysSaved'), false, 'The next attempt asks for keys instead of being refused again');
       assert.equal(f.get('#toasts').children.at(-1).textContent, 'msg_byok_required');
+      assert.equal(f.get('#keys-needed').hidden, false, 'The composer says so from then on');
     } else if (kind === 'visitor') {
       // Keys alone and no account: there is no account to save them with.
       f.run('authConfig = { enabled: false }');

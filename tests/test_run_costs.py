@@ -126,13 +126,15 @@ def test_the_key_guide_is_three_steps_with_the_links_the_form_already_gives(elem
     steps = re.findall(r"<li>(.*?)</li>", guide, re.S)
     assert len(steps) == 3
     assert [re.search(r'data-i18n="(\w+)"', step)[1] for step in steps] == ["key_guide_step1", "key_guide_step2", last_step]
-    links = re.findall(r'<a href="([^"]+)" target="_blank" rel="noopener">([^<]+)</a>', guide)
+    links = re.findall(r'<a href="([^"]+)" target="_blank" rel="noopener noreferrer">([^<]+)</a>', guide)
     assert links == [("https://platform.deepseek.com/api-keys", "platform.deepseek.com/api-keys"),
                      ("https://app.tavily.com", "app.tavily.com")]
     # The same two addresses the keys form has always named, not new ones.
-    hint = _INDEX[_INDEX.index('data-byok-i18n="byok_hint"'):]
-    for _, shown in links:
-        assert shown in hint[:400], shown
+    # They are links there too now (tests/test_key_management_page.py).
+    hint = _INDEX[_INDEX.index('<p class="gate__hint" id="byok-links">'):]
+    hint = hint[:hint.index("</p>")]
+    for address, shown in links:
+        assert f'<a href="{address}" target="_blank" rel="noopener noreferrer">{shown}</a>' in hint, shown
     assert "<img" not in guide, "no screenshots: they go stale"
     # A line for a deployment whose first assessment is free; hidden unless it is.
     assert re.search(rf'<p class="key-guide__trial" id="{element_id}-trial" data-i18n="key_guide_trial" hidden>', guide)

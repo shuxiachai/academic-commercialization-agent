@@ -3,6 +3,11 @@
 import * as api from "./api.js";
 import { language, t } from "./i18n.js";
 
+/* What a failed read says in a tab. The server's own sentence when it sent
+ * one; when nothing was reached, the client's sentence is English whatever
+ * the interface language, so that one is said from the string table. */
+const failureText = (err) => (err?.code === "network_unreachable" ? t("msg_network") : err.message);
+
 /* ── Scoring dimensions ────────────────────────────────────────────────
  * Maxima differ per dimension (TRL is out of 9, MRL out of 10, the rest out
  * of 5), so a bar cannot assume a shared scale. Declared here rather than
@@ -1611,7 +1616,7 @@ export async function render(container, runId, progress) {
           : err?.status === 404 ? "sources_resource_unavailable" : "sources_read_failed";
         panel.append(el("p", "empty-note sources__error", t(message)));
       } else {
-        panel.append(el("p", "empty-note", err.message));
+        panel.append(el("p", "empty-note", failureText(err)));
       }
       loaded.delete(id);      // let a retry re-fetch
     }
@@ -1672,7 +1677,7 @@ export function renderChecks(checks, rows) {
       try {
         body.replaceChildren(check.render(await check.load()));
       } catch (err) {
-        body.replaceChildren(el("p", "empty-note", err.message));
+        body.replaceChildren(el("p", "empty-note", failureText(err)));
         read = false;      // let the next opening ask again
       }
     };

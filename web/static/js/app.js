@@ -65,6 +65,14 @@ function toast(message, variant = "") {
   setTimeout(() => el.remove(), 4600);
 }
 
+/** An error in words for the reader. What the server said is the server's;
+ * the client's own "cannot reach the server" is said in the interface
+ * language (it used to be English everywhere, and ended "Is it still
+ * running?", a question for someone running the server themselves). */
+function errorText(err) {
+  return err?.code === "network_unreachable" ? t("msg_network") : err.message;
+}
+
 function operationErrorMessage(err) {
   if (err.code === "invalid_byok") return t("invalid_byok");
   if (err.code === "byok_required") return t("msg_byok_required");
@@ -83,7 +91,7 @@ function operationErrorMessage(err) {
   }[err.code];
   // Unknown/legacy 429 responses retain the server's reason. Inferring a
   // capacity error from their status used to hide the daily UTC reset rule.
-  return err.status === 429 && key ? t(key) : err.message;
+  return err.status === 429 && key ? t(key) : errorText(err);
 }
 
 function rememberAcceptedRun(accepted) {
@@ -126,11 +134,29 @@ function trialPays() {
 }
 
 function paintTrialNote() {
+  paintKeysNeeded();
   const note = $("#trial-note");
   if (!note) return;
   const show = trialPays() && !accountHasKeys();
   note.hidden = !show;
   note.textContent = show ? t("trial_note").replace("{n}", String(accountTrialLeft)) : "";
+}
+
+/* Whether this account cannot start anything yet: no keys, no trial, and
+ * nobody else paying. The composer used to look ready in that state ("10 of
+ * 10 runs left today", an arrow to press) and said nothing until Run was
+ * pressed, which opened the key form. It says so now, beside the way to do
+ * it, and the allowance, which is not what stands in the way, is dimmed.
+ * Painted with the trial note: both follow the same facts, so every place
+ * that repaints one repaints the other. */
+function keysNeeded() {
+  return accountMode && !accountHasKeys() && !operatorPays() && !trialPays();
+}
+
+function paintKeysNeeded() {
+  const need = keysNeeded();
+  $("#keys-needed").hidden = !need;
+  $("#quota").classList?.toggle("composer__quota--muted", need);
 }
 
 async function performPaidRequest(request, deliver, operation = "run") {
@@ -176,7 +202,7 @@ async function performPaidRequest(request, deliver, operation = "run") {
     // The server found no usable keys for this account although the page
     // believed some were saved (removed elsewhere, or no longer readable):
     // the next attempt asks for them instead of being refused again.
-    if (err.code === "byok_required") accountKeysSaved = false;
+    if (err.code === "byok_required") { accountKeysSaved = false; paintTrialNote(); }
     throw err;
   }
 }
@@ -573,7 +599,7 @@ function paintActions(state, checkpointing = null, canModify = true) {
       } catch (err) {
         cancelling.delete(runId);
         paintCancel();
-        toast(err.message, "error");
+        toast(errorText(err), "error");
       }
     });
     actions.append(cancel, copyLinkButton());
@@ -778,7 +804,7 @@ async function openRun(runId, { known } = {}) {
       }
     },
     onError(err) {
-      toast(err.message, "error");
+      toast(errorText(err), "error");
     },
   });
 }
@@ -800,7 +826,7 @@ async function handleDeleteRun(runId, topic) {
   try {
     await api.deleteRun(runId);
   } catch (err) {
-    toast(err.message, "error");
+    toast(errorText(err), "error");
     return;
   }
   // BYOK history is a client-only list (see api.getByokRuns) — the server
@@ -1127,7 +1153,7 @@ async function previewPlan(submittedTopic) {
       toast(operationErrorMessage(err), "error");
       return;
     }
-    next = { topic: submittedTopic, plan: null, reason: err.message,
+    next = { topic: submittedTopic, plan: null, reason: errorText(err),
       failure: err.code === "plan_preview_limit" ? "limit" : "unavailable" };
   } finally {
     previewing = false;
@@ -1794,10 +1820,13 @@ document.addEventListener("click", (event) => {
   if (!accountMenu.hidden && !$("#account-badge").contains?.(event.target)) setAccountMenu(false);
 });
 // Change or add keys without signing out; the account's history stays.
-$("#account-keys").addEventListener("click", async () => {
+const openKeyForm = async () => {
   if (submitting || extracting) return;
   await showGate(null, { keysOnly: true });
-});
+  paintTrialNote();     // keys may have been added, replaced or removed in there
+};
+$("#account-keys").addEventListener("click", openKeyForm);
+$("#keys-needed-add").addEventListener("click", openKeyForm);
 $("#account-manage").addEventListener("click", () => {
   if (submitting || extracting || pendingResumes.size) return;
   showAccountSettings();
@@ -1832,7 +1861,7 @@ function showAccountSettings() {
       invalid_credentials: "account_error_current", weak_password: "account_error_same",
       locked: "account_error_locked", active_runs: "account_error_active_runs",
     }[err.code];
-    return key ? t(key) : err.message;
+    return key ? t(key) : errorText(err);
   };
   $("#settings-close").onclick = close;
 
@@ -2315,8 +2344,10 @@ function paintInviteHint(shown) {
  * a misspelt model name fails a run exactly as a wrong key does. */
 const PROVIDER_NAMES = { deepseek: "DeepSeek", qwen: "Qwen", openai: "OpenAI", anthropic: "Anthropic" };
 const SEARCH_NAMES = { tavily: "Tavily", serper: "Serper" };
-function keyProblem(verdict, creds) {
-  if (!verdict || verdict.checked === false) return null;
+/** What a check found wrong with a key set, one sentence each; none when the
+ * providers accepted it, gave no answer, or were not asked. */
+function keyProblems(verdict, creds) {
+  if (!verdict || verdict.checked === false) return [];
   const provider = PROVIDER_NAMES[creds.provider] ?? creds.provider;
   const service = SEARCH_NAMES[creds.search] ?? creds.search;
   const problems = [];
@@ -2325,6 +2356,11 @@ function keyProblem(verdict, creds) {
     problems.push(t("byok_model_not_listed").replace("{provider}", provider).replace("{model}", creds.model));
   }
   if (verdict.search === "rejected") problems.push(t("byok_rejected_search").replace("{service}", service));
+  return problems;
+}
+
+function keyProblem(verdict, creds) {
+  const problems = keyProblems(verdict, creds);
   // One line each (the element keeps line breaks): reads the same in every language.
   return problems.length ? [...problems, t("byok_problem_next")].join("\n") : null;
 }
@@ -2401,23 +2437,100 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
    * Asked of the server each time the form opens, so it is right after a
    * change made on another device. */
   let savedView = 0;
+  let listed = null;       // what the server last said is saved, for the check's wording
+  const locale = () => (i18n.language() === "English" ? "en-GB" : "zh-CN");
+  const providerName = (id) => $("#byok-provider").querySelector?.(`option[value="${id}"]`)?.textContent || id;
+  const searchName = (id) => $("#byok-search").querySelector?.(`option[value="${id}"]`)?.textContent || id;
+  // A word joiner after the ellipsis, so a line never breaks inside "…abcd".
+  const whole = (hint) => String(hint ?? "").replace(/…(?=.)/, "…\u2060");
+  // The end of a key held in this tab, by the server's rule for a hint
+  // (api/account_keys.py): the last four characters of a key of twelve or more.
+  const tail = (key) => (typeof key === "string" && key.length >= 12 ? `…${key.slice(-4)}` : "…");
+  const summary = (key, facts) => t(key).replace("{provider}", () => facts.provider).replace("{model}", () => facts.model)
+    .replace("{llm}", () => whole(facts.llm)).replace("{search}", () => facts.search)
+    .replace("{searchKey}", () => whole(facts.searchKey)).replace("{date}", () => facts.date ?? "");
+
+  /* Keys this account chose not to save: in this tab. Shown from the tab's
+   * own copy, of which only the ends are put on the page. */
+  const paintTabKeys = (account) => {
+    const block = $("#byok-tab");
+    let keys = null;
+    try { keys = account ? api.getByok() : null; } catch { keys = null; }
+    block.hidden = !keys;
+    if (!keys) return;
+    $("#byok-tab-text").textContent = summary("byok_tab_summary", {
+      provider: providerName(keys.provider), model: keys.model ?? "", llm: tail(keys.llmKey),
+      search: searchName(keys.search ?? "serper"), searchKey: tail(keys.searchKey ?? keys.serperKey),
+    });
+  };
+  $("#byok-tab-clear").onclick = () => {
+    if (!api.setByok(null)) { toast(t("storage_unavailable"), "error"); return; }
+    byokMode = false;
+    paintTabKeys(forAccount());
+    paintTrialNote();
+    toast(t("byok_tab_cleared"));
+  };
+
   const paintSavedKeys = async (account) => {
     const view = ++savedView;
     const block = $("#byok-saved");
     block.hidden = true;
+    $("#byok-saved-check").hidden = true;
+    listed = null;
+    paintTabKeys(account);
     if (!account || !accountKeysSaved) return;
     let keys;
     try { keys = await api.savedKeys(); } catch { return; }
     if (view !== savedView || byokForm.hidden) return;
-    if (keys?.saved !== true) { accountKeysSaved = false; return; }
-    const provider = $("#byok-provider").querySelector?.(`option[value="${keys.llm_provider}"]`)?.textContent || keys.llm_provider;
-    const search = $("#byok-search").querySelector?.(`option[value="${keys.search}"]`)?.textContent || keys.search;
-    // A word joiner after the ellipsis, so a line never breaks inside "…abcd".
-    const whole = (hint) => String(hint ?? "").replace("…", "…\u2060");
-    $("#byok-saved-text").textContent = t("byok_saved_summary").replace("{provider}", () => provider)
-      .replace("{model}", () => keys.llm_model).replace("{llm}", () => whole(keys.llm_key_hint))
-      .replace("{search}", () => search).replace("{searchKey}", () => whole(keys.search_key_hint));
+    if (keys?.saved !== true) { accountKeysSaved = false; paintTrialNote(); return; }
+    listed = keys;
+    const when = new Date(keys.saved_at ?? "");
+    $("#byok-saved-text").textContent = summary("byok_saved_summary", {
+      provider: providerName(keys.llm_provider), model: keys.llm_model, llm: keys.llm_key_hint,
+      search: searchName(keys.search), searchKey: keys.search_key_hint,
+      date: Number.isNaN(when.getTime()) ? "" : when.toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" }),
+    });
     block.hidden = false;
+  };
+
+  /* "Check these keys": what the providers say about the saved set now, and
+   * when they were asked. The page has only the ends of the keys, so the
+   * server asks; nothing is stored, and a refusal changes nothing by itself. */
+  $("#byok-saved-check-now").onclick = async () => {
+    const button = $("#byok-saved-check-now");
+    const line = $("#byok-saved-check");
+    const keys = listed;
+    if (!keys || button.disabled) return;
+    button.disabled = true;
+    line.textContent = t("byok_saved_checking");
+    line.hidden = false;
+    let said;
+    try {
+      const verdict = await api.checkSavedKeys();
+      const time = new Date().toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+      const creds = { provider: keys.llm_provider, search: keys.search, model: keys.llm_model };
+      const problems = keyProblems(verdict, creds);
+      if (verdict?.checked === false) said = t("byok_saved_check_off");
+      else if (problems.length) {
+        said = [t("byok_saved_check_problem").replace("{time}", () => time), ...problems, t("byok_saved_check_next")].join("\n");
+      } else if (verdict?.llm === "accepted" && verdict?.search === "accepted") {
+        said = t("byok_saved_check_ok").replace("{time}", () => time)
+          .replace("{provider}", () => PROVIDER_NAMES[keys.llm_provider] ?? keys.llm_provider)
+          .replace("{service}", () => SEARCH_NAMES[keys.search] ?? keys.search);
+      } else said = t("byok_saved_check_unverified").replace("{time}", () => time);
+    } catch (err) {
+      // Removed on another device since the form opened: say what is so, not that a check failed.
+      if (err.code === "no_saved_keys") {
+        accountKeysSaved = false;
+        $("#byok-saved").hidden = true;
+        paintTrialNote();
+        button.disabled = false;
+        return;
+      }
+      said = err.code === "network_unreachable" ? errorText(err) : t("byok_saved_check_failed");
+    }
+    button.disabled = false;
+    line.textContent = said;
   };
   $("#byok-saved-remove").onclick = async () => {
     const button = $("#byok-saved-remove");
@@ -2426,6 +2539,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
       await api.removeSavedKeys();
       accountKeysSaved = false;
       $("#byok-saved").hidden = true;
+      paintTrialNote();
       toast(t("byok_saved_removed"));
     } catch {
       toast(t("byok_saved_remove_failed"), "error");
@@ -2613,7 +2727,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         sent.textContent = t("forgot_sent").replace("{email}", email);
         sent.hidden = false;
       } catch (err) {
-        error.textContent = err.code === "mail_unavailable" ? t("forgot_unavailable") : err.message;
+        error.textContent = err.code === "mail_unavailable" ? t("forgot_unavailable") : errorText(err);
         error.hidden = false;
       } finally {
         submit.disabled = false;
@@ -2645,7 +2759,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
           reset_invalid: "reset_invalid", reset_expired: "reset_expired",
           weak_password: "account_error_weak", disabled: "reset_disabled",
         }[err.code];
-        error.textContent = key ? t(key) : err.message;
+        error.textContent = key ? t(key) : errorText(err);
         error.hidden = false;
         $("#reset-password").select();
       } finally {
@@ -2684,7 +2798,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
           signup_closed: "account_error_closed", locked: "account_error_locked",
           invite_required: "account_error_invite", signup_throttled: "account_error_throttled",
         }[err.code];
-        accountError.textContent = key ? t(key) : err.message;
+        accountError.textContent = key ? t(key) : errorText(err);
         accountError.hidden = false;
         if (err.code === "invite_required") {
           inviteNeeded = true;
@@ -2715,7 +2829,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         refreshQuota();
         finish();
       } catch (err) {
-        codeError.textContent = err.status === 401 ? t("gate_error") : err.message;
+        codeError.textContent = err.status === 401 ? t("gate_error") : errorText(err);
         codeError.hidden = false;
         codeInput.select();
       } finally {
