@@ -12,6 +12,7 @@
 
 import {
   attachCitations, citationIndex, decisionBrief, renderDecisionBrief, renderMarkdown, renderScorecard, sampleFacts,
+  sampleTitle,
 } from "./result.js";
 import * as i18n from "./i18n.js";
 import { applySamples, st as t } from "./samples_i18n.js";
@@ -45,9 +46,10 @@ wide?.addEventListener?.("change", () => {
 // report of their own: null until the server has said, and for good when it
 // could not be asked.
 let accounts = null;
-// Served for /samples and every /samples/<slug>; shown again whenever no
-// sample matches, so an unknown slug does not keep the last sample's name.
-const defaultTitle = document.title;
+// The tab's name for /samples, and again whenever no sample matches, so an
+// unknown slug does not keep the last sample's name. From the strings, not
+// from the served <title>, which is English whatever the reader chose.
+const defaultTitle = () => i18n.pageTitle(t("samples_title"));
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -75,7 +77,7 @@ function paintList() {
     // list carried them. The six samples run from 48.6 to 74.9; before
     // 2026-11-13 a visitor had to open each one to learn that.
     const facts = sampleFacts(sample);
-    card.append(el("span", "sample-card__title", sample.title));
+    card.append(el("span", "sample-card__title", sampleTitle(sample)));
     if (facts.verdict) {
       const verdict = el("span", "sample-card__verdict", facts.verdict);
       verdict.dataset.tone = facts.tone;
@@ -108,7 +110,9 @@ function paintList() {
  * sample already left is dropped by `generation` and must not leave its name
  * behind either. */
 function showTitle(sample) {
-  document.title = sample ? `${sample.title} · ${t("samples_title")}` : defaultTitle;
+  document.title = sample ? `${sampleTitle(sample)} · ${t("samples_title")}` : defaultTitle();
+  // The list's name for a screen reader: the same words as the page's.
+  listNode.setAttribute("aria-label", t("samples_title"));
 }
 
 /** A contents list linking every section heading of the rendered article.
@@ -283,6 +287,7 @@ langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
   applySamples();
   if (current) open(current);
+  else showTitle(null);
 });
 window.addEventListener("popstate", () => {
   // Following a contents link changes only the fragment, and Chromium fires

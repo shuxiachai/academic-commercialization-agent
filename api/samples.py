@@ -56,6 +56,11 @@ class Sample:
     # selector uses. The report's, not the visitor's: a card says it so that
     # nobody opens the one Chinese report expecting English, or the reverse.
     language: str = "English"
+    # The sample's name for a reader whose interface is Chinese. A card in
+    # the Chinese interface named an English report in English between
+    # Chinese labels; the card still says which language the report is in.
+    # Empty where the title is already Chinese.
+    title_zh: str = ""
 
 
 SAMPLES: tuple[Sample, ...] = (
@@ -69,6 +74,7 @@ SAMPLES: tuple[Sample, ...] = (
         slug="continuous-glucose-monitoring",
         file="continuous-glucose-monitoring.md",
         title="Continuous glucose monitoring for diabetes",
+        title_zh="糖尿病连续血糖监测",
         topic="continuous glucose monitoring for diabetes",
         committed="2026-11-08",
         commit="9bd948c",
@@ -78,6 +84,7 @@ SAMPLES: tuple[Sample, ...] = (
         slug="robotic-assisted-surgery",
         file="robotic-assisted-surgery.md",
         title="Robotic-assisted surgery",
+        title_zh="机器人辅助手术",
         topic="robotic-assisted surgery",
         committed="2026-11-08",
         commit="14a2097",
@@ -87,6 +94,7 @@ SAMPLES: tuple[Sample, ...] = (
         slug="pig-kidney-xenotransplantation",
         file="pig-kidney-xenotransplantation.md",
         title="Pig kidney xenotransplantation",
+        title_zh="猪肾异种移植",
         topic="pig kidney xenotransplantation",
         committed="2026-11-08",
         commit="9bd948c",
@@ -96,6 +104,7 @@ SAMPLES: tuple[Sample, ...] = (
         slug="space-based-solar-power",
         file="space-based-solar-power.md",
         title="Space-based solar power",
+        title_zh="空间太阳能发电",
         topic="space-based solar power",
         committed="2026-11-08",
         commit="14a2097",
@@ -118,6 +127,7 @@ SAMPLES: tuple[Sample, ...] = (
         slug="hyperloop",
         file="hyperloop.md",
         title="Hyperloop",
+        title_zh="超级高铁（Hyperloop）",
         topic="hyperloop",
         committed="2026-10-21",
         commit="a8cc424",

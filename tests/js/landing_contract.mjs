@@ -56,7 +56,7 @@ const api = await import("../../web/static/js/api.js");
 const runView = await import("../../web/static/js/run.js");
 const compareView = await import("../../web/static/js/compare.js");
 // The real grading of a sample's score, so the list's words are the scorecard's.
-const { sampleFacts } = await import("../../web/static/js/result.js");
+const { sampleFacts, sampleTitle } = await import("../../web/static/js/result.js");
 const source = fs.readFileSync(new URL("../../web/static/js/app.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "");
 // The elements the document itself starts hidden (#gate, #landing, the card's
@@ -129,13 +129,14 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     // The real summary is built in tests/test_web_result_readability.py; here
     // it is a stand-in that keeps what it was given and, like the real one,
     // makes nothing of a scorecard without a readable score.
-    result: { sampleFacts, renderScoreSummary: (scores) => {
+    result: { sampleFacts, sampleTitle, renderScoreSummary: (scores) => {
       summaries.push(scores);
       if (scores?.cannot_be_drawn) throw new TypeError("fixture: the scorecard could not be drawn");
       return typeof scores?.overall_score === "number" ? { className: "scorecard scorecard--summary", scores } : null;
     } },
     needsScopeWarning: () => false,
-    i18n: { t: (key) => key, language: () => "English", apply: () => {}, setLanguage: () => {} },
+    i18n: { t: (key) => key, language: () => "English", apply: () => {}, setLanguage: () => {},
+            pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false },
     window: { matchMedia: () => ({ matches: false }), addEventListener: () => {} },
@@ -581,6 +582,26 @@ const scenarios = {
   // model, the revision and the worker's word for an ordinary finish are for
   // whoever maintains the thing; they are under one fold now. A run that
   // ended any other way keeps its reason in the line.
+  // The tab's name and the landing's sample list are in the reader's
+  // language. Until 2026-11-15 the tab kept the served English <title>, and
+  // the list was drawn once: a visitor who switched language on the landing
+  // kept the names and facts in the language the page had loaded in.
+  async a_change_of_language_renames_the_tab_and_redraws_the_landing_samples() {
+    const f = fixture({ access: refused(ACCOUNTS) });
+    await settle();
+    assert.equal(f.run("document.title"), "brand_full", "At boot the tab is named from the strings");
+    const list = f.get("#landing-sample-list");
+    const drawn = list.children;
+    assert.equal(drawn.length, 2);
+    f.run('document.title = "what the markup said"');
+    f.get("#ui-lang").listeners.change();
+    await settle();
+    assert.equal(f.run("document.title"), "brand_full", "...and again when the language changes");
+    assert.equal(list.children.length, 2);
+    assert.notEqual(list.children[0], drawn[0], "The list is drawn again, in the words of the new language");
+    assert.deepEqual(list.children.map((item) => item.children[0].href), drawn.map((item) => item.children[0].href));
+    assert.equal(f.requests.filter((r) => r.url === "/api/samples").length, 1, "...from the list it had already read");
+  },
   async the_header_folds_what_only_a_maintainer_reads() {
     const f = fixture({ access: { status: 200, body: { ok: true } } });
     await settle();

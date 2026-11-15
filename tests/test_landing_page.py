@@ -60,6 +60,7 @@ SCENARIOS = (
     # The card's sign-in mode, without what only creating an account needs.
     "the_card_in_sign_in_mode_says_only_what_signing_in_needs",
     # The run header's fold for the model, the revision and a plain completion.
+    "a_change_of_language_renames_the_tab_and_redraws_the_landing_samples",
     "the_header_folds_what_only_a_maintainer_reads",
     # Whose run it is: the owner's actions, and a signed-in reader's.
     "the_owners_actions_keep_the_rare_ones_behind_more",

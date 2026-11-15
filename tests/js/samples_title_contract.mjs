@@ -69,8 +69,14 @@ const start = async (pathname) => {
   await settle();
 };
 const pathOf = (sample) => `/samples/${encodeURIComponent(sample.slug)}`;
-const titleOf = (sample, lang = "English") =>
-  `${sample.title} · ${lang === "English" ? "Sample reports" : "示例报告"}`;
+// In the Chinese interface a sample goes by its Chinese name, where the
+// catalogue gives one; the report itself is in whatever language it is in.
+const titleOf = (sample, lang = "English") => (lang === "English"
+  ? `${sample.title} · Sample reports`
+  : `${sample.title_zh || sample.title} · 示例报告`);
+// The page's own name follows the interface too. Until 2026-11-15 it was the
+// served <title>, English whatever the reader had chosen.
+const defaultTitleZh = "示例报告 · 学术成果商业化评估";
 // The stub renderer returns its input, so the article names the sample on screen.
 const shown = () => el("sample-reader").children.find((c) => c.tag === "article")?.html ?? null;
 async function click(sample) {
@@ -120,7 +126,8 @@ if (scenario === "index") {
   await start(pathOf(second));
   await switchLanguage("Simplified Chinese");
   assert.equal(document.documentElement.lang, "zh-CN", "The real i18n module switched");
-  expectTitle(titleOf(second, "Simplified Chinese"), "Language switch retranslates the suffix");
+  assert(second.title_zh && second.title_zh !== second.title, "The second sample has a Chinese name");
+  expectTitle(titleOf(second, "Simplified Chinese"), "A language switch gives the Chinese name and suffix");
   await switchLanguage("English");
   expectTitle(titleOf(second), "And back");
 } else if (scenario === "unknown_slug") {
@@ -128,8 +135,9 @@ if (scenario === "index") {
   expectTitle(defaultTitle, "An unknown slug shows the page's own title");
   assert.equal(el("sample-reader").textContent, "No sample with that name.");
   await switchLanguage("Simplified Chinese");
-  expectTitle(defaultTitle, "A language switch does not invent a sample title");
+  expectTitle(defaultTitleZh, "A language switch names the page in Chinese and invents no sample title");
   await switchLanguage("English");
+  expectTitle(defaultTitle, "And back: the page's name as it is served");
   await go(pathOf(first));
   expectTitle(titleOf(first), "A known slug after an unknown one");
   await go("/samples/no-such-sample");

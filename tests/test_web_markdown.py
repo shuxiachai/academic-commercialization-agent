@@ -100,7 +100,8 @@ class MarkdownEscapingTests(unittest.TestCase):
         # outside a browser. Stubbing them keeps the renderer itself untouched.
         source = _RENDERER.read_text(encoding="utf-8")
         source = source.replace('import * as api from "./api.js";', "const api = {};")
-        source = source.replace('import { t } from "./i18n.js";', "const t = (k) => k;")
+        source = source.replace('import { language, t } from "./i18n.js";',
+                                    'const t = (k) => k; const language = () => "English";')
         (work / "renderer.mjs").write_text(source, encoding="utf-8")
 
         (work / "run.mjs").write_text(textwrap.dedent("""

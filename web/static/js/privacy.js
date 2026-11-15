@@ -22,10 +22,10 @@ const lang = () => (i18n.language() === "Simplified Chinese" ? "zh" : "en");
 
 function paint() {
   const current = lang();
-  document.documentElement.lang = current === "zh" ? "zh-CN" : "en";
-  document.title = `${LABELS[current].title} · ${i18n.t("brand_full")}`;
-  // The header's name, full and short, from the strings every page shares.
-  for (const node of $$("[data-i18n]")) node.textContent = i18n.t(node.dataset.i18n);
+  document.title = i18n.pageTitle(LABELS[current].title);
+  // The header's name, full and short, and the labels of its controls, from
+  // the strings every page shares; this also sets the document's language.
+  i18n.apply();
   for (const block of $$("[data-lang-block]")) block.hidden = block.dataset.langBlock !== current;
   for (const node of $$("[data-legal=back]")) node.textContent = LABELS[current].back;
   if (!site) return;
