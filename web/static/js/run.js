@@ -344,6 +344,7 @@ const AUXILIARY_STRINGS = {
 const HEADER_STRINGS = {
   English: {
     usage_details: "Usage & cost",
+    tech_details: "Technical details",
     // The fold's heading when the run has tokens on record (usageHeadline).
     usage_head_tokens: "About {tokens} tokens",
     usage_head_tokens_floor: "At least {tokens} tokens",
@@ -380,6 +381,7 @@ const HEADER_STRINGS = {
   },
   "Simplified Chinese": {
     usage_details: "用量与费用",
+    tech_details: "技术信息",
     usage_head_tokens: "约 {tokens} token",
     usage_head_tokens_floor: "至少 {tokens} token",
     usage_head_cost: "估算费用 {cost}（按 {models} 的记录价格）",
@@ -709,6 +711,14 @@ export function terminalSummary(terminal, state = "") {
     return t("terminal_other_reason").replace("{reason}", terminal.reason_code);
   }
   return t("terminal_missing");
+}
+
+/** Whether a run simply finished: completed, by the worker's own record, with nothing else to tell.
+ *  Only then may the header fold the terminal reason away; every other
+ *  ending, and a record that is missing or unreadable, stays in sight. */
+export function isPlainCompletion(terminal, state = "") {
+  return state === "completed" && Boolean(terminal) && terminal.record_state !== "unreadable"
+    && terminal.reason_code === "worker_completed";
 }
 
 /** Raw reason and stop method for the run-header tooltip and audit inspection. */

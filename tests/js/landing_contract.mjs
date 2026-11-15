@@ -83,7 +83,10 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     set innerHTML(_value) { this.children = []; }
     append(...nodes) { this.children.push(...nodes); }
     querySelectorAll() { return []; }
-    focus() {} remove() {} reset() {} select() {} setAttribute() {} removeAttribute() {} scrollIntoView() {}
+    focus() {} remove() {} reset() {} select() {} removeAttribute() {} scrollIntoView() {}
+    setAttribute(name, value) { (this.attributes ??= {})[name] = String(value); }
+    // Enough of the DOM's "put this node before me" to see that it was asked for.
+    before(...nodes) { (this.placedBefore ??= []).push(...nodes); }
     showModal() { this.open = true; } close() { this.open = false; }
   }
   const get = (selector) => {
@@ -501,6 +504,7 @@ const scenarios = {
     assert.ok(f.sidebarRefreshes.length > 0, "...with the account's own history");
     f.run('paintActions("completed")');
     assert.ok(f.get("#run-actions").children.some((node) => node.id === "run-again"), "...and the full actions");
+    assert.ok(f.get("#run-actions").children.some((node) => node.textContent === "delete_run"), "...Delete among them");
   },
   // One form signs in or creates an account. Until 2026-11-14 it showed a
   // returning visitor what only a newcomer needs: how runs are paid for, that
@@ -570,6 +574,151 @@ const scenarios = {
     await settle();
     assert.equal(used.get("#byok-form").hidden, false, "The free run used: keys are asked for");
     assert.equal(used.get("#byok-key-guide-trial").hidden, true);
+  },
+  // ── The run header ───────────────────────────────────────────────────
+  // Its first line read "COMPLETED · 6:12 · 24 sources · deepseek-v4.1-flash-1017
+  // · git:08d26f5 · Usage & cost · Stage timing · worker completed". The
+  // model, the revision and the worker's word for an ordinary finish are for
+  // whoever maintains the thing; they are under one fold now. A run that
+  // ended any other way keeps its reason in the line.
+  async the_header_folds_what_only_a_maintainer_reads() {
+    const f = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    const usage = { total_tokens: 100, agents: [{ model: "deepseek-v4.1-flash-1017" }, { model: "deepseek-v4.1-flash-1017" }] };
+    const revision = "git:08d26f5" + "0".repeat(33);
+    const paint = (body) => f.run(`paintHeader(${JSON.stringify({ topic: "Solid oxide fuel cells", usage, pipeline_revision: revision, ...body })})`);
+    const tech = f.get("#run-tech-details"), terminal = f.get("#run-terminal");
+
+    paint({ state: "completed", terminal: { record_state: "committed", reason_code: "worker_completed" } });
+    assert.equal(tech.hidden, false);
+    assert.equal(f.get("#run-tech-label").textContent, "· Technical details");
+    assert.equal(f.get("#run-identity").textContent, "deepseek-v4.1-flash-1017 · git:08d26f5", "The model and the revision, inside the fold");
+    assert.deepEqual(tech.children, [terminal], "An ordinary finish: the worker's word for it goes inside too");
+    assert.equal(terminal.textContent, "· worker completed", "...with its text as it was, for whoever opens it");
+    assert.equal(f.get("#run-status-record").placedBefore, undefined);
+
+    // Anything else is not folded: the reason is put back in the line.
+    const endings = [
+      { state: "failed", terminal: { record_state: "committed", reason_code: "worker_exception" } },
+      { state: "timeout", terminal: { record_state: "committed", reason_code: "hard_timeout" } },
+      { state: "cancelled", terminal: { record_state: "committed", reason_code: "user_cancelled" } },
+      { state: "completed", terminal: { record_state: "unreadable", reason_code: "worker_completed" } },
+      { state: "completed", terminal: null },
+      { state: "failed", terminal: { record_state: "committed", reason_code: "worker_completed" } },
+      // A finished run whose record gives any other reason: not the plain case.
+      { state: "completed", terminal: { record_state: "committed", reason_code: "status_reconciled" } },
+    ];
+    for (const [index, body] of endings.entries()) {
+      paint(body);
+      assert.equal(f.get("#run-status-record").placedBefore.length, index + 1, `${JSON.stringify(body)} stays in the line`);
+      assert.equal(f.get("#run-status-record").placedBefore.at(-1), terminal);
+      assert.equal(tech.children.length, 1, "...and is not put in the fold again");
+      assert.equal(tech.hidden, false, "The fold is still there for the model and the revision");
+    }
+    for (const body of endings) assert.equal(f.run(`runView.isPlainCompletion(${JSON.stringify(body.terminal)}, ${JSON.stringify(body.state)})`), false);
+    assert.equal(f.run('runView.isPlainCompletion({ reason_code: "worker_completed" }, "completed")'), true);
+
+    // Nothing to put in it: no fold.
+    f.run('paintHeader({ topic: "t", state: "running" })');
+    assert.equal(tech.hidden, true);
+    assert.equal(f.get("#run-identity").textContent, "");
+  },
+  // ── Whose run it is ──────────────────────────────────────────────────
+  // A run's link opens for whoever holds it. Until 2026-11-15 a signed-in
+  // reader of someone else's run was offered Delete, and Cancel while it
+  // ran; the server refused them, and nothing said the report was not
+  // theirs. The run's reads now say whether this caller may change it
+  // (tests/test_viewer_can_modify.py), and the page offers accordingly.
+  async the_owners_actions_keep_the_rare_ones_behind_more() {
+    const f = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    const names = () => f.get("#run-actions").children.map((node) => node.id || node.textContent || node.download || "");
+    const shown = () => f.get("#run-actions").children.filter((node) => !node.hidden)
+      .map((node) => node.id || node.textContent || node.download || "");
+    const paint = (state, canModify, checkpointing = null) =>
+      f.run(`activeRunId = "fixture-run"; paintActions(${JSON.stringify(state)}, ${JSON.stringify(checkpointing)}, ${canModify})`);
+
+    paint("completed", true);
+    assert.deepEqual(names(), ["fixture-run.pdf", "run-copy-link", "run-more", "fixture-run.md", "run-again", "run-compare", "delete_run"],
+      "The PDF and the link stay out; Delete is last");
+    assert.deepEqual(shown(), ["fixture-run.pdf", "run-copy-link", "run-more"], "The rest is behind More until it is asked for");
+    const more = f.get("#run-actions").children.find((node) => node.id === "run-more");
+    assert.equal(more.type, "button");
+    assert.equal(more.attributes["aria-expanded"], "false");
+    more.listeners.click();
+    assert.equal(shown().length, 7, "One press shows them");
+    assert.equal(f.get("#run-actions").children.find((node) => node.id === "run-more").attributes["aria-expanded"], "true");
+    // A repaint (a poll, a change of language) leaves an opened More open.
+    paint("completed", true);
+    assert.equal(shown().length, 7);
+    f.get("#run-actions").children.find((node) => node.id === "run-more").listeners.click();
+    assert.deepEqual(shown(), ["fixture-run.pdf", "run-copy-link", "run-more"], "...and a second press puts them away");
+    // Another run starts with More closed.
+    f.get("#run-actions").children.find((node) => node.id === "run-more").listeners.click();
+    f.run('activeRunId = "another-run"; paintActions("completed", null, true)');
+    assert.equal(shown().length, 3);
+
+    paint("failed", true, { committed_nodes: ["retrieval"] });
+    assert.deepEqual(names(), ["resume", "run-copy-link", "run-more", "run-again", "run-compare", "delete_run"],
+      "A run that stopped short leads with Resume");
+    paint("cancelled", true);
+    assert.deepEqual(names(), ["run-copy-link", "run-more", "run-again", "run-compare", "delete_run"]);
+    paint("running", true);
+    assert.deepEqual(names(), ["cancel", "run-copy-link"], "A running run has two actions and no More");
+    assert.equal(f.get("#run-shared").hidden, true, "Nothing says 'shared with you' on one's own run");
+  },
+  async a_signed_in_reader_of_someone_elses_run_is_told_so_and_offered_no_owner_action() {
+    const f = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    const names = () => f.get("#run-actions").children.map((node) => node.id || node.textContent || node.download || "");
+    const paint = (state, checkpointing = null) =>
+      f.run(`activeRunId = "fixture-run"; paintActions(${JSON.stringify(state)}, ${JSON.stringify(checkpointing)}, false)`);
+
+    paint("completed");
+    assert.deepEqual(names(), ["fixture-run.pdf", "run-copy-link", "run-more", "fixture-run.md", "run-again"],
+      "Read it, keep it, pass it on, or assess the topic oneself: no Compare, no Delete");
+    const again = f.get("#run-actions").children.find((node) => node.id === "run-again");
+    assert.equal(again.textContent, "run_again_own", "Named for what it is: a new assessment of one's own");
+    assert.equal(f.get("#run-shared").hidden, false, "A line says the assessment was shared and is read-only");
+
+    paint("running");
+    assert.deepEqual(names(), ["run-copy-link"], "No Cancel on someone else's running assessment");
+    paint("failed", { committed_nodes: ["retrieval"] });
+    assert.deepEqual(names(), ["run-copy-link", "run-again"], "No Resume, which is paid for by the owner; one extra needs no More");
+    for (const state of ["completed", "failed", "running", "cancelled", "timeout"]) {
+      paint(state, { committed_nodes: ["retrieval"] });
+      for (const forbidden of ["cancel", "resume", "delete_run", "run-compare"]) {
+        assert.ok(!names().includes(forbidden), `${forbidden} is not offered to a signed-in reader of a ${state} run`);
+      }
+    }
+    // The notice's button starts a new assessment of the reader's own.
+    f.get("#pane-compose").hidden = true;
+    f.get("#pane-run").hidden = false;
+    f.get("#run-shared-new").onclick();
+    assert.equal(f.get("#pane-compose").hidden, false);
+    assert.equal(f.get("#pane-run").hidden, true);
+
+    // Back on a run of one's own, the notice goes.
+    f.run('activeRunId = "fixture-run"; paintActions("completed", null, true)');
+    assert.equal(f.get("#run-shared").hidden, true);
+  },
+  async what_the_server_says_decides_and_a_run_with_no_owner_is_this_tabs_or_not() {
+    const f = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    const may = (progress) => f.run(`activeRunId = "fixture-run"; mayModify(${JSON.stringify(progress)})`);
+    assert.equal(may({ viewer_can_modify: true }), true);
+    assert.equal(may({ viewer_can_modify: false }), false);
+    // Null: no owner on record, a keys-only run. The server cannot say whose
+    // it is; this tab can, for the runs it submitted itself.
+    assert.equal(may({ viewer_can_modify: null }), false, "Someone else's keys-only run, opened from a link");
+    tab.set("byok-runs", JSON.stringify([{ run_id: "fixture-run", topic: "t" }]));
+    assert.equal(may({ viewer_can_modify: null }), true, "A keys-only run this tab submitted");
+    tab.set("byok-runs", JSON.stringify([{ run_id: "some-other-run", topic: "t" }]));
+    assert.equal(may({ viewer_can_modify: null }), false);
+    // A server that does not say (older than the field), or no status yet: as before.
+    assert.equal(may({}), true);
+    assert.equal(may(undefined), true);
+    assert.equal(may({ viewer_can_modify: "yes" }), true, "Only a boolean or null is an answer");
   },
   async trial_said_on_the_way_in() {
     // With a first assessment on the deployment's keys (#370), the landing and

@@ -1365,6 +1365,32 @@ function renderFeedback(container, runId) {
   api.getFeedback(runId).then(paint).catch(() => {});
 }
 
+/* ── Tabs ──────────────────────────────────────────────────────────────
+ * The WAI-ARIA tabs pattern, with selection following focus: the strip is
+ * one tab stop, and Left / Right / Home / End move along it, wrapping at the
+ * ends. They were plain buttons: a screen reader was told nothing about
+ * which was selected or what it showed, and a keyboard had to Tab through
+ * every one. */
+
+/** Where a key pressed on tab `index` of `count` goes, or null for a key the strip does not act on. */
+export function tabKeyTarget(key, index, count) {
+  if (key === "ArrowRight") return (index + 1) % count;
+  if (key === "ArrowLeft") return (index - 1 + count) % count;
+  if (key === "Home") return 0;
+  if (key === "End") return count - 1;
+  return null;
+}
+
+/** Which way a strip wider than its box can still be scrolled: "", "start", "end" or "both". */
+export function tabsOverflow({ scrollLeft, clientWidth, scrollWidth }) {
+  const before = scrollLeft > 1;
+  const after = scrollLeft + clientWidth < scrollWidth - 1;
+  return before && after ? "both" : before ? "start" : after ? "end" : "";
+}
+
+// Two assessments can be on one page (the comparison view), so ids are per render.
+let tabSets = 0;
+
 export async function render(container, runId, progress) {
   container.innerHTML = "";
   const artifacts = progress.artifacts ?? [];
@@ -1418,24 +1444,51 @@ export async function render(container, runId, progress) {
   if (briefSlot) container.append(briefSlot);
   if (reliability) container.append(reliability);
 
+  const set = ++tabSets;
+  tabs.setAttribute("role", "tablist");
+  tabs.setAttribute("aria-label", t("tabs_label"));
   for (const view of views) {
     const tab = el("button", "tab", view.label);
     tab.type = "button";
     tab.dataset.view = view.id;
+    tab.id = `run${set}-tab-${view.id}`;
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-controls", `run${set}-panel-${view.id}`);
+    tab.setAttribute("aria-selected", "false");
+    tab.tabIndex = -1;
     tab.addEventListener("click", () => select(view.id));
     tabs.append(tab);
 
     const panel = el("div", "panel");
     panel.dataset.view = view.id;
+    panel.id = `run${set}-panel-${view.id}`;
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", tab.id);
+    panel.tabIndex = 0;       // reachable from its tab, also when it holds nothing focusable
     panel.hidden = true;
     panels.append(panel);
   }
+  tabs.addEventListener("keydown", (event) => {
+    const current = [...tabs.children].findIndex((tab) => tab.dataset.active === "true");
+    const target = tabKeyTarget(event.key, Math.max(current, 0), views.length);
+    if (target === null) return;
+    event.preventDefault();
+    tabs.children[target].focus();
+    select(views[target].id);
+  });
+  // On a narrow screen the strip scrolls sideways; the edge with more behind it fades.
+  const hintOverflow = () => { tabs.dataset.more = tabsOverflow(tabs); };
+  tabs.addEventListener("scroll", hintOverflow);
 
   container.append(tabs, panels);
 
   // Under the tabs, for a delivered report only. Mounted after the panels
   // so a slow or refused feedback read never delays the report itself.
-  if (progress.state === "completed") renderFeedback(container, runId);
+  // Its owner is asked, not a reader of someone else's run: the server
+  // refuses a reader the read (404), and that was a failed request in the
+  // console of everyone who opened a shared link. Where the server cannot
+  // say whose the run is, or does not say, the question is asked as before.
+  if (progress.state === "completed" && progress.viewer_can_modify !== false) renderFeedback(container, runId);
 
   const loaded = new Set();
   // One request each, shared by the tabs and the citation cards.
@@ -1472,8 +1525,15 @@ export async function render(container, runId, progress) {
   }
 
   async function select(id) {
-    for (const tab of tabs.children) tab.dataset.active = String(tab.dataset.view === id);
+    for (const tab of tabs.children) {
+      const selected = tab.dataset.view === id;
+      tab.dataset.active = String(selected);
+      tab.setAttribute("aria-selected", String(selected));
+      tab.tabIndex = selected ? 0 : -1;       // one tab stop for the strip
+      if (selected) tab.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    }
     for (const panel of panels.children) panel.hidden = panel.dataset.view !== id;
+    hintOverflow();
 
     if (loaded.has(id)) return;
     loaded.add(id);

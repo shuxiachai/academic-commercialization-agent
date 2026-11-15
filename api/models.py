@@ -349,6 +349,13 @@ class RunProgress(BaseModel):
     """
 
     run_id: str
+    viewer_can_modify: bool | None = Field(
+        default=None,
+        description="Whether the server would accept a Cancel, Delete or Resume of this run from the caller of "
+                    "this read: the same rule that guards those requests. Null when the run has no owner on record "
+                    "(a keys-only run): its id is then the only credential, and the server cannot say whose it is. "
+                    "For a page to hide what would be refused; it is not the boundary, the requests are guarded themselves.",
+    )
     auxiliary_usage: dict | None = None
     state: RunState
     status_record_state: Literal["absent", "readable", "unreadable"] | None = None
@@ -541,6 +548,13 @@ class RunStatus(BaseModel):
     """Current state of a run, read from its status.json."""
 
     run_id: str
+    viewer_can_modify: bool | None = Field(
+        default=None,
+        description="Whether the server would accept a Cancel, Delete or Resume of this run from the caller of "
+                    "this read: the same rule that guards those requests. Null when the run has no owner on record "
+                    "(a keys-only run): its id is then the only credential, and the server cannot say whose it is. "
+                    "For a page to hide what would be refused; it is not the boundary, the requests are guarded themselves.",
+    )
     auxiliary_usage: dict | None = None
     state: RunState
     # A valid immutable terminal can coexist with an unreadable live status.

@@ -49,6 +49,11 @@ const STRINGS = {
     runs_show_more: "Show more ({left} older)",
     runs_search_capped: "Searched the {count} most recent runs; older ones are not included.",
     run_again: "Run again",
+    // On someone else's run: the same button, named for what it does there.
+    run_again_own: "Assess this topic yourself",
+    more_actions: "More",
+    shared_note: "This assessment was shared with you. You can read it and keep a copy; only its owner can change it.",
+    shared_new: "Assess a topic of your own",
     run_again_title: "Fill the composer with this topic. Nothing is sent until you start it.",
     copy_link: "Copy link",
     msg_link_copied: "Link copied. Anyone who has it can read this run.",
@@ -238,6 +243,8 @@ const STRINGS = {
     market: "market",
 
     // Result
+    // The tab strip's name, for a screen reader.
+    tabs_label: "Parts of this assessment",
     tab_score: "Scorecard",
     tab_report: "Report",
     tab_sources: "Sources",
@@ -735,6 +742,10 @@ const STRINGS = {
     runs_show_more: "显示更多（还有 {left} 条更早的）",
     runs_search_capped: "已搜索最近的 {count} 条运行，更早的不在其中。",
     run_again: "再跑一次",
+    run_again_own: "用这个课题做一份你自己的评估",
+    more_actions: "更多",
+    shared_note: "这是别人分享给你的评估。你可以阅读并保存副本；只有它的所有者可以改动它。",
+    shared_new: "用你自己的课题评估",
     run_again_title: "把这个题目填入输入框。在你点击开始之前不会发送任何请求。",
     copy_link: "复制链接",
     msg_link_copied: "链接已复制。拿到链接的人都能查看这次运行。",
@@ -916,6 +927,7 @@ const STRINGS = {
     patent: "专利",
     market: "市场",
 
+    tabs_label: "这份评估的各个部分",
     tab_score: "评分卡",
     tab_report: "报告",
     tab_sources: "来源",

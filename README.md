@@ -172,7 +172,8 @@ and the [five-topic result](docs/results-2026-11-11-heldout-spot-check-deepseek-
 
 The public deployment rotates through Model Studio's free-quota models and
 is not pinned to any of these four; the one it currently requests is in
-`/health` as `llm_model`, and each run page names the model that produced it.
+`/health` as `llm_model`, and each run page names the model that produced it
+under "Technical details".
 A model outside the four has no held-out reading. The form that asks for a
 model name shows the same four figures.
 

@@ -415,8 +415,8 @@ semantic correctness of all report prose; see the
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
 | GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
 | GET | `/api/runs` | Owner-filtered run history when access control is enabled; `limit` (1–200) and `offset` page through it, `total` is the whole history |
-| GET | `/api/runs/{id}` | State, stage, execution identity and available artifacts |
-| GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract |
+| GET | `/api/runs/{id}` | State, stage, execution identity and available artifacts, and `viewer_can_modify`: whether this caller passes the rule that guards Cancel, Delete and Resume (`null` when the run has no owner on record) |
+| GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract, and the same `viewer_can_modify` |
 | GET | `/api/runs/{id}/report` | Final Markdown |
 | GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts |
 | DELETE | `/api/runs/{id}?intent=cancel` or `?intent=delete` | Only the requested operation, subject to state and ownership rules |
@@ -1245,6 +1245,25 @@ has it can read the run. Where a browser refuses the page's own write to the
 clipboard, as the one inside a chat app often does, the older selection copy
 is tried; if that is refused too, the reader is told the link is the address
 in the address bar.
+
+A finished run's header shows "PDF", "Copy link" and "More"; "More" puts
+the Markdown download, "Run again", "Compare" and, last, "Delete" in the
+same row. Under the title are the state, the elapsed time and the source
+count, then the folds for usage and cost, for stage timing and for
+"Technical details", which holds the model, the code revision and the plain
+"worker completed" ending; any other ending stays in the line. On a phone
+the header scrolls away with the report.
+
+The run's two status reads carry `viewer_can_modify`, the answer of the rule
+that guards Cancel, Delete and Resume for the caller who asked. A signed-in
+reader of someone else's run (the answer is `false`) is told under the
+header that the assessment was shared and is read-only, is offered "Assess a
+topic of your own", and of the actions keeps the downloads, "Copy link" and
+"Assess this topic yourself", which fills the composer like "Run again";
+such a reader is not asked for feedback either. This is what the page
+offers, not what the server permits: the mutation endpoints apply the rule
+themselves. A keys-only run has no owner on record (`null`), and the page
+offers the owner's actions in the tab that started it.
 
 Whoever follows such a link reads the run without signing in. On a gated
 deployment a visitor with no identity who opens `/run/<id>` or

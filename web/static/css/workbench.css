@@ -425,6 +425,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A run's title is its topic, and a topic is a sentence: on one line it was
+   "solid oxide fuel cells for d…" at 800 px. Two lines, then the ellipsis. */
+#pane-run .pane__title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: var(--leading-tight);
+}
 .pane__meta {
   display: flex;
   align-items: center;
@@ -434,9 +445,10 @@
   color: var(--text-tertiary);
 }
 .pane__actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
-/* A finished run has five controls. In one unshrinking row they took the
-   whole header on a narrow pane and left the heading no width at all. They
-   keep to their own half and wrap inside it; the heading keeps the other. */
+/* A finished run shows three controls and, once "More" is pressed, up to
+   seven. In one unshrinking row they took the whole header on a narrow pane
+   and left the heading no width at all. They keep to their own half and wrap
+   inside it; the heading keeps the other. */
 #pane-run .pane__actions,
 #pane-compare .pane__actions { flex-wrap: wrap; justify-content: flex-end; max-width: 50%; }
 
@@ -479,10 +491,42 @@
 #pane-run .run-usage > summary:hover { color: var(--text-secondary); }
 #pane-run .run-usage[open] { flex-basis: 100%; }
 #pane-run .run-usage > #run-usage,
-#pane-run .run-usage > #run-timing {
+#pane-run .run-usage > #run-timing,
+#pane-run .run-usage > #run-identity,
+#pane-run .run-usage > #run-terminal {
   display: block;
   margin-top: var(--space-1);
   overflow-wrap: anywhere;
+}
+
+/* "More": the rare actions of a finished run, shown in the same row when
+   asked for (app.js behindMore). The caret turns when they are out. */
+#pane-run .run-more::after { content: " ▾"; }
+#pane-run .run-more[aria-expanded="true"]::after { content: " ▴"; }
+
+/* A signed-in reader of someone else's run: one line under the header. */
+.run-shared {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-10);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+.run-shared__new {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 /* Why a run ended and whether it spent one of today's runs: a full line under
@@ -1439,10 +1483,17 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   #pane-run .pane__actions,
   #pane-compare .pane__heading,
   #pane-compare .pane__actions { width: 100%; }
-  /* Three equal columns, so five controls are always two rows whatever the
-     font: wrapping by width gave three rows on a small phone and left the
-     report under six lines. The download glyphs go; the labels say it. A
-     resume button names what it does at length and takes a row to itself. */
+  /* The header was outside the part of the page that scrolls, so on a phone
+     it stood over the report for good: 265 px of a 812 px screen, with the
+     verdict below the first screen. Here the whole pane scrolls, header
+     first, and the report has the screen once the reader moves down it. */
+  #pane-run { overflow-y: auto; }
+  #pane-run .pane__body { flex: none; overflow-y: visible; min-height: auto; }
+  .run-shared { padding-inline: var(--space-5); }
+  /* Three equal columns: the PDF, the link and More are one row whatever the
+     font, and the rest, when More shows them, fill rows of three under it.
+     The download glyphs go; the labels say it. A resume button names what
+     it does at length and takes a row to itself. */
   #pane-run .pane__actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -216,11 +216,27 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
     expect(page.locator("#run-terminal")).to_have_text(
         "· 工作进程已完成" if chinese else "· worker completed",
     )
+    # A plain completion is the worker's word for the state pill beside it:
+    # it sits with the model and the revision under "Technical details".
+    tech = page.locator("#run-tech-details")
+    expect(tech.locator("#run-terminal")).to_have_count(1)
+    expect(tech.locator("summary")).to_have_text("· 技术信息" if chinese else "· Technical details")
+    # The PDF and the link are out; the rest is behind More, Delete last.
     expect(controls).to_have_text(
-        ["Markdown", "PDF", "再跑一次", "对比", "复制链接", "删除"] if chinese
-        else ["Markdown", "PDF", "Run again", "Compare", "Copy link", "Delete"])
+        ["PDF", "复制链接", "更多", "Markdown", "再跑一次", "对比", "删除"] if chinese
+        else ["PDF", "Copy link", "More", "Markdown", "Run again", "Compare", "Delete"])
+    more = actions.locator("#run-more")
+    expect(more).to_have_attribute("aria-expanded", "false")
+    expect(actions.get_by_role("link")).to_have_count(1)
+    expect(actions.get_by_role("button")).to_have_count(2)
+    more.click()
+    expect(more).to_have_attribute("aria-expanded", "true")
     expect(actions.get_by_role("link")).to_have_count(2)
-    expect(actions.get_by_role("button")).to_have_count(4)
+    expect(actions.get_by_role("button")).to_have_count(5)
+    more.click()
+    expect(actions.get_by_role("button")).to_have_count(2)
+    # The owner's own run: nothing says it was shared.
+    expect(page.locator("#run-shared")).to_be_hidden()
     # Usage and its accounting caveats are folded by default, one click away.
     usage_details = page.locator("#run-usage-details")
     usage_details.evaluate("details => { details.open = false; }")
@@ -238,7 +254,9 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
         "来源 0:01 · 证据分析 0:02 · 报告撰写 0:01 · 审查 0:01 · 评分 0:01" if chinese
         else "Sources 0:01 · Evidence 0:02 · Report 0:01 · Review 0:01 · Scoring 0:01")
     run_id = urlsplit(page.url).path.rsplit("/", 1)[-1]
-    metadata = page.locator("#pane-run .pane__meta > span[id]")
+    # Every span of the header's line, and the terminal reason, which sits in
+    # the "Technical details" fold when the run simply completed.
+    metadata = page.locator("#pane-run .pane__meta > span[id], #pane-run #run-terminal")
     original = dict(metadata.evaluate_all(
         "nodes => nodes.map(node => [node.id, node.textContent])"
     ))
@@ -254,8 +272,8 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
         "run-recovery": "· 恢复检查点已保留" if chinese else "· recovery checkpoint retained",
     }
     set_metadata = """values => {
-        // Measure with usage and timing unfolded: the longest text the header holds.
-        for (const id of ['run-usage-details', 'run-timing-details']) {
+        // Measure with usage, timing and the technical details unfolded: the longest text the header holds.
+        for (const id of ['run-usage-details', 'run-timing-details', 'run-tech-details']) {
             const details = document.getElementById(id);
             details.hidden = false;
             details.open = true;
@@ -286,11 +304,16 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
                     const viewport = {left: 0, top: 0, right: innerWidth, bottom: innerHeight};
                     const hit = (element, box) => element.contains(document.elementFromPoint(
                         (box.left + box.right) / 2, (box.top + box.bottom) / 2));
+                    // On a phone the header scrolls away with the report (it used to stand
+                    // over it for good). Its own checks are made with the pane at its
+                    // top; the report's, after the report is brought back into view.
+                    const phone = innerWidth <= 640;
+                    if (phone) pane.scrollTop = 0;
                     const headNode = node('.pane__head'), head = rect(headNode);
                     const heading = rect(node('.pane__heading')), actions = rect(node('#run-actions'));
                     const style = getComputedStyle(headNode);
                     const contentWidth = head.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-                    const fields = [...pane.querySelectorAll('.pane__meta > span[id], #run-usage, #run-timing')]
+                    const fields = [...pane.querySelectorAll('.pane__meta > span[id], #run-usage, #run-timing, #run-identity, #run-terminal')]
                         .filter(element => element.textContent);
                     const textFits = element => {
                         const box = rect(element), range = document.createRange();
@@ -301,7 +324,21 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
                             && element.scrollHeight <= element.clientHeight + 1 && lines.length > 0
                             && lines.every(line => inside(line, box) && hit(element, line));
                     };
-                    const body = rect(node('#run-body')), prose = node('article.prose'), report = rect(prose);
+                    const headChecks = {
+                        noOverflow: headNode.scrollWidth <= headNode.clientWidth + 1 && inside(head, viewport),
+                        metadataFits: fields.every(textFits),
+                        clipped: fields.filter(element => !textFits(element)).map(element => element.id),
+                        controlsReachable: [...pane.querySelectorAll('#run-actions :is(a, button)')]
+                            .filter(element => !element.hidden).every(element => {
+                                const box = rect(element);
+                                return box.width >= 44 && box.height >= 24 && inside(box, head)
+                                    && inside(box, viewport) && hit(element, box);
+                            }),
+                    };
+                    const prose = node('article.prose');
+                    if (phone) prose.scrollIntoView({block: 'start'});
+                    const headAfter = rect(headNode);
+                    const body = rect(node('#run-body')), report = rect(prose);
                     const visibleReport = {
                         left: Math.max(body.left, report.left, 0), right: Math.min(body.right, report.right, innerWidth),
                         top: Math.max(body.top, report.top, 0), bottom: Math.min(body.bottom, report.bottom, innerHeight),
@@ -309,25 +346,26 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
                     const readable = selector => rect(node(selector)).width >= 4 * parseFloat(getComputedStyle(node(selector)).fontSize);
                     return {
                         checks: {
-                            noOverflow: headNode.scrollWidth <= headNode.clientWidth + 1 && inside(head, viewport),
+                            noOverflow: headChecks.noOverflow,
                             arrangement: innerWidth <= 640
                                 ? heading.width >= contentWidth - 1 && actions.top >= heading.bottom - 1
                                 : actions.left >= heading.right - 1 && Math.abs(actions.top - heading.top) <= 1,
-                            metadataFits: fields.every(textFits),
-                            sourceReadable: readable('#run-sources'), terminalReadable: readable('#run-terminal'),
-                            controlsReachable: [...pane.querySelectorAll('#run-actions :is(a, button)')].every(element => {
-                                const box = rect(element);
-                                return box.width >= 44 && box.height >= 24 && inside(box, head)
-                                    && inside(box, viewport) && hit(element, box);
-                            }),
+                            metadataFits: headChecks.metadataFits,
+                            // A plain completion is folded under "Technical details"; any other
+                            // ending keeps its reason in the line, and must be readable there.
+                            sourceReadable: readable('#run-sources'),
+                            terminalReadable: Boolean(node('#run-terminal').closest('details:not([open])'))
+                                || readable('#run-terminal'),
+                            // The controls on show: what is behind More is not on the page until asked for.
+                            controlsReachable: headChecks.controlsReachable,
                             // At least six ordinary text lines, not merely a nonzero offscreen box.
-                            reportUsable: body.top >= head.bottom - 1 && visibleReport.bottom - visibleReport.top >= 120
+                            reportUsable: body.top >= headAfter.bottom - 1 && visibleReport.bottom - visibleReport.top >= 120
                                 && visibleReport.right - visibleReport.left >= 200 && hit(prose, visibleReport),
                         },
                         headHeight: head.height, headingWidth: heading.width,
                         sourceWidth: rect(node('#run-sources')).width, terminalWidth: rect(node('#run-terminal')).width,
                         visibleReportHeight: visibleReport.bottom - visibleReport.top,
-                        clippedFields: fields.filter(element => !textFits(element)).map(element => element.id),
+                        clippedFields: headChecks.clipped,
                     };
                 }""")
                 assert all(layout["checks"].values()), (
@@ -337,11 +375,12 @@ def _assert_run_header_layout(page: Page, *, chinese: bool) -> None:
                     assert page.locator(f"#{field}").text_content() == expected, field
                     if expected:
                         expect(page.locator(f"#{field}")).to_be_visible()
-                for index, (path, suffix) in enumerate((("report", "md"), ("report.pdf", "pdf"))):
+                # The PDF is the first control; the Markdown is the first behind More.
+                for index, (path, suffix) in ((0, ("report.pdf", "pdf")), (3, ("report", "md"))):
                     expect(controls.nth(index)).to_have_attribute("href", f"/api/runs/{run_id}/{path}")
                     expect(controls.nth(index)).to_have_attribute("download", f"{run_id}.{suffix}")
                 # Seed focus immediately before the actions, then use real Tab
-                # traversal through BOTH downloads and Delete; never activate them.
+                # traversal through the PDF, the link and More; never activate them.
                 controls.first.focus()
                 page.keyboard.press("Shift+Tab")
                 for index in range(3):
@@ -756,7 +795,7 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
 
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
-    runtime_ids: tuple[str, str, str], cap_run_id: str,
+    runtime_ids: tuple[str, str, str], cap_run_id: str, foreign_run_id: str,
 ) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
@@ -1029,7 +1068,29 @@ def _exercise_browser(
             # A new arithmetic receipt is distinct from the legacy unknown
             # above. Verify the same disk bytes over HTTP and actual Chromium;
             # neither a computed field alone nor an old 3.5 score proves this.
+            # Someone else's run, opened by its link while signed in: the server
+            # says this caller may not change it, so the page says the report
+            # was shared and offers nothing that would only be refused. No
+            # mutation is attempted here; tests/test_viewer_can_modify.py holds
+            # the server to the same answer.
+            page.goto(f"{base_url}/run/{foreign_run_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            assert page.request.get(f"{base_url}/api/runs/{foreign_run_id}",
+                                    headers={"X-Access-Code": ACCESS_CODE}).json()["viewer_can_modify"] is False
+            shared = page.locator("#run-shared")
+            expect(shared).to_be_visible()
+            expect(shared).to_contain_text("shared with you")
+            foreign_controls = page.locator("#run-actions :is(a, button)")
+            expect(foreign_controls).to_have_text(["PDF", "Copy link", "More", "Markdown", "Assess this topic yourself"])
+            expect(page.locator("#run-actions").get_by_role("button", name="Delete")).to_have_count(0)
+            shared.locator("#run-shared-new").click()
+            expect(page.locator("#pane-compose")).to_be_visible()
+            # The caller's own run again: the notice is gone and Delete is back behind More.
             page.goto(f"{base_url}/run/{cap_run_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            expect(page.locator("#run-shared")).to_be_hidden()
+            expect(page.locator("#run-actions :is(a, button)")).to_have_text(
+                ["PDF", "Copy link", "More", "Markdown", "Run again", "Compare", "Delete"])
             # Folded even though the cap moved the score: the summary says so in
             # plain words, and the receipt is one click away rather than open.
             caveat = page.locator(".scorecard__market-caveat")
@@ -1266,6 +1327,8 @@ def main() -> None:
         from academic_agent.market_cap_audit import capture_cap
 
         cap_run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
+        # A finished run that belongs to someone else, to be opened by its link.
+        foreign_run_id = _write_completed_run(output_root, access.owner_id("another-visitors-code"))
         cap_scores = json.loads((output_root / run_id / "commercialization_scores.json").read_text(encoding="utf-8"))
         cap_scores["market_cap_audit"] = capture_cap(5, cap_scores)
         save_scores(json.dumps(cap_scores), cap_run_id, output_root)
@@ -1332,7 +1395,7 @@ def main() -> None:
                     api_runs._write_daily_charge(output_root / runtime_id, date.today())
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id)
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id)
 
     print(
         json.dumps(
