@@ -349,7 +349,7 @@ const scenarios = {
     await settle();
     assert.equal(shown(f).landing, false, "The page that promised a sign-in does not stay when nothing answered");
     assert.equal(shown(f).workbench, true, "...and the visitor is where they were before this change");
-    assert.deepEqual(stopped, ["Cannot reach the server. Is it still running?"]);
+    assert.deepEqual(stopped, ["Cannot reach the server. Check your connection and try again."]);
   },
   async keys_in_this_tab_never_see_the_landing() {
     // Keys alone boot without a request. The landing must not be painted

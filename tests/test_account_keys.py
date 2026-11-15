@@ -260,6 +260,74 @@ class EndpointTests(_Keys):
         self.assertNotIn("llm_api_key", schemas["SavedKeys"]["properties"])
 
 
+class CheckSavedTests(_Keys):
+    """The page shows which keys are saved and never has them again, so it
+    cannot ask the providers about them itself; the server asks."""
+
+    def _asked(self):
+        from unittest.mock import AsyncMock
+
+        from api import key_check
+
+        return patch.object(key_check, "check", AsyncMock(return_value=key_check.KeyCheck(
+            llm="accepted", model="listed", search="rejected")))
+
+    def test_the_saved_set_is_what_the_providers_are_asked_about(self):
+        self._save()
+        with patch.dict("os.environ", {"KEY_CHECK": "on"}), patch("api.main._key_check_times", {}), self._asked() as asked:
+            reply = self.client.post("/api/auth/keys/check", headers=self.headers)
+        self.assertEqual(reply.status_code, 200, reply.text)
+        self.assertEqual(reply.json(), {"checked": True, "llm": "accepted", "model": "listed", "search": "rejected"})
+        self.assertEqual(asked.await_args.kwargs, {"provider": "deepseek", "llm_api_key": LLM_KEY, "model": "deepseek-chat",
+                                                   "search": "tavily", "search_api_key": SEARCH_KEY})
+        self.assertEqual(reply.headers["Cache-Control"], "no-store")
+        for secret in SECRETS:
+            self.assertNotIn(secret, reply.text)
+        # Asking changes nothing: a key a provider refuses stays saved until the account acts.
+        self.assertEqual(account_keys.load(self.user).search_api_key, SEARCH_KEY)
+
+    def test_with_nothing_saved_nobody_is_asked(self):
+        with patch.dict("os.environ", {"KEY_CHECK": "on"}), self._asked() as asked:
+            reply = self.client.post("/api/auth/keys/check", headers=self.headers)
+            self.assertEqual((reply.status_code, reply.headers["X-Error-Code"]), (409, "no_saved_keys"))
+            # One account's saved keys are not another's to ask about.
+            self._save()
+            bob = self._bearer(self._signup("bob@example.com")["token"])
+            other = self.client.post("/api/auth/keys/check", headers=bob)
+            self.assertEqual((other.status_code, other.headers["X-Error-Code"]), (409, "no_saved_keys"))
+        asked.assert_not_awaited()
+
+    def test_only_an_account_can_ask_and_only_so_often(self):
+        self._save()
+        with patch.dict("os.environ", {"KEY_CHECK": "on"}), self._asked() as asked:
+            self.assertEqual(self.client.post("/api/auth/keys/check").status_code, 401)
+            # A code holder passes the gate and has no account: told this is for accounts,
+            # not that "no keys are saved", which would be an answer about an account.
+            with patch.object(access, "ACCESS_CODE", "an-access-code"):
+                coded = self.client.post("/api/auth/keys/check", headers={"X-Access-Code": "an-access-code"})
+            self.assertEqual(coded.status_code, 404)
+            self.assertNotEqual(coded.headers.get("X-Error-Code"), "no_saved_keys")
+            with patch("api.main._key_check_times", {}), patch("api.main._key_check_exceeded", return_value=True):
+                limited = self.client.post("/api/auth/keys/check", headers=self.headers)
+            self.assertEqual((limited.status_code, limited.headers["X-Error-Code"]), (429, "rate_limited"))
+        asked.assert_not_awaited()
+
+    def test_a_deployment_that_checks_no_keys_says_so_and_asks_nobody(self):
+        self._save()
+        with patch.dict("os.environ", {"KEY_CHECK": "off"}), self._asked() as asked:
+            reply = self.client.post("/api/auth/keys/check", headers=self.headers)
+        self.assertEqual(reply.json(), {"checked": False, "llm": "unverified", "model": "unknown", "search": "unverified"})
+        asked.assert_not_awaited()
+
+    def test_the_two_checks_share_one_limit_per_account(self):
+        """Typed keys and saved keys are the same account asking the same providers."""
+        self._save()
+        with patch.dict("os.environ", {"KEY_CHECK": "on"}), patch("api.main._key_check_times", {}) as times, self._asked():
+            self.client.post("/api/auth/keys/check", headers=self.headers)
+            self.client.post("/api/keys/check", json=KEYS, headers=self.headers)
+            self.assertEqual({owner: len(seen) for owner, seen in times.items()}, {self.user.owner: 2})
+
+
 class PaidOperationTests(_Keys):
     """A request with no keys from an account that saved some runs on them."""
 

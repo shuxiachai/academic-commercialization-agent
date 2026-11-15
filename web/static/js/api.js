@@ -293,7 +293,11 @@ async function request(path, options = {}) {
     // Losing the response does not prove a paid POST never reached the server.
     // Never retry automatically or describe that ambiguous outcome as free.
     if (paidPost) throw acknowledgementUnknown();
-    throw new ApiError(0, "Cannot reach the server. Is it still running?");
+    // The page says this in the reader's language by its code (app.js
+    // errorText, result.js failureText). The English here is for whoever
+    // shows the message as it is; it used to end by asking whether the
+    // server was running, a question for someone who runs it themselves.
+    throw new ApiError(0, "Cannot reach the server. Check your connection and try again.", "network_unreachable");
   }
 
   if (!response.ok) {
@@ -434,6 +438,11 @@ export const saveKeys = (creds) => request("/api/auth/keys", {
   signal: AbortSignal.timeout(20000),
 });
 export const removeSavedKeys = () => request("/api/auth/keys", { method: "DELETE" });
+// What the providers say about the saved set now: the page cannot send keys it never has again.
+export const checkSavedKeys = () => request("/api/auth/keys/check", {
+  method: "POST",
+  signal: AbortSignal.timeout(20000),
+});
 // Both need the password again: a session alone cannot change or erase an account.
 // The operator's console: answered only to an admin account (404 to anyone else).
 export const adminAccounts = () => request("/api/admin/accounts");

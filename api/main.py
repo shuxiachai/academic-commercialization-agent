@@ -1551,6 +1551,13 @@ async def check_keys(http_request: Request) -> KeyCheckResult:
     """
     user = _signed_in_account(http_request)
     request = await _key_check_body(http_request)
+    return await _checked_keys(user, provider=request.llm_provider, llm_api_key=request.llm_api_key,
+                               model=request.llm_model, search=request.search,
+                               search_api_key=request.search_api_key)
+
+
+async def _checked_keys(user: accounts.User, **keys) -> KeyCheckResult:
+    """What the providers say about one key set, for the account asking; shared by the two checks."""
     if not key_check.enabled():
         return KeyCheckResult(checked=False, llm="unverified", model="unknown", search="unverified")
     if _key_check_exceeded(user.owner):
@@ -1559,11 +1566,32 @@ async def check_keys(http_request: Request) -> KeyCheckResult:
             detail="Too many key checks. The keys can still be saved; wait a few minutes to check again.",
             headers={"Retry-After": "60", "X-Error-Code": "rate_limited"},
         )
-    result = await key_check.check(
-        provider=request.llm_provider, llm_api_key=request.llm_api_key, model=request.llm_model,
-        search=request.search, search_api_key=request.search_api_key,
-    )
+    result = await key_check.check(**keys)
     return KeyCheckResult(checked=True, llm=result.llm, model=result.model, search=result.search)
+
+
+@app.post("/api/auth/keys/check", response_model=KeyCheckResult, tags=["accounts"],
+          responses={404: {"description": "Not signed in with an account"},
+                     409: {"description": "No keys are saved with this account"},
+                     429: {"description": "Too many key checks for this account"}})
+async def check_saved_keys(http_request: Request, response: Response) -> KeyCheckResult:
+    """Ask the providers whether they still accept the keys saved with the account.
+
+    The page can show which keys are saved but never has them again, so it
+    cannot send them to POST /api/keys/check; this asks about the saved set
+    on the account's behalf. The same two unbilled reads, the same limit
+    per account, and the same answer, which carries no key. Nothing is
+    recorded: a key that a provider now refuses stays saved until the
+    account replaces or removes it.
+    """
+    user = _signed_in_account(http_request)
+    keys = await asyncio.to_thread(account_keys.load, user)
+    if keys is None:
+        raise HTTPException(status_code=409, detail="No keys are saved with this account.",
+                            headers={"X-Error-Code": "no_saved_keys"})
+    response.headers["Cache-Control"] = "no-store"
+    return await _checked_keys(user, provider=keys.provider, llm_api_key=keys.llm_api_key, model=keys.model,
+                               search=keys.search, search_api_key=keys.search_api_key)
 
 
 @app.get("/api/quota", response_model=DailyQuota | None, tags=["runs"])

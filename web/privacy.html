@@ -56,7 +56,7 @@
     <p>Wrong passwords are counted against the email address tried and the network address they came from, so that guessing is slowed and then locked out for a while. A correct sign-in from the same address clears the count for that address. It is the only record in the account store that holds a network address.</p>
     <h3>Your API keys</h3>
     <p>When you add your model and search API keys while signed in, they are saved with your account unless you untick “Save these keys to my account”. They are kept as one encrypted record: the provider, the model and both keys are inside it, and nothing about them can be read in the account store. The secret that opens the record is kept apart from the account store and is not part of its recovery copies.</p>
-    <p>Saved keys are used only to run the operations you start: they are handed to the worker that runs an operation and, by it, to the provider. They are never sent back to your browser; the page shows the provider, the model and the last four characters of each key, so that you can tell which key it is. You can replace or remove them in the key form at any time, deleting your account removes them, and if the account store is ever restored from a recovery copy, saved keys are cleared and you add them again.</p>
+    <p>Saved keys are used only for what you start. To run an operation, they are handed to the worker that runs it and, by it, to the provider. When you press “Check these keys” in the key form, the server asks each provider whether it still accepts its key. They are never sent back to your browser; the page shows the provider, the model and the last four characters of each key, so that you can tell which key it is. You can replace or remove them in the key form at any time, deleting your account removes them, and if the account store is ever restored from a recovery copy, saved keys are cleared and you add them again.</p>
     <h3>Email sent to you</h3>
     <p>Where this deployment sends email, it sends three kinds of message and no others, each to the account's own address: a one-time link to verify the address when you sign up, good for 24 hours; a one-time link to choose a new password when you ask for one, good for 60 minutes; and, only if you turn it on, a note when an assessment of yours completes or fails, with its topic and its link. The links are kept on this server only as hashes. There is no newsletter and no marketing. Until the address is verified you can sign in, save keys and preview a plan, but not start a paid operation. <span data-mail="on" hidden>This deployment sends email.</span><span data-mail="off" hidden>This deployment does not send email, so none of these messages is sent.</span></p>
     <h3>Your assessments</h3>
@@ -68,7 +68,7 @@
 
     <h2>What is never stored</h2>
     <p>Your API keys in readable form. Saved keys exist on this server only as the encrypted record described above. If you untick “Save these keys to my account”, or use the service with keys alone and no account, your keys are not saved at all: they stay in your browser tab, are sent with each operation you start, are handed to the worker that runs it, and are gone when it ends; closing the tab removes them from the browser.</p>
-    <p>Either way, when a signed-in account adds keys they are sent once so that each provider can be asked whether it accepts its key. That check reads the provider's model list and the search service's account record; it requests no completion, runs no search and is not billed. Keys are not written to assessments, receipts or logs.</p>
+    <p>Either way, when a signed-in account adds keys they are sent once so that each provider can be asked whether it accepts its key. That check, and the one you can ask for later with “Check these keys”, reads the provider's model list and the search service's account record; it requests no completion, runs no search and is not billed. What the providers answered is shown to you and not kept. Keys are not written to assessments, receipts or logs.</p>
 
     <h2>Who else sees your content</h2>
     <p>An assessment cannot be made without sending parts of it elsewhere:</p>
@@ -133,7 +133,7 @@
     <p>输错密码时，会按所尝试的邮箱和请求来源的网络地址计数，用来减慢并暂时锁定猜测密码的行为。同一地址登录成功后，该地址的计数即清除。这是账号库里唯一包含网络地址的记录。</p>
     <h3>你的 API Key</h3>
     <p>登录后添加模型与检索 API Key 时，除非你取消勾选“把这些密钥保存到我的账号”，它们会保存到你的账号里。保存的是一条加密记录：服务商、模型和两个密钥都在记录内部，账号库里读不出其中任何内容。打开这条记录所需的密钥与账号库分开存放，也不在账号库的恢复副本里。</p>
-    <p>保存的密钥只用于运行你发起的操作：交给执行该操作的工作进程，再由它交给服务商。它们不会再发回你的浏览器；页面只显示服务商、模型和每个密钥的最后四位，方便你辨认是哪一个。你可以随时在密钥表单里更换或删除；注销账号会一并删除；如果账号库从恢复副本还原，保存的密钥会被清除，需要你重新添加。</p>
+    <p>保存的密钥只用于你发起的事情。运行操作时，交给执行该操作的工作进程，再由它交给服务商；你在密钥表单里点“检查这些密钥”时，由服务器向各服务商确认它是否仍接受对应的密钥。它们不会再发回你的浏览器；页面只显示服务商、模型和每个密钥的最后四位，方便你辨认是哪一个。你可以随时在密钥表单里更换或删除；注销账号会一并删除；如果账号库从恢复副本还原，保存的密钥会被清除，需要你重新添加。</p>
     <h3>发给你的邮件</h3>
     <p>本站能发送邮件时，只发三类邮件，且都只发到账号自己的邮箱：注册时用于验证邮箱的一次性链接，24 小时内有效；你提出要求时用于设置新密码的一次性链接，60 分钟内有效；以及只有在你打开通知后，评估完成或失败时的一封提醒，其中包含该评估的主题和链接。这些链接在服务器上只保存哈希。没有订阅邮件，也没有营销邮件。邮箱通过验证之前，你可以登录、保存密钥和预览计划，但不能发起付费操作。<span data-mail="on" hidden>本站会发送邮件。</span><span data-mail="off" hidden>本站不发送邮件，上述邮件都不会发出。</span></p>
     <h3>你的评估</h3>
@@ -145,7 +145,7 @@
 
     <h2>从不保存什么</h2>
     <p>可读形式的 API Key。保存的密钥在本服务器上只以上面所说的加密记录存在。如果你取消勾选“把这些密钥保存到我的账号”，或者不用账号、只凭密钥使用本服务，密钥就完全不会保存：它们只留在你的浏览器标签页里，随你发起的每次操作发送，交给执行该操作的工作进程，操作结束即消失；关闭标签页后也会从浏览器中消失。</p>
-    <p>无论哪种方式，登录的账号添加密钥时都会发送一次，用来向各服务商确认它是否接受对应的密钥。这次校验只读取模型服务商的模型列表和检索服务的账户记录，不请求生成，不执行检索，也不计费。密钥不会写入评估、收据或日志。</p>
+    <p>无论哪种方式，登录的账号添加密钥时都会发送一次，用来向各服务商确认它是否接受对应的密钥。这次校验，以及之后你点“检查这些密钥”发起的校验，都只读取模型服务商的模型列表和检索服务的账户记录，不请求生成，不执行检索，也不计费。服务商的答复只显示给你，不会保存。密钥不会写入评估、收据或日志。</p>
 
     <h2>还有谁会看到你的内容</h2>
     <p>完成一次评估必须把其中一部分发往别处：</p>

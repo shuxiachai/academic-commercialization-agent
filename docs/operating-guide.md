@@ -435,6 +435,7 @@ semantic correctness of all report prose; see the
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
 | GET | `/api/quota` | Paid operations left today for the calling code; `null` when uncapped |
 | GET, PUT, DELETE | `/api/auth/keys` | The signed-in account's saved API keys: whether any are saved and which (never a key), save a set in place of any saved before, remove them |
+| POST | `/api/auth/keys/check` | Ask the providers whether they still accept the keys saved with the signed-in account; no body, the same answer and the same limit as `/api/keys/check`; 409 `no_saved_keys` when none are saved |
 | POST | `/api/plan` | Preview how the planner reads a topic; on the deployment's key for a code holder, on its own key set for an account; own daily cap, not a paid operation |
 | GET | `/api/runs/{run_id}/feedback` | The caller's own answer about a delivered report, if any. Authorized like a mutation: a code-owned run answers to its code or the admin, an ownerless run to whoever holds its URL |
 | POST | `/api/runs/{run_id}/feedback` | One click on a delivered report: did it change the reader's view (`yes`/`no`/`unsure`) and which part mattered. Fixed words, no text; one record per responder, replaced on a later answer; kept in the run's `feedback.json` for `scripts/ops_report.py`. Not a paid operation |
@@ -1189,6 +1190,24 @@ stored, logged or returned, and a malformed body is refused without
 quoting it. `KEY_CHECK=off` turns the check off: the page stops asking and
 keys are saved as they were before it existed. Visitors who use their own
 keys without an account are not offered the check.
+
+Saved keys can be checked again at any time. The page never has a saved key
+again, only its last four characters, so it cannot send one to the check
+above; "Check these keys" in the key form calls `POST /api/auth/keys/check`,
+which takes no body, opens the account's sealed record and asks the same
+two unbilled questions. It counts against the same ten checks in ten
+minutes, answers in the same shape, and records nothing: a key a provider
+now refuses stays saved until the account replaces or removes it, and the
+form says when the answer was given because it is not kept anywhere. An
+account with nothing saved gets 409 `no_saved_keys`. The form also lists
+keys the account chose not to save, which are in that browser tab only, by
+their last four characters, with a control that clears them from the tab.
+
+An account with no keys, no free first assessment and no operator paying
+for it cannot start anything, and its workbench says so beside the run
+button ("Add your API keys to start an assessment") with a button that
+opens the key form. The day's allowance is still shown, dimmed, because it
+is not what stands in the way.
 
 A failed run says what its reader can act on. The API reports the recognised
 cause as `error_code` and whose keys the run used as `funded_by`, beside the
