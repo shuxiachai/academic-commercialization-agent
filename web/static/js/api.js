@@ -171,9 +171,10 @@ export function setByok(creds) {
 
 /* ── Keys an account chose to keep on this device ─────────────────────
  * The slot above belongs to the tab, so an account pasted its keys again on
- * every visit. An account that ticks "Remember" in the key form gets a second
- * copy here, in localStorage, which a new tab reads back (restoreByok). It is
- * a live third-party credential on a disk, unencrypted, so:
+ * every visit. An account that saves keys with "Remember" ticked in the key
+ * form (it starts ticked; see byokRememberWanted) gets a second copy here, in
+ * localStorage, which a new tab reads back (restoreByok). It is a live
+ * third-party credential on a disk, unencrypted, so:
  *
  * - nothing is written without that tick, and the page removes the copy when
  *   keys are saved without it, on sign-out and when the account is deleted;
@@ -218,8 +219,32 @@ export function rememberByok(creds, owner) {
 /** Stop keeping keys on this device. False when the browser refused the removal. */
 export const forgetByok = () => rememberedSlot.write(null);
 
-/** Whether keys are being kept here for this account: the form's tick. */
+/** Whether keys are being kept here for this account. */
 export const byokRemembered = (owner) => rememberedFor(owner) !== null;
+
+/* The form's box starts ticked: being asked for keys on every visit was the
+ * complaint, and an option that has to be found does not answer it. Someone
+ * who unticks it has decided for this device, so the form must not tick them
+ * back in next time, or their next save would keep keys they declined to
+ * keep. The decision is recorded as a mark with no key in it. It is a
+ * setting, not a credential: signing out leaves it, and ticking the box
+ * again removes it. A browser whose storage cannot be read can keep nothing,
+ * so it reads as declined. */
+const REMEMBER_OFF_KEY = "byok-remember-off";
+
+/** Whether the form's box should start ticked on this device. */
+export function byokRememberWanted() {
+  try { return globalThis.localStorage.getItem(REMEMBER_OFF_KEY) === null; }
+  catch { return false; }
+}
+
+/** Record the choice made at a save: ticked removes the mark, unticked sets it. */
+export function setByokRememberWanted(wanted) {
+  try {
+    if (wanted) globalThis.localStorage.removeItem(REMEMBER_OFF_KEY);
+    else globalThis.localStorage.setItem(REMEMBER_OFF_KEY, "1");
+  } catch { /* The choice is then not remembered; the keys were handled already. */ }
+}
 
 /** Give a tab that has no keys the ones `owner` kept. A copy that is someone
  * else's, or unreadable, is removed. Keys the tab already holds are the
