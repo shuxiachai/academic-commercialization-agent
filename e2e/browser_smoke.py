@@ -896,6 +896,8 @@ def _exercise_browser(
             expect(applicability).to_have_count(1)
             expect(applicability).to_be_visible()
             expect(applicability).to_contain_text("An orientation brief")
+            # This line is part of the report as shown (report_display.py), so it
+            # keeps the pipeline's spelling; the interface's own sentences say "GO / NO-GO".
             expect(applicability).to_contain_text("gives no GO/NO_GO for a particular decision-maker.")
             expect(applicability).to_contain_text("No success criteria were given")
             expect(applicability).not_to_contain_text("not_established")
@@ -913,9 +915,18 @@ def _exercise_browser(
             assert delivered_scores["market_comparison"]["comparability_status"] == "not_assessed"
             assert delivered_scores["market_comparison"]["legacy_cap_signal"] == "triggered"
 
-            page.locator('button.tab[data-view="report-audit"]').click()
-            audit_panel = page.locator('.panel[data-view="report-audit"]')
-            expect(audit_panel).to_be_visible()
+            # The three checks share one tab; each says its result in a line
+            # and keeps its items behind a fold that is read when opened.
+            page.locator('button.tab[data-view="checks"]').click()
+            checks_panel = page.locator('.panel[data-view="checks"]')
+            expect(checks_panel).to_be_visible()
+            for old_tab in ("grounding", "consistency", "report-audit"):
+                expect(page.locator(f'button.tab[data-view="{old_tab}"]')).to_have_count(0)
+            audit_panel = checks_panel.locator('.check[data-check="report-audit"]')
+            expect(audit_panel.locator(".check__title")).to_have_text("Report audit")
+            expect(audit_panel.locator(".check__verdict")).not_to_be_empty()
+            expect(audit_panel.locator(".check__body")).to_be_hidden()
+            audit_panel.locator("details.check__details > summary").click()
             expect(audit_panel).to_contain_text("Candidates: 1; checked: 0; unverifiable: 1")
             expect(audit_panel).to_contain_text("Only part of the audit")
             expect(audit_panel).not_to_contain_text("No issue was found")
@@ -1076,12 +1087,17 @@ def _exercise_browser(
                 expect(row).to_have_attribute("data-tone", "muted")
                 expect(row).to_contain_text("Stored audit summary is unreadable")
             expect(page.locator('.reliability__row[data-check="review"]')).to_have_attribute("data-tone", "ok")
-            page.locator('button.tab[data-view="report-audit"]').click()
-            expect(page.locator('.panel[data-view="report-audit"]')).to_contain_text("missing or unreadable")
+            page.locator('button.tab[data-view="checks"]').click()
+            damaged_audit = page.locator('.panel[data-view="checks"] .check[data-check="report-audit"]')
+            damaged_audit.locator("details.check__details > summary").click()
+            expect(damaged_audit).to_contain_text("missing or unreadable")
             for view in ("grounding", "consistency"):
-                page.locator(f'button.tab[data-view="{view}"]').click()
-                expect(page.locator(f'.panel[data-view="{view}"]')).to_contain_text("no conclusion can be drawn")
-                expect(page.locator(f'.panel[data-view="{view}"] .consistency__clear')).to_have_count(0)
+                damaged = page.locator(f'.panel[data-view="checks"] .check[data-check="{view}"]')
+                # Unreadable in the status too: the one line says so, in the muted tone.
+                expect(damaged.locator(".check__verdict")).to_have_attribute("data-tone", "muted")
+                damaged.locator("details.check__details > summary").click()
+                expect(damaged).to_contain_text("no conclusion can be drawn")
+                expect(damaged.locator(".consistency__clear")).to_have_count(0)
             page.locator('button.tab[data-view="report"]').click()
             expect(page.locator("article.prose")).to_be_visible()
             expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)

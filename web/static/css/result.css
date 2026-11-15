@@ -1128,3 +1128,63 @@
 .picker__topic { font-weight: 500; overflow-wrap: anywhere; }
 .picker__meta { font-size: var(--text-xs); color: var(--text-tertiary); }
 .picker__actions { display: flex; justify-content: flex-end; }
+
+/* ═══ The "Automated checks" tab ══════════════════════════════════════
+   One section a check (result.js renderChecks): its name, what it found in
+   one line, and the items behind that line in a fold. The line's rule takes
+   the tone of the same check's row in the panel above the tabs; a check
+   that could not run or decide keeps the neutral rule, never the green one. */
+.checks__lede {
+  max-width: 820px;
+  margin-bottom: var(--space-5);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+.check {
+  max-width: 820px;
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.check__title { font-size: var(--text-md); color: var(--text-primary); }
+.check__verdict {
+  margin-top: var(--space-2);
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--border-default);
+  color: var(--text-primary);
+  line-height: var(--leading-normal);
+}
+.check__verdict[data-tone="ok"] { border-left-color: var(--success); }
+.check__verdict[data-tone="warn"] { border-left-color: var(--warning); }
+.check__verdict[data-tone="risk"] { border-left-color: var(--danger); }
+.check__details { margin-top: var(--space-2); }
+.check__details > summary {
+  padding: var(--space-2) 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.check__details > summary:hover { color: var(--text-primary); }
+.check__body { margin-top: var(--space-3); }
+
+/* The brief's summary sentence, cut to fit: one press shows it whole. */
+.brief__expand {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* The sources page's first sentence, in a reader's words; the exact
+   statement under it is the fine print. */
+.sources__plain {
+  max-width: 820px;
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+  line-height: var(--leading-relaxed);
+}

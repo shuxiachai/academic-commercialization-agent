@@ -302,7 +302,11 @@ function paintHeader({
   // Folded, never dropped: the full accounting text with its caveats stays in
   // the DOM and one click away, while the header leads with the outcome.
   $("#run-usage-details").hidden = !spendEl.textContent;
-  $("#run-usage-label").textContent = `· ${runView.headerLabel("usage_details")}`;
+  // The fold is headed by what the run used and what that is estimated to
+  // have cost; where nothing was counted it keeps its plain name. The text
+  // above, with the helper ledger and every caveat, is the detail inside.
+  const headline = runView.usageHeadline(usage, usage_accounting);
+  $("#run-usage-label").textContent = `· ${headline || runView.headerLabel("usage_details")}`;
 
   // Where the time went, folded the same way. The stage list shows it while
   // the run is going; the finished view replaces that list.

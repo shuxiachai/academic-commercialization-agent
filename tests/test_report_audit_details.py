@@ -149,6 +149,47 @@ def test_no_candidate_is_not_a_clean_bill(tmp_path):
     assert "No issue was found" not in panel["text"]
 
 
+_NO_ELECTROLYTE = {"status": "not_applicable", "candidate_segments": 0, "checked": 0, "unverifiable": 0,
+                   "mismatched": 0, "findings": []}
+
+
+@pytest.mark.parametrize("language,word", [("English", "lectrolyte"), ("Simplified Chinese", "电解质")])
+def test_the_electrolyte_check_is_not_shown_where_it_does_not_apply(tmp_path, language, word):
+    """One of the audit's two checks compares the electrolyte family a
+    sentence names with the one its cited source names. On a report about
+    fuel cells or surgical robots the panel still showed "Electrolyte
+    citation scope" and an opening sentence about electrolytes. Where that
+    check says it does not apply, it is not shown and not mentioned."""
+    payload = deepcopy(PARTIAL)
+    payload["status"] = "completed"
+    payload["citation_material_scope"] = dict(_NO_ELECTROLYTE)
+    panel = render_details(payload, tmp_path, language)
+    assert set(panel["sections"]) == {"decision_thresholds"}
+    assert word not in panel["text"]
+    # Where it applies, it is shown and named for what it compares.
+    shown = render_details(PARTIAL, tmp_path, language)
+    assert set(shown["sections"]) == {"decision_thresholds", "citation_material_scope"}
+    assert word in shown["text"]
+
+
+@pytest.mark.parametrize("status", ["unavailable", "failed"])
+def test_an_electrolyte_check_that_could_not_run_is_still_shown(tmp_path, status):
+    """Not applicable is the check's own answer. Unavailable is no answer,
+    and silence is not a pass: that section stays, saying so."""
+    payload = deepcopy(PARTIAL)
+    payload["citation_material_scope"] = {**_NO_ELECTROLYTE, "status": status}
+    panel = render_details(payload, tmp_path)
+    assert "could not evaluate" in panel["sections"]["citation_material_scope"]
+
+
+def test_a_damaged_electrolyte_section_is_still_shown_as_unreadable(tmp_path):
+    payload = deepcopy(PARTIAL)
+    payload["status"] = "completed"
+    payload["citation_material_scope"] = {"status": "not_applicable"}   # the counters are gone
+    panel = render_details(payload, tmp_path)
+    assert "unreadable" in panel["sections"]["citation_material_scope"]
+
+
 def test_completed_check_and_real_warning_remain_visible(tmp_path):
     """Positive controls prevent a blanket-unavailable implementation passing."""
     payload = deepcopy(PARTIAL)

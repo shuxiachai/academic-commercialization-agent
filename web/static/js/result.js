@@ -725,7 +725,13 @@ export function renderScorecard(scores, sources = null, { summary = false } = {}
     const block = el("div", "notes");
     block.append(el("h4", "notes__title", title));
     const ul = el("ul", "notes__list");
-    for (const item of items) ul.append(el("li", null, item));
+    for (const item of items) {
+      // The same citations as in the brief above, so the same buttons: they
+      // were plain "(M1, M2, M5)" here and opened nothing.
+      const li = el("li");
+      li.append(citedText(item, "notes__text"));
+      ul.append(li);
+    }
     block.append(ul);
     wrap.append(block);
   }
@@ -786,8 +792,8 @@ const RECOMMENDATION_HEADINGS = /commercialization opportunities|商业化机遇
 const BRIEF_SENTENCE_LIMIT = 240;
 
 // Text with its citation markers turned into the buttons the report uses.
-function citedText(text) {
-  const span = el("span", "brief__text");
+function citedText(text, className = "brief__text") {
+  const span = el("span", className);
   let last = 0;
   for (const match of text.matchAll(CITATION_RUN)) {
     if (match.index > last) span.append(text.slice(last, match.index));
@@ -890,6 +896,28 @@ function firstSentence(text) {
   return quoted(sentencesOf(text)[0] ?? "");
 }
 
+/* The summary's sentence, where it is too long for the brief. It used to be
+ * cut at 240 characters wherever that fell: a sentence that never said what
+ * it was about to. It is cut where a clause ends, if one ends in the room
+ * there is and not so early that little is left; the brief then offers the
+ * sentence whole. A comma inside a citation or a bracket is not a clause's
+ * end ("[M2, M3]", "1,000" has no space after it), and a sentence with no
+ * clause to cut at is cut at a word, as quoted() does. */
+const CLAUSE_END = /[,;:]\s|[，；：、]|\s[—–]\s/g;
+const CLAUSE_MIN = 80;
+function quotedAtClause(sentence) {
+  if (sentence.length <= BRIEF_SENTENCE_LIMIT) return sentence || null;
+  const room = sentence.slice(0, BRIEF_SENTENCE_LIMIT - 1);
+  let at = -1;
+  for (const match of room.matchAll(CLAUSE_END)) {
+    const before = room.slice(0, match.index);
+    const open = Math.max(before.lastIndexOf("["), before.lastIndexOf("("), before.lastIndexOf("（"));
+    const closed = Math.max(before.lastIndexOf("]"), before.lastIndexOf(")"), before.lastIndexOf("）"));
+    if (match.index >= CLAUSE_MIN && open <= closed) at = match.index;
+  }
+  return at === -1 ? quoted(sentence) : room.slice(0, at).trimEnd() + "…";
+}
+
 /** The first sentence of the report's own executive summary that is about
  * the technology, or null. Paragraphs and list items are read in the order
  * written; a summary that says nothing but what the report is shows the
@@ -917,9 +945,9 @@ function executiveSummaryLead(markdown) {
       && sentencesOf(title[0])[0] === sentences[0];
     // Chinese sentences follow one another without a space.
     const gap = /[。！？]$/u.test(sentences[0]) ? "" : " ";
-    return quoted(heads ? sentences[0] + gap + sentences[1] : sentences[at]);
+    return heads ? sentences[0] + gap + sentences[1] : sentences[at];
   }
-  return first === null ? null : quoted(first);
+  return first;
 }
 
 // The writer's contract opens the recommendations by saying what the section
@@ -1122,6 +1150,7 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
   const trl = typeof scores.trl_label === "string" && scores.trl_label.trim() ? scores.trl_label.trim()
     : scoreNumber(scores.trl_score, 9) && scores.trl_score >= 1 ? `TRL ${scores.trl_score}` : null;
   const text = typeof markdown === "string" ? markdown : "";
+  const lead = executiveSummaryLead(text);
   const base = strongest ? strongest.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "") : null;
   const citedIds = base && detailStrings(scores[base + "_source_ids"])
     ? scores[base + "_source_ids"].filter(id => /^[APM]\d+$/.test(id)) : [];
@@ -1132,7 +1161,9 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
     overall, band: band(overall), trl,
     mrl: scoreNumber(scores.mrl_score, 10) && scores.mrl_score >= 1 ? scores.mrl_score : null,
     strongest, weakest,
-    summary: executiveSummaryLead(text),
+    // Cut for the brief where it is long; the whole sentence travels with it.
+    summary: lead ? quotedAtClause(lead) : null,
+    summaryWhole: lead && lead.length > BRIEF_SENTENCE_LIMIT ? lead : null,
     evidence: pickEvidence(citedIds, sources, references),
     risk,
     next: firstRecommendation(text) ?? opportunity,
@@ -1184,7 +1215,16 @@ export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
   }
   if (data.summary) {
     const line = el("p", "brief__line brief__summary");
-    line.append(el("span", "brief__label", t("brief_report_says") + " "), el("q", null, data.summary));
+    const quote = el("q", null, data.summary);
+    line.append(el("span", "brief__label", t("brief_report_says") + " "), quote);
+    if (data.summaryWhole) {
+      // The sentence was cut to fit; one press shows it as the report has it.
+      const whole = el("button", "brief__expand", t("brief_expand"));
+      whole.type = "button";
+      whole.setAttribute("aria-expanded", "false");
+      whole.onclick = () => { quote.textContent = data.summaryWhole; whole.hidden = true; };
+      line.append(" ", whole);
+    }
     lines.append(line);
   }
   wrap.append(lines);
@@ -1197,14 +1237,19 @@ export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
     node.append(body);
     cards.append(node);
   };
+  // Not "strongest evidence": the source is the best-rated one the strongest
+  // DIMENSION cites, which may be a vendor's page rated medium where that
+  // dimension is the market. The label names the dimension it stands for.
+  const evidenceLabel = data.strongest
+    ? fillText("brief_evidence", { dimension: t(data.strongest.label) }) : t("brief_evidence_plain");
   if (data.evidence) {
     const body = el("p", "brief__text");
     body.append(citeButton([data.evidence.id]));
     const parts = [data.evidence.title, data.evidence.tier ? t("tier_" + data.evidence.tier) : null, data.evidence.year].filter(Boolean);
     if (parts.length) body.append(" " + parts.join(" · "));
-    card("evidence", t("brief_evidence"), body);
+    card("evidence", evidenceLabel, body);
   } else {
-    card("evidence", t("brief_evidence"), el("p", "brief__text brief__empty", t("brief_evidence_none")));
+    card("evidence", evidenceLabel, el("p", "brief__text brief__empty", t("brief_evidence_none")));
   }
   card("risk", t("brief_risk"), data.risk ? citedText(data.risk) : el("p", "brief__text brief__empty", t("brief_risk_none")));
   card("next", t("brief_next"), data.next ? citedText(data.next) : el("p", "brief__text brief__empty", t("brief_next_none")));
@@ -1331,14 +1376,25 @@ export async function render(container, runId, progress) {
   if (artifacts.includes("scores")) views.push({ id: "score", label: t("tab_score") });
   if (artifacts.includes("report")) views.push({ id: "report", label: t("tab_report") });
   if (artifacts.includes("sources")) views.push({ id: "sources", label: t("tab_sources") });
-  if (artifacts.includes("grounding"))
-    views.push({ id: "grounding", label: t("tab_grounding") });
-  if (artifacts.includes("consistency"))
-    views.push({ id: "consistency", label: t("tab_consistency") });
+  // The three checks of a finished report share one tab (renderChecks). Each
+  // had a tab of its own beside the scorecard, the report and the sources:
+  // six tabs, three of them opening on a paragraph about the pipeline.
+  const checks = [];
+  if (artifacts.includes("grounding")) {
+    checks.push({ id: "grounding", title: "tab_grounding", render: renderGrounding,
+                  load: () => api.getArtifact(runId, "grounding") });
+  }
+  if (artifacts.includes("consistency")) {
+    checks.push({ id: "consistency", title: "tab_consistency", render: renderConsistency,
+                  load: () => api.getArtifact(runId, "consistency") });
+  }
+  if (artifacts.includes("report-audit")) {
+    checks.push({ id: "report-audit", title: "tab_report_audit", render: renderReportAudit,
+                  load: () => api.getArtifact(runId, "report-audit") });
+  }
+  if (checks.length) views.push({ id: "checks", label: t("tab_checks") });
   if (artifacts.includes("retrieval"))
     views.push({ id: "retrieval", label: t("tab_retrieval") });
-  if (artifacts.includes("report-audit"))
-    views.push({ id: "report-audit", label: t("tab_report_audit") });
 
   if (!artifacts.includes("sources")) {
     container.append(el("p", "empty-note sources__missing", t("sources_missing_artifact")));
@@ -1447,22 +1503,15 @@ export async function render(container, runId, progress) {
         article.innerHTML = renderMarkdown(md);
         panel.append(article);
         attachCitations(article, indexOnce, { onShowInSources: hasSources ? showInSources : null });
-      } else if (id === "grounding") {
-        const grounding = await api.getArtifact(runId, "grounding");
+      } else if (id === "checks") {
+        // No request yet: each check's one line comes from the status the
+        // page already holds, and its details are read when they are opened.
         panel.innerHTML = "";
-        panel.append(renderGrounding(grounding));
-      } else if (id === "consistency") {
-        const consistency = await api.getArtifact(runId, "consistency");
-        panel.innerHTML = "";
-        panel.append(renderConsistency(consistency));
+        panel.append(renderChecks(checks, reliabilityRows(progress)));
       } else if (id === "retrieval") {
         const diagnostics = await api.getArtifact(runId, "retrieval");
         panel.innerHTML = "";
         panel.append(renderRetrievalDiagnostics(diagnostics));
-      } else if (id === "report-audit") {
-        const audit = await api.getArtifact(runId, "report-audit");
-        panel.innerHTML = "";
-        panel.append(renderReportAudit(audit));
       } else {
         const sources = await sourcesOnce();
         panel.innerHTML = "";
@@ -1499,6 +1548,56 @@ export async function render(container, runId, progress) {
 // Exported for the same reason renderMarkdown is: the app calls it only
 // through render(), but what it decides — how three counts are presented
 // relative to each other — is worth asserting on directly.
+/**
+ * The panel of the "Automated checks" tab: one section a check.
+ *
+ * `checks` is [{ id, title, render, load }]: the row id the reliability
+ * panel uses, an i18n key, the check's own detail renderer and the read of
+ * its artifact. `rows` is reliabilityRows(progress).
+ *
+ * Each section says what the check found in one line. The line is the one
+ * the panel above the tabs computes for the same check, so the two cannot
+ * disagree, and it carries that row's tone: a check that could not run or
+ * could not decide is muted and says so, never left out and never worded as
+ * a pass. An old run with the detail file and no summary gets a line saying
+ * exactly that. The items behind the line are in a fold, read from the
+ * server when it is first opened; a read that fails says so and may be
+ * asked for again.
+ */
+export function renderChecks(checks, rows) {
+  const wrap = el("div", "checks");
+  wrap.append(el("p", "checks__lede", t("checks_lede")));
+  for (const check of checks) {
+    const section = el("section", "check");
+    section.dataset.check = check.id;
+    section.append(el("h3", "check__title", t(check.title)));
+    const row = rows.find(candidate => candidate.id === check.id);
+    const verdict = el("p", "check__verdict", row ? row.detail : t("check_no_verdict"));
+    verdict.dataset.tone = row ? row.tone : "muted";
+    section.append(verdict);
+
+    const fold = el("details", "check__details");
+    fold.append(el("summary", null, t("check_details")));
+    const body = el("div", "check__body");
+    fold.append(body);
+    let read = false;
+    fold.ontoggle = async () => {
+      if (!fold.open || read) return;
+      read = true;
+      body.replaceChildren(el("div", "skeleton", ""));
+      try {
+        body.replaceChildren(check.render(await check.load()));
+      } catch (err) {
+        body.replaceChildren(el("p", "empty-note", err.message));
+        read = false;      // let the next opening ask again
+      }
+    };
+    section.append(fold);
+    wrap.append(section);
+  }
+  return wrap;
+}
+
 export function renderGrounding(data) {
   const wrap = el("div", "grounding");
   if (!detailRecord(data) || !["checked", "ungrounded", "unverifiable"].every(key => detailCount(data[key]))
@@ -1914,6 +2013,9 @@ function renderSavedSource(source) {
 function renderSources(collection) {
   const wrap = el("div", "sources sources--browser");
   const admitted = admitSavedSources(collection);
+  // Plain words first; the exact statement under it is the fine print, and is
+  // validated word for word by the saved-source rehearsal, so it stays as it is.
+  wrap.append(el("p", "sources__plain", t("sources_plain")));
   wrap.append(el("p", "sources__disclosure", t("sources_disclosure")));
   if (admitted.partial) wrap.append(el("p", "sources__warning", t("sources_incomplete")));
 
@@ -2023,7 +2125,15 @@ function auditSectionReadable(section, material) {
 
 export function renderReportAudit(data) {
   const wrap = el("div", "consistency");
-  wrap.append(el("p", "grounding__lede", t("report_audit_lede")));
+  // One of the two checks is about battery electrolytes: it compares the
+  // electrolyte family a sentence names with the one its cited source names.
+  // Where that check itself says it does not apply (a report on fuel cells,
+  // on surgical robots) it is neither shown nor mentioned. "Not applicable"
+  // is its answer; a check that could not run, or whose record cannot be
+  // read, is still shown, because that is no answer at all.
+  const material = data?.citation_material_scope;
+  const materialApplies = !(auditSectionReadable(material, true) && material.status === "not_applicable");
+  wrap.append(el("p", "grounding__lede", t(materialApplies ? "report_audit_lede" : "report_audit_lede_thresholds")));
   // The artifact endpoint preserves stored bytes. `{}.length` must not become
   // "no findings", and a null row must not throw away a paid report's panel.
   // This validates display shapes, not storage or semantic source truth.
@@ -2036,6 +2146,7 @@ export function renderReportAudit(data) {
 
   let sectionsReadable = true;
   for (const [key, material] of [["decision_thresholds", false], ["citation_material_scope", true]]) {
+    if (material && !materialApplies) continue;
     const section = data[key];
     const detail = el("div", "audit-section");
     detail.dataset.check = key;
@@ -2406,6 +2517,11 @@ export function groundingNumbers(progress) {
   if (![checked, ungrounded, unverifiable].every(detailCount) || ungrounded > checked) return null;
   const total = checked + unverifiable;
   if (!total) return null;
+  // Nothing could be compared with anything: "0 of 10 matched" would read as
+  // ten wrong figures. Said as what it is, and as no finding either way.
+  if (!checked) {
+    return total === 1 ? t("rel_numbers_none_one") : t("rel_numbers_none").replace("{total}", () => String(total));
+  }
   const parts = [t("rel_numbers").replace("{matched}", () => String(checked - ungrounded))
     .replace("{total}", () => String(total))];
   if (ungrounded) parts.push(t("rel_numbers_mismatch").replace("{count}", () => String(ungrounded)));
