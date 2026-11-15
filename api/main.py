@@ -58,7 +58,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import account_backup, admin, alerts, mail, auxiliary_usage, key_check, link_probe, notices, plan_preview, retrieval_health, samples
+from api import account_backup, account_keys, admin, alerts, mail, auxiliary_usage, key_check, link_probe, notices, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -104,6 +104,7 @@ from api.models import (  # noqa: E402
     ReadinessStatus,
     ResumeRunRequest,
     RetrievalHealth,
+    SavedKeys,
     RunAccepted,
     RunList,
     RunProgress,
@@ -916,7 +917,8 @@ def access_check(http_request: Request) -> dict:
     if accounts.enabled():
         payload["accounts"] = _accounts_config()
         payload["account"] = ({"email": who.user.email, "admin": who.is_admin, "verified": who.user.verified,
-                               "notify_done": who.user.notify_done, "trial_runs_left": _trial_left(who.user)}
+                               "notify_done": who.user.notify_done, "trial_runs_left": _trial_left(who.user),
+                               "keys_saved": account_keys.saved(who.user)}
                               if who.kind == "user" else None)
     return payload
 
@@ -1050,7 +1052,7 @@ def auth_register(request: AuthCredentials, http_request: Request, response: Res
             _LOGGER.warning("Verification email for account %d not sent: %s", created.id, exc)
     response.headers["Cache-Control"] = "no-store"
     return AuthSession(token=token, email=user.email, admin=user.admin, verified=user.verified,
-                       trial_runs_left=_trial_left(user))
+                       trial_runs_left=_trial_left(user), keys_saved=account_keys.saved(user))
 
 
 @app.post("/api/auth/login", response_model=AuthSession, tags=["accounts"],
@@ -1065,7 +1067,7 @@ def auth_login(request: AuthCredentials, http_request: Request, response: Respon
         raise _account_refusal(exc) from None
     response.headers["Cache-Control"] = "no-store"
     return AuthSession(token=token, email=user.email, admin=user.admin, verified=user.verified,
-                       trial_runs_left=_trial_left(user))
+                       trial_runs_left=_trial_left(user), keys_saved=account_keys.saved(user))
 
 
 @app.post("/api/auth/verify", response_model=EmailVerified, tags=["accounts"],
@@ -1182,7 +1184,8 @@ def auth_me(http_request: Request) -> AuthMe:
     if who.kind != "user":
         raise HTTPException(status_code=404, detail="Not signed in with an account.")
     return AuthMe(email=who.user.email, admin=who.is_admin, verified=who.user.verified,
-                  notify_done=who.user.notify_done, trial_runs_left=_trial_left(who.user))
+                  notify_done=who.user.notify_done, trial_runs_left=_trial_left(who.user),
+                  keys_saved=account_keys.saved(who.user))
 
 
 def _signed_in_account(http_request: Request) -> accounts.User:
@@ -1190,6 +1193,73 @@ def _signed_in_account(http_request: Request) -> accounts.User:
     if who.kind != "user":
         raise HTTPException(status_code=404, detail="Not signed in with an account.")
     return who.user
+
+
+def _saved_keys_view(user: accounts.User) -> SavedKeys:
+    keys = account_keys.load(user)
+    if keys is None:
+        return SavedKeys(saved=False)
+    return SavedKeys(saved=True, llm_provider=keys.provider, llm_model=keys.model,
+                     llm_key_hint=account_keys.hint(keys.llm_api_key), search=keys.search,
+                     search_key_hint=account_keys.hint(keys.search_api_key),
+                     saved_at=datetime.fromtimestamp(keys.updated_at, tz=UTC))
+
+
+@app.get("/api/auth/keys", response_model=SavedKeys, response_model_exclude_none=True, tags=["accounts"],
+         responses={404: {"description": "Not signed in with an account"}})
+def auth_saved_keys(http_request: Request, response: Response) -> SavedKeys:
+    """Whether the signed-in account has keys saved, and which. Never the keys."""
+    response.headers["Cache-Control"] = "no-store"
+    return _saved_keys_view(_signed_in_account(http_request))
+
+
+@app.put("/api/auth/keys", response_model=SavedKeys, response_model_exclude_none=True, tags=["accounts"],
+         responses={404: {"description": "Not signed in with an account"},
+                    413: {"description": "Body larger than any key set"},
+                    422: {"description": "Incomplete or malformed key set; the reply quotes no value"}},
+         openapi_extra={"requestBody": {"required": True, "content": {
+             "application/json": {"schema": KeyCheckRequest.model_json_schema()}}}})
+async def auth_save_keys(http_request: Request, response: Response) -> SavedKeys:
+    """Save the signed-in account's keys with the account, replacing any saved before.
+
+    Sealed at rest (api/account_keys.py) and used for the account's paid
+    operations whenever a request brings no keys. Not checked with the
+    providers here: the page asks POST /api/keys/check first and saves
+    whatever the person then decides to keep. The body is read as the key
+    check reads it, so a refusal names the field and never the value.
+    """
+    user = _signed_in_account(http_request)
+    request = await _key_check_body(http_request)
+    await asyncio.to_thread(account_keys.save, user, provider=request.llm_provider, model=request.llm_model,
+                            llm_api_key=request.llm_api_key, search=request.search,
+                            search_api_key=request.search_api_key)
+    response.headers["Cache-Control"] = "no-store"
+    return _saved_keys_view(user)
+
+
+@app.delete("/api/auth/keys", status_code=204, tags=["accounts"],
+            responses={404: {"description": "Not signed in with an account"}})
+def auth_remove_keys(http_request: Request) -> Response:
+    """Forget the keys saved with the signed-in account. Idempotent."""
+    account_keys.remove(_signed_in_account(http_request))
+    return Response(status_code=204)
+
+
+def _with_account_keys(http_request: Request, request):
+    """A request with no keys, from an account that saved some, as if it had carried them.
+
+    This is the whole of what saved keys do: every paid entry point passes
+    its request through here first, and from then on nothing downstream can
+    tell saved keys from sent ones. Keys in the request win and save nothing
+    (the key form's "this tab only"). Anyone who is not an account, and an
+    account with nothing saved, gets the request back as it came and is
+    refused or admitted as before.
+    """
+    if request.byok:
+        return request
+    who = identity.resolve(http_request)
+    keys = account_keys.load(who.user) if who.kind == "user" else None
+    return request if keys is None else request.model_copy(update=keys.request_fields())
 
 
 @app.post("/api/auth/notify", status_code=204, tags=["accounts"],
@@ -1535,6 +1605,7 @@ def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
     """
     if not plan_preview.enabled():
         raise HTTPException(status_code=404, detail="Plan previews are turned off.")
+    request = _with_account_keys(http_request, request)
     credentials = None
     if request.byok:
         credentials = {"provider": request.llm_provider, "api_key": request.llm_api_key,
@@ -2009,7 +2080,12 @@ def get_paid_receipt(http_request: Request, response: Response) -> PaidReceipt:
     },
 )
 def submit_run(request: RunRequest, http_request: Request) -> RunAccepted:
-    return _run_with_receipt(http_request, request, "run", request.model_dump(mode="json"),
+    # The receipt binds what was asked for (the request as sent), not which
+    # keys paid for it: a repeat of the same request is answered from its
+    # receipt even if the account's saved keys changed in between.
+    asked = request.model_dump(mode="json")
+    request = _with_account_keys(http_request, request)
+    return _run_with_receipt(http_request, request, "run", asked,
                              lambda: _submit_run_without_receipt(request, http_request))
 
 
@@ -2152,7 +2228,9 @@ def resume_run(
     request: ResumeRunRequest,
     http_request: Request,
 ) -> RunAccepted:
-    return _run_with_receipt(http_request, request, "resume", {"parent": run_id, **request.model_dump(mode="json")},
+    asked = {"parent": run_id, **request.model_dump(mode="json")}
+    request = _with_account_keys(http_request, request)
+    return _run_with_receipt(http_request, request, "resume", asked,
                              lambda: _resume_run_without_receipt(run_id, request, http_request))
 
 
@@ -2687,6 +2765,15 @@ async def upload_paper(
             status_code=422,
             detail="llm_model is required with llm_provider: there is no default model.",
         )
+    # What the receipt binds is the form as sent; an account whose form
+    # brought no key is extracted on the model key saved with it, exactly as
+    # a run is (_with_account_keys). Extraction never searches.
+    asked = {"llm_provider": llm_provider, "llm_api_key": llm_api_key, "llm_model": llm_model}
+    if not llm_provider:
+        who = identity.resolve(http_request)
+        saved = await asyncio.to_thread(account_keys.load, who.user) if who.kind == "user" else None
+        if saved is not None:
+            llm_provider, llm_api_key, llm_model = saved.provider, saved.llm_api_key, saved.model
     byok = bool(llm_provider)
     owner = _paid_owner(http_request, byok=byok,
                         detail="Provide the access code, or your own llm_provider/llm_api_key.")
@@ -2697,9 +2784,7 @@ async def upload_paper(
         raise HTTPException(status_code=413, detail=str(exc)) from exc
     ticket, prior = await asyncio.to_thread(
         _claim_receipt, http_request, byok=byok, kind="paper",
-        payload={"pdf_sha256": hashlib.sha256(data).hexdigest(),
-                 "llm_provider": llm_provider, "llm_api_key": llm_api_key,
-                 "llm_model": llm_model},
+        payload={"pdf_sha256": hashlib.sha256(data).hexdigest(), **asked},
     )
     if prior is not None:
         del data

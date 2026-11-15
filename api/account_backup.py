@@ -22,7 +22,10 @@ anything it sets the current file aside, damaged or not, so a restore from
 the wrong backup can itself be undone. Afterwards every session and every
 sign-in lockout is cleared: a backup is a picture of the past, and sessions
 that were ended since it was taken must not come back to life. Everyone signs
-in again with the password they had when the backup was made.
+in again with the password they had when the backup was made. The API keys
+accounts saved (api/account_keys.py) are cleared for the same reason, so each
+account adds its keys once more; the backup holds them only as sealed tokens,
+and the secret that opens them is never part of a backup.
 
 What a restore cannot give back: accounts created, passwords changed and
 accounts deleted after the backup was taken. A deleted account returns, and
@@ -213,6 +216,11 @@ def restore(source: Path, *, now: float | None = None) -> Restored:
         with contextlib.closing(sqlite3.connect(str(live), timeout=_LOCK_WAIT_SECONDS)) as db, db:
             ended = db.execute("DELETE FROM sessions").rowcount
             db.execute("DELETE FROM login_throttle")
+            # Saved API keys go the way of sessions: keys an account removed
+            # or replaced since the backup must not come back into use.
+            # A backup from before the table existed has none to clear.
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'account_keys'").fetchone():
+                db.execute("DELETE FROM account_keys")
     except (sqlite3.Error, OSError) as exc:
         kept = f" The previous file is at {set_aside}." if set_aside else ""
         raise BackupError(f"Restore failed part-way: {exc}.{kept}") from None

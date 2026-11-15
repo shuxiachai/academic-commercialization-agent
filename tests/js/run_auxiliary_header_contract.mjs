@@ -39,7 +39,7 @@ const get = selector => {
   return elements.get(selector);
 };
 const context = vm.createContext({
-  api: { pendingReceiptKeys: () => [], receiptStorageDegraded: () => false },
+  api: { pendingReceiptKeys: () => [], receiptStorageDegraded: () => false, discardBrowserKeys: () => true },
   runView: { ...actualRunView }, sidebar: {}, result: {}, needsScopeWarning: () => false,
   createPaidReceipts: () => ({ subscribe() {}, state: () => ({ active: false }), begin: () => () => {},
     acknowledge: () => false }),

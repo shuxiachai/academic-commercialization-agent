@@ -84,22 +84,21 @@ def test_an_account_saving_keys_is_told_what_the_providers_said(outcome):
     assert "PASS account_keys" in result.stdout
 
 
-@pytest.mark.parametrize("kind", ["ticked", "unticked", "untick_later", "declined_here", "refused", "visitor",
-                                  "new_tab", "other_account", "sign_out"])
-def test_an_account_may_keep_its_keys_on_its_device(kind):
-    """Keys lived in the open tab only, so an account pasted them on every visit.
-
-    With a tick that starts ticked and can be unticked, the page keeps a copy
-    in this browser for that account: a new tab has them again, another
-    account does not get them, and saving without the tick or signing out
-    removes them. A device where the box was unticked keeps it unticked.
+@pytest.mark.parametrize("kind", ["saved", "checked", "signed_in", "tab_only", "declined_here", "listed", "removed",
+                                  "replaced_untick", "save_failed", "refused_later", "visitor", "leftover", "sign_out"])
+def test_an_accounts_keys_are_saved_with_the_account(kind):
+    """An account's keys lived in the browser, so the key form came up again
+    in another browser, after signing out, and whenever the browser had
+    cleared its data. They are saved with the account now: sent once, then
+    used by the server, with nothing kept in the browser; an account that
+    unticks the box keeps them in the tab as before.
     """
     node = shutil.which("node")
-    assert node, "Node is required for the remembered-keys seam"
+    assert node, "Node is required for the saved-keys seam"
     result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
-        "remembered_keys", kind], capture_output=True, text=True, encoding="utf-8", timeout=30)
+        "saved_keys", kind], capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "PASS remembered_keys" in result.stdout
+    assert "PASS saved_keys" in result.stdout
 
 
 @pytest.mark.parametrize("kind", ["account", "silent", "code", "off", "signin", "admin", "trial", "trial_silent"])

@@ -3,10 +3,11 @@
 The access gate (api/access.py) was built for a handful of invited people:
 the operator mints codes and hands them out. A product needs the other shape:
 anyone can create an account, and what they run is billed to keys they bring
-themselves. This module is the account half of that. Keys are not kept here:
-an account identifies a person and scopes their history; their LLM and search
-keys travel with each request, exactly as the existing bring-your-own-key
-path sends them, and are never written to disk by this server.
+themselves. This module is the account half of that: an account identifies a
+person and scopes their history. Its keys are not this module's business.
+They may travel with each request, as the bring-your-own-key path always sent
+them, or be saved with the account, sealed, by api/account_keys.py, whose one
+table lives in this database so that deleting an account removes its keys.
 
 Off by default. Setting ACCOUNTS_DB to a file path turns accounts on; a
 deployment that leaves it unset sees no change at all, like the access gate.
@@ -115,6 +116,11 @@ CREATE TABLE IF NOT EXISTS email_tokens (
 CREATE TABLE IF NOT EXISTS trial_days (
     day TEXT PRIMARY KEY,
     used INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS account_keys (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    sealed TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
 );
 """
 

@@ -7,6 +7,10 @@ requires-python = ">=3.11.5,<3.14"
 dependencies = [
     "arize-phoenix-otel>=0.16,<1",
     "crewai[anthropic,tools]==1.14.7",
+    # Seals the keys an account saves (api/account_keys.py). Already installed
+    # as a dependency of the packages above; named here because this project
+    # now imports it itself.
+    "cryptography>=44",
     "fastapi>=0.115",
     "httpx==0.28.1",
     "markdown>=3.6",

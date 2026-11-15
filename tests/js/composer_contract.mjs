@@ -42,7 +42,7 @@ function fixture(receiptStore = new Map()) {
   globalThis.fetch = (url, options) => {
     // Access boot deliberately waits; it cannot start history/capacity timers.
     if (url === "/api/access/check") return new Promise(() => {});
-    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login", "/api/auth/logout", "/api/runs?limit=200", "/api/runs/running-one?intent=cancel"].includes(url), `Unexpected HTTP: ${url}`);
+    assert.ok(["/api/runs", "/api/papers", "/api/runs/parent/resume", "/api/receipts", "/api/keys/check", "/api/plan", "/api/auth/login", "/api/auth/logout", "/api/auth/keys", "/api/runs?limit=200", "/api/runs/running-one?intent=cancel"].includes(url), `Unexpected HTTP: ${url}`);
     return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject }));
   };
   const context = vm.createContext({
@@ -552,6 +552,10 @@ const scenarios = {
     f.run(`accountMode = true; accountEmail = 'a@example.com';
       authConfig = { enabled: true, key_check: ${outcome !== 'off'} }`);
     const gate = f.run('showGate(null, { keysOnly: true })');
+    // This scenario is about the check. With the box unticked the keys land
+    // in the tab, where it can see whether and when they were accepted; the
+    // check followed by saving to the account is saved_keys, checked.
+    f.get('#byok-save').checked = false;
     const fill = (llmKey) => {
       f.get('#byok-provider').value = 'qwen'; f.get('#byok-model').value = 'qwen3.8-27b';
       f.get('#byok-llm-key').value = llmKey;
@@ -620,20 +624,23 @@ const scenarios = {
       assert.equal(api.getByok()?.llmKey, 'fixture-B');
     }
   },
-  async remembered_keys() {
-    // An account may keep its keys on this device: only with the tick, only
-    // for itself, and not past signing out. tests/test_remembered_keys.py
-    // holds the storage to those rules; this is the page using it.
+  async saved_keys() {
+    // An account's keys are saved with the account: sent once, kept on the
+    // server sealed (tests/test_account_keys.py), and not kept in the
+    // browser. This is the page's side of that.
     const kind = process.argv[3];
     const local = new Map(), session = new Map();
     const storage = (map) => ({ getItem: (key) => map.get(key) ?? null,
       setItem: (key, value) => { map.set(key, String(value)); }, removeItem: (key) => { map.delete(key); } });
     globalThis.localStorage = storage(local); globalThis.sessionStorage = storage(session);
-    const SLOT = 'byok-remembered-v1';
+    const LEFTOVER = 'byok-remembered-v1', DECLINED = 'byok-remember-off';
     const keys = { provider: 'qwen', llmKey: 'fixture-A', search: 'tavily', searchKey: 'fixture-search', model: 'qwen3.8-27b' };
-    const kept = () => (local.has(SLOT) ? JSON.parse(local.get(SLOT)) : null);
+    const sent = { llm_provider: 'qwen', llm_api_key: 'fixture-A', llm_model: 'qwen3.8-27b', tavily_api_key: 'fixture-search' };
+    const summary = { saved: true, llm_provider: 'qwen', llm_model: 'qwen3.8-27b', llm_key_hint: '…re-A',
+      search: 'tavily', search_key_hint: '…arch', saved_at: '2026-11-15T10:00:00Z' };
+    if (kind === 'leftover' || kind === 'sign_out') local.set(LEFTOVER, JSON.stringify({ owner: 'a@example.com', creds: keys }));
     const f = fixture();
-    const account = () => f.run(`accountMode = true; accountEmail = 'a@example.com';
+    const account = (saved = false) => f.run(`applyAccountMode({ email: 'a@example.com', keys_saved: ${saved} });
       authConfig = { enabled: true, key_check: false }`);
     const fill = () => {
       f.get('#byok-provider').value = keys.provider; f.get('#byok-model').value = keys.model;
@@ -641,93 +648,231 @@ const scenarios = {
       f.get('#byok-search').value = keys.search; f.get('#byok-search-key').value = keys.searchKey;
     };
     const send = () => f.get('#byok-form').onsubmit({preventDefault(){}});
-    const box = f.get('#byok-remember'), row = f.get('#byok-remember-row');
-    if (kind === 'ticked' || kind === 'unticked') {
+    const turn = async () => { for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setImmediate(resolve)); };
+    const answered = (index, status = 204) => f.requests[index].resolve(new Response(null, { status }));
+    const nowhere = () => {
+      for (const map of [local, session]) for (const value of map.values()) {
+        assert.ok(!value.includes('fixture-A') && !value.includes('fixture-search'), 'No key is left in the browser');
+      }
+    };
+    const box = f.get('#byok-save'), row = f.get('#byok-save-row'), shown = f.get('#byok-saved');
+    const started = async () => {
+      // An assessment started now: what the request carries.
+      f.topic('A topic to assess');
+      const before = f.requests.length;
+      const pending = f.submit();
+      await turn();
+      return { request: f.requests[before], before, pending };
+    };
+
+    if (kind === 'saved') {
       account();
       const gate = f.run('showGate(null, { keysOnly: true })');
       assert.equal(row.hidden, false, 'An account is offered the choice');
-      // Since 2026-11-15 the box starts ticked for an account that has not
-      // said otherwise: asked for again on every visit was the complaint,
-      // and an option nobody finds does not answer it.
-      assert.equal(box.checked, true, '...and it starts ticked');
-      if (kind === 'unticked') box.checked = false;
-      fill(); await send(); await gate;
-      assert.deepEqual(api.getByok(), keys);
-      assert.deepEqual(kept(), kind === 'ticked' ? { owner: 'a@example.com', creds: keys } : null);
+      assert.equal(box.checked, true, '...and saving to the account is the default');
+      assert.equal(shown.hidden, true, 'Nothing is saved yet, so nothing is listed');
+      fill();
+      const saving = send();
+      await turn();
+      assert.equal(f.requests.length, 1);
+      assert.equal(f.requests[0].url, '/api/auth/keys');
+      assert.equal(f.requests[0].options.method, 'PUT');
+      assert.deepEqual(JSON.parse(f.requests[0].options.body), sent);
+      assert.equal(f.run('accountKeysSaved'), false, 'Not saved until the server says so');
+      f.respond(0, summary); await saving; await gate;
+      assert.equal(f.run('accountKeysSaved'), true);
+      assert.equal(api.getByok(), null, 'The browser keeps no key');
+      nowhere();
       assert.equal(f.get('#toasts').children.length, 0);
-      assert.equal(f.requests.length, 0, 'Keeping keys asks the server nothing');
-      // The form opened again shows what was chosen, not the default: someone
-      // who unticked the box is not ticked back in, or their next save (a
-      // changed model, say) would start keeping keys they declined to keep.
-      box.checked = kind !== 'ticked';
-      const again = f.run('showGate(null, { keysOnly: true })');
-      assert.equal(box.checked, kind === 'ticked', 'The choice made is the one shown next time');
-      f.get('#byok-skip').onclick(); await again;
-    } else if (kind === 'untick_later') {
-      api.rememberByok(keys, 'a@example.com'); account();
+      assert.equal(f.get('#byok-llm-key').value, '', 'The typed keys do not stay in the form');
+      assert.equal(f.get('#byok-search-key').value, '');
+      // From then on nothing asks for keys, and a run carries none: the server uses the saved ones.
+      const { request } = await started();
+      assert.equal(request.url, '/api/runs');
+      const body = JSON.parse(request.options.body);
+      for (const field of ['llm_provider', 'llm_api_key', 'llm_model', 'tavily_api_key', 'serper_api_key']) {
+        assert.ok(!(field in body), `${field} is not sent`);
+      }
+      assert.equal(f.get('#gate').hidden, true, 'No key form in front of the run');
+    } else if (kind === 'checked') {
+      // Where the deployment checks keys: the providers are asked first, and
+      // only then are the keys sent to be saved. A refusal saves nothing.
+      account();
+      f.run('authConfig = { enabled: true, key_check: true }');
       const gate = f.run('showGate(null, { keysOnly: true })');
-      assert.equal(box.checked, true, 'The form shows that keys are being kept');
-      box.checked = false; fill(); await send(); await gate;
-      assert.equal(kept(), null, 'Saving without the tick stops keeping them');
-      assert.deepEqual(api.getByok(), keys, '...and the tab still has what was just saved');
-      const again = f.run('showGate(null, { keysOnly: true })');
-      assert.equal(box.checked, false, '...and the box stays unticked from then on');
-      // Ticking it again is a choice too, and is kept the same way.
-      box.checked = true; fill(); await send(); await again;
-      assert.deepEqual(kept(), { owner: 'a@example.com', creds: keys });
-      const third = f.run('showGate(null, { keysOnly: true })');
-      assert.equal(box.checked, true);
-      f.get('#byok-skip').onclick(); await third;
-    } else if (kind === 'declined_here') {
-      // This device was told not to keep keys; the account then signed out.
-      // Signing in again, here, does not tick the box back in.
-      api.setByokRememberWanted(false); account();
-      const gate = f.run('showGate(null, { keysOnly: true })');
-      assert.equal(box.checked, false, 'A device that declined stays declined across sign-ins');
-      fill(); await send(); await gate;
-      assert.equal(kept(), null);
-    } else if (kind === 'refused') {
+      fill();
+      const first = send(); await turn();
+      assert.deepEqual(f.requests.map((request) => request.url), ['/api/keys/check'], 'Asked about before anything is saved');
+      f.respond(0, { checked: true, llm: 'rejected', model: 'unknown', search: 'accepted' }); await first; await turn();
+      assert.equal(f.requests.length, 1, 'Keys a provider refused are not saved by that submit');
+      assert.equal(f.get('#byok-error').hidden, false);
+      assert.equal(f.run('accountKeysSaved'), false);
+      // Pressing again is the person's decision: saved with no second question.
+      const second = send(); await turn();
+      assert.deepEqual(f.requests.map((request) => request.url), ['/api/keys/check', '/api/auth/keys']);
+      assert.equal(f.requests[1].options.method, 'PUT');
+      f.respond(1, summary); await second; await gate;
+      assert.equal(f.run('accountKeysSaved'), true);
+      assert.equal(api.getByok(), null);
+      nowhere();
+    } else if (kind === 'signed_in') {
+      // Signing in on any device: the account says whether it has keys.
+      account(true);
+      assert.equal(f.run('accountHasKeys()'), true);
+      const { request } = await started();
+      assert.equal(request.url, '/api/runs', 'Straight to the run: no key form');
+      assert.ok(!('llm_api_key' in JSON.parse(request.options.body)));
+      f.run(`applyAccountMode({ email: 'b@example.com', keys_saved: false })`);
+      assert.equal(f.run('accountHasKeys()'), false, 'Another account signing in here has what its own answer says');
+      f.run(`applyAccountMode({ email: 'c@example.com' })`);
+      assert.equal(f.run('accountHasKeys()'), false, 'An answer that does not say is not a yes');
+    } else if (kind === 'tab_only') {
       account();
       const gate = f.run('showGate(null, { keysOnly: true })');
+      box.checked = false; fill(); await send(); await gate;
+      assert.equal(f.requests.length, 0, 'Nothing is sent to be saved');
+      assert.deepEqual(api.getByok(), keys, 'The keys stay in this tab');
+      assert.equal(f.run('accountKeysSaved'), false);
+      assert.equal(local.get(DECLINED), '1', 'This device declined');
+      const { request } = await started();
+      assert.equal(JSON.parse(request.options.body).llm_api_key, 'fixture-A', '...and travel with each request, as before');
+      // The form opened again shows the choice made, not the default.
+      box.checked = true;
+      const again = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(box.checked, false);
+      // Changing one's mind: ticked and saved, the keys leave the tab for the account.
       box.checked = true; fill();
-      globalThis.localStorage.setItem = () => { throw Error('fixture quota'); };
-      await send(); await gate;
-      assert.deepEqual(api.getByok(), keys, 'The keys are saved for the tab all the same');
-      assert.equal(kept(), null);
-      assert.equal(f.get('#toasts').children.at(-1).textContent, 'byok_remember_failed');
+      const saving = send(); await turn();
+      assert.equal(f.requests.at(-1).options.method, 'PUT');
+      assert.deepEqual(api.getByok(), keys, 'Still the tab-only keys until the server has saved them');
+      f.respond(f.requests.length - 1, summary); await saving; await again;
+      assert.equal(api.getByok(), null, 'The tab no longer holds what the account now does');
+      assert.equal(f.run('accountKeysSaved'), true);
+      assert.equal(local.has(DECLINED), false);
+      nowhere();
+    } else if (kind === 'declined_here') {
+      local.set(DECLINED, '1');
+      account();
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(box.checked, false, 'A device that declined stays declined for an account with nothing saved');
+      box.checked = true; fill();
+      const saving = send(); await turn();
+      f.respond(0, summary); await saving; await gate;
+      assert.equal(local.has(DECLINED), false, 'Ticking the box again undoes it');
+      // An account that does have keys saved is shown the tick whatever the device said.
+      local.set(DECLINED, '1');
+      const again = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(box.checked, true);
+      f.get('#byok-skip').onclick(); await again;
+    } else if (kind === 'listed' || kind === 'removed' || kind === 'replaced_untick') {
+      account(true);
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(box.checked, true);
+      await turn();
+      assert.equal(f.requests[0].url, '/api/auth/keys');
+      assert.equal(f.requests[0].options?.method ?? 'GET', 'GET');
+      assert.equal(shown.hidden, true, 'Nothing is listed before the server has answered');
+      f.respond(0, summary); await turn();
+      assert.equal(shown.hidden, false);
+      const said = f.get('#byok-saved-text').textContent;
+      assert.equal(said, 'byok_saved_summary', 'The stand-in strings have no placeholders to fill');
+      assert.equal(f.get('#byok-llm-key').value, '', 'No key comes back into the fields');
+      if (kind === 'listed') {
+        // The account's own words for it: provider, model, and the ends of the keys.
+        translations.byok_saved_summary = '{provider} / {model} / {llm} / {search} / {searchKey}';
+        const again = f.run('showGate(null, { keysOnly: true })');
+        await turn(); f.respond(1, summary); await turn();
+        // Each hint is kept in one piece: a word joiner follows its ellipsis.
+        assert.equal(f.get('#byok-saved-text').textContent, 'qwen / qwen3.8-27b / …\u2060re-A / tavily / …\u2060arch');
+        // A server that now says nothing is saved (removed on another device): the page believes it.
+        const third = f.run('showGate(null, { keysOnly: true })');
+        await turn(); f.respond(2, { saved: false }); await turn();
+        assert.equal(shown.hidden, true);
+        assert.equal(f.run('accountKeysSaved'), false);
+        // Each opening replaced the form's handlers: only the last one is there to be closed.
+        f.get('#byok-skip').onclick(); await third;
+      } else if (kind === 'removed') {
+        const removing = f.get('#byok-saved-remove').onclick();
+        await turn();
+        assert.equal(f.requests[1].url, '/api/auth/keys');
+        assert.equal(f.requests[1].options.method, 'DELETE');
+        assert.equal(f.run('accountKeysSaved'), true, 'Still saved until the server has removed them');
+        answered(1); await removing;
+        assert.equal(f.run('accountKeysSaved'), false);
+        assert.equal(shown.hidden, true);
+        assert.equal(f.get('#toasts').children.at(-1).textContent, 'byok_saved_removed');
+        // A removal the server did not make is said, and nothing is claimed.
+        f.run('accountKeysSaved = true');
+        const failing = f.get('#byok-saved-remove').onclick();
+        await turn(); f.respond(2, { detail: 'fixture' }, 500); await failing;
+        assert.equal(f.run('accountKeysSaved'), true);
+        assert.equal(f.get('#toasts').children.at(-1).textContent, 'byok_saved_remove_failed');
+        f.get('#byok-skip').onclick(); await gate;
+      } else {
+        // New keys entered with the box unticked: this tab only, and the saved set goes.
+        box.checked = false; fill(); await send(); await gate;
+        assert.deepEqual(api.getByok(), keys);
+        assert.equal(f.run('accountKeysSaved'), false);
+        await turn();
+        assert.equal(f.requests[1].url, '/api/auth/keys');
+        assert.equal(f.requests[1].options.method, 'DELETE', 'Keys saved earlier do not stay in use behind "do not save"');
+        answered(1); await turn();
+        assert.equal(f.get('#toasts').children.length, 0);
+      }
+    } else if (kind === 'save_failed') {
+      account();
+      let finished = false;
+      const gate = f.run('showGate(null, { keysOnly: true })').then(() => { finished = true; });
+      fill();
+      const saving = send(); await turn();
+      f.respond(0, { detail: 'fixture' }, 500); await saving; await turn();
+      assert.equal(finished, false, 'The form stays: nothing was saved');
+      assert.equal(f.get('#byok-error').hidden, false);
+      assert.equal(f.get('#byok-error').textContent, 'byok_to_account_failed');
+      assert.equal(f.get('#byok-submit').disabled, false);
+      assert.equal(f.run('accountKeysSaved'), false);
+      assert.equal(api.getByok(), null, 'Keys that could not be saved are not quietly kept in the tab instead');
+      assert.equal(f.get('#byok-llm-key').value, 'fixture-A', 'What was typed is still there to try again');
+      // The second attempt goes through.
+      const again = send(); await turn();
+      f.respond(1, summary); await again; await gate;
+      assert.equal(f.run('accountKeysSaved'), true);
+    } else if (kind === 'refused_later') {
+      // The page believed keys were saved; the server found none it could use.
+      account(true);
+      const { request, before, pending } = await started();
+      assert.equal(request.url, '/api/runs');
+      f.respond(before, { detail: 'Accounts run on their own API keys.' }, 401, 'byok_required');
+      await pending;
+      assert.equal(f.run('accountKeysSaved'), false, 'The next attempt asks for keys instead of being refused again');
+      assert.equal(f.get('#toasts').children.at(-1).textContent, 'msg_byok_required');
     } else if (kind === 'visitor') {
-      // Keys alone and no account: there is nobody to keep them for.
+      // Keys alone and no account: there is no account to save them with.
       f.run('authConfig = { enabled: false }');
-      box.checked = true; row.hidden = false;
+      box.checked = true; row.hidden = false; shown.hidden = false;
       const gate = f.run('showGate(null, { keysOnly: true })');
       assert.equal(row.hidden, true, 'The choice is not offered');
       assert.equal(box.checked, false, '...and a tick left from an account does not carry over');
+      assert.equal(shown.hidden, true);
       box.checked = true; fill(); await send(); await gate;
+      assert.equal(f.requests.length, 0, 'Even a tick that got through saves nothing');
       assert.deepEqual(api.getByok(), keys);
-      assert.equal(kept(), null, 'Even a tick that got through keeps nothing');
-    } else if (kind === 'new_tab' || kind === 'other_account') {
-      // The browser holds a copy from an earlier visit; this tab has no keys yet.
-      api.rememberByok(keys, 'a@example.com');
-      assert.equal(session.size, 0);
-      f.run(`authConfig = { enabled: true }; applyAccountMode({ email: '${kind === 'new_tab' ? 'A@Example.com' : 'b@example.com'}' })`);
-      if (kind === 'new_tab') {
-        assert.deepEqual(api.getByok(), keys, 'The account that kept them has them again');
-        assert.equal(f.run('byokMode'), true, '...and the page knows it has keys before it asks for any');
-        assert.ok(kept(), 'They stay kept for the next visit');
-      } else {
-        assert.equal(api.getByok(), null, 'Another account is not handed them');
-        assert.equal(f.run('byokMode'), false);
-        assert.equal(kept(), null, '...and they do not stay on this device');
-      }
+    } else if (kind === 'leftover') {
+      // A copy of the keys the earlier design left in this browser: removed at boot, never used.
+      assert.equal(local.has(LEFTOVER), false);
+      account();
+      assert.equal(api.getByok(), null);
+      assert.equal(f.run('accountHasKeys()'), false);
     } else {
       assert.equal(kind, 'sign_out');
-      api.setByok(keys); api.rememberByok(keys, 'a@example.com'); account();
-      f.run('byokMode = true; location.replace = (url) => { globalThis.wentTo = url; }');
+      account(true);
+      local.set(LEFTOVER, JSON.stringify({ owner: 'a@example.com', creds: keys }));
+      f.run('location.replace = (url) => { globalThis.wentTo = url; }');
       const exit = f.run('exitCredentials()');
-      assert.equal(kept(), null, 'Signing out removes the copy at once, before the server answers');
-      assert.equal(api.getByok(), null);
-      for (let turn = 0; turn < 20 && !f.requests.length; turn += 1) await new Promise((resolve) => setImmediate(resolve));
-      assert.equal(f.requests[0].url, '/api/auth/logout');
+      assert.equal(f.run('accountKeysSaved'), false);
+      await turn();
+      assert.deepEqual(f.requests.map((request) => request.url), ['/api/auth/logout'],
+        'Signing out removes nothing from the account: its keys are there at the next sign-in');
       f.respond(0, { ok: true }); await exit;
       assert.equal(f.run('globalThis.wentTo'), '/', 'A clean sign-out starts over at the front door');
       assert.equal(local.size, 0, 'Nothing of the account is left in this browser');

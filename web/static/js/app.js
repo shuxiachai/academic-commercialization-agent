@@ -107,6 +107,14 @@ function operatorPays() {
   return accountMode && accountAdmin && authConfig?.admin_funded === true;
 }
 
+/* Whether this account has keys to pay with: saved with the account on the
+ * server (what the sign-in answer says; its requests then carry no keys and
+ * the server uses the saved ones), or held in this tab because the account
+ * chose not to save them. */
+function accountHasKeys() {
+  return accountKeysSaved || Boolean(api.getByok());
+}
+
 /* Whether this account's next assessment runs on its trial: a verified
  * account the server says still has one (`trial_runs_left`, which is 0 for
  * an administrator the deployment funds anyway). A new
@@ -120,7 +128,7 @@ function trialPays() {
 function paintTrialNote() {
   const note = $("#trial-note");
   if (!note) return;
-  const show = trialPays() && !api.getByok();
+  const show = trialPays() && !accountHasKeys();
   note.hidden = !show;
   note.textContent = show ? t("trial_note").replace("{n}", String(accountTrialLeft)) : "";
 }
@@ -129,12 +137,12 @@ async function performPaidRequest(request, deliver, operation = "run") {
   if (accountMode && !accountVerified) { toast(t("msg_email_unverified"), "error"); return; }
   // An account pays with its own keys. Ask for them here, once, rather than
   // letting the server refuse with byok_required after the intent is recorded.
-  if (accountMode && !api.getByok() && !operatorPays() && !(operation === "run" && trialPays())) {
+  if (accountMode && !accountHasKeys() && !operatorPays() && !(operation === "run" && trialPays())) {
     await showGate(null, { keysOnly: true });
-    if (!api.getByok()) { toast(t("msg_byok_required"), "error"); return; }
+    if (!accountHasKeys()) { toast(t("msg_byok_required"), "error"); return; }
   }
   // Decided before the request: whether this one, if accepted, spent a trial.
-  const onTrial = operation === "run" && !api.getByok() && trialPays();
+  const onTrial = operation === "run" && !accountHasKeys() && trialPays();
   // Validate locally before recording intent; invalid BYOK cannot cause a
   // request, select operator billing, or manufacture an uncertain receipt.
   api.getByok();
@@ -165,6 +173,10 @@ async function performPaidRequest(request, deliver, operation = "run") {
       && err.status !== 408 && !err.code?.includes("receipt"));
     if (definite && receiptKey) api.forgetReceipt(receiptKey);
     settle(definite);
+    // The server found no usable keys for this account although the page
+    // believed some were saved (removed elsewhere, or no longer readable):
+    // the next attempt asks for them instead of being refused again.
+    if (err.code === "byok_required") accountKeysSaved = false;
     throw err;
   }
 }
@@ -890,6 +902,9 @@ let byokMode = false;
 // differs is that the server tags and lists its runs, and that it never
 // draws on the deployment's key (no plan preview, no operator quota).
 let accountMode = false;
+// Whether the signed-in account has keys saved with it on the server, as its
+// sign-in answer said and as the key form has changed it since.
+let accountKeysSaved = false;
 let accountEmail = null;
 // False only for an account that has not yet opened its verification link.
 // Such an account can sign in, save keys and preview; a run is refused, here
@@ -1018,7 +1033,7 @@ $("#compose-form").addEventListener("submit", async (e) => {
   // administrator the deployment funds previews on the deployment's key, as
   // a code holder does. A visitor whose keys are their only identity starts
   // as before.
-  if (planPreviewEnabled && (accountMode ? (Boolean(api.getByok()) || operatorPays() || trialPays()) : !byokMode)) {
+  if (planPreviewEnabled && (accountMode ? (accountHasKeys() || operatorPays() || trialPays()) : !byokMode)) {
     await previewPlan(submittedTopic);
     return;
   }
@@ -1097,7 +1112,7 @@ async function previewPlan(submittedTopic) {
     // pays (an administrator it funds, a newcomer's trial), and must not be
     // told the request was on "your model key", or to go and check a key it
     // does not have.
-    const own = accountMode && Boolean(api.getByok());
+    const own = accountMode && accountHasKeys();
     const funded = accountMode && !own;
     const plan = await api.planTopic(submittedTopic, { ownKeys: accountMode });
     next = plan?.planned === false
@@ -1505,10 +1520,9 @@ function applyAccountMode(me) {
   accountMode = true;
   accountEmail = me.email;
   api.setAccessCode(null);
-  // Keys this account chose to keep on this device come back to a tab that
-  // has none, before the page decides whether it must ask for any. A copy
-  // kept by another account is removed here and not handed over (api.js).
-  api.restoreByok(me.email);
+  // Whether the account's keys are saved with it: then nothing asks for
+  // keys, on this device or any other, and its requests carry none.
+  accountKeysSaved = me.keys_saved === true;
   byokMode = Boolean(api.getByok());
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = true;
@@ -1619,8 +1633,10 @@ async function exitCredentials() {
   topic.value = "";
   syncComposer();
   const byokCleared = api.setByok(null);
-  // Signing out is "forget me on this device": the remembered copy goes too.
-  const rememberedCleared = api.forgetByok();
+  // Keys saved with the account stay with the account. Nothing of them is
+  // in this browser; a copy left by the earlier design is removed here too.
+  const rememberedCleared = api.discardBrowserKeys();
+  accountKeysSaved = false;
   const codeCleared = api.setAccessCode(null);
   if (accountMode) {
     // Best effort: the token is forgotten locally either way, and the server
@@ -1780,7 +1796,7 @@ function showAccountSettings() {
     // the gate, because the stored token no longer opens anything.
     api.clearReceiptJournal();
     api.setByok(null);
-    api.forgetByok();
+    api.discardBrowserKeys();
     api.setSessionToken(null);
     location.reload();
   };
@@ -2116,7 +2132,7 @@ async function decideAccess() {
       applyAccountMode(access.account);
       // Not for an account about to use its trial: the keys card would be the
       // first thing a newcomer sees, in front of the one run that needs none.
-      if (!api.getByok() && !operatorPays() && !trialPays()) await showGate(null, { keysOnly: true });
+      if (!accountHasKeys() && !operatorPays() && !trialPays()) await showGate(null, { keysOnly: true });
       return;
     }
     if (api.getAccessCode()) applyCodeMode();
@@ -2278,6 +2294,45 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
   byokForm.oninput = clearKeyProblem;
   byokForm.onchange = clearKeyProblem;
 
+  /* What is saved with the account, above the fields: which provider and
+   * model, and the last four characters of each key, with a way to remove
+   * them. The fields below stay empty; filling them replaces what is saved.
+   * Asked of the server each time the form opens, so it is right after a
+   * change made on another device. */
+  let savedView = 0;
+  const paintSavedKeys = async (account) => {
+    const view = ++savedView;
+    const block = $("#byok-saved");
+    block.hidden = true;
+    if (!account || !accountKeysSaved) return;
+    let keys;
+    try { keys = await api.savedKeys(); } catch { return; }
+    if (view !== savedView || byokForm.hidden) return;
+    if (keys?.saved !== true) { accountKeysSaved = false; return; }
+    const provider = $("#byok-provider").querySelector?.(`option[value="${keys.llm_provider}"]`)?.textContent || keys.llm_provider;
+    const search = $("#byok-search").querySelector?.(`option[value="${keys.search}"]`)?.textContent || keys.search;
+    // A word joiner after the ellipsis, so a line never breaks inside "…abcd".
+    const whole = (hint) => String(hint ?? "").replace("…", "…\u2060");
+    $("#byok-saved-text").textContent = t("byok_saved_summary").replace("{provider}", () => provider)
+      .replace("{model}", () => keys.llm_model).replace("{llm}", () => whole(keys.llm_key_hint))
+      .replace("{search}", () => search).replace("{searchKey}", () => whole(keys.search_key_hint));
+    block.hidden = false;
+  };
+  $("#byok-saved-remove").onclick = async () => {
+    const button = $("#byok-saved-remove");
+    button.disabled = true;
+    try {
+      await api.removeSavedKeys();
+      accountKeysSaved = false;
+      $("#byok-saved").hidden = true;
+      toast(t("byok_saved_removed"));
+    } catch {
+      toast(t("byok_saved_remove_failed"), "error");
+    } finally {
+      button.disabled = false;
+    }
+  };
+
   const showKeys = () => {
     codeForm.hidden = true;
     accountForm.hidden = true;
@@ -2291,14 +2346,14 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     // "Get both keys in 3 steps": with a free assessment still to use, the
     // steps are for the ones after it and one line says so.
     $("#byok-key-guide-trial").hidden = !(account && trialPays());
-    // Keeping keys on this device is an account's choice, and the box starts
-    // ticked: an account is otherwise asked for its keys on every visit.
-    // It opens unticked only where this device was told not to keep keys
-    // (the box was unticked at an earlier save), unless a copy is in fact
-    // being kept for this account. A visitor with keys alone has no account
-    // to keep them for and is not offered it.
-    $("#byok-remember-row").hidden = !account;
-    $("#byok-remember").checked = account && (api.byokRemembered(accountEmail) || api.byokRememberWanted());
+    // An account's keys are saved with the account, and the box that says so
+    // starts ticked. It opens unticked only where this device was told not
+    // to save keys (the box was unticked at an earlier save), unless keys
+    // are in fact saved. A visitor with keys alone has no account to save
+    // them with and is not offered it.
+    $("#byok-save-row").hidden = !account;
+    $("#byok-save").checked = account && (accountKeysSaved || api.keySavingWanted());
+    paintSavedKeys(account);
     clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
@@ -2519,7 +2574,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         refreshQuota();
         // Keys next, on the same card, unless the account has them already
         // or the deployment pays for this administrator's runs.
-        if (api.getByok() || operatorPays() || trialPays()) { finish(); return; }
+        if (accountHasKeys() || operatorPays() || trialPays()) { finish(); return; }
         showKeys();
       } catch (err) {
         const key = {
@@ -2616,6 +2671,38 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
           || verdict.llm !== "accepted" || verdict.search !== "accepted";
       }
 
+      // An account's keys go to the account: sent once, saved there sealed,
+      // and not kept in this browser. With the box unticked they stay in
+      // this tab and travel with each request, and keys saved earlier are
+      // removed: the form holds the account's one set of keys, and "do not
+      // save" must not leave an older set in use behind it.
+      if (forAccount() && $("#byok-save").checked) {
+        byokSubmit.disabled = true;
+        byokError.hidden = true;
+        try {
+          await api.saveKeys(creds);
+        } catch {
+          // Nothing was saved and nothing is in the tab: say so and stay.
+          byokSubmit.disabled = false;
+          if (finished || byokForm.hidden) return;
+          byokError.textContent = t("byok_to_account_failed");
+          byokError.hidden = false;
+          byokError.scrollIntoView?.({ block: "nearest" });
+          return;
+        }
+        byokSubmit.disabled = false;
+        accountKeysSaved = true;
+        api.setKeySavingWanted(true);
+        api.setByok(null);
+        // Sent and saved: the keys have no further business in this page.
+        $("#byok-llm-key").value = "";
+        $("#byok-search-key").value = "";
+        if (finished) return;
+        invalidateSidebar();
+        if (unverified) toast(t("byok_unverified"));
+        finish();
+        return;
+      }
       try {
         api.setByok(creds);
       } catch (err) {
@@ -2623,18 +2710,14 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         return;
       }
       if (forAccount()) {
+        api.setKeySavingWanted(false);
+        if (accountKeysSaved) {
+          accountKeysSaved = false;
+          api.removeSavedKeys().catch(() => toast(t("byok_saved_remove_failed"), "error"));
+        }
         // Keys saved for the account; the identity and its history are unchanged.
         byokMode = true;
         invalidateSidebar();
-        // Kept on this device only with the tick; saving without it stops
-        // keeping what was kept before. The tab has its keys either way.
-        // The choice is what the form opens with next time on this device.
-        api.setByokRememberWanted($("#byok-remember").checked);
-        if ($("#byok-remember").checked) {
-          if (!api.rememberByok(creds, accountEmail)) toast(t("byok_remember_failed"), "error");
-        } else {
-          api.forgetByok();
-        }
         if (unverified) toast(t("byok_unverified"));
         finish();
         return;
@@ -2798,6 +2881,8 @@ langSelect.addEventListener("change", () => {
 /* ── Boot ──────────────────────────────────────────────────────────── */
 
 i18n.apply();
+// A copy of an account's keys left in this browser by the earlier design.
+api.discardBrowserKeys();
 document.title = baseTitle();
 localizeSourceLocatorLink();
 topic.placeholder = t("topic_placeholder");
