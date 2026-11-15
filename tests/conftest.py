@@ -33,9 +33,26 @@ by accident, not any test's own setup.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
+
+# CrewAI reports anonymous usage to telemetry.crewai.com. Its Telemetry object
+# starts a background thread that posts what it has gathered every few
+# seconds, and keeps retrying a post that failed. Nothing in the test process
+# had turned that off, so on CI a test that built a crew left that thread
+# posting during the tests that followed. It was found by an offline suite
+# whose fixture fails on any connection (tests/test_report_evidence_claim_
+# contrast.py): two CI runs on 2026-11-15 failed there, in two different
+# tests, with CrewAI's own logger naming itself in the captured log. Whether
+# it hit depended on which files shared a part and on timing, which is why
+# it appeared when the parts were reshuffled by new tests and not before.
+#
+# Set before anything imports CrewAI: the Telemetry object reads the variable
+# when it is first built and stays as it was built. The fixture below holds
+# the other half, a test that clears the environment and builds one anyway.
+os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
 
 _EXPERIMENT_LIST = Path(__file__).with_name("experiment_tests.txt")
 
@@ -73,6 +90,39 @@ def no_real_llm_configuration(monkeypatch):
 
     for name in _LLM_ENVIRONMENT:
         monkeypatch.delenv(name, raising=False)
+
+
+def stop_crewai_telemetry(modules) -> bool:
+    """Whether CrewAI's Telemetry was ready to send; it is switched off if so.
+
+    Read from the modules already imported, never by importing: most tests
+    load no CrewAI, and this runs after every one of them. ``ready`` is what
+    CrewAI itself checks before it records anything.
+    """
+    module = modules.get("crewai.telemetry.telemetry")
+    instance = getattr(getattr(module, "Telemetry", None), "_instance", None)
+    if not getattr(instance, "ready", False):
+        return False
+    instance.ready = False
+    return True
+
+
+@pytest.fixture(autouse=True)
+def no_crewai_telemetry(monkeypatch):
+    """No test may leave CrewAI's telemetry running, and one that does is named.
+
+    The variable is restored for every test, in case one before it removed
+    it. Afterwards, if CrewAI's Telemetry object exists and is ready to send,
+    this test built it with the variable cleared (``patch.dict(os.environ,
+    ..., clear=True)`` does that): it is switched off again, so the tests
+    after this one are not blamed for it, and this test fails.
+    """
+    monkeypatch.setenv("CREWAI_DISABLE_TELEMETRY", "true")
+    yield
+    if stop_crewai_telemetry(sys.modules):
+        pytest.fail("This test built CrewAI's Telemetry with CREWAI_DISABLE_TELEMETRY cleared; "
+                    "its background thread would post to telemetry.crewai.com during later tests. "
+                    "Keep the variable in the environment the test builds.")
 
 
 @pytest.fixture(autouse=True)
