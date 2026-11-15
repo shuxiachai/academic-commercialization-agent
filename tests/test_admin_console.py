@@ -154,7 +154,8 @@ class WhoMaySeeItTests(_Console):
 
     def test_the_app_offers_the_console_to_admins_only(self):
         index = (_ROOT / "web" / "index.html").read_text(encoding="utf-8")
-        self.assertIn('<a id="account-console" href="/admin" data-i18n="account_console" hidden>', index)
+        self.assertIn('<a class="account-menu__item" role="menuitem" id="account-console" href="/admin" '
+                      'data-i18n="account_console" hidden>', index)
         script = (_ROOT / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
         self.assertIn('$("#account-console").hidden = me.admin !== true;', script)
         strings = (_ROOT / "web" / "static" / "js" / "i18n.js").read_text(encoding="utf-8")

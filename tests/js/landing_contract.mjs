@@ -83,7 +83,8 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     set innerHTML(_value) { this.children = []; }
     append(...nodes) { this.children.push(...nodes); }
     querySelectorAll() { return []; }
-    focus() {} remove() {} reset() {} select() {} removeAttribute() {} scrollIntoView() {}
+    focus() { this.focused = (this.focused ?? 0) + 1; }
+    remove() {} reset() {} select() {} removeAttribute() {} scrollIntoView() {}
     setAttribute(name, value) { (this.attributes ??= {})[name] = String(value); }
     // Enough of the DOM's "put this node before me" to see that it was asked for.
     before(...nodes) { (this.placedBefore ??= []).push(...nodes); }
@@ -885,6 +886,139 @@ const scenarios = {
     await settle();
     assert.equal(f.get("#account-form").hidden, false);
     assert.equal(f.get("#account-forgot").hidden, true, "Without mail there is no link to send; the privacy page names the operator");
+  },
+  // ── The account's corner of the rail ─────────────────────────────────
+  // Until 2026-11-15: one line, "Signed in as" with a cut-off address and
+  // three small underlined links; drawn once, so it stayed in the language
+  // it was first drawn in.
+  async the_account_menu_names_the_account_and_opens_on_request() {
+    const f = fixture({ access: { status: 200, body: { ok: true, account: { ...ACCOUNT, email: "émilie.durand@example.test" }, accounts: ACCOUNTS } } });
+    await settle();
+    f.get("#byok-skip").onclick();
+    await settle();
+    const button = f.get("#account-menu-button"), menu = f.get("#account-menu");
+    assert.equal(f.get("#account-badge").hidden, false);
+    assert.equal(f.get("#account-avatar").textContent, "É", "The address's first letter, as a capital");
+    assert.equal(f.get("#account-email").textContent, "émilie.durand@example.test", "The address, not a sentence around it");
+    assert.equal(f.get("#account-menu-email").textContent, "émilie.durand@example.test", "...and whole, in the menu");
+    assert.equal(button.attributes["aria-label"], "account_menu_label");
+    assert.equal(button.title, "émilie.durand@example.test");
+    assert.equal(f.get("#account-console").hidden, true, "The console is an administrator's");
+    // Closed until asked for.
+    menu.hidden = true;
+    assert.equal(button.attributes["aria-expanded"], "false");
+    button.listeners.click();
+    assert.deepEqual([menu.hidden, button.attributes["aria-expanded"]], [false, "true"]);
+    button.listeners.click();
+    assert.deepEqual([menu.hidden, button.attributes["aria-expanded"]], [true, "false"], "A second press closes it");
+    // The keys are heard on the account area as a whole, so they work with
+    // focus on the button (where a click leaves it) as well as in the menu.
+    const area = f.get("#account-badge");
+    assert.equal(menu.listeners.keydown, undefined, "Not on the menu alone: Escape on the button would not reach it");
+    const items = [f.get("#account-manage"), f.get("#account-keys"), f.get("#account-exit")];
+    menu.querySelectorAll = () => items;
+    const press = (key, onPrevent = () => {}) => area.listeners.keydown({ key, preventDefault: onPrevent });
+    // Down or Up on the closed button opens it on the first or the last item; no other key opens it.
+    for (const [key, landed] of [["ArrowDown", items[0]], ["ArrowUp", items[2]]]) {
+      let prevented = false;
+      const before = landed.focused ?? 0;
+      press(key, () => { prevented = true; });
+      assert.deepEqual([menu.hidden, prevented, landed.focused], [false, true, before + 1], key);
+      button.listeners.click();
+    }
+    for (const key of ["a", "Home", "End", "Enter", "Escape", "Tab"]) {
+      press(key, () => { throw new Error(`${key} is not the closed menu's key`); });
+      assert.equal(menu.hidden, true, key);
+    }
+    // Escape closes it and gives focus back to the button; Tab closes it and moves on.
+    button.listeners.click();
+    const before = button.focused ?? 0;
+    let escaped = false;
+    press("Escape", () => { escaped = true; });
+    assert.deepEqual([menu.hidden, escaped, button.focused], [true, true, before + 1]);
+    button.listeners.click();
+    press("Tab", () => { throw new Error("Tab is left to the browser"); });
+    assert.deepEqual([menu.hidden, button.focused], [true, before + 1], "Tab does not pull focus back");
+    // A hidden item (the console, for an ordinary account) is not a stop.
+    items.splice(2, 0, Object.assign(f.get("#account-console"), { hidden: true }));
+    press("ArrowUp");
+    assert.equal(f.get("#account-console").focused, undefined);
+    // ...also on the way past it: Up from Sign out lands on API keys.
+    const keysBefore = f.get("#account-keys").focused ?? 0;
+    f.run("document").activeElement = f.get("#account-exit");
+    press("ArrowUp");
+    assert.equal(f.get("#account-console").focused, undefined, "The hidden console is skipped");
+    assert.equal(f.get("#account-keys").focused, keysBefore + 1);
+    f.run("document").activeElement = undefined;
+    button.listeners.click();
+    // Choosing an item closes it; a press on the menu's own padding does not.
+    button.listeners.click();
+    menu.listeners.click({ target: { closest: () => null } });
+    assert.equal(menu.hidden, false);
+    menu.listeners.click({ target: { closest: (selector) => (selector === '[role="menuitem"]' ? {} : null) } });
+    assert.equal(menu.hidden, true);
+    // A change of language repaints the name the button goes by.
+    button.attributes["aria-label"] = "stale";
+    f.get("#account-avatar").textContent = "stale";
+    f.get("#ui-lang").listeners.change();
+    await settle();
+    assert.equal(button.attributes["aria-label"], "account_menu_label");
+    assert.equal(f.get("#account-avatar").textContent, "É");
+    // The keys within the menu.
+    const target = (key, index, count) => f.run(`menuKeyTarget(${JSON.stringify(key)}, ${index}, ${count})`);
+    assert.deepEqual([target("ArrowDown", 0, 3), target("ArrowDown", 2, 3), target("ArrowDown", -1, 3)], [1, 0, 0]);
+    assert.deepEqual([target("ArrowUp", 0, 3), target("ArrowUp", 2, 3), target("ArrowUp", -1, 3)], [2, 1, 2]);
+    assert.deepEqual([target("Home", 2, 3), target("End", 0, 3)], [0, 2]);
+    assert.deepEqual([target("Enter", 0, 3), target("a", 0, 3), target("ArrowDown", 0, 0)], [null, null, null]);
+    // An administrator's menu has the console; an address with no letter gets a mark, not nothing.
+    f.run('applyAccountMode({ email: "@", admin: true, verified: true })');
+    assert.equal(f.get("#account-console").hidden, false);
+    assert.equal(f.get("#account-avatar").textContent, "?");
+    assert.equal(menu.hidden, true, "Signing in leaves the menu closed");
+  },
+  // "0/5 running" and five dots are the whole deployment's slots: a number
+  // about other people's work, and cut off in the phone's rail.
+  async the_slots_are_an_administrators_and_everyone_else_is_told_only_when_full() {
+    const f = fixture({ access: { status: 200, body: { ok: true, account: ACCOUNT, accounts: ACCOUNTS } } });
+    await settle();
+    f.get("#byok-skip").onclick();
+    await settle();
+    const line = () => ({ shown: !f.get("#capacity").hidden, dots: !f.get("#capacity-dots").hidden,
+      label: f.get("#capacity-label").textContent, title: f.get("#capacity-label").title });
+    const reading = (active, max) => f.run(`capacityReading = { active_paid_operations: ${active}, max_concurrent: ${max}, retention_days: 7 };
+      paintCapacityLabel()`);
+    reading(0, 5);
+    assert.equal(line().shown, false, "An ordinary account is not shown the slots");
+    reading(4, 5);
+    assert.equal(line().shown, false);
+    reading(5, 5);
+    assert.deepEqual(line(), { shown: true, dots: false, label: "capacity_busy", title: "capacity_busy_title" },
+      "...until every one is taken, and then in words");
+    reading(6, 5);
+    assert.equal(line().shown, true);
+    reading(0, 0);
+    assert.equal(line().shown, false, "A deployment that reports no slots is not 'busy'");
+    f.run('capacityReading = "offline"; paintCapacityLabel()');
+    assert.deepEqual([line().shown, line().dots, line().label], [true, false, "offline"], "Not reaching the server is everyone's business");
+    // An administrator sees the count, as before, and at once on signing in.
+    f.run(`capacityReading = { active_paid_operations: 2, max_concurrent: 5, retention_days: 7 };
+      applyAccountMode({ email: "${ACCOUNT.email}", admin: true, verified: true })`);
+    assert.deepEqual([line().shown, line().dots, line().label], [true, true, "2/5 running_label"]);
+    // Signed out, the count is nobody's again.
+    f.run('accountMode = false; accountAdmin = false; paintCapacityLabel()');
+    assert.equal(line().shown, false);
+  },
+  async opening_the_account_panel_does_not_put_the_cursor_in_a_password_field() {
+    const f = fixture({ access: { status: 200, body: { ok: true, account: ACCOUNT, accounts: ACCOUNTS } } });
+    await settle();
+    f.get("#byok-skip").onclick();
+    await settle();
+    await f.get("#account-manage").listeners.click();
+    assert.equal(f.get("#account-settings").hidden, false);
+    assert.equal(f.get("#account-settings-title").focused, 1, "The heading takes focus");
+    for (const field of ["#settings-current-password", "#settings-new-password", "#settings-delete-password"]) {
+      assert.equal(f.get(field).focused, undefined, field);
+    }
   },
   async notice_switch() {
     // The Account panel's switch: saved on change, shown as the account has it.

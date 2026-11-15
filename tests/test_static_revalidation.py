@@ -68,7 +68,8 @@ class StaticRevalidationTests(unittest.TestCase):
 
     def test_a_policy_already_chosen_is_left_alone(self):
         # Where the locator rewrites the main page it is never stored, and that stands.
-        with patch.object(api_main, "_source_locator", object()):
+        # The registration as far as the page asks: a locator this request's host may open.
+        with patch.object(api_main, "_source_locator", type("Registered", (), {"page_reachable": staticmethod(lambda _request: True)})()):
             self.assertEqual(self.client.get("/").headers["cache-control"], "no-store")
         # An API reply gets no caching instruction from this.
         for url in ("/api/site", "/api/samples", "/health"):

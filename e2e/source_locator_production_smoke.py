@@ -416,8 +416,17 @@ def main(*, proxy=False):
 
         with _serve(observed_app if proxy else production.app) as base, sync_playwright() as playwright:
             with httpx.Client(trust_env=False) as client:
-                home = client.get(base + "/")
+                # The main page links to the locator only where the locator's
+                # page would open, judged by the request's Host as the page
+                # itself judges it. Behind the proxy that is the public
+                # origin's host. The loopback address the backend listens on
+                # is offered no link: the page there would refuse the visitor.
+                public = {"Host": PUBLIC_ORIGIN.split("//", 1)[1]} if proxy else {}
+                home = client.get(base + "/", headers=public)
                 assert home.status_code == 200 and 'href="/source-locator' in home.text
+                if proxy:
+                    direct = client.get(base + "/")
+                    assert direct.status_code == 200 and 'href="/source-locator' not in direct.text
                 # Enabled feature diagnostics must survive the main response
                 # model too; working locator routes cannot hide broken health.
                 health = client.get(base + "/health")

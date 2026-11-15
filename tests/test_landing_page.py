@@ -37,6 +37,9 @@ SCENARIOS = (
     # opens, a refused link, the forgot form, and its absence without mail.
     "reset_link", "reset_link_refused", "forgot_from_sign_in", "forgot_absent_without_mail",
     # The Account panel's run-finished notice switch (tests/test_run_notices.py).
+    "the_account_menu_names_the_account_and_opens_on_request",
+    "the_slots_are_an_administrators_and_everyone_else_is_told_only_when_full",
+    "opening_the_account_panel_does_not_put_the_cursor_in_a_password_field",
     "notice_switch", "notice_switch_refused", "notice_switch_absent_without_mail",
     # An administrator the deployment funds is not asked for keys (tests/test_admin_funded.py).
     "signed_in_admin_funded",

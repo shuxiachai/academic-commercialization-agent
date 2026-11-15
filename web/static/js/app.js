@@ -1484,12 +1484,32 @@ async function refreshCapacity() {
 
 function paintCapacityLabel() {
   if (capacityReading === null) return;
+  const capacity = $("#capacity");
+  const dots = $("#capacity-dots");
   const label = $("#capacity-label");
   if (capacityReading === "offline") {
+    // Everyone's business: the page cannot reach the server.
+    capacity.hidden = false;
+    dots.hidden = true;
     label.textContent = t("offline");
+    label.title = "";
     return;
   }
   const { active_paid_operations, max_concurrent, retention_days } = capacityReading;
+  // The slots are the whole deployment's. An administrator watches them. To
+  // anyone else "0/5 running" was a number about other people's work, cut
+  // off in the phone's rail; they are told the one thing they can act on,
+  // and only when it is so: every slot is taken, so a new assessment waits.
+  if (!(accountMode && accountAdmin)) {
+    const full = max_concurrent > 0 && active_paid_operations >= max_concurrent;
+    capacity.hidden = !full;
+    dots.hidden = true;
+    label.textContent = t("capacity_busy");
+    label.title = t("capacity_busy_title");
+    return;
+  }
+  capacity.hidden = false;
+  dots.hidden = false;
   label.textContent = `${active_paid_operations}/${max_concurrent} ${t("running_label")}`;
   // Someone who uploads an unpublished paper is entitled to know how long it
   // stays here — and a deletion nobody was told about reads as data loss
@@ -1526,8 +1546,8 @@ function applyAccountMode(me) {
   byokMode = Boolean(api.getByok());
   $("#byok-badge").hidden = true;
   $("#code-badge").hidden = true;
-  $("#account-email").textContent = t("account_badge").replace("{email}", me.email);
-  $("#account-email").title = me.email;   // the badge ellipsizes a long address
+  paintAccountIdentity();
+  setAccountMenu(false);
   $("#account-console").hidden = me.admin !== true;
   $("#account-badge").hidden = false;
   accountVerified = me.verified !== false;
@@ -1536,6 +1556,8 @@ function applyAccountMode(me) {
   accountTrialLeft = Number.isInteger(me.trial_runs_left) ? me.trial_runs_left : 0;
   paintVerifyNotice();
   paintTrialNote();
+  // The slots line is an administrator's; who that is has just been learned.
+  paintCapacityLabel();
   hidePlan();
   refreshQuota();
 }
@@ -1694,6 +1716,83 @@ function applyCodeMode() {
 
 $("#code-exit").addEventListener("click", exitCredentials);
 $("#account-exit").addEventListener("click", exitCredentials);
+
+/* ── Account menu ──────────────────────────────────────────────────────
+ * One button at the foot of the rail: the address's initial and the address.
+ * It opens a menu with the whole address, the account's settings, its API
+ * keys, the console for an administrator, and Sign out. Before 2026-11-15
+ * these were one line of text: "Signed in as" with a cut-off address and
+ * three small underlined links, in English whatever the interface was in
+ * once the language had been changed after signing in.
+ *
+ * The menu follows the menu-button pattern: Enter, Space or a click opens
+ * it, Down and Up open it on the first or last item, Down, Up, Home and End
+ * move within it, Escape closes it and puts focus back on the button, Tab
+ * closes it and moves on, and choosing an item or clicking elsewhere closes
+ * it. */
+const accountMenuButton = $("#account-menu-button");
+const accountMenu = $("#account-menu");
+const accountMenuItems = () => [...(accountMenu.querySelectorAll?.('[role="menuitem"]') ?? [])].filter((item) => !item.hidden);
+
+/** Which item a key moves to in the open menu, or null when the key is not
+ * one of the menu's. `index` is the focused item's, -1 when none is. */
+function menuKeyTarget(key, index, count) {
+  if (!Number.isInteger(count) || count < 1) return null;
+  if (key === "ArrowDown") return index < 0 ? 0 : (index + 1) % count;
+  if (key === "ArrowUp") return index < 0 ? count - 1 : (index - 1 + count) % count;
+  if (key === "Home") return 0;
+  if (key === "End") return count - 1;
+  return null;
+}
+
+function setAccountMenu(open, { focusItem = null, returnFocus = false } = {}) {
+  accountMenu.hidden = !open;
+  accountMenuButton.setAttribute("aria-expanded", String(open));
+  if (open && focusItem !== null) accountMenuItems().at(focusItem)?.focus();
+  if (!open && returnFocus) accountMenuButton.focus();
+}
+
+/* The address on the button and in the menu, its initial, and the button's
+ * name for a screen reader. Painted again on a change of language: the name
+ * is a sentence, and the old badge kept the language it was first drawn in. */
+function paintAccountIdentity() {
+  const email = accountEmail ?? "";
+  $("#account-avatar").textContent = (email.match(/[\p{L}\p{N}]/u)?.[0] ?? "?").toUpperCase();
+  $("#account-email").textContent = email;
+  $("#account-menu-email").textContent = email;
+  accountMenuButton.setAttribute("aria-label", t("account_menu_label").replace("{email}", () => email));
+  accountMenuButton.title = email;   // the button ellipsizes a long address
+}
+
+accountMenuButton.addEventListener("click", () => setAccountMenu(accountMenu.hidden));
+// One listener for the button and the menu together: a menu opened with a
+// click leaves focus on the button, and Escape pressed there must close it
+// too. (Listening on the menu alone, it did not: seen in a real browser.)
+$("#account-badge").addEventListener("keydown", (event) => {
+  const open = !accountMenu.hidden;
+  if (event.key === "Escape") {
+    if (!open) return;
+    event.preventDefault();
+    setAccountMenu(false, { returnFocus: true });
+    return;
+  }
+  if (event.key === "Tab") { if (open) setAccountMenu(false); return; }
+  // Closed, only Down and Up are the menu's: they open it on its first or last item.
+  if (!open && event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+  const items = accountMenuItems();
+  const target = menuKeyTarget(event.key, items.indexOf(document.activeElement), items.length);
+  if (target === null) return;
+  event.preventDefault();
+  if (!open) setAccountMenu(true);
+  items[target].focus();
+});
+// Choosing an item closes the menu; the item's own handler does the rest.
+accountMenu.addEventListener("click", (event) => {
+  if (event.target?.closest?.('[role="menuitem"]')) setAccountMenu(false);
+});
+document.addEventListener("click", (event) => {
+  if (!accountMenu.hidden && !$("#account-badge").contains?.(event.target)) setAccountMenu(false);
+});
 // Change or add keys without signing out; the account's history stays.
 $("#account-keys").addEventListener("click", async () => {
   if (submitting || extracting) return;
@@ -1723,7 +1822,9 @@ function showAccountSettings() {
   $("#account-settings-email").textContent = t("account_badge").replace("{email}", accountEmail ?? "");
   panel.hidden = false;
   gate.hidden = false;
-  $("#settings-current-password").focus();
+  // The heading, not a field: opening the panel is not asking to change the
+  // password, and a cursor in "Current password" said it was.
+  $("#account-settings-title").focus();
 
   const close = () => { panel.hidden = true; gate.hidden = true; };
   const message = (err) => {
@@ -2108,7 +2209,7 @@ async function decideAccess() {
     // Keys alone boot without a request, as they always have. With a session
     // stored, the access check below decides instead; on a deployment with
     // accounts, a keys-only visitor learns to sign in at their first paid
-    // request and reaches the gate through the badge.
+    // request and reaches the gate through the account menu.
     if (api.getByok() && !api.getSessionToken()) {
       applyByokMode();
       return;
@@ -2863,6 +2964,7 @@ langSelect.value = i18n.language();
 langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
   document.title = baseTitle();
+  paintAccountIdentity();
   drawLandingSamples();
   paintTrialNote();
   localizeSourceLocatorLink();
