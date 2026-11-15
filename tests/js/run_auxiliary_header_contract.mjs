@@ -43,7 +43,7 @@ const context = vm.createContext({
   runView: { ...actualRunView }, sidebar: {}, result: {}, needsScopeWarning: () => false,
   createPaidReceipts: () => ({ subscribe() {}, state: () => ({ active: false }), begin: () => () => {},
     acknowledge: () => false }),
-  i18n: { t: actualI18n.t, language: actualI18n.language, apply() {} },
+  i18n: { t: actualI18n.t, language: actualI18n.language, apply() {}, pageTitle: actualI18n.pageTitle },
   document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
     addEventListener() {}, hidden: false },
   window: { addEventListener() {}, matchMedia: () => ({ matches: false }) },

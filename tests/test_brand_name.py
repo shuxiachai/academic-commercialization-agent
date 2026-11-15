@@ -104,6 +104,14 @@ def test_no_page_or_script_says_part_of_the_name():
 def test_the_scripts_that_set_a_title_use_the_shared_name():
     privacy = _read("static/js/privacy.js")
     admin = _read("static/js/admin.js")
+    # One function names every page's tab, from the one entry (i18n.pageTitle),
+    # and i18n.apply() paints the header's name with everything else marked.
+    strings = _read("static/js/i18n.js")
+    assert 'return name ? `${name} · ${t("brand_full")}` : t("brand_full");' in strings
+    assert "node.textContent = t(node.dataset.i18n);" in strings
     for name, text in (("privacy.js", privacy), ("admin.js", admin)):
-        assert 'i18n.t("brand_full")' in text, name
-        assert 'node.textContent = i18n.t(node.dataset.i18n)' in text, f"{name} paints its header's name"
+        assert "document.title = i18n.pageTitle(" in text, name
+        assert "i18n.apply();" in text, f"{name} paints its header's name"
+    # The application and the sample reader name their tabs the same way.
+    assert "const baseTitle = () => i18n.pageTitle();" in _read("static/js/app.js")
+    assert 'i18n.pageTitle(t("samples_title"))' in _read("static/js/samples.js")

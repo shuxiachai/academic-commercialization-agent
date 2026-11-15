@@ -40,7 +40,7 @@ class SampleCatalogTests(unittest.TestCase):
         self.assertEqual([item["slug"] for item in listed], [s.slug for s in samples.SAMPLES])
         for item in listed:
             self.assertNotIn("file", item)
-            self.assertEqual(set(item), {"slug", "title", "topic", "committed", "commit", "model",
+            self.assertEqual(set(item), {"slug", "title", "title_zh", "topic", "committed", "commit", "model",
                                          "language", "overall_score", "trl_score"})
 
     def test_unknown_slug_is_a_key_error_not_a_path_lookup(self):
@@ -134,7 +134,8 @@ class SampleHttpTests(unittest.TestCase):
         self.assertEqual(answer["type"], "array")
         model = schema["components"]["schemas"][answer["items"]["$ref"].rsplit("/", 1)[-1]]
         self.assertEqual(set(model["properties"]),
-                         {"slug", "title", "topic", "committed", "commit", "model", "language", "overall_score", "trl_score"})
+                         {"slug", "title", "title_zh", "topic", "committed", "commit", "model", "language",
+                          "overall_score", "trl_score"})
         self.assertNotIn("file", model["properties"])
 
     def test_a_sample_whose_scorecard_cannot_be_read_is_listed_without_a_score(self):
@@ -401,7 +402,8 @@ class SampleRenderingTests(unittest.TestCase):
             work = Path(tmp)
             source = (_REPO / "web/static/js/result.js").read_text(encoding="utf-8")
             source = source.replace('import * as api from "./api.js";', "const api = {};")
-            source = source.replace('import { t } from "./i18n.js";', "const t = (k) => k;")
+            source = source.replace('import { language, t } from "./i18n.js";',
+                                    'const t = (k) => k; const language = () => "English";')
             (work / "renderer.mjs").write_text(source, encoding="utf-8")
             (work / "run.mjs").write_text(textwrap.dedent("""
                 import { readFileSync } from "node:fs";

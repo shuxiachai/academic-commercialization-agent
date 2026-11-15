@@ -1014,6 +1014,9 @@ class SampleSummary(BaseModel):
     commit: str = Field(description="The pipeline revision the run was made on.")
     model: str = Field(description="The model the run was made with.")
     language: str = Field(description="The language the report is written in: 'English' or 'Simplified Chinese'.")
+    title_zh: str = Field(
+        default="",
+        description="The sample's name for the Chinese interface; empty where `title` is already Chinese.")
     overall_score: float | None = Field(
         default=None,
         description="The overall score (0-100) from the scorecard the sample's run wrote; null when this "

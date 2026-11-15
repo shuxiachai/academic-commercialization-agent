@@ -11,6 +11,14 @@ Two code-written parts of it read badly as delivered:
   that already ends in a full stop gets a second one, and a Chinese report
   carries English labels and codes. Shown, the doubled stops go, and a Chinese
   report gets Chinese labels. The reasons themselves stay as written.
+- The proofreading record ("## Reviewer Notes") is written by code under an
+  English heading. A Chinese report shows that heading in Chinese; the notes
+  stay as saved.
+
+Which language a report is in comes from its applicability paragraph where
+it has one. A report made from the command line has none, and was taken for
+English whatever it was written in; it is now known by the legend evidence.py
+writes as the first line of every reference list.
 
 Nothing here changes what the gate allowed: the sentences are chosen from the
 codes in the saved paragraph, and an unknown code keeps the saved wording.
@@ -71,6 +79,20 @@ _TYPES_ZH = {
 }
 _TIERS_ZH = {"high": "高", "medium": "中", "low": "低"}
 
+_REFERENCES = "\n## References\n"
+# evidence._REF_LEGEND, the first line under the heading, in the report's
+# language. A copy: evidence.py imports CrewAI, and this module is read for
+# every report a page shows. tests/test_report_display.py holds it to the
+# original.
+_LEGENDS: dict[str, str] = {
+    "Simplified Chinese":  "*文献编码说明：**A** = 学术论文 · **P** = 专利 · **M** = 市场/行业来源*",
+    "Traditional Chinese": "*文獻編碼說明：**A** = 學術論文 · **P** = 專利 · **M** = 市場/產業來源*",
+    "Japanese":            "*引用コード：**A** = 学術論文 · **P** = 特許 · **M** = 市場/業界情報*",
+    "Korean":              "*참고문헌 코드：**A** = 학술 논문 · **P** = 특허 · **M** = 시장/업계 자료*",
+}
+_NOTES = "\n## Reviewer Notes\n"
+_NOTES_ZH = "\n## 自动校对记录\n"       # result.js NOTES_HEADING finds the fold by either
+
 
 def _delivered_block(report: str) -> re.Match[str] | None:
     """The owned paragraph, only where delivery puts it (first, or after an opening H1)."""
@@ -110,13 +132,36 @@ def _scope_paragraph(block: str, language: str) -> str | None:
     return f"**{scope['label']}:** " + " ".join(sentences)
 
 
+def _legend_language(report: str) -> str | None:
+    """The language named by the line under the reference heading, if it is a legend."""
+    _, heading, references = report.partition(_REFERENCES)
+    if not heading:
+        return None
+    first = references.lstrip("\n").split("\n", 1)[0].strip()
+    for language, legend in _LEGENDS.items():
+        if first == legend:
+            return language
+    return None
+
+
 def _report_language(report: str) -> str:
     block = _delivered_block(report)
-    return (block and _block_language(block.group())) or "English"
+    if block is not None:
+        # Delivered by the application: its paragraph decides, as before.
+        return _block_language(block.group()) or "English"
+    return _legend_language(report) or "English"
+
+
+def _notes_heading(report: str, language: str) -> str:
+    """The last such heading is the pipeline's (evidence.py reads it with rpartition)."""
+    if language != "Simplified Chinese":
+        return report
+    body, marker, notes = report.rpartition(_NOTES)
+    return body + _NOTES_ZH + notes if marker else report
 
 
 def _references(report: str, language: str) -> str:
-    marker = "\n## References\n"
+    marker = _REFERENCES
     at = report.find(marker)
     if at == -1:
         return report
@@ -156,4 +201,4 @@ def report_for_display(report: str) -> str:
         paragraph = _scope_paragraph(block.group(), language)
         if paragraph is not None:
             shown = report[:block.start()] + paragraph + report[block.end():]
-    return _references(shown, language)
+    return _notes_heading(_references(shown, language), language)

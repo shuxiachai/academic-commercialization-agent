@@ -471,7 +471,9 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
             expect(notes.locator(":scope > :not(summary)").first).to_be_hidden()
             assert page.evaluate(
                 "() => document.querySelector('details.reviewer-notes').previousElementSibling.textContent"
-            ) == "Reviewer Notes", (slug, "The heading is not directly above its fold.")
+            # A Chinese report names the record in Chinese (report_display.py).
+            ) == ("自动校对记录" if slug == "uhvdc-transmission-zh" else "Reviewer Notes"), (
+                slug, "The heading is not directly above its fold.")
             # Registered after the page's own listener, so it sees what that one did.
             page.evaluate("""() => {
                 window.__notesAtPrint = [];

@@ -103,6 +103,40 @@ const STRINGS = {
     paper_privacy: "Selected PDF text is sent to the configured model provider. The raw PDF is deleted after successful extraction; extracted metadata expires within 24 hours if no run uses it.",
     auto_lang: "Auto language",
     auto_profile: "Auto profile",
+    // The domain whose weights score the report (the composer's second select).
+    profile_industrial: "Industrial",
+    profile_material_science: "Materials",
+    profile_biomedical: "Biomedical",
+    profile_clean_tech: "Clean tech",
+    profile_software_ai: "Software / AI",
+    // Labels a screen reader says and a pointer shows on hover: attributes,
+    // not text, marked data-i18n-aria-label / data-i18n-title (apply).
+    aria_site: "Site",
+    aria_ui_language: "Interface language",
+    aria_collapse_sidebar: "Collapse sidebar",
+    title_toggle_sidebar: "Toggle sidebar",
+    aria_previous_runs: "Previous runs",
+    title_capacity: "Concurrent run slots",
+    title_attach: "Attach a paper (PDF)",
+    aria_report_language: "Report language",
+    aria_profile: "Scoring profile",
+    aria_run: "Run analysis",
+    aria_llm_provider: "LLM provider",
+    aria_search_service: "Web search service",
+    remove_paper: "Remove paper",
+    // The scorecard's readiness label, by level. The saved label is English
+    // ("TRL 7 (system prototype in operational environment)", evidence.py)
+    // and the English interface shows it as saved; these are what another
+    // interface language shows for the same level (result.js trlText).
+    trl_level_1: "TRL 1 (basic principles observed)",
+    trl_level_2: "TRL 2 (technology concept formulated)",
+    trl_level_3: "TRL 3 (experimental proof of concept)",
+    trl_level_4: "TRL 4 (component validated in laboratory)",
+    trl_level_5: "TRL 5 (component validated in relevant environment)",
+    trl_level_6: "TRL 6 (system prototype demonstrated in relevant environment)",
+    trl_level_7: "TRL 7 (system prototype in operational environment)",
+    trl_level_8: "TRL 8 (system complete and qualified)",
+    trl_level_9: "TRL 9 (actual system proven in operational environment)",
     decision_context_title: "Add decision context",
     optional: "Optional",
     decision_context_lede: "Complete the first four fields for actor-specific decision support. Partial or empty context still runs, but the report will not claim a GO / NO-GO decision.",
@@ -793,7 +827,34 @@ const STRINGS = {
     attach: "论文",
     paper_privacy: "PDF 中选取的文本会发送给已配置的模型服务商。提取成功后立即删除原始 PDF；若未发起运行，提取元数据会在 24 小时内过期。",
     auto_lang: "自动语言",
-    auto_profile: "自动方案",
+    auto_profile: "自动识别领域",
+    profile_industrial: "工业制造",
+    profile_material_science: "材料",
+    profile_biomedical: "生物医药",
+    profile_clean_tech: "清洁技术",
+    profile_software_ai: "软件 / AI",
+    aria_site: "站点导航",
+    aria_ui_language: "界面语言",
+    aria_collapse_sidebar: "收起侧栏",
+    title_toggle_sidebar: "展开或收起侧栏",
+    aria_previous_runs: "历史评估",
+    title_capacity: "可同时运行的评估数",
+    title_attach: "附加论文（PDF）",
+    aria_report_language: "报告语言",
+    aria_profile: "评分所用的领域",
+    aria_run: "开始分析",
+    aria_llm_provider: "模型服务商",
+    aria_search_service: "联网检索服务",
+    remove_paper: "移除论文",
+    trl_level_1: "TRL 1（发现并报告基本原理）",
+    trl_level_2: "TRL 2（形成技术概念或应用设想）",
+    trl_level_3: "TRL 3（通过实验完成概念验证）",
+    trl_level_4: "TRL 4（部件在实验室环境中得到验证）",
+    trl_level_5: "TRL 5（部件在相关环境中得到验证）",
+    trl_level_6: "TRL 6（系统原型在相关环境中完成演示）",
+    trl_level_7: "TRL 7（系统原型在实际运行环境中完成演示）",
+    trl_level_8: "TRL 8（系统完成研制并通过鉴定）",
+    trl_level_9: "TRL 9（实际系统已在运行环境中得到验证）",
     decision_context_title: "添加决策上下文",
     optional: "可选",
     decision_context_lede: "填写前四项后，系统才会针对具体决策者给出决策支持。部分填写或留空仍可运行，但报告不会声称已完成 GO / NO-GO 判断。",
@@ -856,7 +917,7 @@ const STRINGS = {
     brief_evidence_plain: "最强维度的主要依据",
     brief_expand: "显示完整的句子",
     brief_evidence_none: "评分卡没有为最强维度引用来源。",
-    brief_risk: "最大的一个风险",
+    brief_risk: "最大风险",
     brief_risk_none: "评分卡没有列出风险。",
     brief_next: "建议的第一步",
     brief_next_none: "报告没有给出编号的建议。",
@@ -1381,5 +1442,21 @@ export function apply(root = document) {
   for (const node of root.querySelectorAll("[data-i18n-placeholder]")) {
     node.placeholder = t(node.dataset.i18nPlaceholder);
   }
+  // What a screen reader says for a control, and what a pointer shows on
+  // hover. Until 2026-11-15 these stayed as the markup had them, in English,
+  // whatever the interface was in.
+  for (const node of root.querySelectorAll("[data-i18n-aria-label]")) {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
+  }
+  for (const node of root.querySelectorAll("[data-i18n-title]")) {
+    node.title = t(node.dataset.i18nTitle);
+  }
   document.documentElement.lang = current === "English" ? "en" : "zh-CN";
+}
+
+/** The tab's name for a page: the page's own name, if it has one, before the
+ * product's. Every page builds its title here, so they switch with the
+ * interface language and read alike. */
+export function pageTitle(name = "") {
+  return name ? `${name} · ${t("brand_full")}` : t("brand_full");
 }

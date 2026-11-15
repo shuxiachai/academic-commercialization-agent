@@ -51,7 +51,7 @@ const TEXT = {
     fn_trial: "Free assessments", fn_trial_value: (x) => `${x.started} started, ${x.completed} completed, ${x.given_back} given back`,
     fn_admin: "Administrators' runs",
     funnel_kept: (since, unreadable) => `Runs are kept since ${since}.${unreadable ? ` ${unreadable} could not be read and are in no number.` : ""}`,
-    funnel_no_runs: "No runs are kept yet.", days_option: (n) => `Last ${n} days`, trial_used: "trial used",
+    funnel_no_runs: "No runs are kept yet.", days_option: (n) => `Last ${n} days`, funnel_window: "Window", trial_used: "trial used",
     link: "Provider link", probe: "Probe now", probing: "Probing… up to three minutes when a path is dead.",
     link_note: "From this server: chat requests of 1, 10, 30 and 100 KB (the last is the report writer's size, 30 KB an evidence agent's) with no key, each on a new connection, to the configured endpoint and, for Bailian, to its sibling across the border. The servers read the body and answer 401, so nothing is billed; the time to that answer is what the path takes. Marks are milliseconds from the start of the request.",
     link_done: (when, timeout) => `Measured ${when}. Each request was given ${timeout} seconds.`,
@@ -100,7 +100,7 @@ const TEXT = {
     fn_trial: "免费评估", fn_trial_value: (x) => `发起 ${x.started}，完成 ${x.completed}，退还 ${x.given_back}`,
     fn_admin: "管理员的运行",
     funnel_kept: (since, unreadable) => `运行记录保留自 ${since}。${unreadable ? `有 ${unreadable} 条无法读取，未计入任何一项。` : ""}`,
-    funnel_no_runs: "还没有保留的运行记录。", days_option: (n) => `最近 ${n} 天`, trial_used: "已用试用",
+    funnel_no_runs: "还没有保留的运行记录。", days_option: (n) => `最近 ${n} 天`, funnel_window: "统计时段", trial_used: "已用试用",
     link: "模型服务链路", probe: "现在探测", probing: "探测中……链路不通时最长需要三分钟。",
     link_note: "由本服务器发出：1、10、30、100 KB 四档对话请求（100 KB 是报告写手请求的大小，30 KB 约为证据智能体的），不带密钥、每次新建连接，发往已配置的端点，百炼还会同时发往境外另一侧的同类端点。服务器读完请求体后回 401，不产生任何计费；到收到这个回答为止的时间就是链路所需的时间。各列是自请求开始起的毫秒数。",
     link_done: (when, timeout) => `测于 ${when}。每个请求最多等 ${timeout} 秒。`,
@@ -155,11 +155,11 @@ function pill(text, kind) {
 /* Static labels, both languages in one table so the page follows the
  * reader's choice in the app. */
 function paintLabels() {
-  const current = lang();
-  document.documentElement.lang = current === "zh" ? "zh-CN" : "en";
-  document.title = `${t("title")} · ${i18n.t("brand_full")}`;
-  // The header's name, full and short, from the strings every page shares.
-  for (const node of $$("[data-i18n]")) node.textContent = i18n.t(node.dataset.i18n);
+  document.title = i18n.pageTitle(t("title"));
+  // The header's name, full and short, and the labels of its controls, from
+  // the strings every page shares; this also sets the document's language.
+  i18n.apply();
+  $("#funnel-days").setAttribute("aria-label", t("funnel_window"));
   for (const node of $$("[data-text]")) node.textContent = t(node.dataset.text);
 }
 

@@ -38,6 +38,12 @@ export function renderDecisionBrief(data, { note = "" } = {}) {
     extra: data.extra.join(",") });
   return node;
 }
+// The card's name as the real sampleTitle chooses it: the Chinese name in the Chinese interface.
+import { language as uiLanguage } from "./i18n.js";
+export function sampleTitle(sample) {
+  const named = uiLanguage() === "Simplified Chinese" && typeof sample?.title_zh === "string" && sample.title_zh.trim();
+  return named ? sample.title_zh.trim() : String(sample?.title ?? sample?.slug ?? "");
+}
 // The card's facts as the real sampleFacts shapes them, in words a test can tell apart.
 export function sampleFacts(sample) {
   const scored = typeof sample?.overall_score === "number";

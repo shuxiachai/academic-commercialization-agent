@@ -667,7 +667,9 @@ $("#run-shared-new").onclick = () => showCompose();
  * browser notification appears if the user opted in from the run header.
  * Permission is asked only from that button, never unprompted. */
 
-const baseTitle = document.title;
+// The tab's name, from the strings: the served <title> is English whatever
+// the reader chose, and stayed so until 2026-11-15.
+const baseTitle = () => i18n.pageTitle();
 const notificationsAvailable = () => typeof Notification !== "undefined";
 let notifyState = "";
 
@@ -689,7 +691,7 @@ $("#run-notify").addEventListener("click", async () => {
 function announceFinish(progress) {
   if (!document.hidden) return;
   const label = runView.headerLabel(progress.state === "completed" ? "finished_ok" : "finished_bad");
-  document.title = `${progress.state === "completed" ? "✓" : "✗"} ${label} · ${baseTitle}`;
+  document.title = `${progress.state === "completed" ? "✓" : "✗"} ${label} · ${baseTitle()}`;
   if (notificationsAvailable() && Notification.permission === "granted") {
     try {
       const notice = new Notification(label, { body: progress.topic || "", tag: progress.run_id });
@@ -701,7 +703,7 @@ function announceFinish(progress) {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) document.title = baseTitle;
+  if (!document.hidden) document.title = baseTitle();
 });
 
 async function openRun(runId, { known } = {}) {
@@ -1301,7 +1303,7 @@ function paintAttachment(paper) {
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "icon-btn";
-  remove.setAttribute("aria-label", "Remove paper");
+  remove.setAttribute("aria-label", t("remove_paper"));
   remove.textContent = "×";
   remove.addEventListener("click", () => {
     if (!submitting) clearAttachment();
@@ -1956,18 +1958,30 @@ async function paintLandingPreview() {
  * Titles are placed as text; a slug becomes a path only when it has the
  * shape the server's allowlist uses. Failure leaves the "all samples"
  * link, which stands on its own. */
+let landingSamples = null;   // the list as read, kept so a change of language redraws it without asking again
 async function paintLandingSamples() {
-  const list = $("#landing-sample-list");
-  list.innerHTML = "";
+  $("#landing-sample-list").innerHTML = "";
   let samples;
   try { samples = await api.listSamples(); } catch { return; }
   if (!Array.isArray(samples)) return;
-  for (const sample of samples.slice(0, 5)) {
+  landingSamples = samples;
+  drawLandingSamples();
+}
+
+/* The names and the facts beside them are in the reader's language, so they
+ * are drawn again when it changes. Until 2026-11-15 they were drawn once,
+ * and a visitor who switched language on the landing kept the list in the
+ * language the page had loaded in. */
+function drawLandingSamples() {
+  if (!landingSamples) return;
+  const list = $("#landing-sample-list");
+  list.innerHTML = "";
+  for (const sample of landingSamples.slice(0, 5)) {
     if (typeof sample?.slug !== "string" || !/^[a-z0-9-]+$/.test(sample.slug)) continue;
     const item = document.createElement("li");
     const link = document.createElement("a");
     link.href = `/samples/${sample.slug}`;
-    link.textContent = String(sample.title ?? sample.slug);
+    link.textContent = result.sampleTitle(sample);
     // What the sample reader's cards say too: the verdict, the readiness
     // level and the report's language, where the list carried them.
     const facts = result.sampleFacts(sample);
@@ -2741,6 +2755,8 @@ const langSelect = $("#ui-lang");
 langSelect.value = i18n.language();
 langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
+  document.title = baseTitle();
+  drawLandingSamples();
   paintTrialNote();
   localizeSourceLocatorLink();
   renderPlan();
@@ -2758,6 +2774,7 @@ langSelect.addEventListener("change", () => {
 /* ── Boot ──────────────────────────────────────────────────────────── */
 
 i18n.apply();
+document.title = baseTitle();
 localizeSourceLocatorLink();
 topic.placeholder = t("topic_placeholder");
 syncComposer();

@@ -40,15 +40,15 @@
      open the same sign-in card below, which then leads into the workbench. -->
 <section class="landing" id="landing" hidden>
   <header class="landing__head">
-    <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
+    <a class="brand" href="/" aria-label="Academic Commercialization Assessment" data-i18n-aria-label="brand_full">
       <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
       <span class="brand__name"><span class="brand__full" data-i18n="brand_full">Academic Commercialization Assessment</span><span class="brand__short" data-i18n="brand">ACA</span></span>
     </a>
-    <nav class="landing__nav" aria-label="Site">
+    <nav class="landing__nav" aria-label="Site" data-i18n-aria-label="aria_site">
       <a href="/samples" data-i18n="landing_nav_samples">Sample reports</a>
       <!-- Mirrors #ui-lang in the sidebar, which is hidden with the workbench
            while this page is up; changing one changes the other (app.js). -->
-      <select class="bare-select" id="landing-lang" aria-label="Interface language">
+      <select class="bare-select" id="landing-lang" aria-label="Interface language" data-i18n-aria-label="aria_ui_language">
         <option value="English">EN</option>
         <option value="Simplified Chinese">中文</option>
       </select>
@@ -160,12 +160,13 @@
        furniture rather than a tab you navigate away to. -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar__head">
-      <a class="brand" href="/" aria-label="Academic Commercialization Assessment">
+      <a class="brand" href="/" aria-label="Academic Commercialization Assessment" data-i18n-aria-label="brand_full">
         <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
         <span class="brand__name" data-i18n="brand">ACA</span>
       </a>
       <button type="button" class="icon-btn sidebar__collapse" id="collapse-btn"
-              aria-label="Collapse sidebar" title="Toggle sidebar">
+              aria-label="Collapse sidebar" title="Toggle sidebar"
+              data-i18n-aria-label="aria_collapse_sidebar" data-i18n-title="title_toggle_sidebar">
         <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M6.5 3.5v9M3 2.5h10a.5.5 0 01.5.5v10a.5.5 0 01-.5.5H3a.5.5 0 01-.5-.5V3a.5.5 0 01.5-.5z"
                 stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
@@ -185,9 +186,9 @@
          in the page: what is typed here is never sent to the server. -->
     <input class="runsearch" id="run-search" type="search" autocomplete="off" spellcheck="false"
            maxlength="120" data-i18n-placeholder="runs_search" placeholder="Search runs"
-           aria-label="Search runs" hidden>
+           aria-label="Search runs" data-i18n-aria-label="runs_search" hidden>
 
-    <nav class="runlist" id="runlist" aria-label="Previous runs">
+    <nav class="runlist" id="runlist" aria-label="Previous runs" data-i18n-aria-label="aria_previous_runs">
       <div class="runlist__empty" id="runlist-empty">
         <span data-i18n="no_runs">No runs yet</span>
       </div>
@@ -224,11 +225,11 @@
 
     <div class="sidebar__foot">
       <!-- SOURCE_LOCATOR_LINK -->
-      <div class="capacity" id="capacity" title="Concurrent run slots">
+      <div class="capacity" id="capacity" title="Concurrent run slots" data-i18n-title="title_capacity">
         <span class="capacity__dots" id="capacity-dots"></span>
         <span class="capacity__label" id="capacity-label">—</span>
       </div>
-      <select class="bare-select" id="ui-lang" aria-label="Interface language">
+      <select class="bare-select" id="ui-lang" aria-label="Interface language" data-i18n-aria-label="aria_ui_language">
         <option value="English">EN</option>
         <option value="Simplified Chinese">中文</option>
       </select>
@@ -309,7 +310,7 @@
                 placeholder="perovskite solar cells for utility-scale power generation"></textarea>
 
               <div class="composer__bar">
-                <button type="button" class="chip-btn" id="attach-btn" title="Attach a paper (PDF)">
+                <button type="button" class="chip-btn" id="attach-btn" title="Attach a paper (PDF)" data-i18n-title="title_attach">
                   <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path d="M10.5 5.5l-4 4a1.5 1.5 0 002.1 2.1l4.2-4.2a3 3 0 00-4.2-4.2L4 7.8a4.5 4.5 0 006.4 6.4l3.3-3.3"
                           stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
@@ -319,7 +320,7 @@
 
                 <!-- Empty value means auto-detect; the API treats null as
                      "decide from the topic", which is the default. -->
-                <select class="chip-select" id="language" aria-label="Report language">
+                <select class="chip-select" id="language" aria-label="Report language" data-i18n-aria-label="aria_report_language">
                   <option value="" data-i18n="auto_lang">Auto language</option>
                   <option value="English">English</option>
                   <option value="Chinese">简体中文</option>
@@ -334,13 +335,13 @@
                   <option value="Hindi">हिन्दी</option>
                 </select>
 
-                <select class="chip-select" id="profile" aria-label="Scoring profile">
+                <select class="chip-select" id="profile" aria-label="Scoring profile" data-i18n-aria-label="aria_profile">
                   <option value="" data-i18n="auto_profile">Auto profile</option>
-                  <option value="industrial">Industrial</option>
-                  <option value="material_science">Materials</option>
-                  <option value="biomedical">Biomedical</option>
-                  <option value="clean_tech">Clean tech</option>
-                  <option value="software_ai">Software / AI</option>
+                  <option value="industrial" data-i18n="profile_industrial">Industrial</option>
+                  <option value="material_science" data-i18n="profile_material_science">Materials</option>
+                  <option value="biomedical" data-i18n="profile_biomedical">Biomedical</option>
+                  <option value="clean_tech" data-i18n="profile_clean_tech">Clean tech</option>
+                  <option value="software_ai" data-i18n="profile_software_ai">Software / AI</option>
                 </select>
 
                 <span class="composer__spacer"></span>
@@ -348,7 +349,7 @@
                 <span class="composer__count tabular" id="topic-count"></span>
 
                 <button type="submit" class="send-btn" id="run-btn" disabled
-                        aria-label="Run analysis" title="Run analysis  (Enter)">
+                        aria-label="Run analysis" title="Run analysis  (Enter)" data-i18n-aria-label="aria_run">
                   <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path d="M2.8 8h10.4M8.8 3.6L13.2 8l-4.4 4.4"
                           stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -671,7 +672,7 @@
            do stay on the server. Keeping them apart is the point: one line
            covering both was read as a promise it did not make. -->
       <p class="gate__sub gate__sub--retention" id="byok-retention"></p>
-      <select class="gate__input" id="byok-provider" aria-label="LLM provider">
+      <select class="gate__input" id="byok-provider" aria-label="LLM provider" data-i18n-aria-label="aria_llm_provider">
         <option value="deepseek">DeepSeek</option>
         <option value="qwen">Qwen (Alibaba Model Studio)</option>
         <option value="openai">OpenAI</option>
@@ -697,7 +698,7 @@
       </div>
       <!-- Tavily first: Serper refuses requests from some hosting providers,
            including this deployment's, so a Serper-only run may find nothing. -->
-      <select class="gate__input" id="byok-search" aria-label="Web search service">
+      <select class="gate__input" id="byok-search" aria-label="Web search service" data-i18n-aria-label="aria_search_service">
         <option value="tavily">Tavily</option>
         <option value="serper">Serper</option>
       </select>

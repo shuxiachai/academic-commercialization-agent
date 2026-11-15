@@ -1,7 +1,7 @@
 /* Result view: scorecard, report, sources, and failed-retrieval diagnostics. */
 
 import * as api from "./api.js";
-import { t } from "./i18n.js";
+import { language, t } from "./i18n.js";
 
 /* ── Scoring dimensions ────────────────────────────────────────────────
  * Maxima differ per dimension (TRL is out of 9, MRL out of 10, the rest out
@@ -106,7 +106,8 @@ function citeButton(ids) {
  *
  * The heading stays outside the fold, so a contents list still names the
  * section and its link still has somewhere to land. */
-const NOTES_HEADING = /^##\s+Reviewer Notes\s*$/;
+// In a Chinese report the server shows the heading in Chinese (report_display.py).
+const NOTES_HEADING = /^##\s+(?:Reviewer Notes|自动校对记录)\s*$/;
 const NOTE_ENTRY = /^(?:[-*]|\d+[.)])\s+(.*)$/;      // unindented: a nested line is part of its entry
 const NOTE_KIND = /^(?:(applied)\s*:|(not applied)\b)/i;
 const NOTES_NONE = "No corrections required.";        // written by code (evidence.py) when the plan is empty
@@ -1138,6 +1139,29 @@ function whatWouldChange(scores, progress) {
   return out.slice(0, BRIEF_CHANGERS_LIMIT);
 }
 
+/** The scorecard's readiness label as the reader's interface says it.
+ *
+ * The label is written by code in English, one of nine fixed sentences
+ * ("TRL 7 (system prototype in operational environment)", evidence.py), and
+ * the brief showed it as saved, so a Chinese brief had one English clause in
+ * its first line. In another interface language a label of that shape is
+ * shown as that language's sentence for the same level. The English
+ * interface shows what was saved, as before, and so does any label that is
+ * not of that shape. The scorecard is not touched. */
+const TRL_LABEL = /^TRL ([1-9]) \(.+\)$/;
+export function trlText(label) {
+  const level = language() === "English" ? null : TRL_LABEL.exec(label)?.[1];
+  return level ? t(`trl_level_${level}`) : label;
+}
+
+/** A sample's name on a card: its Chinese name in the Chinese interface,
+ * where the catalogue gives one (api/samples.py). The report itself is in
+ * whatever language it was written in, and the card says which. */
+export function sampleTitle(sample) {
+  const named = language() === "Simplified Chinese" && typeof sample?.title_zh === "string" && sample.title_zh.trim();
+  return named ? sample.title_zh.trim() : String(sample?.title ?? sample?.slug ?? "");
+}
+
 export function decisionBrief({ scores, markdown = "", sources = null, progress = null, references = null }) {
   if (!detailRecord(scores) || !scoreNumber(scores.overall_score, 100)) return null;
   const overall = scores.overall_score;
@@ -1147,7 +1171,7 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
     .map(dim => ({ ...dim, share: dim.value / dim.max }));
   const strongest = dims.length ? dims.reduce((a, b) => (b.share > a.share ? b : a)) : null;
   const weakest = dims.length ? dims.reduce((a, b) => (b.share < a.share ? b : a)) : null;
-  const trl = typeof scores.trl_label === "string" && scores.trl_label.trim() ? scores.trl_label.trim()
+  const trl = typeof scores.trl_label === "string" && scores.trl_label.trim() ? trlText(scores.trl_label.trim())
     : scoreNumber(scores.trl_score, 9) && scores.trl_score >= 1 ? `TRL ${scores.trl_score}` : null;
   const text = typeof markdown === "string" ? markdown : "";
   const lead = executiveSummaryLead(text);
