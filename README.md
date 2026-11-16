@@ -409,6 +409,7 @@ Created by [shuxiachai](https://github.com/shuxiachai).
 Contributors: [Song Guoyu (@7776403yu)](https://github.com/7776403yu),
 [@xiaobaozhou165-sudo](https://github.com/xiaobaozhou165-sudo),
 [Abhishek Vyas (@Baddevil512)](https://github.com/Baddevil512).
+API credits for development and testing were provided by [Infistar](https://infistar.cc).
 Explore [more projects on the author's GitHub profile](https://github.com/shuxiachai).
 
 ## License
