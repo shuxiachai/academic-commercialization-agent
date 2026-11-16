@@ -118,10 +118,17 @@ numbers are the point; if you want to revisit one, beat the number.
   evidence registry with a model-written summary when the model is missing
   from its context-window catalogue
   ([result](docs/results-2026-11-05-crewai-1.15.29-comparison.md)). This pin
-  holds four Dependabot alerts unfixed (mcp #71-#73, opentelemetry-api #67).
-  They were dismissed as not used on 2026-11-05: the deployment opens no MCP
-  session, runs no MCP server and never reads trace context from a request.
-  Look at them again when CrewAI is upgraded.
+  holds five Dependabot alerts unfixed (mcp #71-#73, opentelemetry-api #67
+  and #82). The first four were dismissed as not used on 2026-11-05: the
+  deployment opens no MCP session, runs no MCP server and never reads trace
+  context from a request. #82 (2026-11-16) is the same package and the same
+  case: its fix is opentelemetry-api 1.45.2, CrewAI 1.14.7 requires 1.34.x,
+  and the function at fault, `TraceContextTextMapPropagator.extract()`, has
+  no caller here: no project code calls a propagator, no FastAPI/ASGI/WSGI
+  instrumentation is installed, and the MCP SDK does not use OpenTelemetry.
+  That was read from the code and the installed packages, not tested by an
+  attack. Look at all five again when CrewAI is upgraded, and sooner if
+  anything starts reading trace context from a request or a message.
 
 Two TRL rubric hypotheses were pre-registered and **both falsified** (see
 `docs/`). If you want to improve calibration, the next step is a different
