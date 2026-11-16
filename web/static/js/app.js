@@ -157,6 +157,20 @@ function paintKeysNeeded() {
   const need = keysNeeded();
   $("#keys-needed").hidden = !need;
   $("#quota").classList?.toggle("composer__quota--muted", need);
+  paintKeyFormDismiss();
+}
+
+/* The key form's way out, worded by what leaving means. It read "Add keys
+ * later" to an account whose keys were already saved. With keys, saved or
+ * in the tab, it closes; without, the keys are for later. Painted with the
+ * line above because both follow the same fact and every place that changes
+ * it already repaints that line. The key goes on the element too, so the
+ * language switch (i18n.apply) writes the same word. */
+function paintKeyFormDismiss() {
+  const button = $("#byok-skip");
+  const key = accountHasKeys() ? "byok_close" : "byok_skip";
+  button.dataset.i18n = key;
+  button.textContent = t(key);
 }
 
 async function performPaidRequest(request, deliver, operation = "run") {
@@ -2647,6 +2661,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     clearKeyProblem();
     $("#byok-to-gate").hidden = account || !authConfig?.access_codes && accountsOn;
     $("#byok-skip").hidden = !account;
+    paintKeyFormDismiss();
     syncBack();
     $("#byok-llm-key").focus();
     showByokRetention();
@@ -2987,6 +3002,10 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         // Sent and saved: the keys have no further business in this page.
         $("#byok-llm-key").value = "";
         $("#byok-search-key").value = "";
+        // The composer may be saying keys are needed. The form the composer's
+        // own button opens repaints that line when it closes; the one that
+        // opens after sign-in did not, and the line stayed until a reload.
+        paintTrialNote();
         if (finished) return;
         invalidateSidebar();
         if (unverified) toast(t("byok_unverified"));
@@ -3007,6 +3026,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         }
         // Keys saved for the account; the identity and its history are unchanged.
         byokMode = true;
+        paintTrialNote();     // in the tab: keys all the same, and the composer says so
         invalidateSidebar();
         if (unverified) toast(t("byok_unverified"));
         finish();

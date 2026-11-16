@@ -19,7 +19,7 @@ _SCRIPT = Path(__file__).with_name("js") / "sidebar_history_contract.mjs"
 
 
 @pytest.mark.parametrize("scenario", [
-    "first_page", "beyond_one_request", "search", "capped", "short_history", "shifting", "reset",
+    "first_page", "beyond_one_request", "search", "capped", "short_history", "shifting", "reset", "states",
 ])
 def test_the_rail_reads_and_searches_the_whole_history(scenario):
     node = shutil.which("node")

@@ -1291,6 +1291,10 @@
    thumb. A button centres its label, so the height alone is enough. */
 @media (pointer: coarse) {
   .gate__switch { min-height: 44px; margin-top: 0; }
+  /* The two buttons a thumb presses most, at the size the others here have:
+     the run button was 36 px and the menu button 30. For a pointer they stay. */
+  .send-btn { width: 44px; height: 44px; }
+  #mobile-menu { width: 44px; height: 44px; }
   /* The composer bar's selects are fields and take the touch size (base.css).
      The button beside them keeps pace, or one row reads in two sizes. */
   .composer__bar .chip-btn { font-size: var(--text-touch); }
@@ -1549,7 +1553,10 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
    row and the field may both shrink, and the button drops below the field
    where even that is not enough. */
 .gate__saved-model { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex: 1 1 100%; min-width: 0; }
-.gate__saved-model .gate__input { flex: 1 1 140px; width: auto; min-width: 0; margin: 0; }
+/* The field wants room for a model name (22 characters is ordinary). Where
+   the row cannot give it that beside the button, the button goes below and
+   the field takes the row; beside the button it had 185 px, and cut names. */
+.gate__saved-model .gate__input { flex: 1 1 260px; width: auto; min-width: 0; margin: 0; }
 .gate__saved-model .btn { flex: none; }
 /* Advice about a model name: under its field, in the colour of a caution, and absent when there is none. */
 .gate__kind { color: var(--warning); }

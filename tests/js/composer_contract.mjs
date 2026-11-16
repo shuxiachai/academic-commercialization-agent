@@ -821,6 +821,60 @@ const scenarios = {
         answered(1); await turn();
         assert.equal(f.get('#toasts').children.length, 0);
       }
+    } else if (kind === 'needed_gate') {
+      // The form that opens by itself after sign-in, not the one the
+      // composer's button opens: keys saved there left the composer saying
+      // keys were needed, with the day's allowance dimmed, until a reload.
+      const need = () => !f.get('#keys-needed').hidden;
+      const marks = {};
+      f.get('#quota').classList = { toggle: (name, on) => { marks[name] = on; } };
+      account();
+      assert.equal(need(), true);
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      fill();
+      const saving = send(); await turn();
+      f.respond(0, summary); await saving; await gate;
+      assert.equal(need(), false, 'Saved with the account: nothing is needed');
+      assert.equal(marks['composer__quota--muted'], false);
+      // Kept in the tab instead: keys all the same.
+      f.run('accountKeysSaved = false');
+      account();
+      assert.equal(need(), true);
+      const again = f.run('showGate(null, { keysOnly: true })');
+      fill(); box.checked = false;
+      await send(); await again;
+      assert.equal(api.getByok()?.llmKey, 'fixture-A');
+      assert.equal(need(), false, 'In the tab: nothing is needed');
+    } else if (kind === 'dismiss') {
+      // The form's way out says what leaving means. An account whose keys
+      // are saved was offered "Add keys later".
+      const skip = f.get('#byok-skip');
+      const says = () => [skip.textContent, skip.dataset.i18n];
+      account(true);
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      await turn(); f.respond(0, summary); await turn();
+      assert.deepEqual(says(), ['byok_close', 'byok_close'], 'Keys are saved: there is nothing to add later');
+      assert.equal(skip.hidden, false);
+      // Removed: from then on the keys are for later.
+      const removing = f.get('#byok-saved-remove').onclick();
+      await turn(); answered(1); await removing;
+      assert.deepEqual(says(), ['byok_skip', 'byok_skip'], 'The key the language switch reads changes with the word');
+      skip.onclick(); await gate;
+      // Keys in the tab are keys too; cleared, they are not.
+      api.setByok(keys);
+      account();
+      const again = f.run('showGate(null, { keysOnly: true })');
+      await turn();
+      assert.deepEqual(says(), ['byok_close', 'byok_close']);
+      f.get('#byok-tab-clear').onclick();
+      assert.deepEqual(says(), ['byok_skip', 'byok_skip']);
+      skip.onclick(); await again;
+      // An account with nothing, opening the form: as it always read.
+      account();
+      const empty = f.run('showGate(null, { keysOnly: true })');
+      await turn();
+      assert.deepEqual(says(), ['byok_skip', 'byok_skip']);
+      skip.onclick(); await empty;
     } else if (kind.startsWith('model_')) {
       // The saved keys' model, changed on its own: the keys are not typed
       // again, and the page has none to send.
