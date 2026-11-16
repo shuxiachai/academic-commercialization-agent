@@ -202,7 +202,10 @@ def test_a_note_under_each_model_field_can_say_what_kind_of_model_a_name_is(page
     assert re.search(r"\.gate__kind \{ color: var\(--warning\); \}", CSS)
     assert re.search(r"\.gate__kind\[hidden\] \{ display: none; \}", CSS)
     fields = (JS / "byok_fields.js").read_text(encoding="utf-8")
-    kinds = re.findall(r'^  \["(\w+)", /', fields, re.M)
+    # The rule itself is in a module of its own, which the run page reads too.
+    kinds = re.findall(r'^  \["(\w+)", /', (JS / "model_kind.js").read_text(encoding="utf-8"), re.M)
+    assert 'import { MODEL_KINDS, modelKind } from "./model_kind.js";' in fields
+    assert "MODEL_KINDS = [" not in fields, "One copy of the rule"
     assert kinds[:3] == ["ocr", "rerank", "embedding"] and len(kinds) == len(set(kinds)) == 8
     for kind in kinds:
         assert len(re.findall(rf'^    model_kind_{kind}: "', fields, re.M)) == 2, kind
@@ -285,7 +288,7 @@ def test_the_prose_says_what_the_new_controls_do(strings):
                  "a body that also carries a key or a\nprovider is refused whole", "advice and\nnever a refusal",
                  "`MODEL_KINDS`"):
         assert said in guide, said
-    kinds = re.findall(r'^  \["(\w+)", /', (JS / "byok_fields.js").read_text(encoding="utf-8"), re.M)
+    kinds = re.findall(r'^  \["(\w+)", /', (JS / "model_kind.js").read_text(encoding="utf-8"), re.M)
     named = guide[guide.index("not a\nmodel that can write an assessment"):][:200].lower()
     for kind, word in zip(kinds, ("ocr", "reranking", "embedding", "speech", "image", "video", "translation", "moderation"),
                           strict=True):

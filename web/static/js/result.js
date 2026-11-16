@@ -2378,6 +2378,16 @@ const _TONE_RANK = { risk: 3, warn: 2, muted: 1, ok: 0 };
  * the panel out entirely rather than showing an empty box that reads as
  * "checked, nothing found".
  */
+/* A run that stopped before it wrote a report. Its checks did not run, and
+ * the card said "1 of 5 checks found no problem; 4 could not give a result",
+ * with "this check reads English and Chinese conclusions only" as the reason
+ * a check of the report was missing. Neither was true of a run with no
+ * report: nothing was checked because there was nothing to check. */
+export function ranWithoutReport(progress) {
+  return ["failed", "cancelled", "timeout"].includes(progress?.state)
+    && !(progress.artifacts ?? []).includes("report");
+}
+
 export function reliabilityRows(progress) {
   const rows = [];
 
@@ -2386,9 +2396,9 @@ export function reliabilityRows(progress) {
     // Distinct from "consistent". The check reads English and Chinese
     // conclusions, so a Japanese or German report simply is not covered — and
     // reporting that as a pass would be the exact overclaim this panel exists
-    // to prevent.
-    rows.push({ id: "consistency", tone: "muted",
-                label: t("rel_consistency"), detail: t("rel_consistency_unchecked") });
+    // to prevent. A run with no report was not checked for a plainer reason.
+    rows.push({ id: "consistency", tone: "muted", label: t("rel_consistency"),
+                detail: t(ranWithoutReport(progress) ? "rel_consistency_no_report" : "rel_consistency_unchecked") });
   } else if (consistency.blockers > 0) {
     rows.push({ id: "consistency", tone: "risk", label: t("rel_consistency"),
                 detail: t("rel_consistency_conflict").replace("{count}", consistency.blockers) });
@@ -2625,6 +2635,9 @@ export function groundingNumbers(progress) {
 }
 
 export function renderReliability(progress) {
+  // No count of checks for a run with no report: one sentence that says so.
+  // Not "no problem found": nothing ran, and that is what is said.
+  if (ranWithoutReport(progress)) return el("p", "empty-note reliability-none", t("rel_no_report"));
   const rows = reliabilityRows(progress);
   if (!rows.length) return null;
 

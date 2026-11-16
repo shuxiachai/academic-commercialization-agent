@@ -1233,7 +1233,7 @@ now is.
 Under each model field the form says when a name is, by its own words, not a
 model that can write an assessment: an OCR, embedding, reranking, speech,
 image, video, translation or moderation model. It is read from the name
-alone (`web/static/js/byok_fields.js`, `MODEL_KINDS`), so it is advice and
+alone (`web/static/js/model_kind.js`, `MODEL_KINDS`), so it is advice and
 never a refusal: the name can still be saved, and the API accepts any plain
 model name as before. It was added after an account saved
 `qwen-vl-ocr-2025-11-20` and its run failed two minutes in with a sentence
@@ -1259,6 +1259,43 @@ a fixed list; provider text, keys and prompts never reach it, and the raw
 reason stays in the run's `error.log`. The page shows the API's English
 sentence as sent and words the same code in Simplified Chinese;
 `tests/test_failure_reasons.py` keeps the two lists complete.
+
+What the page offers next also depends on the cause. One table,
+`FAILURE_NEXT` in `web/static/js/run.js`, names the main action for each
+`error_code`, for a reader whose own keys paid and for anyone else: open the
+key form (a refused key, an unpaid balance, a used-up free quota, a model the
+key cannot use, a model that ran out of room), resume from the checkpoint
+(an unreachable or rate-limited provider, an empty answer, a timeout with a
+checkpoint, a cancellation), or start the topic again (a timeout with nothing
+saved, too little evidence). On the deployment's keys none of the provider
+causes has a main action, because the model and the key are the operator's.
+The other actions stay in the row; only which one is prominent changes.
+`tests/test_failure_next_steps.py` holds a row for every code the API names.
+
+Two causes, `quality_checks` and `provider_response_format`, are what a model
+that cannot do the work produces. For those the page also reads the run's own
+record: if the model's name says it is another kind of model (the key form's
+rule, `web/static/js/model_kind.js`), or every evidence analyst's answers
+averaged under 500 tokens (no saved run's did: the least was 643 over the
+269 on record on 2026-11-16), changing the model becomes the main action and
+a line says why. Before this, a run that failed on an OCR model offered
+"Resume from checkpoint" first: the same step on the same model, for another
+of the day's runs. The cause's code and how a failure is classified are
+unchanged, and so are resuming and charging on the server.
+
+Beside "Resume from checkpoint" the page says what resuming means: that it
+uses another of the day's runs where there is a daily allowance, which step
+it starts again at, and which model it would run on now, which for an account
+is the model saved with it at that moment and not the one the run used.
+
+A run that stopped before it wrote a report shows no count of automated
+checks, only "This run produced no report, so there are no check results",
+and is not offered for comparison. The worker's own word for an ordinary
+ending ("worker failed", "hard timeout") is under "Technical details", as
+"worker completed" already was; a record that is missing, unreadable or at
+odds with the state stays in the header line. While a run is going the page
+says it can be closed, and offers the finish email to an account that has
+not turned it on.
 
 ### Email verification
 

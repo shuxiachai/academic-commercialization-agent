@@ -1194,19 +1194,28 @@ def _exercise_browser(
                 else:
                     expect(page.locator("#run-runtime-record")).to_have_text("")
 
-            # The reason stays on the page beside whether the run counted, and
-            # Resume is the primary action. The malformed-checkpoint fixture
-            # has no charge marker: it gets the reason alone, not a guessed
-            # quota line.
+            # The reason stays on the page beside whether the run counted.
+            # What resuming means is said in its own line beside the button.
+            # The deployment's model refused the request: resuming would send
+            # it to the same model, so Resume is offered and is not the main
+            # action. The malformed-checkpoint fixture has no charge marker
+            # and nothing to resume from: it gets the reason alone, not a
+            # guessed quota line, and no note about resuming.
             outcome = page.locator("#run-outcome")
+            resume_note = page.locator("#run-resume-note")
             expect(outcome).to_have_text(
                 "The model this deployment is set to rejected the request. Nothing in your request "
                 "caused this; the operator can find it by the run ID. This run counted toward "
-                "today's quota. Resuming from the checkpoint uses another.")
+                "today's quota.")
+            expect(resume_note).to_be_visible()
+            expect(resume_note).to_contain_text("and reuses what was saved before it.")
             expect(page.locator("#run-actions").get_by_role(
-                "button", name="Resume from checkpoint", exact=True)).to_have_class("btn btn--primary")
+                "button", name="Resume from checkpoint", exact=True)).to_have_class("btn btn--secondary")
+            expect(page.locator("#run-actions .btn--primary")).to_have_count(0)
+            expect(page.locator("#run-fix")).to_have_count(0)
             page.goto(f"{base_url}/run/{bad_resume_id}", wait_until="domcontentloaded")
             expect(outcome).to_have_text("The analysis failed. Retry or contact the operator with the run ID.")
+            expect(resume_note).to_be_hidden()
 
             # A BYOK history GET failing transiently is not a failed worker.
             # Keep its capability entry visible, unknown and non-destructive,

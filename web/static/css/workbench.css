@@ -1277,6 +1277,13 @@
 @media (pointer: coarse) {
   .model-chip { height: auto; min-height: 44px; }
 }
+/* Under a run that did not finish. The advice is a caution; the note beside
+   "Resume" and the note while a run is going are plain information. Named
+   with the pane, as the line they sit under is (#pane-run .run-outcome),
+   or that rule's colour wins. */
+#pane-run .run-advice { color: var(--warning); }
+#pane-run .run-resume-note, #pane-run .run-leave { color: var(--text-tertiary); }
+.run-leave .gate__switch { margin: 0 0 0 var(--space-2); }
 .gate__switch {
   align-self: center;
   margin-top: var(--space-1);
@@ -1676,6 +1683,10 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   #pane-run .pane__actions .btn { justify-content: center; min-width: 0; padding-inline: var(--space-2); }
   #pane-run .pane__actions .btn svg { display: none; }
   #pane-run .pane__actions [data-resume-run] { grid-column: 1 / -1; }
+  /* So does whichever action is the main one for a run that did not finish:
+     in a third of the row "Change the model" lost its first and last letters. */
+  #pane-run .pane__actions #run-fix,
+  #pane-run .pane__actions #run-again.btn--primary { grid-column: 1 / -1; }
   #pane-compare .pane__head { flex-direction: column; align-items: stretch; }
   #pane-compare .pane__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: none; }
   .pane__body--centered { padding-top: var(--space-8); }
