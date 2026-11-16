@@ -1595,6 +1595,30 @@ bearing run IDs. Tracing adds no model or search requests. Configure the correct
 tenant/Space endpoint using [observability.md](observability.md), not an
 account-root endpoint copied from an unrelated example.
 
+### CrewAI's own usage reporting
+
+This is separate from the tracing above, and it is off. CrewAI 1.14.7 reports
+anonymous usage to telemetry.crewai.com from any process that imports it,
+unless told not to. Nothing told it until 2026-11-16, so the worker of each
+assessment sent the framework and Python versions, the number of agents and
+tasks, and each agent's role name, model name and tool names. It did not send
+the topic, a prompt, a report, a key or an email address: CrewAI sends those
+only with `share_crew`, which this project never sets.
+
+The pipeline now sets `CREWAI_DISABLE_TELEMETRY=true` when the variable is not
+already set, at the moment CrewAI is about to be imported
+(`src/academic_agent/__init__.py` watches for that import). So every process
+that runs the pipeline starts with it off, and a process that never loads
+CrewAI is left exactly as it was. An operator who wants
+CrewAI to receive these reports sets `CREWAI_DISABLE_TELEMETRY=false` in the
+service's environment; a value that is already set is kept. The API server
+reads `.env` before it loads the pipeline, so the file works there too; a
+worker started on its own takes the variable from its environment.
+
+Do not use `OTEL_SDK_DISABLED` for this. It turns CrewAI's reporting off as
+well, and with it the tracing above, which is this project's own and goes to
+the collector the operator chose.
+
 ## Paid-request receipts
 
 The shipped browser sends a new `Idempotency-Key` on each explicit analysis,
