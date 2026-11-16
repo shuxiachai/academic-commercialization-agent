@@ -438,6 +438,12 @@ export const saveKeys = (creds) => request("/api/auth/keys", {
   signal: AbortSignal.timeout(20000),
 });
 export const removeSavedKeys = () => request("/api/auth/keys", { method: "DELETE" });
+// Another model for the saved keys. The model alone: the keys are not sent, and the page has none to send.
+export const changeSavedModel = (model) => request("/api/auth/keys", {
+  ...json({ llm_model: model }),
+  method: "PATCH",
+  signal: AbortSignal.timeout(20000),
+});
 // What the providers say about the saved set now: the page cannot send keys it never has again.
 export const checkSavedKeys = () => request("/api/auth/keys/check", {
   method: "POST",

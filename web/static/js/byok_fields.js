@@ -52,6 +52,36 @@ export const MODEL_MEASURED = {
   ],
 };
 
+/* Names that say what kind of model they are, when that kind cannot write
+ * an assessment. The form took any plain name; an account on the live site
+ * had saved "qwen-vl-ocr-2025-11-20", and its run failed two minutes and
+ * some 44,000 tokens in with a sentence about evidence quality and "please
+ * retry". Nothing had said the name was an OCR model's.
+ *
+ * Read from the name alone, so it is advice and never a refusal: the note
+ * says "looks like", and the name can still be saved. Each rule matches a
+ * whole word of the name where a fragment would also sit inside ordinary
+ * names ("mt", "image", "guard"). No model this page offers or has measured
+ * matches any rule; tests/js/byok_fields_contract.mjs holds that. */
+export const MODEL_KINDS = [
+  ["ocr", /(^|[^a-z])ocr|ocr($|[^a-z])/],
+  // A reranker is often named after the embedding family it belongs to (bge-reranker): asked first.
+  ["rerank", /rerank/],
+  ["embedding", /embed|(^|[^a-z])bge($|[^a-z])/],
+  ["speech", /(^|[^a-z])(tts|asr|stt)($|[^a-z])|whisper|speech|audio|realtime|paraformer|sensevoice|cosyvoice/],
+  ["image", /(^|[^a-z])image($|[^a-z])|dall-e|wanx|flux|stable-diffusion|imagen|t2i/],
+  ["video", /(^|[^a-z])(video|sora|veo|t2v|i2v)($|[^a-z])|(^|[^a-z])wan[0-9]/],
+  ["translation", /(^|[^a-z])mt($|[^a-z])/],
+  ["moderation", /moderation|(^|[^a-z])guard($|[^a-z])/],
+];
+
+/** The kind a model's name says it is, when that kind cannot write an assessment; otherwise null. */
+export function modelKind(name) {
+  const plain = String(name ?? "").trim().toLowerCase();
+  if (!plain) return null;
+  return MODEL_KINDS.find(([, pattern]) => pattern.test(plain))?.[0] ?? null;
+}
+
 // How the note names a provider. The select's own labels are longer.
 const PROVIDER_NAMES = { deepseek: "DeepSeek", qwen: "Model Studio", openai: "OpenAI", anthropic: "Anthropic" };
 
@@ -68,6 +98,16 @@ const STRINGS = {
     model_unmeasured: "No quality check by this project has gone through {provider} yet. The models below are places to start; any other model name can be entered too.",
     model_chip_measured: "Use {model}: {in} of {runs} test runs in range, {date}",
     model_chip_plain: "Use {model}",
+    // Under a model field whose name says it is another kind of model.
+    model_kind_note: "“{model}” looks like {kind}. An assessment needs a general chat model that can write long text; this one will most likely fail after using tokens. It can still be saved.",
+    model_kind_ocr: "an OCR (text recognition) model",
+    model_kind_embedding: "an embedding model",
+    model_kind_rerank: "a reranking model",
+    model_kind_speech: "a speech or audio model",
+    model_kind_image: "an image model",
+    model_kind_video: "a video model",
+    model_kind_translation: "a translation model",
+    model_kind_moderation: "a moderation model",
     search_key_tavily: "Tavily API key",
     search_key_serper: "Serper API key",
   },
@@ -82,6 +122,15 @@ const STRINGS = {
     model_unmeasured: "本项目还没有经 {provider} 做过质量抽检。下面是可以先试的型号，也可以填写其他型号。",
     model_chip_measured: "填入 {model}：{runs} 次测试运行中 {in} 次落在区间内，{date}",
     model_chip_plain: "填入 {model}",
+    model_kind_note: "“{model}”看起来是{kind}。评估需要能写长文本的通用对话模型，这个模型很可能在消耗 token 之后失败。仍然可以保存。",
+    model_kind_ocr: "文字识别（OCR）模型",
+    model_kind_embedding: "向量（embedding）模型",
+    model_kind_rerank: "重排序模型",
+    model_kind_speech: "语音模型",
+    model_kind_image: "图像模型",
+    model_kind_video: "视频模型",
+    model_kind_translation: "翻译专用模型",
+    model_kind_moderation: "内容审核模型",
     search_key_tavily: "Tavily API Key",
     search_key_serper: "Serper API Key",
   },
@@ -153,6 +202,32 @@ function paintModelGuide(provider) {
   markChosen();
 }
 
+/** Say under a model field what kind of model its name says it is, or nothing. */
+function paintKind(field, note) {
+  if (!field || !note) return;
+  const name = field.value.trim();
+  const kind = modelKind(name);
+  note.hidden = !kind;
+  note.textContent = kind ? fill(t("model_kind_note"), { model: name, kind: t(`model_kind_${kind}`) }) : "";
+}
+
+const paintKinds = () => {
+  paintKind($("#byok-model"), $("#byok-model-kind"));
+  paintKind($("#byok-saved-model"), $("#byok-saved-model-kind"));
+};
+
+/** The typed suggestions for the saved keys' model: the saved provider's, which app.js notes on the field. */
+function paintSavedModelOptions() {
+  const options = $("#byok-saved-model-options");
+  const provider = $("#byok-saved-model")?.dataset?.provider;
+  if (!options) return;
+  options.replaceChildren(...modelsFor(provider).map((row) => {
+    const option = document.createElement("option");
+    option.value = row.model;
+    return option;
+  }));
+}
+
 export function applyByokFields(root = document) {
   for (const node of root.querySelectorAll("[data-byok-i18n]")) {
     node.textContent = t(node.dataset.byokI18n);
@@ -169,6 +244,7 @@ export function applyByokFields(root = document) {
     }));
   }
   paintModelGuide(provider);
+  paintKinds();
   const search = $("#byok-search")?.value;
   const key = $("#byok-search-key");
   if (key) key.placeholder = t(search === "serper" ? "search_key_serper" : "search_key_tavily");
@@ -182,6 +258,10 @@ for (const id of ["#byok-provider", "#byok-search", "#ui-lang"]) {
 // event; repaint after the reset has restored the default selections.
 $("#byok-form")?.addEventListener("reset", () => setTimeout(applyByokFields));
 $("#byok-model")?.addEventListener("input", markChosen);
+$("#byok-model")?.addEventListener("input", paintKinds);
+// The model of the saved keys: app.js fills the field with what is saved and
+// announces it as typing, so the same listener speaks about a saved name.
+$("#byok-saved-model")?.addEventListener("input", () => { paintKinds(); paintSavedModelOptions(); });
 // A model this page offers for another provider is wrong for the one just
 // selected: the buttons make it one press to enter, so a change of provider
 // takes it back out rather than let it ride into a key check or a paid run.

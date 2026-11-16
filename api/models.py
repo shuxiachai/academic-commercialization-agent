@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from academic_agent.byok_model import BYOK_MODEL_PATTERN
 from academic_agent.run_spec import AssessmentMode, DecisionContext, SearchPlan
@@ -1219,6 +1219,28 @@ class KeyCheckRequest(BaseModel):
     @property
     def search_api_key(self) -> str:
         return self.tavily_api_key or self.serper_api_key or ""
+
+
+class SavedModelChange(BaseModel):
+    """Body for PATCH /api/auth/keys: another model for the keys already saved.
+
+    The model and nothing else. A body that also carries a key or a
+    provider is refused whole: a key set is replaced whole, with PUT, so
+    that nobody can believe a key was changed by a request that kept the
+    old one.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    llm_model: str = Field(description="The model the saved keys will be used with.")
+
+    @field_validator("llm_model", mode="before")
+    @classmethod
+    def _a_plain_model_name(cls, value):
+        if not isinstance(value, str) or not BYOK_MODEL_PATTERN.fullmatch(value):
+            raise ValueError("llm_model must be a plain model identifier "
+                             "(letters, digits and . _ - : only, at most 100 characters).")
+        return value
 
 
 class KeyCheckResult(BaseModel):

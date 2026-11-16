@@ -2483,6 +2483,17 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     try { keys = await api.savedKeys(); } catch { return; }
     if (view !== savedView || byokForm.hidden) return;
     if (keys?.saved !== true) { accountKeysSaved = false; paintTrialNote(); return; }
+    showSaved(keys);
+  };
+
+  /* What is saved, as the server last said it: the summary, and the model
+   * again in a field of its own, where it can be changed without the keys. */
+  let changingModel = false;
+  const syncModelSave = () => {
+    const typed = String($("#byok-saved-model").value ?? "").trim();
+    $("#byok-saved-model-save").disabled = changingModel || !listed || !typed || typed === listed.llm_model;
+  };
+  const showSaved = (keys) => {
     listed = keys;
     const when = new Date(keys.saved_at ?? "");
     $("#byok-saved-text").textContent = summary("byok_saved_summary", {
@@ -2490,13 +2501,20 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
       search: searchName(keys.search), searchKey: keys.search_key_hint,
       date: Number.isNaN(when.getTime()) ? "" : when.toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" }),
     });
-    block.hidden = false;
+    const field = $("#byok-saved-model");
+    field.value = keys.llm_model ?? "";
+    field.dataset.provider = keys.llm_provider ?? "";
+    // byok_fields.js listens for typing there and says when a name is not a
+    // model that can write an assessment; a saved name is told to it the same way.
+    if (typeof Event === "function") field.dispatchEvent?.(new Event("input", { bubbles: true }));
+    syncModelSave();
+    $("#byok-saved").hidden = false;
   };
 
   /* "Check these keys": what the providers say about the saved set now, and
    * when they were asked. The page has only the ends of the keys, so the
    * server asks; nothing is stored, and a refusal changes nothing by itself. */
-  $("#byok-saved-check-now").onclick = async () => {
+  const checkSaved = async () => {
     const button = $("#byok-saved-check-now");
     const line = $("#byok-saved-check");
     const keys = listed;
@@ -2532,6 +2550,63 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     button.disabled = false;
     line.textContent = said;
   };
+  $("#byok-saved-check-now").onclick = checkSaved;
+
+  /* Another model for the saved keys, without typing them again. A model is
+   * wrong far more often than a key is, and the form could only replace the
+   * whole set. The server changes the model inside the sealed record
+   * (PATCH /api/auth/keys); where this deployment checks keys, the provider
+   * is then asked about the set as it now is, as saving a typed set asks. */
+  const saveModel = async () => {
+    const line = $("#byok-saved-check");
+    const model = String($("#byok-saved-model").value ?? "").trim();
+    if (changingModel || !listed || !model || model === listed.llm_model) return;
+    changingModel = true;
+    syncModelSave();
+    line.hidden = true;       // what a check said was about the model before this one
+    let said = null;
+    try {
+      const keys = await api.changeSavedModel(model);
+      if (keys?.saved !== true) throw new Error("The reply does not say what is saved.");
+      showSaved(keys);
+      toast(t("byok_saved_model_changed").replace("{model}", () => keys.llm_model));
+    } catch (err) {
+      if (err.code === "no_saved_keys") {
+        // Removed on another device since the form opened.
+        changingModel = false;
+        accountKeysSaved = false;
+        listed = null;
+        $("#byok-saved").hidden = true;
+        paintTrialNote();
+        return;
+      }
+      if (err.code === "keys_changed") {
+        // Replaced on another device, twice, while this was changing: show what is there.
+        changingModel = false;
+        await paintSavedKeys(forAccount());
+        said = t("byok_saved_model_conflict");
+      } else {
+        said = err.code === "network_unreachable" ? errorText(err)
+          : err.status === 422 ? t("byok_saved_model_invalid") : t("byok_saved_model_failed");
+      }
+    }
+    changingModel = false;
+    syncModelSave();
+    if (said !== null) {
+      line.textContent = said;
+      line.hidden = false;
+      return;
+    }
+    if (authConfig?.key_check === true) await checkSaved();
+  };
+  $("#byok-saved-model").oninput = syncModelSave;
+  // The field is inside the key form: Enter there would submit the form for new keys.
+  $("#byok-saved-model").onkeydown = (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    saveModel();
+  };
+  $("#byok-saved-model-save").onclick = saveModel;
   $("#byok-saved-remove").onclick = async () => {
     const button = $("#byok-saved-remove");
     button.disabled = true;

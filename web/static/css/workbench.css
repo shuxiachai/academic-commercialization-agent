@@ -1543,6 +1543,18 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
 .gate__saved[hidden], .gate__saved-check[hidden] { display: none; }
 /* What a check found: one line per finding. */
 .gate__saved .gate__saved-check { flex-basis: 100%; white-space: pre-line; color: var(--text-primary); }
+/* The saved keys' model and the button that saves a change to it: one row,
+   the field taking what is left. A text field's own minimum is some twenty
+   characters wide, which on a phone pushed the button out of the box: the
+   row and the field may both shrink, and the button drops below the field
+   where even that is not enough. */
+.gate__saved-model { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex: 1 1 100%; min-width: 0; }
+.gate__saved-model .gate__input { flex: 1 1 140px; width: auto; min-width: 0; margin: 0; }
+.gate__saved-model .btn { flex: none; }
+/* Advice about a model name: under its field, in the colour of a caution, and absent when there is none. */
+.gate__kind { color: var(--warning); }
+.gate__kind[hidden] { display: none; }
+.gate__saved .gate__kind { flex-basis: 100%; }
 .gate__saved-actions { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); flex-basis: 100%; }
 .gate__saved-actions .gate__switch { align-self: baseline; margin-top: 0; }
 #byok-links a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }

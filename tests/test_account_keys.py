@@ -253,11 +253,138 @@ class EndpointTests(_Keys):
 
     def test_the_endpoints_are_declared(self):
         paths = app.openapi()["paths"]["/api/auth/keys"]
-        self.assertEqual(set(paths), {"get", "put", "delete"})
+        self.assertEqual(set(paths), {"get", "put", "patch", "delete"})
         schemas = app.openapi()["components"]["schemas"]
         for model in ("AuthMe", "AuthSession"):
             self.assertIn("keys_saved", schemas[model]["properties"], model)
         self.assertNotIn("llm_api_key", schemas["SavedKeys"]["properties"])
+
+
+class ChangeModelTests(_Keys):
+    """The saved set is two keys and the model they are used with. A model
+    turns out wrong far more often than a key does (the live account that
+    prompted this had saved an OCR model), and the only way to change it was
+    to type both keys again."""
+
+    def _change(self, model, headers=None):
+        return self.client.patch("/api/auth/keys", json={"llm_model": model}, headers=headers or self.headers)
+
+    def test_the_model_changes_and_the_keys_stay(self):
+        account_keys.save(self.user, provider="deepseek", model="deepseek-chat", llm_api_key=LLM_KEY,
+                          search="tavily", search_api_key=SEARCH_KEY, now=1_700_000_000)
+        reply = self._change("deepseek-reasoner")
+        self.assertEqual(reply.status_code, 200, reply.text)
+        body = reply.json()
+        self.assertEqual((body["saved"], body["llm_provider"], body["llm_model"], body["search"]),
+                         (True, "deepseek", "deepseek-reasoner", "tavily"))
+        self.assertEqual((body["llm_key_hint"], body["search_key_hint"]), ("…" + LLM_KEY[-4:], "…" + SEARCH_KEY[-4:]))
+        self.assertEqual(reply.headers["Cache-Control"], "no-store")
+        for secret in SECRETS:
+            self.assertNotIn(secret, reply.text)
+        kept = account_keys.load(self.user)
+        self.assertEqual((kept.provider, kept.model, kept.llm_api_key, kept.search, kept.search_api_key),
+                         ("deepseek", "deepseek-reasoner", LLM_KEY, "tavily", SEARCH_KEY))
+        self.assertGreater(kept.updated_at, 1_700_000_000, "When the set last changed")
+        # Sealed as before: the new model is no more readable in the store than the old one was.
+        for readable in (LLM_KEY, SEARCH_KEY, "deepseek-reasoner", "deepseek-chat"):
+            self.assertNotIn(readable.encode(), self._database_text(), readable)
+        self.assertEqual(self.client.get("/api/auth/keys", headers=self.headers).json()["llm_model"], "deepseek-reasoner")
+
+    def test_the_next_paid_request_runs_on_the_new_model(self):
+        self._save()
+        self.assertEqual(self._change("deepseek-reasoner").status_code, 200)
+        with patch.object(runs, "start_run", return_value=RUN) as started:
+            response = self.client.post("/api/runs", json=TOPIC, headers=self.headers)
+        self.assertEqual(response.status_code, 202, response.text)
+        byok = started.call_args.kwargs["byok"]
+        self.assertEqual((byok.llm_provider, byok.llm_api_key, byok.llm_model, byok.tavily_api_key),
+                         ("deepseek", LLM_KEY, "deepseek-reasoner", SEARCH_KEY))
+
+    def test_with_nothing_saved_there_is_nothing_to_change(self):
+        reply = self._change("deepseek-reasoner")
+        self.assertEqual((reply.status_code, reply.headers["X-Error-Code"]), (409, "no_saved_keys"))
+        self.assertFalse(account_keys.saved(self.user), "A model alone is not a key set")
+        # One account's change does not reach another's keys.
+        self._save()
+        bob = self._bearer(self._signup("bob@example.com")["token"])
+        other = self._change("deepseek-reasoner", headers=bob)
+        self.assertEqual((other.status_code, other.headers["X-Error-Code"]), (409, "no_saved_keys"))
+        self.assertEqual(account_keys.load(self.user).model, "deepseek-chat")
+
+    def test_only_a_plain_model_name_and_nothing_else_is_taken(self):
+        self._save()
+        for body in ({"llm_model": "not a model name"}, {"llm_model": ""}, {"llm_model": "x" * 101}, {},
+                     {"llm_model": 7}, {"llm_model": "deepseek-reasoner", "llm_provider": "qwen"},
+                     # Keys do not belong here: a set is replaced whole, with PUT, or not at all.
+                     {"llm_model": "deepseek-reasoner", "llm_api_key": OTHER_LLM_KEY},
+                     {"llm_model": "deepseek-reasoner", "tavily_api_key": OTHER_SEARCH_KEY}):
+            reply = self.client.patch("/api/auth/keys", json=body, headers=self.headers)
+            self.assertEqual(reply.status_code, 422, body)
+            for secret in SECRETS:
+                self.assertNotIn(secret, reply.text)
+            self.assertNotIn("not a model name", reply.text, "A refusal names the field, never the value")
+        self.assertEqual(self.client.patch("/api/auth/keys", content=b"not json", headers=self.headers).status_code, 422)
+        self.assertEqual(self.client.patch("/api/auth/keys", content=b"[]", headers=self.headers).status_code, 422)
+        self.assertEqual(self.client.patch("/api/auth/keys", content=b"x" * 20_000, headers=self.headers).status_code, 413)
+        kept = account_keys.load(self.user)
+        self.assertEqual((kept.model, kept.llm_api_key, kept.search_api_key), ("deepseek-chat", LLM_KEY, SEARCH_KEY))
+
+    def test_only_an_account_can_change_it(self):
+        self._save()
+        self.assertEqual(self.client.patch("/api/auth/keys", json={"llm_model": "deepseek-reasoner"}).status_code, 401)
+        with patch.object(access, "ACCESS_CODE", "an-access-code"):
+            coded = self.client.patch("/api/auth/keys", json={"llm_model": "deepseek-reasoner"},
+                                      headers={"X-Access-Code": "an-access-code"})
+        self.assertEqual(coded.status_code, 404)
+        self.assertEqual(account_keys.load(self.user).model, "deepseek-chat")
+
+    def test_a_set_replaced_meanwhile_is_not_overwritten_with_the_old_keys(self):
+        """The change reads the sealed record, opens it, and writes it back
+        with another model. A whole new set saved between the read and the
+        write must win: writing back would put the old keys over the new."""
+        self._save()
+        real = account_keys._sealed
+
+        def replaced_while_reading(db, user):
+            row = real(db, user)
+            account_keys.save(user, provider="qwen", model="qwen3.8-27b", llm_api_key=OTHER_LLM_KEY,
+                              search="serper", search_api_key=OTHER_SEARCH_KEY)
+            return row
+
+        with patch.object(account_keys, "_sealed", side_effect=replaced_while_reading) as read:
+            reply = self._change("deepseek-reasoner")
+        self.assertGreaterEqual(read.call_count, 2, "It looked again")
+        self.assertEqual((reply.status_code, reply.headers["X-Error-Code"]), (409, "keys_changed"))
+        kept = account_keys.load(self.user)
+        self.assertEqual((kept.provider, kept.model, kept.llm_api_key, kept.search_api_key),
+                         ("qwen", "qwen3.8-27b", OTHER_LLM_KEY, OTHER_SEARCH_KEY))
+
+    def test_a_set_replaced_once_meanwhile_gets_the_new_model_on_the_new_keys(self):
+        self._save()
+        real = account_keys._sealed
+        calls = []
+
+        def replaced_once(db, user):
+            row = real(db, user)
+            if not calls:
+                calls.append(1)
+                account_keys.save(user, provider="qwen", model="qwen3.8-27b", llm_api_key=OTHER_LLM_KEY,
+                                  search="serper", search_api_key=OTHER_SEARCH_KEY)
+            return row
+
+        with patch.object(account_keys, "_sealed", side_effect=replaced_once):
+            reply = self._change("qwen3.8-max")
+        self.assertEqual(reply.status_code, 200, reply.text)
+        kept = account_keys.load(self.user)
+        self.assertEqual((kept.provider, kept.model, kept.llm_api_key, kept.search_api_key),
+                         ("qwen", "qwen3.8-max", OTHER_LLM_KEY, OTHER_SEARCH_KEY))
+
+    def test_a_record_that_cannot_be_opened_is_not_a_set_to_change(self):
+        self._save()
+        with closing(sqlite3.connect(os.environ["ACCOUNTS_DB"])) as db, db:
+            db.execute("UPDATE account_keys SET sealed = 'damaged'")
+        reply = self._change("deepseek-reasoner")
+        self.assertEqual((reply.status_code, reply.headers["X-Error-Code"]), (409, "no_saved_keys"))
 
 
 class CheckSavedTests(_Keys):
