@@ -1,4 +1,4 @@
-"""Which market sources are one story, and how many slots one site may hold.
+"""Which market sources are one story, and how many slots one site or one issuer may hold.
 
 Measured on the 95 saved runs since 2026-10-01 that list market sources
 (``scripts/audits/market_evidence_audit.py``): a story was listed twice in
@@ -7,13 +7,15 @@ two aggregators carry, and one site held three or more of a run's market
 slots in 41 runs. The report then counted one announcement as two pieces of
 evidence, and "market evidence" meant what one aggregator carried.
 
-This module decides two things for the market stage of ``source_pipeline``
+This module decides three things for the market stage of ``source_pipeline``
 and for the offline audit, which replays the same code on saved registries:
 
 - ``same_story``: whether two results are copies of one item;
-- ``site_of``: which site a result belongs to, for the per-site share.
+- ``site_of``: which site a result belongs to, for the per-site share;
+- ``same_issuer`` and ``issuer_mates``: whether results on different sites
+  have one issuer, for the per-issuer share (the second half of this file).
 
-Both are precision-first, as every heuristic here must be: a source wrongly
+All are precision-first, as every heuristic here must be: a source wrongly
 called a copy is evidence the run never reads. A similar title alone is
 therefore never enough. Market-research firms title their reports alike
 ("X Market Size, Share & Trends Report, 2034") while stating different
@@ -311,3 +313,263 @@ def same_story(first: MarketItem, second: MarketItem) -> str:
     if shared_text(first.summary, second.summary) >= _SHARED_TEXT_MIN:
         return "same headline"
     return ""
+
+
+# ── Who issued a release ────────────────────────────────────────────────────
+#
+# The site share above cannot see that one company wrote three releases when
+# three different hosts carry them: three Helio releases held three of eight
+# market slots in a run of 2026-11-15, on businessinsider.com, otcmarkets.com
+# and stocktitan.net. An issuer therefore has a share of its own, counted
+# wherever its releases are carried. Measured on the 132 saved runs since
+# 2026-10-01: one issuer held three slots in 8 runs and two in 33
+# (docs/results-2026-11-17-market-issuer-share.md).
+#
+# Who issued a page is read only from what a release states about itself:
+# the stock symbol a carrier files it under and the name printed beside that
+# symbol, the symbol or the name that opens the release after the wire's
+# mark, the name it gives itself beside "the Company", and the research firm
+# a market-report release credits. A company merely mentioned is not an issuer:
+# market-report releases list a dozen "key players" with their symbols, and
+# every joint announcement names a partner. Each sign is exact. A firm's name
+# found somewhere inside a longer run of words is not one: matched that way,
+# spacesolar.co.uk became the issuer of a release about "BiLight Space Solar
+# Technology".
+#
+# The number is the maintainer's choice, the same as a site's (2026-11-17).
+# At 2 the share holds back 8 of 967 saved sources; at 1 it holds back 53.
+MARKET_SOURCES_PER_ISSUER = 2
+
+_EXCHANGES = (
+    r"NYSE(?:\s+American|\s+Arca)?|NASDAQ|Nasdaq(?:GS|GM|CM)?|OTCID|OTCQB|OTCQX|OTC(?:\s+Markets|\s+Pink)?"
+    r"|TSX|TSXV|TSX-V|CSE|NEO|LSE|AIM|ASX|HKEX|SEHK|SGX|FRA|FSE|XETRA|Euronext(?:\s+[A-Z][a-z]+)?"
+    r"|KRX|KOSDAQ|TASE|NZX|JSE"
+)
+# "(NYSE: ORA)", "(Nasdaq: ARQQ, ARQQW)", and the same inside a markdown link.
+_SYMBOL = re.compile(rf"\(\s*(?:{_EXCHANGES})\s*:\s*\[?([A-Z0-9][A-Z0-9.]{{0,5}})\b")
+# The mark a wire prints between a release's dateline and its first sentence.
+_WIRE_MARK = re.compile(
+    r"\(GLOBE NEWSWIRE\)\s*--|/PRNewswire(?:-[A-Za-z]+)?/\s*--|\(BUSINESS WIRE\)\s*--|/CNW/\s*--?"
+    r"|\(ACCESSWIRE\)\s*--|\(Newsfile Corp\.\s*-\s*[^)]{4,30}\)\s*-|/EINPresswire\.com/\s*--"
+)
+# How much of the text after the mark is the release's opening: its issuer is
+# named there, and the companies it goes on to discuss are not.
+_OPENING_CHARS = 240
+# Search excerpts join the passages they quote with this; what follows it is
+# from somewhere else in the page.
+_EXCERPT_GAP = "[...]"
+# A release defines its issuer: (NYSE: X) ("Name" or the "Company").
+_SELF_NAMED = re.compile(
+    rf"\(\s*(?:{_EXCHANGES})\s*:\s*\[?([A-Z0-9][A-Z0-9.]{{0,5}})\b[^()]{{0,40}}\)[^()]{{0,6}}"
+    r"(?:\([^()]{0,40}\)[^()]{0,6}){0,3}\([^()]{0,60}the\s+[\u201c\"]Company[\u201d\"][^()]{0,40}\)"
+)
+# The name it gives itself there, in quotation marks beside "the Company".
+_QUOTED = re.compile(r"[“\"]([^“”\"]{2,40})[”\"]")
+# Carriers that file a release under its issuer's symbol:
+# stocktitan.net/news/HLEO/..., otcmarkets.com/stock/HLEO/news/...
+_SYMBOL_IN_ADDRESS = {
+    "stocktitan.net": re.compile(r"^/news/([A-Za-z0-9.]{1,6})/"),
+    "otcmarkets.com": re.compile(r"^/stock/([A-Za-z0-9.]{1,6})/news/"),
+}
+# ...and print the issuer's name beside that symbol in the page's title:
+# "Helio Corporation (HLEO) enters space-based solar power | HLEO Stock News",
+# "Helio Sees ... | HLEO - Helio Corporation | News". The name is taken only
+# next to the symbol the address is filed under. In the run of 2026-11-15
+# nothing else named Helio: search had excerpted the middle of two releases,
+# and the third opened "On January 6, 2026, the Board of Directors of".
+_NAME_BESIDE_SYMBOL = (
+    r"^([A-Z][^()|]{1,60}?)\s*\(\s*{symbol}\s*\)",
+    r"\|\s*{symbol}\s+-\s+([^|]{2,60}?)\s*\|[^|]*$",
+)
+_COMPANY_FORM = r"(?:Inc|Corp|Corporation|Ltd|Limited|plc|PLC|LLC|Co|AG|SA|NV|ASA|AB|GmbH)\b\.?"
+# The name that opens a release: one to five capitalised words, then a comma,
+# a bracket or the verb. Anything looser reads "Leading geothermal company X"
+# or "New results published in" as a name.
+_OPENING_NAME = re.compile(
+    r"^((?:[A-Z][\w&.'\u2019-]*)(?:\s+[A-Z][\w&.'\u2019-]*){0,4}?)"
+    rf"(?:,?\s+{_COMPANY_FORM})*"
+    r"\s*(?:,|\(|today\b|announced\b|announces\b)"
+)
+_NOT_A_NAME = frozenset({
+    "today", "the", "a", "an", "new", "according", "leading", "in", "on", "as", "with", "global",
+})
+_TRAILING_FORM = re.compile(rf"(?:,?\s+{_COMPANY_FORM})+\s*$")
+# The firm a market-report release credits in its opening: "According to the
+# SNS Insider,", "As per the SNS Insider report", "a new report published by
+# Verified Market Research". The phrase is matched in any case; the name must
+# be capitalised words.
+_CREDIT_PHRASE = re.compile(
+    r"(?i:according\s+to|as\s+per|published\s+by|(?:report|study|research|analysis)\s+(?:from|by))\s+"
+    r"(?i:(?:the|a|an)\s+)?(?i:(?:latest|new|recent|comprehensive)\s+){0,2}"
+    r"(?i:(?:study|report|research|analysis)\s+(?:published\s+by|from|by)\s+)?"
+    r"((?:[A-Z][\w&.]*)(?:\s+[A-Z][\w&.]*){0,4})"
+)
+# ResearchAndMarkets.com announces each report it adds in one sentence.
+_RESELLER_PHRASE = re.compile(r"added\s+to\s+ResearchAndMarkets\.com'?s\s+offering", re.IGNORECASE)
+_RESELLER = "researchandmarkets"
+# The firm set off at the end of a headline: "| SNS Insider", "| Research by
+# SNS Insider", "- Transparency Market Research Inc.", ": Verified Market
+# Research". A hyphen counts only before a space: "Space-Based" is one word.
+_CREDIT_TAIL = re.compile(r"(?:\s*[|\u2013\u2014]\s*|:\s+|-\s+)([^|:\u2013\u2014]{3,60})$")
+_CREDIT_TAIL_LEAD = re.compile(r"^(?:(?:report|research|study|analysis)\s+)?by\s+", re.IGNORECASE)
+_CREDIT_TAIL_MAX_WORDS = 5
+# A firm's name, letters and digits only, is taken as one once it is this
+# long. Shorter, it is a word: market.us has the label "market", and a release
+# that credited "Market ..." was tied to it.
+_FIRM_NAME_MIN_CHARS = 8
+_SQUASH = re.compile(r"[^a-z0-9]+")
+
+
+def _squash(text: str) -> str:
+    return _SQUASH.sub("", text.lower())
+
+
+@dataclass(frozen=True)
+class Issuer:
+    """What one market result states about who issued it."""
+
+    # Stock symbols the release is filed under or opens with.
+    symbols: frozenset[str] = frozenset()
+    # Company names the release opens with, defines itself by, or is filed
+    # under, as words without the legal form.
+    names: frozenset[tuple[str, ...]] = frozenset()
+    # Research firms credited in the opening, letters and digits only.
+    credits: frozenset[str] = frozenset()
+    # The firm set off at the end of the headline, letters and digits only.
+    tail: str = ""
+    # The site's first label when the page is on a site that does not carry
+    # other parties' releases: there the publisher is the issuer.
+    own_label: str = ""
+    # Whether the page is on a wire or a host that syndicates releases.
+    carried: bool = False
+
+
+def _opening(summary: str) -> str:
+    """The release's first words after the wire's mark; "" if no mark is in the excerpt."""
+    mark = _WIRE_MARK.search(summary)
+    if mark is None:
+        return ""
+    return summary[mark.end():].split(_EXCERPT_GAP, 1)[0][:_OPENING_CHARS].strip()
+
+
+def _name_words(name: str) -> tuple[str, ...]:
+    """A company's name as lower-case words, without its legal form."""
+    return tuple(_WORD.findall(_TRAILING_FORM.sub("", name.strip()).lower()))
+
+
+def _credit_tail(title: str) -> str:
+    text = _ELLIPSIS.sub("", title.strip())
+    found = _CREDIT_TAIL.search(text)
+    if found is None:
+        return ""
+    tail = _TRAILING_FORM.sub("", _CREDIT_TAIL_LEAD.sub("", found.group(1).strip()))
+    if not 1 <= len(_WORD.findall(tail.lower())) <= _CREDIT_TAIL_MAX_WORDS:
+        return ""
+    return _squash(tail)
+
+
+def issuer_of(item: MarketItem) -> Issuer:
+    """The issuer signs one result carries; an empty ``Issuer`` when it carries none."""
+    site = site_of(item.url)
+    if not site:
+        return Issuer()
+    carried = site in _SYNDICATION_SITES or site in _WIRE_SITES
+    if not carried:
+        label = site.split(".")[0]
+        return Issuer(own_label=label if len(label) >= _FIRM_NAME_MIN_CHARS else "")
+    symbols: set[str] = set()
+    names: set[tuple[str, ...]] = set()
+    credits: set[str] = set()
+    filed = _SYMBOL_IN_ADDRESS.get(site)
+    if filed is not None:
+        found = filed.search(urlsplit(item.url).path)
+        if found:
+            symbol = found.group(1).upper()
+            symbols.add(symbol)
+            for pattern in _NAME_BESIDE_SYMBOL:
+                beside = re.search(pattern.replace("{symbol}", re.escape(symbol)), item.title)
+                if beside:
+                    names.add(_name_words(beside.group(1)))
+    opening = _opening(item.summary)
+    if opening:
+        symbols.update(_SYMBOL.findall(opening))
+        named = _OPENING_NAME.match(opening)
+        if named:
+            words = _name_words(named.group(1))
+            if words and words[0] not in _NOT_A_NAME:
+                names.add(words)
+        credits.update(
+            _squash(_TRAILING_FORM.sub("", found.group(1))) for found in _CREDIT_PHRASE.finditer(opening)
+        )
+    for found in _SELF_NAMED.finditer(item.summary):
+        symbols.update(_SYMBOL.findall(found.group(0)))
+        defined = found.group(0)[found.group(0).rindex("("):]
+        names.update(_name_words(name) for name in _QUOTED.findall(defined) if name.lower() != "company")
+    names.discard(())
+    if _RESELLER_PHRASE.search(item.summary):
+        credits.add(_RESELLER)
+    credits = {name for name in credits if len(name) >= _FIRM_NAME_MIN_CHARS}
+    return Issuer(
+        symbols=frozenset(symbols),
+        names=frozenset(names),
+        credits=frozenset(credits),
+        tail=_credit_tail(item.title),
+        carried=True,
+    )
+
+
+def same_issuer(first: MarketItem, second: MarketItem) -> str:
+    """Why two market results have one issuer, or "" if not shown to.
+
+    - ``same symbol``: both are filed under, or open with, one stock symbol;
+    - ``same name``: both releases state one company name;
+    - ``named in headline``: a carried item that states no issuer of its own
+      has a headline that begins with the name the other release states;
+    - ``credited firm``: two carried items credit one research firm in their
+      openings, or a carried item credits, in its opening or at the end of
+      its headline, the firm whose own site the other page is on.
+
+    Two pages on one publisher's site are not compared here: the site share
+    counts them.
+    """
+    a, b = issuer_of(first), issuer_of(second)
+    if a.symbols & b.symbols:
+        return "same symbol"
+    if a.names & b.names:
+        return "same name"
+    for stated, other, headline in ((a, b, second.title), (b, a, first.title)):
+        if stated.names and other.carried and not other.symbols and not other.names:
+            words, _cut = _headline(headline)
+            if any(len(words) > len(name) and words[:len(name)] == name for name in stated.names):
+                return "named in headline"
+    if a.credits & b.credits:
+        return "credited firm"
+    # Only a carried item has a tail or credits: issuer_of reads neither on a
+    # publisher's own page, so a newspaper that prints "| SNS Insider" after
+    # its headline is not tied here.
+    for own, other in ((a, b), (b, a)):
+        if own.own_label and (own.own_label == other.tail or own.own_label in other.credits):
+            return "credited firm"
+    return ""
+
+
+def issuer_mates(candidate: MarketItem, listed: list[MarketItem]) -> list[int]:
+    """Positions in ``listed`` of the results that share the candidate's issuer.
+
+    The signs link pairs, and a pair's link does not always carry: a release
+    filed under a symbol and one known only by its headline are both tied to
+    the release that states the symbol and the name, and not to each other.
+    The issuer's results are therefore the whole group reached from the
+    candidate through the listed results, not only its direct matches.
+    """
+    reached: list[int] = []
+    frontier = [candidate]
+    remaining = list(range(len(listed)))
+    while frontier:
+        current = frontier.pop()
+        for index in list(remaining):
+            if same_issuer(current, listed[index]):
+                remaining.remove(index)
+                reached.append(index)
+                frontier.append(listed[index])
+    return sorted(reached)

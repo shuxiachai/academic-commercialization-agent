@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "registered": "2026-11-17",
+  "protocol": "docs/prereg-2026-11-17-market-issuer-share-v1.md",
+  "note": "V cases are evals/heldout_trl_v2/cohort.json cases, unchanged. Their saved runs are where the issuer share was seen to matter (Medtronic, Helio) and were read while the rule was written, so for the rule they are development topics. U cases had no saved run under outputs/ on 2026-11-17 and were named before any search for them.",
+  "cases": [
+    {"id": "V01", "topic": "robotic-assisted surgery", "scored": true},
+    {"id": "V06", "topic": "space-based solar power", "scored": true},
+    {"id": "U01", "topic": "lithium-sulfur batteries", "scored": false},
+    {"id": "U02", "topic": "ocean thermal energy conversion", "scored": false},
+    {"id": "U03", "topic": "electric vertical take-off and landing air taxis", "scored": false},
+    {"id": "U04", "topic": "humanoid robots for warehouse logistics", "scored": false},
+    {"id": "U05", "topic": "focused ultrasound for essential tremor", "scored": false},
+    {"id": "U06", "topic": "氢基直接还原铁炼钢", "scored": false},
+    {"id": "U07", "topic": "insect protein for animal feed", "scored": false},
+    {"id": "U08", "topic": "iron-air batteries for long-duration grid storage", "scored": false}
+  ]
+}

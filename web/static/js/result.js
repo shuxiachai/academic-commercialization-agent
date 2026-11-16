@@ -1838,6 +1838,7 @@ const REJECTION_PATTERNS = [
   [/^deferred \(market-report cap\): (.*)$/s, "reject_deferred_market_report", ["subject"]],
   [/^deferred \(encyclopedia cap\): (.*)$/s, "reject_deferred_encyclopedia", ["subject"]],
   [/^deferred \(site share: (\S+) already holds (\d+)\): (.*)$/s, "reject_deferred_site_share", ["site", "n", "subject"]],
+  [/^deferred \(issuer share: (\d+) listed sources have its issuer\): (.*)$/s, "reject_deferred_issuer_share", ["n", "subject"]],
   [/^duplicate story \((same address|same headline|mirror) as the copy at (\S+)\): (.*)$/s,
     "reject_duplicate_story", ["sign", "kept", "subject"]],
   [/^duplicate story \((same address|same headline|mirror)\); the copy at (\S+) replaces the one at (\S+): (.*)$/s,

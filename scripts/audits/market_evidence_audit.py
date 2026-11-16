@@ -12,7 +12,11 @@ calls a model. Two things come out:
    applied to each run's saved market sources in their saved order: which
    sources the run would no longer list (a second copy of a story, an
    encyclopedia entry) and which would wait for a slot (a third source from
-   one site).
+   one site, a third release by one issuer).
+3. **Looked for, with no rule written.** A report listed beside the release
+   that announces it, and a news item beside the release it reports. The
+   counts say how often each sign that could be read from a search excerpt
+   fires, and ``--issuers`` and ``--reports`` list the pairs for reading.
 
 The replay is exact about what leaves and silent about what arrives. A run's
 audit keeps a rejected candidate's title and nothing else, and results past a
@@ -35,6 +39,7 @@ check the metadata; the pipeline never dates a source from prose.
 
     uv run python -m scripts.audits.market_evidence_audit outputs --since 2026-10-01 --since 2026-11-01
     uv run python -m scripts.audits.market_evidence_audit outputs --since 2026-10-01 --pairs
+    uv run python -m scripts.audits.market_evidence_audit outputs --since 2026-10-01 --issuers --reports
     uv run python -m scripts.audits.market_evidence_audit outputs --since 2026-10-01 --json out.json
     uv run python -m scripts.audits.market_evidence_audit outputs --since 2026-01-01 \
         --page-date-probes evals/market_dates_v1/dev_probe.json evals/market_dates_v1/test_probe.json
@@ -56,11 +61,15 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from academic_agent.market_selection import (
+    MARKET_SOURCES_PER_ISSUER,
     MARKET_SOURCES_PER_SITE,
     MarketItem,
+    issuer_mates,
     prefer,
     provenance_rank,
+    same_issuer,
     same_story,
+    shared_text,
     site_of,
 )
 from academic_agent.page_dates import should_date
@@ -104,6 +113,13 @@ class Replay:
     encyclopedia: list[dict[str, Any]] = field(default_factory=list)
     # Sources past their site's share: listed only if nothing else fills the slot.
     waiting: list[dict[str, Any]] = field(default_factory=list)
+    # Sources past their issuer's share, held the same way.
+    issuer_waiting: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def held(self) -> list[dict[str, Any]]:
+        """Every source waiting for a slot, whichever share holds it."""
+        return self.waiting + self.issuer_waiting
 
 
 def load_runs(root: Path, since: str) -> tuple[list[Run], dict[str, int]]:
@@ -185,7 +201,7 @@ def replay(run: Run) -> Replay:
         # when it comes to promote it.
         copy = next(
             ((listed, index, kept, why)
-             for listed in (result.kept, result.waiting)
+             for listed in (result.kept, result.waiting, result.issuer_waiting)
              for index, kept in enumerate(listed)
              if (why := same_story(candidate, _item(kept)))),
             None,
@@ -202,8 +218,114 @@ def replay(run: Run) -> Replay:
         if site and sum(site_of(str(kept.get("url") or "")) == site for kept in result.kept) >= MARKET_SOURCES_PER_SITE:
             result.waiting.append(row)
             continue
+        if len(issuer_mates(candidate, [_item(kept) for kept in result.kept])) >= MARKET_SOURCES_PER_ISSUER:
+            result.issuer_waiting.append(row)
+            continue
         result.kept.append(row)
     return result
+
+
+def _distinct(run: Run) -> list[dict[str, Any]]:
+    """A run's market sources in saved order, without copies and encyclopedia entries."""
+    result = replay(run)
+    listed = {id(row) for row in result.kept + result.held}
+    return [row for row in run.market if id(row) in listed]
+
+
+def issuer_groups(rows: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """The sources of each issuer that states itself more than once in ``rows``."""
+    items = [_item(row) for row in rows]
+    groups: list[list[dict[str, Any]]] = []
+    placed: set[int] = set()
+    for index in range(len(rows)):
+        if index in placed:
+            continue
+        members = sorted({index, *issuer_mates(items[index], items)})
+        placed.update(members)
+        if len(members) > 1:
+            groups.append([rows[member] for member in members])
+    return groups
+
+
+def issuer_pairs(runs: list[Run]) -> list[tuple[str, dict[str, Any], dict[str, Any]]]:
+    """Every pair of sources in one run that the issuer signs tie, once per pair of addresses."""
+    seen: dict[tuple[str, str], tuple[str, dict[str, Any], dict[str, Any]]] = {}
+    for run in runs:
+        rows = _distinct(run)
+        for index, first in enumerate(rows):
+            for second in rows[index + 1:]:
+                why = same_issuer(_item(first), _item(second))
+                if why:
+                    key = tuple(sorted((str(first.get("url")), str(second.get("url")))))
+                    seen.setdefault(key, (why, first, second))
+    return sorted(seen.values(), key=lambda pair: (pair[0], str(pair[1].get("url"))))
+
+
+# A report's own title as a firm or its reseller writes it: "<subject> Market
+# Report 2026", "<subject> Research Report 2026: ...".
+_REPORT_TITLE = re.compile(
+    r"^(?:global\s+)?(.{4,90}?)\s+(?:market|research|industry)(?:\s+(?:research|industry|analysis|size))?"
+    r"\s+report\s+(20\d\d)\b", re.IGNORECASE)
+_MARKET_SUBJECT = re.compile(r"^(?:global\s+)?(.{4,90}?)\s+market\b", re.IGNORECASE)
+# The reseller's sentence, with the report's title in quotation marks.
+_ANNOUNCED_TITLE = re.compile(
+    r"[\"\u201c]([^\"\u201c\u201d]{12,220})[\"\u201d]\s*(?:report\s+)?has been added to\s+"
+    r"ResearchAndMarkets\.com'?s offering", re.IGNORECASE)
+# A news item and a release share at least this much of the shorter excerpt.
+NEWS_SHARED_TEXT = 0.05
+
+
+def _words(text: str) -> tuple[str, ...]:
+    return tuple(_WORD.findall(text.lower()))
+
+
+def report_pairs(runs: list[Run]) -> list[tuple[str, dict[str, Any], dict[str, Any]]]:
+    """Pairs that a rule about "one report, listed twice" could have read, by the sign that reads them.
+
+    None of these signs is used by the pipeline. ``announced title``: a
+    release quotes, in the reseller's fixed sentence, the title another
+    listed source carries. ``subject and report year``: both titles are
+    "<subject> ... Report <year>" with one subject and one year.
+    ``subject``: both titles open with one subject before "Market".
+    """
+    seen: dict[tuple[str, str], tuple[str, dict[str, Any], dict[str, Any]]] = {}
+    for run in runs:
+        rows = _distinct(run)
+        for index, first in enumerate(rows):
+            for second in rows[index + 1:]:
+                titles = [str(first.get("title") or "").strip(), str(second.get("title") or "").strip()]
+                sign = ""
+                for release, other in ((first, titles[1]), (second, titles[0])):
+                    quoted = _ANNOUNCED_TITLE.search(str(release.get("evidence_summary") or ""))
+                    if quoted and _words(quoted.group(1)) == _words(other):
+                        sign = "announced title"
+                strict = [_REPORT_TITLE.match(title) for title in titles]
+                loose = [_MARKET_SUBJECT.match(title) for title in titles]
+                if not sign and all(strict) and _words(strict[0].group(1)) == _words(strict[1].group(1)) \
+                        and strict[0].group(2) == strict[1].group(2):
+                    sign = "subject and report year"
+                if not sign and all(loose) and len(_words(loose[0].group(1))) >= 2 \
+                        and _words(loose[0].group(1)) == _words(loose[1].group(1)):
+                    sign = "subject"
+                if sign:
+                    key = tuple(sorted((str(first.get("url")), str(second.get("url")))))
+                    seen.setdefault(key, (sign, first, second))
+    return sorted(seen.values(), key=lambda pair: (pair[0], str(pair[1].get("url"))))
+
+
+def _news_beside_release(runs: list[Run]) -> int:
+    """News pages that share text with a carried release listed in the same run."""
+    found = 0
+    for run in runs:
+        rows = _distinct(run)
+        releases = [row for row in rows if provenance_rank(str(row.get("url") or "")) > 0]
+        for row in rows:
+            if provenance_rank(str(row.get("url") or "")) > 0 or row.get("source_type") not in ("reputable_news", "other"):
+                continue
+            if any(shared_text(str(row.get("evidence_summary") or ""), str(release.get("evidence_summary") or ""))
+                   >= NEWS_SHARED_TEXT for release in releases):
+                found += 1
+    return found
 
 
 def _undated_reason(run: Run, row: dict[str, Any]) -> str:
@@ -312,6 +434,11 @@ def measure(runs: list[Run]) -> dict[str, Any]:
 
     over_share_runs = [run for run in runs if _max_site_count(run.market) > MARKET_SOURCES_PER_SITE]
     title_pairs = [_similar_title_pairs(run) for run in runs]
+    groups = [issuer_groups(_distinct(run)) for run in runs]
+    largest = [max((len(group) for group in found), default=1) for found in groups]
+    tied = issuer_pairs(runs)
+    reports = report_pairs(runs)
+    same_firm = {id(pair) for pair in reports if same_issuer(_item(pair[1]), _item(pair[2]))}
     return {
         "runs": len(runs),
         "market_sources": len(sources),
@@ -331,24 +458,58 @@ def measure(runs: list[Run]) -> dict[str, Any]:
             "undated_sources": len(undated),
             "undated_reasons": dict(Counter(_undated_reason(run, row) for run, row in undated).most_common()),
         },
+        # Counted on each run's sources without copies and encyclopedia
+        # entries, so a story listed twice is not also "one issuer, twice".
+        "issuers": {
+            "runs_where_an_issuer_holds_two": sum(1 for size in largest if size == 2),
+            "runs_where_an_issuer_holds_three_or_more": sum(1 for size in largest if size >= 3),
+            "issuers_on_several_sites": sum(
+                1 for found in groups for group in found
+                if len({site_of(str(row.get("url") or "")) for row in group}) > 1),
+            "distinct_pairs_tied": len(tied),
+            "signs": dict(Counter(why for why, _, _ in tied)),
+            # What each share would hold back, before the site share is applied.
+            "sources_past_a_share_of": {
+                str(share): sum(max(0, len(group) - share) for found in groups for group in found)
+                for share in (1, 2)},
+            "runs_with_a_source_past_a_share_of": {
+                str(share): sum(1 for found in groups if any(len(group) > share for group in found))
+                for share in (1, 2)},
+        },
+        # Looked for; no rule reads these.
+        "no_rule": {
+            "report_pairs_by_sign": dict(Counter(sign for sign, _, _ in reports)),
+            "report_pairs_by_sign_from_one_firm": dict(Counter(pair[0] for pair in reports if id(pair) in same_firm)),
+            "news_pages_sharing_text_with_a_listed_release": _news_beside_release(runs),
+        },
         "replayed": {
             "sources_no_longer_listed": sum(len(r.duplicates) + len(r.encyclopedia) for r in replays),
             "sources_waiting_for_a_slot": sum(len(r.waiting) for r in replays),
             "runs_with_a_waiting_source": sum(1 for r in replays if r.waiting),
-            "runs_changed": sum(1 for r in replays if r.duplicates or r.encyclopedia or r.waiting),
+            "sources_waiting_for_their_issuer": sum(len(r.issuer_waiting) for r in replays),
+            "runs_with_a_source_waiting_for_its_issuer": sum(1 for r in replays if r.issuer_waiting),
+            # Every held release replaced by another issuer's result, or none.
+            "runs_with_an_issuer_over_its_share": {
+                "if_every_waiting_source_is_replaced": sum(
+                    1 for r in replays if any(len(group) > MARKET_SOURCES_PER_ISSUER for group in issuer_groups(r.kept))),
+                "if_none_is_replaced": sum(
+                    1 for r in replays
+                    if any(len(group) > MARKET_SOURCES_PER_ISSUER for group in issuer_groups(r.kept + r.held))),
+            },
+            "runs_changed": sum(1 for r in replays if r.duplicates or r.encyclopedia or r.held),
             "runs_listing_a_story_twice": sum(
                 1 for r in replays
                 if any(same_story(_item(a), _item(b))
-                       for i, a in enumerate(r.kept + r.waiting) for b in (r.kept + r.waiting)[i + 1:])),
+                       for i, a in enumerate(r.kept + r.held) for b in (r.kept + r.held)[i + 1:])),
             # Every waiting source replaced by another site's result, or none.
             "runs_with_a_site_over_its_share": {
                 "if_every_waiting_source_is_replaced": sum(
                     1 for r in replays if _max_site_count(r.kept) > MARKET_SOURCES_PER_SITE),
                 "if_none_is_replaced": sum(
-                    1 for r in replays if _max_site_count(r.kept + r.waiting) > MARKET_SOURCES_PER_SITE),
+                    1 for r in replays if _max_site_count(r.kept + r.held) > MARKET_SOURCES_PER_SITE),
             },
             "runs_left_with_fewer_than_two_sources_before_refill": sum(
-                1 for r in replays if len(r.kept) + len(r.waiting) < 2),
+                1 for r in replays if len(r.kept) + len(r.held) < 2),
             "preferred_copy_replaces_listed_copy": sum(
                 1 for run, r in zip(runs, replays, strict=True)
                 for dropped, kept, _ in r.duplicates
@@ -372,7 +533,9 @@ def _pct(part: int, whole: int) -> str:
 def render(since: str, figures: dict[str, Any], skipped: dict[str, int]) -> str:
     runs, total = figures["runs"], figures["market_sources"]
     saved, after, cards = figures["as_saved"], figures["replayed"], figures["scorecards"]
+    issuers, unruled = figures["issuers"], figures["no_rule"]
     over = after["runs_with_a_site_over_its_share"]
+    issuer_over = after["runs_with_an_issuer_over_its_share"]
     lines = [
         f"## Runs collected since {since}",
         "",
@@ -392,6 +555,13 @@ def render(since: str, figures: dict[str, Any], skipped: dict[str, int]) -> str:
         f"{_pct(after['sources_no_longer_listed'], total)} |",
         f"| Sources waiting for a slot nothing else fills | | "
         f"{_pct(after['sources_waiting_for_a_slot'], total)} in {after['runs_with_a_waiting_source']} runs |",
+        f"| Runs where one issuer holds more than {MARKET_SOURCES_PER_ISSUER} slots | "
+        f"{_pct(issuers['runs_where_an_issuer_holds_three_or_more'], runs)} | "
+        f"{_pct(issuer_over['if_every_waiting_source_is_replaced'], runs)} to "
+        f"{_pct(issuer_over['if_none_is_replaced'], runs)} |",
+        f"| Sources waiting for their issuer's share | | "
+        f"{_pct(after['sources_waiting_for_their_issuer'], total)} in "
+        f"{after['runs_with_a_source_waiting_for_its_issuer']} runs |",
         f"| Runs the rules change | | {_pct(after['runs_changed'], runs)} |",
         "",
         f"Pairs of sources in one run with alike titles (similarity at least {SIMILAR_TITLE}): "
@@ -406,6 +576,21 @@ def render(since: str, figures: dict[str, Any], skipped: dict[str, int]) -> str:
         f"Sources on a press wire or a syndicating host: "
         f"{_pct(saved['sources_on_wire_or_syndicating_hosts'], total)}. Largest sites: "
         + ", ".join(f"{site} {_pct(count, total)}" for site, count in saved["top_sites"][:5]) + ".",
+        "",
+        f"Issuers, on each run's sources without copies: one issuer holds two slots in "
+        f"{_pct(issuers['runs_where_an_issuer_holds_two'], runs)} runs and three or more in "
+        f"{_pct(issuers['runs_where_an_issuer_holds_three_or_more'], runs)}; "
+        f"{issuers['issuers_on_several_sites']} of those issuers are spread over several sites. "
+        f"Distinct pairs tied: {issuers['distinct_pairs_tied']}, by sign {issuers['signs'] or 'none'}. "
+        f"A share of 1 would hold back {issuers['sources_past_a_share_of']['1']} sources in "
+        f"{issuers['runs_with_a_source_past_a_share_of']['1']} runs; a share of 2, "
+        f"{issuers['sources_past_a_share_of']['2']} in {issuers['runs_with_a_source_past_a_share_of']['2']}.",
+        "",
+        f"No rule reads these. Pairs a report-listed-twice rule could have read, by sign: "
+        f"{unruled['report_pairs_by_sign'] or 'none'}; of them tied to one firm: "
+        f"{unruled['report_pairs_by_sign_from_one_firm'] or 'none'}. News pages sharing at least "
+        f"{NEWS_SHARED_TEXT:.0%} of an excerpt with a carried release listed beside them: "
+        f"{unruled['news_pages_sharing_text_with_a_listed_release']}.",
         "",
         f"Undated sources: {_pct(saved['undated_sources'], total)}.",
         "",
@@ -427,7 +612,7 @@ def render_pairs(runs: list[Run]) -> str:
     lines: list[str] = []
     for run in runs:
         result = replay(run)
-        if not (result.duplicates or result.encyclopedia or result.waiting):
+        if not (result.duplicates or result.encyclopedia or result.held):
             continue
         lines.append(f"### {run.path}")
         for dropped, kept, why in result.duplicates:
@@ -437,7 +622,22 @@ def render_pairs(runs: list[Run]) -> str:
             lines.append(f"- encyclopedia: {row.get('url')}")
         for row in result.waiting:
             lines.append(f"- waits (site share, {site_of(str(row.get('url') or ''))}): {row.get('url')}")
+        for row in result.issuer_waiting:
+            mates = issuer_mates(_item(row), [_item(kept) for kept in result.kept])
+            lines.append(f"- waits (issuer share): {row.get('url')}")
+            lines.extend(f"  - same issuer: {result.kept[index].get('url')}" for index in mates)
         lines.append("")
+    return "\n".join(lines)
+
+
+def render_tied(heading: str, pairs: list[tuple[str, dict[str, Any], dict[str, Any]]]) -> str:
+    """Pairs with the sign that tied them, for reading by eye."""
+    lines = [f"### {heading}: {len(pairs)} distinct pairs", ""]
+    for why, first, second in pairs:
+        lines.append(f"- {why}")
+        for row in (first, second):
+            lines.append(f"  - {row.get('title')} | {row.get('url')}")
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -447,6 +647,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--since", action="append", required=True, metavar="YYYY-MM-DD",
                         help="count runs collected on or after this date (UTC); repeat for several windows")
     parser.add_argument("--pairs", action="store_true", help="also list every source the replay changes")
+    parser.add_argument("--issuers", action="store_true", help="also list every pair the issuer signs tie")
+    parser.add_argument("--reports", action="store_true",
+                        help="also list the pairs a report-listed-twice rule could have read (no rule does)")
     parser.add_argument("--json", type=Path, help="write the figures of every window to this file")
     parser.add_argument("--page-date-probes", type=Path, nargs="+", metavar="PROBE.json",
                         help="saved page-date probes to check against the datelines in saved excerpts")
@@ -463,6 +666,10 @@ def main(argv: list[str] | None = None) -> int:
         print(render(since, figures, skipped))
         if args.pairs:
             print(render_pairs(runs))
+        if args.issuers:
+            print(render_tied("Pairs tied to one issuer", issuer_pairs(runs)))
+        if args.reports:
+            print(render_tied("Pairs a report rule could have read", report_pairs(runs)))
         if args.page_date_probes:
             probe_rows = [row for path in args.page_date_probes
                           for row in json.loads(path.read_text(encoding="utf-8"))]

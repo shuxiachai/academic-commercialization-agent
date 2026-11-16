@@ -1751,6 +1751,7 @@ class CheckWordingTests(unittest.TestCase):
         "duplicate patent family (same invention as US1234): Battery cell B",
         "deferred (market-report cap): 'Market report 2026'",
         "deferred (site share: yahoo.com already holds 2): 'A third release'",
+        "deferred (issuer share: 2 listed sources have its issuer): 'A third release by one company'",
         "duplicate story (same address as the copy at finance.yahoo.com): 'A release'",
         "duplicate story (same headline); the copy at www.prnewswire.com replaces the one at "
         "finance.yahoo.com: 'A release: with a colon'",
@@ -1786,6 +1787,7 @@ class CheckWordingTests(unittest.TestCase):
             "同一专利族（与 US1234 是同一项发明）：Battery cell B",
             "暂缓（市场报告已达上限）：'Market report 2026'",
             "暂缓（yahoo.com 已占 2 条市场来源）：'A third release'",
+            "暂缓（同一发布方已占 2 条市场来源）：'A third release by one company'",
             "同一篇稿件（同一文章地址，已收录 finance.yahoo.com 上的那一份）：'A release'",
             "同一篇稿件（同一标题）；改用 www.prnewswire.com 上的那一份，替换 finance.yahoo.com 上的："
             "'A release: with a colon'",
