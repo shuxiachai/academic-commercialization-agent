@@ -434,7 +434,7 @@ semantic correctness of all report prose; see the
 | GET | `/api/health/retrieval?window=20` | Per-lane counts of empty and refused retrieval across recent runs' audits; owner-filtered like `/api/runs`, no topics or run ids |
 | POST | `/api/papers` | PDF contribution extraction; paid LLM admission applies |
 | GET | `/api/quota` | Paid operations left today for the calling code; `null` when uncapped |
-| GET, PUT, DELETE | `/api/auth/keys` | The signed-in account's saved API keys: whether any are saved and which (never a key), save a set in place of any saved before, remove them |
+| GET, PUT, PATCH, DELETE | `/api/auth/keys` | The signed-in account's saved API keys: whether any are saved and which (never a key), save a set in place of any saved before, change the model the saved keys are used with (`PATCH`, body `llm_model` alone), remove them |
 | POST | `/api/auth/keys/check` | Ask the providers whether they still accept the keys saved with the signed-in account; no body, the same answer and the same limit as `/api/keys/check`; 409 `no_saved_keys` when none are saved |
 | POST | `/api/plan` | Preview how the planner reads a topic; on the deployment's key for a code holder, on its own key set for an account; own daily cap, not a paid operation |
 | GET | `/api/runs/{run_id}/feedback` | The caller's own answer about a delivered report, if any. Authorized like a mutation: a code-owned run answers to its code or the admin, an ownerless run to whoever holds its URL |
@@ -1202,6 +1202,29 @@ form says when the answer was given because it is not kept anywhere. An
 account with nothing saved gets 409 `no_saved_keys`. The form also lists
 keys the account chose not to save, which are in that browser tab only, by
 their last four characters, with a control that clears them from the tab.
+
+The model the saved keys are used with can be changed on its own. A model
+is wrong far more often than a key is, and until 2026-11-16 correcting one
+meant typing both keys again. The saved block of the key form has the model
+in a field with "Save model" beside it, which calls `PATCH /api/auth/keys`
+with `llm_model` and nothing else; a body that also carries a key or a
+provider is refused whole, so a key is never thought changed by a request
+that kept the old one. The server opens the sealed record, changes the model
+and writes it back only if the record is still the one it read, so a whole
+new set saved from another device in between is not overwritten with the old
+keys (409 `keys_changed` if that happens twice running). Where keys are
+checked, the page then asks `POST /api/auth/keys/check` about the set as it
+now is.
+
+Under each model field the form says when a name is, by its own words, not a
+model that can write an assessment: an OCR, embedding, reranking, speech,
+image, video, translation or moderation model. It is read from the name
+alone (`web/static/js/byok_fields.js`, `MODEL_KINDS`), so it is advice and
+never a refusal: the name can still be saved, and the API accepts any plain
+model name as before. It was added after an account saved
+`qwen-vl-ocr-2025-11-20` and its run failed two minutes in with a sentence
+about evidence quality; why that run failed was not read from its record,
+and the note says "looks like" for that reason.
 
 An account with no keys, no free first assessment and no operator paying
 for it cannot start anything, and its workbench says so beside the run

@@ -162,8 +162,14 @@ def test_the_page_asks_the_server_and_keeps_nothing():
     row = re.search(r'<div id="byok-save-row" hidden>.*?</div>', index, re.S)[0]
     assert '<input type="checkbox" id="byok-save">' in row and "checked" not in row
     assert 'data-i18n="byok_to_account"' in row and 'data-i18n="byok_to_account_note"' in row
-    listed = re.search(r'<div class="gate__saved" id="byok-saved" hidden>.*?</div>', index, re.S)[0]
+    # The whole block: it has rows of its own inside it, up to the block for keys held in the tab.
+    listed = re.search(r'<div class="gate__saved" id="byok-saved" hidden>.*?(?=<div class="gate__saved" id="byok-tab")',
+                       index, re.S)[0]
     assert 'id="byok-saved-text"' in listed and 'id="byok-saved-remove" data-i18n="byok_saved_remove"' in listed
+    # The one field in it holds a model name: it is not a key field and is never one.
+    fields = re.findall(r"<input\b[^>]*>", listed)
+    assert len(fields) == 1 and 'id="byok-saved-model"' in fields[0] and 'type="text"' in fields[0]
+    assert "value=" not in fields[0]
     assert "byok-remember" not in index
 
 

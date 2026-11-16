@@ -161,6 +161,76 @@ def test_the_form_says_which_keys_it_has_and_offers_what_can_be_done(page):
     assert re.search(r"\.gate__saved\[hidden\], \.gate__saved-check\[hidden\] \{ display: none; \}", CSS)
 
 
+def test_the_saved_model_has_a_field_of_its_own_and_a_button_that_is_not_a_submit(page, strings):
+    """A model is wrong far more often than a key, and the form could only
+    replace the whole set. The field holds a model name; it is inside the
+    key form, so its button must not submit that form."""
+    _, by_id = page
+    english, chinese, _ = strings
+    field, button = by_id["byok-saved-model"], by_id["byok-saved-model-save"]
+    for node in (field, button):
+        assert "byok-saved" in node["within"] and "byok-form" in node["within"]
+    assert field["tag"] == "input" and field["attrs"]["type"] == "text", "A model name is not a secret, and no key goes here"
+    assert "value" not in field["attrs"], "Filled by the page from what the server says is saved, never in the markup"
+    assert field["attrs"]["maxlength"] == "100" and field["attrs"]["autocomplete"] == "off"
+    assert field["attrs"]["aria-label"] == english("aria_saved_model") == "Model used with the saved keys"
+    assert field["attrs"]["data-i18n-aria-label"] == "aria_saved_model" and chinese("aria_saved_model") == "已保存密钥所用的模型"
+    assert field["attrs"]["list"] == "byok-saved-model-options" and by_id["byok-saved-model-options"]["tag"] == "datalist"
+    assert "required" not in field["attrs"], "The form below is for new keys; this field is not part of it"
+    assert button["tag"] == "button" and button["attrs"]["type"] == "button"
+    assert "disabled" in button["attrs"], "Nothing to save until the name differs from what is saved"
+    assert button["attrs"]["data-i18n"] == "byok_saved_model_save"
+    assert english("byok_saved_model_save") == button["text"].strip() == "Save model" and chinese("byok_saved_model_save") == "保存模型"
+    # Before the check's line and the block's other controls, as it is read.
+    order = [INDEX.index(f'id="{name}"') for name in ("byok-saved-text", "byok-saved-model", "byok-saved-model-kind",
+                                                       "byok-saved-check", "byok-saved-check-now", "byok-saved-remove")]
+    assert order == sorted(order)
+    # On a phone the field's own minimum width pushed the button out of the box: both may shrink, and the row may wrap.
+    row = re.search(r"\.gate__saved-model \{[^}]*\}", CSS)[0]
+    assert "display: flex" in row and "flex-wrap: wrap" in row and "min-width: 0" in row
+    assert "min-width: 0" in re.search(r"\.gate__saved-model \.gate__input \{[^}]*\}", CSS)[0]
+
+
+def test_a_note_under_each_model_field_can_say_what_kind_of_model_a_name_is(page):
+    _, by_id = page
+    for note, field in (("byok-model-kind", "byok-model"), ("byok-saved-model-kind", "byok-saved-model")):
+        said = by_id[note]
+        assert said["attrs"].get("role") == "status" and "hidden" in said["attrs"] and said["text"].strip() == ""
+        assert INDEX.index(f'id="{field}"') < INDEX.index(f'id="{note}"'), "Under the field it is about"
+    assert by_id["byok-saved-model"]["attrs"]["aria-describedby"] == "byok-saved-model-kind"
+    # A caution, not an error, and absent when there is none.
+    assert re.search(r"\.gate__kind \{ color: var\(--warning\); \}", CSS)
+    assert re.search(r"\.gate__kind\[hidden\] \{ display: none; \}", CSS)
+    fields = (JS / "byok_fields.js").read_text(encoding="utf-8")
+    kinds = re.findall(r'^  \["(\w+)", /', fields, re.M)
+    assert kinds[:3] == ["ocr", "rerank", "embedding"] and len(kinds) == len(set(kinds)) == 8
+    for kind in kinds:
+        assert len(re.findall(rf'^    model_kind_{kind}: "', fields, re.M)) == 2, kind
+    assert len(re.findall(r'^    model_kind_note: "', fields, re.M)) == 2
+    for said in ("It can still be saved.", "仍然可以保存。", "looks like {kind}", "看起来是{kind}"):
+        assert said in fields, said
+
+
+def test_what_changing_the_model_says_is_said_in_both_languages(strings):
+    english, chinese, _ = strings
+    slots = {"byok_saved_model_changed": {"model"}, "byok_saved_model_failed": set(), "byok_saved_model_invalid": set(),
+             "byok_saved_model_conflict": set(), "byok_saved_model_save": set(), "aria_saved_model": set()}
+    for key, expected in slots.items():
+        for table in (english, chinese):
+            assert set(re.findall(r"\{(\w+)\}", table(key))) == expected, key
+        assert re.search(r"[\u4e00-\u9fff]", chinese(key)), key
+        assert not re.search(r"[\u4e00-\u9fff]", english(key)), key
+    # Changing a model must not be read as changing a key.
+    assert "The keys are unchanged." in english("byok_saved_model_changed") and "密钥没有变" in chinese("byok_saved_model_changed")
+    # The advice after a check names both ways out: the model above, the whole set below.
+    assert "edit it above" in english("byok_saved_check_next") and "whole set" in english("byok_saved_check_next")
+    assert "在上方直接修改" in chinese("byok_saved_check_next") and "整组" in chinese("byok_saved_check_next")
+    api = (JS / "api.js").read_text(encoding="utf-8")
+    call = re.search(r"export const changeSavedModel = \(model\) => request\(\"/api/auth/keys\", \{.*?\}\);", api, re.S)[0]
+    assert "json({ llm_model: model })" in call and 'method: "PATCH"' in call
+    assert "Key" not in call.split("=>", 1)[1] and "creds" not in call, "The model alone"
+
+
 def test_no_field_and_no_string_can_show_a_whole_saved_key(page, strings):
     """The summary lines have places for the ends of keys and nothing else,
     and no key field is filled from anything."""
@@ -209,6 +279,17 @@ def test_the_prose_says_what_the_new_controls_do(strings):
     guide = (ROOT / "docs" / "operating-guide.md").read_text(encoding="utf-8")
     assert "| POST | `/api/auth/keys/check` |" in guide and "409 `no_saved_keys`" in guide
     assert '"Check these keys" in the key form calls `POST /api/auth/keys/check`' in guide
+    # The model alone, changed without the keys; and the note about a model's kind is advice.
+    assert "| GET, PUT, PATCH, DELETE | `/api/auth/keys` |" in guide
+    for said in ('"Save model" beside it, which calls `PATCH /api/auth/keys`', "409 `keys_changed`",
+                 "a body that also carries a key or a\nprovider is refused whole", "advice and\nnever a refusal",
+                 "`MODEL_KINDS`"):
+        assert said in guide, said
+    kinds = re.findall(r'^  \["(\w+)", /', (JS / "byok_fields.js").read_text(encoding="utf-8"), re.M)
+    named = guide[guide.index("not a\nmodel that can write an assessment"):][:200].lower()
+    for kind, word in zip(kinds, ("ocr", "reranking", "embedding", "speech", "image", "video", "translation", "moderation"),
+                          strict=True):
+        assert word in named, kind
 
 
 # ── An account with no keys ────────────────────────────────────────────────

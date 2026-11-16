@@ -44,6 +44,9 @@ def suggestion_rows(source: str) -> dict[str, list[str]]:
 
 @pytest.mark.parametrize("scenario", [
     "measured", "fill", "typed", "unmeasured", "switch", "language", "reset",
+    # A name that says it is another kind of model (an account on the live
+    # site had saved an OCR model, and its run failed after two minutes).
+    "kind_rules", "kind", "kind_saved", "kind_language",
 ])
 def test_the_model_guide_follows_the_provider_and_never_fills_the_field_itself(scenario):
     node = shutil.which("node")

@@ -821,6 +821,117 @@ const scenarios = {
         answered(1); await turn();
         assert.equal(f.get('#toasts').children.length, 0);
       }
+    } else if (kind.startsWith('model_')) {
+      // The saved keys' model, changed on its own: the keys are not typed
+      // again, and the page has none to send.
+      account(true);
+      if (kind === 'model_checked') f.run('authConfig = { enabled: true, key_check: true }');
+      // byok_fields.js listens for typing in this field and says when a name
+      // is another kind of model's; a saved name reaches it as an input event.
+      const announced = [];
+      f.run('globalThis.Event = function Event(type, init) { this.type = type; this.bubbles = init?.bubbles === true; }');
+      f.get('#byok-saved-model').dispatchEvent = (event) => { announced.push([event.type, event.bubbles, f.get('#byok-saved-model').value]); };
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      await turn(); f.respond(0, summary); await turn();
+      const field = f.get('#byok-saved-model'), save = f.get('#byok-saved-model-save'), line = f.get('#byok-saved-check');
+      assert.deepEqual(announced, [['input', true, 'qwen3.8-27b']], 'The saved name is announced once, after the field holds it');
+      const type = (value) => { field.value = value; field.oninput(); };
+      assert.equal(field.value, 'qwen3.8-27b', 'The field starts with the model that is saved');
+      assert.equal(field.dataset.provider, 'qwen', 'The suggestions are the saved provider\'s');
+      assert.equal(save.disabled, true, 'Nothing to save until it differs');
+      assert.equal(f.get('#byok-llm-key').value, '', 'No key field is filled');
+      type('  '); assert.equal(save.disabled, true, 'An empty name is not a model');
+      type(' qwen3.8-27b '); assert.equal(save.disabled, true, 'The same name, with spaces, is no change');
+      await save.onclick();
+      assert.equal(f.requests.length, 1, 'Pressed all the same, it asks for nothing');
+      type(' qwen3.8-max ');
+      assert.equal(save.disabled, false);
+      line.hidden = false; line.textContent = 'what the last check said';
+      let prevented = 0;
+      const pressing = kind === 'model_enter'
+        ? (field.onkeydown({ key: 'a', preventDefault() { prevented += 1; } }),
+           field.onkeydown({ key: 'Enter', preventDefault() { prevented += 1; } }))
+        : save.onclick();
+      if (kind === 'model_enter') assert.equal(prevented, 1, 'Enter must not submit the form for new keys; other keys are typing');
+      await turn();
+      const sent = f.requests[1];
+      assert.equal(sent.url, '/api/auth/keys');
+      assert.equal(sent.options.method, 'PATCH');
+      assert.deepEqual(JSON.parse(sent.options.body), { llm_model: 'qwen3.8-max' }, 'The model alone, trimmed: no key, no provider');
+      assert.equal(save.disabled, true, 'Not twice while it is being changed');
+      assert.equal(line.hidden, true, 'What a check said was about the model before');
+      await save.onclick();
+      assert.equal(f.requests.length, 2);
+      const changed = { ...summary, llm_model: 'qwen3.8-max', saved_at: '2026-11-16T09:00:00Z' };
+      translations.byok_saved_summary = '{date} / {provider} / {model}';
+      translations.byok_saved_model_changed = 'changed to {model}';
+      const toasts = () => f.get('#toasts').children.map((node) => node.textContent);
+      if (kind === 'model_ok' || kind === 'model_enter') {
+        f.respond(1, changed); await pressing; await turn();
+        assert.equal(f.get('#byok-saved-text').textContent, '16 Nov 2026 / qwen / qwen3.8-max');
+        assert.equal(field.value, 'qwen3.8-max', 'The field holds what is saved now');
+        assert.deepEqual(announced.at(-1), ['input', true, 'qwen3.8-max'], 'And the note is told of the new name');
+        assert.equal(save.disabled, true, 'Saved: nothing left to save');
+        assert.deepEqual(toasts(), ['changed to qwen3.8-max']);
+        assert.equal(f.requests.length, 2, 'A deployment that checks no keys asks nobody about the new model');
+        assert.equal(line.hidden, true);
+        assert.equal(f.run('accountKeysSaved'), true);
+        // And back again: the saved name is what a change is measured against.
+        type('qwen3.8-27b');
+        assert.equal(save.disabled, false);
+      } else if (kind === 'model_checked') {
+        f.respond(1, changed); await turn();
+        assert.equal(f.requests[2].url, '/api/auth/keys/check', 'Where keys are checked, the provider is asked about the set as it now is');
+        assert.equal(f.requests[2].options.method, 'POST');
+        translations.byok_saved_check_problem = '{time}:';
+        f.respond(2, { checked: true, llm: 'accepted', model: 'not_listed', search: 'accepted' }); await pressing;
+        assert.equal(line.hidden, false);
+        assert.match(line.textContent, /^\d\d:\d\d:\nbyok_model_not_listed\nbyok_saved_check_next$/);
+        assert.deepEqual(toasts(), ['changed to qwen3.8-max'], 'Changed all the same: the check advises');
+        assert.equal(field.value, 'qwen3.8-max');
+      } else if (kind === 'model_invalid') {
+        f.respond(1, { detail: [{ loc: ['body', 'llm_model'], msg: 'x', type: 'value_error' }] }, 422); await pressing;
+        assert.deepEqual([line.hidden, line.textContent], [false, 'byok_saved_model_invalid']);
+        assert.equal(field.value, ' qwen3.8-max ', 'What was typed stays, to be corrected');
+        assert.equal(save.disabled, false);
+        assert.equal(f.get('#byok-saved-text').textContent.includes('qwen3.8-max'), false, 'Nothing is shown as saved that was not');
+        assert.deepEqual(toasts(), []);
+      } else if (kind === 'model_empty') {
+        // A reply that does not say the set is saved is not a change to announce.
+        f.respond(1, { saved: false }); await pressing;
+        assert.deepEqual([line.hidden, line.textContent], [false, 'byok_saved_model_failed']);
+        assert.deepEqual(toasts(), []);
+        assert.equal(f.get('#byok-saved-text').textContent.includes('qwen3.8-max'), false);
+        assert.equal(save.disabled, false);
+      } else if (kind === 'model_failed') {
+        f.respond(1, { detail: 'fixture' }, 500); await pressing;
+        assert.deepEqual([line.hidden, line.textContent], [false, 'byok_saved_model_failed']);
+        assert.equal(save.disabled, false, 'It can be tried again');
+        assert.deepEqual(toasts(), []);
+      } else if (kind === 'model_unreachable') {
+        f.requests[1].reject(new TypeError('Failed to fetch')); await pressing;
+        assert.deepEqual([line.hidden, line.textContent], [false, 'msg_network']);
+        assert.equal(save.disabled, false);
+      } else if (kind === 'model_gone') {
+        // Removed on another device since the form opened.
+        f.respond(1, { detail: 'No keys are saved with this account.' }, 409, 'no_saved_keys'); await pressing;
+        assert.equal(f.get('#byok-saved').hidden, true);
+        assert.equal(f.run('accountKeysSaved'), false);
+        assert.equal(f.get('#keys-needed').hidden, false, 'The composer says keys are needed');
+        assert.deepEqual(toasts(), []);
+      } else {
+        assert.equal(kind, 'model_conflict');
+        // Replaced on another device while this was changing: what is there now is shown, and said.
+        f.respond(1, { detail: 'replaced' }, 409, 'keys_changed'); await turn();
+        assert.equal(f.requests[2].url, '/api/auth/keys');
+        assert.equal(f.requests[2].options?.method ?? 'GET', 'GET', 'It reads what is saved now');
+        f.respond(2, { ...summary, llm_provider: 'deepseek', llm_model: 'deepseek-chat' }); await pressing;
+        assert.equal(f.get('#byok-saved-text').textContent, '15 Nov 2026 / deepseek / deepseek-chat');
+        assert.equal(field.value, 'deepseek-chat');
+        assert.deepEqual([line.hidden, line.textContent], [false, 'byok_saved_model_conflict']);
+        assert.deepEqual(toasts(), []);
+      }
+      f.get('#byok-skip').onclick(); await gate;
     } else if (kind.startsWith('check_')) {
       // "Check these keys": the page has only the ends of the saved keys, so
       // the server asks the providers and the page says what they said, and when.

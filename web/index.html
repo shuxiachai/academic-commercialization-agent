@@ -706,6 +706,21 @@
            model and the last four characters of each. -->
       <div class="gate__saved" id="byok-saved" hidden>
         <p class="gate__hint" id="byok-saved-text"></p>
+        <!-- The model the saved keys are used with, changeable on its own
+             (PATCH /api/auth/keys). A model is wrong far more often than a
+             key, and changing it used to mean typing both keys again. The
+             field holds a model name, never a key; the page has no key to
+             put there. byok_fields.js says under it when the name is not a
+             model that can write an assessment. -->
+        <div class="gate__saved-model">
+          <input class="gate__input" id="byok-saved-model" type="text" autocomplete="off" spellcheck="false"
+                 maxlength="100" list="byok-saved-model-options"
+                 aria-label="Model used with the saved keys" data-i18n-aria-label="aria_saved_model"
+                 aria-describedby="byok-saved-model-kind">
+          <datalist id="byok-saved-model-options"></datalist>
+          <button type="button" class="btn btn--secondary" id="byok-saved-model-save" data-i18n="byok_saved_model_save" disabled>Save model</button>
+        </div>
+        <p class="gate__hint gate__kind" id="byok-saved-model-kind" role="status" hidden></p>
         <!-- What the providers said when asked just now ("Check these
              keys"): the page never has the saved keys again, so the server
              asks on the account's behalf (POST /api/auth/keys/check). -->
@@ -744,6 +759,10 @@
       <!-- Suggestions only, filled per provider by byok_fields.js; the field
            stays empty and required until the visitor picks or types one. -->
       <datalist id="byok-model-options"></datalist>
+      <!-- Said when the name typed is, by its own words, not a model that
+           can write an assessment (an OCR, embedding or speech model, say).
+           Advice only: the name can still be saved. -->
+      <p class="gate__hint gate__kind" id="byok-model-kind" role="status" hidden></p>
       <!-- Which models this project measured for the selected provider, each
            with its result, as buttons that put the name in the field above.
            Painted by byok_fields.js; a press is the visitor's choice, so the

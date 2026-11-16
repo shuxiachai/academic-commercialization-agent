@@ -191,5 +191,102 @@ if (scenario === "measured") {
   await settle();
   expectChips(plain("deepseek"));
   assert.deepEqual(pressed(), []);
+} else if (scenario === "kind_rules") {
+  // The rule itself. Names that say what they are, each with the kind it says...
+  await start("qwen");
+  const { modelKind, MODEL_EXAMPLES, MODEL_KINDS } = await import(pathToFileURL(path.join(dir, "byok_fields.js")).href);
+  const says = {
+    ocr: ["qwen-vl-ocr-2025-11-20", "qwen-vl-ocr", "QWEN-VL-OCR-latest", "got-ocr2", "paddleocr-v4", "ocr-pro"],
+    embedding: ["text-embedding-v3", "text-embedding-3-large", "bge-m3", "multimodal-embedding-v1"],
+    rerank: ["gte-rerank", "bge-reranker-v2"],
+    speech: ["whisper-1", "tts-1", "gpt-4o-audio-preview", "gpt-4o-realtime-preview", "paraformer-v2", "cosyvoice-v1",
+      "sensevoice-v1", "qwen3-asr-flash", "qwen-tts"],
+    image: ["dall-e-3", "gpt-image-1", "qwen-image", "wanx2.1-t2i-turbo", "flux-schnell", "stable-diffusion-3.5-large"],
+    video: ["wan2.2-t2v-plus", "sora-2", "veo-3", "video-01"],
+    translation: ["qwen-mt-turbo", "qwen-mt-plus"],
+    moderation: ["omni-moderation-latest", "llama-guard-3-8b"],
+  };
+  assert.deepEqual(Object.keys(says).sort(), MODEL_KINDS.map(([kind]) => kind).sort(), "Every rule has names here that it must catch");
+  for (const [kind, names] of Object.entries(says)) {
+    for (const name of names) assert.equal(modelKind(name), kind, name);
+  }
+  assert.equal(modelKind("  qwen-vl-ocr  "), "ocr", "As typed, spaces and all");
+  // ...and names that do not. Every model this page offers or has measured, first.
+  const offered = [...Object.values(suggestions).flat(), ...Object.values(measured).flat().map((row) => row.model),
+    ...Object.values(MODEL_EXAMPLES)];
+  assert(offered.length >= 10);
+  for (const name of offered) assert.equal(modelKind(name), null, `${name} is offered by this page`);
+  // General chat models, vision ones included, and names with a rule's letters inside an ordinary word.
+  for (const name of ["gpt-4o", "gpt-4o-mini", "gpt-4o-2024-08-06", "o3", "o4-mini", "claude-sonnet-5-5", "claude-opus-5-5",
+    "deepseek-chat", "deepseek-reasoner", "deepseek-v4-pro-0813", "qwen-plus", "qwen-max-latest", "qwen-vl-max", "qwen3-vl-plus",
+    "qwen3-coder-plus", "glm-5.3", "kimi-k2", "moonshot-v1-128k", "MiniMax-M2", "llama-4-70b-instruct", "mistral-large",
+    "gemini-2.5-pro", "doubao-pro-256k", "ernie-4.5-turbo", "my-own-deployment", "team-proxy:gpt-4o", "mediocre-1", "smt-large",
+    "imagine-1", "pilgrimage-2", "vanguard-7", "wand-2", "nova-pro", "sonar-pro", "embark"]) {
+    if (name === "embark") continue;        // "embed" is not in it; kept as a reminder that "emb" alone is not a rule
+    assert.equal(modelKind(name), null, name);
+  }
+  for (const empty of ["", "   ", null, undefined]) assert.equal(modelKind(empty), null);
+} else if (scenario === "kind") {
+  // Under the model field of the form: said while the name is typed, gone when it is not that kind.
+  await start("qwen");
+  const said = el("byok-model-kind");
+  assert.equal(said.hidden, true, "Nothing is said about an empty field");
+  await type("qwen-vl-ocr-2025-11-20");
+  assert.equal(said.hidden, false);
+  assert.equal(said.textContent, "\u201cqwen-vl-ocr-2025-11-20\u201d looks like an OCR (text recognition) model. An assessment needs a " +
+    "general chat model that can write long text; this one will most likely fail after using tokens. It can still be saved.");
+  assert.equal(field.value, "qwen-vl-ocr-2025-11-20", "Advice only: the name is left as typed");
+  await type(" text-embedding-v3 ");
+  assert.match(said.textContent, /^\u201ctext-embedding-v3\u201d looks like an embedding model\./);
+  await type("qwen3.8-max");
+  assert.deepEqual([said.hidden, said.textContent], [true, ""]);
+  // A chip is a model this page offers: pressing one clears the advice about what was typed.
+  await type("whisper-1");
+  assert.equal(said.hidden, false);
+  chips()[0].fire("click");
+  await settle();
+  assert.equal(said.hidden, true);
+  // The gate's reset empties the field without an input event.
+  await type("tts-1");
+  field.value = "";
+  el("byok-form").fire("reset");
+  await settle();
+  assert.equal(said.hidden, true);
+} else if (scenario === "kind_saved") {
+  // The model of the saved keys: app.js fills the field and announces it as typing.
+  await start("deepseek");
+  const saved = el("byok-saved-model"), said = el("byok-saved-model-kind");
+  const options = () => el("byok-saved-model-options").children.map((option) => option.value);
+  assert.equal(said.hidden, true);
+  saved.value = "qwen-vl-ocr-2025-11-20";
+  saved.dataset.provider = "qwen";
+  saved.fire("input");
+  await settle();
+  assert.equal(said.hidden, false);
+  assert.match(said.textContent, /^\u201cqwen-vl-ocr-2025-11-20\u201d looks like an OCR \(text recognition\) model\./);
+  // The suggestions are the saved provider's, not those of the provider the form below happens to show.
+  const extra = suggestions.qwen.filter((name) => !qwen.some((row) => row.model === name));
+  assert.deepEqual(options(), [...qwen.map((row) => row.model), ...extra]);
+  assert.equal(el("byok-model-kind").hidden, true, "The form's own field has nothing in it to speak of");
+  saved.value = qwen[0].model;
+  saved.fire("input");
+  await settle();
+  assert.deepEqual([said.hidden, said.textContent], [true, ""]);
+  // Typing in the form's field does not disturb what is said about the saved one, and the reverse.
+  saved.value = "bge-m3"; saved.fire("input"); await settle();
+  await type("whisper-1");
+  assert.match(said.textContent, /embedding model/);
+  assert.match(el("byok-model-kind").textContent, /speech or audio model/);
+} else if (scenario === "kind_language") {
+  await start("qwen");
+  const said = el("byok-model-kind"), saved = el("byok-saved-model");
+  await type("qwen-vl-ocr");
+  saved.value = "qwen-mt-turbo"; saved.fire("input"); await settle();
+  await language("Simplified Chinese");
+  assert.equal(said.textContent, "\u201cqwen-vl-ocr\u201d看起来是文字识别（OCR）模型。评估需要能写长文本的通用对话模型，这个模型很可能在消耗 token 之后失败。仍然可以保存。");
+  assert.match(el("byok-saved-model-kind").textContent, /^\u201cqwen-mt-turbo\u201d看起来是翻译专用模型。/);
+  assert.equal(field.value, "qwen-vl-ocr");
+  await language("English");
+  assert.match(said.textContent, /looks like an OCR/);
 } else throw Error(`Unknown scenario ${scenario}`);
 console.log(`PASS ${scenario}`);

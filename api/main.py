@@ -105,6 +105,7 @@ from api.models import (  # noqa: E402
     ResumeRunRequest,
     RetrievalHealth,
     SavedKeys,
+    SavedModelChange,
     RunAccepted,
     RunList,
     RunProgress,
@@ -1237,6 +1238,37 @@ async def auth_save_keys(http_request: Request, response: Response) -> SavedKeys
     return _saved_keys_view(user)
 
 
+@app.patch("/api/auth/keys", response_model=SavedKeys, response_model_exclude_none=True, tags=["accounts"],
+           responses={404: {"description": "Not signed in with an account"},
+                      409: {"description": "No keys are saved with this account, or they were replaced meanwhile"},
+                      413: {"description": "Body larger than any model name"},
+                      422: {"description": "Not a plain model name, or a body with anything else in it"}},
+           openapi_extra={"requestBody": {"required": True, "content": {
+               "application/json": {"schema": SavedModelChange.model_json_schema()}}}})
+async def auth_change_saved_model(http_request: Request, response: Response) -> SavedKeys:
+    """Use the keys saved with the account with another model, without sending them again.
+
+    A model is wrong far more often than a key is, and until 2026-11-16
+    correcting one meant typing both keys again. The body is the model
+    alone; anything else in it is refused, so a key is never thought
+    changed by a request that kept the old one. Not checked with the
+    provider here: the page asks POST /api/auth/keys/check afterwards.
+    """
+    user = _signed_in_account(http_request)
+    change = await _unquoted_body(http_request, SavedModelChange, "Body must be a JSON object with llm_model.")
+    try:
+        keys = await asyncio.to_thread(account_keys.change_model, user, change.llm_model)
+    except account_keys.KeysChanged:
+        raise HTTPException(status_code=409, detail="The saved keys were replaced while this was changing. "
+                                                    "Look at what is saved now and try again.",
+                            headers={"X-Error-Code": "keys_changed"}) from None
+    if keys is None:
+        raise HTTPException(status_code=409, detail="No keys are saved with this account.",
+                            headers={"X-Error-Code": "no_saved_keys"})
+    response.headers["Cache-Control"] = "no-store"
+    return _saved_keys_view(user)
+
+
 @app.delete("/api/auth/keys", status_code=204, tags=["accounts"],
             responses={404: {"description": "Not signed in with an account"}})
 def auth_remove_keys(http_request: Request) -> Response:
@@ -1506,12 +1538,18 @@ _KEY_CHECK_BODY_BYTES = 8_000
 
 
 async def _key_check_body(http_request: Request) -> KeyCheckRequest:
+    """One complete key set, read as `_unquoted_body` reads it."""
+    return await _unquoted_body(http_request, KeyCheckRequest, "Body must be a JSON object of keys.")
+
+
+async def _unquoted_body(http_request: Request, shape, not_an_object: str):
     """Read and validate the body here rather than in the handler's signature.
 
     The framework's own refusal of a malformed body quotes the body back,
-    and this body is nothing but keys. A refusal from here names the field
-    and the rule, never the value. The size is bounded for the same reason
-    the keys are: nothing that fits the model is larger than this.
+    and these bodies are keys, or are sent where a key might be pasted by
+    mistake. A refusal from here names the field and the rule, never the
+    value. The size is bounded for the same reason the keys are: nothing
+    that fits the model is larger than this.
     """
     raw = bytearray()
     async for chunk in http_request.stream():
@@ -1519,14 +1557,14 @@ async def _key_check_body(http_request: Request) -> KeyCheckRequest:
         if len(raw) > _KEY_CHECK_BODY_BYTES:
             raise HTTPException(status_code=413, detail="Key check body is too large.")
     try:
-        return KeyCheckRequest.model_validate(json.loads(raw))
+        return shape.model_validate(json.loads(raw))
     except ValidationError as exc:
         problems = exc.errors(include_input=False, include_context=False, include_url=False)
         raise HTTPException(status_code=422, detail=[
             {"loc": ["body", *problem["loc"]], "msg": problem["msg"], "type": problem["type"]}
             for problem in problems]) from None
     except ValueError:
-        raise HTTPException(status_code=422, detail="Body must be a JSON object of keys.") from None
+        raise HTTPException(status_code=422, detail=not_an_object) from None
 
 
 @app.post("/api/keys/check", response_model=KeyCheckResult, tags=["accounts"],

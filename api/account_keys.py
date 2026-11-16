@@ -118,6 +118,17 @@ def _secret() -> bytes:
         return made
 
 
+class KeysChanged(Exception):
+    """The saved set was replaced, more than once, while its model was being changed."""
+
+
+def _seal(keys: Keys) -> str:
+    plain = json.dumps({"provider": keys.provider, "model": keys.model, "llm_api_key": keys.llm_api_key,
+                        "search": keys.search, "search_api_key": keys.search_api_key,
+                        "nonce": secrets.token_hex(8)}).encode("utf-8")
+    return Fernet(_secret()).encrypt(plain).decode("ascii")
+
+
 def save(user: accounts.User, *, provider: str, model: str, llm_api_key: str, search: str, search_api_key: str,
          now: float | None = None) -> Keys:
     """Seal and keep `user`'s keys, replacing any saved before."""
@@ -126,9 +137,7 @@ def save(user: accounts.User, *, provider: str, model: str, llm_api_key: str, se
     stamp = int(time.time() if now is None else now)
     keys = Keys(provider=provider, model=model, llm_api_key=llm_api_key, search=search,
                 search_api_key=search_api_key, updated_at=stamp)
-    plain = json.dumps({"provider": provider, "model": model, "llm_api_key": llm_api_key, "search": search,
-                        "search_api_key": search_api_key, "nonce": secrets.token_hex(8)}).encode("utf-8")
-    sealed = Fernet(_secret()).encrypt(plain).decode("ascii")
+    sealed = _seal(keys)
     with accounts._database() as db, db:
         db.execute("INSERT INTO account_keys (user_id, sealed, updated_at) VALUES (?, ?, ?) "
                    "ON CONFLICT(user_id) DO UPDATE SET sealed = excluded.sealed, updated_at = excluded.updated_at",
@@ -136,10 +145,19 @@ def save(user: accounts.User, *, provider: str, model: str, llm_api_key: str, se
     return keys
 
 
+def _sealed(db, user: accounts.User):
+    """`user`'s row as stored: the sealed record and when it was written."""
+    return db.execute("SELECT sealed, updated_at FROM account_keys WHERE user_id = ?", (user.id,)).fetchone()
+
+
 def load(user: accounts.User) -> Keys | None:
     """`user`'s saved keys, or None: none saved, or a row that cannot be opened."""
     with accounts._database() as db:
-        row = db.execute("SELECT sealed, updated_at FROM account_keys WHERE user_id = ?", (user.id,)).fetchone()
+        row = _sealed(db, user)
+    return _opened(user, row)
+
+
+def _opened(user: accounts.User, row) -> Keys | None:
     if row is None:
         return None
     try:
@@ -159,6 +177,34 @@ def load(user: accounts.User) -> Keys | None:
 def saved(user: accounts.User) -> bool:
     """Whether `user` has keys this deployment can use."""
     return load(user) is not None
+
+
+def change_model(user: accounts.User, model: str, *, now: float | None = None) -> Keys | None:
+    """Keep `user`'s saved keys and use them with `model`. None when nothing usable is saved.
+
+    The record is one sealed text, so changing a part of it means opening
+    it and writing it back. A whole new set saved between the two (another
+    device, another tab) must win: writing back would put the old keys over
+    the new. So the write goes through only if the row still holds the text
+    that was read, and otherwise the new row is read and the model set on
+    that. Twice replaced in the time of one change is not a race worth a
+    third try; the caller is told the keys changed.
+    """
+    for _attempt in range(2):
+        with accounts._database() as db:
+            row = _sealed(db, user)
+        keys = _opened(user, row)
+        if keys is None:
+            return None
+        stamp = int(time.time() if now is None else now)
+        changed = Keys(provider=keys.provider, model=model, llm_api_key=keys.llm_api_key, search=keys.search,
+                       search_api_key=keys.search_api_key, updated_at=stamp)
+        with accounts._database() as db, db:
+            written = db.execute("UPDATE account_keys SET sealed = ?, updated_at = ? WHERE user_id = ? AND sealed = ?",
+                                 (_seal(changed), stamp, user.id, row["sealed"])).rowcount
+        if written:
+            return changed
+    raise KeysChanged
 
 
 def remove(user: accounts.User) -> bool:
